@@ -4,6 +4,11 @@ import {
   type MembershipPlan,
 } from "@repo/shared/utils/membership-plans";
 import {
+  onePerDuration,
+  selectOffers,
+} from "@repo/shared/utils/membership-seasons";
+import {
+  type MembershipInfo,
   type MembershipStatus,
   osloToday,
   pickCurrentMembership,
@@ -56,16 +61,54 @@ export function toCurrentMembershipView(
   };
 }
 
+/**
+ * The latest expiry among active and not-yet-started memberships, so a
+ * student who already bought next season isn't offered it again.
+ */
+export function heldThrough(status: MembershipStatus | null): string | null {
+  if (!status) {
+    return null;
+  }
+  const held = [
+    ...(status.isMember ? status.memberships : []),
+    ...(status.upcomingMemberships ?? []),
+  ];
+  return (
+    held
+      .map((membership) => membership.expiryDate)
+      .sort()
+      .at(-1) ?? null
+  );
+}
+
+/** A bought-but-not-started membership, shown to someone not yet a member. */
+export function upcomingMembership(
+  status: MembershipStatus | null
+): MembershipInfo | null {
+  if (!status || status.isMember) {
+    return null;
+  }
+  return status.upcomingMemberships?.[0] ?? null;
+}
+
+/**
+ * What the portal offers to buy: the same per-duration selection as the join
+ * page's gate (`selectOffers`), from catalog candidates. `heldThrough` is the
+ * latest expiry among active and not-yet-started memberships.
+ */
 export function upgradePlans(
-  plans: MembershipPlan[],
-  current: CurrentMembershipView | null
+  candidates: MembershipPlan[],
+  heldThrough: string | null,
+  now: Date = new Date()
 ): PlanView[] {
-  return plans
-    .filter((plan) => !current || plan.expiryDate > current.expiryDate)
-    .map(({ duration, expiryDate, id, price }) => ({
+  // One card per duration: the portal labels plans by duration only; the
+  // join wizard offers the this/next season choice.
+  return onePerDuration(selectOffers(candidates, { heldThrough, now })).map(
+    ({ duration, expiryDate, id, price }) => ({
       duration,
       expiryDate,
       id,
       price,
-    }));
+    })
+  );
 }

@@ -10,8 +10,19 @@ const semester: MembershipPlan = {
   categoryId: 113_176,
   duration: "semester",
   accrualMonths: 6,
-  startDate: "2026-08-01",
+  offer: "current",
+  startDate: "2026-07-01",
   expiryDate: "2026-12-31",
+};
+const semesterNext: MembershipPlan = {
+  ...semester,
+  id: "55",
+  name: "BISO Membership spring 2027",
+  productId: 55,
+  categoryId: 113_179,
+  offer: "next",
+  startDate: "2027-01-01",
+  expiryDate: "2027-06-30",
 };
 const threeYears: MembershipPlan = {
   ...semester,
@@ -32,6 +43,8 @@ function input(overrides: Record<string, unknown> = {}) {
     employeeId: "9001234",
     status: { isMember: false, memberships: [] },
     plans,
+    // Outside the last month of a season, so only "current" plans are offered.
+    now: new Date("2026-09-29T12:00:00Z"),
     ...overrides,
   };
 }
@@ -74,6 +87,47 @@ describe("resolveMembershipGate", () => {
     expect(gate.state).toBe("eligible");
     expect(gate.currentExpiry).toBe("2026-12-31");
     expect(gate.offeredPlans).toEqual([threeYears]);
+  });
+
+  it("does not sell a plan the student already holds for next season, and counts it as held", () => {
+    const gate = resolveMembershipGate(
+      input({
+        now: new Date("2026-12-13T12:00:00Z"),
+        plans: [semester, semesterNext],
+        status: {
+          isMember: false,
+          memberships: [],
+          upcomingMemberships: [{ expiryDate: "2027-06-30" }],
+        },
+      })
+    );
+    expect(gate.offeredPlans).toEqual([]);
+    expect(gate.state).toBe("already_member");
+    expect(gate.currentExpiry).toBe("2027-06-30");
+  });
+
+  it("renews a fall member with next semester in October", () => {
+    const gate = resolveMembershipGate(
+      input({
+        now: new Date("2026-10-15T12:00:00Z"),
+        plans: [semester, semesterNext],
+        status: {
+          isMember: true,
+          memberships: [{ expiryDate: "2026-12-31" }],
+        },
+      })
+    );
+    expect(gate.offeredPlans).toEqual([semesterNext]);
+  });
+
+  it("offers this and next semester to a non-member in December", () => {
+    const gate = resolveMembershipGate(
+      input({
+        now: new Date("2026-12-10T12:00:00Z"),
+        plans: [semester, semesterNext],
+      })
+    );
+    expect(gate.offeredPlans).toEqual([semester, semesterNext]);
   });
 
   it("reports already_member when no plan would extend cover", () => {

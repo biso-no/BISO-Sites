@@ -1,6 +1,6 @@
 import type { Users } from "@repo/api/types/appwrite";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
-import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
+import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
 import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import type { Metadata } from "next";
@@ -8,6 +8,7 @@ import { getTranslations } from "next-intl/server";
 import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
+import { upcomingMembership } from "@/lib/member-portal-membership";
 import {
   AlreadyMemberState,
   MembershipCheckUnavailableState,
@@ -65,7 +66,7 @@ export default async function MembershipJoinPage({
   const [userData, status, plans, flags, t] = await Promise.all([
     getLoggedInUser(),
     getMembershipStatus(),
-    getPurchasableMembershipPlans(),
+    getMembershipOfferCandidates(),
     getFeatureFlagStates(),
     getTranslations("membership.join"),
   ]);
@@ -102,7 +103,12 @@ export default async function MembershipJoinPage({
   } else if (gate.state === "membership_check_unavailable") {
     body = <MembershipCheckUnavailableState />;
   } else if (gate.state === "already_member") {
-    body = <AlreadyMemberState expiry={gate.currentExpiry} />;
+    body = (
+      <AlreadyMemberState
+        expiry={gate.currentExpiry}
+        startsOn={upcomingMembership(status)?.startDate ?? null}
+      />
+    );
   } else if (gate.state === "no_plans_available") {
     body = <NoPlansAvailableState />;
   } else {

@@ -12,7 +12,7 @@ import {
   UserSearch,
 } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import type { ComponentType } from "react";
 import { useState, useTransition } from "react";
 import { startBiAccountLink } from "@/lib/account-link-client";
@@ -125,11 +125,43 @@ export function NeedsDirectoryRecordState({
   );
 }
 
-export function AlreadyMemberState({ expiry }: { expiry: string | null }) {
+/**
+ * Nothing left to buy. `startsOn` is set when the student is not a member yet
+ * but has bought a plan that starts later (next season): say when it starts
+ * rather than "you're already a member".
+ */
+export function AlreadyMemberState({
+  expiry,
+  startsOn = null,
+}: {
+  expiry: string | null;
+  startsOn?: string | null;
+}) {
   const t = useTranslations("membership.join.alreadyMember");
+  const format = useFormatter();
+  const date = (value: string) =>
+    format.dateTime(new Date(`${value}T12:00:00Z`), {
+      dateStyle: "long",
+      timeZone: "Europe/Oslo",
+    });
+  if (startsOn && expiry) {
+    return (
+      <StateCard
+        body={t("upcomingBody", { end: date(expiry), start: date(startsOn) })}
+        icon={CheckCircle2}
+        title={t("upcomingTitle")}
+      >
+        <Button asChild>
+          <Link href="/member">{t("cta")}</Link>
+        </Button>
+      </StateCard>
+    );
+  }
   return (
     <StateCard
-      body={expiry ? t("body", { expiry }) : t("bodyUnknownExpiry")}
+      body={
+        expiry ? t("body", { expiry: date(expiry) }) : t("bodyUnknownExpiry")
+      }
       icon={CheckCircle2}
       title={t("title")}
     >

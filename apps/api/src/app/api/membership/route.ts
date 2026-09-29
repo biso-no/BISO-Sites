@@ -2,7 +2,7 @@ import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
-import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
+import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
 import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
 import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
 import {
@@ -59,12 +59,16 @@ function overviewBody(
       expiryDate: plan.expiryDate,
       id: plan.id,
       name: plan.name,
+      // "next" = starts next season; offered in June/December or as a renewal.
+      offer: plan.offer ?? "current",
       price: plan.price,
       startDate: plan.startDate,
     })),
     reason: status.reason ?? null,
     state,
     studentId,
+    // Bought for a season that has not started: grants nothing until then.
+    upcomingMemberships: status.upcomingMemberships ?? [],
   };
 }
 
@@ -139,7 +143,7 @@ export async function GET(req: NextRequest) {
     const refresh = new URL(req.url).searchParams.get("refresh") === "1";
     const [status, plans] = await Promise.all([
       getMembershipStatusForStudent(studentNumber, { refresh }),
-      getPurchasableMembershipPlans().catch((error: unknown) => {
+      getMembershipOfferCandidates().catch((error: unknown) => {
         console.error("[membership] Catalog read failed:", error);
         return null;
       }),

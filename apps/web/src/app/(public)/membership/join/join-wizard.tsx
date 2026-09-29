@@ -3,6 +3,7 @@
 import { trackEvent } from "@repo/shared/utils/analytics";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
 import {
+  type MembershipDuration,
   type MembershipPlan,
   membershipPriceFormatter,
   POPULAR_MEMBERSHIP_DURATION,
@@ -13,12 +14,17 @@ import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
 import { cn } from "@repo/ui/lib/utils";
 import { CreditCard, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { startMembershipCheckout } from "@/app/actions/membership-purchase";
 import { MembershipPlanCard } from "@/components/membership/plan-card";
 import { StepCard } from "@/components/shared/step-card";
 import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
+import {
+  cardPlan,
+  groupOffersByDuration,
+  type MembershipOfferGroup,
+} from "@/lib/membership-offer-groups";
 
 // National is not a study campus, so it is excluded from the invoice name
 // catalog before it ever reaches the campus picker.
@@ -38,47 +44,112 @@ const campusOptions = Object.entries(CAMPUS_INVOICE_NAMES).filter(
 
 function PlanStep({
   currentExpiry,
-  planId,
-  plans,
-  setPlanId,
+  duration,
+  groups,
+  selectDuration,
+  useNext,
 }: {
   currentExpiry: string | null;
-  planId: string | undefined;
-  plans: MembershipPlan[];
-  setPlanId: (value: string) => void;
+  duration: MembershipDuration | undefined;
+  groups: MembershipOfferGroup[];
+  selectDuration: (value: MembershipDuration) => void;
+  useNext: boolean;
 }) {
   const t = useTranslations("membership.join.plan");
+  const format = useFormatter();
   return (
     <RadioGroup
       className="grid gap-4 sm:grid-cols-3"
-      onValueChange={setPlanId}
-      value={planId}
+      onValueChange={(value) => selectDuration(value as MembershipDuration)}
+      value={duration}
     >
-      {plans.map((plan) => (
-        <Label
-          className="block cursor-pointer"
-          htmlFor={`plan-${plan.id}`}
-          key={plan.id}
-        >
-          <MembershipPlanCard
-            footer={
-              currentExpiry ? (
-                <p className="text-muted-foreground text-xs">
-                  {t("extends", { expiry: plan.expiryDate })}
-                </p>
-              ) : null
-            }
-            name={t(plan.duration)}
-            popular={plan.duration === POPULAR_MEMBERSHIP_DURATION}
-            popularLabel={t("popular")}
-            price={plan.price}
-            selected={planId === plan.id}
+      {groups.map((group) => {
+        const shown = cardPlan(group, duration, useNext);
+        if (!shown) {
+          return null;
+        }
+        return (
+          <Label
+            className="block cursor-pointer"
+            htmlFor={`plan-${group.duration}`}
+            key={group.duration}
           >
-            <RadioGroupItem id={`plan-${plan.id}`} value={plan.id} />
-          </MembershipPlanCard>
-        </Label>
-      ))}
+            <MembershipPlanCard
+              footer={
+                currentExpiry ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("extends", {
+                      expiry: format.dateTime(new Date(shown.expiryDate), {
+                        dateStyle: "long",
+                      }),
+                    })}
+                  </p>
+                ) : null
+              }
+              name={t(group.duration)}
+              popular={group.duration === POPULAR_MEMBERSHIP_DURATION}
+              popularLabel={t("popular")}
+              price={shown.price}
+              selected={duration === group.duration}
+            >
+              <RadioGroupItem
+                id={`plan-${group.duration}`}
+                value={group.duration}
+              />
+            </MembershipPlanCard>
+          </Label>
+        );
+      })}
     </RadioGroup>
+  );
+}
+
+/**
+ * Shown in the last month of a season (June/December) when the chosen
+ * duration has both this season's and next season's plan on offer.
+ */
+function SeasonChoice({
+  group,
+  setUseNext,
+  useNext,
+}: {
+  group: Required<MembershipOfferGroup>;
+  setUseNext: (value: boolean) => void;
+  useNext: boolean;
+}) {
+  const t = useTranslations("membership.join.plan");
+  const format = useFormatter();
+  const date = (value: string) =>
+    format.dateTime(new Date(value), { dateStyle: "long" });
+  return (
+    <div className="mt-6 space-y-3 rounded-2xl border p-4">
+      <p className="font-medium text-sm">
+        {t("endsSoon", { end: date(group.current.expiryDate) })}
+      </p>
+      <RadioGroup
+        className="grid gap-2"
+        onValueChange={(value) => setUseNext(value === "next")}
+        value={useNext ? "next" : "current"}
+      >
+        <Label
+          className="flex cursor-pointer items-center gap-2 text-sm"
+          htmlFor="offer-current"
+        >
+          <RadioGroupItem id="offer-current" value="current" />
+          {t("buyThisSeason", { end: date(group.current.expiryDate) })}
+        </Label>
+        <Label
+          className="flex cursor-pointer items-center gap-2 text-sm"
+          htmlFor="offer-next"
+        >
+          <RadioGroupItem id="offer-next" value="next" />
+          {t("buyNextSeason", {
+            end: date(group.next.expiryDate),
+            start: date(group.next.startDate),
+          })}
+        </Label>
+      </RadioGroup>
+    </div>
   );
 }
 
@@ -282,12 +353,30 @@ export function JoinWizard({
   const [pendingProvider, setPendingProvider] =
     useState<PaymentProvider | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [planId, setPlanId] = useState<string | undefined>(plans[0]?.id);
+  const groups = groupOffersByDuration(plans);
+  const [duration, setDuration] = useState<MembershipDuration | undefined>(
+    groups[0]?.duration
+  );
+  // "Start next semester instead" — only offered when a group has both plans.
+  const [useNext, setUseNext] = useState(false);
+  const selectDuration = (value: MembershipDuration) => {
+    setDuration(value);
+    setUseNext(false);
+  };
   const [campusId, setCampusId] = useState<string | undefined>(
     defaultCampusId ?? undefined
   );
 
-  const selectedPlan = plans.find((plan) => plan.id === planId);
+  const selectedGroup = groups.find((group) => group.duration === duration);
+  const selectedPlan =
+    useNext || !selectedGroup?.current
+      ? selectedGroup?.next
+      : selectedGroup.current;
+  const planId = selectedPlan?.id;
+  const seasonChoice =
+    selectedGroup?.current && selectedGroup.next
+      ? (selectedGroup as Required<MembershipOfferGroup>)
+      : null;
   const campusName = campusId ? CAMPUS_INVOICE_NAMES[campusId] : undefined;
   const vippsAsset =
     locale === "en" ? "/images/vipps_en.svg" : "/images/vipps.svg";
@@ -335,10 +424,18 @@ export function JoinWizard({
       <StepCard step={1} title={t("plan.legend")}>
         <PlanStep
           currentExpiry={currentExpiry}
-          planId={planId}
-          plans={plans}
-          setPlanId={setPlanId}
+          duration={duration}
+          groups={groups}
+          selectDuration={selectDuration}
+          useNext={useNext}
         />
+        {seasonChoice ? (
+          <SeasonChoice
+            group={seasonChoice}
+            setUseNext={setUseNext}
+            useNext={useNext}
+          />
+        ) : null}
       </StepCard>
 
       <StepCard step={2} title={t("campus.legend")}>

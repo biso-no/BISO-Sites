@@ -11,6 +11,9 @@ import { normalizeMembershipDate } from "./membership-dates";
 
 export type MembershipDuration = "semester" | "year" | "three_years";
 
+/** Whether a purchasable plan starts this season or next (see membership-seasons). */
+export type MembershipOffer = "current" | "next";
+
 /** The duration surfaced as "Popular" everywhere a plan picker renders one. */
 export const POPULAR_MEMBERSHIP_DURATION: MembershipDuration = "year";
 
@@ -30,6 +33,8 @@ export interface MembershipPlan {
   expiryDate: string;
   id: string;
   name: string;
+  /** Set on catalog candidates; see `membership-seasons`. */
+  offer?: MembershipOffer;
   price: number;
   productId: number;
   startDate: string;

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  heldThrough,
   toCurrentMembershipView,
+  upcomingMembership,
   upgradePlans,
 } from "./member-portal-membership";
 
@@ -22,7 +24,8 @@ const semester = {
 const plan = (
   id: string,
   duration: "semester" | "year" | "three_years",
-  expiryDate: string
+  expiryDate: string,
+  offer: "current" | "next" = "current"
 ) => ({
   accrualMonths: 6 as const,
   categoryId: 1,
@@ -30,9 +33,10 @@ const plan = (
   expiryDate,
   id,
   name: id,
+  offer,
   price: 100,
   productId: 1,
-  startDate: "2026-07-01",
+  startDate: offer === "current" ? "2026-07-01" : "2027-01-01",
 });
 
 describe("toCurrentMembershipView", () => {
@@ -61,19 +65,71 @@ describe("toCurrentMembershipView", () => {
 describe("upgradePlans", () => {
   const plans = [
     plan("54", "semester", "2026-12-31"),
-    plan("71", "year", "2027-07-01"),
-    plan("82", "three_years", "2029-07-01"),
+    plan("55", "semester", "2027-06-30", "next"),
+    plan("71", "year", "2027-06-30"),
+    plan("82", "three_years", "2029-06-30"),
   ];
+  const october = new Date("2026-10-15T12:00:00Z");
 
-  it("offers only plans that run past the current membership", () => {
-    const current = toCurrentMembershipView(
-      { ...base, memberships: [semester] },
-      new Date("2026-09-17T10:00:00Z")
+  it("offers a fall-semester member next semester and the longer plans", () => {
+    expect(upgradePlans(plans, "2026-12-31", october).map((p) => p.id)).toEqual(
+      ["55", "71", "82"]
     );
-    expect(upgradePlans(plans, current).map((p) => p.id)).toEqual(["71", "82"]);
   });
 
-  it("offers every plan to non-members", () => {
-    expect(upgradePlans(plans, null)).toHaveLength(3);
+  it("shows one card per duration in December, not this and next side by side", () => {
+    const december = new Date("2026-12-10T12:00:00Z");
+    const withNextYear = [...plans, plan("92", "year", "2027-12-31", "next")];
+    expect(upgradePlans(withNextYear, null, december).map((p) => p.id)).toEqual(
+      ["54", "71", "82"]
+    );
+  });
+
+  it("offers non-members this season's plans only, outside the last month", () => {
+    expect(upgradePlans(plans, null, october).map((p) => p.id)).toEqual([
+      "54",
+      "71",
+      "82",
+    ]);
+  });
+});
+
+describe("heldThrough / upcomingMembership", () => {
+  const spring = {
+    category: "113179",
+    expiryDate: "2027-06-30",
+    id: "55",
+    name: "BISO Membership spring 2027",
+    startDate: "2027-01-01",
+  };
+
+  it("counts active and not-yet-started memberships", () => {
+    expect(
+      heldThrough({
+        ...base,
+        memberships: [semester],
+        upcomingMemberships: [spring],
+      })
+    ).toBe("2027-06-30");
+  });
+
+  it("is null with nothing held", () => {
+    expect(heldThrough(null)).toBeNull();
+    expect(
+      heldThrough({ ...base, isMember: false, memberships: [] })
+    ).toBeNull();
+  });
+
+  it("shows the upcoming membership only to a non-member", () => {
+    const status = {
+      ...base,
+      isMember: false,
+      memberships: [],
+      upcomingMemberships: [spring],
+    };
+    expect(upcomingMembership(status)).toEqual(spring);
+    expect(
+      upcomingMembership({ ...status, isMember: true, memberships: [semester] })
+    ).toBeNull();
   });
 });

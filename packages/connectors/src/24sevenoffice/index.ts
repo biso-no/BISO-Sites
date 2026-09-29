@@ -50,13 +50,11 @@ export {
   parseExpiryDate,
   parseStartDate,
   previewMembershipSync,
+  syncMembershipCatalog,
   syncMembershipsFrom24SO,
 } from "./membership-sync";
-// Membership sync row merge (administrator-owned price/canPurchase)
-export type {
-  ExistingMembershipRow,
-  MembershipSyncItemLike,
-} from "./membership-sync-merge";
+// Membership catalog row builder (24SO-owned price and dates)
+export type { MembershipSyncItemLike } from "./membership-sync-merge";
 export { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 // Products management
 export { getMembershipProducts, getProducts } from "./products";

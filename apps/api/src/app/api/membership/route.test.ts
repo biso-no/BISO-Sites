@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({ get: vi.fn() }));
 const getRow = vi.hoisted(() => vi.fn());
 const getMembershipStatusForStudent = vi.hoisted(() => vi.fn());
-const getPurchasableMembershipPlans = vi.hoisted(() => vi.fn());
+const getMembershipOfferCandidates = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/connectors/24sevenoffice", () => ({
@@ -19,7 +19,7 @@ vi.mock("@/lib/membership-status-cache", () => ({
   getMembershipStatusForStudent,
 }));
 vi.mock("@repo/shared/utils/membership-catalog", () => ({
-  getPurchasableMembershipPlans,
+  getMembershipOfferCandidates,
 }));
 
 import { GET } from "./route";
@@ -31,9 +31,19 @@ const PLAN = {
   expiryDate: "2027-06-30",
   id: "71",
   name: "BISO Membership fall 2026 and spring 2027",
+  offer: "current",
   price: 550,
   productId: 71,
-  startDate: "2026-08-01",
+  startDate: "2026-07-01",
+};
+const NEXT_PLAN = {
+  ...PLAN,
+  expiryDate: "2027-12-31",
+  id: "92",
+  name: "BISO Membership spring 2027 - fall 2027",
+  offer: "next",
+  productId: 92,
+  startDate: "2027-01-01",
 };
 
 const LINKED_PROFILE = {
@@ -66,13 +76,20 @@ function overviewRequest(query = "", authorization = "Bearer jwt") {
 }
 
 describe("GET /api/membership", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Outside a season's last month: only this season's plans are offered.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-29T12:00:00Z"));
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     account.get.mockResolvedValue({ $id: "user-1" });
     getRow.mockResolvedValue(LINKED_PROFILE);
     getMembershipStatusForStudent.mockResolvedValue(status());
-    getPurchasableMembershipPlans.mockResolvedValue([PLAN]);
+    getMembershipOfferCandidates.mockResolvedValue([PLAN]);
   });
 
   it("requires a bearer token", async () => {
@@ -126,8 +143,9 @@ describe("GET /api/membership", () => {
         expiryDate: "2027-06-30",
         id: "71",
         name: "BISO Membership fall 2026 and spring 2027",
+        offer: "current",
         price: 550,
-        startDate: "2026-08-01",
+        startDate: "2026-07-01",
       },
     ]);
   });
@@ -138,7 +156,7 @@ describe("GET /api/membership", () => {
       expiryDate: "2027-06-30",
       id: "71",
       name: "BISO Membership fall 2026 and spring 2027",
-      startDate: "2026-08-01",
+      startDate: "2026-07-01",
     };
     getMembershipStatusForStudent.mockResolvedValue(
       status({ isMember: true, memberships: [membership], reason: undefined })
@@ -154,6 +172,32 @@ describe("GET /api/membership", () => {
       reason: null,
       state: "already_member",
     });
+  });
+
+  it("offers next season's plan in December and passes upcoming memberships through", async () => {
+    vi.setSystemTime(new Date("2026-12-10T12:00:00Z"));
+    getMembershipOfferCandidates.mockResolvedValue([PLAN, NEXT_PLAN]);
+    const upcoming = {
+      category: "113179",
+      expiryDate: "2027-06-30",
+      id: "55",
+      name: "BISO Membership spring 2027",
+      startDate: "2027-01-01",
+    };
+    getMembershipStatusForStudent.mockResolvedValue(
+      status({ reason: "upcoming", upcomingMemberships: [upcoming] })
+    );
+
+    const body = await (await GET(overviewRequest())).json();
+
+    expect(body.upcomingMemberships).toEqual([upcoming]);
+    expect(body.currentExpiry).toBe("2027-06-30");
+    expect(
+      body.offeredPlans.map((p: { id: string; offer: string }) => [
+        p.id,
+        p.offer,
+      ])
+    ).toEqual([["92", "next"]]);
   });
 
   it("forces a refresh when asked", async () => {
@@ -193,7 +237,7 @@ describe("GET /api/membership", () => {
   });
 
   it("reports an unavailable check when the catalog cannot be read", async () => {
-    getPurchasableMembershipPlans.mockRejectedValue(new Error("appwrite down"));
+    getMembershipOfferCandidates.mockRejectedValue(new Error("appwrite down"));
 
     const body = await (await GET(overviewRequest())).json();
 

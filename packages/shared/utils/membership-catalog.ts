@@ -1,36 +1,46 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Memberships } from "@repo/api/types/appwrite";
-import { type MembershipPlan, toMembershipPlan } from "./membership-plans";
+import { toOfferCandidates } from "./membership-offers";
+import type { MembershipPlan } from "./membership-plans";
+import { selectOffers } from "./membership-seasons";
 
 /**
- * Purchasable membership plans, newest expiry first.
- *
- * Rows come from the `memberships` table, which `syncMembershipsFrom24SO`
- * keeps in step with 24SevenOffice. `canPurchase` is administrator-controlled,
- * so a plan only appears here once someone has priced it and switched it on.
- * Uses the admin client because the table is not readable by anonymous
- * sessions and the catalog is public, non-sensitive data.
+ * Plans starting this season or next, from the `memberships` catalog that the
+ * member-roster-sync function mirrors from 24SevenOffice. What a given
+ * student may buy is decided from these by `resolveMembershipGate` (or
+ * `selectOffers`). Uses the admin client because the table is not readable by
+ * anonymous sessions and the catalog is public, non-sensitive data.
  */
-export async function getPurchasableMembershipPlans(): Promise<
-  MembershipPlan[]
-> {
+export async function getMembershipOfferCandidates(
+  now: Date = new Date()
+): Promise<MembershipPlan[]> {
   const { db } = await createAdminClient();
   const response = await db.listRows<Memberships>("app", "memberships", [
-    Query.equal("status", true),
-    Query.equal("canPurchase", true),
-    Query.limit(50),
+    Query.isNotNull("category"),
+    Query.limit(200),
   ]);
-
-  return response.rows
-    .map((row) => toMembershipPlan(row))
-    .filter((plan): plan is MembershipPlan => plan !== null)
-    .sort((a, b) => a.accrualMonths - b.accrualMonths);
+  return toOfferCandidates(response.rows, now);
 }
 
+/** What someone with no membership may buy right now. */
+export async function getPurchasableMembershipPlans(
+  now: Date = new Date()
+): Promise<MembershipPlan[]> {
+  return selectOffers(await getMembershipOfferCandidates(now), {
+    heldThrough: null,
+    now,
+  });
+}
+
+/**
+ * A plan on offer this season or next, by id. Whether this student may buy it
+ * is for the gate to decide.
+ */
 export async function getMembershipPlanById(
-  planId: string
+  planId: string,
+  now: Date = new Date()
 ): Promise<MembershipPlan | null> {
-  const plans = await getPurchasableMembershipPlans();
-  return plans.find((plan) => plan.id === planId) ?? null;
+  const candidates = await getMembershipOfferCandidates(now);
+  return candidates.find((plan) => plan.id === planId) ?? null;
 }

@@ -7,36 +7,40 @@ import {
   selectActivePlans,
 } from "./roster";
 
-const TODAY = "2026-09-29";
+const NOW = new Date("2026-09-29T12:00:00Z");
 const planRows = [
   {
     category: "10",
     expiryDate: "2026-12-31",
     membership_id: "113",
     name: "BISO Membership fall 2026",
+    startDate: "2020-01-01",
   },
   {
     category: "11",
     expiryDate: "2027-06-30",
     membership_id: "114",
     name: "BISO Membership fall 2026 and spring 2027",
+    startDate: "2020-01-01",
   },
   {
     category: "12",
     expiryDate: "2026-06-30",
     membership_id: "112",
     name: "BISO Membership spring 2026",
+    startDate: "2020-01-01",
   },
   {
     category: null,
     expiryDate: "2027-12-31",
     membership_id: "115",
     name: "No category",
+    startDate: "2020-01-01",
   },
 ];
 
 test("selectActivePlans keeps unexpired plans with a category", () => {
-  const plans = selectActivePlans(planRows, TODAY);
+  const plans = selectActivePlans(planRows, NOW);
   expect([...plans.keys()].sort()).toEqual([10, 11]);
   expect(plans.get(10)).toEqual({
     categoryId: 10,
@@ -48,7 +52,7 @@ test("selectActivePlans keeps unexpired plans with a category", () => {
 
 test("selectActivePlans treats a plan expiring today as active", () => {
   expect(
-    selectActivePlans([{ ...planRows[0], expiryDate: TODAY }], TODAY).size
+    selectActivePlans([{ ...planRows[0], expiryDate: "2026-09-29" }], NOW).size
   ).toBe(1);
 });
 
@@ -60,15 +64,17 @@ test("selectActivePlans reads the DD.MM.YYYY expiry format production uses", () 
         expiryDate: "31.12.2026",
         membership_id: "54",
         name: "Semester",
+        startDate: "2020-01-01",
       },
       {
         category: "113175",
         expiryDate: "30.06.2026",
         membership_id: "53",
         name: "Old",
+        startDate: "2020-01-01",
       },
     ],
-    TODAY
+    NOW
   );
   expect([...plans.keys()]).toEqual([113_176]);
   expect(plans.get(113_176)?.expiryDate).toBe("2026-12-31");
@@ -81,20 +87,36 @@ test("selectActivePlans uses the shared membership date rules", () => {
       { ...planRows[0], category: "2", expiryDate: "1.1.2027" }, // short D.M.YYYY
       { ...planRows[0], category: "3", expiryDate: "31/12/2026" }, // slash form
     ],
-    TODAY
+    NOW
   );
   expect([...plans.keys()].sort()).toEqual([2, 3]);
   expect(plans.get(2)?.expiryDate).toBe("2027-01-01");
 });
 
+test("selectActivePlans skips a plan that has not started yet", () => {
+  const plans = selectActivePlans(
+    [
+      {
+        category: "20",
+        expiryDate: "2027-06-30",
+        membership_id: "55",
+        name: "BISO Membership spring 2027",
+        startDate: "2027-01-01",
+      },
+    ],
+    NOW
+  );
+  expect(plans.size).toBe(0);
+});
+
 test("selectActivePlans skips an unparseable expiry date", () => {
   expect(
-    selectActivePlans([{ ...planRows[0], expiryDate: "soon" }], TODAY).size
+    selectActivePlans([{ ...planRows[0], expiryDate: "soon" }], NOW).size
   ).toBe(0);
 });
 
 test("foldMembers keeps one plan per customer, the one that expires latest", () => {
-  const plans = selectActivePlans(planRows, TODAY);
+  const plans = selectActivePlans(planRows, NOW);
   const members = foldMembers(
     [
       { categoryId: 10, companyId: 1 },
@@ -110,7 +132,7 @@ test("foldMembers keeps one plan per customer, the one that expires latest", () 
 });
 
 test("buildRosterRows joins names, emails and the latest invoice campus", () => {
-  const plans = selectActivePlans(planRows, TODAY);
+  const plans = selectActivePlans(planRows, NOW);
   const members = foldMembers([{ categoryId: 10, companyId: 1 }], plans);
   const rows = buildRosterRows({
     companies: [
@@ -155,7 +177,7 @@ test("buildRosterRows joins names, emails and the latest invoice campus", () => 
 test("buildRosterRows falls back to the Work email when there is no Primary", () => {
   const members = foldMembers(
     [{ categoryId: 10, companyId: 1 }],
-    selectActivePlans(planRows, TODAY)
+    selectActivePlans(planRows, NOW)
   );
   const [row] = buildRosterRows({
     companies: [
@@ -176,7 +198,7 @@ test("buildRosterRows falls back to the Work email when there is no Primary", ()
 test("buildRosterRows nulls a campus id that is not in the campus table", () => {
   const members = foldMembers(
     [{ categoryId: 10, companyId: 1 }],
-    selectActivePlans(planRows, TODAY)
+    selectActivePlans(planRows, NOW)
   );
   const [row] = buildRosterRows({
     companies: [{ Id: 1, Name: "Ada" }],
@@ -199,7 +221,7 @@ test("buildRosterRows nulls a campus id that is not in the campus table", () => 
 test("buildRosterRows names a member with no company record from the invoice", () => {
   const members = foldMembers(
     [{ categoryId: 10, companyId: 1 }],
-    selectActivePlans(planRows, TODAY)
+    selectActivePlans(planRows, NOW)
   );
   const [row] = buildRosterRows({
     companies: [],
@@ -222,7 +244,7 @@ test("buildRosterRows names a member with no company record from the invoice", (
 test("buildRosterRows keeps a member 24SO returned nothing for", () => {
   const members = foldMembers(
     [{ categoryId: 10, companyId: 1 }],
-    selectActivePlans(planRows, TODAY)
+    selectActivePlans(planRows, NOW)
   );
   const [row] = buildRosterRows({
     companies: [],
@@ -240,7 +262,7 @@ test("buildRosterRows keeps a member 24SO returned nothing for", () => {
 });
 
 describe("resolveMembers", () => {
-  const plans = selectActivePlans(planRows, TODAY);
+  const plans = selectActivePlans(planRows, NOW);
   const fall = plans.get(10);
   const fullYear = plans.get(11);
 
