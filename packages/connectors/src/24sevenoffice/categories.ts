@@ -247,15 +247,23 @@ interface GetCustomerCategoryTreeResult {
  *
  * @returns Array of { companyId, categoryId } pairs
  */
-export async function getCustomerCategoryTree(): Promise<
-  CustomerCategoryMapping[]
-> {
+export async function getCustomerCategoryTree(options?: {
+  /**
+   * Per-request HTTP timeout. The tree is unpaginated and takes ~70s, far
+   * past the client's 15s default, so the roster sync passes a longer one.
+   * `soap` merges these options into the axios request config.
+   */
+  timeoutMs?: number;
+}): Promise<CustomerCategoryMapping[]> {
   const session = await getValidSession();
   const client = await createAuthenticatedClient("company", session);
 
   try {
     const [result]: [GetCustomerCategoryTreeResult] =
-      await client.GetCustomerCategoryTreeAsync({});
+      await client.GetCustomerCategoryTreeAsync(
+        {},
+        options?.timeoutMs ? { timeout: options.timeoutMs } : undefined
+      );
 
     const pairs = result.GetCustomerCategoryTreeResult?.KeyValuePair;
 

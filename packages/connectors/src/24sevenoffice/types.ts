@@ -100,7 +100,9 @@ export interface CompanySearchParams {
   ChangedAfter?: string;
   CompanyEmail?: string;
   CompanyId?: number;
-  CompanyIds?: number[];
+  // SOAP ArrayOfInt: must serialise as <CompanyIds><int>1</int>…</CompanyIds>;
+  // a plain array is rejected ("Please specify at least one search parameter").
+  CompanyIds?: { int: number[] };
   CompanyName?: string;
   CompanyPhone?: string;
   ExternalId?: string;
