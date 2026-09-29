@@ -14,7 +14,7 @@ import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Campus, Memberships } from "@repo/api/types/appwrite";
 import {
-  getCompaniesByIds,
+  getAllCompanies,
   getCustomerCategoryTree,
   getMembershipInvoices,
 } from "@repo/connectors/24sevenoffice";
@@ -28,6 +28,8 @@ const ROSTER_TABLE = "member_roster";
 /** The tree call took 70s against production; leave generous headroom. */
 const TREE_TIMEOUT_MS = 180_000;
 const INVOICE_TIMEOUT_MS = 120_000;
+/** Full company listing took ~12s against production (~55k rows). */
+const COMPANIES_TIMEOUT_MS = 180_000;
 const UPSERT_BATCH = 100;
 /** Bulk delete may cap rows per call; bounded so a bad query can't spin forever. */
 const MAX_DELETE_ROUNDS = 100;
@@ -83,7 +85,8 @@ export default async function main(context: AppwriteContext) {
         }
         return removed;
       },
-      fetchCompanies: (ids) => getCompaniesByIds(ids),
+      fetchCompanies: () =>
+        getAllCompanies({ timeoutMs: COMPANIES_TIMEOUT_MS }),
       fetchInvoiceLines: (ids, productIds) =>
         getMembershipInvoices(ids, productIds, {
           timeoutMs: INVOICE_TIMEOUT_MS,
