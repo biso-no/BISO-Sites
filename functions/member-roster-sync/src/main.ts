@@ -21,6 +21,7 @@ import {
 import { STALE_EXECUTION_MS } from "@repo/shared/utils/member-roster-sync";
 import type { RosterRow } from "./roster";
 import { httpStatusFor, runSync } from "./run";
+import { adoptRuntimeApiKey } from "./runtime-key";
 
 const DB = "app";
 const ROSTER_TABLE = "member_roster";
@@ -37,10 +38,12 @@ type LogFn = (...messages: unknown[]) => void;
 interface AppwriteContext {
   error: LogFn;
   log: LogFn;
+  req: { headers?: Record<string, string | undefined> };
   res: { json: (data: unknown, statusCode?: number) => unknown };
 }
 
 export default async function main(context: AppwriteContext) {
+  adoptRuntimeApiKey(context.req.headers);
   try {
     const { db, functions } = await createAdminClient();
     const functionId = process.env.APPWRITE_FUNCTION_ID;
