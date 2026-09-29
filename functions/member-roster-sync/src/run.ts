@@ -15,13 +15,15 @@ import {
   foldMembers,
   type PlanRow,
   type RosterRow,
+  resolveMembers,
   selectActivePlans,
 } from "./roster";
 
 export interface SyncDeps {
   countRunningExecutions: () => Promise<number>;
   deleteStaleRows: (runId: string) => Promise<number>;
-  fetchCompanies: (companyIds: number[]) => Promise<Company[]>;
+  /** Every company in 24SO (resolves ExternalId-listed tree members). */
+  fetchCompanies: () => Promise<Company[]>;
   fetchInvoiceLines: (
     companyIds: number[],
     productIds: ReadonlySet<number>
@@ -75,21 +77,24 @@ export async function runSync(deps: SyncDeps): Promise<SyncResult> {
     );
   }
 
-  const companyIds = [...members.keys()];
+  const companies = await deps.fetchCompanies();
+  const resolved = resolveMembers(members, companies);
+  deps.log(
+    `Companies: ${companies.length}; members after id resolution: ${resolved.size}`
+  );
+
+  const companyIds = [...resolved.keys()];
   const productIds = new Set([...plans.values()].map((p) => p.productId));
-  const [companies, invoiceLines, validCampusIds] = await Promise.all([
-    deps.fetchCompanies(companyIds),
+  const [invoiceLines, validCampusIds] = await Promise.all([
     deps.fetchInvoiceLines(companyIds, productIds),
     deps.listCampusIds(),
   ]);
-  deps.log(
-    `Companies: ${companies.length}; invoice lines: ${invoiceLines.length}`
-  );
+  deps.log(`Invoice lines: ${invoiceLines.length}`);
 
   const rows = buildRosterRows({
     companies,
     invoiceLines,
-    members,
+    members: resolved,
     runId,
     validCampusIds,
   });

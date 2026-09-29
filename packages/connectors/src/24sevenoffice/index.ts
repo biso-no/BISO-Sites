@@ -25,6 +25,7 @@ export {
   COMPANY_ID_BATCH_SIZE,
   createStudentCustomer,
   findOrCreateCompany,
+  getAllCompanies,
   getCompaniesByIds,
   getCompanyById,
   MembershipCustomerLookupError,

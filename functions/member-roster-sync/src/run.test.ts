@@ -1,4 +1,5 @@
 import { expect, mock, test } from "bun:test";
+import type { RosterRow } from "./roster";
 import { httpStatusFor, runSync, type SyncDeps } from "./run";
 
 function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
@@ -70,4 +71,25 @@ test("a skipped run answers 409 so the admin page does not count it as a refresh
       unknownCampus: 0,
     })
   ).toBe(200);
+});
+
+test("fetches invoices and writes rows under the resolved company id", async () => {
+  const fetchInvoiceLines = mock(
+    async (_ids: number[], _products: ReadonlySet<number>) => []
+  );
+  const upsertRows = mock(async (_rows: RosterRow[]) => undefined);
+  const d = deps({
+    fetchCompanies: async () => [
+      { ExternalId: "1068416", Id: 2_117_936, Name: "Aaland, Amanda" },
+    ],
+    fetchInvoiceLines,
+    fetchTree: async () => [{ categoryId: 10, companyId: 1_068_416 }],
+    upsertRows,
+  });
+  await runSync(d);
+  expect(fetchInvoiceLines.mock.calls[0]?.[0]).toEqual([2_117_936]);
+  const rows = upsertRows.mock.calls[0]?.[0] ?? [];
+  expect(rows.map((r) => [r.$id, r.name])).toEqual([
+    ["2117936", "Aaland, Amanda"],
+  ]);
 });

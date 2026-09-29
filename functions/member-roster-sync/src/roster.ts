@@ -87,6 +87,45 @@ export function foldMembers(
   return members;
 }
 
+/**
+ * Re-key members by their real 24SO company id. `GetCustomerCategoryTree`
+ * lists some older customers by their ExternalId instead (e.g. 1068416 for
+ * company 2117936). A tree id that is itself a company id wins — ~10k
+ * ExternalIds collide with some other company's id — and only an id matching
+ * no company falls back to the ExternalId lookup. A person found under both
+ * ids is merged, keeping the plan that expires latest; an id matching nothing
+ * is kept as-is.
+ */
+export function resolveMembers(
+  members: Map<number, ActivePlan>,
+  companies: Company[]
+): Map<number, ActivePlan> {
+  const companyIds = new Set<number>();
+  const idByExternalId = new Map<string, number>();
+  for (const company of companies) {
+    if (typeof company.Id !== "number") {
+      continue;
+    }
+    companyIds.add(company.Id);
+    const externalId = company.ExternalId?.trim();
+    if (externalId) {
+      idByExternalId.set(externalId, company.Id);
+    }
+  }
+
+  const resolved = new Map<number, ActivePlan>();
+  for (const [treeId, plan] of members) {
+    const companyId = companyIds.has(treeId)
+      ? treeId
+      : (idByExternalId.get(String(treeId)) ?? treeId);
+    const current = resolved.get(companyId);
+    if (!current || plan.expiryDate > current.expiryDate) {
+      resolved.set(companyId, plan);
+    }
+  }
+  return resolved;
+}
+
 function latestLineByCustomer(
   lines: MembershipInvoiceLine[]
 ): Map<number, MembershipInvoiceLine> {
