@@ -44,6 +44,17 @@ export type SyncResult =
       unknownCampus: number;
     };
 
+/**
+ * 409 for a skipped run: the admin page (apps/admin member-roster-status)
+ * treats 2xx as a successful refresh, and a skip refreshed nothing.
+ */
+export const SKIPPED_STATUS_CODE = 409;
+const OK_STATUS_CODE = 200;
+
+export function httpStatusFor(result: SyncResult): number {
+  return "skipped" in result ? SKIPPED_STATUS_CODE : OK_STATUS_CODE;
+}
+
 export async function runSync(deps: SyncDeps): Promise<SyncResult> {
   const startedAt = Date.now();
 

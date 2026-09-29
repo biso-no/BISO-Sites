@@ -1,5 +1,5 @@
 import { expect, mock, test } from "bun:test";
-import { runSync, type SyncDeps } from "./run";
+import { httpStatusFor, runSync, type SyncDeps } from "./run";
 
 function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
   return {
@@ -57,4 +57,17 @@ test("upserts before deleting stale rows, with the run id", async () => {
     removed: 3,
     unknownCampus: 1,
   });
+});
+
+test("a skipped run answers 409 so the admin page does not count it as a refresh", () => {
+  expect(httpStatusFor({ ok: true, skipped: "already-running" })).toBe(409);
+  expect(
+    httpStatusFor({
+      durationMs: 1,
+      members: 1,
+      ok: true,
+      removed: 0,
+      unknownCampus: 0,
+    })
+  ).toBe(200);
 });

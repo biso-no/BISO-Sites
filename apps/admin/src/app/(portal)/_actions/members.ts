@@ -46,10 +46,12 @@ export async function listRosterMembers(
     ...applyScopeQueries(ctx, { departmentField: null }),
   ];
   if (params.q) {
+    // Substring match (as the old user list did): fulltext search splits
+    // "ola@bi.no" on "@"/"." and drops short tokens, so emails wouldn't match.
     queries.push(
       Query.or([
-        Query.search("name", params.q),
-        Query.search("email", params.q),
+        Query.contains("name", params.q),
+        Query.contains("email", params.q),
       ])
     );
   }
@@ -97,23 +99,41 @@ async function readRosterStatus(functionId: string): Promise<RosterStatus> {
   return summarizeRosterExecutions(list.executions);
 }
 
-export async function getRosterStatus(): Promise<
-  RosterStatus & { canRefresh: boolean }
-> {
+export type RosterPageStatus = RosterStatus & {
+  canRefresh: boolean;
+  /** Execution records could not be read (unset id, bad key scope, outage). */
+  unavailable: boolean;
+};
+
+const UNAVAILABLE_STATUS: RosterPageStatus = {
+  canRefresh: false,
+  lastFailedAt: null,
+  lastRefreshedAt: null,
+  running: false,
+  unavailable: true,
+};
+
+/**
+ * Never throws: the status line is secondary to the roster itself, and a
+ * misconfigured function id or API-key scope must not take down /members
+ * (which also hosts the scanner links).
+ */
+export async function getRosterStatus(): Promise<RosterPageStatus> {
   const ctx = await requireNavAccess("portal.members");
   const functionId = rosterFunctionId();
   if (!functionId) {
-    return {
-      canRefresh: false,
-      lastFailedAt: null,
-      lastRefreshedAt: null,
-      running: false,
-    };
+    return UNAVAILABLE_STATUS;
   }
-  return {
-    ...(await readRosterStatus(functionId)),
-    canRefresh: ctx.roles.includes("globaladmin"),
-  };
+  try {
+    return {
+      ...(await readRosterStatus(functionId)),
+      canRefresh: ctx.roles.includes("globaladmin"),
+      unavailable: false,
+    };
+  } catch (error) {
+    console.error("[members] Could not read roster sync executions:", error);
+    return UNAVAILABLE_STATUS;
+  }
 }
 
 /**
@@ -123,7 +143,7 @@ export async function getRosterStatus(): Promise<
  */
 export async function refreshMemberRoster(): Promise<{
   ok: boolean;
-  reason?: "forbidden" | "already-running" | "not-configured";
+  reason?: "forbidden" | "already-running" | "not-configured" | "failed";
 }> {
   const ctx = await requireNavAccess("portal.members");
   if (!ctx.roles.includes("globaladmin")) {
@@ -133,11 +153,15 @@ export async function refreshMemberRoster(): Promise<{
   if (!functionId) {
     return { ok: false, reason: "not-configured" };
   }
-  if ((await readRosterStatus(functionId)).running) {
-    return { ok: false, reason: "already-running" };
+  try {
+    if ((await readRosterStatus(functionId)).running) {
+      return { ok: false, reason: "already-running" };
+    }
+    const { functions } = await createAdminClient();
+    await functions.createExecution({ async: true, functionId });
+    return { ok: true };
+  } catch (error) {
+    console.error("[members] Could not start roster sync:", error);
+    return { ok: false, reason: "failed" };
   }
-
-  const { functions } = await createAdminClient();
-  await functions.createExecution({ async: true, functionId });
-  return { ok: true };
 }

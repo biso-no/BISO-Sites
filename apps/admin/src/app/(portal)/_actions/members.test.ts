@@ -39,7 +39,8 @@ mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db, functions, users })),
 }));
 
-const { listRosterMembers, refreshMemberRoster } = await import("./members");
+const { getRosterStatus, listRosterMembers, refreshMemberRoster } =
+  await import("./members");
 
 function executions(...statuses: string[]) {
   return {
@@ -79,6 +80,14 @@ describe("refreshMemberRoster", () => {
     });
   });
 
+  test("reports failed instead of throwing when Appwrite errors", async () => {
+    functions.listExecutions.mockRejectedValue(new Error("outage"));
+    expect(await refreshMemberRoster()).toEqual({
+      ok: false,
+      reason: "failed",
+    });
+  });
+
   test("campus admins cannot start a run", async () => {
     ctx = campusAdminCtx;
     expect(await refreshMemberRoster()).toEqual({
@@ -93,6 +102,32 @@ describe("refreshMemberRoster", () => {
     expect(await refreshMemberRoster()).toEqual({
       ok: false,
       reason: "not-configured",
+    });
+  });
+});
+
+describe("getRosterStatus", () => {
+  test("a failing executions read degrades to an unavailable status instead of throwing", async () => {
+    functions.listExecutions.mockRejectedValue(
+      new Error("missing scope executions.read")
+    );
+    expect(await getRosterStatus()).toEqual({
+      canRefresh: false,
+      lastFailedAt: null,
+      lastRefreshedAt: null,
+      running: false,
+      unavailable: true,
+    });
+  });
+
+  test("reports status and refresh permission when readable", async () => {
+    functions.listExecutions.mockResolvedValue(executions("completed"));
+    expect(await getRosterStatus()).toEqual({
+      canRefresh: true,
+      lastFailedAt: null,
+      lastRefreshedAt: "2026-09-29T03:00:00.000Z",
+      running: false,
+      unavailable: false,
     });
   });
 });
@@ -142,6 +177,30 @@ describe("listRosterMembers", () => {
   test("global admins see every campus, including unknown", async () => {
     await listRosterMembers(params);
     expect(rosterQueries().some((q) => q.includes("campus_id"))).toBe(false);
+  });
+
+  test("searches name and email by substring, so a full email address matches", async () => {
+    await listRosterMembers({ ...params, q: "ola@bi.no" });
+    const orFilter = rosterQueries().find((q) => q.includes('"or"'));
+    expect(orFilter).toBeDefined();
+    const parsed = JSON.parse(orFilter as string) as {
+      values: string[];
+    };
+    const inner = parsed.values.map((v) =>
+      typeof v === "string" ? JSON.parse(v) : v
+    );
+    expect(inner).toEqual([
+      expect.objectContaining({
+        attribute: "name",
+        method: "contains",
+        values: ["ola@bi.no"],
+      }),
+      expect.objectContaining({
+        attribute: "email",
+        method: "contains",
+        values: ["ola@bi.no"],
+      }),
+    ]);
   });
 
   test("maps rows with the campus name", async () => {

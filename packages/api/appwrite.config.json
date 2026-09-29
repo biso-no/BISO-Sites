@@ -11827,24 +11827,6 @@
             ],
             "indexes": [
                 {
-                    "key": "name_fulltext",
-                    "type": "fulltext",
-                    "status": "available",
-                    "columns": [
-                        "name"
-                    ],
-                    "orders": []
-                },
-                {
-                    "key": "email_fulltext",
-                    "type": "fulltext",
-                    "status": "available",
-                    "columns": [
-                        "email"
-                    ],
-                    "orders": []
-                },
-                {
                     "key": "name_idx",
                     "type": "key",
                     "status": "available",

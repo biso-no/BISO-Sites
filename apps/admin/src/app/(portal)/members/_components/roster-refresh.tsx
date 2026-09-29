@@ -11,6 +11,7 @@ interface RosterRefreshProps {
   canRefresh: boolean;
   labels: {
     alreadyRunning: string;
+    failed: string;
     notConfigured: string;
     queued: string;
     refresh: string;
@@ -40,6 +41,8 @@ export function RosterRefresh({
         setMessage(labels.alreadyRunning);
       } else if (result.reason === "not-configured") {
         setMessage(labels.notConfigured);
+      } else if (result.reason === "failed") {
+        setMessage(labels.failed);
       }
       router.refresh();
     });

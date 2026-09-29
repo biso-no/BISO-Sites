@@ -1281,7 +1281,9 @@
       "refresh": "Refresh now",
       "queued": "Refresh started. It takes a couple of minutes.",
       "alreadyRunning": "A refresh is already running.",
-      "notConfigured": "Roster sync is not configured."
+      "notConfigured": "Roster sync is not configured.",
+      "failed": "Could not start a refresh. Try again later.",
+      "statusUnavailable": "Refresh status unavailable."
     }
   },
   "memberPass": {

@@ -34,7 +34,9 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
   let statusText = status.lastRefreshedAt
     ? t("roster.lastRefreshed", { date: formatAt(status.lastRefreshedAt) })
     : t("roster.neverRefreshed");
-  if (status.lastFailedAt) {
+  if (status.unavailable) {
+    statusText = t("roster.statusUnavailable");
+  } else if (status.lastFailedAt) {
     statusText = `${statusText} · ${t("roster.lastFailed", {
       date: formatAt(status.lastFailedAt),
     })}`;
@@ -63,6 +65,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           canRefresh={status.canRefresh}
           labels={{
             alreadyRunning: t("roster.alreadyRunning"),
+            failed: t("roster.failed"),
             notConfigured: t("roster.notConfigured"),
             queued: t("roster.queued"),
             refresh: t("roster.refresh"),

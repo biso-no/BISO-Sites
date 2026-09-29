@@ -65,3 +65,32 @@ test("no executions at all", () => {
     running: false,
   });
 });
+
+test("a run that skipped because another was running is not a refresh", () => {
+  const status = summarizeRosterExecutions([
+    {
+      $updatedAt: "2026-09-30T03:01:00Z",
+      responseStatusCode: 409,
+      status: "completed",
+    },
+    ok("2026-09-28T03:01:00Z"),
+  ]);
+  expect(status).toEqual({
+    lastFailedAt: null,
+    lastRefreshedAt: "2026-09-28T03:01:00Z",
+    running: false,
+  });
+});
+
+test("a processing record older than the function timeout is stale, not running", () => {
+  const now = Date.parse("2026-09-29T12:00:00Z");
+  const stale = {
+    $createdAt: "2026-09-29T03:00:00Z",
+    $updatedAt: "2026-09-29T03:00:00Z",
+    responseStatusCode: 0,
+    status: "processing",
+  };
+  const fresh = { ...stale, $createdAt: "2026-09-29T11:55:00Z" };
+  expect(summarizeRosterExecutions([stale], now).running).toBe(false);
+  expect(summarizeRosterExecutions([fresh], now).running).toBe(true);
+});

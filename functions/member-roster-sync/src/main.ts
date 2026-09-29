@@ -19,13 +19,18 @@ import {
   getMembershipInvoices,
 } from "@repo/connectors/24sevenoffice";
 import type { RosterRow } from "./roster";
-import { runSync } from "./run";
+import { httpStatusFor, runSync } from "./run";
 
 const DB = "app";
 const ROSTER_TABLE = "member_roster";
 /** The tree call took 70s against production; leave generous headroom. */
 const TREE_TIMEOUT_MS = 180_000;
 const INVOICE_TIMEOUT_MS = 120_000;
+/**
+ * Appwrite's maximum function timeout. An execution still "processing" after
+ * this is stuck (e.g. a worker restart) and must not block every later run.
+ */
+const STALE_EXECUTION_MS = 15 * 60 * 1000;
 const UPSERT_BATCH = 100;
 /** Bulk delete may cap rows per call; bounded so a bad query can't spin forever. */
 const MAX_DELETE_ROUNDS = 100;
@@ -52,7 +57,14 @@ export default async function main(context: AppwriteContext) {
         }
         const list = await functions.listExecutions({
           functionId,
-          queries: [Query.equal("status", ["processing"]), Query.limit(1)],
+          queries: [
+            Query.equal("status", ["processing"]),
+            Query.greaterThan(
+              "$createdAt",
+              new Date(Date.now() - STALE_EXECUTION_MS).toISOString()
+            ),
+            Query.limit(1),
+          ],
         });
         return list.total;
       },
@@ -110,7 +122,7 @@ export default async function main(context: AppwriteContext) {
         }
       },
     });
-    return context.res.json(result);
+    return context.res.json(result, httpStatusFor(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     context.error(`${LOG_TAG} Sync failed: ${message}`);

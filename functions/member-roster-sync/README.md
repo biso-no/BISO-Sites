@@ -30,6 +30,14 @@ which the admin page shows as "Last refresh failed".
 - Execute access: none. The admin app starts runs with the server API key.
 - Variables: `APPWRITE_API_KEY`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`,
   `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD`.
+- API key scopes: `rows.read`, `rows.write` (member_roster, memberships,
+  campus, and the `24so.auth_tokens` session cache) and `executions.read`
+  (the overlap guard). The admin app's key additionally needs
+  `executions.read` and `executions.write` for the status line and
+  "Refresh now".
+- Keep execution logging on: the admin page reads run status from execution
+  records. A skipped run answers 409 and is not shown as a refresh; a
+  `processing` record older than 15 minutes is treated as stuck.
 - Set the admin app's `MEMBER_ROSTER_FUNCTION_ID` to this function's id.
 
 ## Running locally
@@ -41,4 +49,6 @@ await main({ log: console.log, error: console.error, res: { json: (d, s) => cons
 '
 ```
 
-This writes to whichever Appwrite project the env file points at.
+This writes to whichever Appwrite project the env file points at. A local run has no
+function id, so it skips the overlap guard: don't run it while a scheduled or
+manual run is in progress, or the two runs can delete each other's rows.

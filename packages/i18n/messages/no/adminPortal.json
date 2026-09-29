@@ -1281,7 +1281,9 @@
       "refresh": "Oppdater nå",
       "queued": "Oppdatering startet. Det tar et par minutter.",
       "alreadyRunning": "En oppdatering kjører allerede.",
-      "notConfigured": "Synkronisering av medlemslisten er ikke satt opp."
+      "notConfigured": "Synkronisering av medlemslisten er ikke satt opp.",
+      "failed": "Kunne ikke starte oppdateringen. Prøv igjen senere.",
+      "statusUnavailable": "Status for oppdatering er ikke tilgjengelig."
     }
   },
   "memberPass": {
