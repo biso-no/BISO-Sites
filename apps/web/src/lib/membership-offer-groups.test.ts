@@ -1,6 +1,6 @@
 import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
 import { expect, test } from "vitest";
-import { groupOffersByDuration } from "./membership-offer-groups";
+import { cardPlan, groupOffersByDuration } from "./membership-offer-groups";
 
 const p = (
   id: string,
@@ -34,4 +34,23 @@ test("pairs this season's and next season's plan per duration, in order", () => 
     },
     { current: undefined, duration: "year", next: p("y2", "year", "next") },
   ]);
+});
+
+test("the selected card shows next season's plan once the buyer picks it", () => {
+  const group = {
+    current: p("s1", "semester", "current"),
+    duration: "semester" as const,
+    next: p("s2", "semester", "next"),
+  };
+  expect(cardPlan(group, "semester", false)?.id).toBe("s1");
+  expect(cardPlan(group, "semester", true)?.id).toBe("s2");
+  // Another card is unaffected by the selected card's choice.
+  expect(cardPlan(group, "year", true)?.id).toBe("s1");
+  expect(
+    cardPlan(
+      { duration: "year", next: p("y2", "year", "next") },
+      "semester",
+      false
+    )?.id
+  ).toBe("y2");
 });

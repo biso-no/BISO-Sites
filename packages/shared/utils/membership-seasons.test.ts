@@ -5,6 +5,7 @@ import {
   isLastMonthOfSeason,
   nextSeasonStart,
   offerFor,
+  onePerDuration,
   selectOffers,
 } from "./membership-seasons";
 
@@ -118,6 +119,32 @@ describe("selectOffers", () => {
       "year-next",
       "three_years-current",
       "three_years-next",
+    ]);
+  });
+});
+
+describe("onePerDuration", () => {
+  it("keeps one card per duration, preferring this season's plan", () => {
+    const offers = selectOffers(candidates, {
+      heldThrough: null,
+      now: at("2026-12-10T12:00:00Z"),
+    });
+    expect(ids(onePerDuration(offers))).toEqual([
+      "semester-current",
+      "year-current",
+      "three_years-current",
+    ]);
+  });
+
+  it("keeps next season's plan when it is the only one for its duration", () => {
+    const offers = selectOffers(candidates, {
+      heldThrough: "2026-12-31",
+      now: at("2026-10-15T12:00:00Z"),
+    });
+    expect(ids(onePerDuration(offers))).toEqual([
+      "semester-next",
+      "year-current",
+      "three_years-current",
     ]);
   });
 });

@@ -208,7 +208,9 @@
     "membershipWelcome": {
       "title": "Du er nå medlem",
       "desc": "Medlemskapet ditt er aktivert. Alle rabatter og fordeler er tilgjengelige i BISO-appen og medlemsportalen med det samme.",
-      "cta": "Gå til medlemsportalen"
+      "cta": "Gå til medlemsportalen",
+      "upcomingTitle": "Du er klar",
+      "upcomingDesc": "Medlemskapet ditt starter {start}. Rabatter og fordeler blir tilgjengelige i BISO-appen og medlemsportalen fra den dagen."
     },
     "success": {
       "title": "Takk for kjøpet!",

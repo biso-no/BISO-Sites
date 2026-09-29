@@ -77,6 +77,14 @@ describe("upgradePlans", () => {
     );
   });
 
+  it("shows one card per duration in December, not this and next side by side", () => {
+    const december = new Date("2026-12-10T12:00:00Z");
+    const withNextYear = [...plans, plan("92", "year", "2027-12-31", "next")];
+    expect(upgradePlans(withNextYear, null, december).map((p) => p.id)).toEqual(
+      ["54", "71", "82"]
+    );
+  });
+
   it("offers non-members this season's plans only, outside the last month", () => {
     expect(upgradePlans(plans, null, october).map((p) => p.id)).toEqual([
       "54",

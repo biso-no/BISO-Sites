@@ -211,7 +211,9 @@
       "title": "Du er allerede medlem",
       "body": "Medlemskapet ditt løper til {expiry}.",
       "bodyUnknownExpiry": "Du har allerede et aktivt medlemskap.",
-      "cta": "Gå til medlemsportalen"
+      "cta": "Gå til medlemsportalen",
+      "upcomingTitle": "Medlemskapet ditt er på vei",
+      "upcomingBody": "Medlemskapet ditt starter {start} og varer til {end}. Fordelene blir tilgjengelige fra startdatoen."
     },
     "noPlansAvailable": {
       "title": "Medlemskap kan ikke kjøpes akkurat nå",

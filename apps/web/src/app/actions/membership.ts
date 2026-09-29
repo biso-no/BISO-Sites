@@ -4,6 +4,7 @@ import { createSessionClient } from "@repo/api/server";
 import type { CampusData } from "@repo/api/types/appwrite";
 import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
 import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
+import { onePerDuration } from "@repo/shared/utils/membership-seasons";
 import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 
 const NATIONAL_CAMPUS_NAME = "national";
@@ -50,5 +51,7 @@ export async function getGlobalMembershipBenefits(): Promise<CampusData | null> 
 export async function getMembershipPlansForPurchase(): Promise<
   MembershipPlan[]
 > {
-  return await getPurchasableMembershipPlans();
+  // One card per duration (the CTA labels plans by duration only); the join
+  // wizard offers the this/next season choice in June and December.
+  return onePerDuration(await getPurchasableMembershipPlans());
 }

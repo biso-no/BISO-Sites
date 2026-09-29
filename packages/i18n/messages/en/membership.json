@@ -211,7 +211,9 @@
       "title": "You're already a member",
       "body": "Your membership runs until {expiry}.",
       "bodyUnknownExpiry": "You already have an active membership.",
-      "cta": "Go to the member portal"
+      "cta": "Go to the member portal",
+      "upcomingTitle": "Your membership is on its way",
+      "upcomingBody": "Your membership starts {start} and runs until {end}. Benefits become available from the start date."
     },
     "noPlansAvailable": {
       "title": "Membership isn't purchasable right now",

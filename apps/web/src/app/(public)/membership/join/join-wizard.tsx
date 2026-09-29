@@ -21,6 +21,7 @@ import { MembershipPlanCard } from "@/components/membership/plan-card";
 import { StepCard } from "@/components/shared/step-card";
 import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 import {
+  cardPlan,
   groupOffersByDuration,
   type MembershipOfferGroup,
 } from "@/lib/membership-offer-groups";
@@ -46,11 +47,13 @@ function PlanStep({
   duration,
   groups,
   selectDuration,
+  useNext,
 }: {
   currentExpiry: string | null;
   duration: MembershipDuration | undefined;
   groups: MembershipOfferGroup[];
   selectDuration: (value: MembershipDuration) => void;
+  useNext: boolean;
 }) {
   const t = useTranslations("membership.join.plan");
   const format = useFormatter();
@@ -61,8 +64,7 @@ function PlanStep({
       value={duration}
     >
       {groups.map((group) => {
-        // Priced and dated from this season's plan when it is on offer.
-        const shown = group.current ?? group.next;
+        const shown = cardPlan(group, duration, useNext);
         if (!shown) {
           return null;
         }
@@ -425,6 +427,7 @@ export function JoinWizard({
           duration={duration}
           groups={groups}
           selectDuration={selectDuration}
+          useNext={useNext}
         />
         {seasonChoice ? (
           <SeasonChoice

@@ -36,3 +36,19 @@ export function groupOffersByDuration(
   }
   return groups;
 }
+
+/**
+ * The plan a duration card shows (price, dates): next season's on the
+ * selected card once the buyer chose it, otherwise this season's when offered.
+ */
+export function cardPlan(
+  group: MembershipOfferGroup,
+  selectedDuration: MembershipDuration | undefined,
+  useNext: boolean
+): MembershipPlan | undefined {
+  const pickedNext = useNext && group.duration === selectedDuration;
+  if (pickedNext && group.next) {
+    return group.next;
+  }
+  return group.current ?? group.next;
+}

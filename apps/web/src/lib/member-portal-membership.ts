@@ -3,7 +3,10 @@ import {
   type MembershipDuration,
   type MembershipPlan,
 } from "@repo/shared/utils/membership-plans";
-import { selectOffers } from "@repo/shared/utils/membership-seasons";
+import {
+  onePerDuration,
+  selectOffers,
+} from "@repo/shared/utils/membership-seasons";
 import {
   type MembershipInfo,
   type MembershipStatus,
@@ -98,7 +101,9 @@ export function upgradePlans(
   heldThrough: string | null,
   now: Date = new Date()
 ): PlanView[] {
-  return selectOffers(candidates, { heldThrough, now }).map(
+  // One card per duration: the portal labels plans by duration only; the
+  // join wizard offers the this/next season choice.
+  return onePerDuration(selectOffers(candidates, { heldThrough, now })).map(
     ({ duration, expiryDate, id, price }) => ({
       duration,
       expiryDate,

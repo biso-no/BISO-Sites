@@ -85,3 +85,20 @@ export function selectOffers(
   }
   return offers;
 }
+
+/**
+ * One offer per duration, preferring this season's — for plan lists that are
+ * labelled by duration only (portal cards). The this/next choice is made in
+ * the join wizard, which receives both.
+ */
+export function onePerDuration(offers: MembershipPlan[]): MembershipPlan[] {
+  const seen = new Set<MembershipDuration>();
+  const result: MembershipPlan[] = [];
+  for (const offer of offers) {
+    if (!seen.has(offer.duration)) {
+      seen.add(offer.duration);
+      result.push(offer);
+    }
+  }
+  return result;
+}
