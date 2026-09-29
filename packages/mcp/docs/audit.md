@@ -1940,3 +1940,51 @@ diff touches only `apps/admin`: the eleventh move touched only
 Revalidated after the merge all the same: 482 tests, 17/17 typecheck, biome
 clean over 83 files, stdio smoke.
 
+
+### Fourteenth base move: `5404442 → 1ac31d9`
+
+PR #80 (member roster), sixteen commits over 34 files: a `member_roster` table
+and the Appwrite Function that syncs it from 24SevenOffice, the admin
+`/members` page rebuilt around it, additive 24SevenOffice connector work, and —
+separately from the roster — a `.github/workflows/pr-review.yml`.
+
+**Did the schema change under this package?** Only additively, and the
+difference is worth stating precisely rather than by file count: diffing the 94
+`tables` entries one by one, `member_roster` is the single addition and **no
+existing table changed** — not one column, index or `$permissions` entry. The
+eighth and twelfth moves both changed permissions on tables this package reads,
+so this is a checked result, not an assumption.
+
+**Can this package reach the new table?** No, on two independent grounds. The
+server has no generic table reader — the user's brief forbade one — so the only
+table names that reach `db` are the ten string literals in `src` plus
+`CONTENT_DOMAINS`, a closed `as const` tuple; `member_roster` is in neither.
+And it would be unreadable even if named: the table declares `$permissions: []`
+with `rowSecurity: false`, so nothing but a service-key client can see a row,
+and every read in this package goes through the caller's session client.
+
+**Does it change what `@repo/shared` or `@repo/api` hand us?** No. `@repo/shared`
+gained exactly one file (`utils/member-roster-sync.ts`, two constants shared
+between the function and the admin page) and no existing file changed;
+`packages/api/types/appwrite.ts` gained the `MemberRoster` row type and nothing
+else. The 24SevenOffice connector changes (`timeoutMs` on
+`getCustomerCategoryTree`, the `CompanyIds` SOAP shape) cannot reach this
+package at all: `@repo/connectors` is not one of its dependencies. The prose
+here that names 24SevenOffice is about the **Appwrite `departments` table**
+mirroring the chart of accounts, which this move does not touch.
+
+So the move is inert for `packages/mcp` — the sixth of fourteen.
+
+**One thing did change for this PR, outside the package.** A GitHub Actions
+workflow exists on `main` again: "Claude Code Review", triggered on
+`pull_request` (`opened`, `synchronize`, `ready_for_review`, `reopened`), which
+runs the `code-review` plugin with `--comment`. Until now the only checks on
+this branch were Appwrite VCS commit statuses. From the push that carries this
+merge onward, this PR gets a second automated reviewer whose findings arrive as
+inline review comments — so a change in the review-comment count no longer
+implies Codex posted.
+
+Revalidated after the merge: 482 tests, **18/18** typecheck, biome clean over 83
+files, stdio smoke. The typecheck count moved because this move adds an
+eighteenth workspace with a `check-types` task (`member-roster-sync`), not
+because anything here gained one.

@@ -22,6 +22,7 @@ export {
 } from "./categories";
 // Customer management
 export {
+  COMPANY_ID_BATCH_SIZE,
   createStudentCustomer,
   findOrCreateCompany,
   getCompaniesByIds,
@@ -34,6 +35,14 @@ export {
 export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
 // Invoice management
 export { postMembershipInvoice } from "./invoice";
+// Membership invoices (read side — campus per member)
+export {
+  CUSTOMER_ID_BATCH_SIZE,
+  type GetInvoicesResponse,
+  getMembershipInvoices,
+  type MembershipInvoiceLine,
+  parseMembershipInvoiceLines,
+} from "./membership-invoices";
 // Membership product sync (admin)
 export {
   isActiveByDate,

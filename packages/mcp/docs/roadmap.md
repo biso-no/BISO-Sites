@@ -93,6 +93,15 @@ server should call models at all when its client already has one.
 coupling this package avoids. Needs the same additive treatment `@repo/api` got,
 or a `db`-injecting variant.
 
+**The `member_roster` table does not resolve this**, though it looks like it
+should. It is a per-sync-run snapshot keyed on the 24SevenOffice `company_id`,
+with no `user_id` and no unique index on `email`, so it cannot answer "is *this
+caller* a member" without a join the schema does not support. It also declares
+`$permissions: []` with `rowSecurity: false`, so only a service-key client can
+read it — and reading membership with the service key on the caller's behalf is
+the substitution for authorization this server refuses to make. The blocker
+above is still the one to clear.
+
 ### 2.4 Expense status and diagnostics
 
 Genuinely useful: "where did my reimbursement stop" is a common question.

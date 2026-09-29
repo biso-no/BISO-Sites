@@ -1267,32 +1267,23 @@
   },
   "members": {
     "title": "Medlemmer",
-    "description": "Alle med et BISO-medlemskap, på tvers av campusene du har tilgang til.",
-    "searchPlaceholder": "Søk på navn eller e-post…",
+    "description": "Betalende BISO-medlemmer fra 24SevenOffice, på campusene du har tilgang til.",
+    "searchPlaceholder": "Søk etter navn eller e-post…",
     "empty": "Ingen medlemmer funnet",
-    "emptyDescription": "Prøv et annet søk eller filter.",
+    "emptyDescription": "Prøv et annet søk, eller oppdater medlemslisten.",
     "unnamed": "Uten navn",
-    "noCampus": "Ingen campus registrert",
-    "noPlan": "Ingen medlemskap",
-    "noExpiry": "Ingen utløpsdato registrert",
-    "filters": {
-      "all": "Alle",
-      "active": "Aktive",
-      "inactive": "Inaktive"
-    },
-    "status": {
-      "active": "Aktiv",
-      "inactive": "Ikke medlem"
-    },
-    "detail": {
-      "back": "Tilbake til medlemmer",
-      "contact": "Kontakt",
-      "campus": "Campus",
-      "expiry": "Utløper",
-      "membershipHistory": "Medlemskapshistorikk",
-      "noHistory": "Ingen medlemskapshistorikk registrert.",
-      "notFound": "Fant ikke medlemmet",
-      "planPrice": "{price} kr"
+    "unknownCampus": "Ukjent campus",
+    "roster": {
+      "lastRefreshed": "Sist oppdatert {date}",
+      "neverRefreshed": "Ikke synkronisert ennå",
+      "lastFailed": "Siste oppdatering feilet {date}",
+      "refreshing": "Oppdaterer…",
+      "refresh": "Oppdater nå",
+      "queued": "Oppdatering startet. Det tar et par minutter.",
+      "alreadyRunning": "En oppdatering kjører allerede.",
+      "notConfigured": "Synkronisering av medlemslisten er ikke satt opp.",
+      "failed": "Kunne ikke starte oppdateringen. Prøv igjen senere.",
+      "statusUnavailable": "Status for oppdatering er ikke tilgjengelig."
     }
   },
   "memberPass": {
