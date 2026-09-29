@@ -2,146 +2,166 @@
 
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Users } from "@repo/api/types/appwrite";
+import type { Campus, MemberRoster } from "@repo/api/types/appwrite";
 import { requireNavAccess } from "@/lib/authorization";
-import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
-import { applyScopeQueries, hasRowAccess } from "@/lib/utils/authorization";
+import type { ListParams, PaginatedResult } from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
+import {
+  type RosterStatus,
+  summarizeRosterExecutions,
+} from "@/lib/member-roster-status";
+import { applyScopeQueries } from "@/lib/utils/authorization";
 
-// The list view only ever reads campus name + the most recent membership's
-// name/status, so it selects just those relationship fields rather than the
-// full membership history (price, dates, ...) for every one of up to 200 rows.
-const MEMBER_LIST_SELECT = [
-  "*",
-  "campus.name",
-  "studentId.isMember",
-  "studentId.expiry_date",
-  "studentId.memberships.name",
-  "studentId.memberships.status",
-];
-const MEMBER_DETAIL_SELECT = [
-  "*",
-  "campus.*",
-  "studentId.*",
-  "studentId.memberships.*",
-];
+const ROSTER_TABLE = "member_roster";
+/** Enough history to find the last success behind a run of failures. */
+const STATUS_EXECUTION_WINDOW = 20;
 
-export interface MemberListItem {
+export interface RosterMemberItem {
   campusId: string | null;
   campusName: string | null;
   email: string | null;
-  expiryDate: string | null;
-  id: string;
-  isMember: boolean;
-  name: string | null;
-  planName: string | null;
-}
-
-export interface MembershipHistoryEntry {
   expiryDate: string;
+  id: string;
   name: string;
-  price: number;
-  startDate: string;
-  status: boolean;
-}
-
-export interface MemberDetail extends MemberListItem {
-  bio: string | null;
-  memberships: MembershipHistoryEntry[];
-  phone: string | null;
-}
-
-function toMemberListItem(row: Users): MemberListItem {
-  const studentId = row.studentId;
-  const memberships = studentId?.memberships ?? [];
-  const activePlan = memberships.find((m) => m.status) ?? memberships.at(-1);
-
-  return {
-    campusId: row.campus_id,
-    campusName:
-      row.campus?.name ?? CAMPUS_ID_TO_NAME[row.campus_id ?? ""] ?? null,
-    email: row.email,
-    expiryDate: studentId?.expiry_date ?? null,
-    id: row.$id,
-    isMember: Boolean(studentId?.isMember),
-    name: row.name,
-    planName: activePlan?.name ?? null,
-  };
+  planName: string;
 }
 
 /**
- * Members list, scoped by campus for campus admins (global admins see
- * everyone, or their active-campus filter if set via the sidebar campus
- * switcher — same as every other admin list). `user`/`studentId`/
- * `memberships` carry light or no row security, so this uses the service
- * client with `applyScopeQueries` as the real authorization boundary,
- * matching `listPages()`.
+ * Paid members synced from 24SevenOffice (see functions/member-roster-sync).
+ * Campus admins see their campuses only; rows with an unknown campus
+ * (`campus_id` null) are therefore visible to global admins only, which
+ * `applyScopeQueries`' `Query.equal("campus_id", …)` gives for free. The
+ * roster carries no row security, so the service client plus that scoping is
+ * the authorization boundary, as in the previous user-based list.
  */
-export async function listMembers(opts?: {
-  q?: string;
-  status?: "active" | "inactive";
-}): Promise<MemberListItem[]> {
+export async function listRosterMembers(
+  params: ListParams
+): Promise<PaginatedResult<RosterMemberItem>> {
   const ctx = await requireNavAccess("portal.members");
   const { db } = await createAdminClient();
 
   const queries: string[] = [
-    Query.select(MEMBER_LIST_SELECT),
     Query.orderAsc("name"),
-    Query.limit(200),
+    ...paginationQueries(params),
     ...applyScopeQueries(ctx, { departmentField: null }),
   ];
-
-  const q = opts?.q?.trim();
-  if (q) {
+  if (params.q) {
+    // Substring match (as the old user list did): fulltext search splits
+    // "ola@bi.no" on "@"/"." and drops short tokens, so emails wouldn't match.
     queries.push(
-      Query.or([Query.contains("name", q), Query.contains("email", q)])
+      Query.or([
+        Query.contains("name", params.q),
+        Query.contains("email", params.q),
+      ])
     );
   }
 
-  const result = await db.listRows<Users>("app", "user", queries);
-  let members = result.rows.map(toMemberListItem);
+  const [result, campuses] = await Promise.all([
+    db.listRows<MemberRoster>("app", ROSTER_TABLE, queries),
+    db.listRows<Campus>("app", "campus", [
+      Query.select(["$id", "name"]),
+      Query.limit(100),
+    ]),
+  ]);
+  const campusNames = new Map(campuses.rows.map((c) => [c.$id, c.name]));
 
-  if (opts?.status) {
-    const wantActive = opts.status === "active";
-    members = members.filter((member) => member.isMember === wantActive);
+  return {
+    page: params.page,
+    rows: result.rows.map((row) => ({
+      campusId: row.campus_id,
+      campusName: row.campus_id
+        ? (campusNames.get(row.campus_id) ?? null)
+        : null,
+      email: row.email,
+      expiryDate: row.expiry_date,
+      id: row.$id,
+      name: row.name,
+      planName: row.membership_name,
+    })),
+    size: params.size,
+    total: result.total,
+  };
+}
+
+function rosterFunctionId(): string | null {
+  return process.env.MEMBER_ROSTER_FUNCTION_ID || null;
+}
+
+async function readRosterStatus(functionId: string): Promise<RosterStatus> {
+  const { functions } = await createAdminClient();
+  const list = await functions.listExecutions({
+    functionId,
+    queries: [
+      Query.orderDesc("$createdAt"),
+      Query.limit(STATUS_EXECUTION_WINDOW),
+    ],
+  });
+  return summarizeRosterExecutions(list.executions);
+}
+
+export type RosterPageStatus = RosterStatus & {
+  canRefresh: boolean;
+  /** Execution records could not be read (unset id, bad key scope, outage). */
+  unavailable: boolean;
+};
+
+const UNAVAILABLE_STATUS: RosterPageStatus = {
+  canRefresh: false,
+  lastFailedAt: null,
+  lastRefreshedAt: null,
+  running: false,
+  unavailable: true,
+};
+
+/**
+ * Never throws: the status line is secondary to the roster itself, and a
+ * misconfigured function id or API-key scope must not take down /members
+ * (which also hosts the scanner links).
+ */
+export async function getRosterStatus(): Promise<RosterPageStatus> {
+  const ctx = await requireNavAccess("portal.members");
+  const functionId = rosterFunctionId();
+  if (!functionId) {
+    return UNAVAILABLE_STATUS;
   }
-
-  return members;
+  try {
+    return {
+      ...(await readRosterStatus(functionId)),
+      canRefresh: ctx.roles.includes("globaladmin"),
+      unavailable: false,
+    };
+  } catch (error) {
+    console.error("[members] Could not read roster sync executions:", error);
+    return UNAVAILABLE_STATUS;
+  }
 }
 
 /**
- * Single member's profile + membership history. Row-level scope is checked
- * explicitly (not just the nav gate) so a campus admin can't view another
- * campus's member by guessing a URL.
+ * Global admins only. Starts an async execution unless one is already queued
+ * or running; the function also exits early on overlap, this just avoids
+ * queueing a pointless second run.
  */
-export async function getMemberDetail(
-  userId: string
-): Promise<MemberDetail | null> {
+export async function refreshMemberRoster(): Promise<{
+  ok: boolean;
+  reason?: "forbidden" | "already-running" | "not-configured" | "failed";
+}> {
   const ctx = await requireNavAccess("portal.members");
-  const { db } = await createAdminClient();
-
-  let row: Users;
+  if (!ctx.roles.includes("globaladmin")) {
+    return { ok: false, reason: "forbidden" };
+  }
+  const functionId = rosterFunctionId();
+  if (!functionId) {
+    return { ok: false, reason: "not-configured" };
+  }
   try {
-    row = await db.getRow<Users>("app", "user", userId, [
-      Query.select(MEMBER_DETAIL_SELECT),
-    ]);
-  } catch {
-    return null;
+    if ((await readRosterStatus(functionId)).running) {
+      return { ok: false, reason: "already-running" };
+    }
+    const { functions } = await createAdminClient();
+    await functions.createExecution({ async: true, functionId });
+    return { ok: true };
+  } catch (error) {
+    console.error("[members] Could not start roster sync:", error);
+    return { ok: false, reason: "failed" };
   }
-
-  if (!hasRowAccess(ctx, row.campus_id, null)) {
-    return null;
-  }
-
-  return {
-    ...toMemberListItem(row),
-    bio: row.bio,
-    memberships: (row.studentId?.memberships ?? []).map((membership) => ({
-      expiryDate: membership.expiryDate,
-      name: membership.name,
-      price: membership.price,
-      startDate: membership.startDate,
-      status: membership.status,
-    })),
-    phone: row.phone,
-  };
 }

@@ -1661,3 +1661,15 @@ export type MemberPassScanners = Models.Row & {
 export type AuthTokens = Models.Row & {
   token: string;
 };
+
+export type MemberRoster = Models.Row & {
+  company_id: number;
+  name: string;
+  email: string | null;
+  campus_id: string | null;
+  membership_id: string;
+  membership_name: string;
+  expiry_date: string;
+  invoiced_at: string | null;
+  sync_run_id: string;
+};

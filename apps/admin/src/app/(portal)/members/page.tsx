@@ -1,29 +1,46 @@
 import { Button } from "@repo/ui/components/ui/button";
 import { ScanLine } from "lucide-react";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { listMembers } from "../_actions/members";
+import { parseListParams } from "@/lib/list-params";
+import { getRosterStatus, listRosterMembers } from "../_actions/members";
 import { PageHeader } from "../_components/page-header";
+import { PaginationBar } from "../_components/pagination-bar";
 import { MembersListClient } from "./_components/members-list-client";
+import { RosterRefresh } from "./_components/roster-refresh";
 
 interface MembersPageProps {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
   await requireNavAccess("portal.members");
   const t = await getTranslations("adminPortal.members");
   const tPass = await getTranslations("adminPortal.memberPass");
-  const { q, status } = await searchParams;
-  const query = q?.trim() ?? "";
-  const statusFilter =
-    status === "active" || status === "inactive" ? status : undefined;
+  const format = await getFormatter();
+  const params = parseListParams(await searchParams);
 
-  const members = await listMembers({
-    q: query || undefined,
-    status: statusFilter,
-  });
+  const [{ rows: members, total }, status] = await Promise.all([
+    listRosterMembers(params),
+    getRosterStatus(),
+  ]);
+
+  const formatAt = (iso: string) =>
+    format.dateTime(new Date(iso), {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  let statusText = status.lastRefreshedAt
+    ? t("roster.lastRefreshed", { date: formatAt(status.lastRefreshedAt) })
+    : t("roster.neverRefreshed");
+  if (status.unavailable) {
+    statusText = t("roster.statusUnavailable");
+  } else if (status.lastFailedAt) {
+    statusText = `${statusText} · ${t("roster.lastFailed", {
+      date: formatAt(status.lastFailedAt),
+    })}`;
+  }
 
   return (
     <div className="pb-12">
@@ -43,24 +60,37 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           </Button>
         </div>
       </PageHeader>
+      <div className="mb-4">
+        <RosterRefresh
+          canRefresh={status.canRefresh}
+          labels={{
+            alreadyRunning: t("roster.alreadyRunning"),
+            failed: t("roster.failed"),
+            notConfigured: t("roster.notConfigured"),
+            queued: t("roster.queued"),
+            refresh: t("roster.refresh"),
+            refreshing: t("roster.refreshing"),
+          }}
+          running={status.running}
+          statusText={statusText}
+        />
+      </div>
       <MembersListClient
-        initialQuery={query}
-        initialStatus={statusFilter ?? ""}
+        initialQuery={params.q}
         labels={{
           empty: t("empty"),
           emptyDescription: t("emptyDescription"),
-          filterActive: t("filters.active"),
-          filterAll: t("filters.all"),
-          filterInactive: t("filters.inactive"),
-          noCampus: t("noCampus"),
-          noExpiry: t("noExpiry"),
-          noPlan: t("noPlan"),
           searchPlaceholder: t("searchPlaceholder"),
-          statusActive: t("status.active"),
-          statusInactive: t("status.inactive"),
+          unknownCampus: t("unknownCampus"),
           unnamed: t("unnamed"),
         }}
         members={members}
+      />
+      <PaginationBar
+        page={params.page}
+        size={params.size}
+        sizeSelectable
+        total={total}
       />
     </div>
   );

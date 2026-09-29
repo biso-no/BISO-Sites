@@ -181,13 +181,13 @@ export async function getCompanyById(
   return companies[0] ?? null;
 }
 
+/** `GetCompanies` accepts up to 1000 ids per `CompanyIds` search. */
+export const COMPANY_ID_BATCH_SIZE = 1000;
+
 /**
- * Get multiple companies by their IDs.
- * Since the API doesn't support batch lookup well via CompanyIds,
- * we'll fetch companies one by one but run them in parallel batches.
- *
- * @param companyIds - Array of company IDs to fetch
- * @returns Array of companies found
+ * Get companies by id, 1000 per request. Ids with no company record are
+ * simply absent from the result. A failed batch throws rather than being
+ * skipped: the roster sync would otherwise silently lose names.
  */
 export async function getCompaniesByIds(
   companyIds: number[]
@@ -197,40 +197,18 @@ export async function getCompaniesByIds(
   }
 
   const session = await getValidSession();
-
-  // Process in smaller parallel batches to avoid 429 Too Many Requests
-  const PARALLEL_BATCH_SIZE = 5;
   const allCompanies: Company[] = [];
 
-  for (let i = 0; i < companyIds.length; i += PARALLEL_BATCH_SIZE) {
-    const batch = companyIds.slice(i, i + PARALLEL_BATCH_SIZE);
-
-    // Fetch each company in the batch in parallel
-    const batchResults = await Promise.all(
-      batch.map(async (id) => {
-        try {
-          const companies = await getCompanies(session, { CompanyId: id });
-          return companies[0] || null;
-        } catch {
-          return null;
-        }
-      })
+  for (let i = 0; i < companyIds.length; i += COMPANY_ID_BATCH_SIZE) {
+    const batch = companyIds.slice(i, i + COMPANY_ID_BATCH_SIZE);
+    const companies = await getCompanies(
+      session,
+      { CompanyIds: { int: batch } },
+      { throwOnError: true }
     );
-
-    // Add non-null results
-    for (const company of batchResults) {
-      if (company) {
-        allCompanies.push(company);
-      }
-    }
-
-    // Add a small delay between batches to be nice to the API
-    if (i + PARALLEL_BATCH_SIZE < companyIds.length) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
+    allCompanies.push(...companies);
   }
 
-  console.log(`[24SO Company] Fetched ${allCompanies.length} companies by IDs`);
   return allCompanies;
 }
 
