@@ -9,6 +9,7 @@ import type {
   CustomerCategoryMapping,
   MembershipInvoiceLine,
 } from "@repo/connectors/24sevenoffice";
+import { SKIPPED_STATUS_CODE } from "@repo/shared/utils/member-roster-sync";
 import {
   buildRosterRows,
   foldMembers,
@@ -44,11 +45,6 @@ export type SyncResult =
       unknownCampus: number;
     };
 
-/**
- * 409 for a skipped run: the admin page (apps/admin member-roster-status)
- * treats 2xx as a successful refresh, and a skip refreshed nothing.
- */
-export const SKIPPED_STATUS_CODE = 409;
 const OK_STATUS_CODE = 200;
 
 export function httpStatusFor(result: SyncResult): number {

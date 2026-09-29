@@ -6,6 +6,11 @@
  * and 409 when it skipped because another run was in progress.
  */
 
+import {
+  SKIPPED_STATUS_CODE,
+  STALE_EXECUTION_MS,
+} from "@repo/shared/utils/member-roster-sync";
+
 export interface ExecutionLike {
   $createdAt?: string;
   $updatedAt: string;
@@ -21,14 +26,6 @@ export interface RosterStatus {
 
 const RUNNING_STATUSES = new Set(["waiting", "processing"]);
 const HTTP_ERROR_THRESHOLD = 400;
-/** Response of a run that exited because another was already running. */
-export const SKIPPED_STATUS_CODE = 409;
-/**
- * Appwrite's maximum function timeout. A waiting/processing record older than
- * this is a stuck execution (e.g. a worker restart), not a live run — trusting
- * it would disable "Refresh now" and skip every nightly run indefinitely.
- */
-export const STALE_EXECUTION_MS = 15 * 60 * 1000;
 
 function succeeded(execution: ExecutionLike): boolean {
   return (

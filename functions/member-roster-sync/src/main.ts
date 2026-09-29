@@ -18,6 +18,7 @@ import {
   getCustomerCategoryTree,
   getMembershipInvoices,
 } from "@repo/connectors/24sevenoffice";
+import { STALE_EXECUTION_MS } from "@repo/shared/utils/member-roster-sync";
 import type { RosterRow } from "./roster";
 import { httpStatusFor, runSync } from "./run";
 
@@ -26,11 +27,6 @@ const ROSTER_TABLE = "member_roster";
 /** The tree call took 70s against production; leave generous headroom. */
 const TREE_TIMEOUT_MS = 180_000;
 const INVOICE_TIMEOUT_MS = 120_000;
-/**
- * Appwrite's maximum function timeout. An execution still "processing" after
- * this is stuck (e.g. a worker restart) and must not block every later run.
- */
-const STALE_EXECUTION_MS = 15 * 60 * 1000;
 const UPSERT_BATCH = 100;
 /** Bulk delete may cap rows per call; bounded so a bad query can't spin forever. */
 const MAX_DELETE_ROUNDS = 100;
