@@ -88,10 +88,20 @@ server should call models at all when its client already has one.
 
 ### 2.3 Membership verification and benefit reveal
 
-**Blocker:** `computeMembershipStatus` reaches 24SevenOffice through
-`@repo/shared/utils/membership`, which imports `@repo/api/server` — the Next
-coupling this package avoids. Needs the same additive treatment `@repo/api` got,
-or a `db`-injecting variant.
+**Blocker:** `computeMembershipStatus` lives in
+`@repo/shared/utils/membership-status`, and it imports `createAdminClient` from
+`@repo/api/server` **directly** — plus `getCustomerCategories` from
+`@repo/connectors/24sevenoffice`, which is not a dependency of this package at
+all. So it needs the same additive treatment `@repo/api` got, or a
+`db`-injecting variant, *and* a way to reach 24SevenOffice without taking on the
+connector package.
+
+> Earlier revisions of this entry said the call reached 24SevenOffice *through*
+> `@repo/shared/utils/membership`. That was wrong when written, not made wrong
+> by a later change: `membership.ts` is imported only by the two apps' profile
+> modules, never by `membership-status.ts`. The conclusion was right and the
+> path was not — and the real coupling is the worse of the two, being direct
+> rather than transitive.
 
 **The `member_roster` table does not resolve this**, though it looks like it
 should. It is a per-sync-run snapshot keyed on the 24SevenOffice `company_id`,

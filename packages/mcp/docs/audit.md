@@ -2046,3 +2046,57 @@ the second where what it invalidated was prose rather than code.
 
 Revalidated after the merge: 482 tests, 18/18 typecheck, biome clean over 83
 files, stdio smoke.
+
+### Sixteenth base move: `34a724f → a1dd4f2`
+
+PR #83 (membership catalog), seventeen commits over 51 files: date-driven
+current/next season offers, a catalog synced from 24SevenOffice, the join
+wizard and member portal rebuilt around it, and — unrelated to the catalog —
+two edits to `.github/workflows/pr-review.yml`.
+
+**`@repo/shared` is a dependency of this package, so the membership work needed
+checking rather than skimming.** It changed `membership-catalog.ts`,
+`membership-gate.ts`, `membership-status.ts` and `membership-sync-merge.ts`,
+and added `membership-seasons.ts`, `membership-offers.ts` and
+`membership-plans.ts`. The decisive question is not "did `@repo/shared` change"
+but "did anything *this package imports* change", and the answer is no: the
+thirteen modules it takes from `@repo/shared` are `recruitment`,
+`types/recruitment`, `types/user-management`, and the `utils/` modules
+`benefit-scope`, `content-slug`, `feature-flags`, `order-parsing`,
+`order-queries`, `oslo-time`, `team-roles`, `unit-names`, `unit-urls` and
+`unit-visibility`. Not one of them appears in the move. No `membership-*` module
+is imported here at all.
+
+The word "membership" does appear throughout `src/identity/`, and it is worth
+being explicit that it means something else: an **Appwrite team** membership
+(`parseTeamMemberships`, `hasDepartmentMembership`) is what grants a principal
+its campus and department scope. BISO's paid student membership — what PR #83
+is about — is a different concept this package does not compute.
+
+Nothing else in the move is reachable: no schema change, `@repo/api` untouched,
+and `@repo/connectors` is not a dependency. So the move is inert for
+`packages/mcp` — the seventh of sixteen.
+
+**The inspection did find something, but it is mine and it predates the move.**
+Roadmap §2.3 said the blocker was that `computeMembershipStatus` "reaches
+24SevenOffice through `@repo/shared/utils/membership`, which imports
+`@repo/api/server`". Reading the module to check whether this move had
+disturbed it showed the path was never that. `computeMembershipStatus` lives in
+`membership-status.ts` and imports `createAdminClient` from `@repo/api/server`
+**directly**, plus `getCustomerCategories` from `@repo/connectors/24sevenoffice`;
+`membership.ts` is imported only by the two apps' profile modules and never by
+`membership-status.ts`. Checking the same file at `34a724f` shows identical
+imports, so this was wrong when written rather than invalidated later. §2.3 now
+states the direct coupling — which is the *worse* of the two, and adds a second
+requirement the entry had missed: reaching 24SevenOffice without taking on
+`@repo/connectors`. The conclusion the entry drew was right throughout; only its
+route was wrong.
+
+**One CI change worth recording**, since it touches the check on this PR rather
+than the package: `pr-review.yml` drops `claude_args` and sets
+`show_full_output: true`. The hidden-output condition that made the first
+`claude-review` failure take a log dig to diagnose is now gone, by the
+maintainers' own change and not this PR's.
+
+Revalidated after the merge: 482 tests, 18/18 typecheck, biome clean over 83
+files, stdio smoke.
