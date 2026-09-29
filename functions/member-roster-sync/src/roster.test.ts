@@ -1,5 +1,11 @@
-import { expect, test } from "bun:test";
-import { buildRosterRows, foldMembers, selectActivePlans } from "./roster";
+import { describe, expect, test } from "bun:test";
+import {
+  type ActivePlan,
+  buildRosterRows,
+  foldMembers,
+  resolveMembers,
+  selectActivePlans,
+} from "./roster";
 
 const TODAY = "2026-09-29";
 const planRows = [
@@ -230,5 +236,52 @@ test("buildRosterRows keeps a member 24SO returned nothing for", () => {
     company_id: 1,
     email: null,
     name: "",
+  });
+});
+
+describe("resolveMembers", () => {
+  const plans = selectActivePlans(planRows, TODAY);
+  const fall = plans.get(10);
+  const fullYear = plans.get(11);
+
+  test("resolves a tree id that is really an ExternalId to its company", () => {
+    const members = foldMembers(
+      [{ categoryId: 10, companyId: 1_068_416 }],
+      plans
+    );
+    const resolved = resolveMembers(members, [
+      { ExternalId: "1068416", Id: 2_117_936, Name: "Aaland, Amanda" },
+    ]);
+    expect([...resolved.entries()]).toEqual([[2_117_936, fall as ActivePlan]]);
+  });
+
+  test("a real company id wins over another company's matching ExternalId", () => {
+    const members = foldMembers([{ categoryId: 10, companyId: 500 }], plans);
+    const resolved = resolveMembers(members, [
+      { ExternalId: "500", Id: 900, Name: "Other person" },
+      { Id: 500, Name: "Real 500" },
+    ]);
+    expect([...resolved.keys()]).toEqual([500]);
+  });
+
+  test("merges a person listed under both ids, keeping the later plan", () => {
+    const members = foldMembers(
+      [
+        { categoryId: 10, companyId: 2_117_936 },
+        { categoryId: 11, companyId: 1_068_416 },
+      ],
+      plans
+    );
+    const resolved = resolveMembers(members, [
+      { ExternalId: "1068416", Id: 2_117_936, Name: "Aaland, Amanda" },
+    ]);
+    expect([...resolved.entries()]).toEqual([
+      [2_117_936, fullYear as ActivePlan],
+    ]);
+  });
+
+  test("keeps an id that matches no company as-is", () => {
+    const members = foldMembers([{ categoryId: 10, companyId: 42 }], plans);
+    expect([...resolveMembers(members, []).keys()]).toEqual([42]);
   });
 });

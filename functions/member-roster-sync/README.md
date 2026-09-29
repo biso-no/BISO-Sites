@@ -10,9 +10,12 @@ not read this table.
    is today or later.
 2. `CompanyService.GetCustomerCategoryTree` (~70s, unpaginated, ~60k pairs)
    → customers holding an active plan's category; latest-expiring plan wins.
-3. `GetCompanies` (1000 ids/call) → name and email. About 15% of tree
-   customers have no company record; they keep the name from their invoice.
-4. `InvoiceService.GetInvoices` (1000 customers/call) → campus from the
+3. `GetCompanies` with `ChangedAfter` → every company (~55k, ~12s) with name,
+   email and ExternalId. The tree lists some older customers by their
+   ExternalId instead of their company id; each tree id resolves to the
+   company with that id, else to the company whose ExternalId matches
+   (a person found under both is merged).
+4. `InvoiceService.GetInvoices` (1000 resolved company ids/call) → campus from the
    invoice's UserDefinedDimension `TypeId` 101 (value = campus `$id`).
    Missing or unknown → `campus_id` null, visible to global admins only.
 5. Upsert all rows with a new run id, then delete rows from older runs.

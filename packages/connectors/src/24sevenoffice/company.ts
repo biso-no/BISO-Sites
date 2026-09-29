@@ -181,6 +181,37 @@ export async function getCompanyById(
   return companies[0] ?? null;
 }
 
+/** Before any record in the 24SO tenant, so `ChangedAfter` matches every company. */
+const ALL_COMPANIES_CHANGED_AFTER = "1990-01-01T00:00:00";
+
+/**
+ * Every company in 24SO in one request (~55k rows, ~12s), with the fields the
+ * member roster needs. `GetCustomerCategoryTree` lists some older customers by
+ * their ExternalId rather than their company Id, so the roster must be able to
+ * resolve both — one full listing is far cheaper than a lookup per id, which
+ * 24SO rate-limits (429). Throws on failure.
+ */
+export async function getAllCompanies(options?: {
+  timeoutMs?: number;
+}): Promise<Company[]> {
+  const session = await getValidSession();
+  const client = await createAuthenticatedClient("company", session);
+  const [result]: [GetCompaniesResult] = await client.GetCompaniesAsync(
+    {
+      searchParams: { ChangedAfter: ALL_COMPANIES_CHANGED_AFTER },
+      returnProperties: {
+        string: ["Id", "ExternalId", "Name", "EmailAddresses"],
+      },
+    },
+    options?.timeoutMs ? { timeout: options.timeoutMs } : undefined
+  );
+  const companies = result.GetCompaniesResult?.Company;
+  if (!companies) {
+    return [];
+  }
+  return Array.isArray(companies) ? companies : [companies];
+}
+
 /** `GetCompanies` accepts up to 1000 ids per `CompanyIds` search. */
 export const COMPANY_ID_BATCH_SIZE = 1000;
 
