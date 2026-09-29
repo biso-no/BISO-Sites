@@ -23,8 +23,19 @@ which the admin page shows as "Last refresh failed".
 
 ## Console setup (not in code)
 
-- Runtime: Bun. Root directory: repository root. Entrypoint:
-  `functions/member-roster-sync/src/main.ts`. Build command: `bun install`.
+- Runtime: Bun. **Root directory: the repository root** (empty / `.`), not
+  this folder. The function depends on `@repo/*` workspace packages and the
+  root `catalog`, which only resolve when the monorepo root is in the build.
+- Build command:
+
+  ```bash
+  bun install --filter member-roster-sync && bun run --cwd functions/member-roster-sync bundle && rm -rf node_modules
+  ```
+
+  This installs only this function's slice of the workspace, bundles it into
+  one self-contained file (~2 MB), then drops `node_modules` (~670 MB, mostly
+  Next.js via `@repo/api`) so the deployment stays small.
+- Entrypoint: `functions/member-roster-sync/dist/main.js`.
 - Schedule: nightly, e.g. `0 3 * * *`. Timeout: at least 600s (a production
   run is roughly 2 minutes).
 - Execute access: none. The admin app starts runs with the server API key.
