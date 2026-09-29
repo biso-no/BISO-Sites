@@ -225,7 +225,10 @@
       "three_years": "Three years",
       "price": "{price} kr",
       "extends": "Extends your membership to {expiry}",
-      "popular": "Most popular"
+      "popular": "Most popular",
+      "endsSoon": "This membership ends {end}.",
+      "buyThisSeason": "Buy for this semester (until {end})",
+      "buyNextSeason": "Start next semester instead ({start} – {end})"
     },
     "campus": {
       "legend": "Which campus do you study at?",

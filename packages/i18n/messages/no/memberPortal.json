@@ -119,7 +119,8 @@
     "noUpgrades": "Du har allerede den lengste planen som selges.",
     "popular": "Populær",
     "validUntilDate": "Gyldig til {date}",
-    "choosePlan": "Velg plan"
+    "choosePlan": "Velg plan",
+    "upcomingMembership": "Medlemskapet ditt starter {start}."
   },
   "benefits": {
     "title": "Dine fordeler og rabatter",

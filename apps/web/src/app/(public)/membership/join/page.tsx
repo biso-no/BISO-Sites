@@ -1,6 +1,6 @@
 import type { Users } from "@repo/api/types/appwrite";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
-import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
+import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
 import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import type { Metadata } from "next";
@@ -65,7 +65,7 @@ export default async function MembershipJoinPage({
   const [userData, status, plans, flags, t] = await Promise.all([
     getLoggedInUser(),
     getMembershipStatus(),
-    getPurchasableMembershipPlans(),
+    getMembershipOfferCandidates(),
     getFeatureFlagStates(),
     getTranslations("membership.join"),
   ]);

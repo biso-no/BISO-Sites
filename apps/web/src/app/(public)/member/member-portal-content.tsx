@@ -1,6 +1,7 @@
 import type { Users } from "@repo/api/types/appwrite";
-import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
-import { getTranslations } from "next-intl/server";
+import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
+import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import { getFormatter, getTranslations } from "next-intl/server";
 import {
   getBenefitReveals,
   getFeaturedBenefits,
@@ -57,7 +58,7 @@ export async function MemberPortalContent({
       user
         ? getBenefitReveals(user.user.$id)
         : Promise.resolve(new Set<string>()),
-      getPurchasableMembershipPlans().catch(() => []),
+      getMembershipOfferCandidates().catch(() => []),
     ]);
 
   const current = membership ? toCurrentMembershipView(membership) : null;
@@ -70,7 +71,20 @@ export async function MemberPortalContent({
   const startDate = current?.startDate ?? "";
   const daysRemaining = current?.daysRemaining ?? 0;
   const termDays = current?.termDays ?? 1;
-  const offeredPlans = upgradePlans(plans, current);
+  // Held through the latest active or not-yet-started membership, so a
+  // student who already bought next season isn't offered it again.
+  const heldThrough =
+    [
+      ...(isMember ? (membership?.memberships ?? []) : []),
+      ...(membership?.upcomingMemberships ?? []),
+    ]
+      .map((m) => m.expiryDate)
+      .sort()
+      .at(-1) ?? null;
+  const offeredPlans = upgradePlans(plans, heldThrough);
+  const upcoming = isMember ? null : membership?.upcomingMemberships?.[0];
+  const tMembership = await getTranslations("memberPortal.membership");
+  const format = await getFormatter();
 
   // Get campus name
   const campus =
@@ -103,6 +117,17 @@ export async function MemberPortalContent({
       />
 
       <div className="mx-auto max-w-7xl px-4 py-8">
+        {upcoming ? (
+          <Alert className="mb-6">
+            <AlertDescription>
+              {tMembership("upcomingMembership", {
+                start: format.dateTime(new Date(upcoming.startDate), {
+                  dateStyle: "long",
+                }),
+              })}
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <MemberPortalTabs
           bankAccount={
             profile?.bank_account ?? user?.profile?.bank_account ?? undefined

@@ -3,6 +3,7 @@ import {
   type MembershipDuration,
   type MembershipPlan,
 } from "@repo/shared/utils/membership-plans";
+import { selectOffers } from "@repo/shared/utils/membership-seasons";
 import {
   type MembershipStatus,
   osloToday,
@@ -56,16 +57,22 @@ export function toCurrentMembershipView(
   };
 }
 
+/**
+ * What the portal offers to buy: the same per-duration selection as the join
+ * page's gate (`selectOffers`), from catalog candidates. `heldThrough` is the
+ * latest expiry among active and not-yet-started memberships.
+ */
 export function upgradePlans(
-  plans: MembershipPlan[],
-  current: CurrentMembershipView | null
+  candidates: MembershipPlan[],
+  heldThrough: string | null,
+  now: Date = new Date()
 ): PlanView[] {
-  return plans
-    .filter((plan) => !current || plan.expiryDate > current.expiryDate)
-    .map(({ duration, expiryDate, id, price }) => ({
+  return selectOffers(candidates, { heldThrough, now }).map(
+    ({ duration, expiryDate, id, price }) => ({
       duration,
       expiryDate,
       id,
       price,
-    }));
+    })
+  );
 }

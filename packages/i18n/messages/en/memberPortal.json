@@ -119,7 +119,8 @@
     "noUpgrades": "You already hold the longest plan on sale.",
     "popular": "Popular",
     "validUntilDate": "Valid until {date}",
-    "choosePlan": "Choose plan"
+    "choosePlan": "Choose plan",
+    "upcomingMembership": "Your membership starts {start}."
   },
   "benefits": {
     "title": "Your Benefits & Discounts",
