@@ -37,6 +37,19 @@ vi.mock("@repo/payment/stripe", () => ({
 vi.mock("@repo/payment/vipps", () => ({
   createVippsPayment: mocks.createVippsPayment,
 }));
+// The catalog is derived from whatever plan row the test's admin client
+// serves, through the real candidate logic (this season / next season).
+let catalogRows: Record<string, unknown>[] = [];
+vi.mock("@repo/shared/utils/membership-catalog", async () => {
+  const { toOfferCandidates } = await import(
+    "@repo/shared/utils/membership-offers"
+  );
+  return {
+    getMembershipOfferCandidates: vi.fn(async () =>
+      toOfferCandidates(catalogRows as never, new Date())
+    ),
+  };
+});
 vi.mock("@repo/shared/utils/vipps-order-ops", () => ({
   createOrder: mocks.createOrder,
   updateOrderWithSession: mocks.updateOrderWithSession,
@@ -56,12 +69,12 @@ const mockedUpdateOrderWithSession = mocks.updateOrderWithSession;
 const VALID_PLAN_ROW = {
   $id: "71",
   category: "113178",
-  canPurchase: true,
+  canPurchase: false,
   expiryDate: "2027-06-30",
   membership_id: "71",
   name: "BISO Membership fall 2026 and spring 2027",
   price: 550,
-  startDate: "2026-08-01",
+  startDate: "2026-07-01",
   status: true,
 };
 
@@ -144,6 +157,7 @@ function mockAdminClient({
   existingOrders?: Record<string, unknown>[];
   settledOrders?: Record<string, unknown>[];
 } = {}) {
+  catalogRows = planRow ? [planRow] : [];
   const getRow = vi.fn((_dbId: string, table: string) => {
     if (table === "user") {
       return profile
@@ -176,6 +190,9 @@ function mockAdminClient({
 describe("membership checkout authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Fall 2026, outside the last month: only this season's plans are on offer.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-29T12:00:00Z"));
     vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://biso.no");
     vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.biso.no");
 
@@ -217,6 +234,7 @@ describe("membership checkout authorization", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.useRealTimers();
   });
 
   it("rejects an unauthenticated caller before any order is created", async () => {
@@ -244,8 +262,16 @@ describe("membership checkout authorization", () => {
     expect(mockedCreateOrder).not.toHaveBeenCalled();
   });
 
-  it("refuses a plan row with canPurchase false before any order is created", async () => {
-    mockAdminClient({ planRow: { ...VALID_PLAN_ROW, canPurchase: false } });
+  it("refuses a plan that is not on offer this season, even if the row exists", async () => {
+    mockAdminClient({
+      planRow: {
+        ...VALID_PLAN_ROW,
+        $id: "84",
+        expiryDate: "2030-06-30",
+        membership_id: "84",
+        startDate: "2027-07-01",
+      },
+    });
 
     const response = await postVipps(
       membershipCheckoutRequest({ authorization: "Bearer valid" })
@@ -255,6 +281,28 @@ describe("membership checkout authorization", () => {
     await expect(response.json()).resolves.toEqual({
       message: "That membership is no longer available",
     });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("refuses next season's plan outside the last month for a non-member", async () => {
+    mockAdminClient({
+      planRow: {
+        ...VALID_PLAN_ROW,
+        $id: "92",
+        expiryDate: "2027-12-31",
+        membership_id: "92",
+        startDate: "2027-01-01",
+      },
+    });
+    // Put the current-season plan in the catalog too, so the next one is not a
+    // renewal-by-absence.
+    catalogRows = [VALID_PLAN_ROW, ...catalogRows];
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(409);
     expect(mockedCreateOrder).not.toHaveBeenCalled();
   });
 
@@ -517,7 +565,7 @@ describe("membership checkout authorization", () => {
           expiryDate: "2027-06-30",
           id: "71",
           name: "BISO Membership fall 2026 and spring 2027",
-          startDate: "2026-08-01",
+          startDate: "2026-07-01",
         },
       ],
     });
@@ -544,7 +592,7 @@ describe("membership checkout authorization", () => {
           expiryDate: "2026-12-31",
           id: "54",
           name: "BISO Membership fall 2026",
-          startDate: "2026-08-01",
+          startDate: "2026-07-01",
         },
       ],
     });

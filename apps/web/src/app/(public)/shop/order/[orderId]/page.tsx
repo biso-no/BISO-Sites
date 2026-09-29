@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { getOrder, verifyOrder } from "@/app/actions/orders";
 import { CartResetOnSuccess } from "@/components/shop/cart-reset-on-success";
@@ -29,6 +29,7 @@ import {
 } from "@/components/shop/order-receipt";
 import { PurchaseTracker } from "@/components/shop/purchase-tracker";
 import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
+import { upcomingMembershipStart } from "@/lib/membership-order-start";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 
 interface OrderPageProps {
@@ -109,7 +110,9 @@ interface RawOrderItem {
   custom_fields?: { id: string; label: string; value: string }[];
   name?: string;
   price?: number;
+  product_type?: string;
   quantity: number;
+  start_date?: string | null;
   title?: string;
   unit_price?: number;
   variation_name?: string;
@@ -232,18 +235,37 @@ async function CustomerInfoCard({ order }: { order: Orders }) {
   );
 }
 
-async function MembershipWelcomeCard() {
+/**
+ * `startsOn` is set when the membership was bought for next season: it grants
+ * nothing until then, so the card must not say "you're a member now".
+ */
+async function MembershipWelcomeCard({
+  startsOn,
+}: {
+  startsOn: string | null;
+}) {
   const t = await getTranslations("shop");
+  const formatter = await getFormatter();
+  const start = startsOn
+    ? formatter.dateTime(new Date(`${startsOn}T12:00:00Z`), {
+        dateStyle: "long",
+        timeZone: "Europe/Oslo",
+      })
+    : null;
   return (
     <Card className="rounded-3xl border border-brand-border bg-brand-muted p-6 shadow-sm">
       <div className="flex items-start gap-3">
         <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
         <div>
           <h4 className="mb-2 font-semibold text-foreground">
-            {t("order.membershipWelcome.title")}
+            {start
+              ? t("order.membershipWelcome.upcomingTitle")
+              : t("order.membershipWelcome.title")}
           </h4>
           <p className="mb-4 text-muted-foreground text-sm">
-            {t("order.membershipWelcome.desc")}
+            {start
+              ? t("order.membershipWelcome.upcomingDesc", { start })
+              : t("order.membershipWelcome.desc")}
           </p>
           <Link
             className="font-medium text-brand text-sm hover:underline"
@@ -269,17 +291,19 @@ function getHeroTitleKey(showSuccess: boolean, isMembershipOnly: boolean) {
 function SecondaryInfoCard({
   isMembershipOnly,
   isPaid,
+  membershipStartsOn,
   pickupLocation,
 }: {
   isMembershipOnly: boolean;
   isPaid: boolean;
+  membershipStartsOn: string | null;
   pickupLocation: string;
 }) {
   if (!isPaid) {
     return null;
   }
   return isMembershipOnly ? (
-    <MembershipWelcomeCard />
+    <MembershipWelcomeCard startsOn={membershipStartsOn} />
   ) : (
     <PickupInfoCard pickupLocation={pickupLocation} />
   );
@@ -458,6 +482,7 @@ async function OrderDetails({
   const rawItems = getOrderItems(order) as RawOrderItem[];
   const purchaseType = resolvePurchaseType(rawItems);
   const isMembershipOnly = purchaseType === "membership";
+  const membershipStartsOn = upcomingMembershipStart(rawItems);
   const receiptItems: ReceiptItem[] = rawItems.map((item) => ({
     name: item.title || item.name || "Product",
     quantity: item.quantity,
@@ -554,6 +579,7 @@ async function OrderDetails({
               <SecondaryInfoCard
                 isMembershipOnly={isMembershipOnly}
                 isPaid={status === "paid"}
+                membershipStartsOn={membershipStartsOn}
                 pickupLocation={pickupLocation}
               />
 

@@ -21,6 +21,7 @@ import {
 } from "@repo/shared/utils/checkout-return";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
+import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
 import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
 import {
   type MembershipPlan,
@@ -238,7 +239,9 @@ async function resolveMembershipPurchase(
   const row = await db
     .getRow<Memberships>("app", "memberships", planId)
     .catch(() => null);
-  if (!(row?.status && row?.canPurchase)) {
+  // Whether this plan is on sale is decided from dates in the eligibility
+  // step (the catalog's `status`/`canPurchase` columns are no longer read).
+  if (!row) {
     return {
       ok: false,
       message: "That membership is no longer available",
@@ -337,10 +340,12 @@ async function resolveMembershipEligibility(
   const status = await getMembershipStatusForStudent(identity.studentNumber, {
     refresh: true,
   });
+  // The full candidate list, not just this plan: whether "next season" is on
+  // offer depends on whether this season's plan of the same duration is.
   const gate = resolveMembershipGate({
     employeeId: identity.employeeId,
     isAuthenticated: true,
-    plans: [identity.plan],
+    plans: await getMembershipOfferCandidates(),
     status,
     studentId: identity.studentId,
   });
@@ -352,14 +357,22 @@ async function resolveMembershipEligibility(
       status: 503,
     };
   }
-  if (gate.state !== "eligible") {
-    return {
-      ok: false,
-      message: "Your membership already covers this period.",
-      status: 409,
-    };
+  const offered = gate.offeredPlans.some(
+    (plan) => plan.id === identity.plan.id
+  );
+  if (offered) {
+    return { ok: true };
   }
-  return { ok: true };
+  const alreadyCovered =
+    gate.currentExpiry !== null &&
+    identity.plan.expiryDate <= gate.currentExpiry;
+  return {
+    ok: false,
+    message: alreadyCovered
+      ? "Your membership already covers this period."
+      : "That membership is no longer available",
+    status: 409,
+  };
 }
 
 // Resolve credentials before creating the order so a misconfigured provider

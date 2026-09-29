@@ -17,35 +17,76 @@ vi.mock("@repo/api/client", () => ({
 import {
   computeMembershipStatus,
   isMembershipRowActive,
+  membershipRowState,
   osloToday,
   pickCurrentMembership,
 } from "./membership-status";
 
-function row(id: string, category: string, expiryDate: string) {
+function row(
+  id: string,
+  category: string,
+  expiryDate: string,
+  startDate = "2020-01-01"
+) {
   return {
     $id: id,
     category,
     expiryDate,
     name: `BISO Membership ${id}`,
-    startDate: "2026-01-01",
+    startDate,
   };
 }
+
+describe("membershipRowState", () => {
+  it("is upcoming before the start date and active from it (Oslo)", () => {
+    expect(
+      membershipRowState(
+        "2027-01-01",
+        "2027-06-30",
+        new Date("2026-12-13T12:00:00Z")
+      )
+    ).toBe("upcoming");
+    // 00:30 Oslo on 1 January
+    expect(
+      membershipRowState(
+        "2027-01-01",
+        "2027-06-30",
+        new Date("2026-12-31T23:30:00Z")
+      )
+    ).toBe("active");
+  });
+
+  it("treats an unreadable start as expired", () => {
+    expect(membershipRowState("soon", "2027-06-30", new Date())).toBe(
+      "expired"
+    );
+  });
+});
 
 describe("isMembershipRowActive", () => {
   it("keeps a membership valid through the whole of its expiry day in Oslo", () => {
     // 23:30 in Oslo (UTC+2 in summer) on the expiry day.
     expect(
-      isMembershipRowActive("2026-06-30", new Date("2026-06-30T21:30:00Z"))
+      isMembershipRowActive(
+        "2020-01-01",
+        "2026-06-30",
+        new Date("2026-06-30T21:30:00Z")
+      )
     ).toBe(true);
     // 00:30 in Oslo the next day, while it is still 30 June in UTC.
     expect(
-      isMembershipRowActive("2026-06-30", new Date("2026-06-30T22:30:00Z"))
+      isMembershipRowActive(
+        "2020-01-01",
+        "2026-06-30",
+        new Date("2026-06-30T22:30:00Z")
+      )
     ).toBe(false);
   });
 
   it("reads a date-time expiry by its date part", () => {
     expect(
       isMembershipRowActive(
+        "2020-01-01",
         "2026-12-31T00:00:00.000+00:00",
         new Date("2026-12-31T12:00:00Z")
       )
@@ -54,17 +95,27 @@ describe("isMembershipRowActive", () => {
 
   it("reads a DD.MM.YYYY expiry", () => {
     expect(
-      isMembershipRowActive("31.12.2026", new Date("2026-09-17T10:00:00Z"))
+      isMembershipRowActive(
+        "2020-01-01",
+        "31.12.2026",
+        new Date("2026-09-17T10:00:00Z")
+      )
     ).toBe(true);
     expect(
-      isMembershipRowActive("30.06.2026", new Date("2026-09-17T10:00:00Z"))
+      isMembershipRowActive(
+        "2020-01-01",
+        "30.06.2026",
+        new Date("2026-09-17T10:00:00Z")
+      )
     ).toBe(false);
   });
 
   it("treats an unreadable expiry as expired", () => {
-    expect(isMembershipRowActive("", new Date())).toBe(false);
-    expect(isMembershipRowActive("fall 2026", new Date())).toBe(false);
-    expect(isMembershipRowActive(null, new Date())).toBe(false);
+    expect(isMembershipRowActive("2020-01-01", "", new Date())).toBe(false);
+    expect(isMembershipRowActive("2020-01-01", "fall 2026", new Date())).toBe(
+      false
+    );
+    expect(isMembershipRowActive("2020-01-01", null, new Date())).toBe(false);
   });
 
   it("formats today's Oslo date as YYYY-MM-DD", () => {
@@ -95,7 +146,7 @@ describe("computeMembershipStatus", () => {
 
     expect(getCustomerCategories).toHaveBeenCalledWith(1_715_738);
     expect(listRows).toHaveBeenCalledWith("app", "memberships", [
-      "equal(status,true)",
+      "equal(category,113176,113178,999)",
       "limit(200)",
     ]);
     expect(status.isMember).toBe(true);
@@ -104,6 +155,24 @@ describe("computeMembershipStatus", () => {
       "spring-2026",
     ]);
     expect(status.reason).toBeUndefined();
+  });
+
+  it("a held plan that has not started is upcoming, not membership", async () => {
+    getCustomerCategories.mockResolvedValue([113_179]);
+    listRows.mockResolvedValue({
+      rows: [row("55", "113179", "2027-06-30", "2027-01-01")],
+      total: 1,
+    });
+
+    const status = await computeMembershipStatus(
+      2_117_936,
+      new Date("2026-12-13T12:00:00Z")
+    );
+
+    expect(status.isMember).toBe(false);
+    expect(status.memberships).toEqual([]);
+    expect(status.upcomingMemberships?.map((m) => m.id)).toEqual(["55"]);
+    expect(status.reason).toBe("upcoming");
   });
 
   it("reports an expired membership, newest expiry first", async () => {

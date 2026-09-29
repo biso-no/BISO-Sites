@@ -6,8 +6,12 @@ not read this table.
 
 ## How it works
 
-1. Active plans = `memberships` rows whose `expiryDate` (ISO or `DD.MM.YYYY`)
-   is today or later.
+0. Mirror every 24SO membership product into `memberships`: name, category,
+   24SO price, and start/expiry dates from the name (spring 1 Jan – 30 Jun,
+   fall 1 Jul – 31 Dec). What is for sale is decided from these dates by
+   `@repo/shared/utils/membership-seasons`. A catalog failure stops the run.
+1. Active plans = `memberships` rows with start ≤ today ≤ expiry (Oslo),
+   the same rule as the live membership check.
 2. `CompanyService.GetCustomerCategoryTree` (~70s, unpaginated, ~60k pairs)
    → customers holding an active plan's category; latest-expiring plan wins.
 3. `GetCompanies` with `ChangedAfter` → every company (~55k, ~12s) with name,

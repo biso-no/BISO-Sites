@@ -211,7 +211,9 @@
       "title": "You're already a member",
       "body": "Your membership runs until {expiry}.",
       "bodyUnknownExpiry": "You already have an active membership.",
-      "cta": "Go to the member portal"
+      "cta": "Go to the member portal",
+      "upcomingTitle": "Your membership is on its way",
+      "upcomingBody": "Your membership starts {start} and runs until {end}. Benefits become available from the start date."
     },
     "noPlansAvailable": {
       "title": "Membership isn't purchasable right now",
@@ -225,7 +227,10 @@
       "three_years": "Three years",
       "price": "{price} kr",
       "extends": "Extends your membership to {expiry}",
-      "popular": "Most popular"
+      "popular": "Most popular",
+      "endsSoon": "This membership ends {end}.",
+      "buyThisSeason": "Buy for this semester (until {end})",
+      "buyNextSeason": "Start next semester instead ({start} – {end})"
     },
     "campus": {
       "legend": "Which campus do you study at?",

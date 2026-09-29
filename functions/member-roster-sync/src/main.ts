@@ -17,6 +17,7 @@ import {
   getAllCompanies,
   getCustomerCategoryTree,
   getMembershipInvoices,
+  syncMembershipCatalog,
 } from "@repo/connectors/24sevenoffice";
 import { STALE_EXECUTION_MS } from "@repo/shared/utils/member-roster-sync";
 import type { RosterRow } from "./roster";
@@ -101,7 +102,13 @@ export default async function main(context: AppwriteContext) {
       },
       listPlanRows: async () => {
         const plans = await db.listRows<Memberships>(DB, "memberships", [
-          Query.select(["membership_id", "name", "category", "expiryDate"]),
+          Query.select([
+            "membership_id",
+            "name",
+            "category",
+            "startDate",
+            "expiryDate",
+          ]),
           Query.limit(500),
         ]);
         return plans.rows.map((row) => ({
@@ -109,11 +116,13 @@ export default async function main(context: AppwriteContext) {
           expiryDate: row.expiryDate,
           membership_id: row.membership_id,
           name: row.name,
+          startDate: row.startDate,
         }));
       },
       log: (message) => context.log(`${LOG_TAG} ${message}`),
       newRunId: () => ID.unique(),
-      today: () => new Date().toISOString().slice(0, 10),
+      now: () => new Date(),
+      syncCatalog: () => syncMembershipCatalog(),
       upsertRows: async (rows: RosterRow[]) => {
         for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
           await db.upsertRows({

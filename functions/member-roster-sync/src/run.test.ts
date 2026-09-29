@@ -16,11 +16,13 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
         expiryDate: "2099-12-31",
         membership_id: "113",
         name: "Plan",
+        startDate: "2020-01-01",
       },
     ],
     log: () => undefined,
     newRunId: () => "run1",
-    today: () => "2026-09-29",
+    now: () => new Date("2026-09-29T12:00:00Z"),
+    syncCatalog: mock(async () => ({ created: 0, skipped: 0, updated: 3 })),
     upsertRows: mock(async () => undefined),
     ...overrides,
   };
@@ -92,4 +94,42 @@ test("fetches invoices and writes rows under the resolved company id", async () 
   expect(rows.map((r) => [r.$id, r.name])).toEqual([
     ["2117936", "Aaland, Amanda"],
   ]);
+});
+
+test("syncs the catalog before reading plans, and not at all when skipping", async () => {
+  const order: string[] = [];
+  const d = deps({
+    listPlanRows: async () => {
+      order.push("plans");
+      return [
+        {
+          category: "10",
+          expiryDate: "2099-12-31",
+          membership_id: "113",
+          name: "Plan",
+          startDate: "2020-01-01",
+        },
+      ];
+    },
+    syncCatalog: mock(async () => {
+      order.push("catalog");
+      return { created: 0, skipped: 0, updated: 1 };
+    }),
+  });
+  await runSync(d);
+  expect(order).toEqual(["catalog", "plans"]);
+
+  const skipped = deps({ countRunningExecutions: async () => 2 });
+  await runSync(skipped);
+  expect(skipped.syncCatalog).not.toHaveBeenCalled();
+});
+
+test("a catalog failure stops the run before any roster write", async () => {
+  const d = deps({
+    syncCatalog: async () => {
+      throw new Error("24SO down");
+    },
+  });
+  await expect(runSync(d)).rejects.toThrow("24SO down");
+  expect(d.upsertRows).not.toHaveBeenCalled();
 });

@@ -28,6 +28,11 @@ export interface MembershipStatus {
   isMember: boolean;
   memberships: MembershipInfo[];
   reason?: string;
+  /**
+   * Held memberships that have not started yet (bought for next season),
+   * earliest start first. They grant nothing until they start.
+   */
+  upcomingMemberships?: MembershipInfo[];
 }
 
 /**
@@ -88,23 +93,41 @@ async function withDeadline<T>(
   }
 }
 
+export type MembershipRowState = "active" | "upcoming" | "expired";
+
 /**
- * Whether a `memberships` row still covers `now`: a membership is valid
- * through the whole of its expiry day in Oslo.
+ * Where a `memberships` row stands on Oslo's today: it counts from the whole
+ * of its start day through the whole of its expiry day. A plan bought for
+ * next season is "upcoming" and grants nothing until it starts.
  *
  * Accepts both `YYYY-MM-DD` and `DD.MM.YYYY` (see `normalizeMembershipDate`).
- * A date that cannot be read counts as expired. This check exists so expired
- * memberships stop counting; an unreadable date must not slip through it.
+ * An unreadable date counts as expired: this check exists so memberships stop
+ * counting, and bad data must not slip through it.
  */
+export function membershipRowState(
+  startDate: string | null | undefined,
+  expiryDate: string | null | undefined,
+  now: Date = new Date()
+): MembershipRowState {
+  const start = normalizeMembershipDate(startDate);
+  const expiry = normalizeMembershipDate(expiryDate);
+  if (!(start && expiry)) {
+    return "expired";
+  }
+  const today = osloToday(now);
+  if (today < start) {
+    return "upcoming";
+  }
+  return expiry >= today ? "active" : "expired";
+}
+
+/** Whether a `memberships` row covers `now` — see `membershipRowState`. */
 export function isMembershipRowActive(
+  startDate: string | null | undefined,
   expiryDate: string | null | undefined,
   now: Date = new Date()
 ): boolean {
-  const expiry = normalizeMembershipDate(expiryDate);
-  if (!expiry) {
-    return false;
-  }
-  return expiry >= osloToday(now);
+  return membershipRowState(startDate, expiryDate, now) === "active";
 }
 
 export function emptyMembershipStatus(reason: string): MembershipStatus {
@@ -115,6 +138,7 @@ export function emptyMembershipStatus(reason: string): MembershipStatus {
     reason,
     checkedAt: Date.now(),
     expiredMemberships: [],
+    upcomingMemberships: [],
   };
 }
 
@@ -135,7 +159,7 @@ export function emptyMembershipStatus(reason: string): MembershipStatus {
  * `MembershipComputationError` so the failure is NOT cached; the successful
  * "no categories" / matched results ARE returned normally and cached.
  *
- * A category counts only while its row has not expired — see `isMembershipRowActive`.
+ * A category counts only while its row is active — see `membershipRowState`.
  */
 export async function computeMembershipStatus(
   numericId: number,
@@ -166,7 +190,13 @@ export async function computeMembershipStatus(
   const membershipsResponse = await db.listRows<Memberships>(
     "app",
     "memberships",
-    [Query.equal("status", true), Query.limit(200)]
+    [
+      Query.equal(
+        "category",
+        finagoCategoryIds.map((id) => String(id))
+      ),
+      Query.limit(200),
+    ]
   );
 
   const heldCategories = new Set(finagoCategoryIds.map((id) => String(id)));
@@ -177,17 +207,32 @@ export async function computeMembershipStatus(
       heldCategories.has(membership.category)
   );
 
-  // 4. A held category counts only while its row has not expired.
+  // 4. A held category counts only between its row's start and expiry.
   const active: Memberships[] = [];
+  const upcoming: Memberships[] = [];
   const expired: Memberships[] = [];
   for (const membership of matched) {
-    if (isMembershipRowActive(membership.expiryDate, now)) {
+    const state = membershipRowState(
+      membership.startDate,
+      membership.expiryDate,
+      now
+    );
+    if (state === "active") {
       active.push(membership);
       continue;
     }
-    if (!normalizeMembershipDate(membership.expiryDate)) {
+    if (state === "upcoming") {
+      upcoming.push(membership);
+      continue;
+    }
+    if (
+      !(
+        normalizeMembershipDate(membership.startDate) &&
+        normalizeMembershipDate(membership.expiryDate)
+      )
+    ) {
       console.warn(
-        `[Membership] memberships row ${membership.$id} has an unreadable expiryDate "${membership.expiryDate}"; treating it as expired`
+        `[Membership] memberships row ${membership.$id} has an unreadable date (start "${membership.startDate}", expiry "${membership.expiryDate}"); treating it as expired`
       );
     }
     expired.push(membership);
@@ -209,6 +254,12 @@ export async function computeMembershipStatus(
     .sort((a, b) => (b.expiryDate ?? "").localeCompare(a.expiryDate ?? ""));
 
   const isMember = active.length > 0;
+  let reason: string | undefined;
+  if (!isMember && upcoming.length > 0) {
+    reason = "upcoming";
+  } else if (!isMember && expired.length > 0) {
+    reason = "expired";
+  }
 
   return {
     checkedAt: Date.now(),
@@ -216,7 +267,10 @@ export async function computeMembershipStatus(
     finagoCategoryIds,
     isMember,
     memberships: active.map(toInfo),
-    ...(isMember || expired.length === 0 ? {} : { reason: "expired" }),
+    upcomingMemberships: upcoming
+      .map(toInfo)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    ...(reason ? { reason } : {}),
   };
 }
 

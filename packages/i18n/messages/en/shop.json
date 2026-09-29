@@ -208,7 +208,9 @@
     "membershipWelcome": {
       "title": "You're a member now",
       "desc": "Your membership is active. All discounts and benefits are available right away in the BISO app and the member portal.",
-      "cta": "Go to the member portal"
+      "cta": "Go to the member portal",
+      "upcomingTitle": "You're all set",
+      "upcomingDesc": "Your membership starts {start}. Discounts and benefits become available in the BISO app and the member portal from that day."
     },
     "success": {
       "title": "Thank you for your purchase!",
