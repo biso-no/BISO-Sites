@@ -136,6 +136,22 @@ describe("server Appwrite clients", () => {
     vi.restoreAllMocks();
   });
 
+  test("read the API key when the client is created, not at module load", async () => {
+    // An Appwrite Function only learns its runtime key per execution (the
+    // x-appwrite-key header), after this module has already been imported.
+    const { createAdminClient } = await loadServerModule(
+      "https://appwrite.example.test/v1"
+    );
+    vi.stubEnv("APPWRITE_API_KEY", "");
+    vi.stubEnv("APPWRITE_FUNCTION_API_KEY", "runtime-key");
+
+    const admin = await createAdminClient();
+    const { client } = admin.account as AppwriteService & {
+      client: { headers: Record<string, string> };
+    };
+    expect(client.headers["X-Appwrite-Key"]).toBe("runtime-key");
+  });
+
   test("reuse the same transport while giving each request its own deadline signal", async () => {
     const endpoint = "https://appwrite.example.test/v1";
     const { createAdminClient } = await loadServerModule(endpoint);

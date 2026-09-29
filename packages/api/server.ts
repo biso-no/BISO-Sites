@@ -83,7 +83,15 @@ function plainDb(db: TablesDB): TablesDB {
   });
 }
 
-const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
+/**
+ * Read on every call, not at module load: inside an Appwrite Function the key
+ * arrives per execution (the `x-appwrite-key` header, which the function copies
+ * into `APPWRITE_FUNCTION_API_KEY`) — after this module has been imported. The
+ * injected `APPWRITE_FUNCTION_API_KEY` env var itself only exists at build time.
+ */
+function resolveApiKey(): string | undefined {
+  return process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+}
 
 const APPWRITE_PROJECT =
   process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
@@ -419,7 +427,8 @@ export async function createPublicClient() {
 
 // biome-ignore lint/suspicious/useAwait: Needs to be async.
 export async function createAdminClient() {
-  if (!APPWRITE_API_KEY) {
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
     throw new Error(
       "APPWRITE_API_KEY is not configured — admin Appwrite operations cannot run."
     );
@@ -429,7 +438,7 @@ export async function createAdminClient() {
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
       .setProject(APPWRITE_PROJECT)
-      .setKey(APPWRITE_API_KEY),
+      .setKey(apiKey),
     "admin"
   );
 
