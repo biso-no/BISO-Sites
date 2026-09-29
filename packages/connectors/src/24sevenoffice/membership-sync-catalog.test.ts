@@ -1,10 +1,10 @@
 import { expect, mock, test } from "bun:test";
 
-const createRow = mock(async () => ({}));
-const updateRow = mock(async () => ({}));
-const getRow = mock(async () => {
-  throw Object.assign(new Error("not found"), { code: 404 });
-});
+const createRow = mock(() => Promise.resolve({}));
+const updateRow = mock(() => Promise.resolve({}));
+const getRow = mock(() =>
+  Promise.reject(Object.assign(new Error("not found"), { code: 404 }))
+);
 
 mock.module("@repo/api/server", () => ({
   createAdminClient: async () => ({ db: { createRow, getRow, updateRow } }),

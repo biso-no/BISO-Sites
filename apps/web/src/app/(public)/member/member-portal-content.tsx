@@ -13,7 +13,9 @@ import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs"
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
 import type { MembershipStatus } from "@/lib/actions/membership";
 import {
+  heldThrough,
   toCurrentMembershipView,
+  upcomingMembership,
   upgradePlans,
 } from "@/lib/member-portal-membership";
 
@@ -71,18 +73,8 @@ export async function MemberPortalContent({
   const startDate = current?.startDate ?? "";
   const daysRemaining = current?.daysRemaining ?? 0;
   const termDays = current?.termDays ?? 1;
-  // Held through the latest active or not-yet-started membership, so a
-  // student who already bought next season isn't offered it again.
-  const heldThrough =
-    [
-      ...(isMember ? (membership?.memberships ?? []) : []),
-      ...(membership?.upcomingMemberships ?? []),
-    ]
-      .map((m) => m.expiryDate)
-      .sort()
-      .at(-1) ?? null;
-  const offeredPlans = upgradePlans(plans, heldThrough);
-  const upcoming = isMember ? null : membership?.upcomingMemberships?.[0];
+  const offeredPlans = upgradePlans(plans, heldThrough(membership));
+  const upcoming = upcomingMembership(membership);
   const tMembership = await getTranslations("memberPortal.membership");
   const format = await getFormatter();
 

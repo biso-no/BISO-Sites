@@ -60,7 +60,7 @@ describe("guest scanner", () => {
               category: "1",
               expiryDate: "2099-12-31",
               name: "Semester",
-              startDate: "2099-07-01",
+              startDate: "2020-07-01",
               status: true,
             },
           ],

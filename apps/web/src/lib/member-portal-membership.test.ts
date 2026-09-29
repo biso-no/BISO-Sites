@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  heldThrough,
   toCurrentMembershipView,
+  upcomingMembership,
   upgradePlans,
 } from "./member-portal-membership";
 
@@ -81,5 +83,45 @@ describe("upgradePlans", () => {
       "71",
       "82",
     ]);
+  });
+});
+
+describe("heldThrough / upcomingMembership", () => {
+  const spring = {
+    category: "113179",
+    expiryDate: "2027-06-30",
+    id: "55",
+    name: "BISO Membership spring 2027",
+    startDate: "2027-01-01",
+  };
+
+  it("counts active and not-yet-started memberships", () => {
+    expect(
+      heldThrough({
+        ...base,
+        memberships: [semester],
+        upcomingMemberships: [spring],
+      })
+    ).toBe("2027-06-30");
+  });
+
+  it("is null with nothing held", () => {
+    expect(heldThrough(null)).toBeNull();
+    expect(
+      heldThrough({ ...base, isMember: false, memberships: [] })
+    ).toBeNull();
+  });
+
+  it("shows the upcoming membership only to a non-member", () => {
+    const status = {
+      ...base,
+      isMember: false,
+      memberships: [],
+      upcomingMemberships: [spring],
+    };
+    expect(upcomingMembership(status)).toEqual(spring);
+    expect(
+      upcomingMembership({ ...status, isMember: true, memberships: [semester] })
+    ).toBeNull();
   });
 });

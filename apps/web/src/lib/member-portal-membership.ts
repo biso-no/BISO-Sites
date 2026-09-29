@@ -5,6 +5,7 @@ import {
 } from "@repo/shared/utils/membership-plans";
 import { selectOffers } from "@repo/shared/utils/membership-seasons";
 import {
+  type MembershipInfo,
   type MembershipStatus,
   osloToday,
   pickCurrentMembership,
@@ -55,6 +56,36 @@ export function toCurrentMembershipView(
     startDate: current.startDate,
     termDays: Math.max(1, daysBetween(current.startDate, current.expiryDate)),
   };
+}
+
+/**
+ * The latest expiry among active and not-yet-started memberships, so a
+ * student who already bought next season isn't offered it again.
+ */
+export function heldThrough(status: MembershipStatus | null): string | null {
+  if (!status) {
+    return null;
+  }
+  const held = [
+    ...(status.isMember ? status.memberships : []),
+    ...(status.upcomingMemberships ?? []),
+  ];
+  return (
+    held
+      .map((membership) => membership.expiryDate)
+      .sort()
+      .at(-1) ?? null
+  );
+}
+
+/** A bought-but-not-started membership, shown to someone not yet a member. */
+export function upcomingMembership(
+  status: MembershipStatus | null
+): MembershipInfo | null {
+  if (!status || status.isMember) {
+    return null;
+  }
+  return status.upcomingMemberships?.[0] ?? null;
 }
 
 /**
