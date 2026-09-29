@@ -18,10 +18,13 @@ keep using their existing per-person lookups.
 
 - **Who is listed:** current members only — customers holding a membership
   category whose plan (`memberships` row) has not expired.
-- **Campus:** derived from the member's membership invoice `DepartmentId`,
-  reverse-mapped through `CAMPUS_INVOICE_DEPARTMENT_IDS`
-  (`packages/shared/utils/finago-membership-invoice.ts`, the same map the
-  invoice writer uses). Unmapped/missing → `campus_id = null` ("Unknown campus").
+- **Campus:** read from the member's membership invoice: the
+  `UserDefinedDimension` with `TypeId` 101 (`CAMPUS_DIMENSION_TYPE`), whose
+  `Value` is the Appwrite campus id (this is what `buildDimensions` in
+  `packages/shared/utils/finago-membership-invoice.ts` writes). Order-level
+  dimension first, row-level as fallback. `DepartmentId` is not used — it is
+  the department, not the campus. Missing dimension, or a value that is not a
+  row in the `campus` table → `campus_id = null` ("Unknown campus").
 - **Visibility:** campus admins see rows whose `campus_id` is in their managed
   campuses; global admins see everything (including National and unknown), or
   their active-campus filter.
@@ -44,10 +47,13 @@ keep using their existing per-person lookups.
   1000 via `CompanySearchParams.CompanyIds`, returning `Id`, `Name`,
   `EmailAddresses`. It has no current callers.
 - **New `getMembershipInvoices(customerIds, productIds)`**: batched
-  `InvoiceService.GetInvoices` by `CustomerIds`, requesting `CustomerId`,
-  `DepartmentId`, `DateInvoiced` and `InvoiceRows.ProductId`; returns
-  `{ customerId, departmentId, productId, invoicedAt }` for rows whose
-  `ProductId` is in `productIds`.
+  `InvoiceService.GetInvoices` by `CustomerIds`, requesting (invoice)
+  `CustomerId`, `DateInvoiced`, `UserDefinedDimensions`, `InvoiceRows` and
+  (row) `ProductId`, `UserDefinedDimensions`; returns
+  `{ customerId, campusId, productId, invoicedAt }` for rows whose `ProductId`
+  is in `productIds`, with `campusId` taken from the `TypeId` 101 dimension.
+  Single-vs-array XML shapes (`InvoiceOrder`, `InvoiceRow`,
+  `UserDefinedDimension`) are normalised.
 
 ### 2. Appwrite Function `functions/member-roster-sync/`
 
@@ -64,8 +70,8 @@ existing 24SO credentials. The 24SO session is shared via the existing
     category id
   - fold tree pairs into one entry per customer, keeping the plan with the
     latest expiry when a customer holds several
-  - pick each customer's latest matching invoice and reverse-map its
-    department to a campus id
+  - pick each customer's latest matching invoice's campus id, nulling any id
+    not present in the `campus` table
 - `src/main.ts` — orchestration:
   1. **Overlap guard:** list this function's executions; if another is
      `processing`, log and exit.
@@ -120,15 +126,16 @@ through the server client.
 
 ## Open items to verify during implementation
 
-- `GetInvoices` returns `DepartmentId` and `InvoiceRows.ProductId`, and the
-  batch limit for `CustomerIds`. If `DepartmentId` isn't available, campus is
-  left null and this is reported back rather than guessed.
+- The batch limit for `GetInvoices` `CustomerIds` (confirmed: it returns
+  `UserDefinedDimensions` with campus `TypeId` 101 and row `ProductId`).
+- Membership invoices from before the web shop may lack the campus dimension;
+  those members land in "Unknown campus".
 - `GetCompanies` honours `CompanyIds` batches of 1000 in practice.
 
 ## Testing
 
-- `bun test` for `roster.ts` (plan selection, multi-plan fold, department →
-  campus mapping, unknown campus).
+- `bun test` for `roster.ts` (plan selection, multi-plan fold, campus
+  dimension extraction, unknown campus).
 - Existing connector tests keep passing; add tests for the batch helpers'
   response parsing.
 - `bun run check-types` repo-wide.
