@@ -8,6 +8,9 @@ import type {
   CustomerCategoryMapping,
   MembershipInvoiceLine,
 } from "@repo/connectors/24sevenoffice";
+// Same rules as every other reader of memberships dates: ISO or hand-edited
+// DD.MM.YYYY, and only real calendar dates.
+import { normalizeMembershipDate } from "@repo/shared/utils/membership-dates";
 
 export interface ActivePlan {
   categoryId: number;
@@ -38,27 +41,6 @@ export interface RosterRow {
   sync_run_id: string;
 }
 
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
-const NORWEGIAN_DATE = /^(\d{2})\.(\d{2})\.(\d{4})$/;
-
-/**
- * `memberships.expiryDate` is written as ISO by the product sync but has been
- * edited to `DD.MM.YYYY` in production, so accept both. Returns `YYYY-MM-DD`,
- * or null when the value is neither.
- */
-function toIsoDate(value: string): string | null {
-  const trimmed = value.trim();
-  const iso = ISO_DATE.exec(trimmed);
-  if (iso) {
-    return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  }
-  const norwegian = NORWEGIAN_DATE.exec(trimmed);
-  if (norwegian) {
-    return `${norwegian[3]}-${norwegian[2]}-${norwegian[1]}`;
-  }
-  return null;
-}
-
 /** Unexpired plans keyed by their 24SO category id. `today` is `YYYY-MM-DD`. */
 export function selectActivePlans(
   rows: PlanRow[],
@@ -68,7 +50,7 @@ export function selectActivePlans(
   for (const row of rows) {
     const categoryId = Number.parseInt(row.category ?? "", 10);
     const productId = Number.parseInt(row.membership_id, 10);
-    const expiryDate = toIsoDate(row.expiryDate);
+    const expiryDate = normalizeMembershipDate(row.expiryDate);
     if (
       Number.isFinite(categoryId) &&
       Number.isFinite(productId) &&

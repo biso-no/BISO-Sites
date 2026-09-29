@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@repo/api": "workspace:*",
-    "@repo/connectors": "workspace:*"
+    "@repo/connectors": "workspace:*",
+    "@repo/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

@@ -68,6 +68,19 @@ test("selectActivePlans reads the DD.MM.YYYY expiry format production uses", () 
   expect(plans.get(113_176)?.expiryDate).toBe("2026-12-31");
 });
 
+test("selectActivePlans uses the shared membership date rules", () => {
+  const plans = selectActivePlans(
+    [
+      { ...planRows[0], category: "1", expiryDate: "31.02.2027" }, // not a real date
+      { ...planRows[0], category: "2", expiryDate: "1.1.2027" }, // short D.M.YYYY
+      { ...planRows[0], category: "3", expiryDate: "31/12/2026" }, // slash form
+    ],
+    TODAY
+  );
+  expect([...plans.keys()].sort()).toEqual([2, 3]);
+  expect(plans.get(2)?.expiryDate).toBe("2027-01-01");
+});
+
 test("selectActivePlans skips an unparseable expiry date", () => {
   expect(
     selectActivePlans([{ ...planRows[0], expiryDate: "soon" }], TODAY).size
