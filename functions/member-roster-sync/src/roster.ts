@@ -11,6 +11,7 @@ import type {
 // Same rules as every other reader of memberships dates: ISO or hand-edited
 // DD.MM.YYYY, and only real calendar dates.
 import { normalizeMembershipDate } from "@repo/shared/utils/membership-dates";
+import { membershipRowState } from "@repo/shared/utils/membership-status";
 
 export interface ActivePlan {
   categoryId: number;
@@ -26,6 +27,7 @@ export interface PlanRow {
   expiryDate: string;
   membership_id: string;
   name: string;
+  startDate: string;
 }
 
 export interface RosterRow {
@@ -41,10 +43,14 @@ export interface RosterRow {
   sync_run_id: string;
 }
 
-/** Unexpired plans keyed by their 24SO category id. `today` is `YYYY-MM-DD`. */
+/**
+ * Plans active on Oslo's today (start ≤ today ≤ expiry), keyed by their 24SO
+ * category id — the same rule as the live membership check. A plan bought for
+ * next season does not make its holder a current member.
+ */
 export function selectActivePlans(
   rows: PlanRow[],
-  today: string
+  now: Date
 ): Map<number, ActivePlan> {
   const plans = new Map<number, ActivePlan>();
   for (const row of rows) {
@@ -55,7 +61,7 @@ export function selectActivePlans(
       Number.isFinite(categoryId) &&
       Number.isFinite(productId) &&
       expiryDate !== null &&
-      expiryDate >= today
+      membershipRowState(row.startDate, row.expiryDate, now) === "active"
     ) {
       plans.set(categoryId, {
         categoryId,

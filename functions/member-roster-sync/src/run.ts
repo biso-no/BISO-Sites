@@ -33,7 +33,13 @@ export interface SyncDeps {
   listPlanRows: () => Promise<PlanRow[]>;
   log: (message: string) => void;
   newRunId: () => string;
-  today: () => string;
+  now: () => Date;
+  /** Mirrors every 24SO membership product into `memberships`; throws on failure. */
+  syncCatalog: () => Promise<{
+    created: number;
+    skipped: number;
+    updated: number;
+  }>;
   upsertRows: (rows: RosterRow[]) => Promise<void>;
 }
 
@@ -63,7 +69,14 @@ export async function runSync(deps: SyncDeps): Promise<SyncResult> {
   }
 
   const runId = deps.newRunId();
-  const plans = selectActivePlans(await deps.listPlanRows(), deps.today());
+  // Refresh the catalog first so plan rows (and the live check) cover every
+  // 24SO membership product; a failure stops the run before any roster write.
+  const catalog = await deps.syncCatalog();
+  deps.log(
+    `Catalog: ${catalog.created} created, ${catalog.updated} updated, ${catalog.skipped} skipped`
+  );
+
+  const plans = selectActivePlans(await deps.listPlanRows(), deps.now());
   deps.log(`Active plans: ${plans.size}`);
 
   const tree = await deps.fetchTree();
