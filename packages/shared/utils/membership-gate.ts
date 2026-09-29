@@ -1,4 +1,5 @@
 import type { MembershipPlan } from "./membership-plans";
+import { selectOffers } from "./membership-seasons";
 
 export type MembershipGateState =
   | "signed_out"
@@ -30,11 +31,15 @@ export function isTransientMembershipReason(
 export interface MembershipGateInput {
   employeeId: string | null | undefined;
   isAuthenticated: boolean;
+  /** Defaults to the current time. */
+  now?: Date;
+  /** Catalog candidates (`getMembershipOfferCandidates`), tagged with `offer`. */
   plans: MembershipPlan[];
   status: {
     isMember: boolean;
     memberships: Array<{ expiryDate: string }>;
     reason?: string;
+    upcomingMemberships?: Array<{ expiryDate: string }>;
   } | null;
   studentId: string | null | undefined;
 }
@@ -92,22 +97,23 @@ export function resolveMembershipGate(
     return { state: "membership_check_unavailable", ...empty };
   }
 
-  const expiries = (input.status?.memberships ?? [])
+  // Held-through date counts active and not-yet-started memberships, so a
+  // student who already bought next season isn't sold it again.
+  const held = [
+    ...(input.status?.isMember ? (input.status.memberships ?? []) : []),
+    ...(input.status?.upcomingMemberships ?? []),
+  ]
     .map((membership) => membership.expiryDate)
     .filter(Boolean)
     .sort();
-  const currentExpiry = input.status?.isMember
-    ? (expiries.at(-1) ?? null)
-    : null;
-
-  const offeredPlans = currentExpiry
-    ? input.plans.filter((plan) => plan.expiryDate > currentExpiry)
-    : input.plans;
+  const currentExpiry = held.at(-1) ?? null;
+  const offeredPlans = selectOffers(input.plans, {
+    heldThrough: currentExpiry,
+    now: input.now ?? new Date(),
+  });
 
   if (offeredPlans.length === 0) {
-    const state = input.status?.isMember
-      ? "already_member"
-      : "no_plans_available";
+    const state = currentExpiry ? "already_member" : "no_plans_available";
     return { state, offeredPlans: [], currentExpiry };
   }
 
