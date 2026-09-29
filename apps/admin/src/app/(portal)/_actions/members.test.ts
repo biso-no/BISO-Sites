@@ -89,7 +89,7 @@ describe("refreshMemberRoster", () => {
   });
 
   test("reports not-configured without the function id", async () => {
-    delete process.env.MEMBER_ROSTER_FUNCTION_ID;
+    process.env.MEMBER_ROSTER_FUNCTION_ID = "";
     expect(await refreshMemberRoster()).toEqual({
       ok: false,
       reason: "not-configured",
