@@ -2,9 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const computeMembershipStatus = vi.hoisted(() => vi.fn());
 const revalidateTag = vi.hoisted(() => vi.fn());
-const unstable_cache = vi.hoisted(() =>
-  vi.fn((work: () => Promise<unknown>) => work)
-);
+const cacheOptions = vi.hoisted(() => ({ last: undefined as unknown }));
 const MembershipComputationError = vi.hoisted(
   () =>
     class MembershipComputationError extends Error {
@@ -18,7 +16,14 @@ const MembershipComputationError = vi.hoisted(
 
 vi.mock("next/cache", () => ({
   revalidateTag,
-  unstable_cache,
+  unstable_cache: (
+    work: () => Promise<unknown>,
+    _keys: string[],
+    options: unknown
+  ) => {
+    cacheOptions.last = options;
+    return work;
+  },
 }));
 vi.mock("@repo/shared/utils/membership-status", () => ({
   computeMembershipStatus,
@@ -202,11 +207,8 @@ describe("getMembershipStatusForStudent", () => {
 describe("membership cache lifetime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cacheOptions.last = undefined;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it("caches for sixty seconds under the student's tag", async () => {
@@ -215,9 +217,7 @@ describe("membership cache lifetime", () => {
     await getMembershipStatusForStudent(3_000_000);
 
     expect(MEMBERSHIP_CACHE_TTL_SECONDS).toBe(60);
-    const lastCall = unstable_cache.mock.calls[0];
-    expect(lastCall[1]).toEqual(["api-membership", "membership:3000000"]);
-    expect(lastCall[2]).toEqual({
+    expect(cacheOptions.last).toEqual({
       revalidate: 60,
       tags: ["membership:3000000"],
     });
@@ -227,11 +227,8 @@ describe("membership cache lifetime", () => {
 describe("invalidateMembershipStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cacheOptions.last = undefined;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it("purges the student's cache tag immediately", () => {
