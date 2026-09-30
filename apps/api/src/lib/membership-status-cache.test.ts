@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const computeMembershipStatus = vi.hoisted(() => vi.fn());
 const revalidateTag = vi.hoisted(() => vi.fn());
+const unstable_cache = vi.hoisted(() =>
+  vi.fn((work: () => Promise<unknown>) => work)
+);
 const MembershipComputationError = vi.hoisted(
   () =>
     class MembershipComputationError extends Error {
@@ -15,7 +18,7 @@ const MembershipComputationError = vi.hoisted(
 
 vi.mock("next/cache", () => ({
   revalidateTag,
-  unstable_cache: (work: () => Promise<unknown>) => work,
+  unstable_cache,
 }));
 vi.mock("@repo/shared/utils/membership-status", () => ({
   computeMembershipStatus,
@@ -31,7 +34,11 @@ vi.mock("@repo/shared/utils/membership-status", () => ({
   membershipCacheTag: (studentNumber: number) => `membership:${studentNumber}`,
 }));
 
-import { getMembershipStatusForStudent } from "./membership-status-cache";
+import {
+  getMembershipStatusForStudent,
+  invalidateMembershipStatus,
+  MEMBERSHIP_CACHE_TTL_SECONDS,
+} from "./membership-status-cache";
 
 function statusCheckedAgo(ms: number, isMember = true) {
   return {
@@ -189,5 +196,63 @@ describe("getMembershipStatusForStudent", () => {
     });
 
     expect(computeMembershipStatus).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("membership cache lifetime", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("caches for sixty seconds under the student's tag", async () => {
+    computeMembershipStatus.mockResolvedValue(statusCheckedAgo(0));
+
+    await getMembershipStatusForStudent(3_000_000);
+
+    expect(MEMBERSHIP_CACHE_TTL_SECONDS).toBe(60);
+    const lastCall = unstable_cache.mock.calls[0];
+    expect(lastCall[1]).toEqual(["api-membership", "membership:3000000"]);
+    expect(lastCall[2]).toEqual({
+      revalidate: 60,
+      tags: ["membership:3000000"],
+    });
+  });
+});
+
+describe("invalidateMembershipStatus", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("purges the student's cache tag immediately", () => {
+    invalidateMembershipStatus(1_715_738);
+
+    expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
+      expire: 0,
+    });
+  });
+
+  it("clears a recent failure so the next read recomputes", async () => {
+    computeMembershipStatus.mockRejectedValueOnce(
+      new MembershipComputationError("finago_error")
+    );
+    await getMembershipStatusForStudent(3_000_001);
+    computeMembershipStatus.mockResolvedValue(statusCheckedAgo(0));
+
+    invalidateMembershipStatus(3_000_001);
+    const status = await getMembershipStatusForStudent(3_000_001);
+
+    expect(status.isMember).toBe(true);
+    expect(computeMembershipStatus).toHaveBeenCalledTimes(2);
   });
 });
