@@ -1,16 +1,14 @@
 "use server";
 
+import { createSessionJwt } from "@repo/api/server";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import {
-  computeMembershipStatus,
   emptyMembershipStatus,
-  MembershipComputationError,
   type MembershipStatus,
-  membershipCacheTag,
 } from "@repo/shared/utils/membership-status";
-import { revalidateTag, unstable_cache } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
+import { cache } from "react";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 export type {
@@ -18,54 +16,50 @@ export type {
   MembershipStatus,
 } from "@repo/shared/utils/membership-status";
 
-// Server-side cache TTL for the resolved membership status, in seconds.
-const MEMBERSHIP_CACHE_TTL_SECONDS = 10 * 60; // 10 minutes
+// Membership status is owned by apps/api (`/api/membership?view=status`): it
+// holds the only cache, which it invalidates when it fulfils a purchase, and
+// the student app reads the same endpoint. This module only forwards the
+// signed-in student's session to it — it never talks to 24SevenOffice itself.
 
-// This cache is app-local, despite sharing `membershipCacheTag` with the
-// API's (apps/api/src/lib/membership-status-cache.ts). They are two separate
-// Next data caches in two separate deployments, so a `revalidateTag` here
-// never reaches the app's copy and vice versa — and neither is invalidated
-// when a purchase is fulfilled.
-//
-// The practical effect: a membership bought on one surface stays invisible to
-// the other until that side's own ten-minute TTL expires. The app's
-// post-purchase `?refresh=1` shortens its own wait, but it is floored to once
-// a minute per student, so the app can still say "not a member yet" for up to
-// a minute after paying.
+const MEMBERSHIP_API_TIMEOUT_MS = 5000;
+const HTTP_UNAUTHORIZED = 401;
 
-/**
- * Server-side cached wrapper around `computeMembershipStatus`, keyed per user
- * by the numeric student id. Persists across requests and users correctly,
- * needs no cookie write, and cannot be spoofed by the client. Cache is
- * invalidated after `MEMBERSHIP_CACHE_TTL_SECONDS` or via `revalidateTag`.
- */
-function getCachedMembershipStatus(
-  numericId: number
-): Promise<MembershipStatus> {
-  const cacheTag = membershipCacheTag(numericId);
-  return unstable_cache(
-    () => computeMembershipStatus(numericId),
-    ["membership", cacheTag],
-    {
-      revalidate: MEMBERSHIP_CACHE_TTL_SECONDS,
-      tags: ["membership", cacheTag],
-    }
-  )();
+function isMembershipStatus(value: unknown): value is MembershipStatus {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Partial<MembershipStatus>;
+  return (
+    typeof candidate.isMember === "boolean" &&
+    typeof candidate.checkedAt === "number" &&
+    Array.isArray(candidate.memberships) &&
+    Array.isArray(candidate.finagoCategoryIds)
+  );
 }
 
 /**
- * Read the cached membership status for a numeric student id, mapping the
- * non-cached failure signal back onto an error `MembershipStatus`.
+ * The answer for a visitor with nothing to look up (not signed in, no or an
+ * unreadable student id), or `null` when the api should be asked.
  */
-async function resolveMembershipStatus(
-  numericId: number
-): Promise<MembershipStatus> {
+async function statusWithoutLookup(): Promise<MembershipStatus | null> {
+  // Membership status is per-request state. `connection()` declares that
+  // explicitly, so prerendering stops here instead of running on with an
+  // empty cookie store.
+  await connection();
   try {
-    return await getCachedMembershipStatus(numericId);
-  } catch (error) {
-    if (error instanceof MembershipComputationError) {
-      return emptyMembershipStatus(error.reason);
+    const userData = await getLoggedInUser();
+    if (!userData) {
+      return emptyMembershipStatus("not_authenticated");
     }
+    const studentId = userData.profile?.student_id;
+    if (!studentId) {
+      return emptyMembershipStatus("no_student_id");
+    }
+    if (sanitizeStudentNumber(studentId) === null) {
+      return emptyMembershipStatus("invalid_student_id");
+    }
+    return null;
+  } catch (error) {
     // Preserve Next.js control-flow signals (prerender bailout, redirect).
     unstable_rethrow(error);
     console.error("[Membership] Unexpected error:", error);
@@ -73,120 +67,78 @@ async function resolveMembershipStatus(
   }
 }
 
-/**
- * DYNAMIC part: resolve the current authenticated account and its numeric
- * student id. Reads cookies/session, so it must stay dynamic and cannot run
- * inside `unstable_cache`. Returns either the numeric id to look up, or a
- * terminal `MembershipStatus` for the not-authenticated / no-student-id cases.
- */
-async function resolveCurrentStudentId(): Promise<
-  { numericId: number } | { status: MembershipStatus }
-> {
-  // Membership status is per-request state (session-derived, wall-clock
-  // `checkedAt` stamps). `connection()` declares that explicitly, so
-  // prerendering stops here instead of running into `Date.now()` — the
-  // cookie read alone doesn't abort the prerender pass, it just resolves
-  // to an empty store and would let execution continue.
-  await connection();
+async function readFromApi(refresh: boolean): Promise<MembershipStatus> {
+  const early = await statusWithoutLookup();
+  if (early) {
+    return early;
+  }
+
   try {
-    // 1.+2. Resolve the authenticated account + profile through the
-    // request-memoized getLoggedInUser() so the layout's call and this one
-    // share a single account.get()/profile read per render.
-    const userData = await getLoggedInUser();
-    if (!userData) {
-      return { status: emptyMembershipStatus("not_authenticated") };
+    // Null only without a usable session; an Appwrite outage throws below.
+    const jwt = await createSessionJwt();
+    if (!jwt) {
+      return emptyMembershipStatus("not_authenticated");
     }
 
-    // 3. Get student_id from profile
-    const studentId = userData.profile?.student_id;
-    if (!studentId) {
-      return { status: emptyMembershipStatus("no_student_id") };
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (!apiBaseUrl) {
+      console.error("[Membership] NEXT_PUBLIC_API_BASE_URL is not set");
+      return emptyMembershipStatus("api_unavailable");
     }
 
-    // 4. Sanitize student_id to get numeric company ID
-    const numericId = sanitizeStudentNumber(studentId);
-    if (numericId === null) {
-      return { status: emptyMembershipStatus("invalid_student_id") };
+    const query = refresh ? "view=status&refresh=1" : "view=status";
+    const response = await fetch(`${apiBaseUrl}/api/membership?${query}`, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${jwt}` },
+      signal: AbortSignal.timeout(MEMBERSHIP_API_TIMEOUT_MS),
+    });
+
+    if (response.status === HTTP_UNAUTHORIZED) {
+      return emptyMembershipStatus("not_authenticated");
+    }
+    if (!response.ok) {
+      console.error(`[Membership] api answered ${response.status}`);
+      return emptyMembershipStatus("api_unavailable");
     }
 
-    return { numericId };
+    const body: unknown = await response.json().catch(() => null);
+    if (!isMembershipStatus(body)) {
+      console.error("[Membership] api returned an unexpected body");
+      return emptyMembershipStatus("api_unavailable");
+    }
+    return body;
   } catch (error) {
-    // Preserve Next.js control-flow signals (prerender bailout, redirect)
-    // rethrown out of getLoggedInUser() — swallowing them lets prerendering
-    // run past the dynamic access and trips blocking-prerender errors.
     unstable_rethrow(error);
-    console.error("[Membership] Unexpected error:", error);
-    return { status: emptyMembershipStatus("unexpected_error") };
+    console.error("[Membership] Could not reach the api:", error);
+    return emptyMembershipStatus("api_unavailable");
   }
 }
 
+// One api call per server render: the layout, the page and nested components
+// all ask for membership, and they should share a single answer.
+const readOncePerRequest = cache(() => readFromApi(false));
+
 /**
- * Get membership status for the current user.
- *
- * Resolves the authenticated user's student id (dynamic, cookie-bound) and then
- * reads a server-side cache keyed by that id — so the expensive Finago SOAP call
- * + DB match only run on a cache miss and are shared safely across requests.
- *
- * SSR-compatible: usable in Server Components, Server Actions, API Routes, and
- * Layouts. Never writes cookies, so it is safe to call during render.
+ * Membership status for the signed-in student — for prices, badges, the
+ * portal and the member pass. Served from apps/api's short-lived cache.
  */
 export async function getMembershipStatus(): Promise<MembershipStatus> {
-  const resolved = await resolveCurrentStudentId();
-  if ("status" in resolved) {
-    return resolved.status;
-  }
-  return resolveMembershipStatus(resolved.numericId);
+  return await readOncePerRequest();
 }
 
 /**
- * Membership status computed fresh, for a gate that is about to REFUSE
- * something on the strength of the answer.
- *
- * {@link getMembershipStatus} is cached for ten minutes, which is right for
- * showing a member price but wrong for a gate: a student who has just paid for
- * their membership would be told for up to ten more minutes that they are not a
- * member and cannot buy — on the very purchase they joined in order to make.
- * Their money has already moved, so the answer has to be live.
- *
- * Unlike {@link refreshMembershipStatus} this does not invalidate the shared
- * cache tag. A gate is a read; purging a cache other surfaces depend on, as a
- * side effect of one add-to-cart, is not this function's business.
- *
- * Use it only where a negative answer blocks the user. Everywhere else — prices,
- * badges, upsells — keep the cached read.
+ * Membership status for a gate that is about to REFUSE something (members-only
+ * products, members-only vacancies). Asks apps/api to recompute rather than
+ * serve its cache, subject to its once-a-minute-per-student floor.
  */
 export async function getLiveMembershipStatus(): Promise<MembershipStatus> {
-  const resolved = await resolveCurrentStudentId();
-  if ("status" in resolved) {
-    return resolved.status;
-  }
-  try {
-    return await computeMembershipStatus(resolved.numericId);
-  } catch (error) {
-    if (error instanceof MembershipComputationError) {
-      return emptyMembershipStatus(error.reason);
-    }
-    unstable_rethrow(error);
-    console.error("[Membership] Unexpected error:", error);
-    return emptyMembershipStatus("unexpected_error");
-  }
+  return await readFromApi(true);
 }
 
 /**
- * Force refresh the membership status, bypassing the cache by invalidating the
- * per-user cache tag before re-reading. Must be called from a Server Action or
- * Route Handler (where `revalidateTag` is allowed), e.g. the `/api/membership`
- * route with `?refresh=true`.
+ * Force a fresh status — the `/api/membership?refresh=true` route, after a
+ * purchase or when the student asks.
  */
 export async function refreshMembershipStatus(): Promise<MembershipStatus> {
-  const resolved = await resolveCurrentStudentId();
-  if ("status" in resolved) {
-    return resolved.status;
-  }
-
-  // `{ expire: 0 }` purges the tag immediately with read-your-own-writes
-  // semantics, so the re-read below returns freshly computed data. (`updateTag`
-  // is Server-Action-only and would throw from this route handler.)
-  revalidateTag(membershipCacheTag(resolved.numericId), { expire: 0 });
-  return resolveMembershipStatus(resolved.numericId);
+  return await readFromApi(true);
 }
