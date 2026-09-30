@@ -9,7 +9,6 @@ import {
   reconcileVippsPayment,
   verifyVippsWebhookSignature,
 } from "@repo/payment/vipps";
-import { settleOrderIfPaid } from "@repo/shared/utils/order-settlement";
 import {
   determineStatusFromStripeSession,
   type StripeSessionLike,
@@ -17,6 +16,7 @@ import {
 import { applyOrderStatusTransition } from "@repo/shared/utils/vipps-order-ops";
 import { type NextRequest, NextResponse } from "next/server";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { settleOrder } from "@/lib/settle-order";
 
 const STRIPE_SESSION_EVENTS = new Set([
   "checkout.session.completed",
@@ -70,9 +70,9 @@ async function handleVippsCallback(req: NextRequest, origin: string | null) {
 
   // Settle revenue from the webhook too, so mobile buyers who never hit the
   // browser return route still get a ledger entry or membership invoice.
-  // `settleOrderIfPaid` is idempotent, so this is safe alongside the return
+  // `settleOrder` is idempotent, so this is safe alongside the return
   // route, the app's verify call and the reconciliation cron.
-  await settleOrderIfPaid(event.reference, db);
+  await settleOrder(event.reference, db);
 
   return json({ received: true });
 }
@@ -119,7 +119,7 @@ async function handleStripeCallback(req: NextRequest, origin: string | null) {
         }
       }
       await applyOrderStatusTransition(orderId, status, updateData, db);
-      await settleOrderIfPaid(orderId, db);
+      await settleOrder(orderId, db);
     }
   }
 

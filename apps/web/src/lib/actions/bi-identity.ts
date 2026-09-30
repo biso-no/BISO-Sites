@@ -9,9 +9,7 @@ import {
   identityBacksStudentId,
   parseBiStudentEmail,
 } from "@repo/shared/utils/bi-student";
-import { membershipCacheTag } from "@repo/shared/utils/membership-status";
 import { buildProfileRowPermissions } from "@repo/shared/utils/profile-fields";
-import { revalidateTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
@@ -354,22 +352,6 @@ export async function syncBiStudentIdentity(): Promise<BiIdentitySyncResult> {
         update,
         buildProfileRowPermissions(user.$id)
       );
-    }
-
-    // The live membership check is keyed by the numeric student id; drop the
-    // cached "no_student_id" result so status is correct immediately. This is
-    // wrapped on its own: `revalidateTag` throws unconditionally when called
-    // during a Server Component render phase (verified against the pinned
-    // next@16.3.0 in this repo), and `unstable_rethrow` below does not
-    // recognize that error as one of its control-flow signals, so it would
-    // otherwise fall through to the catch and misreport a write that just
-    // succeeded as `directory_unavailable`. The write above has already
-    // landed by this point regardless of what happens here.
-    try {
-      revalidateTag(membershipCacheTag(parsed.studentNumber), { expire: 0 });
-    } catch (error) {
-      unstable_rethrow(error);
-      console.error("[BI Identity] Cache invalidation failed:", error);
     }
 
     // Partial success: `student_id` is written, only the directory

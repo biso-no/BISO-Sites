@@ -3,10 +3,10 @@ import type { Orders } from "@repo/api/types/appwrite";
 import { reconcileOrderPayment } from "@repo/payment/reconcile";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
-import { settleOrderIfPaid } from "@repo/shared/utils/order-settlement";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { settleOrder } from "@/lib/settle-order";
 
 /**
  * The buyer's view of one of their own orders, re-synced with the payment
@@ -21,7 +21,7 @@ import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
  * ask, the app would show "pending" for an order that is paid.
  *
  * So this does what the return route does, minus the redirect: reconcile,
- * settle if paid (idempotent — see `settleOrderIfPaid`), and return the order.
+ * settle if paid (idempotent — see `settleOrder`), and return the order.
  *
  * Ownership is enforced against the caller's session, so one buyer can never
  * read another's order. The reconcile and settle steps run with the admin
@@ -194,13 +194,13 @@ export async function GET(
     // status write succeeded. Retrying is free when it already settled: the
     // atomic claim inside each helper makes it a no-op.
     if (own.status === "paid") {
-      await settleOrderIfPaid(orderId, db);
+      await settleOrder(orderId, db);
       return json(toOrderView(own));
     }
     await reconcileOrderPayment(orderId, db).catch((error) => {
       console.error(`[payment/orders/${orderId}] reconcile failed:`, error);
     });
-    await settleOrderIfPaid(orderId, db);
+    await settleOrder(orderId, db);
 
     // This one may fail harmlessly: the order was already read successfully
     // above, so falling back to that copy returns a real order rather than

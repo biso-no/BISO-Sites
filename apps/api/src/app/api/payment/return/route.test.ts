@@ -13,8 +13,8 @@ vi.mock("@repo/api/server", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@repo/payment/reconcile", () => ({
   reconcileOrderPayment: mocks.reconcileOrderPayment,
 }));
-vi.mock("@repo/shared/utils/order-settlement", () => ({
-  settleOrderIfPaid: mocks.settleOrderIfPaid,
+vi.mock("@/lib/settle-order", () => ({
+  settleOrder: mocks.settleOrderIfPaid,
 }));
 vi.mock("@repo/shared/utils/membership-fulfilment", () => ({
   isMembershipOrder: mocks.isMembershipOrder,

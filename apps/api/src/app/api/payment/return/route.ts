@@ -11,9 +11,9 @@ import {
 } from "@repo/shared/utils/checkout-return";
 import { isMembershipOrder } from "@repo/shared/utils/membership-fulfilment";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
-import { settleOrderIfPaid } from "@repo/shared/utils/order-settlement";
 import { NextResponse } from "next/server";
 import { webBaseUrl } from "@/lib/public-urls";
+import { settleOrder } from "@/lib/settle-order";
 
 export const dynamic = "force-dynamic";
 
@@ -116,7 +116,7 @@ function redirectForStatus(
  * Payment providers redirect buyers here after completing (or cancelling)
  * payment. Re-syncs the order with the provider so the result page is current
  * even if the webhook has not landed, then settles revenue through
- * `settleOrderIfPaid` — one of three redundant triggers (webhook, this route,
+ * `settleOrder` — one of three redundant triggers (webhook, this route,
  * reconcile cron); the claim locks inside it make settlement exactly-once.
  */
 export async function GET(request: Request) {
@@ -164,7 +164,7 @@ export async function GET(request: Request) {
       .catch(() => null);
     const current = refreshed ?? order;
 
-    await settleOrderIfPaid(orderId, db);
+    await settleOrder(orderId, db);
 
     const isMembership = isMembershipOrder(current);
     return isAppCheckout

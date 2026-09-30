@@ -246,4 +246,96 @@ describe("GET /api/membership", () => {
       state: "membership_check_unavailable",
     });
   });
+
+  describe("view=status", () => {
+    it("returns the raw status without reading the catalog", async () => {
+      const member = status({
+        finagoCategoryIds: [113_178],
+        isMember: true,
+        memberships: [{ id: "71", name: "BISO Membership" }],
+        reason: undefined,
+      });
+      getMembershipStatusForStudent.mockResolvedValue(member);
+
+      const response = await GET(overviewRequest("?view=status"));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(await response.json()).toEqual(JSON.parse(JSON.stringify(member)));
+      expect(getMembershipStatusForStudent).toHaveBeenCalledWith(1_715_738, {
+        refresh: false,
+      });
+      expect(getMembershipOfferCandidates).not.toHaveBeenCalled();
+    });
+
+    it("forces a refresh when asked", async () => {
+      await GET(overviewRequest("?view=status&refresh=1"));
+
+      expect(getMembershipStatusForStudent).toHaveBeenCalledWith(1_715_738, {
+        refresh: true,
+      });
+    });
+
+    it("requires a bearer token", async () => {
+      const response = await GET(overviewRequest("?view=status", ""));
+
+      expect(response.status).toBe(401);
+    });
+
+    it("reports an unlinked student without touching 24SevenOffice", async () => {
+      getRow.mockResolvedValue({ $id: "user-1", student_id: null });
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({ isMember: false, reason: "no_student_id" });
+      expect(body).not.toHaveProperty("state");
+      expect(getMembershipStatusForStudent).not.toHaveBeenCalled();
+    });
+
+    it("reports an unreadable student id", async () => {
+      getRow.mockResolvedValue({ $id: "user-1", student_id: "no-digits" });
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({
+        isMember: false,
+        reason: "invalid_student_id",
+      });
+    });
+
+    it("reports profile_unavailable when the profile cannot be read", async () => {
+      getRow.mockRejectedValue(
+        Object.assign(new Error("timeout"), { code: 500 })
+      );
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({
+        isMember: false,
+        reason: "profile_unavailable",
+      });
+      expect(body).not.toHaveProperty("state");
+    });
+
+    it("passes a failed Finago read through as its reason", async () => {
+      getMembershipStatusForStudent.mockResolvedValue(
+        status({ reason: "finago_error" })
+      );
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({ isMember: false, reason: "finago_error" });
+    });
+  });
+
+  it.each([
+    "",
+    "?view=overview",
+  ])("keeps the full overview for %j", async (query) => {
+    const body = await (await GET(overviewRequest(query))).json();
+
+    expect(body).toHaveProperty("state");
+    expect(body).toHaveProperty("offeredPlans");
+    expect(body).toHaveProperty("campuses");
+  });
 });
