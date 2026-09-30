@@ -77,6 +77,9 @@ function overviewBody(
  * status (expired memberships excluded), the same purchase gate the website's
  * join page applies, and the plans on offer. Every failure to read reports
  * `membership_check_unavailable`, never "not a member".
+ *
+ * `?view=status` returns only the raw `MembershipStatus` — no gate, plans or
+ * campuses. The website reads membership this way so there is one cache, here.
  */
 export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin");
@@ -85,6 +88,9 @@ export async function GET(req: NextRequest) {
     response.headers.set("Cache-Control", "private, no-store");
     return applyCorsHeaders(response, origin);
   };
+  const params = new URL(req.url).searchParams;
+  const statusView = params.get("view") === "status";
+  const refresh = params.get("refresh") === "1";
 
   try {
     if (!req.headers.get("authorization")?.startsWith("Bearer ")) {
@@ -112,6 +118,9 @@ export async function GET(req: NextRequest) {
         });
     } catch (error) {
       console.error("[membership] Profile read failed:", error);
+      if (statusView) {
+        return json(emptyMembershipStatus("profile_unavailable"));
+      }
       return json(
         overviewBody(
           "membership_check_unavailable",
@@ -127,12 +136,14 @@ export async function GET(req: NextRequest) {
     const defaultCampusId = profile?.bi_campus_id ?? null;
     const studentNumber = sanitizeStudentNumber(studentId);
     if (studentNumber === null) {
+      const reason = studentId ? "invalid_student_id" : "no_student_id";
+      if (statusView) {
+        return json(emptyMembershipStatus(reason));
+      }
       return json(
         overviewBody(
           "needs_bi_link",
-          emptyMembershipStatus(
-            studentId ? "invalid_student_id" : "no_student_id"
-          ),
+          emptyMembershipStatus(reason),
           NO_GATE,
           studentId,
           defaultCampusId
@@ -140,7 +151,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const refresh = new URL(req.url).searchParams.get("refresh") === "1";
+    if (statusView) {
+      return json(
+        await getMembershipStatusForStudent(studentNumber, { refresh })
+      );
+    }
+
     const [status, plans] = await Promise.all([
       getMembershipStatusForStudent(studentNumber, { refresh }),
       getMembershipOfferCandidates().catch((error: unknown) => {
@@ -174,6 +190,9 @@ export async function GET(req: NextRequest) {
     );
   } catch (error) {
     console.error("[membership] Unexpected error:", error);
+    if (statusView) {
+      return json(emptyMembershipStatus("unexpected_error"));
+    }
     return json(
       overviewBody(
         "membership_check_unavailable",
