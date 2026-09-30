@@ -4,6 +4,7 @@ import { GET } from "./route";
 
 const mocks = vi.hoisted(() => ({
   fulfilMembershipOrder: vi.fn(),
+  invalidateMembershipStatus: vi.fn(),
   isFeatureEnabled: vi.fn(),
   isMembershipOrder: vi.fn(),
   postFinagoTransactionForOrder: vi.fn(),
@@ -34,6 +35,9 @@ vi.mock("@repo/shared/utils/membership-fulfilment", () => ({
   isMembershipOrder: mocks.isMembershipOrder,
   releaseStaleMembershipClaim: mocks.releaseStaleMembershipClaim,
   stampNonMembershipOrder: mocks.stampNonMembershipOrder,
+}));
+vi.mock("@/lib/membership-status-cache", () => ({
+  invalidateMembershipStatus: mocks.invalidateMembershipStatus,
 }));
 
 const CRON_SECRET = "test-cron-secret";
@@ -164,6 +168,31 @@ describe("reconcile-orders cron: auth", () => {
 
 describe("reconcile-orders cron: membership sweep", () => {
   beforeEach(resetMocks);
+
+  it("invalidates the buyer's membership status after fulfilling", async () => {
+    wireListRows([membershipOrder()]);
+    mocks.fulfilMembershipOrder.mockResolvedValue({
+      fulfilled: true,
+      invoiceId: 556_677,
+      studentNumber: 1_715_738,
+    });
+
+    await GET(cronRequest());
+
+    expect(mocks.invalidateMembershipStatus).toHaveBeenCalledWith(1_715_738);
+  });
+
+  it("leaves the cache alone when fulfilment did not happen", async () => {
+    wireListRows([membershipOrder()]);
+    mocks.fulfilMembershipOrder.mockResolvedValue({
+      fulfilled: false,
+      reason: "finago_failed",
+    });
+
+    await GET(cronRequest());
+
+    expect(mocks.invalidateMembershipStatus).not.toHaveBeenCalled();
+  });
 
   it("fulfils a paid membership order that has no invoice id", async () => {
     const order = membershipOrder();
