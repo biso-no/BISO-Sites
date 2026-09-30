@@ -71,8 +71,8 @@ payment callback / return / order poll / reconcile cron  (all in api)
 - `utils/order-settlement.ts` — `settleOrderIfPaid` returns
   `{ membershipStudentNumber?: number }` (set only when a membership order was
   fulfilled on this call) instead of `void`. It still never throws.
-- `utils/membership-gate.ts` — add `api_unavailable` to
-  `TRANSIENT_STATUS_REASONS`.
+- `utils/membership-gate.ts` — add `api_unavailable` and
+  `profile_unavailable` to `TRANSIENT_STATUS_REASONS`.
 
 ### `apps/api`
 
@@ -134,10 +134,13 @@ Web's response mapping for the `api` call:
 | network error, timeout (5s), other non-2xx, unparseable body | `api_unavailable` |
 | no session JWT | `not_authenticated` |
 
-`api_unavailable` is transient, so the existing logic treats it as "couldn't
-check", not "not a member": gates don't refuse, web's `/api/membership` answers
-503 and `membership-provider` keeps its last status, and the member pass shows
-its unavailable state.
+`api_unavailable` (and `profile_unavailable`, which the slim view can now
+return) are added to the transient reasons, so the existing logic treats them
+as "couldn't check", not "not a member": web's `/api/membership` answers 503
+and `membership-provider` keeps its last status, and the member pass shows its
+unavailable state. The members-only gates (cart, orders, jobs) keep today's
+fail-closed behaviour — they refuse on any non-member status, exactly as they
+do for `finago_error` now.
 
 Web caches nothing, failures included; `api`'s `recentFailures` already holds
 Finago retries to one per student per minute.
