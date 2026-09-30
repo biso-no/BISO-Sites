@@ -19,24 +19,6 @@ const users = vi.hoisted(() => ({
 
 const getBiDirectoryUser = vi.hoisted(() => vi.fn());
 
-// A mutable flag the tests toggle to simulate Next's real behaviour: verified
-// against the pinned next@16.3.0 in this repo
-// (node_modules/next/dist/server/web/spec-extension/revalidate.js),
-// `revalidateTag` throws unconditionally when called during a render-phase
-// work unit. A bare `vi.fn()` spy (the previous version of this mock) erases
-// that constraint entirely — this is what let C2 (revalidateTag called
-// directly inside a render, its throw silently swallowed into a reported
-// failure) ship undetected. See "does not report a successful link as a
-// failure" below.
-const renderPhase = vi.hoisted(() => ({ active: false }));
-const revalidateTag = vi.hoisted(() =>
-  vi.fn(() => {
-    if (renderPhase.active) {
-      throw new Error("Route revalidateTag used during render");
-    }
-  })
-);
-
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db, users })),
   createSessionClient: vi.fn(async () => ({ account })),
@@ -44,10 +26,6 @@ vi.mock("@repo/api/server", () => ({
 
 vi.mock("@repo/connectors/azure/bi-directory", () => ({
   getBiDirectoryUser,
-}));
-
-vi.mock("next/cache", () => ({
-  revalidateTag,
 }));
 
 import { syncBiStudentIdentity } from "./bi-identity";
@@ -64,8 +42,6 @@ describe("syncBiStudentIdentity", () => {
     db.getRow.mockReset();
     db.updateRow.mockReset();
     getBiDirectoryUser.mockReset();
-    revalidateTag.mockClear();
-    renderPhase.active = false;
 
     account.get.mockResolvedValue({ $id: "user-1" });
     db.getRow.mockResolvedValue({});
@@ -149,9 +125,6 @@ describe("syncBiStudentIdentity", () => {
         bi_linked_at: expect.any(String),
       })
     );
-    expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
-      expire: 0,
-    });
   });
 
   it("succeeds without an employee id on a genuine directory miss, and does not set bi_employee_id", async () => {
@@ -293,41 +266,6 @@ describe("syncBiStudentIdentity", () => {
     expect(result).toEqual({ success: false, error: "sync_failed" });
   });
 
-  it("does not report a successful link as a failure when cache invalidation throws mid-render (C2 regression guard)", async () => {
-    account.listIdentities.mockResolvedValue({
-      identities: [oidcIdentity("s1715738@bi.no")],
-    });
-    getBiDirectoryUser.mockResolvedValue({
-      campusHint: "2",
-      employeeId: "9001234",
-    });
-    renderPhase.active = true;
-
-    const result = await syncBiStudentIdentity();
-
-    // This is the regression C2 exists to catch: real Next.js throws
-    // unconditionally from revalidateTag when called during a render phase,
-    // and unstable_rethrow does not recognize that error, so a naive
-    // implementation swallows it into the outer catch and reports a
-    // successful write as `directory_unavailable`.
-    expect(result).toEqual({
-      success: true,
-      studentId: "s1715738",
-      hasEmployeeId: true,
-      campusHint: "2",
-    });
-    // The write itself must still have gone through before the throw.
-    expect(db.updateRow).toHaveBeenCalledWith(
-      "app",
-      "user",
-      "user-1",
-      expect.objectContaining({ student_id: "s1715738" })
-    );
-    expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
-      expire: 0,
-    });
-  });
-
   it("refuses a BI account already linked to another BISO account and removes the new identity", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     account.listIdentities.mockResolvedValue({
@@ -441,9 +379,6 @@ describe("syncBiStudentIdentity", () => {
           bi_campus_id: "1",
         })
       );
-      expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
-        expire: 0,
-      });
     });
 
     it("leaves the lookup key alone for a genuine student address", async () => {

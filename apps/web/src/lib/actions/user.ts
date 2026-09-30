@@ -7,13 +7,10 @@ import {
   createSessionJwt,
 } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
-import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
-import { membershipCacheTag } from "@repo/shared/utils/membership-status";
 import {
   buildProfileRowPermissions,
   pickSelfServiceProfileFields,
 } from "@repo/shared/utils/profile-fields";
-import { revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
@@ -74,14 +71,6 @@ async function clearBiStudentLink(
   }
 
   await adminDb.updateRow<BiUser>("app", "user", userId, CLEARED_BI_LINK);
-
-  // The cached membership status is keyed by the numeric student id; bust it
-  // so this account stops being reported as a member immediately instead of
-  // for up to MEMBERSHIP_CACHE_TTL_SECONDS.
-  const numericId = sanitizeStudentNumber(profile.student_id ?? null);
-  if (numericId !== null) {
-    revalidateTag(membershipCacheTag(numericId), { expire: 0 });
-  }
 
   return {
     student_id: profile.student_id ?? null,

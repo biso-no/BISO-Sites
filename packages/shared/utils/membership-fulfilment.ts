@@ -71,6 +71,11 @@ export interface MembershipFulfilmentResult {
      */
     | "read_failed"
     | "finago_failed";
+  /**
+   * The buyer's sanitised student number — the key of their membership status
+   * cache. Set only when `fulfilled` is true, so the caller can invalidate it.
+   */
+  studentNumber?: number;
 }
 
 const FULFILLABLE_STATUSES = new Set(["authorized", "paid"]);
@@ -574,7 +579,11 @@ export async function fulfilMembershipOrder(
     };
   }
 
-  return { fulfilled: true, invoiceId: postResult.invoiceId };
+  return {
+    fulfilled: true,
+    invoiceId: postResult.invoiceId,
+    studentNumber: identity.studentNumber,
+  };
 }
 
 const STALE_CLAIM_MS = 30 * 60 * 1000;

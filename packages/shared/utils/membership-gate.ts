@@ -10,14 +10,17 @@ export type MembershipGateState =
   | "no_plans_available"
   | "eligible";
 
-// `MembershipStatus.reason` values that mean the live Finago read itself
-// failed transiently (timeout, unreachable, or an unexpected error resolving
-// it) — as opposed to a legitimate resolved state such as `no_categories`
-// (genuinely not a member, safe to cache) or `not_authenticated`/
-// `no_student_id`/`invalid_student_id` (already handled by the earlier gate
-// checks in this function, before `status.reason` is even consulted).
+// `MembershipStatus.reason` values that mean the check itself failed
+// transiently — Finago timed out or errored, the profile could not be read,
+// or the website could not reach apps/api — as opposed to a legitimate
+// resolved state such as `no_categories` (genuinely not a member) or
+// `not_authenticated`/`no_student_id`/`invalid_student_id` (already handled by
+// the earlier gate checks in this function, before `status.reason` is even
+// consulted).
 const TRANSIENT_STATUS_REASONS: ReadonlySet<string> = new Set([
+  "api_unavailable",
   "finago_error",
+  "profile_unavailable",
   "unexpected_error",
 ]);
 

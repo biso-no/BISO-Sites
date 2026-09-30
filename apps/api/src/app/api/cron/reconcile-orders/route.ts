@@ -20,6 +20,7 @@ import {
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { NextResponse } from "next/server";
+import { invalidateMembershipStatus } from "@/lib/membership-status-cache";
 
 /**
  * Order reconciliation sweep. Driven by the `scheduled-dispatch` Appwrite
@@ -209,6 +210,9 @@ async function recoverMembershipFulfilment(db: AdminDb): Promise<{
       const result = await fulfilMembershipOrder(order.$id, db);
       if (result.fulfilled) {
         fulfilled += 1;
+        if (result.studentNumber !== undefined) {
+          invalidateMembershipStatus(result.studentNumber);
+        }
       } else if (
         result.reason === "finago_failed" ||
         result.reason === "read_failed"

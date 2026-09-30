@@ -7,19 +7,18 @@ import {
 } from "@repo/shared/utils/membership-status";
 import { revalidateTag, unstable_cache } from "next/cache";
 
-const MEMBERSHIP_CACHE_TTL_SECONDS = 10 * 60;
-
-// This cache is app-local, despite sharing `membershipCacheTag` with the
-// website's (apps/web/src/lib/actions/membership.ts). They are two separate
-// Next data caches in two separate deployments, so a `revalidateTag` here
-// never reaches the website's copy and vice versa — and neither is
-// invalidated when a purchase is fulfilled.
-//
-// The practical effect: a membership bought on one surface stays invisible to
-// the other until that side's own ten-minute TTL expires. The app's
-// post-purchase `?refresh=1` shortens its own wait, but it is floored to once
-// a minute per student (MEMBERSHIP_REFRESH_FLOOR_MS), so the app can still
-// say "not a member yet" for up to a minute after paying.
+/**
+ * How long a computed status is served before 24SevenOffice is asked again.
+ *
+ * This is the only membership cache: the website reads status from this app
+ * (`/api/membership?view=status`), as the student app does. Purchases this
+ * app fulfils invalidate the student's entry at once
+ * (`invalidateMembershipStatus`, via `settleOrder` and the reconcile cron), so
+ * the TTL only bounds how long a membership bought outside our system — in
+ * BI's Student app, which writes the category straight to 24SevenOffice —
+ * takes to appear.
+ */
+export const MEMBERSHIP_CACHE_TTL_SECONDS = 60;
 
 /** A forced refresh within this long of the last computation is served from cache. */
 export const MEMBERSHIP_REFRESH_FLOOR_MS = 60 * 1000;
@@ -89,8 +88,8 @@ async function readStatus(studentNumber: number): Promise<MembershipStatus> {
 }
 
 /**
- * Live 24SevenOffice membership status for one student, cached for ten
- * minutes like the website's.
+ * Live 24SevenOffice membership status for one student, cached for
+ * `MEMBERSHIP_CACHE_TTL_SECONDS`.
  *
  * `refresh` recomputes — after a purchase, or when a student pulls to
  * refresh — but no more than once a minute per student, so a client cannot
@@ -100,7 +99,15 @@ export async function getMembershipStatusForStudent(
   studentNumber: number,
   { refresh = false }: { refresh?: boolean } = {}
 ): Promise<MembershipStatus> {
-  const status = await readStatus(studentNumber);
+  let status = await readStatus(studentNumber);
+  // `unstable_cache` is stale-while-revalidate: the first read after expiry
+  // gets the old entry (of any age) while a refresh runs behind it. Purge and
+  // recompute here so the TTL is a real bound. A status served by the failure
+  // throttle is built fresh (`checkedAt` is now), so it never trips this.
+  if (Date.now() - status.checkedAt >= MEMBERSHIP_CACHE_TTL_SECONDS * 1000) {
+    revalidateTag(membershipCacheTag(studentNumber), { expire: 0 });
+    status = await readStatus(studentNumber);
+  }
   if (!refresh) {
     return status;
   }
@@ -111,4 +118,13 @@ export async function getMembershipStatusForStudent(
   }
   revalidateTag(membershipCacheTag(studentNumber), { expire: 0 });
   return readStatus(studentNumber);
+}
+
+/**
+ * Drop a student's cached status — after this app has assigned them a
+ * membership category — so their next read asks 24SevenOffice again.
+ */
+export function invalidateMembershipStatus(studentNumber: number): void {
+  recentFailures.delete(studentNumber);
+  revalidateTag(membershipCacheTag(studentNumber), { expire: 0 });
 }

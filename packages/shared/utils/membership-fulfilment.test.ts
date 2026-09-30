@@ -163,7 +163,11 @@ describe("fulfilMembershipOrder", () => {
 
     const result = await fulfilMembershipOrder("order-1", db);
 
-    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    expect(result).toEqual({
+      fulfilled: true,
+      invoiceId: 556_677,
+      studentNumber: 1_715_738,
+    });
     expect(upsertMembershipCustomer).toHaveBeenCalledWith(
       expect.objectContaining({
         employeeId: 9_001_234,
@@ -335,7 +339,11 @@ describe("fulfilMembershipOrder", () => {
 
     const result = await fulfilMembershipOrder("order-1", db);
 
-    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    expect(result).toEqual({
+      fulfilled: true,
+      invoiceId: 556_677,
+      studentNumber: 1_715_738,
+    });
     expect(postMembershipInvoice).toHaveBeenCalledWith(
       expect.objectContaining({
         PaymentAmount: 550,
@@ -360,7 +368,11 @@ describe("fulfilMembershipOrder", () => {
 
     const result = await fulfilMembershipOrder("order-1", db);
 
-    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    expect(result).toEqual({
+      fulfilled: true,
+      invoiceId: 556_677,
+      studentNumber: 1_715_738,
+    });
     // planRow's price/dates (from wireReads) are what get booked.
     expect(postMembershipInvoice).toHaveBeenCalledWith(
       expect.objectContaining({ PaymentAmount: 550, AccrualLength: 12 })
