@@ -9,6 +9,14 @@ import {
 import { ORDER_ITEMS_SELECT } from "./order-queries";
 import type { DbClient } from "./vipps-order-ops";
 
+export interface SettlementResult {
+  /**
+   * Set when this call fulfilled a membership order: the student whose
+   * membership status cache the caller should now invalidate.
+   */
+  membershipStudentNumber?: number;
+}
+
 /**
  * Books the revenue for an order that has reached a paid state.
  *
@@ -24,11 +32,14 @@ import type { DbClient } from "./vipps-order-ops";
  * Never throws. It is invoked from paths whose job is to answer a buyer or
  * acknowledge a webhook; a settlement hiccup must not fail those, and the
  * reconciliation cron will come back around.
+ *
+ * Returns the fulfilled student's number for a membership order settled on
+ * this call, so an app with a membership cache can invalidate it.
  */
 export async function settleOrderIfPaid(
   orderId: string,
   db: DbClient
-): Promise<void> {
+): Promise<SettlementResult> {
   try {
     const order = (await db.getRow("app", "orders", orderId, [
       ORDER_ITEMS_SELECT,
@@ -36,14 +47,18 @@ export async function settleOrderIfPaid(
     if (
       !(order && (order.status === "paid" || order.status === "authorized"))
     ) {
-      return;
+      return {};
     }
     if (isMembershipOrder(order)) {
-      await fulfilMembershipOrder(orderId, db);
-      return;
+      const result = await fulfilMembershipOrder(orderId, db);
+      return result.fulfilled && result.studentNumber !== undefined
+        ? { membershipStudentNumber: result.studentNumber }
+        : {};
     }
     await postFinagoTransactionForOrder(orderId, db);
+    return {};
   } catch (error) {
     console.error(`[order-settlement] failed for ${orderId}:`, error);
+    return {};
   }
 }
