@@ -99,7 +99,15 @@ export async function getMembershipStatusForStudent(
   studentNumber: number,
   { refresh = false }: { refresh?: boolean } = {}
 ): Promise<MembershipStatus> {
-  const status = await readStatus(studentNumber);
+  let status = await readStatus(studentNumber);
+  // `unstable_cache` is stale-while-revalidate: the first read after expiry
+  // gets the old entry (of any age) while a refresh runs behind it. Purge and
+  // recompute here so the TTL is a real bound. A status served by the failure
+  // throttle is built fresh (`checkedAt` is now), so it never trips this.
+  if (Date.now() - status.checkedAt >= MEMBERSHIP_CACHE_TTL_SECONDS * 1000) {
+    revalidateTag(membershipCacheTag(studentNumber), { expire: 0 });
+    status = await readStatus(studentNumber);
+  }
   if (!refresh) {
     return status;
   }

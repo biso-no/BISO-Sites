@@ -65,12 +65,37 @@ describe("getMembershipStatusForStudent", () => {
   });
 
   it("serves the cached status without forcing a recompute", async () => {
-    computeMembershipStatus.mockResolvedValue(statusCheckedAgo(5 * 60_000));
+    computeMembershipStatus.mockResolvedValue(statusCheckedAgo(30_000));
 
     await getMembershipStatusForStudent(1_715_738);
 
     expect(computeMembershipStatus).toHaveBeenCalledTimes(1);
     expect(revalidateTag).not.toHaveBeenCalled();
+  });
+
+  it("purges and recomputes a plain read of a status older than the TTL", async () => {
+    const fresh = statusCheckedAgo(0, false);
+    computeMembershipStatus
+      .mockResolvedValueOnce(statusCheckedAgo(61_000))
+      .mockResolvedValueOnce(fresh);
+
+    const status = await getMembershipStatusForStudent(1_715_738);
+
+    expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
+      expire: 0,
+    });
+    expect(computeMembershipStatus).toHaveBeenCalledTimes(2);
+    expect(status).toBe(fresh);
+  });
+
+  it("does not purge a plain read of a status 30 seconds old", async () => {
+    const cached = statusCheckedAgo(30_000);
+    computeMembershipStatus.mockResolvedValue(cached);
+
+    const status = await getMembershipStatusForStudent(1_715_738);
+
+    expect(revalidateTag).not.toHaveBeenCalled();
+    expect(status).toBe(cached);
   });
 
   it("recomputes on refresh when the cached status is more than a minute old", async () => {
@@ -155,10 +180,10 @@ describe("getMembershipStatusForStudent", () => {
   });
 
   it("recomputes once the throttle window passes", async () => {
-    const fresh = statusCheckedAgo(0, false);
+    // Built when called, so its `checkedAt` is after the clock moves on.
     computeMembershipStatus
       .mockRejectedValueOnce(new MembershipComputationError("finago_error"))
-      .mockResolvedValueOnce(fresh);
+      .mockImplementationOnce(async () => statusCheckedAgo(0, false));
 
     await getMembershipStatusForStudent(2_000_002);
 
@@ -166,14 +191,15 @@ describe("getMembershipStatusForStudent", () => {
 
     const status = await getMembershipStatusForStudent(2_000_002);
 
-    expect(status).toBe(fresh);
+    expect(status.reason).toBeUndefined();
+    expect(status.isMember).toBe(false);
     expect(computeMembershipStatus).toHaveBeenCalledTimes(2);
   });
 
   it("clears the failure throttle on a successful read", async () => {
     computeMembershipStatus
       .mockRejectedValueOnce(new MembershipComputationError("finago_error"))
-      .mockResolvedValueOnce(statusCheckedAgo(0));
+      .mockImplementationOnce(async () => statusCheckedAgo(0));
 
     // First call fails and records throttle
     const first = await getMembershipStatusForStudent(2_000_003);
