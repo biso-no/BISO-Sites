@@ -112,6 +112,19 @@ read it — and reading membership with the service key on the caller's behalf i
 the substitution for authorization this server refuses to make. The blocker
 above is still the one to clear.
 
+**Nor does `apps/api`'s `/api/membership?view=status`**, added in `8bb2a3d`,
+even though it is the closest thing in the repo to what this section wants. It
+gets the authorization right — it demands a `Bearer` JWT and derives the user
+from `account.get()`, so it answers for the *caller* rather than for a service
+key — and it caches the answer for 60s with explicit invalidation on
+fulfilment. But it is a Next.js route handler (`next/server`,
+`export const dynamic = "force-dynamic"`), so consuming it would make this
+package depend on a running app for a capability that belongs in a reusable
+backend package. That is the coupling this package is built to avoid, and the
+route does not change `membership-status.ts`, which still imports
+`createAdminClient` directly. Treat the route as evidence the capability is
+wanted, not as the way to reach it.
+
 ### 2.4 Expense status and diagnostics
 
 Genuinely useful: "where did my reimbursement stop" is a common question.

@@ -2100,3 +2100,44 @@ maintainers' own change and not this PR's.
 
 Revalidated after the merge: 482 tests, 18/18 typecheck, biome clean over 83
 files, stdio smoke.
+
+### Seventeenth base move: `a1dd4f2 → 8bb2a3d`
+
+PR #85, "membership status via apps/api" — 28 files across `apps/api` (13),
+`apps/web` (7), `packages/shared` (6) and `docs/superpowers` (2). No schema
+change, no `@repo/api` change, no workflow change.
+
+**Inert in code.** The three changed `packages/shared` source modules are
+`membership-fulfilment`, `membership-gate` and `order-settlement`. None is
+reachable from this package. That is not read off the directory: resolving
+`packages/mcp/src`'s `@repo/shared` imports and walking their own imports gives
+a transitive closure of exactly the thirteen entry modules — none of them
+imports anything further from `@repo/shared` — and the three changed files are
+not in it. The nearest misses are real and worth naming: this package imports
+`order-parsing` and `order-queries`, not `order-settlement`.
+
+**Beware the grep that looks like a wider surface.** Grepping the whole package
+for `@repo/shared/...` also returns `utils/membership`, `utils/membership-status`
+and `utils/order-refunds`. Every one of those is **prose** — three in `docs/`,
+one in a comment in `src/services/commerce.ts` explaining why the refund lock is
+not re-implemented here. None is an import. Restricting the grep to `src/` and
+to `from "…"` is what makes the count thirteen.
+
+**Not inert in prose, for the same reason the fifteenth move was not.** The move
+adds `GET /api/membership?view=status` to `apps/api`, which is the closest thing
+in the repo to what roadmap §2.3 asks for, and a future reader would reasonably
+conclude the §2.3 blocker had been cleared. It has not been. The route gets the
+authorization right — `Bearer` JWT, user from `account.get()`, so it answers for
+the caller and not for a service key — but it is a Next.js route handler, so
+consuming it would make this package depend on a running app for a capability
+that belongs in a reusable backend package. §2.3 now says so explicitly rather
+than leaving the reader to rediscover it.
+
+**The §2.3 claim itself was re-checked against the new base, not assumed.**
+`packages/shared/utils/membership-status.ts` is untouched by this move and still
+imports `createAdminClient` from `@repo/api/server` directly and
+`getCustomerCategories` from `@repo/connectors/24sevenoffice`. The entry's
+stated coupling holds verbatim at `8bb2a3d`.
+
+Revalidated after the merge: 482 tests, 18/18 typecheck, biome clean over 83
+files, stdio smoke.
