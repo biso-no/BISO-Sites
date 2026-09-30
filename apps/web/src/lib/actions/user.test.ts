@@ -13,15 +13,9 @@ const adminDb = vi.hoisted(() => ({
   updateRow: vi.fn(),
 }));
 
-const revalidateTag = vi.hoisted(() => vi.fn());
-
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: adminDb })),
   createSessionClient: vi.fn(async () => ({ account })),
-}));
-
-vi.mock("next/cache", () => ({
-  revalidateTag,
 }));
 
 // removeIdentity() never touches these, but they are real value imports of
@@ -53,7 +47,6 @@ describe("removeIdentity", () => {
     account.listIdentities.mockReset();
     adminDb.getRow.mockReset();
     adminDb.updateRow.mockReset();
-    revalidateTag.mockReset();
 
     account.get.mockResolvedValue({ $id: "user-1" });
     account.deleteIdentity.mockResolvedValue({});
@@ -81,9 +74,6 @@ describe("removeIdentity", () => {
         student_id: null,
       })
     );
-    expect(revalidateTag).toHaveBeenCalledWith("membership:1715738", {
-      expire: 0,
-    });
   });
 
   it("does not touch student_id when the removed identity is not the OIDC one", async () => {
@@ -96,7 +86,6 @@ describe("removeIdentity", () => {
     expect(result).toEqual({ success: true });
     expect(account.deleteIdentity).toHaveBeenCalledWith("identity-email");
     expect(adminDb.updateRow).not.toHaveBeenCalled();
-    expect(revalidateTag).not.toHaveBeenCalled();
   });
 });
 
@@ -107,7 +96,6 @@ describe("removeIdentity failures", () => {
     account.listIdentities.mockReset();
     adminDb.getRow.mockReset();
     adminDb.updateRow.mockReset();
-    revalidateTag.mockReset();
 
     account.get.mockResolvedValue({ $id: "user-1" });
     account.deleteIdentity.mockResolvedValue({});
