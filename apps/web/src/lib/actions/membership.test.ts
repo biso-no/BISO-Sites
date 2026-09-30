@@ -171,12 +171,26 @@ describe("web membership actions", () => {
     });
   });
 
-  it("treats a 401 from the api as signed out", async () => {
+  it("reports api_unavailable, not signed out, when the api rejects our JWT", async () => {
     fetchMock.mockResolvedValue(reply({ message: "nope" }, 401));
 
     await expect(getMembershipStatus()).resolves.toMatchObject({
-      reason: "not_authenticated",
+      isMember: false,
+      reason: "api_unavailable",
     });
+  });
+
+  it("gives the plain read 2s and refresh reads 5s", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+
+    await getMembershipStatus();
+    expect(timeout).toHaveBeenLastCalledWith(2000);
+
+    await refreshMembershipStatus();
+    expect(timeout).toHaveBeenLastCalledWith(5000);
+
+    await getLiveMembershipStatus();
+    expect(timeout).toHaveBeenLastCalledWith(5000);
   });
 
   it("reports api_unavailable on a server error", async () => {

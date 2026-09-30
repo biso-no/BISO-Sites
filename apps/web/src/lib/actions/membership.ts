@@ -21,7 +21,10 @@ export type {
 // the student app reads the same endpoint. This module only forwards the
 // signed-in student's session to it — it never talks to 24SevenOffice itself.
 
-const MEMBERSHIP_API_TIMEOUT_MS = 5000;
+// The plain read sits in the site-wide layout, so it must fail fast; refresh
+// reads are gates or an explicit refresh and can wait for a recompute.
+const MEMBERSHIP_API_TIMEOUT_MS = 2000;
+const MEMBERSHIP_API_REFRESH_TIMEOUT_MS = 5000;
 const HTTP_UNAUTHORIZED = 401;
 
 function isMembershipStatus(value: unknown): value is MembershipStatus {
@@ -90,11 +93,16 @@ async function readFromApi(refresh: boolean): Promise<MembershipStatus> {
     const response = await fetch(`${apiBaseUrl}/api/membership?${query}`, {
       cache: "no-store",
       headers: { Authorization: `Bearer ${jwt}` },
-      signal: AbortSignal.timeout(MEMBERSHIP_API_TIMEOUT_MS),
+      signal: AbortSignal.timeout(
+        refresh ? MEMBERSHIP_API_REFRESH_TIMEOUT_MS : MEMBERSHIP_API_TIMEOUT_MS
+      ),
     });
 
     if (response.status === HTTP_UNAUTHORIZED) {
-      return emptyMembershipStatus("not_authenticated");
+      // We hold a session and minted a JWT, so a 401 is a fault between the
+      // two services, not a signed-out visitor.
+      console.error("[Membership] api rejected the session JWT (401)");
+      return emptyMembershipStatus("api_unavailable");
     }
     if (!response.ok) {
       console.error(`[Membership] api answered ${response.status}`);
