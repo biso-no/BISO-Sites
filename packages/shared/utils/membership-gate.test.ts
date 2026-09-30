@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveMembershipGate } from "./membership-gate";
+import {
+  isTransientMembershipReason,
+  resolveMembershipGate,
+} from "./membership-gate";
 import type { MembershipPlan } from "./membership-plans";
 
 const semester: MembershipPlan = {
@@ -283,5 +286,26 @@ describe("resolveMembershipGate", () => {
         })
       ).state
     ).toBe("needs_directory_record");
+  });
+});
+
+describe("isTransientMembershipReason", () => {
+  it.each([
+    "finago_error",
+    "unexpected_error",
+    "api_unavailable",
+    "profile_unavailable",
+  ])("treats %s as a failed check", (reason) => {
+    expect(isTransientMembershipReason(reason)).toBe(true);
+  });
+
+  it.each([
+    "no_categories",
+    "expired",
+    "not_authenticated",
+    null,
+    undefined,
+  ])("treats %s as a real answer", (reason) => {
+    expect(isTransientMembershipReason(reason)).toBe(false);
   });
 });
