@@ -109,6 +109,10 @@ SHAREPOINT_CLIENT_SECRET=your-client-secret-value
 # One or more SharePoint site URLs the app is allowed to access.
 # JSON array format. Used to resolve site IDs in the drive picker.
 SHAREPOINT_SITES=["https://bisono.sharepoint.com/sites/biso"]
+
+# Drive (document library) that holds "Organisational documents". Required:
+# uploads fail with a configuration error when it is missing.
+SHAREPOINT_DOCUMENTS_DRIVE_ID=b!...
 ```
 
 > The `SHAREPOINT_SITES` variable is already defined in `.env.example`. All four variables are read by `getSharePointConfig()` in `packages/connectors/src/sharepoint/index.ts`.
@@ -157,26 +161,25 @@ Then your folder path is `/Governing Documents/National`.
 
 ## 6. Recommended Folder Structure in SharePoint
 
-Create this folder structure in your SharePoint document library before uploading documents through the admin app. The admin app will create files in whichever folder path you specify — it will not auto-create folders.
+The admin app writes under `Organisational documents` in the Intranet document
+library and creates any missing folders itself:
 
 ```
-Shared Documents/
-└── BISO Documents/
-    ├── National/
-    │   ├── Statutes/
-    │   ├── Code of Conduct/
-    │   ├── Business Regulations/
-    │   └── Communication Guidelines/
-    └── Campus Bylaws/
-        ├── Oslo/
-        ├── Bergen/
-        ├── Trondheim/
-        └── Stavanger/
+Organisational documents/
+  <Category>/[<Campus>/]<Norsk versjon | Engelsk versjon>/
+    <Title>.pdf                  ← current version, replaced in place
+    Previous versions/
+      <Title> v12.pdf            ← one file per uploaded version
+      <Title> v11.pdf
 ```
 
-When creating a document in the admin app:
-- Set **Folder Path** to e.g. `/BISO Documents/National/Statutes`
-- All versions of that document will be uploaded to that folder, replacing in place each time
+Category folders are `Statutes`, `Local laws`, `Code of Conduct`,
+`Authorization Matrix`, `Target Documents`, `Business Regulations` and
+`Communication Guidelines`. A campus-specific document sits in a subfolder named
+after its campus (for example `Local laws/Bergen/Norsk versjon/`), and national
+documents sit directly under the category.
+
+File names come from the document title, not from the uploaded file.
 
 ---
 
@@ -186,13 +189,14 @@ Once credentials are configured and the folder structure exists in SharePoint:
 
 1. Open the admin app and navigate to **Documents → New Document**
 2. Fill in the metadata (title, category, scope, etc.)
-3. In the **File & SharePoint** section:
-   - If `SHAREPOINT_SITES` is configured, the **Site** dropdown will be populated automatically — select the correct site
-   - If the dropdown is empty, paste the **Drive ID** directly (copy it from Graph Explorer as described above)
-   - Set the **Folder Path** to the correct path within the drive (e.g. `/BISO Documents/National/Statutes`)
+3. Enter the **version** as a number (`12` or `7.1`); the `v` is added for you
 4. Select your PDF and click **Save**
 
-The file is uploaded to SharePoint and the metadata (including the SharePoint item ID, drive ID, and web URL) is saved to Appwrite. Future version uploads will replace the file in-place using the stored item ID.
+The file is uploaded twice: as the current file and as a per-version copy in
+`Previous versions`. A public "anyone with the link" URL is created for the
+current file and shown in the editor with a **Copy link** button. To publish a
+later version, open the document, enter the higher version number and upload
+the new PDF.
 
 ---
 
@@ -202,7 +206,9 @@ If you have SharePoint Online **site pages** (modern pages) that display or link
 
 ### Why pages may need updating
 
-When a document is uploaded or replaced via the admin app, the file content changes but the **SharePoint item URL stays the same** (because we replace in-place using the item ID). This means existing SharePoint page links and embedded viewers that already point to a file will automatically show the latest version — no manual update needed for those.
+The current file is replaced in place, so its URL and its public link never
+change. Link the SharePoint page to the document once, using **Copy link** in
+the admin app, and it will always open the latest version.
 
 However, if you are **setting up the folder structure for the first time**, existing SharePoint page links may point to old file locations or different libraries. Those need to be updated once to point to the new paths.
 
@@ -270,3 +276,23 @@ After moving or renaming any documents, run a quick check:
 - SharePoint versioning must be enabled on the document library
 - Go to the library → **Library settings → Versioning settings** → enable **Create a version each time you edit a file**
 - With versioning enabled, every in-place replace via the admin app will add a new version entry automatically
+
+### "SharePoint is not configured: SHAREPOINT_DOCUMENTS_DRIVE_ID is not set"
+
+- Set `SHAREPOINT_DOCUMENTS_DRIVE_ID` to the Intranet document library's drive id
+
+### Saved, but no public link
+
+- The tenant or the Intranet site does not allow "Anyone" links. Enable them in
+  the SharePoint admin centre, or share the `biso.no` documents page instead
+
+### "A document with this title already exists in this category…"
+
+- Two documents with the same title, category, language and campus would share
+  one SharePoint file, so the second is refused
+- Open the existing document and upload a new version instead
+
+### "Campus not found for this document"
+
+- The document is campus-specific but its campus could not be looked up
+- Pick a valid campus and save again
