@@ -56,11 +56,8 @@ const departmentValues: DocumentMetadataFormValues = {
   description: null,
   language: "no",
   scope: "campus",
-  sort_order: 0,
   status: "draft",
   title: "Vedtekter",
-  version: null,
-  version_number: 1,
 };
 
 mock.module("@repo/api/server", () => ({
