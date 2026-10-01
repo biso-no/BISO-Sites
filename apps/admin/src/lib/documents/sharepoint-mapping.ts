@@ -96,3 +96,45 @@ export function buildDocumentFileNames(
     current: `${base}.pdf`,
   };
 }
+
+/**
+ * Identity of a document's current file in SharePoint: two documents with the
+ * same key are written to the same path. Titles compare the way SharePoint
+ * compares file names (after sanitising, ignoring letter case), and only
+ * campus-scoped documents live in a campus folder.
+ */
+export function documentPathKey(input: {
+  campus_id: string | null | undefined;
+  category: string;
+  language: string | null | undefined;
+  scope: string;
+  title: string;
+}): string {
+  const pathCampus = input.scope === "campus" ? (input.campus_id ?? "") : "";
+  const fileName = buildDocumentFileNames(input.title, "0")
+    .current.normalize("NFC")
+    .toLowerCase();
+  return JSON.stringify([
+    input.category,
+    input.language ?? "no",
+    pathCampus,
+    fileName,
+  ]);
+}
+
+// SharePoint sharing links carry a one-letter type segment, e.g. "/:b:/" for a PDF.
+const SHARING_LINK_SEGMENT_REGEX = /\/:[a-z]:\//i;
+
+/**
+ * True for an "anyone with the link" style URL; false for a plain library URL,
+ * which only opens for people signed in to the tenant.
+ */
+export function isSharePointSharingLink(url: string): boolean {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  return SHARING_LINK_SEGMENT_REGEX.test(path);
+}

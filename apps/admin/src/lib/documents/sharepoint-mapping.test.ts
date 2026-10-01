@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   buildDocumentFileNames,
+  documentPathKey,
   getDocumentsDriveId,
+  isSharePointSharingLink,
   PREVIOUS_VERSIONS_FOLDER,
   resolveFolderPath,
 } from "./sharepoint-mapping";
@@ -101,6 +103,100 @@ describe("buildDocumentFileNames", () => {
   test("caps very long titles", () => {
     const { current } = buildDocumentFileNames("a".repeat(300), "1");
     expect(current.length).toBeLessThanOrEqual(124);
+  });
+});
+
+describe("documentPathKey", () => {
+  const national = {
+    campus_id: null,
+    category: "national-statutes",
+    language: "no",
+    scope: "national",
+    title: "Vedtekter for BISO",
+  };
+  const oslo = { ...national, campus_id: "campus-oslo", scope: "campus" };
+
+  test("ignores letter case in the title, as SharePoint file names do", () => {
+    expect(documentPathKey({ ...national, title: "VEDTEKTER for biso" })).toBe(
+      documentPathKey(national)
+    );
+    expect(documentPathKey({ ...national, title: "LOVER ÆØÅ" })).toBe(
+      documentPathKey({ ...national, title: "lover æøå" })
+    );
+  });
+
+  test("treats composed and decomposed letters as the same name", () => {
+    expect(documentPathKey({ ...national, title: "Lover a\u030A" })).toBe(
+      documentPathKey({ ...national, title: "Lover \u00E5" })
+    );
+  });
+
+  test("ignores the campus of a national document", () => {
+    expect(documentPathKey({ ...national, campus_id: "campus-oslo" })).toBe(
+      documentPathKey(national)
+    );
+  });
+
+  test("separates campuses, and campus documents from national ones", () => {
+    expect(documentPathKey(oslo)).not.toBe(
+      documentPathKey({ ...oslo, campus_id: "campus-bergen" })
+    );
+    expect(documentPathKey(oslo)).not.toBe(documentPathKey(national));
+  });
+
+  test("matches titles that sanitise to the same file name", () => {
+    expect(
+      documentPathKey({ ...national, title: " Vedtekter  for BISO? " })
+    ).toBe(documentPathKey(national));
+  });
+
+  test("separates categories and languages, defaulting the language to Norwegian", () => {
+    expect(
+      documentPathKey({ ...national, category: "code-of-conduct" })
+    ).not.toBe(documentPathKey(national));
+    expect(documentPathKey({ ...national, language: "en" })).not.toBe(
+      documentPathKey(national)
+    );
+    expect(documentPathKey({ ...national, language: null })).toBe(
+      documentPathKey(national)
+    );
+    expect(documentPathKey({ ...national, language: undefined })).toBe(
+      documentPathKey(national)
+    );
+  });
+
+  test("separates genuinely different titles", () => {
+    expect(
+      documentPathKey({ ...national, title: "Vedtekter for BISO 2" })
+    ).not.toBe(documentPathKey(national));
+  });
+});
+
+describe("isSharePointSharingLink", () => {
+  test("recognises an anyone-with-the-link URL", () => {
+    expect(
+      isSharePointSharingLink(
+        "https://biso.sharepoint.com/:b:/g/EaBcDeFgHiJkLmNoPq?e=abc123"
+      )
+    ).toBe(true);
+    expect(
+      isSharePointSharingLink(
+        "https://biso.sharepoint.com/:b:/s/Intranet/EaBcDeFgHiJk"
+      )
+    ).toBe(true);
+  });
+
+  test("rejects a plain library URL that needs a BISO sign-in", () => {
+    expect(
+      isSharePointSharingLink(
+        "https://biso.sharepoint.com/sites/Intranet/Delte%20dokumenter/Organisational%20documents/Statutes/Norsk%20versjon/file.pdf"
+      )
+    ).toBe(false);
+  });
+
+  test("rejects an empty or unparseable value", () => {
+    expect(isSharePointSharingLink("")).toBe(false);
+    expect(isSharePointSharingLink("not a url")).toBe(false);
   });
 });
 
