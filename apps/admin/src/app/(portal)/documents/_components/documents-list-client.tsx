@@ -186,13 +186,7 @@ export function DocumentsListClient({
                   >
                     <span>{CATEGORY_LABELS[doc.category] ?? doc.category}</span>
                     <span>·</span>
-                    <span>v{doc.version_number}</span>
-                    {doc.version && (
-                      <>
-                        <span>·</span>
-                        <span>{doc.version}</span>
-                      </>
-                    )}
+                    <span>{doc.version ? `v${doc.version}` : "—"}</span>
                     <span>·</span>
                     <span>{formatBytes(doc.file_size)}</span>
                     <span>·</span>

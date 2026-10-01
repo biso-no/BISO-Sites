@@ -1,14 +1,20 @@
 "use client";
 
-import type { Campus, Documents } from "@repo/api/types/appwrite";
+import type {
+  Campus,
+  Documents,
+  DocumentVersions,
+} from "@repo/api/types/appwrite";
+import { formatDocumentVersion } from "@repo/shared/utils/document-version";
 import { useForm } from "@tanstack/react-form";
-import { ExternalLink, FileText, Loader2, Upload } from "lucide-react";
+import { Copy, ExternalLink, FileText, Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   DOCUMENT_FORM_CATEGORIES,
   type DocumentMetadataFormValues,
+  documentCreateSchema,
   documentMetadataSchema,
 } from "@/app/(portal)/_actions/schemas";
 import {
@@ -27,6 +33,7 @@ import {
   PortalTextarea,
 } from "../../../_components/portal-fields";
 import { STUDIO, studioSurface } from "../../../_components/studio";
+import { VersionInput } from "../../../_components/version-input";
 
 interface DocumentEditorClientProps {
   campuses: Campus[];
@@ -36,6 +43,7 @@ interface DocumentEditorClientProps {
   labels: Record<string, string>;
   /** Single-department authors are pinned to their department. */
   lockDepartment: boolean;
+  versions: DocumentVersions[];
 }
 
 const SCOPE_OPTIONS = [
@@ -61,6 +69,45 @@ function formatBytes(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function VersionHistoryList({
+  emptyLabel,
+  versions,
+}: {
+  emptyLabel: string;
+  versions: DocumentVersions[];
+}) {
+  if (versions.length === 0) {
+    return (
+      <p className="text-xs" style={{ color: STUDIO.ink4 }}>
+        {emptyLabel}
+      </p>
+    );
+  }
+  return (
+    <ul className="space-y-1">
+      {versions.map((row) => (
+        <li
+          className="flex items-center justify-between text-sm"
+          key={row.$id}
+          style={{ color: STUDIO.ink2 }}
+        >
+          <span>
+            v
+            {formatDocumentVersion({
+              major: row.version_major,
+              minor: row.version_minor ?? 0,
+            })}
+          </span>
+          <span className="text-xs" style={{ color: STUDIO.ink4 }}>
+            {formatBytes(row.file_size)} ·{" "}
+            {new Date(row.$createdAt).toLocaleDateString()}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function DocumentEditorClient({
   campuses,
   document,
@@ -68,6 +115,7 @@ export function DocumentEditorClient({
   isNew,
   labels,
   lockDepartment,
+  versions,
 }: DocumentEditorClientProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -78,6 +126,7 @@ export function DocumentEditorClient({
   // Version upload state (for existing documents)
   const [versionFile, setVersionFile] = useState<File | null>(null);
   const [isVersionUploading, startVersionTransition] = useTransition();
+  const [nextVersion, setNextVersion] = useState("");
 
   const categoryOptions = DOCUMENT_FORM_CATEGORIES.map((value) => ({
     value,
@@ -102,23 +151,26 @@ export function DocumentEditorClient({
       department_id: initialDepartmentId,
       language: (document?.language ??
         "no") as DocumentMetadataFormValues["language"],
-      version: document?.version ?? "",
-      version_number: document?.version_number ?? 1,
+      version: "",
       status:
         (document?.status as DocumentMetadataFormValues["status"]) ?? "draft",
-      sort_order: document?.sort_order ?? 0,
     },
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: form submit handles new/edit + SP error paths
     onSubmit: async ({ value }) => {
-      const validated = documentMetadataSchema.safeParse(value);
-      if (!validated.success) {
-        toast.error(labels.saveError);
-        return;
-      }
+      const ownership = {
+        campus_id: value.scope === "national" ? null : value.campus_id || null,
+        department_id:
+          value.scope === "national" ? null : (value.department_id ?? null),
+      };
 
       setIsSaving(true);
       try {
         if (isNew) {
+          const validated = documentCreateSchema.safeParse(value);
+          if (!validated.success) {
+            toast.error(validated.error.issues[0]?.message ?? labels.saveError);
+            return;
+          }
           if (!selectedFile) {
             toast.error("A PDF file is required");
             return;
@@ -128,21 +180,11 @@ export function DocumentEditorClient({
           formData.append("file", selectedFile);
 
           const result = await createDocument(
-            {
-              ...validated.data,
-              campus_id:
-                validated.data.scope === "national"
-                  ? null
-                  : validated.data.campus_id || null,
-              department_id:
-                validated.data.scope === "national"
-                  ? null
-                  : (validated.data.department_id ?? null),
-            },
+            { ...validated.data, ...ownership },
             formData
           );
 
-          if (result.error) {
+          if (result.error !== undefined) {
             if (result.sharePointError) {
               toast.error(`${labels.sharepointError}: ${result.error}`, {
                 duration: 8000,
@@ -152,19 +194,21 @@ export function DocumentEditorClient({
             }
             return;
           }
-          toast.success(labels.saveSuccess);
+          if (result.publicLink) {
+            toast.success(labels.saveSuccess);
+          } else {
+            toast.warning(labels.notPublicWarning, { duration: 10_000 });
+          }
           router.push(`/documents/${result.data}`);
         } else {
+          const validated = documentMetadataSchema.safeParse(value);
+          if (!validated.success) {
+            toast.error(labels.saveError);
+            return;
+          }
           const result = await updateDocumentMetadata(document!.$id, {
             ...validated.data,
-            campus_id:
-              validated.data.scope === "national"
-                ? null
-                : validated.data.campus_id || null,
-            department_id:
-              validated.data.scope === "national"
-                ? null
-                : (validated.data.department_id ?? null),
+            ...ownership,
           });
           if ("error" in result) {
             toast.error(result.error);
@@ -185,8 +229,12 @@ export function DocumentEditorClient({
     startVersionTransition(async () => {
       const formData = new FormData();
       formData.append("file", versionFile);
-      const result = await uploadNewVersion(document.$id, formData);
-      if (result.error) {
+      const result = await uploadNewVersion(
+        document.$id,
+        nextVersion,
+        formData
+      );
+      if (result.error !== undefined) {
         if (result.sharePointError) {
           toast.error(`${labels.sharepointError}: ${result.error}`, {
             duration: 8000,
@@ -196,11 +244,19 @@ export function DocumentEditorClient({
         }
         return;
       }
-      toast.success(
-        `${labels.uploadSuccess} — v${"newVersionNumber" in result ? result.newVersionNumber : ""}`
-      );
+      toast.success(`${labels.uploadSuccess} — v${result.version}`);
       setVersionFile(null);
+      setNextVersion("");
+      router.refresh();
     });
+  }
+
+  async function handleCopyLink() {
+    if (!document) {
+      return;
+    }
+    await navigator.clipboard.writeText(document.sharepoint_web_url);
+    toast.success(labels.linkCopied);
   }
 
   const campusOptions = [
@@ -378,19 +434,24 @@ export function DocumentEditorClient({
             }
           </form.Subscribe>
 
-          <div className="grid grid-cols-3 gap-4">
-            <form.Field name="version">
-              {(field) => (
-                <PortalField hint='e.g. "v2.1"' label={labels.version}>
-                  <PortalInput
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="v1.0"
-                    value={field.state.value ?? ""}
-                  />
-                </PortalField>
-              )}
-            </form.Field>
+          <div className="grid grid-cols-2 gap-4">
+            {isNew ? (
+              <form.Field name="version">
+                {(field) => (
+                  <PortalField
+                    hint="Numbers only, e.g. 12 or 7.1"
+                    label={labels.version}
+                    required
+                  >
+                    <VersionInput
+                      onBlur={field.handleBlur}
+                      onChange={field.handleChange}
+                      value={field.state.value}
+                    />
+                  </PortalField>
+                )}
+              </form.Field>
+            ) : null}
 
             <form.Field name="status">
               {(field) => (
@@ -403,20 +464,6 @@ export function DocumentEditorClient({
                       )
                     }
                     options={STATUS_OPTIONS}
-                    value={field.state.value}
-                  />
-                </PortalField>
-              )}
-            </form.Field>
-
-            <form.Field name="sort_order">
-              {(field) => (
-                <PortalField label={labels.sortOrder}>
-                  <PortalInput
-                    min={0}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(Number(e.target.value))}
-                    type="number"
                     value={field.state.value}
                   />
                 </PortalField>
@@ -463,8 +510,7 @@ export function DocumentEditorClient({
                 <FileText size={18} style={{ color: STUDIO.claret }} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm" style={{ color: STUDIO.ink2 }}>
-                    Version {document.version_number}
-                    {document.version ? ` — ${document.version}` : ""}
+                    {document.version ? `v${document.version}` : "—"}
                   </p>
                   <p className="text-xs" style={{ color: STUDIO.ink4 }}>
                     {formatBytes(document.file_size)} · Last updated{" "}
@@ -485,6 +531,14 @@ export function DocumentEditorClient({
                   <ExternalLink size={12} />
                   {labels.viewOnSharePoint}
                 </a>
+                <PortalButton
+                  onClick={handleCopyLink}
+                  type="button"
+                  variant="secondary"
+                >
+                  <Copy size={12} />
+                  {labels.copyLink}
+                </PortalButton>
               </div>
 
               {/* Upload new version */}
@@ -492,10 +546,17 @@ export function DocumentEditorClient({
                 <p className="text-xs" style={{ color: STUDIO.ink4 }}>
                   {labels.versionUploadHint}
                 </p>
+                <PortalField label={labels.version} required>
+                  <VersionInput
+                    disabled={isVersionUploading}
+                    onChange={setNextVersion}
+                    value={nextVersion}
+                  />
+                </PortalField>
                 <PdfUploadField onChange={setVersionFile} value={versionFile} />
                 {versionFile && (
                   <PortalButton
-                    disabled={isVersionUploading}
+                    disabled={isVersionUploading || nextVersion.trim() === ""}
                     onClick={handleVersionUpload}
                     style={{ background: STUDIO.ink, color: STUDIO.paper }}
                     type="button"
@@ -510,6 +571,20 @@ export function DocumentEditorClient({
                     )}
                   </PortalButton>
                 )}
+              </div>
+
+              {/* Version history */}
+              <div className="space-y-2">
+                <h3
+                  className="font-medium text-[11px] uppercase tracking-[0.06em]"
+                  style={{ color: STUDIO.ink3 }}
+                >
+                  {labels.versionHistory}
+                </h3>
+                <VersionHistoryList
+                  emptyLabel={labels.noVersions}
+                  versions={versions}
+                />
               </div>
             </section>
           )
