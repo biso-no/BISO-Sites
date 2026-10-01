@@ -156,6 +156,10 @@ const version12Row = {
   version_minor: 0,
 };
 
+// Appwrite rejects the literal "unique()" as a row id on upsert: at most 36
+// chars of a-z, A-Z, 0-9 and underscore, not starting with an underscore.
+const APPWRITE_ROW_ID = /^[a-zA-Z0-9][a-zA-Z0-9_]{0,35}$/;
+
 const COLLISION_ERROR =
   "A document with this title already exists in this category. Open it and upload a new version instead.";
 const PATH_LOCKED_ERROR =
@@ -235,7 +239,7 @@ describe("createDocument", () => {
     expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
       "documents",
-      "unique()",
+      expect.stringMatching(APPWRITE_ROW_ID),
       expect.objectContaining({
         sharepoint_item_id: "item:Vedtekter for BISO.pdf",
         sharepoint_web_url: "https://sp.example/:b:/g/public",
@@ -277,7 +281,7 @@ describe("createDocument", () => {
     expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
       "documents",
-      "unique()",
+      expect.stringMatching(APPWRITE_ROW_ID),
       expect.objectContaining({
         sharepoint_web_url: "https://sp.example/Vedtekter for BISO.pdf",
       })
@@ -402,7 +406,7 @@ describe("createDocument", () => {
     expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
       "documents",
-      "unique()",
+      expect.stringMatching(APPWRITE_ROW_ID),
       expect.objectContaining({ campus: null, campus_id: null })
     );
   });

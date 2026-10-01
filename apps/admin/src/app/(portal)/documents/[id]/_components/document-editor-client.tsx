@@ -189,6 +189,10 @@ export function DocumentEditorClient({
           );
 
           if (result.error !== undefined) {
+            console.error(
+              "[documents] createDocument returned an error",
+              result
+            );
             if (result.sharePointError) {
               toast.error(`${labels.sharepointError}: ${result.error}`, {
                 duration: 8000,
@@ -215,13 +219,19 @@ export function DocumentEditorClient({
             ...ownership,
           });
           if ("error" in result) {
+            console.error(
+              "[documents] updateDocumentMetadata returned an error",
+              result
+            );
             toast.error(result.error);
             return;
           }
           toast.success(labels.saveSuccess);
         }
-      } catch {
-        // A thrown action (lost connection, access denied) must not fail silently.
+      } catch (error) {
+        // A thrown action (lost connection, access denied, request too large)
+        // must not fail silently.
+        console.error("[documents] saving the document threw", error);
         toast.error(labels.saveError);
       } finally {
         setIsSaving(false);
@@ -243,6 +253,10 @@ export function DocumentEditorClient({
           formData
         );
         if (result.error !== undefined) {
+          console.error(
+            "[documents] uploadNewVersion returned an error",
+            result
+          );
           if (result.sharePointError) {
             toast.error(`${labels.sharepointError}: ${result.error}`, {
               duration: 8000,
@@ -260,8 +274,10 @@ export function DocumentEditorClient({
         setVersionFile(null);
         setNextVersion("");
         router.refresh();
-      } catch {
-        // A thrown action (lost connection, access denied) must not fail silently.
+      } catch (error) {
+        // A thrown action (lost connection, access denied, request too large)
+        // must not fail silently.
+        console.error("[documents] uploading the new version threw", error);
         toast.error(labels.uploadError);
       }
     });

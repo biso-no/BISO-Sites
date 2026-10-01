@@ -57,6 +57,18 @@ function getSharePointService() {
 
 const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
 
+const LOG_PREFIX = "[documents]";
+
+/** Logs why an action stopped, then returns the user-facing error. */
+function rejected(
+  action: string,
+  error: string,
+  detail?: unknown
+): { error: string; sharePointError: false } {
+  console.warn(`${LOG_PREFIX} ${action} rejected: ${error}`, detail ?? "");
+  return { error, sharePointError: false };
+}
+
 /** Campus name feeds the SharePoint subfolder path (used by campus-bylaws). */
 async function resolveCampusNameForPath(
   db: Awaited<ReturnType<typeof createAdminClient>>["db"],
@@ -108,10 +120,19 @@ async function publishVersionToSharePoint(input: {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.error(`${LOG_PREFIX} SharePoint is not configured:`, err);
     return { error: `SharePoint is not configured: ${message}`, ok: false };
   }
 
   const names = buildDocumentFileNames(input.title, input.version);
+  const target = {
+    archivedName: names.archived,
+    bytes: input.buffer.byteLength,
+    currentName: names.current,
+    folderPath,
+    replacesItem: input.existing?.itemId ?? null,
+  };
+  console.info(`${LOG_PREFIX} uploading to SharePoint`, target);
   try {
     const sp = getSharePointService();
     const archived = await sp.uploadNewFile(
@@ -120,6 +141,9 @@ async function publishVersionToSharePoint(input: {
       names.archived,
       input.buffer
     );
+    console.info(`${LOG_PREFIX} archived version uploaded`, {
+      itemId: archived.itemId,
+    });
     const current = input.existing
       ? await sp.replaceFileInPlace(
           input.existing.driveId,
@@ -132,9 +156,15 @@ async function publishVersionToSharePoint(input: {
           names.current,
           input.buffer
         );
+    console.info(`${LOG_PREFIX} current file uploaded`, {
+      itemId: current.itemId,
+      webUrl: current.webUrl,
+    });
     return { archived, current, ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // The raw Graph error carries the status code and response body.
+    console.error(`${LOG_PREFIX} SharePoint upload failed`, target, err);
     return { error: `SharePoint upload failed: ${message}`, ok: false };
   }
 }
@@ -313,6 +343,10 @@ export async function getDocument(id: string) {
 
 const CAMPUS_NOT_FOUND_ERROR = "Campus not found for this document";
 
+// Action names as they appear in the server log.
+const CREATE_ACTION = "createDocument";
+const VERSION_ACTION = "uploadNewVersion";
+
 const PATH_LOCKED_ERROR =
   "The title, category, language, scope and campus decide where the file is stored in SharePoint and cannot be changed after upload. Create a new document instead.";
 
@@ -394,9 +428,12 @@ async function persistNewDocument(
 ): Promise<{ id: string; ok: true } | { error: unknown; ok: false }> {
   let documentId: string;
   try {
-    const doc = await db.upsertRow("app", "documents", "unique()", input.row);
+    // A generated id: upsert takes the id in the URL, where Appwrite rejects
+    // the literal "unique()" placeholder that create accepts.
+    const doc = await db.upsertRow("app", "documents", ID.unique(), input.row);
     documentId = doc.$id;
   } catch (error) {
+    console.error(`${LOG_PREFIX} documents row insert failed:`, error);
     return { error, ok: false };
   }
   try {
@@ -407,10 +444,15 @@ async function persistNewDocument(
       version: input.version,
     });
   } catch (error) {
+    console.error(`${LOG_PREFIX} document_versions row insert failed:`, error);
     try {
       await db.deleteRow("app", "documents", documentId);
-    } catch {
+    } catch (cleanupError) {
       // Best effort: the original failure is what the user needs to see.
+      console.error(
+        `${LOG_PREFIX} could not remove documents row ${documentId} after the failed insert:`,
+        cleanupError
+      );
     }
     return { error, ok: false };
   }
@@ -435,49 +477,63 @@ export async function createDocument(
     ? parseDocumentVersion(parsed.data.version)
     : null;
   if (!(parsed.success && version)) {
-    return { error: "Invalid form data", sharePointError: false };
+    return rejected(
+      CREATE_ACTION,
+      "Invalid form data",
+      parsed.success ? metadata.version : parsed.error.issues
+    );
   }
   const values = withEffectiveOwnership(parsed.data);
 
   const { campus_id, scope, category, language, title } = values;
+  console.info(`${LOG_PREFIX} ${CREATE_ACTION} started`, {
+    campus_id,
+    category,
+    language,
+    scope,
+    title,
+    userId: ctx.userId,
+    version: parsed.data.version,
+  });
 
   if (scope === "national" && !ctx.roles.includes("globaladmin")) {
-    return {
-      error: "Only global admins can create national documents",
-      sharePointError: false,
-    };
+    return rejected(
+      CREATE_ACTION,
+      "Only global admins can create national documents",
+      { roles: ctx.roles }
+    );
   }
 
   const { db } = await createAdminClient();
   const accessError = await checkCreateAccess(db, ctx, values);
   if (accessError) {
-    return { error: accessError, sharePointError: false };
+    return rejected(CREATE_ACTION, accessError);
   }
 
   if (!isEnabledCategory(category)) {
-    return {
-      error:
-        "This category is not enabled in the database yet. Ask IT to add it to the documents table.",
-      sharePointError: false,
-    };
+    return rejected(
+      CREATE_ACTION,
+      "This category is not enabled in the database yet. Ask IT to add it to the documents table.",
+      { category }
+    );
   }
 
   const fileCheck = validateDocumentFile(formData);
   if (!fileCheck.ok) {
-    return { error: fileCheck.error, sharePointError: false };
+    return rejected(CREATE_ACTION, fileCheck.error);
   }
 
   if (await hasFileNameCollision(db, values)) {
-    return {
-      error:
-        "A document with this title already exists in this category. Open it and upload a new version instead.",
-      sharePointError: false,
-    };
+    return rejected(
+      CREATE_ACTION,
+      "A document with this title already exists in this category. Open it and upload a new version instead.",
+      { pathKey: formPathKey(values) }
+    );
   }
 
   const campusName = await resolveCampusNameForPath(db, scope, campus_id);
   if (scope === "campus" && !campusName) {
-    return { error: CAMPUS_NOT_FOUND_ERROR, sharePointError: false };
+    return rejected(CREATE_ACTION, CAMPUS_NOT_FOUND_ERROR, { campus_id });
   }
   const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
   const versionLabel = formatDocumentVersion(version);
@@ -524,6 +580,10 @@ export async function createDocument(
   if (!saved.ok) {
     return databaseWriteFailure(saved.error, "Try again.");
   }
+  console.info(`${LOG_PREFIX} ${CREATE_ACTION} saved`, {
+    documentId: saved.id,
+    publicLink: publicUrl !== null,
+  });
 
   await logAuditEvent(ctx, "document.create", {
     resourceId: saved.id,
@@ -629,8 +689,14 @@ export async function uploadNewVersion(
   ]);
   const doc = existing.rows[0];
   if (!doc) {
-    return { error: "Document not found", sharePointError: false };
+    return rejected(VERSION_ACTION, "Document not found", { id });
   }
+  console.info(`${LOG_PREFIX} ${VERSION_ACTION} started`, {
+    currentVersion: doc.version,
+    documentId: id,
+    requestedVersion: versionInput,
+    userId: ctx.userId,
+  });
 
   const versionOwnership = getContentOwnership(doc, { legacyFallback: true });
   assertWriteAccess(ctx, versionOwnership.campus, versionOwnership.department);
@@ -640,10 +706,9 @@ export async function uploadNewVersion(
     ? parseDocumentVersion(parsedInput.data)
     : null;
   if (!version) {
-    return {
-      error: "Version must be a number like 12 or 7.1",
-      sharePointError: false,
-    };
+    return rejected(VERSION_ACTION, "Version must be a number like 12 or 7.1", {
+      versionInput,
+    });
   }
 
   const versionRows = await listVersionRows(db, id);
@@ -652,15 +717,16 @@ export async function uploadNewVersion(
     (row) => compareDocumentVersions(toVersion(row), version) === 0
   );
   if (latest && !isUploadableVersion(doc, version, latest, rowExists)) {
-    return {
-      error: `Version must be higher than the current v${formatDocumentVersion(latest)}`,
-      sharePointError: false,
-    };
+    return rejected(
+      VERSION_ACTION,
+      `Version must be higher than the current v${formatDocumentVersion(latest)}`,
+      { historyRows: versionRows.length, rowExists }
+    );
   }
 
   const fileCheck = validateDocumentFile(formData);
   if (!fileCheck.ok) {
-    return { error: fileCheck.error, sharePointError: false };
+    return rejected(VERSION_ACTION, fileCheck.error);
   }
   const campusName = await resolveCampusNameForPath(
     db,
@@ -668,7 +734,9 @@ export async function uploadNewVersion(
     doc.campus_id
   );
   if (doc.scope === "campus" && !campusName) {
-    return { error: CAMPUS_NOT_FOUND_ERROR, sharePointError: false };
+    return rejected(VERSION_ACTION, CAMPUS_NOT_FOUND_ERROR, {
+      campus_id: doc.campus_id,
+    });
   }
   const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
   const versionLabel = formatDocumentVersion(version);
@@ -710,11 +778,20 @@ export async function uploadNewVersion(
       ...(publicUrl === null ? {} : { sharepoint_web_url: publicUrl }),
     });
   } catch (error) {
+    console.error(
+      `${LOG_PREFIX} ${VERSION_ACTION} database write failed for ${id}:`,
+      error
+    );
     return databaseWriteFailure(
       error,
       "Upload the same version again to finish."
     );
   }
+  console.info(`${LOG_PREFIX} ${VERSION_ACTION} saved`, {
+    documentId: id,
+    publicLink: publicUrl !== null,
+    version: versionLabel,
+  });
 
   await logAuditEvent(ctx, "document.version_upload", {
     resourceId: id,
