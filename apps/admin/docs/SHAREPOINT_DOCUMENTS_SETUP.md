@@ -1,6 +1,6 @@
 # SharePoint Documents Integration — Setup Guide
 
-This guide covers everything needed to wire up the Document Management system with SharePoint Online, find the correct drive IDs and folder paths, configure credentials, and keep your SharePoint site pages in sync with the document library.
+This guide covers everything needed to wire up the Document Management system with SharePoint Online, find the drive ID of the document library, configure credentials, and keep your SharePoint site pages in sync with the document library.
 
 ---
 
@@ -10,7 +10,7 @@ This guide covers everything needed to wire up the Document Management system wi
 2. [Azure App Registration](#2-azure-app-registration)
 3. [Grant SharePoint Permissions](#3-grant-sharepoint-permissions)
 4. [Configure Environment Variables](#4-configure-environment-variables)
-5. [Find Your Site ID, Drive ID, and Folder Path](#5-find-your-site-id-drive-id-and-folder-path)
+5. [Find Your Site ID and Drive ID](#5-find-your-site-id-and-drive-id)
 6. [Recommended Folder Structure in SharePoint](#6-recommended-folder-structure-in-sharepoint)
 7. [Uploading Your First Document](#7-uploading-your-first-document)
 8. [Keeping SharePoint Site Pages in Sync](#8-keeping-sharepoint-site-pages-in-sync)
@@ -24,6 +24,22 @@ This guide covers everything needed to wire up the Document Management system wi
 - Access to the **SharePoint Admin Centre** for the BISO tenant
 - The BISO SharePoint site URL (e.g. `https://bisono.sharepoint.com/sites/biso`)
 - The admin app running locally or deployed with the env vars below
+
+### Deploy order
+
+Roll the versioned-documents feature out in this order:
+
+1. Push the `document_versions` table to Appwrite, together with any new
+   `documents.category` enum values (for example `authorization-matrix` and
+   `target-documents`).
+2. Set `SHAREPOINT_DOCUMENTS_DRIVE_ID` and the client secret
+   (`SHAREPOINT_CLIENT_SECRET`) in the admin environment (see section 4).
+3. Make sure the app registration has write access to the Intranet site (see
+   section 3).
+4. Deploy admin and web.
+
+Until step 1 is done, the admin document editor shows no version history and
+uploads fail with "Saved to SharePoint but the database write failed".
 
 ---
 
@@ -107,7 +123,7 @@ SHAREPOINT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 SHAREPOINT_CLIENT_SECRET=your-client-secret-value
 
 # One or more SharePoint site URLs the app is allowed to access.
-# JSON array format. Used to resolve site IDs in the drive picker.
+# JSON array format.
 SHAREPOINT_SITES=["https://bisono.sharepoint.com/sites/biso"]
 
 # Drive (document library) that holds "Organisational documents". Required:
@@ -115,15 +131,17 @@ SHAREPOINT_SITES=["https://bisono.sharepoint.com/sites/biso"]
 SHAREPOINT_DOCUMENTS_DRIVE_ID=b!...
 ```
 
-> The `SHAREPOINT_SITES` variable is already defined in `.env.example`. All four variables are read by `getSharePointConfig()` in `packages/connectors/src/sharepoint/index.ts`.
+> The `SHAREPOINT_SITES` variable is already defined in `.env.example`. The first four variables are read by `getSharePointConfig()` in `packages/connectors/src/sharepoint/index.ts`. The fifth, `SHAREPOINT_DOCUMENTS_DRIVE_ID`, is read by the admin app and is required for uploads: all five must be set.
 
 ---
 
-## 5. Find Your Site ID, Drive ID, and Folder Path
+## 5. Find Your Site ID and Drive ID
 
-When creating a document in the admin app, you need to provide a **Drive ID** and a **Folder Path**. Here is how to find them.
-
-### Method 1 — Graph Explorer (easiest)
+The admin form does not ask where a file should go. Every upload is written to
+one document library, named by the `SHAREPOINT_DOCUMENTS_DRIVE_ID` environment
+variable, and the folders inside it are worked out from the document's
+category, campus and language (see section 6). The only value to look up is
+that library's drive id.
 
 1. Go to [Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer)
 2. Sign in with your BISO admin account
@@ -133,29 +151,17 @@ When creating a document in the admin app, you need to provide a **Drive ID** an
 ```
 GET https://graph.microsoft.com/v1.0/sites/bisono.sharepoint.com:/sites/biso
 ```
-Copy the `id` field from the response — this is your Site ID.
+Copy the `id` field from the response — this is your Site ID. Use the path of
+the Intranet site that holds `Organisational documents`.
 
 **List drives (document libraries) on the site:**
 ```
 GET https://graph.microsoft.com/v1.0/sites/{site-id}/drives
 ```
-Each entry in `value` is a document library. Find the one you want (typically named `Documents` or `Shared Documents`). Copy its `id` field — this is your **Drive ID**.
-
-**Browse folders in that drive:**
-```
-GET https://graph.microsoft.com/v1.0/drives/{drive-id}/root/children
-```
-Navigate into subfolders as needed to find your target path. The folder path you enter in the admin UI should match the path within the drive root, e.g. `/BISO Documents/National` or `/Governing Documents`.
-
-### Method 2 — SharePoint URL
-
-When you navigate to a document library folder in SharePoint Online and look at the URL, it contains the relative path after `/sites/biso/`. That relative path (from the library root) is your folder path.
-
-For example, if the browser shows:
-```
-https://bisono.sharepoint.com/sites/biso/Shared%20Documents/Governing%20Documents/National
-```
-Then your folder path is `/Governing Documents/National`.
+Each entry in `value` is a document library. Find the one that contains the
+`Organisational documents` folder (typically named `Documents` or
+`Shared Documents`). Copy its `id` field, which starts with `b!`, and set it as
+`SHAREPOINT_DOCUMENTS_DRIVE_ID`.
 
 ---
 
@@ -185,7 +191,7 @@ File names come from the document title, not from the uploaded file.
 
 ## 7. Uploading Your First Document
 
-Once credentials are configured and the folder structure exists in SharePoint:
+Once credentials are configured (folders are created automatically on the first upload):
 
 1. Open the admin app and navigate to **Documents → New Document**
 2. Fill in the metadata (title, category, scope, etc.)
@@ -202,7 +208,7 @@ the new PDF.
 
 ## 8. Keeping SharePoint Site Pages in Sync
 
-If you have SharePoint Online **site pages** (modern pages) that display or link to documents — e.g. a "Governing Documents" page with embedded document viewers or links — you need to make sure those pages reference the correct files after the BISO Documents folder structure is established.
+If you have SharePoint Online **site pages** (modern pages) that display or link to documents — e.g. a "Governing Documents" page with embedded document viewers or links — you need to make sure those pages reference the correct files under `Organisational documents/`.
 
 ### Why pages may need updating
 
@@ -216,14 +222,16 @@ However, if you are **setting up the folder structure for the first time**, exis
 
 1. **Open the SharePoint site page** in edit mode (click the pencil icon top-right)
 2. Look for any **File Viewer web parts** or **Quick Links web parts** that reference documents
-3. For each one, update the file reference to point to the corresponding file in the new `BISO Documents/` folder structure
-4. For **text links** (hyperlinks in a Text web part), replace the URL with the `sharepoint_web_url` value stored in the Appwrite `documents` table — this is the direct web URL to the file on SharePoint
+3. For each one, update the file reference to point to the corresponding file in the `Organisational documents/` folder structure
+4. For **text links** (hyperlinks in a Text web part), open the document in the admin app, use **Copy link**, and replace the URL with the copied link
 
-### Using the Appwrite web URL as the canonical link
+### Using the copied link as the canonical link
 
-Every document in the Appwrite `documents` table has a `sharepoint_web_url` field. This is the permanent web URL for that document on SharePoint (e.g. `https://bisono.sharepoint.com/sites/biso/Shared%20Documents/BISO%20Documents/National/Statutes/BISO_Constitution.pdf`).
+Open a document in the admin app and use **Copy link** to get its link. This is
+the "anyone with the link" URL of the document's current file under
+`Organisational documents/`.
 
-Use this URL wherever you need to link to a document on a SharePoint page — it stays valid across version replacements because the file name and path do not change.
+Use this link wherever you need to link to a document on a SharePoint page — it stays valid across version replacements because the file is replaced in place and keeps its name and path.
 
 ### Embedding a document viewer on a SharePoint page
 
@@ -231,7 +239,7 @@ To display a PDF inline on a SharePoint page:
 
 1. Edit the page
 2. Click **+** to add a web part → search for **File viewer**
-3. Choose **From a link** and paste the `sharepoint_web_url` of the document
+3. Choose **From a link** and paste the link you copied with **Copy link** in the admin app
 4. Save the page
 
 The viewer will always show the latest version because the file is replaced in-place.
@@ -262,20 +270,15 @@ After moving or renaming any documents, run a quick check:
 
 ### "SharePoint upload failed: 404 Not Found" on version upload
 
-- The stored `sharepoint_item_id` no longer exists — the file may have been deleted or moved directly in SharePoint
-- Fix: delete the document record in the admin app and re-create it (upload as a new document, which will store the new item ID)
-
-### Drive ID dropdown is empty in the document editor
-
-- `SHAREPOINT_SITES` environment variable is not set or is malformed
-- It must be a valid JSON array: `["https://bisono.sharepoint.com/sites/biso"]`
-- Alternatively, paste the Drive ID manually — you can always get it from Graph Explorer
+- The current file no longer exists in SharePoint — it may have been deleted or moved directly in SharePoint
+- Fix: delete the document record in the admin app and create it again with the same title, category, language, scope and campus. The new upload replaces the file at the same path, so links to that path keep working
 
 ### Version history not showing in SharePoint
 
 - SharePoint versioning must be enabled on the document library
 - Go to the library → **Library settings → Versioning settings** → enable **Create a version each time you edit a file**
 - With versioning enabled, every in-place replace via the admin app will add a new version entry automatically
+- This is SharePoint's own history of the current file. It exists alongside the `Previous versions` folder, which holds one PDF per uploaded version: the folder is what biso.no shows under "Previous versions", while SharePoint's version history is only visible inside SharePoint
 
 ### "SharePoint is not configured: SHAREPOINT_DOCUMENTS_DRIVE_ID is not set"
 
@@ -296,3 +299,28 @@ After moving or renaming any documents, run a quick check:
 
 - The document is campus-specific but its campus could not be looked up
 - Pick a valid campus and save again
+
+### "The title, category, language, scope and campus decide where the file is stored in SharePoint and cannot be changed after upload…"
+
+- These five values decide the file's path in SharePoint, and the file is not
+  moved when a document is edited, so an edit that would change the path is
+  refused. Changing only the letter case of the title is allowed
+- To fix a wrong title, category, language, scope or campus, create a new
+  document with the right values and delete the old one
+- Description, status and department can be changed at any time
+
+### "This category is not enabled in the database yet. Ask IT to add it to the documents table."
+
+- The form offers the category, but the `category` column of the Appwrite
+  `documents` table does not accept it yet (currently `authorization-matrix`
+  and `target-documents`)
+- Fix: add the value to the `documents.category` enum in Appwrite and
+  regenerate the types (see "Deploy order" in section 1). Nothing was written
+  to SharePoint
+
+### "Saved to SharePoint but the database write failed…"
+
+- The files reached SharePoint but Appwrite rejected a row, most often because
+  the `document_versions` table has not been pushed yet (see "Deploy order")
+- For a new document, save again. For a new version, upload the same version
+  number again: the upload is repeated and the missing rows are written

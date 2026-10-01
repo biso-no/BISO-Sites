@@ -44,10 +44,13 @@ A campus admin sees documents for their campus. A global admin sees everything.
 
 From `/documents/new`:
 
-1. **Pick the file.** Standard PDFs, Word documents, and spreadsheets are all fine.
+1. **Pick the file.** Only PDFs are accepted. Export Word documents and spreadsheets to PDF first.
 2. **Fill in the title and campus.** These are mandatory.
-3. **Set permissions.** Decide whether the document is public or restricted.
-4. **Save.**
+3. **Enter the version number.** Numbers only, such as `12` or `7.1`; the `v` is added for you.
+4. **Set permissions.** Decide whether the document is public or restricted.
+5. **Save.**
+
+The title, category, language, scope and campus cannot be changed after upload, because they decide where the file is stored in SharePoint. If one of them is wrong, create a new document and delete the old one.
 
 What happens under the hood: the file is uploaded to SharePoint through Microsoft Graph, BISO's app only has access to the specific SharePoint sites configured in the environment (this is the "Sites.Selected" permission model — the app cannot read every SharePoint site in the tenant, only the ones BISO has explicitly granted). Once the upload completes, a row is created in the documents table with the drive and item IDs so the public site knows where to fetch the file from.
 
