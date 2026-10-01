@@ -9,6 +9,8 @@ interface DepartmentComboboxProps {
   disabled?: boolean;
   initialDepartments?: Departments[];
   label?: string;
+  /** Overrides the shared lookup, for surfaces with their own access rule. */
+  loadDepartments?: (campusId: string) => Promise<Departments[]>;
   onChange: (id: string | null, name?: string) => void;
   placeholder?: string;
   required?: boolean;
@@ -108,6 +110,7 @@ export function DepartmentCombobox({
   disabled,
   initialDepartments,
   label,
+  loadDepartments = listDepartmentsForCampus,
   onChange,
   placeholder = "Select department",
   required,
@@ -150,12 +153,12 @@ export function DepartmentCombobox({
       return;
     }
     setLoading(true);
-    listDepartmentsForCampus(campusId).then((rows) => {
+    loadDepartments(campusId).then((rows) => {
       cacheRef.current.set(campusId, rows);
       setItems(rows);
       setLoading(false);
     });
-  }, [campusId]);
+  }, [campusId, loadDepartments]);
 
   // Reset value when campus changes
   useEffect(() => {

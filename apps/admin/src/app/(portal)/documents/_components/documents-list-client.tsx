@@ -1,6 +1,7 @@
 "use client";
 
 import type { Documents } from "@repo/api/types/appwrite";
+import { displayDocumentVersion } from "@repo/shared/utils/document-version";
 import { Building2, FileText, Globe, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -186,13 +187,7 @@ export function DocumentsListClient({
                   >
                     <span>{CATEGORY_LABELS[doc.category] ?? doc.category}</span>
                     <span>·</span>
-                    <span>v{doc.version_number}</span>
-                    {doc.version && (
-                      <>
-                        <span>·</span>
-                        <span>{doc.version}</span>
-                      </>
-                    )}
+                    <span>{displayDocumentVersion(doc.version) ?? "—"}</span>
                     <span>·</span>
                     <span>{formatBytes(doc.file_size)}</span>
                     <span>·</span>

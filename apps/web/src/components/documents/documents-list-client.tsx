@@ -1,6 +1,5 @@
 "use client";
 
-import type { Documents } from "@repo/api/types/appwrite";
 import {
   BookOpen,
   Briefcase,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import type { PublicDocument } from "@/lib/documents";
 import { DocumentRow } from "./document-row";
 
 const CATEGORIES = [
@@ -33,7 +33,7 @@ const CATEGORIES = [
 ];
 
 interface DocumentsListClientProps {
-  documents: Documents[];
+  documents: PublicDocument[];
 }
 
 export function DocumentsListClient({ documents }: DocumentsListClientProps) {

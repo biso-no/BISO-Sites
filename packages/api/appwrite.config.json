@@ -11856,6 +11856,115 @@
                     "orders": []
                 }
             ]
+        },
+        {
+            "$id": "document_versions",
+            "$permissions": [
+                "read(\"any\")",
+                "create(\"team:sg-app-dept-operationsunit\")",
+                "update(\"team:sg-app-dept-operationsunit\")",
+                "delete(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Document Versions",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "document_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "version_major",
+                    "type": "integer",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "min": 0,
+                    "max": 9999
+                },
+                {
+                    "key": "version_minor",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9999
+                },
+                {
+                    "key": "sharepoint_item_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "sharepoint_drive_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "file_name",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "file_size",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 0,
+                    "max": 9223372036854775807
+                },
+                {
+                    "key": "uploaded_by",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_document_id",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "document_id"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "uniq_document_version",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "document_id",
+                        "version_major",
+                        "version_minor"
+                    ],
+                    "orders": []
+                }
+            ]
         }
     ],
     "buckets": [

@@ -1033,10 +1033,8 @@
       "scope": "Scope",
       "campus": "Campus",
       "language": "Language",
-      "version": "Version Label",
-      "versionNumber": "Version Number",
+      "version": "Version",
       "status": "Status",
-      "sortOrder": "Sort Order",
       "file": "PDF File",
       "fileSize": "File Size",
       "lastUpdated": "Last Updated"
@@ -1071,7 +1069,14 @@
     "sharepointError": "SharePoint upload failed",
     "deleteSuccess": "Document deleted",
     "deleteError": "Failed to delete document",
-    "versionUploadHint": "Uploading a new version will replace the file in SharePoint. SharePoint's native version history will track the previous version."
+    "versionUploadHint": "Enter the new version number and choose the PDF. The file on SharePoint is replaced, so existing links keep working, and the earlier version stays in the history.",
+    "versionHistory": "Version history",
+    "noVersions": "No versions recorded yet.",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "notPublicWarning": "Saved, but SharePoint would not create a public link. People outside BISO can still download the document from biso.no.",
+    "pathLockedHint": "Title, category, language, scope and campus cannot be changed after upload, because they decide where the file is stored.",
+    "internalLinkNote": "This link only works for people signed in to BISO."
   },
   "operations": {
     "title": "Operations health",

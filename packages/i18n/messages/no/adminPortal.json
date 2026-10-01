@@ -1033,10 +1033,8 @@
       "scope": "Omfang",
       "campus": "Campus",
       "language": "Språk",
-      "version": "Versjonsetikett",
-      "versionNumber": "Versjonsnummer",
+      "version": "Versjon",
       "status": "Status",
-      "sortOrder": "Sorteringsrekkefølge",
       "file": "PDF-fil",
       "fileSize": "Filstørrelse",
       "lastUpdated": "Sist oppdatert"
@@ -1071,7 +1069,14 @@
     "sharepointError": "SharePoint-opplasting mislyktes",
     "deleteSuccess": "Dokument slettet",
     "deleteError": "Kunne ikke slette dokumentet",
-    "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon."
+    "versionUploadHint": "Skriv inn det nye versjonsnummeret og velg PDF-en. Filen i SharePoint erstattes, så eksisterende lenker virker fortsatt, og forrige versjon blir liggende i historikken.",
+    "versionHistory": "Versjonshistorikk",
+    "noVersions": "Ingen versjoner registrert ennå.",
+    "copyLink": "Kopier lenke",
+    "linkCopied": "Lenke kopiert",
+    "notPublicWarning": "Lagret, men SharePoint ville ikke opprette en offentlig lenke. Personer utenfor BISO kan fortsatt laste ned dokumentet fra biso.no.",
+    "pathLockedHint": "Tittel, kategori, språk, omfang og campus kan ikke endres etter opplasting, fordi de bestemmer hvor filen lagres.",
+    "internalLinkNote": "Denne lenken virker bare for personer som er logget inn hos BISO."
   },
   "operations": {
     "title": "Driftshelse",

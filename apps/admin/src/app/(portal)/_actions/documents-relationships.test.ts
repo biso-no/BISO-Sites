@@ -56,11 +56,8 @@ const departmentValues: DocumentMetadataFormValues = {
   description: null,
   language: "no",
   scope: "campus",
-  sort_order: 0,
   status: "draft",
   title: "Vedtekter",
-  version: null,
-  version_number: 1,
 };
 
 mock.module("@repo/api/server", () => ({
@@ -101,6 +98,16 @@ const SHAREPOINT_FIELDS = {
   sharepoint_web_url: "https://example.sharepoint.com/doc",
 };
 
+// The stored values that decide the SharePoint path. A metadata edit must
+// leave them as they are, so rows that are edited successfully carry them.
+const OSLO_PATH_FIELDS = {
+  campus_id: "campus-oslo",
+  category: "campus-bylaws",
+  language: "no",
+  scope: "campus",
+  title: "Vedtekter",
+};
+
 beforeEach(() => {
   currentCtx = departmentCtx;
   db.createRow.mockReset();
@@ -135,6 +142,7 @@ describe("document ownership persistence", () => {
     mockDocumentRow({
       $id: "doc-1",
       ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
       campus: { $id: "campus-oslo" },
       department: { $id: "dept-1" },
       status: "draft",
@@ -185,6 +193,7 @@ describe("document ownership persistence", () => {
     mockDocumentRow({
       $id: "doc-1",
       ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
       campus: { $id: "campus-oslo" },
       department: null,
       status: "draft",
@@ -204,9 +213,11 @@ describe("document ownership persistence", () => {
     mockDocumentRow({
       $id: "doc-1",
       ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
       campus: null,
       campus_id: null,
       department: null,
+      scope: "national",
       status: "draft",
       version_number: 1,
     });
@@ -218,7 +229,8 @@ describe("document ownership persistence", () => {
       scope: "national",
     });
     expect(denied).toEqual({
-      error: "Only global admins can manage national documents",
+      error:
+        "Only global admins and the control committee can manage national documents",
     });
 
     currentCtx = globalAdminCtx;
