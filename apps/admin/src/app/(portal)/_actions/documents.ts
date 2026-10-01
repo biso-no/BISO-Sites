@@ -2,14 +2,14 @@
 
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type {
-  Campus,
-  Documents,
+import {
+  type Campus,
+  type Documents,
   DocumentsCategory,
-  DocumentsLanguage,
-  DocumentsScope,
-  DocumentsStatus,
-  DocumentVersions,
+  type DocumentsLanguage,
+  type DocumentsScope,
+  type DocumentsStatus,
+  type DocumentVersions,
 } from "@repo/api/types/appwrite";
 import {
   getSharePointConfig,
@@ -31,6 +31,7 @@ import {
 import {
   buildDocumentFileNames,
   type DocumentLanguage,
+  documentPathKey,
   getDocumentsDriveId,
   PREVIOUS_VERSIONS_FOLDER,
   resolveFolderPath,
@@ -148,7 +149,8 @@ async function createPublicLink(file: SharePointFile): Promise<string | null> {
       file.driveId,
       file.itemId
     );
-  } catch {
+  } catch (error) {
+    console.error("SharePoint public link could not be created:", error);
     return null;
   }
 }
@@ -185,6 +187,28 @@ function latestKnownVersion(
   return known.sort(compareDocumentVersions).at(-1) ?? null;
 }
 
+/**
+ * A version may be uploaded when it is higher than the latest known one, or
+ * equal to it while only half recorded (its history row is missing, or the
+ * document row still shows an older version). The second case lets a retry
+ * finish an upload whose database writes failed part-way.
+ */
+function isUploadableVersion(
+  doc: Documents,
+  version: DocumentVersion,
+  latest: DocumentVersion,
+  rowExists: boolean
+): boolean {
+  const order = compareDocumentVersions(version, latest);
+  if (order !== 0) {
+    return order > 0;
+  }
+  const own = parseDocumentVersion(doc.version);
+  const docAtVersion =
+    own !== null && compareDocumentVersions(own, version) === 0;
+  return !(rowExists && docAtVersion);
+}
+
 async function recordVersion(
   db: AdminDb,
   input: {
@@ -204,6 +228,29 @@ async function recordVersion(
     version_major: input.version.major,
     version_minor: input.version.minor,
   });
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The files are already in SharePoint when a database write fails, so the
+ * message says so and tells the user how to finish.
+ */
+function databaseWriteFailure(
+  error: unknown,
+  nextStep: string
+): { error: string; sharePointError: false } {
+  return {
+    error: `Saved to SharePoint but the database write failed: ${errorMessage(error)}. ${nextStep}`,
+    sharePointError: false,
+  };
+}
+
+/** Categories the form may offer before the documents table accepts them. */
+function isEnabledCategory(category: string): category is DocumentsCategory {
+  return (Object.values(DocumentsCategory) as string[]).includes(category);
 }
 
 function validateDocumentFile(
@@ -266,36 +313,33 @@ export async function getDocument(id: string) {
 
 const CAMPUS_NOT_FOUND_ERROR = "Campus not found for this document";
 
-// Upper bound on documents read per category and language for the collision check.
+const PATH_LOCKED_ERROR =
+  "The title, category, language, scope and campus decide where the file is stored in SharePoint and cannot be changed after upload. Create a new document instead.";
+
+/** Path identity of submitted form values, where the campus may be left out. */
+function formPathKey(values: DocumentMetadataFormValues): string {
+  return documentPathKey({ ...values, campus_id: values.campus_id });
+}
+
+// Upper bound on documents read per category for the collision check.
 const MAX_COLLISION_CANDIDATES = 500;
 
 /**
- * The current file is addressed by campus folder and sanitised title, so two
- * documents collide when those match, not only when the raw titles do.
+ * The current file is addressed by category, language, campus folder and
+ * sanitised title, so two documents collide when their path keys match, not
+ * only when the raw titles do. Language is compared through the key rather
+ * than in the query, because a row stored without one is filed as Norwegian.
  */
-/** Only campus-scoped documents live in a campus folder; national ones never do. */
-function pathCampusId(doc: {
-  campus_id?: string | null;
-  scope: string;
-}): string | null {
-  return doc.scope === "campus" ? (doc.campus_id ?? null) : null;
-}
-
 async function hasFileNameCollision(
   db: AdminDb,
   values: DocumentMetadataFormValues
 ): Promise<boolean> {
   const candidates = await db.listRows<Documents>("app", "documents", [
     Query.equal("category", values.category),
-    Query.equal("language", values.language),
     Query.limit(MAX_COLLISION_CANDIDATES),
   ]);
-  const fileName = buildDocumentFileNames(values.title, "0").current;
-  return candidates.rows.some(
-    (row) =>
-      pathCampusId(row) === pathCampusId(values) &&
-      buildDocumentFileNames(row.title, "0").current === fileName
-  );
+  const pathKey = formPathKey(values);
+  return candidates.rows.some((row) => documentPathKey(row) === pathKey);
 }
 
 /** A national document never carries a campus or department. */
@@ -332,6 +376,45 @@ async function checkCreateAccess(
   } catch (error) {
     return error instanceof Error ? error.message : "Document access denied";
   }
+}
+
+/**
+ * Writes the documents row and its first history row. If the history row
+ * fails, the documents row is removed again so a retry passes the collision
+ * guard and overwrites the same SharePoint paths.
+ */
+async function persistNewDocument(
+  db: AdminDb,
+  input: {
+    archived: SharePointFile;
+    row: Record<string, unknown>;
+    userId: string;
+    version: DocumentVersion;
+  }
+): Promise<{ id: string; ok: true } | { error: unknown; ok: false }> {
+  let documentId: string;
+  try {
+    const doc = await db.upsertRow("app", "documents", "unique()", input.row);
+    documentId = doc.$id;
+  } catch (error) {
+    return { error, ok: false };
+  }
+  try {
+    await recordVersion(db, {
+      documentId,
+      file: input.archived,
+      userId: input.userId,
+      version: input.version,
+    });
+  } catch (error) {
+    try {
+      await db.deleteRow("app", "documents", documentId);
+    } catch {
+      // Best effort: the original failure is what the user needs to see.
+    }
+    return { error, ok: false };
+  }
+  return { id: documentId, ok: true };
 }
 
 export async function createDocument(
@@ -371,6 +454,14 @@ export async function createDocument(
     return { error: accessError, sharePointError: false };
   }
 
+  if (!isEnabledCategory(category)) {
+    return {
+      error:
+        "This category is not enabled in the database yet. Ask IT to add it to the documents table.",
+      sharePointError: false,
+    };
+  }
+
   const fileCheck = validateDocumentFile(formData);
   if (!fileCheck.ok) {
     return { error: fileCheck.error, sharePointError: false };
@@ -405,39 +496,41 @@ export async function createDocument(
   }
   const publicUrl = await createPublicLink(published.current);
 
-  const doc = await db.upsertRow("app", "documents", "unique()", {
-    title,
-    description: values.description ?? null,
-    category: category as DocumentsCategory,
-    scope: scope as DocumentsScope,
-    // Canonical ownership relationships; the scalar column remains as
-    // migration-era compatibility metadata only.
-    campus: campus_id ?? null,
-    campus_id: campus_id ?? null,
-    department: values.department_id ?? null,
-    language: language as DocumentsLanguage,
-    version: versionLabel,
-    version_number: version.major,
-    sharepoint_item_id: published.current.itemId,
-    sharepoint_drive_id: published.current.driveId,
-    sharepoint_web_url: publicUrl ?? published.current.webUrl,
-    file_size: published.current.size,
-    status: values.status as DocumentsStatus,
-    updated_by: ctx.userId,
-  });
-  await recordVersion(db, {
-    documentId: doc.$id,
-    file: published.archived,
+  const saved = await persistNewDocument(db, {
+    archived: published.archived,
+    row: {
+      title,
+      description: values.description ?? null,
+      category,
+      scope: scope as DocumentsScope,
+      // Canonical ownership relationships; the scalar column remains as
+      // migration-era compatibility metadata only.
+      campus: campus_id ?? null,
+      campus_id: campus_id ?? null,
+      department: values.department_id ?? null,
+      language: language as DocumentsLanguage,
+      version: versionLabel,
+      version_number: version.major,
+      sharepoint_item_id: published.current.itemId,
+      sharepoint_drive_id: published.current.driveId,
+      sharepoint_web_url: publicUrl ?? published.current.webUrl,
+      file_size: published.current.size,
+      status: values.status as DocumentsStatus,
+      updated_by: ctx.userId,
+    },
     userId: ctx.userId,
     version,
   });
+  if (!saved.ok) {
+    return databaseWriteFailure(saved.error, "Try again.");
+  }
 
   await logAuditEvent(ctx, "document.create", {
-    resourceId: doc.$id,
+    resourceId: saved.id,
     resourceType: "document",
   });
   revalidatePath("/documents");
-  return { data: doc.$id, publicLink: publicUrl !== null };
+  return { data: saved.id, publicLink: publicUrl !== null };
 }
 
 export async function updateDocumentMetadata(
@@ -460,10 +553,9 @@ export async function updateDocumentMetadata(
     return { error: "Document not found" };
   }
 
-  if (
-    validated.data.scope === "national" &&
-    !ctx.roles.includes("globaladmin")
-  ) {
+  const next = withEffectiveOwnership(validated.data);
+
+  if (next.scope === "national" && !ctx.roles.includes("globaladmin")) {
     return { error: "Only global admins can manage national documents" };
   }
 
@@ -472,29 +564,36 @@ export async function updateDocumentMetadata(
   const persisted = getContentOwnership(doc, { legacyFallback: true });
   assertWriteAccess(ctx, persisted.campus, persisted.department);
   await assertContentOwnership(db, ctx, {
-    allowGlobalCampus: validated.data.scope === "national",
-    campusId: validated.data.campus_id ?? null,
-    departmentId: validated.data.department_id ?? null,
+    allowGlobalCampus: next.scope === "national",
+    campusId: next.campus_id ?? null,
+    departmentId: next.department_id ?? null,
   });
-  if (doc.status === "published" || validated.data.status === "published") {
+  if (doc.status === "published" || next.status === "published") {
     assertPublishAccess(ctx, persisted.campus, persisted.department);
     assertPublishAccess(
       ctx,
-      validated.data.campus_id ?? null,
-      validated.data.department_id ?? null
+      next.campus_id ?? null,
+      next.department_id ?? null
     );
   }
 
+  // The file stays where it was uploaded, so an edit that would address a
+  // different path is refused: otherwise a later document could take over the
+  // old path and overwrite this document's public file.
+  if (documentPathKey(doc) !== formPathKey(next)) {
+    return { error: PATH_LOCKED_ERROR };
+  }
+
   await db.updateRow("app", "documents", id, {
-    title: validated.data.title,
-    description: validated.data.description ?? null,
-    category: validated.data.category as DocumentsCategory,
-    scope: validated.data.scope as DocumentsScope,
-    campus: validated.data.campus_id ?? null,
-    campus_id: validated.data.campus_id ?? null,
-    department: validated.data.department_id ?? null,
-    language: validated.data.language,
-    status: validated.data.status as DocumentsStatus,
+    title: next.title,
+    description: next.description ?? null,
+    category: next.category as DocumentsCategory,
+    scope: next.scope as DocumentsScope,
+    campus: next.campus_id ?? null,
+    campus_id: next.campus_id ?? null,
+    department: next.department_id ?? null,
+    language: next.language,
+    status: next.status as DocumentsStatus,
     updated_by: ctx.userId,
   });
 
@@ -512,7 +611,13 @@ export async function uploadNewVersion(
   versionInput: string,
   formData: FormData
 ): Promise<
-  | { data: string; version: string; error?: never; sharePointError?: never }
+  | {
+      data: string;
+      publicLink: boolean;
+      version: string;
+      error?: never;
+      sharePointError?: never;
+    }
   | { error: string; sharePointError: boolean; data?: never }
 > {
   const ctx = await requireAuth();
@@ -541,8 +646,12 @@ export async function uploadNewVersion(
     };
   }
 
-  const latest = latestKnownVersion(doc, await listVersionRows(db, id));
-  if (latest && compareDocumentVersions(version, latest) <= 0) {
+  const versionRows = await listVersionRows(db, id);
+  const latest = latestKnownVersion(doc, versionRows);
+  const rowExists = versionRows.some(
+    (row) => compareDocumentVersions(toVersion(row), version) === 0
+  );
+  if (latest && !isUploadableVersion(doc, version, latest, rowExists)) {
     return {
       error: `Version must be higher than the current v${formatDocumentVersion(latest)}`,
       sharePointError: false,
@@ -580,20 +689,32 @@ export async function uploadNewVersion(
     return { error: published.error, sharePointError: true };
   }
 
-  await recordVersion(db, {
-    documentId: id,
-    file: published.archived,
-    userId: ctx.userId,
-    version,
-  });
-  // sharepoint_web_url is left alone: the current item, and so its public
-  // link, did not change.
-  await db.updateRow("app", "documents", id, {
-    version: versionLabel,
-    version_number: version.major,
-    file_size: published.current.size,
-    updated_by: ctx.userId,
-  });
+  // Asking again is idempotent and repairs a document that was first saved
+  // without a public link. When it fails, the stored URL is left alone.
+  const publicUrl = await createPublicLink(published.current);
+
+  try {
+    if (!rowExists) {
+      await recordVersion(db, {
+        documentId: id,
+        file: published.archived,
+        userId: ctx.userId,
+        version,
+      });
+    }
+    await db.updateRow("app", "documents", id, {
+      version: versionLabel,
+      version_number: version.major,
+      file_size: published.current.size,
+      updated_by: ctx.userId,
+      ...(publicUrl === null ? {} : { sharepoint_web_url: publicUrl }),
+    });
+  } catch (error) {
+    return databaseWriteFailure(
+      error,
+      "Upload the same version again to finish."
+    );
+  }
 
   await logAuditEvent(ctx, "document.version_upload", {
     resourceId: id,
@@ -602,7 +723,7 @@ export async function uploadNewVersion(
   });
   revalidatePath("/documents");
   revalidatePath(`/documents/${id}`);
-  return { data: id, version: versionLabel };
+  return { data: id, publicLink: publicUrl !== null, version: versionLabel };
 }
 
 export async function listDocumentVersions(
@@ -614,7 +735,14 @@ export async function listDocumentVersions(
     return [];
   }
   const { db } = await createAdminClient();
-  const rows = await listVersionRows(db, id);
+  let rows: DocumentVersions[];
+  try {
+    rows = await listVersionRows(db, id);
+  } catch (error) {
+    // Keeps the editor usable before the document_versions table is pushed.
+    console.error("Failed to list document versions:", error);
+    return [];
+  }
   return rows.sort((a, b) =>
     compareDocumentVersions(toVersion(b), toVersion(a))
   );

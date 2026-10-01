@@ -1,6 +1,17 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import type { UserAuthContext } from "@/lib/authorization";
-import type { DocumentCreateFormValues } from "./schemas";
+import type {
+  DocumentCreateFormValues,
+  DocumentMetadataFormValues,
+} from "./schemas";
 
 const db = {
   createRow: mock(),
@@ -33,12 +44,25 @@ const globalAdminCtx: UserAuthContext = {
   userId: "user-1",
 };
 
+const bergenCampusAdminCtx: UserAuthContext = {
+  ...globalAdminCtx,
+  campusNames: ["Bergen"],
+  campusTeamIds: ["sg-app-campus-bergen"],
+  managedCampuses: ["Bergen"],
+  managedCampusIds: ["campus-bergen"],
+  resolvedCampusIds: ["campus-bergen"],
+  roles: ["campusadmin"],
+  userId: "user-bergen",
+};
+
+let currentCtx: UserAuthContext = globalAdminCtx;
+
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
   createSessionClient: mock(async () => ({ db })),
 }));
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => globalAdminCtx),
+  requireAuth: mock(async () => currentCtx),
 }));
 mock.module("@repo/connectors/sharepoint", () => ({
   getSharePointConfig: mock(() => ({})),
@@ -61,6 +85,7 @@ const {
   createDocument,
   deleteDocument,
   listDocumentVersions,
+  updateDocumentMetadata,
   uploadNewVersion,
 } = await import("./documents");
 
@@ -104,6 +129,43 @@ const existingDoc = {
   version_number: 12,
 };
 
+const existingMetadata: DocumentMetadataFormValues = {
+  campus_id: null,
+  category: "national-statutes",
+  department_id: null,
+  description: null,
+  language: "no",
+  scope: "national",
+  status: "published",
+  title: "Vedtekter for BISO",
+};
+
+/** An Oslo campus document, out of scope for the Bergen campus admin. */
+const osloDoc = {
+  ...existingDoc,
+  campus: { $id: "campus-oslo" },
+  campus_id: "campus-oslo",
+  category: "campus-bylaws",
+  scope: "campus",
+};
+
+const version12Row = {
+  $id: "ver-12",
+  document_id: "doc-1",
+  version_major: 12,
+  version_minor: 0,
+};
+
+const COLLISION_ERROR =
+  "A document with this title already exists in this category. Open it and upload a new version instead.";
+const PATH_LOCKED_ERROR =
+  "The title, category, language, scope and campus decide where the file is stored in SharePoint and cannot be changed after upload. Create a new document instead.";
+
+/** Silences and captures console.error for tests that expect a logged failure. */
+function captureConsoleError() {
+  return spyOn(console, "error").mockImplementation(() => undefined);
+}
+
 /** Routes listRows by table so each test states only the rows it needs. */
 function mockTables(tables: Record<string, Record<string, unknown>[]>): void {
   db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
@@ -112,7 +174,12 @@ function mockTables(tables: Record<string, Record<string, unknown>[]>): void {
   });
 }
 
+afterEach(() => {
+  mock.restore();
+});
+
 beforeEach(() => {
+  currentCtx = globalAdminCtx;
   for (const fn of [...Object.values(db), ...Object.values(sp)]) {
     fn.mockReset();
   }
@@ -195,12 +262,18 @@ describe("createDocument", () => {
     );
   });
 
-  test("falls back to the internal URL when anonymous links are forbidden", async () => {
-    sp.createAnonymousViewLink.mockRejectedValue(new Error("sharingDisabled"));
+  test("falls back to the internal URL and logs why when anonymous links are forbidden", async () => {
+    const failure = new Error("sharingDisabled");
+    sp.createAnonymousViewLink.mockRejectedValue(failure);
+    const consoleError = captureConsoleError();
 
     const result = await createDocument(nationalValues, pdfFormData());
 
     expect(result).toEqual({ data: "doc-new", publicLink: false });
+    expect(consoleError).toHaveBeenCalledWith(
+      "SharePoint public link could not be created:",
+      failure
+    );
     expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
       "documents",
@@ -349,6 +422,95 @@ describe("createDocument", () => {
     expect(sp.uploadNewFile).not.toHaveBeenCalled();
   });
 
+  test("refuses a title that differs from an existing one only by letter case", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    const result = await createDocument(
+      { ...nationalValues, title: "VEDTEKTER for biso" },
+      pdfFormData()
+    );
+
+    expect(result).toEqual({ error: COLLISION_ERROR, sharePointError: false });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("refuses a Norwegian document that collides with a row stored without a language", async () => {
+    mockTables({ documents: [{ ...existingDoc, language: null }] });
+
+    const result = await createDocument(nationalValues, pdfFormData());
+
+    expect(result).toEqual({ error: COLLISION_ERROR, sharePointError: false });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+    // The candidate query must not filter by language, or that row is never read.
+    const collisionQueries = db.listRows.mock.calls
+      .filter((call) => call[1] === "documents")
+      .flatMap((call) => call[2] as string[]);
+    expect(collisionQueries.some((query) => query.includes("language"))).toBe(
+      false
+    );
+  });
+
+  test.each([
+    "authorization-matrix",
+    "target-documents",
+  ] as const)("rejects the %s category before touching SharePoint", async (category) => {
+    const result = await createDocument(
+      { ...nationalValues, category },
+      pdfFormData()
+    );
+
+    expect(result).toEqual({
+      error:
+        "This category is not enabled in the database yet. Ask IT to add it to the documents table.",
+      sharePointError: false,
+    });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+    expect(sp.createAnonymousViewLink).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("reports a failed documents insert instead of throwing", async () => {
+    db.upsertRow.mockRejectedValue(new Error("Invalid document structure"));
+
+    const result = await createDocument(nationalValues, pdfFormData());
+
+    expect(result).toEqual({
+      error:
+        "Saved to SharePoint but the database write failed: Invalid document structure. Try again.",
+      sharePointError: false,
+    });
+    expect(db.createRow).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  test("removes the documents row when the version row cannot be written", async () => {
+    db.createRow.mockRejectedValue(new Error("Table not found"));
+
+    const result = await createDocument(nationalValues, pdfFormData());
+
+    expect(result).toEqual({
+      error:
+        "Saved to SharePoint but the database write failed: Table not found. Try again.",
+      sharePointError: false,
+    });
+    expect(db.deleteRow).toHaveBeenCalledTimes(1);
+    expect(db.deleteRow).toHaveBeenCalledWith("app", "documents", "doc-new");
+  });
+
+  test("still reports the version-row failure when the cleanup delete fails too", async () => {
+    db.createRow.mockRejectedValue(new Error("Table not found"));
+    db.deleteRow.mockRejectedValue(new Error("delete failed"));
+
+    const result = await createDocument(nationalValues, pdfFormData());
+
+    expect(result).toEqual({
+      error:
+        "Saved to SharePoint but the database write failed: Table not found. Try again.",
+      sharePointError: false,
+    });
+  });
+
   test("writes nothing to the database when SharePoint fails", async () => {
     sp.uploadNewFile.mockRejectedValue(new Error("403 Forbidden"));
 
@@ -360,6 +522,103 @@ describe("createDocument", () => {
     });
     expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateDocumentMetadata", () => {
+  test.each([
+    ["a different title", { title: "Vedtekter for BISO 2026" }],
+    ["another category", { category: "code-of-conduct" }],
+    ["another language", { language: "en" }],
+    ["a campus scope", { campus_id: "campus-oslo", scope: "campus" }],
+  ] as const)("rejects %s because it would change the SharePoint path", async (_label, change) => {
+    mockTables({
+      campus: [{ $id: "campus-oslo", name: "Oslo" }],
+      documents: [existingDoc],
+    });
+
+    const result = await updateDocumentMetadata("doc-1", {
+      ...existingMetadata,
+      ...change,
+    });
+
+    expect(result).toEqual({ error: PATH_LOCKED_ERROR });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("rejects moving a campus document to another campus", async () => {
+    mockTables({ documents: [osloDoc] });
+
+    const result = await updateDocumentMetadata("doc-1", {
+      ...existingMetadata,
+      campus_id: "campus-bergen",
+      category: "campus-bylaws",
+      scope: "campus",
+    });
+
+    expect(result).toEqual({ error: PATH_LOCKED_ERROR });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("saves a description and status edit", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    const result = await updateDocumentMetadata("doc-1", {
+      ...existingMetadata,
+      description: "Adopted by the national assembly",
+      status: "draft",
+    });
+
+    expect(result).toEqual({ data: "doc-1" });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "documents",
+      "doc-1",
+      expect.objectContaining({
+        description: "Adopted by the national assembly",
+        status: "draft",
+        title: "Vedtekter for BISO",
+      })
+    );
+  });
+
+  test("saves a title edit that only changes letter case", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    const result = await updateDocumentMetadata("doc-1", {
+      ...existingMetadata,
+      title: "Vedtekter for Biso",
+    });
+
+    expect(result).toEqual({ data: "doc-1" });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "documents",
+      "doc-1",
+      expect.objectContaining({ title: "Vedtekter for Biso" })
+    );
+  });
+
+  test("never persists a campus or department on a national document", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    const result = await updateDocumentMetadata("doc-1", {
+      ...existingMetadata,
+      campus_id: "campus-oslo",
+      department_id: "dept-1",
+    });
+
+    expect(result).toEqual({ data: "doc-1" });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "documents",
+      "doc-1",
+      expect.objectContaining({
+        campus: null,
+        campus_id: null,
+        department: null,
+      })
+    );
   });
 });
 
@@ -379,7 +638,7 @@ describe("uploadNewVersion", () => {
 
     const result = await uploadNewVersion("doc-1", "13", pdfFormData());
 
-    expect(result).toEqual({ data: "doc-1", version: "13" });
+    expect(result).toEqual({ data: "doc-1", publicLink: true, version: "13" });
     expect(sp.uploadNewFile).toHaveBeenCalledWith(
       "drive-1",
       "/Organisational documents/Statutes/Norsk versjon/Previous versions",
@@ -397,9 +656,32 @@ describe("uploadNewVersion", () => {
       "doc-1",
       expect.objectContaining({ version: "13", version_number: 13 })
     );
-    // The stored public link stays; the current item did not change.
+    // The link is requested again for the current item, which repairs a
+    // document that was first saved without a public link.
+    expect(sp.createAnonymousViewLink).toHaveBeenCalledWith(
+      "drive-1",
+      "current-item"
+    );
+    const payload = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(payload.sharepoint_web_url).toBe("https://sp.example/:b:/g/public");
+  });
+
+  test("keeps the stored link and says so when no public link can be created", async () => {
+    mockTables({ document_versions: [version12Row], documents: [existingDoc] });
+    const failure = new Error("sharingDisabled");
+    sp.createAnonymousViewLink.mockRejectedValue(failure);
+    const consoleError = captureConsoleError();
+
+    const result = await uploadNewVersion("doc-1", "13", pdfFormData());
+
+    expect(result).toEqual({ data: "doc-1", publicLink: false, version: "13" });
     const payload = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
     expect(payload).not.toHaveProperty("sharepoint_web_url");
+    expect(payload).toMatchObject({ version: "13", version_number: 13 });
+    expect(consoleError).toHaveBeenCalledWith(
+      "SharePoint public link could not be created:",
+      failure
+    );
   });
 
   test.each([
@@ -431,14 +713,119 @@ describe("uploadNewVersion", () => {
   test("uses the document's own version when no history rows exist yet", async () => {
     mockTables({ documents: [existingDoc] });
 
-    const rejected = await uploadNewVersion("doc-1", "12", pdfFormData());
+    const rejected = await uploadNewVersion("doc-1", "11", pdfFormData());
     expect(rejected).toEqual({
       error: "Version must be higher than the current v12",
       sharePointError: false,
     });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
 
     const accepted = await uploadNewVersion("doc-1", "12.1", pdfFormData());
-    expect(accepted).toEqual({ data: "doc-1", version: "12.1" });
+    expect(accepted).toEqual({
+      data: "doc-1",
+      publicLink: true,
+      version: "12.1",
+    });
+  });
+
+  test("re-uploading the current version records its missing history row", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    const result = await uploadNewVersion("doc-1", "12", pdfFormData());
+
+    expect(result).toEqual({ data: "doc-1", publicLink: true, version: "12" });
+    expect(db.createRow).toHaveBeenCalledTimes(1);
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "document_versions",
+      expect.any(String),
+      expect.objectContaining({ version_major: 12, version_minor: 0 })
+    );
+  });
+
+  test("a failed documents update is reported, and the same version then finishes without a second history row", async () => {
+    const versionRows: Record<string, unknown>[] = [version12Row];
+    mockTables({ document_versions: versionRows, documents: [existingDoc] });
+    db.createRow.mockImplementation(
+      (
+        _databaseId: string,
+        _tableId: string,
+        rowId: string,
+        data: Record<string, unknown>
+      ) => {
+        versionRows.push({ $id: rowId, ...data });
+        return Promise.resolve({ $id: rowId });
+      }
+    );
+    db.updateRow.mockRejectedValueOnce(new Error("Server Error"));
+
+    const failed = await uploadNewVersion("doc-1", "13", pdfFormData());
+
+    expect(failed).toEqual({
+      error:
+        "Saved to SharePoint but the database write failed: Server Error. Upload the same version again to finish.",
+      sharePointError: false,
+    });
+    expect(db.createRow).toHaveBeenCalledTimes(1);
+
+    // The history row for v13 now exists; the document still says v12.
+    const retried = await uploadNewVersion("doc-1", "13", pdfFormData());
+
+    expect(retried).toEqual({ data: "doc-1", publicLink: true, version: "13" });
+    expect(db.createRow).toHaveBeenCalledTimes(1);
+    expect(db.updateRow).toHaveBeenLastCalledWith(
+      "app",
+      "documents",
+      "doc-1",
+      expect.objectContaining({ version: "13", version_number: 13 })
+    );
+  });
+
+  test("a failed history insert is reported and leaves the document untouched", async () => {
+    mockTables({ document_versions: [version12Row], documents: [existingDoc] });
+    db.createRow.mockRejectedValue(new Error("Table not found"));
+
+    const result = await uploadNewVersion("doc-1", "13", pdfFormData());
+
+    expect(result).toEqual({
+      error:
+        "Saved to SharePoint but the database write failed: Table not found. Upload the same version again to finish.",
+      sharePointError: false,
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("still rejects a lower version while a newer one is half recorded", async () => {
+    mockTables({
+      document_versions: [
+        version12Row,
+        { ...version12Row, $id: "ver-13", version_major: 13 },
+      ],
+      documents: [existingDoc],
+    });
+
+    const result = await uploadNewVersion("doc-1", "12.5", pdfFormData());
+
+    expect(result).toEqual({
+      error: "Version must be higher than the current v13",
+      sharePointError: false,
+    });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+  });
+
+  test("refuses a campus admin of another campus before touching SharePoint", async () => {
+    currentCtx = bergenCampusAdminCtx;
+    mockTables({ document_versions: [version12Row], documents: [osloDoc] });
+
+    await expect(
+      uploadNewVersion("doc-1", "13", pdfFormData())
+    ).rejects.toThrow("Unauthorized: no write access to this campus");
+
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+    expect(sp.replaceFileInPlace).not.toHaveBeenCalled();
+    expect(sp.createAnonymousViewLink).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 
   test("rejects a malformed version", async () => {
@@ -469,9 +856,36 @@ describe("listDocumentVersions", () => {
     expect(versions.map((v) => v.$id)).toEqual(["b", "c", "a"]);
   });
 
-  test("returns nothing for a document the caller cannot see", async () => {
+  test("returns nothing for a document that does not exist", async () => {
     mockTables({});
     expect(await listDocumentVersions("missing")).toEqual([]);
+  });
+
+  test("returns nothing for an existing document outside the caller's campus", async () => {
+    currentCtx = bergenCampusAdminCtx;
+    mockTables({ document_versions: [version12Row], documents: [osloDoc] });
+
+    expect(await listDocumentVersions("doc-1")).toEqual([]);
+    // The history table is never read for a document the caller cannot see.
+    const tablesRead = db.listRows.mock.calls.map((call) => call[1]);
+    expect(tablesRead).not.toContain("document_versions");
+  });
+
+  test("returns an empty history and logs when the history table cannot be read", async () => {
+    const failure = new Error("Table with the requested ID could not be found");
+    db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
+      if (tableId === "document_versions") {
+        throw failure;
+      }
+      return { rows: [existingDoc], total: 1 };
+    });
+    const consoleError = captureConsoleError();
+
+    expect(await listDocumentVersions("doc-1")).toEqual([]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to list document versions:",
+      failure
+    );
   });
 });
 
