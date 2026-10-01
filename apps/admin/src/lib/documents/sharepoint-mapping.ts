@@ -1,21 +1,24 @@
-import { DocumentsCategory } from "@repo/api/types/appwrite";
-import type { SharePointService } from "@repo/connectors/sharepoint";
-
 export type DocumentLanguage = "no" | "en";
 
-/** Root path within the drive that contains all organisational documents. */
-const ORG_DOCS_ROOT = "/Documents/Organisational Documents";
+/** Folder inside the Intranet document library that holds governing documents. */
+const ORG_DOCS_ROOT = "/Organisational documents";
+
+/** Every uploaded version is also kept here, one file per version. */
+export const PREVIOUS_VERSIONS_FOLDER = "Previous versions";
 
 /**
- * Maps each document category to its corresponding SharePoint folder name
- * under the Organisational Documents root.
+ * Maps each document category to its SharePoint folder under the root. Keyed
+ * by string so it also covers categories the admin form offers that the
+ * generated Appwrite enum does not list yet.
  */
-const CATEGORY_FOLDER_MAP: Record<DocumentsCategory, string> = {
-  [DocumentsCategory.NATIONAL_STATUTES]: "Statutes",
-  [DocumentsCategory.CAMPUS_BYLAWS]: "Local laws",
-  [DocumentsCategory.CODE_OF_CONDUCT]: "Code of Conduct",
-  [DocumentsCategory.BUSINESS_REGULATIONS]: "Business Regulations",
-  [DocumentsCategory.COMMUNICATION_GUIDELINES]: "Communication Guidelines",
+const CATEGORY_FOLDER_MAP: Record<string, string> = {
+  "authorization-matrix": "Authorization Matrix",
+  "business-regulations": "Business Regulations",
+  "campus-bylaws": "Local laws",
+  "code-of-conduct": "Code of Conduct",
+  "communication-guidelines": "Communication Guidelines",
+  "national-statutes": "Statutes",
+  "target-documents": "Target Documents",
 };
 
 const LANGUAGE_SUBFOLDER: Record<DocumentLanguage, string> = {
@@ -23,18 +26,43 @@ const LANGUAGE_SUBFOLDER: Record<DocumentLanguage, string> = {
   en: "Engelsk versjon",
 };
 
+const MAX_FILE_BASE_LENGTH = 120;
+// Characters SharePoint rejects in file names, plus "#" and "%", which break
+// the path-addressed Graph upload URL.
+const UNSAFE_FILE_CHARS_REGEX = /["*:<>?/\\|#%]/g;
+const WHITESPACE_RUN_REGEX = /\s+/g;
+const TRAILING_DOTS_AND_SPACES_REGEX = /[.\s]+$/;
+
 /**
- * Builds the full SharePoint folder path for a document based on its category,
- * language, and (for campus-bylaws) the campus name.
- *
- * All categories support language subfolders.
+ * The drive (document library) all governing documents are written to. There
+ * is deliberately no fallback: guessing a site from SHAREPOINT_SITES once sent
+ * uploads to the wrong site.
+ */
+export function getDocumentsDriveId(): string {
+  const driveId = process.env.SHAREPOINT_DOCUMENTS_DRIVE_ID?.trim();
+  if (!driveId) {
+    throw new Error(
+      "SHAREPOINT_DOCUMENTS_DRIVE_ID is not set. Set it to the Intranet document library's drive id."
+    );
+  }
+  return driveId;
+}
+
+/**
+ * Folder for a document's current file, by category, language and (for campus
+ * bylaws) campus name.
  */
 export function resolveFolderPath(
-  category: DocumentsCategory,
+  category: string,
   language: DocumentLanguage,
   campusName: string | null
 ): string {
   const categoryFolder = CATEGORY_FOLDER_MAP[category];
+  if (!categoryFolder) {
+    throw new Error(
+      `No SharePoint folder is mapped for category "${category}"`
+    );
+  }
   const languageFolder = LANGUAGE_SUBFOLDER[language];
 
   if (category === "campus-bylaws" && campusName) {
@@ -44,37 +72,27 @@ export function resolveFolderPath(
   return `${ORG_DOCS_ROOT}/${categoryFolder}/${languageFolder}`;
 }
 
+function toSafeFileBase(title: string): string {
+  const cleaned = title
+    .replace(UNSAFE_FILE_CHARS_REGEX, "")
+    .replace(WHITESPACE_RUN_REGEX, " ")
+    .trim()
+    .slice(0, MAX_FILE_BASE_LENGTH)
+    .replace(TRAILING_DOTS_AND_SPACES_REGEX, "");
+  return cleaned || "Document";
+}
+
 /**
- * Resolves the SharePoint drive ID for the Organisational Documents library.
- *
- * Checks SHAREPOINT_DOCUMENTS_DRIVE_ID env var first (preferred — avoids an
- * extra API round-trip on every upload). Falls back to auto-discovering the
- * drive from the first configured SharePoint site.
+ * File names derive from the document title, not the uploaded file's name, so
+ * the current file's name is stable across versions.
  */
-export async function resolveDocumentsDriveId(
-  sp: SharePointService
-): Promise<string> {
-  const fromEnv = process.env.SHAREPOINT_DOCUMENTS_DRIVE_ID?.trim();
-  if (fromEnv) {
-    return fromEnv;
-  }
-
-  const sites = await sp.listSites();
-  if (sites.length === 0) {
-    throw new Error(
-      "No SharePoint sites configured. Set SHAREPOINT_SITES or SHAREPOINT_DOCUMENTS_DRIVE_ID."
-    );
-  }
-
-  const drives = await sp.listDrivesForSite(sites[0].id);
-  if (drives.length === 0) {
-    throw new Error(
-      `No drives found on SharePoint site "${sites[0].displayName}". Set SHAREPOINT_DOCUMENTS_DRIVE_ID.`
-    );
-  }
-
-  const preferred = drives.find(
-    (d) => d.name === "Documents" || d.name === "Shared Documents"
-  );
-  return (preferred ?? drives[0]).id;
+export function buildDocumentFileNames(
+  title: string,
+  version: string
+): { archived: string; current: string } {
+  const base = toSafeFileBase(title);
+  return {
+    archived: `${base} v${version}.pdf`,
+    current: `${base}.pdf`,
+  };
 }
