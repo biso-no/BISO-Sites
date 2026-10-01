@@ -1,6 +1,7 @@
 "use client";
 
 import { trackEvent } from "@repo/shared/utils/analytics";
+import { displayDocumentVersion } from "@repo/shared/utils/document-version";
 import {
   BookOpen,
   Briefcase,
@@ -78,6 +79,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
   const historyId = `document-history-${doc.$id}`;
   const config = CATEGORY_CONFIG[doc.category];
   const Icon = config?.icon ?? BookOpen;
+  const versionLabel = displayDocumentVersion(doc.version);
 
   return (
     <motion.div
@@ -153,8 +155,8 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
               className="flex flex-wrap items-center gap-3 text-sm"
               style={{ color: "rgba(255,255,255,0.40)" }}
             >
-              {doc.version && <span>v{doc.version}</span>}
-              {doc.version && <span>·</span>}
+              {versionLabel && <span>{versionLabel}</span>}
+              {versionLabel && <span>·</span>}
               {doc.file_size ? (
                 <>
                   <span>{formatBytes(doc.file_size)}</span>

@@ -8,7 +8,19 @@ import {
 import { formatDocumentVersion } from "@repo/shared/utils/document-version";
 import { type NextRequest, NextResponse } from "next/server";
 
-const UNSAFE_FILE_NAME_CHARS_REGEX = /[^a-z0-9\sæøå.-]/gi;
+// A literal space, not \s: tabs and line breaks must never reach the header.
+const UNSAFE_FILE_NAME_CHARS_REGEX = /[^a-z0-9 æøå.-]/gi;
+const NON_ASCII_REGEX = /[^\x20-\x7E]/g;
+
+/**
+ * RFC 6266 header with both forms: an ASCII `filename` for old clients and an
+ * RFC 5987 `filename*` that carries the real name, Norwegian letters included.
+ */
+function attachmentDisposition(name: string): string {
+  const safeName = name.replace(UNSAFE_FILE_NAME_CHARS_REGEX, "_").trim();
+  const asciiName = safeName.replace(NON_ASCII_REGEX, "_");
+  return `attachment; filename="${asciiName}.pdf"; filename*=UTF-8''${encodeURIComponent(safeName)}.pdf`;
+}
 
 function notFound(): NextResponse {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -65,14 +77,11 @@ export async function GET(
 
     const sp = new SharePointService(getSharePointConfig());
     const buffer = await sp.downloadDocument(driveId, itemId);
-    const safeFileName = fileName
-      .replace(UNSAFE_FILE_NAME_CHARS_REGEX, "_")
-      .trim();
 
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${safeFileName}.pdf"`,
+        "Content-Disposition": attachmentDisposition(fileName),
         "Content-Length": String(buffer.byteLength),
       },
     });

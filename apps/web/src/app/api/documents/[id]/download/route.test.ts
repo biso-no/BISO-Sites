@@ -16,6 +16,8 @@ vi.mock("@repo/connectors/sharepoint", () => ({
 
 const { GET } = await import("./route");
 
+const LINE_BREAK_OR_TAB_REGEX = /[\r\n\t]/;
+
 const doc = {
   $id: "doc-1",
   sharepoint_drive_id: "drive-1",
@@ -53,7 +55,7 @@ describe("GET /api/documents/[id]/download", () => {
     expect(response.status).toBe(200);
     expect(downloadDocument).toHaveBeenCalledWith("drive-1", "current-item");
     expect(response.headers.get("Content-Disposition")).toBe(
-      'attachment; filename="Vedtekter for BISO.pdf"'
+      "attachment; filename=\"Vedtekter for BISO.pdf\"; filename*=UTF-8''Vedtekter%20for%20BISO.pdf"
     );
   });
 
@@ -77,8 +79,23 @@ describe("GET /api/documents/[id]/download", () => {
     expect(response.status).toBe(200);
     expect(downloadDocument).toHaveBeenCalledWith("drive-1", "archived-item");
     expect(response.headers.get("Content-Disposition")).toBe(
-      'attachment; filename="Vedtekter for BISO v7.1.pdf"'
+      "attachment; filename=\"Vedtekter for BISO v7.1.pdf\"; filename*=UTF-8''Vedtekter%20for%20BISO%20v7.1.pdf"
     );
+  });
+
+  it("keeps line breaks out of the header and sends non-ASCII names in both forms", async () => {
+    mockTables({
+      documents: [{ ...doc, title: 'Lokale lover\r\nfor Bodø "æ"\tutkast' }],
+    });
+
+    const response = await GET(request(), context);
+
+    expect(response.status).toBe(200);
+    const header = response.headers.get("Content-Disposition");
+    expect(header).toBe(
+      "attachment; filename=\"Lokale lover__for Bod_ ____utkast.pdf\"; filename*=UTF-8''Lokale%20lover__for%20Bod%C3%B8%20_%C3%A6__utkast.pdf"
+    );
+    expect(header).not.toMatch(LINE_BREAK_OR_TAB_REGEX);
   });
 
   it("returns 404 for a version id that is not this document's", async () => {

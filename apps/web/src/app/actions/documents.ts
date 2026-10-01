@@ -52,12 +52,14 @@ export async function listPublishedDocuments(
         ]
       );
       versions = result.rows;
-    } catch {
+    } catch (error) {
+      console.error("Failed to load document version history:", error);
       versions = [];
     }
 
     return attachPreviousVersions(visible, versions);
-  } catch {
+  } catch (error) {
+    console.error("Failed to list published documents:", error);
     return [];
   }
 }
