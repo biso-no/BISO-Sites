@@ -1490,7 +1490,6 @@ export type WebshopProducts = Models.Row & {
   regular_price: number;
   member_price: number | null;
   member_only: boolean;
-  unlisted: boolean;
   category: string | null;
   image: string | null;
   stock: number | null;
@@ -1503,6 +1502,7 @@ export type WebshopProducts = Models.Row & {
   variations: ProductVariations[];
   custom_fields: ProductCustomFields[];
   sales_type: string | null;
+  unlisted: boolean;
 };
 
 export type Memberships = Models.Row & {
@@ -1658,6 +1658,12 @@ export type MemberPassScanners = Models.Row & {
   invited_at: string | null;
 };
 
+export type TwentyFourSevenOfficeDepartments = Models.Row & {
+  Id: string;
+  Name: string;
+  Campus: string | null;
+};
+
 export type AuthTokens = Models.Row & {
   token: string;
 };
@@ -1672,4 +1678,15 @@ export type MemberRoster = Models.Row & {
   expiry_date: string;
   invoiced_at: string | null;
   sync_run_id: string;
+};
+
+export type DocumentVersions = Models.Row & {
+  document_id: string;
+  version_major: number;
+  version_minor: number;
+  sharepoint_item_id: string;
+  sharepoint_drive_id: string;
+  file_name: string;
+  file_size: number | null;
+  uploaded_by: string | null;
 };
