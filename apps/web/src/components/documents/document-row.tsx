@@ -1,11 +1,11 @@
 "use client";
 
-import type { Documents } from "@repo/api/types/appwrite";
 import { trackEvent } from "@repo/shared/utils/analytics";
 import {
   BookOpen,
   Briefcase,
   Building2,
+  ChevronDown,
   Download,
   Eye,
   MessageSquare,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import type { PublicDocument } from "@/lib/documents";
 
 const CATEGORY_CONFIG: Record<
   string,
@@ -67,12 +68,14 @@ function formatBytes(bytes: number | null): string {
 }
 
 interface DocumentRowProps {
-  doc: Documents;
+  doc: PublicDocument;
   index: number;
 }
 
 export function DocumentRow({ doc, index }: DocumentRowProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const historyId = `document-history-${doc.$id}`;
   const config = CATEGORY_CONFIG[doc.category];
   const Icon = config?.icon ?? BookOpen;
 
@@ -150,7 +153,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
               className="flex flex-wrap items-center gap-3 text-sm"
               style={{ color: "rgba(255,255,255,0.40)" }}
             >
-              {doc.version && <span>{doc.version}</span>}
+              {doc.version && <span>v{doc.version}</span>}
               {doc.version && <span>·</span>}
               {doc.file_size ? (
                 <>
@@ -212,6 +215,56 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
             </motion.a>
           </div>
         </div>
+
+        {doc.previousVersions.length > 0 && (
+          <div className="relative mt-4 border-white/10 border-t pt-4">
+            <button
+              aria-controls={historyId}
+              aria-expanded={showHistory}
+              className="flex items-center gap-2 text-sm transition-colors"
+              onClick={() => setShowHistory((open) => !open)}
+              style={{ color: "rgba(255,255,255,0.60)" }}
+              type="button"
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${showHistory ? "rotate-180" : ""}`}
+              />
+              Previous versions ({doc.previousVersions.length})
+            </button>
+            {showHistory && (
+              <ul className="mt-3 space-y-2" id={historyId}>
+                {doc.previousVersions.map((version) => (
+                  <li
+                    className="flex items-center justify-between gap-4 text-sm"
+                    key={version.id}
+                    style={{ color: "rgba(255,255,255,0.60)" }}
+                  >
+                    <span>
+                      v{version.label}
+                      {version.fileSize
+                        ? ` · ${formatBytes(version.fileSize)}`
+                        : ""}
+                      {" · "}
+                      {new Date(version.createdAt).toLocaleDateString("en-GB", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <a
+                      className="flex items-center gap-1.5 underline-offset-4 hover:underline"
+                      download
+                      href={`/api/documents/${doc.$id}/download?version=${version.id}`}
+                      style={{ color: "#3DA9E0" }}
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );
