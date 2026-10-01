@@ -18,6 +18,7 @@
   "exports": {
     ".": "./index.ts",
     "./server": "./server.ts",
+    "./runtime": "./runtime.ts",
     "./client": "./client.ts",
     "./errors": "./errors.ts",
     "./file": "./file.ts",

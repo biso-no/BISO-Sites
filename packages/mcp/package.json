@@ -1,0 +1,39 @@
+{
+  "name": "@repo/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "biso-mcp": "./src/bin/stdio.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./config": "./src/config/env.ts",
+    "./identity": "./src/identity/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "start": "bun run ./src/bin/stdio.ts",
+    "build": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "lint": "biome lint .",
+    "test": "bun test ./src"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@repo/api": "workspace:*",
+    "@repo/editor": "workspace:*",
+    "@repo/shared": "workspace:*",
+    "node-appwrite": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
