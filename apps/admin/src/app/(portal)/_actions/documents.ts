@@ -264,6 +264,32 @@ export async function getDocument(id: string) {
   return doc;
 }
 
+const CAMPUS_NOT_FOUND_ERROR = "Campus not found for this document";
+
+// Upper bound on documents read per category and language for the collision check.
+const MAX_COLLISION_CANDIDATES = 500;
+
+/**
+ * The current file is addressed by campus folder and sanitised title, so two
+ * documents collide when those match, not only when the raw titles do.
+ */
+async function hasFileNameCollision(
+  db: AdminDb,
+  values: DocumentMetadataFormValues
+): Promise<boolean> {
+  const candidates = await db.listRows<Documents>("app", "documents", [
+    Query.equal("category", values.category),
+    Query.equal("language", values.language),
+    Query.limit(MAX_COLLISION_CANDIDATES),
+  ]);
+  const fileName = buildDocumentFileNames(values.title, "0").current;
+  return candidates.rows.some(
+    (row) =>
+      (row.campus_id ?? null) === (values.campus_id ?? null) &&
+      buildDocumentFileNames(row.title, "0").current === fileName
+  );
+}
+
 /** Returns a user-facing message when the caller may not create this document. */
 async function checkCreateAccess(
   db: AdminDb,
@@ -332,19 +358,7 @@ export async function createDocument(
     return { error: fileCheck.error, sharePointError: false };
   }
 
-  // The current file is named after the title, so two documents with the same
-  // title, category and language would share one file (campus is checked
-  // below because a null campus cannot be queried with equal()).
-  const sameName = await db.listRows<Documents>("app", "documents", [
-    Query.equal("title", title),
-    Query.equal("category", category),
-    Query.equal("language", language),
-    Query.limit(25),
-  ]);
-  const collides = sameName.rows.some(
-    (row) => (row.campus_id ?? null) === (campus_id ?? null)
-  );
-  if (collides) {
+  if (await hasFileNameCollision(db, validated.data)) {
     return {
       error:
         "A document with this title already exists in this category. Open it and upload a new version instead.",
@@ -352,8 +366,11 @@ export async function createDocument(
     };
   }
 
-  const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
   const campusName = await resolveCampusNameForPath(db, scope, campus_id);
+  if (scope === "campus" && !campusName) {
+    return { error: CAMPUS_NOT_FOUND_ERROR, sharePointError: false };
+  }
+  const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
   const versionLabel = formatDocumentVersion(version);
 
   const published = await publishVersionToSharePoint({
@@ -518,12 +535,15 @@ export async function uploadNewVersion(
   if (!fileCheck.ok) {
     return { error: fileCheck.error, sharePointError: false };
   }
-  const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
   const campusName = await resolveCampusNameForPath(
     db,
     doc.scope,
     doc.campus_id
   );
+  if (doc.scope === "campus" && !campusName) {
+    return { error: CAMPUS_NOT_FOUND_ERROR, sharePointError: false };
+  }
+  const buffer = Buffer.from(await fileCheck.file.arrayBuffer());
   const versionLabel = formatDocumentVersion(version);
 
   const published = await publishVersionToSharePoint({

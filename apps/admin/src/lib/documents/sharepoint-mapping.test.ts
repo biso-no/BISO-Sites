@@ -46,6 +46,12 @@ describe("resolveFolderPath", () => {
     );
   });
 
+  test("any category gets a campus subfolder when a campus name is given", () => {
+    expect(resolveFolderPath("code-of-conduct", "no", "Oslo")).toBe(
+      "/Organisational documents/Code of Conduct/Oslo/Norsk versjon"
+    );
+  });
+
   test("covers every category the admin form offers", () => {
     expect(resolveFolderPath("authorization-matrix", "no", null)).toBe(
       "/Organisational documents/Authorization Matrix/Norsk versjon"

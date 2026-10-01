@@ -238,6 +238,64 @@ describe("createDocument", () => {
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
+  test("refuses a title that sanitises to an existing file name", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    const result = await createDocument(
+      { ...nationalValues, title: "Vedtekter for BISO?" },
+      pdfFormData()
+    );
+
+    expect(result).toEqual({
+      error:
+        "A document with this title already exists in this category. Open it and upload a new version instead.",
+      sharePointError: false,
+    });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+  });
+
+  test("allows the same title in another campus and uploads to that campus folder", async () => {
+    mockTables({
+      campus: [{ $id: "campus-bergen", name: "Bergen" }],
+      documents: [
+        { ...existingDoc, campus_id: "campus-oslo", scope: "campus" },
+      ],
+    });
+
+    const result = await createDocument(
+      {
+        ...nationalValues,
+        campus_id: "campus-bergen",
+        category: "code-of-conduct",
+        scope: "campus",
+      },
+      pdfFormData()
+    );
+
+    expect(result).toEqual({ data: "doc-new", publicLink: true });
+    expect(sp.uploadNewFile).toHaveBeenNthCalledWith(
+      2,
+      "drive-1",
+      "/Organisational documents/Code of Conduct/Bergen/Norsk versjon",
+      "Vedtekter for BISO.pdf",
+      expect.anything()
+    );
+  });
+
+  test("rejects a campus document whose campus cannot be found", async () => {
+    const result = await createDocument(
+      { ...nationalValues, campus_id: "campus-gone", scope: "campus" },
+      pdfFormData()
+    );
+
+    expect(result).toEqual({
+      error: "Campus not found for this document",
+      sharePointError: false,
+    });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
   test("writes nothing to the database when SharePoint fails", async () => {
     sp.uploadNewFile.mockRejectedValue(new Error("403 Forbidden"));
 

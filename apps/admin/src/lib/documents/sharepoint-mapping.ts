@@ -49,8 +49,8 @@ export function getDocumentsDriveId(): string {
 }
 
 /**
- * Folder for a document's current file, by category, language and (for campus
- * bylaws) campus name.
+ * Folder for a document's current file, by category, language and, for
+ * campus-scoped documents, campus name. National documents pass null.
  */
 export function resolveFolderPath(
   category: string,
@@ -65,7 +65,7 @@ export function resolveFolderPath(
   }
   const languageFolder = LANGUAGE_SUBFOLDER[language];
 
-  if (category === "campus-bylaws" && campusName) {
+  if (campusName) {
     return `${ORG_DOCS_ROOT}/${categoryFolder}/${campusName}/${languageFolder}`;
   }
 
