@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { getContentOwnership } from "@/lib/content-authorization";
+import { canManageAllDocuments } from "@/lib/documents/access";
 import { getDocument, listDocumentVersions } from "../../_actions/documents";
 import { listCampuses } from "../../_actions/lookups";
 import { DocumentEditorClient } from "./_components/document-editor-client";
@@ -28,9 +29,9 @@ export default async function DocumentEditorPage({ params }: Props) {
   }
 
   // Department authors are pinned to their own department; campus/global
-  // admins may pick any department in the campus or keep it campus-wide.
-  const isAdmin =
-    ctx.roles.includes("globaladmin") || ctx.managedCampusIds.length > 0;
+  // admins and the control committee may pick any department in the campus or
+  // keep it campus-wide.
+  const isAdmin = canManageAllDocuments(ctx) || ctx.managedCampusIds.length > 0;
   const pinnedDepartmentId =
     !isAdmin && ctx.resolvedDepartmentIds.length === 1
       ? ctx.resolvedDepartmentIds[0]

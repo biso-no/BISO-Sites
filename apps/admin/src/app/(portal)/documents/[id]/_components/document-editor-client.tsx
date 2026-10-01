@@ -23,6 +23,7 @@ import {
 import { isSharePointSharingLink } from "@/lib/documents/sharepoint-mapping";
 import {
   createDocument,
+  listDepartmentsForDocument,
   updateDocumentMetadata,
   uploadNewVersion,
 } from "../../../_actions/documents";
@@ -461,6 +462,7 @@ export function DocumentEditorClient({
                         campusId={campusId || null}
                         disabled={lockDepartment}
                         initialDepartments={[]}
+                        loadDepartments={listDepartmentsForDocument}
                         onChange={(id) => field.handleChange(id)}
                         placeholder="Campus-wide (no department)"
                         value={field.state.value ?? null}

@@ -4,6 +4,7 @@ import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import {
   type Campus,
+  type Departments,
   type Documents,
   DocumentsCategory,
   type DocumentsLanguage,
@@ -29,6 +30,10 @@ import {
   getContentOwnership,
 } from "@/lib/content-authorization";
 import {
+  canManageAllDocuments,
+  documentAccessContext,
+} from "@/lib/documents/access";
+import {
   buildDocumentFileNames,
   type DocumentLanguage,
   documentPathKey,
@@ -42,6 +47,7 @@ import {
   hasRowAccess,
 } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
+import { listDepartmentsForCampus } from "./lookups";
 import {
   DOCUMENTS_PAGE_SIZE,
   type DocumentCreateFormValues,
@@ -87,6 +93,9 @@ async function resolveCampusNameForPath(
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type SharePointFile = Awaited<ReturnType<SharePointService["uploadNewFile"]>>;
+
+// Same ceiling as the shared department lookup.
+const MAX_DEPARTMENTS_PER_CAMPUS = 200;
 
 // Upper bound on history rows read per document; far above any real count.
 const MAX_VERSIONS_PER_DOCUMENT = 500;
@@ -300,7 +309,8 @@ function validateDocumentFile(
 }
 
 export async function listDocuments(opts?: { status?: string; page?: number }) {
-  const ctx = await requireAuth();
+  // Control committee members reach every document; see documentAccessContext.
+  const access = documentAccessContext(await requireAuth());
   // Private admin read: the service client bypasses row security, so the
   // relationship scope filters below are the authorization boundary.
   const { db } = await createAdminClient();
@@ -310,7 +320,7 @@ export async function listDocuments(opts?: { status?: string; page?: number }) {
     Query.orderDesc("$updatedAt"),
     Query.limit(DOCUMENTS_PAGE_SIZE),
     Query.offset((page - 1) * DOCUMENTS_PAGE_SIZE),
-    ...applyContentRelationshipScopeQueries(ctx),
+    ...applyContentRelationshipScopeQueries(access),
   ];
 
   if (opts?.status && opts.status !== "all") {
@@ -321,8 +331,29 @@ export async function listDocuments(opts?: { status?: string; page?: number }) {
   return { rows: response.rows, total: response.total };
 }
 
-export async function getDocument(id: string) {
+/**
+ * Departments the caller may assign a document to. Whoever manages every
+ * document may pick any department of the campus; everyone else gets the
+ * shared lookup's answer (their own departments, or all for campus admins).
+ */
+export async function listDepartmentsForDocument(
+  campusId: string
+): Promise<Departments[]> {
   const ctx = await requireAuth();
+  if (!canManageAllDocuments(ctx)) {
+    return listDepartmentsForCampus(campusId);
+  }
+  const { db } = await createAdminClient();
+  const response = await db.listRows<Departments>("app", "departments", [
+    Query.equal("campus_id", campusId),
+    Query.orderAsc("Name"),
+    Query.limit(MAX_DEPARTMENTS_PER_CAMPUS),
+  ]);
+  return response.rows;
+}
+
+export async function getDocument(id: string) {
+  const access = documentAccessContext(await requireAuth());
   const { db } = await createAdminClient();
 
   const response = await db.listRows<Documents>("app", "documents", [
@@ -335,7 +366,7 @@ export async function getDocument(id: string) {
   }
   // Treat a row outside the caller's campus/department scope as not found.
   const ownership = getContentOwnership(doc, { legacyFallback: true });
-  if (!hasRowAccess(ctx, ownership.campus, ownership.department)) {
+  if (!hasRowAccess(access, ownership.campus, ownership.department)) {
     return null;
   }
   return doc;
@@ -472,6 +503,7 @@ export async function createDocument(
   | { error: string; sharePointError: boolean; data?: never }
 > {
   const ctx = await requireAuth();
+  const access = documentAccessContext(ctx);
   const parsed = documentCreateSchema.safeParse(metadata);
   const version = parsed.success
     ? parseDocumentVersion(parsed.data.version)
@@ -496,16 +528,16 @@ export async function createDocument(
     version: parsed.data.version,
   });
 
-  if (scope === "national" && !ctx.roles.includes("globaladmin")) {
+  if (scope === "national" && !access.roles.includes("globaladmin")) {
     return rejected(
       CREATE_ACTION,
-      "Only global admins can create national documents",
+      "Only global admins and the control committee can create national documents",
       { roles: ctx.roles }
     );
   }
 
   const { db } = await createAdminClient();
-  const accessError = await checkCreateAccess(db, ctx, values);
+  const accessError = await checkCreateAccess(db, access, values);
   if (accessError) {
     return rejected(CREATE_ACTION, accessError);
   }
@@ -598,6 +630,7 @@ export async function updateDocumentMetadata(
   values: DocumentMetadataFormValues
 ): Promise<{ data: string } | { error: string }> {
   const ctx = await requireAuth();
+  const access = documentAccessContext(ctx);
   const validated = documentMetadataSchema.safeParse(values);
   if (!validated.success) {
     return { error: "Invalid form data" };
@@ -615,23 +648,26 @@ export async function updateDocumentMetadata(
 
   const next = withEffectiveOwnership(validated.data);
 
-  if (next.scope === "national" && !ctx.roles.includes("globaladmin")) {
-    return { error: "Only global admins can manage national documents" };
+  if (next.scope === "national" && !access.roles.includes("globaladmin")) {
+    return {
+      error:
+        "Only global admins and the control committee can manage national documents",
+    };
   }
 
   // Authorize both the persisted scope and the requested scope so ownership
   // transfers require access on each side.
   const persisted = getContentOwnership(doc, { legacyFallback: true });
-  assertWriteAccess(ctx, persisted.campus, persisted.department);
-  await assertContentOwnership(db, ctx, {
+  assertWriteAccess(access, persisted.campus, persisted.department);
+  await assertContentOwnership(db, access, {
     allowGlobalCampus: next.scope === "national",
     campusId: next.campus_id ?? null,
     departmentId: next.department_id ?? null,
   });
   if (doc.status === "published" || next.status === "published") {
-    assertPublishAccess(ctx, persisted.campus, persisted.department);
+    assertPublishAccess(access, persisted.campus, persisted.department);
     assertPublishAccess(
-      ctx,
+      access,
       next.campus_id ?? null,
       next.department_id ?? null
     );
@@ -699,7 +735,11 @@ export async function uploadNewVersion(
   });
 
   const versionOwnership = getContentOwnership(doc, { legacyFallback: true });
-  assertWriteAccess(ctx, versionOwnership.campus, versionOwnership.department);
+  assertWriteAccess(
+    documentAccessContext(ctx),
+    versionOwnership.campus,
+    versionOwnership.department
+  );
 
   const parsedInput = documentVersionSchema.safeParse(versionInput);
   const version = parsedInput.success
@@ -841,7 +881,11 @@ export async function deleteDocument(
   }
 
   const ownership = getContentOwnership(doc, { legacyFallback: true });
-  assertWriteAccess(ctx, ownership.campus, ownership.department);
+  assertWriteAccess(
+    documentAccessContext(ctx),
+    ownership.campus,
+    ownership.department
+  );
 
   // NOTE: SharePoint files are kept on purpose; only the Appwrite rows go.
   for (const versionRow of await listVersionRows(db, id)) {

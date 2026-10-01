@@ -55,6 +55,28 @@ const bergenCampusAdminCtx: UserAuthContext = {
   userId: "user-bergen",
 };
 
+/** A control committee member based in Bergen: no admin role of their own. */
+const controlCommitteeCtx: UserAuthContext = {
+  ...globalAdminCtx,
+  campusNames: ["Bergen"],
+  campusTeamIds: ["sg-app-campus-bergen"],
+  departmentNames: ["Control Committee"],
+  departmentTeamIds: ["sg-app-dept-controlcommittee"],
+  resolvedCampusIds: ["campus-bergen"],
+  resolvedDepartmentIds: ["dept-control-committee"],
+  roles: [],
+  userId: "user-committee",
+};
+
+/** A member of another Bergen department: the broad department pseudo-role. */
+const otherDepartmentCtx: UserAuthContext = {
+  ...controlCommitteeCtx,
+  departmentNames: ["Finance Committee"],
+  departmentTeamIds: ["sg-app-dept-financecommittee"],
+  resolvedDepartmentIds: ["dept-finance"],
+  userId: "user-finance",
+};
+
 let currentCtx: UserAuthContext = globalAdminCtx;
 
 mock.module("@repo/api/server", () => ({
@@ -75,15 +97,16 @@ mock.module("@repo/connectors/sharepoint", () => ({
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
-mock.module("./audit-log", () => ({
-  logAuditEvent: mock(async () => undefined),
-}));
+const logAuditEvent = mock(async (..._args: unknown[]) => undefined);
+mock.module("./audit-log", () => ({ logAuditEvent }));
 
 process.env.SHAREPOINT_DOCUMENTS_DRIVE_ID = "drive-1";
 
 const {
   createDocument,
   deleteDocument,
+  listDepartmentsForDocument,
+  listDocuments,
   listDocumentVersions,
   updateDocumentMetadata,
   uploadNewVersion,
@@ -927,5 +950,165 @@ describe("deleteDocument", () => {
       "ver-12"
     );
     expect(db.deleteRow).toHaveBeenCalledWith("app", "documents", "doc-1");
+  });
+});
+
+describe("control committee", () => {
+  beforeEach(() => {
+    currentCtx = controlCommitteeCtx;
+  });
+
+  test("creates a national document", async () => {
+    const result = await createDocument(nationalValues, pdfFormData());
+
+    expect(result).toEqual({ data: "doc-new", publicLink: true });
+    expect(db.upsertRow).toHaveBeenCalledWith(
+      "app",
+      "documents",
+      expect.stringMatching(APPWRITE_ROW_ID),
+      expect.objectContaining({
+        scope: "national",
+        updated_by: "user-committee",
+      })
+    );
+  });
+
+  test("uploads a new version of another campus's document", async () => {
+    mockTables({
+      campus: [{ $id: "campus-oslo", name: "Oslo" }],
+      document_versions: [version12Row],
+      documents: [osloDoc],
+    });
+
+    const result = await uploadNewVersion("doc-1", "13", pdfFormData());
+
+    expect(result).toEqual({ data: "doc-1", publicLink: true, version: "13" });
+    expect(sp.replaceFileInPlace).toHaveBeenCalledTimes(1);
+  });
+
+  test("edits and publishes a national document", async () => {
+    mockTables({ documents: [{ ...existingDoc, status: "draft" }] });
+
+    const result = await updateDocumentMetadata("doc-1", {
+      ...existingMetadata,
+      description: "Adopted at the national meeting",
+      status: "published",
+    });
+
+    expect(result).toEqual({ data: "doc-1" });
+  });
+
+  test("deletes another campus's document", async () => {
+    mockTables({ documents: [osloDoc] });
+
+    const result = await deleteDocument("doc-1");
+
+    expect(result).toEqual({ data: true });
+    expect(db.deleteRow).toHaveBeenCalledWith("app", "documents", "doc-1");
+  });
+
+  test("lists documents from every campus", async () => {
+    mockTables({ documents: [existingDoc, osloDoc] });
+
+    const result = await listDocuments();
+
+    expect(result.total).toBe(2);
+    const queries = db.listRows.mock.calls[0]?.[2] as string[];
+    for (const query of queries) {
+      expect(query).not.toContain("campus.$id");
+      expect(query).not.toContain("department.$id");
+      expect(query).not.toContain("__no_scope_resolved__");
+    }
+  });
+
+  test("may assign any department of a campus", async () => {
+    mockTables({
+      departments: [{ $id: "dept-oslo-a" }, { $id: "dept-oslo-b" }],
+    });
+
+    const departments = await listDepartmentsForDocument("campus-oslo");
+
+    expect(departments.map((row) => row.$id)).toEqual([
+      "dept-oslo-a",
+      "dept-oslo-b",
+    ]);
+  });
+
+  test("is audited under the member's own identity, not an admin's", async () => {
+    logAuditEvent.mockClear();
+
+    await createDocument(nationalValues, pdfFormData());
+
+    const auditedCtx = logAuditEvent.mock.calls[0]?.[0] as UserAuthContext;
+    expect(auditedCtx.userId).toBe("user-committee");
+    expect(auditedCtx.roles).not.toContain("globaladmin");
+  });
+
+  test("reads the version history of another campus's document", async () => {
+    mockTables({ document_versions: [version12Row], documents: [osloDoc] });
+
+    const versions = await listDocumentVersions("doc-1");
+
+    expect(versions.map((row) => row.$id)).toEqual(["ver-12"]);
+  });
+});
+
+describe("other department members", () => {
+  beforeEach(() => {
+    currentCtx = otherDepartmentCtx;
+  });
+
+  test("cannot create a national document", async () => {
+    const result = await createDocument(nationalValues, pdfFormData());
+
+    expect(result).toEqual({
+      error:
+        "Only global admins and the control committee can create national documents",
+      sharePointError: false,
+    });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+  });
+
+  test("cannot upload a version of a campus-wide document", async () => {
+    mockTables({
+      documents: [
+        {
+          ...osloDoc,
+          campus: { $id: "campus-bergen" },
+          campus_id: "campus-bergen",
+        },
+      ],
+    });
+
+    await expect(
+      uploadNewVersion("doc-1", "13", pdfFormData())
+    ).rejects.toThrow("Unauthorized");
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+    expect(sp.replaceFileInPlace).not.toHaveBeenCalled();
+  });
+
+  test("still list only their own campus and department", async () => {
+    await listDocuments();
+
+    const queries = (db.listRows.mock.calls[0]?.[2] as string[]).join(" ");
+    expect(queries).toContain("campus.$id");
+    expect(queries).toContain("department.$id");
+  });
+
+  test("may only assign their own departments", async () => {
+    mockTables({
+      departments: [{ $id: "dept-finance" }, { $id: "dept-other" }],
+    });
+
+    const departments = await listDepartmentsForDocument("campus-bergen");
+
+    expect(departments.map((row) => row.$id)).toEqual(["dept-finance"]);
+  });
+
+  test("cannot delete a national document", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    await expect(deleteDocument("doc-1")).rejects.toThrow("Unauthorized");
+    expect(db.deleteRow).not.toHaveBeenCalled();
   });
 });

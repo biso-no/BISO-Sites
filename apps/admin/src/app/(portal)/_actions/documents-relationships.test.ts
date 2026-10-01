@@ -229,7 +229,8 @@ describe("document ownership persistence", () => {
       scope: "national",
     });
     expect(denied).toEqual({
-      error: "Only global admins can manage national documents",
+      error:
+        "Only global admins and the control committee can manage national documents",
     });
 
     currentCtx = globalAdminCtx;
