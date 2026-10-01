@@ -296,6 +296,59 @@ describe("createDocument", () => {
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
+  test("refuses a national document whose stray campus hides a collision", async () => {
+    mockTables({ documents: [existingDoc] });
+
+    const result = await createDocument(
+      { ...nationalValues, campus_id: "campus-oslo" },
+      pdfFormData()
+    );
+
+    expect(result).toEqual({
+      error:
+        "A document with this title already exists in this category. Open it and upload a new version instead.",
+      sharePointError: false,
+    });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+  });
+
+  test("drops a stray campus from a national document and uses the national folder", async () => {
+    const result = await createDocument(
+      { ...nationalValues, campus_id: "campus-oslo" },
+      pdfFormData()
+    );
+
+    expect(result).toEqual({ data: "doc-new", publicLink: true });
+    expect(sp.uploadNewFile).toHaveBeenNthCalledWith(
+      2,
+      "drive-1",
+      "/Organisational documents/Statutes/Norsk versjon",
+      "Vedtekter for BISO.pdf",
+      expect.anything()
+    );
+    expect(db.upsertRow).toHaveBeenCalledWith(
+      "app",
+      "documents",
+      "unique()",
+      expect.objectContaining({ campus: null, campus_id: null })
+    );
+  });
+
+  test("refuses a national document when an existing national row has a stray campus", async () => {
+    mockTables({
+      documents: [{ ...existingDoc, campus_id: "campus-oslo" }],
+    });
+
+    const result = await createDocument(nationalValues, pdfFormData());
+
+    expect(result).toEqual({
+      error:
+        "A document with this title already exists in this category. Open it and upload a new version instead.",
+      sharePointError: false,
+    });
+    expect(sp.uploadNewFile).not.toHaveBeenCalled();
+  });
+
   test("writes nothing to the database when SharePoint fails", async () => {
     sp.uploadNewFile.mockRejectedValue(new Error("403 Forbidden"));
 

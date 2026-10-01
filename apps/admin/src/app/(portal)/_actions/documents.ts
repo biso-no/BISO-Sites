@@ -273,6 +273,14 @@ const MAX_COLLISION_CANDIDATES = 500;
  * The current file is addressed by campus folder and sanitised title, so two
  * documents collide when those match, not only when the raw titles do.
  */
+/** Only campus-scoped documents live in a campus folder; national ones never do. */
+function pathCampusId(doc: {
+  campus_id?: string | null;
+  scope: string;
+}): string | null {
+  return doc.scope === "campus" ? (doc.campus_id ?? null) : null;
+}
+
 async function hasFileNameCollision(
   db: AdminDb,
   values: DocumentMetadataFormValues
@@ -285,9 +293,18 @@ async function hasFileNameCollision(
   const fileName = buildDocumentFileNames(values.title, "0").current;
   return candidates.rows.some(
     (row) =>
-      (row.campus_id ?? null) === (values.campus_id ?? null) &&
+      pathCampusId(row) === pathCampusId(values) &&
       buildDocumentFileNames(row.title, "0").current === fileName
   );
+}
+
+/** A national document never carries a campus or department. */
+function withEffectiveOwnership<T extends DocumentMetadataFormValues>(
+  values: T
+): T {
+  return values.scope === "national"
+    ? { ...values, campus_id: null, department_id: null }
+    : values;
 }
 
 /** Returns a user-facing message when the caller may not create this document. */
@@ -330,15 +347,16 @@ export async function createDocument(
   | { error: string; sharePointError: boolean; data?: never }
 > {
   const ctx = await requireAuth();
-  const validated = documentCreateSchema.safeParse(metadata);
-  const version = validated.success
-    ? parseDocumentVersion(validated.data.version)
+  const parsed = documentCreateSchema.safeParse(metadata);
+  const version = parsed.success
+    ? parseDocumentVersion(parsed.data.version)
     : null;
-  if (!(validated.success && version)) {
+  if (!(parsed.success && version)) {
     return { error: "Invalid form data", sharePointError: false };
   }
+  const values = withEffectiveOwnership(parsed.data);
 
-  const { campus_id, scope, category, language, title } = validated.data;
+  const { campus_id, scope, category, language, title } = values;
 
   if (scope === "national" && !ctx.roles.includes("globaladmin")) {
     return {
@@ -348,7 +366,7 @@ export async function createDocument(
   }
 
   const { db } = await createAdminClient();
-  const accessError = await checkCreateAccess(db, ctx, validated.data);
+  const accessError = await checkCreateAccess(db, ctx, values);
   if (accessError) {
     return { error: accessError, sharePointError: false };
   }
@@ -358,7 +376,7 @@ export async function createDocument(
     return { error: fileCheck.error, sharePointError: false };
   }
 
-  if (await hasFileNameCollision(db, validated.data)) {
+  if (await hasFileNameCollision(db, values)) {
     return {
       error:
         "A document with this title already exists in this category. Open it and upload a new version instead.",
@@ -389,14 +407,14 @@ export async function createDocument(
 
   const doc = await db.upsertRow("app", "documents", "unique()", {
     title,
-    description: validated.data.description ?? null,
+    description: values.description ?? null,
     category: category as DocumentsCategory,
     scope: scope as DocumentsScope,
     // Canonical ownership relationships; the scalar column remains as
     // migration-era compatibility metadata only.
     campus: campus_id ?? null,
     campus_id: campus_id ?? null,
-    department: validated.data.department_id ?? null,
+    department: values.department_id ?? null,
     language: language as DocumentsLanguage,
     version: versionLabel,
     version_number: version.major,
@@ -404,7 +422,7 @@ export async function createDocument(
     sharepoint_drive_id: published.current.driveId,
     sharepoint_web_url: publicUrl ?? published.current.webUrl,
     file_size: published.current.size,
-    status: validated.data.status as DocumentsStatus,
+    status: values.status as DocumentsStatus,
     updated_by: ctx.userId,
   });
   await recordVersion(db, {
