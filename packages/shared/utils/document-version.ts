@@ -39,3 +39,17 @@ export function compareDocumentVersions(
 ): number {
   return a.major === b.major ? a.minor - b.minor : a.major - b.major;
 }
+
+/**
+ * Version label for display: "v12" for a version number, the text itself for
+ * a legacy value that is not one ("draft"), and null when there is none.
+ */
+export function displayDocumentVersion(
+  raw: string | null | undefined
+): string | null {
+  const parsed = parseDocumentVersion(raw);
+  if (parsed) {
+    return `v${formatDocumentVersion(parsed)}`;
+  }
+  return raw?.trim() || null;
+}

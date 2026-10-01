@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   compareDocumentVersions,
   DOCUMENT_VERSION_PATTERN,
+  displayDocumentVersion,
   formatDocumentVersion,
   parseDocumentVersion,
 } from "./document-version";
@@ -59,5 +60,29 @@ describe("DOCUMENT_VERSION_PATTERN", () => {
     expect(DOCUMENT_VERSION_PATTERN.test("12")).toBe(true);
     expect(DOCUMENT_VERSION_PATTERN.test("7.1")).toBe(true);
     expect(DOCUMENT_VERSION_PATTERN.test("v12")).toBe(false);
+  });
+});
+
+describe("displayDocumentVersion", () => {
+  it("adds the v prefix to a stored version", () => {
+    expect(displayDocumentVersion("12")).toBe("v12");
+    expect(displayDocumentVersion(" 7.10 ")).toBe("v7.10");
+  });
+
+  it("does not double the prefix on a legacy value that already has one", () => {
+    expect(displayDocumentVersion("v2.1")).toBe("v2.1");
+    expect(displayDocumentVersion("V3")).toBe("v3");
+  });
+
+  it("shows free text that is not a version number as it is, trimmed", () => {
+    expect(displayDocumentVersion("draft")).toBe("draft");
+    expect(displayDocumentVersion(" 2024 edition ")).toBe("2024 edition");
+  });
+
+  it("returns null when there is nothing to show", () => {
+    expect(displayDocumentVersion(null)).toBeNull();
+    expect(displayDocumentVersion(undefined)).toBeNull();
+    expect(displayDocumentVersion("")).toBeNull();
+    expect(displayDocumentVersion("   ")).toBeNull();
   });
 });
