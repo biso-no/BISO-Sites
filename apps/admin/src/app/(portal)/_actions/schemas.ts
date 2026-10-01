@@ -10,6 +10,7 @@ import {
   type RecruitmentVacancyUpsertInput,
   recruitmentVacancyUpsertSchema,
 } from "@repo/shared/types/recruitment";
+import { DOCUMENT_VERSION_PATTERN } from "@repo/shared/utils/document-version";
 import { z } from "zod";
 import { hasRichContent } from "@/lib/plate-content";
 
@@ -355,10 +356,19 @@ export const documentMetadataSchema = z.object({
   campus_id: z.string().optional().nullable(),
   department_id: z.string().optional().nullable(),
   language: z.enum(["no", "en"]),
-  version: z.string().optional().nullable(),
-  version_number: z.coerce.number().int().positive().default(1),
   status: z.enum(["draft", "published"]),
-  sort_order: z.coerce.number().int().nonnegative().default(0),
 });
 
 export type DocumentMetadataFormValues = z.infer<typeof documentMetadataSchema>;
+
+/** Stored without the "v" prefix, e.g. "12" or "7.1". */
+export const documentVersionSchema = z
+  .string()
+  .trim()
+  .regex(DOCUMENT_VERSION_PATTERN, "Version must be a number like 12 or 7.1");
+
+export const documentCreateSchema = documentMetadataSchema.extend({
+  version: documentVersionSchema,
+});
+
+export type DocumentCreateFormValues = z.infer<typeof documentCreateSchema>;

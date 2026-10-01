@@ -244,11 +244,8 @@ describe("admin content update scoping", () => {
         description: null,
         language: "no",
         scope: "campus",
-        sort_order: 0,
         status: "draft",
         title: "Campus bylaws",
-        version: null,
-        version_number: 1,
       })
     ).rejects.toThrow(unauthorizedCampusError);
     expect(db.updateRow).not.toHaveBeenCalled();

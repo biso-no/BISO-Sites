@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { getContentOwnership } from "@/lib/content-authorization";
-import { getDocument } from "../../_actions/documents";
+import { canManageAllDocuments } from "@/lib/documents/access";
+import { getDocument, listDocumentVersions } from "../../_actions/documents";
 import { listCampuses } from "../../_actions/lookups";
 import { DocumentEditorClient } from "./_components/document-editor-client";
 
@@ -17,9 +18,10 @@ export default async function DocumentEditorPage({ params }: Props) {
   const tc = await getTranslations("adminPortal.common");
 
   const isNew = id === "new";
-  const [document, campuses] = await Promise.all([
+  const [document, campuses, versions] = await Promise.all([
     isNew ? null : getDocument(id),
     listCampuses(),
+    isNew ? [] : listDocumentVersions(id),
   ]);
 
   if (!(isNew || document)) {
@@ -27,9 +29,9 @@ export default async function DocumentEditorPage({ params }: Props) {
   }
 
   // Department authors are pinned to their own department; campus/global
-  // admins may pick any department in the campus or keep it campus-wide.
-  const isAdmin =
-    ctx.roles.includes("globaladmin") || ctx.managedCampusIds.length > 0;
+  // admins and the control committee may pick any department in the campus or
+  // keep it campus-wide.
+  const isAdmin = canManageAllDocuments(ctx) || ctx.managedCampusIds.length > 0;
   const pinnedDepartmentId =
     !isAdmin && ctx.resolvedDepartmentIds.length === 1
       ? ctx.resolvedDepartmentIds[0]
@@ -58,9 +60,7 @@ export default async function DocumentEditorPage({ params }: Props) {
         "category_authorization-matrix": t("categories.authorization-matrix"),
         "category_target-documents": t("categories.target-documents"),
         version: t("fields.version"),
-        versionNumber: t("fields.versionNumber"),
         status: t("fields.status"),
-        sortOrder: t("fields.sortOrder"),
         file: t("fields.file"),
         fileSize: t("fields.fileSize"),
         lastUpdated: t("fields.lastUpdated"),
@@ -77,8 +77,16 @@ export default async function DocumentEditorPage({ params }: Props) {
         versionUploadHint: t("versionUploadHint"),
         languageNo: t("languages.no"),
         languageEn: t("languages.en"),
+        versionHistory: t("versionHistory"),
+        noVersions: t("noVersions"),
+        copyLink: t("copyLink"),
+        linkCopied: t("linkCopied"),
+        notPublicWarning: t("notPublicWarning"),
+        pathLockedHint: t("pathLockedHint"),
+        internalLinkNote: t("internalLinkNote"),
       }}
       lockDepartment={Boolean(pinnedDepartmentId)}
+      versions={versions}
     />
   );
 }

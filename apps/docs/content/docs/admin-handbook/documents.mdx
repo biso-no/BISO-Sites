@@ -24,11 +24,11 @@ For the technical side, see [SharePoint integration](/docs/integrations/sharepoi
 
 | Sub-screen | What it's for |
 |------------|---------------|
-| `/documents` | The list of every document you can see, filtered by your campus. |
+| `/documents` | The list of every document you can see. For most users that is their own campus; global admins and the Control Committee see all campuses. |
 | `/documents/new` | Upload a new document. |
 | `/documents/[id]` | Edit a document's metadata, replace the file, or delete it. |
 
-A campus admin sees documents for their campus. A global admin sees everything.
+A campus admin sees documents for their campus. A global admin sees everything. Members of the **Control Committee** also see and manage every document, national and on any campus (upload, new versions, edit, publish, delete), because the committee maintains the statutes and local laws. That access comes from membership in the `SG-App-Dept-ControlCommittee` group in Microsoft 365 and applies to documents only.
 
 ## What's stored on each document
 
@@ -44,16 +44,19 @@ A campus admin sees documents for their campus. A global admin sees everything.
 
 From `/documents/new`:
 
-1. **Pick the file.** Standard PDFs, Word documents, and spreadsheets are all fine.
+1. **Pick the file.** Only PDFs are accepted. Export Word documents and spreadsheets to PDF first.
 2. **Fill in the title and campus.** These are mandatory.
-3. **Set permissions.** Decide whether the document is public or restricted.
-4. **Save.**
+3. **Enter the version number.** Numbers only, such as `12` or `7.1`; the `v` is added for you.
+4. **Set permissions.** Decide whether the document is public or restricted.
+5. **Save.**
+
+The title, category, language, scope and campus cannot be changed after upload, because they decide where the file is stored in SharePoint. If one of them is wrong, create a new document and delete the old one.
 
 What happens under the hood: the file is uploaded to SharePoint through Microsoft Graph, BISO's app only has access to the specific SharePoint sites configured in the environment (this is the "Sites.Selected" permission model — the app cannot read every SharePoint site in the tenant, only the ones BISO has explicitly granted). Once the upload completes, a row is created in the documents table with the drive and item IDs so the public site knows where to fetch the file from.
 
 ## Replacing or deleting a file
 
-To **replace** a file — for example, when a policy is updated and you want the same URL to point at the new version — open the document and use the upload button. The old version stays in SharePoint's version history; the new one becomes the live file.
+To **publish a new version** — for example after a general assembly adopts new local laws — open the document, enter the new version number (it must be higher than the current one) and upload the PDF. The link stays the same and now opens the new version; earlier versions remain available under "Previous versions" on biso.no and in the `Previous versions` folder in SharePoint.
 
 To **delete** a document, open it and use the delete action. The metadata row is removed and the document disappears from biso.no within seconds. The file's version history remains in SharePoint, so a delete here is not catastrophic — BISO IT can pull the file back if needed.
 
