@@ -5,7 +5,10 @@ import type {
   Documents,
   DocumentVersions,
 } from "@repo/api/types/appwrite";
-import { formatDocumentVersion } from "@repo/shared/utils/document-version";
+import {
+  displayDocumentVersion,
+  formatDocumentVersion,
+} from "@repo/shared/utils/document-version";
 import { useForm } from "@tanstack/react-form";
 import { Copy, ExternalLink, FileText, Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -17,6 +20,7 @@ import {
   documentCreateSchema,
   documentMetadataSchema,
 } from "@/app/(portal)/_actions/schemas";
+import { isSharePointSharingLink } from "@/lib/documents/sharepoint-mapping";
 import {
   createDocument,
   updateDocumentMetadata,
@@ -216,6 +220,9 @@ export function DocumentEditorClient({
           }
           toast.success(labels.saveSuccess);
         }
+      } catch {
+        // A thrown action (lost connection, access denied) must not fail silently.
+        toast.error(labels.saveError);
       } finally {
         setIsSaving(false);
       }
@@ -229,25 +236,34 @@ export function DocumentEditorClient({
     startVersionTransition(async () => {
       const formData = new FormData();
       formData.append("file", versionFile);
-      const result = await uploadNewVersion(
-        document.$id,
-        nextVersion,
-        formData
-      );
-      if (result.error !== undefined) {
-        if (result.sharePointError) {
-          toast.error(`${labels.sharepointError}: ${result.error}`, {
-            duration: 8000,
-          });
-        } else {
-          toast.error(result.error);
+      try {
+        const result = await uploadNewVersion(
+          document.$id,
+          nextVersion,
+          formData
+        );
+        if (result.error !== undefined) {
+          if (result.sharePointError) {
+            toast.error(`${labels.sharepointError}: ${result.error}`, {
+              duration: 8000,
+            });
+          } else {
+            toast.error(result.error);
+          }
+          return;
         }
-        return;
+        if (result.publicLink) {
+          toast.success(`${labels.uploadSuccess} — v${result.version}`);
+        } else {
+          toast.warning(labels.notPublicWarning, { duration: 10_000 });
+        }
+        setVersionFile(null);
+        setNextVersion("");
+        router.refresh();
+      } catch {
+        // A thrown action (lost connection, access denied) must not fail silently.
+        toast.error(labels.uploadError);
       }
-      toast.success(`${labels.uploadSuccess} — v${result.version}`);
-      setVersionFile(null);
-      setNextVersion("");
-      router.refresh();
     });
   }
 
@@ -255,8 +271,13 @@ export function DocumentEditorClient({
     if (!document) {
       return;
     }
-    await navigator.clipboard.writeText(document.sharepoint_web_url);
-    toast.success(labels.linkCopied);
+    try {
+      await navigator.clipboard.writeText(document.sharepoint_web_url);
+      toast.success(labels.linkCopied);
+    } catch {
+      // The browser refused clipboard access (permission or insecure context).
+      toast.error(labels.saveError);
+    }
   }
 
   const campusOptions = [
@@ -308,6 +329,7 @@ export function DocumentEditorClient({
                     ? String(field.state.meta.errors[0])
                     : undefined
                 }
+                hint={isNew ? undefined : labels.pathLockedHint}
                 label={labels.title}
                 required
               >
@@ -510,7 +532,7 @@ export function DocumentEditorClient({
                 <FileText size={18} style={{ color: STUDIO.claret }} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm" style={{ color: STUDIO.ink2 }}>
-                    {document.version ? `v${document.version}` : "—"}
+                    {displayDocumentVersion(document.version) ?? "—"}
                   </p>
                   <p className="text-xs" style={{ color: STUDIO.ink4 }}>
                     {formatBytes(document.file_size)} · Last updated{" "}
@@ -540,6 +562,11 @@ export function DocumentEditorClient({
                   {labels.copyLink}
                 </PortalButton>
               </div>
+              {isSharePointSharingLink(document.sharepoint_web_url) ? null : (
+                <p className="text-xs" style={{ color: STUDIO.ink4 }}>
+                  {labels.internalLinkNote}
+                </p>
+              )}
 
               {/* Upload new version */}
               <div className="space-y-3">

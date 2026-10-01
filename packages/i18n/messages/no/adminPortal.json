@@ -1074,7 +1074,9 @@
     "noVersions": "Ingen versjoner registrert ennå.",
     "copyLink": "Kopier lenke",
     "linkCopied": "Lenke kopiert",
-    "notPublicWarning": "Lagret, men SharePoint ville ikke opprette en offentlig lenke. Personer utenfor BISO kan fortsatt laste ned dokumentet fra biso.no."
+    "notPublicWarning": "Lagret, men SharePoint ville ikke opprette en offentlig lenke. Personer utenfor BISO kan fortsatt laste ned dokumentet fra biso.no.",
+    "pathLockedHint": "Tittel, kategori, språk, omfang og campus kan ikke endres etter opplasting, fordi de bestemmer hvor filen lagres.",
+    "internalLinkNote": "Denne lenken virker bare for personer som er logget inn hos BISO."
   },
   "operations": {
     "title": "Driftshelse",

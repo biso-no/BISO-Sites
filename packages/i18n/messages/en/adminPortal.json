@@ -1074,7 +1074,9 @@
     "noVersions": "No versions recorded yet.",
     "copyLink": "Copy link",
     "linkCopied": "Link copied",
-    "notPublicWarning": "Saved, but SharePoint would not create a public link. People outside BISO can still download the document from biso.no."
+    "notPublicWarning": "Saved, but SharePoint would not create a public link. People outside BISO can still download the document from biso.no.",
+    "pathLockedHint": "Title, category, language, scope and campus cannot be changed after upload, because they decide where the file is stored.",
+    "internalLinkNote": "This link only works for people signed in to BISO."
   },
   "operations": {
     "title": "Operations health",

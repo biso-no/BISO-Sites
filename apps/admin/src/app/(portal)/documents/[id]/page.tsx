@@ -81,6 +81,8 @@ export default async function DocumentEditorPage({ params }: Props) {
         copyLink: t("copyLink"),
         linkCopied: t("linkCopied"),
         notPublicWarning: t("notPublicWarning"),
+        pathLockedHint: t("pathLockedHint"),
+        internalLinkNote: t("internalLinkNote"),
       }}
       lockDepartment={Boolean(pinnedDepartmentId)}
       versions={versions}
