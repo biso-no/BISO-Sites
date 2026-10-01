@@ -774,7 +774,7 @@ the repository contradicts; it is recorded rather than acted on.
 | 1 | `services/pages.ts` | **Confirmed (P1).** `pageVisibility` treats any `status === "published"` row as readable by anyone, without consulting `visibility`. `pageRowPermissions` — mirroring `buildPageRowPermissions` — grants a published `visibility: "authenticated"` page a read for the `biso-members` team alone, and a staff principal is derived from campus and department teams, which prove nothing about membership. This table has row security off and a table-level `read("any")`, as `list`'s own comment says, so this check is the only audience boundary | The `published-only` branch requires membership for a member-only page. `Principal` gains `isMember`, read from the raw teams because `parseTeamMemberships` drops `biso-members` on purpose. A second test pins that a real member still gets in |
 | 2 | `services/pages.ts` | **Confirmed (P1).** `load` served `puck_document` to a published-only caller without checking `translation.is_published`. Unpublishing a locale writes only `is_published: false` and leaves the document in place, so after another locale republishes the parent row, the withdrawn copy came back. `apps/web`'s page route asks `translation.is_published` before it renders anything | A published-only caller needs a released locale, not merely a stored document |
 | 3 | `services/approvals.ts` | **Observation true, consequence not established.** There is no index covering `approver_team_id`. But the claim that Appwrite therefore *fails* the query is contradicted by the repo: `apps/admin`'s own approvals inbox filters the same table on `campus_id`, which is equally unindexed. Settling it needs appwrite.io, which is unreachable from here | None. Roadmap **S0** records what a real instance must be asked, and that an index is worth adding either way |
-| 4 | `runtime/register.ts` | **Confirmed, and wider than reported.** Round fourteen forced a refresh for reads with no second gate, on the premise that an ordinary read *has* one — Appwrite applying the caller's credential. That premise is false for every table carrying a table-level `read("any")`, which is `events`, `news`, `jobs`, `documents`, `pages`, `page_translations`, `content_translations`, `campus_benefits` and `webshop_products`. The review asked for the two page tools; marking only those would have been arbitrary | The default is inverted. Every staff-only read now re-resolves memberships, and `unprivilegedRead` takes a *reason* rather than a boolean, so an exemption has to be argued. One exemption: the static block catalogue. `privilegedRead` is gone — nothing has to be remembered any more |
+| 4 | `runtime/register.ts` | **Confirmed, and wider than reported.** Round fourteen forced a refresh for reads with no second gate, on the premise that an ordinary read *has* one — Appwrite applying the caller's credential. That premise is false for every table carrying a table-level `read("any")`, which on the content tables these tools serve is `events`, `news`, `jobs`, `documents`, `pages`, `page_translations`, `content_translations`, `campus_benefits` and `webshop_products` — and on `campus`, `departments` and `feature_flags`, which the lookup tools read. The grant is on 33 of the schema's 96 tables, so these nine were never the whole set; the sentence said they were until the eighteenth base move (§18) checked it. The review asked for the two page tools; marking only those would have been arbitrary | The default is inverted. Every staff-only read now re-resolves memberships, and `unprivilegedRead` takes a *reason* rather than a boolean, so an exemption has to be argued. One exemption: the static block catalogue. `privilegedRead` is gone — nothing has to be remembered any more |
 | 5 | `services/discovery.ts` | **Confirmed against the canonical rule.** `campusScopeIds` in `apps/web/src/lib/campus-scope.ts` returns `[campus, "5"]` so National content "rides along with whichever campus is selected rather than disappearing behind the filter". The events, news and vacancy branches each used a bare equality filter. This is round fourteen's documents finding reaching only documents | `publicCampusScope`, ported with the citation, on exactly the three tables the canonical rule names. Units and pages keep a plain filter, and the comment says why so the next reader does not have to re-derive it |
 | 6 | `services/discovery.ts` | **Confirmed.** `buildEventQueries` in `apps/web` keeps collection parents and standalone events and excludes rows with a `collection_id`, defensive empty-string arm included. Without it a collection's contents came back as independent results | The same predicate, before pagination |
 | 7 | `services/pages.ts` | **Confirmed, and the bug is in the editor.** `insertBlock` computes `findIndex(...) + 1`, so an unknown anchor becomes index 0 and the block lands at the *top* — its own `idx < 0` guard is unreachable. The wrapper then reported "inserted after <id>" | The anchor is validated here before inserting, matching what `remove` already does. The editor's dead guard is not this package's to fix |
@@ -2138,6 +2138,91 @@ than leaving the reader to rediscover it.
 imports `createAdminClient` from `@repo/api/server` directly and
 `getCustomerCategories` from `@repo/connectors/24sevenoffice`. The entry's
 stated coupling holds verbatim at `8bb2a3d`.
+
+Revalidated after the merge: 482 tests, 18/18 typecheck, biome clean over 83
+files, stdio smoke.
+
+### Eighteenth base move: `8bb2a3d → 08c4547`
+
+PR #86, "document versions and SharePoint publishing" — 21 commits over 36
+files: `apps/admin` (14), `apps/web` (8), `packages/api` (2, both generated),
+`packages/shared` (2), `packages/connectors` (2), `packages/i18n` (2),
+`docs/superpowers` (2) and `turbo.json`.
+
+**Inert in code.** Exactly one changed file is in this package's transitive
+import closure: `packages/api/types/appwrite.ts`. Its change is two additive
+types — `DocumentVersions`, `TwentyFourSevenOfficeDepartments` — plus `unlisted`
+moving position within `WebshopProducts`, which is a reorder: the type is
+identical, and the one place this package names that column is a projection
+array where order carries no meaning. The closure was resolved rather than
+eyeballed — 103 files, 23 of them outside `packages/mcp`, every `@repo/*`
+specifier resolved through the packages' own `exports` maps, nothing left
+unresolved. Two near misses are worth naming because a directory glance would
+have flagged both: `packages/shared/utils/document-version.ts` is new and
+nothing in the closure imports it, and `@repo/connectors` — which gained
+`createAnonymousViewLink` — is not imported by this package at all.
+
+**Not inert in prose, because the move changed what two columns this package
+already returns actually mean.** `documents` gained no columns, so unlike the
+`unlisted` case in the fifteenth move there was nothing new to project. What
+changed is the meaning of what was already projected, and the row says nothing
+about it:
+
+- `version_number` was a revision counter — `doc.version_number + 1` on every
+  upload, rendered as `v{version_number}` in the portal. It is now
+  `version_number: version.major`, the major component of the `version` label.
+  Nothing migrated the old rows, so both conventions are live in the same column
+  and a caller cannot tell which it is reading.
+- `sharepoint_web_url` was `spResult.webUrl`, which needs a BISO sign-in. It is
+  now `createAnonymousViewLink(…) ?? webUrl` — an "anyone with the link can
+  view" URL where the tenant permits one, the authenticated URL where it does
+  not. The admin editor learns which it got from the action's `publicLink`
+  return value; that value is never persisted, so no reader downstream can tell
+  them apart. `biso_public_search` returns this column as a document's `url`, so
+  this server now hands anonymous callers a link that may open the file with no
+  credential at all.
+
+The second one is intended product behaviour, not a leak — PR #86 exists so that
+signed-out visitors can read the statutes, and `apps/web` links the same column
+on its public page. The honest gap is that no consumer can state whether a given
+link is public. So: the registry note for `documents` now says what both columns
+mean and that the history moved to `document_versions`, the public search
+branch carries the same warning at the line that returns the URL, and roadmap
+S16 records the three things that need a schema or app change rather than a
+change here.
+
+**The new `apps/admin` role rule is deliberately not mirrored.**
+`apps/admin/CLAUDE.md` gained a fourth entry in its role mapping: a
+`Control Committee` department membership grants organisation-wide access to
+governing documents, through `documentAccessContext()` in
+`apps/admin/src/lib/documents/access.ts`. This package supports `publish` and
+`unpublish` on `documents`, so the rule is reachable in principle — and porting
+it was rejected on the rule's own terms, which say to use that context inside
+`_actions/documents.ts` and "never pass it to other surfaces". An MCP server is
+another surface, the helper is app-local code this package may not import, and
+the change would widen authorization rather than narrow it. Publish and
+unpublish here therefore still go through ordinary campus and department scope
+and will refuse a committee member the portal would allow; the registry note
+says so, so the divergence is visible to a caller rather than filed away here.
+The shared derivation this package does mirror — `parseTeamMemberships` and
+`@repo/shared/utils/team-roles` — is untouched by the move.
+
+**A standing claim of this file turned out to be wrong, and the move is what
+exposed it.** The obvious reflex was to add `document_versions` to §17d's list
+of tables carrying a table-level `read("any")`. Computing the set from
+`appwrite.config.json` instead of extending the list by hand gave 33 such tables
+out of 96 — the nine named there are the *content* tables these tools serve, and
+`campus`, `departments` and `feature_flags` carry the grant too. The finding and
+its fix are unaffected: the fix inverted the default so that every staff-only
+read re-resolves memberships, and it consults no list, which is precisely why a
+tenth world-readable table cannot reintroduce the bug. The sentence has been
+qualified rather than the record rewritten. `runtime/register.ts`'s comment names
+the same nine but claims only that they "all carry" the grant, which is true, so
+it was left alone.
+
+**`turbo.json` gained `SHAREPOINT_DOCUMENTS_DRIVE_ID`** in the build env
+allow-list. This package contributes nothing to that file and reads no
+`SHAREPOINT_*` variable, so there is no conflict and nothing to mirror.
 
 Revalidated after the merge: 482 tests, 18/18 typecheck, biome clean over 83
 files, stdio smoke.

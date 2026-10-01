@@ -301,6 +301,7 @@ says. That grant is on nearly every content table:
 | `pages`, `page_translations` | `false` | `read("any")` |
 | `webshop_products` | `false` | `read("any")` |
 | `news`, `events`, `documents` | `true` | `read("any")` |
+| `document_versions` | `true` | `read("any")` |
 | `content_translations` | `true` | `read("any")` |
 | `jobs` | `true` | `read("any")` + two teams |
 
@@ -309,6 +310,14 @@ today**. A draft's empty ACL does not hide it; a published row's `read("any")`
 adds nothing. Every draft — including `pages.draft_document` — is readable by an
 anonymous client, and `buildContentRowPermissions` returning `[]` for a draft is
 defence in depth rather than the control it looks like.
+
+`document_versions` arrived with the same grant in PR #86 (eighteenth base move,
+`docs/audit.md` §18). It is the sharper case of the pattern, because the rows are
+not content: each one carries the SharePoint `drive_id` and `item_id` of one
+version of one governing document, so an anonymous client can enumerate the
+storage identity of every revision ever uploaded, including ones never published.
+This package does not read that table; whoever tightens these grants should start
+with it.
 
 This package therefore enforces content visibility in application code and never
 delegates it to row security (`services/content.ts`, `services/pages.ts`), while
@@ -691,6 +700,44 @@ policy of its own. An earlier revision did invent one, and two review rounds
 were spent on the consequences: first it accepted requests from the people it
 meant to refuse, then — with the invented predicate corrected — it refused
 everyone and left the tool unreachable.
+
+---
+
+### S16. Governing documents: a history this package cannot read, and a link whose audience the row does not state
+
+PR #86 gave governing documents real version history and a stable public link.
+Three consequences land on this package and none can be fixed inside it.
+
+**The history lives in a table this package does not read.** `document_versions`
+holds one row per upload — `version_major`, `version_minor`, the SharePoint
+`item_id`/`drive_id`, `file_name`, `file_size`, `uploaded_by` — and `apps/web`'s
+public page joins it through `attachPreviousVersions`
+(`apps/web/src/lib/documents.ts`). `biso_content_search` and `biso_content_get`
+project the `documents` row only, so they can report the current label and
+nothing else: not how many versions exist, not when the last one landed, not who
+uploaded it. Exposing it is a capability addition rather than a projection
+change — a second bounded read per document, and a decision about whether an
+earlier version's link is something a tool should hand out at all.
+
+**`version_number` means different things on old and new rows.** Before #86 it
+was a revision counter (`doc.version_number + 1` on every upload); now it is the
+major component of `version` (`version_number: version.major`). Nothing migrated
+the existing rows and nothing on a row says which convention it follows, so
+"7" may mean the seventh upload or version 7.x. The registry note warns callers;
+the fix is a backfill and then dropping one of the two columns, which is a
+schema task.
+
+**`sharepoint_web_url` no longer says whether a credential is needed.** It is
+written as `createAnonymousViewLink(…) ?? webUrl`: an "anyone with the link can
+view" URL when the tenant permits one, the sign-in-only URL when it does not,
+and `createPublicLink` swallows the failure deliberately so that an upload never
+fails over a sharing policy. The admin editor learns which one it got from the
+server action's `publicLink` return value, which is never persisted. So every
+consumer downstream — `apps/web`'s public page and this package's
+`biso_public_search` among them — hands out a URL it cannot characterise. A
+boolean written beside the URL at upload time would settle it for all of them.
+Publishing these documents to signed-out visitors is the intended product
+behaviour; not knowing which links carry it is the gap.
 
 ---
 

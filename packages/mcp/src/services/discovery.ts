@@ -648,6 +648,13 @@ export function createDiscoveryService(
         campusId: row.campus_id,
         campusLabel: campusLabel(row.campus_id),
         dates: {},
+        // Since PR #86 this column holds an anonymous "anyone with the
+        // link" URL when the tenant allows one and the sign-in-only URL
+        // when it does not, and the row carries no flag saying which.
+        // Publishing governing documents to signed-out visitors is the
+        // intended behaviour — `apps/web` links the same column on its
+        // public page — so the URL is right to return; what no consumer
+        // can state is whether it needs a credential. Roadmap S16.
         url: row.sharepoint_web_url,
         memberOnly: false,
       })

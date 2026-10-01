@@ -387,7 +387,7 @@ export const CONTENT_REGISTRY: Readonly<
     ],
     adminPath: (id) => `/documents/${id}`,
     publicPath: null,
-    note: "File content is not read by this package; only metadata and the SharePoint link.",
+    note: 'File content is not read by this package; only metadata and the SharePoint link. Three things about this row changed in PR #86 and the row itself states none of them. `version` is the authoritative label, stored without a `v` (`12`, `7.1`). `version_number` used to be a revision counter incremented on every upload and is now the major component of that label, so a row last written before #86 still carries a counter and the two are indistinguishable here — it must not be read as "revision N". The per-upload history moved to `document_versions`, which this package does not read, so a summary cannot say how many versions exist. And `sharepoint_web_url` is now written as `createAnonymousViewLink(…) ?? webUrl`: an "anyone with the link can view" URL when the tenant permits one, the sign-in-only URL when it does not, with nothing on the row distinguishing them — the admin action returns that as `publicLink` and never persists it — so the link may grant credential-free read access to the file. Roadmap S16. Separately, `apps/admin` now lets a `Control Committee` department member manage every governing document through `documentAccessContext()` in `apps/admin/src/lib/documents/access.ts`. That context is app-local and its own rule says never to pass it to other surfaces, so publish and unpublish here still go through ordinary campus and department scope, and will refuse a committee member the portal would allow.',
   },
   pages: {
     domain: "pages",
