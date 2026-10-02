@@ -9,11 +9,13 @@ import {
   CarouselPrevious,
 } from "@repo/ui/components/ui/carousel";
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { benefitHeadline } from "@/lib/benefit-text";
 import { BenefitPreviewCard } from "./benefit-preview-card";
 
 export function BenefitsShowcase({ benefits }: { benefits: CampusBenefits[] }) {
   const t = useTranslations("memberPortal");
+  const locale = useLocale();
 
   return (
     <section className="py-12">
@@ -48,7 +50,7 @@ export function BenefitsShowcase({ benefits }: { benefits: CampusBenefits[] }) {
               >
                 <BenefitPreviewCard
                   category={benefit.category}
-                  discountText={benefit.teaser_en || benefit.title_en}
+                  discountText={benefitHeadline(benefit, locale)}
                   index={index}
                   partnerName={benefit.partner_name || "Partner"}
                 />

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { benefitDisplayTitle } from "@/lib/benefit-title";
 import { parseListParams } from "@/lib/list-params";
 import { hasNavAccess } from "@/lib/roles";
 import { listBenefits } from "../_actions/benefits";
@@ -88,7 +89,7 @@ export default async function BenefitsPage({
               >
                 {benefit.image_url ? (
                   <Image
-                    alt={benefit.title_en}
+                    alt={benefitDisplayTitle(benefit)}
                     className="h-full w-full object-cover"
                     fill
                     src={benefit.image_url}
@@ -118,7 +119,7 @@ export default async function BenefitsPage({
                   className="text-2xl leading-7"
                   style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
                 >
-                  {benefit.title_en}
+                  {benefitDisplayTitle(benefit)}
                 </p>
                 {benefit.partner_name && (
                   <p className="mt-1 text-sm" style={{ color: STUDIO.ink3 }}>

@@ -18,6 +18,7 @@ import {
   type BenefitFormValues,
   benefitSchema,
 } from "@/app/(portal)/_actions/schemas";
+import { benefitDisplayTitle } from "@/lib/benefit-title";
 import { type ContentLocale, getTargetLocale } from "@/lib/content-translation";
 import {
   createBenefit,
@@ -347,7 +348,11 @@ export function BenefitEditorClient({
         backHref="/benefits"
         backLabel={labels.back}
         status={isNew ? undefined : benefit?.status}
-        title={isNew ? "New Benefit" : (benefit?.title_en ?? "Edit Benefit")}
+        title={
+          isNew || !benefit
+            ? "New Benefit"
+            : benefitDisplayTitle(benefit) || "Edit Benefit"
+        }
       >
         <AutoTranslateControl
           checked={autoTranslate}

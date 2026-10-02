@@ -1,14 +1,16 @@
 "use client";
 
 import type { CampusBenefits } from "@repo/api/types/appwrite";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { Clock, Copy, ExternalLink, QrCode, Store, Ticket } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
+import { localizedBenefitText } from "@/lib/benefit-text";
 import {
   CodeReveal,
   LinkReveal,
@@ -44,6 +46,7 @@ export function BenefitCard({
   isRevealed: initialRevealed,
 }: BenefitCardProps) {
   const t = useTranslations("memberPortal.benefits");
+  const text = localizedBenefitText(benefit, useLocale());
   const [revealed, setRevealed] = useState(initialRevealed);
   const [value, setValue] = useState<string | null>(
     benefit.redemption_value || null
@@ -128,7 +131,7 @@ export function BenefitCard({
               )}
               <div className="min-w-0 flex-1">
                 <h3 className="mb-1 truncate font-semibold text-foreground text-lg dark:text-foreground">
-                  {benefit.title_en}
+                  {text.title}
                 </h3>
                 {benefit.partner_name && (
                   <p className="flex items-center gap-1.5 text-muted-foreground text-sm dark:text-muted-foreground">
@@ -145,11 +148,19 @@ export function BenefitCard({
             </Badge>
           </div>
 
-          {/* Description — optional, so no empty spacer when it's blank */}
-          {benefit.description_en.trim() && (
-            <p className="mb-5 text-muted-foreground dark:text-muted-foreground">
-              {benefit.description_en}
-            </p>
+          {/* Description — optional, so no empty spacer when it's blank.
+              The admin editor stores HTML; older rows may hold plain text. */}
+          {text.description.trimStart().startsWith("<") ? (
+            <PlateContentRenderer
+              className="prose-sm mb-5 text-muted-foreground"
+              value={text.description}
+            />
+          ) : (
+            text.description && (
+              <p className="mb-5 text-muted-foreground dark:text-muted-foreground">
+                {text.description}
+              </p>
+            )
           )}
 
           {/* Action area — only if there's something to reveal */}

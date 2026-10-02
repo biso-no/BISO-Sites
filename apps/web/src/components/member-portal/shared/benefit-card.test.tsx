@@ -1,9 +1,12 @@
 import type { CampusBenefits } from "@repo/api/types/appwrite";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const locale = vi.hoisted(() => ({ current: "en" }));
 
 vi.mock("next-intl", () => ({
+  useLocale: () => locale.current,
   useTranslations: () => (key: string) => key,
 }));
 vi.mock("motion/react", () => ({
@@ -32,27 +35,50 @@ const benefit = (overrides: Partial<CampusBenefits>): CampusBenefits =>
     ...overrides,
   }) as CampusBenefits;
 
-const DESCRIPTION_PARAGRAPH = /<p class="mb-5[^"]*">/;
+const render = (overrides: Partial<CampusBenefits>) =>
+  renderToStaticMarkup(
+    createElement(BenefitCard, {
+      benefit: benefit(overrides),
+      isRevealed: false,
+    })
+  );
 
 describe("BenefitCard", () => {
-  it("leaves no empty paragraph for a benefit without a description", () => {
-    const html = renderToStaticMarkup(
-      createElement(BenefitCard, { benefit: benefit({}), isRevealed: false })
-    );
-
-    expect(html).toContain("10% off at the campus café");
-    expect(html).not.toMatch(DESCRIPTION_PARAGRAPH);
+  beforeEach(() => {
+    locale.current = "en";
   });
 
-  it("shows the description when there is one", () => {
-    const html = renderToStaticMarkup(
-      createElement(BenefitCard, {
-        benefit: benefit({ description_en: "Show your member pass." }),
-        isRevealed: false,
-      })
-    );
+  it("leaves no empty description block for a benefit without a description", () => {
+    const html = render({});
 
-    expect(html).toMatch(DESCRIPTION_PARAGRAPH);
-    expect(html).toContain("Show your member pass.");
+    expect(html).toContain("10% off at the campus café");
+    expect(html).not.toContain("<article");
+  });
+
+  it("renders the description as HTML, not as visible tags", () => {
+    // The admin editor stores HTML. Printed as text, every benefit showed a
+    // literal "<p>" to members.
+    const html = render({
+      description_en: "<p>Show your member pass.</p><ul><li>Weekdays</li></ul>",
+    });
+
+    expect(html).toContain("<p>Show your member pass.</p>");
+    expect(html).toContain("<li>Weekdays</li>");
+    expect(html).not.toContain("&lt;p&gt;");
+  });
+
+  it("shows the Norwegian copy to a Norwegian visitor", () => {
+    locale.current = "no";
+    const html = render({ description_nb: "<p>Vis medlemskortet.</p>" });
+
+    expect(html).toContain("10 % rabatt i kantina");
+    expect(html).toContain("<p>Vis medlemskortet.</p>");
+    expect(html).not.toContain("10% off at the campus café");
+  });
+
+  it("falls back to the other language instead of a blank heading", () => {
+    const html = render({ title_en: "" });
+
+    expect(html).toContain("10 % rabatt i kantina");
   });
 });
