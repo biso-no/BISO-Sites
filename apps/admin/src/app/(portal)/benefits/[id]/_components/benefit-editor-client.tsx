@@ -35,12 +35,15 @@ import {
   PortalSelect,
 } from "../../../_components/portal-fields";
 import { PreviewPanel } from "../../../_components/preview-panel";
-import { describeBenefitSaveError } from "./benefit-save-error";
 import {
   SERIF_STACK,
   STUDIO,
   studioSurface,
 } from "../../../_components/studio";
+import {
+  describeBenefitSaveError,
+  settleBenefitSave,
+} from "./benefit-save-error";
 
 interface BenefitEditorClientProps {
   benefit: CampusBenefits | null;
@@ -233,15 +236,12 @@ export function BenefitEditorClient({
       );
       return;
     }
-    const result = isNew
-      ? await createBenefit(validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
-        })
-      : await updateBenefit(benefit!.$id, validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
-        });
+    const translation = { enabled: autoTranslate, sourceLocale: locale };
+    const result = await settleBenefitSave(() =>
+      isNew
+        ? createBenefit(validated.data, translation)
+        : updateBenefit(benefit!.$id, validated.data, translation)
+    );
     if (result.error) {
       toast.error(
         describeBenefitSaveError(result.error, labels.saveError, fieldLabels)

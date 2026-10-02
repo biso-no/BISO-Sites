@@ -23,3 +23,28 @@ export function describeBenefitSaveError(
   }
   return details.length > 0 ? `${fallback}: ${details.join(". ")}` : fallback;
 }
+
+const SAVE_DID_NOT_COMPLETE =
+  "The request did not complete. Check your connection and try again.";
+
+interface SaveDidNotComplete {
+  data?: undefined;
+  error: string;
+  translationQueued?: undefined;
+}
+
+/**
+ * Runs a save and reports a thrown failure the same way as a returned one.
+ * A server action that throws — an expired session, a dropped connection —
+ * rejects the call rather than returning `{ error }`, which used to leave the
+ * editor with no feedback at all.
+ */
+export async function settleBenefitSave<T>(
+  save: () => Promise<T>
+): Promise<T | SaveDidNotComplete> {
+  try {
+    return await save();
+  } catch {
+    return { error: SAVE_DID_NOT_COMPLETE };
+  }
+}
