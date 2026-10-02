@@ -4,15 +4,14 @@ import {
   UNIT_CATEGORY_MESSAGE_KEYS,
   type UnitCategory,
 } from "@repo/shared/utils/unit-categories";
-import { ImageWithFallback } from "@repo/ui/components/image";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import { ArrowUpRight, MapPin } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { UnitCrest } from "@/components/units/unit-crest";
 import type { PublicUnit } from "@/lib/data/units";
-import { unitMonogram } from "@/lib/unit-monogram";
 
 interface UnitCardProps {
   index: number;
@@ -28,7 +27,6 @@ export function UnitCard({ unit, index }: UnitCardProps) {
   // Category labels live in the shared `jobs.filters` bundle so units and jobs
   // name the same categories identically.
   const tCategory = useTranslations("jobs");
-  const crest = unitMonogram(unit.name, unit.graphName);
 
   return (
     <motion.div
@@ -43,23 +41,7 @@ export function UnitCard({ unit, index }: UnitCardProps) {
       <Card className="group h-full overflow-hidden border-border/50 bg-card/80 p-0 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-border hover:shadow-lg">
         <Link className="flex h-full flex-col p-5" href={unit.href}>
           <div className="flex items-start gap-4">
-            <span
-              aria-hidden="true"
-              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl font-semibold text-lg text-white shadow-md"
-              style={{ background: crest.background }}
-            >
-              {unit.logoUrl ? (
-                <ImageWithFallback
-                  alt=""
-                  className="h-full w-full object-contain p-1.5"
-                  height={56}
-                  src={unit.logoUrl}
-                  width={56}
-                />
-              ) : (
-                crest.initials
-              )}
-            </span>
+            <UnitCrest className="h-14 w-14 text-lg" unit={unit} />
 
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-semibold text-base text-foreground transition-colors group-hover:text-brand">
