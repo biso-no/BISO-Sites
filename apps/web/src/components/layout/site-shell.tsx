@@ -10,6 +10,8 @@ import { getLoggedInUser } from "@/lib/actions/user";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import { sessionNavFeatured } from "@/lib/data/nav-featured";
 import { cachedNavFeatured } from "@/lib/data/public-content";
+import { cachedPublicUnits } from "@/lib/data/units";
+import { unitProjectNavLinks } from "@/lib/project-unit-links";
 import type { NavAccount } from "@/lib/types/nav";
 
 const EMPTY_FEATURED = { event: null, news: null, project: null };
@@ -49,10 +51,15 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
   // in the nav. A failure degrades to an empty featured column, and never
   // poisons the shared cache.
   const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
-  const featured = await (hasSession
-    ? sessionNavFeatured(locale)
-    : cachedNavFeatured(locale)
-  ).catch(() => EMPTY_FEATURED);
+  // The unit directory is the same shared cache entry /units reads. Without it
+  // the menu simply omits the unit-run projects.
+  const [featured, units] = await Promise.all([
+    (hasSession
+      ? sessionNavFeatured(locale)
+      : cachedNavFeatured(locale)
+    ).catch(() => EMPTY_FEATURED),
+    cachedPublicUnits(locale).catch(() => []),
+  ]);
 
   // Only pay for the flag read when there is someone to show the entry to.
   // `getLoggedInUser()` already excludes anonymous sessions, so `account` is
@@ -101,6 +108,7 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
         account={account}
         featured={featured}
         isMember={membershipStatus?.isMember ?? false}
+        projectLinks={unitProjectNavLinks(units)}
       />
       <main>
         <div>{children}</div>

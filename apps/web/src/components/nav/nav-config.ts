@@ -181,7 +181,6 @@ export const PROJECT_FLAGSHIP_KEYS = [
   "fadderullan",
   "winterGames",
   "karrieredagene",
-  "inspire",
 ] as const;
 
 export const PROJECT_FLAGSHIP_ICON: LucideIcon = Sparkles;

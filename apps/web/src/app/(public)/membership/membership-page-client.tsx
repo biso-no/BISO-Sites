@@ -37,6 +37,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
+import { BRAND_CARD } from "@/lib/brand-card";
 import type { CampusData } from "@/lib/types/campus-data";
 
 type BenefitKey = keyof Pick<
@@ -49,7 +50,6 @@ type BenefitKey = keyof Pick<
 >;
 
 interface BenefitConfig {
-  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
   globalDescription: string;
   icon: LucideIcon;
   key: BenefitKey;
@@ -58,7 +58,6 @@ interface BenefitConfig {
 }
 
 interface BenefitSection {
-  colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
   description: string;
   icon: LucideIcon;
   items: string[];
@@ -74,44 +73,6 @@ interface MembershipPageClientProps {
   globalBenefits: CampusData | null;
   locale: Locale;
 }
-
-const colorSchemes = {
-  blue: {
-    gradient:
-      "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
-    iconGradient: "from-blue-500 to-blue-700",
-    checkColor: "text-blue-600 dark:text-blue-400",
-    border: "border-blue-100 dark:border-blue-900/50",
-  },
-  green: {
-    gradient:
-      "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
-    iconGradient: "from-emerald-500 to-emerald-700",
-    checkColor: "text-emerald-600 dark:text-emerald-400",
-    border: "border-emerald-100 dark:border-emerald-900/50",
-  },
-  pink: {
-    gradient:
-      "from-pink-50 via-pink-50/50 to-white dark:from-pink-950/30 dark:via-pink-950/10 dark:to-card",
-    iconGradient: "from-pink-500 to-rose-600",
-    checkColor: "text-pink-600 dark:text-pink-400",
-    border: "border-pink-100 dark:border-pink-900/50",
-  },
-  purple: {
-    gradient:
-      "from-violet-50 via-violet-50/50 to-white dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card",
-    iconGradient: "from-violet-500 to-violet-700",
-    checkColor: "text-violet-600 dark:text-violet-400",
-    border: "border-violet-100 dark:border-violet-900/50",
-  },
-  orange: {
-    gradient:
-      "from-orange-50 via-orange-50/50 to-white dark:from-orange-950/30 dark:via-orange-950/10 dark:to-card",
-    iconGradient: "from-orange-500 to-amber-600",
-    checkColor: "text-orange-600 dark:text-orange-400",
-    border: "border-orange-100 dark:border-orange-900/50",
-  },
-};
 
 function selectBenefitItems(
   data: CampusData | null | undefined,
@@ -156,7 +117,6 @@ function buildBenefitSections(
         description: descriptionSelector(config),
         icon: config.icon,
         items,
-        colorScheme: config.colorScheme,
       };
     })
     .filter((section) => section.items.length > 0);
@@ -169,7 +129,6 @@ function BenefitCard({
   section: BenefitSection;
   index: number;
 }) {
-  const colors = colorSchemes[section.colorScheme];
   const Icon = section.icon;
 
   return (
@@ -181,15 +140,14 @@ function BenefitCard({
       <Card
         className={cn(
           "border-0 bg-linear-to-br p-6 shadow-lg transition-shadow hover:shadow-xl sm:p-8",
-          colors.gradient,
-          colors.border
+          BRAND_CARD.surface
         )}
       >
         <div className="mb-6 flex items-center gap-4">
           <div
             className={cn(
               "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br shadow-md",
-              colors.iconGradient
+              BRAND_CARD.icon
             )}
           >
             <Icon className="h-6 w-6 text-white" />
@@ -212,9 +170,7 @@ function BenefitCard({
               key={item}
               transition={{ delay: index * 0.1 + itemIndex * 0.03 }}
             >
-              <CheckCircle
-                className={cn("mt-0.5 h-4 w-4 shrink-0", colors.checkColor)}
-              />
+              <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
               <span className="text-muted-foreground text-sm">{item}</span>
             </motion.div>
           ))}
@@ -249,7 +205,6 @@ export function MembershipPageClient({
         globalDescription: t("benefits.categories.student.global"),
         localDescription: t("benefits.categories.student.local"),
         icon: GraduationCap,
-        colorScheme: "blue",
       },
       {
         key: "careerAdvantages",
@@ -257,7 +212,6 @@ export function MembershipPageClient({
         globalDescription: t("benefits.categories.career.global"),
         localDescription: t("benefits.categories.career.local"),
         icon: TrendingUp,
-        colorScheme: "green",
       },
       {
         key: "socialNetwork",
@@ -265,7 +219,6 @@ export function MembershipPageClient({
         globalDescription: t("benefits.categories.social.global"),
         localDescription: t("benefits.categories.social.local"),
         icon: Heart,
-        colorScheme: "pink",
       },
       {
         key: "safety",
@@ -273,7 +226,6 @@ export function MembershipPageClient({
         globalDescription: t("benefits.categories.safety.global"),
         localDescription: t("benefits.categories.safety.local"),
         icon: Shield,
-        colorScheme: "purple",
       },
       {
         key: "businessBenefits",
@@ -281,7 +233,6 @@ export function MembershipPageClient({
         globalDescription: t("benefits.categories.business.global"),
         localDescription: t("benefits.categories.business.local"),
         icon: BriefcaseBusiness,
-        colorScheme: "orange",
       },
     ],
     [t]
@@ -321,7 +272,7 @@ export function MembershipPageClient({
         description: t("highlights.items.fadderullan.description"),
         icon: Sparkles,
         cta: t("highlights.items.fadderullan.cta"),
-        colorScheme: "pink" as const,
+        href: "/projects/fadderullan",
       },
       {
         key: "careerDays",
@@ -329,7 +280,7 @@ export function MembershipPageClient({
         description: t("highlights.items.careerDays.description"),
         icon: BriefcaseBusiness,
         cta: t("highlights.items.careerDays.cta"),
-        colorScheme: "green" as const,
+        href: "/projects/karrieredagene",
       },
       {
         key: "winterGames",
@@ -337,7 +288,7 @@ export function MembershipPageClient({
         description: t("highlights.items.winterGames.description"),
         icon: CalendarDays,
         cta: t("highlights.items.winterGames.cta"),
-        colorScheme: "blue" as const,
+        href: "/projects/winter-games",
       },
     ],
     [t]
@@ -499,7 +450,7 @@ export function MembershipPageClient({
                 <div className="mb-8 flex flex-wrap gap-3">
                   <Button
                     asChild
-                    className="bg-white text-primary-100 shadow-lg hover:bg-white/90"
+                    className="bg-white text-brand-dark shadow-lg hover:bg-white/90"
                     size="lg"
                   >
                     <Link
@@ -745,7 +696,6 @@ export function MembershipPageClient({
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {highlightEvents.map((event, index) => {
               const Icon = event.icon;
-              const colors = colorSchemes[event.colorScheme];
               return (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -757,14 +707,13 @@ export function MembershipPageClient({
                   <Card
                     className={cn(
                       "group h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:shadow-xl",
-                      colors.gradient,
-                      colors.border
+                      BRAND_CARD.surface
                     )}
                   >
                     <div
                       className={cn(
                         "mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br shadow-md",
-                        colors.iconGradient
+                        BRAND_CARD.icon
                       )}
                     >
                       <Icon className="h-6 w-6 text-white" />
@@ -776,12 +725,15 @@ export function MembershipPageClient({
                       {event.description}
                     </p>
                     <Button
+                      asChild
                       className="transition-transform group-hover:translate-x-1"
                       size="sm"
                       variant="ghost"
                     >
-                      {event.cta}
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      <Link href={event.href}>
+                        {event.cta}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
                     </Button>
                   </Card>
                 </motion.div>

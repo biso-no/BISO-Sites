@@ -20,31 +20,7 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-
-// Color schemes matching the rest of the app
-const colorSchemes = {
-  blue: {
-    gradient:
-      "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
-    iconGradient: "from-blue-500 to-blue-700",
-    checkColor: "text-blue-600 dark:text-blue-400",
-    border: "border-blue-100 dark:border-blue-900/50",
-  },
-  green: {
-    gradient:
-      "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
-    iconGradient: "from-emerald-500 to-emerald-700",
-    checkColor: "text-emerald-600 dark:text-emerald-400",
-    border: "border-emerald-100 dark:border-emerald-900/50",
-  },
-  orange: {
-    gradient:
-      "from-orange-50 via-orange-50/50 to-white dark:from-orange-950/30 dark:via-orange-950/10 dark:to-card",
-    iconGradient: "from-orange-500 to-amber-600",
-    checkColor: "text-orange-600 dark:text-orange-400",
-    border: "border-orange-100 dark:border-orange-900/50",
-  },
-};
+import { BRAND_BADGE, BRAND_CARD } from "@/lib/brand-card";
 
 export function BusinessHotspotClient() {
   const t = useTranslations("businessHotspot");
@@ -55,21 +31,18 @@ export function BusinessHotspotClient() {
       icon: Building2,
       title: t("features.0"),
       description: t("featureDescriptions.0"),
-      colorScheme: "blue" as const,
     },
     {
       key: "talks",
       icon: Presentation,
       title: t("features.1"),
       description: t("featureDescriptions.1"),
-      colorScheme: "green" as const,
     },
     {
       key: "branding",
       icon: Heart,
       title: t("features.2"),
       description: t("featureDescriptions.2"),
-      colorScheme: "orange" as const,
     },
   ];
 
@@ -111,7 +84,7 @@ export function BusinessHotspotClient() {
             viewport={{ once: true }}
             whileInView={{ opacity: 1, y: 0 }}
           >
-            <Badge className="mb-4 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+            <Badge className={cn("mb-4", BRAND_BADGE)}>
               <Sparkles className="mr-2 h-3.5 w-3.5" />
               {t("badge")}
             </Badge>
@@ -184,8 +157,8 @@ export function BusinessHotspotClient() {
               </div>
               <div className="absolute -right-4 -bottom-4 rounded-xl border border-border bg-card p-4 shadow-lg">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                    <Building2 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-muted">
+                    <Building2 className="h-5 w-5 text-brand" />
                   </div>
                   <div>
                     <p className="font-semibold text-foreground text-sm">
@@ -223,7 +196,6 @@ export function BusinessHotspotClient() {
           <div className="grid gap-6 md:grid-cols-3">
             {features.map((feature, index) => {
               const Icon = feature.icon;
-              const colors = colorSchemes[feature.colorScheme];
               return (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -235,14 +207,13 @@ export function BusinessHotspotClient() {
                   <Card
                     className={cn(
                       "h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl",
-                      colors.gradient,
-                      colors.border
+                      BRAND_CARD.surface
                     )}
                   >
                     <div
                       className={cn(
                         "mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br shadow-md",
-                        colors.iconGradient
+                        BRAND_CARD.icon
                       )}
                     >
                       <Icon className="h-6 w-6 text-white" />
@@ -265,7 +236,7 @@ export function BusinessHotspotClient() {
       <section className="py-16">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="relative overflow-hidden rounded-2xl bg-linear-to-br from-orange-500 to-amber-600 p-8 text-center shadow-2xl md:p-12"
+            className="relative overflow-hidden rounded-2xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to p-8 text-center shadow-2xl md:p-12"
             initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
@@ -282,7 +253,7 @@ export function BusinessHotspotClient() {
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Button
                   asChild
-                  className="bg-white px-8 text-orange-600 shadow-lg hover:bg-white/90"
+                  className="bg-white px-8 text-brand-dark shadow-lg hover:bg-white/90"
                   size="lg"
                 >
                   <Link href="/business">

@@ -29,7 +29,11 @@ import { useUserMembership } from "@/components/context/membership-provider";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SelectCampus } from "@/components/select-campus";
 import { useCart } from "@/lib/contexts/cart-context";
-import type { NavAccount, NavFeatured } from "@/lib/types/nav";
+import type {
+  NavAccount,
+  NavFeatured,
+  NavProjectLink,
+} from "@/lib/types/nav";
 import { AccountMenu } from "./account-menu";
 import { DesktopMenu, NavRowLink } from "./desktop-menu";
 import { MegaPanel } from "./mega-panel";
@@ -55,6 +59,7 @@ import { useNavOverflow } from "./use-nav-overflow";
 const SCROLL_THRESHOLD = 50;
 const CLOSE_DELAY_MS = 120;
 const EMPTY_FEATURED: NavFeatured = { event: null, project: null, news: null };
+const EMPTY_PROJECT_LINKS: NavProjectLink[] = [];
 
 /**
  * Shared by the row and its measurement ghost. They must resolve to the same
@@ -86,12 +91,15 @@ interface NavigationProps {
   account?: NavAccount | null;
   featured?: NavFeatured;
   isMember?: boolean;
+  /** Unit-run projects with a public page, resolved server-side. */
+  projectLinks?: NavProjectLink[];
 }
 
 export function Navigation({
   account = null,
   featured = EMPTY_FEATURED,
   isMember,
+  projectLinks = EMPTY_PROJECT_LINKS,
 }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null);
@@ -584,7 +592,11 @@ export function Navigation({
               <StudentsPanel featured={featured} onNavigate={closeNow} />
             )}
             {openPanel === "projects" && (
-              <ProjectsPanel featured={featured} onNavigate={closeNow} />
+              <ProjectsPanel
+                featured={featured}
+                onNavigate={closeNow}
+                projectLinks={projectLinks}
+              />
             )}
             {openPanel === "about" && <AboutPanel onNavigate={closeNow} />}
           </MegaPanel>
@@ -604,6 +616,7 @@ export function Navigation({
               account={account}
               isMember={memberActive}
               onNavigate={closeMobile}
+              projectLinks={projectLinks}
             />
           </motion.div>
         )}

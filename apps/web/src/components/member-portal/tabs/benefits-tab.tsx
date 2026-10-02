@@ -17,8 +17,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
+import { benefitHeadline } from "@/lib/benefit-text";
 import { BenefitCard } from "../shared/benefit-card";
 import { BenefitPreviewCard } from "../shared/benefit-preview-card";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
@@ -62,7 +63,10 @@ function MemberBenefitsView({
       (benefit.partner_name ?? "")
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-      benefit.description_en.toLowerCase().includes(searchQuery.toLowerCase());
+      benefit.description_en
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      benefit.description_nb.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -208,6 +212,7 @@ function MemberBenefitsView({
 
 function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
   const t = useTranslations("memberPortal.benefits");
+  const locale = useLocale();
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   const filteredBenefits =
@@ -279,7 +284,7 @@ function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
             >
               <BenefitPreviewCard
                 category={benefit.category}
-                discountText={benefit.teaser_en || benefit.title_en}
+                discountText={benefitHeadline(benefit, locale)}
                 index={index}
                 partnerName={benefit.partner_name || "Partner"}
               />

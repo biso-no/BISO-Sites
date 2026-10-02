@@ -88,6 +88,7 @@ export async function cachedPublishedEvents(
     limit,
     locale,
     status: "published",
+    upcomingOnly: true,
   });
   return rows;
 }
