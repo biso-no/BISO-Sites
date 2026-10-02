@@ -15,7 +15,8 @@ const DEFAULT_SIZE = 56;
 
 /**
  * A unit's square tile: its logo filling the whole tile, or — while it has
- * none — a monogram on a colour derived from its name.
+ * none — a monogram on a colour derived from its name. A logo is scaled to
+ * fit, never cropped, so a wide wordmark stays readable.
  */
 export function UnitCrest({
   className,
@@ -27,13 +28,15 @@ export function UnitCrest({
       <span
         aria-hidden="true"
         className={cn(
-          "flex shrink-0 overflow-hidden rounded-2xl bg-white shadow-md",
+          // Neutral plate for transparent logos: light enough for a dark
+          // mark, dark enough for a white one. Opaque logos cover it.
+          "flex shrink-0 overflow-hidden rounded-2xl bg-slate-300 shadow-md",
           className
         )}
       >
         <ImageWithFallback
           alt=""
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           height={size}
           src={unit.logoUrl}
           width={size}
