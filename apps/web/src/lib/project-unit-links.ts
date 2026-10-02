@@ -49,14 +49,14 @@ export function findUnitHref(
  * `/projects/<slug>` route. The label is the unit's display name.
  */
 const UNIT_RUN_PROJECTS = [
-  { id: "bergensbanelopet", label: "Bergensbaneløpet" },
+  { campusId: "1", id: "bergensbanelopet", label: "Bergensbaneløpet" },
 ] as const;
 
 /** Projects menu entries for unit-run projects that have a public page. */
 export function unitProjectNavLinks(units: LinkableUnit[]): NavProjectLink[] {
   const links: NavProjectLink[] = [];
   for (const project of UNIT_RUN_PROJECTS) {
-    const href = findUnitHref(units, project.label);
+    const href = findUnitHref(units, project.label, project.campusId);
     if (href) {
       links.push({ href, id: project.id, label: project.label });
     }
@@ -69,8 +69,11 @@ export function careerDaysHrefs(
   units: LinkableUnit[]
 ): Record<CareerDaysCampus, string> {
   const href = (campus: CareerDaysCampus): string =>
-    findUnitHref(units, CAREER_DAYS_UNIT_NAME, CAREER_DAYS_CAMPUS_IDS[campus]) ??
-    CAREER_DAYS_PROJECT_PATH;
+    findUnitHref(
+      units,
+      CAREER_DAYS_UNIT_NAME,
+      CAREER_DAYS_CAMPUS_IDS[campus]
+    ) ?? CAREER_DAYS_PROJECT_PATH;
 
   return {
     oslo: href("oslo"),

@@ -14,7 +14,11 @@ const unit = (name: string, campusId: string, href: string) => ({
 const UNITS = [
   unit("Karrieredagene", "1", "/units/oslo/karrieredagene"),
   unit("Karrieredagene", "4", "/units/stavanger/karrieredagene"),
-  unit("Karrieredagene Marketing", "2", "/units/bergen/karrieredagene-marketing"),
+  unit(
+    "Karrieredagene Marketing",
+    "2",
+    "/units/bergen/karrieredagene-marketing"
+  ),
   unit("Bergensbaneløpet", "1", "/units/oslo/bergensbanelopet"),
   unit("Case Club", "2", "/units/bergen/case-club"),
 ];
@@ -39,7 +43,7 @@ describe("findUnitHref", () => {
   });
 
   it("returns null when no unit matches", () => {
-    expect(findUnitHref(UNITS, "Inspire")).toBeNull();
+    expect(findUnitHref(UNITS, "No Such Unit")).toBeNull();
     expect(findUnitHref([], "Karrieredagene", "1")).toBeNull();
   });
 });
@@ -53,6 +57,19 @@ describe("unitProjectNavLinks", () => {
         label: "Bergensbaneløpet",
       },
     ]);
+  });
+
+  it("links the Oslo unit, not a namesake on another campus", () => {
+    // The directory is sorted by stored name, so a "BRG Bergensbaneløpet"
+    // would otherwise sort ahead of the Oslo unit that runs the project.
+    const withNamesake = [
+      unit("Bergensbaneløpet", "2", "/units/bergen/bergensbanelopet"),
+      ...UNITS,
+    ];
+
+    expect(unitProjectNavLinks(withNamesake)[0]?.href).toBe(
+      "/units/oslo/bergensbanelopet"
+    );
   });
 
   it("leaves the project out of the menu while its unit has no public page", () => {
