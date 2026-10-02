@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listEvents = vi.hoisted(() => vi.fn());
+const connection = vi.hoisted(() => vi.fn(async () => undefined));
 
+vi.mock("next/server", () => ({ connection }));
 vi.mock("@/app/actions/events", () => ({ listEvents }));
 vi.mock("@/app/actions/jobs", () => ({
   listJobs: vi.fn(async () => ({ rows: [] })),
@@ -30,6 +32,19 @@ describe("CampusPage", () => {
   beforeEach(() => {
     listEvents.mockReset();
     listEvents.mockResolvedValue({ rows: [] });
+    connection.mockClear();
+  });
+
+  it("opts into request-time rendering before the date filter reads the clock", async () => {
+    // The upcoming-events filter is built from `new Date()`. Cache Components
+    // rejects that during prerender (`blocking-prerender-current-time`) and
+    // fails the build unless `connection()` has been awaited first.
+    await CampusPage({ searchParams: Promise.resolve({}) });
+
+    expect(connection).toHaveBeenCalled();
+    expect(connection.mock.invocationCallOrder[0]).toBeLessThan(
+      listEvents.mock.invocationCallOrder[0] as number
+    );
   });
 
   it("asks only for events that have not finished", async () => {

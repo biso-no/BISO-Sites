@@ -1,5 +1,6 @@
 import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
@@ -19,7 +20,18 @@ interface CampusPageProps {
   searchParams: Promise<{ campus?: string }>;
 }
 
+// This page fetches every surface up front with no Suspense boundary, so it is
+// request-time by nature. `instant = false` lets it block; `connection()`
+// below additionally exempts it from unstable-value validation. Both are
+// needed — the first permits blocking, the second permits the unstable read.
+export const instant = false;
+
 export default async function CampusPage({ searchParams }: CampusPageProps) {
+  // Must precede the fetches: the upcoming-events filter in `listEvents` is
+  // built from `new Date()`, which the Cache Components prerender rejects as
+  // an unstable value (`blocking-prerender-current-time`).
+  await connection();
+
   const [sp, prefs, rawLocale] = await Promise.all([
     searchParams,
     getUserPreferences(),
