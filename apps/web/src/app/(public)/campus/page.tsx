@@ -37,7 +37,7 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
   // the limits apply *after* scoping instead of truncating before it).
   const [eventsResult, jobs, news, units, campusData, campusMetadata] =
     await Promise.all([
-      listEvents({ campus, status: "published", locale }),
+      listEvents({ campus, status: "published", locale, upcomingOnly: true }),
       listJobs({ campus, locale }),
       listNews({ campus, status: "published", limit: 6, locale }),
       // The unit directory is the same cached read /units and /students use —

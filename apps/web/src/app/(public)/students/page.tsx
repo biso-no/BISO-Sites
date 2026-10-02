@@ -44,6 +44,7 @@ export default async function StudentsPage() {
         pageSize: STUDENTS_PAGE_SIZE,
         status: "published",
         locale,
+        upcomingOnly: true,
       }),
       listJobs({ locale, pageSize: STUDENTS_PAGE_SIZE }),
       // Same cached unit directory /units and /campus read. Campus slicing
