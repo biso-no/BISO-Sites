@@ -321,6 +321,7 @@ export function MembershipPageClient({
         description: t("highlights.items.fadderullan.description"),
         icon: Sparkles,
         cta: t("highlights.items.fadderullan.cta"),
+        href: "/projects/fadderullan",
         colorScheme: "pink" as const,
       },
       {
@@ -329,6 +330,7 @@ export function MembershipPageClient({
         description: t("highlights.items.careerDays.description"),
         icon: BriefcaseBusiness,
         cta: t("highlights.items.careerDays.cta"),
+        href: "/projects/karrieredagene",
         colorScheme: "green" as const,
       },
       {
@@ -337,6 +339,7 @@ export function MembershipPageClient({
         description: t("highlights.items.winterGames.description"),
         icon: CalendarDays,
         cta: t("highlights.items.winterGames.cta"),
+        href: "/projects/winter-games",
         colorScheme: "blue" as const,
       },
     ],
@@ -776,12 +779,15 @@ export function MembershipPageClient({
                       {event.description}
                     </p>
                     <Button
+                      asChild
                       className="transition-transform group-hover:translate-x-1"
                       size="sm"
                       variant="ghost"
                     >
-                      {event.cta}
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      <Link href={event.href}>
+                        {event.cta}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
                     </Button>
                   </Card>
                 </motion.div>

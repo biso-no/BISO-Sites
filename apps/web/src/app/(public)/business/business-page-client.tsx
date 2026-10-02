@@ -23,6 +23,7 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { CareerDaysCampus } from "@/lib/project-unit-links";
 
 // Color schemes matching the rest of the app
 const colorSchemes = {
@@ -51,9 +52,14 @@ const colorSchemes = {
 
 interface BusinessPageClientProps {
   activeCampus: string | null;
+  /** Where each campus's career days card leads. */
+  careerDaysLinks: Record<CareerDaysCampus, string>;
 }
 
-export function BusinessPageClient({ activeCampus }: BusinessPageClientProps) {
+export function BusinessPageClient({
+  activeCampus,
+  careerDaysLinks,
+}: BusinessPageClientProps) {
   const t = useTranslations("partner");
 
   const benefits = [
@@ -80,7 +86,12 @@ export function BusinessPageClient({ activeCampus }: BusinessPageClientProps) {
     },
   ];
 
-  const careerDays = [
+  const careerDays: {
+    action: string;
+    city: string;
+    key: CareerDaysCampus;
+    title: string;
+  }[] = [
     {
       key: "oslo",
       city: "Oslo",
@@ -291,11 +302,14 @@ export function BusinessPageClient({ activeCampus }: BusinessPageClientProps) {
                     {career.title}
                   </h3>
                   <Button
+                    asChild
                     className="w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg hover:opacity-90"
                     size="sm"
                   >
-                    {career.action}
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <Link href={careerDaysLinks[career.key]}>
+                      {career.action}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
                   </Button>
                 </Card>
               </motion.div>

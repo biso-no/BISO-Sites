@@ -1,8 +1,12 @@
+import type { Locale } from "@repo/i18n/config";
 import { Building2 } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { getActiveCampus } from "@/app/actions/campus";
+import { getLocale } from "@/app/actions/locale";
 import { AboutHero } from "@/components/about/about-hero";
+import { cachedPublicUnits } from "@/lib/data/units";
+import { careerDaysHrefs } from "@/lib/project-unit-links";
 import { BusinessPageClient } from "./business-page-client";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,7 +20,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PartnerPage() {
   const t = await getTranslations("partner");
-  const activeCampus = await getActiveCampus();
+  const [activeCampus, locale] = await Promise.all([
+    getActiveCampus(),
+    getLocale(),
+  ]);
+  // A unit-directory outage must not take the page down: with no units every
+  // card falls back to the Karrieredagene project page.
+  const units = await cachedPublicUnits(locale as Locale).catch(() => []);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
@@ -29,7 +39,10 @@ export default async function PartnerPage() {
       />
 
       {/* Client component for animations, receives activeCampus from server */}
-      <BusinessPageClient activeCampus={activeCampus} />
+      <BusinessPageClient
+        activeCampus={activeCampus}
+        careerDaysLinks={careerDaysHrefs(units)}
+      />
     </div>
   );
 }
