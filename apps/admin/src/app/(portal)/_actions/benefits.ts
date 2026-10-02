@@ -131,10 +131,8 @@ const translateBenefitSnapshot = async (
 };
 
 const hasBenefitTranslationSource = ({
-  description,
   title,
-}: BenefitTranslationSnapshot): boolean =>
-  Boolean(description.trim() && title.trim());
+}: BenefitTranslationSnapshot): boolean => Boolean(title.trim());
 
 const hasBenefitLocaleContent = (
   snapshot: BenefitTranslationSnapshot

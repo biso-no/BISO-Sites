@@ -35,6 +35,7 @@ import {
   PortalSelect,
 } from "../../../_components/portal-fields";
 import { PreviewPanel } from "../../../_components/preview-panel";
+import { describeBenefitSaveError } from "./benefit-save-error";
 import {
   SERIF_STACK,
   STUDIO,
@@ -204,10 +205,32 @@ export function BenefitEditorClient({
     benefit?.redemption_type ?? "none"
   );
 
+  const fieldLabels = {
+    campus_id: labels.campus,
+    category: labels.category,
+    department_id: labels.department,
+    description_en: labels.descriptionEn,
+    description_nb: labels.descriptionNo,
+    image_url: labels.imageUrl,
+    kind: labels.kind,
+    partner_name: labels.partnerName,
+    redemption_type: labels.redemptionType,
+    redemption_value: labels.redemptionValue,
+    status: labels.status,
+    title_en: labels.titleEn,
+    title_nb: labels.titleNo,
+  };
+
   async function handleFormSubmit(value: BenefitFormValues) {
     const validated = benefitSchema.safeParse(value);
     if (!validated.success) {
-      toast.error(labels.saveError);
+      toast.error(
+        describeBenefitSaveError(
+          validated.error.flatten().fieldErrors,
+          labels.saveError,
+          fieldLabels
+        )
+      );
       return;
     }
     const result = isNew
@@ -220,7 +243,9 @@ export function BenefitEditorClient({
           sourceLocale: locale,
         });
     if (result.error) {
-      toast.error(labels.saveError);
+      toast.error(
+        describeBenefitSaveError(result.error, labels.saveError, fieldLabels)
+      );
       return;
     }
     toast.success(

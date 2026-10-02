@@ -145,10 +145,12 @@ export function BenefitCard({
             </Badge>
           </div>
 
-          {/* Description */}
-          <p className="mb-5 text-muted-foreground dark:text-muted-foreground">
-            {benefit.description_en}
-          </p>
+          {/* Description — optional, so no empty spacer when it's blank */}
+          {benefit.description_en.trim() && (
+            <p className="mb-5 text-muted-foreground dark:text-muted-foreground">
+              {benefit.description_en}
+            </p>
+          )}
 
           {/* Action area — only if there's something to reveal */}
           {benefit.redemption_type !== "none" &&

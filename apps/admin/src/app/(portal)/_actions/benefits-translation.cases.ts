@@ -367,6 +367,15 @@ describe("benefit automatic translation", () => {
     expect(result).toEqual({ data: "benefit-1" });
   });
 
+  test("queues a source that has a title and no description", async () => {
+    const result = await createBenefit(
+      { ...norwegianValues, description_nb: "" },
+      enabledNorwegianTranslation
+    );
+
+    expect(result).toEqual({ data: "benefit-1", translationQueued: true });
+  });
+
   test("does not queue incomplete selected source content", async () => {
     const result = await createBenefit(
       { ...norwegianValues, description_en: "English description only" },
