@@ -135,22 +135,18 @@ export default function AboutPage() {
                 {
                   icon: Calendar,
                   label: tHome("about.upcomingEvents"),
-                  gradient: "from-blue-500 to-cyan-500",
                 },
                 {
                   icon: Briefcase,
                   label: tHome("about.jobOpportunities"),
-                  gradient: "from-purple-500 to-pink-500",
                 },
                 {
                   icon: Rocket,
                   label: tHome("about.studentGroups"),
-                  gradient: "from-amber-500 to-orange-500",
                 },
                 {
                   icon: GraduationCap,
                   label: t("general.academics.title"),
-                  gradient: "from-emerald-500 to-teal-500",
                 },
               ].map((stat, index) => (
                 <motion.div
@@ -162,7 +158,9 @@ export default function AboutPage() {
                 >
                   <Card className="group p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                     <div
-                      className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br ${stat.gradient} shadow-md`}
+                      className={
+                        "mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md"
+                      }
                     >
                       <stat.icon className="h-6 w-6 text-white" />
                     </div>
