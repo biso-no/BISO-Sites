@@ -23,32 +23,8 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { BRAND_BADGE, BRAND_CARD } from "@/lib/brand-card";
 import type { CareerDaysCampus } from "@/lib/project-unit-links";
-
-// Color schemes matching the rest of the app
-const colorSchemes = {
-  blue: {
-    gradient:
-      "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
-    iconGradient: "from-blue-500 to-blue-700",
-    checkColor: "text-blue-600 dark:text-blue-400",
-    border: "border-blue-100 dark:border-blue-900/50",
-  },
-  green: {
-    gradient:
-      "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
-    iconGradient: "from-emerald-500 to-emerald-700",
-    checkColor: "text-emerald-600 dark:text-emerald-400",
-    border: "border-emerald-100 dark:border-emerald-900/50",
-  },
-  purple: {
-    gradient:
-      "from-violet-50 via-violet-50/50 to-white dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card",
-    iconGradient: "from-violet-500 to-violet-700",
-    checkColor: "text-violet-600 dark:text-violet-400",
-    border: "border-violet-100 dark:border-violet-900/50",
-  },
-};
 
 interface BusinessPageClientProps {
   activeCampus: string | null;
@@ -68,21 +44,18 @@ export function BusinessPageClient({
       icon: Users,
       title: t("benefits.items.colleagues.title"),
       description: t("benefits.items.colleagues.description"),
-      colorScheme: "blue" as const,
     },
     {
       key: "values",
       icon: Heart,
       title: t("benefits.items.values.title"),
       description: t("benefits.items.values.description"),
-      colorScheme: "green" as const,
     },
     {
       key: "match",
       icon: Target,
       title: t("benefits.items.match.title"),
       description: t("benefits.items.match.description"),
-      colorScheme: "purple" as const,
     },
   ];
 
@@ -225,7 +198,6 @@ export function BusinessPageClient({
           <div className="grid gap-6 md:grid-cols-3">
             {benefits.map((benefit, index) => {
               const Icon = benefit.icon;
-              const colors = colorSchemes[benefit.colorScheme];
               return (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -237,14 +209,13 @@ export function BusinessPageClient({
                   <Card
                     className={cn(
                       "h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl",
-                      colors.gradient,
-                      colors.border
+                      BRAND_CARD.surface
                     )}
                   >
                     <div
                       className={cn(
                         "mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br shadow-md",
-                        colors.iconGradient
+                        BRAND_CARD.icon
                       )}
                     >
                       <Icon className="h-6 w-6 text-white" />
@@ -329,9 +300,7 @@ export function BusinessPageClient({
               viewport={{ once: true }}
               whileInView={{ opacity: 1, y: 0 }}
             >
-              <Badge className="mb-4 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-                Oslo Only
-              </Badge>
+              <Badge className={cn("mb-4", BRAND_BADGE)}>Oslo Only</Badge>
               <h2 className="mb-4 font-bold text-2xl text-foreground md:text-3xl">
                 {t("opportunities.businessHotspot.title")}
               </h2>
