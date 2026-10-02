@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { careerDaysHrefs, findUnitHref } from "./project-unit-links";
+import {
+  careerDaysHrefs,
+  findUnitHref,
+  unitProjectNavLinks,
+} from "./project-unit-links";
 
 const unit = (name: string, campusId: string, href: string) => ({
   campusId,
@@ -37,6 +41,23 @@ describe("findUnitHref", () => {
   it("returns null when no unit matches", () => {
     expect(findUnitHref(UNITS, "Inspire")).toBeNull();
     expect(findUnitHref([], "Karrieredagene", "1")).toBeNull();
+  });
+});
+
+describe("unitProjectNavLinks", () => {
+  it("links a unit-run project to its unit page", () => {
+    expect(unitProjectNavLinks(UNITS)).toEqual([
+      {
+        href: "/units/oslo/bergensbanelopet",
+        id: "bergensbanelopet",
+        label: "Bergensbaneløpet",
+      },
+    ]);
+  });
+
+  it("leaves the project out of the menu while its unit has no public page", () => {
+    // A menu entry that 404s is worse than a missing one.
+    expect(unitProjectNavLinks([])).toEqual([]);
   });
 });
 

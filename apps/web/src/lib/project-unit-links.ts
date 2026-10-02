@@ -8,6 +8,7 @@
  */
 
 import type { PublicUnit } from "@/lib/data/units";
+import type { NavProjectLink } from "@/lib/types/nav";
 
 type LinkableUnit = Pick<PublicUnit, "campusId" | "href" | "name">;
 
@@ -41,6 +42,26 @@ export function findUnitHref(
       (campusId === undefined || unit.campusId === campusId)
   );
   return match?.href ?? null;
+}
+
+/**
+ * Projects whose public page is their unit's page rather than a
+ * `/projects/<slug>` route. The label is the unit's display name.
+ */
+const UNIT_RUN_PROJECTS = [
+  { id: "bergensbanelopet", label: "Bergensbaneløpet" },
+] as const;
+
+/** Projects menu entries for unit-run projects that have a public page. */
+export function unitProjectNavLinks(units: LinkableUnit[]): NavProjectLink[] {
+  const links: NavProjectLink[] = [];
+  for (const project of UNIT_RUN_PROJECTS) {
+    const href = findUnitHref(units, project.label);
+    if (href) {
+      links.push({ href, id: project.id, label: project.label });
+    }
+  }
+  return links;
 }
 
 /** Where each campus's career days card leads; never a dead end. */

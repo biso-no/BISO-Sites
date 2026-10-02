@@ -16,6 +16,13 @@ export interface NavFeatured {
   project: NavFeaturedItem | null;
 }
 
+/** A projects-menu entry resolved on the server, e.g. to a unit's page. */
+export interface NavProjectLink {
+  href: string;
+  id: string;
+  label: string;
+}
+
 /**
  * Minimal, serializable account shape handed to the (client) navigation.
  * Deliberately not the raw Appwrite account row — only the fields the account
