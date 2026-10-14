@@ -3,6 +3,7 @@
 import { CalendarDays, Check, Copy, Link2, Video } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { createBookingToken } from "@/app/(portal)/_actions/interviews";
+import { localDateKey, slotKey } from "@/lib/schedule-dates";
 import { useRecruitment } from "../recruitment-context";
 import {
   cx,
@@ -27,7 +28,7 @@ function buildDays(): { iso: string; label: string }[] {
     const day = cursor.getDay();
     if (day !== 0 && day !== 6) {
       days.push({
-        iso: cursor.toISOString().slice(0, 10),
+        iso: localDateKey(cursor),
         label: `${DAY_LABELS[day]} ${cursor.getDate()}`,
       });
     }
@@ -47,6 +48,19 @@ export function InterviewsTab({
   const primaryPanel = panel.filter((member) => member.scope === "primary");
   const days = useMemo(buildDays, []);
   const [duration, setDuration] = useState(30);
+  const interviewCandidates = candidates.filter((c) => c.stage === "interview");
+  const [bookingCandidateId, setBookingCandidateId] = useState<string>(
+    interviewCandidates[0]?.id ?? ""
+  );
+  const [bookingPanel, setBookingPanel] = useState<Set<string>>(
+    () =>
+      new Set(
+        primaryPanel
+          .filter((member) => member.email)
+          .slice(0, 2)
+          .map((member) => member.id)
+      )
+  );
   const [bookingUrl, setBookingUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -58,8 +72,7 @@ export function InterviewsTab({
       if (!interview.startsAt) {
         continue;
       }
-      const date = new Date(interview.startsAt);
-      const key = `${date.toISOString().slice(0, 10)}-${date.getHours()}`;
+      const key = slotKey(new Date(interview.startsAt));
       map.set(key, {
         label: `${interview.candidateName} — ${interview.status}`,
         status: interview.status === "proposed" ? "proposed" : "booked",
@@ -71,26 +84,48 @@ export function InterviewsTab({
   const candidateForApp = (applicationId: string) =>
     candidates.find((candidate) => candidate.id === applicationId) ?? null;
 
+  const toggleBookingPanel = (id: string) => {
+    setBookingPanel((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const issueBooking = () => {
     setBookingError(null);
-    const firstCandidate = candidates.find((c) => c.stage === "interview");
-    if (!firstCandidate) {
-      setBookingError("No candidate in the interview stage yet.");
+    setBookingUrl(null);
+    const candidate = interviewCandidates.find(
+      (c) => c.id === bookingCandidateId
+    );
+    if (!candidate) {
+      setBookingError("Pick a candidate in the interview stage first.");
       return;
     }
-    const panelIds = primaryPanel.slice(0, 4).map((member) => member.id);
-    if (panelIds.length === 0) {
-      setBookingError("No panel members available to book against.");
+    const panel = primaryPanel
+      .filter((member) => bookingPanel.has(member.id) && member.email)
+      .map((member, index) => ({
+        display_name: member.name,
+        email: member.email as string,
+        is_lead: index === 0,
+        user_id: member.id,
+      }));
+    if (panel.length === 0) {
+      setBookingError("Select at least one panelist with an email.");
       return;
     }
     const now = new Date();
     const to = new Date(now.getTime() + 14 * 86_400_000);
     startIssue(async () => {
       const result = await createBookingToken({
-        application_id: firstCandidate.id,
+        application_id: candidate.id,
         duration_minutes: duration,
         expires_in_days: 14,
-        panel_user_ids: panelIds,
+        panel,
         window_from: now.toISOString(),
         window_to: to.toISOString(),
       });
@@ -205,8 +240,44 @@ export function InterviewsTab({
             </h3>
           </div>
           <p className="iv-side-note">
-            The candidate picks any slot within your panel&apos;s availability.
+            The candidate picks a slot where the selected panel is free. A Teams
+            meeting and Outlook invites are created when they confirm.
           </p>
+          <label className="iv-field">
+            <span>Candidate</span>
+            <select
+              onChange={(event) => setBookingCandidateId(event.target.value)}
+              value={bookingCandidateId}
+            >
+              {interviewCandidates.length === 0 ? (
+                <option value="">No candidate in the interview stage</option>
+              ) : null}
+              {interviewCandidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="iv-field">
+            <span>Panel</span>
+            <div className="iv-panel-pick">
+              {primaryPanel.map((member) => (
+                <label
+                  className={cx("iv-panel-option", !member.email && "disabled")}
+                  key={member.id}
+                >
+                  <input
+                    checked={bookingPanel.has(member.id)}
+                    disabled={!member.email}
+                    onChange={() => toggleBookingPanel(member.id)}
+                    type="checkbox"
+                  />
+                  {member.name}
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="iv-duration">
             {[30, 45, 60].map((value) => (
               <button

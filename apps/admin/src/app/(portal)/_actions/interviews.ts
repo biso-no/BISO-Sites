@@ -21,7 +21,13 @@ import type {
   JobInterviewWriteInput,
 } from "@repo/api/types/inputs";
 import { createTypedRow, updateTypedRow } from "@repo/api/write";
+import {
+  createSchedulingGraphClient,
+  panelBusyIntervals,
+  scheduleInterviewOnGraph,
+} from "@repo/connectors/azure/recruitment-scheduling";
 import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
+import { availableSlots } from "@repo/shared/recruitment/booking-slots";
 import {
   RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS,
   type RecruitmentBookingProposeInput,
@@ -39,14 +45,11 @@ import {
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
 import { issueBookingToken } from "@/lib/recruitment-booking";
-import {
-  type ProposedSlot,
-  proposeSlotsForPanel,
-  scheduleInterviewOnGraph,
-} from "@/lib/recruitment-scheduling";
 import { logAuditEvent } from "./audit-log";
 
 const DATABASE_ID = "app";
+const NOT_CONNECTED_WARNING =
+  "Calendar is not connected (Azure credentials missing). The interview was saved, but no invite was sent.";
 const TRAILING_SLASH_RE = /\/$/;
 
 // Fields to select when fetching job_applications with nested job for access control.
@@ -81,7 +84,9 @@ async function applyGraphScheduling(
   ctx: UserAuthContext,
   input: {
     auto_create_teams_meeting?: boolean;
+    location?: string | null;
     notes?: string | null;
+    timezone: string;
     title: string;
   },
   interview: JobInterviews,
@@ -90,8 +95,11 @@ async function applyGraphScheduling(
   endsAt: Date,
   candidateEmail: string
 ): Promise<{ interview: JobInterviews; warning?: string }> {
-  if (input.auto_create_teams_meeting === false) {
-    return { interview };
+  // Every interview goes out as an Outlook invite to the candidate and the
+  // panel; a Teams meeting is added for online and hybrid ones.
+  const graph = createSchedulingGraphClient();
+  if (!graph) {
+    return { interview, warning: NOT_CONNECTED_WARNING };
   }
   const panelEmails = participants
     .filter((p) => p.role === JobInterviewParticipantsRole.INTERVIEWER)
@@ -107,16 +115,25 @@ async function applyGraphScheduling(
     };
   }
   try {
-    const scheduled = await scheduleInterviewOnGraph({
-      body: input.notes ?? "Scheduled via BISO recruitment platform.",
+    const scheduled = await scheduleInterviewOnGraph(graph, {
+      body: input.notes ?? "Interview with BISO.",
       candidateEmail,
-      createTeamsMeeting: true,
+      createTeamsMeeting: input.auto_create_teams_meeting !== false,
       ends_at: endsAt,
+      location: input.location ?? null,
       organizerUpn,
       panelEmails,
       starts_at: startsAt,
       subject: input.title,
+      timezone: input.timezone,
     });
+    if (!scheduled.outlookEventId) {
+      return {
+        interview,
+        warning:
+          "The interview was saved, but Outlook refused the invite. Check the organiser's mailbox and the app's calendar permissions.",
+      };
+    }
     if (
       scheduled.outlookEventId ||
       scheduled.teamsMeetingId ||
@@ -452,7 +469,9 @@ export async function createBookingToken(
         duration_minutes: input.duration_minutes,
         expires_at: expiresAt,
         interview_id: null,
-        panel_user_ids: JSON.stringify(input.panel_user_ids),
+        // Panel members with emails, so the public booking page can check
+        // their calendars and invite them without an admin session.
+        panel_user_ids: JSON.stringify(input.panel),
         token_hash: issued.hash,
         window_from: new Date(input.window_from).toISOString(),
         window_to: new Date(input.window_to).toISOString(),
@@ -464,7 +483,7 @@ export async function createBookingToken(
       payload: {
         application_id: input.application_id,
         expires_at: expiresAt,
-        panel_size: input.panel_user_ids.length,
+        panel_size: input.panel.length,
       },
       resourceId: input.application_id,
       resourceType: "recruitment_booking_token",
@@ -486,12 +505,21 @@ export async function createBookingToken(
   }
 }
 
+export interface ProposedSlot {
+  ends_at: string;
+  starts_at: string;
+}
+
 export async function proposeInterviewSlots(input: {
   panelEmails: string[];
   from: string;
   to: string;
   durationMinutes: number;
-}): Promise<{ available: boolean; slots: ProposedSlot[] }> {
+}): Promise<{
+  available: boolean;
+  configured: boolean;
+  slots: ProposedSlot[];
+}> {
   const ctx = await requireAuth();
   // Reviewers + global admins can propose slots; otherwise lock down.
   const scope = toRecruitmentAdminScope(ctx);
@@ -504,11 +532,30 @@ export async function proposeInterviewSlots(input: {
   ) {
     throw new Error("Forbidden");
   }
-  const result = await proposeSlotsForPanel({
+  const graph = createSchedulingGraphClient();
+  if (!graph) {
+    return { available: false, configured: false, slots: [] };
+  }
+  const window = { from: new Date(input.from), to: new Date(input.to) };
+  const { busy, complete } = await panelBusyIntervals(
+    graph,
+    input.panelEmails,
+    window
+  );
+  const slots = availableSlots({
+    ...window,
+    busy,
     durationMinutes: input.durationMinutes,
-    from: new Date(input.from),
-    to: new Date(input.to),
-    upns: input.panelEmails,
+    stepMinutes: 60,
   });
-  return { available: result.available, slots: result.slots };
+  return {
+    available: complete,
+    configured: true,
+    slots: slots.map((start) => ({
+      ends_at: new Date(
+        start.getTime() + input.durationMinutes * 60_000
+      ).toISOString(),
+      starts_at: start.toISOString(),
+    })),
+  };
 }

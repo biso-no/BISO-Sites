@@ -6,7 +6,8 @@
     "./utils/*": "./utils/*.ts",
     "./types/*": "./types/*.ts",
     "./member-pass/*": "./member-pass/*.ts",
-    "./recruitment": "./recruitment.ts"
+    "./recruitment": "./recruitment.ts",
+    "./recruitment/booking-slots": "./recruitment/booking-slots.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

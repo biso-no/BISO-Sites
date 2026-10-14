@@ -14,6 +14,7 @@
     "./azure": "./src/azure/index.ts",
     "./azure/bi-directory": "./src/azure/bi-directory.ts",
     "./azure/calendar": "./src/azure/calendar.ts",
+    "./azure/recruitment-scheduling": "./src/azure/recruitment-scheduling.ts",
     "./azure/users": "./src/azure/users.ts",
     "./24sevenoffice": "./src/24sevenoffice/index.ts",
     "./sharepoint": "./src/sharepoint/index.ts",

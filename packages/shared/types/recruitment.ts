@@ -951,9 +951,33 @@ export type RecruitmentCandidateProfileUpsertInput = z.infer<
 
 export const RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS = 14;
 
+/** A panel member a candidate's booking will invite. Stored on the token. */
+export const recruitmentBookingPanelMemberSchema = z.object({
+  user_id: z.string().trim().min(1).max(50),
+  email: z.email(),
+  display_name: nullableTrimmedString(200),
+  is_lead: z.boolean().default(false),
+});
+
+export type RecruitmentBookingPanelMember = z.infer<
+  typeof recruitmentBookingPanelMemberSchema
+>;
+
+export function parseBookingPanel(
+  value: string | null | undefined
+): RecruitmentBookingPanelMember[] {
+  if (!value) {
+    return [];
+  }
+  const parsed = z
+    .array(recruitmentBookingPanelMemberSchema)
+    .safeParse(safeJsonParse(value));
+  return parsed.success ? parsed.data : [];
+}
+
 export const recruitmentBookingProposeSchema = z.object({
   application_id: z.string().trim().min(1).max(50),
-  panel_user_ids: z.array(z.string().trim().min(1).max(50)).min(1).max(10),
+  panel: z.array(recruitmentBookingPanelMemberSchema).min(1).max(10),
   duration_minutes: z.number().int().min(15).max(240).default(30),
   window_from: z
     .string()
@@ -981,7 +1005,6 @@ export const recruitmentBookingConfirmSchema = z.object({
   starts_at: z
     .string()
     .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid start time"),
-  duration_minutes: z.number().int().min(15).max(240),
 });
 
 export type RecruitmentBookingConfirmInput = z.infer<
