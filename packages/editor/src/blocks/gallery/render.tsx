@@ -39,7 +39,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
     <div className="pg-gallery pg-block">
       {images.map((img, i) => (
         <div
-          className={`pg-gallery__tile${i === 0 ? "big" : ""}`}
+          className={`pg-gallery__tile ${i === 0 ? "big" : ""}`}
           key={img.fileId ?? img.src ?? i}
         >
           {img.src && (

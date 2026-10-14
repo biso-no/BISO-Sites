@@ -20,7 +20,7 @@ export function TabsRender({ block }: Props) {
         {tabs.map((tab, i) => (
           <button
             aria-selected={active === i}
-            className={`pg-tabs__tab${active === i ? "active" : ""}`}
+            className={`pg-tabs__tab ${active === i ? "pg-tabs__tab--active" : ""}`}
             key={i}
             onClick={() => setActive(i)}
             role="tab"

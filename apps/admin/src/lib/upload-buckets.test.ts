@@ -19,6 +19,20 @@ describe("resolveUploadBucket", () => {
     expect(bucket?.mimeTypes.has("application/pdf")).toBeFalse();
   });
 
+  it("accepts the video and image types the editor offers for upload", () => {
+    // The video block invites an mp4/mov upload and the picker accepts
+    // image/*, but the route answered 415 for all of them.
+    const bucket = resolveUploadBucket("media");
+    for (const type of [
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+      "image/avif",
+    ]) {
+      expect(bucket?.mimeTypes.has(type)).toBeTrue();
+    }
+  });
+
   it("rejects private and unknown buckets", () => {
     for (const bucketId of [
       "resumes",

@@ -264,7 +264,7 @@ function OutlineTab({
     <div className="pe-outline-list">
       {blocks.map((b, i) => (
         <button
-          className={`pe-outline-item${selection === b.id ? "on" : ""}`}
+          className={`pe-outline-item ${selection === b.id ? "on" : ""}`}
           key={b.id}
           onClick={() => onSelect(b.id)}
           type="button"

@@ -20,7 +20,7 @@ export function ContactInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["single", "directory"] as const).map((v) => (
             <button
-              className={`pe-variant${(block.variant ?? "single") === v ? "on" : ""}`}
+              className={`pe-variant ${(block.variant ?? "single") === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"
