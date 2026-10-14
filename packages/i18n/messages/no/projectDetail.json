@@ -63,27 +63,6 @@
       }
     ]
   },
-  "inspire": {
-    "title": "Inspire",
-    "tagline": "En scene for nye perspektiver",
-    "description": "Inspire er BISO sin plattform for foredrag og historiefortelling der studenter, alumni og partnere deler erfaringer og innsikt.",
-    "ctaLabel": "Registrer din interesse",
-    "highlights": [
-      "Panelsamtaler og keynotes fra næringslivsledere og alumni",
-      "Historier fra studentledere og entreprenører",
-      "Muligheter til å pitche egne prosjekter"
-    ],
-    "sections": [
-      {
-        "title": "Historier fra vårt fellesskap",
-        "body": "Inspire løfter frem initiativer, intraprenørskap og læringspunkter fra BISO sine egne prosjekter."
-      },
-      {
-        "title": "Møt mentorer og partnere",
-        "body": "Scenen skaper en direkte kobling til partnere, mentorer og potensielle sponsorer."
-      }
-    ]
-  },
   "schedule": {
     "title": "Campusprogram",
     "subtitle": "Detaljer oppdateres fortløpende og kan endres.",

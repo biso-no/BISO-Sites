@@ -53,9 +53,9 @@ export default function SAIHPage() {
             whileInView={{ opacity: 1, y: 0 }}
           >
             <Card className="overflow-hidden">
-              <div className="flex flex-col items-center justify-between gap-6 bg-linear-to-r from-pink-500/10 to-rose-500/10 p-8 md:flex-row">
+              <div className="flex flex-col items-center justify-between gap-6 bg-brand-muted p-8 md:flex-row">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-pink-500 to-rose-500 shadow-md">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md">
                     <HeartHandshake className="h-6 w-6 text-white" />
                   </div>
                   <div>
@@ -69,7 +69,7 @@ export default function SAIHPage() {
                 </div>
                 <Button
                   asChild
-                  className="bg-linear-to-r from-pink-500 to-rose-500 text-white shadow-lg hover:opacity-90"
+                  className="bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-lg hover:opacity-90"
                   size="lg"
                 >
                   <a href="https://saih.no" rel="noreferrer" target="_blank">

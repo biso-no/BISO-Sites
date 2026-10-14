@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { NavFeatured } from "@/lib/types/nav";
+import type { NavFeatured, NavProjectLink } from "@/lib/types/nav";
 import { FeaturedProjectCard } from "../featured-project-card";
 import { PanelLink } from "../mega-panel";
 import {
@@ -13,9 +13,14 @@ import {
 interface ProjectsPanelProps {
   featured: NavFeatured;
   onNavigate: () => void;
+  projectLinks: NavProjectLink[];
 }
 
-export function ProjectsPanel({ featured, onNavigate }: ProjectsPanelProps) {
+export function ProjectsPanel({
+  featured,
+  onNavigate,
+  projectLinks,
+}: ProjectsPanelProps) {
   const t = useTranslations("common.navigation");
   const tProjects = useTranslations("projects.featured");
 
@@ -33,6 +38,16 @@ export function ProjectsPanel({ featured, onNavigate }: ProjectsPanelProps) {
                   href={`/projects/${tProjects(`${key}.slug`)}`}
                   icon={PROJECT_FLAGSHIP_ICON}
                   label={tProjects(`${key}.title`)}
+                  onNavigate={onNavigate}
+                />
+              </li>
+            ))}
+            {projectLinks.map((link) => (
+              <li key={link.id}>
+                <PanelLink
+                  href={link.href}
+                  icon={PROJECT_FLAGSHIP_ICON}
+                  label={link.label}
                   onNavigate={onNavigate}
                 />
               </li>

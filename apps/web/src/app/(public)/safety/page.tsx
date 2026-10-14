@@ -23,13 +23,9 @@ const fadeUp = {
 } as const;
 
 const INFO_CARDS = [
-  {
-    key: "harassment",
-    icon: AlertTriangle,
-    gradient: "from-amber-500 to-orange-500",
-  },
-  { key: "witness", icon: Eye, gradient: "from-blue-500 to-cyan-500" },
-  { key: "other", icon: HelpCircle, gradient: "from-purple-500 to-pink-500" },
+  { key: "harassment", icon: AlertTriangle },
+  { key: "witness", icon: Eye },
+  { key: "other", icon: HelpCircle },
 ] as const;
 
 const RULE_KEYS = [
@@ -78,7 +74,9 @@ export default function SafetyPage() {
               >
                 <Card className="group h-full border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
                   <div
-                    className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br ${card.gradient} shadow-md transition-transform duration-300 group-hover:scale-110`}
+                    className={
+                      "mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md transition-transform duration-300 group-hover:scale-110"
+                    }
                   >
                     <card.icon className="h-6 w-6 text-white" />
                   </div>

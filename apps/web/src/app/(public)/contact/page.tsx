@@ -13,6 +13,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getCampuses } from "@/app/actions/campus";
+import { BRAND_CARD } from "@/lib/brand-card";
 
 const CAMPUS_EMAIL_FALLBACK: Record<string, string> = {
   oslo: "business.oslo@biso.no",
@@ -62,10 +63,10 @@ export default async function ContactPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {/* National Contact Card */}
         <section className="mb-16">
-          <Card className="relative overflow-hidden border-0 bg-linear-to-br from-violet-50 via-violet-50/50 to-white p-8 shadow-lg sm:p-10 dark:from-violet-950/30 dark:via-violet-950/10 dark:to-card">
+          <Card className="relative overflow-hidden border-0 bg-linear-to-br from-brand-muted to-card p-8 shadow-lg sm:p-10">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500 to-violet-700 shadow-lg">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
                   <Globe className="h-7 w-7 text-white" />
                 </div>
                 <div>
@@ -115,41 +116,18 @@ export default async function ContactPage() {
 
           {filteredCampuses.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {filteredCampuses.map((campus, index) => {
-                const colorSchemes = [
-                  {
-                    gradient:
-                      "from-blue-50 via-blue-50/50 to-white dark:from-blue-950/30 dark:via-blue-950/10 dark:to-card",
-                    iconGradient: "from-blue-500 to-blue-700",
-                  },
-                  {
-                    gradient:
-                      "from-emerald-50 via-emerald-50/50 to-white dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-card",
-                    iconGradient: "from-emerald-500 to-emerald-700",
-                  },
-                  {
-                    gradient:
-                      "from-orange-50 via-orange-50/50 to-white dark:from-orange-950/30 dark:via-orange-950/10 dark:to-card",
-                    iconGradient: "from-orange-500 to-amber-600",
-                  },
-                  {
-                    gradient:
-                      "from-pink-50 via-pink-50/50 to-white dark:from-pink-950/30 dark:via-pink-950/10 dark:to-card",
-                    iconGradient: "from-pink-500 to-rose-600",
-                  },
-                ];
-                const colors = colorSchemes[index % colorSchemes.length];
+              {filteredCampuses.map((campus) => {
                 const email =
                   campus.email ??
                   CAMPUS_EMAIL_FALLBACK[campus.name?.toLowerCase() ?? ""];
 
                 return (
                   <Card
-                    className={`group relative h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:shadow-xl ${colors.gradient}`}
+                    className={`group relative h-full border-0 bg-linear-to-br p-6 shadow-lg transition-all hover:shadow-xl ${BRAND_CARD.surface}`}
                     key={campus.$id}
                   >
                     <div
-                      className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br shadow-md ${colors.iconGradient}`}
+                      className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br shadow-md ${BRAND_CARD.icon}`}
                     >
                       <MapPin className="h-6 w-6 text-white" />
                     </div>
@@ -207,7 +185,7 @@ export default async function ContactPage() {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
                   asChild
-                  className="bg-white text-primary-100 shadow-lg hover:bg-white/90"
+                  className="bg-white text-brand-dark shadow-lg hover:bg-white/90"
                   size="lg"
                 >
                   <Link href="/membership">{t("help.membershipFaq")}</Link>

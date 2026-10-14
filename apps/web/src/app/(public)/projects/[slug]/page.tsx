@@ -97,8 +97,11 @@ export default async function ProjectDetailPage({
     getCampusMetadata(),
   ]);
 
-  const fallbackConfig =
-    (t.raw(slug) as Record<string, unknown> | undefined) ?? undefined;
+  // `t.raw()` answers a missing key with the key path itself, which is truthy,
+  // so presence has to be checked explicitly or an unknown slug never 404s.
+  const fallbackConfig = t.has(slug)
+    ? (t.raw(slug) as Record<string, unknown>)
+    : undefined;
 
   if (!(event || fallbackConfig)) {
     return notFound();

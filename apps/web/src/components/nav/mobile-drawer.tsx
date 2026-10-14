@@ -15,7 +15,7 @@ import { useCampus } from "@/components/context/campus";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SelectCampus } from "@/components/select-campus";
 import { signOut } from "@/lib/server";
-import type { NavAccount } from "@/lib/types/nav";
+import type { NavAccount, NavProjectLink } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
 import { CampusLink } from "./campus-link";
 import { PanelLink } from "./mega-panel";
@@ -34,6 +34,7 @@ interface MobileDrawerProps {
   account: NavAccount | null;
   isMember: boolean;
   onNavigate: () => void;
+  projectLinks: NavProjectLink[];
 }
 
 const HEADING_CLASS =
@@ -43,6 +44,7 @@ export function MobileDrawer({
   account,
   isMember,
   onNavigate,
+  projectLinks,
 }: MobileDrawerProps) {
   const t = useTranslations("common.navigation");
   const tProjects = useTranslations("projects.featured");
@@ -106,6 +108,15 @@ export function MobileDrawer({
                     icon={PROJECT_FLAGSHIP_ICON}
                     key={key}
                     label={tProjects(`${key}.title`)}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+                {projectLinks.map((link) => (
+                  <PanelLink
+                    href={link.href}
+                    icon={PROJECT_FLAGSHIP_ICON}
+                    key={link.id}
+                    label={link.label}
                     onNavigate={onNavigate}
                   />
                 ))}

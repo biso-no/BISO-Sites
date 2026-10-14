@@ -14,7 +14,7 @@ const strategyItems = [
   {
     key: "connected" as const,
     icon: Link,
-    gradient: "from-brand-gradient-from to-cyan-600",
+    gradient: "from-brand to-brand-gradient-to",
   },
   {
     key: "engaged" as const,

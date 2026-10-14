@@ -22,55 +22,46 @@ const topics = [
     key: "whatIsBiso",
     href: "/about/what-is-biso",
     icon: BookOpen,
-    gradient: "from-blue-500 to-cyan-500",
   },
   {
     key: "politics",
     href: "/about/politics",
     icon: Landmark,
-    gradient: "from-purple-500 to-pink-500",
   },
   {
     key: "bylaws",
     href: "/about/bylaws",
     icon: Gavel,
-    gradient: "from-amber-500 to-orange-500",
   },
   {
     key: "history",
     href: "/about/history",
     icon: History,
-    gradient: "from-emerald-500 to-teal-500",
   },
   {
     key: "studyQuality",
     href: "/about/study-quality",
     icon: GraduationCap,
-    gradient: "from-rose-500 to-red-500",
   },
   {
     key: "operations",
     href: "/about/operations",
     icon: Building2,
-    gradient: "from-indigo-500 to-violet-500",
   },
   {
     key: "alumni",
     href: "/about/alumni",
     icon: Users,
-    gradient: "from-cyan-500 to-blue-500",
   },
   {
     key: "saih",
     href: "/about/saih",
     icon: HeartHandshake,
-    gradient: "from-pink-500 to-rose-500",
   },
   {
     key: "varsling",
     href: "/safety",
     icon: ShieldAlert,
-    gradient: "from-slate-500 to-zinc-500",
   },
 ] as const;
 
@@ -107,7 +98,9 @@ export function TopicGrid() {
                 <Card className="group h-full cursor-pointer border border-border/50 bg-card/80 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg">
                   <div className="flex items-start gap-4">
                     <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${topic.gradient} shadow-md transition-transform duration-300 group-hover:scale-110`}
+                      className={
+                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md transition-transform duration-300 group-hover:scale-110"
+                      }
                     >
                       <topic.icon className="h-6 w-6 text-white" />
                     </div>

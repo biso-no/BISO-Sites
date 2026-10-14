@@ -221,7 +221,7 @@ export function CampusHero({
             <div className="mb-6 flex flex-wrap gap-3">
               <Button
                 asChild
-                className="bg-background text-primary-100 hover:bg-background/90"
+                className="bg-background text-foreground hover:bg-background/90"
                 size="lg"
               >
                 <Link href="/membership">

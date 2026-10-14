@@ -92,6 +92,40 @@ describe("source-aware bilingual content schemas", () => {
     ).toBeTrue();
   });
 
+  test("accepts a benefit with a title and no description", () => {
+    // Not every benefit needs explaining: "10% off at the campus café" is the
+    // whole offer, and editors were blocked from saving it.
+    expect(
+      benefitSchema.safeParse({
+        campus_id: "campus-oslo",
+        category: "discount",
+        description_en: "",
+        description_nb: "",
+        kind: "offer",
+        redemption_type: "none",
+        status: "draft",
+        title_en: "",
+        title_nb: "Norsk fordel",
+      }).success
+    ).toBeTrue();
+  });
+
+  test("rejects a benefit with no title in either language", () => {
+    expect(
+      benefitSchema.safeParse({
+        campus_id: "campus-oslo",
+        category: "discount",
+        description_en: "",
+        description_nb: "Norsk beskrivelse",
+        kind: "offer",
+        redemption_type: "none",
+        status: "draft",
+        title_en: "",
+        title_nb: "  ",
+      }).success
+    ).toBeFalse();
+  });
+
   test("benefits carry an optional department ownership id", () => {
     const base = {
       campus_id: "campus-oslo",

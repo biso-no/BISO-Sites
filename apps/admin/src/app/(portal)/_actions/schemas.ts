@@ -38,18 +38,14 @@ export const benefitSchema = z
     sort_order: z.coerce.number().int().nonnegative().default(0),
   })
   .superRefine((values, context) => {
-    const hasNorwegian = Boolean(
-      values.title_nb.trim() && values.description_nb.trim()
-    );
-    const hasEnglish = Boolean(
-      values.title_en.trim() && values.description_en.trim()
-    );
-    if (hasNorwegian || hasEnglish) {
+    // The description is optional: some benefits are fully described by
+    // their title, so only a title in one language is required.
+    if (values.title_nb.trim() || values.title_en.trim()) {
       return;
     }
     context.addIssue({
       code: "custom",
-      message: "Complete either the Norwegian or English benefit content",
+      message: "Add a title in Norwegian or English",
       path: ["title_nb"],
     });
   });

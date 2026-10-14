@@ -21,7 +21,7 @@ export default function WhatIsBisoPage() {
     {
       key: "connected",
       icon: LinkIcon,
-      gradient: "from-brand-gradient-from to-cyan-600",
+      gradient: "from-brand to-brand-gradient-to",
     },
     {
       key: "engaged",

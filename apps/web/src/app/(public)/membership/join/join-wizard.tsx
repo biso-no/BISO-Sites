@@ -275,7 +275,7 @@ function StripeButton({
   const t = useTranslations("membership.join.pay");
   return (
     <button
-      className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-sky-600 to-cyan-500 font-medium text-white shadow-sm transition-transform hover:scale-[1.02] disabled:pointer-events-none disabled:opacity-60"
+      className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to font-medium text-white shadow-sm transition-transform hover:scale-[1.02] disabled:pointer-events-none disabled:opacity-60"
       disabled={disabled}
       onClick={onClick}
       type="button"
