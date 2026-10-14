@@ -222,6 +222,10 @@ describe("syncTicksterEvents", () => {
     )?.[0];
     expect(eventCreate.rowId).toBe("tkstg1abc");
     expect(eventCreate.data).toMatchObject({
+      // Both the scalar and the relationship: the admin list and every
+      // campus-scoped admin query filter on `campus.$id`, so a row with only
+      // `campus_id` is invisible to a campus admin and to the campus filter.
+      campus: "1",
       campus_id: "1",
       status: "published",
       image: "https://static.tickster.com/7b/abc123",

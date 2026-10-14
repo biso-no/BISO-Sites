@@ -388,6 +388,10 @@ function buildEventData(args: BuildEventArgs): Record<string, unknown> {
   return {
     slug: buildSlug(name, item.id),
     status,
+    // The relationship is what the admin app filters and scopes on
+    // (`campus.$id`); the scalar is migration-era compatibility metadata.
+    // Writing only the scalar left synced events invisible to campus admins.
+    campus: campusId,
     campus_id: campusId,
     metadata: buildEventMetadata(args, price),
     start_date: item.startUtc ?? null,
