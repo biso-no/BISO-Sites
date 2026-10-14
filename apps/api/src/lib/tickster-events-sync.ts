@@ -340,6 +340,54 @@ function pickPrice(detail: TicksterEventDetail | null): PriceInfo {
   return { amount, currency };
 }
 
+/**
+ * What a Tickster sale `state` means for the row we keep.
+ *
+ * The `/events` endpoint only ever returns events published to tickster.com,
+ * but "published" there says nothing about whether tickets can be bought:
+ * - `releasedForSale`: import as configured.
+ * - `saleEnded` ("Stengt for salg"): the event still takes place, so it stays
+ *   listed, but the link to a closed shop is dropped.
+ * - `cancelled`: kept as a cancelled row, which the public listings hide.
+ * - anything else (`notReleased`, `salePaused`, `releasedForNonPublicSale`,
+ *   `undefined`): not for the public. Nothing is created for it, and a row
+ *   imported on an earlier run is turned into a team-only draft.
+ */
+interface SaleStatePolicy {
+  /** Create the row if it does not exist yet. */
+  createIfMissing: boolean;
+  keepTicketUrl: boolean;
+  status: string;
+}
+
+function resolveSaleState(
+  state: string | null | undefined,
+  configuredStatus: string
+): SaleStatePolicy {
+  switch (state) {
+    case "releasedForSale":
+      return {
+        createIfMissing: true,
+        keepTicketUrl: true,
+        status: configuredStatus,
+      };
+    case "saleEnded":
+      return {
+        createIfMissing: true,
+        keepTicketUrl: false,
+        status: configuredStatus,
+      };
+    case "cancelled":
+      return {
+        createIfMissing: true,
+        keepTicketUrl: false,
+        status: "cancelled",
+      };
+    default:
+      return { createIfMissing: false, keepTicketUrl: false, status: "draft" };
+  }
+}
+
 function eventPermissions(status: string): string[] {
   const team = Role.team(OPERATIONS_TEAM_ID);
   // Published rows are world-readable; drafts stay team-only so review-before-
@@ -356,6 +404,7 @@ interface BuildEventArgs {
   campusId: string;
   detail: TicksterEventDetail | null;
   item: TicksterEventListItem;
+  keepTicketUrl: boolean;
   status: string;
   syncedAt: string;
 }
@@ -380,9 +429,11 @@ function buildEventMetadata(args: BuildEventArgs, price: PriceInfo): string {
 }
 
 function buildEventData(args: BuildEventArgs): Record<string, unknown> {
-  const { item, detail, campusId, status } = args;
+  const { item, detail, campusId, keepTicketUrl, status } = args;
   const venue = item.venue ?? detail?.venue ?? null;
-  const ticketUrl = item.shopUrl ?? detail?.shopUrl ?? null;
+  const ticketUrl = keepTicketUrl
+    ? (item.shopUrl ?? detail?.shopUrl ?? null)
+    : null;
   const price = pickPrice(detail);
   const name = item.name ?? "Untitled event";
   return {
@@ -435,22 +486,30 @@ async function upsertRow(
     permissions: string[];
     rowId: string;
     tableId: string;
+    /** `false` updates an existing row only; a missing row is reported, not created. */
+    createIfMissing?: boolean;
   }
-): Promise<void> {
+): Promise<"created" | "updated" | "missing"> {
   const { data, databaseId, permissions, rowId, tableId } = options;
   try {
     await db.updateRow({ data, databaseId, permissions, rowId, tableId });
+    return "updated";
   } catch (error) {
     if (getErrorCode(error) !== HTTP_NOT_FOUND) {
       throw error;
     }
+    if (options.createIfMissing === false) {
+      return "missing";
+    }
     try {
       await db.createRow({ data, databaseId, permissions, rowId, tableId });
+      return "created";
     } catch (createError) {
       if (getErrorCode(createError) !== HTTP_CONFLICT) {
         throw createError;
       }
       await db.updateRow({ data, databaseId, permissions, rowId, tableId });
+      return "updated";
     }
   }
 }
@@ -475,14 +534,17 @@ async function upsertEvent(
   const { config, db, result, syncedAt } = context;
   const { nbItem, enItem, detail, campusId } = args;
   const rowId = buildEventRowId(nbItem.id);
-  const permissions = eventPermissions(config.status);
+  const sale = resolveSaleState(nbItem.state, config.status);
+  const permissions = eventPermissions(sale.status);
 
-  await upsertRow(db, {
+  const outcome = await upsertRow(db, {
+    createIfMissing: sale.createIfMissing,
     data: buildEventData({
       campusId,
       detail,
       item: nbItem,
-      status: config.status,
+      keepTicketUrl: sale.keepTicketUrl,
+      status: sale.status,
       syncedAt,
     }),
     databaseId: config.databaseId,
@@ -490,6 +552,10 @@ async function upsertEvent(
     rowId,
     tableId: config.eventsTableId,
   });
+  if (outcome === "missing") {
+    result.skipped += 1;
+    return;
+  }
   result.upserted += 1;
 
   const translations: { locale: "no" | "en"; source: TicksterEventListItem }[] =
