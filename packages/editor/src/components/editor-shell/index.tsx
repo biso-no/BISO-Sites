@@ -12,9 +12,10 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { EditorCallbacksContext } from "@/editor/callbacks";
 import { useBlocks } from "@/editor/hooks";
+import { withPublishStatusSync } from "@/editor/publish-status";
 import { useEditorStore } from "@/editor/store";
 import type {
   BlockType,
@@ -73,7 +74,17 @@ export function EditorShell({
   topbarActions,
 }: Props) {
   const setDoc = useEditorStore((s) => s.setDoc);
+  const setMeta = useEditorStore((s) => s.setMeta);
   const doc = useEditorStore((s) => s.doc);
+  // Mirror a publish/unpublish into the store, or the next autosave writes
+  // the stale status back and undoes it.
+  const publishCallbacks = useMemo(
+    () =>
+      withPublishStatusSync({ onPublish, onUnpublish }, (status) =>
+        setMeta("status", status)
+      ),
+    [onPublish, onUnpublish, setMeta]
+  );
   const setSaving = useEditorStore((s) => s.setSaving);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -228,8 +239,8 @@ export function EditorShell({
         departments,
         lockedMeta,
         onExit,
-        onPublish,
-        onUnpublish,
+        onPublish: publishCallbacks.onPublish,
+        onUnpublish: publishCallbacks.onUnpublish,
         activeLocale,
         locales,
         onLocaleChange,
