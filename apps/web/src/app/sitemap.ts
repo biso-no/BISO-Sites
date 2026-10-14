@@ -7,16 +7,8 @@ import { sitemapEntries } from "@/lib/data/public-content";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
 
-const ABOUT_SUBROUTES = [
-  "what-is-biso",
-  "politics",
-  "study-quality",
-  "history",
-  "operations",
-  "alumni",
-  "saih",
-  "academics-contact",
-];
+// The other former subpages redirect into sections of /about.
+const ABOUT_SUBROUTES = ["drugs-policy", "academics-contact"];
 
 interface SlugWithTimestamp {
   $updatedAt: string;

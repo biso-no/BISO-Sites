@@ -318,5 +318,46 @@
       "content": "BISO støtter SAIH fordi utdanning skaper frihet og muligheter. Vi samarbeider om aktiviteter som øker bevisstheten og inviterer studenter til å bidra gjennom donasjoner og arrangementer.",
       "cta": "Les mer om SAIH"
     }
+  },
+  "sections": {
+    "navLabel": "Seksjoner på siden",
+    "whatIsBiso": "Hva er BISO",
+    "whatWeDo": "Hva vi gjør",
+    "studyQuality": "Studiekvalitet",
+    "politics": "Politikk",
+    "history": "Historie",
+    "operations": "Drift",
+    "alumni": "Alumni og SAIH",
+    "documents": "Dokumenter"
+  },
+  "documents": {
+    "title": "Dokumenter og retningslinjer",
+    "intro": "Vedtekter, statutter og policyer ligger samlet på dokumentsiden. Her er snarveiene.",
+    "items": {
+      "bylaws": {
+        "title": "Vedtekter",
+        "description": "Lokale vedtekter for hvert campus."
+      },
+      "statutes": {
+        "title": "Nasjonale statutter",
+        "description": "Statuttene som gjelder hele BISO."
+      },
+      "conduct": {
+        "title": "Etiske retningslinjer",
+        "description": "Retningslinjer for oppførsel, inkludert ruspolicy."
+      },
+      "drugsPolicy": {
+        "title": "Ruspolicy",
+        "description": "Hva som gjelder for rus og alkohol på arrangementer."
+      },
+      "safety": {
+        "title": "Varsling",
+        "description": "Meld fra om hendelser på en trygg måte."
+      },
+      "all": {
+        "title": "Alle dokumenter",
+        "description": "Søk og last ned alle publiserte dokumenter."
+      }
+    }
   }
 }
