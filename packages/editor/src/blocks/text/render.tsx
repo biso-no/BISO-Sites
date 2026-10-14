@@ -53,36 +53,19 @@ function BodyItem({
       } as Record<string, unknown>)
     : {};
 
-  const html = { __html: item.text };
+  // The stored value is sanitized HTML. It is rendered as markup in both
+  // modes: as a text child it was escaped, and every blur then re-saved the
+  // escaped form, so "&" became "&amp;amp;" one blur at a time.
+  const props = { ...editProps, [HTML_PROP]: { __html: item.text } };
 
   if (item.type === "h") {
-    return edit ? (
-      <h2 {...editProps}>{item.text}</h2>
-    ) : (
-      createElement("h2", { [HTML_PROP]: html })
-    );
+    return createElement("h2", props);
   }
   if (item.type === "h3") {
-    return edit ? (
-      <h3 {...editProps}>{item.text}</h3>
-    ) : (
-      createElement("h3", { [HTML_PROP]: html })
-    );
+    return createElement("h3", props);
   }
   if (item.type === "li") {
-    return (
-      <ul>
-        {edit ? (
-          <li {...editProps}>{item.text}</li>
-        ) : (
-          createElement("li", { [HTML_PROP]: html })
-        )}
-      </ul>
-    );
+    return <ul>{createElement("li", props)}</ul>;
   }
-  return edit ? (
-    <p {...editProps}>{item.text}</p>
-  ) : (
-    createElement("p", { [HTML_PROP]: html })
-  );
+  return createElement("p", props);
 }
