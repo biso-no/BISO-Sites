@@ -5,8 +5,12 @@ import { getBlock } from "@/blocks/registry";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { useInspectorTab, useSelection } from "@/editor/hooks";
+import {
+  departmentsForCampus,
+  metaAfterCampusChange,
+} from "@/editor/page-scope";
 import { useEditorStore } from "@/editor/store";
-import type { EditorDepartment } from "@/editor/types";
+import type { EditorCampus, EditorDepartment } from "@/editor/types";
 import type { AccentHue } from "@/theme/presets";
 import { HUE_COLORS } from "@/theme/presets";
 import { DesignPanel } from "./design-panel";
@@ -109,7 +113,9 @@ function PageTab({
   applyAccent: (hex: string) => void;
 }) {
   const setMeta = useEditorStore((s) => s.setMeta);
-  const { departments, lockedMeta } = useEditorCallbacks();
+  const setDoc = useEditorStore((s) => s.setDoc);
+  const { campuses, departments, lockedMeta } = useEditorCallbacks();
+  const campusId = doc.meta.campus ?? "";
 
   return (
     <div className="pe-insp-section">
@@ -141,12 +147,27 @@ function PageTab({
         />
       </div>
       <div className="pe-row">
+        <label htmlFor="pe-page-campus">Campus</label>
+        <CampusField
+          campuses={campuses}
+          locked={lockedMeta?.campus}
+          onChange={(value) =>
+            setDoc({
+              ...doc,
+              meta: metaAfterCampusChange(doc.meta, value, departments),
+            })
+          }
+          value={campusId}
+        />
+      </div>
+      <div className="pe-row">
         <label htmlFor="pe-page-department">Dept</label>
         <DepartmentField
-          departments={departments}
+          departments={departmentsForCampus(departments, campusId)}
           doc={doc}
           locked={lockedMeta?.department}
           onChange={(value) => setMeta("department", value)}
+          waitingForCampus={!campusId}
         />
       </div>
       {(lockedMeta?.slug || lockedMeta?.department) && (
@@ -195,20 +216,59 @@ function PageTab({
 }
 
 /**
- * Department selector for the page-settings tab. A three-way branch driven by
- * `locked` and `departments.length` — kept as sequential early returns rather
- * than a nested ternary (disallowed by this repo's lint config).
+ * Campus selector. Read-only for editors bound to one campus; otherwise the
+ * campuses the host allows, with "National" meaning no campus at all.
+ */
+function CampusField({
+  campuses,
+  locked,
+  onChange,
+  value,
+}: {
+  campuses: EditorCampus[];
+  locked?: boolean;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const name = campuses.find((c) => c.id === value)?.name ?? value;
+  if (locked || campuses.length === 0) {
+    return (
+      <input disabled id="pe-page-campus" readOnly value={name || "National"} />
+    );
+  }
+  return (
+    <select
+      id="pe-page-campus"
+      onChange={(e) => onChange(e.target.value)}
+      value={value}
+    >
+      <option value="">— National (no campus) —</option>
+      {campuses.map((campus) => (
+        <option key={campus.id} value={campus.id}>
+          {campus.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * Department selector for the page-settings tab, limited to the chosen
+ * campus's departments. Sequential early returns rather than a nested
+ * ternary (disallowed by this repo's lint config).
  */
 function DepartmentField({
   departments,
   doc,
   locked,
   onChange,
+  waitingForCampus,
 }: {
   departments: EditorDepartment[];
   doc: ReturnType<typeof useEditorStore.getState>["doc"];
   locked?: boolean;
   onChange: (value: string) => void;
+  waitingForCampus: boolean;
 }) {
   if (locked) {
     return (
@@ -220,6 +280,18 @@ function DepartmentField({
           departments.find((d) => d.id === doc.meta.department)?.name ??
           doc.meta.department
         }
+      />
+    );
+  }
+
+  if (waitingForCampus) {
+    return (
+      <input
+        disabled
+        id="pe-page-department"
+        placeholder="Choose a campus first"
+        readOnly
+        value=""
       />
     );
   }

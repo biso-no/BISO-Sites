@@ -5,6 +5,7 @@ import type {
   PageTranslationEditorEntry,
 } from "@repo/api/page-builder";
 import type {
+  EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
@@ -26,6 +27,8 @@ import { uploadMediaFile } from "@/lib/upload-client";
 
 interface PageEditorClientProps {
   availableLocales: EditorLocale[];
+  campuses: EditorCampus[];
+  defaultCampusId: string;
   departments: EditorDepartment[];
   initialLocale: EditorLocale;
   initialPage: PageEditorLoadResult | null;
@@ -47,12 +50,14 @@ function cloneDoc(doc: PageDoc): PageDoc {
 function emptyDoc({
   locale,
   slug,
+  campus,
   department,
   status,
   source,
 }: {
   locale: EditorLocale;
   slug?: string | null;
+  campus?: string | null;
   department?: string | null;
   status?: PageDoc["meta"]["status"];
   source?: PageDoc | null;
@@ -62,6 +67,7 @@ function emptyDoc({
     meta: {
       title,
       slug: slug || generateSlug(title) || "untitled",
+      campus: campus ?? "",
       department: department ?? "",
       accentColor: source?.meta.accentColor ?? "#3DA9E0",
       description: "",
@@ -82,7 +88,8 @@ function getTranslationDoc(
 
 function buildInitialDocuments(
   initialPage: PageEditorLoadResult | null,
-  initialLocale: EditorLocale
+  initialLocale: EditorLocale,
+  defaultCampusId: string
 ): LocaleDocuments {
   const docs: LocaleDocuments = {};
 
@@ -90,7 +97,11 @@ function buildInitialDocuments(
     for (const locale of initialPage.availableLocales) {
       const doc = getTranslationDoc(initialPage.translations[locale]);
       if (doc) {
-        docs[locale] = cloneDoc(doc);
+        // Documents saved before campus lived on them get the page's campus.
+        docs[locale] = cloneDoc({
+          ...doc,
+          meta: { ...doc.meta, campus: doc.meta.campus ?? defaultCampusId },
+        });
       }
     }
   }
@@ -99,6 +110,7 @@ function buildInitialDocuments(
     docs[initialLocale] = emptyDoc({
       locale: initialLocale,
       slug: initialPage?.page.slug,
+      campus: defaultCampusId,
       department: initialPage?.page.departmentId,
       status: initialPage?.page.status === "published" ? "published" : "draft",
     });
@@ -129,6 +141,7 @@ function syncSharedMeta(
             meta: {
               ...doc.meta,
               slug: sourceDoc.meta.slug,
+              campus: sourceDoc.meta.campus,
               department: sourceDoc.meta.department,
               status: sourceDoc.meta.status,
               accentColor: sourceDoc.meta.accentColor,
@@ -144,6 +157,8 @@ export function PageEditorClient({
   initialLocale,
   availableLocales,
   pageId,
+  campuses,
+  defaultCampusId,
   departments,
   lockedMeta,
 }: PageEditorClientProps) {
@@ -151,7 +166,7 @@ export function PageEditorClient({
   const [currentPageId, setCurrentPageId] = useState<string | null>(pageId);
   const [activeLocale, setActiveLocale] = useState<EditorLocale>(initialLocale);
   const [documents, setDocuments] = useState<LocaleDocuments>(() =>
-    buildInitialDocuments(initialPage, initialLocale)
+    buildInitialDocuments(initialPage, initialLocale, defaultCampusId)
   );
   const [pendingTranslateLocale, setPendingTranslateLocale] =
     useState<EditorLocale | null>(null);
@@ -367,6 +382,7 @@ export function PageEditorClient({
     <>
       <EditorShell
         activeLocale={activeLocale}
+        campuses={campuses}
         departments={departments}
         initial={activeDoc}
         locales={localeOptions}

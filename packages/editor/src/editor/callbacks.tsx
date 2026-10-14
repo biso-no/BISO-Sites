@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 import type {
+  EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
@@ -10,6 +11,8 @@ import type {
 
 export interface EditorCallbacks {
   activeLocale: EditorLocale;
+  /** Campuses this editor may assign a page to, in display order. */
+  campuses: EditorCampus[];
   departments: EditorDepartment[];
   locales: EditorLocaleOption[];
   /**
@@ -17,7 +20,7 @@ export interface EditorCallbacks {
    * must not be edited here. Unit pages set slug + department: both encode the
    * page's binding to a department, and changing either orphans the page.
    */
-  lockedMeta?: { department?: boolean; slug?: boolean };
+  lockedMeta?: { campus?: boolean; department?: boolean; slug?: boolean };
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
   onPublish?: (locale: EditorLocale) => Promise<void>;
@@ -35,6 +38,7 @@ export interface EditorCallbacks {
 const NOOP_CALLBACKS: EditorCallbacks = {
   savePage: async () => undefined,
   uploadFile: async () => ({ fileId: "", url: "" }),
+  campuses: [],
   departments: [],
   activeLocale: "no",
   locales: [{ locale: "no", label: "Norwegian", hasDraft: true }],
