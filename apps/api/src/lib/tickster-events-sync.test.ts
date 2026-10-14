@@ -222,6 +222,10 @@ describe("syncTicksterEvents", () => {
     )?.[0];
     expect(eventCreate.rowId).toBe("tkstg1abc");
     expect(eventCreate.data).toMatchObject({
+      // Both the scalar and the relationship: the admin list and every
+      // campus-scoped admin query filter on `campus.$id`, so a row with only
+      // `campus_id` is invisible to a campus admin and to the campus filter.
+      campus: "1",
       campus_id: "1",
       status: "published",
       image: "https://static.tickster.com/7b/abc123",
@@ -482,6 +486,105 @@ describe("syncTicksterEvents", () => {
     });
 
     expect(result.upserted).toBe(3);
+  });
+
+  describe("sale state", () => {
+    function clientWithState(state: string) {
+      return {
+        getEvent: vi.fn().mockResolvedValue(detailFor()),
+        listEvents: vi.fn(({ languageCode, query }) => {
+          if (typeof query === "string" && query.includes("Oslo")) {
+            return {
+              items: [listItem(languageCode, { state })],
+              skipped: 0,
+              totalItems: 1,
+            };
+          }
+          return { items: [], skipped: 0, totalItems: 0 };
+        }),
+      };
+    }
+
+    it("keeps an event whose sale has ended but drops its ticket link", async () => {
+      // "Stengt for salg" on Tickster: the event still takes place, so it
+      // stays listed, but a link to a closed shop helps nobody.
+      const { createRow, db } = makeDb();
+
+      const result = await syncTicksterEvents({
+        client: clientWithState("saleEnded") as never,
+        config: baseConfig(),
+        db: db as never,
+      });
+
+      const eventCreate = createRow.mock.calls.find(
+        ([args]) => args.tableId === "events"
+      )?.[0];
+      expect(result.upserted).toBe(1);
+      expect(eventCreate.data.status).toBe("published");
+      expect(eventCreate.data.ticket_url).toBeNull();
+      expect(eventCreate.permissions).toContain('read("any")');
+    });
+
+    it("imports a cancelled event as cancelled, not published", async () => {
+      const { createRow, db } = makeDb();
+
+      await syncTicksterEvents({
+        client: clientWithState("cancelled") as never,
+        config: baseConfig(),
+        db: db as never,
+      });
+
+      const eventCreate = createRow.mock.calls.find(
+        ([args]) => args.tableId === "events"
+      )?.[0];
+      expect(eventCreate.data.status).toBe("cancelled");
+      expect(eventCreate.permissions).not.toContain('read("any")');
+    });
+
+    for (const state of [
+      "notReleased",
+      "salePaused",
+      "releasedForNonPublicSale",
+      "undefined",
+    ]) {
+      it(`does not create a row for an event that is ${state}`, async () => {
+        const { createRow, db } = makeDb();
+
+        const result = await syncTicksterEvents({
+          client: clientWithState(state) as never,
+          config: baseConfig(),
+          db: db as never,
+        });
+
+        expect(createRow).not.toHaveBeenCalled();
+        expect(result.upserted).toBe(0);
+        expect(result.skipped).toBe(1);
+      });
+    }
+
+    it("takes an already-imported event off the site when its sale is paused", async () => {
+      // The row exists from an earlier run, so the update succeeds. It must
+      // become a team-only draft rather than stay published.
+      const createRow = vi.fn().mockResolvedValue({});
+      const updateRow = vi.fn().mockResolvedValue({});
+      const listRows = vi.fn().mockResolvedValue({ rows: [], total: 0 });
+
+      const result = await syncTicksterEvents({
+        client: clientWithState("salePaused") as never,
+        config: baseConfig(),
+        db: { createRow, listRows, updateRow } as never,
+      });
+
+      const eventUpdate = updateRow.mock.calls.find(
+        ([args]) => args.tableId === "events"
+      )?.[0];
+      expect(eventUpdate.data.status).toBe("draft");
+      expect(eventUpdate.permissions).not.toContain('read("any")');
+      expect(
+        createRow.mock.calls.some(([args]) => args.tableId === "events")
+      ).toBe(false);
+      expect(result.upserted).toBe(1);
+    });
   });
 
   it("re-applies status permissions to existing rows on update", async () => {
