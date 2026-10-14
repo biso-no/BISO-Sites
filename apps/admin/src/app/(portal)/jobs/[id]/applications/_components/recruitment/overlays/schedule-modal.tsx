@@ -35,6 +35,37 @@ function buildDays(count: number): { iso: string; label: string }[] {
   return days;
 }
 
+/**
+ * Steps a candidate has to take to reach the interview stage. A submitted
+ * application passes through "reviewed" first; the transition rules allow
+ * no shortcut.
+ */
+function stepsToInterview(stage: string): JobApplicationsStatus[] {
+  if (stage === "submitted") {
+    return [JobApplicationsStatus.REVIEWED, JobApplicationsStatus.INTERVIEW];
+  }
+  if (stage === "reviewed") {
+    return [JobApplicationsStatus.INTERVIEW];
+  }
+  return [];
+}
+
+async function moveToInterviewStage(
+  candidate: WorkspaceCandidate,
+  updateCandidate: (id: string, patch: Partial<WorkspaceCandidate>) => void
+): Promise<void> {
+  for (const status of stepsToInterview(candidate.stage)) {
+    const moved = await updateJobApplicationStatus(candidate.id, { status });
+    if (moved.error) {
+      toast.warning(
+        `Interview saved, but the candidate could not be moved to "${status}": ${moved.error}`
+      );
+      return;
+    }
+    updateCandidate(candidate.id, { stage: status });
+  }
+}
+
 export function ScheduleModal({
   candidate,
   onClose,
@@ -146,27 +177,7 @@ export function ScheduleModal({
         setError(result.error);
         return;
       }
-      // Move the candidate into the interview stage. A submitted application
-      // has to pass through "reviewed" first; the transition rules allow no
-      // shortcut.
-      const steps: JobApplicationsStatus[] =
-        candidate.stage === "submitted"
-          ? [JobApplicationsStatus.REVIEWED, JobApplicationsStatus.INTERVIEW]
-          : candidate.stage === "reviewed"
-            ? [JobApplicationsStatus.INTERVIEW]
-            : [];
-      for (const status of steps) {
-        const moved = await updateJobApplicationStatus(candidate.id, {
-          status,
-        });
-        if (moved.error) {
-          toast.warning(
-            `Interview saved, but the candidate could not be moved to "${status}": ${moved.error}`
-          );
-          break;
-        }
-        updateCandidate(candidate.id, { stage: status });
-      }
+      await moveToInterviewStage(candidate, updateCandidate);
       if (result.data?.warning) {
         toast.warning(result.data.warning);
       } else {
