@@ -11,13 +11,20 @@ export const metadata = {
     "Access official BISO documents, bylaws, and guidelines that govern the BI Student Organisation.",
 };
 
-async function DocumentsList({
-  campusId,
-  category,
-}: {
-  campusId: string | null;
-  category: string;
-}) {
+type SearchParams = Promise<{ campus?: string; category?: string }>;
+
+// Reads the request (cookies, URL) inside the Suspense boundary so the hero
+// above it can still be prerendered.
+async function DocumentsList({ searchParams }: { searchParams: SearchParams }) {
+  const [prefs, params] = await Promise.all([
+    getUserPreferences(),
+    searchParams,
+  ]);
+  // `?category=` and `?campus=` let other pages link to one shelf.
+  const { campusId, category } = resolveDocumentsFilters(
+    params,
+    prefs?.campusId
+  );
   const docs = await listPublishedDocuments({ campusId });
   return <DocumentsListClient documents={docs} initialCategory={category} />;
 }
@@ -36,21 +43,11 @@ function DocumentsListSkeleton() {
   );
 }
 
-export default async function DocumentsPage({
+export default function DocumentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campus?: string; category?: string }>;
+  searchParams: SearchParams;
 }) {
-  const [prefs, params] = await Promise.all([
-    getUserPreferences(),
-    searchParams,
-  ]);
-  // `?category=` and `?campus=` let other pages link to one shelf.
-  const { campusId, category } = resolveDocumentsFilters(
-    params,
-    prefs?.campusId
-  );
-
   return (
     <div
       className="min-h-screen"
@@ -61,7 +58,7 @@ export default async function DocumentsPage({
     >
       <DocumentsHero />
       <Suspense fallback={<DocumentsListSkeleton />}>
-        <DocumentsList campusId={campusId} category={category} />
+        <DocumentsList searchParams={searchParams} />
       </Suspense>
     </div>
   );
