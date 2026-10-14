@@ -50,10 +50,11 @@ export default async function CandidateBookingPage({ params }: PageProps) {
         {data.job.campus_name ? ` ${data.job.campus_name}` : ""}.
       </p>
       <BookingClient
+        applicantEmail={data.application.applicant_email}
+        availabilityChecked={data.availabilityChecked}
         durationMinutes={data.token.duration_minutes}
+        slots={data.slots}
         token={token}
-        windowFrom={data.token.window_from}
-        windowTo={data.token.window_to}
       />
     </main>
   );
