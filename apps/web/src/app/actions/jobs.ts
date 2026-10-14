@@ -413,11 +413,27 @@ export async function submitJobApplication(
       };
     }
 
+    // Both documents are checked before either is uploaded: a rejection
+    // after an upload would leave a file in the bucket that no row points
+    // at, which the retention cleanup never reclaims.
     const resume = formData.get("resume");
+    const hasResume = resume instanceof File && resume.size > 0;
+    if (hasResume) {
+      validateRecruitmentResumeFile(resume);
+    } else if (vacancy.metadata.cv_required) {
+      return { success: false, error: "A CV is required for this vacancy." };
+    }
+    // The cover letter is a required PDF. Its text is kept on the row for
+    // the screener and the admin drawer; the file is stored next to the CV.
+    const coverLetterFile = formData.get("cover_letter");
+    if (!(coverLetterFile instanceof File && coverLetterFile.size > 0)) {
+      return { success: false, error: "A cover letter (PDF) is required." };
+    }
+    validateApplicationDocument(coverLetterFile);
+
     let resumeFileId: string | null = null;
     let resumeBuffer: Buffer | null = null;
-    if (resume instanceof File && resume.size > 0) {
-      validateRecruitmentResumeFile(resume);
+    if (hasResume) {
       const buffer = Buffer.from(await resume.arrayBuffer());
       resumeBuffer = buffer;
       const uploaded = await storage.createFile(
@@ -426,17 +442,8 @@ export async function submitJobApplication(
         InputFile.fromBuffer(buffer, resume.name)
       );
       resumeFileId = uploaded.$id;
-    } else if (vacancy.metadata.cv_required) {
-      return { success: false, error: "A CV is required for this vacancy." };
     }
 
-    // The cover letter is a required PDF. Its text is kept on the row for
-    // the screener and the admin drawer; the file is stored next to the CV.
-    const coverLetterFile = formData.get("cover_letter");
-    if (!(coverLetterFile instanceof File && coverLetterFile.size > 0)) {
-      return { success: false, error: "A cover letter (PDF) is required." };
-    }
-    validateApplicationDocument(coverLetterFile);
     const coverLetterBuffer = Buffer.from(await coverLetterFile.arrayBuffer());
     const coverLetterUpload = await storage.createFile(
       RECRUITMENT_RESUME_BUCKET_ID,

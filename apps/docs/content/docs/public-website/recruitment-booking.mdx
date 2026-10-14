@@ -44,6 +44,10 @@ Tokens are random, HMAC-signed with `RECRUITMENT_BOOKING_SECRET`, stored only as
 
 The route sets `robots: noindex` and is left out of the sitemap. The page shows the candidate nothing they did not already know about themselves.
 
+## For developers
+
+The token is the only credential on this page, so: keep tokens long and random (they are 32 random bytes plus an HMAC), never log them, and keep the page from exposing anything the candidate does not already know. Each page load reads the panel's calendars from Graph; if the route ever becomes a target, put a rate limit in front of it.
+
 ## Environment
 
 Both apps read the same Microsoft Graph credentials: `AZURE_GRAPH_CLIENT_ID` (or `AZURE_APP_ID`), `AZURE_GRAPH_CLIENT_SECRET`, `AZURE_GRAPH_TENANT_ID` (or `AZURE_TENANT_ID`). The web app needs them too, because the candidate's confirmation sends the invite.

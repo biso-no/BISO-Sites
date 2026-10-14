@@ -1,5 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { localDateKey, slotKey, slotStart } from "./schedule-dates";
+
+// The bug only shows in a zone ahead of UTC, so the test pins one and
+// checks the pin took: on a UTC runner the old code passed by accident.
+beforeAll(() => {
+  process.env.TZ = "Europe/Oslo";
+  expect(new Date(2026, 9, 20).getTimezoneOffset()).toBe(-120);
+});
 
 describe("schedule dates", () => {
   test("keys a day by its local calendar date, not the UTC date", () => {
@@ -7,6 +14,7 @@ describe("schedule dates", () => {
     // `toISOString().slice(0, 10)` named every day one day too early and
     // interviews were saved a day before the one clicked.
     const localMidnight = new Date(2026, 9, 20, 0, 0, 0, 0);
+    expect(localMidnight.toISOString().slice(0, 10)).toBe("2026-10-19");
     expect(localDateKey(localMidnight)).toBe("2026-10-20");
   });
 

@@ -45,6 +45,13 @@ export async function GET(
       [Query.select(["*", "job.$id", "job.campus_id", "job.department_id"])]
     );
 
+    const job = application.job as Jobs | null;
+    if (!job) {
+      return NextResponse.json({ error: "Vacancy not found" }, { status: 404 });
+    }
+    // Access first, so an outsider cannot learn whether a document exists.
+    assertRecruitmentApplicationReviewAccess(scope, lookups, job);
+
     const url = new URL(request.url);
     const docParam = url.searchParams.get("doc") ?? "resume";
     const document = isApplicationDocument(docParam) ? docParam : "resume";
@@ -58,13 +65,6 @@ export async function GET(
     const disposition = url.searchParams.get("download")
       ? "attachment"
       : "inline";
-
-    const job = application.job as Jobs | null;
-    if (!job) {
-      return NextResponse.json({ error: "Vacancy not found" }, { status: 404 });
-    }
-
-    assertRecruitmentApplicationReviewAccess(scope, lookups, job);
 
     const [file, buffer] = await Promise.all([
       storage.getFile(RECRUITMENT_RESUME_BUCKET_ID, fileId),

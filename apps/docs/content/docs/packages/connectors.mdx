@@ -53,8 +53,10 @@ const events = await graph.api("/me/calendar/events").get();
 - Querying user profile data for staff directory blocks.
 
 See [Integrations → Azure AD](/docs/integrations/azure-ad) for env
-vars (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`)
-and the consent flow.
+vars and the consent flow. Graph calls read `AZURE_GRAPH_TENANT_ID`,
+`AZURE_GRAPH_CLIENT_ID` and `AZURE_GRAPH_CLIENT_SECRET`, falling back to
+`AZURE_TENANT_ID`, `AZURE_APP_ID`/`AZURE_CLIENT_ID` and
+`AZURE_CLIENT_SECRET`.
 
 ## 24SevenOffice (Finago)
 

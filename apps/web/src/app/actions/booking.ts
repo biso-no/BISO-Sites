@@ -113,6 +113,19 @@ async function bookingSlots(
   };
 }
 
+/** Tokens issued before the panel carried emails parse to an empty panel. */
+function panelFromToken(
+  record: RecruitmentBookingTokens
+): RecruitmentBookingPanelMember[] {
+  const panel = parseBookingPanel(record.panel_user_ids);
+  if (panel.length === 0 && record.panel_user_ids) {
+    console.warn(
+      `[Booking] Token ${record.$id} predates panel emails; no calendar check or invite is possible.`
+    );
+  }
+  return panel;
+}
+
 export async function getBookingContext(
   token: string
 ): Promise<{ data: BookingContext } | { error: string }> {
@@ -137,7 +150,7 @@ export async function getBookingContext(
   ]);
   const { availabilityChecked, slots } = await bookingSlots(
     record,
-    parseBookingPanel(record.panel_user_ids)
+    panelFromToken(record)
   );
 
   return {
@@ -266,7 +279,7 @@ export async function confirmBookingSlot(
     return loaded;
   }
   const { record } = loaded;
-  const panel = parseBookingPanel(record.panel_user_ids);
+  const panel = panelFromToken(record);
 
   // The length comes from the token: the browser never decides it.
   const start = new Date(parsed.data.starts_at);

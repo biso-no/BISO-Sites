@@ -127,19 +127,15 @@ async function applyGraphScheduling(
       subject: input.title,
       timezone: input.timezone,
     });
-    if (!scheduled.outlookEventId) {
-      return {
-        interview,
-        warning:
-          "The interview was saved, but Outlook refused the invite. Check the organiser's mailbox and the app's calendar permissions.",
-      };
-    }
+    let saved = interview;
     if (
       scheduled.outlookEventId ||
       scheduled.teamsMeetingId ||
       scheduled.meetingUrl
     ) {
-      const updated = await db.updateRow<JobInterviews>(
+      // Keep whatever came back even if the invite failed: a Teams meeting
+      // without a stored join link is just an orphan on the organiser's account.
+      saved = await db.updateRow<JobInterviews>(
         DATABASE_ID,
         "job_interviews",
         interview.$id,
@@ -149,8 +145,15 @@ async function applyGraphScheduling(
           teams_meeting_id: scheduled.teamsMeetingId,
         }
       );
-      return { interview: updated };
     }
+    if (!scheduled.outlookEventId) {
+      return {
+        interview: saved,
+        warning:
+          "The interview was saved, but Outlook refused the invite. Check the organiser's mailbox and the app's calendar permissions.",
+      };
+    }
+    return { interview: saved };
   } catch (graphError) {
     console.warn(
       `Graph scheduling failed for interview ${interview.$id}`,
@@ -162,7 +165,6 @@ async function applyGraphScheduling(
         "Failed to sync with Microsoft calendar. The interview was saved, but no Teams meeting or Outlook invite was created.",
     };
   }
-  return { interview };
 }
 
 export async function createInterview(
