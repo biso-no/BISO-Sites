@@ -1,6 +1,10 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { JobApplications, Jobs } from "@repo/api/types/appwrite";
+import {
+  applicationDocumentFileId,
+  isApplicationDocument,
+} from "@repo/shared/recruitment/application-documents";
 import { RECRUITMENT_RESUME_BUCKET_ID } from "@repo/shared/types/recruitment";
 import { NextResponse } from "next/server";
 import { getUserAuthContext } from "@/lib/authorization";
@@ -10,8 +14,13 @@ import {
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
 
+/**
+ * Serves one of an application's PDFs. `?doc=resume|cover_letter` picks
+ * the file (default resume). The drawer previews it in an iframe, so the
+ * default disposition is inline; `?download=1` forces a download.
+ */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -36,9 +45,19 @@ export async function GET(
       [Query.select(["*", "job.$id", "job.campus_id", "job.department_id"])]
     );
 
-    if (!application.resume_file_id) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+    const url = new URL(request.url);
+    const docParam = url.searchParams.get("doc") ?? "resume";
+    const document = isApplicationDocument(docParam) ? docParam : "resume";
+    const fileId = applicationDocumentFileId(application, document);
+    if (!fileId) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      );
     }
+    const disposition = url.searchParams.get("download")
+      ? "attachment"
+      : "inline";
 
     const job = application.job as Jobs | null;
     if (!job) {
@@ -48,17 +67,14 @@ export async function GET(
     assertRecruitmentApplicationReviewAccess(scope, lookups, job);
 
     const [file, buffer] = await Promise.all([
-      storage.getFile(RECRUITMENT_RESUME_BUCKET_ID, application.resume_file_id),
-      storage.getFileDownload(
-        RECRUITMENT_RESUME_BUCKET_ID,
-        application.resume_file_id
-      ),
+      storage.getFile(RECRUITMENT_RESUME_BUCKET_ID, fileId),
+      storage.getFileDownload(RECRUITMENT_RESUME_BUCKET_ID, fileId),
     ]);
 
     return new NextResponse(buffer, {
       headers: {
         "Cache-Control": "no-store",
-        "Content-Disposition": `attachment; filename="${file.name}"`,
+        "Content-Disposition": `${disposition}; filename="${file.name}"`,
         "Content-Type": file.mimeType || "application/pdf",
       },
       status: 200,

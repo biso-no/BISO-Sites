@@ -31,6 +31,10 @@ import {
   localizeVacancy,
 } from "@repo/shared/recruitment";
 import {
+  coverLetterTextForScreening,
+  validateApplicationDocument,
+} from "@repo/shared/recruitment/application-documents";
+import {
   buildRecruitmentApplicationReviewMetadata,
   computeRecruitmentRetentionUntil,
   isRecruitmentVacancyOpen,
@@ -346,7 +350,8 @@ export async function submitJobApplication(
       applicant_phone: formData.get("applicant_phone"),
       answers,
       candidate_availability: readAvailabilitySlots(formData),
-      cover_letter: formData.get("cover_letter"),
+      // The text field is gone; the PDF's text is filled in after upload.
+      cover_letter: null,
       current_employer: formData.get("current_employer"),
       current_role: formData.get("current_role"),
       gdpr_consent:
@@ -424,6 +429,27 @@ export async function submitJobApplication(
     } else if (vacancy.metadata.cv_required) {
       return { success: false, error: "A CV is required for this vacancy." };
     }
+
+    // The cover letter is a required PDF. Its text is kept on the row for
+    // the screener and the admin drawer; the file is stored next to the CV.
+    const coverLetterFile = formData.get("cover_letter");
+    if (!(coverLetterFile instanceof File && coverLetterFile.size > 0)) {
+      return { success: false, error: "A cover letter (PDF) is required." };
+    }
+    validateApplicationDocument(coverLetterFile);
+    const coverLetterBuffer = Buffer.from(await coverLetterFile.arrayBuffer());
+    const coverLetterUpload = await storage.createFile(
+      RECRUITMENT_RESUME_BUCKET_ID,
+      ID.unique(),
+      InputFile.fromBuffer(coverLetterBuffer, coverLetterFile.name)
+    );
+    const coverLetterFileId = coverLetterUpload.$id;
+    const coverLetterText = coverLetterTextForScreening(
+      await extractTextFromPdf(coverLetterBuffer).catch((err: unknown) => {
+        console.warn("Cover letter text extraction failed:", err);
+        return null;
+      })
+    );
 
     const consentDate = new Date();
     const retentionUntil = computeRecruitmentRetentionUntil(
@@ -512,7 +538,8 @@ export async function submitJobApplication(
         candidate_profile: candidateProfileId,
         candidate_profile_id: candidateProfileId,
         consent_date: consentDate.toISOString(),
-        cover_letter: parsed.data.cover_letter ?? null,
+        cover_letter: coverLetterText,
+        cover_letter_file_id: coverLetterFileId,
         data_processing_purpose: "BISO recruitment process",
         data_retention_until: retentionUntil,
         embedding_status: JobApplicationsEmbeddingStatus.PENDING,
@@ -587,7 +614,7 @@ export async function submitJobApplication(
             application: {
               $id: application.$id,
               applicant_name: parsed.data.applicant_name,
-              cover_letter: parsed.data.cover_letter ?? null,
+              cover_letter: coverLetterText,
               current_role: parsed.data.current_role ?? null,
             },
             resumeText,

@@ -13,6 +13,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { JobInterviewParticipantsRole } from "@repo/api/types/appwrite";
 import { getRecruitmentJobById } from "@repo/shared/recruitment";
+import type { ApplicationDocumentFiles } from "@repo/shared/recruitment/application-documents";
 import {
   parseRecruitmentAiScreening,
   parseRecruitmentApplicationReviewMetadata,
@@ -153,6 +154,8 @@ function mapCandidate(
     phone: application.applicant_phone ?? null,
     recommendedStatus: screening?.recommended_status ?? null,
     resumeFileId: application.resume_file_id ?? null,
+    coverLetterFileId:
+      (application as ApplicationDocumentFiles).cover_letter_file_id ?? null,
     reviewNotes: review.review_notes ?? null,
     scorecard: summarizeScorecards(scorecardsByApp.get(application.$id) ?? []),
     score: application.screening_score ?? screening?.normalized_score ?? null,

@@ -7,7 +7,8 @@
     "./types/*": "./types/*.ts",
     "./member-pass/*": "./member-pass/*.ts",
     "./recruitment": "./recruitment.ts",
-    "./recruitment/booking-slots": "./recruitment/booking-slots.ts"
+    "./recruitment/booking-slots": "./recruitment/booking-slots.ts",
+    "./recruitment/application-documents": "./recruitment/application-documents.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

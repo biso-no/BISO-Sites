@@ -30,6 +30,7 @@ const LOG_TAG = "[Recruitment Cleanup]";
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
 interface ExpiredRow extends Models.Row {
+  cover_letter_file_id?: string | null;
   resume_file_id?: string | null;
 }
 
@@ -129,14 +130,17 @@ export async function POST(request: Request) {
     const applications = await sweep(
       client,
       "job_applications",
-      ["resume_file_id"],
+      ["resume_file_id", "cover_letter_file_id"],
       now,
       async (row) => {
-        if (row.resume_file_id) {
+        const files = [row.resume_file_id, row.cover_letter_file_id].filter(
+          (fileId): fileId is string => typeof fileId === "string" && !!fileId
+        );
+        for (const fileId of files) {
           try {
             await client.storage.deleteFile(
               RECRUITMENT_RESUME_BUCKET_ID,
-              row.resume_file_id
+              fileId
             );
             resumesDeleted += 1;
           } catch (error) {

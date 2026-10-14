@@ -350,7 +350,9 @@ export const recruitmentApplicationSubmitSchema = z.object({
   applicant_name: z.string().trim().min(1, "Name is required").max(200),
   applicant_email: z.email("A valid email is required"),
   applicant_phone: nullableTrimmedString(50),
-  cover_letter: nullableTrimmedString(4000),
+  // Text extracted from the uploaded cover-letter PDF, for screening and
+  // the admin drawer. The PDF itself is stored next to the CV.
+  cover_letter: nullableTrimmedString(12_000),
   candidate_availability: z
     .array(z.string().trim().min(1).max(160))
     .max(12)
