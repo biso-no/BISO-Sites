@@ -24,6 +24,7 @@ import type {
   EditorLocaleOption,
   PageDoc,
 } from "@/editor/types";
+import { autosaveSignature } from "./autosave-signature";
 import { CanvasPane } from "./canvas";
 import { InspectorPane } from "./inspector";
 import { PalettePane } from "./palette";
@@ -74,16 +75,13 @@ export function EditorShell({
   topbarActions,
 }: Props) {
   const setDoc = useEditorStore((s) => s.setDoc);
-  const setMeta = useEditorStore((s) => s.setMeta);
+  const setStatus = useEditorStore((s) => s.setStatus);
   const doc = useEditorStore((s) => s.doc);
   // Mirror a publish/unpublish into the store, or the next autosave writes
   // the stale status back and undoes it.
   const publishCallbacks = useMemo(
-    () =>
-      withPublishStatusSync({ onPublish, onUnpublish }, (status) =>
-        setMeta("status", status)
-      ),
-    [onPublish, onUnpublish, setMeta]
+    () => withPublishStatusSync({ onPublish, onUnpublish }, setStatus),
+    [onPublish, onUnpublish, setStatus]
   );
   const setSaving = useEditorStore((s) => s.setSaving);
   const undo = useEditorStore((s) => s.undo);
@@ -171,7 +169,7 @@ export function EditorShell({
   const localeRef = useRef(activeLocale);
   const savePageRef = useRef(savePage);
   const onDocChangeRef = useRef(onDocChange);
-  const _docSignature = JSON.stringify(doc);
+  const _docSignature = autosaveSignature(doc);
   docRef.current = doc;
   localeRef.current = activeLocale;
   savePageRef.current = savePage;

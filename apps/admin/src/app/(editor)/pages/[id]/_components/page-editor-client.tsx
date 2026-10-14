@@ -311,10 +311,13 @@ export function PageEditorClient({
     router.push("/pages");
   }
 
+  // Both handlers reject on failure: the editor shell mirrors a resolved
+  // publish/unpublish into its own status, so resolving after a failure
+  // would mark a page published that is not.
   async function handlePublish(locale: EditorLocale) {
     if (!currentPageId) {
       toast.error("Save the page first before publishing.");
-      return;
+      throw new Error("Page not saved yet");
     }
     try {
       const result = await publishPageAction(currentPageId, locale, {
@@ -338,12 +341,13 @@ export function PageEditorClient({
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publish failed");
+      throw err;
     }
   }
 
   async function handleUnpublish(locale: EditorLocale) {
     if (!currentPageId) {
-      return;
+      throw new Error("Page not saved yet");
     }
     try {
       await unpublishPageAction(currentPageId, locale);
@@ -360,6 +364,7 @@ export function PageEditorClient({
       toast.success("Page unpublished");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unpublish failed");
+      throw err;
     }
   }
 

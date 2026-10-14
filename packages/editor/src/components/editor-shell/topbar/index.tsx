@@ -27,6 +27,8 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
     setPublishing(true);
     try {
       await action(activeLocale);
+    } catch {
+      // The host reports the failure itself; the status stays as it was.
     } finally {
       setPublishing(false);
     }
@@ -85,11 +87,11 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
           )}
           {saving === "idle" && null}
         </span>
-        {!isPublished && actions}
+        {actions}
         {isPublished && onUnpublish && (
           <button
             className="pe-topbar__unpublish"
-            disabled={publishing}
+            disabled={publishing || saving === "pending"}
             onClick={() => run(onUnpublish)}
             title="Take this page off biso.no"
             type="button"

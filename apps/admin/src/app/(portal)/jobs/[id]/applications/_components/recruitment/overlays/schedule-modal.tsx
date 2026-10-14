@@ -268,9 +268,9 @@ export function ScheduleModal({
               ) : null}
               {visiblePanel.map((member) => (
                 <button
-                  className={`sched-panelist${
+                  className={`sched-panelist ${
                     selectedPanel.has(member.id) ? "on" : ""
-                  }${member.email ? "" : "disabled"}`}
+                  } ${member.email ? "" : "disabled"}`}
                   disabled={!member.email}
                   key={member.id}
                   onClick={() => member.email && togglePanel(member.id)}
