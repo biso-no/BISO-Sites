@@ -105,7 +105,9 @@ describe("scheduleInterviewOnGraph", () => {
     expect(result.meetingUrl).toBeNull();
   });
 
-  test("states the interview time in the organiser's zone", async () => {
+  test("sends the time to Graph as a UTC instant, never a zone-labelled wall clock", async () => {
+    // A "…Z" dateTime paired with a named zone is ambiguous to Graph and
+    // could shift every invite by the zone's offset.
     const { calls, graph } = fakeGraph();
 
     await scheduleInterviewOnGraph(graph as never, {
@@ -114,7 +116,11 @@ describe("scheduleInterviewOnGraph", () => {
       location: "Nydalen",
     });
 
-    const event = calls.find((c) => c.path.endsWith("/events"))?.body;
-    expect((event?.start as { timeZone: string }).timeZone).toBe("Europe/Oslo");
+    const start = calls.find((c) => c.path.endsWith("/events"))?.body.start as {
+      dateTime: string;
+      timeZone: string;
+    };
+    expect(start.timeZone).toBe("UTC");
+    expect(start.dateTime).toBe("2026-10-19T08:00:00.000Z");
   });
 });

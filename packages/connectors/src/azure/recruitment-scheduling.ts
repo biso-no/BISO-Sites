@@ -116,6 +116,10 @@ export async function scheduleInterviewOnGraph(
       })
     : null;
 
+  // Times go to Graph as UTC instants ("…Z" with timeZone UTC); Outlook
+  // shows them in each attendee's own zone. Pairing a "Z" string with
+  // another zone name would be ambiguous, so `input.timezone` is only what
+  // the interview row records, never what Graph is told.
   const event = await createCalendarEvent(graph, input.organizerUpn, {
     attendeeEmails,
     body: inviteBody(input.body, meeting?.joinUrl ?? null),
@@ -124,7 +128,6 @@ export async function scheduleInterviewOnGraph(
     onlineMeetingUrl: meeting?.joinUrl ?? null,
     starts_at: input.starts_at,
     subject: input.subject,
-    timezone: input.timezone,
   });
 
   return {
