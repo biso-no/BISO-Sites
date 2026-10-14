@@ -32,7 +32,7 @@ This means:
 
 - Removing a document from SharePoint immediately breaks the public download — there's no second copy.
 - Updating a document in SharePoint instantly updates what users get on biso.no.
-- Nothing from SharePoint's own permissions applies: the app reads with its own credentials. What makes a document public is `status = published` on the row, which also gives the row public read in Appwrite; drafts carry no row permissions.
+- Nothing from SharePoint's own permissions applies: the app reads with its own credentials. What makes a document public is `status = published` on the row. Published rows (and their version history) are also stamped with public read in Appwrite and drafts with none, which is what keeps the page working once the content-permission cutover removes the table-level grant; run `backfill:document-permissions` in `packages/api` before that cutover to stamp older rows.
 
 ## Integration
 

@@ -254,20 +254,27 @@ async function recordVersion(
   input: {
     documentId: string;
     file: SharePointFile;
+    status: string;
     userId: string;
     version: DocumentVersion;
   }
 ): Promise<void> {
-  await db.createRow("app", "document_versions", ID.unique(), {
-    document_id: input.documentId,
-    file_name: input.file.name,
-    file_size: input.file.size,
-    sharepoint_drive_id: input.file.driveId,
-    sharepoint_item_id: input.file.itemId,
-    uploaded_by: input.userId,
-    version_major: input.version.major,
-    version_minor: input.version.minor,
-  });
+  await db.createRow(
+    "app",
+    "document_versions",
+    ID.unique(),
+    {
+      document_id: input.documentId,
+      file_name: input.file.name,
+      file_size: input.file.size,
+      sharepoint_drive_id: input.file.driveId,
+      sharepoint_item_id: input.file.itemId,
+      uploaded_by: input.userId,
+      version_major: input.version.major,
+      version_minor: input.version.minor,
+    },
+    documentRowPermissions(input.status)
+  );
 }
 
 function errorMessage(error: unknown): string {
@@ -450,14 +457,37 @@ async function checkCreateAccess(
  * guard and overwrites the same SharePoint paths.
  */
 /**
- * Row permissions follow status: published documents are readable by
- * anyone, drafts by staff only (through the table's team grants). Without
- * these, drafts and their SharePoint links were readable by anyone via the
- * Appwrite API, and the planned move to row-level permissions would hide
- * published documents from the public site.
+ * Row permissions follow status: published documents (and their version
+ * history) carry public read, drafts carry none. Today the table still
+ * grants read to everyone, so this only takes effect once the content
+ * permission cutover removes that grant; without it, the cutover would hide
+ * every published document, and drafts would stay readable by anyone.
+ * Existing rows are stamped by `backfill:document-permissions` in @repo/api.
  */
 function documentRowPermissions(status: string): string[] {
   return buildContentRowPermissions({ status });
+}
+
+/** Keep a document's version rows as visible as the document itself. */
+async function syncVersionPermissions(
+  db: AdminDb,
+  documentId: string,
+  status: string
+): Promise<void> {
+  const versions = await db.listRows<DocumentVersions>(
+    "app",
+    "document_versions",
+    [Query.equal("document_id", documentId), Query.limit(200)]
+  );
+  for (const version of versions.rows) {
+    await db.updateRow(
+      "app",
+      "document_versions",
+      version.$id,
+      {},
+      documentRowPermissions(status)
+    );
+  }
 }
 
 async function persistNewDocument(
@@ -489,6 +519,7 @@ async function persistNewDocument(
     await recordVersion(db, {
       documentId,
       file: input.archived,
+      status: String(input.row.status),
       userId: input.userId,
       version: input.version,
     });
@@ -716,6 +747,9 @@ export async function updateDocumentMetadata(
     },
     documentRowPermissions(next.status)
   );
+  if (next.status !== doc.status) {
+    await syncVersionPermissions(db, id, next.status);
+  }
 
   await logAuditEvent(ctx, "document.update", {
     resourceId: id,
@@ -830,6 +864,7 @@ export async function uploadNewVersion(
       await recordVersion(db, {
         documentId: id,
         file: published.archived,
+        status: doc.status,
         userId: ctx.userId,
         version,
       });

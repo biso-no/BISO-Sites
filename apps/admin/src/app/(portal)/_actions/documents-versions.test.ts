@@ -286,14 +286,16 @@ describe("createDocument", () => {
         sharepoint_item_id: "item:Vedtekter for BISO v13.pdf",
         version_major: 13,
         version_minor: 0,
-      })
+      }),
+      expect.any(Array)
     );
   });
 
-  test("gives a published document public read and keeps a draft staff-only", async () => {
-    // The table grants read to everyone and rows were written with no
-    // permissions, so drafts and their SharePoint links were readable by
-    // anyone through the Appwrite API. Row permissions must follow status.
+  test("gives a published document public read and a draft none", async () => {
+    // Rows were written with no permissions. Once the content permission
+    // cutover removes the table-level grant, that would hide every published
+    // document and (until then) leaves drafts readable by anyone. Row
+    // permissions must follow status.
     await createDocument(
       { ...nationalValues, status: "published" },
       pdfFormData()
@@ -788,7 +790,8 @@ describe("uploadNewVersion", () => {
       "app",
       "document_versions",
       expect.any(String),
-      expect.objectContaining({ version_major: 12, version_minor: 0 })
+      expect.objectContaining({ version_major: 12, version_minor: 0 }),
+      expect.any(Array)
     );
   });
 

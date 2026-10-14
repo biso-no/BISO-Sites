@@ -155,7 +155,7 @@ export const STUDENT_COLUMNS: NavColumnConfig[] = [
       {
         id: "study-quality",
         labelKey: "links.studyQuality",
-        href: "/about/study-quality",
+        href: "/about#studiekvalitet",
         icon: GraduationCap,
       },
       {

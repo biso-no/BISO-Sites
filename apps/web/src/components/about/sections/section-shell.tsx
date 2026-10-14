@@ -26,7 +26,7 @@ export function AboutSection({
 }: AboutSectionProps) {
   return (
     <section
-      className={`scroll-mt-28 py-16 ${muted ? "bg-section/50" : ""}`}
+      className={`scroll-mt-36 py-16 ${muted ? "bg-section/50" : ""}`}
       id={id}
     >
       <div

@@ -9,7 +9,7 @@ export function AboutSectionNav() {
   return (
     <nav
       aria-label={t("navLabel")}
-      className="sticky top-16 z-20 border-border/60 border-b bg-background/90 backdrop-blur"
+      className="sticky top-20 z-20 border-border/60 border-b bg-background/90 backdrop-blur"
     >
       <ul className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-2 text-sm sm:px-6 lg:px-8">
         {ABOUT_SECTIONS.map((section) => (

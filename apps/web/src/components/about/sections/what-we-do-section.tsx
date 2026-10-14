@@ -24,7 +24,7 @@ export function WhatWeDoSection() {
   ];
 
   return (
-    <section className="scroll-mt-28 bg-section/50 py-16" id="hva-vi-gjor">
+    <section className="scroll-mt-36 bg-section/50 py-16" id="hva-vi-gjor">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <motion.div

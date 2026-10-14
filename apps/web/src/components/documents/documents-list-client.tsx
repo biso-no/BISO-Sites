@@ -11,7 +11,6 @@ import {
   Shield,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { PublicDocument } from "@/lib/documents";
@@ -37,18 +36,17 @@ export function DocumentsListClient({
   initialCategory,
 }: DocumentsListClientProps) {
   const t = useTranslations("documents");
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState(initialCategory);
 
   const selectCategory = (key: string) => {
     setActiveCategory(key);
-    // Keep the address shareable without re-rendering the server page.
-    router.replace(
-      key === "all" ? "/documents" : `/documents?category=${key}`,
-      {
-        scroll: false,
-      }
+    // Shareable address without a server round trip: the list is already
+    // loaded, so a router navigation here would only refetch the same page.
+    window.history.replaceState(
+      null,
+      "",
+      key === "all" ? "/documents" : `/documents?category=${key}`
     );
   };
 
