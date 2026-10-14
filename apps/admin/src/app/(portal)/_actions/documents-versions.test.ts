@@ -268,7 +268,8 @@ describe("createDocument", () => {
         sharepoint_web_url: "https://sp.example/:b:/g/public",
         version: "13",
         version_number: 13,
-      })
+      }),
+      expect.any(Array)
     );
     const documentPayload = db.upsertRow.mock.calls[0]?.[3] as Record<
       string,
@@ -289,6 +290,21 @@ describe("createDocument", () => {
     );
   });
 
+  test("gives a published document public read and keeps a draft staff-only", async () => {
+    // The table grants read to everyone and rows were written with no
+    // permissions, so drafts and their SharePoint links were readable by
+    // anyone through the Appwrite API. Row permissions must follow status.
+    await createDocument(
+      { ...nationalValues, status: "published" },
+      pdfFormData()
+    );
+    expect(db.upsertRow.mock.calls[0]?.[4]).toEqual(['read("any")']);
+
+    db.upsertRow.mockClear();
+    await createDocument(nationalValues, pdfFormData());
+    expect(db.upsertRow.mock.calls[0]?.[4]).toEqual([]);
+  });
+
   test("falls back to the internal URL and logs why when anonymous links are forbidden", async () => {
     const failure = new Error("sharingDisabled");
     sp.createAnonymousViewLink.mockRejectedValue(failure);
@@ -307,7 +323,8 @@ describe("createDocument", () => {
       expect.stringMatching(APPWRITE_ROW_ID),
       expect.objectContaining({
         sharepoint_web_url: "https://sp.example/Vedtekter for BISO.pdf",
-      })
+      }),
+      expect.any(Array)
     );
   });
 
@@ -430,7 +447,8 @@ describe("createDocument", () => {
       "app",
       "documents",
       expect.stringMatching(APPWRITE_ROW_ID),
-      expect.objectContaining({ campus: null, campus_id: null })
+      expect.objectContaining({ campus: null, campus_id: null }),
+      expect.any(Array)
     );
   });
 
@@ -605,7 +623,8 @@ describe("updateDocumentMetadata", () => {
         description: "Adopted by the national assembly",
         status: "draft",
         title: "Vedtekter for BISO",
-      })
+      }),
+      expect.any(Array)
     );
   });
 
@@ -622,7 +641,8 @@ describe("updateDocumentMetadata", () => {
       "app",
       "documents",
       "doc-1",
-      expect.objectContaining({ title: "Vedtekter for Biso" })
+      expect.objectContaining({ title: "Vedtekter for Biso" }),
+      expect.any(Array)
     );
   });
 
@@ -644,7 +664,8 @@ describe("updateDocumentMetadata", () => {
         campus: null,
         campus_id: null,
         department: null,
-      })
+      }),
+      expect.any(Array)
     );
   });
 });
@@ -681,7 +702,8 @@ describe("uploadNewVersion", () => {
       "app",
       "documents",
       "doc-1",
-      expect.objectContaining({ version: "13", version_number: 13 })
+      expect.objectContaining({ version: "13", version_number: 13 }),
+      expect.any(Array)
     );
     // The link is requested again for the current item, which repairs a
     // document that was first saved without a public link.
@@ -804,7 +826,8 @@ describe("uploadNewVersion", () => {
       "app",
       "documents",
       "doc-1",
-      expect.objectContaining({ version: "13", version_number: 13 })
+      expect.objectContaining({ version: "13", version_number: 13 }),
+      expect.any(Array)
     );
   });
 
@@ -969,7 +992,8 @@ describe("control committee", () => {
       expect.objectContaining({
         scope: "national",
         updated_by: "user-committee",
-      })
+      }),
+      expect.any(Array)
     );
   });
 
