@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
-import type { GalleryBlock, GalleryImage } from "@/editor/types";
+import type { GalleryBlock } from "@/editor/types";
+import { uploadGalleryFiles } from "./upload";
 
 interface Props {
   block: GalleryBlock;
@@ -15,22 +16,23 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
   const { uploadFile } = useEditorCallbacks();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) {
       return;
     }
+    setUploadError(null);
     startTransition(async () => {
-      const newImages: GalleryImage[] = [];
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append("file", file);
-        const { fileId, url } = await uploadFile(fd);
-        newImages.push({ fileId, src: url });
+      const { added, error } = await uploadGalleryFiles(files, uploadFile);
+      if (added.length > 0) {
+        onPatch("images", [...(block.images || []), ...added]);
       }
-      onPatch("images", [...(block.images || []), ...newImages]);
+      setUploadError(error);
     });
+    // Reset so picking the same file again re-fires the change event.
+    e.target.value = "";
   }
 
   const images = block.images || [];
@@ -85,6 +87,15 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
         >
           {isPending ? "…" : "+"}
         </button>
+      )}
+      {edit && uploadError && (
+        <p
+          className="pg-gallery__error"
+          role="alert"
+          style={{ color: "#b42318", fontSize: 12, gridColumn: "1 / -1" }}
+        >
+          {uploadError}
+        </p>
       )}
       <input
         accept="image/*"
