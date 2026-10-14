@@ -30,7 +30,7 @@ const topics = [
   },
   {
     key: "bylaws",
-    href: "/about/bylaws",
+    href: "/documents?category=campus-bylaws",
     icon: Gavel,
   },
   {

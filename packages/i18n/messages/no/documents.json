@@ -1,0 +1,24 @@
+{
+  "hero": {
+    "eyebrow": "Offisielle dokumenter",
+    "title": "BISOs dokumenter",
+    "subtitle": "Vedtekter, statutter, retningslinjer og policyer som styrer BI Student Organisation på alle campus."
+  },
+  "search": "Søk i dokumenter …",
+  "empty": "Ingen dokumenter passer til søket.",
+  "categories": {
+    "all": "Alle dokumenter",
+    "national-statutes": "Nasjonale statutter",
+    "campus-bylaws": "Campusvedtekter",
+    "code-of-conduct": "Etiske retningslinjer",
+    "business-regulations": "Forretningsregler",
+    "communication-guidelines": "Kommunikasjonsretningslinjer"
+  },
+  "row": {
+    "campus": "Campus",
+    "updated": "Oppdatert {date}",
+    "view": "Åpne",
+    "download": "Last ned",
+    "previousVersions": "Tidligere versjoner ({count})"
+  }
+}

@@ -1,9 +1,9 @@
-import { sitemapEntries } from "@/lib/data/public-content";
 import {
   isUnitPageSlug,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
+import { sitemapEntries } from "@/lib/data/public-content";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
 
@@ -12,7 +12,6 @@ const ABOUT_SUBROUTES = [
   "politics",
   "study-quality",
   "history",
-  "bylaws",
   "operations",
   "alumni",
   "saih",
@@ -50,6 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/news`, changeFrequency: "daily", priority: 0.7 },
     { url: `${BASE}/shop`, changeFrequency: "daily", priority: 0.7 },
     { url: `${BASE}/about`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE}/documents`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE}/campus`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE}/membership`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/business`, changeFrequency: "monthly", priority: 0.5 },

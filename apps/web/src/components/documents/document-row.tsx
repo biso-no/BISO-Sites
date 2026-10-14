@@ -14,45 +14,22 @@ import {
   Shield,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import type { PublicDocument } from "@/lib/documents";
 
-const CATEGORY_CONFIG: Record<
+/** One brand gradient for every category: blue to navy. */
+const BRAND_GRADIENT = "linear-gradient(135deg, #3DA9E0, #0b2a4a)";
+
+const CATEGORY_ICONS: Record<
   string,
-  {
-    label: string;
-    icon: React.ComponentType<{
-      className?: string;
-      style?: React.CSSProperties;
-    }>;
-    gradient: string;
-  }
+  React.ComponentType<{ className?: string; style?: React.CSSProperties }>
 > = {
-  "national-statutes": {
-    label: "National Statutes",
-    icon: Scale,
-    gradient: "linear-gradient(135deg, #06b6d4, #3b82f6)",
-  },
-  "campus-bylaws": {
-    label: "Campus Bylaws",
-    icon: Building2,
-    gradient: "linear-gradient(135deg, #3b82f6, #6366f1)",
-  },
-  "code-of-conduct": {
-    label: "Code of Conduct",
-    icon: Shield,
-    gradient: "linear-gradient(135deg, #6366f1, #a855f7)",
-  },
-  "business-regulations": {
-    label: "Business Regulations",
-    icon: Briefcase,
-    gradient: "linear-gradient(135deg, #a855f7, #ec4899)",
-  },
-  "communication-guidelines": {
-    label: "Communication Guidelines",
-    icon: MessageSquare,
-    gradient: "linear-gradient(135deg, #ec4899, #06b6d4)",
-  },
+  "national-statutes": Scale,
+  "campus-bylaws": Building2,
+  "code-of-conduct": Shield,
+  "business-regulations": Briefcase,
+  "communication-guidelines": MessageSquare,
 };
 
 function formatBytes(bytes: number | null): string {
@@ -74,12 +51,21 @@ interface DocumentRowProps {
 }
 
 export function DocumentRow({ doc, index }: DocumentRowProps) {
+  const t = useTranslations("documents");
+  const locale = useLocale();
   const [isHovered, setIsHovered] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const historyId = `document-history-${doc.$id}`;
-  const config = CATEGORY_CONFIG[doc.category];
-  const Icon = config?.icon ?? BookOpen;
+  const Icon = CATEGORY_ICONS[doc.category] ?? BookOpen;
   const versionLabel = displayDocumentVersion(doc.version);
+  const monthYear = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale === "no" ? "nb-NO" : "en-GB", {
+      month: "long",
+      year: "numeric",
+    });
+  const categoryLabel = t.has(`categories.${doc.category}`)
+    ? t(`categories.${doc.category}`)
+    : doc.category;
 
   return (
     <motion.div
@@ -104,7 +90,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
         <div
           className="pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-300"
           style={{
-            background: config?.gradient,
+            background: BRAND_GRADIENT,
             opacity: isHovered ? 0.07 : 0,
           }}
         />
@@ -113,7 +99,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
           {/* Category icon */}
           <div
             className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl shadow-lg"
-            style={{ background: config?.gradient }}
+            style={{ background: BRAND_GRADIENT }}
           >
             <Icon className="h-8 w-8 text-white" />
           </div>
@@ -137,7 +123,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
                   }}
                 >
                   <Building2 className="h-3 w-3" />
-                  Campus
+                  {t("row.campus")}
                 </span>
               )}
             </div>
@@ -163,14 +149,10 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
                   <span>·</span>
                 </>
               ) : null}
-              <span>{config?.label ?? doc.category}</span>
+              <span>{categoryLabel}</span>
               <span>·</span>
               <span>
-                Updated{" "}
-                {new Date(doc.$updatedAt).toLocaleDateString("en-GB", {
-                  year: "numeric",
-                  month: "long",
-                })}
+                {t("row.updated", { date: monthYear(doc.$updatedAt) })}
               </span>
             </div>
           </div>
@@ -191,7 +173,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
               whileTap={{ scale: 0.95 }}
             >
               <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">View</span>
+              <span className="hidden sm:inline">{t("row.view")}</span>
             </motion.a>
 
             <motion.a
@@ -213,7 +195,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
               whileTap={{ scale: 0.95 }}
             >
               <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Download</span>
+              <span className="hidden sm:inline">{t("row.download")}</span>
             </motion.a>
           </div>
         </div>
@@ -231,7 +213,9 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${showHistory ? "rotate-180" : ""}`}
               />
-              Previous versions ({doc.previousVersions.length})
+              {t("row.previousVersions", {
+                count: doc.previousVersions.length,
+              })}
             </button>
             {showHistory && (
               <ul className="mt-3 space-y-2" id={historyId}>
@@ -247,10 +231,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
                         ? ` · ${formatBytes(version.fileSize)}`
                         : ""}
                       {" · "}
-                      {new Date(version.createdAt).toLocaleDateString("en-GB", {
-                        month: "long",
-                        year: "numeric",
-                      })}
+                      {monthYear(version.createdAt)}
                     </span>
                     <a
                       className="flex items-center gap-1.5 underline-offset-4 hover:underline"
@@ -259,7 +240,7 @@ export function DocumentRow({ doc, index }: DocumentRowProps) {
                       style={{ color: "#3DA9E0" }}
                     >
                       <Download className="h-4 w-4" />
-                      Download
+                      {t("row.download")}
                     </a>
                   </li>
                 ))}

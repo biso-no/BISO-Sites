@@ -22,13 +22,16 @@ export type PublicDocument = Documents & {
   previousVersions: PublicDocumentVersion[];
 };
 
-const CATEGORY_ORDER = [
+/** Categories in display order; also the `?category=` values the page accepts. */
+export const DOCUMENT_CATEGORIES = [
   "national-statutes",
   "campus-bylaws",
   "code-of-conduct",
   "business-regulations",
   "communication-guidelines",
-];
+] as const;
+
+const CATEGORY_ORDER: readonly string[] = DOCUMENT_CATEGORIES;
 
 /**
  * National documents concern every campus, so they ride along with whichever

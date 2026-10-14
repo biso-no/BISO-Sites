@@ -14,6 +14,7 @@ export const messageNamespaces = [
   "businessHotspot",
   "common",
   "cookies",
+  "documents",
   "contact",
   "home",
   "unused",
