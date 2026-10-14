@@ -36,9 +36,9 @@ A campus admin sees documents for their campus. A global admin sees everything. 
 |-------|---------------|
 | **Title** | The display title on biso.no. |
 | **Campus** | Which campus the document belongs to. National documents have a "national" campus value. |
-| **Status** | `published` (visible on biso.no) or `draft` (hidden, only visible in admin). |
+| **Status** | `published` (public: listed on biso.no and downloadable by anyone) or `draft` (staff only). There is no separate "public" setting; publishing is what makes a document public. |
+| **Category** and **language** | Decide where the file is stored in SharePoint and which shelf it appears on at `/documents?category=…`. |
 | **SharePoint drive ID** and **item ID** | The internal references to the file in SharePoint. You don't edit these; they're set when you upload. |
-| **Permissions** | Who can see this document on the public site (e.g. everyone, members only). |
 
 ## Uploading a new document
 
@@ -47,7 +47,7 @@ From `/documents/new`:
 1. **Pick the file.** Only PDFs are accepted. Export Word documents and spreadsheets to PDF first.
 2. **Fill in the title and campus.** These are mandatory.
 3. **Enter the version number.** Numbers only, such as `12` or `7.1`; the `v` is added for you.
-4. **Set permissions.** Decide whether the document is public or restricted.
+4. **Choose the status.** Published goes live on biso.no at once; draft stays in the admin until you publish it.
 5. **Save.**
 
 The title, category, language, scope and campus cannot be changed after upload, because they decide where the file is stored in SharePoint. If one of them is wrong, create a new document and delete the old one.
@@ -75,8 +75,10 @@ To go live, change the status to **published** and save.
 On biso.no, when a student clicks a document, they don't talk to SharePoint directly. The download goes through the public site's `/api/documents/[id]/download` endpoint, which streams the file from SharePoint to the browser. This means:
 
 - Students never see the raw SharePoint URL.
-- Access control can be enforced on the BISO side (members-only documents, for example).
+- Only published documents are served; a draft's download returns "not found".
 - If the file is missing in SharePoint, students get a clean error rather than a Microsoft login page.
+
+The "Om BISO" page links into `/documents` by category (bylaws, national statutes, code of conduct), so a document shows up there as soon as it is published in the right category.
 
 <Callout type="info">
 If you need to add a brand-new SharePoint site to the list the app can read from, that's a BISO IT job — it requires updating the SHAREPOINT_SITES configuration and granting the app access at the tenant level. See [SharePoint integration](/docs/integrations/sharepoint).
