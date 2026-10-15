@@ -60,6 +60,17 @@ interface JobApplicationFormProps {
   membersOnly?: boolean;
 }
 
+/** Client-side mirror of the server's document rules, for instant feedback. */
+function validateDocument(file: File): string | null {
+  if (file.type !== "application/pdf") {
+    return "Only PDF files are allowed.";
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return "File exceeds 5MB limit.";
+  }
+  return null;
+}
+
 type Step = "contact" | "questions" | "documents" | "review";
 
 const STEPS: Array<{ id: Step; label: string }> = [
@@ -310,7 +321,8 @@ export function JobApplicationForm({
   const [currentRole, setCurrentRole] = useState("");
   const [currentEmployer, setCurrentEmployer] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [coverLetter, setCoverLetter] = useState("");
+  const [coverLetter, setCoverLetter] = useState<File | null>(null);
+  const [coverLetterError, setCoverLetterError] = useState<string | null>(null);
   const [availability, setAvailability] = useState("");
   const [resume, setResume] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -345,7 +357,9 @@ export function JobApplicationForm({
     formData.set("applicant_name", name);
     const phone = localPhone.trim() ? `${countryCode}${localPhone.trim()}` : "";
     formData.set("applicant_phone", phone);
-    formData.set("cover_letter", coverLetter);
+    if (coverLetter) {
+      formData.set("cover_letter", coverLetter);
+    }
     formData.set("availability", availability);
     formData.set("gdpr_consent", "true");
     if (linkedinUrl.trim()) {
@@ -586,16 +600,32 @@ export function JobApplicationForm({
             transition={{ duration: 0.15 }}
           >
             <div className="space-y-2">
-              <Label htmlFor="cover_letter">
-                Cover letter {!cvRequired && "(optional)"}
-              </Label>
-              <Textarea
+              <Label htmlFor="cover_letter">Cover letter (required, PDF)</Label>
+              <Input
+                accept="application/pdf"
                 id="cover_letter"
-                onChange={(e) => setCoverLetter(e.target.value)}
-                placeholder="Tell BISO why you're applying and what you'd bring."
-                rows={6}
-                value={coverLetter}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setCoverLetterError(file ? validateDocument(file) : null);
+                  setCoverLetter(file);
+                }}
+                required
+                type="file"
               />
+              {coverLetter && !coverLetterError && (
+                <p className="text-muted-foreground text-xs">
+                  Selected: {coverLetter.name} (
+                  {(coverLetter.size / 1024).toFixed(0)} KB)
+                </p>
+              )}
+              {coverLetterError ? (
+                <p className="text-destructive text-xs">{coverLetterError}</p>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  Tell BISO why you're applying and what you'd bring. Max 5 MB,
+                  PDF only.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="resume">
@@ -661,7 +691,12 @@ export function JobApplicationForm({
               </Button>
               <Button
                 className="flex-1"
-                disabled={(cvRequired && !resume) || fileError !== null}
+                disabled={
+                  (cvRequired && !resume) ||
+                  fileError !== null ||
+                  !coverLetter ||
+                  coverLetterError !== null
+                }
                 onClick={nextStep}
                 type="button"
               >
@@ -710,7 +745,9 @@ export function JobApplicationForm({
               {coverLetter && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Cover letter</span>
-                  <span className="font-medium text-green-700">Included</span>
+                  <span className="font-medium text-green-700">
+                    {coverLetter.name}
+                  </span>
                 </div>
               )}
             </div>

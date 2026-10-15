@@ -2,32 +2,16 @@
 
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { confirmBookingSlot } from "@/app/actions/booking";
 
 interface BookingClientProps {
+  applicantEmail: string;
+  availabilityChecked: boolean;
   durationMinutes: number;
+  /** ISO start times, computed on the server from the panel's calendars. */
+  slots: string[];
   token: string;
-  windowFrom: string;
-  windowTo: string;
-}
-
-function generateSlots(from: string, to: string, duration: number): string[] {
-  const start = new Date(from);
-  const end = new Date(to);
-  const slots: string[] = [];
-  for (
-    let cursor = new Date(start);
-    cursor.getTime() + duration * 60_000 <= end.getTime();
-    cursor = new Date(cursor.getTime() + 60 * 60_000)
-  ) {
-    const hour = cursor.getHours();
-    if (hour < 9 || hour > 17) {
-      continue;
-    }
-    slots.push(cursor.toISOString());
-  }
-  return slots;
 }
 
 function formatSlot(iso: string): string {
@@ -38,17 +22,17 @@ function formatSlot(iso: string): string {
 }
 
 export function BookingClient({
+  applicantEmail,
+  availabilityChecked,
   durationMinutes,
+  slots,
   token,
-  windowFrom,
-  windowTo,
 }: BookingClientProps) {
-  const slots = useMemo(
-    () => generateSlots(windowFrom, windowTo, durationMinutes),
-    [windowFrom, windowTo, durationMinutes]
-  );
   const [selected, setSelected] = useState<string | null>(null);
-  const [confirmedAt, setConfirmedAt] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState<{
+    invited: boolean;
+    startsAt: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -58,24 +42,30 @@ export function BookingClient({
     }
     setError(null);
     startTransition(async () => {
-      const result = await confirmBookingSlot(token, selected, durationMinutes);
+      const result = await confirmBookingSlot(token, selected);
       if ("error" in result) {
         setError(result.error);
       } else {
-        setConfirmedAt(result.data.starts_at);
+        setConfirmed({
+          invited: result.data.invited,
+          startsAt: result.data.starts_at,
+        });
       }
     });
   }
 
-  if (confirmedAt) {
+  if (confirmed) {
     return (
       <Card className="mt-6 border-border/60 p-6 shadow-sm">
         <h2 className="font-semibold text-foreground text-lg">
           You're booked!
         </h2>
         <p className="mt-2 text-muted-foreground text-sm">
-          Interview confirmed for {formatSlot(confirmedAt)}. You'll receive a
-          calendar invite shortly.
+          Interview confirmed for {formatSlot(confirmed.startsAt)} (
+          {durationMinutes} minutes).{" "}
+          {confirmed.invited
+            ? `A calendar invite with the Teams link is on its way to ${applicantEmail}.`
+            : "The BISO team will send you the meeting details by email."}
         </p>
       </Card>
     );
@@ -83,6 +73,11 @@ export function BookingClient({
 
   return (
     <div className="mt-6 space-y-4">
+      <p className="text-muted-foreground text-xs">
+        {availabilityChecked
+          ? "Times shown are when the interview panel is free."
+          : "Times shown are BISO office hours; the team will confirm the slot."}
+      </p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {slots.map((slot) => (
           <button

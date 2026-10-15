@@ -78,7 +78,6 @@ export function AdvanceStageModal({
   const [loadingEmail, startLoadEmail] = useTransition();
   const [submitting, startSubmit] = useTransition();
   const [copied, setCopied] = useState(false);
-  const [steps, setSteps] = useState<Set<number>>(new Set([0, 1, 2]));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -229,28 +228,17 @@ export function AdvanceStageModal({
         </div>
       ) : null}
 
+      {/* Suggestions only. These were checkboxes that nothing read on submit,
+          which made them look like actions the system would take. */}
       <div className="adv-steps">
-        <h4>AI-suggested next steps</h4>
-        {(NEXT_STEPS[target] ?? []).map((step, index) => (
-          <label className="adv-step" key={step}>
-            <input
-              checked={steps.has(index)}
-              onChange={() =>
-                setSteps((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(index)) {
-                    next.delete(index);
-                  } else {
-                    next.add(index);
-                  }
-                  return next;
-                })
-              }
-              type="checkbox"
-            />
-            {step}
-          </label>
-        ))}
+        <h4>Suggested next steps</h4>
+        <ul className="adv-step-list">
+          {(NEXT_STEPS[target] ?? []).map((step) => (
+            <li className="adv-step" key={step}>
+              {step}
+            </li>
+          ))}
+        </ul>
       </div>
 
       {error ? <p className="sched-error">{error}</p> : null}
