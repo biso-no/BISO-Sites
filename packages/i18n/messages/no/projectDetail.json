@@ -68,6 +68,13 @@
     "subtitle": "Detaljer oppdateres fortløpende og kan endres.",
     "ticket": "Billetter"
   },
+  "campuses": {
+    "title": "Teamene bak prosjektet",
+    "subtitle": "Hvert campus har sitt eget team med egen side, eget program og egne arrangementer.",
+    "upcoming": "Kommende",
+    "noEvents": "Ingen kommende arrangementer publisert ennå.",
+    "visit": "Gå til {name}"
+  },
   "overview": {
     "title": "Oversikt",
     "dates": "Datoer",

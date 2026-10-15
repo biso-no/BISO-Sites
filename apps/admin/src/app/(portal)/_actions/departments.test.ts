@@ -229,6 +229,72 @@ describe("createUnitPage inactive-department guard", () => {
     expect(result).not.toHaveProperty("error");
     expect(savePageDraftSpy).toHaveBeenCalledTimes(1);
   });
+
+  test("a project unit's page starts from the project template", async () => {
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
+    mockAdminRows({
+      departments: [
+        {
+          $id: "dept-1",
+          Name: "TRD Fadderullan",
+          active: true,
+          campus_id: "3",
+          slug: "fadderullan",
+          // Trondheim leaves the category empty; the slug alone must do.
+          type: null,
+        },
+      ],
+      pages: [],
+    });
+
+    await createUnitPage("dept-1");
+
+    const [[call]] = savePageDraftSpy.mock.calls as unknown as [
+      [{ doc: { blocks: Array<{ type: string }>; meta: { title: string } } }],
+    ];
+    expect(call.doc.blocks.map((block) => block.type)).toEqual([
+      "hero",
+      "text",
+      "events",
+      "gallery",
+      "text",
+      "contact",
+    ]);
+    expect(call.doc.blocks[0]).toMatchObject({
+      eyebrow: "BISO Trondheim",
+      title: "Fadderullan",
+    });
+    expect(call.doc.meta.title).toBe("TRD Fadderullan");
+  });
+
+  test("an ordinary unit's page starts from the shorter unit template", async () => {
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
+    mockAdminRows({
+      departments: [
+        {
+          $id: "dept-2",
+          Name: "BRG Case Club",
+          active: true,
+          campus_id: "2",
+          slug: "case-club",
+          type: "society",
+        },
+      ],
+      pages: [],
+    });
+
+    await createUnitPage("dept-2");
+
+    const [[call]] = savePageDraftSpy.mock.calls as unknown as [
+      [{ doc: { blocks: Array<{ type: string }> } }],
+    ];
+    expect(call.doc.blocks.map((block) => block.type)).toEqual([
+      "hero",
+      "text",
+      "events",
+      "contact",
+    ]);
+  });
 });
 
 /**

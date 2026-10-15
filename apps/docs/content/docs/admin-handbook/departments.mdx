@@ -13,9 +13,20 @@ Open it from the sidebar under **Departments** (`/departments`).
 
 This screen is **read-only**. You cannot create a department here, you cannot edit a department's name, and you cannot add someone as a board member. That is on purpose.
 
-Departments and their board members are managed in **Azure AD** by BISO IT. Every department is an Azure AD security group; every board role (leader, deputy, finance, etc.) is decided by membership of that group. A scheduled sync pulls the current state from Azure AD into the admin app, so when IT promotes someone to lead a department, that change shows up here automatically — usually within an hour or two.
+Two upstream systems own this data, and the department screen says so in its **Good to know** panel:
+
+- **Board members come from Microsoft 365.** Every department is a Microsoft 365 group; every board role (leader, deputy, finance, etc.) is decided by membership of that group. The public unit page reads the board live from there. When IT promotes someone to lead a department, that change shows up automatically.
+- **New units and projects come from 24SevenOffice.** The list of departments mirrors the chart of accounts. A new project or subgroup is created there, appears here after the next department sync, and only then gets its own public address.
 
 If you spot something that looks wrong (a former leader still listed, a department missing entirely), the fix is to **tell BISO IT**, not to look for an edit button.
+
+## The unit's public page
+
+What a department **can** edit here is its own page on biso.no. Open the department and use **Create page** under *Public page*. The new page is not blank: it starts from a template, with a hero, an "About" text, a live feed of the unit's upcoming events and a contact block. A unit that runs a project (Fadderullan, Karrieredagene, Charity, …) gets the longer project template with a gallery and a "For companies" section as well. Every block can be edited or removed in the page editor, and a department lead can only ever open their own unit's page.
+
+A project page on biso.no (`/projects/fadderullan` and friends) is a hub assembled from these unit pages: one card per campus team with its summary, next events and a link. So a Fadderullan board that keeps its unit page and events up to date is also keeping the national project page up to date.
+
+Set the **Project** category in the profile card for a unit that runs a project. That is what lists it under *Projects* in the site menu for its campus; Oslo and Bergen have done this, the other campuses mostly have not yet. A department marked inactive in 24SevenOffice (Bergen's Karrieredagene today) cannot get a page until it is reactivated there.
 
 ## What you see
 

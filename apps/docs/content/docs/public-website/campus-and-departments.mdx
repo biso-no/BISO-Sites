@@ -56,6 +56,19 @@ Department detail pages show:
 
 The data lives in the `departments` table, with related rows in `events`, `news`, and team membership tables.
 
+## Projects
+
+A flagship project such as Fadderullan or Karrieredagene is not one organisation: each campus has its own unit of that name, with its own board, page and events. The public project page is a **hub** assembled from those units.
+
+| Route | Shows |
+|-------|-------|
+| `/projects` | The flagship projects and any `large_event` rows. |
+| `/projects/[slug]` | The project's own copy plus one card per campus team: crest, summary, the next three published events, and a link to the team's unit page. |
+
+Which unit runs which project is the map in `packages/shared/utils/project-units.ts` (`PROJECT_UNIT_SLUGS`): the hub route on one side, the unit's `departments.slug` on the other. The match is exact, so a sub-unit like `karrieredagene-marketing` never stands in for Karrieredagene. Winter Games maps to the single national `wintergames` unit. A hub renders only when the project has copy in the `projectDetail` message bundle or a `large_event` row; Bergensbaneløpet has neither yet, so `/projects/bergensbanelopet` is a 404 and the menu links to its unit page directly.
+
+The **Projects** menu reacts to the visitor's selected campus. The flagship hubs are always listed. Below them, with a campus selected, come that campus's project units plus the national ones; with no campus selected, every project unit labelled with its campus, except a hub project that runs on several campuses (Fadderullan, Karrieredagene), which is reached through its hub instead, so the menu never shows four entries named Fadderullan. The campus choice is remembered in the browser, and "all campuses" counts as a choice. A unit counts as a project when its category is `project` **or** its slug is in the map — only some campuses set the category, so the map carries the rest. Admins fix a missing entry by setting the unit's category to Project in the admin app.
+
 ## Why the split between campus and departments matters
 
 The campus page tells "what does BISO at this campus look like overall?" The department pages tell "what does this specific student group do?" Together they cover every BISO unit a student might want to discover or join.

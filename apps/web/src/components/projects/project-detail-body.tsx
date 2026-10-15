@@ -11,6 +11,8 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { UnitCrest } from "@/components/units/unit-crest";
+import type { ProjectHubCampusVM } from "@/lib/project-hub";
 
 const PROTOCOL_REGEX = /^https?:\/\//;
 
@@ -32,6 +34,8 @@ export interface ProjectScheduleItemVM {
 }
 
 export interface ProjectDetailVM {
+  /** The unit running the project on each campus, in campus order. */
+  campuses: ProjectHubCampusVM[];
   ctaLabel: string;
   ctaUrl: string | null;
   description: string;
@@ -161,6 +165,96 @@ export function ProjectDetailBody({ vm }: { vm: ProjectDetailVM }) {
           ) : null}
         </div>
       </section>
+
+      {/* Campus teams */}
+      {vm.campuses.length > 0 ? (
+        <section className="py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <motion.div
+              className="mb-10"
+              transition={{ duration: 0.6 }}
+              {...fadeUp}
+            >
+              <SectionHeading
+                subtitle={t("campuses.subtitle")}
+                title={t("campuses.title")}
+              />
+            </motion.div>
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {vm.campuses.map((team, index) => (
+                <motion.div
+                  key={team.unit.id}
+                  transition={{ delay: index * 0.08, duration: 0.5 }}
+                  {...fadeUp}
+                >
+                  <Card className="flex h-full flex-col border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-border hover:shadow-lg">
+                    <CardHeader className="flex flex-row items-start gap-4">
+                      <UnitCrest
+                        className="h-14 w-14 text-lg"
+                        unit={team.unit}
+                      />
+                      <div className="min-w-0">
+                        {team.campusLabel ? (
+                          <p className="font-medium text-brand text-xs uppercase tracking-wide">
+                            {team.campusLabel}
+                          </p>
+                        ) : null}
+                        <CardTitle className="text-foreground text-lg">
+                          {team.unit.name}
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col gap-4">
+                      {team.unit.summary ? (
+                        <p className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
+                          {team.unit.summary}
+                        </p>
+                      ) : null}
+                      <div className="space-y-2">
+                        <p className="font-semibold text-foreground text-xs uppercase tracking-wide">
+                          {t("campuses.upcoming")}
+                        </p>
+                        {team.events.length > 0 ? (
+                          <ul className="space-y-2">
+                            {team.events.map((event, eventIndex) => (
+                              <li
+                                className="rounded-xl border border-border/50 bg-muted/30 p-3"
+                                // The feed carries no id, and two sessions of
+                                // the same event can share a day and a title.
+                                key={`${eventIndex}-${event.date}-${event.title}`}
+                              >
+                                <p className="font-semibold text-foreground text-sm">
+                                  {event.title}
+                                </p>
+                                <p className="text-muted-foreground text-xs">
+                                  {[event.date, event.where]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-muted-foreground text-sm">
+                            {t("campuses.noEvents")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-auto pt-2">
+                        <Button asChild variant="outline">
+                          <Link href={team.unit.href}>
+                            {t("campuses.visit", { name: team.unit.name })}
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* Content sections */}
       {vm.sections.length > 0 ? (

@@ -14,6 +14,10 @@ import { useTransition } from "react";
 import { useCampus } from "@/components/context/campus";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SelectCampus } from "@/components/select-campus";
+import {
+  projectLinkLabel,
+  visibleProjectLinks,
+} from "@/lib/project-unit-links";
 import { signOut } from "@/lib/server";
 import type { NavAccount, NavProjectLink } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
@@ -48,9 +52,10 @@ export function MobileDrawer({
 }: MobileDrawerProps) {
   const t = useTranslations("common.navigation");
   const tProjects = useTranslations("projects.featured");
-  const { campuses } = useCampus();
+  const { activeCampusId, campuses } = useCampus();
   const router = useRouter();
   const [isSigningOut, startSignOut] = useTransition();
+  const campusLinks = visibleProjectLinks(projectLinks, activeCampusId);
 
   const go = (href: string) => {
     router.push(href);
@@ -111,16 +116,27 @@ export function MobileDrawer({
                     onNavigate={onNavigate}
                   />
                 ))}
-                {projectLinks.map((link) => (
-                  <PanelLink
-                    href={link.href}
-                    icon={PROJECT_FLAGSHIP_ICON}
-                    key={link.id}
-                    label={link.label}
-                    onNavigate={onNavigate}
-                  />
-                ))}
               </div>
+              {campusLinks.length > 0 && (
+                <div>
+                  <p className={HEADING_CLASS}>
+                    {t(
+                      activeCampusId
+                        ? "columns.campusProjects"
+                        : "columns.moreProjects"
+                    )}
+                  </p>
+                  {campusLinks.map((link) => (
+                    <PanelLink
+                      href={link.href}
+                      icon={PROJECT_FLAGSHIP_ICON}
+                      key={link.id}
+                      label={projectLinkLabel(link, activeCampusId)}
+                      onNavigate={onNavigate}
+                    />
+                  ))}
+                </div>
+              )}
               <div>
                 <p className={HEADING_CLASS}>{t("events")}</p>
                 {PROJECT_LINKS.map((link) => (

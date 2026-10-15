@@ -65,6 +65,11 @@ export const CampusProvider = ({ children }: { children: React.ReactNode }) => {
             if (current && response.some((campus) => campus.$id === current)) {
               return current;
             }
+            // A visitor who chose "all campuses" keeps that choice across
+            // reloads; only a visitor with no choice yet gets a default.
+            if (window.localStorage.getItem(STORAGE_KEY) === "all") {
+              return null;
+            }
             return response[0]?.$id ?? null;
           });
         }

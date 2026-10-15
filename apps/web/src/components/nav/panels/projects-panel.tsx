@@ -1,6 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useCampus } from "@/components/context/campus";
+import {
+  projectLinkLabel,
+  visibleProjectLinks,
+} from "@/lib/project-unit-links";
 import type { NavFeatured, NavProjectLink } from "@/lib/types/nav";
 import { FeaturedProjectCard } from "../featured-project-card";
 import { PanelLink } from "../mega-panel";
@@ -23,6 +28,8 @@ export function ProjectsPanel({
 }: ProjectsPanelProps) {
   const t = useTranslations("common.navigation");
   const tProjects = useTranslations("projects.featured");
+  const { activeCampusId } = useCampus();
+  const campusLinks = visibleProjectLinks(projectLinks, activeCampusId);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
@@ -42,17 +49,30 @@ export function ProjectsPanel({
                 />
               </li>
             ))}
-            {projectLinks.map((link) => (
-              <li key={link.id}>
-                <PanelLink
-                  href={link.href}
-                  icon={PROJECT_FLAGSHIP_ICON}
-                  label={link.label}
-                  onNavigate={onNavigate}
-                />
-              </li>
-            ))}
           </ul>
+          {campusLinks.length > 0 && (
+            <>
+              <h3 className="mt-6 mb-2 font-semibold text-white/50 text-xs uppercase tracking-wider">
+                {t(
+                  activeCampusId
+                    ? "columns.campusProjects"
+                    : "columns.moreProjects"
+                )}
+              </h3>
+              <ul className="space-y-0.5">
+                {campusLinks.map((link) => (
+                  <li key={link.id}>
+                    <PanelLink
+                      href={link.href}
+                      icon={PROJECT_FLAGSHIP_ICON}
+                      label={projectLinkLabel(link, activeCampusId)}
+                      onNavigate={onNavigate}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
         <div>
           <h3 className="mb-2 font-semibold text-white/50 text-xs uppercase tracking-wider">
