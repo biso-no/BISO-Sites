@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { getLocale } from "@/app/actions/locale";
 import { AnalyticsScript } from "./_components/analytics-script";
-import { inter, museoSans } from "./fonts";
+import { inter, museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
 import "@/app/styles.css";
 
@@ -27,7 +27,7 @@ export default async function RootLayout({
   return (
     // suppressHydrationWarning added here 👇
     <html
-      className={`${GeistSans.variable} ${museoSans.variable} ${inter.variable}`}
+      className={`${GeistSans.variable} ${museoSans.variable} ${museoSlab.variable} ${inter.variable}`}
       lang={locale}
       suppressHydrationWarning
     >

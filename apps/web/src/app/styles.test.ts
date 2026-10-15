@@ -51,6 +51,10 @@ describe("brand typography", () => {
     expect(surface).toContain("--font-biso-display:");
     expect(surface).toContain("var(--font-inter)");
     expect(surface).toContain("var(--font-museo)");
+    // Museo Sans is the body face with Inter behind it; Museo Slab is the
+    // display face with Museo Sans and Inter behind it.
+    expect(surface).toMatch(/--font-biso-sans:\s*var\(--font-museo\)/);
+    expect(surface).toMatch(/--font-biso-display:\s*var\(--font-museo-slab\)/);
     expect(globals).toContain("--font-sans: var(--font-biso-sans,");
     expect(globals).toContain("--font-display: var(--font-biso-display,");
     expect(globals).not.toContain("--font-display: var(--font-display)");

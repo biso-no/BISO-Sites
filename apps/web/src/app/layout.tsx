@@ -7,7 +7,7 @@ import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { BiSignInNotice } from "@/components/bi-sign-in-notice";
-import { inter, museoSans } from "./fonts";
+import { inter, museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
@@ -41,7 +41,7 @@ export default async function RootLayout({
 
   return (
     <html
-      className={`${museoSans.variable} ${inter.variable} biso-surface`}
+      className={`${museoSans.variable} ${museoSlab.variable} ${inter.variable} biso-surface`}
       lang={locale}
       suppressHydrationWarning
     >
