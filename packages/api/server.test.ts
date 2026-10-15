@@ -100,6 +100,34 @@ async function createStatusServer(status: number) {
   };
 }
 
+async function createRowServer() {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        $id: "user-1",
+        $permissions: [],
+        $sequence: 1,
+        name: "Ada",
+      })
+    );
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Expected local HTTP server address");
+  }
+  return {
+    endpoint: `http://127.0.0.1:${address.port}/v1`,
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      }),
+  };
+}
+
 describe("createSessionJwt", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -194,6 +222,40 @@ describe("server Appwrite clients", () => {
       });
     } finally {
       await slowServer.close();
+    }
+  });
+});
+
+describe("plain row results", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  // A server action that returns the row it wrote (updateProfile does) hands
+  // the result to a Client Component. The SDK's response objects carry a
+  // non-cloneable serializer property, which Next.js refuses with "Only plain
+  // objects … can be passed to Client Components". Reads were already
+  // wrapped; writes must be too.
+  test.each([
+    "createRow",
+    "updateRow",
+    "upsertRow",
+  ] as const)("%s answers with a plain, cloneable object", async (method) => {
+    const rowServer = await createRowServer();
+    try {
+      const { createAdminClient } = await loadServerModule(rowServer.endpoint);
+      const { db } = await createAdminClient();
+
+      const row = await db[method]("app", "user", "user-1", { name: "Ada" });
+
+      expect(Object.getPrototypeOf(row)).toBe(Object.prototype);
+      expect(Object.values(row).some((v) => typeof v === "function")).toBe(
+        false
+      );
+      expect(() => structuredClone(row)).not.toThrow();
+      expect(row).toMatchObject({ $id: "user-1", name: "Ada" });
+    } finally {
+      await rowServer.close();
     }
   });
 });
