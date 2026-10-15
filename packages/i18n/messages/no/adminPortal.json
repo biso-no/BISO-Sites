@@ -894,6 +894,12 @@
       "localeEn": "Engelsk",
       "inactiveLiveNotice": "Denne avdelingen er inaktiv, så den publiserte siden er ikke offentlig tilgjengelig."
     },
+    "guidance": {
+      "heading": "Godt å vite",
+      "board": "Styret hentes fra Microsoft 365: hvem som sitter i hvilket verv styres av gruppemedlemskap der, og endres av BISO IT – ikke her.",
+      "newUnits": "Nye enheter og prosjekter opprettes i 24SevenOffice. De dukker opp her etter neste synkronisering, og får da sin egen side og adresse.",
+      "projectCategory": "Sett kategorien «Prosjekt» på enheter som driver et prosjekt. Da vises de under Prosjekter i menyen på biso.no for sitt campus."
+    },
     "categories": {
       "society": "Forening",
       "academic_association": "Fagforening",
@@ -919,7 +925,7 @@
       "description": "Kategori, bilder og tekst som vises for enheten på biso.no.",
       "typeLabel": "Kategori",
       "typeNone": "Ingen kategori",
-      "typeHint": "Styrer typefilteret på /units og jobbfilteret.",
+      "typeHint": "Styrer typefilteret på /units, jobbfilteret og om enheten vises under Prosjekter i menyen for sitt campus.",
       "logoLabel": "Logo",
       "logoHint": "Kvadratisk logo. Lagres som Appwrite-fil-ID fordi kolonnen bare rommer 100 tegn.",
       "heroLabel": "Toppbilde",

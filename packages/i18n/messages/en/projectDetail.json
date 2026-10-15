@@ -68,6 +68,13 @@
     "subtitle": "Details are updated continuously and may change.",
     "ticket": "Tickets"
   },
+  "campuses": {
+    "title": "The teams behind the project",
+    "subtitle": "Each campus runs its own team, with its own page, programme and events.",
+    "upcoming": "Coming up",
+    "noEvents": "No upcoming events published yet.",
+    "visit": "Go to {name}"
+  },
   "overview": {
     "title": "At a glance",
     "dates": "Dates",

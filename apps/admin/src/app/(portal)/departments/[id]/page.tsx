@@ -8,6 +8,7 @@ import { requireNavAccess } from "@/lib/authorization";
 import { getDepartmentWithPage } from "../../_actions/departments";
 import { listCampuses } from "../../_actions/lookups";
 import { PageHeader } from "../../_components/page-header";
+import { UnitGuidanceCard } from "./_components/unit-guidance-card";
 import {
   UnitPageCard,
   type UnitPageLocaleStatus,
@@ -166,6 +167,15 @@ export default async function DepartmentDetailPage({
         localeStatuses={toLocaleStatuses(page, (key) => t(key))}
         pageId={page?.$id ?? null}
         slugConflict={slugConflict}
+      />
+
+      <UnitGuidanceCard
+        labels={{
+          board: t("guidance.board"),
+          heading: t("guidance.heading"),
+          newUnits: t("guidance.newUnits"),
+          projectCategory: t("guidance.projectCategory"),
+        }}
       />
 
       <UnitProfileCard

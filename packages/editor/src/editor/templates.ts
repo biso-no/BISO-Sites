@@ -1,0 +1,126 @@
+// Starting layouts for pages the admin app creates on a unit's behalf. Pure:
+// no React, no store — safe to import from a server action.
+//
+// A template is a list of ordinary blocks, so the board edits or removes
+// anything it does not want. The point is that a new page is never a blank
+// canvas: a project board opening its page for the first time sees where the
+// programme, the gallery and the company pitch go.
+
+import { emptyBlock } from "./operations";
+import type { Block, EditorLocale } from "./types";
+
+export type UnitPageKind = "project" | "unit";
+
+export interface UnitPageTemplateInput {
+  /** "Oslo", "National"… or null when the campus is unknown. */
+  campusLabel: string | null;
+  kind: UnitPageKind;
+  locale: EditorLocale;
+  /** Display name, campus prefix already stripped. */
+  name: string;
+}
+
+interface TemplateCopy {
+  about: (name: string) => string;
+  aboutBody: string;
+  companies: string;
+  companiesBody: string;
+  contact: string;
+  cta: string;
+  events: string;
+  subtitle: string;
+}
+
+const COPY: Record<EditorLocale, TemplateCopy> = {
+  en: {
+    about: (name) => `About ${name}`,
+    aboutBody:
+      "Tell new students what you do, when it happens and why they should join.",
+    companies: "For companies",
+    companiesBody:
+      "Describe how a company can take part, sponsor or meet students here.",
+    contact: "Get in touch",
+    cta: "Get involved",
+    events: "Upcoming events",
+    subtitle: "One sentence about what you do.",
+  },
+  no: {
+    about: (name) => `Om ${name}`,
+    aboutBody:
+      "Fortell nye studenter hva dere gjør, når det skjer og hvorfor de bør bli med.",
+    companies: "For bedrifter",
+    companiesBody:
+      "Beskriv hvordan en bedrift kan delta, sponse eller møte studenter her.",
+    contact: "Ta kontakt",
+    cta: "Bli med",
+    events: "Kommende arrangementer",
+    subtitle: "Én setning om hva dere gjør.",
+  },
+};
+
+function hero(input: UnitPageTemplateInput, copy: TemplateCopy): Block {
+  const block = emptyBlock("hero");
+  if (block.type !== "hero") {
+    return block;
+  }
+  block.eyebrow = input.campusLabel ? `BISO ${input.campusLabel}` : "BISO";
+  block.title = input.name;
+  block.subtitle = copy.subtitle;
+  block.ctaLabel = copy.cta;
+  block.ctaUrl = "#";
+  return block;
+}
+
+function text(heading: string, paragraph: string): Block {
+  const block = emptyBlock("text");
+  if (block.type === "text") {
+    block.body = [
+      { text: heading, type: "h" },
+      { text: paragraph, type: "p" },
+    ];
+  }
+  return block;
+}
+
+function events(copy: TemplateCopy): Block {
+  const block = emptyBlock("events");
+  if (block.type === "events") {
+    block.heading = copy.events;
+    // "auto" binds the feed to the page's department, so the block shows the
+    // unit's own published events without the board setting anything up.
+    block.source = "auto";
+    block.items = [];
+  }
+  return block;
+}
+
+function contact(input: UnitPageTemplateInput, copy: TemplateCopy): Block {
+  const block = emptyBlock("contact");
+  if (block.type === "contact") {
+    block.heading = copy.contact;
+    block.email = "";
+    block.instagram = "";
+    block.address = input.campusLabel ?? "";
+    block.hours = "";
+  }
+  return block;
+}
+
+/** The blocks a freshly created unit page starts with. */
+export function unitPageTemplate(input: UnitPageTemplateInput): Block[] {
+  const copy = COPY[input.locale];
+  const about = text(copy.about(input.name), copy.aboutBody);
+
+  if (input.kind === "unit") {
+    return [hero(input, copy), about, events(copy), contact(input, copy)];
+  }
+
+  return [
+    hero(input, copy),
+    about,
+    events(copy),
+    emptyBlock("gallery"),
+    text(copy.companies, copy.companiesBody),
+    contact(input, copy),
+  ];
+}
