@@ -51,6 +51,8 @@ describe("brand typography", () => {
     expect(surface).toContain("--font-biso-display:");
     expect(surface).toContain("var(--font-inter)");
     expect(surface).toContain("var(--font-museo)");
+    // Museo Slab is the display face; Museo Sans and Inter are its fallbacks.
+    expect(surface).toMatch(/--font-biso-display:\s*var\(--font-museo-slab\)/);
     expect(globals).toContain("--font-sans: var(--font-biso-sans,");
     expect(globals).toContain("--font-display: var(--font-biso-display,");
     expect(globals).not.toContain("--font-display: var(--font-display)");

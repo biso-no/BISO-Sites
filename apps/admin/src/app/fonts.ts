@@ -5,6 +5,18 @@ import localFont from "next/font/local";
 export const museoSans = localFont({
   src: "../../public/museo_sans_300.otf",
   variable: "--font-museo",
+  weight: "300",
+  style: "normal",
+  display: "swap",
+});
+
+/** The display face, so canvas headings match the live site. */
+export const museoSlab = localFont({
+  src: [
+    { path: "../../public/Museo_Slab_700.otf", weight: "700", style: "normal" },
+    { path: "../../public/Museo_Slab_900.otf", weight: "900", style: "normal" },
+  ],
+  variable: "--font-museo-slab",
   display: "swap",
 });
 

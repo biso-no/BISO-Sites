@@ -11,6 +11,18 @@
 @source "../../../../packages/editor/src/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
+/*
+ * Brand typography: headings in the display face (Museo Slab), body in the
+ * sans. Scoped to the surface so nothing outside it changes. Museo Slab ships
+ * in 700 and 900, so `font-bold` headings get the real cut and `font-black`
+ * the heavy one.
+ */
+@layer base {
+  .biso-surface :is(h1, h2, h3) {
+    font-family: var(--font-display);
+  }
+}
+
 /* App-specific utilities */
 @layer utilities {
   .bg-grid-primary {

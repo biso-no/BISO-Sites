@@ -1,20 +1,18 @@
 import { getLocale } from "@/app/actions/locale";
 import "@/app/styles.css";
-import { AccountLinkSessionCleanup } from "@/components/account-link-session-cleanup";
-import { AnalyticsTracker } from "@/components/analytics-tracker";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
-import Script from "next/script";
 import { Suspense } from "react";
-import { inter, museoSans } from "./fonts";
+import { AccountLinkSessionCleanup } from "@/components/account-link-session-cleanup";
+import { AnalyticsTracker } from "@/components/analytics-tracker";
+import { inter, museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
   description: "BISO Apps",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no"
-  ),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no"),
   icons: {
     icon: [{ url: "/favico.png" }, { url: "/favico.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
@@ -43,7 +41,7 @@ export default async function RootLayout({
 
   return (
     <html
-      className={`${museoSans.variable} ${inter.variable} biso-surface`}
+      className={`${museoSans.variable} ${museoSlab.variable} ${inter.variable} biso-surface`}
       lang={locale}
       suppressHydrationWarning
     >
