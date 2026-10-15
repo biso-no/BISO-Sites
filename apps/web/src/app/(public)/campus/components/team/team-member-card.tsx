@@ -50,7 +50,7 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
           alt={member.name || ""}
           src={member.imageUrl || undefined}
         />
-        <AvatarFallback className="bg-linear-to-br from-brand-gradient-from to-brand-gradient-to text-2xl text-white">
+        <AvatarFallback className="bg-brand-muted text-2xl text-brand-dark">
           {member.name ? getInitials(member.name) : "??"}
         </AvatarFallback>
       </Avatar>

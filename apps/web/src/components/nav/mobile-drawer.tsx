@@ -17,7 +17,6 @@ import { SelectCampus } from "@/components/select-campus";
 import { signOut } from "@/lib/server";
 import type { NavAccount, NavProjectLink } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
-import { CampusLink } from "./campus-link";
 import { PanelLink } from "./mega-panel";
 import {
   ABOUT_COLUMNS,
@@ -25,7 +24,6 @@ import {
   PROJECT_FLAGSHIP_KEYS,
   PROJECT_LINKS,
   STANDALONE_LINKS,
-  STUDENT_CAMPUS_HEADING_KEY,
   STUDENT_COLUMNS,
 } from "./nav-config";
 
@@ -80,16 +78,6 @@ export function MobileDrawer({
                   ))}
                 </div>
               ))}
-              <div>
-                <p className={HEADING_CLASS}>{t(STUDENT_CAMPUS_HEADING_KEY)}</p>
-                {campuses.map((campus) => (
-                  <CampusLink
-                    campus={campus}
-                    key={campus.$id}
-                    onNavigate={onNavigate}
-                  />
-                ))}
-              </div>
             </div>
           </AccordionContent>
         </AccordionItem>

@@ -15,7 +15,7 @@ import {
 } from "@repo/ui/components/ui/carousel";
 import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import Autoplay from "embla-carousel-autoplay";
-import { Calendar, ChevronDown, Sparkles, Users } from "lucide-react";
+import { Calendar, ChevronDown, Users } from "lucide-react";
 import { motion } from "motion/react";
 import Image, { type ImageProps } from "next/image";
 import Link from "next/link";
@@ -75,6 +75,8 @@ function startsOnSelectableText(event: MouseEvent | TouchEvent): boolean {
 }
 
 interface HeroCarouselProps {
+  /** The selected campus, for the headline; null when none is selected. */
+  campusName: string | null;
   featuredContent: HeroCarouselItem[];
 }
 
@@ -149,10 +151,9 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
           transition={{ duration: 0.8, delay: 0.2 }}
         >
           <div className="mb-8 flex flex-wrap items-center justify-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-md">
-              <Sparkles className="h-5 w-5 text-brand" />
-              <span className="text-white/90">{badgeLabel}</span>
-            </div>
+            <span className="font-medium text-sm text-white/80 uppercase tracking-wide">
+              {badgeLabel}
+            </span>
             {isEvent && item.member_only && (
               <MembersOnlyBadge className="rounded-full px-4 py-2 text-sm" />
             )}
@@ -195,7 +196,10 @@ function HeroCarouselSlide({ index, item, t }: HeroCarouselSlideProps) {
   );
 }
 
-export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
+export function HeroCarousel({
+  campusName,
+  featuredContent,
+}: HeroCarouselProps) {
   const t = useTranslations("home.hero");
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -242,15 +246,9 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
             initial={{ opacity: 0, y: 30 }}
             transition={{ duration: 0.8 }}
           >
-            <motion.div
-              animate={{ scale: 1 }}
-              className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-background/10 px-6 py-3 backdrop-blur-md"
-              initial={{ scale: 0 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            >
-              <Sparkles className="h-5 w-5 text-brand" />
-              <span className="text-white/90">BI Student Organisation</span>
-            </motion.div>
+            <p className="mb-6 font-medium text-sm text-white/80 uppercase tracking-wide">
+              BI Student Organisation
+            </p>
 
             <motion.h1
               animate={{ opacity: 1, y: 0 }}
@@ -258,20 +256,20 @@ export function HeroCarousel({ featuredContent }: HeroCarouselProps) {
               initial={{ opacity: 0, y: 20 }}
               transition={{ delay: 0.3, duration: 0.8 }}
             >
-              {t("badge")}
-              <br />
-              <span className="bg-linear-to-r from-brand-gradient-from via-cyan-300 to-blue-300 bg-clip-text text-transparent">
-                {t("badgeElevated")}
-              </span>
+              {campusName
+                ? t("titleActive", { campusName })
+                : t("titleDefault")}
             </motion.h1>
 
             <motion.p
               animate={{ opacity: 1 }}
-              className="mx-auto mb-10 max-w-2xl text-white/80"
+              className="mx-auto mb-10 max-w-2xl text-lg text-white/80"
               initial={{ opacity: 0 }}
               transition={{ delay: 0.5, duration: 0.8 }}
             >
-              {t("subtitleDefault")}
+              {campusName
+                ? t("subtitleActive", { campusName })
+                : t("subtitleDefault")}
             </motion.p>
 
             <motion.div

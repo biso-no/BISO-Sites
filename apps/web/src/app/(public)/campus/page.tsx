@@ -5,7 +5,6 @@ import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
-import { listNews } from "@/app/actions/news";
 import { getUserPreferences } from "@/lib/auth-utils";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { CampusPageClient } from "./components/campus-page-client";
@@ -47,11 +46,10 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
   // Scoping happens server-side: the list actions run `campusScopeIds`
   // internally, so the selected campus plus National content is fetched (and
   // the limits apply *after* scoping instead of truncating before it).
-  const [eventsResult, jobs, news, units, campusData, campusMetadata] =
+  const [eventsResult, jobs, units, campusData, campusMetadata] =
     await Promise.all([
       listEvents({ campus, status: "published", locale, upcomingOnly: true }),
       listJobs({ campus, locale }),
-      listNews({ campus, status: "published", limit: 6, locale }),
       // The unit directory is the same cached read /units and /students use —
       // `departments` filtered by the public visibility rule, never
       // `content_translations`. An outage here must not take the campus page
@@ -69,7 +67,6 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
       events={events}
       jobs={jobs.rows}
       locale={locale}
-      news={news}
       serverCampusId={activeCampusId}
       units={units}
     />
