@@ -322,6 +322,26 @@ async function lockOutPriorHolders(
   );
 }
 
+/**
+ * Whether a BI sign-in should mark the account's email verified.
+ *
+ * When Appwrite merges a BI sign-in into an account that already held the
+ * same bi.no email, it attaches the identity but leaves the account's own
+ * verified flag as it was. BI has just vouched for that address, so the flag
+ * should say so; it is only set when the identity's address IS the account's.
+ */
+export function shouldMarkEmailVerified(
+  user: { email: string | null | undefined; emailVerification: boolean },
+  identity: { providerEmail?: string | null }
+): boolean {
+  if (user.emailVerification) {
+    return false;
+  }
+  const accountEmail = user.email?.trim().toLowerCase();
+  const identityEmail = identity.providerEmail?.trim().toLowerCase();
+  return Boolean(accountEmail) && accountEmail === identityEmail;
+}
+
 export async function syncBiStudentIdentityAfterSignIn(
   userId: string,
   options: { currentSessionId?: string } = {}
@@ -350,6 +370,13 @@ export async function syncBiStudentIdentityAfterSignIn(
   const biIdentity = subject.identities.find(
     (identity) => identity.provider.toLowerCase() === "oidc"
   );
+  if (biIdentity && shouldMarkEmailVerified(user, biIdentity)) {
+    try {
+      await users.updateEmailVerification({ emailVerification: true, userId });
+    } catch (error) {
+      console.error("[BI Identity] Could not mark the email verified:", error);
+    }
+  }
   if (
     options.currentSessionId &&
     biIdentity?.$createdAt &&
