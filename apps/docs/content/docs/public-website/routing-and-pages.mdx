@@ -28,7 +28,7 @@ These are reachable without logging in. Anonymous visitors get an Appwrite sessi
 | `/` | Homepage. |
 | `/[...slug]` | Catch-all for editor-built pages — anything an editor publishes in the admin app shows up here. |
 
-The catch-all calls `getPage(slug, locale)` from [`@repo/api/page-builder`](/docs/packages/api), filters for documents that are both **published** and have visibility set to **public**, and then renders them with the block editor's read-only render entry point. Anything else 404s. This is how pages like `/about/history` or `/business-hotspot` exist as URLs without anyone touching the codebase — they're rows in Appwrite.
+The catch-all calls `getPage(slug, locale)` from [`@repo/api/page-builder`](/docs/packages/api), filters for documents that are both **published** and have visibility set to **public**, and then renders them with the block editor's read-only render entry point. Anything else 404s. This is how a unit page or a campaign page can exist as a URL without anyone touching the codebase — they're rows in Appwrite.
 
 For the admin side of this, see [Admin Handbook → Pages](/docs/admin-handbook/pages).
 
@@ -74,16 +74,11 @@ See [Campus and departments](/docs/public-website/campus-and-departments).
 
 | Route | Purpose |
 |-------|---------|
-| `/about` | About hub. |
-| `/about/what-is-biso` | Mission overview. |
-| `/about/history` | Org history. |
-| `/about/politics` | Political stance. |
-| `/about/study-quality` | Study quality work. |
-| `/about/operations` | How BISO operates. |
+| `/about` | Om BISO on one page: what BISO is, what we do, study quality, politics, history, operations, alumni and SAIH, documents. Each section has an anchor (`#historie`, `#politikk`, …). |
+| `/about/what-is-biso`, `/about/history`, `/about/politics`, `/about/study-quality`, `/about/operations`, `/about/alumni`, `/about/saih` | Redirect to the matching section of `/about`. |
+| `/about/bylaws` | Redirects to `/documents?category=campus-bylaws`. |
+| `/about/drugs-policy` | Drugs and alcohol policy (moved from `/policies/drugs-policy`, which redirects). |
 | `/about/academics-contact` | Academics contact info. |
-| `/about/alumni` | Alumni network. |
-| `/about/bylaws` | Bylaws. |
-| `/about/saih` | SAIH partnership. |
 | `/business`, `/business-hotspot` | Business audience landing. |
 | `/bi-fondet` | BI-fondet info. |
 | `/press` | Press contact. |
@@ -91,7 +86,6 @@ See [Campus and departments](/docs/public-website/campus-and-departments).
 | `/safety` | Safety and reporting. |
 | `/contact` | Contact form. |
 | `/privacy`, `/terms` | Legal. |
-| `/policies/drugs-policy` | Drugs policy. |
 | `/documents` | Public document library. |
 
 Most of these are editor-built; the route exists in the codebase as a thin server component that fetches the corresponding page document.

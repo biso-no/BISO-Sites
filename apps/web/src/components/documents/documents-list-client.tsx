@@ -11,34 +11,44 @@ import {
   Shield,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { PublicDocument } from "@/lib/documents";
 import { DocumentRow } from "./document-row";
 
 const CATEGORIES = [
-  { key: "all", label: "All Documents", icon: null },
-  { key: "national-statutes", label: "National Statutes", icon: Scale },
-  { key: "campus-bylaws", label: "Campus Bylaws", icon: Building2 },
-  { key: "code-of-conduct", label: "Code of Conduct", icon: Shield },
-  {
-    key: "business-regulations",
-    label: "Business Regulations",
-    icon: Briefcase,
-  },
-  {
-    key: "communication-guidelines",
-    label: "Communication Guidelines",
-    icon: MessageSquare,
-  },
+  { key: "all", icon: null },
+  { key: "national-statutes", icon: Scale },
+  { key: "campus-bylaws", icon: Building2 },
+  { key: "code-of-conduct", icon: Shield },
+  { key: "business-regulations", icon: Briefcase },
+  { key: "communication-guidelines", icon: MessageSquare },
 ];
 
 interface DocumentsListClientProps {
   documents: PublicDocument[];
+  /** From `?category=`, so links can open one shelf. */
+  initialCategory: string;
 }
 
-export function DocumentsListClient({ documents }: DocumentsListClientProps) {
+export function DocumentsListClient({
+  documents,
+  initialCategory,
+}: DocumentsListClientProps) {
+  const t = useTranslations("documents");
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
+
+  const selectCategory = (key: string) => {
+    setActiveCategory(key);
+    // Shareable address without a server round trip: the list is already
+    // loaded, so a router navigation here would only refetch the same page.
+    window.history.replaceState(
+      null,
+      "",
+      key === "all" ? "/documents" : `/documents?category=${key}`
+    );
+  };
 
   const filtered = documents.filter((doc) => {
     const matchesCategory =
@@ -74,7 +84,7 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "rgba(61,169,224,0.60)";
             }}
-            placeholder="Search documents…"
+            placeholder={t("search")}
             style={{
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(61,169,224,0.25)",
@@ -101,7 +111,7 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
               <motion.button
                 className="flex items-center gap-2 rounded-xl px-5 py-2.5 font-medium text-sm transition-all duration-300"
                 key={cat.key}
-                onClick={() => setActiveCategory(cat.key)}
+                onClick={() => selectCategory(cat.key)}
                 style={
                   isActive
                     ? {
@@ -120,7 +130,7 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
                 whileTap={{ scale: 0.95 }}
               >
                 {Icon && <Icon className="h-4 w-4" />}
-                {cat.label}
+                {t(`categories.${cat.key}`)}
               </motion.button>
             );
           })}
@@ -141,7 +151,7 @@ export function DocumentsListClient({ documents }: DocumentsListClientProps) {
               style={{ color: "rgba(255,255,255,0.15)" }}
             />
             <p className="text-lg" style={{ color: "rgba(255,255,255,0.40)" }}>
-              No documents found matching your search.
+              {t("empty")}
             </p>
           </div>
         ) : (

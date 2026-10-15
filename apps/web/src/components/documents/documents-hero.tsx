@@ -2,8 +2,10 @@
 
 import { FileText } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 
 export function DocumentsHero() {
+  const t = useTranslations("documents.hero");
   return (
     <div className="relative overflow-hidden py-24 text-center">
       {/* Floating orbs */}
@@ -52,20 +54,19 @@ export function DocumentsHero() {
         >
           <FileText className="h-4 w-4" style={{ color: "#3DA9E0" }} />
           <span className="text-sm tracking-wide" style={{ color: "#3DA9E0" }}>
-            OFFICIAL DOCUMENTATION
+            {t("eyebrow").toUpperCase()}
           </span>
         </div>
 
         <h1 className="mb-6 font-bold text-5xl text-white tracking-tight md:text-6xl">
-          BISO Documents
+          {t("title")}
         </h1>
 
         <p
           className="text-xl leading-relaxed"
           style={{ color: "rgba(255,255,255,0.70)" }}
         >
-          Access important organizational documents, bylaws, and guidelines that
-          govern the BI Student Organisation across all campuses.
+          {t("subtitle")}
         </p>
       </motion.div>
     </div>

@@ -6,8 +6,6 @@ import {
   Calendar,
   CreditCard,
   FileText,
-  Flame,
-  Gavel,
   Gift,
   GraduationCap,
   History,
@@ -15,7 +13,6 @@ import {
   Landmark,
   type LucideIcon,
   Mail,
-  Megaphone,
   Newspaper,
   PiggyBank,
   Receipt,
@@ -24,6 +21,7 @@ import {
   Sparkles,
   UserRound,
   Users,
+  Wine,
 } from "lucide-react";
 
 export type PanelId = "students" | "projects" | "about";
@@ -157,7 +155,7 @@ export const STUDENT_COLUMNS: NavColumnConfig[] = [
       {
         id: "study-quality",
         labelKey: "links.studyQuality",
-        href: "/about/study-quality",
+        href: "/about#studiekvalitet",
         icon: GraduationCap,
       },
       {
@@ -205,20 +203,20 @@ export const ABOUT_COLUMNS: NavColumnConfig[] = [
       {
         id: "history",
         labelKey: "links.history",
-        href: "/about/history",
+        href: "/about#historie",
         icon: History,
       },
       {
         id: "operations",
         labelKey: "links.operations",
-        href: "/about/operations",
+        href: "/about#drift",
         icon: Building2,
       },
       {
         id: "alumni",
         labelKey: "links.alumni",
-        href: "/about/alumni",
-        icon: Users,
+        href: "/about#alumni",
+        icon: GraduationCap,
       },
     ],
   },
@@ -229,14 +227,8 @@ export const ABOUT_COLUMNS: NavColumnConfig[] = [
       {
         id: "politics",
         labelKey: "links.politics",
-        href: "/about/politics",
+        href: "/about#politikk",
         icon: Landmark,
-      },
-      {
-        id: "bylaws",
-        labelKey: "links.bylaws",
-        href: "/about/bylaws",
-        icon: Gavel,
       },
       {
         id: "documents",
@@ -247,8 +239,8 @@ export const ABOUT_COLUMNS: NavColumnConfig[] = [
       {
         id: "drugs-policy",
         labelKey: "links.drugsPolicy",
-        href: "/policies/drugs-policy",
-        icon: ShieldAlert,
+        href: "/about/drugs-policy",
+        icon: Wine,
       },
       {
         id: "safety",
@@ -269,22 +261,10 @@ export const ABOUT_COLUMNS: NavColumnConfig[] = [
         icon: Mail,
       },
       {
-        id: "business",
-        labelKey: "links.business",
-        href: "/business",
-        icon: Briefcase,
-      },
-      {
-        id: "business-hotspot",
-        labelKey: "links.businessHotspot",
-        href: "/business-hotspot",
-        icon: Flame,
-      },
-      {
         id: "press",
         labelKey: "links.press",
         href: "/press",
-        icon: Megaphone,
+        icon: Newspaper,
       },
     ],
   },

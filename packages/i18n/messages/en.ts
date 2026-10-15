@@ -14,6 +14,7 @@ import businessHotspot from "./en/businessHotspot.json";
 import common from "./en/common.json";
 import contact from "./en/contact.json";
 import cookies from "./en/cookies.json";
+import documents from "./en/documents.json";
 import events from "./en/events.json";
 import fundingProgram from "./en/fundingProgram.json";
 import home from "./en/home.json";
@@ -43,6 +44,7 @@ export default {
   businessHotspot,
   common,
   cookies,
+  documents,
   contact,
   events,
   home,

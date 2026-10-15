@@ -10,7 +10,7 @@ export function Footer() {
   const commonT = useTranslations("common");
   const footerLinks = {
     About: [
-      { label: t("about.ourStory"), href: "/about/history" },
+      { label: t("about.ourStory"), href: "/about#historie" },
       { label: t("about.contact"), href: "/contact" },
     ],
     Students: [

@@ -162,11 +162,34 @@ describe("document ownership persistence", () => {
         department: "dept-1",
         // SharePoint metadata is not rewritten by metadata updates.
         title: "Vedtekter",
-      })
+      }),
+      expect.any(Array)
     );
     const payload = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
     expect(payload).not.toHaveProperty("sharepoint_item_id");
     expect(payload).not.toHaveProperty("sharepoint_drive_id");
+  });
+
+  test("publishing through a metadata edit opens the row to the public, and back", async () => {
+    mockDocumentRow({
+      $id: "doc-1",
+      ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
+      campus: { $id: "campus-oslo" },
+      department: { $id: "dept-1" },
+      status: "draft",
+      version_number: 1,
+    });
+
+    await updateDocumentMetadata("doc-1", {
+      ...departmentValues,
+      status: "published",
+    });
+    expect(db.updateRow.mock.calls[0]?.[4]).toEqual(['read("any")']);
+
+    db.updateRow.mockClear();
+    await updateDocumentMetadata("doc-1", departmentValues);
+    expect(db.updateRow.mock.calls[0]?.[4]).toEqual([]);
   });
 
   test("department author cannot move a document to another department", async () => {
