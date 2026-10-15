@@ -15,6 +15,7 @@ import {
   stageMeta,
   type WorkspaceCandidate,
 } from "../view-model";
+import { draftEmailLabel, draftsEmailByDefault } from "./email-draft-default";
 import { ModalShell } from "./modal-shell";
 
 type EmailStage =
@@ -70,7 +71,9 @@ export function AdvanceStageModal({
   const [target, setTarget] = useState<JobApplicationsStatus | null>(
     forward ?? null
   );
-  const [includeEmail, setIncludeEmail] = useState(true);
+  const [includeEmail, setIncludeEmail] = useState(() =>
+    draftsEmailByDefault(forward ?? null)
+  );
   const [email, setEmail] = useState<{ subject: string; body: string } | null>(
     null
   );
@@ -156,8 +159,8 @@ export function AdvanceStageModal({
         <>
           <span className="m-foot-note">
             {includeEmail
-              ? "AI drafted the email — copy it into your mail client to send."
-              : "No email will be drafted."}
+              ? "AI drafted the email — copy it into your mail client to send. Nothing is sent by the system."
+              : "No email will be drafted, and nothing is sent to the candidate."}
           </span>
           <div className="m-foot-actions">
             <button className="btn-ghost" onClick={onClose} type="button">
@@ -196,7 +199,10 @@ export function AdvanceStageModal({
             <button
               className={cx("adv-target", target === status && "on")}
               key={status}
-              onClick={() => setTarget(status)}
+              onClick={() => {
+                setTarget(status);
+                setIncludeEmail(draftsEmailByDefault(status));
+              }}
               type="button"
             >
               {stageMeta(STAGE_OF_STATUS[status]).label}
@@ -211,7 +217,7 @@ export function AdvanceStageModal({
           onChange={(event) => setIncludeEmail(event.target.checked)}
           type="checkbox"
         />
-        Draft a candidate notification email
+        {draftEmailLabel(target)}
       </label>
 
       {includeEmail ? (
