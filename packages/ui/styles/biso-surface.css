@@ -9,8 +9,8 @@
 
 :where(.biso-surface) {
   --font-biso-sans:
-    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
+    var(--font-museo), var(--font-inter), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-biso-display:
     var(--font-museo-slab), var(--font-museo), var(--font-inter), ui-sans-serif,
     system-ui, sans-serif;

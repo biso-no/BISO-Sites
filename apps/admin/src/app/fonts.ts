@@ -3,10 +3,11 @@ import localFont from "next/font/local";
 
 /** Public-site typefaces, loaded for the page-editor canvas only. */
 export const museoSans = localFont({
-  src: "../../public/museo_sans_300.otf",
+  src: [
+    { path: "../../public/museo_sans_300.otf", weight: "300", style: "normal" },
+    { path: "../../public/Museo_Sans_700.otf", weight: "700", style: "normal" },
+  ],
   variable: "--font-museo",
-  weight: "300",
-  style: "normal",
   display: "swap",
 });
 
