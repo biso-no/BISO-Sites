@@ -20,7 +20,7 @@ export function CtaInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["card", "banner", "gradient"] as const).map((v) => (
             <button
-              className={`pe-variant${(block.variant ?? "card") === v ? "on" : ""}`}
+              className={`pe-variant ${(block.variant ?? "card") === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"

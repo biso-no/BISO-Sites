@@ -6,7 +6,6 @@ import type {
   DepartmentBoard,
   Events,
   Jobs,
-  News,
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
@@ -17,11 +16,6 @@ import { campusScopeIds } from "@/lib/campus-scope";
 import type { PublicUnit } from "@/lib/data/units";
 import { CampusHero } from "./campus-hero";
 import { CampusTabs } from "./campus-tabs";
-import { FocusAreas } from "./overview/focus-areas";
-import { JobPostings } from "./overview/job-postings";
-import { LatestNews } from "./overview/latest-news";
-import { UnitsGrid } from "./overview/units-grid";
-import { UpcomingEvents } from "./overview/upcoming-events";
 import { PartnersTab } from "./partners/partners-tab";
 import { StudentsTab } from "./students/students-tab";
 import { TeamTab } from "./team/team-tab";
@@ -32,7 +26,6 @@ interface CampusPageClientProps {
   events: Events[];
   jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
-  news: News[];
   /**
    * Campus the server fetched with (`null` = every campus). The switcher can
    * change the selection client-side, so we compare against this and push a
@@ -45,7 +38,6 @@ interface CampusPageClientProps {
 export function CampusPageClient({
   events,
   jobs,
-  news,
   units,
   campusData,
   campusMetadata,
@@ -136,15 +128,6 @@ export function CampusPageClient({
     );
   }, [jobs, campusScope]);
 
-  const campusSpecificNews = useMemo(() => {
-    if (!campusScope) {
-      return news;
-    }
-    return news.filter(
-      (item) => !!item.campus_id && campusScope.includes(item.campus_id)
-    );
-  }, [news, campusScope]);
-
   const campusSpecificUnits = useMemo(() => {
     if (!activeCampusId) {
       return units;
@@ -190,24 +173,6 @@ export function CampusPageClient({
       <div className="mx-auto max-w-7xl px-4">
         <CampusTabs
           content={{
-            overview: (
-              <div className="space-y-12 py-12">
-                <FocusAreas
-                  campusMetadata={activeCampusMetadata}
-                  locale={locale}
-                />
-                <UpcomingEvents events={campusSpecificEvents} locale={locale} />
-                <div className="grid gap-8 lg:grid-cols-2">
-                  <LatestNews locale={locale} news={campusSpecificNews} />
-                  <JobPostings jobs={campusSpecificJobs} locale={locale} />
-                </div>
-                <UnitsGrid
-                  activeCampusId={activeCampusId}
-                  locale={locale}
-                  units={campusSpecificUnits}
-                />
-              </div>
-            ),
             students: (
               <div className="py-12">
                 <StudentsTab campusData={activeCampusData} locale={locale} />

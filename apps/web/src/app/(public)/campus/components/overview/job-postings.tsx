@@ -35,7 +35,7 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
         <h2 className="font-bold text-2xl text-foreground md:text-3xl">
           {locale === "en" ? "Open Positions" : "Ledige verv"}
         </h2>
-        <Button className="text-brand" size="sm" variant="ghost">
+        <Button asChild className="text-brand" size="sm" variant="ghost">
           <Link className="flex items-center" href="/jobs">
             {locale === "en" ? "View All" : "Se alle"}
             <ChevronRight className="ml-1 h-4 w-4" />
@@ -62,9 +62,9 @@ export function JobPostings({ jobs, locale }: JobPostingsProps) {
             >
               <Link href={`/jobs/${job.slug || job.$id}`}>
                 <Card className="group cursor-pointer border-0 p-6 shadow-md transition-all hover:border-l-4 hover:border-l-brand hover:shadow-lg">
-                  <h4 className="mb-2 text-foreground transition-colors group-hover:text-brand">
+                  <h3 className="mb-2 text-foreground transition-colors group-hover:text-brand">
                     {translation?.title ?? "Untitled"}
-                  </h4>
+                  </h3>
                   <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
                     {job.department?.Name ? (
                       <div className="flex items-center gap-2">

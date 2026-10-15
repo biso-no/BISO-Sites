@@ -1,0 +1,24 @@
+{
+  "hero": {
+    "eyebrow": "Official documents",
+    "title": "BISO documents",
+    "subtitle": "Statutes, bylaws, guidelines and policies that govern the BI Student Organisation across every campus."
+  },
+  "search": "Search documents…",
+  "empty": "No documents match your search.",
+  "categories": {
+    "all": "All documents",
+    "national-statutes": "National statutes",
+    "campus-bylaws": "Campus bylaws",
+    "code-of-conduct": "Code of conduct",
+    "business-regulations": "Business regulations",
+    "communication-guidelines": "Communication guidelines"
+  },
+  "row": {
+    "campus": "Campus",
+    "updated": "Updated {date}",
+    "view": "Open",
+    "download": "Download",
+    "previousVersions": "Previous versions ({count})"
+  }
+}

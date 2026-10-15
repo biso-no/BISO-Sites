@@ -27,13 +27,13 @@ const internalLinks = [
   },
   {
     key: "studyQuality",
-    href: "/about/study-quality",
+    href: "/about#studiekvalitet",
     icon: GraduationCap,
     gradient: "from-rose-500 to-red-500",
   },
   {
     key: "politics",
-    href: "/about/politics",
+    href: "/about#politikk",
     icon: Landmark,
     gradient: "from-purple-500 to-pink-500",
   },
@@ -45,13 +45,13 @@ const internalLinks = [
   },
   {
     key: "bylaws",
-    href: "/about/bylaws",
+    href: "/documents?category=campus-bylaws",
     icon: Gavel,
     gradient: "from-amber-500 to-orange-500",
   },
   {
     key: "alumni",
-    href: "/about/alumni",
+    href: "/about#alumni",
     icon: Users,
     gradient: "from-cyan-500 to-blue-500",
   },

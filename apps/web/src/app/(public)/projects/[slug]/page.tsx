@@ -1,4 +1,5 @@
 import type { Locale } from "@repo/i18n/config";
+import { isProjectSlug } from "@repo/shared/utils/project-units";
 import { Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -11,6 +12,9 @@ import {
   ProjectDetailBody,
   type ProjectDetailVM,
 } from "@/components/projects/project-detail-body";
+import { cachedPageEventsFeed } from "@/lib/data/public-content";
+import { cachedPublicUnits } from "@/lib/data/units";
+import { buildProjectHub } from "@/lib/project-hub";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 export async function generateMetadata({
@@ -20,9 +24,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const event = await getLargeEventBySlug(slug);
-    const title = event?.name ?? slug;
-    const description = event?.description ?? undefined;
+    const [event, t] = await Promise.all([
+      getLargeEventBySlug(slug),
+      getTranslations("projectDetail"),
+    ]);
+    // Only a known project may borrow message copy: the bundle also holds
+    // UI strings ("campuses", "schedule"…) that would otherwise title a page.
+    const hasCopy = isProjectSlug(slug) && t.has(`${slug}.title`);
+    const title = event?.name ?? (hasCopy ? t(`${slug}.title`) : slug);
+    const description =
+      event?.description ??
+      (hasCopy && t.has(`${slug}.description`)
+        ? t(`${slug}.description`)
+        : undefined);
     return {
       title: `${title} | BISO`,
       description: description?.slice(0, 160),
@@ -92,16 +106,22 @@ export default async function ProjectDetailPage({
   const t = await getTranslations("projectDetail");
   const tNav = await getTranslations("common.navigation");
 
-  const [event, campusMetadata] = await Promise.all([
+  // The unit directory is the shared cache entry /units reads; a failure
+  // costs this render its campus cards, never the page.
+  const [event, campusMetadata, units] = await Promise.all([
     getLargeEventBySlug(slug),
     getCampusMetadata(),
+    cachedPublicUnits(locale).catch(() => []),
   ]);
 
   // `t.raw()` answers a missing key with the key path itself, which is truthy,
   // so presence has to be checked explicitly or an unknown slug never 404s.
-  const fallbackConfig = t.has(slug)
-    ? (t.raw(slug) as Record<string, unknown>)
-    : undefined;
+  // The bundle also holds UI strings ("campuses", "schedule", "overview"),
+  // so only a known project slug may read copy from it.
+  const fallbackConfig =
+    isProjectSlug(slug) && t.has(slug)
+      ? (t.raw(slug) as Record<string, unknown>)
+      : undefined;
 
   if (!(event || fallbackConfig)) {
     return notFound();
@@ -183,7 +203,14 @@ export default async function ProjectDetailPage({
     };
   });
 
+  const campuses = isProjectSlug(slug)
+    ? await buildProjectHub(units, slug, (unitId) =>
+        cachedPageEventsFeed(unitId, locale)
+      )
+    : [];
+
   const vm: ProjectDetailVM = {
+    campuses,
     ctaLabel,
     ctaUrl,
     description,

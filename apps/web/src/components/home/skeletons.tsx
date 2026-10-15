@@ -8,45 +8,43 @@ export function HeroSkeleton() {
   );
 }
 
-export function AboutSkeleton() {
+export function OverviewSkeleton() {
   return (
-    <section className="bg-linear-to-b from-section to-background py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Stats */}
-        <div className="mb-20 grid grid-cols-2 gap-6 md:grid-cols-4">
-          {[...new Array(4)].map((_, i) => (
-            <div className="rounded-lg border p-6" key={i}>
-              <Skeleton className="mx-auto mb-4 h-12 w-12 rounded-full" />
-              <Skeleton className="mx-auto mb-1 h-8 w-20" />
-              <Skeleton className="mx-auto h-4 w-16" />
-            </div>
-          ))}
-        </div>
-
-        {/* Main Content */}
-        <div className="mb-20 grid items-center gap-16 md:grid-cols-2">
-          <div>
-            <Skeleton className="mb-6 h-10 w-32" />
-            <Skeleton className="mb-4 h-12 w-full" />
-            <Skeleton className="mb-6 h-12 w-3/4" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="mb-6 h-4 w-3/4" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
+    <section className="border-border/60 border-y py-16">
+      <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[3fr_2fr] lg:px-8">
+        <div>
+          <Skeleton className="mb-3 h-4 w-32" />
+          <Skeleton className="mb-6 h-10 w-3/4" />
+          <Skeleton className="mb-2 h-4 w-full" />
+          <Skeleton className="mb-2 h-4 w-full" />
+          <Skeleton className="mb-8 h-4 w-2/3" />
+          <div className="grid grid-cols-3 gap-6">
+            {[...new Array(3)].map((_, i) => (
+              <div key={i}>
+                <Skeleton className="mb-2 h-8 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
           </div>
-          <Skeleton className="aspect-square rounded-2xl" />
         </div>
+        <Skeleton className="h-64 rounded-2xl" />
+      </div>
+    </section>
+  );
+}
 
-        {/* Values */}
-        <div className="grid gap-8 md:grid-cols-3">
+export function LeadershipSkeleton() {
+  return (
+    <section className="py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <Skeleton className="mb-2 h-10 w-64" />
+        <Skeleton className="mb-10 h-4 w-96 max-w-full" />
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[...new Array(3)].map((_, i) => (
-            <div className="rounded-lg border p-8" key={i}>
-              <Skeleton className="mb-6 h-16 w-16 rounded-2xl" />
-              <Skeleton className="mb-3 h-6 w-3/4" />
-              <Skeleton className="mb-2 h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
+            <div className="rounded-lg border p-6" key={i}>
+              <Skeleton className="mx-auto mb-4 h-32 w-32 rounded-full" />
+              <Skeleton className="mx-auto mb-2 h-5 w-40" />
+              <Skeleton className="mx-auto h-4 w-24" />
             </div>
           ))}
         </div>

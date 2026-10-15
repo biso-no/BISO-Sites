@@ -16,12 +16,56 @@
  */
 export function resolvePageSaveCampusId(params: {
   authorCampusId: string | null;
+  /** A unit page: its URL encodes the campus, so it cannot move. */
+  campusLocked?: boolean;
+  /** The campus chosen in the editor; undefined when the document has none. */
+  chosenCampusId?: string | null;
   isUpdate: boolean;
   persistedCampusId: string | null;
 }): string | null {
-  const { authorCampusId, isUpdate, persistedCampusId } = params;
+  const {
+    authorCampusId,
+    campusLocked,
+    chosenCampusId,
+    isUpdate,
+    persistedCampusId,
+  } = params;
+  if (isUpdate && persistedCampusId && campusLocked) {
+    return persistedCampusId;
+  }
+  if (chosenCampusId !== undefined) {
+    return chosenCampusId;
+  }
   if (isUpdate && persistedCampusId) {
     return persistedCampusId;
   }
   return authorCampusId;
+}
+
+interface CampusAuthCtx {
+  activeCampusId?: string;
+  managedCampusIds: string[];
+  resolvedCampusIds: string[];
+  roles: string[];
+}
+
+/**
+ * The campus an editor is allowed to put a page on, given what they chose.
+ * A global admin may choose any campus or none (a national page); a campus
+ * admin only one they manage; everyone else gets their own campus whatever
+ * the browser sent.
+ */
+export function requestedPageCampusId(
+  chosen: string | undefined,
+  ctx: CampusAuthCtx
+): string | null {
+  if (ctx.roles.includes("globaladmin")) {
+    return chosen || null;
+  }
+  if (ctx.managedCampusIds.length > 0) {
+    return chosen && ctx.managedCampusIds.includes(chosen)
+      ? chosen
+      : ctx.managedCampusIds[0];
+  }
+  return ctx.resolvedCampusIds[0] ?? null;
 }

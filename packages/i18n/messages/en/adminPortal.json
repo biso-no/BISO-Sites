@@ -894,6 +894,12 @@
       "localeEn": "English",
       "inactiveLiveNotice": "This department is inactive, so its published page is not publicly reachable."
     },
+    "guidance": {
+      "heading": "Good to know",
+      "board": "The board comes from Microsoft 365: who holds which role is decided by group membership there and changed by BISO IT, not here.",
+      "newUnits": "New units and projects are created in 24SevenOffice. They appear here after the next sync and get their own page and address then.",
+      "projectCategory": "Set the “Project” category on units that run a project. They are then listed under Projects in the biso.no menu for their campus."
+    },
     "categories": {
       "society": "Society",
       "academic_association": "Academic association",
@@ -919,7 +925,7 @@
       "description": "The category, imagery and copy shown for this unit on biso.no.",
       "typeLabel": "Category",
       "typeNone": "No category",
-      "typeHint": "Drives the type filter on /units and the jobs category filter.",
+      "typeHint": "Drives the type filter on /units, the job filter and whether the unit is listed under Projects in the menu for its campus.",
       "logoLabel": "Logo",
       "logoHint": "Square logo. Stored as an Appwrite file id because the column only holds 100 characters.",
       "heroLabel": "Hero image",

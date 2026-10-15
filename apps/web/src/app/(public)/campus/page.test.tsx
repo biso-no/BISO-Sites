@@ -8,7 +8,6 @@ vi.mock("@/app/actions/events", () => ({ listEvents }));
 vi.mock("@/app/actions/jobs", () => ({
   listJobs: vi.fn(async () => ({ rows: [] })),
 }));
-vi.mock("@/app/actions/news", () => ({ listNews: vi.fn(async () => []) }));
 vi.mock("@/app/actions/locale", () => ({
   getLocale: vi.fn(async () => "no"),
 }));

@@ -49,7 +49,20 @@ export function HeroRender({ block, edit, onPatch }: Props) {
   );
 
   const art = (
-    <div aria-hidden="true" className="pg-hero-art">
+    <div
+      aria-hidden={block.imageSrc ? undefined : "true"}
+      className="pg-hero-art"
+    >
+      {block.imageSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt={block.imageAlt ?? ""}
+          className="pg-hero-art__img"
+          height={500}
+          src={block.imageSrc}
+          width={400}
+        />
+      ) : null}
       <svg
         aria-hidden="true"
         focusable="false"
@@ -76,20 +89,38 @@ export function HeroRender({ block, edit, onPatch }: Props) {
         </defs>
         <rect fill="url(#hg)" height="500" width="400" />
       </svg>
-      <div
-        className="pg-hero-art__crest"
-        style={{ fontFamily: "var(--serif)" }}
-      >
-        {block.eyebrow.slice(0, 1)}
-      </div>
-      {block.imageAlt && (
-        <div className="pg-hero-art__photo-tag">{block.imageAlt}</div>
+      {block.imageSrc ? null : (
+        <div
+          className="pg-hero-art__crest"
+          style={{ fontFamily: "var(--serif)" }}
+        >
+          {block.eyebrow.slice(0, 1)}
+        </div>
       )}
     </div>
   );
 
+  // The full-bleed variant puts the photo behind the copy, under the same
+  // brand overlay the site's own page heroes use, so text stays readable on
+  // any picture.
+  const backdrop =
+    variant === "full" && block.imageSrc ? (
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt={block.imageAlt ?? ""}
+          className="pg-hero__bg"
+          height={480}
+          src={block.imageSrc}
+          width={1440}
+        />
+        <div aria-hidden="true" className="pg-hero__bg-overlay" />
+      </>
+    ) : null;
+
   return (
     <section className={`pg-hero pg-hero--${variant} pg-block`}>
+      {backdrop}
       {content}
       {variant === "split" && art}
     </section>

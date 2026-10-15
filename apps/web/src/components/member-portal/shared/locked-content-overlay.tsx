@@ -7,8 +7,8 @@ import {
   Check,
   CreditCard,
   Gift,
-  LinkIcon,
   Lock,
+  LogIn,
   Shield,
   Sparkles,
   Zap,
@@ -18,11 +18,12 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { startBiAccountLink } from "@/lib/account-link-client";
+import { clearBrowserAppwriteSession } from "@/lib/bi-sign-in-client";
 import {
   getMembershipShopHref,
   type MembershipDuration,
 } from "@/lib/member-portal-utils";
+import { switchToBiSignIn } from "@/lib/server";
 
 interface LockedContentOverlayProps {
   children: React.ReactNode;
@@ -56,19 +57,16 @@ export function LockedContentOverlay({
   const [isLinking, startLinkTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
 
-  const handleLinkBIEmail = () => {
-    // The previous `window.location.href = "/api/auth/oauth/bi"` pointed at a
-    // route handler that does not — and cannot — exist, which is why this
-    // button 404'd. `startBiAccountLink` signs the browser in to Appwrite
-    // first, then starts the OAuth navigation; see that helper for why both
-    // steps are required for a *link* rather than a new signup.
+  // This account has no BI identity. There is no linking: the student signs
+  // out of it and in with BI, and the member portal opens for that account.
+  const handleSignInWithBi = () => {
     startLinkTransition(async () => {
       try {
-        await startBiAccountLink("/member");
-        // Browser will redirect; no-op here
+        await clearBrowserAppwriteSession();
+        await switchToBiSignIn("/member");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        toast.error(`Linking failed: ${message}`);
+        toast.error(message);
       }
     });
   };
@@ -223,9 +221,9 @@ export function LockedContentOverlay({
                   <Button
                     className="h-12 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-base text-white shadow-brand/30 shadow-lg hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90"
                     disabled={isLinking}
-                    onClick={handleLinkBIEmail}
+                    onClick={handleSignInWithBi}
                   >
-                    <LinkIcon className="mr-2 h-5 w-5" />
+                    <LogIn className="mr-2 h-5 w-5" />
                     {isLinking
                       ? t("locked.processing")
                       : t("states.noBIEmail.linkEmail")}

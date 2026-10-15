@@ -9,10 +9,10 @@
       "signIn": "Logg inn med e-post"
     },
     "noBIEmail": {
-      "title": "Koble til din BI-student e-post",
-      "description": "For å verifisere medlemskapet ditt og få tilgang til fordeler, vennligst koble til din BI-student e-postkonto. Dette lar oss sikkert validere student-IDen din.",
+      "title": "Logg inn med BI-studentkontoen din",
+      "description": "Medlemskapet følger studentnummeret ditt. Logg inn med BI-kontoen din, så bekrefter vi student-ID-en din automatisk.",
       "securityNote": "Du vil bli omdirigert til BIs sikre autentiseringssystem. Påloggingsdetaljene dine lagres aldri av BISO.",
-      "linkEmail": "Koble til BI-student e-post"
+      "linkEmail": "Logg inn med BI"
     },
     "notMember": {
       "title": "Bli BISO-medlem",

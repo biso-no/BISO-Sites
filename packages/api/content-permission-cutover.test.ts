@@ -32,6 +32,7 @@ describe("cutoverContentPermissions", () => {
       "campus_benefits",
       "announcements",
       "documents",
+      "document_versions",
       "content_translations",
       "page_translations",
     ]);

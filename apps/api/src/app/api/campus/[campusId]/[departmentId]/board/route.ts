@@ -205,7 +205,9 @@ export async function GET(
         }
         try {
           const photoStream = await graphClient
-            .api(`/users/${member.email}/photo/$value`)
+            // A sized photo: the full-size one is several hundred KB per
+            // person and travels as a data: URI to every visitor.
+            .api(`/users/${member.email}/photos/240x240/$value`)
             .responseType(ResponseType.ARRAYBUFFER)
             .get();
 

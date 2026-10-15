@@ -41,6 +41,7 @@ import {
   PREVIOUS_VERSIONS_FOLDER,
   resolveFolderPath,
 } from "@/lib/documents/sharepoint-mapping";
+import { buildContentRowPermissions } from "@/lib/utils";
 import {
   assertPublishAccess,
   assertWriteAccess,
@@ -253,20 +254,27 @@ async function recordVersion(
   input: {
     documentId: string;
     file: SharePointFile;
+    status: string;
     userId: string;
     version: DocumentVersion;
   }
 ): Promise<void> {
-  await db.createRow("app", "document_versions", ID.unique(), {
-    document_id: input.documentId,
-    file_name: input.file.name,
-    file_size: input.file.size,
-    sharepoint_drive_id: input.file.driveId,
-    sharepoint_item_id: input.file.itemId,
-    uploaded_by: input.userId,
-    version_major: input.version.major,
-    version_minor: input.version.minor,
-  });
+  await db.createRow(
+    "app",
+    "document_versions",
+    ID.unique(),
+    {
+      document_id: input.documentId,
+      file_name: input.file.name,
+      file_size: input.file.size,
+      sharepoint_drive_id: input.file.driveId,
+      sharepoint_item_id: input.file.itemId,
+      uploaded_by: input.userId,
+      version_major: input.version.major,
+      version_minor: input.version.minor,
+    },
+    documentRowPermissions(input.status)
+  );
 }
 
 function errorMessage(error: unknown): string {
@@ -448,6 +456,40 @@ async function checkCreateAccess(
  * fails, the documents row is removed again so a retry passes the collision
  * guard and overwrites the same SharePoint paths.
  */
+/**
+ * Row permissions follow status: published documents (and their version
+ * history) carry public read, drafts carry none. Today the table still
+ * grants read to everyone, so this only takes effect once the content
+ * permission cutover removes that grant; without it, the cutover would hide
+ * every published document, and drafts would stay readable by anyone.
+ * Existing rows are stamped by `backfill:document-permissions` in @repo/api.
+ */
+function documentRowPermissions(status: string): string[] {
+  return buildContentRowPermissions({ status });
+}
+
+/** Keep a document's version rows as visible as the document itself. */
+async function syncVersionPermissions(
+  db: AdminDb,
+  documentId: string,
+  status: string
+): Promise<void> {
+  const versions = await db.listRows<DocumentVersions>(
+    "app",
+    "document_versions",
+    [Query.equal("document_id", documentId), Query.limit(200)]
+  );
+  for (const version of versions.rows) {
+    await db.updateRow(
+      "app",
+      "document_versions",
+      version.$id,
+      {},
+      documentRowPermissions(status)
+    );
+  }
+}
+
 async function persistNewDocument(
   db: AdminDb,
   input: {
@@ -461,7 +503,13 @@ async function persistNewDocument(
   try {
     // A generated id: upsert takes the id in the URL, where Appwrite rejects
     // the literal "unique()" placeholder that create accepts.
-    const doc = await db.upsertRow("app", "documents", ID.unique(), input.row);
+    const doc = await db.upsertRow(
+      "app",
+      "documents",
+      ID.unique(),
+      input.row,
+      documentRowPermissions(String(input.row.status))
+    );
     documentId = doc.$id;
   } catch (error) {
     console.error(`${LOG_PREFIX} documents row insert failed:`, error);
@@ -471,6 +519,7 @@ async function persistNewDocument(
     await recordVersion(db, {
       documentId,
       file: input.archived,
+      status: String(input.row.status),
       userId: input.userId,
       version: input.version,
     });
@@ -680,18 +729,27 @@ export async function updateDocumentMetadata(
     return { error: PATH_LOCKED_ERROR };
   }
 
-  await db.updateRow("app", "documents", id, {
-    title: next.title,
-    description: next.description ?? null,
-    category: next.category as DocumentsCategory,
-    scope: next.scope as DocumentsScope,
-    campus: next.campus_id ?? null,
-    campus_id: next.campus_id ?? null,
-    department: next.department_id ?? null,
-    language: next.language,
-    status: next.status as DocumentsStatus,
-    updated_by: ctx.userId,
-  });
+  await db.updateRow(
+    "app",
+    "documents",
+    id,
+    {
+      title: next.title,
+      description: next.description ?? null,
+      category: next.category as DocumentsCategory,
+      scope: next.scope as DocumentsScope,
+      campus: next.campus_id ?? null,
+      campus_id: next.campus_id ?? null,
+      department: next.department_id ?? null,
+      language: next.language,
+      status: next.status as DocumentsStatus,
+      updated_by: ctx.userId,
+    },
+    documentRowPermissions(next.status)
+  );
+  if (next.status !== doc.status) {
+    await syncVersionPermissions(db, id, next.status);
+  }
 
   await logAuditEvent(ctx, "document.update", {
     resourceId: id,
@@ -806,17 +864,24 @@ export async function uploadNewVersion(
       await recordVersion(db, {
         documentId: id,
         file: published.archived,
+        status: doc.status,
         userId: ctx.userId,
         version,
       });
     }
-    await db.updateRow("app", "documents", id, {
-      version: versionLabel,
-      version_number: version.major,
-      file_size: published.current.size,
-      updated_by: ctx.userId,
-      ...(publicUrl === null ? {} : { sharepoint_web_url: publicUrl }),
-    });
+    await db.updateRow(
+      "app",
+      "documents",
+      id,
+      {
+        version: versionLabel,
+        version_number: version.major,
+        file_size: published.current.size,
+        updated_by: ctx.userId,
+        ...(publicUrl === null ? {} : { sharepoint_web_url: publicUrl }),
+      },
+      documentRowPermissions(doc.status)
+    );
   } catch (error) {
     console.error(
       `${LOG_PREFIX} ${VERSION_ACTION} database write failed for ${id}:`,

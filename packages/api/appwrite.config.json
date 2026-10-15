@@ -2076,6 +2076,15 @@
                     "encrypt": false
                 },
                 {
+                    "key": "cover_letter_file_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 100,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
                     "key": "cover_letter",
                     "type": "mediumtext",
                     "required": false,

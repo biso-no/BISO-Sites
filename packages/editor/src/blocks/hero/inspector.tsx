@@ -5,6 +5,7 @@ import {
   InspRow,
   InspSection,
 } from "@/components/editor-shell/inspector/insp-parts";
+import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
 import type { HeroBlock, PageDoc } from "@/editor/types";
 
 interface Props {
@@ -20,7 +21,7 @@ export function HeroInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["split", "centered", "full"] as const).map((v) => (
             <button
-              className={`pe-variant${block.variant === v ? "on" : ""}`}
+              className={`pe-variant ${block.variant === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"
@@ -68,14 +69,32 @@ export function HeroInspector({ block, onPatch }: Props) {
         </InspRow>
       </InspSection>
 
-      <InspSection label="Art panel">
-        <InspRow label="Image caption">
-          <input
-            onChange={(e) => onPatch("imageAlt", e.target.value)}
-            placeholder="Photo credit or label"
-            value={block.imageAlt ?? ""}
-          />
-        </InspRow>
+      <InspSection label="Image">
+        <MediaPicker
+          accept="image/*"
+          onClear={() => {
+            onPatch("imageSrc", undefined);
+            onPatch("imageFileId", undefined);
+          }}
+          onPicked={(fileId, url) => {
+            onPatch("imageFileId", fileId);
+            onPatch("imageSrc", url);
+          }}
+          onUrl={(url) => {
+            onPatch("imageSrc", url);
+            onPatch("imageFileId", undefined);
+          }}
+          src={block.imageSrc}
+        />
+        {block.imageSrc ? (
+          <InspRow label="Alt text">
+            <input
+              onChange={(e) => onPatch("imageAlt", e.target.value)}
+              placeholder="What the photo shows"
+              value={block.imageAlt ?? ""}
+            />
+          </InspRow>
+        ) : null}
       </InspSection>
     </>
   );

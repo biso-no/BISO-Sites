@@ -34,7 +34,7 @@ export function FeatureGridInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["bordered", "cards", "minimal"] as const).map((v) => (
             <button
-              className={`pe-variant${variant === v ? "on" : ""}`}
+              className={`pe-variant ${variant === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"

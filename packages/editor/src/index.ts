@@ -22,6 +22,7 @@ export { useEditorStore } from "./editor/store";
 export type {
   Block,
   BlockType,
+  EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,

@@ -70,9 +70,10 @@
     },
     "columns": {
       "membership": "Medlemskap",
-      "campus": "Campus",
       "resources": "Verv & ressurser",
       "flagships": "Flaggskip",
+      "campusProjects": "På ditt campus",
+      "moreProjects": "Flere prosjekter",
       "organisation": "Organisasjon",
       "policy": "Policy & juridisk",
       "contact": "Kontakt"

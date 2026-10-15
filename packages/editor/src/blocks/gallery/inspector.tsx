@@ -4,7 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import type { PatchFn } from "@/blocks/types";
 import { InspSection } from "@/components/editor-shell/inspector/insp-parts";
 import { useEditorCallbacks } from "@/editor/callbacks";
-import type { GalleryBlock, GalleryImage } from "@/editor/types";
+import type { GalleryBlock } from "@/editor/types";
+import { uploadGalleryFiles } from "./upload";
 
 interface Props {
   block: GalleryBlock;
@@ -16,6 +17,7 @@ export function GalleryInspector({ block, onPatch }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const images = block.images ?? [];
 
@@ -36,15 +38,13 @@ export function GalleryInspector({ block, onPatch }: Props) {
     if (!files.length) {
       return;
     }
+    setUploadError(null);
     startTransition(async () => {
-      const added: GalleryImage[] = [];
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append("file", file);
-        const { fileId, url } = await uploadFile(fd);
-        added.push({ fileId, src: url });
+      const { added, error } = await uploadGalleryFiles(files, uploadFile);
+      if (added.length > 0) {
+        onPatch("images", [...images, ...added]);
       }
-      onPatch("images", [...images, ...added]);
+      setUploadError(error);
     });
     e.target.value = "";
   }
@@ -54,6 +54,11 @@ export function GalleryInspector({ block, onPatch }: Props) {
       {images.length === 0 && (
         <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0 }}>
           No images yet.
+        </p>
+      )}
+      {uploadError && (
+        <p role="alert" style={{ fontSize: 12, color: "#b42318", margin: 0 }}>
+          {uploadError}
         </p>
       )}
       {images.map((img, i) => (

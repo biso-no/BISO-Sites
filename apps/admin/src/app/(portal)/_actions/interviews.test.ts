@@ -57,8 +57,9 @@ mock.module("@/lib/recruitment-booking", () => ({
   })),
 }));
 
-mock.module("@/lib/recruitment-scheduling", () => ({
-  proposeSlotsForPanel: mock(async () => ({ available: true, slots: [] })),
+mock.module("@repo/connectors/azure/recruitment-scheduling", () => ({
+  createSchedulingGraphClient: mock(() => null),
+  panelBusyIntervals: mock(async () => ({ busy: [], complete: true })),
   scheduleInterviewOnGraph: mock(async () => ({})),
 }));
 
@@ -201,7 +202,14 @@ describe("recruitment interview actions", () => {
       application_id: "application-1",
       duration_minutes: 30,
       expires_in_days: 7,
-      panel_user_ids: ["panel-1"],
+      panel: [
+        {
+          display_name: "Panel One",
+          email: "panel@biso.no",
+          is_lead: true,
+          user_id: "panel-1",
+        },
+      ],
       window_from: "2026-07-01T09:00:00.000Z",
       window_to: "2026-07-01T17:00:00.000Z",
     });

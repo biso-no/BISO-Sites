@@ -88,6 +88,7 @@ export interface CandidateScorecardSummary {
 export interface WorkspaceCandidate {
   appliedAt: string;
   coverLetter: string | null;
+  coverLetterFileId: string | null;
   currentRole: string | null;
   days: number;
   dimensions: RecruitmentDimensionScore[];

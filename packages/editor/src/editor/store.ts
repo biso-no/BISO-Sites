@@ -77,6 +77,8 @@ interface EditorState {
   setMode: (mode: EditorMode) => void;
   setProp: (id: string, path: string, value: unknown) => void;
   setSaving: (state: SavingState) => void;
+  /** Mirror a publish/unpublish. Not an edit, so it never enters history. */
+  setStatus: (status: PageMeta["status"]) => void;
   setVariant: (id: string, variant: string) => void;
   setViewport: (viewport: EditorViewport) => void;
 
@@ -196,6 +198,11 @@ export const useEditorStore = create<EditorState>()(
         set((s) => {
           pushHistory(s);
           opSetMeta(s.doc, key, value);
+        }),
+
+      setStatus: (status) =>
+        set((s) => {
+          s.doc.meta.status = status;
         }),
 
       setDoc: (doc) =>

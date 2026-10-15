@@ -5,103 +5,121 @@ import { createSessionClient } from "@repo/api/server";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiClient } from "./api-client";
+import { BI_LOGIN_FAILED_PARAM, BI_LOGIN_FAILED_VALUE } from "./bi-login";
 import {
   expiredSessionCookieOptions,
   LEGACY_SESSION_COOKIE,
   SESSION_COOKIE,
 } from "./cookie-prefs";
+import { safeRedirectPath } from "./utils";
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-async function _signInWithAzure() {
-  const { account } = await createSessionClient();
+const BI_LOGIN_SCOPES = ["openid", "email", "profile"];
 
-  const origin = (await headers()).get("origin");
-
-  // Get the redirectTo parameter from the URL if it exists
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
-  );
-  const redirectTo = url.searchParams.get("redirectTo");
-
-  // Include the redirectTo parameter in the success URL
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
+/**
+ * The success and failure legs every OAuth sign-in shares.
+ *
+ * `redirectTo` is read off the login page's own URL (the referer) so a visitor
+ * bounced to `/auth/login?redirectTo=/membership/join` lands back there once
+ * `/auth/oauth` has turned the token into a session.
+ */
+async function oauthLegs(
+  failureQuery: string,
+  explicitRedirectTo?: string
+): Promise<{
+  failure: string;
+  success: string;
+}> {
+  const requestHeaders = await headers();
+  const origin = requestHeaders.get("origin");
+  const url = new URL(requestHeaders.get("referer") || `${origin}/auth/login`);
+  const redirectTo = explicitRedirectTo ?? url.searchParams.get("redirectTo");
+  const encoded = redirectTo ? encodeURIComponent(redirectTo) : null;
+  const success = encoded
+    ? `${origin}/auth/oauth?redirectTo=${encoded}`
     : `${origin}/auth/oauth`;
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Microsoft,
-    successUrl,
-    `${origin}/auth/login`
-  );
-
-  return redirect(redirectUrl);
+  const failure = encoded
+    ? `${origin}/auth/login?${failureQuery}&redirectTo=${encoded}`
+    : `${origin}/auth/login?${failureQuery}`;
+  return { failure, success };
 }
 
-export async function signInWithGoogle() {
-  const { account } = await createSessionClient();
-  const origin = (await headers()).get("origin");
-
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
-  );
-  const redirectTo = url.searchParams.get("redirectTo");
-
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
-    : `${origin}/auth/oauth`;
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Google,
-    successUrl,
-    `${origin}/auth/login`
-  );
-
-  return redirect(redirectUrl);
+/**
+ * Sign in with a BI student account, through Appwrite's OIDC provider.
+ *
+ * This is the student path, and the only one for students: Appwrite signs in
+ * the account holding the BI identity, else the account holding the same
+ * bi.no email (attaching the identity), else creates one. `/auth/oauth`
+ * writes the student number on the way back. The email merge relies on the
+ * provider's userinfo endpoint being this project's `/api/auth/bi-userinfo`
+ * in `apps/api`; with Microsoft's own endpoint Appwrite refuses the merge
+ * and the login page reports it (`readBiLoginFailure`).
+ */
+export async function signInWithBiStudent() {
+  return redirect(await mintBiSignInUrl());
 }
 
-export async function signInWithFacebook() {
+/**
+ * The Appwrite URL that starts a BI sign-in. Only a URL: Appwrite decides at
+ * its callback whether to sign in or attach the identity, on the cookie the
+ * browser presents there, so the session that minted this plays no part.
+ */
+async function mintBiSignInUrl(redirectTo?: string): Promise<string> {
   const { account } = await createSessionClient();
-  const origin = (await headers()).get("origin");
-
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
+  const { failure, success } = await oauthLegs(
+    `${BI_LOGIN_FAILED_PARAM}=${BI_LOGIN_FAILED_VALUE}`,
+    redirectTo
   );
-  const redirectTo = url.searchParams.get("redirectTo");
-
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
-    : `${origin}/auth/oauth`;
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Facebook,
-    successUrl,
-    `${origin}/auth/login`
+  return await account.createOAuth2Token(
+    OAuthProvider.Oidc,
+    success,
+    failure,
+    BI_LOGIN_SCOPES
   );
-
-  return redirect(redirectUrl);
 }
 
-export async function signInWithApple() {
-  const { account } = await createSessionClient();
-  const origin = (await headers()).get("origin");
+/**
+ * For someone signed in with an account that has no BI identity (created
+ * with a login link, or an old social sign-in): sign that account out and
+ * start the BI sign-in, landing on `returnTo` afterwards.
+ *
+ * There is no "link BI to this account" any more. Membership follows the
+ * student number in Finago, so the BI account is the right one to be in;
+ * the old account keeps its history and still opens with a login link.
+ */
+export async function switchToBiSignIn(returnTo: string) {
+  // Mint first: if Appwrite is unreachable the caller shows an error and the
+  // visitor is still signed in, instead of being silently signed out.
+  const url = await mintBiSignInUrl(safeRedirectPath(returnTo));
+  await endCurrentSession();
+  return redirect(url);
+}
 
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
-  );
-  const redirectTo = url.searchParams.get("redirectTo");
+/**
+ * Revokes the current session and expires its cookies, without redirecting.
+ *
+ * Best-effort revocation: an already-expired or server-side-deleted session
+ * makes this 401. That must not stop us from clearing the cookies, or the
+ * browser keeps replaying a dead session and the user can never sign out.
+ */
+async function endCurrentSession(): Promise<void> {
+  try {
+    const { account } = await createSessionClient();
+    await account.deleteSession("current");
+  } catch (error) {
+    console.error("[signOut] session revocation failed:", error);
+  }
 
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
-    : `${origin}/auth/oauth`;
+  // Expire with the original name/domain/path — a bare `cookies().delete()`
+  // omits the `Domain` attribute and silently no-ops against the `.biso.no`
+  // cookie in production. The legacy name is cleared too; sessions issued
+  // before the 2026-08-13 rename are still read via the fallback.
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, "", expiredSessionCookieOptions());
+  cookieStore.set(LEGACY_SESSION_COOKIE, "", expiredSessionCookieOptions());
 
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Apple,
-    successUrl,
-    `${origin}/auth/login`
-  );
-
-  return redirect(redirectUrl);
+  apiClient.clearCache();
 }
 
 /**
@@ -144,26 +162,7 @@ export async function signInWithMagicLink(
 }
 
 export async function signOut() {
-  // Best-effort revocation: an already-expired or server-side-deleted session
-  // makes this 401. That must not stop us from clearing the cookies, or the
-  // browser keeps replaying a dead session and the user can never sign out.
-  try {
-    const { account } = await createSessionClient();
-    await account.deleteSession("current");
-  } catch (error) {
-    console.error("[signOut] session revocation failed:", error);
-  }
-
-  // Expire with the original name/domain/path — a bare `cookies().delete()`
-  // omits the `Domain` attribute and silently no-ops against the `.biso.no`
-  // cookie in production. The legacy name is cleared too; sessions issued
-  // before the 2026-08-13 rename are still read via the fallback.
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, "", expiredSessionCookieOptions());
-  cookieStore.set(LEGACY_SESSION_COOKIE, "", expiredSessionCookieOptions());
-
-  apiClient.clearCache();
-
+  await endCurrentSession();
   return redirect("/");
 }
 

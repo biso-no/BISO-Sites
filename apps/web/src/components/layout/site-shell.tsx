@@ -11,7 +11,7 @@ import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import { sessionNavFeatured } from "@/lib/data/nav-featured";
 import { cachedNavFeatured } from "@/lib/data/public-content";
 import { cachedPublicUnits } from "@/lib/data/units";
-import { unitProjectNavLinks } from "@/lib/project-unit-links";
+import { campusProjectNavLinks } from "@/lib/project-unit-links";
 import type { NavAccount } from "@/lib/types/nav";
 
 const EMPTY_FEATURED = { event: null, news: null, project: null };
@@ -52,12 +52,11 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
   // poisons the shared cache.
   const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
   // The unit directory is the same shared cache entry /units reads. Without it
-  // the menu simply omits the unit-run projects.
+  // the menu simply omits the campus project units.
   const [featured, units] = await Promise.all([
-    (hasSession
-      ? sessionNavFeatured(locale)
-      : cachedNavFeatured(locale)
-    ).catch(() => EMPTY_FEATURED),
+    (hasSession ? sessionNavFeatured(locale) : cachedNavFeatured(locale)).catch(
+      () => EMPTY_FEATURED
+    ),
     cachedPublicUnits(locale).catch(() => []),
   ]);
 
@@ -108,7 +107,7 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
         account={account}
         featured={featured}
         isMember={membershipStatus?.isMember ?? false}
-        projectLinks={unitProjectNavLinks(units)}
+        projectLinks={campusProjectNavLinks(units)}
       />
       <main>
         <div>{children}</div>

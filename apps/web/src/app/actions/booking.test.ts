@@ -18,7 +18,19 @@ vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db })),
 }));
 
-import { confirmBookingSlot } from "./booking";
+const graph = vi.hoisted(() => ({
+  busy: [] as { end: string; start: string }[],
+  client: {} as object | null,
+  schedule: vi.fn(),
+}));
+
+vi.mock("@repo/connectors/azure/recruitment-scheduling", () => ({
+  createSchedulingGraphClient: () => graph.client,
+  panelBusyIntervals: vi.fn(async () => ({ busy: graph.busy, complete: true })),
+  scheduleInterviewOnGraph: (...args: unknown[]) => graph.schedule(...args),
+}));
+
+import { confirmBookingSlot, getBookingContext } from "./booking";
 
 const staffPermissions = buildRecruitmentStaffRowPermissions();
 
@@ -33,10 +45,17 @@ const tokenRow = {
   created_by_user_id: "hr-user-1",
   duration_minutes: 30,
   expires_at: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
-  panel_user_ids: JSON.stringify(["panel-1"]),
+  panel_user_ids: JSON.stringify([
+    {
+      display_name: "Panel One",
+      email: "panel@biso.no",
+      is_lead: true,
+      user_id: "panel-1",
+    },
+  ]),
   token_hash: tokenHash("booking-token"),
-  window_from: "2026-07-01T09:00:00.000Z",
-  window_to: "2026-07-01T17:00:00.000Z",
+  window_from: "2027-07-01T09:00:00.000Z",
+  window_to: "2027-07-01T17:00:00.000Z",
 };
 
 function mockHappyPath({
@@ -97,6 +116,117 @@ describe("recruitment booking actions", () => {
     db.updateRow.mockResolvedValue({});
     db.incrementRowColumn.mockResolvedValue({ claim_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({ claim_lock: 0 });
+    graph.busy = [];
+    graph.client = {};
+    graph.schedule.mockReset();
+    graph.schedule.mockResolvedValue({
+      meetingUrl: "https://teams.microsoft.com/l/meetup-join/abc",
+      outlookEventId: "event-1",
+      teamsMeetingId: "meeting-1",
+      webLink: null,
+    });
+  });
+
+  it("offers only slots where the panel is free, in office hours", async () => {
+    // Slots used to be invented hourly from the window start with no
+    // calendar check, and the page then promised an invite nobody sent.
+    db.listRows.mockResolvedValue({ rows: [tokenRow], total: 1 });
+    db.getRow
+      .mockResolvedValueOnce({
+        applicant_email: "c@x.no",
+        applicant_name: "C",
+        job_id: "job-1",
+      })
+      .mockResolvedValueOnce({
+        $id: "job-1",
+        campus: { name: "Oslo" },
+        slug: "role",
+      });
+    graph.busy = [
+      { end: "2027-07-01T11:00:00.000Z", start: "2027-07-01T10:00:00.000Z" },
+    ];
+
+    const result = await getBookingContext("booking-token");
+
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
+    expect(result.data.availabilityChecked).toBe(true);
+    // Window is 09:00-17:00 UTC = 11:00-19:00 Oslo; office hours end 17:00
+    // Oslo = 15:00 UTC, so the last 30-minute slot starts 14:30 UTC.
+    expect(result.data.slots[0]).toBe("2027-07-01T09:00:00.000Z");
+    expect(result.data.slots.at(-1)).toBe("2027-07-01T14:30:00.000Z");
+    expect(result.data.slots).not.toContain("2027-07-01T10:00:00.000Z");
+    expect(result.data.slots).not.toContain("2027-07-01T10:30:00.000Z");
+  });
+
+  it("invites the candidate and the panel when a slot is confirmed", async () => {
+    mockHappyPath();
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T10:00:00.000Z"
+    );
+
+    expect(result).toEqual({
+      data: {
+        interview_id: expect.any(String),
+        invited: true,
+        starts_at: "2027-07-01T10:00:00.000Z",
+      },
+    });
+    const participants = db.createRow.mock.calls
+      .filter((call: unknown[]) => call[1] === "job_interview_participants")
+      .map((call: unknown[]) => call[3] as { email: string; role: string });
+    expect(participants.map((p) => p.email).sort()).toEqual([
+      "candidate@example.com",
+      "panel@biso.no",
+    ]);
+    expect(graph.schedule).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        candidateEmail: "candidate@example.com",
+        createTeamsMeeting: true,
+        panelEmails: ["panel@biso.no"],
+      })
+    );
+    const interviewCall = db.createRow.mock.calls.find(
+      (call: unknown[]) => call[1] === "job_interviews"
+    );
+    // The interview length comes from the token, never from the browser.
+    expect((interviewCall?.[3] as { ends_at: string }).ends_at).toBe(
+      "2027-07-01T10:30:00.000Z"
+    );
+  });
+
+  it("says so when no invite could be sent", async () => {
+    mockHappyPath();
+    graph.client = null;
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T10:00:00.000Z"
+    );
+
+    expect(result).toEqual({
+      data: {
+        interview_id: expect.any(String),
+        invited: false,
+        starts_at: "2027-07-01T10:00:00.000Z",
+      },
+    });
+  });
+
+  it("refuses a slot outside office hours even if it is inside the window", async () => {
+    mockHappyPath();
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T16:00:00.000Z" // 18:00 Oslo
+    );
+
+    expect(result).toEqual({ error: "That time is no longer available." });
+    expect(db.createRow).not.toHaveBeenCalled();
   });
 
   it("stamps candidate-booked interviews with recruitment staff permissions", async () => {
@@ -104,14 +234,14 @@ describe("recruitment booking actions", () => {
 
     const result = await confirmBookingSlot(
       "booking-token",
-      "2026-07-01T10:00:00.000Z",
-      30
+      "2027-07-01T10:00:00.000Z"
     );
 
     expect(result).toEqual({
       data: {
         interview_id: expect.any(String),
-        starts_at: "2026-07-01T10:00:00.000Z",
+        invited: true,
+        starts_at: "2027-07-01T10:00:00.000Z",
       },
     });
     const interviewCall = db.createRow.mock.calls.find(
@@ -134,8 +264,7 @@ describe("recruitment booking actions", () => {
 
     const result = await confirmBookingSlot(
       "booking-token",
-      "2026-07-01T10:00:00.000Z",
-      30
+      "2027-07-01T10:00:00.000Z"
     );
 
     expect(result).toEqual({
@@ -163,8 +292,7 @@ describe("recruitment booking actions", () => {
 
     const result = await confirmBookingSlot(
       "booking-token",
-      "2026-07-01T10:00:00.000Z",
-      30
+      "2027-07-01T10:00:00.000Z"
     );
 
     expect(result).toEqual({
@@ -180,8 +308,7 @@ describe("recruitment booking actions", () => {
 
     const result = await confirmBookingSlot(
       "booking-token",
-      "2026-07-01T10:00:00.000Z",
-      30
+      "2027-07-01T10:00:00.000Z"
     );
 
     expect(result).toEqual({

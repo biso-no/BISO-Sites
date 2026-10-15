@@ -2,7 +2,7 @@
 
 import { JobApplicationsStatus } from "@repo/api/types/appwrite";
 import { canTransitionRecruitmentApplicationStatus } from "@repo/shared/types/recruitment";
-import { LayoutGrid, List, Search, Sparkles, Star } from "lucide-react";
+import { ArrowUpDown, LayoutGrid, List, Search, Star } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { updateJobApplicationStatus } from "@/app/(portal)/_actions/jobs";
 import { useRecruitment } from "../recruitment-context";
@@ -16,6 +16,7 @@ import { AiInsights } from "./ai-insights";
 import { BulkActionBar } from "./bulk-action-bar";
 import { CandidateCard } from "./candidate-card";
 import { ListView } from "./list-view";
+import { PIPELINE_SORTS, type PipelineSortId, sortCandidates } from "./sort";
 
 const STATUS_BY_STAGE: Record<RecruitmentStageId, JobApplicationsStatus> = {
   accepted: JobApplicationsStatus.ACCEPTED,
@@ -31,7 +32,7 @@ export function Pipeline() {
   const { candidates, updateCandidate } = useRecruitment();
   const [mode, setMode] = useState<"kanban" | "list">("kanban");
   const [search, setSearch] = useState("");
-  const [sortByMatch, setSortByMatch] = useState(true);
+  const [sort, setSort] = useState<PipelineSortId>(PIPELINE_SORTS[0].id);
   const [starredOnly, setStarredOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export function Pipeline() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let rows = candidates.filter((candidate) => {
+    const rows = candidates.filter((candidate) => {
       if (starredOnly && !candidate.starred) {
         return false;
       }
@@ -54,11 +55,8 @@ export function Pipeline() {
         candidate.skills.some((skill) => skill.toLowerCase().includes(q))
       );
     });
-    if (sortByMatch) {
-      rows = [...rows].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    }
-    return rows;
-  }, [candidates, search, sortByMatch, starredOnly]);
+    return sortCandidates(rows, sort);
+  }, [candidates, search, sort, starredOnly]);
 
   const byStage = useMemo(() => {
     const map = new Map<RecruitmentStageId, WorkspaceCandidate[]>();
@@ -219,13 +217,20 @@ export function Pipeline() {
             value={search}
           />
         </div>
-        <button
-          className={cx("pl-pill", sortByMatch && "on")}
-          onClick={() => setSortByMatch((value) => !value)}
-          type="button"
-        >
-          <Sparkles size={12} /> Sort by match
-        </button>
+        <label className="pl-sort">
+          <ArrowUpDown size={12} />
+          <select
+            aria-label="Sort candidates"
+            onChange={(event) => setSort(event.target.value as PipelineSortId)}
+            value={sort}
+          >
+            {PIPELINE_SORTS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           className={cx("pl-pill", starredOnly && "on")}
           onClick={() => setStarredOnly((value) => !value)}

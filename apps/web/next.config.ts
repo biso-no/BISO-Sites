@@ -85,6 +85,13 @@ const baseConfig: NextConfig = {
   redirects() {
     return Promise.resolve([
       {
+        // The BI "link your account" page is gone; the mobile app and old
+        // emails may still open it. The join page offers the BI sign-in.
+        source: "/membership/link",
+        destination: "/membership/join",
+        permanent: true,
+      },
+      {
         source: "/bi-fondet",
         destination: "/okonomisk-stotte",
         permanent: true,

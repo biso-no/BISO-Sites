@@ -46,7 +46,12 @@ export interface HeroBlock {
   ctaUrl: string;
   eyebrow: string;
   id: string;
+  /** Alt text for `imageSrc`. Unused while there is no image. */
   imageAlt?: string;
+  /** Appwrite "media" bucket file ID behind `imageSrc`, when uploaded. */
+  imageFileId?: string;
+  /** A photo for the art panel (split) or the backdrop (full). */
+  imageSrc?: string;
   subtitle: string;
   title: string;
   type: "hero";
@@ -461,6 +466,11 @@ export type Block = (
 
 export interface PageMeta {
   accentColor: string;
+  /**
+   * Campus id the page belongs to; "" for a national page. Absent on
+   * documents saved before campus lived on the document.
+   */
+  campus?: string;
   department: string;
   description?: string;
   slug: string;
@@ -482,6 +492,13 @@ export type SavingState = "idle" | "pending" | "saved" | "error";
 // ── Host-provided data types ─────────────────────────────────────────────────
 
 export interface EditorDepartment {
+  /** Campus the department belongs to; null for rows without one. */
+  campusId: string | null;
+  id: string;
+  name: string;
+}
+
+export interface EditorCampus {
   id: string;
   name: string;
 }

@@ -16,7 +16,8 @@
 .pe-frame {
   container: pg / inline-size;
 }
-.pg-canvas-page {
+.pe-frame,
+.pg-page {
   font-family: var(--ui);
   color: var(--ink);
   background: var(--paper);
@@ -33,17 +34,18 @@
 }
 .pg-hero__eyebrow {
   margin-bottom: 14px;
-  font-size: 11px;
-  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
 }
 .pg-hero__h1 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 60px;
-  font-weight: 400;
-  line-height: 1;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.05;
   color: var(--ink);
   letter-spacing: -0.022em;
   text-wrap: balance;
@@ -54,24 +56,37 @@
 }
 .pg-hero__sub {
   max-width: 44ch;
-  margin: 18px 0 22px;
-  font-size: 16px;
-  line-height: 1.45;
-  color: var(--ink-2);
+  margin: 18px 0 26px;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-3);
 }
 .pg-hero__cta {
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  padding: 11px 18px;
-  font-size: 13.5px;
+  padding: 12px 24px;
+  font-size: 15px;
   font-weight: 500;
-  color: var(--paper);
+  color: var(--brand-foreground);
   text-decoration: none;
   cursor: pointer;
-  background: var(--ink);
+  background: linear-gradient(
+    90deg,
+    var(--brand-gradient-from),
+    var(--brand-gradient-to)
+  );
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--pg-radius-sm);
+  box-shadow: var(--pg-shadow);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.pg-hero__cta:hover,
+.pg-cta__btn:hover {
+  box-shadow: var(--pg-shadow-lg);
+  transform: translateY(-2px);
 }
 .pg-hero-art {
   position: relative;
@@ -87,11 +102,34 @@
    * the hero — this was a fixed green that ignored `--page-accent` entirely. */
   background: linear-gradient(
     135deg,
-    var(--page-accent, var(--leaf)) 0%,
-    color-mix(in oklab, var(--page-accent, var(--leaf)) 55%, #000) 100%
+    var(--page-accent, var(--brand)) 0%,
+    var(--brand-dark) 100%
   );
-  border-radius: 14px;
-  box-shadow: 0 30px 60px -30px rgba(26, 24, 20, 0.4);
+  border-radius: var(--pg-radius);
+  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.25);
+}
+/* A photo fills the art panel and the full-bleed hero when the board sets one. */
+.pg-hero-art__img,
+.pg-hero__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pg-hero__bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    var(--brand-overlay-from),
+    var(--brand-overlay-via),
+    var(--brand-overlay-to)
+  );
+}
+.pg-hero--full .pg-hero__content {
+  position: relative;
+  z-index: 1;
 }
 .pg-hero-art__crest {
   position: absolute;
@@ -105,9 +143,9 @@
   font-size: 28px;
   line-height: 1;
   /* Fixed: this plate is always white, so the glyph must always be dark. */
-  color: #1a1814;
+  color: var(--pg-navy);
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-hero-art__photo-tag {
   position: absolute;
@@ -148,28 +186,35 @@
 }
 
 .pg-hero--full {
+  position: relative;
   display: flex;
   align-items: center;
   min-height: 480px;
   padding: 80px var(--pg-gutter);
-  background: linear-gradient(
-    135deg,
-    var(--ink) 0%,
-    var(--inverted-surface-2) 100%
-  );
+  overflow: hidden;
+  /* The overlay is translucent (it is made to sit on a photo), so a solid
+   * navy base keeps white copy readable when the board has set no image. */
+  background:
+    linear-gradient(
+      135deg,
+      var(--brand-overlay-from),
+      var(--brand-overlay-via),
+      var(--brand-overlay-to)
+    ),
+    var(--pg-navy);
 }
 .pg-hero--full .pg-hero__eyebrow {
-  color: var(--inverted-on-faint);
+  color: rgb(255 255 255 / 0.8);
 }
 .pg-hero--full .pg-hero__h1 {
-  color: var(--paper);
+  color: #fff;
 }
 .pg-hero--full .pg-hero__sub {
-  color: var(--inverted-on-soft);
+  color: rgb(255 255 255 / 0.8);
 }
 .pg-hero--full .pg-hero__cta {
-  color: var(--ink);
-  background: var(--paper);
+  color: var(--pg-navy);
+  background: #fff;
 }
 
 /* STATS */
@@ -190,7 +235,8 @@
 }
 .pg-stat__num {
   font-family: var(--serif);
-  font-size: 48px;
+  font-size: 44px;
+  font-weight: 700;
   font-feature-settings: "tnum" 1;
   line-height: 1;
   color: var(--ink);
@@ -199,7 +245,7 @@
 .pg-stat__lbl {
   max-width: 22ch;
   margin-top: 8px;
-  font-size: 11.5px;
+  font-size: 13px;
   line-height: 1.35;
   color: var(--ink-3);
 }
@@ -213,7 +259,7 @@
   margin: 0 0 18px;
   font-family: var(--serif);
   font-size: 36px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1.1;
   color: var(--ink);
   letter-spacing: -0.012em;
@@ -223,7 +269,7 @@
   margin: 22px 0 8px;
   font-family: var(--serif);
   font-size: 22px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1.2;
   color: var(--ink);
 }
@@ -249,12 +295,13 @@
 }
 .pg-text ul li::before {
   position: absolute;
-  top: 13px;
+  top: 10px;
   left: 0;
-  width: 9px;
-  height: 1px;
+  width: 6px;
+  height: 6px;
   content: "";
-  background: var(--page-accent, var(--claret));
+  background: var(--page-accent, var(--brand));
+  border-radius: 50%;
 }
 
 /* QUOTE */
@@ -281,7 +328,7 @@
   font-family: var(--serif);
   font-size: 30px;
   font-style: italic;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.25;
   color: var(--ink);
   letter-spacing: -0.012em;
@@ -304,7 +351,11 @@
   font-size: 11.5px;
   font-weight: 600;
   color: white;
-  background: linear-gradient(135deg, var(--claret), #c05a3f);
+  background: linear-gradient(
+    135deg,
+    var(--brand-gradient-from),
+    var(--brand-gradient-to)
+  );
   border-radius: 50%;
 }
 
@@ -316,7 +367,7 @@
   margin: 0 0 24px;
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1.1;
   color: var(--ink);
   letter-spacing: -0.012em;
@@ -331,13 +382,14 @@
   gap: 14px;
   align-items: center;
   padding: 16px;
-  background: var(--lift);
-  border: 0.5px solid var(--rule);
-  border-radius: 12px;
-  transition: background 0.12s;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--pg-radius);
+  box-shadow: var(--pg-shadow);
+  transition: box-shadow 0.2s;
 }
 .pg-member:hover {
-  background: var(--lift-strong);
+  box-shadow: var(--pg-shadow-lg);
 }
 .pg-member__av {
   display: grid;
@@ -348,7 +400,7 @@
   font-family: var(--serif);
   font-size: 22px;
   color: white;
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-member__name {
   font-size: 14.5px;
@@ -378,7 +430,7 @@
   margin: 0;
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.012em;
 }
@@ -389,8 +441,8 @@
   padding: 4px 10px 4px 8px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--leaf);
-  background: rgba(47, 93, 58, 0.08);
+  color: var(--brand);
+  background: var(--brand-muted);
   border-radius: 999px;
 }
 .pg-events__live-feed i {
@@ -410,9 +462,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--paper);
-  border: 0.5px solid var(--rule-2);
-  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--pg-radius);
+  box-shadow: var(--pg-shadow);
 }
 .pg-event-card__date-stripe {
   display: flex;
@@ -421,9 +474,9 @@
   padding: 10px 14px;
   font-family: var(--mono);
   font-size: 11px;
-  color: var(--paper);
+  color: var(--brand-foreground);
   letter-spacing: 0.04em;
-  background: var(--ink);
+  background: var(--pg-navy);
 }
 .pg-event-card__date-stripe .syn {
   padding: 1px 6px;
@@ -473,7 +526,7 @@
   gap: 14px;
   align-items: flex-start;
   padding: 16px 18px;
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-callout__ic {
   display: grid;
@@ -483,7 +536,7 @@
   height: 28px;
   font-size: 13px;
   color: white;
-  border-radius: 8px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-callout__body b {
   display: block;
@@ -498,26 +551,26 @@
   color: var(--ink-2);
 }
 /* tone variants */
-.pg-callout--info {
-  background: rgba(42, 74, 122, 0.08);
-  border: 0.5px solid rgba(42, 74, 122, 0.25);
+.pg-callout--info,
+.pg-callout--tip {
+  background: var(--brand-muted);
+  border: 1px solid var(--brand-border);
 }
-.pg-callout--info .pg-callout__ic {
-  background: linear-gradient(135deg, #2a4a7a, #3d6baa);
+.pg-callout--info .pg-callout__ic,
+.pg-callout--tip .pg-callout__ic {
+  background: linear-gradient(
+    135deg,
+    var(--brand-gradient-from),
+    var(--brand-gradient-to)
+  );
 }
 .pg-callout--warn {
-  background: rgba(176, 138, 62, 0.08);
-  border: 0.5px solid rgba(176, 138, 62, 0.3);
+  background: var(--brand-accent-muted);
+  border: 1px solid color-mix(in oklab, var(--brand-accent) 50%, transparent);
 }
 .pg-callout--warn .pg-callout__ic {
-  background: linear-gradient(135deg, #b08a3e, #d4ad5b);
-}
-.pg-callout--tip {
-  background: rgba(47, 93, 58, 0.08);
-  border: 0.5px solid rgba(47, 93, 58, 0.25);
-}
-.pg-callout--tip .pg-callout__ic {
-  background: linear-gradient(135deg, #2f5d3a, #4a8a5c);
+  color: var(--pg-navy);
+  background: var(--brand-accent);
 }
 
 /* FAQ */
@@ -529,7 +582,7 @@
   margin: 0 0 22px;
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.012em;
 }
@@ -576,7 +629,7 @@
   margin-bottom: 8px;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 10px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-faq--accordion-themed .pg-faq-item:last-child {
   border-bottom: 0.5px solid var(--rule);
@@ -588,17 +641,17 @@
   grid-template-columns: 1.2fr 1fr 1fr 1fr;
   gap: 24px;
   padding: 56px var(--pg-gutter);
-  color: var(--paper);
-  background: var(--ink);
+  color: var(--brand-foreground);
+  background: var(--pg-navy);
   border-top: 0.5px solid var(--rule);
 }
 .pg-contact h2 {
   margin: 0;
   font-family: var(--serif);
   font-size: 36px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1.05;
-  color: var(--paper);
+  color: var(--brand-foreground);
   letter-spacing: -0.012em;
 }
 .pg-contact__col {
@@ -606,14 +659,14 @@
 }
 .pg-contact__col-label {
   margin-bottom: 6px;
-  font-size: 10.5px;
-  color: var(--inverted-on-faint);
+  font-size: 11px;
+  color: rgb(255 255 255 / 0.7);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 .pg-contact__col-val {
   font-weight: 500;
-  color: var(--paper);
+  color: var(--brand-foreground);
 }
 .pg-contact a {
   color: inherit;
@@ -630,7 +683,7 @@
   margin: 0 0 24px;
   font-family: var(--serif);
   font-size: 48px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1;
   color: var(--ink);
   letter-spacing: -0.018em;
@@ -640,16 +693,25 @@
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  padding: 14px 28px;
+  padding: 12px 24px;
   font-size: 15px;
   font-weight: 500;
-  color: var(--paper);
+  color: var(--brand-foreground);
   text-decoration: none;
   cursor: pointer;
-  background: var(--ink);
+  background: linear-gradient(
+    90deg,
+    var(--brand-gradient-from),
+    var(--brand-gradient-to)
+  );
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--pg-radius-sm);
+  box-shadow: var(--pg-shadow);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
+
 /* CTA variants */
 .pg-cta--banner {
   background: var(--paper-2);
@@ -658,17 +720,17 @@
 .pg-cta--gradient {
   background: linear-gradient(
     135deg,
-    var(--ink) 0%,
-    var(--inverted-surface-2) 100%
+    var(--brand-gradient-from),
+    var(--brand-gradient-to)
   );
   border-color: transparent;
 }
 .pg-cta--gradient h2 {
-  color: var(--paper);
+  color: var(--brand-foreground);
 }
 .pg-cta--gradient .pg-cta__btn {
-  color: var(--ink);
-  background: var(--paper);
+  color: var(--pg-navy);
+  background: #fff;
 }
 
 /* MARQUEE */
@@ -718,7 +780,7 @@
     var(--paper-3) 14px 28px
   );
   border: 0.5px solid var(--rule-2);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-image__caption {
   margin-top: 8px;
@@ -726,6 +788,12 @@
   font-style: italic;
   color: var(--ink-3);
   text-align: center;
+}
+
+/* Editor hint for an empty caption. A hint, not text: it is never saved. */
+.pg-image__caption[data-placeholder]:empty::before {
+  color: var(--ink-4);
+  content: attr(data-placeholder);
 }
 
 /* GALLERY */
@@ -748,7 +816,7 @@
     var(--paper-3) 12px 24px
   );
   border: 0.5px solid var(--rule-2);
-  border-radius: 10px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-gallery__tile.big {
   grid-row: span 2;
@@ -770,7 +838,7 @@
   color: var(--ink-4);
   cursor: pointer;
   border: 1.5px dashed var(--rule-2);
-  border-radius: 10px;
+  border-radius: var(--pg-radius-sm);
   transition:
     border-color 0.12s,
     color 0.12s;
@@ -794,7 +862,7 @@
   font-size: 12px;
   color: var(--inverted-on-faint);
   background: var(--ink);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-video__frame video {
   position: absolute;
@@ -850,7 +918,7 @@
   margin: 0 0 12px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
 }
 .pg-signup__form {
   display: flex;
@@ -889,7 +957,7 @@
   margin: 0 0 18px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
 }
 .pg-timeline-list {
   display: flex;
@@ -924,7 +992,7 @@
   margin: 0 0 16px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
 }
 .pg-jobs__list,
 .pg-news__list {
@@ -937,7 +1005,7 @@
   padding: 14px 16px;
   background: var(--lift);
   border: 0.5px solid var(--rule);
-  border-radius: 10px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-jobs__item-title,
 .pg-news__item-title {
@@ -961,7 +1029,7 @@
   margin: 0 0 8px;
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-featuregrid__intro {
@@ -988,7 +1056,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 24px;
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-featuregrid__icon {
   font-size: 24px;
@@ -1006,8 +1074,9 @@
 }
 /* variants */
 .pg-featuregrid--cards .pg-featuregrid__card {
-  background: var(--paper-2);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--pg-shadow);
 }
 .pg-featuregrid--bordered .pg-featuregrid__card {
   background: transparent;
@@ -1028,7 +1097,7 @@
   margin: 0 0 24px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-partners__grid {
@@ -1045,7 +1114,7 @@
   padding: 8px 16px;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-partners__logo img {
   width: auto;
@@ -1072,7 +1141,7 @@
   margin: 0 0 20px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-linktiles__grid {
@@ -1089,7 +1158,7 @@
   text-decoration: none;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -1131,7 +1200,7 @@
   cursor: pointer;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--pg-radius-sm);
   transition:
     background 0.12s,
     color 0.12s;
@@ -1190,7 +1259,7 @@
 }
 .pg-tabs--cards .pg-tabs__tab {
   border: 0.5px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-tabs--cards .pg-tabs__tab--active {
   color: var(--ink);
@@ -1207,7 +1276,7 @@
   margin: 0 0 20px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-deptgrid__grid {
@@ -1219,7 +1288,7 @@
   padding: 20px;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-deptgrid__card-name {
   font-size: 14.5px;
@@ -1243,7 +1312,7 @@
   padding: 12px 16px;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-deptgrid__notice {
   padding-top: 8px;
@@ -1261,7 +1330,7 @@
   margin: 0 0 18px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-documents__list {
@@ -1278,7 +1347,7 @@
   text-decoration: none;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 10px;
+  border-radius: var(--pg-radius-sm);
   transition: border-color 0.12s;
 }
 .pg-documents__item:hover {
@@ -1315,7 +1384,7 @@
   margin: 0 0 20px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-featcards__grid {
@@ -1329,7 +1398,7 @@
   overflow: hidden;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-featcards__stripe {
   flex-shrink: 0;
@@ -1366,7 +1435,7 @@
   margin: 0 0 20px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 /* cards mode */
@@ -1384,7 +1453,7 @@
   cursor: pointer;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
   transition:
     border-color 0.12s,
     box-shadow 0.12s;
@@ -1429,7 +1498,7 @@
   margin: 0 0 24px;
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-stepgrid__grid {
@@ -1441,7 +1510,7 @@
   padding: 24px;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-stepgrid__num {
   margin-bottom: 10px;
@@ -1471,7 +1540,7 @@
   margin: 0 0 18px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-scrollrow__track {
@@ -1495,7 +1564,7 @@
   text-decoration: none;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-scrollrow__icon {
   font-size: 22px;
@@ -1521,7 +1590,7 @@
   margin: 0 0 20px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-productgrid__grid {
@@ -1533,7 +1602,7 @@
   overflow: hidden;
   background: var(--paper-2);
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-productgrid__img {
   aspect-ratio: 4 / 3;
@@ -1615,7 +1684,7 @@
   margin-bottom: 2px;
   font-family: var(--serif);
   font-size: 28px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-profileheader__role {
@@ -1628,7 +1697,7 @@
   width: fit-content;
   overflow: hidden;
   border: 0.5px solid var(--rule);
-  border-radius: 12px;
+  border-radius: var(--pg-radius);
 }
 .pg-profileheader__stat {
   padding: 16px 28px;
@@ -1664,7 +1733,7 @@
   margin: 0 0 24px;
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
 }
 .pg-msform__stepper {
@@ -1727,7 +1796,7 @@
   outline: 0;
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
-  border-radius: 8px;
+  border-radius: var(--pg-radius-sm);
 }
 .pg-msform__input:focus {
   background: var(--paper);

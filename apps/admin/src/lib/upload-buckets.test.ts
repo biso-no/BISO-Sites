@@ -19,6 +19,22 @@ describe("resolveUploadBucket", () => {
     expect(bucket?.mimeTypes.has("application/pdf")).toBeFalse();
   });
 
+  it("accepts the video types the editor offers for upload", () => {
+    // The video block invites an mp4/mov upload, but the route answered 415.
+    const bucket = resolveUploadBucket("media");
+    for (const type of ["video/mp4", "video/quicktime", "video/webm"]) {
+      expect(bucket?.mimeTypes.has(type)).toBeTrue();
+    }
+  });
+
+  it("rejects what the bucket itself would refuse", () => {
+    // The `media` bucket's allowed extensions have no avif, so accepting it
+    // here only moves the failure from a clear 415 to a vague 502.
+    expect(
+      resolveUploadBucket("media")?.mimeTypes.has("image/avif")
+    ).toBeFalse();
+  });
+
   it("rejects private and unknown buckets", () => {
     for (const bucketId of [
       "resumes",

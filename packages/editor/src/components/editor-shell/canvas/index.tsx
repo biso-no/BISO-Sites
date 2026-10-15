@@ -25,6 +25,7 @@ import { useEditorStore } from "@/editor/store";
 import type { Block, BlockType } from "@/editor/types";
 import { CopilotPanel } from "../copilot/chat-panel";
 import { CopilotButton } from "../copilot/floating-button";
+import { handleBlockWrapperKeyDown } from "./block-keys";
 import { FormatBar } from "./format-bar";
 
 interface CanvasPaneProps {
@@ -314,12 +315,7 @@ function SortableBlock({
         e.stopPropagation();
         select(block.id);
       }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          select(block.id);
-        }
-      }}
+      onKeyDown={(e) => handleBlockWrapperKeyDown(e, () => select(block.id))}
       onMouseEnter={() => setHovered(block.id)}
       onMouseLeave={() => setHovered(null)}
       ref={setNodeRef}

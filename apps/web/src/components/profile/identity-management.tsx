@@ -1,6 +1,5 @@
 "use client";
 
-import { clientAccount, OAuthProvider } from "@repo/api/client";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
@@ -10,10 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/ui/card";
-import { Link2, Trash2 } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { ensureClientAppwriteSession } from "@/lib/account-link-client";
 import { removeIdentity } from "@/lib/actions/user";
 
 interface Identity {
@@ -30,16 +28,19 @@ export function IdentityManagement({
   const [identities, setIdentities] = useState<Identity[] | undefined>(
     initialIdentities
   );
-  const [isLinking, startLinkTransition] = useTransition();
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   const canRemove = (id: Identity) => {
     const provider = (id.provider || "").toLowerCase();
-    // Keep core email/magic-url intact to avoid locking user out
+    // Keep core email/magic-url intact to avoid locking user out. The BI
+    // identity is how a student signs in and what backs their membership;
+    // there is nothing to gain from removing it and no way to add it back
+    // except signing in with BI again.
     if (
       provider === "email" ||
       provider === "magic-url" ||
-      provider === "magicurl"
+      provider === "magicurl" ||
+      provider === "oidc"
     ) {
       return false;
     }
@@ -65,43 +66,6 @@ export function IdentityManagement({
       return "Magic URL";
     }
     return p;
-  };
-
-  const failureUrl = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-    return `${window.location.origin}/profile?error=oauth_failed`;
-  }, []);
-
-  const linkProvider = (provider: OAuthProvider) => {
-    startLinkTransition(async () => {
-      try {
-        // Appwrite links an identity only when it can see an active session on
-        // the OAuth navigation, and this app's server-side session is invisible
-        // to the browser's Appwrite client. Without this the redirect silently
-        // creates a second account instead of linking — see
-        // `ensureClientAppwriteSession`. Applies to every provider, not just
-        // OIDC.
-        await ensureClientAppwriteSession();
-
-        const base = window.location.origin;
-        // The BI (OIDC) link routes its success URL through /api/auth/bi-link,
-        // which runs the profile sync + cache invalidation outside the render
-        // path and only then redirects back here — see that route's doc comment.
-        const successUrl = `${base}/api/auth/bi-link?returnTo=/profile`;
-        await clientAccount.createOAuth2Session(
-          provider,
-          successUrl,
-          failureUrl,
-          ["openid", "email", "profile"]
-        );
-        // Browser will redirect; no-op here
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        toast.error(`Linking failed: ${message}`);
-      }
-    });
   };
 
   const onRemove = async (identity: Identity) => {
@@ -135,33 +99,10 @@ export function IdentityManagement({
     <div className="space-y-6">
       <Card className="border border-primary/10">
         <CardHeader>
-          <CardTitle>Linked Accounts</CardTitle>
-          <CardDescription>
-            Linking your BI Student account lets us verify your paid semester
-            membership for benefits and discounts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              className="rounded-lg"
-              disabled={isLinking}
-              onClick={() => linkProvider(OAuthProvider.Oidc)}
-            >
-              <Link2 className="mr-2 h-4 w-4" /> Link BI Student
-            </Button>
-          </div>
-          <p className="text-primary-60 text-xs">
-            When linking, you will be redirected to complete the OAuth flow.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-primary/10">
-        <CardHeader>
           <CardTitle>Connected Identities</CardTitle>
           <CardDescription>
-            Accounts currently connected to your profile
+            How you sign in. Your BI Student identity is what verifies your
+            membership; sign in with BI to add it.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

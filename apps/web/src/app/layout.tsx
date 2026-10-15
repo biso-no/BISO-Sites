@@ -5,8 +5,8 @@ import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
-import { AccountLinkSessionCleanup } from "@/components/account-link-session-cleanup";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
+import { BiSignInNotice } from "@/components/bi-sign-in-notice";
 import { inter, museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
 export const metadata: Metadata = {
@@ -50,10 +50,10 @@ export default async function RootLayout({
           <NextIntlClientProvider locale={locale} messages={messages}>
             <main>
               <AnalyticsTracker locale={locale} />
-              {/* Reads `?linked=1`, so it needs a Suspense boundary — this
+              {/* Reads `?link_error=`, so it needs a Suspense boundary — this
                   layout is not force-dynamic. Renders nothing either way. */}
               <Suspense fallback={null}>
-                <AccountLinkSessionCleanup />
+                <BiSignInNotice />
               </Suspense>
               {children}
               <Script

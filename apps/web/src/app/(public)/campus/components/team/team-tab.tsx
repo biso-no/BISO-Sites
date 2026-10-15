@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import type { JSX } from "react";
 import { useEffect, useState } from "react";
+import { MANAGEMENT_DEPARTMENT_IDS } from "@/lib/campus-leadership";
 import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 import { type TeamMember, TeamMemberCard } from "./team-member-card";
 
@@ -17,15 +18,6 @@ interface TeamTabProps {
   fallbackTeam: DepartmentBoard[];
   locale: Locale;
 }
-
-// Maps campusId to the management department ID
-const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
-  "1": "2", // Oslo
-  "2": "301", // Bergen
-  "3": "601", // Trondheim
-  "4": "801", // Stavanger
-  "5": "1002", // National
-};
 
 interface BoardGroup {
   // Department path segment for the board API: a numeric department id (resolved

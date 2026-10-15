@@ -3,6 +3,7 @@ import { listPublishedDocuments } from "@/app/actions/documents";
 import { DocumentsHero } from "@/components/documents/documents-hero";
 import { DocumentsListClient } from "@/components/documents/documents-list-client";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { resolveDocumentsFilters } from "@/lib/documents-filters";
 
 export const metadata = {
   title: "Documents | BISO",
@@ -10,9 +11,22 @@ export const metadata = {
     "Access official BISO documents, bylaws, and guidelines that govern the BI Student Organisation.",
 };
 
-async function DocumentsList({ campusId }: { campusId: string | null }) {
+type SearchParams = Promise<{ campus?: string; category?: string }>;
+
+// Reads the request (cookies, URL) inside the Suspense boundary so the hero
+// above it can still be prerendered.
+async function DocumentsList({ searchParams }: { searchParams: SearchParams }) {
+  const [prefs, params] = await Promise.all([
+    getUserPreferences(),
+    searchParams,
+  ]);
+  // `?category=` and `?campus=` let other pages link to one shelf.
+  const { campusId, category } = resolveDocumentsFilters(
+    params,
+    prefs?.campusId
+  );
   const docs = await listPublishedDocuments({ campusId });
-  return <DocumentsListClient documents={docs} />;
+  return <DocumentsListClient documents={docs} initialCategory={category} />;
 }
 
 function DocumentsListSkeleton() {
@@ -29,10 +43,11 @@ function DocumentsListSkeleton() {
   );
 }
 
-export default async function DocumentsPage() {
-  const prefs = await getUserPreferences();
-  const campusId = prefs?.campusId ?? null;
-
+export default function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   return (
     <div
       className="min-h-screen"
@@ -43,7 +58,7 @@ export default async function DocumentsPage() {
     >
       <DocumentsHero />
       <Suspense fallback={<DocumentsListSkeleton />}>
-        <DocumentsList campusId={campusId} />
+        <DocumentsList searchParams={searchParams} />
       </Suspense>
     </div>
   );
