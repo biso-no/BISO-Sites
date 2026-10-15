@@ -5,6 +5,7 @@ import { createSessionClient } from "@repo/api/server";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiClient } from "./api-client";
+import { BI_LOGIN_FAILED_PARAM, BI_LOGIN_FAILED_VALUE } from "./bi-login";
 import {
   expiredSessionCookieOptions,
   LEGACY_SESSION_COOKIE,
@@ -13,92 +14,57 @@ import {
 
 const _BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-async function _signInWithAzure() {
-  const { account } = await createSessionClient();
+const BI_LOGIN_SCOPES = ["openid", "email", "profile"];
 
-  const origin = (await headers()).get("origin");
-
-  // Get the redirectTo parameter from the URL if it exists
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
-  );
+/**
+ * The success and failure legs every OAuth sign-in shares.
+ *
+ * `redirectTo` is read off the login page's own URL (the referer) so a visitor
+ * bounced to `/auth/login?redirectTo=/membership/join` lands back there once
+ * `/auth/oauth` has turned the token into a session.
+ */
+async function oauthLegs(failureQuery: string): Promise<{
+  failure: string;
+  success: string;
+}> {
+  const requestHeaders = await headers();
+  const origin = requestHeaders.get("origin");
+  const url = new URL(requestHeaders.get("referer") || `${origin}/auth/login`);
   const redirectTo = url.searchParams.get("redirectTo");
-
-  // Include the redirectTo parameter in the success URL
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
+  const encoded = redirectTo ? encodeURIComponent(redirectTo) : null;
+  const success = encoded
+    ? `${origin}/auth/oauth?redirectTo=${encoded}`
     : `${origin}/auth/oauth`;
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Microsoft,
-    successUrl,
-    `${origin}/auth/login`
-  );
-
-  return redirect(redirectUrl);
+  const failure = encoded
+    ? `${origin}/auth/login?${failureQuery}&redirectTo=${encoded}`
+    : `${origin}/auth/login?${failureQuery}`;
+  return { failure, success };
 }
 
-export async function signInWithGoogle() {
+/**
+ * Sign in with a BI student account, through Appwrite's OIDC provider.
+ *
+ * This is the student path: Appwrite attaches the BI identity to the account
+ * it signs in or creates, and `/auth/oauth` writes the student number on the
+ * way back, so there is no separate "link your BI account" step. The scopes
+ * match the link flow in `account-link-client.ts`.
+ *
+ * Appwrite cannot vouch for the email a generic OIDC provider returns, so an
+ * account that already carries the student's bi.no address without a BI
+ * identity is refused; the failure leg carries Appwrite's error and the login
+ * page explains what to do (`readBiLoginFailure`).
+ */
+export async function signInWithBiStudent() {
   const { account } = await createSessionClient();
-  const origin = (await headers()).get("origin");
-
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
+  const { failure, success } = await oauthLegs(
+    `${BI_LOGIN_FAILED_PARAM}=${BI_LOGIN_FAILED_VALUE}`
   );
-  const redirectTo = url.searchParams.get("redirectTo");
-
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
-    : `${origin}/auth/oauth`;
 
   const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Google,
-    successUrl,
-    `${origin}/auth/login`
-  );
-
-  return redirect(redirectUrl);
-}
-
-export async function signInWithFacebook() {
-  const { account } = await createSessionClient();
-  const origin = (await headers()).get("origin");
-
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
-  );
-  const redirectTo = url.searchParams.get("redirectTo");
-
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
-    : `${origin}/auth/oauth`;
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Facebook,
-    successUrl,
-    `${origin}/auth/login`
-  );
-
-  return redirect(redirectUrl);
-}
-
-export async function signInWithApple() {
-  const { account } = await createSessionClient();
-  const origin = (await headers()).get("origin");
-
-  const url = new URL(
-    (await headers()).get("referer") || `${origin}/auth/login`
-  );
-  const redirectTo = url.searchParams.get("redirectTo");
-
-  const successUrl = redirectTo
-    ? `${origin}/auth/oauth?redirectTo=${redirectTo}`
-    : `${origin}/auth/oauth`;
-
-  const redirectUrl = await account.createOAuth2Token(
-    OAuthProvider.Apple,
-    successUrl,
-    `${origin}/auth/login`
+    OAuthProvider.Oidc,
+    success,
+    failure,
+    BI_LOGIN_SCOPES
   );
 
   return redirect(redirectUrl);

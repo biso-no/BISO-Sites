@@ -1,18 +1,29 @@
 "use client";
 
-import { Button } from "@repo/ui/components/ui/button";
-import { ArrowRight, Mail, Shield } from "lucide-react";
+import { ArrowRight, GraduationCap, Mail, Shield } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import {
-  signInWithApple,
-  signInWithFacebook,
-  signInWithGoogle,
-  signInWithMagicLink,
-} from "@/lib/server";
+import { endClientAppwriteSession } from "@/lib/account-link-client";
+import { type BiLoginFailure, readBiLoginFailure } from "@/lib/bi-login";
+import { signInWithBiStudent, signInWithMagicLink } from "@/lib/server";
+import { safeRedirectPath } from "@/lib/utils";
+
+/**
+ * What the login page says when a BI sign-in comes back failed. The
+ * existing-account case is the one the student can resolve alone: Appwrite
+ * will not merge a BI identity into an account that only has the matching
+ * bi.no email, so that account signs in with a login link and connects BI
+ * from the profile — after which BI sign-in works for it too.
+ */
+const BI_LOGIN_FAILURE_TEXT: Record<BiLoginFailure, string> = {
+  existing_account:
+    "If you already have a BISO account with your student email, it is not connected to BI yet. Send yourself a login link to that email below, then connect your BI account from your profile. After that, BI sign-in works directly.",
+  failed:
+    "We could not sign you in with BI. Please try again, or use a login link.",
+};
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -22,12 +33,43 @@ export function Login() {
     text: string;
   } | null>(null);
   const [mounted, setMounted] = useState(false);
+  // Plain state, not a transition: a successful start never settles (the
+  // browser leaves for BI), and the page can come back from the bfcache with
+  // the button still "pending" unless `pageshow` resets it.
+  const [isStartingBi, setIsStartingBi] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // The BI failure leg lands here with Appwrite's error in the query string.
+  // Show the explanation once, then clean the URL (keeping where the visitor
+  // was headed) so a reload is quiet.
+  useEffect(() => {
+    const failure = readBiLoginFailure(searchParams);
+    if (failure) {
+      setMessage({ type: "error", text: BI_LOGIN_FAILURE_TEXT[failure] });
+      const redirectTo = searchParams.get("redirectTo");
+      router.replace(
+        redirectTo
+          ? `/auth/login?redirectTo=${encodeURIComponent(safeRedirectPath(redirectTo))}`
+          : "/auth/login",
+        { scroll: false }
+      );
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setIsStartingBi(false);
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
   // Handle the restrictedDomain parameter but immediately clear it
@@ -73,16 +115,19 @@ export function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    await signInWithGoogle();
-  };
-
-  const handleFacebookLogin = async () => {
-    await signInWithFacebook();
-  };
-
-  const handleAppleLogin = async () => {
-    await signInWithApple();
+  const handleBiLogin = async () => {
+    setIsStartingBi(true);
+    try {
+      // Appwrite links the incoming identity to whichever account owns the
+      // browser's own Appwrite session. An abandoned link attempt leaves one
+      // behind, so clear it first or this sign-in could attach to, and sign
+      // into, someone else's account on a shared machine.
+      await endClientAppwriteSession();
+      await signInWithBiStudent();
+    } catch {
+      setMessage({ type: "error", text: BI_LOGIN_FAILURE_TEXT.failed });
+      setIsStartingBi(false);
+    }
   };
 
   return (
@@ -121,6 +166,34 @@ export function Login() {
           Sign in to your BISO account
         </p>
 
+        <button
+          className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-lg bg-linear-to-r from-brand-gradient-from to-brand-gradient-to py-3 font-medium text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-70"
+          disabled={isStartingBi}
+          onClick={handleBiLogin}
+          type="button"
+        >
+          <GraduationCap className="h-5 w-5" />
+          {isStartingBi
+            ? "Taking you to BI…"
+            : "Sign in with BI student account"}
+          <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </button>
+        <p className="mt-2 text-center text-muted-foreground text-xs">
+          BI students: your student membership and member prices follow your BI
+          account.
+        </p>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-border border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">
+              Not a BI student? Use a login link
+            </span>
+          </div>
+        </div>
+
         <form className="space-y-6" onSubmit={handleUserLogin}>
           <div className="space-y-2">
             <label
@@ -143,14 +216,14 @@ export function Login() {
           </div>
 
           <button
-            className="group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-brand-gradient-from to-brand-gradient-to py-3 font-medium text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+            className="group relative w-full overflow-hidden rounded-lg border border-border bg-secondary py-3 font-medium text-foreground transition-all duration-200 hover:bg-secondary/80"
             disabled={isLoading}
             type="submit"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <svg
-                  className="mr-2 -ml-1 h-4 w-4 animate-spin text-white"
+                  className="mr-2 -ml-1 h-4 w-4 animate-spin text-foreground"
                   fill="none"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
@@ -181,77 +254,10 @@ export function Login() {
           </button>
         </form>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-border border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <Button
-            className="flex items-center justify-center rounded-lg border border-border bg-secondary py-3 transition-all duration-200 hover:bg-secondary/80"
-            onClick={handleGoogleLogin}
-            type="button"
-            variant="outline"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <title>Google</title>
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-              />
-            </svg>
-          </Button>
-
-          <Button
-            className="flex items-center justify-center rounded-lg border border-border bg-secondary py-3 transition-all duration-200 hover:bg-secondary/80"
-            onClick={handleFacebookLogin}
-            type="button"
-            variant="outline"
-          >
-            <svg className="h-5 w-5" fill="#1877F2" viewBox="0 0 24 24">
-              <title>Facebook</title>
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-            </svg>
-          </Button>
-
-          <Button
-            className="flex items-center justify-center rounded-lg border border-border bg-secondary py-3 transition-all duration-200 hover:bg-secondary/80"
-            onClick={handleAppleLogin}
-            type="button"
-            variant="outline"
-          >
-            <svg
-              className="h-5 w-5 text-foreground"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <title>Apple</title>
-              <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
-            </svg>
-          </Button>
-        </div>
-
         {message && (
           <div
             className={`mt-6 rounded-lg p-4 ${message.type === "error" ? "border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400" : "border border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400"}`}
+            role={message.type === "error" ? "alert" : "status"}
           >
             <p className="flex items-start font-medium text-sm">
               <span
@@ -288,7 +294,7 @@ export function Login() {
             </p>
           </div>
         )}
-        {/*We should not allow users to sign in with BISO email addresses, as they must use their personal ones*/}
+        {/* Staff sign in at admin.biso.no; the magic-link action refuses @biso.no. */}
         {/* Privacy Notice */}
         <div className="mt-6 rounded-lg border border-brand-border bg-brand-muted p-3">
           <div className="flex items-start">
@@ -312,12 +318,14 @@ export function Login() {
         </div>
 
         <div className="mt-6 text-center text-muted-foreground text-xs">
-          <p>Don&apos;t have an account yet?</p>
+          <p>
+            New here? Signing in with BI or a login link creates your account.
+          </p>
           <Link
             className="inline-flex items-center text-brand hover:underline"
             href="/contact"
           >
-            Contact us for access
+            Need help signing in?
             <ArrowRight className="ml-1 h-3 w-3" />
           </Link>
         </div>

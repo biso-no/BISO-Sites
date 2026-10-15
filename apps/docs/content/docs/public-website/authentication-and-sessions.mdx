@@ -18,40 +18,43 @@ The classification is done by `getAuthStatus()`, which calls a session authentic
 
 ## Anonymous sessions
 
-When a visitor hits any non-API page without a session cookie, `apps/web/src/proxy.ts` (the Next.js middleware) redirects them to:
-
-```
-/api/auth/anonymous?redirect=<their-original-url>
-```
-
-That route hits Appwrite with the admin key, mints an anonymous account, sets the session cookie, and redirects the user back to where they were going. It happens once, takes a few hundred milliseconds, and is invisible to the user.
+There is no middleware and no session is minted on page view: cookieless clients (crawlers, link unfurlers, uptime monitors) used to each trigger a fresh anonymous Appwrite account. An anonymous session is provisioned **lazily**, by `ensureAnonymousSession()` in `apps/web/src/lib/anon-session.ts`, only inside an action that must write rows owned by the visitor (the cart today). Locale and selected campus live in plain cookies and need no account at all.
 
 ### The session cookie
 
 | Setting | Value |
 |---------|-------|
-| Cookie name | `a_session_biso` (override via `APPWRITE_SESSION_COOKIE`) |
+| Cookie name | `a_session_biso_web` (override via `APPWRITE_SESSION_COOKIE`); never `a_session_biso`, which is Appwrite's own cookie name for the project |
 | Domain (prod) | `.biso.no` — shared across `biso.no`, `admin.biso.no`, and any other subdomain. |
-| SameSite | `lax` in local dev, stricter in prod. |
+| SameSite | `lax` in local dev, `none` (with `Secure`) in prod, because the OAuth return is a cross-site navigation. |
 | Lifetime | Long — Appwrite manages expiry. |
 
 Because the cookie is on `.biso.no`, a user logged in on the admin site is also "logged in" on the public site (subject to roles). In dev, the apps run on different ports but share `localhost`.
 
 ## Logging in
 
-The login page is `/auth/login`. It offers four OAuth providers plus a magic link:
+The login page is `/auth/login`. It offers two ways in:
 
-| Method | Provider | Notes |
-|--------|----------|-------|
-| Microsoft | Azure AD | The primary path for BI students using their `@bi.no` accounts. |
-| Google | Google OAuth | For external accounts. |
-| Facebook | Meta | Legacy but supported. |
-| Apple | Sign in with Apple | iOS users. |
-| Magic link | Appwrite | Emailed login link, no OAuth needed. |
+| Method | Who | Notes |
+|--------|-----|-------|
+| **Sign in with BI student account** | BI students | Appwrite's OIDC provider, configured against BI's Microsoft Entra tenant. The primary path: it signs in or creates the account **and** connects it to the student in one go. |
+| **Login link** | Everyone else (alumni, partners, guests) | Emailed magic link, no OAuth needed. Refused for `@biso.no` staff addresses, which sign in at admin.biso.no. |
 
-All five flows are configured in `apps/web/src/lib/server.ts`. The OAuth handshake comes back through `apps/web/src/app/(auth)/auth/callback/route.ts`, which converts the OAuth code into an Appwrite session and replaces the anonymous cookie with the authenticated one.
+The Google, Facebook and Apple buttons were removed in October 2026 at the Branding Committee's request. Identities linked through them are not deleted, but there is no button for them any more.
 
-For the admin app's auth flow (which is Microsoft-only and group-gated), see [Admin Handbook → Signing in](/docs/admin-handbook/signing-in).
+### How the BI sign-in works
+
+1. `signInWithBiStudent` (`apps/web/src/lib/server.ts`) asks Appwrite for an OAuth2 **token** for the `oidc` provider, with `/auth/oauth` as the success URL and `/auth/login?bi_login=failed` as the failure URL, then redirects the browser to BI's sign-in.
+2. Appwrite signs in the account that already holds this BI identity, otherwise creates a new account; an email-only match is refused (see below). It then sends the browser to `/auth/oauth?userId=…&secret=…`.
+3. `/auth/oauth` turns the token into a session, then runs `syncBiStudentIdentityAfterSignIn`: it reads the account's identities through the admin client, parses the `s<number>@bi.no` address into `user.student_id`, looks the student up in BI's directory for `bi_employee_id` (the Finago customer key) and stamps `bi_linked_at`. An account with no profile row yet is sent through onboarding (`/onboarding?linked=1` when the BI link landed); an account that has one lands where it was headed. A returning student whose profile already carries the student number and directory record skips the directory lookup and the write. A refused or failed link (for example the BI account is already linked to another BISO account) is shown as a toast via `?link_error=…`, the same channel the browser-side link flow uses.
+
+One consequence to know about: the profile row the sync creates is what the protected layout checks to decide whether onboarding is done, so a new student who abandons onboarding is not sent back to it. The old link-during-onboarding flow had the same gap.
+
+So a student who signs in with BI never sees a "link your BI account" step. The older browser-side link flow (`startBiAccountLink`, `/api/auth/bi-link`) still exists for accounts created with a login link, from onboarding, the profile page and the membership gate.
+
+### The one case BI sign-in refuses
+
+Appwrite's generic OIDC adapter only trusts an email the provider marks `email_verified`, and Microsoft Entra does not send that claim. So when an account already holds the student's bi.no address **without** a BI identity, Appwrite refuses the sign-in (`general_bad_request`) rather than merge into that account. The login page recognises this (`readBiLoginFailure`) and tells the student to send a login link to that email and connect BI from their profile, which attaches the identity. From then on BI sign-in works for that account. At the time of the change about 1,150 accounts were in this state (bi.no email, no BI identity), against roughly 90 with an identity.
 
 ## Protected routes
 
