@@ -18,6 +18,7 @@ const users = vi.hoisted(() => ({
   get: vi.fn(),
   listIdentities: vi.fn(),
   listSessions: vi.fn(),
+  updateEmailVerification: vi.fn(),
   updatePassword: vi.fn(),
 }));
 
@@ -36,6 +37,7 @@ vi.mock("@repo/connectors/azure/bi-directory", () => ({
 
 import {
   isFreshMergeIntoPasswordAccount,
+  shouldMarkEmailVerified,
   syncBiStudentIdentityAfterSignIn,
 } from "@/lib/bi-identity-sync";
 import { syncBiStudentIdentity } from "./bi-identity";
@@ -63,6 +65,8 @@ describe("syncBiStudentIdentity", () => {
     users.deleteIdentity.mockReset();
     users.get.mockReset();
     users.listIdentities.mockReset();
+    users.updateEmailVerification.mockReset();
+    users.updateEmailVerification.mockResolvedValue({});
     db.listRows.mockResolvedValue({ rows: [], total: 0 });
     users.deleteIdentity.mockResolvedValue({});
     users.listIdentities.mockResolvedValue({ identities: [] });
@@ -542,6 +546,8 @@ describe("syncBiStudentIdentityAfterSignIn", () => {
     users.deleteIdentity.mockReset();
     users.get.mockReset();
     users.listIdentities.mockReset();
+    users.updateEmailVerification.mockReset();
+    users.updateEmailVerification.mockResolvedValue({});
 
     db.getRow.mockResolvedValue({});
     db.updateRow.mockResolvedValue({});
@@ -724,6 +730,8 @@ describe("syncBiStudentIdentityAfterSignIn takeover guard", () => {
     getBiDirectoryUser.mockReset();
     users.get.mockReset();
     users.listIdentities.mockReset();
+    users.updateEmailVerification.mockReset();
+    users.updateEmailVerification.mockResolvedValue({});
     users.listSessions.mockReset();
     users.deleteSession.mockReset();
     users.updatePassword.mockReset();
@@ -815,5 +823,86 @@ describe("syncBiStudentIdentityAfterSignIn takeover guard", () => {
     await syncBiStudentIdentityAfterSignIn("user-1");
 
     expect(users.updatePassword).not.toHaveBeenCalled();
+  });
+});
+
+describe("shouldMarkEmailVerified", () => {
+  it("marks an unverified account whose email the BI identity carries", () => {
+    expect(
+      shouldMarkEmailVerified(
+        { email: "S1715738@bi.no", emailVerification: false },
+        { providerEmail: "s1715738@bi.no" }
+      )
+    ).toBe(true);
+  });
+
+  it("leaves a verified account, a different address or no address alone", () => {
+    expect(
+      shouldMarkEmailVerified(
+        { email: "s1715738@bi.no", emailVerification: true },
+        { providerEmail: "s1715738@bi.no" }
+      )
+    ).toBe(false);
+    expect(
+      shouldMarkEmailVerified(
+        { email: "ola@gmail.com", emailVerification: false },
+        { providerEmail: "s1715738@bi.no" }
+      )
+    ).toBe(false);
+    expect(
+      shouldMarkEmailVerified(
+        { email: null, emailVerification: false },
+        { providerEmail: "s1715738@bi.no" }
+      )
+    ).toBe(false);
+  });
+});
+
+describe("syncBiStudentIdentityAfterSignIn email verification", () => {
+  beforeEach(() => {
+    db.getRow.mockReset();
+    db.updateRow.mockReset();
+    db.listRows.mockReset();
+    getBiDirectoryUser.mockReset();
+    users.get.mockReset();
+    users.listIdentities.mockReset();
+    users.updateEmailVerification.mockReset();
+    users.updateEmailVerification.mockResolvedValue({});
+    users.updateEmailVerification.mockReset();
+    db.getRow.mockResolvedValue({});
+    db.updateRow.mockResolvedValue({});
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
+    getBiDirectoryUser.mockResolvedValue(null);
+    users.updateEmailVerification.mockResolvedValue({});
+    users.listIdentities.mockResolvedValue({
+      identities: [oidcIdentity("s1715738@bi.no")],
+    });
+  });
+
+  it("marks the merged account's email verified", async () => {
+    users.get.mockResolvedValue({
+      $id: "user-1",
+      email: "s1715738@bi.no",
+      emailVerification: false,
+    });
+
+    await syncBiStudentIdentityAfterSignIn("user-1");
+
+    expect(users.updateEmailVerification).toHaveBeenCalledWith({
+      emailVerification: true,
+      userId: "user-1",
+    });
+  });
+
+  it("does nothing for an account that is already verified", async () => {
+    users.get.mockResolvedValue({
+      $id: "user-1",
+      email: "s1715738@bi.no",
+      emailVerification: true,
+    });
+
+    await syncBiStudentIdentityAfterSignIn("user-1");
+
+    expect(users.updateEmailVerification).not.toHaveBeenCalled();
   });
 });
