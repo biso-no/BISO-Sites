@@ -9,7 +9,11 @@ export const BI_LOGIN_FAILED_PARAM = "bi_login";
 export const BI_LOGIN_FAILED_VALUE = "failed";
 
 export type BiLoginFailure =
-  /** Appwrite found an account with the same bi.no email but no BI identity. */
+  /**
+   * Appwrite refused to merge into the account holding the same bi.no
+   * email. Only happens while the OIDC provider's userinfo endpoint is not
+   * this project's `/api/auth/bi-userinfo`, which vouches for bi.no emails.
+   */
   | "existing_account"
   /** Any other provider or Appwrite failure, including a cancelled consent. */
   | "failed";

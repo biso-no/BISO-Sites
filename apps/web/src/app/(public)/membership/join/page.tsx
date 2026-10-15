@@ -7,17 +7,18 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
-import { getLoggedInUser } from "@/lib/actions/user";
+import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { upcomingMembership } from "@/lib/member-portal-membership";
 import {
   AlreadyMemberState,
   MembershipCheckUnavailableState,
-  NeedsBiLinkState,
+  NeedsBiSignInState,
   NoPlansAvailableState,
   SignedOutState,
 } from "./gate-states";
 import { JoinWizard } from "./join-wizard";
 import { RetryDirectoryState } from "./retry-directory-state";
+import { RetryStudentSyncState } from "./retry-student-sync-state";
 
 export const metadata: Metadata = {
   title: "Join BISO | BISO",
@@ -37,23 +38,20 @@ interface MembershipJoinPageProps {
     cancelled?: string;
     error?: string;
     linked?: string;
-    oidc_failed?: string;
   }>;
 }
 
 /**
- * A BI OIDC link completes at /api/auth/bi-link, which runs the sync + cache
- * invalidation itself and only then redirects here with `?linked=1` — see
- * that route's doc comment. This page never re-runs the sync (a refresh of
- * this URL is inert), and never reads a request-memoized value that could
- * predate the write: the redirect from that route always starts a fresh
- * request, so `getLoggedInUser()`/`getMembershipStatus()` below see it.
+ * A BI sign-in completes at /auth/oauth, which writes the student number
+ * itself and only then redirects here. This page never runs that sync (a
+ * refresh of this URL is inert), and never reads a request-memoized value
+ * that could predate the write: the redirect always starts a fresh request,
+ * so `getLoggedInUser()`/`getMembershipStatus()` below see it.
  */
 export default async function MembershipJoinPage({
   searchParams,
 }: MembershipJoinPageProps) {
   const params = await searchParams;
-  const linkFailed = params.oidc_failed === "1";
   // apps/api's /api/payment/return sends a membership buyer back here on a
   // cancelled or failed payment (see redirectForStatus there) instead of the
   // shop cart, since a membership order never touched the cart — the web
@@ -97,7 +95,13 @@ export default async function MembershipJoinPage({
   if (gate.state === "signed_out") {
     body = <SignedOutState />;
   } else if (gate.state === "needs_bi_link") {
-    body = <NeedsBiLinkState linkFailed={linkFailed} />;
+    // Signed in with BI already, yet no student number: offering another BI
+    // sign-in would loop. Retry the sync instead.
+    const identities = (await listIdentities())?.identities ?? [];
+    const hasBiIdentity = identities.some(
+      (identity) => identity.provider.toLowerCase() === "oidc"
+    );
+    body = hasBiIdentity ? <RetryStudentSyncState /> : <NeedsBiSignInState />;
   } else if (gate.state === "needs_directory_record") {
     body = <RetryDirectoryState />;
   } else if (gate.state === "membership_check_unavailable") {

@@ -14,8 +14,11 @@ const db = vi.hoisted(() => ({
 
 const users = vi.hoisted(() => ({
   deleteIdentity: vi.fn(),
+  deleteSession: vi.fn(),
   get: vi.fn(),
   listIdentities: vi.fn(),
+  listSessions: vi.fn(),
+  updatePassword: vi.fn(),
 }));
 
 const getBiDirectoryUser = vi.hoisted(() => vi.fn());
@@ -31,8 +34,13 @@ vi.mock("@repo/connectors/azure/bi-directory", () => ({
   getBiDirectoryUser,
 }));
 
-import { syncBiStudentIdentityAfterSignIn } from "@/lib/bi-identity-sync";
+import {
+  isFreshMergeIntoPasswordAccount,
+  syncBiStudentIdentityAfterSignIn,
+} from "@/lib/bi-identity-sync";
 import { syncBiStudentIdentity } from "./bi-identity";
+
+const ROTATED_PASSWORD_RE = /^[A-Za-z0-9_-]{40,}$/;
 
 function oidcIdentity(providerEmail: string, providerUid = providerEmail) {
   return { $id: "identity-1", provider: "oidc", providerEmail, providerUid };
@@ -645,5 +653,167 @@ describe("syncBiStudentIdentityAfterSignIn", () => {
     const result = await syncBiStudentIdentityAfterSignIn("user-1");
 
     expect(result).toEqual({ success: false, error: "not_authenticated" });
+  });
+});
+
+describe("isFreshMergeIntoPasswordAccount", () => {
+  const now = new Date("2026-10-15T12:00:00Z");
+
+  it("flags a minutes-old BI identity on an older account that has a password", () => {
+    expect(
+      isFreshMergeIntoPasswordAccount({
+        identityCreatedAt: "2026-10-15T11:58:00Z",
+        now,
+        passwordUpdate: "2026-09-01T10:00:00Z",
+        userCreatedAt: "2026-09-01T10:00:00Z",
+      })
+    ).toBe(true);
+  });
+
+  it("ignores an account without a password", () => {
+    expect(
+      isFreshMergeIntoPasswordAccount({
+        identityCreatedAt: "2026-10-15T11:58:00Z",
+        now,
+        passwordUpdate: "",
+        userCreatedAt: "2026-09-01T10:00:00Z",
+      })
+    ).toBe(false);
+  });
+
+  it("ignores an account created together with the identity", () => {
+    expect(
+      isFreshMergeIntoPasswordAccount({
+        identityCreatedAt: "2026-10-15T11:58:00Z",
+        now,
+        passwordUpdate: "2026-10-15T11:58:00Z",
+        userCreatedAt: "2026-10-15T11:57:50Z",
+      })
+    ).toBe(false);
+  });
+
+  it("ignores an identity that was attached long ago", () => {
+    expect(
+      isFreshMergeIntoPasswordAccount({
+        identityCreatedAt: "2026-10-01T11:58:00Z",
+        now,
+        passwordUpdate: "2026-09-01T10:00:00Z",
+        userCreatedAt: "2026-09-01T10:00:00Z",
+      })
+    ).toBe(false);
+  });
+
+  it("ignores unparsable dates", () => {
+    expect(
+      isFreshMergeIntoPasswordAccount({
+        identityCreatedAt: "nope",
+        now,
+        passwordUpdate: "2026-09-01T10:00:00Z",
+        userCreatedAt: "2026-09-01T10:00:00Z",
+      })
+    ).toBe(false);
+  });
+});
+
+describe("syncBiStudentIdentityAfterSignIn takeover guard", () => {
+  beforeEach(() => {
+    db.getRow.mockReset();
+    db.updateRow.mockReset();
+    db.createRow.mockReset();
+    db.listRows.mockReset();
+    getBiDirectoryUser.mockReset();
+    users.get.mockReset();
+    users.listIdentities.mockReset();
+    users.listSessions.mockReset();
+    users.deleteSession.mockReset();
+    users.updatePassword.mockReset();
+
+    db.getRow.mockResolvedValue({});
+    db.updateRow.mockResolvedValue({});
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
+    getBiDirectoryUser.mockResolvedValue(null);
+    users.listSessions.mockResolvedValue({
+      sessions: [{ $id: "sess-old" }, { $id: "sess-now" }],
+      total: 2,
+    });
+    users.deleteSession.mockResolvedValue({});
+    users.updatePassword.mockResolvedValue({});
+  });
+
+  it("locks prior holders out of a password account the sign-in just merged into", async () => {
+    users.get.mockResolvedValue({
+      $createdAt: "2026-09-01T10:00:00Z",
+      $id: "user-1",
+      email: "s1715738@bi.no",
+      passwordUpdate: "2026-09-01T10:00:00Z",
+    });
+    users.listIdentities.mockResolvedValue({
+      identities: [
+        {
+          ...oidcIdentity("s1715738@bi.no"),
+          $createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const result = await syncBiStudentIdentityAfterSignIn("user-1", {
+      currentSessionId: "sess-now",
+    });
+
+    expect(result).toMatchObject({ success: true, studentId: "s1715738" });
+    expect(users.deleteSession).toHaveBeenCalledTimes(1);
+    expect(users.deleteSession).toHaveBeenCalledWith({
+      sessionId: "sess-old",
+      userId: "user-1",
+    });
+    expect(users.updatePassword).toHaveBeenCalledWith({
+      password: expect.stringMatching(ROTATED_PASSWORD_RE),
+      userId: "user-1",
+    });
+  });
+
+  it("leaves an ordinary student account alone", async () => {
+    users.get.mockResolvedValue({
+      $createdAt: new Date().toISOString(),
+      $id: "user-1",
+      email: "s1715738@bi.no",
+      passwordUpdate: "",
+    });
+    users.listIdentities.mockResolvedValue({
+      identities: [
+        {
+          ...oidcIdentity("s1715738@bi.no"),
+          $createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    await syncBiStudentIdentityAfterSignIn("user-1", {
+      currentSessionId: "sess-now",
+    });
+
+    expect(users.deleteSession).not.toHaveBeenCalled();
+    expect(users.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it("does nothing without the current session id, which only the sign-in route has", async () => {
+    users.get.mockResolvedValue({
+      $createdAt: "2026-09-01T10:00:00Z",
+      $id: "user-1",
+      email: "s1715738@bi.no",
+      passwordUpdate: "2026-09-01T10:00:00Z",
+    });
+    users.listIdentities.mockResolvedValue({
+      identities: [
+        {
+          ...oidcIdentity("s1715738@bi.no"),
+          $createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    await syncBiStudentIdentityAfterSignIn("user-1");
+
+    expect(users.updatePassword).not.toHaveBeenCalled();
   });
 });

@@ -33,15 +33,15 @@
     }
   },
   "student": {
-    "title": "Link your BI account",
-    "description": "Connect your BI Business School account to verify your semester registration and unlock member benefits and discounts.",
+    "title": "Sign in with your BI account",
+    "description": "You are signed in with a private email. Sign in with your BI student account instead and we verify your student status automatically, with nothing to connect.",
     "benefits": {
       "title": "What you unlock",
       "membership": "Verified member status and semester discounts",
       "events": "Access to student-only events",
       "sso": "Single sign-on with your BI credentials"
     },
-    "linkButton": "Link BI Student Account",
+    "linkButton": "Sign in with BI student account",
     "skip": "Skip for now"
   },
   "personal": {

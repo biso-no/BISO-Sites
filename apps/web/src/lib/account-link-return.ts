@@ -1,8 +1,8 @@
 /**
- * Every reason `/api/auth/bi-link` can refuse or fail a BI link. Mirrors the
- * failure codes of `syncBiStudentIdentity` except `directory_unavailable`,
- * which is a partial success (the link landed, only the directory enrichment
- * failed) and so returns as `?linked=1`.
+ * Every reason a BI sign-in can fail to connect the student. Mirrors the
+ * failure codes of the identity sync except `directory_unavailable`, which
+ * is a partial success (the student number landed, only the directory
+ * enrichment failed) and so returns as `?linked=1`.
  */
 export const ACCOUNT_LINK_ERRORS = [
   "already_linked",
@@ -28,11 +28,10 @@ export interface AccountLinkReturn {
 }
 
 /**
- * Reads a BI link return leg off the query string.
+ * Reads a BI sign-in's outcome off the query string.
  *
- * `/api/auth/bi-link` sends the browser back with `?linked=1`, or with
- * `?link_error=<code>` when the link was refused or failed. Both end the flow,
- * so both must close the browser-side Appwrite session the link opened.
+ * `/auth/oauth` sends the browser on with `?linked=1` when the student was
+ * connected, or with `?link_error=<code>` when that was refused or failed.
  * Unknown codes are ignored so arbitrary query strings can't drive the UI.
  */
 export function readAccountLinkReturn(params: {

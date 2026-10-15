@@ -13,9 +13,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-import { startBiAccountLink } from "@/lib/account-link-client";
+import { useEffect, useState, useTransition } from "react";
 import { updateProfile } from "@/lib/actions/user";
+import { clearBrowserAppwriteSession } from "@/lib/bi-sign-in-client";
+import { switchToBiSignIn } from "@/lib/server";
 
 // ---------- Types ----------
 
@@ -44,7 +45,6 @@ interface BankingInfo {
 interface OnboardingState {
   bankingInfo: BankingInfo;
   biLinked: boolean;
-  pendingOAuth: boolean;
   persona: PersonaState;
   personalInfo: PersonalInfo;
 }
@@ -55,7 +55,6 @@ const DEFAULT_STATE: OnboardingState = {
   persona: { isStudent: false, isVolunteer: false, isFinancial: false },
   personalInfo: { name: "", phone: "", address: "", city: "", zip: "" },
   bankingInfo: { mode: "norwegian", bank_account: "", swift: "" },
-  pendingOAuth: false,
   biLinked: false,
 };
 
@@ -231,7 +230,7 @@ export function OnboardingFlow({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Load persisted state after mount + handle OAuth return
+  // Load persisted state after mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -244,20 +243,12 @@ export function OnboardingFlow({
         ...DEFAULT_STATE,
         ...parsed,
         biLinked: linkedBi || (parsed.biLinked ?? false),
-        pendingOAuth: false,
         personalInfo: {
           ...DEFAULT_STATE.personalInfo,
           ...parsed.personalInfo,
           name: initialName || parsed.personalInfo?.name || "",
         },
       });
-
-      if (linkedBi && parsed.pendingOAuth) {
-        const persona = parsed.persona ?? DEFAULT_STATE.persona;
-        const newSteps = buildSteps(persona, true);
-        const personalIdx = newSteps.indexOf("personal");
-        setStepIdx(personalIdx === -1 ? 1 : personalIdx);
-      }
     } catch {
       // ignore parse errors
     }
@@ -363,17 +354,19 @@ export function OnboardingFlow({
     setStepIdx((i) => i - 1);
   };
 
-  const triggerOidc = async () => {
-    setState((prev) => ({ ...prev, pendingOAuth: true }));
-    try {
-      // Without a browser-side Appwrite session the OAuth redirect creates a
-      // brand-new account instead of linking this one — see
-      // ensureClientAppwriteSession.
-      await startBiAccountLink("/onboarding", "oidc_failed=1");
-    } catch {
-      setState((prev) => ({ ...prev, pendingOAuth: false }));
-      setSubmitError(t("errors.unknown"));
-    }
+  // This account was created with a private email. There is no linking any
+  // more: the student signs out of it and in with BI, and comes back here as
+  // that account. The saved draft in localStorage survives the switch.
+  const [switching, startSwitch] = useTransition();
+  const switchToBi = () => {
+    startSwitch(async () => {
+      try {
+        await clearBrowserAppwriteSession();
+        await switchToBiSignIn("/onboarding");
+      } catch {
+        setSubmitError(t("errors.unknown"));
+      }
+    });
   };
 
   const skipStudent = () => {
@@ -482,8 +475,9 @@ export function OnboardingFlow({
 
       <div className="space-y-2">
         <button
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 font-semibold text-brand-foreground text-sm transition-colors hover:bg-brand/90"
-          onClick={triggerOidc}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 font-semibold text-brand-foreground text-sm transition-colors hover:bg-brand/90 disabled:opacity-70"
+          disabled={switching}
+          onClick={switchToBi}
           type="button"
         >
           {t("student.linkButton")}

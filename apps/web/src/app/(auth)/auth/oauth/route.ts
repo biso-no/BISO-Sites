@@ -66,13 +66,13 @@ export async function GET(request: NextRequest) {
   // The sync must never block the sign-in: a Graph outage is reported as a
   // partial result and the membership gate offers the retry.
   const hadProfile = await hasProfileRow(db, session.userId);
-  const sync = await syncBiStudentIdentityAfterSignIn(session.userId).catch(
-    (error: unknown) => {
-      unstable_rethrow(error);
-      console.error("[BI Identity] Sign-in sync failed:", error);
-      return { success: false as const, error: "sync_failed" as const };
-    }
-  );
+  const sync = await syncBiStudentIdentityAfterSignIn(session.userId, {
+    currentSessionId: session.$id,
+  }).catch((error: unknown) => {
+    unstable_rethrow(error);
+    console.error("[BI Identity] Sign-in sync failed:", error);
+    return { success: false as const, error: "sync_failed" as const };
+  });
   const linkedBi = sync.success || sync.error === "directory_unavailable";
   // A refused or failed link is told, not hidden: the root layout shows a
   // toast for `link_error`, the same one the browser-side link flow uses. A

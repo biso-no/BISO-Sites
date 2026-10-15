@@ -19,13 +19,10 @@ export const metadata: Metadata = {
   description: "View and manage your profile and privacy settings.",
 };
 
-// A BI (or Microsoft) OIDC link completes at /api/auth/bi-link, which runs
-// the sync + cache invalidation itself and only then redirects here with
-// `?linked=1` — see that route's doc comment. This page never re-runs the
-// sync: it starts a brand-new request (this route group is already dynamic
-// via `getLoggedInUser()`'s cookie read), so the reads below already see
-// whatever the route handler just wrote. The `linked`/`error` query params
-// carry no behaviour on this page — they're read by nothing here.
+// A BI sign-in writes the student number at /auth/oauth before redirecting
+// here, and this route group is dynamic via `getLoggedInUser()`'s cookie
+// read, so the reads below already see it. Nothing on this page links or
+// syncs anything.
 export default async function PublicProfilePage() {
   const userData = await getLoggedInUser();
   const identitiesResp = await listIdentities();

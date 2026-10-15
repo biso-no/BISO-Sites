@@ -6,21 +6,22 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { endClientAppwriteSession } from "@/lib/account-link-client";
 import { type BiLoginFailure, readBiLoginFailure } from "@/lib/bi-login";
+import { clearBrowserAppwriteSession } from "@/lib/bi-sign-in-client";
 import { signInWithBiStudent, signInWithMagicLink } from "@/lib/server";
 import { safeRedirectPath } from "@/lib/utils";
 
 /**
  * What the login page says when a BI sign-in comes back failed. The
- * existing-account case is the one the student can resolve alone: Appwrite
- * will not merge a BI identity into an account that only has the matching
- * bi.no email, so that account signs in with a login link and connects BI
- * from the profile — after which BI sign-in works for it too.
+ * existing-account case should not happen once Appwrite's OIDC provider uses
+ * this project's userinfo endpoint (see `apps/api` `/api/auth/bi-userinfo`);
+ * it means Appwrite refused to merge into the account holding the student's
+ * bi.no email, so the copy keeps the student moving and asks them to report
+ * it.
  */
 const BI_LOGIN_FAILURE_TEXT: Record<BiLoginFailure, string> = {
   existing_account:
-    "If you already have a BISO account with your student email, it is not connected to BI yet. Send yourself a login link to that email below, then connect your BI account from your profile. After that, BI sign-in works directly.",
+    "BI could not sign you into your existing BISO account. Use a login link to your student email below, and let us know at /contact so we can fix the sign-in.",
   failed:
     "We could not sign you in with BI. Please try again, or use a login link.",
 };
@@ -118,11 +119,7 @@ export function Login() {
   const handleBiLogin = async () => {
     setIsStartingBi(true);
     try {
-      // Appwrite links the incoming identity to whichever account owns the
-      // browser's own Appwrite session. An abandoned link attempt leaves one
-      // behind, so clear it first or this sign-in could attach to, and sign
-      // into, someone else's account on a shared machine.
-      await endClientAppwriteSession();
+      await clearBrowserAppwriteSession();
       await signInWithBiStudent();
     } catch {
       setMessage({ type: "error", text: BI_LOGIN_FAILURE_TEXT.failed });

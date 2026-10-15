@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
-import { getLoggedInUser } from "@/lib/actions/user";
+import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 
 export const metadata: Metadata = {
   description: "Set up your BISO profile to access events, benefits, and more.",
@@ -12,17 +12,14 @@ interface OnboardingPageProps {
   searchParams: Promise<{
     link_error?: string;
     linked?: string;
-    oidc_failed?: string;
     required?: string;
   }>;
 }
 
-// A BI OIDC link completes at /api/auth/bi-link, which runs the sync + cache
-// invalidation itself and only then redirects here with `?linked=1` — see
-// that route's doc comment. This page never re-runs the sync: `params.linked`
-// below is read purely as a UI flag (mid-OAuth-flow bookkeeping), not a
-// trigger — a refresh of this URL is now inert instead of re-running the
-// Graph call and the DB write.
+// A BI sign-in completes at /auth/oauth, which writes the student number
+// itself and sends a brand-new student here with `?linked=1`. This page never
+// runs that sync: `params.linked` is read purely as a UI flag, so a refresh
+// of this URL is inert.
 export default async function OnboardingPage({
   searchParams,
 }: OnboardingPageProps) {
@@ -39,6 +36,14 @@ export default async function OnboardingPage({
     redirect("/profile");
   }
 
+  // An account that already carries a BI identity has nothing to gain from
+  // the "sign in with BI" step, whether or not this visit came straight from
+  // the sign-in; a failed student sync is reported by the toast instead.
+  const identities = (await listIdentities())?.identities ?? [];
+  const hasBiIdentity = identities.some(
+    (identity) => identity.provider.toLowerCase() === "oidc"
+  );
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-brand-dark">
       {/* Radial brand-blue glow centred behind the card */}
@@ -50,7 +55,7 @@ export default async function OnboardingPage({
       </div>
       <OnboardingFlow
         initialName={userData.user.name ?? ""}
-        linkedBi={params.linked === "1"}
+        linkedBi={params.linked === "1" || hasBiIdentity}
         required={params.required === "1"}
       />
     </div>

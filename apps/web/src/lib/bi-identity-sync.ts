@@ -7,6 +7,7 @@
 
 import "server-only";
 
+import { randomBytes } from "node:crypto";
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
@@ -238,6 +239,7 @@ export type BiIdentitySyncResult =
 export interface SyncSubject {
   email: string | null | undefined;
   identities: readonly {
+    $createdAt?: string;
     $id: string;
     provider: string;
     providerEmail?: string | null;
@@ -257,8 +259,72 @@ export interface SyncSubject {
  * admin client because the route is still holding the session secret it has
  * yet to set.
  */
+/**
+ * Whether a BI identity was just attached to an account someone had set up
+ * earlier with a password.
+ *
+ * Appwrite merges a BI sign-in into the account that holds the same bi.no
+ * email. With email/password sign-up open, anyone can register a student's
+ * address ahead of time; the student's first BI sign-in then lands in that
+ * account, and whoever set the password keeps a key to it. The tell is an
+ * identity minutes old on an account that is older and has a password. A
+ * legitimate student never has a password: this app signs in with BI or a
+ * login link only.
+ */
+export function isFreshMergeIntoPasswordAccount(input: {
+  identityCreatedAt: string;
+  now?: Date;
+  passwordUpdate: string | null | undefined;
+  userCreatedAt: string;
+}): boolean {
+  if (!input.passwordUpdate) {
+    return false;
+  }
+  const now = (input.now ?? new Date()).getTime();
+  const identityAt = new Date(input.identityCreatedAt).getTime();
+  const userAt = new Date(input.userCreatedAt).getTime();
+  if (!(Number.isFinite(identityAt) && Number.isFinite(userAt))) {
+    return false;
+  }
+  return (
+    now - identityAt <= FRESH_IDENTITY_WINDOW_MS &&
+    identityAt - userAt >= PRE_EXISTING_ACCOUNT_GAP_MS
+  );
+}
+
+const FRESH_IDENTITY_WINDOW_MS = 10 * 60 * 1000;
+const PRE_EXISTING_ACCOUNT_GAP_MS = 60 * 1000;
+const ROTATED_PASSWORD_BYTES = 32;
+
+/**
+ * Locks everyone but the student out of an account the sign-in just merged
+ * into: every other session is ended and the password is replaced with one
+ * nobody knows. The student is unaffected — they are in the session that
+ * stays, and they sign in with BI or a login link, never a password.
+ */
+async function lockOutPriorHolders(
+  users: AdminClients["users"],
+  userId: string,
+  currentSessionId: string
+): Promise<void> {
+  const { sessions } = await users.listSessions({ userId });
+  await Promise.all(
+    sessions
+      .filter((session) => session.$id !== currentSessionId)
+      .map((session) => users.deleteSession({ sessionId: session.$id, userId }))
+  );
+  await users.updatePassword({
+    password: randomBytes(ROTATED_PASSWORD_BYTES).toString("base64url"),
+    userId,
+  });
+  console.warn(
+    `[BI Identity] ${userId} had a password before its BI identity was attached; other sessions ended and password rotated`
+  );
+}
+
 export async function syncBiStudentIdentityAfterSignIn(
-  userId: string
+  userId: string,
+  options: { currentSessionId?: string } = {}
 ): Promise<BiIdentitySyncResult> {
   const { db, users } = await createAdminClient();
   const [user, identities] = await Promise.all([
@@ -280,6 +346,21 @@ export async function syncBiStudentIdentityAfterSignIn(
     identities: identities?.identities ?? [],
     userId,
   };
+
+  const biIdentity = subject.identities.find(
+    (identity) => identity.provider.toLowerCase() === "oidc"
+  );
+  if (
+    options.currentSessionId &&
+    biIdentity?.$createdAt &&
+    isFreshMergeIntoPasswordAccount({
+      identityCreatedAt: biIdentity.$createdAt,
+      passwordUpdate: user.passwordUpdate,
+      userCreatedAt: user.$createdAt,
+    })
+  ) {
+    await lockOutPriorHolders(users, userId, options.currentSessionId);
+  }
 
   // A returning student is already linked: skip the directory round trip,
   // the duplicate check and the profile write, and keep `bi_linked_at` as

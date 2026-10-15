@@ -183,12 +183,18 @@
       "cta": "Sign in"
     },
     "needsBiLink": {
-      "title": "Link your BI student account",
-      "body": "We verify your membership against your BI student record. Signing in with your student email isn't enough — link the account itself.",
-      "cta": "Link BI Student account",
-      "linkFailed": "We couldn't complete the link. Please try again, or contact us if it keeps failing.",
-      "alreadyLinked": "This BI student account is already linked to another BISO account. Unlink it there, or contact BISO.",
-      "invalidBiEmail": "The account you linked isn't a BI student account. Link the account for your s-number student email (s1234567@bi.no)."
+      "title": "Sign in with your BI student account",
+      "body": "Your membership follows your student number, so you need to be signed in with your BI account. You are signed in with another account right now; sign in again with BI and you are set.",
+      "cta": "Sign in with BI",
+      "linkFailed": "We could not confirm your student number after signing in. Please try again, or contact us if it keeps failing.",
+      "alreadyLinked": "This BI student account already belongs to another BISO account. Sign in with that one, or contact BISO.",
+      "invalidBiEmail": "The BI account you signed in with is not a student account. Sign in with the student account for your s-number (s1234567@bi.no)."
+    },
+    "biSyncFailed": {
+      "title": "We could not confirm your student number",
+      "body": "You are signed in with BI, but your student number did not come through. It may be a passing problem, or the BI account is not a student account with an s-number. You have not been charged.",
+      "retry": "Try again",
+      "contact": "Contact us"
     },
     "needsDirectoryRecord": {
       "title": "We couldn't verify your BI record",
@@ -247,15 +253,6 @@
     "errors": {
       "noCampus": "Choose your campus.",
       "generic": "Something went wrong. Please try again."
-    }
-  },
-  "link": {
-    "title": "Link your BI student account",
-    "subtitle": "Link it once here, then go back to the BISO app to see your membership.",
-    "linked": {
-      "title": "Your BI student account is linked",
-      "body": "Signed in as {email}. Go back to the BISO app to see your membership.",
-      "cta": "Return to the BISO app"
     }
   }
 }
