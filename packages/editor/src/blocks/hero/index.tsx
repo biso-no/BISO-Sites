@@ -15,7 +15,7 @@ registerBlock({
     { id: "full", label: "Full", kind: "full" },
   ],
   aiHint:
-    "A large introductory block with a headline, subtitle, CTA button, and decorative art.",
+    "Page opener: eyebrow, title, subtitle and a call to action, with an optional photo in the art panel (split) or behind the copy (full).",
   aiProps: ["eyebrow", "title", "subtitle", "ctaLabel", "ctaUrl"],
   schema: [
     { key: "eyebrow", label: "Eyebrow", type: "text" },
