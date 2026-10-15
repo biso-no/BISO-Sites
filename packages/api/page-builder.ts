@@ -40,6 +40,8 @@ function pageAudience(visibility: PagesVisibility): "public" | "members" {
 // Minimal local definition — avoids circular dep with @repo/editor
 interface PageMeta {
   accentColor: string;
+  /** Campus id the page belongs to; "" for national. Absent on older documents. */
+  campus?: string;
   department: string;
   description?: string;
   slug: string;

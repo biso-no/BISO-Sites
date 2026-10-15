@@ -15,6 +15,7 @@ import {
 } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
+import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
@@ -32,7 +33,10 @@ import {
   parseAutoTranslationOptions,
   scheduleContentTranslation,
 } from "@/lib/content-translation.server";
-import { resolvePageSaveCampusId } from "@/lib/page-campus";
+import {
+  requestedPageCampusId,
+  resolvePageSaveCampusId,
+} from "@/lib/page-campus";
 import {
   getPageTranslationSource,
   translatePageDocument,
@@ -298,8 +302,17 @@ export async function savePageEditorDoc({
     // campus is picked in the switcher) and, latently, what let ANY save
     // silently move or null out an existing page's already-correct campus.
     // Compute the value ONCE so authorization and persistence can't disagree.
+    // The campus chosen in the editor wins when the document carries one,
+    // within what this editor may choose (`requestedPageCampusId`); unit
+    // pages keep their campus because their URL encodes it.
+    const chosenCampusId =
+      "campus" in normalizedDoc.meta
+        ? requestedPageCampusId(normalizedDoc.meta.campus, ctx)
+        : undefined;
     const campusId = resolvePageSaveCampusId({
       authorCampusId: resolvePageCampusId(ctx),
+      campusLocked: isUnitPageSlug(existing?.slug ?? null),
+      chosenCampusId,
       isUpdate: Boolean(existing),
       persistedCampusId: persisted?.campus ?? null,
     });

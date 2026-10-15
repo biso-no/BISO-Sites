@@ -19,6 +19,7 @@ import { withPublishStatusSync } from "@/editor/publish-status";
 import { useEditorStore } from "@/editor/store";
 import type {
   BlockType,
+  EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
@@ -36,6 +37,7 @@ import "@/blocks/index";
 
 interface Props {
   activeLocale: EditorLocale;
+  campuses?: EditorCampus[];
   departments: EditorDepartment[];
   initial: PageDoc | null;
   locales: EditorLocaleOption[];
@@ -55,6 +57,7 @@ interface Props {
   uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
 }
 
+const EMPTY_CAMPUSES: EditorCampus[] = [];
 const DEBOUNCE_MS = 800;
 
 export function EditorShell({
@@ -64,6 +67,7 @@ export function EditorShell({
   departments,
   lockedMeta,
   onExit,
+  campuses = EMPTY_CAMPUSES,
   onPublish,
   onUnpublish,
   activeLocale,
@@ -234,6 +238,7 @@ export function EditorShell({
       value={{
         savePage,
         uploadFile,
+        campuses,
         departments,
         lockedMeta,
         onExit,
