@@ -1,27 +1,41 @@
+import type { CampusMetadata } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
-import { AboutSection } from "@/components/home/about-section";
+import { CampusSections } from "@/components/home/campus-sections";
 import { EventsSection } from "@/components/home/events-section";
 import { HeroSection } from "@/components/home/hero-section";
 import { JoinUs } from "@/components/home/join-us";
+import { LeadershipSection } from "@/components/home/leadership-section";
 import { NewsSection } from "@/components/home/news-section";
+import { OverviewSection } from "@/components/home/overview-section";
 import { Partners } from "@/components/home/partners";
 import {
-  AboutSkeleton,
   EventsSkeleton,
   HeroSkeleton,
+  LeadershipSkeleton,
   NewsSkeleton,
+  OverviewSkeleton,
 } from "@/components/home/skeletons";
 import { getUserPreferences } from "@/lib/auth-utils";
+import {
+  leadershipCampusId,
+  localizedFocusAreas,
+  managementDepartmentId,
+} from "@/lib/campus-leadership";
+import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import {
+  cachedCampuses,
+  cachedCampusMetadata,
   cachedHomeCounts,
+  cachedOpenJobs,
   cachedPartners,
   cachedPublishedEvents,
   cachedPublishedNews,
 } from "@/lib/data/public-content";
+import { cachedPublicUnits } from "@/lib/data/units";
 import { listEvents } from "../actions/events";
 import { getLocale } from "../actions/locale";
 import { listNews } from "../actions/news";
@@ -37,6 +51,7 @@ const HOME_EVENTS_LIMIT = 12;
 const HOME_NEWS_LIMIT = 3;
 const HERO_EVENTS_LIMIT = 3;
 const HERO_NEWS_LIMIT = 2;
+const HOME_JOBS_LIMIT = 3;
 
 // Split feeds: anonymous visitors (all bot/monitor traffic) share the
 // "use cache" guest result; session holders read per-request so their own
@@ -105,30 +120,80 @@ export default async function HomePage() {
   // Partners/counts are not member-scoped and stay cached for
   // everyone. Failures fall back per-slice so a transient Appwrite error
   // renders an emptier homepage instead of a 500 — and is never cached.
-  const [heroEvents, heroNews, events, news, counts, partners] =
-    await Promise.all([
-      homeEvents(hasSession, locale, campusKey, HERO_EVENTS_LIMIT),
-      homeNews(hasSession, locale, campusKey, HERO_NEWS_LIMIT),
-      homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
-      homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
-      cachedHomeCounts(campusKey, locale).catch(() => ({
-        departmentCount: 0,
-        eventCount: 0,
-        jobCount: 0,
-      })),
-      cachedPartners().catch(() => []),
-    ]);
+  // The campus overview that used to live only on /campus: focus areas,
+  // leadership, open roles and the unit grid, all scoped like the feeds and
+  // all read through the guest cache. The leadership section fetches its own
+  // board inside Suspense, so a slow directory never holds the page.
+  const boardCampusId = leadershipCampusId(campusKey);
+  const [
+    heroEvents,
+    heroNews,
+    events,
+    news,
+    counts,
+    partners,
+    campuses,
+    campusMetadata,
+    jobs,
+    units,
+  ] = await Promise.all([
+    homeEvents(hasSession, locale, campusKey, HERO_EVENTS_LIMIT),
+    homeNews(hasSession, locale, campusKey, HERO_NEWS_LIMIT),
+    homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
+    homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
+    cachedHomeCounts(campusKey, locale).catch(() => ({
+      departmentCount: 0,
+      eventCount: 0,
+      jobCount: 0,
+    })),
+    cachedPartners().catch(() => []),
+    cachedCampuses(null, true, false).catch(() => []),
+    cachedCampusMetadata().catch((): Record<string, CampusMetadata> => ({})),
+    cachedOpenJobs(campusKey, locale, HOME_JOBS_LIMIT).catch(() => []),
+    cachedPublicUnits(locale).catch(() => []),
+  ]);
+
+  // National is a scope, not a place: its copy is the no-campus copy.
+  const campusName =
+    campusKey && campusKey !== NATIONAL_CAMPUS_ID
+      ? (campuses.find((campus) => campus.$id === campusKey)?.name ?? null)
+      : null;
+  const campusUnits = campusKey
+    ? units.filter((unit) => unit.campusId === campusKey)
+    : units;
+  const managementUnitId = managementDepartmentId(boardCampusId);
+  const teamHref =
+    units.find((unit) => unit.id === managementUnitId)?.href ?? null;
+
   return (
     <div className="min-h-screen bg-linear-to-b from-background via-section to-background">
       <Suspense fallback={<HeroSkeleton />}>
-        <HeroSection events={heroEvents} news={heroNews} />
+        <HeroSection
+          campusName={campusName}
+          events={heroEvents}
+          news={heroNews}
+        />
       </Suspense>
 
-      <Suspense fallback={<AboutSkeleton />}>
-        <AboutSection
+      <Suspense fallback={<OverviewSkeleton />}>
+        <OverviewSection
+          campusName={campusName}
           departmentsCount={counts.departmentCount}
           eventCount={counts.eventCount}
+          focusAreas={localizedFocusAreas(
+            campusMetadata[boardCampusId] ?? null,
+            locale
+          )}
           jobCount={counts.jobCount}
+          locale={locale}
+        />
+      </Suspense>
+
+      <Suspense fallback={<LeadershipSkeleton />}>
+        <LeadershipSection
+          campusId={boardCampusId}
+          campusName={campusName}
+          teamHref={teamHref}
         />
       </Suspense>
 
@@ -139,6 +204,13 @@ export default async function HomePage() {
       <Suspense fallback={<NewsSkeleton />}>
         <NewsSection news={news} />
       </Suspense>
+
+      <CampusSections
+        activeCampusId={campusKey}
+        jobs={jobs}
+        locale={locale}
+        units={campusUnits}
+      />
 
       <JoinUs />
       <Partners partners={partners} />

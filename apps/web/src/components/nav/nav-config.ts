@@ -168,9 +168,6 @@ export const STUDENT_COLUMNS: NavColumnConfig[] = [
   },
 ];
 
-/** i18n key for the dynamic Campus column heading in the students panel. */
-export const STUDENT_CAMPUS_HEADING_KEY = "columns.campus";
-
 /**
  * Flagship project keys. Titles/slugs are resolved against the existing
  * `projects.featured.<key>` message bundle (title + slug fields).

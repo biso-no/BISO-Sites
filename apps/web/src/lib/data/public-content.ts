@@ -22,6 +22,7 @@ import { getPage } from "@repo/api/page-builder";
 import { createPublicClient } from "@repo/api/server";
 import type {
   Campus,
+  CampusMetadata,
   Departments,
   Events,
   Jobs,
@@ -35,6 +36,11 @@ import {
   PagesStatus,
   PagesVisibility,
 } from "@repo/api/types/appwrite";
+import {
+  fetchRecruitmentListPage,
+  localizeVacancy,
+} from "@repo/shared/recruitment";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { isRecruitmentVacancyOpen } from "@repo/shared/types/recruitment";
 import type {
   PageDepartmentsFeed,
@@ -196,6 +202,55 @@ export async function cachedCampuses(
 
   const campuses = await db.listRows<Campus>("app", "campus", query);
   return campuses.rows;
+}
+
+/**
+ * Every campus's metadata, keyed by campus id AND campus name like
+ * `getCampusMetadata`, for the front page's focus areas. Public rows, so the
+ * guest client; one read an hour for everyone.
+ */
+export async function cachedCampusMetadata(): Promise<
+  Record<string, CampusMetadata>
+> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const result = await db.listRows<CampusMetadata>("app", "campus_metadata", [
+    Query.limit(100),
+  ]);
+  const metadata: Record<string, CampusMetadata> = {};
+  for (const row of result.rows) {
+    metadata[row.campus_id] = row;
+    metadata[row.campus_name] = row;
+  }
+  return metadata;
+}
+
+/**
+ * The first few open roles for a campus, for the front page. The same query
+ * `/jobs` runs through `listJobs`, minus the per-request session client: the
+ * front page is mostly anonymous traffic and must not reach Appwrite
+ * uncached (see the module header).
+ */
+export async function cachedOpenJobs(
+  campusId: string | null,
+  locale: PublicLocale,
+  limit: number
+): Promise<RecruitmentVacancy[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  const queries: string[] = [
+    ...openVacancyQueries(),
+    Query.orderAsc("application_deadline"),
+    Query.limit(limit),
+  ];
+  const campusScope = campusScopeIds(campusId);
+  if (campusScope) {
+    queries.push(Query.equal("campus_id", campusScope));
+  }
+  const { rows } = await fetchRecruitmentListPage(db, queries);
+  return rows.map((vacancy) => localizeVacancy(vacancy, locale));
 }
 
 export async function cachedPartners(): Promise<Partner[]> {

@@ -7,12 +7,11 @@ import {
   TabsList,
   TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
-import { Briefcase, GraduationCap, Target, Users } from "lucide-react";
+import { Briefcase, GraduationCap, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface CampusTabsProps {
   content: {
-    overview: React.ReactNode;
     students: React.ReactNode;
     partners: React.ReactNode;
     team: React.ReactNode;
@@ -21,17 +20,19 @@ interface CampusTabsProps {
 }
 
 export function CampusTabs({ locale, content }: CampusTabsProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("students");
 
   // Sync with URL hash on mount and hash change
   useEffect(() => {
     const updateTabFromHash = () => {
       const hash = window.location.hash.slice(1);
-      const validTabs = ["overview", "students", "partners", "team"];
+      // The overview moved to the front page; its old hash opens the first
+      // remaining tab.
+      const validTabs = ["students", "partners", "team"];
       if (hash && validTabs.includes(hash)) {
         setActiveTab(hash);
       } else {
-        setActiveTab("overview");
+        setActiveTab("students");
       }
     };
 
@@ -49,11 +50,6 @@ export function CampusTabs({ locale, content }: CampusTabsProps) {
   };
 
   const tabs = [
-    {
-      value: "overview",
-      label: locale === "en" ? "Overview" : "Oversikt",
-      icon: Target,
-    },
     {
       value: "students",
       label: locale === "en" ? "For Students" : "For studenter",
@@ -77,7 +73,7 @@ export function CampusTabs({ locale, content }: CampusTabsProps) {
       <div className="sticky top-0 z-40 border-border border-b bg-background shadow-sm">
         <div className="mx-auto max-w-7xl px-4">
           <Tabs onValueChange={handleTabChange} value={activeTab}>
-            <TabsList className="grid h-auto w-full grid-cols-4 justify-start rounded-none border-0 bg-transparent p-0">
+            <TabsList className="grid h-auto w-full grid-cols-3 justify-start rounded-none border-0 bg-transparent p-0">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -98,8 +94,6 @@ export function CampusTabs({ locale, content }: CampusTabsProps) {
 
       {/* Tab Content */}
       <Tabs onValueChange={handleTabChange} value={activeTab}>
-        <TabsContent value="overview">{content.overview}</TabsContent>
-
         <TabsContent value="students">{content.students}</TabsContent>
 
         <TabsContent value="partners">{content.partners}</TabsContent>

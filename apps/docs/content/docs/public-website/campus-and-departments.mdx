@@ -9,12 +9,15 @@ BISO has student organisations on each BI campus (Oslo, Bergen, Trondheim, Stava
 
 ## Campus landing page
 
-`/campus` is the main campus overview page. It shows a lot in one place:
+Since October 2026 the **front page** is the campus overview: once a visitor has picked a campus with the sun switcher in the header, `/` shows that campus's hero, a short intro with the campus's focus areas and three live counts, the campus leadership (the management unit's board from Microsoft 365, with the `campus_data` board as fallback), upcoming events, news, open roles and the unit grid, then membership and partners. With no campus picked it shows everything, and the national Operations Unit as the leadership. The old explainer video is gone.
+
+`/campus` keeps the campus-specific tabs that are not on the front page: **For students**, **For businesses** and **Management**. Its old overview tab was removed because it duplicated the front page, and the campus list was removed from the For students menu: the sun switcher is the one place to change campus.
+
+The campus page's tabs read these fields:
 
 | Section | What's in it |
 |---------|-------------|
 | Hero | Campus name, tagline, hero image. |
-| Focus areas | High-level pillars the campus emphasises this year. |
 | Services | What BISO offers students at this campus. |
 | Student benefits | Concrete perks for being a member. |
 | Career advantages | Why employers care about BISO involvement. |
@@ -28,9 +31,7 @@ All of this is driven by a single `campus_data` row per campus. The relevant fie
 
 ### Board members
 
-Board member photos and titles aren't stored in Appwrite directly. They're fetched on demand via the Appwrite function `get_board_members`. That function pulls fresh data from BISO's source of truth so a leadership change is reflected automatically the next time the page renders.
-
-The function ID is configured by the env var `APPWRITE_CAMPUS_BOARD_FUNCTION_ID`. See [Operations → Environment variables](/docs/operations/environment-variables) for env management.
+Board member names, roles, photos and contact details are not stored in Appwrite. They come from Microsoft 365 through `apps/api`'s `/api/campus/{campusId}/{departmentId}/board`, where `departmentId` is the campus's management unit (`MANAGEMENT_DEPARTMENT_IDS` in `apps/web/src/lib/campus-leadership.ts`). The campus page's Management tab fetches it in the browser; the front page reads it on the server through `cachedUnitBoard`, cached for hours, so an election shows up within the day. The `campus_data.departmentBoard` relationship is a legacy fallback the Management tab still reads when the directory is unavailable.
 
 ### Live transit departures
 

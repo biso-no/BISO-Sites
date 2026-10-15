@@ -70,7 +70,6 @@
     },
     "columns": {
       "membership": "Membership",
-      "campus": "Campus",
       "resources": "Roles & resources",
       "flagships": "Flagships",
       "campusProjects": "On your campus",
