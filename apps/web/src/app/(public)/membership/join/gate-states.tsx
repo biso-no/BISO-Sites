@@ -6,7 +6,7 @@ import { Card } from "@repo/ui/components/ui/card";
 import {
   AlertTriangle,
   CheckCircle2,
-  Link2,
+  GraduationCap,
   LogIn,
   RefreshCw,
   UserSearch,
@@ -15,7 +15,8 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import type { ComponentType } from "react";
 import { useState, useTransition } from "react";
-import { startBiAccountLink } from "@/lib/account-link-client";
+import { clearBrowserAppwriteSession } from "@/lib/bi-sign-in-client";
+import { switchToBiSignIn } from "@/lib/server";
 
 // The page's <h1> lives in the branded hero shell above (join/page.tsx); this
 // is the state's own secondary heading.
@@ -60,25 +61,26 @@ export function SignedOutState({
   );
 }
 
-export function NeedsBiLinkState({
-  linkFailed = false,
+/**
+ * Signed in, but not with a BI account. There is no linking any more: the
+ * student signs out of this account and in with BI, and the membership
+ * follows the student number.
+ */
+export function NeedsBiSignInState({
   returnTo = "/membership/join",
 }: {
-  linkFailed?: boolean;
   returnTo?: string;
 }) {
   const t = useTranslations("membership.join.needsBiLink");
-  const [isLinking, startLink] = useTransition();
+  const [isStarting, start] = useTransition();
   const [startFailed, setStartFailed] = useState(false);
 
-  const link = () => {
+  const signIn = () => {
     setStartFailed(false);
-    startLink(async () => {
+    start(async () => {
       try {
-        // Without a browser-side Appwrite session the OAuth redirect creates
-        // a brand-new account instead of linking this one — see
-        // ensureClientAppwriteSession.
-        await startBiAccountLink(returnTo, "oidc_failed=1");
+        await clearBrowserAppwriteSession();
+        await switchToBiSignIn(returnTo);
       } catch {
         setStartFailed(true);
       }
@@ -88,18 +90,42 @@ export function NeedsBiLinkState({
   return (
     <StateCard
       alert={
-        linkFailed || startFailed ? (
+        startFailed ? (
           <Alert className="text-left" variant="destructive">
             <AlertDescription>{t("linkFailed")}</AlertDescription>
           </Alert>
         ) : null
       }
       body={t("body")}
-      icon={Link2}
+      icon={GraduationCap}
       title={t("title")}
     >
-      <Button disabled={isLinking} onClick={link}>
+      <Button disabled={isStarting} onClick={signIn}>
         {t("cta")}
+      </Button>
+    </StateCard>
+  );
+}
+
+/**
+ * Signed in with BI, yet no student number on the profile. Not a sign-in
+ * problem, so no sign-in button: retry the sync, or get help.
+ */
+export function BiSyncFailedState({
+  isRetrying = false,
+  onRetry,
+}: {
+  isRetrying?: boolean;
+  onRetry: () => void;
+}) {
+  const t = useTranslations("membership.join.biSyncFailed");
+  return (
+    <StateCard body={t("body")} icon={AlertTriangle} title={t("title")}>
+      <Button disabled={isRetrying} onClick={onRetry} variant="outline">
+        {t("retry")}
+      </Button>
+      <Button asChild>
+        <Link href="/contact">{t("contact")}</Link>
       </Button>
     </StateCard>
   );

@@ -9,10 +9,10 @@
       "signIn": "Sign In with Email"
     },
     "noBIEmail": {
-      "title": "Link Your BI Student Email",
-      "description": "To verify your membership and access benefits, please link your BI student email account. This allows us to securely validate your Student ID.",
+      "title": "Sign in with your BI student account",
+      "description": "Your membership follows your student number. Sign in with your BI account and we verify your student ID automatically.",
       "securityNote": "You'll be redirected to BI's secure authentication system. Your credentials are never stored by BISO.",
-      "linkEmail": "Link BI Student Email"
+      "linkEmail": "Sign in with BI"
     },
     "notMember": {
       "title": "Become a BISO Member",

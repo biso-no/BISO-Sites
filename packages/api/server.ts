@@ -47,19 +47,36 @@ export async function getBaseUrl(): Promise<string> {
 }
 
 /**
- * Wrap a TablesDB instance so that listRows and getRow return plain objects
- * instead of Appwrite SDK class instances, which Next.js cannot serialize
- * across the RSC → Client Component boundary.
+ * Every TablesDB method that answers with a row or a list of rows. Each is
+ * wrapped so the result is a plain object: a server action that returns the
+ * row it just wrote (`updateProfile` does) would otherwise hand an SDK class
+ * instance to the client, which Next.js refuses to serialize ("Only plain
+ * objects … can be passed to Client Components").
+ */
+const ROW_RETURNING_METHODS: ReadonlySet<string | symbol> = new Set([
+  "createRow",
+  "createRows",
+  "decrementRowColumn",
+  "getRow",
+  "incrementRowColumn",
+  "listRows",
+  "updateRow",
+  "updateRows",
+  "upsertRow",
+  "upsertRows",
+]);
+
+/**
+ * Wrap a TablesDB instance so that row reads AND row writes return plain
+ * objects instead of Appwrite SDK class instances, which Next.js cannot
+ * serialize across the RSC → Client Component boundary.
  */
 function plainDb(db: TablesDB): TablesDB {
   return new Proxy(db, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
 
-      if (
-        (prop === "listRows" || prop === "getRow") &&
-        typeof value === "function"
-      ) {
+      if (ROW_RETURNING_METHODS.has(prop) && typeof value === "function") {
         return async (...args: unknown[]) => {
           const result = await (value as (...a: unknown[]) => unknown).apply(
             target,
