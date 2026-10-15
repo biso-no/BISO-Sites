@@ -46,7 +46,12 @@ export interface HeroBlock {
   ctaUrl: string;
   eyebrow: string;
   id: string;
+  /** Alt text for `imageSrc`. Unused while there is no image. */
   imageAlt?: string;
+  /** Appwrite "media" bucket file ID behind `imageSrc`, when uploaded. */
+  imageFileId?: string;
+  /** A photo for the art panel (split) or the backdrop (full). */
+  imageSrc?: string;
   subtitle: string;
   title: string;
   type: "hero";

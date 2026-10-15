@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 /** Public-site typefaces, loaded for the page-editor canvas only. */
 export const museoSans = localFont({
   src: "../../public/museo_sans_300.otf",
+  weight: "300",
   variable: "--font-museo",
   display: "swap",
 });
