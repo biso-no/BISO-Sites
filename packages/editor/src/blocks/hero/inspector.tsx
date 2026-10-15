@@ -20,7 +20,7 @@ export function HeroInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["split", "centered", "full"] as const).map((v) => (
             <button
-              className={`pe-variant${block.variant === v ? "on" : ""}`}
+              className={`pe-variant ${block.variant === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"

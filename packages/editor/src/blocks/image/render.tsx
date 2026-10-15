@@ -44,6 +44,7 @@ export function ImageRender({ block, edit, onPatch }: Props) {
           className="pg-image__caption"
           contentEditable={edit || undefined}
           data-edit={edit ? "1" : undefined}
+          data-placeholder={edit ? "Caption…" : undefined}
           onBlur={
             edit
               ? (e) => onPatch("caption", e.currentTarget.textContent ?? "")
@@ -53,7 +54,7 @@ export function ImageRender({ block, edit, onPatch }: Props) {
           suppressContentEditableWarning
           tabIndex={edit ? 0 : undefined}
         >
-          {block.caption || (edit ? "Caption…" : "")}
+          {block.caption}
         </p>
       )}
     </div>

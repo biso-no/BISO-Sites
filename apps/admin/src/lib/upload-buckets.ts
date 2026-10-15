@@ -8,6 +8,13 @@ const IMAGE_MIME_TYPES = [
   "image/svg+xml",
 ] as const;
 
+/** What the page editor's video block invites: mp4, mov, webm. */
+const VIDEO_MIME_TYPES = [
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+] as const;
+
 export interface UploadBucketConfig {
   /** "admin" uses the service key (after the route's auth check). */
   client: "admin" | "session";
@@ -37,7 +44,7 @@ const UPLOAD_BUCKETS: Record<string, UploadBucketConfig> = {
     client: "admin",
     id: "media",
     maxBytes: TEN_MB,
-    mimeTypes: new Set(IMAGE_MIME_TYPES),
+    mimeTypes: new Set([...IMAGE_MIME_TYPES, ...VIDEO_MIME_TYPES]),
   },
 };
 

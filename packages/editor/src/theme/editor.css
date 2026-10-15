@@ -404,6 +404,20 @@
   cursor: wait;
   opacity: 0.55;
 }
+.pe-topbar__unpublish {
+  margin-right: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.pe-topbar__unpublish:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .pe-publish {
   display: inline-flex;
   gap: 8px;

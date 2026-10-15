@@ -26,7 +26,7 @@ export function TwoColInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["equal", "leftWide", "rightWide"] as const).map((v) => (
             <button
-              className={`pe-variant${variant === v ? "on" : ""}`}
+              className={`pe-variant ${variant === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"

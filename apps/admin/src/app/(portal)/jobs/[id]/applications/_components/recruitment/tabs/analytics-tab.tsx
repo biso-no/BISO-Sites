@@ -138,7 +138,7 @@ export function AnalyticsTab({
               <div className="an-ttf">
                 {analytics.ttfTrend.map((value, index) => (
                   <span
-                    className={`an-ttf-bar${
+                    className={`an-ttf-bar ${
                       index === analytics.ttfTrend.length - 1 ? "last" : ""
                     }`}
                     key={index}

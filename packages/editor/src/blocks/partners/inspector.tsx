@@ -29,7 +29,7 @@ export function PartnersInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["auto", "manual"] as const).map((v) => (
             <button
-              className={`pe-variant${block.source === v ? "on" : ""}`}
+              className={`pe-variant ${block.source === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("source", v)}
               type="button"

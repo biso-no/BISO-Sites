@@ -728,6 +728,12 @@
   text-align: center;
 }
 
+/* Editor hint for an empty caption. A hint, not text: it is never saved. */
+.pg-image__caption[data-placeholder]:empty::before {
+  color: var(--ink-4);
+  content: attr(data-placeholder);
+}
+
 /* GALLERY */
 .pg-gallery {
   display: grid;
