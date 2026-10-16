@@ -31,20 +31,36 @@ interface ListEventsParams {
    */
   pageSize?: number;
   search?: string;
-  status?: string;
   /** Opt-in: hide events that have already finished, sorted soonest-first. */
   upcomingOnly?: boolean;
 }
 
+/**
+ * Published events, one page at a time — the public feed's reader, called from
+ * the server and from the `/events` load-more island alike.
+ *
+ * The status is fixed here and never taken from `params`. A server action is
+ * an ordinary POST endpoint whose arguments are whatever the browser sends,
+ * and `events` grants `read("any")`, so this filter is all that stands between
+ * a visitor and every draft and cancelled event: `status: "all"` used to drop
+ * it. #76 closed the same hole in `listProducts`. The parameters are picked
+ * one by one for the same reason — no spread lets an unknown key through.
+ */
 export async function listEvents(
   params: ListEventsParams = {}
 ): Promise<WebPaginatedResult<Events>> {
+  const { campus, category, locale, search, upcomingOnly } = params;
   const page = params.page ?? 1;
   const size = params.pageSize ?? WEB_PAGE_SIZE;
   try {
     const { db } = await createSessionClient();
     const { rows, total, capped } = await queryEvents(db, {
-      ...params,
+      campus,
+      category,
+      locale,
+      search,
+      upcomingOnly,
+      status: "published",
       limit: size,
       offset: (page - 1) * size,
     });
@@ -352,6 +368,10 @@ export async function getCollectionEvents(
 
     const response = await db.listRows<Events>("app", "events", [
       Query.equal("collection_id", collectionId),
+      // A draft or cancelled session of a published collection must not be
+      // listed on its page: it links to a 404, and `events` is readable by
+      // `any`, so nothing else hides it.
+      Query.equal("status", "published"),
       Query.equal(
         "translation_refs.locale",
         locale as ContentTranslationsLocale

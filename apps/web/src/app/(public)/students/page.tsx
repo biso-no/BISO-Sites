@@ -123,7 +123,6 @@ export default async function StudentsPage({
         campus: campusId ?? undefined,
         locale,
         pageSize: STUDENTS_PREVIEW,
-        status: "published",
         upcomingOnly: true,
       }),
       listJobs({ campus: campusId, locale, pageSize: STUDENTS_PREVIEW }),

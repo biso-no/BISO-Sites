@@ -65,7 +65,6 @@ export function EventsFeedList({
         locale,
         page,
         search,
-        status: "published",
         upcomingOnly: true,
       });
       return {

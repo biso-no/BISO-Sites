@@ -64,7 +64,6 @@ async function EventsListV2({
       category,
       locale,
       search,
-      status: "published",
       upcomingOnly: true,
     }),
     listEventFacets({ campus: campusKey }),

@@ -67,7 +67,6 @@ function homeEvents(
       campus: campusKey ?? "all",
       locale,
       pageSize: fetchLimit,
-      status: "published",
       upcomingOnly: true,
     }).then((result) => result.rows.slice(0, limit));
   }
@@ -87,7 +86,6 @@ function homeNews(
       campus: campusKey ?? "all",
       limit,
       locale,
-      status: "published",
     });
   }
   return cachedPublishedNews(locale, campusKey, limit).catch(() => []);

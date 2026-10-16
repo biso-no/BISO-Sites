@@ -40,7 +40,6 @@ async function NewsListV2({
   const articles = await listNews({
     campus: campus ?? "all",
     locale,
-    status: "published",
     limit: 100,
   });
 

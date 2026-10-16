@@ -164,14 +164,12 @@ export default async function CampusPage({ params }: Params) {
     campusDataRows,
   ] = await Promise.all([
     listEvents({
-      status: "published",
       locale: campus.locale,
       pageSize: EVENTS_PREVIEW,
       upcomingOnly: true,
       campus: campus.id,
     }),
     listNews({
-      status: "published",
       limit: NEWS_PREVIEW,
       locale: campus.locale,
       campus: campus.id,

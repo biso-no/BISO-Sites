@@ -63,7 +63,6 @@ async function NewsArticleV2({ slug }: { slug: string }) {
 
   const pool = await listNews({
     locale,
-    status: "published",
     limit: RELATED_POOL,
   });
   const related = pool
