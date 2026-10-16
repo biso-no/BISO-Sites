@@ -1,99 +1,140 @@
 /* BISO design system — paper aesthetic + brand tokens */
 
-:root {
-  /* Paper palette */
-  --paper: #faf7f2;
-  --paper-2: #f3eee5;
-  --paper-3: #ede6d8;
+/*
+ * Everything global in this file sits in `@layer base`: the token defaults on
+ * `:root`, the dark ramp and the element resets.
+ *
+ * apps/web loads this sheet on every unit and CMS page, and a route's CSS
+ * stays in the document after the visitor navigates on — so whatever is
+ * unlayered here applies to the whole site from then on. Unlayered, the reset
+ * `button { color: inherit }` beat every Tailwind colour utility on every
+ * button: the header's menu triggers, "…" menu, campus, language and theme
+ * switchers and cart turned the page's ink colour, near-black on the navy
+ * bar, while its links stayed white. And `:root { --ink }` outranked the
+ * site's own `--ink`, turning the site's text from navy to this ramp's ink.
+ * In `base` the host's own styles and utilities win, and these still apply
+ * wherever nothing else is set — the editor chrome and the rendered blocks.
+ *
+ * The order statement matches Tailwind's, so `base` stays below `utilities`
+ * whichever stylesheet the browser reads first.
+ */
+@layer theme, base, components, utilities;
 
-  /* Ink ramp */
-  --ink: #1a1814;
-  --ink-2: #3a342a;
-  --ink-3: #6b6357;
-  --ink-4: #9c9385;
+@layer base {
+  :root {
+    /* Paper palette */
+    --paper: #faf7f2;
+    --paper-2: #f3eee5;
+    --paper-3: #ede6d8;
 
-  /* Rules / borders */
-  --rule: #e5dcca;
-  --rule-2: #d8cdb6;
+    /* Ink ramp */
+    --ink: #1a1814;
+    --ink-2: #3a342a;
+    --ink-3: #6b6357;
+    --ink-4: #9c9385;
 
-  /* Brand hues */
-  --claret: #6b1e1e;
-  --claret-2: #8a2727;
-  --gold: #b08a3e;
-  --leaf: #2f5d3a;
-  --sky: #2a4a7a;
+    /* Rules / borders */
+    --rule: #e5dcca;
+    --rule-2: #d8cdb6;
 
-  /* Page accent — separate from the shared UI's subtle --accent surface. */
-  --page-accent: #3da9e0;
+    /* Brand hues */
+    --claret: #6b1e1e;
+    --claret-2: #8a2727;
+    --gold: #b08a3e;
+    --leaf: #2f5d3a;
+    --sky: #2a4a7a;
+
+    /* Page accent — separate from the shared UI's subtle --accent surface. */
+    --page-accent: #3da9e0;
+
+    /*
+     * Inverted panels — the dark chips, CTAs and full-bleed heroes that carry
+     * light text. These must flip *together* with the ink/paper ramp, so the
+     * gradient's second stop and the softened text tints get their own tokens
+     * rather than hardcoded hex/rgba. A block that pairs `--inverted-surface`
+     * with `--inverted-on*` stays legible in both themes.
+     */
+    --inverted-surface-2: #2d2520;
+    --inverted-on-soft: rgba(250, 247, 242, 0.7);
+    --inverted-on-faint: rgba(250, 247, 242, 0.5);
+    --inverted-on-hairline: rgba(255, 255, 255, 0.12);
+
+    /* Subtle white lift used for cards sitting on --paper. */
+    --lift: rgba(255, 255, 255, 0.4);
+    --lift-strong: rgba(255, 255, 255, 0.75);
+
+    /* Fonts — mapped from Next.js font variables */
+    --ui:
+      var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, sans-serif;
+    --serif:
+      var(--font-instrument-serif), "Iowan Old Style", "Palatino Linotype",
+      Palatino, Georgia, serif;
+    --mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  }
 
   /*
-   * Inverted panels — the dark chips, CTAs and full-bleed heroes that carry
-   * light text. These must flip *together* with the ink/paper ramp, so the
-   * gradient's second stop and the softened text tints get their own tokens
-   * rather than hardcoded hex/rgba. A block that pairs `--inverted-surface`
-   * with `--inverted-on*` stays legible in both themes.
+   * Dark ramp for the paper palette.
+   *
+   * `blocks.css` is written against these paper/ink tokens rather than the
+   * semantic tokens in `@repo/ui`'s `biso-surface.css`, so that file's own
+   * `.dark` block cannot reach block styling — inverting the ramp here is what
+   * makes all 33 blocks readable in dark mode.
+   *
+   * Scoped to `.biso-surface` so the admin's own chrome keeps its palette. Both
+   * selectors are needed: `apps/web` puts `dark` and `biso-surface` on the same
+   * <html> element, while `apps/admin` toggles `dark` on a wrapper outside the
+   * canvas frame. Two classes (0,2,0) also outrank the `:root` block above.
    */
-  --inverted-surface-2: #2d2520;
-  --inverted-on-soft: rgba(250, 247, 242, 0.7);
-  --inverted-on-faint: rgba(250, 247, 242, 0.5);
-  --inverted-on-hairline: rgba(255, 255, 255, 0.12);
+  .dark.biso-surface,
+  .dark .biso-surface {
+    --paper: #14120f;
+    --paper-2: #1c1a16;
+    --paper-3: #24211c;
 
-  /* Subtle white lift used for cards sitting on --paper. */
-  --lift: rgba(255, 255, 255, 0.4);
-  --lift-strong: rgba(255, 255, 255, 0.75);
+    --ink: #f5f1ea;
+    --ink-2: #d6cfc2;
+    --ink-3: #a79f90;
+    --ink-4: #7e7768;
 
-  /* Fonts — mapped from Next.js font variables */
-  --ui:
-    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
-  --serif:
-    var(--font-instrument-serif), "Iowan Old Style", "Palatino Linotype",
-    Palatino, Georgia, serif;
-  --mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
-}
+    --rule: #322e27;
+    --rule-2: #453f35;
 
-/*
- * Dark ramp for the paper palette.
- *
- * `blocks.css` is written against these paper/ink tokens rather than the
- * semantic tokens in `@repo/ui`'s `biso-surface.css`, so that file's own
- * `.dark` block cannot reach block styling — inverting the ramp here is what
- * makes all 33 blocks readable in dark mode.
- *
- * Scoped to `.biso-surface` so the admin's own chrome keeps its palette. Both
- * selectors are needed: `apps/web` puts `dark` and `biso-surface` on the same
- * <html> element, while `apps/admin` toggles `dark` on a wrapper outside the
- * canvas frame. Two classes (0,2,0) also outrank the `:root` block above.
- */
-.dark.biso-surface,
-.dark .biso-surface {
-  --paper: #14120f;
-  --paper-2: #1c1a16;
-  --paper-3: #24211c;
+    /* Brand hues lightened to stay legible on dark paper. */
+    --claret: #d18a8a;
+    --claret-2: #e0a0a0;
+    --gold: #d4ad5b;
+    --leaf: #74b585;
+    --sky: #85aade;
 
-  --ink: #f5f1ea;
-  --ink-2: #d6cfc2;
-  --ink-3: #a79f90;
-  --ink-4: #7e7768;
+    /* Inverted panels invert with the ramp: light surface, dark text. */
+    --inverted-surface-2: #e6dfd2;
+    --inverted-on-soft: rgba(26, 24, 20, 0.72);
+    --inverted-on-faint: rgba(26, 24, 20, 0.55);
+    --inverted-on-hairline: rgba(0, 0, 0, 0.1);
 
-  --rule: #322e27;
-  --rule-2: #453f35;
+    --lift: rgba(255, 255, 255, 0.05);
+    --lift-strong: rgba(255, 255, 255, 0.09);
+  }
 
-  /* Brand hues lightened to stay legible on dark paper. */
-  --claret: #d18a8a;
-  --claret-2: #e0a0a0;
-  --gold: #d4ad5b;
-  --leaf: #74b585;
-  --sky: #85aade;
+  /* ---- Base resets ---- */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-  /* Inverted panels invert with the ramp: light surface, dark text. */
-  --inverted-surface-2: #e6dfd2;
-  --inverted-on-soft: rgba(26, 24, 20, 0.72);
-  --inverted-on-faint: rgba(26, 24, 20, 0.55);
-  --inverted-on-hairline: rgba(0, 0, 0, 0.1);
-
-  --lift: rgba(255, 255, 255, 0.05);
-  --lift-strong: rgba(255, 255, 255, 0.09);
+  /* Form element font inheritance */
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+  textarea {
+    resize: none;
+  }
 }
 
 /*
@@ -106,10 +147,10 @@
  * canvas. Both apps mount `.biso-surface` around these containers, so every
  * `--background`/`--brand*` reference below resolves.
  *
- * Both containers carry `biso-surface` themselves, and this rule sits after
- * the dark ramp above on purpose: `.dark .biso-surface` matches the same
- * element at (0,2,0), so the binding needs the same specificity and the
- * later position to win in dark mode.
+ * Both containers carry `biso-surface` themselves, and `.dark .biso-surface`
+ * matches the same element at (0,2,0). This rule is unlayered and the ramp
+ * sits in `base`, so the binding wins in dark mode whatever the order; it
+ * still comes after the ramp so specificity alone would decide it too.
  */
 .biso-surface:is(.pg-page, .pe-frame) {
   /*
@@ -171,25 +212,6 @@
   --mono: var(--font-sans, var(--font-biso-sans));
 }
 
-/* ---- Base resets ---- */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-/* Form element font inheritance */
-button,
-input,
-textarea,
-select {
-  font: inherit;
-  color: inherit;
-}
-textarea {
-  resize: none;
-}
-
 /* Utilities */
 .mono {
   font-family: var(--mono);
@@ -234,7 +256,9 @@ textarea {
     transform: none;
   }
 }
-@keyframes pulse {
+/* `pe-` prefixed: an unprefixed `pulse` replaced Tailwind's own `pulse`
+   keyframes, which `animate-pulse` skeletons across the site run on. */
+@keyframes pe-pulse {
   0%,
   100% {
     opacity: 0.4;
