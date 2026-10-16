@@ -13,6 +13,7 @@ import {
   Users,
 } from "node-appwrite";
 import { appwriteErrorStatus } from "./errors";
+import { withUniqueSelects } from "./select-queries";
 
 /**
  * Returns the base URL of the current deployment.
@@ -284,8 +285,16 @@ function configureServerClient(
   const call = client.call.bind(client);
   const redirect = client.redirect.bind(client);
 
+  // Every request leaves through here — `call` and `redirect` both prepare
+  // through it — so selects are de-duplicated once, for every service and
+  // every app that reads through `@repo/api/server`.
   client.prepareRequest = (method, url, requestHeaders, params) => {
-    const request = prepareRequest(method, url, requestHeaders, params);
+    const request = prepareRequest(
+      method,
+      url,
+      requestHeaders,
+      withUniqueSelects(params)
+    );
     const options = request.options as AppwriteRequestOptions;
     const transport = getSharedTransport(client, options);
 
