@@ -7,10 +7,8 @@ import { RenderedPage } from "./rendered-page";
 const BISO_SURFACE_CLASS = /class="[^"]*\bbiso-surface\b[^"]*"/;
 
 vi.mock("@repo/editor/render", () => ({
-  getBlock: () => ({
-    Render: ({ background }: { background: string }) =>
-      createElement("div", { "data-background": background }),
-  }),
+  BlockView: ({ background }: { background: string }) =>
+    createElement("div", { "data-background": background }),
   normalizePageDoc: (doc: PageDoc) => doc,
   resolveBackgrounds: () => ["default", "muted"],
   useEditorStore: {

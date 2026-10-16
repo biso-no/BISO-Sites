@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PAPER_INK_SHADOW = /rgba\(26, 24, 20/;
-const BINDING_SELECTOR = ".biso-surface:is(.pg-page, .pe-frame) {";
+const BINDING_SELECTOR =
+  ".biso-surface:is(.pg-page, .pe-frame),\n.pg-section {";
 const DARK_RAMP_SELECTOR = ".dark .biso-surface {";
 
 const read = (name: string) =>
@@ -29,7 +30,7 @@ describe("brand surface binding", () => {
   const tokens = read("tokens.css");
   const binding = ruleBody(tokens, BINDING_SELECTOR);
 
-  test("the render root and the canvas rebind the paper ramp to the site tokens", () => {
+  test("the render root, the canvas and each section rebind the paper ramp to the site tokens", () => {
     expect(binding).not.toBe("");
     for (const line of [
       "--paper: var(--background);",
@@ -78,9 +79,15 @@ describe("brand surface binding", () => {
     expect(ruleBody(blocks, ".pg-cta__btn {")).toContain(
       "var(--brand-gradient-from)"
     );
-    expect(ruleBody(blocks, ".pg-contact {")).toContain(
+    // Both dark banners keep their navy while the background is Auto.
+    expect(ruleBody(blocks, ".pg-section[data-auto] .pg-contact {")).toContain(
       "background: var(--pg-navy);"
     );
-    expect(ruleBody(blocks, ".pg-hero--full {")).toContain("var(--pg-navy)");
+    expect(
+      ruleBody(
+        blocks,
+        ":is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg)) {"
+      )
+    ).toContain("var(--pg-navy)");
   });
 });

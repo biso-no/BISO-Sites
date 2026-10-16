@@ -18,6 +18,7 @@ import "../blocks/index";
 
 export type { ResolvedBackground } from "../blocks/_primitives/layout-types";
 export { resolveBackgrounds } from "../blocks/_primitives/resolve-layout";
+export { BlockView } from "../blocks/block-view";
 export { allBlocks, getBlock } from "../blocks/index";
 export {
   PageFeedProvider,

@@ -20,6 +20,12 @@ export interface BlockDefinition<B extends Block = Block> {
   aiHint?: string;
   /** Keys that the AI can set via set_prop. */
   aiProps?: string[];
+  /**
+   * True when `Render` composes `BlockSection` and applies `block.layout`
+   * itself. Every other block is framed by `BlockView`, which applies the
+   * Design panel's background, spacing and width on its behalf.
+   */
+  appliesLayout?: boolean;
   category: string;
   description: string;
   empty: () => B;

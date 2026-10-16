@@ -8,7 +8,7 @@ import type {
   PageFeedSnapshot,
 } from "@repo/editor/render";
 import {
-  getBlock,
+  BlockView,
   normalizePageDoc,
   PageFeedProvider,
   type ResolvedBackground,
@@ -87,15 +87,13 @@ function BlockRenderer({
   background: ResolvedBackground;
   block: Block;
 }) {
-  const def = getBlock(block.type);
-  if (!def) {
-    return null;
-  }
   const noopPatch = () => undefined;
+  // BlockView, not the definition's Render: it is what applies the Design
+  // panel's background, spacing and width, exactly as the admin canvas does.
   return (
-    <def.Render
+    <BlockView
       background={background}
-      block={block as never}
+      block={block}
       edit={false}
       onPatch={noopPatch}
     />

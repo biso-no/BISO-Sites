@@ -110,8 +110,15 @@
  * the dark ramp above on purpose: `.dark .biso-surface` matches the same
  * element at (0,2,0), so the binding needs the same specificity and the
  * later position to win in dark mode.
+ *
+ * Every `.pg-section` frame repeats the binding. A custom property that reads
+ * another is resolved where it is declared, so the ramp inherited from the
+ * page would keep the page's colours inside a section whose surface rebinds
+ * `--background` and `--foreground`; redeclaring it on the frame lets a
+ * block's copy follow a brand or dark section.
  */
-.biso-surface:is(.pg-page, .pe-frame) {
+.biso-surface:is(.pg-page, .pe-frame),
+.pg-section {
   /*
    * A navy that does not follow the theme: `--brand-dark` becomes the light
    * brand blue in dark mode, which is right for text on the page but not for

@@ -37,7 +37,9 @@
   --section-foreground: oklch(0.145 0 0);
   --inverted: oklch(0.145 0 0);
   --inverted-foreground: oklch(0.985 0 0);
-  --inverted-muted: oklch(0.4 0 0);
+  /* Muted copy ON the inverted surface, which is the dark-mode background
+   * (0.145), so it takes dark mode's muted-foreground. 0.4 read at ~2:1. */
+  --inverted-muted: oklch(0.708 0 0);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
