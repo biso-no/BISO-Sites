@@ -252,8 +252,10 @@ history: `docs/redesign/STATUS.md`.
   alias — never hand-pick white text. The legacy `--brand*`, `--section`,
   `--inverted` tokens still exist for `apps/admin`; don't use them here.
 - **Fonts:** Museo Sans 300/700 (body) and Museo Slab 700/900 (display) — the
-  Branding Committee's faces. `font-medium` resolves to the Light cut, so use
-  `font-semibold` or `font-bold` where emphasis must show.
+  Branding Committee's faces, and the **only** fonts the app loads: no Inter,
+  no Google Fonts, no `font-mono` (use `tabular-nums` for figures that must
+  align). `font-medium` resolves to the Light cut, so use `font-semibold` or
+  `font-bold` where emphasis must show.
 - **Not allowed:** brand gradients, `backdrop-blur`, decorative icon tiles,
   scroll-triggered motion (`whileInView`, fade-up reveals), hover-lift on cards,
   Tailwind palette colours on brand surfaces, invented placeholder copy (omit a

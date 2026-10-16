@@ -7,7 +7,7 @@ import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { BiSignInNotice } from "@/components/bi-sign-in-notice";
-import { inter, museoSans, museoSlab } from "./fonts";
+import { museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
@@ -47,7 +47,7 @@ export default async function RootLayout({
     // the same page. apps/admin mounts only `biso-surface` and is unaffected.
     // RD-030 drops the legacy class once nothing reads its tokens.
     <html
-      className={`${museoSans.variable} ${museoSlab.variable} ${inter.variable} biso-surface biso-surface-v2`}
+      className={`${museoSans.variable} ${museoSlab.variable} biso-surface biso-surface-v2`}
       lang={locale}
       suppressHydrationWarning
     >

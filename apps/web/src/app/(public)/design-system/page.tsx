@@ -263,9 +263,10 @@ export default async function DesignSystemPage({
         <section aria-labelledby="typography" className="mb-16">
           <SectionHeading id="typography">Typography</SectionHeading>
           <p className="type-body type-measure mb-8 text-ink-muted">
-            Archivo for display and Inter for body and UI. Display line-height
-            is 0.85 — measured from the reference, where the hero&rsquo;s
-            cap-height is 56px over 66px baseline-to-baseline.
+            Museo Slab for display and Museo Sans for body and UI — the Branding
+            Committee&rsquo;s faces, and the only fonts the site loads. Display
+            line-height is 0.85 — measured from the reference, where the
+            hero&rsquo;s cap-height is 56px over 66px baseline-to-baseline.
           </p>
           <ul className="space-y-8">
             {TYPE_ROLES.map((t) => (

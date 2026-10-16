@@ -8,12 +8,18 @@
  */
 
 :where(.biso-surface) {
+  /* BISO sets everything in Museo — Museo Sans for body, Museo Slab for
+     display — and loads no other web font. What follows each face is only the
+     system fallback for a glyph Museo lacks; next/font puts its own
+     metric-matched fallback inside `--font-museo*` for the swap period.
+     No `var(--font-inter)` here: a `var()` naming an undefined property with
+     no fallback invalidates the whole stack, and apps/web defines no Inter. */
   --font-biso-sans:
-    var(--font-museo), var(--font-inter), ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", Roboto, sans-serif;
+    var(--font-museo), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
   --font-biso-display:
-    var(--font-museo-slab), var(--font-museo), var(--font-inter), ui-sans-serif,
-    system-ui, sans-serif;
+    var(--font-museo-slab), var(--font-museo), ui-sans-serif, system-ui,
+    sans-serif;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -158,7 +164,13 @@
    * `--font-display`, so they set in Museo Slab with no override.
    *
    * The redesign shipped Archivo here while no heavy licensed brand cut
-   * existed; Museo Slab 900 replaced it. See apps/web/src/app/fonts.ts. */
+   * existed; Museo Slab 900 replaced it. See apps/web/src/app/fonts.ts.
+   *
+   * The one font this block does set is the monospace role, and only to point
+   * it at Museo too: BISO loads no other face. `font-mono` (the CMS's code
+   * marks) and the browser's own monospace for `code`/`kbd`/`samp`/`pre`
+   * would otherwise fall through to the system's monospace. */
+  --font-mono: var(--font-biso-sans);
 
   /* --- the six named brand values ------------------------------------- */
   --biso-deep: #001a35;   /* navy: dark surfaces, and the ink colour on light */
@@ -286,5 +298,14 @@
   :where(.biso-surface) :where(h1, h2, h3, .font-display) {
     font-family: var(--font-display);
     letter-spacing: -0.015em;
+  }
+
+  /* Preflight sets these in the system monospace. BISO sets everything in
+     Museo, so on the v2 surface they take the body face like other text.
+     `:is()` keeps preflight's specificity (one element), so source order
+     decides within `base`, and any `.type-*` role or `font-*` utility still
+     wins from its later layer. */
+  :where(.biso-surface-v2) :is(code, kbd, samp, pre) {
+    font-family: var(--font-biso-sans);
   }
 }

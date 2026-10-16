@@ -1,5 +1,11 @@
-import { Inter } from "next/font/google";
 import localFont from "next/font/local";
+
+/**
+ * BISO sets everything in Museo: these four cuts are the only fonts the site
+ * loads. Behind them sits next/font's metric-matched fallback for the swap
+ * period, then the system UI face for any glyph Museo lacks — no second web
+ * font.
+ */
 
 /**
  * Body and UI: Museo Sans, the brand face. 300 for text, 700 for bold — the two
@@ -36,18 +42,4 @@ export const museoSlab = localFont({
   ],
   variable: "--font-museo-slab",
   display: "swap",
-});
-
-/**
- * Fallback behind both Museo faces, and the face for any glyph they lack.
- *
- * `latin` only, deliberately. Norwegian æ ø å live in Latin-1 Supplement
- * (U+00E5, U+00E6, U+00F8), which Google's `latin` subset covers. Adding
- * `latin-ext` doubled the preloaded font payload for glyphs the site never
- * renders. Verified in RD-006.
- */
-export const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
 });

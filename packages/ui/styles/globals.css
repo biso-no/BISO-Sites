@@ -311,11 +311,13 @@ html {
   --section-y: clamp(3rem, 6vw, 5rem);
   --section-y-lg: clamp(4rem, 9vw, 8rem);
   /* Target ~72 rendered characters, comfortably under the brief's 80 floor.
-     NOT 68ch: the `ch` unit is the advance width of "0", which in Inter is far
-     wider than the average character in running prose (dominated by narrow
-     lowercase and spaces). Measured: 68ch renders up to 91 characters per line;
-     54ch renders ~72. Verified in RD-007 by walking a Range and recording where
-     each visual line breaks, at 1440 / 768 / 375px. */
+     NOT 68ch: the `ch` unit is the advance width of "0", which is far wider
+     than the average character in running prose (dominated by narrow
+     lowercase and spaces). RD-007 measured it in the redesign's first body
+     face: 68ch rendered up to 91 characters per line, 54ch ~72. Re-measured in
+     Museo Sans 300 at the main merge, by walking a Range and recording where
+     each visual line breaks: 54ch is 540px and sets 59-78 characters per
+     line, averaging 71. */
   --measure: 54ch;
   /* The chevron: one angle for the whole system. tan(13deg) = 0.2309.
      A clip-path x-percentage resolves against WIDTH but the angle depends on

@@ -100,7 +100,7 @@
  * The website's own tokens win inside a rendered page and inside the editor
  * canvas. `blocks.css` is written against the paper/ink ramp above; binding
  * that ramp to `@repo/ui`'s `biso-surface.css` tokens here is what makes a
- * unit page look like the rest of biso.no — Inter and Museo, the brand blue
+ * unit page look like the rest of biso.no — Museo Sans and Museo Slab, the brand blue
  * and navy, white and section surfaces, 1rem card corners — in light and in
  * dark, without touching the admin's own paper-coloured chrome around the
  * canvas. Both apps mount `.biso-surface` around these containers, so every
@@ -165,6 +165,10 @@
 
   --ui: var(--font-sans, var(--font-biso-sans));
   --serif: var(--font-display, var(--font-biso-display));
+  /* Museo too: BISO sets everything in Museo, so the date stripes, photo tags
+     and figures the blocks set in `--mono` take the body face. `.mono` keeps
+     its tabular figures through `font-feature-settings`. */
+  --mono: var(--font-sans, var(--font-biso-sans));
 }
 
 /* ---- Base resets ---- */

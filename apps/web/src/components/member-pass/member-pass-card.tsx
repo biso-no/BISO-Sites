@@ -137,7 +137,7 @@ function PassBody({
 
       <div className="flex items-center justify-between px-6 pt-5">
         <p className="truncate font-semibold text-2xl">{pass.holder.name}</p>
-        <p className="flex items-center gap-2 font-mono text-lg tabular-nums">
+        <p className="flex items-center gap-2 font-semibold text-lg tabular-nums">
           <span className="member-pass-live-dot inline-block h-2.5 w-2.5 rounded-full bg-green-400" />
           <span className="sr-only">{t("live")}</span>
           {clock}

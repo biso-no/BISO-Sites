@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { museoSans, museoSlab } from "./fonts";
 
 // global-error.tsx catches errors thrown inside the root app/layout.tsx
 // itself (or before it renders). It MUST render its own <html> and
@@ -26,10 +27,13 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="no">
+    <html className={`${museoSans.variable} ${museoSlab.variable}`} lang="no">
       <body
         style={{
-          fontFamily: "system-ui, sans-serif",
+          // Museo, like every other page. The root layout that normally
+          // applies the faces is the thing that failed, so this boundary
+          // loads them itself.
+          fontFamily: "var(--font-museo), system-ui, sans-serif",
           minHeight: "100vh",
           display: "flex",
           alignItems: "center",
@@ -39,7 +43,15 @@ export default function GlobalError({
         }}
       >
         <div>
-          <h1 style={{ marginBottom: 12 }}>Something went wrong</h1>
+          <h1
+            style={{
+              fontFamily:
+                "var(--font-museo-slab), var(--font-museo), sans-serif",
+              marginBottom: 12,
+            }}
+          >
+            Something went wrong
+          </h1>
           <p style={{ marginBottom: 20, color: "#666" }}>
             An unexpected error occurred. Please try again, or return to{" "}
             <a href="/">the home page</a>.

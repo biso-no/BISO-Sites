@@ -38,11 +38,12 @@ function receiptHref(fileId: string): string {
 /** A label/value pair in the summary grid; omitted entirely when empty. */
 function Fact({
   label,
-  mono,
+  numeric,
   value,
 }: {
   label: string;
-  mono?: boolean;
+  /** Account and invoice numbers: tabular figures, so digits line up. */
+  numeric?: boolean;
   value: string | null | undefined;
 }) {
   if (!value) {
@@ -53,10 +54,12 @@ function Fact({
       <dt className="type-label text-ink-muted">{label}</dt>
       <dd
         // `cn`, not a template literal: Biome's class sorter trims the space
-        // inside `" font-mono"`, which fused this into `text-inkfont-mono`.
+        // inside a conditional `" font-mono"`, which once fused this into
+        // `text-inkfont-mono`. Museo with tabular figures, not a monospace
+        // face: BISO sets everything in Museo.
         className={cn(
           "type-body mt-1 min-w-0 break-words text-ink",
-          mono && "font-mono"
+          numeric && "tabular-nums"
         )}
       >
         {value}
@@ -119,7 +122,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
           <Fact label={t("detail.submitted")} value={submittedDate} />
           <Fact
             label={t("detail.bankAccount")}
-            mono
+            numeric
             value={expense.bank_account}
           />
           <Fact label={t("detail.event")} value={expense.eventName} />
@@ -133,7 +136,7 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
           />
           <Fact
             label={t("detail.invoiceId")}
-            mono
+            numeric
             value={
               expense.invoice_id === null || expense.invoice_id === undefined
                 ? null

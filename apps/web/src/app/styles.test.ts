@@ -12,6 +12,16 @@ const V2_FONT_OVERRIDE = /--font-biso-(display|sans):/;
 const SANS_LEADS_WITH_MUSEO = /--font-biso-sans:\s*var\(--font-museo\)/;
 const DISPLAY_LEADS_WITH_MUSEO_SLAB =
   /--font-biso-display:\s*var\(--font-museo-slab\)/;
+const INTER_IDENTIFIER = /\binter\b/;
+const FONT_PATH = /path:\s*"\.\.\/\.\.\/public\/([^"]+)"/g;
+const VAR_REFERENCE = /var\((--[a-z0-9-]+)/g;
+const MUSEO_VARIABLE = /^--font-museo(-slab)?$/;
+const OTHER_FACE_UTILITY = /(^|[\s"'`])font-(mono|serif)(?=[\s"'`]|$)/;
+const FONT_FAMILY_DECLARATION = /font-?family\s*:/gi;
+// Museo first: its own variable, or its name in an e-mail's inline style.
+const MUSEO_FIRST = /^font-?family\s*:\s*["'`]?(var\(--font-museo|'?Museo)/i;
+const DECLARATION_PREVIEW = 80;
+const WHITESPACE_RUN = /\s+/g;
 
 const styles = readFileSync(join(import.meta.dirname, "styles.css"), "utf8");
 const adminStyles = readFileSync(
@@ -56,12 +66,11 @@ describe("brand typography", () => {
   it("maps Tailwind font utilities through surface-specific backing variables", () => {
     expect(surface).toContain("--font-biso-sans:");
     expect(surface).toContain("--font-biso-display:");
-    expect(surface).toContain("var(--font-inter)");
     // Both apps resolve their faces from this block — apps/web mounts
-    // `.biso-surface-v2` beside it, which deliberately sets no font.
+    // `.biso-surface-v2` beside it, which sets no body or display face.
     expect(surface).toContain("var(--font-museo)");
-    // Museo Sans is the body face with Inter behind it; Museo Slab is the
-    // display face with Museo Sans and Inter behind it.
+    // Museo Sans is the body face; Museo Slab is the display face with Museo
+    // Sans behind it. Only system fallbacks follow — see "Museo only" below.
     expect(surface).toMatch(SANS_LEADS_WITH_MUSEO);
     expect(surface).toMatch(DISPLAY_LEADS_WITH_MUSEO_SLAB);
     expect(globals).toContain("--font-sans: var(--font-biso-sans,");
@@ -78,6 +87,91 @@ describe("brand typography", () => {
     expect(globals).toContain(
       "--font-display: var(--font-biso-display, var(--font-host-display))"
     );
+  });
+});
+
+/**
+ * BISO sets everything in Museo — Museo Sans 300/700 and Museo Slab 700/900
+ * are the only fonts apps/web loads. Inter rode along as a "fallback" from
+ * Google Fonts, preloaded on every route, and monospace faces crept in through
+ * `font-mono` and the browser's defaults for `code`.
+ */
+describe("Museo only", () => {
+  const fonts = readFileSync(join(import.meta.dirname, "fonts.ts"), "utf8");
+  const layout = readFileSync(join(import.meta.dirname, "layout.tsx"), "utf8");
+
+  it("loads the four Museo cuts and nothing else", () => {
+    expect(fonts).not.toContain("next/font/google");
+    const paths = [...fonts.matchAll(FONT_PATH)].map((match) => match[1]);
+    expect(paths.sort()).toEqual([
+      "Museo_Sans_700.otf",
+      "Museo_Slab_700.otf",
+      "Museo_Slab_900.otf",
+      "museo_sans_300.otf",
+    ]);
+    expect(codeOnly(layout)).not.toMatch(INTER_IDENTIFIER);
+  });
+
+  it("puts nothing but system fallbacks behind the Museo faces", () => {
+    // A `var()` naming a property this app never defines, with no fallback,
+    // invalidates the whole stack and drops the page to the system face — so
+    // the stacks may name only the two Museo variables.
+    for (const name of ["--font-biso-sans", "--font-biso-display"]) {
+      const stack = surface.slice(
+        surface.indexOf(`${name}:`),
+        surface.indexOf(";", surface.indexOf(`${name}:`))
+      );
+      const vars = [...stack.matchAll(VAR_REFERENCE)].map((match) => match[1]);
+      expect(
+        vars.every((v) => MUSEO_VARIABLE.test(v)),
+        `${name}: ${vars}`
+      ).toBe(true);
+    }
+  });
+
+  it("sets the monospace role and code elements in Museo on the site", () => {
+    const v2Block = surface.slice(
+      surface.indexOf(":where(.biso-surface-v2) {")
+    );
+    expect(v2Block).toContain("--font-mono: var(--font-biso-sans);");
+    expect(surface).toContain(
+      ":where(.biso-surface-v2) :is(code, kbd, samp, pre) {"
+    );
+  });
+
+  it("names no other face anywhere in the app's code", () => {
+    const offenders = readdirSync(join(import.meta.dirname, ".."), {
+      recursive: true,
+      withFileTypes: true,
+    })
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) &&
+          !entry.name.includes(".test.")
+      )
+      .flatMap((entry) => {
+        const file = join(entry.parentPath, entry.name);
+        const rel = file.split("/src/")[1];
+        const source = codeOnly(readFileSync(file, "utf8"));
+        const utilities = source
+          .split("\n")
+          .filter((line) => OTHER_FACE_UTILITY.test(line))
+          .map((line) => `${rel}: ${line.trim()}`);
+        // Read each declaration's value from the source, not its line: the
+        // formatter breaks a long `fontFamily:` value onto the next one.
+        const declarations = [...source.matchAll(FONT_FAMILY_DECLARATION)]
+          .map((match) =>
+            source.slice(match.index, match.index + DECLARATION_PREVIEW)
+          )
+          .filter((declaration) => !MUSEO_FIRST.test(declaration))
+          .map(
+            (declaration) =>
+              `${rel}: ${declaration.replace(WHITESPACE_RUN, " ")}`
+          );
+        return [...utilities, ...declarations];
+      });
+    expect(offenders).toEqual([]);
   });
 });
 
@@ -209,10 +303,11 @@ describe("BISO 2026 display typeface (RD-006)", () => {
   });
 
   it("sets the prose measure in ch that actually renders under 80 characters", () => {
-    // `ch` is the advance of "0", which in Inter is far wider than the average
-    // character in running prose. 68ch renders up to 91 characters per line —
-    // over the brief's 80 floor. 54ch renders ~72. Measured in RD-007 by
-    // walking a Range and recording where each visual line breaks.
+    // `ch` is the advance of "0", far wider than the average character in
+    // running prose. 68ch rendered up to 91 characters per line — over the
+    // brief's 80 floor — and 54ch ~72 (RD-007). Re-measured in Museo Sans at
+    // the main merge: 59-78 per line, averaging 71, by walking a Range and
+    // recording where each visual line breaks.
     expect(globals).toContain("--measure: 54ch");
     expect(globals).not.toContain("--measure: 68ch");
   });
