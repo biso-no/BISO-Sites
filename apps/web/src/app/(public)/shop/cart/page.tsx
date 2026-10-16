@@ -1,9 +1,10 @@
 import { createSessionClient } from "@repo/api/server";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { CartAlerts } from "@/components/shop/cart/cart-alerts";
-import { CartHero } from "@/components/shop/cart/cart-hero";
 import { CartPageClient } from "@/components/shop/cart/cart-page-client";
+import { ShopPageShell } from "@/components/shop/v2/shop-page-shell";
+import { DetailSkeleton } from "@/components/ui/loading-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 
 export const metadata = {
@@ -11,44 +12,31 @@ export const metadata = {
   description: "Review your items and proceed to checkout",
 };
 
-function CartSkeleton() {
-  return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <div className="relative h-[40vh]">
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="space-y-4 lg:col-span-2">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default async function CartPage() {
   const { isMember } = await getMembershipStatus();
   const { account } = await createSessionClient();
   const user = await account.get().catch(() => null);
   const userId = user?.$id ?? null;
 
-  return (
-    <Suspense fallback={<CartSkeleton />}>
-      <div className="min-h-screen bg-linear-to-b from-section to-background">
-        <CartHero />
+  const [t, tCommon, tNav] = await Promise.all([
+    getTranslations("shop"),
+    getTranslations("common"),
+    getTranslations("common.navigation"),
+  ]);
 
-        <div className="mx-auto max-w-6xl px-4 py-12">
-          <CartAlerts />
-          <CartPageClient isMember={isMember} userId={userId} />
-        </div>
-      </div>
+  return (
+    <Suspense fallback={<DetailSkeleton />}>
+      <ShopPageShell
+        breadcrumbs={[
+          { label: tCommon("breadcrumbs.home"), href: "/" },
+          { label: tNav("shop"), href: "/shop" },
+          { label: t("cart.title") },
+        ]}
+        title={t("cart.title")}
+      >
+        <CartAlerts />
+        <CartPageClient isMember={isMember} userId={userId} />
+      </ShopPageShell>
     </Suspense>
   );
 }

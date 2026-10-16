@@ -1,13 +1,9 @@
-import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
-import { connection } from "next/server";
-import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
-import { listEvents } from "@/app/actions/events";
-import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
-import { getUserPreferences } from "@/lib/auth-utils";
+import { CampusIndex } from "@/components/campus/v2/campus-index";
+import { CAMPUS_SLUGS, campusSlugToId } from "@/lib/campus-scope";
+import { cachedShellCampuses } from "@/lib/data/public-content";
 import { cachedPublicUnits } from "@/lib/data/units";
-import { CampusPageClient } from "./components/campus-page-client";
 
 export const metadata: Metadata = {
   title: "Campuses | BISO",
@@ -15,60 +11,35 @@ export const metadata: Metadata = {
     "Discover BISO's presence on every BI Norwegian Business School campus — Oslo, Bergen, Trondheim, and Stavanger.",
 };
 
-interface CampusPageProps {
-  searchParams: Promise<{ campus?: string }>;
-}
-
-// This page fetches every surface up front with no Suspense boundary, so it is
-// request-time by nature. `instant = false` lets it block; `connection()`
-// below additionally exempts it from unstable-value validation. Both are
-// needed — the first permits blocking, the second permits the unstable read.
-export const instant = false;
-
-export default async function CampusPage({ searchParams }: CampusPageProps) {
-  // Must precede the fetches: the upcoming-events filter in `listEvents` is
-  // built from `new Date()`, which the Cache Components prerender rejects as
-  // an unstable value (`blocking-prerender-current-time`).
-  await connection();
-
-  const [sp, prefs, rawLocale] = await Promise.all([
-    searchParams,
-    getUserPreferences(),
-    getLocale(),
+/**
+ * v1 rendered a tabbed view of whichever campus the cookie held, so there was
+ * no way to reach another campus's page from it. v2 is an index: five cards,
+ * five links, one per `/campus/<slug>`. What the tabs carried — the campus's
+ * benefits, its partnership offer and its management board — lives on each
+ * campus's own page now.
+ *
+ * Unit counts come from the same cached directory `/units` reads; a failed
+ * read drops the counts for this render rather than printing "0 units".
+ */
+export default async function CampusPage() {
+  const locale = await getLocale();
+  const [campuses, units] = await Promise.all([
+    cachedShellCampuses(),
+    cachedPublicUnits(locale).catch(() => null),
   ]);
-  const locale = rawLocale as Locale;
 
-  // URL param wins (the client pushes ?campus= when the switcher changes),
-  // then the campusId cookie / user prefs, then every campus.
-  const campus = sp.campus ?? prefs?.campusId ?? "all";
-  const activeCampusId = campus === "all" ? null : campus;
+  const entries = CAMPUS_SLUGS.map((slug) => {
+    const id = campusSlugToId(slug);
+    const campus = campuses.find((entry) => entry.$id === id);
+    return {
+      slug,
+      name: campus?.name ?? slug,
+      email: campus?.email ?? null,
+      unitCount: units
+        ? units.filter((unit) => unit.campusId === id).length
+        : null,
+    };
+  });
 
-  // Scoping happens server-side: the list actions run `campusScopeIds`
-  // internally, so the selected campus plus National content is fetched (and
-  // the limits apply *after* scoping instead of truncating before it).
-  const [eventsResult, jobs, units, campusData, campusMetadata] =
-    await Promise.all([
-      listEvents({ campus, status: "published", locale, upcomingOnly: true }),
-      listJobs({ campus, locale }),
-      // The unit directory is the same cached read /units and /students use —
-      // `departments` filtered by the public visibility rule, never
-      // `content_translations`. An outage here must not take the campus page
-      // down with it; the grid hides itself on an empty list.
-      cachedPublicUnits(locale).catch(() => []),
-      getCampusData(),
-      getCampusMetadata(),
-    ]);
-  const events = eventsResult.rows.slice(0, 10);
-
-  return (
-    <CampusPageClient
-      campusData={campusData}
-      campusMetadata={campusMetadata}
-      events={events}
-      jobs={jobs.rows}
-      locale={locale}
-      serverCampusId={activeCampusId}
-      units={units}
-    />
-  );
+  return <CampusIndex campuses={entries} />;
 }

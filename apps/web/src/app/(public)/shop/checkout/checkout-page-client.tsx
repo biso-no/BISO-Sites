@@ -1,18 +1,9 @@
 "use client";
 
 import { trackEvent } from "@repo/shared/utils/analytics";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@repo/ui/components/ui/alert";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { cn } from "@repo/ui/lib/utils";
 import {
   AlertCircle,
   ArrowLeft,
@@ -24,10 +15,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useState, useTransition } from "react";
+import { type FormEvent, type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createCartCheckoutSession } from "@/app/actions/orders";
-import { StepCard } from "@/components/shared/step-card";
+import {
+  shopFieldClass,
+  shopFieldLabelClass,
+} from "@/components/shop/v2/form-styles";
+import { Pill } from "@/components/ui/pill";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 import { type CartItem, useCart } from "@/lib/contexts/cart-context";
 
 const NOK = new Intl.NumberFormat("nb-NO", {
@@ -44,12 +43,14 @@ interface CheckoutPageClientProps {
   isMember: boolean;
 }
 
-const providerMeta: Record<
-  PaymentProvider,
-  { Icon: typeof Smartphone; accent: string }
-> = {
-  vipps: { Icon: Smartphone, accent: "from-[#ff5b24] to-[#ff7d45]" },
-  stripe: { Icon: CreditCard, accent: "from-sky-600 to-cyan-500" },
+/**
+ * Each provider is told apart by its name and description; the icon only
+ * repeats it. The old per-provider gradient strips were the providers' brand
+ * colours as raw hex — not this site's, and not a token.
+ */
+const providerIcon: Record<PaymentProvider, typeof Smartphone> = {
+  vipps: Smartphone,
+  stripe: CreditCard,
 };
 
 function buildCheckoutLineTitle(item: CartItem) {
@@ -62,17 +63,70 @@ function buildCheckoutLineTitle(item: CartItem) {
   return optionSummary ? `${item.name} (${optionSummary})` : item.name;
 }
 
+/**
+ * One numbered step of the checkout form. Local rather than the shared
+ * `StepCard`, which still paints the pre-redesign palette.
+ */
+function CheckoutStep({
+  aside,
+  children,
+  step,
+  title,
+}: {
+  aside?: ReactNode;
+  children: ReactNode;
+  step: number;
+  title: string;
+}) {
+  return (
+    <section className="rounded-biso-md border border-edge bg-surface-raised p-6 sm:p-8">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="type-data flex size-8 shrink-0 items-center justify-center rounded-biso-pill bg-action text-action-ink"
+          >
+            {step}
+          </span>
+          <h2 className="type-heading-section text-ink">{title}</h2>
+        </div>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SummaryRow({
+  className = "text-ink",
+  label,
+  value,
+}: {
+  className?: string;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-1.5">
+      <dt className="type-body-sm text-ink-muted">{label}</dt>
+      <dd className={`type-data ${className}`}>{value}</dd>
+    </div>
+  );
+}
+
+/** Still blocks where the steps and the summary will be — no pulse. */
 function CheckoutSkeleton() {
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+    <div
+      aria-hidden="true"
+      className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]"
+    >
       <div className="space-y-6">
-        <Skeleton className="h-64 w-full rounded-3xl" />
-        <Skeleton className="h-56 w-full rounded-3xl" />
-        <Skeleton className="h-80 w-full rounded-3xl" />
+        <div className="h-64 rounded-biso-md bg-surface-sunken" />
+        <div className="h-56 rounded-biso-md bg-surface-sunken" />
+        <div className="h-80 rounded-biso-md bg-surface-sunken" />
       </div>
-      <div className="space-y-6">
-        <Skeleton className="h-96 w-full rounded-3xl" />
-      </div>
+      <div className="h-96 rounded-biso-md bg-surface-sunken" />
     </div>
   );
 }
@@ -186,44 +240,46 @@ export function CheckoutPageClient({
   }
 
   if (items.length === 0) {
+    // RD-031: this panel used to put white text on the legacy dark-brand
+    // token, which measured 2.34:1 in the dark theme, where that token is a
+    // light cyan. It is a plain bordered panel on the page surface now, so
+    // every alias it uses flips with the theme.
     return (
-      <Card className="mx-auto max-w-2xl overflow-hidden border-0 shadow-xl">
-        <div className="bg-brand-dark p-8 text-white">
-          <Badge className="border-0 bg-white/15 text-white">
-            {t("checkout.eyebrow")}
-          </Badge>
-          <h2 className="mt-4 font-semibold text-3xl">
-            {t("checkout.empty.title")}
-          </h2>
-          <p className="mt-2 max-w-md text-white/80">
-            {t("checkout.empty.description")}
-          </p>
+      <div className="max-w-(--measure) rounded-biso-md border border-edge p-8 sm:p-10">
+        <p className="type-label text-ink-accent">{t("checkout.eyebrow")}</p>
+        <h2 className="type-display-sm mt-3 text-ink">
+          {t("checkout.empty.title")}
+        </h2>
+        <p className="type-body mt-3 text-ink-muted">
+          {t("checkout.empty.description")}
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link className={statusPanelPrimaryAction} href="/shop">
+            {t("checkout.empty.browse")}
+          </Link>
+          <Link className={statusPanelSecondaryAction} href="/shop/cart">
+            {t("checkout.empty.backToCart")}
+          </Link>
         </div>
-        <CardContent className="flex flex-col gap-3 p-8 sm:flex-row">
-          <Button asChild>
-            <Link href="/shop">{t("checkout.empty.browse")}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/shop/cart">{t("checkout.empty.backToCart")}</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      </div>
     );
   }
 
   return (
     <form
-      className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]"
+      className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]"
       onSubmit={handleSubmit}
     >
-      <div className="space-y-6">
-        <StepCard step={1} title={t("checkout.contact.step")}>
-          <div className="grid gap-4 md:grid-cols-2">
+      <div className="min-w-0 space-y-6">
+        <CheckoutStep step={1} title={t("checkout.contact.step")}>
+          <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="checkout-name">
+              <label className={shopFieldLabelClass} htmlFor="checkout-name">
                 {t("checkout.contact.name")}
-              </Label>
+              </label>
               <Input
+                autoComplete="name"
+                className={shopFieldClass}
                 id="checkout-name"
                 onChange={(event) => setName(event.target.value)}
                 placeholder={t("checkout.contact.namePlaceholder")}
@@ -232,10 +288,12 @@ export function CheckoutPageClient({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="checkout-email">
+              <label className={shopFieldLabelClass} htmlFor="checkout-email">
                 {t("checkout.contact.email")}
-              </Label>
+              </label>
               <Input
+                autoComplete="email"
+                className={shopFieldClass}
                 id="checkout-email"
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder={t("checkout.contact.emailPlaceholder")}
@@ -245,10 +303,12 @@ export function CheckoutPageClient({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="checkout-phone">
+              <label className={shopFieldLabelClass} htmlFor="checkout-phone">
                 {t("checkout.contact.phone")}
-              </Label>
+              </label>
               <Input
+                autoComplete="tel"
+                className={shopFieldClass}
                 id="checkout-phone"
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder={t("checkout.contact.phonePlaceholder")}
@@ -257,11 +317,12 @@ export function CheckoutPageClient({
               />
             </div>
           </div>
-        </StepCard>
+        </CheckoutStep>
 
-        <StepCard step={2} title={t("checkout.pay.step")}>
+        <CheckoutStep step={2} title={t("checkout.pay.step")}>
           {paymentsAvailable ? (
             <RadioGroup
+              aria-label={t("checkout.pay.step")}
               className="grid gap-4 md:grid-cols-2"
               onValueChange={(value) => {
                 const next = value as PaymentProvider;
@@ -271,74 +332,76 @@ export function CheckoutPageClient({
               value={provider}
             >
               {enabledProviders.map((value) => {
-                const { Icon, accent } = providerMeta[value];
+                const Icon = providerIcon[value];
                 const isSelected = provider === value;
 
                 return (
                   <div
-                    className={`relative block cursor-pointer overflow-hidden rounded-2xl border transition-all ${
+                    className={cn(
+                      "relative rounded-biso-md border p-5 transition-colors",
                       isSelected
-                        ? "border-brand shadow-md ring-1 ring-brand/30"
-                        : "border-border hover:border-brand/40"
-                    }`}
+                        ? "border-action bg-action/5"
+                        : "border-edge hover:border-ink-muted"
+                    )}
                     key={value}
                   >
-                    <div className={`h-2 w-full bg-linear-to-r ${accent}`} />
-                    <div className="flex items-start gap-4 p-5">
+                    <div className="flex items-start gap-4">
                       <RadioGroupItem
-                        className="mt-1"
+                        className="mt-1 border-ink-muted text-action focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface data-[state=checked]:border-action [&_svg]:fill-action"
                         id={`provider-${value}`}
                         value={value}
                       />
-                      <Label
+                      <label
                         className="flex-1 cursor-pointer"
                         htmlFor={`provider-${value}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-full bg-section p-2">
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-base">
-                              {providerTitle(value)}
-                            </div>
-                            <div className="text-muted-foreground text-sm">
-                              {providerDescription(value)}
-                            </div>
-                          </div>
-                        </div>
+                        <span className="flex items-center gap-2">
+                          <Icon
+                            aria-hidden="true"
+                            className="size-5 shrink-0 text-ink-accent"
+                          />
+                          <span className="type-heading-card text-ink">
+                            {providerTitle(value)}
+                          </span>
+                        </span>
+                        <span className="type-body-sm mt-1 block text-ink-muted">
+                          {providerDescription(value)}
+                        </span>
                         {isSelected ? (
-                          <div className="mt-4 flex items-center gap-2 text-brand text-sm">
-                            <CheckCircle2 className="h-4 w-4" />
+                          <span className="type-body-sm mt-3 flex items-center gap-2 text-ink-accent">
+                            <CheckCircle2
+                              aria-hidden="true"
+                              className="size-4"
+                            />
                             {t("checkout.pay.selected")}
-                          </div>
+                          </span>
                         ) : null}
-                      </Label>
+                      </label>
                     </div>
                   </div>
                 );
               })}
             </RadioGroup>
           ) : (
-            <p className="text-muted-foreground text-sm">
+            <p className="type-body-sm text-ink-muted">
               {t("checkout.pay.unavailable")}
             </p>
           )}
-          <p className="mt-4 border-border/70 border-t pt-4 text-muted-foreground text-sm">
+          <p className="type-body-sm mt-5 border-edge border-t pt-4 text-ink-muted">
             {t("checkout.pay.footer")}
           </p>
-        </StepCard>
+        </CheckoutStep>
 
-        <StepCard
-          badge={
-            <Badge variant="secondary">
+        <CheckoutStep
+          aside={
+            <Pill tone="neutral">
               {t("checkout.review.items", { count: itemCount })}
-            </Badge>
+            </Pill>
           }
           step={3}
           title={t("checkout.review.step")}
         >
-          <div className="space-y-4">
+          <ul className="divide-y divide-edge">
             {items.map((item) => {
               const unitPrice =
                 isMember && item.memberPrice
@@ -346,95 +409,88 @@ export function CheckoutPageClient({
                   : item.regularPrice;
 
               return (
-                <div
-                  className="rounded-2xl border border-border/60 bg-section/40 p-5"
+                <li
+                  className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
                   key={item.id}
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-2">
-                      <div className="font-medium text-base">{item.name}</div>
-                      {item.category ? (
-                        <div className="text-muted-foreground text-sm">
-                          {item.category}
-                        </div>
-                      ) : null}
-                      {item.selectedOptions ? (
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(item.selectedOptions).map(
-                            ([label, value]) => (
-                              <Badge
-                                className="border border-border bg-section text-foreground"
-                                key={`${item.id}-${label}`}
-                                variant="outline"
-                              >
+                  <div className="min-w-0 space-y-2">
+                    <p className="type-heading-card text-ink">{item.name}</p>
+                    {item.category ? (
+                      <p className="type-body-sm text-ink-muted">
+                        {item.category}
+                      </p>
+                    ) : null}
+                    {item.selectedOptions ? (
+                      <ul className="flex flex-wrap gap-2">
+                        {Object.entries(item.selectedOptions).map(
+                          ([label, value]) => (
+                            <li key={`${item.id}-${label}`}>
+                              <Pill tone="neutral">
                                 {label}: {value}
-                              </Badge>
-                            )
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="text-left sm:text-right">
-                      <div className="font-medium text-base">
-                        {NOK.format(unitPrice * item.quantity)}
-                      </div>
-                      <div className="text-muted-foreground text-sm">
-                        {item.quantity} × {NOK.format(unitPrice)}
-                      </div>
-                    </div>
+                              </Pill>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    ) : null}
                   </div>
-                </div>
+
+                  <div className="shrink-0 sm:text-end">
+                    <p className="type-data text-ink">
+                      {NOK.format(unitPrice * item.quantity)}
+                    </p>
+                    <p className="type-body-sm text-ink-muted">
+                      {item.quantity} × {NOK.format(unitPrice)}
+                    </p>
+                  </div>
+                </li>
               );
             })}
-          </div>
-        </StepCard>
+          </ul>
+        </CheckoutStep>
       </div>
 
-      <div className="space-y-6">
-        <div className="glass-panel p-6 accent-ring lg:sticky lg:top-24">
-          <h2 className="mb-5 font-semibold text-foreground text-lg">
+      <aside className="min-w-0">
+        <div className="space-y-5 rounded-biso-md border border-edge bg-surface-raised p-6 lg:sticky lg:top-24">
+          <h2 className="type-heading-section text-ink">
             {t("checkout.summary.title")}
           </h2>
 
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">
-                {t("checkout.summary.items")}
-              </span>
-              <span>{itemCount}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">
-                {t("checkout.summary.subtotal")}
-              </span>
-              <span>{NOK.format(regularSubtotal)}</span>
-            </div>
+          <dl>
+            <SummaryRow label={t("checkout.summary.items")} value={itemCount} />
+            <SummaryRow
+              label={t("checkout.summary.subtotal")}
+              value={NOK.format(regularSubtotal)}
+            />
             {isMember && savings > 0 ? (
-              <div className="flex items-center justify-between text-green-700">
-                <span>{t("checkout.summary.memberSavings")}</span>
-                <span>-{NOK.format(savings)}</span>
-              </div>
+              <SummaryRow
+                className="text-success"
+                label={t("checkout.summary.memberSavings")}
+                value={`-${NOK.format(savings)}`}
+              />
             ) : null}
+          </dl>
+
+          <div className="flex items-baseline justify-between gap-4 border-edge border-t pt-4">
+            <span className="type-heading-card text-ink">
+              {t("checkout.summary.total")}
+            </span>
+            <span className="type-heading-section text-ink">
+              {NOK.format(subtotal)}
+            </span>
           </div>
 
-          {/* Total — the one bold, yellow-accented moment on the page */}
-          <div className="mt-5 overflow-hidden rounded-2xl bg-brand-dark text-white">
-            <div className="h-1 w-full bg-brand-accent" />
-            <div className="flex items-center justify-between p-5">
-              <span className="font-medium">{t("checkout.summary.total")}</span>
-              <span className="font-bold text-2xl">{NOK.format(subtotal)}</span>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-3 rounded-2xl border border-border/60 bg-card p-5">
+          <div className="space-y-4 rounded-biso-sm bg-surface-sunken p-4">
             <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+              <ShieldCheck
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0 text-ink-accent"
+              />
               <div>
-                <div className="font-medium">
+                <p className="type-body-sm font-semibold text-ink">
                   {t("checkout.summary.secure")}
-                </div>
-                <p className="text-muted-foreground text-sm">
+                </p>
+                <p className="type-body-sm text-ink-muted">
                   {t("checkout.summary.secureDesc", {
                     provider: providerTitle(provider),
                   })}
@@ -442,12 +498,15 @@ export function CheckoutPageClient({
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Store className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+              <Store
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0 text-ink-accent"
+              />
               <div>
-                <div className="font-medium">
+                <p className="type-body-sm font-semibold text-ink">
                   {t("checkout.summary.pickup")}
-                </div>
-                <p className="text-muted-foreground text-sm">
+                </p>
+                <p className="type-body-sm text-ink-muted">
                   {t("checkout.summary.pickupDesc")}
                 </p>
               </div>
@@ -455,32 +514,49 @@ export function CheckoutPageClient({
           </div>
 
           {errorMessage ? (
-            <Alert className="mt-5" variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{t("checkout.submit.failed")}</AlertTitle>
-              <AlertDescription className="wrap-break-word">
-                {errorMessage}
-              </AlertDescription>
-            </Alert>
+            <div
+              className="flex items-start gap-3 rounded-biso-sm border border-danger/30 bg-danger/10 p-4"
+              role="alert"
+            >
+              <AlertCircle
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0 text-danger"
+              />
+              <div className="min-w-0">
+                <p className="type-body-sm font-semibold text-ink">
+                  {t("checkout.submit.failed")}
+                </p>
+                <p className="type-body-sm wrap-break-word text-ink">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
           ) : null}
 
-          <div className="mt-5 flex flex-col gap-3">
-            <Button
-              className="w-full"
+          <div className="flex flex-col gap-3">
+            <button
+              className={cn(
+                statusPanelPrimaryAction,
+                "w-full justify-center disabled:cursor-not-allowed disabled:opacity-50"
+              )}
               disabled={isPending || !paymentsAvailable}
               type="submit"
             >
               {getSubmitLabel()}
-            </Button>
-            <Button asChild className="w-full" variant="outline">
-              <Link href="/shop/cart">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t("checkout.submit.backToCart")}
-              </Link>
-            </Button>
+            </button>
+            <Link
+              className={cn(
+                statusPanelSecondaryAction,
+                "w-full justify-center"
+              )}
+              href="/shop/cart"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              {t("checkout.submit.backToCart")}
+            </Link>
           </div>
         </div>
-      </div>
+      </aside>
     </form>
   );
 }

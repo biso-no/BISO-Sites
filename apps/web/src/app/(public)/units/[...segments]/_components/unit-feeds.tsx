@@ -4,13 +4,19 @@ import type {
   News,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
+import type { Locale } from "@repo/i18n/config";
 import { ImageWithFallback } from "@repo/ui/components/image";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Card } from "@repo/ui/components/ui/card";
-import { formatDateReadable } from "@repo/ui/lib/utils";
-import { Newspaper, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { CardGrid } from "@/components/ui/card-grid";
+import { ChevronFrame } from "@/components/ui/chevron-frame";
+import { OptionalLink } from "@/components/ui/optional-link";
+import { Pill } from "@/components/ui/pill";
+import { RowThumb } from "@/components/ui/row-thumb";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { toPlainText } from "@/lib/content-text";
+import { formatArticleDate } from "@/lib/news-article";
 
 /**
  * Both feeds are locale-filtered in the query, so exactly one translation
@@ -28,10 +34,21 @@ function translationOf(
     : null;
 }
 
+const ROW =
+  "flex items-start gap-4 rounded-biso-md border border-edge p-4 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+/**
+ * The unit's published news, as compact rows.
+ *
+ * The detail route resolves articles by slug, so a row without one is shown
+ * but not linked — `/news/<$id>` would be a guaranteed 404.
+ */
 export async function UnitNews({
+  locale,
   news,
   unitName,
 }: {
+  locale: Locale;
   news: News[];
   unitName: string;
 }) {
@@ -41,53 +58,55 @@ export async function UnitNews({
   const t = await getTranslations("units");
 
   return (
-    <section>
-      <h2 className="mb-6 flex items-center gap-2 font-bold text-2xl text-foreground">
-        <Newspaper className="h-6 w-6 text-brand" />
+    <Section className="border-edge border-t" tone="paper">
+      <SectionHeading>
         {t("detail.news.title", { name: unitName })}
-      </h2>
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      </SectionHeading>
+      <ul className="grid gap-3 lg:grid-cols-2">
         {news.map((item) => {
           const translation = translationOf(item.translation_refs);
-          const image = resolveStorageFileUrl(item.image);
+          const teaser = toPlainText(translation?.short_description);
           return (
-            <li key={item.$id}>
-              <Card className="group h-full overflow-hidden border-border/50 bg-card/80 p-0 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-border hover:shadow-lg">
-                <Link className="block h-full" href={`/news/${item.$id}`}>
-                  {image && (
-                    <div className="relative h-40 overflow-hidden">
-                      <ImageWithFallback
-                        alt=""
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        fill
-                        sizes="(min-width: 1024px) 20rem, 100vw"
-                        src={image}
-                      />
-                    </div>
-                  )}
-                  <div className="p-5">
-                    <p className="text-muted-foreground text-xs">
-                      {formatDateReadable(new Date(item.$createdAt))}
+            <li className="min-w-0" key={item.$id}>
+              <OptionalLink
+                className={ROW}
+                href={item.slug ? `/news/${item.slug}` : null}
+              >
+                {/* Block wrappers: a heading is not phrasing content, so it
+                    cannot sit inside a <span>, though the <a> allows it. */}
+                <div className="min-w-0 flex-1">
+                  <p className="type-data text-ink-muted">
+                    {formatArticleDate(item.$createdAt, locale, "short")}
+                  </p>
+                  <h3 className="type-heading-card mt-1 break-words text-ink">
+                    {translation?.title ?? unitName}
+                  </h3>
+                  {teaser ? (
+                    <p className="type-body-sm mt-1 line-clamp-2 text-ink-muted">
+                      {teaser}
                     </p>
-                    <h3 className="mt-2 font-semibold text-foreground transition-colors group-hover:text-brand">
-                      {translation?.title ?? unitName}
-                    </h3>
-                    {translation?.short_description && (
-                      <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
-                        {translation.short_description}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              </Card>
+                  ) : null}
+                </div>
+                <RowThumb
+                  className="ml-auto"
+                  src={resolveStorageFileUrl(item.image)}
+                />
+              </OptionalLink>
             </li>
           );
         })}
       </ul>
-    </section>
+    </Section>
   );
 }
 
+/**
+ * The unit's tickets and merchandise.
+ *
+ * A members-only product is listed like any other — `member_only` gates the
+ * purchase, not the visibility — and marked as such. Link-only products never
+ * reach this feed (`cachedUnitProducts` excludes them).
+ */
 export async function UnitShop({ products }: { products: WebshopProducts[] }) {
   if (products.length === 0) {
     return null;
@@ -95,67 +114,63 @@ export async function UnitShop({ products }: { products: WebshopProducts[] }) {
   const t = await getTranslations("units");
 
   return (
-    <section>
-      <h2 className="mb-6 flex items-center gap-2 font-bold text-2xl text-foreground">
-        <ShoppingBag className="h-6 w-6 text-brand" />
-        {t("detail.shop.title")}
-      </h2>
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <Section className="border-edge border-t" tone="paper">
+      <SectionHeading>{t("detail.shop.title")}</SectionHeading>
+      <CardGrid columns={4}>
         {products.map((product) => {
           const translation = translationOf(product.translation_refs);
           const image = resolveStorageFileUrl(product.image);
           const soldOut = product.stock === 0;
           return (
-            <li key={product.$id}>
-              <Card className="group h-full overflow-hidden border-border/50 bg-card/80 p-0 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-border hover:shadow-lg">
-                <Link
-                  className="block h-full"
-                  href={`/shop/${product.slug || product.$id}`}
-                >
-                  {image && (
-                    <div className="relative h-40 overflow-hidden">
-                      <ImageWithFallback
-                        alt=""
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        fill
-                        sizes="(min-width: 1024px) 16rem, 50vw"
-                        src={image}
-                      />
-                    </div>
+            <li className="min-w-0" key={product.$id}>
+              <Link
+                className="group flex h-full flex-col rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-4 focus-visible:ring-offset-surface"
+                href={`/shop/${product.slug || product.$id}`}
+              >
+                {image ? (
+                  <ChevronFrame className="mb-4 bg-surface-sunken" ratio="16/9">
+                    <ImageWithFallback
+                      alt=""
+                      height={360}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 280px"
+                      src={image}
+                      width={640}
+                    />
+                  </ChevronFrame>
+                ) : null}
+
+                {product.member_only || soldOut ? (
+                  <span className="mb-3 flex flex-wrap gap-2">
+                    {product.member_only ? (
+                      <Pill tone="warning">{t("detail.shop.memberOnly")}</Pill>
+                    ) : null}
+                    {soldOut ? (
+                      <Pill tone="danger">{t("detail.shop.soldOut")}</Pill>
+                    ) : null}
+                  </span>
+                ) : null}
+
+                <h3 className="type-heading-card break-words text-ink group-hover:text-ink-accent">
+                  {translation?.title ?? product.slug}
+                </h3>
+
+                <span className="mt-auto pt-4">
+                  <span className="type-heading-card block text-ink">
+                    {product.regular_price} kr
+                  </span>
+                  {product.member_price == null ? null : (
+                    <span className="type-body-sm mt-1 block text-ink-muted">
+                      {t("detail.shop.memberPrice", {
+                        price: `${product.member_price} kr`,
+                      })}
+                    </span>
                   )}
-                  <div className="p-5">
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {product.member_only && (
-                        <Badge variant="secondary">
-                          {t("detail.shop.memberOnly")}
-                        </Badge>
-                      )}
-                      {soldOut && (
-                        <Badge variant="destructive">
-                          {t("detail.shop.soldOut")}
-                        </Badge>
-                      )}
-                    </div>
-                    <h3 className="font-semibold text-foreground transition-colors group-hover:text-brand">
-                      {translation?.title ?? product.slug}
-                    </h3>
-                    <p className="mt-2 font-semibold text-brand">
-                      {product.regular_price} kr
-                    </p>
-                    {product.member_price != null && (
-                      <p className="text-muted-foreground text-xs">
-                        {t("detail.shop.memberPrice", {
-                          price: `${product.member_price} kr`,
-                        })}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              </Card>
+                </span>
+              </Link>
             </li>
           );
         })}
-      </ul>
-    </section>
+      </CardGrid>
+    </Section>
   );
 }

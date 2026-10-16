@@ -2,10 +2,9 @@ import type { Users } from "@repo/api/types/appwrite";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
 import { resolveMembershipGate } from "@repo/shared/utils/membership-gate";
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
+import { ShopPageShell } from "@/components/shop/v2/shop-page-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 import { upcomingMembership } from "@/lib/member-portal-membership";
@@ -69,6 +68,11 @@ export default async function MembershipJoinPage({
     getTranslations("membership.join"),
   ]);
 
+  const [tCommon, tNav] = await Promise.all([
+    getTranslations("common"),
+    getTranslations("common.navigation"),
+  ]);
+
   const profile = userData?.profile as BiUser | null | undefined;
 
   const gate = resolveMembershipGate({
@@ -80,14 +84,20 @@ export default async function MembershipJoinPage({
   });
 
   const notice = paymentFailed ? (
-    <Alert className="mb-8 rounded-2xl" variant="destructive">
-      <AlertDescription>{t("paymentFailed.body")}</AlertDescription>
-    </Alert>
+    <p
+      className="type-body-sm mb-8 rounded-biso-md border border-danger/40 bg-danger/5 p-4 text-danger"
+      role="alert"
+    >
+      {t("paymentFailed.body")}
+    </p>
   ) : (
     cancelled && (
-      <Alert className="mb-8 rounded-2xl">
-        <AlertDescription>{t("cancelled.body")}</AlertDescription>
-      </Alert>
+      <p
+        className="type-body-sm mb-8 rounded-biso-md border border-edge bg-surface-sunken p-4 text-ink"
+        role="status"
+      >
+        {t("cancelled.body")}
+      </p>
     )
   );
 
@@ -129,17 +139,21 @@ export default async function MembershipJoinPage({
     );
   }
 
+  // Chrome only. `resolveMembershipGate`, the gate states and the wizard are
+  // the purchase flow; the merge restyled their surfaces, not their logic.
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <ShopHeroShell
-        heightClass="h-[32vh] min-h-[240px]"
-        subtitle={t("subtitle")}
-        title={t("title")}
-      />
-      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-        {notice}
-        {body}
-      </div>
-    </div>
+    <ShopPageShell
+      breadcrumbs={[
+        { label: tCommon("breadcrumbs.home"), href: "/" },
+        { label: tNav("becomeMember"), href: "/membership" },
+        { label: t("title") },
+      ]}
+      lede={t("subtitle")}
+      title={t("title")}
+      width="prose"
+    >
+      {notice}
+      {body}
+    </ShopPageShell>
   );
 }

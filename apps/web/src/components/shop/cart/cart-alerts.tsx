@@ -1,9 +1,40 @@
 "use client";
 
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import { cn } from "@repo/ui/lib/utils";
 import { AlertCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+
+const NOTICE = "mb-6 flex items-start gap-3 rounded-biso-md border p-4";
+
+function Notice({
+  children,
+  tone,
+}: {
+  children: string;
+  tone: "danger" | "warning";
+}) {
+  return (
+    <div
+      className={cn(
+        NOTICE,
+        tone === "danger"
+          ? "border-danger/30 bg-danger/10"
+          : "border-warning/30 bg-warning/10"
+      )}
+      role={tone === "danger" ? "alert" : "status"}
+    >
+      <AlertCircle
+        aria-hidden="true"
+        className={cn(
+          "mt-0.5 size-4 shrink-0",
+          tone === "danger" ? "text-danger" : "text-warning"
+        )}
+      />
+      <p className="type-body-sm text-ink">{children}</p>
+    </div>
+  );
+}
 
 export function CartAlerts() {
   const t = useTranslations("shop");
@@ -18,26 +49,15 @@ export function CartAlerts() {
   return (
     <>
       {error === "checkout_failed" && (
-        <Alert className="mb-6" variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{t("cart.alerts.checkoutFailed")}</AlertDescription>
-        </Alert>
+        <Notice tone="danger">{t("cart.alerts.checkoutFailed")}</Notice>
       )}
 
       {error === "payment_failed" && (
-        <Alert className="mb-6" variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{t("cart.alerts.paymentFailed")}</AlertDescription>
-        </Alert>
+        <Notice tone="danger">{t("cart.alerts.paymentFailed")}</Notice>
       )}
 
       {cancelled === "true" && (
-        <Alert className="mb-6 border-orange-200 bg-orange-50">
-          <AlertCircle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
-            {t("cart.alerts.cancelled")}
-          </AlertDescription>
-        </Alert>
+        <Notice tone="warning">{t("cart.alerts.cancelled")}</Notice>
       )}
     </>
   );

@@ -10,13 +10,28 @@ interface ListNewsParams {
   limit?: number;
   locale?: "en" | "no";
   search?: string;
-  status?: string;
 }
 
+/**
+ * Published articles for the public pages.
+ *
+ * The status is fixed here and never taken from `params`: a server action is
+ * a public POST endpoint, `news` grants `read("any")`, and `queryNews` adds no
+ * status filter at all when none is passed — so a bare call, or
+ * `status: "all"`, listed every unpublished article. Same rule as
+ * `listEvents` and `listProducts`.
+ */
 export async function listNews(params: ListNewsParams = {}): Promise<News[]> {
+  const { campus, limit, locale, search } = params;
   try {
     const { db } = await createSessionClient();
-    return await queryNews(db, params);
+    return await queryNews(db, {
+      campus,
+      limit,
+      locale,
+      search,
+      status: "published",
+    });
   } catch (error) {
     console.error("Error fetching news:", error);
     return [];

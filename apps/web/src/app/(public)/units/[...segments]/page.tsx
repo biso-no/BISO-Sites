@@ -1,5 +1,6 @@
 import type { PageDoc } from "@repo/editor";
 import type { Locale } from "@repo/i18n/config";
+import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
@@ -102,13 +103,11 @@ export default async function UnitPage({ params }: Props) {
   }
   if (resolution.kind === "chooser") {
     return (
-      <div className="min-h-screen bg-background">
-        <CampusChooser
-          matches={resolution.matches}
-          slug={resolution.slug}
-          unavailableAt={resolution.unavailableAt}
-        />
-      </div>
+      <CampusChooser
+        matches={resolution.matches}
+        slug={resolution.slug}
+        unavailableAt={resolution.unavailableAt}
+      />
     );
   }
 
@@ -128,7 +127,7 @@ export default async function UnitPage({ params }: Props) {
   if (pageResult) {
     const doc = pageResult.doc as PageDoc;
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-surface">
         <Suspense fallback={<DepartmentLoading />}>
           <PublishedUnit doc={doc} locale={locale} />
         </Suspense>
@@ -151,11 +150,9 @@ export default async function UnitPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <Suspense fallback={<DepartmentLoading />}>
-        <UnitView locale={locale} unit={unit} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<DepartmentLoading />}>
+      <UnitView locale={locale} unit={unit} />
+    </Suspense>
   );
 }
 
@@ -166,8 +163,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (resolution.kind === "chooser") {
     // Still real content a crawler can land on directly — give it a title
     // and keep it out of the index, since the canonical destination is
-    // whichever campus-explicit URL the visitor actually picks.
-    const title = resolution.matches[0]?.Name ?? resolution.slug;
+    // whichever campus-explicit URL the visitor actually picks. The display
+    // name, not the campus-prefixed accounting `Name`.
+    const name = resolution.matches[0]?.Name;
+    const title = name ? unitDisplayName(name) : resolution.slug;
     return {
       title: `${title} | BISO`,
       robots: { index: false },

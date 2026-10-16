@@ -1,25 +1,13 @@
 "use client";
 
 import type { CampusBenefits } from "@repo/api/types/appwrite";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
-import {
-  Briefcase,
-  Coffee,
-  Dumbbell,
-  Film,
-  GraduationCap,
-  Laptop,
-  Plane,
-  Search,
-  Sparkles,
-} from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
-import { benefitHeadline } from "@/lib/benefit-text";
+import { cn } from "@repo/ui/lib/utils";
+import { Search } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useId, useState } from "react";
+import { Pill } from "@/components/ui/pill";
+import { statusPanelSecondaryAction } from "@/components/ui/status-panel";
 import { BenefitCard } from "../shared/benefit-card";
 import { BenefitPreviewCard } from "../shared/benefit-preview-card";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
@@ -32,16 +20,67 @@ interface BenefitsTabProps {
   revealedBenefits: Set<string>;
 }
 
-const categories = [
-  { id: "all", icon: Sparkles, label: "All" },
-  { id: "Food & Drink", icon: Coffee, label: "Food & Drink" },
-  { id: "Entertainment", icon: Film, label: "Entertainment" },
-  { id: "Career", icon: Briefcase, label: "Career" },
-  { id: "Health & Fitness", icon: Dumbbell, label: "Health" },
-  { id: "Software", icon: Laptop, label: "Software" },
-  { id: "Travel", icon: Plane, label: "Travel" },
-  { id: "Education", icon: GraduationCap, label: "Education" },
-];
+const ALL = "all";
+const PREVIEW_LIMIT = 8;
+const PREVIEW_CATEGORY_LIMIT = 4;
+
+/**
+ * The categories the benefits actually carry, in the order they first appear.
+ * The chips used to come from a hardcoded English list ("Food & Drink",
+ * "Health", …) compared against the `category` column, so any category not on
+ * that list could never be filtered to, and one on it with no rows showed 0.
+ */
+function categoriesOf(benefits: CampusBenefits[]): string[] {
+  return [...new Set(benefits.map((b) => b.category).filter(Boolean))];
+}
+
+function CategoryChips({
+  active,
+  allLabel,
+  categories,
+  counts,
+  label,
+  onSelect,
+}: {
+  active: string;
+  allLabel: string;
+  categories: string[];
+  counts?: Record<string, number>;
+  label: string;
+  onSelect: (category: string) => void;
+}) {
+  if (categories.length < 2) {
+    return null;
+  }
+  return (
+    <ul aria-label={label} className="flex flex-wrap gap-2">
+      {[ALL, ...categories].map((category) => {
+        const isActive = category === active;
+        return (
+          <li key={category}>
+            <button
+              aria-pressed={isActive}
+              className={cn(
+                "type-body-sm inline-flex items-center gap-1.5 rounded-biso-pill border px-3 py-1.5 transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+                isActive
+                  ? "border-transparent bg-action font-semibold text-action-ink"
+                  : "border-edge text-ink-muted hover:border-ink-accent hover:text-ink"
+              )}
+              onClick={() => onSelect(category)}
+              type="button"
+            >
+              {category === ALL ? allLabel : category}
+              {counts ? (
+                <span className="type-data opacity-70">{counts[category]}</span>
+              ) : null}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 function MemberBenefitsView({
   benefits,
@@ -51,160 +90,97 @@ function MemberBenefitsView({
   revealedBenefits: Set<string>;
 }) {
   const t = useTranslations("memberPortal.benefits");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const searchId = useId();
+  const [selectedCategory, setSelectedCategory] = useState(ALL);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const categories = categoriesOf(benefits);
+  const query = searchQuery.toLowerCase();
   const filteredBenefits = benefits.filter((benefit) => {
     const matchesCategory =
-      selectedCategory === "all" || benefit.category === selectedCategory;
+      selectedCategory === ALL || benefit.category === selectedCategory;
     const matchesSearch =
-      benefit.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      benefit.title_nb.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (benefit.partner_name ?? "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      benefit.description_en
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      benefit.description_nb.toLowerCase().includes(searchQuery.toLowerCase());
+      benefit.title_en.toLowerCase().includes(query) ||
+      benefit.title_nb.toLowerCase().includes(query) ||
+      (benefit.partner_name ?? "").toLowerCase().includes(query) ||
+      benefit.description_en.toLowerCase().includes(query) ||
+      benefit.description_nb.toLowerCase().includes(query);
     return matchesCategory && matchesSearch;
   });
 
-  const categoryCounts = categories.reduce(
-    (acc, cat) => {
-      if (cat.id === "all") {
-        acc[cat.id] = benefits.length;
-      } else {
-        acc[cat.id] = benefits.filter((b) => b.category === cat.id).length;
-      }
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  const counts: Record<string, number> = { [ALL]: benefits.length };
+  for (const category of categories) {
+    counts[category] = benefits.filter((b) => b.category === category).length;
+  }
 
   return (
     <>
-      {/* Header */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-        initial={{ opacity: 0, y: 20 }}
-      >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="mb-2 font-bold text-2xl text-foreground dark:text-foreground">
-            {t("title")}
-          </h2>
-          <p className="text-muted-foreground dark:text-muted-foreground">
-            {t("description")}
-          </p>
+          <h2 className="type-display-sm text-ink">{t("title")}</h2>
+          <p className="type-body mt-2 text-ink-muted">{t("description")}</p>
         </div>
-        <Badge className="w-fit border-brand-border-strong bg-brand-muted px-4 py-2 text-brand dark:border-brand-border-strong dark:bg-brand-muted-strong">
-          <Sparkles className="mr-2 h-4 w-4" />
-          {t("available", { count: benefits.length })}
-        </Badge>
-      </motion.div>
+        <Pill tone="accent">{t("available", { count: benefits.length })}</Pill>
+      </div>
 
-      {/* Search and Filter */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-4"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ delay: 0.1 }}
-      >
-        {/* Search bar */}
-        <div className="relative">
-          <Search className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="h-12 pl-12 text-base"
+      <div className="flex flex-col gap-4">
+        <label
+          className="relative flex w-full max-w-md items-center"
+          htmlFor={searchId}
+        >
+          <span className="sr-only">{t("searchPlaceholder")}</span>
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute start-3 size-4 text-ink-muted"
+          />
+          <input
+            className="type-body-sm w-full rounded-biso-pill border border-edge bg-surface py-2 ps-9 pe-3 text-ink placeholder:text-ink-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            id={searchId}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("searchPlaceholder")}
+            type="search"
             value={searchQuery}
           />
-        </div>
+        </label>
 
-        {/* Category filter */}
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => {
-            const count = categoryCounts[category.id] || 0;
-            const isActive = selectedCategory === category.id;
+        <CategoryChips
+          active={selectedCategory}
+          allLabel={t("all")}
+          categories={categories}
+          counts={counts}
+          label={t("categoriesLabel")}
+          onSelect={setSelectedCategory}
+        />
+      </div>
 
-            return (
-              <Button
-                className={`h-auto rounded-full px-4 py-2 transition-all ${
-                  isActive
-                    ? "bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
-                    : "bg-section text-muted-foreground hover:bg-brand-muted hover:text-brand dark:bg-inverted"
-                }`}
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                variant="ghost"
-              >
-                <category.icon className="mr-2 h-4 w-4" />
-                {category.label}
-                <Badge
-                  className={`ml-2 h-5 min-w-5 rounded-full px-1.5 text-xs ${
-                    isActive
-                      ? "border-white/30 bg-white/20 text-white"
-                      : "border-transparent bg-muted text-muted-foreground"
-                  }`}
-                  variant="outline"
-                >
-                  {count}
-                </Badge>
-              </Button>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      {/* Benefits Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <AnimatePresence mode="popLayout">
-          {filteredBenefits.map((benefit, index) => (
-            <motion.div
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              key={benefit.$id}
-              layout
-              transition={{ duration: 0.2, delay: index * 0.05 }}
-            >
+      {filteredBenefits.length > 0 ? (
+        <ul className="grid gap-5 md:grid-cols-2">
+          {filteredBenefits.map((benefit) => (
+            <li key={benefit.$id}>
               <BenefitCard
                 benefit={benefit}
                 isRevealed={revealedBenefits.has(benefit.$id)}
               />
-            </motion.div>
+            </li>
           ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Empty state */}
-      {filteredBenefits.length === 0 && (
-        <motion.div
-          animate={{ opacity: 1 }}
-          className="py-16 text-center"
-          initial={{ opacity: 0 }}
-        >
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-muted">
-            <Search className="h-8 w-8 text-brand" />
-          </div>
-          <h3 className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-            {t("noResults")}
-          </h3>
-          <p className="text-muted-foreground dark:text-muted-foreground">
+        </ul>
+      ) : (
+        <div className="flex flex-col items-start gap-3 rounded-biso-md border border-edge p-8">
+          <h3 className="type-heading-card text-ink">{t("noResults")}</h3>
+          <p className="type-body-sm text-ink-muted">
             {t("noResultsDescription")}
           </p>
-          <Button
-            className="mt-4"
+          <button
+            className={statusPanelSecondaryAction}
             onClick={() => {
-              setSelectedCategory("all");
+              setSelectedCategory(ALL);
               setSearchQuery("");
             }}
-            variant="outline"
+            type="button"
           >
             {t("clearFilters")}
-          </Button>
-        </motion.div>
+          </button>
+        </div>
       )}
     </>
   );
@@ -212,88 +188,45 @@ function MemberBenefitsView({
 
 function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
   const t = useTranslations("memberPortal.benefits");
-  const locale = useLocale();
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState(ALL);
 
-  const filteredBenefits =
-    selectedCategory === "all"
-      ? benefits.slice(0, 8)
-      : benefits.filter((b) => b.category === selectedCategory).slice(0, 8);
+  const categories = categoriesOf(benefits).slice(0, PREVIEW_CATEGORY_LIMIT);
+  const filteredBenefits = (
+    selectedCategory === ALL
+      ? benefits
+      : benefits.filter((b) => b.category === selectedCategory)
+  ).slice(0, PREVIEW_LIMIT);
 
   return (
     <>
-      {/* Header */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-        initial={{ opacity: 0, y: 20 }}
-      >
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-brand-muted px-4 py-2">
-          <Sparkles className="h-4 w-4 text-brand" />
-          <span className="text-brand-dark dark:text-brand">
-            {t("previewBadge")}
-          </span>
-        </div>
-        <h2 className="mb-4 font-bold text-3xl text-foreground dark:text-foreground">
+      <section>
+        <p className="type-label text-ink-accent">{t("previewBadge")}</p>
+        <h2 className="type-display-sm mt-3 break-words text-ink">
           {t("previewTitle")}
         </h2>
-        <p className="mx-auto max-w-2xl text-muted-foreground dark:text-muted-foreground">
+        <p className="type-body mt-3 max-w-(--measure) text-ink-muted">
           {t("previewDescription")}
         </p>
-      </motion.div>
+      </section>
 
-      {/* Category filter */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap justify-center gap-2"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ delay: 0.1 }}
-      >
-        {categories.slice(0, 5).map((category) => {
-          const isActive = selectedCategory === category.id;
+      <CategoryChips
+        active={selectedCategory}
+        allLabel={t("all")}
+        categories={categories}
+        label={t("categoriesLabel")}
+        onSelect={setSelectedCategory}
+      />
 
-          return (
-            <Button
-              className={`h-auto rounded-full px-4 py-2 transition-all ${
-                isActive
-                  ? "bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md"
-                  : "bg-section text-muted-foreground hover:bg-brand-muted hover:text-brand dark:bg-inverted"
-              }`}
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
-              variant="ghost"
-            >
-              <category.icon className="mr-2 h-4 w-4" />
-              {category.label}
-            </Button>
-          );
-        })}
-      </motion.div>
-
-      {/* Benefits Preview Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <AnimatePresence mode="popLayout">
-          {filteredBenefits.map((benefit, index) => (
-            <motion.div
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              key={`${benefit.category}-${index}`}
-              layout
-              transition={{ duration: 0.2, delay: index * 0.05 }}
-            >
-              <BenefitPreviewCard
-                category={benefit.category}
-                discountText={benefitHeadline(benefit, locale)}
-                index={index}
-                partnerName={benefit.partner_name || "Partner"}
-              />
-            </motion.div>
+      {filteredBenefits.length > 0 ? (
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredBenefits.map((benefit) => (
+            <li key={benefit.$id}>
+              <BenefitPreviewCard benefit={benefit} />
+            </li>
           ))}
-        </AnimatePresence>
-      </div>
+        </ul>
+      ) : null}
 
-      {/* CTA Section */}
       <MembershipCtaSection />
     </>
   );
@@ -307,7 +240,7 @@ export function BenefitsTab({
   hasBIIdentity: _hasBIIdentity,
 }: BenefitsTabProps) {
   return (
-    <TabsContent className="space-y-8" value="benefits">
+    <TabsContent className="flex flex-col gap-10" value="benefits">
       {isMember ? (
         <MemberBenefitsView
           benefits={benefits}

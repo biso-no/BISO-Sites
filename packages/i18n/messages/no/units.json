@@ -3,37 +3,30 @@
     "badge": "Studentenheter",
     "title": "Finn menneskene du skal ta graden sammen med",
     "subtitle": "Alle BISO-enheter drives av studenter, for studenter — fagutvalg, foreninger, festivaler og komiteer på alle fire campus.",
-    "ctaPrimary": "Se ledige verv",
-    "ctaSecondary": "Bli medlem"
-  },
-  "stats": {
-    "units": "{count, plural, one {# enhet} other {# enheter}}",
-    "campuses": "{count, plural, one {# campus} other {# campus}}",
-    "students": "{count, plural, one {# student} other {# studenter}} i et styre"
-  },
-  "filters": {
-    "label": "Filtrer enheter",
-    "searchLabel": "Søk",
-    "searchPlaceholder": "Søk etter navn …",
-    "campusLabel": "Campus",
-    "allCampuses": "Alle campus",
-    "categoryLabel": "Type",
-    "allCategories": "Alle typer",
-    "clear": "Nullstill filtre"
+    "ctaPrimary": "Se ledige verv"
   },
   "list": {
     "heading": "{count, plural, one {# enhet} other {# enheter}}",
     "headingFiltered": "{count, plural, one {# enhet} other {# enheter}} av {total}",
-    "subtitle": "Åpne en enhet for å møte styret og se hva de jobber med.",
+    "stats": {
+      "units": "Aktive enheter",
+      "campuses": "Campuser"
+    },
+    "searchLabel": "Søk i enheter",
+    "searchPlaceholder": "Søk i enheter…",
+    "searchSubmit": "Søk",
+    "campusLabel": "Filtrer enheter etter campus",
+    "categoryLabel": "Filtrer enheter etter kategori",
+    "categoryAll": "Alle",
+    "results": "{count, plural, one {# enhet} other {# enheter}}",
     "emptyTitle": "Ingen enheter passer med filtrene",
     "emptyBody": "Prøv å nullstille søket eller velge et annet campus.",
     "unavailableTitle": "Enhetene er utilgjengelige akkurat nå",
-    "unavailableBody": "Vi fikk ikke lastet enhetsoversikten. Prøv igjen om et øyeblikk."
+    "unavailableBody": "Vi fikk ikke lastet enhetsoversikten. Prøv igjen om et øyeblikk.",
+    "clear": "Tøm filtre"
   },
   "card": {
-    "board": "{count, plural, one {# i styret} other {# i styret}}",
-    "noSummary": "Denne enheten har ikke skrevet introduksjonen sin ennå — åpne siden for å møte styret.",
-    "open": "Les mer"
+    "noSummary": "Denne enheten har ikke skrevet introduksjonen sin ennå — åpne siden for å møte styret."
   },
   "cta": {
     "title": "Finner du ikke din greie?",
@@ -42,14 +35,22 @@
     "secondary": "Se ledige verv"
   },
   "detail": {
-    "back": "Alle enheter",
-    "campusBadge": "Campus {campus}",
-    "tabs": {
-      "overview": "Oversikt",
-      "team": "Styret",
-      "news": "Nyheter",
-      "shop": "Butikk"
+    "news": {
+      "title": "Nyheter fra {name}"
     },
+    "shop": {
+      "title": "Billetter og effekter",
+      "memberOnly": "Kun for medlemmer",
+      "soldOut": "Utsolgt",
+      "memberPrice": "{price} for medlemmer"
+    },
+    "join": {
+      "title": "Vil du bli med i {name}?",
+      "body": "Styrene velges hvert år, og de fleste enheter rekrutterer gjennom BISOs vervutlysninger.",
+      "primary": "Se ledige verv",
+      "secondary": "Utforsk andre enheter"
+    },
+    "follow": "Følg oss:",
     "about": "Om {name}",
     "aboutFallbackTitle": "Om denne enheten",
     "aboutFallback": "{name} er en av {count, plural, one {# studentdrevet enhet} other {# studentdrevne enheter}} ved BISO {campus}. Styret under driver enheten — ta kontakt med dem for å høre hva de jobber med og hvordan du blir med.",
@@ -67,23 +68,10 @@
       "emailAction": "Send e-post til {name}",
       "source": "Direkte fra BISOs Microsoft 365-katalog"
     },
-    "news": {
-      "title": "Nyheter fra {name}",
-      "empty": "Ingen nyheter publisert ennå."
-    },
-    "shop": {
-      "title": "Billetter og effekter",
-      "empty": "Ingenting til salgs akkurat nå.",
-      "memberOnly": "Kun for medlemmer",
-      "soldOut": "Utsolgt",
-      "memberPrice": "{price} for medlemmer",
-      "view": "Se i butikken"
-    },
-    "join": {
-      "title": "Vil du bli med i {name}?",
-      "body": "Styrene velges hvert år, og de fleste enheter rekrutterer gjennom BISOs vervutlysninger.",
-      "primary": "Se ledige verv",
-      "secondary": "Utforsk andre enheter"
-    }
+    "campusBadge": "Campus {campus}"
+  },
+  "chooser": {
+    "unavailable": "Ikke på {campus}. Finnes på:",
+    "ambiguous": "Denne enheten finnes på {count, plural, one {# campus} other {# campuser}}. Hvilken er din?"
   }
 }

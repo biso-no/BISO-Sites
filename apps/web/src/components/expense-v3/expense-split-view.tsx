@@ -8,8 +8,6 @@ import type {
 } from "@repo/api/types/appwrite";
 import { trackEvent } from "@repo/shared/utils/analytics";
 import { defaultCostTypeSlugForCategory } from "@repo/shared/utils/expense-cost-types";
-import { Button } from "@repo/ui/components/ui/button";
-import { Combobox } from "@repo/ui/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -18,14 +16,24 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { cn } from "@repo/ui/lib/utils";
-import { ArrowRight, Building2, Check, FileText, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileText, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
+import { DepartmentCombobox } from "./department-combobox";
 import { ExpenseReport } from "./expense-report";
+import {
+  fieldLabelClass,
+  primaryActionClass,
+  secondaryActionClass,
+  selectContentClass,
+  selectItemClass,
+  selectTriggerClass,
+} from "./form-styles";
 import { GenerativeReceiptPreview } from "./generative-receipt-preview";
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
@@ -163,6 +171,9 @@ function AssignmentGate({
   onAssign,
   onContinue,
 }: AssignmentGateProps) {
+  const t = useTranslations("expenses");
+  const campusFieldId = useId();
+  const departmentFieldId = useId();
   const selectedCampus = campuses.find(
     (campus) => campus.$id === selectedCampusId
   );
@@ -171,82 +182,101 @@ function AssignmentGate({
   );
   const canContinue = Boolean(selectedCampusId && selectedDepartmentId);
 
+  // The composer's first step, drawn as the redesign's centred status panel:
+  // a bordered surface, the page's only <h1>, labelled fields, one CTA.
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] items-center justify-center bg-muted/50 p-4 dark:bg-inverted">
-      <div className="w-full max-w-xl rounded-xl border bg-card p-6 shadow-xl dark:bg-card">
-        <div className="mb-6 flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Building2 className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="font-semibold text-2xl text-foreground tracking-tight dark:text-white">
-              Choose cost allocation
-            </h1>
-            <p className="mt-1 text-muted-foreground text-sm">
-              Select campus and department before uploading receipts so AI can
-              write a clearer accounting description.
-            </p>
-          </div>
-        </div>
+    <div className="flex min-h-[calc(100dvh-5rem)] items-center justify-center bg-surface-sunken p-4">
+      <div className="w-full max-w-xl rounded-biso-md border border-edge bg-surface-raised p-6 sm:p-10">
+        <h1 className="type-display-sm break-words text-ink">
+          {t("composer.gate.title")}
+        </h1>
+        <p className="type-body mt-3 text-ink-muted">
+          {t("composer.gate.body")}
+        </p>
 
-        <div className="space-y-4">
-          <Select
-            onValueChange={(campusId) => onAssign(campusId, "")}
-            value={selectedCampusId}
-          >
-            <SelectTrigger className="h-11">
-              <SelectValue placeholder="Select campus" />
-            </SelectTrigger>
-            <SelectContent>
-              {campuses.map((campus) => (
-                <SelectItem key={campus.$id} value={campus.$id}>
-                  {campus.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="mt-8 space-y-5">
+          <div className="space-y-2">
+            <label className={fieldLabelClass} htmlFor={campusFieldId}>
+              {t("detail.campus")}
+            </label>
+            <Select
+              onValueChange={(campusId) => onAssign(campusId, "")}
+              value={selectedCampusId}
+            >
+              <SelectTrigger className={selectTriggerClass} id={campusFieldId}>
+                <SelectValue placeholder={t("composer.campusPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent className={selectContentClass}>
+                {campuses.map((campus) => (
+                  <SelectItem
+                    className={selectItemClass}
+                    key={campus.$id}
+                    value={campus.$id}
+                  >
+                    {campus.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Combobox
-            defaultValue={selectedDepartmentId}
-            disabled={!selectedCampusId}
-            items={departments.map((department) => ({
-              value: department.$id,
-              label: department.Name,
-            }))}
-            name="department"
-            onValueChange={(departmentId) =>
-              onAssign(selectedCampusId, departmentId)
-            }
-          />
+          <div className="space-y-2">
+            <label className={fieldLabelClass} htmlFor={departmentFieldId}>
+              {t("detail.department")}
+            </label>
+            <DepartmentCombobox
+              defaultValue={selectedDepartmentId}
+              disabled={!selectedCampusId}
+              id={departmentFieldId}
+              items={departments.map((department) => ({
+                value: department.$id,
+                label: department.Name,
+              }))}
+              name="department"
+              onValueChange={(departmentId) =>
+                onAssign(selectedCampusId, departmentId)
+              }
+            />
+          </div>
         </div>
 
         {canContinue && (
-          <div className="mt-5 flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-emerald-700 text-sm dark:text-emerald-300">
-            <Check className="h-4 w-4" />
-            <span>
-              {selectedCampus?.name} -{" "}
+          <p className="type-body-sm mt-6 flex items-center gap-2 rounded-biso-md bg-success/10 px-3 py-2 text-success">
+            <Check aria-hidden="true" className="size-4 shrink-0" />
+            <span className="min-w-0 break-words">
+              {selectedCampus?.name} —{" "}
               {
                 departments.find(
                   (department) => department.$id === selectedDepartmentId
                 )?.Name
               }
             </span>
-          </div>
+          </p>
         )}
 
-        <div className="mt-6 flex justify-end">
-          <Button
-            className="gap-2"
+        <div className="mt-8 flex justify-end">
+          <button
+            className={primaryActionClass}
             disabled={!canContinue}
             onClick={onContinue}
-            size="lg"
+            type="button"
           >
-            Continue to upload
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+            {t("composer.gate.continue")}
+            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+/** One of the two view toggles above the panes on small screens. */
+function mobileTabClass(active: boolean): string {
+  return cn(
+    "type-body-sm flex flex-1 items-center justify-center gap-2 border-b-2 py-4 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-inset",
+    active
+      ? "border-action text-ink"
+      : "border-transparent text-ink-muted hover:bg-ink-muted/8 hover:text-ink"
   );
 }
 
@@ -321,6 +351,7 @@ export function ExpenseSplitView({
   ocrEnabled = true,
 }: ExpenseSplitViewProps) {
   const router = useRouter();
+  const t = useTranslations("expenses");
   const store = useExpenseStore();
   const [mobileView, setMobileView] = useState<"wallet" | "report">("wallet");
   const [lastSummarizedReceipts, setLastSummarizedReceipts] =
@@ -580,11 +611,11 @@ export function ExpenseSplitView({
           status: "error",
           error: "Failed to process receipt",
         });
-        toast.error("Failed to process receipt");
+        toast.error(t("composer.toast.receiptFailed"));
         return null;
       }
     },
-    [store, ocrEnabled]
+    [store, ocrEnabled, t]
   );
 
   const reconcileBatch = useCallback(
@@ -636,17 +667,21 @@ export function ExpenseSplitView({
         });
 
         toast.success(
-          `Bank statement linked to ${parentReceipt.vendor || "receipt"}`
+          t("composer.toast.statementLinked", {
+            name:
+              parentReceipt.vendor ||
+              t("composer.toast.statementLinkedFallback"),
+          })
         );
       }
     },
-    [store]
+    [store, t]
   );
 
   const handleUpload = useCallback(
     (files: File[]) => {
       if (!(store.selectedCampusId && store.selectedDepartmentId)) {
-        toast.error("Select campus and department before uploading receipts");
+        toast.error(t("composer.toast.selectBeforeUpload"));
         return;
       }
 
@@ -665,6 +700,7 @@ export function ExpenseSplitView({
       reconcileBatch,
       store.selectedCampusId,
       store.selectedDepartmentId,
+      t,
     ]
   );
 
@@ -695,17 +731,17 @@ export function ExpenseSplitView({
 
   const handleSaveDraft = async () => {
     if (!(store.selectedCampusId && store.selectedDepartmentId)) {
-      toast.error("Select campus and department before saving a draft");
+      toast.error(t("composer.toast.selectBeforeDraft"));
       return;
     }
 
     if (!store.profile.bank_account) {
-      toast.error("Add a bank account before saving a draft");
+      toast.error(t("composer.toast.bankAccountBeforeDraft"));
       return;
     }
 
     if (hasReceiptsInProgress()) {
-      toast.error("Wait for receipt processing to finish before saving");
+      toast.error(t("composer.toast.waitBeforeSaving"));
       return;
     }
 
@@ -723,13 +759,13 @@ export function ExpenseSplitView({
 
       if (result.success && result.draft) {
         store.setExpenseId(result.draft.$id);
-        toast.success("Draft saved");
+        toast.success(t("composer.toast.draftSaved"));
       } else {
         throw new Error(result.error || "Failed to save draft");
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save draft");
+      toast.error(t("composer.toast.draftFailed"));
     } finally {
       store.setPhase("draft");
     }
@@ -737,12 +773,12 @@ export function ExpenseSplitView({
 
   const handleSubmit = async () => {
     if (!store.isReadyToSubmit()) {
-      toast.error("Please fill in all required fields");
+      toast.error(t("composer.toast.requiredFields"));
       return;
     }
 
     if (hasReceiptsInProgress()) {
-      toast.error("Wait for receipt processing to finish before submitting");
+      toast.error(t("composer.toast.waitBeforeSubmitting"));
       return;
     }
 
@@ -763,14 +799,14 @@ export function ExpenseSplitView({
         trackEvent("expense_submit", {
           campus: store.selectedCampusId ?? "",
         });
-        toast.success("Expense submitted!");
+        toast.success(t("composer.toast.submitted"));
         router.push(`/fs/${result.fetchedExpense.$id}`);
       } else {
         throw new Error(result.error || "Submission failed");
       }
     } catch (error) {
       console.error(error);
-      toast.error("Submission failed");
+      toast.error(t("composer.toast.submitFailed"));
       store.setPhase("draft");
     }
   };
@@ -792,41 +828,38 @@ export function ExpenseSplitView({
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col bg-background md:h-[calc(100dvh-5rem)] md:flex-row md:overflow-hidden">
+    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col bg-surface text-ink md:h-[calc(100dvh-5rem)] md:flex-row md:overflow-hidden">
+      {/* The panes carry section headings of their own (receipts, the
+          report, a receipt's details), so the page's one <h1> sits above
+          them rather than moving with whichever pane is showing. */}
+      <h1 className="sr-only">{t("composer.title")}</h1>
+
       {/* Mobile Tab Navigation */}
-      <div className="flex border-border border-b bg-card md:hidden dark:bg-card">
-        <Button
-          className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-none border-transparent border-b-2 py-4 font-medium text-sm transition-colors",
-            mobileView === "wallet"
-              ? "bg-muted text-foreground dark:bg-background/10 dark:text-white"
-              : "text-muted-foreground hover:bg-muted/60 dark:text-white/70 dark:hover:bg-background/5"
-          )}
+      <div className="flex border-edge border-b bg-surface md:hidden">
+        <button
+          aria-pressed={mobileView === "wallet"}
+          className={mobileTabClass(mobileView === "wallet")}
           onClick={() => setMobileView("wallet")}
-          variant="ghost"
+          type="button"
         >
-          <Wallet className="h-4 w-4" />
-          Receipts
-        </Button>
-        <Button
-          className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-none border-transparent border-b-2 py-4 font-medium text-sm transition-colors",
-            mobileView === "report"
-              ? "bg-muted text-foreground dark:bg-background/10 dark:text-white"
-              : "text-muted-foreground hover:bg-muted/60 dark:text-white/70 dark:hover:bg-background/5"
-          )}
+          <Wallet aria-hidden="true" className="size-4 shrink-0" />
+          {t("composer.tabs.receipts")}
+        </button>
+        <button
+          aria-pressed={mobileView === "report"}
+          className={mobileTabClass(mobileView === "report")}
           onClick={() => setMobileView("report")}
-          variant="ghost"
+          type="button"
         >
-          <FileText className="h-4 w-4" />
-          Report
-        </Button>
+          <FileText aria-hidden="true" className="size-4 shrink-0" />
+          {t("composer.tabs.report")}
+        </button>
       </div>
 
       {/* Left Pane: Wallet */}
       <div
         className={cn(
-          "w-full shrink-0 border-border border-r bg-card md:max-h-[calc(100dvh-5rem)] md:w-[350px] md:overflow-y-auto lg:w-[400px] dark:border-white/10 dark:bg-card",
+          "w-full shrink-0 border-edge border-r bg-surface md:max-h-[calc(100dvh-5rem)] md:w-[350px] md:overflow-y-auto lg:w-[400px]",
           mobileView === "wallet" ? "block" : "hidden md:block"
         )}
       >
@@ -845,19 +878,21 @@ export function ExpenseSplitView({
       {/* Right Pane: Report or Preview */}
       <div
         className={cn(
-          "flex-1 bg-muted/50 md:overflow-y-auto dark:bg-inverted",
+          "flex-1 bg-surface-sunken md:overflow-y-auto",
           mobileView === "report" ? "block" : "hidden md:block"
         )}
       >
         {store.selectedReceiptId ? (
           <div className="relative h-full pt-16">
             <div className="absolute top-4 left-4 z-10">
-              <Button
-                className="rounded-full bg-muted px-4 py-2 text-foreground text-sm backdrop-blur-md hover:bg-muted/80 dark:bg-background/10 dark:text-white dark:hover:bg-background/20"
+              <button
+                className={cn(secondaryActionClass, "bg-surface")}
                 onClick={() => store.setSelectedReceiptId(null)}
+                type="button"
               >
-                ← Back to Report
-              </Button>
+                <ArrowLeft aria-hidden="true" className="size-4 shrink-0" />
+                {t("composer.backToReport")}
+              </button>
             </div>
             {store.receipts.find((r) => r.id === store.selectedReceiptId) && (
               <GenerativeReceiptPreview

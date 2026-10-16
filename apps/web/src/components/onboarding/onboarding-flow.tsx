@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { cn } from "@repo/ui/lib/utils";
 import {
   ArrowRight,
   BadgeCheck,
@@ -11,9 +11,11 @@ import {
   Receipt,
   Users,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
+import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
 import { updateProfile } from "@/lib/actions/user";
 import { clearBrowserAppwriteSession } from "@/lib/bi-sign-in-client";
 import { switchToBiSignIn } from "@/lib/server";
@@ -71,6 +73,16 @@ function buildSteps(persona: PersonaState, biLinked: boolean): StepId[] {
   return steps;
 }
 
+// ---------- Styles ----------
+
+const inputBase =
+  "type-body w-full rounded-biso-md border bg-surface px-4 py-3 text-ink placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2";
+
+const quietButton =
+  "type-body-sm inline-flex items-center justify-center gap-1.5 rounded-biso-pill px-4 py-2.5 text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2";
+
+const headingClass = "type-display-sm break-words text-ink";
+
 // ---------- Sub-components ----------
 
 const slideVariants = {
@@ -79,29 +91,38 @@ const slideVariants = {
   exit: (dir: number) => ({ opacity: 0, x: dir < 0 ? 48 : -48 }),
 };
 
+/** Progress, drawn as dots and said in words for screen readers. */
 function StepDots({
   currentIdx,
+  label,
   steps,
 }: {
-  steps: StepId[];
   currentIdx: number;
+  label: string;
+  steps: StepId[];
 }) {
   return (
-    <div className="mb-8 flex items-center justify-center gap-1.5">
-      {steps.map((step, idx) => {
-        let dotClass = "h-2 w-2 bg-border";
-        if (idx === currentIdx) {
-          dotClass = "h-2 w-6 bg-brand";
-        } else if (idx < currentIdx) {
-          dotClass = "h-2 w-2 bg-brand/40";
-        }
-        return (
-          <div
-            className={`rounded-full transition-all duration-300 ${dotClass}`}
-            key={step}
-          />
-        );
-      })}
+    <div className="mb-8">
+      <p className="sr-only">{label}</p>
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-center gap-1.5"
+      >
+        {steps.map((step, idx) => {
+          let dotClass = "w-2 bg-edge";
+          if (idx === currentIdx) {
+            dotClass = "w-6 bg-action";
+          } else if (idx < currentIdx) {
+            dotClass = "w-2 bg-action/40";
+          }
+          return (
+            <div
+              className={`h-2 rounded-biso-pill transition-all duration-300 ${dotClass}`}
+              key={step}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -121,38 +142,36 @@ function PersonaCard({
 }) {
   return (
     <button
-      className={`group relative flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
+      aria-pressed={selected}
+      className={cn(
+        "relative flex w-full items-start gap-3 rounded-biso-md border-2 p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2",
         selected
-          ? "border-brand bg-brand-muted shadow-sm"
-          : "border-border bg-background hover:border-brand/40 hover:bg-brand-muted/50"
-      }`}
+          ? "border-action bg-action/5"
+          : "border-edge bg-surface hover:border-ink-muted"
+      )}
       onClick={onToggle}
       type="button"
     >
-      <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
-          selected
-            ? "bg-brand-muted-strong text-brand"
-            : "bg-muted text-muted-foreground group-hover:bg-brand-muted group-hover:text-brand"
-        }`}
-      >
-        <Icon className="h-4.5 w-4.5" />
-      </div>
-      <div className="min-w-0">
-        <p
-          className={`font-semibold text-sm ${selected ? "text-brand" : "text-foreground"}`}
-        >
+      <Icon
+        aria-hidden="true"
+        className="mt-0.5 size-5 shrink-0 text-ink-accent"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="type-body-sm block font-semibold text-ink">
           {label}
-        </p>
-        <p className="mt-0.5 text-muted-foreground text-xs leading-relaxed">
+        </span>
+        <span className="type-body-sm mt-0.5 block text-ink-muted">
           {description}
-        </p>
-      </div>
-      {selected && (
-        <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand">
-          <Check className="h-3 w-3 text-brand-foreground" />
-        </div>
-      )}
+        </span>
+      </span>
+      {selected ? (
+        <span
+          aria-hidden="true"
+          className="flex size-5 shrink-0 items-center justify-center rounded-biso-pill bg-action text-action-ink"
+        >
+          <Check className="size-3" />
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -176,32 +195,44 @@ function FormField({
   required?: boolean;
   hint?: string;
 }) {
-  const id = label.toLowerCase().replace(/\s+/g, "-");
+  const id = useId();
+  const messageId = `${id}-message`;
+  const message = error ?? hint;
   return (
     <div>
       <label
-        className="mb-1.5 block font-medium text-foreground text-sm"
+        className="type-body-sm mb-1.5 block font-semibold text-ink"
         htmlFor={id}
       >
         {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
+        {required ? (
+          <span aria-hidden="true" className="ml-1 text-danger">
+            *
+          </span>
+        ) : null}
       </label>
       <input
-        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 focus:ring-brand/20 ${
-          error
-            ? "border-red-400 bg-red-50/50 focus:border-red-400"
-            : "border-border bg-background focus:border-brand"
-        }`}
+        aria-describedby={message ? messageId : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-required={required || undefined}
+        className={cn(inputBase, error ? "border-danger" : "border-edge")}
         id={id}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         type={type}
         value={value}
       />
-      {hint && !error && (
-        <p className="mt-1.5 text-muted-foreground text-xs">{hint}</p>
-      )}
-      {error && <p className="mt-1.5 text-red-500 text-xs">{error}</p>}
+      {message ? (
+        <p
+          className={cn(
+            "type-body-sm mt-1.5",
+            error ? "text-danger" : "text-ink-muted"
+          )}
+          id={messageId}
+        >
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -256,7 +287,12 @@ export function OnboardingFlow({
 
   // Persist state on every change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // Storage can be unavailable (private window, blocked site data); the
+      // draft then lasts for this page only.
+    }
   }, [state]);
 
   const steps = buildSteps(state.persona, state.biLinked);
@@ -329,7 +365,11 @@ export function OnboardingFlow({
           setSubmitError(t("errors.saveFailed"));
           return;
         }
-        localStorage.removeItem(STORAGE_KEY);
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch {
+          // Nothing stored to clear.
+        }
         setDirection(1);
         setStepIdx(steps.length - 1);
       } catch {
@@ -378,17 +418,15 @@ export function OnboardingFlow({
   // ---------- Step renderers ----------
 
   const renderPersona = () => (
-    <div className="space-y-5">
-      <div className="space-y-1">
-        <h1 className="font-bold text-2xl text-foreground tracking-tight">
-          {t("persona.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed">
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className={headingClass}>{t("persona.title")}</h1>
+        <p className="type-body-sm mt-2 text-ink-muted">
           {t("persona.description")}
         </p>
       </div>
 
-      <div className="space-y-2.5">
+      <div className="flex flex-col gap-2.5">
         <PersonaCard
           description={t("persona.student.description")}
           icon={GraduationCap}
@@ -433,58 +471,60 @@ export function OnboardingFlow({
         />
       </div>
 
-      <p className="text-muted-foreground text-xs">{t("persona.hint")}</p>
+      <p className="type-body-sm text-ink-muted">{t("persona.hint")}</p>
     </div>
   );
 
   const renderStudent = () => (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="font-bold text-2xl text-foreground tracking-tight">
-          {t("student.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed">
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className={headingClass}>{t("student.title")}</h1>
+        <p className="type-body-sm mt-2 text-ink-muted">
           {t("student.description")}
         </p>
       </div>
 
-      <div className="rounded-2xl border border-brand-border bg-brand-muted p-5">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-muted-strong">
-            <BadgeCheck className="h-4.5 w-4.5 text-brand" />
-          </div>
-          <p className="font-semibold text-foreground text-sm">
-            {t("student.benefits.title")}
-          </p>
-        </div>
-        <ul className="space-y-2 text-muted-foreground text-sm">
-          {(
-            [
-              t("student.benefits.membership"),
-              t("student.benefits.events"),
-              t("student.benefits.sso"),
-            ] as string[]
-          ).map((benefit) => (
+      <div className="rounded-biso-md border border-edge bg-surface-sunken p-5">
+        <p className="type-body-sm mb-3 flex items-center gap-2 font-semibold text-ink">
+          <BadgeCheck
+            aria-hidden="true"
+            className="size-4 shrink-0 text-ink-accent"
+          />
+          {t("student.benefits.title")}
+        </p>
+        <ul className="type-body-sm flex flex-col gap-2 text-ink-muted">
+          {[
+            t("student.benefits.membership"),
+            t("student.benefits.events"),
+            t("student.benefits.sso"),
+          ].map((benefit) => (
             <li className="flex items-start gap-2" key={benefit}>
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+              <Check
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0 text-ink-accent"
+              />
               {benefit}
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <button
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 font-semibold text-brand-foreground text-sm transition-colors hover:bg-brand/90 disabled:opacity-70"
+          aria-busy={switching}
+          className={cn(
+            statusPanelPrimaryAction,
+            "w-full justify-center disabled:opacity-60"
+          )}
           disabled={switching}
           onClick={switchToBi}
           type="button"
         >
           {t("student.linkButton")}
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
         </button>
         <button
-          className="w-full rounded-xl px-4 py-2.5 text-center text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+          className={cn(quietButton, "w-full")}
           onClick={skipStudent}
           type="button"
         >
@@ -495,19 +535,17 @@ export function OnboardingFlow({
   );
 
   const renderPersonal = () => (
-    <div className="space-y-5">
-      <div className="space-y-1">
-        <h1 className="font-bold text-2xl text-foreground tracking-tight">
-          {t("personal.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className={headingClass}>{t("personal.title")}</h1>
+        <p className="type-body-sm mt-2 text-ink-muted">
           {state.persona.isFinancial
             ? t("personal.descriptionFinancial")
             : t("personal.description")}
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <FormField
           error={errors.name}
           label={t("personal.fields.name")}
@@ -536,15 +574,15 @@ export function OnboardingFlow({
           value={state.personalInfo.phone}
         />
 
-        <div className="space-y-3 pt-1">
-          <p className="font-medium text-foreground text-sm">
+        <fieldset className="flex flex-col gap-3 pt-1">
+          <legend className="type-body-sm mb-3 font-semibold text-ink">
             {t("personal.address.title")}{" "}
-            {!state.persona.isFinancial && (
-              <span className="font-normal text-muted-foreground">
+            {state.persona.isFinancial ? null : (
+              <span className="font-normal text-ink-muted">
                 {t("personal.address.optional")}
               </span>
             )}
-          </p>
+          </legend>
           <FormField
             error={errors.address}
             label={t("personal.fields.street")}
@@ -586,30 +624,30 @@ export function OnboardingFlow({
               value={state.personalInfo.zip}
             />
           </div>
-        </div>
+        </fieldset>
       </div>
     </div>
   );
 
   const renderBanking = () => (
-    <div className="space-y-5">
-      <div className="space-y-1">
-        <h1 className="font-bold text-2xl text-foreground tracking-tight">
-          {t("banking.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className={headingClass}>{t("banking.title")}</h1>
+        <p className="type-body-sm mt-2 text-ink-muted">
           {t("banking.description")}
         </p>
       </div>
 
-      <div className="flex rounded-xl border border-border bg-muted/30 p-1">
+      <div className="flex gap-1 rounded-biso-md border border-edge bg-surface-sunken p-1">
         {(["norwegian", "international"] as const).map((mode) => (
           <button
-            className={`flex-1 rounded-lg py-2 font-medium text-sm transition-all ${
+            aria-pressed={state.bankingInfo.mode === mode}
+            className={cn(
+              "type-body-sm flex-1 rounded-biso-sm py-2 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2",
               state.bankingInfo.mode === mode
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                ? "bg-surface text-ink"
+                : "text-ink-muted hover:text-ink"
+            )}
             key={mode}
             onClick={() =>
               setState((prev) => ({
@@ -626,7 +664,7 @@ export function OnboardingFlow({
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {state.bankingInfo.mode === "norwegian" ? (
           <FormField
             error={errors.bank_account}
@@ -679,15 +717,11 @@ export function OnboardingFlow({
   );
 
   const renderDone = () => (
-    <div className="flex flex-col items-center space-y-6 py-4 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-muted">
-        <BadgeCheck className="h-8 w-8 text-brand" />
-      </div>
-      <div className="space-y-2">
-        <h1 className="font-bold text-2xl text-foreground tracking-tight">
-          {t("done.title")}
-        </h1>
-        <p className="max-w-xs text-muted-foreground text-sm leading-relaxed">
+    <div className="flex flex-col items-start gap-6 py-2">
+      <BadgeCheck aria-hidden="true" className="size-10 text-success" />
+      <div>
+        <h1 className={headingClass}>{t("done.title")}</h1>
+        <p className="type-body-sm mt-2 text-ink-muted">
           {t("done.description")}
           {state.biLinked && ` ${t("done.biLinked")}`}
           {state.persona.isFinancial && ` ${t("done.financialSaved")}`}{" "}
@@ -696,16 +730,13 @@ export function OnboardingFlow({
       </div>
       <div className="flex w-full flex-col gap-2">
         <Link
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 font-semibold text-brand-foreground text-sm transition-colors hover:bg-brand/90"
+          className={cn(statusPanelPrimaryAction, "w-full justify-center")}
           href="/profile"
         >
           {t("done.goToProfile")}
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
         </Link>
-        <Link
-          className="w-full rounded-xl px-4 py-2.5 text-center text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
-          href="/"
-        >
+        <Link className={cn(quietButton, "w-full")} href="/">
           {t("done.backToHome")}
         </Link>
       </div>
@@ -725,22 +756,26 @@ export function OnboardingFlow({
   return (
     <div className="flex min-h-[calc(100vh-5rem)] items-start justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Brand header above card */}
-        <div className="mb-6 text-center">
-          <p className="font-semibold text-brand text-xs uppercase tracking-widest">
-            BISO
-          </p>
-          <p className="mt-1 text-white/50 text-xs">
+        {/* Over the navy page, so the band's aliases apply to this line. */}
+        <div className="mb-6 text-center" data-surface="deep">
+          <p className="type-label text-ink-accent">BISO</p>
+          <p className="type-body-sm mt-1 text-ink-muted">
             {currentStep === "done"
               ? t("header.subtitleDone")
               : t("header.subtitle")}
           </p>
         </div>
 
-        <div className="glass-panel p-7">
-          {/* Step dots — inside card so they sit on the light glass surface */}
-          {currentStep !== "done" && (
-            <StepDots currentIdx={stepIdx} steps={steps} />
+        <div className="rounded-biso-lg border border-edge bg-surface p-7 shadow-elev-2">
+          {currentStep === "done" ? null : (
+            <StepDots
+              currentIdx={stepIdx}
+              label={t("nav.stepOf", {
+                current: stepIdx + 1,
+                total: steps.length - 1,
+              })}
+              steps={steps}
+            />
           )}
 
           <AnimatePresence custom={direction} mode="wait">
@@ -757,46 +792,59 @@ export function OnboardingFlow({
             </motion.div>
           </AnimatePresence>
 
-          {submitError && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50/50 px-4 py-3 text-red-700 text-sm">
+          {submitError ? (
+            <p
+              className="type-body-sm mt-4 rounded-biso-md border border-danger/40 bg-danger/5 p-4 text-danger"
+              role="alert"
+            >
               {submitError}
-            </div>
-          )}
+            </p>
+          ) : null}
 
-          {showNavButtons && (
+          {showNavButtons ? (
             <div className="mt-6 flex items-center justify-between">
               <button
-                className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-0"
+                className={cn(
+                  quietButton,
+                  "disabled:pointer-events-none disabled:opacity-0"
+                )}
                 disabled={stepIdx === 0}
                 onClick={goBack}
                 type="button"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft aria-hidden="true" className="size-4 shrink-0" />
                 {t("nav.back")}
               </button>
 
               <button
-                className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 font-semibold text-brand-foreground text-sm transition-colors hover:bg-brand/90 disabled:opacity-60"
+                aria-busy={submitting}
+                className={cn(statusPanelPrimaryAction, "disabled:opacity-60")}
                 disabled={submitting}
                 onClick={goNext}
                 type="button"
               >
-                {submitting && (
+                {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2
+                      aria-hidden="true"
+                      className="size-4 shrink-0 animate-spin"
+                    />
                     {t("nav.saving")}
                   </>
-                )}
-                {!submitting && isLastFormStep && t("nav.complete")}
-                {!(submitting || isLastFormStep) && (
+                ) : null}
+                {!submitting && isLastFormStep ? t("nav.complete") : null}
+                {submitting || isLastFormStep ? null : (
                   <>
                     {t("nav.continue")}
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="size-4 shrink-0"
+                    />
                   </>
                 )}
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

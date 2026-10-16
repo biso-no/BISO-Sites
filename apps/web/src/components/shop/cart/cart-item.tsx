@@ -1,12 +1,12 @@
 "use client";
 
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
-import { Minus, Plus, Trash2, Users } from "lucide-react";
+import { cn } from "@repo/ui/lib/utils";
+import { Minus, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useId } from "react";
+import { Pill } from "@/components/ui/pill";
+import { RowThumb } from "@/components/ui/row-thumb";
 import type { CartItem as CartItemType } from "@/lib/contexts/cart-context";
 
 interface CartItemProps {
@@ -16,12 +16,11 @@ interface CartItemProps {
   onUpdateQuantity: (id: string, amount: number) => void;
 }
 
-const categoryColors: Record<string, string> = {
-  Merch: "bg-purple-100 text-purple-700 border-purple-200",
-  Trips: "bg-blue-100 text-blue-700 border-blue-200",
-  Lockers: "bg-green-100 text-green-700 border-green-200",
-  Membership: "bg-orange-100 text-orange-700 border-orange-200",
-};
+const LOW_STOCK_THRESHOLD = 10;
+
+/** The two stepper buttons and the remove button share one icon-button shape. */
+const ICON_BUTTON =
+  "flex size-9 items-center justify-center rounded-biso-pill text-ink transition-colors hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink";
 
 function QuantityControl({
   quantity,
@@ -37,48 +36,50 @@ function QuantityControl({
   onDecrease: () => void;
 }) {
   const t = useTranslations("shop");
+  const labelId = useId();
   const isMaxReached =
     (stock !== null && quantity >= stock) ||
     (maxPerOrder !== undefined && quantity >= maxPerOrder);
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-muted-foreground text-sm">
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="type-body-sm text-ink-muted" id={labelId}>
         {t("cart.item.quantity")}
       </span>
-      <div className="flex items-center gap-2 rounded-lg border border-border">
-        <Button
-          className="h-8 w-8 p-0 disabled:opacity-50"
+      <fieldset
+        aria-labelledby={labelId}
+        className="inline-flex items-center rounded-biso-pill border border-edge"
+      >
+        <button
+          aria-label={t("cart.item.decrease")}
+          className={ICON_BUTTON}
           disabled={quantity <= 1}
           onClick={onDecrease}
-          size="sm"
-          variant="ghost"
+          type="button"
         >
-          <Minus className="h-4 w-4 text-foreground hover:text-blue-800" />
-        </Button>
-        <span className="w-8 text-center font-medium text-foreground">
-          {quantity}
-        </span>
-        <Button
-          className="h-8 w-8 p-0 disabled:opacity-50"
+          <Minus aria-hidden="true" className="size-4" />
+        </button>
+        <span className="type-data w-8 text-center text-ink">{quantity}</span>
+        <button
+          aria-label={t("cart.item.increase")}
+          className={ICON_BUTTON}
           disabled={isMaxReached}
           onClick={onIncrease}
-          size="sm"
-          variant="ghost"
+          type="button"
         >
-          <Plus className="h-4 w-4 text-foreground hover:text-blue-800" />
-        </Button>
-      </div>
-      {stock !== null && stock <= 10 && (
-        <span className="text-orange-600 text-xs">
+          <Plus aria-hidden="true" className="size-4" />
+        </button>
+      </fieldset>
+      {stock !== null && stock <= LOW_STOCK_THRESHOLD ? (
+        <span className="type-body-sm text-warning">
           {t("card.onlyAvailable", { count: stock })}
         </span>
-      )}
-      {maxPerOrder && quantity >= maxPerOrder && (
-        <span className="text-red-600 text-xs">
+      ) : null}
+      {maxPerOrder && quantity >= maxPerOrder ? (
+        <span className="type-body-sm text-danger">
           {t("cart.item.maxPerOrder", { count: maxPerOrder })}
         </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -97,33 +98,35 @@ function PriceDisplay({
   const t = useTranslations("shop");
   const itemPrice = isMember && memberPrice ? memberPrice : regularPrice;
   const itemTotal = itemPrice * quantity;
-  const hasDiscount = isMember && memberPrice && memberPrice < regularPrice;
+  const hasDiscount = Boolean(
+    isMember && memberPrice && memberPrice < regularPrice
+  );
   const savings = hasDiscount
     ? (regularPrice - (memberPrice ?? 0)) * quantity
     : 0;
 
   return (
-    <div className="text-right">
+    <div className="text-end">
       {hasDiscount ? (
-        <div>
-          <div className="text-muted-foreground text-sm line-through">
+        <>
+          <p className="type-body-sm text-ink-muted line-through">
             {regularPrice * quantity} NOK
-          </div>
-          <div className="font-bold text-brand">{itemTotal} NOK</div>
-          <div className="text-green-600 text-xs">
+          </p>
+          <p className="type-data text-ink">{itemTotal} NOK</p>
+          <p className="type-body-sm text-success">
             {t("card.save", { amount: savings })}
-          </div>
-        </div>
+          </p>
+        </>
       ) : (
-        <div className="font-bold text-foreground">{itemTotal} NOK</div>
+        <p className="type-data text-ink">{itemTotal} NOK</p>
       )}
-      {!isMember && memberPrice && memberPrice < regularPrice && (
-        <div className="mt-1 text-muted-foreground text-xs">
+      {!isMember && memberPrice && memberPrice < regularPrice ? (
+        <p className="type-body-sm mt-1 text-ink-muted">
           {t("cart.item.membersPrice", {
             price: `${memberPrice * quantity} NOK`,
           })}
-        </div>
-      )}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -135,82 +138,91 @@ export function CartItem({
   onRemove,
 }: CartItemProps) {
   const t = useTranslations("shop");
+  const hasOptions =
+    item.selectedOptions && Object.keys(item.selectedOptions).length > 0;
+
   return (
-    <Card className="border-0 p-6 shadow-lg">
-      <div className="flex gap-6">
-        {/* Product Image */}
-        <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-lg">
-          <ImageWithFallback
-            alt={item.name}
-            className="object-cover"
-            fill
-            src={item.image || PLACEHOLDER_IMAGE}
-          />
-          <Badge
-            className={`absolute top-2 left-2 ${categoryColors[item.category] || "bg-muted text-muted-foreground"}`}
+    <article className="flex gap-4 rounded-biso-md border border-edge bg-surface-raised p-4 sm:gap-6 sm:p-6">
+      <RowThumb className="h-20 w-20 sm:h-24 sm:w-24" src={item.image} />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="type-heading-card text-ink">
+              {item.slug ? (
+                <Link
+                  className="underline-offset-4 hover:text-ink-accent hover:underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  href={`/shop/${item.slug}`}
+                >
+                  {item.name}
+                </Link>
+              ) : (
+                item.name
+              )}
+            </h3>
+            {item.category || item.memberOnly ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {item.category ? (
+                  <Pill tone="accent" uppercase>
+                    {item.category}
+                  </Pill>
+                ) : null}
+                {item.memberOnly ? (
+                  <Pill tone="warning">{t("cart.item.membersOnly")}</Pill>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          <button
+            aria-label={`${t("cart.item.remove")} ${item.name}`}
+            className={cn(
+              ICON_BUTTON,
+              "shrink-0 text-ink-muted hover:text-danger"
+            )}
+            onClick={() => onRemove(item.id)}
+            type="button"
           >
-            {item.category}
-          </Badge>
+            <Trash2 aria-hidden="true" className="size-4" />
+          </button>
         </div>
 
-        {/* Product Details */}
-        <div className="grow">
-          <div className="mb-2 flex items-start justify-between">
-            <div>
-              <h3 className="mb-1 font-semibold text-foreground">
-                {item.name}
-              </h3>
-              {item.memberOnly && (
-                <Badge className="mb-2 border-0 bg-orange-500 text-white">
-                  <Users className="mr-1 h-3 w-3" />
-                  {t("cart.item.membersOnly")}
-                </Badge>
+        {/* The buyer's answers to the product's questions, as they will be
+            sent with the order. */}
+        {hasOptions ? (
+          <div className="mt-3 rounded-biso-sm bg-surface-sunken p-3">
+            <p className="type-label text-ink-muted">
+              {t("cart.item.selectedOptions")}
+            </p>
+            <dl className="type-body-sm mt-1 space-y-0.5">
+              {Object.entries(item.selectedOptions ?? {}).map(
+                ([label, value]) => (
+                  <div key={label}>
+                    <dt className="inline font-semibold text-ink">{label}:</dt>{" "}
+                    <dd className="inline text-ink-muted">{value}</dd>
+                  </div>
+                )
               )}
-            </div>
-            <Button
-              className="text-red-500 hover:bg-red-50 hover:text-red-700"
-              onClick={() => onRemove(item.id)}
-              size="sm"
-              variant="ghost"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            </dl>
           </div>
+        ) : null}
 
-          {/* Selected Options */}
-          {item.selectedOptions &&
-            Object.keys(item.selectedOptions).length > 0 && (
-              <div className="mb-3 rounded-lg bg-section p-3">
-                <p className="mb-1 text-muted-foreground text-sm">
-                  {t("cart.item.selectedOptions")}
-                </p>
-                {Object.entries(item.selectedOptions).map(([key, value]) => (
-                  <p className="text-muted-foreground text-sm" key={key}>
-                    <strong>{key}:</strong> {value}
-                  </p>
-                ))}
-              </div>
-            )}
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+          <QuantityControl
+            maxPerOrder={item.metadata?.max_per_order}
+            onDecrease={() => onUpdateQuantity(item.id, -1)}
+            onIncrease={() => onUpdateQuantity(item.id, 1)}
+            quantity={item.quantity}
+            stock={item.stock}
+          />
 
-          {/* Price and Quantity */}
-          <div className="mt-4 flex items-center justify-between">
-            <QuantityControl
-              maxPerOrder={item.metadata?.max_per_order}
-              onDecrease={() => onUpdateQuantity(item.id, -1)}
-              onIncrease={() => onUpdateQuantity(item.id, 1)}
-              quantity={item.quantity}
-              stock={item.stock}
-            />
-
-            <PriceDisplay
-              isMember={isMember}
-              memberPrice={item.memberPrice}
-              quantity={item.quantity}
-              regularPrice={item.regularPrice}
-            />
-          </div>
+          <PriceDisplay
+            isMember={isMember}
+            memberPrice={item.memberPrice}
+            quantity={item.quantity}
+            regularPrice={item.regularPrice}
+          />
         </div>
       </div>
-    </Card>
+    </article>
   );
 }

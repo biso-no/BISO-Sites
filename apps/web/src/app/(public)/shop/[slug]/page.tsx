@@ -1,20 +1,27 @@
 import { createSessionClient } from "@repo/api/server";
-import type { ContentTranslations } from "@repo/api/types/appwrite";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getAvailableStock } from "@/app/actions/cart-reservations";
 import { getLocale } from "@/app/actions/locale";
-import { getProductBySlug } from "@/app/actions/webshop";
-import { ProductDetailsServer } from "@/components/shop/product-details-server"; // New Server Component
+import { getProductDetailBySlug } from "@/app/actions/webshop";
+import { ProductDetailV2 } from "@/components/shop/v2/product-detail-v2";
+import { DetailSkeleton } from "@/components/ui/loading-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
+import { buildTeaser } from "@/lib/content-text";
+import { getPrimaryTranslation } from "@/lib/content-translation";
+
+/** Roughly what a search result shows before it cuts the description. */
+const META_DESCRIPTION_LENGTH = 160;
 
 // Component that fetches data and renders the main content
 async function ProductDetails({ slug }: { slug: string }) {
   const locale = await getLocale();
 
-  // Fetch the product
-  const product = await getProductBySlug(slug, locale);
+  // The v2 reader keeps every translation; `getProductBySlug` filters them to
+  // the requested locale, which leaves 52 of the 55 products with no copy at
+  // all for an English reader. Like it, this serves a link-only (`unlisted`)
+  // product: it is absent from every listing but sold at this URL.
+  const product = await getProductDetailBySlug(slug);
 
   if (!product) {
     notFound();
@@ -34,41 +41,16 @@ async function ProductDetails({ slug }: { slug: string }) {
   ]);
 
   return (
-    <ProductDetailsServer
+    <ProductDetailV2
       availableStock={availableStock}
       isMember={isMember}
+      locale={locale}
       product={product}
       userId={sessionResult?.$id ?? null}
     />
   );
 }
 
-// Skeleton loading state
-function ProductDetailsSkeleton() {
-  return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <div className="relative h-[60vh]">
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="space-y-8 lg:col-span-2">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Main Page Component
 export default async function ProductPage({
   params,
 }: {
@@ -79,14 +61,12 @@ export default async function ProductPage({
     notFound();
   }
   return (
-    <Suspense fallback={<ProductDetailsSkeleton />}>
-      {/* ProductDetails is the wrapper that fetches data and passes it to ProductDetailsServer */}
+    <Suspense fallback={<DetailSkeleton />}>
       <ProductDetails slug={slug} />
     </Suspense>
   );
 }
 
-// Generate metadata for SEO (remains a server-side function)
 export async function generateMetadata({
   params,
 }: {
@@ -96,25 +76,31 @@ export async function generateMetadata({
   if (!slug) {
     notFound();
   }
-  const locale = await getLocale();
-  const product = await getProductBySlug(slug, locale);
+  // The same all-locale reader as the page. The locale-filtered
+  // `getProductBySlug` returns nothing for a reader whose language has no
+  // translation row, which titled a real product "Product Not Found" — and
+  // dropped the `noindex` a link-only product must carry.
+  const [locale, product] = await Promise.all([
+    getLocale(),
+    getProductDetailBySlug(slug),
+  ]);
   if (!product) {
     return {
       title: "Product Not Found | BISO Shop",
     };
   }
 
-  const translation = Array.isArray(product.translation_refs)
-    ? product.translation_refs.find(
-        (item): item is ContentTranslations =>
-          typeof item === "object" && item !== null && "title" in item
-      )
-    : null;
+  const translation = getPrimaryTranslation(product, locale);
 
   return {
     title: `${translation?.title ?? "Product"} | BISO Shop`,
-    description:
-      translation?.short_description || translation?.description || "",
+    // Both fields are CMS rich text; a meta description carries no markup and
+    // reads as a teaser, not the whole body.
+    description: buildTeaser(
+      translation?.short_description,
+      translation?.description,
+      META_DESCRIPTION_LENGTH
+    ),
     // A link-only product is kept out of the sitemap and every listing, so it
     // should not be indexed if a shared link is ever crawled. `follow: false`
     // keeps a crawler from walking on into the checkout from here.

@@ -6,7 +6,11 @@
     "viewDetails": "See details"
   },
   "labels": {
-    "organisation": "BISO"
+    "organisation": "BISO",
+    "onThisPage": "On this page",
+    "scrollToContent": "Scroll to content",
+    "emailPerson": "Email {name}",
+    "callPerson": "Call {name}"
   },
   "locale": {
     "switcher": {
@@ -20,6 +24,11 @@
     }
   },
   "footer": {
+    "headings": {
+      "about": "About",
+      "students": "Students",
+      "practical": "Practical"
+    },
     "about": {
       "description": "BI Student Organisation connects students and the business society, facilitates social integration, and works to better the student welfare and quality of studies.",
       "ourStory": "Our Story",
@@ -38,6 +47,13 @@
       "helpCenter": "Help Center",
       "privacyPolicy": "Privacy Policy",
       "termsOfService": "Terms of Service"
+    },
+    "tagline": "Be part of something bigger",
+    "stats": {
+      "societies": "Societies & units",
+      "events": "Published events",
+      "positions": "Open positions",
+      "campuses": "Campuses"
     }
   },
   "navigation": {
@@ -70,6 +86,7 @@
     },
     "columns": {
       "membership": "Membership",
+      "campus": "Campus",
       "resources": "Roles & resources",
       "flagships": "Flagships",
       "campusProjects": "On your campus",
@@ -107,7 +124,13 @@
       "eventLabel": "Next event",
       "projectLabel": "Featured project",
       "newsLabel": "Latest news"
-    }
+    },
+    "selectCampus": "Select campus",
+    "allCampuses": "All campuses",
+    "allCampusesHint": "Show content from every campus",
+    "filterByCampus": "Filter content by campus",
+    "goToCampus": "Go to {campus}",
+    "campusOverview": "Campus overview"
   },
   "notFound": {
     "tagline": "Page not found",
@@ -118,5 +141,187 @@
       "goToCampus": "Go to campus overview",
       "needAssistance": "Do you need assistance? Contact us at <link>{email}</link> and we will follow up."
     }
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "We couldn't load this page. Please try again, or go back.",
+    "tryAgain": "Try again",
+    "goHome": "Go to home page",
+    "goToProfile": "Go to profile"
+  },
+  "unauthorized": {
+    "tagline": "Access denied",
+    "title": "You must be signed in to view this page",
+    "description": "This area requires you to be authenticated. Sign in with your account to access the content.",
+    "signIn": "Sign in",
+    "goToFrontPage": "Go to front page",
+    "help": "Having trouble signing in? <link>Contact us</link> and we will help you."
+  },
+  "auth": {
+    "welcomeBack": "Welcome Back",
+    "signInSubtitle": "Sign in to your BISO account",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "name@example.com",
+    "sendLink": "Send login link",
+    "sending": "Sending …",
+    "orContinueWith": "Or continue with",
+    "continueWith": "Continue with {provider}",
+    "magicLinkSent": "Login link sent! Please check your email.",
+    "magicLinkFailed": "Failed to send login link. Please try again.",
+    "signInFailed": "Sign-in failed. Please try again or contact support.",
+    "emailRequired": "Please enter your email address.",
+    "restrictedDomain": "Please use your personal email address.",
+    "privacyNoticeBefore": "By signing in, you agree to our",
+    "privacyPolicy": "Privacy Policy",
+    "privacyNoticeAfter": "and consent to the processing of your personal data as described therein. We comply with GDPR regulations and you can manage your data preferences and request data deletion from your profile settings.",
+    "noAccount": "Don't have an account yet?",
+    "contactForAccess": "Contact us for access",
+    "copyright": "All rights reserved.",
+    "errors": {
+      "invalid_parameters": "The login link is missing required information.",
+      "invitation_failed": "We couldn't accept that invitation. Please try again.",
+      "server_configuration": "Login is temporarily unavailable. Please try again later.",
+      "unexpected_error": "Something went wrong while signing you in."
+    },
+    "biSignIn": "Sign in with BI student account",
+    "biSignInPending": "Taking you to BI …",
+    "biSignInHint": "BI students: your student membership and member prices follow your BI account.",
+    "orUseLoginLink": "Not a BI student? Use a login link",
+    "staffUseAdmin": "BISO staff accounts sign in at admin.biso.no. Use your personal email address here.",
+    "newHere": "New here? Signing in with BI or a login link creates your account.",
+    "needHelp": "Need help signing in?",
+    "biFailure": {
+      "existing_account": "BI could not sign you into your existing BISO account. Use a login link to your student email below, and let us know at /contact so we can fix the sign-in.",
+      "failed": "We could not sign you in with BI. Please try again, or use a login link."
+    }
+  },
+  "breadcrumbs": {
+    "home": "Home"
+  },
+  "skipToContent": "Skip to content",
+  "profile": {
+    "accountInfo": "Account Information",
+    "accountInfoBody": "View and manage your account details",
+    "addressInfo": "Address Information",
+    "bankingInfo": "Banking Information",
+    "submitting": "Submitting profile",
+    "tabs": {
+      "account": "Account",
+      "privacy": "Privacy",
+      "identities": "Linked Accounts"
+    },
+    "identities": {
+      "title": "Connected Identities",
+      "body": "Accounts currently connected to your profile",
+      "linkBi": "Link BI Student",
+      "linkBiso": "Link BISO",
+      "heading": "Linked Accounts",
+      "empty": "No identities linked yet.",
+      "oauthNote": "When linking, you will be redirected to complete the OAuth flow.",
+      "signInBody": "How you sign in. Your BI Student identity is what verifies your membership; sign in with BI to add it.",
+      "remove": "Remove",
+      "removed": "Identity removed",
+      "removeFailed": "Failed to remove",
+      "unknownError": "Unknown error",
+      "providerEmail": "Email",
+      "providerLoginLink": "Login link"
+    },
+    "privacy": {
+      "title": "Your Privacy Rights",
+      "requestTitle": "Request Your Data",
+      "requestBody": "Get a copy of all personal data we store about you",
+      "deleteTitle": "Delete Your Data",
+      "deleteBody": "Request permanent deletion of your account and data",
+      "deleteAccount": "Delete Account",
+      "confirmTitle": "Are you absolutely sure?",
+      "cancel": "Cancel",
+      "gdprNote": "Data requests are processed within 30 days as required by GDPR",
+      "subtitle": "Under GDPR, you have the right to access, modify and delete your personal data.",
+      "processingBefore": "We process your data in accordance with our",
+      "policyLink": "privacy policy",
+      "processingAfter": "and applicable data protection laws. You have the right to access, export and request deletion of your data.",
+      "exportData": "Export data",
+      "confirmBody": "This action cannot be undone. It permanently deletes your account and removes all your data from our servers.",
+      "toasts": {
+        "requestSubmitted": "Data request submitted",
+        "requestSubmittedBody": "We'll prepare your data and send it to your email within 30 days.",
+        "requestFailed": "Data request failed",
+        "requestFailedBody": "There was a problem requesting your data. Please try again.",
+        "deleted": "Account deleted",
+        "deletedBody": "Your account has been deleted.",
+        "deleteFailed": "Deletion failed",
+        "deleteFailedBody": "There was a problem deleting your account. Please try again."
+      }
+    },
+    "fields": {
+      "name": {
+        "label": "Full name",
+        "placeholder": "Enter your full name"
+      },
+      "email": {
+        "label": "Email address",
+        "placeholder": "Enter your email address"
+      },
+      "phone": {
+        "label": "Phone number",
+        "placeholder": "Enter your phone number"
+      },
+      "address": {
+        "label": "Street address",
+        "placeholder": "Enter your street address"
+      },
+      "city": {
+        "label": "City",
+        "placeholder": "Enter your city"
+      },
+      "zip": {
+        "label": "Postal code",
+        "placeholder": "Enter your postal code"
+      },
+      "bankAccount": {
+        "label": "Bank account",
+        "placeholder": "Enter your bank account number"
+      },
+      "swift": {
+        "label": "SWIFT code (optional)",
+        "placeholder": "Enter your SWIFT code, if you have one"
+      }
+    },
+    "update": "Update profile",
+    "updating": "Saving…",
+    "saved": "Your profile is updated.",
+    "saveFailed": "We couldn't update your profile. Please try again."
+  },
+  "approval": {
+    "title": "Reimbursement approval",
+    "expired": "This approval link has expired.",
+    "notePlaceholder": "Optional note (required reasoning for a rejection helps the submitter)",
+    "invalidLink": "This approval link is invalid.",
+    "loadFailed": "Could not load the approval request.",
+    "decisionFailed": "Could not record your decision.",
+    "loading": "Loading the approval request…",
+    "reference": "Reference",
+    "amount": "Amount",
+    "department": "Department",
+    "receipts": "Receipts",
+    "receipt": "Receipt",
+    "viewReceipt": "View receipt",
+    "noteLabel": "Note to the submitter",
+    "approve": "Approve",
+    "reject": "Reject",
+    "decided": {
+      "approved": "Reimbursement {number} approved",
+      "rejected": "Reimbursement {number} rejected"
+    },
+    "decidedBody": {
+      "approved": "Thanks — this request has been approved.",
+      "rejected": "Thanks — this request has been rejected."
+    }
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   }
 }

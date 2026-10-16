@@ -49,7 +49,8 @@
     "benefits": "Benefits",
     "campus": "Campus",
     "opportunities": "Opportunities",
-    "settings": "Settings"
+    "settings": "Settings",
+    "locked": "Members only"
   },
   "overview": {
     "quickStats": "Quick Stats",
@@ -78,7 +79,10 @@
       "daysUntilRenewal": "Until Renewal",
       "estimatedSavings": "Estimated Savings",
       "potential": "Save more by using benefits"
-    }
+    },
+    "discoverEyebrow": "Discover BISO Benefits",
+    "discoverTitle": "See What You're Missing",
+    "discoverDescription": "As a BISO member, you unlock exclusive discounts and benefits from our partners. Browse what's available and join today!"
   },
   "profile": {
     "title": "Personal Information",
@@ -103,7 +107,8 @@
     "saveChanges": "Save Changes",
     "login": "Login",
     "guestTitle": "Guest Access",
-    "guestDescription": "Login to view your full profile and manage your membership."
+    "guestDescription": "Login to view your full profile and manage your membership.",
+    "saving": "Saving…"
   },
   "membership": {
     "title": "Your Membership",
@@ -148,7 +153,10 @@
       "software": "Software",
       "travel": "Travel",
       "education": "Education"
-    }
+    },
+    "all": "All",
+    "categoriesLabel": "Benefit categories",
+    "qrLabel": "QR code for this benefit"
   },
   "settings": {
     "notificationPreferences": "Notification Preferences",
@@ -179,17 +187,12 @@
   },
   "showcase": {
     "title": "Exclusive Member Benefits",
-    "description": "As a BISO member, you get access to our extensive network of partner discounts and exclusive deals",
-    "stats": {
-      "partners": "Partner Companies",
-      "savings": "Avg. Annual Savings",
-      "members": "Active Members"
-    }
+    "description": "As a BISO member, you get access to our extensive network of partner discounts and exclusive deals"
   },
   "cta": {
     "badge": "Join BISO Today",
     "title": "Unlock All Member Benefits",
-    "description": "Get instant access to 50+ exclusive discounts, member-only events, and career resources",
+    "description": "Get instant access to exclusive discounts, member-only events, and career resources",
     "plans": {
       "semester": "Semester",
       "year": "One Year",
@@ -200,9 +203,8 @@
     "save": "Save {percent}%",
     "joinNow": "Join BISO Now",
     "processing": "Processing...",
-    "socialProof": "Join 10,000+ BI students already saving",
     "benefits": {
-      "discounts": "Exclusive discounts at 50+ partners",
+      "discounts": "Exclusive discounts with BISO's partners",
       "events": "Member-only events access",
       "career": "Career resources and networking",
       "card": "Digital membership card",
@@ -259,5 +261,10 @@
       "title": "Skill Development",
       "description": "Participate in workshops and courses to build your resume and skills."
     }
+  },
+  "unavailable": {
+    "title": "We can't check your membership right now",
+    "body": "The membership register didn't answer. This says nothing about your membership — try again in a few minutes.",
+    "retry": "Try again"
   }
 }

@@ -1,39 +1,27 @@
 import type { CampusMetadata } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import { campusIdToLabel } from "@repo/shared/utils/unit-urls";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { Suspense } from "react";
-import { CampusSections } from "@/components/home/campus-sections";
-import { EventsSection } from "@/components/home/events-section";
-import { HeroSection } from "@/components/home/hero-section";
-import { JoinUs } from "@/components/home/join-us";
-import { LeadershipSection } from "@/components/home/leadership-section";
-import { NewsSection } from "@/components/home/news-section";
-import { OverviewSection } from "@/components/home/overview-section";
-import { Partners } from "@/components/home/partners";
-import {
-  EventsSkeleton,
-  HeroSkeleton,
-  LeadershipSkeleton,
-  NewsSkeleton,
-  OverviewSkeleton,
-} from "@/components/home/skeletons";
+import { notFound } from "next/navigation";
+import { HomeV2 } from "@/components/home/v2/home-v2";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
 import {
   leadershipCampusId,
   localizedFocusAreas,
   managementDepartmentId,
 } from "@/lib/campus-leadership";
-import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
+import { NATIONAL_CAMPUS_ID, resolveRequestCampus } from "@/lib/campus-scope";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import {
-  cachedCampuses,
   cachedCampusMetadata,
   cachedHomeCounts,
   cachedOpenJobs,
   cachedPartners,
   cachedPublishedEvents,
   cachedPublishedNews,
+  cachedShellCampuses,
 } from "@/lib/data/public-content";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { listEvents } from "../actions/events";
@@ -41,6 +29,9 @@ import { getLocale } from "../actions/locale";
 import { listNews } from "../actions/news";
 
 export const metadata: Metadata = {
+  // `/?campus=bergen` is a filtered view of the front page, not a second front
+  // page — same rule the other scoped feeds follow.
+  alternates: { canonical: "/" },
   title: "BISO – BI Student Organisation",
   description:
     "BI Student Organisation (BISO) is the student association at BI Norwegian Business School — events, volunteer opportunities, student benefits, and campus life across Oslo, Bergen, Trondheim, and Stavanger.",
@@ -49,8 +40,6 @@ export const metadata: Metadata = {
 // Enough for the homepage grid — the full listing lives on /events.
 const HOME_EVENTS_LIMIT = 12;
 const HOME_NEWS_LIMIT = 3;
-const HERO_EVENTS_LIMIT = 3;
-const HERO_NEWS_LIMIT = 2;
 const HOME_JOBS_LIMIT = 3;
 
 // Split feeds: anonymous visitors (all bot/monitor traffic) share the
@@ -78,7 +67,6 @@ function homeEvents(
       campus: campusKey ?? "all",
       locale,
       pageSize: fetchLimit,
-      status: "published",
       upcomingOnly: true,
     }).then((result) => result.rows.slice(0, limit));
   }
@@ -98,36 +86,50 @@ function homeNews(
       campus: campusKey ?? "all",
       limit,
       locale,
-      status: "published",
     });
   }
   return cachedPublishedNews(locale, campusKey, limit).catch(() => []);
 }
 
-export default async function HomePage() {
-  const [prefs, locale, cookieStore] = await Promise.all([
+interface HomePageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const [sp, prefs, locale, cookieStore] = await Promise.all([
+    searchParams,
     getUserPreferences(),
     getLocale(),
     cookies(),
   ]);
-  const campusId = prefs?.campusId;
-  const campusKey = campusId && campusId !== "all" ? campusId : null;
+  // The front page is a campus-scoped feed like the rest: URL beats cookie
+  // beats "all". It read the cookie alone before, so `/?campus=bergen` — the
+  // URL the switcher now produces, and the one people share — was ignored.
+  // An unrecognised campus 404s rather than silently showing everything.
+  const campusKey = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campusKey === undefined) {
+    notFound();
+  }
   const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
 
-  // The hero is campus-scoped like every other feed: the switcher filters the
-  // whole site, so a visitor on Bergen must not be shown Oslo content. National
-  // rows ride along with any selected campus (see `campusScopeIds`).
-  // Partners/counts are not member-scoped and stay cached for
-  // everyone. Failures fall back per-slice so a transient Appwrite error
-  // renders an emptier homepage instead of a 500 — and is never cached.
-  // The campus overview that used to live only on /campus: focus areas,
-  // leadership, open roles and the unit grid, all scoped like the feeds and
-  // all read through the guest cache. The leadership section fetches its own
-  // board inside Suspense, so a slow directory never holds the page.
+  // The front page is the campus overview (Branding Committee, batch G): the
+  // hero names the campus, then the overview with its live counts and focus
+  // areas, the campus leadership, events, news, open roles and the unit grid,
+  // then membership and partners — every slice scoped like the feeds, and all
+  // but the session holders' events and news read through the guest cache.
+  // Failures fall back per slice, at this call site, so a transient Appwrite
+  // error renders an emptier homepage instead of a 500 and is never cached.
+  // The leadership board is the one slice not awaited here: it loads inside
+  // its own Suspense boundary, so a slow directory never holds the page.
+  //
+  // RD-030: the v1 hero carousel took its own smaller event/news slices; the
+  // chevron hero has no slides, so those two round-trips stay gone.
+  // `cachedShellCampuses` is the entry `SiteShell` already reads on every
+  // request, so naming the campus costs no extra Appwrite call.
+  // `getMembershipStatus` is memoised per request and the shell asks too, so
+  // the membership CTAs cost nothing extra either.
   const boardCampusId = leadershipCampusId(campusKey);
   const [
-    heroEvents,
-    heroNews,
     events,
     news,
     counts,
@@ -136,9 +138,8 @@ export default async function HomePage() {
     campusMetadata,
     jobs,
     units,
+    membership,
   ] = await Promise.all([
-    homeEvents(hasSession, locale, campusKey, HERO_EVENTS_LIMIT),
-    homeNews(hasSession, locale, campusKey, HERO_NEWS_LIMIT),
     homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
     homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
     cachedHomeCounts(campusKey, locale).catch(() => ({
@@ -147,16 +148,18 @@ export default async function HomePage() {
       jobCount: 0,
     })),
     cachedPartners().catch(() => []),
-    cachedCampuses(null, true, false).catch(() => []),
+    cachedShellCampuses(),
     cachedCampusMetadata().catch((): Record<string, CampusMetadata> => ({})),
     cachedOpenJobs(campusKey, locale, HOME_JOBS_LIMIT).catch(() => []),
     cachedPublicUnits(locale).catch(() => []),
+    getMembershipStatus(),
   ]);
 
   // National is a scope, not a place: its copy is the no-campus copy.
   const campusName =
     campusKey && campusKey !== NATIONAL_CAMPUS_ID
-      ? (campuses.find((campus) => campus.$id === campusKey)?.name ?? null)
+      ? (campuses.find((campus) => campus.$id === campusKey)?.name ??
+        campusIdToLabel(campusKey))
       : null;
   const campusUnits = campusKey
     ? units.filter((unit) => unit.campusId === campusKey)
@@ -166,54 +169,24 @@ export default async function HomePage() {
     units.find((unit) => unit.id === managementUnitId)?.href ?? null;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-background via-section to-background">
-      <Suspense fallback={<HeroSkeleton />}>
-        <HeroSection
-          campusName={campusName}
-          events={heroEvents}
-          news={heroNews}
-        />
-      </Suspense>
-
-      <Suspense fallback={<OverviewSkeleton />}>
-        <OverviewSection
-          campusName={campusName}
-          departmentsCount={counts.departmentCount}
-          eventCount={counts.eventCount}
-          focusAreas={localizedFocusAreas(
-            campusMetadata[boardCampusId] ?? null,
-            locale
-          )}
-          jobCount={counts.jobCount}
-          locale={locale}
-        />
-      </Suspense>
-
-      <Suspense fallback={<LeadershipSkeleton />}>
-        <LeadershipSection
-          campusId={boardCampusId}
-          campusName={campusName}
-          teamHref={teamHref}
-        />
-      </Suspense>
-
-      <Suspense fallback={<EventsSkeleton />}>
-        <EventsSection events={events} />
-      </Suspense>
-
-      <Suspense fallback={<NewsSkeleton />}>
-        <NewsSection news={news} />
-      </Suspense>
-
-      <CampusSections
-        activeCampusId={campusKey}
-        jobs={jobs}
-        locale={locale}
-        units={campusUnits}
-      />
-
-      <JoinUs />
-      <Partners partners={partners} />
-    </div>
+    <HomeV2
+      campus={
+        campusKey && campusName ? { id: campusKey, name: campusName } : null
+      }
+      counts={counts}
+      events={events}
+      focusAreas={localizedFocusAreas(
+        campusMetadata[boardCampusId] ?? null,
+        locale
+      )}
+      isMember={membership.isMember}
+      jobs={jobs}
+      leadership={{ campusId: boardCampusId, teamHref }}
+      locale={locale}
+      news={news}
+      partners={partners}
+      scopeCampusId={campusKey}
+      units={campusUnits}
+    />
   );
 }

@@ -8,18 +8,24 @@ interface StepCardProps {
 }
 
 /**
- * Shared numbered-step section used by multi-step purchase flows (checkout,
- * membership join) so they read as one consistent wizard pattern.
+ * One numbered step of the membership join wizard, in the same shape as the
+ * checkout's steps (`CheckoutStep`), so the two purchase flows read as one
+ * pattern: a raised, bordered panel, the step number in the action colour and
+ * the title as a section heading. The number is decoration beside the heading
+ * — the headings' order already says which step comes first.
  */
 export function StepCard({ step, title, badge, children }: StepCardProps) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
+    <section className="rounded-biso-md border border-edge bg-surface-raised p-6 sm:p-8">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand font-semibold text-sm text-white">
+          <span
+            aria-hidden="true"
+            className="type-data flex size-8 shrink-0 items-center justify-center rounded-biso-pill bg-action text-action-ink"
+          >
             {step}
           </span>
-          <h2 className="font-semibold text-foreground text-lg">{title}</h2>
+          <h2 className="type-heading-section text-ink">{title}</h2>
         </div>
         {badge}
       </div>

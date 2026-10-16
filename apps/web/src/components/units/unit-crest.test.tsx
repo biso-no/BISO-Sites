@@ -41,10 +41,16 @@ describe("UnitCrest", () => {
     // Some units upload a white logo on a transparent background and others a
     // dark one. Only a mid-light neutral keeps both readable; on white the
     // former disappears, on navy the latter does.
+    //
+    // Merged with the redesign: the plate is the `ink-muted` token at 30%
+    // (≈ #cbd0d6 on paper, the tone `bg-slate-300` gave) instead of a raw
+    // palette colour. It must not be the page's own surface either — the
+    // sunken surface is #eef1f5, as invisible behind a white mark as white is.
     const html = render("https://appwrite.biso.no/logo.png");
 
-    expect(html).toContain("bg-slate-300");
+    expect(html).toContain("bg-ink-muted/30");
     expect(html).not.toContain("bg-white");
+    expect(html).not.toContain("bg-surface");
   });
 
   it("falls back to the coloured monogram when the unit has no logo", () => {

@@ -1,0 +1,53 @@
+# Route resolution baseline — 2026-08-31
+# Server: node .next/standalone/apps/web/server.js (Next 16.3.0, output: standalone)
+# Build:  wAPqPC6sOifh5yJqKbNw_
+# Commit: c82f70d3
+#
+# route<TAB>status<TAB>bytes<TAB>ttfb_s<TAB>note
+/	200	486670	0.001453	
+/about	200	461690	0.001217	
+/about/academics-contact	200	428788	0.001762	
+/about/alumni	200	432038	0.001064	
+/about/bylaws	200	430870	0.001120	
+/about/history	200	434166	0.001181	
+/about/operations	200	430995	0.001252	
+/about/politics	200	442672	0.001223	
+/about/saih	200	432986	0.001042	
+/about/study-quality	200	450686	0.001118	
+/about/what-is-biso	200	434644	0.001225	
+/api/health	200	81	0.002936	
+/api/health/ready	503	41	0.001872	503 — readiness probe reports not-ready
+/applications	200	391677	0.000973	protected; expected 401 — see FINDING-A
+/auth/login	200	410714	0.001036	
+/bi-fondet	200	428844	0.001267	
+/business	200	460785	0.001232	
+/business-hotspot	200	446609	0.001194	
+/campus	200	399141	0.001058	
+/contact	200	439144	0.001086	
+/documents	200	434192	0.001175	
+/events	200	442522	0.001075	
+/fs	200	398141	0.001180	protected; expected 401 — see FINDING-A
+/fs/new	200	396899	0.001106	protected; expected 401 — see FINDING-A
+/jobs	200	441648	0.002427	
+/member	200	475927	0.001180	
+/membership	200	399097	0.001076	
+/membership/join	200	399014	0.001143	
+/news	200	446359	0.001068	
+/onboarding	200	398571	0.001097	
+/policies/drugs-policy	200	439353	0.001096	
+/press	200	438460	0.001453	
+/privacy	200	611690	0.001164	
+/profile	200	395842	0.001187	protected; expected 401 — see FINDING-A
+/projects	200	440841	0.001011	
+/resources	200	443831	0.001128	
+/robots.txt	200	255	0.001309	
+/safety	200	450928	0.001136	
+/shop	200	441233	0.001090	
+/shop/cart	200	432283	0.001178	
+/shop/checkout	200	428876	0.001130	
+/shop/membership	200	401133	0.001051	expected 308 permanent redirect — see FINDING-A
+/sitemap.xml	200	3295	0.001187	
+/students	200	398641	0.001163	
+/terms	200	472790	0.001574	
+/units	200	435483	0.001274	
+/varsling	200	397763	0.001173	expected 308 permanent redirect — see FINDING-A

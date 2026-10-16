@@ -1,6 +1,5 @@
-import { Separator } from "@repo/ui/components/ui/separator";
 import { useTranslations } from "next-intl";
-import { formatPrice } from "@/lib/types/webshop";
+import type { ReactNode } from "react";
 
 interface PriceDetailsProps {
   displayPrice: number;
@@ -11,6 +10,29 @@ interface PriceDetailsProps {
   savings: number;
 }
 
+/** One `<dt>`/`<dd>` pair; the caller supplies the `<dl>`. */
+export function PriceRow({
+  label,
+  value,
+  className = "text-ink",
+}: {
+  className?: string;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-edge border-b py-2 last:border-b-0">
+      <dt className="type-body-sm text-ink-muted">{label}</dt>
+      <dd className={`type-data ${className}`}>{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * The price breakdown under the buy button, as a definition list.
+ *
+ * `formatPrice` is not used: it returns the literal "Free" in every locale.
+ */
 export function PriceDetails({
   isMember,
   regularPrice,
@@ -20,24 +42,26 @@ export function PriceDetails({
   savings,
 }: PriceDetailsProps) {
   const t = useTranslations("shop");
+  const price = (amount: number) =>
+    amount > 0 ? `${amount} NOK` : t("card.free");
 
   if (!isMember && memberPrice && memberPrice < regularPrice) {
     return (
       <>
-        <div className="flex justify-between text-muted-foreground">
-          <span>{t("product.regularPrice")}</span>
-          <span>{formatPrice(regularPrice)}</span>
-        </div>
-        <Separator />
-        <div className="flex justify-between text-brand">
-          <span>{t("product.memberPrice")}</span>
-          <span>{formatPrice(memberPrice)}</span>
-        </div>
-        <Separator />
-        <div className="flex justify-between text-green-600">
-          <span>{t("product.memberSavings")}</span>
-          <span>-{regularPrice - memberPrice} NOK</span>
-        </div>
+        <PriceRow
+          label={t("product.regularPrice")}
+          value={price(regularPrice)}
+        />
+        <PriceRow
+          className="text-ink-accent"
+          label={t("product.memberPrice")}
+          value={price(memberPrice)}
+        />
+        <PriceRow
+          className="text-success"
+          label={t("product.memberSavings")}
+          value={`-${regularPrice - memberPrice} NOK`}
+        />
       </>
     );
   }
@@ -45,27 +69,20 @@ export function PriceDetails({
   if (hasDiscount) {
     return (
       <>
-        <div className="flex justify-between text-muted-foreground line-through">
-          <span>{t("product.regularPrice")}</span>
-          <span>{formatPrice(regularPrice)}</span>
-        </div>
-        <div className="flex justify-between text-green-600">
-          <span>{t("product.memberDiscount")}</span>
-          <span>-{savings} NOK</span>
-        </div>
-        <Separator />
-        <div className="flex justify-between font-semibold text-foreground">
-          <span>{t("product.yourPrice")}</span>
-          <span>{formatPrice(displayPrice)}</span>
-        </div>
+        <PriceRow
+          className="text-ink-muted line-through"
+          label={t("product.regularPrice")}
+          value={price(regularPrice)}
+        />
+        <PriceRow
+          className="text-success"
+          label={t("product.memberDiscount")}
+          value={`-${savings} NOK`}
+        />
+        <PriceRow label={t("product.yourPrice")} value={price(displayPrice)} />
       </>
     );
   }
 
-  return (
-    <div className="flex justify-between font-semibold text-foreground">
-      <span>{t("product.price")}</span>
-      <span>{formatPrice(displayPrice)}</span>
-    </div>
-  );
+  return <PriceRow label={t("product.price")} value={price(displayPrice)} />;
 }

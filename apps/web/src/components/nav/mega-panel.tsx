@@ -1,11 +1,19 @@
 "use client";
 
+import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import type { NavColumnConfig } from "./nav-config";
+
+/**
+ * A column heading inside a panel or a mobile-drawer group. The micro-label
+ * role, muted, so the links under it carry the weight.
+ */
+export const PANEL_HEADING_CLASS = "type-label mb-2 px-2 text-ink-muted";
 
 interface MegaPanelProps {
   ariaLabel: string;
@@ -15,7 +23,14 @@ interface MegaPanelProps {
   onMouseLeave: () => void;
 }
 
-/** Generic full-width animated panel shell rendered below the nav bar. */
+/**
+ * Full-width panel shell rendered below the nav bar.
+ *
+ * It sits inside the header's `data-surface="deep"`, so `bg-surface` is the
+ * same navy as the solid header and every alias inside it is the on-navy one.
+ * Opaque, with an elevation shadow: the design system has no translucent
+ * blurred surfaces. The short fade is motion answering the user's own action.
+ */
 export function MegaPanel({
   id,
   ariaLabel,
@@ -27,8 +42,7 @@ export function MegaPanel({
     <motion.div
       animate={{ opacity: 1, y: 0 }}
       aria-label={ariaLabel}
-      className="absolute inset-x-0 top-full border-brand-border border-t bg-nav-background shadow-brand/10 shadow-lg backdrop-blur-lg"
-      exit={{ opacity: 0, y: -4 }}
+      className="absolute inset-x-0 top-full border-edge border-t bg-surface shadow-elev-2"
       id={id}
       initial={{ opacity: 0, y: -4 }}
       onMouseEnter={onMouseEnter}
@@ -36,7 +50,7 @@ export function MegaPanel({
       role="region"
       transition={{ duration: 0.15, ease: "easeOut" }}
     >
-      <div className="mx-auto w-full max-w-[min(1400px,100%)] px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-biso-wide px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </div>
     </motion.div>
@@ -50,20 +64,30 @@ interface PanelLinkProps {
   onNavigate: () => void;
 }
 
-/** A single link inside a panel column; closes the menu on navigation. */
+/**
+ * A single link inside a panel column or a drawer group; closes the menu on
+ * navigation, and marks the page you are on.
+ */
 export function PanelLink({
   href,
   label,
   icon: Icon,
   onNavigate,
 }: PanelLinkProps) {
+  const pathname = usePathname();
+  const isCurrent = pathname === href;
+
   return (
     <Link
-      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white/80 transition-colors hover:bg-brand-muted hover:text-brand"
+      aria-current={isCurrent ? "page" : undefined}
+      className={cn(
+        "type-body-sm flex items-center gap-2 rounded-biso-sm px-2 py-1.5 text-ink transition-colors hover:bg-surface-raised hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
+        isCurrent && "text-ink-accent"
+      )}
       href={href}
       onClick={onNavigate}
     >
-      {Icon && <Icon aria-hidden className="h-4 w-4 shrink-0 opacity-80" />}
+      {Icon && <Icon aria-hidden className="size-4 shrink-0 text-ink-muted" />}
       {label}
     </Link>
   );
@@ -80,9 +104,7 @@ export function PanelColumn({ column, onNavigate }: PanelColumnProps) {
 
   return (
     <div>
-      <h3 className="mb-2 font-semibold text-white/50 text-xs uppercase tracking-wider">
-        {t(column.headingKey)}
-      </h3>
+      <h3 className={PANEL_HEADING_CLASS}>{t(column.headingKey)}</h3>
       <ul className="space-y-0.5">
         {column.links.map((link) => (
           <li key={link.id}>
