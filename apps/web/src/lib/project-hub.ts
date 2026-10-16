@@ -14,6 +14,19 @@ import { projectHubUnits } from "@/lib/project-unit-links";
 /** Enough to show the next few dates without turning the card into a list. */
 export const HUB_EVENT_LIMIT = 3;
 
+/**
+ * The hubs that render with no `large_event` row: each has its own
+ * `projectDetail` copy, which `projects/[slug]/page.tsx` falls back to. That
+ * table is empty today, so these are the hub pages that exist. Bergensbaneløpet
+ * counts as a project but has no copy yet, so its URL 404s and is not here.
+ * `project-hub.test.ts` keeps this in step with the bundles.
+ */
+export const PROJECT_HUB_SLUGS = [
+  "fadderullan",
+  "karrieredagene",
+  "winter-games",
+] as const satisfies readonly ProjectSlug[];
+
 export interface ProjectHubEventVM {
   date: string;
   title: string;
