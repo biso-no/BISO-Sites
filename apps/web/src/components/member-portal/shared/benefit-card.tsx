@@ -1,14 +1,15 @@
 "use client";
 
 import type { CampusBenefits } from "@repo/api/types/appwrite";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Card } from "@repo/ui/components/ui/card";
-import { Clock, Copy, ExternalLink, QrCode, Store, Ticket } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
+import { Clock, Store } from "lucide-react";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
+import { Pill } from "@/components/ui/pill";
+import { Prose } from "@/components/ui/prose";
+import { localizedBenefitText } from "@/lib/benefit-text";
 import {
   CodeReveal,
   LinkReveal,
@@ -21,39 +22,55 @@ interface BenefitCardProps {
   isRevealed: boolean;
 }
 
-const getCategoryColor = (_category: string) => {
-  // Use BI brand colors for all categories for a unified premium look
-  return {
-    bg: "bg-brand-muted",
-    text: "text-brand",
-    border: "border-brand-border",
-    gradient: "from-brand-gradient-from to-brand-gradient-to",
-  };
-};
+const COPIED_FEEDBACK_MS = 2000;
 
-const BENEFIT_ICONS: Record<string, typeof Copy> = {
-  code: Copy,
-  qr: QrCode,
-  link: ExternalLink,
-};
+/** Terms follow the same language rule as the rest of the card. */
+function localizedTerms(benefit: CampusBenefits, locale: string) {
+  return locale === "en"
+    ? benefit.terms_en?.trim() || benefit.terms_nb?.trim()
+    : benefit.terms_nb?.trim() || benefit.terms_en?.trim();
+}
 
-const getBenefitIcon = (type: string) => BENEFIT_ICONS[type] || Ticket;
+function expiryLabel(benefit: CampusBenefits, locale: string) {
+  if (!benefit.publish_end) {
+    return null;
+  }
+  return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "nb-NO", {
+    dateStyle: "medium",
+    timeZone: "Europe/Oslo",
+  }).format(new Date(benefit.publish_end));
+}
 
-export function BenefitCard({
+/** The admin editor stores HTML; older rows may hold plain text. */
+function Description({ value }: { value: string }) {
+  if (value.trimStart().startsWith("<")) {
+    return (
+      <Prose className="type-body-sm [&_p]:type-body-sm mt-4 text-ink-muted [&_p]:mb-2">
+        <PlateContentRenderer value={value} />
+      </Prose>
+    );
+  }
+  // Optional, so no empty spacer when it's blank.
+  return value ? (
+    <p className="type-body-sm mt-4 text-ink-muted">{value}</p>
+  ) : null;
+}
+
+/** The code, QR or link — behind a reveal the server records. */
+function Redemption({
   benefit,
-  isRevealed: initialRevealed,
-}: BenefitCardProps) {
+  initiallyRevealed,
+}: {
+  benefit: CampusBenefits;
+  initiallyRevealed: boolean;
+}) {
   const t = useTranslations("memberPortal.benefits");
-  const [revealed, setRevealed] = useState(initialRevealed);
   const [value, setValue] = useState<string | null>(
     benefit.redemption_value || null
   );
   const [copiedCode, setCopiedCode] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
-
-  const Icon = getBenefitIcon(benefit.redemption_type);
-  const categoryStyle = getCategoryColor(benefit.category);
+  const [revealed, setRevealed] = useState(initiallyRevealed);
 
   const handleReveal = async () => {
     if (revealed || isRevealing) {
@@ -80,150 +97,108 @@ export function BenefitCard({
     if (value) {
       navigator.clipboard.writeText(value);
       setCopiedCode(true);
-      setShowConfetti(true);
-      setTimeout(() => setCopiedCode(false), 2000);
-      setTimeout(() => setShowConfetti(false), 1000);
+      setTimeout(() => setCopiedCode(false), COPIED_FEEDBACK_MS);
     }
   };
 
+  if (!(revealed && value)) {
+    return revealed ? null : (
+      <RevealButton
+        isRevealing={isRevealing}
+        onReveal={handleReveal}
+        revealingLabel={t("revealing")}
+        revealLabel={t("reveal")}
+      />
+    );
+  }
+  if (benefit.redemption_type === "code") {
+    return (
+      <CodeReveal
+        copiedCode={copiedCode}
+        copiedLabel={t("copied")}
+        copyLabel={t("copy")}
+        onCopy={handleCopyCode}
+        value={value}
+      />
+    );
+  }
+  if (benefit.redemption_type === "qr") {
+    return <QrReveal label={t("qrLabel")} value={value} />;
+  }
+  if (benefit.redemption_type === "link") {
+    return <LinkReveal label={t("activateBenefit")} value={value} />;
+  }
+  return null;
+}
+
+/**
+ * One member benefit, with its code, QR or link behind a reveal.
+ *
+ * Title, teaser and description follow the visitor's language and fall back
+ * to the other one field by field (`localizedBenefitText`); the description is
+ * the admin editor's HTML and renders as such.
+ */
+export function BenefitCard({ benefit, isRevealed }: BenefitCardProps) {
+  const t = useTranslations("memberPortal.benefits");
+  const locale = useLocale();
+  const text = localizedBenefitText(benefit, locale);
+  const terms = localizedTerms(benefit, locale);
+  const expires = expiryLabel(benefit, locale);
+  const hasRedemption =
+    benefit.redemption_type !== "none" && benefit.redemption_type !== "onsite";
+
   return (
-    <motion.div
-      animate={{ opacity: 1, y: 0 }}
-      className="group relative"
-      initial={{ opacity: 0, y: 20 }}
-      transition={{ duration: 0.3 }}
-      whileHover={{ y: -4 }}
-    >
-      <Card className="relative overflow-hidden border-0 p-0 shadow-lg transition-all duration-300 hover:shadow-2xl dark:bg-inverted/50 dark:backdrop-blur-sm">
-        {/* Animated gradient border on hover */}
-        <div
-          className={`absolute inset-0 bg-linear-to-r ${categoryStyle.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-10`}
-        />
-
-        {/* Category gradient header strip */}
-        <div
-          className={`h-2 w-full bg-linear-to-r ${categoryStyle.gradient}`}
-        />
-
-        <div className="p-6">
-          {/* Header with logo and category */}
-          <div className="mb-4 flex items-start justify-between">
-            <div className="flex flex-1 items-start gap-4">
-              {benefit.partner_logo_url ? (
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl shadow-md">
-                  <Image
-                    alt={benefit.partner_name || ""}
-                    className="object-cover"
-                    fill
-                    sizes="56px"
-                    src={benefit.partner_logo_url}
-                  />
-                </div>
-              ) : (
-                <div
-                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${categoryStyle.gradient} shadow-md`}
-                >
-                  <Icon className="h-7 w-7 text-white" />
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <h3 className="mb-1 truncate font-semibold text-foreground text-lg dark:text-foreground">
-                  {benefit.title_en}
-                </h3>
-                {benefit.partner_name && (
-                  <p className="flex items-center gap-1.5 text-muted-foreground text-sm dark:text-muted-foreground">
-                    <Store className="h-3.5 w-3.5" />
-                    {benefit.partner_name}
-                  </p>
-                )}
-              </div>
-            </div>
-            <Badge
-              className={`${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border}`}
-            >
-              {benefit.category}
-            </Badge>
+    <div className="flex h-full flex-col rounded-biso-md border border-edge p-6">
+      <div className="flex items-start gap-4">
+        {benefit.partner_logo_url ? (
+          <div className="relative size-14 shrink-0 overflow-hidden rounded-biso-sm border border-edge bg-surface">
+            <Image
+              alt={benefit.partner_name || ""}
+              className="object-contain"
+              fill
+              sizes="56px"
+              src={benefit.partner_logo_url}
+            />
           </div>
-
-          {/* Description */}
-          <p className="mb-5 text-muted-foreground dark:text-muted-foreground">
-            {benefit.description_en}
-          </p>
-
-          {/* Action area — only if there's something to reveal */}
-          {benefit.redemption_type !== "none" &&
-            benefit.redemption_type !== "onsite" && (
-              <div className="relative mb-4">
-                <AnimatePresence mode="wait">
-                  {revealed ? (
-                    <motion.div
-                      animate={{ opacity: 1, scale: 1 }}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      key="revealed-content"
-                    >
-                      {benefit.redemption_type === "code" && value && (
-                        <CodeReveal
-                          copiedCode={copiedCode}
-                          copiedLabel={t("copied")}
-                          copyLabel={t("copy")}
-                          onCopy={handleCopyCode}
-                          showConfetti={showConfetti}
-                          value={value}
-                        />
-                      )}
-                      {benefit.redemption_type === "qr" && value && (
-                        <QrReveal value={value} />
-                      )}
-                      {benefit.redemption_type === "link" && value && (
-                        <LinkReveal
-                          gradient={categoryStyle.gradient}
-                          label={t("activateBenefit")}
-                          value={value}
-                        />
-                      )}
-                    </motion.div>
-                  ) : (
-                    <RevealButton
-                      gradient={categoryStyle.gradient}
-                      isRevealing={isRevealing}
-                      onReveal={handleReveal}
-                      revealingLabel={t("revealing")}
-                      revealLabel={t("reveal")}
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-
-          {/* Footer: terms + expiry */}
-          <div className="space-y-2">
-            {benefit.terms_en && (
-              <div className="rounded-lg bg-section p-3 text-muted-foreground text-xs dark:bg-inverted dark:text-muted-foreground">
-                <strong>{t("terms")}</strong> {benefit.terms_en}
-              </div>
-            )}
-
-            {benefit.publish_end && (
-              <div className="flex items-center gap-2 text-orange-600 text-xs dark:text-orange-400">
-                <Clock className="h-3.5 w-3.5" />
-                {t("expires", {
-                  date: new Date(benefit.publish_end).toLocaleDateString(
-                    "en-US",
-                    {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    }
-                  ),
-                })}
-              </div>
-            )}
-          </div>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          {benefit.category ? <Pill>{benefit.category}</Pill> : null}
+          <h3 className="type-heading-card mt-2 break-words text-ink">
+            {text.title}
+          </h3>
+          {benefit.partner_name ? (
+            <p className="type-body-sm mt-1 flex items-center gap-1.5 text-ink-muted">
+              <Store aria-hidden="true" className="size-3.5 shrink-0" />
+              {benefit.partner_name}
+            </p>
+          ) : null}
         </div>
+      </div>
 
-        {/* Hover glow effect */}
-        <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 shadow-[inset_0_0_40px_rgba(61,169,224,0.1)] transition-opacity duration-300 group-hover:opacity-100" />
-      </Card>
-    </motion.div>
+      <Description value={text.description} />
+
+      {hasRedemption ? (
+        <div className="mt-5">
+          <Redemption benefit={benefit} initiallyRevealed={isRevealed} />
+        </div>
+      ) : null}
+
+      {terms || expires ? (
+        <div className="mt-auto flex flex-col gap-2 pt-5">
+          {terms ? (
+            <p className="type-body-sm rounded-biso-sm bg-surface-sunken p-3 text-ink-muted">
+              <strong className="font-semibold text-ink">{t("terms")}</strong>{" "}
+              {terms}
+            </p>
+          ) : null}
+          {expires ? (
+            <p className="type-body-sm flex items-center gap-2 text-warning">
+              <Clock aria-hidden="true" className="size-3.5 shrink-0" />
+              {t("expires", { date: expires })}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }

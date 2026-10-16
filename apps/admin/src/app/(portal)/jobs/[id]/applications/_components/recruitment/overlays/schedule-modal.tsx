@@ -9,6 +9,7 @@ import {
   proposeInterviewSlots,
 } from "@/app/(portal)/_actions/interviews";
 import { updateJobApplicationStatus } from "@/app/(portal)/_actions/jobs";
+import { localDateKey, slotKey, slotStart } from "@/lib/schedule-dates";
 import { useRecruitment } from "../recruitment-context";
 import { Avatar } from "../shared";
 import { cx, type WorkspaceCandidate } from "../view-model";
@@ -25,13 +26,44 @@ function buildDays(count: number): { iso: string; label: string }[] {
     const day = cursor.getDay();
     if (day !== 0 && day !== 6) {
       days.push({
-        iso: cursor.toISOString().slice(0, 10),
+        iso: localDateKey(cursor),
         label: `${DAY_LABELS[day]} ${cursor.getDate()}`,
       });
     }
     cursor.setDate(cursor.getDate() + 1);
   }
   return days;
+}
+
+/**
+ * Steps a candidate has to take to reach the interview stage. A submitted
+ * application passes through "reviewed" first; the transition rules allow
+ * no shortcut.
+ */
+function stepsToInterview(stage: string): JobApplicationsStatus[] {
+  if (stage === "submitted") {
+    return [JobApplicationsStatus.REVIEWED, JobApplicationsStatus.INTERVIEW];
+  }
+  if (stage === "reviewed") {
+    return [JobApplicationsStatus.INTERVIEW];
+  }
+  return [];
+}
+
+async function moveToInterviewStage(
+  candidate: WorkspaceCandidate,
+  updateCandidate: (id: string, patch: Partial<WorkspaceCandidate>) => void
+): Promise<void> {
+  for (const status of stepsToInterview(candidate.stage)) {
+    const moved = await updateJobApplicationStatus(candidate.id, { status });
+    if (moved.error) {
+      toast.warning(
+        `Interview saved, but the candidate could not be moved to "${status}": ${moved.error}`
+      );
+      return;
+    }
+    updateCandidate(candidate.id, { stage: status });
+  }
 }
 
 export function ScheduleModal({
@@ -65,6 +97,7 @@ export function ScheduleModal({
     label?: string;
   } | null>(null);
   const [available, setAvailable] = useState<Set<string>>(new Set());
+  const [availabilityNote, setAvailabilityNote] = useState<string | null>(null);
   const [checking, startCheck] = useTransition();
   const [submitting, startSubmit] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -90,12 +123,19 @@ export function ScheduleModal({
       });
       const keys = new Set<string>();
       for (const proposed of result.slots) {
-        const date = new Date(proposed.starts_at);
-        keys.add(`${date.toISOString().slice(0, 10)}-${date.getHours()}`);
+        keys.add(slotKey(new Date(proposed.starts_at)));
       }
       setAvailable(keys);
-      if (keys.size === 0) {
-        setError("No common availability found (or calendar not connected).");
+      if (!result.configured) {
+        setError(
+          "Calendar is not connected, so availability cannot be checked."
+        );
+      } else if (!result.available) {
+        setAvailabilityNote(
+          "Some panelists' calendars could not be read; free slots may be incomplete."
+        );
+      } else if (keys.size === 0) {
+        setError("No slot where the whole panel is free in the next 14 days.");
       }
     });
   };
@@ -105,9 +145,7 @@ export function ScheduleModal({
       return;
     }
     setError(null);
-    const starts = new Date(
-      `${slot.iso}T${String(slot.hour).padStart(2, "0")}:00:00`
-    );
+    const starts = slotStart(slot.iso, slot.hour);
     const ends = new Date(starts.getTime() + duration * 60_000);
     const participants = panel
       .filter((member) => selectedPanel.has(member.id) && member.email)
@@ -139,16 +177,11 @@ export function ScheduleModal({
         setError(result.error);
         return;
       }
-      if (candidate.stage === "reviewed") {
-        await updateJobApplicationStatus(candidate.id, {
-          status: JobApplicationsStatus.INTERVIEW,
-        });
-        updateCandidate(candidate.id, {
-          stage: JobApplicationsStatus.INTERVIEW,
-        });
-      }
+      await moveToInterviewStage(candidate, updateCandidate);
       if (result.data?.warning) {
         toast.warning(result.data.warning);
+      } else {
+        toast.success("Interview scheduled and invites sent.");
       }
       onClose();
     });
@@ -179,7 +212,9 @@ export function ScheduleModal({
       footer={
         <>
           <span className="m-foot-note">
-            Teams meeting auto-created · invites sent to the panel
+            {location === "Nydalen"
+              ? "Outlook invite to the candidate and panel"
+              : "Teams meeting created · Outlook invite to the candidate and panel"}
           </span>
           <div className="m-foot-actions">
             <button className="btn-ghost" onClick={onClose} type="button">
@@ -268,9 +303,9 @@ export function ScheduleModal({
               ) : null}
               {visiblePanel.map((member) => (
                 <button
-                  className={`sched-panelist${
+                  className={`sched-panelist ${
                     selectedPanel.has(member.id) ? "on" : ""
-                  }${member.email ? "" : "disabled"}`}
+                  } ${member.email ? "" : "disabled"}`}
                   disabled={!member.email}
                   key={member.id}
                   onClick={() => member.email && togglePanel(member.id)}
@@ -316,6 +351,9 @@ export function ScheduleModal({
             ))}
           </div>
           {error ? <p className="sched-error">{error}</p> : null}
+          {availabilityNote ? (
+            <p className="sched-note">{availabilityNote}</p>
+          ) : null}
         </div>
       </div>
     </ModalShell>

@@ -1,5 +1,6 @@
 import type { ContentTranslations, Events } from "@repo/api/types/appwrite";
 import { EventsCategory, EventsPricingMode } from "@repo/api/types/appwrite";
+import { formatOsloDate } from "@repo/shared/utils/oslo-time";
 
 /**
  * Pure field derivations for the redesigned events views.
@@ -37,32 +38,63 @@ export function parseCategory(
 
 type Dated = Pick<Events, "end_date" | "start_date">;
 
-/** An event is past once it has ended — or, with no end, once it has started. */
+/**
+ * An event is past once it has ended — or, with no end, once it has started.
+ *
+ * The `/events` feed no longer needs this to order or split its rows: it asks
+ * `listEvents` for `upcomingOnly`, which hides finished events and orders by
+ * start date in the query, so the order holds across "Load more" pages (a
+ * client-side sort could only ever reorder the page it had). It still marks a
+ * finished event reached by direct link, and any card shown outside the feed.
+ */
 export function isPastEvent(event: Dated, now: Date): boolean {
   const ends = event.end_date ?? event.start_date;
   return ends === null ? false : new Date(ends).getTime() < now.getTime();
 }
 
-function startMs(event: Dated): number {
-  return event.start_date ? new Date(event.start_date).getTime() : 0;
+/**
+ * The count to show for page 1 of the feed.
+ *
+ * A first page shorter than a page is the whole result, whatever the reported
+ * total says — `countRows` in `lib/data/queries.ts` records Appwrite's
+ * `listRows(...).total` reporting the whole table rather than the filtered set.
+ * Where the total is right this is the same number.
+ */
+export function firstPageTotal(
+  firstPageCount: number,
+  reportedTotal: number,
+  pageSize: number
+): number {
+  return firstPageCount < pageSize ? firstPageCount : reportedTotal;
 }
 
 /**
- * Feed order: soonest upcoming first, then past events most-recent first.
+ * The `total` the "Load more" island tracks once it has fetched `page`.
  *
- * `queryEvents` orders by `$createdAt` descending, which is the order rows were
- * typed into the CMS — on a calendar that is noise. Sorting here rather than in
- * the query keeps the shared reader (home, campus, students, nav) untouched.
+ * The island holds only the pages after the server-rendered first one, so its
+ * total is the filtered total less page 1. A page shorter than `pageSize` is
+ * the last one: what the island already held plus that page is then
+ * everything, so a stale total cannot keep offering a "Load more" that loads
+ * nothing.
  */
-export function sortForFeed<T extends Dated>(events: T[], now: Date): T[] {
-  const upcoming: T[] = [];
-  const past: T[] = [];
-  for (const event of events) {
-    (isPastEvent(event, now) ? past : upcoming).push(event);
+export function islandTotalAfterPage({
+  firstPageCount,
+  page,
+  pageRows,
+  pageSize,
+  reportedTotal,
+}: {
+  firstPageCount: number;
+  /** 1-based; the island's first fetch is page 2. */
+  page: number;
+  pageRows: number;
+  pageSize: number;
+  reportedTotal: number;
+}): number {
+  if (pageRows < pageSize) {
+    return (page - 2) * pageSize + pageRows;
   }
-  upcoming.sort((a, b) => startMs(a) - startMs(b));
-  past.sort((a, b) => startMs(b) - startMs(a));
-  return [...upcoming, ...past];
+  return reportedTotal - firstPageCount;
 }
 
 export type EventPrice =
@@ -157,36 +189,35 @@ export function pickContent(refs: unknown, locale: string): EventContentFields {
 }
 
 /**
- * Event times are stored as the organiser's wall clock, so they are read back
- * as one.
+ * Event times are Europe/Oslo wall-clock time, whatever zone the host runs in.
  *
- * The admin editor binds `start_date` to a `<input type="datetime-local">` and
- * round-trips it with `value.slice(0, 16)` — no timezone conversion anywhere on
- * the write path — after which Appwrite stamps the string `+00:00`. So
- * `2026-10-01T18:00:00.000+00:00` means "the editor typed 18:00", not "18:00
- * UTC". The current views format with `date-fns` in the *server's* local zone,
- * which turns that into 20:00 on any CEST host and makes the time a property of
- * where the app happens to run. Formatting in UTC prints what was typed, on
- * every host.
+ * The admin editor now converts its `<input type="datetime-local">` value from
+ * Oslo time to a real UTC instant on the way in (`osloWallClockToIso`), so a
+ * stored `2026-10-01T16:00:00.000+00:00` is 18:00 in Oslo. Reading it in UTC —
+ * which was right while the editor stored the typed wall clock with a bare
+ * `+00:00` stamp — would now print every event an hour or two early, and
+ * reading it in the server's own zone makes the time depend on where the app
+ * runs. Both formatters go through `@repo/shared/utils/oslo-time`, the same
+ * helpers the admin app reads back with.
  */
-const UTC = "UTC";
-
 export function formatEventDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: UTC,
-  }).format(new Date(iso));
+  return (
+    formatOsloDate(
+      iso,
+      { weekday: "long", day: "numeric", month: "long", year: "numeric" },
+      locale
+    ) ?? ""
+  );
 }
 
 export function formatEventTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: UTC,
-  }).format(new Date(iso));
+  return (
+    formatOsloDate(
+      iso,
+      { hour: "2-digit", minute: "2-digit", hourCycle: "h23" },
+      locale
+    ) ?? ""
+  );
 }
 
 /** "18:00 – 23:00", or just the start when there is no end. */

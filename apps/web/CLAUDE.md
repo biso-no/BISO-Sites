@@ -95,11 +95,56 @@ Server actions live in two places:
 
 - `src/app/actions/*.ts` — feature-level actions (orders, events, jobs, news,
   campus, membership, etc.).
-- `src/lib/actions/*.ts` — cross-cutting (user, membership, expense, departments).
+- `src/lib/actions/*.ts` — cross-cutting (user, membership, expense).
 
 The JWT-based REST client at `src/lib/api-client.ts` (`apiClient.fetch` /
 `fetchFormData`) targets `NEXT_PUBLIC_API_BASE_URL` (the standalone `apps/api`
 service); JWT is minted by the `createJWT` server action and cached for 14 min.
+
+## Units (departments)
+
+`/units`, `/campus` and `/students` all read units through
+`src/lib/data/units.ts` (`cachedPublicUnits`, `cachedUnitDetail`). Two rules
+that are easy to get wrong and were the cause of all three surfaces rendering
+zero units:
+
+- **`departments` is the source of truth, never `content_translations`.** A
+  `content_translations` row with `content_type = "department"` is an OPTIONAL
+  copy overlay a unit may write from the admin app. None exists today, so any
+  reader that starts from that table returns nothing.
+- **`active` is not a publication flag.** The table mirrors the 24SevenOffice
+  chart of accounts, so operating ledgers (`Drift …`) and national governance
+  bodies are `active: true` with no public page. `isPublicUnit`
+  (`@repo/shared/utils/unit-visibility`) is the second half of the filter, and
+  it is applied in the cached readers in `src/lib/data/` — including the
+  routing lookups in `public-content.ts` and the sitemap — so an excluded row
+  has no live URL at all. `apps/admin` deliberately does NOT apply it.
+
+`departments.Name` is the campus-prefixed accounting name AND the Microsoft
+Graph `department` join key. Show `unitDisplayName(Name)`
+(`@repo/shared/utils/unit-names`); send the raw `Name`/row id to Graph.
+
+The default unit page (`(public)/units/[...segments]/_components/unit-view.tsx`)
+renders only when the unit has no published block-editor page. Its board comes
+from Microsoft 365 via `cachedUnitBoard`, a cached server-side wrapper around
+`apps/api`'s `/api/campus/{campusId}/{departmentId}/board`.
+
+**Every cached reader in `src/lib/data/` THROWS on a transient failure and
+never reports a false absence.** `"use cache"` does not cache a rejected promise, but it very
+much caches a resolved `null`/`[]` — so a `.catch(() => [])` *inside* one of
+these functions turns one Appwrite blip into a lie that outlives it: an empty
+board on every unit page, a unit's news gone until revalidation, or (worst) a
+`notFound()` that takes a real unit off the site for the whole cache window.
+The graceful fallback belongs at the CALL SITE, where it lives only for that
+render. `cachedUnitDetail` returns `null` only for a genuinely absent or
+non-public unit — `isRowNotFound` matches `404 / row_not_found` exactly, not
+the neighbouring `table_not_found` (a schema error) and not a `504` timeout.
+
+The sitemap follows the same split: one cache entry per table, each throwing,
+composed by `sitemapEntries` (deliberately NOT a `"use cache"` entry), which
+owns the per-table `.catch(() => [])`. A failing table still yields a partial
+sitemap rather than a 500 — but the partial result is discarded at the end of
+the request instead of being served to every crawler for an hour.
 
 ## Third-party integrations
 
@@ -109,10 +154,12 @@ All consumed server-side only:
   (`src/app/api/documents/[id]/download/route.ts`). Env: `SHAREPOINT_*`.
 - 24SevenOffice membership sync → `@repo/connectors/24sevenoffice`
   (`src/lib/actions/membership.ts`). Env: `AZURE_*`.
-- Vipps MobilePay → `@repo/payment/vipps` (`src/app/actions/orders.ts`,
-  `src/app/api/checkout/return/route.ts`). Env: `VIPPS_*`. The legacy webhook
-  at `/api/checkout/webhook` returns 410 — new flows go to
-  `/api/payment/vipps/callback`.
+- Vipps MobilePay and Stripe checkout run entirely in `apps/api` now — web no
+  longer imports `@repo/payment/vipps` (or `@repo/payment/stripe`) from
+  `src/app/actions/orders.ts` or anywhere else. `src/app/api/checkout/return/route.ts`
+  is a deprecated redirect-only shim: it forwards buyers, query intact, to
+  `apps/api`'s `/api/payment/return` and calls no third party itself. The
+  legacy webhook at `/api/checkout/webhook` returns 410.
 - OpenAI (`@ai-sdk/openai`) for expense OCR / description endpoints under
   `/api/expense/*` and `src/lib/actions/expense-ocr.ts`.
 - Membership purchase → `/membership/join`. Requires an authenticated user with
@@ -122,8 +169,9 @@ All consumed server-side only:
   `apps/api` at `/api/payment/[provider]/membership-checkout`. Fulfilment
   (Finago customer → category → invoice) is `fulfilMembershipOrder` in
   `@repo/shared/utils/membership-fulfilment`, triggered from the payment
-  webhook, `/api/checkout/return`, and the reconcile cron. Membership orders are
-  excluded from `postFinagoTransactionForOrder`. Env: `BI_AZURE_*`.
+  webhook, the API return route, and the API reconcile cron (all in `apps/api`).
+  Membership orders are excluded from `postFinagoTransactionForOrder`. Env:
+  `BI_AZURE_*`.
 
 ## Environment variables
 
@@ -180,6 +228,44 @@ All consumed server-side only:
   `packages/api/appwrite.config.json`; types live in
   `packages/api/types/appwrite.ts` (regenerated, not hand-edited).
 - `public/pdf.worker.min.js`, `public/Voter_Template.xlsx`, font binaries.
+
+## Design system (the 2026 redesign)
+
+Every page is built from the redesign's primitives — do not reintroduce the
+pre-redesign look. Spec and rationale: `docs/redesign/01-design-spec.md`;
+history: `docs/redesign/STATUS.md`.
+
+- **Primitives** live in `src/components/ui/`: `PageHeader` (the navy band and
+  the page's only `<h1>`), `Section`, `Container`, `SectionHeading` (the sun
+  marker appears only when the heading links to a collection), `CardGrid`,
+  `ChevronFrame` (the 13° media frame — media only, never rounded), `Pill`,
+  `DateBlock`, `StatRow`, `PersonCard`, `Prose`, `StatusPanel` (and its
+  `statusPanelPrimaryAction` / `statusPanelSecondaryAction` CTA classes),
+  `FilterChips` (link-based filters), `FeedSearch`, `LoadMoreButton`,
+  `loading-shell` skeletons. Feature components live in `components/*/v2/`.
+- **Tokens:** `.biso-surface-v2` in `packages/ui/styles/biso-surface.css`, with
+  Tailwind utilities and the nine `type-*` roles in
+  `packages/ui/styles/globals.css`. Use `bg-surface`, `text-ink`,
+  `text-ink-muted`, `text-ink-accent`, `border-edge`, `bg-action` /
+  `text-action-ink`, `bg-deep`, `bg-marker` (never a text colour),
+  `ring-focus-ring`. A navy band is `<Section tone="deep">`, which flips every
+  alias — never hand-pick white text. The legacy `--brand*`, `--section`,
+  `--inverted` tokens still exist for `apps/admin`; don't use them here.
+- **Fonts:** Museo Sans 300/700 (body) and Museo Slab 700/900 (display) — the
+  Branding Committee's faces. `font-medium` resolves to the Light cut, so use
+  `font-semibold` or `font-bold` where emphasis must show.
+- **Not allowed:** brand gradients, `backdrop-blur`, decorative icon tiles,
+  scroll-triggered motion (`whileInView`, fade-up reveals), hover-lift on cards,
+  Tailwind palette colours on brand surfaces, invented placeholder copy (omit a
+  section with no data). `src/app/motion.test.ts` and `src/app/styles.test.ts`
+  enforce the motion budget and that every colour utility resolves to a
+  registered token.
+- **Feeds** (`/events`, `/jobs`, `/news`, `/shop`, …): page 1 is
+  server-rendered through the paged server action, filters are links
+  (`FilterChips`) and search is a GET form (`FeedSearch`), and "Load more"
+  appends pages client-side with `useLoadMore` + `LoadMoreButton`. Campus scope
+  is `?campus=<slug>` > cookie > all (`resolveRequestCampus` in
+  `src/lib/campus-scope.ts`); scoped feeds canonicalise to the unscoped URL.
 
 ## Commands (run from `apps/web/` or with `--filter=web` from root)
 

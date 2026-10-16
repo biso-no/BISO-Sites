@@ -3,10 +3,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { codeOnly } from "@/test/source";
 import { ledeFor, plainText } from "./lede";
+import { feedTotal, islandTotalAfterPage } from "./paging";
+
+/** Hoisted: Biome forbids building a regex inside an assertion. */
+const SEARCH_CARRIES_CAMPUS = /SEARCH_KEEPS = \[\s*"campus"/;
 
 const read = (f: string) =>
   codeOnly(readFileSync(join(import.meta.dirname, f), "utf8"));
 const list = read("jobs-v2.tsx");
+const card = read("job-card.tsx");
+const loadMore = read("jobs-load-more.tsx");
 const detail = read("job-detail-v2.tsx");
 const chips = read("../../ui/filter-chips.tsx");
 const globals = readFileSync(
@@ -32,13 +38,114 @@ describe("jobs list (RD-019)", () => {
   it("renders no workload badge (PLACEHOLDER-002)", () => {
     // The reference shows "20%" on each card. `Jobs` has no column behind it,
     // so nothing is rendered rather than inventing a number.
-    expect(list).not.toContain("workload");
-    expect(list).not.toContain("%</");
+    for (const source of [list, card]) {
+      expect(source).not.toContain("workload");
+      expect(source).not.toContain("%</");
+    }
   });
 
-  it("derives employment types from the data rather than a fixed list", () => {
-    expect(list).toContain("job.metadata.employment_type");
-    expect(list).toContain("new Set(");
+  it("offers only filters the query can answer, with options from the open set", () => {
+    // Updated in the main merge. This asserted an employment-type chip row
+    // derived from the loaded jobs. Main's paginated `listJobs` (#61) dropped
+    // the employment-type and paid-only filters on purpose: both live in the
+    // vacancy's JSON metadata, which Appwrite cannot filter on, and filtering
+    // one page client-side leaves holes in every later page. The options that
+    // remain come from `listJobFacets`, which reads the whole open set rather
+    // than page one — still derived from the data, never a fixed list.
+    expect(list).not.toContain('param="type"');
+    expect(list).not.toContain('param="paid"');
+    expect(list).toContain("facets.categories");
+    expect(list).toContain("facets.departments");
+  });
+
+  it("still shows a vacancy's employment type, read from its data", () => {
+    expect(card).toContain("job.metadata.employment_type");
+  });
+
+  it("leaves campus to the header switcher, and carries it along", () => {
+    // Main's feed had no in-page campus filter, and the Branding Committee
+    // (#95) made the header switcher the one place to change campus. The
+    // parameter it writes must survive a search and every chip link.
+    expect(list).not.toContain('param="campus"');
+    expect(list).toMatch(SEARCH_CARRIES_CAMPUS);
+    expect(list).toContain("searchParams={linkParams}");
+  });
+});
+
+describe("jobs feed paging (main #61)", () => {
+  it("appends later pages through listJobs with the shared load-more hook", () => {
+    expect(loadMore).toContain('"use client"');
+    expect(loadMore).toContain("useLoadMore");
+    expect(loadMore).toContain("listJobs(");
+    expect(loadMore).toContain("<LoadMoreButton");
+  });
+
+  it("remounts the island when a filter changes", () => {
+    // useLoadMore does not watch its props; without a key a new filter would
+    // append its pages onto the previous filter's rows.
+    expect(list).toContain("<JobsLoadMore");
+    expect(list).toContain("key={`${campusId");
+  });
+
+  it("renders the server grid and the island with one card", () => {
+    // Identical markup on both sides needs a card free of hooks and of
+    // server-only imports, taking its labels already translated.
+    expect(card).not.toContain('"use client"');
+    expect(card).not.toContain("next-intl");
+    expect(card).not.toContain("@repo/api/server");
+    expect(list).toContain("<JobCard");
+    expect(loadMore).toContain("<JobCard");
+  });
+
+  it("says when a capped search counted only the first matches", () => {
+    expect(list).toContain("result.capped");
+    expect(list).toContain('t("filters.showingFirstResults"');
+  });
+
+  it("counts with the guards, not Appwrite's total directly", () => {
+    expect(list).toContain("feedTotal(");
+    expect(loadMore).toContain("islandTotalAfterPage(");
+  });
+});
+
+describe("counting without trusting Appwrite's total", () => {
+  // `listRows().total` can report the whole table (see `countRows` in
+  // lib/data/queries.ts). A short page is the last one, so it is the count.
+  it("takes a short page as the exact count", () => {
+    expect(
+      feedTotal({ pageRows: 5, pageSize: 12, reportedTotal: 253, startPage: 1 })
+    ).toBe(5);
+    expect(
+      feedTotal({ pageRows: 5, pageSize: 12, reportedTotal: 253, startPage: 3 })
+    ).toBe(29);
+    expect(
+      feedTotal({ pageRows: 0, pageSize: 12, reportedTotal: 253, startPage: 1 })
+    ).toBe(0);
+  });
+
+  it("uses the reported total only while every page is full", () => {
+    expect(
+      feedTotal({ pageRows: 12, pageSize: 12, reportedTotal: 28, startPage: 1 })
+    ).toBe(28);
+  });
+
+  it("ends the load-more list at a short page", () => {
+    const after = (page: number, pageRows: number, reportedTotal = 253) =>
+      islandTotalAfterPage({
+        page,
+        pageRows,
+        pageSize: 12,
+        reportedTotal,
+        shownBefore: 12,
+      });
+    // A full page cannot tell; the list goes on.
+    expect(after(2, 12)).toBe(241);
+    // Page 3 has 4 rows: the island holds 12 + 4 and nothing more is offered.
+    expect(after(3, 4)).toBe(16);
+    // An empty page past a full one ends it too.
+    expect(after(3, 0)).toBe(12);
+    // Where the total is right, the guard agrees with it.
+    expect(after(2, 12, 24)).toBe(12);
   });
 });
 
@@ -60,6 +167,15 @@ describe("job detail (RD-019)", () => {
 
   it("keeps the JobPosting structured data that feeds Google Jobs", () => {
     expect(detail).toContain("<JobPostingSchema job={job} />");
+  });
+
+  it("gates a members-only vacancy's form and says so in the header", () => {
+    // Main (d6c1c42d): everyone can read a members-only vacancy, only members
+    // may apply. The page resolves membership; the form shows the gate.
+    expect(detail).toContain('job.metadata.audience === "members"');
+    expect(detail).toContain("isMember={isMember}");
+    expect(detail).toContain("membersOnly={membersOnly}");
+    expect(detail).toContain('t("card.membersOnly")');
   });
 
   it("navigates back with a link, not router.push", () => {

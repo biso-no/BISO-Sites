@@ -1,6 +1,5 @@
 "use client";
 
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { useEffect } from "react";
 import { cleanupExpiredReservations } from "@/app/actions/cart-reservations";
 import { useCart } from "@/lib/contexts/cart-context";
@@ -11,6 +10,22 @@ import { CartSummary } from "./cart-summary";
 interface CartPageClientProps {
   isMember?: boolean;
   userId?: string | null;
+}
+
+/** Still blocks where the rows and the summary will be — no pulse (RD-020). */
+function CartSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]"
+    >
+      <div className="space-y-4">
+        <div className="h-36 rounded-biso-md bg-surface-sunken" />
+        <div className="h-36 rounded-biso-md bg-surface-sunken" />
+      </div>
+      <div className="h-72 rounded-biso-md bg-surface-sunken" />
+    </div>
+  );
 }
 
 export function CartPageClient({
@@ -27,26 +42,17 @@ export function CartPageClient({
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-48 w-full" />
-        </div>
-        <div className="space-y-6">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
-    );
+    return <CartSkeleton />;
   }
 
   if (items.length === 0) {
     return <CartEmptyState />;
   }
 
+  // The items, then a summary that rides beside them on a wide screen — the
+  // same list-plus-sticky-rail shape as the product page and checkout.
   return (
-    <div className="grid gap-8 lg:grid-cols-3">
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <CartList isMember={isMember} />
       <CartSummary isMember={isMember} userId={userId} />
     </div>

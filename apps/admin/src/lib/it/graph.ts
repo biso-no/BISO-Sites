@@ -14,7 +14,7 @@ const AZURE_GRAPH_CLIENT_ID =
   process.env.AZURE_GRAPH_CLIENT_ID || process.env.AZURE_APP_ID || "";
 const AZURE_GRAPH_CLIENT_SECRET = process.env.AZURE_GRAPH_CLIENT_SECRET || "";
 
-export const M365_DOMAIN = process.env.M365_DOMAIN || "biso.no";
+export { M365_DOMAIN } from "./m365-config";
 
 export function getGraphService(): GraphUserService {
   if (

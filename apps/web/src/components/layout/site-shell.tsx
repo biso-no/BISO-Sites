@@ -15,6 +15,8 @@ import {
   cachedNavFeatured,
   cachedShellCampuses,
 } from "@/lib/data/public-content";
+import { cachedPublicUnits } from "@/lib/data/units";
+import { campusProjectNavLinks } from "@/lib/project-unit-links";
 import type { NavAccount } from "@/lib/types/nav";
 
 const EMPTY_FEATURED = { event: null, news: null, project: null };
@@ -67,10 +69,14 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
   // in the nav. A failure degrades to an empty featured column, and never
   // poisons the shared cache.
   const hasSession = Boolean(cookieStore.get(SESSION_COOKIE));
-  const featured = await (hasSession
-    ? sessionNavFeatured(locale)
-    : cachedNavFeatured(locale)
-  ).catch(() => EMPTY_FEATURED);
+  // The unit directory is the same shared cache entry /units reads. Without it
+  // the menu simply omits the campus project units.
+  const [featured, units] = await Promise.all([
+    (hasSession ? sessionNavFeatured(locale) : cachedNavFeatured(locale)).catch(
+      () => EMPTY_FEATURED
+    ),
+    cachedPublicUnits(locale).catch(() => []),
+  ]);
 
   // Only pay for the flag read when there is someone to show the entry to.
   // `getLoggedInUser()` already excludes anonymous sessions, so `account` is
@@ -115,7 +121,18 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
           <footer> were descendants of the root layout's <main>, so a screen
           reader announced the header and footer as page content. */}
       <SkipLink />
-      <NavigationV2 account={account} featured={featured} />
+      {/*
+        `isMember` is passed explicitly so the membership CTA is right in the
+        server-rendered HTML: the provider above carries the same status, but
+        reading it through context would render "Become a member" to an
+        existing member for the first paint and then retract it.
+      */}
+      <NavigationV2
+        account={account}
+        featured={featured}
+        isMember={membershipStatus?.isMember ?? false}
+        projectLinks={campusProjectNavLinks(units)}
+      />
       <main id={MAIN_CONTENT_ID} tabIndex={-1}>
         {children}
       </main>

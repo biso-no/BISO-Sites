@@ -204,14 +204,16 @@ export async function GET(
           return;
         }
         // Graph serves the original upload from `/photo/$value` — for this
-        // tenant that is 9 full-resolution portraits inlined as base64, and
+        // tenant that is full-resolution portraits inlined as base64, and
         // Oslo's board alone came to **25 MB** of JSON. `/photos/<size>/$value`
-        // returns a pre-rendered thumbnail instead. The consumer renders these
-        // at 64 CSS px, so 120x120 covers a 2x display with room to spare.
+        // returns a pre-rendered thumbnail instead, and every one of these
+        // travels as a data: URI to every visitor. 240x240 covers the largest
+        // rendering (the front-page leadership grid) on a 2x display.
         //
-        // Not every user has every size, so a miss falls back to the original
-        // rather than dropping the face.
-        const photoSizes = ["120x120", "96x96", "64x64"];
+        // Graph only renders sizes up to the original upload's own, so a miss
+        // steps down; a user with no sized photo at all falls back to the
+        // original below, which can then only be a small one.
+        const photoSizes = ["240x240", "120x120", "96x96", "64x64"];
         for (const size of photoSizes) {
           try {
             const stream = await graphClient

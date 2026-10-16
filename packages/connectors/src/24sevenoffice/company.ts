@@ -181,13 +181,44 @@ export async function getCompanyById(
   return companies[0] ?? null;
 }
 
+/** Before any record in the 24SO tenant, so `ChangedAfter` matches every company. */
+const ALL_COMPANIES_CHANGED_AFTER = "1990-01-01T00:00:00";
+
 /**
- * Get multiple companies by their IDs.
- * Since the API doesn't support batch lookup well via CompanyIds,
- * we'll fetch companies one by one but run them in parallel batches.
- *
- * @param companyIds - Array of company IDs to fetch
- * @returns Array of companies found
+ * Every company in 24SO in one request (~55k rows, ~12s), with the fields the
+ * member roster needs. `GetCustomerCategoryTree` lists some older customers by
+ * their ExternalId rather than their company Id, so the roster must be able to
+ * resolve both — one full listing is far cheaper than a lookup per id, which
+ * 24SO rate-limits (429). Throws on failure.
+ */
+export async function getAllCompanies(options?: {
+  timeoutMs?: number;
+}): Promise<Company[]> {
+  const session = await getValidSession();
+  const client = await createAuthenticatedClient("company", session);
+  const [result]: [GetCompaniesResult] = await client.GetCompaniesAsync(
+    {
+      searchParams: { ChangedAfter: ALL_COMPANIES_CHANGED_AFTER },
+      returnProperties: {
+        string: ["Id", "ExternalId", "Name", "EmailAddresses"],
+      },
+    },
+    options?.timeoutMs ? { timeout: options.timeoutMs } : undefined
+  );
+  const companies = result.GetCompaniesResult?.Company;
+  if (!companies) {
+    return [];
+  }
+  return Array.isArray(companies) ? companies : [companies];
+}
+
+/** `GetCompanies` accepts up to 1000 ids per `CompanyIds` search. */
+export const COMPANY_ID_BATCH_SIZE = 1000;
+
+/**
+ * Get companies by id, 1000 per request. Ids with no company record are
+ * simply absent from the result. A failed batch throws rather than being
+ * skipped: the roster sync would otherwise silently lose names.
  */
 export async function getCompaniesByIds(
   companyIds: number[]
@@ -197,40 +228,18 @@ export async function getCompaniesByIds(
   }
 
   const session = await getValidSession();
-
-  // Process in smaller parallel batches to avoid 429 Too Many Requests
-  const PARALLEL_BATCH_SIZE = 5;
   const allCompanies: Company[] = [];
 
-  for (let i = 0; i < companyIds.length; i += PARALLEL_BATCH_SIZE) {
-    const batch = companyIds.slice(i, i + PARALLEL_BATCH_SIZE);
-
-    // Fetch each company in the batch in parallel
-    const batchResults = await Promise.all(
-      batch.map(async (id) => {
-        try {
-          const companies = await getCompanies(session, { CompanyId: id });
-          return companies[0] || null;
-        } catch {
-          return null;
-        }
-      })
+  for (let i = 0; i < companyIds.length; i += COMPANY_ID_BATCH_SIZE) {
+    const batch = companyIds.slice(i, i + COMPANY_ID_BATCH_SIZE);
+    const companies = await getCompanies(
+      session,
+      { CompanyIds: { int: batch } },
+      { throwOnError: true }
     );
-
-    // Add non-null results
-    for (const company of batchResults) {
-      if (company) {
-        allCompanies.push(company);
-      }
-    }
-
-    // Add a small delay between batches to be nice to the API
-    if (i + PARALLEL_BATCH_SIZE < companyIds.length) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
+    allCompanies.push(...companies);
   }
 
-  console.log(`[24SO Company] Fetched ${allCompanies.length} companies by IDs`);
   return allCompanies;
 }
 
@@ -356,7 +365,7 @@ export interface UpsertMembershipCustomerParams {
  * itself fails (transient 24SO error/timeout), as opposed to a genuine "no
  * such customer" result. Callers must treat this as a hard stop, never fall
  * through to create: `upsertMembershipCustomer` creates with an explicit,
- * pinned `Id` (the Azure employee id), which 24SO treats as an upsert-by-id —
+ * pinned `Id` (the student number), which 24SO treats as an upsert-by-id —
  * so creating on a false "not found" doesn't mint a duplicate, it silently
  * overwrites (Name/ExternalId/EmailAddresses/etc.) any existing curated
  * customer record.
@@ -375,12 +384,13 @@ export class MembershipCustomerLookupError extends Error {
  * Resolve the Finago customer for a membership purchase, creating it when
  * absent.
  *
- * The customer number MUST equal the student's Azure employee id, because
- * that is what BI's own app uses — so `Id` is sent explicitly on create rather
- * than letting 24SO allocate one. `ExternalId` carries the sanitized student
- * number from their BI email address.
+ * BI keys its student customers by student number: `Id` is the digits of the
+ * student's BI email address (`s1715738@bi.no` → 1715738) — the same number
+ * the membership check reads categories from — and `ExternalId` is the
+ * student's Azure `employeeId`. A customer created here gets both, so it is
+ * indistinguishable from one BI's own app created.
  *
- * Both lookups use `throwOnError` and let a search failure propagate as
+ * The lookup uses `throwOnError` and lets a search failure propagate as
  * `MembershipCustomerLookupError` rather than falling through to create — see
  * that error's doc comment for why a false "not found" here is unsafe.
  */
@@ -389,40 +399,26 @@ export async function upsertMembershipCustomer(
 ): Promise<number> {
   const session = await getValidSession();
 
-  let byCompanyId: Company[];
+  let existing: Company[];
   try {
-    byCompanyId = await getCompanies(
+    existing = await getCompanies(
       session,
-      { CompanyId: params.employeeId },
+      { CompanyId: params.studentNumber },
       { throwOnError: true }
     );
   } catch (error) {
     throw new MembershipCustomerLookupError(error);
   }
-  if (byCompanyId[0]?.Id) {
-    return byCompanyId[0].Id;
-  }
-
-  let byExternalId: Company[];
-  try {
-    byExternalId = await getCompanies(
-      session,
-      { ExternalId: String(params.studentNumber) },
-      { throwOnError: true }
-    );
-  } catch (error) {
-    throw new MembershipCustomerLookupError(error);
-  }
-  if (byExternalId[0]?.Id) {
-    return byExternalId[0].Id;
+  if (existing[0]?.Id) {
+    return existing[0].Id;
   }
 
   const client = await createAuthenticatedClient("company", session);
   const newCompany: Company = {
-    Id: params.employeeId,
+    Id: params.studentNumber,
     Name: `(Student) ${params.lastName}, ${params.firstName}`,
     FirstName: params.firstName,
-    ExternalId: String(params.studentNumber),
+    ExternalId: String(params.employeeId),
     Type: "Consumer",
     Private: true,
     Country: "NO",
@@ -446,7 +442,7 @@ export async function upsertMembershipCustomer(
   }
 
   console.log(
-    `[24SO Company] Created membership customer ${company.Id} (ExternalId: ${params.studentNumber})`
+    `[24SO Company] Created membership customer ${company.Id} (ExternalId: ${params.employeeId})`
   );
   return company.Id;
 }

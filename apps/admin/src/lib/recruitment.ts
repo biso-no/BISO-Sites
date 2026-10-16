@@ -124,29 +124,31 @@ export async function loadRecruitmentLookups(
   };
 }
 
-const MEMBERS_TEAM = "biso-members";
-
 /**
  * Row permissions for a job. Staff access (Operations Unit + HR) comes from
  * `buildRecruitmentStaffRowPermissions()`; the row additionally encodes public
  * visibility:
- *   - published + public  → read(any)
- *   - published + members → read(team:biso-members)
- *   - draft / closed      → no public read (staff only)
+ *   - published (public OR members) → read(any)
+ *   - draft / closed                → no public read (staff only)
  * Campus and owning-department teams are intentionally never granted.
+ *
+ * `audience` deliberately does NOT narrow row reads. A members-only vacancy is
+ * still advertised to everyone — that is the point of posting it, since seeing
+ * a role you can only apply to as a member is what sells the membership. The
+ * restriction is on *applying*, and it is enforced at submit time against live
+ * membership (see `submitJobApplication` in apps/web), not by an ACL.
+ *
+ * This previously granted `read(team:biso-members)` for members-only vacancies.
+ * No such team exists in the project, so that grant matched nobody and made
+ * every members-only vacancy invisible to all students.
  */
 export function buildJobRowPermissions(
-  audience: "public" | "members",
+  _audience: "public" | "members",
   status?: string
 ): string[] {
   const published = status === undefined || status === "published";
 
-  const visibility: string[] = [];
-  if (published && audience === "public") {
-    visibility.push(Permission.read(Role.any()));
-  } else if (published && audience === "members") {
-    visibility.push(Permission.read(Role.team(MEMBERS_TEAM)));
-  }
+  const visibility = published ? [Permission.read(Role.any())] : [];
 
   return [
     ...new Set([...visibility, ...buildRecruitmentStaffRowPermissions()]),
@@ -155,10 +157,9 @@ export function buildJobRowPermissions(
 
 /**
  * Row permissions for a job translation: consumer visibility equivalent to the
- * vacancy (published public → read(any); published members → members team)
- * plus the static recruitment staff grants. Unlike general content, the staff
- * list is a fixed pair of teams — never dynamically mirrored ones — so keeping
- * it in row ACLs cannot drift.
+ * vacancy (published → read(any)) plus the static recruitment staff grants.
+ * Unlike general content, the staff list is a fixed pair of teams — never
+ * dynamically mirrored ones — so keeping it in row ACLs cannot drift.
  */
 export function buildJobTranslationPermissions(
   audience: "public" | "members",

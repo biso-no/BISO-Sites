@@ -133,7 +133,7 @@ function PaletteItem({
 
   return (
     <button
-      className={`pe-palette-item${isDragging ? "dragging" : ""}`}
+      className={`pe-palette-item ${isDragging ? "dragging" : ""}`}
       onClick={() => {
         const id = insertBlock(type);
         select(id);

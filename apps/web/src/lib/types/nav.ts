@@ -17,6 +17,21 @@ export interface NavFeatured {
 }
 
 /**
+ * A projects-menu entry resolved on the server: a project unit's page. The
+ * client filters the list by the visitor's selected campus.
+ */
+export interface NavProjectLink {
+  /** `departments.campus_id`; "5" is National. */
+  campusId: string;
+  campusLabel: string | null;
+  /** True when a `/projects/<slug>` hub exists for this unit's project. */
+  hasHub: boolean;
+  href: string;
+  id: string;
+  label: string;
+}
+
+/**
  * Minimal, serializable account shape handed to the (client) navigation.
  * Deliberately not the raw Appwrite account row — only the fields the account
  * menu renders cross the RSC boundary, and never anything sensitive beyond the

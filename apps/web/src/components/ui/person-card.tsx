@@ -22,9 +22,17 @@ export interface PersonCardProps {
   campus?: string | null;
   className?: string;
   email?: string | null;
+  /**
+   * Accessible name for the mail link, already translated — e.g.
+   * `t("common.labels.emailPerson", { name })`. The icon-only links have no
+   * visible text, so this is all a screen reader announces.
+   */
+  emailLabel?: string;
   imageUrl?: string | null;
   name: string;
   phone?: string | null;
+  /** Accessible name for the phone link, already translated. */
+  phoneLabel?: string;
   /**
    * Job title. Deliberately NOT named `role` — that shadows the ARIA `role`
    * attribute, and both linters and readers trip on `role="Campus Director"`.
@@ -38,7 +46,9 @@ export function PersonCard({
   campus,
   imageUrl,
   email,
+  emailLabel,
   phone,
+  phoneLabel,
   className,
 }: PersonCardProps) {
   return (
@@ -74,7 +84,7 @@ export function PersonCard({
         <span className="flex items-center gap-1">
           {email ? (
             <a
-              aria-label={`Email ${name}`}
+              aria-label={emailLabel ?? `Email ${name}`}
               className="rounded-biso-sm p-1 text-ink-accent transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
               href={`mailto:${email}`}
             >
@@ -83,7 +93,7 @@ export function PersonCard({
           ) : null}
           {phone ? (
             <a
-              aria-label={`Call ${name}`}
+              aria-label={phoneLabel ?? `Call ${name}`}
               className="rounded-biso-sm p-1 text-ink-accent transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
               href={`tel:${phone.replace(/\s+/g, "")}`}
             >

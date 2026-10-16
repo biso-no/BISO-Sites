@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   createOrder: vi.fn(),
   createStripeCheckoutSession: vi.fn(),
   createVippsPayment: vi.fn(),
+  getMembershipStatusForStudent: vi.fn(),
   resolveStripeCredentials: vi.fn(),
   resolveVippsCredentials: vi.fn(),
   updateOrderWithSession: vi.fn(),
@@ -19,6 +20,9 @@ vi.mock("@repo/api/server", () => ({
 }));
 vi.mock("@/lib/auth", () => ({
   createAuthenticatedClient: vi.fn(),
+}));
+vi.mock("@/lib/membership-status-cache", () => ({
+  getMembershipStatusForStudent: mocks.getMembershipStatusForStudent,
 }));
 vi.mock("@repo/shared/utils/feature-flags-server", () => ({
   isFeatureEnabled: vi.fn().mockResolvedValue(true),
@@ -33,6 +37,19 @@ vi.mock("@repo/payment/stripe", () => ({
 vi.mock("@repo/payment/vipps", () => ({
   createVippsPayment: mocks.createVippsPayment,
 }));
+// The catalog is derived from whatever plan row the test's admin client
+// serves, through the real candidate logic (this season / next season).
+let catalogRows: Record<string, unknown>[] = [];
+vi.mock("@repo/shared/utils/membership-catalog", async () => {
+  const { toOfferCandidates } = await import(
+    "@repo/shared/utils/membership-offers"
+  );
+  return {
+    getMembershipOfferCandidates: vi.fn(async () =>
+      toOfferCandidates(catalogRows as never, new Date())
+    ),
+  };
+});
 vi.mock("@repo/shared/utils/vipps-order-ops", () => ({
   createOrder: mocks.createOrder,
   updateOrderWithSession: mocks.updateOrderWithSession,
@@ -52,12 +69,12 @@ const mockedUpdateOrderWithSession = mocks.updateOrderWithSession;
 const VALID_PLAN_ROW = {
   $id: "71",
   category: "113178",
-  canPurchase: true,
+  canPurchase: false,
   expiryDate: "2027-06-30",
   membership_id: "71",
   name: "BISO Membership fall 2026 and spring 2027",
   price: 550,
-  startDate: "2026-08-01",
+  startDate: "2026-07-01",
   status: true,
 };
 
@@ -71,10 +88,12 @@ function membershipCheckoutRequest({
   authorization,
   campusId = "1",
   planId = "71",
+  client,
 }: {
   authorization?: string;
   campusId?: string;
   planId?: string;
+  client?: string;
 } = {}): NextRequest {
   const headers = new Headers({ "content-type": "application/json" });
   if (authorization) {
@@ -84,7 +103,7 @@ function membershipCheckoutRequest({
   return new Request(
     "https://api.biso.no/api/payment/vipps/membership-checkout",
     {
-      body: JSON.stringify({ campusId, planId }),
+      body: JSON.stringify({ campusId, planId, ...(client ? { client } : {}) }),
       headers,
       method: "POST",
     }
@@ -115,15 +134,30 @@ function mockAuthenticatedUser(userId = "user-1") {
   } as unknown as Awaited<ReturnType<typeof createAuthenticatedClient>>);
 }
 
+function membershipOrder(planId: string, id = "order-9") {
+  return {
+    $id: id,
+    campus_id: "1",
+    items_json: JSON.stringify([
+      { product_id: planId, product_type: "membership", quantity: 1 },
+    ]),
+    payment_provider: "vipps",
+    status: "paid",
+  };
+}
+
 function mockAdminClient({
   profile = VALID_PROFILE,
   planRow = VALID_PLAN_ROW,
   existingOrders = [],
+  settledOrders = [],
 }: {
   profile?: Record<string, unknown> | null;
   planRow?: Record<string, unknown> | null;
   existingOrders?: Record<string, unknown>[];
+  settledOrders?: Record<string, unknown>[];
 } = {}) {
+  catalogRows = planRow ? [planRow] : [];
   const getRow = vi.fn((_dbId: string, table: string) => {
     if (table === "user") {
       return profile
@@ -137,9 +171,13 @@ function mockAdminClient({
     }
     return Promise.reject(new Error(`unexpected table: ${table}`));
   });
-  const listRows = vi.fn().mockResolvedValue({
-    rows: existingOrders,
-    total: existingOrders.length,
+  // The settled-order guard and the pending-order idempotency lookup hit the
+  // same table; tell them apart by the status the query filters on.
+  const listRows = vi.fn((_dbId: string, _table: string, queries: string[]) => {
+    const rows = queries.some((query) => query.includes("paid"))
+      ? settledOrders
+      : existingOrders;
+    return Promise.resolve({ rows, total: rows.length });
   });
 
   mockedCreateAdminClient.mockResolvedValue({
@@ -152,7 +190,11 @@ function mockAdminClient({
 describe("membership checkout authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Fall 2026, outside the last month: only this season's plans are on offer.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-29T12:00:00Z"));
     vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://biso.no");
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.biso.no");
 
     mockAdminClient();
     mockAuthenticatedUser();
@@ -181,10 +223,18 @@ describe("membership checkout authorization", () => {
       sessionId: "stripe-session",
     });
     mockedUpdateOrderWithSession.mockResolvedValue(undefined);
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [],
+      isMember: false,
+      memberships: [],
+      reason: "no_categories",
+    });
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.useRealTimers();
   });
 
   it("rejects an unauthenticated caller before any order is created", async () => {
@@ -212,8 +262,16 @@ describe("membership checkout authorization", () => {
     expect(mockedCreateOrder).not.toHaveBeenCalled();
   });
 
-  it("refuses a plan row with canPurchase false before any order is created", async () => {
-    mockAdminClient({ planRow: { ...VALID_PLAN_ROW, canPurchase: false } });
+  it("refuses a plan that is not on offer this season, even if the row exists", async () => {
+    mockAdminClient({
+      planRow: {
+        ...VALID_PLAN_ROW,
+        $id: "84",
+        expiryDate: "2030-06-30",
+        membership_id: "84",
+        startDate: "2027-07-01",
+      },
+    });
 
     const response = await postVipps(
       membershipCheckoutRequest({ authorization: "Bearer valid" })
@@ -223,6 +281,28 @@ describe("membership checkout authorization", () => {
     await expect(response.json()).resolves.toEqual({
       message: "That membership is no longer available",
     });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("refuses next season's plan outside the last month for a non-member", async () => {
+    mockAdminClient({
+      planRow: {
+        ...VALID_PLAN_ROW,
+        $id: "92",
+        expiryDate: "2027-12-31",
+        membership_id: "92",
+        startDate: "2027-01-01",
+      },
+    });
+    // Put the current-season plan in the catalog too, so the next one is not a
+    // renewal-by-absence.
+    catalogRows = [VALID_PLAN_ROW, ...catalogRows];
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(409);
     expect(mockedCreateOrder).not.toHaveBeenCalled();
   });
 
@@ -432,5 +512,154 @@ describe("membership checkout authorization", () => {
       message: "Vipps checkout timed out",
     });
     expect(mockedUpdateOrderWithSession).not.toHaveBeenCalled();
+  });
+
+  it("sends an app buyer back through the return route marked for the app", async () => {
+    const response = await postVipps(
+      membershipCheckoutRequest({
+        authorization: "Bearer valid",
+        client: "app",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateVippsPayment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        returnUrl:
+          "https://api.biso.no/api/payment/return?orderId=order-1&client=app",
+      }
+    );
+  });
+
+  it("gives an app buyer's Stripe cancel URL the cancelled marker instead of the website", async () => {
+    const response = await postStripe(
+      membershipCheckoutRequest({
+        authorization: "Bearer valid",
+        client: "app",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateStripeCheckoutSession).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        cancelUrl:
+          "https://api.biso.no/api/payment/return?orderId=order-1&client=app&cancelled=1",
+        successUrl:
+          "https://api.biso.no/api/payment/return?orderId=order-1&client=app",
+      }
+    );
+  });
+
+  it("refuses a plan that would not extend the buyer's current cover", async () => {
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [113_178],
+      isMember: true,
+      memberships: [
+        {
+          category: "113178",
+          expiryDate: "2027-06-30",
+          id: "71",
+          name: "BISO Membership fall 2026 and spring 2027",
+          startDate: "2026-07-01",
+        },
+      ],
+    });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      message: "Your membership already covers this period.",
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("sells a plan that extends a member's cover", async () => {
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [113_176],
+      isMember: true,
+      memberships: [
+        {
+          category: "113176",
+          expiryDate: "2026-12-31",
+          id: "54",
+          name: "BISO Membership fall 2026",
+          startDate: "2026-07-01",
+        },
+      ],
+    });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalled();
+  });
+
+  it("refuses a second order for a plan the buyer has already paid for", async () => {
+    // 24SevenOffice can lag a fulfilled purchase by up to the cache's ten
+    // minutes, and the idempotency lookup only reuses PENDING orders — so
+    // without this guard the gate would happily sell the same category twice
+    // and raise a second invoice.
+    mockAdminClient({ settledOrders: [membershipOrder("71")] });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      message: "Your membership already covers this period.",
+    });
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
+  });
+
+  it("sells a plan the buyer's earlier settled order was not for", async () => {
+    mockAdminClient({ settledOrders: [membershipOrder("54")] });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOrder).toHaveBeenCalled();
+  });
+
+  it("reads membership status with a forced refresh, not a ten-minute-old cache", async () => {
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.getMembershipStatusForStudent).toHaveBeenCalledWith(
+      1_715_738,
+      { refresh: true }
+    );
+  });
+
+  it("takes no payment while membership cannot be verified", async () => {
+    mocks.getMembershipStatusForStudent.mockResolvedValue({
+      checkedAt: Date.now(),
+      finagoCategoryIds: [],
+      isMember: false,
+      memberships: [],
+      reason: "finago_error",
+    });
+
+    const response = await postVipps(
+      membershipCheckoutRequest({ authorization: "Bearer valid" })
+    );
+
+    expect(response.status).toBe(503);
+    expect(mockedCreateOrder).not.toHaveBeenCalled();
   });
 });

@@ -6,67 +6,95 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@repo/ui/components/ui/accordion";
-import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
 import { LogIn, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
-import { useCampus } from "@/components/context/campus";
+import { type ReactNode, useTransition } from "react";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 import { signOut } from "@/lib/server";
-import type { NavAccount } from "@/lib/types/nav";
+import type { NavAccount, NavProjectLink } from "@/lib/types/nav";
 import { accountLinksFor } from "./account-menu";
-import { ActiveCampusLink, CampusLink } from "./campus-link";
-import { PanelLink } from "./mega-panel";
+import { ActiveCampusLink } from "./campus-link";
+import { PANEL_HEADING_CLASS, PanelLink } from "./mega-panel";
 import {
   ABOUT_COLUMNS,
   PROJECT_FLAGSHIP_ICON,
   PROJECT_FLAGSHIP_KEYS,
   PROJECT_LINKS,
   STANDALONE_LINKS,
-  STUDENT_CAMPUS_HEADING_KEY,
   STUDENT_COLUMNS,
 } from "./nav-config";
+import { CampusProjectLinks } from "./panels/projects-panel";
 
 interface MobileDrawerProps {
   /** Resolved server-side; `null` for anonymous visitors. */
   account: NavAccount | null;
   isMember: boolean;
   onNavigate: () => void;
+  /** Unit-run projects with a public page, resolved server-side. */
+  projectLinks: NavProjectLink[];
 }
 
-const HEADING_CLASS =
-  "mb-1 font-semibold text-white/50 text-xs uppercase tracking-wider";
+const TRIGGER_CLASS =
+  "rounded-biso-sm py-3 font-semibold text-base text-ink hover:text-ink-accent hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring [&>svg]:text-ink-muted";
 
+/** A labelled group of links inside an accordion section. */
+function DrawerGroup({
+  children,
+  heading,
+}: {
+  children: ReactNode;
+  heading: string;
+}) {
+  return (
+    <div>
+      <p className={PANEL_HEADING_CLASS}>{heading}</p>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The header below the desktop breakpoint: the three panels as accordion
+ * sections, then the standalone links, the account links, the preference
+ * switchers and one primary action.
+ *
+ * It mirrors the desktop header rather than keeping controls of its own. The
+ * campus filter is the `<CampusPill>` the header pins above this drawer — the
+ * one place to change campus — so there is no campus switcher and no list of
+ * campuses here. Business is a standalone link, as on desktop. Jobs is in the
+ * "For students" section, so there is no separate "apply" button.
+ *
+ * Every destination is a real `<Link>`: the buttons that called
+ * `router.push()` lost prefetch, middle-click and open-in-new-tab.
+ */
 export function MobileDrawer({
   account,
   isMember,
   onNavigate,
+  projectLinks,
 }: MobileDrawerProps) {
   const t = useTranslations("common.navigation");
   const tProjects = useTranslations("projects.featured");
-  const { campuses } = useCampus();
-  const router = useRouter();
   const [isSigningOut, startSignOut] = useTransition();
 
-  const go = (href: string) => {
-    router.push(href);
-    onNavigate();
-  };
-
   return (
-    <div className="space-y-4 px-4 py-6">
+    <div className="space-y-6 px-4 pt-2 pb-8">
       <Accordion collapsible type="single">
-        <AccordionItem className="border-brand-border" value="students">
-          <AccordionTrigger className="text-white">
+        <AccordionItem className="border-edge" value="students">
+          <AccordionTrigger className={TRIGGER_CLASS}>
             {t("triggers.students")}
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {STUDENT_COLUMNS.map((column) => (
-                <div key={column.id}>
-                  <p className={HEADING_CLASS}>{t(column.headingKey)}</p>
+                <DrawerGroup heading={t(column.headingKey)} key={column.id}>
                   {column.links.map((link) => (
                     <PanelLink
                       href={link.href}
@@ -76,34 +104,24 @@ export function MobileDrawer({
                       onNavigate={onNavigate}
                     />
                   ))}
-                </div>
+                </DrawerGroup>
               ))}
-              <div>
-                <p className={HEADING_CLASS}>{t(STUDENT_CAMPUS_HEADING_KEY)}</p>
-                {/* Same as the desktop panel: the campus control at the top of
-                    this drawer only filters, so the way to a campus's own page
-                    is here, leading with the one you are on. */}
+              <DrawerGroup heading={t("columns.campus")}>
+                {/* Same as the desktop panel: one link to the campus you are
+                    on, not a list — the pill above changes campus. */}
                 <ActiveCampusLink onNavigate={onNavigate} />
-                {campuses.map((campus) => (
-                  <CampusLink
-                    campus={campus}
-                    key={campus.$id}
-                    onNavigate={onNavigate}
-                  />
-                ))}
-              </div>
+              </DrawerGroup>
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem className="border-brand-border" value="projects">
-          <AccordionTrigger className="text-white">
+        <AccordionItem className="border-edge" value="projects">
+          <AccordionTrigger className={TRIGGER_CLASS}>
             {t("triggers.projects")}
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4">
-              <div>
-                <p className={HEADING_CLASS}>{t("columns.flagships")}</p>
+            <div className="space-y-5">
+              <DrawerGroup heading={t("columns.flagships")}>
                 {PROJECT_FLAGSHIP_KEYS.map((key) => (
                   <PanelLink
                     href={`/projects/${tProjects(`${key}.slug`)}`}
@@ -113,9 +131,13 @@ export function MobileDrawer({
                     onNavigate={onNavigate}
                   />
                 ))}
-              </div>
-              <div>
-                <p className={HEADING_CLASS}>{t("events")}</p>
+              </DrawerGroup>
+              <CampusProjectLinks
+                headingAs="p"
+                onNavigate={onNavigate}
+                projectLinks={projectLinks}
+              />
+              <DrawerGroup heading={t("events")}>
                 {PROJECT_LINKS.map((link) => (
                   <PanelLink
                     href={link.href}
@@ -125,20 +147,19 @@ export function MobileDrawer({
                     onNavigate={onNavigate}
                   />
                 ))}
-              </div>
+              </DrawerGroup>
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem className="border-brand-border" value="about">
-          <AccordionTrigger className="text-white">
+        <AccordionItem className="border-edge" value="about">
+          <AccordionTrigger className={TRIGGER_CLASS}>
             {t("triggers.about")}
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {ABOUT_COLUMNS.map((column) => (
-                <div key={column.id}>
-                  <p className={HEADING_CLASS}>{t(column.headingKey)}</p>
+                <DrawerGroup heading={t(column.headingKey)} key={column.id}>
                   {column.links.map((link) => (
                     <PanelLink
                       href={link.href}
@@ -148,14 +169,14 @@ export function MobileDrawer({
                       onNavigate={onNavigate}
                     />
                   ))}
-                </div>
+                </DrawerGroup>
               ))}
             </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         {STANDALONE_LINKS.map((link) => (
           <PanelLink
             href={link.href}
@@ -168,8 +189,7 @@ export function MobileDrawer({
       </div>
 
       {account && (
-        <div>
-          <p className={HEADING_CLASS}>{t("account.heading")}</p>
+        <DrawerGroup heading={t("account.heading")}>
           {accountLinksFor(account).map((link) => (
             <PanelLink
               href={link.href}
@@ -179,71 +199,60 @@ export function MobileDrawer({
               onNavigate={onNavigate}
             />
           ))}
-        </div>
+        </DrawerGroup>
       )}
 
-      {/* No campus control here. The drawer opens with `<CampusPill>` pinned
-          at the top (see `mega-nav-v2`), and this was a second, older switcher
-          three screens below it — cookie-only, so on `/events?campus=bergen`
-          it changed nothing the page then showed, and its trigger read "Velg
-          campus" rather than naming the selected one. Two switchers, one of
-          them silently losing to the URL. */}
-      <LocaleSwitcher className="w-full text-white" size="sm" variant="ghost" />
-      <ThemeSwitcher className="w-full text-white" size="sm" variant="ghost" />
+      <div className="flex flex-wrap items-center gap-2">
+        <LocaleSwitcher className="text-ink" size="sm" variant="ghost" />
+        <ThemeSwitcher className="text-ink" size="sm" variant="ghost" />
+      </div>
 
-      <div className="space-y-2">
-        <Button
-          className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
-          onClick={() => go("/business")}
-          variant="outline"
-        >
-          {t("partner")}
-        </Button>
-        <Button
-          className="w-full border-brand bg-transparent text-white hover:bg-brand hover:text-white"
-          onClick={() => go("/jobs")}
-          variant="outline"
-        >
-          {t("applyVerv")}
-        </Button>
+      <div className="space-y-3">
+        {/* Members are already members: they get their portal instead. The
+            status comes from the server, so the first paint is right. */}
         {isMember ? (
-          <Button
-            className="w-full bg-brand text-white hover:bg-brand/90"
-            onClick={() => go("/member")}
+          <Link
+            className={cn(statusPanelPrimaryAction, "w-full justify-center")}
+            href="/member"
+            onClick={onNavigate}
           >
             {t("memberPortal")}
-          </Button>
+          </Link>
         ) : (
-          <Button
-            className="w-full bg-brand text-white hover:bg-brand/90"
-            onClick={() => go("/membership")}
+          <Link
+            className={cn(statusPanelPrimaryAction, "w-full justify-center")}
+            href="/membership"
+            onClick={onNavigate}
           >
             {t("becomeMember")}
-          </Button>
+          </Link>
         )}
         {account ? (
-          <Button
-            className="w-full text-white hover:bg-brand-muted"
+          <button
+            className={cn(
+              statusPanelSecondaryAction,
+              "w-full justify-center disabled:opacity-60"
+            )}
             disabled={isSigningOut}
             onClick={() =>
               startSignOut(async () => {
                 await signOut();
               })
             }
-            variant="ghost"
+            type="button"
           >
-            <LogOut aria-hidden className="mr-2 h-4 w-4" />
+            <LogOut aria-hidden className="size-4" />
             {t("account.signOut")}
-          </Button>
+          </button>
         ) : (
-          <Button
-            className="w-full text-white hover:bg-brand-muted"
-            onClick={() => go("/auth/login")}
-            variant="ghost"
+          <Link
+            className={cn(statusPanelSecondaryAction, "w-full justify-center")}
+            href="/auth/login"
+            onClick={onNavigate}
           >
-            <LogIn aria-hidden className="mr-2 h-4 w-4" />
+            <LogIn aria-hidden className="size-4" />
             {t("account.signIn")}
-          </Button>
+          </Link>
         )}
       </div>
     </div>

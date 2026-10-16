@@ -1,11 +1,13 @@
 "use client";
 
 import type { Documents } from "@repo/api/types/appwrite";
+import { displayDocumentVersion } from "@repo/shared/utils/document-version";
 import { Building2, FileText, Globe, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteDocument } from "../../_actions/documents";
+import { DOCUMENTS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
@@ -185,13 +187,7 @@ export function DocumentsListClient({
                   >
                     <span>{CATEGORY_LABELS[doc.category] ?? doc.category}</span>
                     <span>·</span>
-                    <span>v{doc.version_number}</span>
-                    {doc.version && (
-                      <>
-                        <span>·</span>
-                        <span>{doc.version}</span>
-                      </>
-                    )}
+                    <span>{displayDocumentVersion(doc.version) ?? "—"}</span>
                     <span>·</span>
                     <span>{formatBytes(doc.file_size)}</span>
                     <span>·</span>
@@ -232,7 +228,7 @@ export function DocumentsListClient({
         </div>
       )}
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={DOCUMENTS_PAGE_SIZE} total={total} />
     </>
   );
 }

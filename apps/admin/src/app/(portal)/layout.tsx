@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { getUserRolesForClient, requireAdminAccess } from "@/lib/authorization";
 import { getInboxCounts } from "./_actions/inbox";
 import { AdminShell } from "./_components/admin-shell";
+import { ListParamsProvider } from "./_components/use-list-params";
 
 type UserRoles = Awaited<ReturnType<typeof getUserRolesForClient>>;
 type AuthContext = Awaited<ReturnType<typeof requireAdminAccess>>;
@@ -51,7 +52,7 @@ export default async function PortalAdminLayout({
       roles={roles}
       user={user}
     >
-      {children}
+      <ListParamsProvider>{children}</ListParamsProvider>
     </AdminShell>
   );
 }

@@ -88,7 +88,7 @@ function wireListRows(membershipRows: unknown[]) {
 }
 
 function cronRequest(): Request {
-  return new Request("https://web.biso.no/api/cron/reconcile-orders");
+  return new Request("https://biso.no/api/cron/reconcile-orders");
 }
 
 describe("reconcile-orders cron: membership sweep", () => {

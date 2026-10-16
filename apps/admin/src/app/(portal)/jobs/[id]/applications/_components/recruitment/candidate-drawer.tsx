@@ -110,7 +110,7 @@ export function CandidateDrawer({
     {
       count: candidate.resumeFileId ? undefined : 0,
       id: "resume",
-      label: "Resume",
+      label: "Documents",
     },
     { count: detail?.answers.length, id: "answers", label: "Answers" },
     { count: detail?.interviews.length, id: "interviews", label: "Interviews" },
@@ -331,20 +331,43 @@ function OverviewTab({ candidate }: { candidate: WorkspaceCandidate }) {
 }
 
 function ResumeTab({ candidate }: { candidate: WorkspaceCandidate }) {
-  if (!candidate.resumeFileId) {
-    return <div className="dr-empty">No resume on file.</div>;
+  const documents = [
+    {
+      fileId: candidate.coverLetterFileId,
+      id: "cover_letter",
+      label: "Cover letter",
+    },
+    { fileId: candidate.resumeFileId, id: "resume", label: "CV" },
+  ].filter((document) => document.fileId);
+  if (documents.length === 0) {
+    return <div className="dr-empty">No documents on file.</div>;
   }
-  const url = `/api/recruitment/applications/${candidate.id}/resume`;
   return (
-    <div className="dr-resume">
-      <div className="dr-resume-bar">
-        <FileText size={16} /> Resume on file
-        <a className="btn-ghost" href={url} rel="noreferrer" target="_blank">
-          <ExternalLink size={12} /> Open
-        </a>
-      </div>
-      <iframe className="dr-resume-frame" src={url} title="Resume preview" />
-    </div>
+    <>
+      {documents.map((document) => {
+        const url = `/api/recruitment/applications/${candidate.id}/resume?doc=${document.id}`;
+        return (
+          <div className="dr-resume" key={document.id}>
+            <div className="dr-resume-bar">
+              <FileText size={16} /> {document.label}
+              <a
+                className="btn-ghost"
+                href={`${url}&download=1`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <ExternalLink size={12} /> Download
+              </a>
+            </div>
+            <iframe
+              className="dr-resume-frame"
+              src={url}
+              title={`${document.label} preview`}
+            />
+          </div>
+        );
+      })}
+    </>
   );
 }
 

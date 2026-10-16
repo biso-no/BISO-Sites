@@ -20,14 +20,24 @@ const landing = code("src/components/campus/v2/campus-landing.tsx");
 const index = code("src/components/campus/v2/campus-index.tsx");
 const indexPage = code("src/app/(public)/campus/page.tsx");
 const slugPage = code("src/app/(public)/campus/[slug]/page.tsx");
-const unitsReader = code("src/lib/data/campus-landing.ts");
+// Main's unit directory: the redesign's own `campus-landing.ts` reader fixed
+// the same bug independently and was retired in favour of it.
+const unitsReader = code("src/lib/data/units.ts");
 
 describe("PLACEHOLDER-009 — campus editorial content does not exist", () => {
   it("renders every editorial field only when it arrives", () => {
-    // `campus_metadata` and `campus_data` are both empty tables, so tagline,
-    // description, highlights and focus areas are all absent today. None may
-    // be stubbed, and none may leave an empty heading behind.
-    for (const field of ["highlights", "focusAreas"]) {
+    // `campus_metadata` and `campus_data` were empty tables when this page was
+    // built, so tagline, description, highlights, focus areas, benefits and
+    // the partnership offer may all be absent. None may be stubbed, and none
+    // may leave an empty heading behind — that includes the blocks the merge
+    // carried over from main's `/campus` tabs.
+    for (const field of [
+      "highlights",
+      "focusAreas",
+      "benefitGroups",
+      "businessBenefits",
+      "leadership",
+    ]) {
       expect(landing).toContain(`${field}.length > 0`);
     }
     expect(landing).toContain("description ?? undefined");
@@ -52,13 +62,17 @@ describe("campus units come from the department rows", () => {
     // departments sit in `departments`.
     expect(unitsReader).toContain('"departments"');
     expect(unitsReader).toContain('Query.equal("active", true)');
-    expect(slugPage).toContain("campusUnits");
+    expect(unitsReader).toContain(".filter(isPublicUnit)");
+    expect(slugPage).toContain("cachedPublicUnits");
     expect(slugPage).not.toContain("getDepartments");
   });
 
-  it("renders nothing for the columns that are null on every row", () => {
-    // `type`, `logo`, `hero` and `description` are null on all 280 departments.
-    for (const column of ["logo", "hero", "unit.type", "unit.description"]) {
+  it("shows a unit only through the shared card", () => {
+    // Main's #87 let a unit's logo fill its tile once units started uploading
+    // them; `UnitCard` (via `UnitCrest`) owns that, with the name-derived
+    // monogram as the stand-in. The landing itself reads no raw unit column.
+    expect(landing).toContain("<UnitCard");
+    for (const column of ["unit.logoUrl", "unit.type", "unit.description"]) {
       expect(landing).not.toContain(column);
     }
   });

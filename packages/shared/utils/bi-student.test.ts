@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseBiStudentEmail, sanitizeStudentNumber } from "./bi-student";
+import {
+  identityBacksStudentId,
+  parseBiStudentEmail,
+  sanitizeStudentNumber,
+} from "./bi-student";
 
 describe("parseBiStudentEmail", () => {
   it("extracts the local part and numeric id", () => {
@@ -55,5 +59,38 @@ describe("sanitizeStudentNumber", () => {
     expect(sanitizeStudentNumber("abc")).toBeNull();
     expect(sanitizeStudentNumber(null)).toBeNull();
     expect(sanitizeStudentNumber(undefined)).toBeNull();
+  });
+});
+
+describe("identityBacksStudentId", () => {
+  const oidc = (providerEmail: string, providerUid = providerEmail) => ({
+    provider: "oidc",
+    providerEmail,
+    providerUid,
+  });
+
+  it("accepts an OIDC identity whose BI email is that student", () => {
+    expect(identityBacksStudentId([oidc("s1715738@bi.no")], "s1715738")).toBe(
+      true
+    );
+    expect(
+      identityBacksStudentId([oidc("", "S1715738@BI.NO")], " S1715738 ")
+    ).toBe(true);
+  });
+
+  it("rejects other students, other providers and staff addresses", () => {
+    expect(identityBacksStudentId([oidc("s1000000@bi.no")], "s1715738")).toBe(
+      false
+    );
+    expect(
+      identityBacksStudentId(
+        [{ provider: "email", providerEmail: "s1715738@bi.no" }],
+        "s1715738"
+      )
+    ).toBe(false);
+    expect(
+      identityBacksStudentId([oidc("ola.nordmann@bi.no")], "s1715738")
+    ).toBe(false);
+    expect(identityBacksStudentId([oidc("s1715738@bi.no")], null)).toBe(false);
   });
 });

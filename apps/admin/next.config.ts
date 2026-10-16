@@ -4,6 +4,9 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
+// Pages that open the camera to scan member passes.
+const SCANNER_SOURCES = ["/members/scan", "/scan/:path*"];
+
 const baseConfig: NextConfig = {
   transpilePackages: [
     "@repo/api",
@@ -105,6 +108,18 @@ const baseConfig: NextConfig = {
           },
         ],
       },
+      // The member pass scanners need the camera. When two rules set the
+      // same key, Next applies the last one, so these must stay after the
+      // catch-all above.
+      ...SCANNER_SOURCES.map((source) => ({
+        source,
+        headers: [
+          {
+            key: "Permissions-Policy",
+            value: "camera=(self), microphone=(), geolocation=()",
+          },
+        ],
+      })),
     ];
   },
 

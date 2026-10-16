@@ -12,6 +12,7 @@ import {
   type RecruitmentVacancy,
 } from "./types/recruitment";
 import type { AdminScope } from "./types/user-management";
+import { uniqueSlug } from "./utils/content-slug";
 
 export interface RecruitmentLookups {
   campusIdsByName: Map<string, string>;
@@ -135,6 +136,7 @@ export const JOB_SELECT = [
   "department_id",
   "metadata",
   "application_deadline",
+  "scheduled_publish_at",
   "custom_questions",
   "interview_template",
   "screening_rubric",
@@ -247,6 +249,7 @@ export function buildRecruitmentVacancy(
       },
       parsedMetadata
     ),
+    scheduled_publish_at: job.scheduled_publish_at ?? null,
     slug: job.slug,
     status: job.status,
     translations: resolvedTranslations,
@@ -270,6 +273,27 @@ export async function fetchRecruitmentListRows(
     ...queries,
   ]);
   return response.rows.map((job) => buildRecruitmentVacancy(job));
+}
+
+/**
+ * Like `fetchRecruitmentListRows`, but keeps Appwrite's total.
+ *
+ * The public jobs list pages against this, so the count must be the one
+ * Appwrite computed for the filtered set — never `rows.length`, which is only
+ * ever the size of the current page.
+ */
+export async function fetchRecruitmentListPage(
+  db: DbClient,
+  queries: string[]
+): Promise<{ rows: RecruitmentVacancy[]; total: number }> {
+  const response = await db.listRows<Jobs>("app", "jobs", [
+    Query.select([...JOB_SELECT]),
+    ...queries,
+  ]);
+  return {
+    rows: response.rows.map((job) => buildRecruitmentVacancy(job)),
+    total: response.total,
+  };
 }
 
 export async function fetchRecruitmentJobsByIds(
@@ -298,10 +322,54 @@ export async function getRecruitmentJobBySlug(
   const response = await db.listRows<Jobs>("app", "jobs", [
     Query.select([...JOB_SELECT]),
     Query.equal("slug", slug),
+    // Slugs are kept unique on save; should a duplicate slip through, the
+    // newest vacancy wins rather than an arbitrary (usually closed) old one.
+    Query.orderDesc("$createdAt"),
     Query.limit(1),
   ]);
   const job = response.rows[0];
   return job ? buildRecruitmentVacancy(job) : null;
+}
+
+const SLUG_SCAN_PAGE_SIZE = 100;
+
+/**
+ * The slug a job should be saved under: `slug` itself, or the first free
+ * `slug-{year}` / `slug-{year}-N` when another job already owns it. Job pages
+ * are looked up by slug, so a duplicate would make one of the two unreachable.
+ *
+ * `db` must see every row (drafts and closed jobs included) — pass the admin
+ * client. `excludeJobId` is the job being updated, which may keep its own slug.
+ */
+export async function resolveUniqueRecruitmentJobSlug(
+  db: DbClient,
+  slug: string,
+  { excludeJobId, year }: { excludeJobId?: string; year: number }
+): Promise<string> {
+  const taken = new Set<string>();
+  let cursor: string | undefined;
+  while (true) {
+    const response = await db.listRows<Pick<Jobs, "$id" | "slug">>(
+      "app",
+      "jobs",
+      [
+        Query.select(["$id", "slug"]),
+        Query.startsWith("slug", slug),
+        Query.limit(SLUG_SCAN_PAGE_SIZE),
+        ...(cursor ? [Query.cursorAfter(cursor)] : []),
+      ]
+    );
+    for (const row of response.rows) {
+      if (row.$id !== excludeJobId) {
+        taken.add(row.slug);
+      }
+    }
+    if (response.rows.length < SLUG_SCAN_PAGE_SIZE) {
+      break;
+    }
+    cursor = response.rows.at(-1)?.$id;
+  }
+  return uniqueSlug(slug, taken, year);
 }
 
 export async function getRecruitmentJobById(
@@ -313,8 +381,13 @@ export async function getRecruitmentJobById(
       Query.select([...JOB_SELECT]),
     ]);
     return buildRecruitmentVacancy(job);
-  } catch {
-    return null;
+  } catch (error) {
+    // Only a missing (or unreadable) row means "not found". Timeouts and 5xx
+    // must surface as errors, not as a 404 / "Vacancy not found".
+    if ((error as { code?: unknown } | null)?.code === 404) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -329,14 +402,52 @@ export function getRecruitmentVacancyTitle(
   );
 }
 
+type LocalizableTranslation = Pick<
+  RecruitmentTranslation,
+  "description" | "locale" | "short_description" | "title"
+>;
+
+function firstFilled(
+  translations: LocalizableTranslation[],
+  field: "description" | "short_description" | "title"
+): string | null {
+  for (const translation of translations) {
+    const value = translation[field];
+    if (value?.trim()) {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Narrow a vacancy to the requested locale. A locale row can exist with some
+ * fields left blank (e.g. a title and teaser but no body), so each blank field
+ * falls back to the first other locale that has it — otherwise the detail page
+ * renders an empty "About this vacancy" while the listing shows a teaser.
+ */
 export function localizeVacancy<
-  T extends { translations: Array<{ locale: string }> },
+  T extends { translations: LocalizableTranslation[] },
 >(vacancy: T, locale: string): T {
-  const localized = vacancy.translations.filter(
-    (t: { locale: string }) => t.locale === locale
-  );
+  const localized = vacancy.translations.filter((t) => t.locale === locale);
+  if (localized.length === 0) {
+    return vacancy;
+  }
+  const others = vacancy.translations.filter((t) => t.locale !== locale);
   return {
     ...vacancy,
-    translations: localized.length > 0 ? localized : vacancy.translations,
+    translations: localized.map((translation) => ({
+      ...translation,
+      description: translation.description?.trim()
+        ? translation.description
+        : (firstFilled(others, "description") ?? translation.description),
+      short_description: translation.short_description?.trim()
+        ? translation.short_description
+        : (firstFilled(others, "short_description") ??
+          translation.short_description),
+      title: translation.title?.trim()
+        ? translation.title
+        : (firstFilled(others, "title") ?? translation.title),
+    })),
   };
 }

@@ -1,6 +1,16 @@
 import { randomInt } from "node:crypto";
 import type { Client } from "@microsoft/microsoft-graph-client";
+import {
+  getAuthenticationMethodPath,
+  isRemovableAuthenticationMethod,
+  PASSWORD_AUTHENTICATION_METHOD,
+} from "./authentication-methods";
 import { createGraphClient } from "./index";
+
+export {
+  getAuthenticationMethodPath,
+  isRemovableAuthenticationMethod,
+} from "./authentication-methods";
 
 // ============================================================================
 // Types
@@ -71,6 +81,10 @@ export interface GraphAuthenticationMethod {
   displayName?: string;
   id: string;
   odataType: string;
+  // False for methods Graph exposes but refuses to delete (password) or that
+  // this client has no DELETE route for. Callers must skip these when wiping a
+  // user's MFA rather than attempting a delete that can only fail.
+  removable: boolean;
   type: string;
 }
 
@@ -111,6 +125,11 @@ export type GraphUserProfileUpdate = Partial<{
 export interface GraphUserSearchOptions {
   allowedDomain?: string;
   licensedOnly?: boolean;
+  // When set, only users whose `officeLocation` matches one of these values
+  // (case-insensitively) are returned. Used to scope campus admins to their own
+  // campus — BISO maps campus.name onto the M365 officeLocation attribute.
+  // Users with no officeLocation are excluded: the scope fails closed.
+  officeLocations?: string[];
 }
 
 export interface LicensedUsersResult {
@@ -284,6 +303,24 @@ function hasAllowedDomain(user: GraphUser, allowedDomain?: string): boolean {
 
 function hasAssignedLicense(user: GraphUser): boolean {
   return (user.assignedLicenses?.length ?? 0) > 0;
+}
+
+function hasAllowedOfficeLocation(
+  user: GraphUser,
+  officeLocations?: string[]
+): boolean {
+  if (!officeLocations) {
+    return true;
+  }
+
+  const actual = user.officeLocation?.trim().toLowerCase();
+  if (!actual) {
+    return false;
+  }
+
+  return officeLocations.some(
+    (location) => location.trim().toLowerCase() === actual
+  );
 }
 
 // ============================================================================
@@ -511,6 +548,9 @@ export class GraphUserService {
       .filter((user: GraphUser) =>
         options.licensedOnly ? hasAssignedLicense(user) : true
       )
+      .filter((user: GraphUser) =>
+        hasAllowedOfficeLocation(user, options.officeLocations)
+      )
       .slice(0, limit);
   }
 
@@ -587,6 +627,9 @@ export class GraphUserService {
       .filter((user) => hasAllowedDomain(user, options.allowedDomain))
       .filter((user) =>
         options.licensedOnly ? hasAssignedLicense(user) : true
+      )
+      .filter((user) =>
+        hasAllowedOfficeLocation(user, options.officeLocations)
       );
 
     // signInActivityAvailable is false when the tenant lacks Entra ID P1 and we
@@ -964,6 +1007,7 @@ export class GraphUserService {
       return {
         id: String(method.id ?? ""),
         odataType: rawType,
+        removable: isRemovableAuthenticationMethod(rawType),
         type: rawType.replace("#microsoft.graph.", ""),
         displayName:
           typeof method.displayName === "string"
@@ -1034,25 +1078,11 @@ export class GraphUserService {
     methodId: string,
     odataType: string
   ): Promise<void> {
-    const PASSWORD_METHOD = "#microsoft.graph.passwordAuthenticationMethod";
-    if (odataType === PASSWORD_METHOD) {
+    if (odataType === PASSWORD_AUTHENTICATION_METHOD) {
       throw new Error("Password authentication method cannot be removed.");
     }
 
-    const METHOD_PATHS: Record<string, string> = {
-      "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod":
-        "microsoftAuthenticatorMethods",
-      "#microsoft.graph.phoneAuthenticationMethod": "phoneMethods",
-      "#microsoft.graph.fido2AuthenticationMethod": "fido2Methods",
-      "#microsoft.graph.softwareOathAuthenticationMethod":
-        "softwareOathMethods",
-      "#microsoft.graph.temporaryAccessPassAuthenticationMethod":
-        "temporaryAccessPassMethods",
-      "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod":
-        "windowsHelloForBusinessMethods",
-    };
-
-    const subPath = METHOD_PATHS[odataType];
+    const subPath = getAuthenticationMethodPath(odataType);
     if (!subPath) {
       throw new Error(`Unsupported authentication method type: ${odataType}`);
     }

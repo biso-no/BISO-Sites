@@ -93,10 +93,18 @@ export function NotificationsPanel({ roles }: NotificationsPanelProps) {
       fetchNotifications(),
       canSeePending ? fetchPendingItems() : Promise.resolve([]),
     ];
-    Promise.all(fetches)
+    // allSettled: a failed fetch keeps the previously loaded list instead of
+    // blanking it (or rejecting unhandled), and doesn't block the other tab.
+    Promise.allSettled(fetches)
       .then(([n, p]) => {
-        setNotices(n);
-        setPendingItems(p);
+        if (n.status === "fulfilled") {
+          setNotices(n.value);
+        } else {
+          console.error("[notifications] Failed to load notices:", n.reason);
+        }
+        if (p.status === "fulfilled") {
+          setPendingItems(p.value);
+        }
       })
       .finally(() => setLoading(false));
   }, [open, canSeePending]);

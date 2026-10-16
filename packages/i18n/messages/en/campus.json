@@ -1,13 +1,14 @@
 {
   "stats": {
     "units": "Units here",
-    "events": "Published events",
+    "events": "Upcoming events",
     "jobs": "Open positions"
   },
   "seeAll": {
     "events": "All events here",
     "news": "All news here",
-    "jobs": "All positions here"
+    "jobs": "All positions here",
+    "units": "All units here"
   },
   "empty": {
     "events": "Nothing on the calendar here right now.",
@@ -25,6 +26,46 @@
   },
   "leadership": {
     "title": "Management",
-    "lede": "The students elected to run BISO on this campus."
+    "lede": "The students elected to run BISO on this campus.",
+    "ledeNational": "A team of elected students and employed staff working to develop BISO nationally.",
+    "groups": {
+      "operations": "Operations Unit",
+      "administration": "Administration",
+      "controlCommittee": "Control Committee",
+      "brandingCommittee": "Branding Committee"
+    }
+  },
+  "actions": {
+    "join": "Become a member"
+  },
+  "forStudents": {
+    "title": "For students",
+    "lede": "Unlock exclusive opportunities and support throughout your student journey.",
+    "groups": {
+      "studentBenefits": {
+        "title": "Membership benefits",
+        "description": "Exclusive perks and discounts for BISO members."
+      },
+      "careerAdvantages": {
+        "title": "Career advantages",
+        "description": "Build your professional network and enhance your CV."
+      },
+      "socialNetwork": {
+        "title": "Social network",
+        "description": "Connect with fellow students and build lasting friendships."
+      },
+      "safety": {
+        "title": "Safety and support",
+        "description": "We ensure a safe and supportive environment for all members."
+      }
+    }
+  },
+  "forBusinesses": {
+    "title": "For businesses",
+    "lede": "Connect with talented students and build your brand visibility at {campus}.",
+    "benefitsTitle": "Partnership benefits",
+    "ctaTitle": "Ready to partner?",
+    "ctaBody": "Get in touch with our partnership team to explore collaboration opportunities and create meaningful connections with students.",
+    "cta": "Contact the partnership team"
   }
 }

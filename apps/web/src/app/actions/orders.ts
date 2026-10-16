@@ -1,14 +1,15 @@
 "use server";
 import { Query } from "@repo/api";
-import {
-  createAdminClient,
-  createSessionClient,
-  createSessionJwt,
-} from "@repo/api/server";
+import { createSessionClient, createSessionJwt } from "@repo/api/server";
 import type { ContentTranslations, Orders } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import {
+  memberDiscountPercent,
+  memberUnitPrice,
+} from "@repo/shared/utils/member-discount";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
+import { resolveCustomFieldAnswers } from "@repo/shared/utils/product-custom-fields";
 import {
   getAvailableStock,
   getUserReservation,
@@ -16,9 +17,17 @@ import {
 import { getLocale } from "@/app/actions/locale";
 import { getProduct } from "@/app/actions/products";
 import { validatePurchaseLimits } from "@/app/actions/purchase-limits";
-import { getMembershipStatus } from "@/lib/actions/membership";
+import {
+  getLiveMembershipStatus,
+  getMembershipStatus,
+} from "@/lib/actions/membership";
 import { ensureAnonymousSession } from "@/lib/anon-session";
 import type { OrderItem } from "@/lib/types/order";
+import {
+  type ProductCustomField,
+  type ProductCustomFieldRow,
+  toProductCustomFields,
+} from "@/lib/types/product";
 import { parseProductMetadata } from "@/lib/types/webshop";
 
 const WHITESPACE_RE = /\s+/;
@@ -67,24 +76,21 @@ async function _getOrder(id: string) {
   }
 }
 
-async function getMemberDiscountIfAny(product: Record<string, unknown>) {
-  try {
-    if (
-      !(product?.member_discount_enabled && product?.member_discount_percent)
-    ) {
-      return { applied: false, percent: 0 };
+/**
+ * Whether the member price applies to this buyer, resolved once per checkout.
+ * Fails open: a membership lookup outage charges full price rather than
+ * blocking the sale.
+ */
+function createMembershipResolver(): () => Promise<boolean> {
+  let pending: Promise<boolean> | null = null;
+  return () => {
+    if (!pending) {
+      pending = getMembershipStatus()
+        .then((status) => status.isMember)
+        .catch(() => false);
     }
-    const status = await getMembershipStatus();
-    if (!status.isMember) {
-      return { applied: false, percent: 0 };
-    }
-    return {
-      applied: true,
-      percent: Number(product.member_discount_percent) || 0,
-    };
-  } catch {
-    return { applied: false, percent: 0 };
-  }
+    return pending;
+  };
 }
 
 interface CheckoutLineItemInput {
@@ -99,6 +105,7 @@ interface CheckoutLineItemInput {
 
 interface ProductVariation {
   id?: string;
+  member_price?: number | null;
   name?: string;
   price_modifier?: number;
 }
@@ -106,7 +113,8 @@ interface ProductVariation {
 interface NormalizedProduct extends Record<string, unknown> {
   $id: string;
   campus_id?: string | null;
-  custom_fields?: Record<string, unknown>[];
+  custom_fields?: ProductCustomField[];
+  member_price?: number | null;
   metadata_parsed: Record<string, unknown>;
   price: number;
   slug: string;
@@ -194,7 +202,7 @@ async function loadProduct(
   if (cached) {
     return cached;
   }
-  const product = await getProduct(productId, locale);
+  const product = await getProduct(productId);
   if (!product) {
     throw new Error(`Product ${productId} is not available anymore.`);
   }
@@ -223,13 +231,17 @@ async function loadProduct(
     short_description: translation?.short_description ?? null,
     price: Number(product.regular_price ?? 0),
     metadata_parsed: productMetadata,
-    custom_fields: Array.isArray(productMetadata.custom_fields)
-      ? productMetadata.custom_fields
-      : undefined,
+    // Definitions come from the `product_custom_fields` relationship. The old
+    // source, `metadata.custom_fields`, is not populated on any product, so
+    // required answers were never actually enforced.
+    custom_fields: toProductCustomFields(
+      (product as { custom_fields?: ProductCustomFieldRow[] }).custom_fields
+    ),
     variations: (product.variations ?? [])
       .filter((variation) => variation.enabled)
       .map((variation) => ({
         id: variation.$id,
+        member_price: variation.member_price,
         name: variation.name,
         price_modifier:
           Number(variation.regular_price ?? product.regular_price) -
@@ -243,6 +255,34 @@ async function loadProduct(
 
   cache.set(productId, normalizedProduct);
   return normalizedProduct;
+}
+
+/**
+ * Refuse a members-only product for a non-member before any payment session is
+ * created. `member_only` restricts who may BUY a product, not who may see it,
+ * so the listing and the product page show it to everyone — this is where that
+ * promise is kept.
+ *
+ * `apps/api` re-checks the same rule on the trusted path, which is the gate that
+ * actually holds (the browser can post straight to it). This copy exists so the
+ * buyer gets a clear reason from the site instead of a rejected checkout.
+ *
+ * Live rather than the ten-minute cached read: this refuses a purchase, and a
+ * student who joined moments ago must not be told they are not a member on the
+ * very order they joined to place. The member DISCOUNT above keeps the cached
+ * read — being charged full price is a worse-but-recoverable outcome than
+ * hammering 24SevenOffice on every line of every cart.
+ */
+async function ensureMemberOnlyAccess(product: NormalizedProduct) {
+  if (!product.member_only) {
+    return;
+  }
+  const status = await getLiveMembershipStatus();
+  if (!status.isMember) {
+    throw new Error(
+      `${product.title || product.slug} is available to BISO members only.`
+    );
+  }
 }
 
 async function ensureStockAvailability(
@@ -302,60 +342,74 @@ function findVariation(product: Record<string, unknown>, variationId?: string) {
 }
 
 async function resolvePricing(
-  product: Record<string, unknown>,
+  product: NormalizedProduct,
   variation: ProductVariation | undefined,
-  discountCache: Map<string, { applied: boolean; percent: number }>,
-  productId: string
+  isMember: () => Promise<boolean>
 ) {
   const basePrice = Number(product.price || 0);
   const variationModifier = Number(variation?.price_modifier || 0);
   const originalUnit = Math.max(0, basePrice + variationModifier);
+  const memberUnit = memberUnitPrice(originalUnit, {
+    legacyDiscountPercent: product.member_discount_enabled
+      ? Number(product.member_discount_percent) || 0
+      : null,
+    productMemberPrice: product.member_price,
+    variationMemberPrice: variation?.member_price,
+    variationModifier,
+  });
 
-  const discount =
-    discountCache.get(productId) || (await getMemberDiscountIfAny(product));
-  discountCache.set(productId, discount);
-
-  const discountedUnit = discount.applied
-    ? Math.max(0, originalUnit * (1 - discount.percent / 100))
-    : originalUnit;
+  if (memberUnit === null || !(await isMember())) {
+    return {
+      originalUnit,
+      discountedUnit: originalUnit,
+      discountApplied: false,
+      discountPercent: 0,
+      variationModifier,
+    };
+  }
 
   return {
     originalUnit,
-    discountedUnit,
-    discountApplied: discount.applied,
-    discountPercent: discount.percent || 0,
+    discountedUnit: memberUnit,
+    discountApplied: true,
+    discountPercent: memberDiscountPercent(originalUnit, memberUnit),
     variationModifier,
   };
 }
 
+/**
+ * Validates the buyer's answers against the product's stored questions and
+ * shapes them for the `order_item_field_answers` rows on the line.
+ *
+ * Driven by the stored definitions, never by the submitted keys: the id and
+ * the label both come from the database, so a crafted request cannot invent a
+ * field or relabel an answer in the order record. Anything submitted that the
+ * product does not ask for is dropped.
+ */
 function buildCustomFieldPayload(
-  product: Record<string, unknown>,
-  responses: Record<string, string>,
-  labels?: Record<string, string>
+  product: NormalizedProduct,
+  responses: Record<string, string>
 ) {
-  if (!product.custom_fields) {
+  const fields = product.custom_fields ?? [];
+  if (fields.length === 0) {
     return { responses: undefined, details: undefined };
   }
 
-  const missingFields = (product.custom_fields as Record<string, unknown>[])
-    .filter((field) => field.required)
-    .filter((field) => !responses[field.id as string])
-    .map((field) => field.label);
+  // Shared with `apps/api`'s checkout, which the native app posts to, so both
+  // surfaces enforce one rulebook rather than two that can drift.
+  const { accepted, details, missing } = resolveCustomFieldAnswers(
+    fields,
+    responses
+  );
 
-  if (missingFields.length > 0) {
+  if (missing.length > 0) {
     throw new Error(
-      `Missing required information for ${product.title || product.slug}: ${missingFields.join(", ")}`
+      `Missing required information for ${product.title || product.slug}: ${missing.join(", ")}`
     );
   }
 
-  const details = Object.entries(responses).map(([fieldId, value]) => ({
-    id: fieldId,
-    label: labels?.[fieldId] || fieldId,
-    value,
-  }));
-
   return {
-    responses: Object.keys(responses).length ? responses : undefined,
+    responses: Object.keys(accepted).length ? accepted : undefined,
     details: details.length ? details : undefined,
   };
 }
@@ -372,10 +426,7 @@ async function buildOrderItems(
   userId: string
 ) {
   const quantityByProduct = buildQuantityByProduct(items);
-  const discountCache = new Map<
-    string,
-    { applied: boolean; percent: number }
-  >();
+  const isMember = createMembershipResolver();
   const productCache = new Map<string, NormalizedProduct>();
   const orderItems: OrderItem[] = [];
   const campusIds = new Set<string>();
@@ -398,6 +449,8 @@ async function buildOrderItems(
       );
     }
 
+    await ensureMemberOnlyAccess(product);
+
     const requestedQuantity = quantityByProduct.get(productId) || 0;
     await ensureStockAvailability(
       product,
@@ -414,18 +467,9 @@ async function buildOrderItems(
     );
 
     const variation = findVariation(product, input.variationId);
-    const pricing = await resolvePricing(
-      product,
-      variation,
-      discountCache,
-      productId
-    );
+    const pricing = await resolvePricing(product, variation, isMember);
     const customFieldResponses = normalizeCustomFields(input.customFields);
-    const customFields = buildCustomFieldPayload(
-      product,
-      customFieldResponses,
-      input.customFieldLabels
-    );
+    const customFields = buildCustomFieldPayload(product, customFieldResponses);
     const title = input.title?.trim() || product.title || product.slug;
 
     orderItems.push({
@@ -592,7 +636,12 @@ export async function createCartCheckoutSession(
     if (!user?.$id) {
       throw new Error("A valid checkout session is required.");
     }
-    const jwt = await createSessionJwt().catch(() => null);
+    // Null only when there is no session. An Appwrite outage throws; log it
+    // and show a generic message rather than the backend's error text.
+    const jwt = await createSessionJwt().catch((error: unknown) => {
+      console.error("[checkout] Failed to create session JWT", error);
+      throw new Error("Checkout is temporarily unavailable. Please try again.");
+    });
     if (!jwt) {
       throw new Error("A valid checkout session is required.");
     }
@@ -637,6 +686,15 @@ export async function getOrder(id: string) {
   return await _getOrder(id);
 }
 
+/**
+ * The buyer's order, re-synced with the payment provider first.
+ *
+ * Verification and settlement live in the API app
+ * (`GET /api/payment/orders/[orderId]`), which the native app calls too; the
+ * website never talks to Vipps, Stripe or Finago itself. Any failure falls
+ * back to the stored order, because the buyer has already paid and must still
+ * see a receipt.
+ */
 export async function verifyOrder(orderId: string) {
   const { db } = await createSessionClient();
   const order = await db.getRow<Orders>("app", "orders", orderId, [
@@ -646,37 +704,27 @@ export async function verifyOrder(orderId: string) {
     return order;
   }
 
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const jwt = await createSessionJwt().catch(() => null);
+  if (!(apiBaseUrl && jwt)) {
+    return order;
+  }
+
   try {
-    // Status writes go through the admin client: orders are Operations-Unit
-    // writable and the buyer's (possibly anonymous) session cannot update them.
-    const { db: adminDb } = await createAdminClient();
-
-    if (order.payment_provider === "vipps") {
-      const { reconcileVippsPayment } = await import("@repo/payment/vipps");
-      await reconcileVippsPayment(orderId, adminDb);
-    } else if (order.payment_provider === "stripe") {
-      const { resolveStripeCredentials } = await import(
-        "@repo/payment/credentials"
-      );
-      const { getStripeSession } = await import("@repo/payment/stripe");
-      const { determineStatusFromStripeSession } = await import(
-        "@repo/shared/utils/stripe-pure"
-      );
-      const { applyOrderStatusTransition } = await import(
-        "@repo/shared/utils/vipps-order-ops"
-      );
-      const creds = await resolveStripeCredentials(adminDb);
-      if (creds) {
-        const { session } = await getStripeSession(
-          order.payment_session_id,
-          creds
-        );
-        const { status, updateData } =
-          determineStatusFromStripeSession(session);
-        await applyOrderStatusTransition(orderId, status, updateData, adminDb);
+    const response = await fetch(
+      `${apiBaseUrl}/api/payment/orders/${encodeURIComponent(orderId)}`,
+      {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${jwt}` },
+        signal: AbortSignal.timeout(checkoutFetchTimeoutMs()),
       }
+    );
+    if (!response.ok) {
+      console.error(
+        `[verifyOrder] API verification failed with ${response.status}`
+      );
+      return order;
     }
-
     return await db.getRow<Orders>("app", "orders", orderId, [
       ORDER_ITEMS_SELECT,
     ]);

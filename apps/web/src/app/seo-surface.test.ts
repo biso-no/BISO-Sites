@@ -12,6 +12,11 @@ const sitemap = read("sitemap.ts");
 const ALIASES = [
   { from: "(public)/varsling", to: "/safety" },
   { from: "(public)/shop/membership", to: "/membership/join" },
+  // Main #91 folded these into Om BISO and the documents page; the merge
+  // serves them the same way. The retired /about/* subpages resolve their
+  // anchors through `ABOUT_REDIRECTS` and are covered by about-sections.test.ts.
+  { from: "(public)/policies/drugs-policy", to: "/about/drugs-policy" },
+  { from: "(public)/about/bylaws", to: "/documents?category=campus-bylaws" },
 ];
 
 describe("crawler surface (RD-033)", () => {

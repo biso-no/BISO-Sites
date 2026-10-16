@@ -15,10 +15,17 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ account, teams })),
 }));
 
+// `headers` is included alongside `cookies` even though this file's code
+// under test never calls it: `mock.module("next/headers", ...)` replaces the
+// whole module process-wide, and member-pass.test.ts (which does call
+// `headers()`) shares this registry entry within the same `bun test` run —
+// whichever file's factory is registered last would otherwise strip the
+// export the other needs.
 mock.module("next/headers", () => ({
   cookies: mock(async () => ({
     get: mock(() => undefined),
   })),
+  headers: mock(async () => new Headers()),
 }));
 
 const { parseTeamMemberships } = await import(

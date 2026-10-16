@@ -32,7 +32,13 @@ export interface TicksterSyncConfig {
 }
 
 export interface TicksterSyncResult {
+  /** Mapped purchases whose attendee upsert failed (retried next run). */
+  failed: number;
   imported: number;
+  /**
+   * Cursor to resume from next run. Never advances past a page containing a
+   * failed purchase, so failures are re-fetched (upserts are idempotent).
+   */
   lastCursor: string | null;
   matched: number;
   pages: number;
@@ -208,7 +214,10 @@ async function importPurchase(
   return { matched: matchedUserId !== null };
 }
 
-/** Process one page of purchases, accumulating counts into [result]. */
+/**
+ * Process one page of purchases, accumulating counts into [result].
+ * Returns how many mapped purchases on this page failed to upsert.
+ */
 async function processPurchases(
   purchases: TicksterPurchase[],
   mappingByTicksterEvent: Map<string, TicksterEventMapping>,
@@ -218,7 +227,8 @@ async function processPurchases(
     logger: SyncLogger | undefined;
   },
   result: TicksterSyncResult
-): Promise<void> {
+): Promise<number> {
+  let pageFailures = 0;
   for (const purchase of purchases) {
     const mapping = purchase.eventId
       ? mappingByTicksterEvent.get(purchase.eventId)
@@ -240,11 +250,14 @@ async function processPurchases(
         result.matched += 1;
       }
     } catch (error) {
+      pageFailures += 1;
+      result.failed += 1;
       context.logger?.error(
         `Failed to upsert attendee ${purchase.reference}: ${formatError(error)}`
       );
     }
   }
+  return pageFailures;
 }
 
 export async function syncTicksterPurchases(
@@ -272,6 +285,7 @@ export async function syncTicksterPurchases(
   );
 
   const result: TicksterSyncResult = {
+    failed: 0,
     pages: 0,
     imported: 0,
     matched: 0,
@@ -283,6 +297,7 @@ export async function syncTicksterPurchases(
   // `fromPurchase`) re-fetching the same page until maxPages.
   const seenCursors = new Set<string>();
   let cursor = fromPurchase;
+  let firstFailedCursor: string | null | undefined;
   for (let page = 0; page < maxPages; page += 1) {
     const { purchases, nextCursor } = await client.getCrmPurchases(cursor);
     result.pages += 1;
@@ -290,14 +305,26 @@ export async function syncTicksterPurchases(
       break;
     }
 
-    await processPurchases(
+    const pageFailures = await processPurchases(
       purchases,
       mappingByTicksterEvent,
       { db, matchUser, logger },
       result
     );
 
-    result.lastCursor = nextCursor ?? cursor;
+    // Keep paging past a failed page: one purchase that always fails must not
+    // block every later purchase (the scheduler calls without `from`, so a
+    // stalled cursor would never recover). Report the cursor of the first
+    // failing page instead, so a manual `?from=` rerun retries it; upserts
+    // are keyed on event_id + order_ref, so re-importing is harmless.
+    if (pageFailures > 0 && firstFailedCursor === undefined) {
+      firstFailedCursor = cursor ?? null;
+    }
+
+    result.lastCursor =
+      firstFailedCursor === undefined
+        ? (nextCursor ?? cursor ?? null)
+        : firstFailedCursor;
     if (!nextCursor || nextCursor === cursor || seenCursors.has(nextCursor)) {
       break;
     }
@@ -306,7 +333,7 @@ export async function syncTicksterPurchases(
   }
 
   logger?.log(
-    `Tickster sync: ${result.imported} imported, ${result.matched} matched, ${result.skipped} skipped across ${result.pages} page(s).`
+    `Tickster sync: ${result.imported} imported, ${result.matched} matched, ${result.skipped} skipped, ${result.failed} failed across ${result.pages} page(s).`
   );
   return result;
 }

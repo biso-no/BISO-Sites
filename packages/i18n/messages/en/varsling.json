@@ -195,14 +195,18 @@
       "deleteError": "Could not delete the setting",
       "deleteUnexpected": "An error occurred during deletion",
       "activated": "Contact activated",
-      "deactivated": "Contact deactivated"
+      "deactivated": "Contact deactivated",
+      "testEmailSent": "Test email sent to {email}",
+      "testEmailError": "Could not send the test email"
     },
     "actions": {
       "edit": "Edit",
       "delete": "Delete",
       "activate": "Activate",
       "deactivate": "Deactivate",
-      "confirmDelete": "Confirm delete"
+      "confirmDelete": "Confirm delete",
+      "sendTest": "Send test",
+      "sendTestHint": "Send a test email to this address to confirm reports get through"
     }
   }
 }

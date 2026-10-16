@@ -166,7 +166,7 @@ describe("admin content update scoping", () => {
       department_id: null,
       description: "Description",
       description_en: null,
-      finago_account_number: null,
+      sales_type: null,
       image: "",
       images: null,
       inventory_mode: "unlimited",
@@ -181,6 +181,7 @@ describe("admin content update scoping", () => {
       status: "draft",
       stock: null,
       tags: null,
+      unlisted: false,
       variants_json: null,
     });
 
@@ -243,11 +244,8 @@ describe("admin content update scoping", () => {
         description: null,
         language: "no",
         scope: "campus",
-        sort_order: 0,
         status: "draft",
         title: "Campus bylaws",
-        version: null,
-        version_number: 1,
       })
     ).rejects.toThrow(unauthorizedCampusError);
     expect(db.updateRow).not.toHaveBeenCalled();

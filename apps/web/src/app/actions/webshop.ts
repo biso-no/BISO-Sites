@@ -3,27 +3,19 @@
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { WebshopProducts } from "@repo/api/types/appwrite";
+import { listedProductsOnly } from "@/lib/data/product-visibility";
 
 interface ListProductsParams {
   campus?: string;
   category?: string;
   limit?: number;
   locale?: "en" | "no";
-  memberOnly?: boolean;
-  status?: string;
 }
 
 export async function listProducts(
   params: ListProductsParams = {}
 ): Promise<WebshopProducts[]> {
-  const {
-    limit = 50,
-    status = "published",
-    campus,
-    category,
-    locale,
-    memberOnly,
-  } = params;
+  const { limit = 50, campus, category, locale } = params;
 
   try {
     const { db } = await createSessionClient();
@@ -61,14 +53,27 @@ export async function listProducts(
       ]),
       Query.limit(limit),
       Query.orderDesc("$createdAt"),
+      // Both filters are unconditional and deliberately NOT caller-supplied.
+      // This is a server action, so it is an ordinary POST endpoint the browser
+      // can call with any arguments it likes: anything reachable through a
+      // parameter is reachable by anyone. `status` used to be exactly that, and
+      // passing `"all"` dropped the filter — on a table that grants read to
+      // `any`, that enumerated every draft with its title, price, stock and
+      // owning department.
+      //
+      // No `member_only` filter, though, deliberately and for everyone:
+      // members-only limits who can BUY a product, not who can see it. The card
+      // renders a badge (the column stays projected above so it can) and the
+      // purchase is refused server-side.
+      //
+      // Link-only products stay reachable at `/shop/<slug>` — see
+      // `getProductBySlug`, which filters on status but not on `unlisted`.
+      Query.equal("status", "published"),
+      listedProductsOnly(),
     ];
 
     if (locale) {
       queries.push(Query.equal("translation_refs.locale", locale));
-    }
-
-    if (status !== "all") {
-      queries.push(Query.equal("status", status));
     }
 
     if (campus && campus !== "all") {
@@ -77,10 +82,6 @@ export async function listProducts(
 
     if (category && category !== "all") {
       queries.push(Query.equal("category", category));
-    }
-
-    if (memberOnly !== undefined) {
-      queries.push(Query.equal("member_only", memberOnly));
     }
 
     const productsResponse = await db.listRows<WebshopProducts>(
@@ -98,7 +99,7 @@ export async function listProducts(
 }
 
 /**
- * The product read for the redesigned page (RD-022).
+ * The product read for the redesigned page (RD-022) and its metadata.
  *
  * Identical to `getProductBySlug` except that it does **not** filter
  * `translation_refs` by locale. That filter is why the English product page was
@@ -107,8 +108,11 @@ export async function listProducts(
  * rendered an empty headline. The caller picks the best available translation
  * with `getPrimaryTranslation`, which prefers the reader's locale.
  *
- * `getProductBySlug` is left untouched so the current page behaves exactly as
- * it does today with the shell flag off.
+ * Like `getProductBySlug` it filters on `status` but deliberately NOT on
+ * `unlisted`: a link-only product is sold at its `/shop/<slug>` URL, and the
+ * column is projected so `generateMetadata` can mark that page `noindex`. The
+ * checkout questions are projected for the storefront form and validated again
+ * server-side in app/actions/orders.ts.
  */
 export async function getProductDetailBySlug(
   slug: string
@@ -136,6 +140,7 @@ export async function getProductDetailBySlug(
           "regular_price",
           "member_price",
           "member_only",
+          "unlisted",
           "image",
           "stock",
           "metadata",
@@ -149,6 +154,16 @@ export async function getProductDetailBySlug(
           "translation_refs.title",
           "translation_refs.description",
           "translation_refs.short_description",
+          "custom_fields.$id",
+          "custom_fields.field_key",
+          "custom_fields.label",
+          "custom_fields.type",
+          "custom_fields.is_required",
+          "custom_fields.placeholder",
+          "custom_fields.help_text",
+          "custom_fields.options",
+          "custom_fields.sort_order",
+          "custom_fields.enabled",
         ]),
         Query.limit(1),
       ]
@@ -189,6 +204,8 @@ export async function getProductBySlug(
           "regular_price",
           "member_price",
           "member_only",
+          // Read so `generateMetadata` can mark a link-only product `noindex`.
+          "unlisted",
           "image",
           "stock",
           "metadata",
@@ -207,6 +224,18 @@ export async function getProductBySlug(
           "translation_refs.description",
           "translation_refs.short_description",
           "translation_refs.additional_fields",
+          // Checkout questions for this product, rendered by the storefront and
+          // validated again server-side in app/actions/orders.ts.
+          "custom_fields.$id",
+          "custom_fields.field_key",
+          "custom_fields.label",
+          "custom_fields.type",
+          "custom_fields.is_required",
+          "custom_fields.placeholder",
+          "custom_fields.help_text",
+          "custom_fields.options",
+          "custom_fields.sort_order",
+          "custom_fields.enabled",
         ]),
         Query.limit(1),
       ]

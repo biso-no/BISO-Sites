@@ -1,20 +1,22 @@
-import { cacheLife } from "next/cache";
+import { managementDepartmentId } from "@/lib/campus-leadership";
 import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
+import { cachedUnitBoard, type UnitBoardMember } from "@/lib/data/unit-board";
 
 /**
- * Campus leadership, read from `apps/api`'s Azure AD board endpoint.
+ * A campus's management board, as the campus landing renders it.
  *
- * **Restored after PR review.** The v1 campus page had a "Management" /
- * "Ledelsen" tab backed by this endpoint; RD-023 rebuilt the page as a single
- * scroll and the tab went with the tabs. The redesign's audit recorded the
- * `department_board` *table* as empty (PLACEHOLDER-010) and concluded there was
- * no board data — but this feature never read that table. It reads live people
- * out of Azure AD through Microsoft Graph, and it still returns them.
+ * The people come from Microsoft 365 through `apps/api`'s board endpoint — the
+ * same live directory the v1 "Management" tab and the front page's leadership
+ * section read. This module only decides WHICH boards make up a campus's
+ * leadership; the reads go through `cachedUnitBoard`, so every board is one
+ * cache entry shared with the unit pages and the front page.
  *
- * The response carries base64 portraits. `apps/api` now asks Graph for a
- * bounded thumbnail rather than the original upload, which took Oslo's board
- * from 25 MB to 382 KB; without that this could not be rendered on a page at
- * all. It is still large enough to want caching and its own Suspense boundary.
+ * Deliberately NOT a `"use cache"` entry itself. `cachedUnitBoard` throws on a
+ * transient failure so that an outage is never cached as "this campus has no
+ * board"; the fallback for National's per-committee reads therefore lives here,
+ * outside every cache entry, where an empty group lasts for this render only.
+ * A single campus board is left to throw, and the page catches it — the
+ * section is then omitted rather than the page failing.
  */
 export interface BoardMember {
   email: string | null;
@@ -24,124 +26,87 @@ export interface BoardMember {
   position: string | null;
 }
 
+/** National's leadership groups; `null` is a campus's one management board. */
+export type LeadershipGroupKey =
+  | "operations"
+  | "administration"
+  | "controlCommittee"
+  | "brandingCommittee";
+
 export interface BoardSection {
+  /** Translated by the landing under `campus.leadership.groups.*`. */
+  key: LeadershipGroupKey | null;
   members: BoardMember[];
-  title: string;
 }
 
-/** Azure AD department that holds each campus's management. */
-const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
-  "1": "2",
-  "2": "301",
-  "3": "601",
-  "4": "801",
-  "5": "1002",
-};
+interface LeadershipGroup {
+  key: LeadershipGroupKey;
+  segment: string;
+}
 
 /**
- * National leadership is not one board: it is split across the Operations Unit
- * and three committees, each rendered under its own heading. The segments are
- * literal Azure department names except the first, which resolves through a
- * `departments` row id.
+ * National leadership is not one board: it is split across the Operations
+ * Unit and three committees, each rendered under its own heading. The
+ * Operations Unit resolves through its `departments` row id — main's
+ * `MANAGEMENT_DEPARTMENT_IDS`, the same map the front page reads — and the
+ * committees are literal Azure AD department names, which the board endpoint
+ * matches directly.
  */
-const NATIONAL_GROUPS: {
-  segment: string;
-  title: { en: string; no: string };
-}[] = [
-  {
-    segment: MANAGEMENT_DEPARTMENT_IDS[NATIONAL_CAMPUS_ID],
-    title: { en: "Operations Unit", no: "Operations Unit" },
-  },
-  {
-    segment: "Administration",
-    title: { en: "Administration", no: "Administrasjon" },
-  },
-  {
-    segment: "Control Committee",
-    title: { en: "Control Committee", no: "Kontrollkomiteen" },
-  },
-  {
-    segment: "Branding Committee",
-    title: { en: "Branding Committee", no: "Brandingkomiteen" },
-  },
+const NATIONAL_COMMITTEES: LeadershipGroup[] = [
+  { key: "administration", segment: "Administration" },
+  { key: "controlCommittee", segment: "Control Committee" },
+  { key: "brandingCommittee", segment: "Branding Committee" },
 ];
 
-interface BoardResponse {
-  members?: {
-    email?: string | null;
-    name?: string | null;
-    phone?: string | null;
-    profilePhotoUrl?: string | null;
-    role?: string | null;
-  }[];
-  success?: boolean;
+function nationalGroups(): LeadershipGroup[] {
+  const operations = managementDepartmentId(NATIONAL_CAMPUS_ID);
+  return operations
+    ? [{ key: "operations", segment: operations }, ...NATIONAL_COMMITTEES]
+    : NATIONAL_COMMITTEES;
 }
 
-async function fetchBoard(
+function toBoardMember(member: UnitBoardMember): BoardMember {
+  return {
+    email: member.email,
+    imageUrl: member.imageUrl,
+    name: member.name,
+    phone: member.phone ?? null,
+    position: member.role,
+  };
+}
+
+async function boardMembers(
   campusId: string,
   segment: string
 ): Promise<BoardMember[]> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!base) {
-    return [];
-  }
-
-  const response = await fetch(
-    `${base}/api/campus/${campusId}/${encodeURIComponent(segment)}/board`,
-    { headers: { "Content-Type": "application/json" } }
-  );
-  if (!response.ok) {
-    return [];
-  }
-
-  const data = (await response.json()) as BoardResponse;
-  if (!data.success) {
-    return [];
-  }
-
-  return (data.members ?? [])
-    .filter((member) => member.name)
-    .map((member) => ({
-      name: member.name as string,
-      position: member.role ?? null,
-      email: member.email ?? null,
-      phone: member.phone ?? null,
-      imageUrl: member.profilePhotoUrl ?? null,
-    }));
+  const members = await cachedUnitBoard(campusId, segment);
+  return members.map(toBoardMember);
 }
 
 /**
  * Every leadership group for a campus, in render order.
  *
- * `apps/api` is a separate service: if it is down or Azure is unreachable this
- * returns an empty list and the caller omits the section, rather than failing
- * the whole campus page for a block that sits below the fold.
+ * THROWS when a single campus's board cannot be read — the caller supplies the
+ * fallback. National's groups each fall back on their own, so one committee's
+ * directory failing never hides the others.
  */
 export async function campusLeadership(
-  campusId: string,
-  locale: "en" | "no"
+  campusId: string
 ): Promise<BoardSection[]> {
-  "use cache";
-  cacheLife("hours");
+  if (campusId === NATIONAL_CAMPUS_ID) {
+    const groups = await Promise.all(
+      nationalGroups().map(async (group) => ({
+        key: group.key,
+        members: await boardMembers(campusId, group.segment).catch(() => []),
+      }))
+    );
+    return groups.filter((group) => group.members.length > 0);
+  }
 
-  try {
-    if (campusId === NATIONAL_CAMPUS_ID) {
-      const groups = await Promise.all(
-        NATIONAL_GROUPS.map(async (group) => ({
-          title: group.title[locale],
-          members: await fetchBoard(campusId, group.segment).catch(() => []),
-        }))
-      );
-      return groups.filter((group) => group.members.length > 0);
-    }
-
-    const segment = MANAGEMENT_DEPARTMENT_IDS[campusId];
-    if (!segment) {
-      return [];
-    }
-    const members = await fetchBoard(campusId, segment);
-    return members.length > 0 ? [{ title: "", members }] : [];
-  } catch {
+  const segment = managementDepartmentId(campusId);
+  if (!segment) {
     return [];
   }
+  const members = await boardMembers(campusId, segment);
+  return members.length > 0 ? [{ key: null, members }] : [];
 }

@@ -21,6 +21,8 @@ const RESOLVED_SOAP_TIMEOUT_MS = Number.isFinite(SOAP_TIMEOUT_MS)
 
 // WSDL endpoints for 24SevenOffice services
 export const WSDL_URLS = {
+  account:
+    "https://api.24sevenoffice.com/Economy/Account/V004/Accountservice.asmx?wsdl",
   authenticate:
     "https://api.24sevenoffice.com/authenticate/v001/authenticate.asmx?wsdl",
   client: "https://api.24sevenoffice.com/Client/V001/ClientService.asmx?wsdl",

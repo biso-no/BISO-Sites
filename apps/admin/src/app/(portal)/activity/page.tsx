@@ -1,16 +1,23 @@
 import { Activity } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { parseListParams } from "@/lib/list-params";
 import { listActivityLog } from "../_actions/activity";
 import { EmptyState } from "../_components/empty-state";
 import { PageHeader } from "../_components/page-header";
+import { PaginationBar } from "../_components/pagination-bar";
 import { STUDIO, StudioIconBox, StudioPanel } from "../_components/studio";
 
-export default async function ActivityPage() {
+export default async function ActivityPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireNavAccess("portal.activity");
   const t = await getTranslations("adminPortal.activity");
 
-  const logs = await listActivityLog({ limit: 50 });
+  const params = parseListParams(await searchParams);
+  const { rows: logs, total } = await listActivityLog(params);
 
   return (
     <div className="pb-12">
@@ -83,6 +90,13 @@ export default async function ActivityPage() {
           ))}
         </StudioPanel>
       )}
+
+      <PaginationBar
+        page={params.page}
+        size={params.size}
+        sizeSelectable
+        total={total}
+      />
     </div>
   );
 }

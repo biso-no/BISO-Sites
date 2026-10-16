@@ -43,6 +43,10 @@ handler. Any new top-level route segment must add its own auth check.
   - `National + Operations Unit` → `globaladmin`
   - `Ledelsen{City} + Campus-{City}` → `campusadmin` (with managed campus list)
   - Any department team membership → the `department` pseudo-role
+  - `Control Committee` department membership → organisation-wide access to
+    governing documents only, via `documentAccessContext()` in
+    `src/lib/documents/access.ts`. Use that context for authorization inside
+    `_actions/documents.ts`; never pass it to other surfaces.
 - Appwrite user **labels are read but never used for role checks** — do not add
   label-based gating.
 - Use `getUserAuthContext()` (server) as the canonical auth read, and

@@ -2,36 +2,53 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { EventsCategory, EventsPricingMode } from "@repo/api/types/appwrite";
 import { describe, expect, it } from "vitest";
+import { EVENT_CATEGORY_MESSAGE_KEYS } from "@/lib/types/event";
 import {
   EVENT_CATEGORIES,
   eventPrice,
+  firstPageTotal,
   formatEventDate,
   formatEventTime,
   formatEventTimeRange,
+  islandTotalAfterPage,
   isPastEvent,
   parseCategory,
   pickContent,
-  sortForFeed,
 } from "./event-fields";
 
 const here = join(process.cwd(), "src/components/events/v2");
 
 const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
 const LINE_COMMENT = /^\s*\/\/.*$/gm;
+/** A list narrowed on membership — what hid members-only events in v1. */
+const MEMBER_FILTER = /\.filter\([^)]*(member_only|isMember)/;
+/** Hoisted: Biome forbids building a regex inside an assertion. */
+const CLIENT_SORT = /\.sort\(/;
 
 /**
  * The doc comments in these files name the v1 behaviour they replace
  * ("EventDetailModal", "isMember", "events@biso.no"), so an assertion that the
  * behaviour is gone has to read the code rather than the prose about it.
  */
-function code(file: string): string {
-  return readFileSync(join(here, file), "utf8")
+function code(file: string, dir = here): string {
+  return readFileSync(join(dir, file), "utf8")
     .replace(BLOCK_COMMENT, "")
     .replace(LINE_COMMENT, "");
 }
 
 const listSource = code("events-v2.tsx");
+const cardSource = code("event-card-v2.tsx");
+const feedSource = code("events-feed-list.tsx");
 const detailSource = code("event-detail-v2.tsx");
+const ticketSource = code("ticket-link.tsx");
+const pageSource = code(
+  "page.tsx",
+  join(process.cwd(), "src/app/(public)/events")
+);
+const detailPageSource = code(
+  "page.tsx",
+  join(process.cwd(), "src/app/(public)/events/[slug]")
+);
 
 const dated = (start: string | null, end: string | null = null) => ({
   start_date: start,
@@ -85,19 +102,60 @@ describe("feed ordering", () => {
     expect(isPastEvent(dated(null), now)).toBe(false);
   });
 
-  it("puts the soonest upcoming event first and past events last", () => {
-    const events = [
-      { $id: "past-old", ...dated("2026-01-01T10:00:00Z") },
-      { $id: "soon", ...dated("2026-09-22T10:00:00Z") },
-      { $id: "past-recent", ...dated("2026-08-26T10:00:00Z") },
-      { $id: "later", ...dated("2026-10-01T18:00:00Z") },
-    ];
-    expect(sortForFeed(events, now).map((event) => event.$id)).toEqual([
-      "soon",
-      "later",
-      "past-recent",
-      "past-old",
-    ]);
+  it("leaves the order and the finished events to the query", () => {
+    // `listEvents({ upcomingOnly: true })` hides finished events and orders by
+    // start date in Appwrite, so the order holds across "Load more" pages. A
+    // client-side sort could only ever reorder the one page it held.
+    expect(pageSource).toContain("upcomingOnly: true");
+    expect(feedSource).toContain("upcomingOnly: true");
+    for (const source of [listSource, cardSource, feedSource]) {
+      expect(source).not.toMatch(CLIENT_SORT);
+    }
+  });
+});
+
+describe("load-more totals", () => {
+  const PAGE = 12;
+
+  it("counts a short first page as the whole result", () => {
+    // `listRows(...).total` has reported the whole table (see `countRows`).
+    expect(firstPageTotal(3, 47, PAGE)).toBe(3);
+    expect(firstPageTotal(0, 47, PAGE)).toBe(0);
+    expect(firstPageTotal(PAGE, 30, PAGE)).toBe(30);
+  });
+
+  it("tracks only the rows after the server-rendered first page", () => {
+    expect(
+      islandTotalAfterPage({
+        firstPageCount: PAGE,
+        page: 2,
+        pageRows: PAGE,
+        pageSize: PAGE,
+        reportedTotal: 30,
+      })
+    ).toBe(18);
+  });
+
+  it("ends the list on a short page, whatever the reported total says", () => {
+    expect(
+      islandTotalAfterPage({
+        firstPageCount: PAGE,
+        page: 2,
+        pageRows: 5,
+        pageSize: PAGE,
+        reportedTotal: 47,
+      })
+    ).toBe(5);
+    // Page 3 came back empty: the island holds exactly page 2's twelve.
+    expect(
+      islandTotalAfterPage({
+        firstPageCount: PAGE,
+        page: 3,
+        pageRows: 0,
+        pageSize: PAGE,
+        reportedTotal: 47,
+      })
+    ).toBe(PAGE);
   });
 });
 
@@ -137,27 +195,40 @@ describe("pricing", () => {
 });
 
 describe("date formatting", () => {
-  // The stored `+00:00` is a stamp on the editor's wall clock, not a real
-  // offset, so 18:00 must read as 18:00 wherever the server happens to run.
-  it("prints the wall clock that was typed, independent of the host zone", () => {
-    expect(formatEventTime("2026-10-01T18:00:00.000+00:00", "nb-NO")).toBe(
+  // The admin editor stores a real UTC instant converted from the Oslo wall
+  // clock it was typed in (`osloWallClockToIso`), so 18:00 in Oslo is stored
+  // as 16:00Z in summer and 17:00Z in winter, and must read back as 18:00
+  // wherever the server happens to run.
+  it("prints Oslo wall-clock time, independent of the host zone", () => {
+    expect(formatEventTime("2026-10-01T16:00:00.000+00:00", "nb-NO")).toBe(
       "18:00"
     );
-    expect(formatEventDate("2026-10-01T18:00:00.000+00:00", "en-GB")).toContain(
+    expect(formatEventTime("2026-12-01T17:00:00.000+00:00", "en-GB")).toBe(
+      "18:00"
+    );
+    expect(formatEventDate("2026-10-01T16:00:00.000+00:00", "en-GB")).toContain(
       "1 October 2026"
     );
+  });
+
+  it("puts a late-evening UTC instant on the Oslo calendar day", () => {
+    // 22:30Z on 30 September is 00:30 on 1 October in Oslo.
+    expect(formatEventDate("2026-09-30T22:30:00.000Z", "en-GB")).toContain(
+      "1 October 2026"
+    );
+    expect(formatEventTime("2026-09-30T22:30:00.000Z", "nb-NO")).toBe("00:30");
   });
 
   it("renders a range only when there is an end", () => {
     expect(
       formatEventTimeRange(
-        "2026-10-01T18:00:00.000+00:00",
-        "2026-10-01T23:00:00.000+00:00",
+        "2026-10-01T16:00:00.000+00:00",
+        "2026-10-01T21:00:00.000+00:00",
         "nb-NO"
       )
     ).toBe("18:00 – 23:00");
     expect(
-      formatEventTimeRange("2026-10-01T18:00:00.000+00:00", null, "nb-NO")
+      formatEventTimeRange("2026-10-01T16:00:00.000+00:00", null, "nb-NO")
     ).toBe("18:00");
     expect(formatEventTimeRange(null, null, "nb-NO")).toBeNull();
   });
@@ -215,38 +286,97 @@ describe("translation fallback", () => {
 
 describe("events v2 structure", () => {
   it("links every card to the detail route the modal replaced", () => {
-    // Assembled rather than written inline: the literal is a template string
-    // in the source, and Biome flags `${...}` inside a plain string.
-    expect(listSource).toContain(
-      ["href={`/events/", "{event.slug}`}"].join("$")
-    );
-    expect(listSource).not.toContain("EventDetailModal");
+    // `getEventHref` builds `/events/<slug>` and returns null for a row with
+    // no usable slug, which the card then shows without a link.
+    expect(cardSource).toContain("getEventHref(event)");
+    expect(cardSource).toContain("<Link");
+    for (const source of [listSource, cardSource, feedSource]) {
+      expect(source).not.toContain("EventDetailModal");
+    }
+  });
+
+  it("renders the same card on the server page and in the load-more island", () => {
+    expect(listSource).toContain("<EventCardV2");
+    expect(feedSource).toContain("<EventCardV2");
+    // The card is imported by a Client Component, so it may not reach for
+    // anything server-only.
+    expect(cardSource).not.toContain("next-intl/server");
+    expect(cardSource).not.toContain("@repo/api/server");
+    expect(cardSource).not.toContain("useTranslations");
   });
 
   it("renders member-only events with a pill instead of hiding them", () => {
-    expect(listSource).toContain("event.member_only");
-    expect(listSource).toContain("labels.membersOnly");
-    expect(listSource).not.toContain("isMember");
+    expect(cardSource).toContain("event.member_only");
+    expect(cardSource).toContain("labels.membersOnly");
+    // `isMember` decides which price a card leads with; it never narrows the
+    // list. The query side is pinned in `events-pagination.test.ts`.
+    for (const source of [listSource, cardSource, feedSource, pageSource]) {
+      expect(source).not.toMatch(MEMBER_FILTER);
+    }
   });
 
   it("filters on the real column, never on parsed metadata", () => {
-    expect(listSource).toContain("event.category === activeCategory");
-    expect(listSource).not.toContain("parseEventMetadata");
-    expect(detailSource).not.toContain("parseEventMetadata");
+    expect(pageSource).toContain("parseCategory(sp.category)");
+    expect(pageSource).toContain("listEventFacets(");
+    for (const source of [listSource, cardSource, detailSource]) {
+      expect(source).not.toContain("parseEventMetadata");
+    }
+  });
+
+  it("pages through the server action with a Load more control", () => {
+    expect(feedSource).toContain("useLoadMore");
+    expect(feedSource).toContain("<LoadMoreButton");
+    expect(feedSource).toContain("listEvents(");
+    // A changed filter remounts the island rather than appending to it.
+    expect(listSource).toContain("key={`");
+    expect(listSource).toContain('t("filters.showingFirstResults"');
+  });
+
+  it("searches under q, and still reads the old search parameter", () => {
+    expect(pageSource).toContain("parseWebListParams(sp)");
+    expect(pageSource).toContain("sp.search");
+    expect(listSource).toContain('name="q"');
+  });
+
+  it("leaves campus to the header switcher, while ?campus= still scopes", () => {
+    // The Branding Committee made the header switcher the one place to change
+    // campus (#95), so the feed offers no campus chips of its own.
+    expect(listSource).not.toContain('param="campus"');
+    // The URL still decides the scope, and both reads honour it.
+    expect(pageSource).toContain("resolveRequestCampus(sp.campus");
+    expect(pageSource).toContain("campus: campusKey");
+    expect(feedSource).toContain("campus,");
+    // Searching and picking a category keep the campus already in the URL.
+    expect(listSource).toContain('["campus", "category"]');
+    expect(listSource).toContain('new Set(["page", "q", "search"])');
   });
 
   it("derives the ticket state from ticket_url on both views", () => {
-    expect(listSource).toContain("event.ticket_url ?");
-    expect(detailSource).toContain("event.ticket_url ?");
+    expect(cardSource).toContain("event.ticket_url ?");
+    expect(detailSource).toContain("resolveEventRegistration(event)");
+    expect(detailSource).toContain("registration.ticketUrl ?");
+    expect(ticketSource).toContain('"event_ticket_click"');
   });
 
   it("offers no registration control when there is nothing to register with", () => {
-    expect(detailSource).toContain('t("detail.noRegistration")');
+    // Drop-in events say so; events that take sign-ups without a link say
+    // that instead. Neither gets a button.
+    expect(detailSource).toContain('t("actions.noRegistrationTitle")');
+    expect(detailSource).toContain('t("actions.registrationRequired")');
     expect(detailSource).not.toContain("registerNow");
+  });
+
+  it("shows a members-only event to everyone, with the notice", () => {
+    expect(detailSource).toContain("<MembersOnlyNotice");
+    expect(detailPageSource).toContain("getMembershipStatus()");
+    expect(detailPageSource).toContain(
+      'membership.reason === "not_authenticated"'
+    );
   });
 
   it("uses the per-event contact rather than a hardcoded address", () => {
     expect(detailSource).toContain("event.contact_email");
+    expect(detailSource).toContain('t("infoCards.contactPerson"');
     expect(detailSource).not.toContain("events@biso.no");
   });
 
@@ -256,10 +386,10 @@ describe("events v2 structure", () => {
   });
 
   it("carries no whileInView anywhere in the events tree", () => {
-    expect(listSource).not.toContain("whileInView");
-    expect(detailSource).not.toContain("whileInView");
-    expect(listSource).not.toContain("motion/react");
-    expect(detailSource).not.toContain("motion/react");
+    for (const source of [listSource, cardSource, feedSource, detailSource]) {
+      expect(source).not.toContain("whileInView");
+      expect(source).not.toContain("motion/react");
+    }
   });
 });
 
@@ -282,6 +412,12 @@ describe("events message bundle", () => {
         expect(
           messages.category?.[category],
           `${locale}.category.${category}`
+        ).toBeTruthy();
+        // The chips and pills read `filters.<key>` through main's map.
+        const key = EVENT_CATEGORY_MESSAGE_KEYS[category];
+        expect(
+          messages.filters?.[key],
+          `${locale}.filters.${key}`
         ).toBeTruthy();
       }
     }

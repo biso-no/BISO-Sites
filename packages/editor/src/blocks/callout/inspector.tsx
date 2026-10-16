@@ -21,7 +21,7 @@ export function CalloutInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["info", "warn", "tip"] as const).map((t) => (
             <button
-              className={`pe-variant${tone === t ? "on" : ""}`}
+              className={`pe-variant ${tone === t ? "on" : ""}`}
               key={t}
               onClick={() => onPatch("tone", t)}
               type="button"

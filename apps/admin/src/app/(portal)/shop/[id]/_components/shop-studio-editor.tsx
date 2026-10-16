@@ -7,6 +7,7 @@ import type {
   Departments,
   WebshopProducts,
 } from "@repo/api/types/appwrite";
+import { generateSlug, nextAutoSlug } from "@repo/shared/utils/content-slug";
 import {
   ArrowLeft,
   Check,
@@ -32,12 +33,16 @@ import {
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
 import { getTargetLocale } from "@/lib/content-translation";
+import { uploadMediaFile } from "@/lib/upload-client";
+import {
+  listDepartmentsForCampus,
+  type SalesTypeOption,
+} from "../../../_actions/lookups";
 import {
   createProduct,
   generateProductTranslationDraft,
   updateProduct,
 } from "../../../_actions/shop";
-import { uploadMediaFile } from "../../../_actions/upload";
 import {
   type DescriptionBlock,
   type DescriptionBlockType,
@@ -47,14 +52,37 @@ import {
   newBlock,
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import {
+  type CustomFieldDraft,
+  CustomFieldsBoard,
+  type CustomFieldType,
+} from "./custom-fields-board";
 
 /* -------------------------------------------------------------------------- */
 /*                              Types                                          */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A saved `product_custom_fields` row. Declared locally because the generated
+ * `WebshopProducts` type only gains `custom_fields` once the table has been
+ * pushed and `appwrite types -l ts ./types` re-run; the generated file is not
+ * hand-edited.
+ */
+interface SavedCustomField {
+  $id: string;
+  enabled?: boolean | null;
+  help_text?: string | null;
+  is_required?: boolean | null;
+  label?: string | null;
+  options?: string[] | null;
+  placeholder?: string | null;
+  sort_order?: number | null;
+  type?: string | null;
+}
+
 type ProductWithTranslations = WebshopProducts & {
+  custom_fields?: SavedCustomField[];
   translation_refs: ContentTranslations[];
-  finago_account_number?: number | null;
 };
 
 interface ProductVariant {
@@ -73,6 +101,7 @@ interface ShopStudioEditorProps {
   departments: Departments[];
   isNew: boolean;
   product: ProductWithTranslations | null;
+  salesTypes: SalesTypeOption[];
 }
 
 type LocaleCode = "en" | "no";
@@ -100,7 +129,7 @@ const BRAND = {
 const STEPS = [
   "Essentials",
   "Description",
-  "Pricing & Variants",
+  "Pricing & Options",
   "Photos & Visibility",
   "Review",
 ] as const;
@@ -143,13 +172,18 @@ const MONO_STACK =
 /*                                  Utilities                                  */
 /* -------------------------------------------------------------------------- */
 
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
+/**
+ * `createProduct`/`updateProduct` return either a flat message (e.g. the
+ * sales-type publish guard) or zod's per-field `fieldErrors`. Surface
+ * whichever the caller sent, falling back to a generic message.
+ */
+function describeSaveError(
+  error: string | Record<string, string[] | undefined> | undefined
+): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  return Object.values(error ?? {}).flat()[0] ?? "Failed to save product";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1024,10 +1058,8 @@ function ImageSlot({
     if (!file) {
       return;
     }
-    const formData = new FormData();
-    formData.append("file", file);
     setUploading(true);
-    const result = await uploadMediaFile(formData);
+    const result = await uploadMediaFile(file);
     setUploading(false);
     if (result.error) {
       toast.error(result.error);
@@ -1184,22 +1216,25 @@ function EssentialsStep({
   category,
   departmentId,
   departments,
-  finagoAccountNumber,
   lang,
   onLangChange,
+  salesType,
+  salesTypes,
   setCampusId,
   setCategory,
   setDepartmentId,
-  setFinagoAccountNumber,
+  setSalesType,
   setShortDescription,
   setSlug,
   setSlugEditing,
+  setSlugLocked,
   setTags,
   setTitleEn,
   setTitleNo,
   shortDescription,
   slug,
   slugEditing,
+  slugLocked,
   tags,
   titleEn,
   titleNo,
@@ -1211,22 +1246,25 @@ function EssentialsStep({
   category: string | null;
   departmentId: string | null;
   departments: Departments[];
-  finagoAccountNumber: number | null;
   lang: LocaleCode;
   onLangChange: (l: LocaleCode) => void;
+  salesType: string | null;
+  salesTypes: SalesTypeOption[];
   setCampusId: (v: string) => void;
   setCategory: (v: string | null) => void;
   setDepartmentId: (v: string | null) => void;
-  setFinagoAccountNumber: (v: number | null) => void;
+  setSalesType: (v: string | null) => void;
   setShortDescription: (v: string) => void;
   setSlug: (v: string) => void;
   setSlugEditing: (v: boolean) => void;
+  setSlugLocked: (v: boolean) => void;
   setTags: (v: string[]) => void;
   setTitleEn: (v: string) => void;
   setTitleNo: (v: string) => void;
   shortDescription: string;
   slug: string;
   slugEditing: boolean;
+  slugLocked: boolean;
   tags: string[];
   titleEn: string;
   titleNo: string;
@@ -1238,16 +1276,26 @@ function EssentialsStep({
     campuses.find((c) => c.$id === campusId)?.name?.toLowerCase() ?? "campus";
   const campusSlug = campusName.replace(/\s+/g, "-");
 
+  // The slug mirrors the Norwegian title — the same one `buildPayload` falls
+  // back to — so editing the English tab never rewrites an existing slug.
   function handleTitleChange(value: string) {
     setTitle(value);
-    if (!slug) {
-      setSlug(generateSlug(value));
+    if (lang !== "no") {
+      return;
+    }
+    const next = nextAutoSlug({ locked: slugLocked, title: value });
+    if (next !== null) {
+      setSlug(next);
     }
   }
 
   function handleTitleBlur() {
-    if (!slug && titleNo) {
-      setSlug(generateSlug(titleNo));
+    if (!titleNo) {
+      return;
+    }
+    const next = nextAutoSlug({ locked: slugLocked, title: titleNo });
+    if (next !== null) {
+      setSlug(next);
     }
   }
 
@@ -1308,9 +1356,11 @@ function EssentialsStep({
           {slugEditing ? (
             <input
               onBlur={() => setSlugEditing(false)}
-              onChange={(e) =>
-                setSlug(e.target.value.replace(/[^a-z0-9-]/g, ""))
-              }
+              onChange={(e) => {
+                // A hand-typed slug wins from here on: stop mirroring the title.
+                setSlugLocked(true);
+                setSlug(e.target.value.replace(/[^a-z0-9-]/g, ""));
+              }}
               style={{
                 background: "transparent",
                 border: 0,
@@ -1450,10 +1500,7 @@ function EssentialsStep({
             <FieldLabel required>Campus</FieldLabel>
             <select
               disabled={!canChangeCampus}
-              onChange={(e) => {
-                setCampusId(e.target.value);
-                setDepartmentId(null);
-              }}
+              onChange={(e) => setCampusId(e.target.value)}
               style={fieldInputStyle()}
               value={campusId}
             >
@@ -1495,21 +1542,26 @@ function EssentialsStep({
             </div>
           </div>
 
-          {/* Finago account number */}
+          {/* Sales type — decides the Finago revenue account and VAT */}
           <div>
-            <FieldLabel>Finago account number</FieldLabel>
-            <input
-              min={0}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFinagoAccountNumber(val === "" ? null : Number(val));
-              }}
-              placeholder="e.g. 3000"
-              step={1}
+            <FieldLabel>Sales type</FieldLabel>
+            <select
+              onChange={(e) => setSalesType(e.target.value || null)}
               style={fieldInputStyle()}
-              type="number"
-              value={finagoAccountNumber ?? ""}
-            />
+              value={salesType ?? ""}
+            >
+              <option value="">Choose a sales type</option>
+              {salesTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.labelNo} ({type.accountNumber})
+                  {type.active ? "" : " (inactive)"}
+                </option>
+              ))}
+              {salesType &&
+                !salesTypes.some((type) => type.id === salesType) && (
+                  <option value={salesType}>{salesType} (deleted)</option>
+                )}
+            </select>
             <div
               style={{
                 color: BRAND.ink,
@@ -1518,7 +1570,7 @@ function EssentialsStep({
                 opacity: 0.5,
               }}
             >
-              GL revenue account for 24SevenOffice ledger posting
+              Required to publish. Decides the Finago revenue account and VAT.
             </div>
           </div>
         </div>
@@ -1587,11 +1639,13 @@ function DescriptionStep({
 
 function PricingVariantsStep({
   inventoryMode,
+  localCustomFields,
   localVariants,
   memberOnly,
   memberPrice,
   regularPrice,
   setInventoryMode,
+  setLocalCustomFields,
   setLocalVariants,
   setMemberOnly,
   setMemberPrice,
@@ -1600,11 +1654,13 @@ function PricingVariantsStep({
   stock,
 }: {
   inventoryMode: "tracked" | "unlimited";
+  localCustomFields: CustomFieldDraft[];
   localVariants: ProductVariant[];
   memberOnly: boolean;
   memberPrice: number | null;
   regularPrice: number;
   setInventoryMode: (v: "tracked" | "unlimited") => void;
+  setLocalCustomFields: (f: CustomFieldDraft[]) => void;
   setLocalVariants: (v: ProductVariant[]) => void;
   setMemberOnly: (v: boolean) => void;
   setMemberPrice: (v: number | null) => void;
@@ -2078,22 +2134,32 @@ function PricingVariantsStep({
 
       {/* Member-only toggle */}
       <div>
-        <FieldLabel>Access restriction</FieldLabel>
+        <FieldLabel>Who can buy</FieldLabel>
         <div style={{ display: "flex", gap: 12 }}>
           <ToggleCard
             active={memberOnly}
-            description="Only visible to active BISO members."
+            description="Listed for everyone with a members-only badge; only members can complete the purchase."
             label="Members only"
             onClick={() => setMemberOnly(true)}
           />
           <ToggleCard
             active={!memberOnly}
-            description="Visible to all BI students."
+            description="Any BI student can buy this."
             label="Open to all"
             onClick={() => setMemberOnly(false)}
           />
         </div>
+        <p style={{ color: BRAND.ink4, fontSize: 11.5, marginTop: 5 }}>
+          Members only limits who can buy, not who can see. Use "Link only"
+          under Photos &amp; Visibility to hide a product from the shop.
+        </p>
       </div>
+
+      {/* Questions asked at checkout, stored per order line */}
+      <CustomFieldsBoard
+        fields={localCustomFields}
+        setFields={setLocalCustomFields}
+      />
     </div>
   );
 }
@@ -2102,20 +2168,128 @@ function PricingVariantsStep({
 /*                          PhotosVisibilityStep                              */
 /* -------------------------------------------------------------------------- */
 
+const BASE_URL_TRAILING_SLASH = /\/+$/;
+
+/**
+ * The public address of a link-only product, with a copy button. A product that
+ * appears in no listing cannot be found by browsing the site, so this is the
+ * only place staff can get the URL they need to hand out — which makes handing
+ * out a WRONG one the feature failing.
+ *
+ * The link is therefore built from the SAVED slug, never the editor's current
+ * value: a slug typed but not yet saved resolves to a 404. When the two differ,
+ * the old link is still the working one and the notice says so rather than
+ * quietly offering a dead address.
+ */
+function UnlistedLinkNotice({
+  draftSlug,
+  savedSlug,
+}: {
+  draftSlug: string;
+  savedSlug: string | null;
+}) {
+  const base = (
+    process.env.NEXT_PUBLIC_WEB_BASE_URL ?? "https://app.biso.no"
+  ).replace(BASE_URL_TRAILING_SLASH, "");
+  const url = savedSlug ? `${base}/shop/${savedSlug}` : null;
+  const slugIsUnsaved = savedSlug !== null && draftSlug !== savedSlug;
+
+  async function handleCopy() {
+    if (!url) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Could not copy the link — select it and copy manually.");
+    }
+  }
+
+  return (
+    <div
+      style={{
+        alignItems: "center",
+        background: BRAND.paper2,
+        border: `0.5px solid ${BRAND.rule2}`,
+        borderRadius: 10,
+        display: "flex",
+        gap: 10,
+        justifyContent: "space-between",
+        marginTop: 10,
+        padding: "10px 12px",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ color: BRAND.ink4, fontSize: 11, marginBottom: 3 }}>
+          Share this link with the buyers
+        </div>
+        {url ? (
+          <code
+            style={{
+              color: BRAND.ink,
+              fontSize: 12,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {url}
+          </code>
+        ) : (
+          <span style={{ color: BRAND.ink4, fontSize: 12 }}>
+            Save the product to get its link.
+          </span>
+        )}
+        {slugIsUnsaved && (
+          <div style={{ color: BRAND.gold, fontSize: 11, marginTop: 4 }}>
+            You have changed the slug. This is still the working link until you
+            save.
+          </div>
+        )}
+      </div>
+      {url && (
+        <button
+          onClick={handleCopy}
+          style={{
+            background: BRAND.ink,
+            border: 0,
+            borderRadius: 8,
+            color: "white",
+            cursor: "pointer",
+            flexShrink: 0,
+            fontSize: 12,
+            padding: "7px 12px",
+          }}
+          type="button"
+        >
+          Copy link
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PhotosVisibilityStep({
   coverPattern,
+  draftSlug,
   linkedEventId,
   localImages,
+  savedSlug,
   setCoverPattern,
   setLinkedEventId,
   setLocalImages,
+  setUnlisted,
+  unlisted,
 }: {
   coverPattern: string;
+  draftSlug: string;
   linkedEventId: string | null;
   localImages: string[];
+  savedSlug: string | null;
   setCoverPattern: (v: string) => void;
   setLinkedEventId: (v: string | null) => void;
   setLocalImages: (v: string[]) => void;
+  setUnlisted: (v: boolean) => void;
+  unlisted: boolean;
 }) {
   function handleUpload(index: number, url: string) {
     const next = [...localImages];
@@ -2201,6 +2375,28 @@ function PhotosVisibilityStep({
             );
           })}
         </div>
+      </div>
+
+      {/* Shop visibility */}
+      <div>
+        <FieldLabel>Shop visibility</FieldLabel>
+        <div style={{ display: "flex", gap: 12 }}>
+          <ToggleCard
+            active={!unlisted}
+            description="Listed in the shop and in campus and unit feeds."
+            label="Listed"
+            onClick={() => setUnlisted(false)}
+          />
+          <ToggleCard
+            active={unlisted}
+            description="Hidden from every listing and from search engines. Only people with the link can find it."
+            label="Link only"
+            onClick={() => setUnlisted(true)}
+          />
+        </div>
+        {unlisted && (
+          <UnlistedLinkNotice draftSlug={draftSlug} savedSlug={savedSlug} />
+        )}
       </div>
 
       {/* Linked event */}
@@ -3112,9 +3308,10 @@ export function ShopStudioEditor({
   campuses,
   canChangeCampus = true,
   defaultCampusId,
-  departments,
+  departments: initialDepartments,
   isNew,
   product,
+  salesTypes,
 }: ShopStudioEditorProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -3143,6 +3340,19 @@ export function ShopStudioEditor({
         ? (allowedDepartmentIds[0] ?? null)
         : null)
   );
+  // The server only pre-loads departments for the campus the editor opens on,
+  // so switching campus has to re-fetch the picker's options.
+  const [departments, setDepartments] =
+    useState<Departments[]>(initialDepartments);
+
+  async function handleCampusChange(nextCampusId: string) {
+    setCampusId(nextCampusId);
+    setDepartmentId(null);
+    setDepartments(
+      nextCampusId ? await listDepartmentsForCampus(nextCampusId) : []
+    );
+  }
+
   const [shortDescription, setShortDescription] = useState(
     noTranslation?.short_description ?? ""
   );
@@ -3165,6 +3375,25 @@ export function ShopStudioEditor({
         type: "default",
       }));
   });
+  const [localCustomFields, setLocalCustomFields] = useState<
+    CustomFieldDraft[]
+  >(() =>
+    (product?.custom_fields ?? [])
+      .filter((field) => field.enabled !== false)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map((field) => ({
+        helpText: field.help_text ?? "",
+        id: field.$id,
+        label: field.label ?? "",
+        options: field.options ?? [],
+        placeholder: field.placeholder ?? "",
+        required: field.is_required ?? false,
+        type: (field.type ?? "text") as CustomFieldType,
+        // A saved field is uniquely identified by its row id; only unsaved
+        // ones need a generated key.
+        uid: field.$id,
+      }))
+  );
   const [regularPrice, setRegularPrice] = useState<number>(
     product?.regular_price ?? 0
   );
@@ -3174,6 +3403,7 @@ export function ShopStudioEditor({
   const [memberOnly, setMemberOnly] = useState<boolean>(
     product?.member_only ?? false
   );
+  const [unlisted, setUnlisted] = useState<boolean>(product?.unlisted ?? false);
   const [inventoryMode, setInventoryMode] = useState<"tracked" | "unlimited">(
     (product?.inventory_mode as "tracked" | "unlimited") ?? "unlimited"
   );
@@ -3190,8 +3420,8 @@ export function ShopStudioEditor({
   const [linkedEventId, setLinkedEventId] = useState<string | null>(
     product?.linked_event_id ?? null
   );
-  const [finagoAccountNumber, setFinagoAccountNumber] = useState<number | null>(
-    product?.finago_account_number ?? null
+  const [salesType, setSalesType] = useState<string | null>(
+    product?.sales_type ?? null
   );
   const [status, setStatus] = useState<
     "draft" | "pending_approval" | "published" | "archived"
@@ -3205,6 +3435,9 @@ export function ShopStudioEditor({
   const [activeStep, setActiveStep] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [localeLang, setLocaleLang] = useState<"en" | "no">("no");
   const [slugEditing, setSlugEditing] = useState(false);
+  // An existing product's slug is already live: never let a title edit rewrite
+  // it. New products mirror the title until someone types a slug by hand.
+  const [slugLocked, setSlugLocked] = useState(Boolean(product?.slug));
   const [autoTranslate, setAutoTranslate] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
 
@@ -3227,9 +3460,26 @@ export function ShopStudioEditor({
       regular_price: regularPrice,
       member_price: memberPrice,
       member_only: memberOnly,
+      unlisted,
       image: localImages[0] ?? null,
       stock,
       variations: localVariants,
+      // `id` is omitted for a field that has never been saved, which is how
+      // the server tells a new row from an existing one.
+      custom_fields: localCustomFields
+        .filter((field) => field.label.trim())
+        .map((field) => ({
+          ...(field.id ? { id: field.id } : {}),
+          help_text: field.helpText.trim() || null,
+          label: field.label.trim(),
+          options:
+            field.type === "select"
+              ? field.options.map((o) => o.trim()).filter(Boolean)
+              : [],
+          placeholder: field.placeholder.trim() || null,
+          required: field.required,
+          type: field.type,
+        })),
       tags,
       images: localImages,
       cover_pattern: coverPattern as
@@ -3240,7 +3490,7 @@ export function ShopStudioEditor({
         | "grid",
       linked_event_id: linkedEventId,
       inventory_mode: inventoryMode as "tracked" | "unlimited",
-      finago_account_number: finagoAccountNumber,
+      sales_type: salesType,
     };
   }
 
@@ -3258,7 +3508,7 @@ export function ShopStudioEditor({
           });
 
       if ("error" in result) {
-        toast.error("Failed to save product");
+        toast.error(describeSaveError(result.error));
       } else {
         const msg =
           targetStatus === "published" ? "Product published!" : "Draft saved";
@@ -3410,22 +3660,25 @@ export function ShopStudioEditor({
                 category={category}
                 departmentId={departmentId}
                 departments={departments}
-                finagoAccountNumber={finagoAccountNumber}
                 lang={localeLang}
                 onLangChange={setLocaleLang}
-                setCampusId={setCampusId}
+                salesType={salesType}
+                salesTypes={salesTypes}
+                setCampusId={handleCampusChange}
                 setCategory={setCategory}
                 setDepartmentId={setDepartmentId}
-                setFinagoAccountNumber={setFinagoAccountNumber}
+                setSalesType={setSalesType}
                 setShortDescription={setShortDescription}
                 setSlug={setSlug}
                 setSlugEditing={setSlugEditing}
+                setSlugLocked={setSlugLocked}
                 setTags={setTags}
                 setTitleEn={setTitleEn}
                 setTitleNo={setTitleNo}
                 shortDescription={shortDescription}
                 slug={slug}
                 slugEditing={slugEditing}
+                slugLocked={slugLocked}
                 tags={tags}
                 titleEn={titleEn}
                 titleNo={titleNo}
@@ -3444,11 +3697,13 @@ export function ShopStudioEditor({
             {activeStep === 2 && (
               <PricingVariantsStep
                 inventoryMode={inventoryMode}
+                localCustomFields={localCustomFields}
                 localVariants={localVariants}
                 memberOnly={memberOnly}
                 memberPrice={memberPrice}
                 regularPrice={regularPrice}
                 setInventoryMode={setInventoryMode}
+                setLocalCustomFields={setLocalCustomFields}
                 setLocalVariants={setLocalVariants}
                 setMemberOnly={setMemberOnly}
                 setMemberPrice={setMemberPrice}
@@ -3460,11 +3715,15 @@ export function ShopStudioEditor({
             {activeStep === 3 && (
               <PhotosVisibilityStep
                 coverPattern={coverPattern}
+                draftSlug={slug}
                 linkedEventId={linkedEventId}
                 localImages={localImages}
+                savedSlug={product?.slug ?? null}
                 setCoverPattern={setCoverPattern}
                 setLinkedEventId={setLinkedEventId}
                 setLocalImages={setLocalImages}
+                setUnlisted={setUnlisted}
+                unlisted={unlisted}
               />
             )}
             {activeStep === 4 && (

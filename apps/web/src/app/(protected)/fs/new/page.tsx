@@ -1,11 +1,18 @@
 import { ExpensesStatus } from "@repo/api/types/appwrite";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getCampuses } from "@/app/actions/campus";
 import { ExpensesUnavailable } from "@/components/expense/v2/expenses-unavailable";
 import { ExpenseSplitView } from "@/components/expense-v3/expense-split-view";
 import { getExpenseById } from "@/lib/actions/expense";
 import { getLoggedInUser } from "@/lib/actions/user";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("expenses");
+  return { title: `${t("composer.title")} | BISO`, description: t("lede") };
+}
 
 interface NewExpensePageProps {
   searchParams?: Promise<{

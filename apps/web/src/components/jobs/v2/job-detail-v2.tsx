@@ -1,4 +1,5 @@
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -6,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { JobApplicationForm } from "@/components/jobs/job-application-form";
 import { JobPostingSchema } from "@/components/jobs/job-posting-schema";
+import { JOB_TIME_ZONE } from "@/components/jobs/v2/job-card";
 import { ledeFor } from "@/components/jobs/v2/lede";
 import { CopyLinkButton } from "@/components/ui/copy-link-button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -26,11 +28,18 @@ import { Section } from "@/components/ui/section";
  * v1 also hardcodes every label in English ("Vacancy details", "Employer",
  * "Deadline", "Rolling") and formats dates `en-GB` regardless of locale, so a
  * Norwegian visitor reads an English page. Those are translated here.
+ *
+ * Members-only vacancies stay readable to everyone; only applying is gated.
+ * The header says so, and the form shows the visitor which wall stands in
+ * their way (sign in, or become a member) instead of the steps.
+ * `submitJobApplication` re-checks membership live before accepting one.
  */
 export interface JobDetailV2Props {
   applicantEmail?: string;
   applicantName?: string;
   isAuthenticated: boolean;
+  /** Membership status, resolved on the server; gates a members-only form. */
+  isMember?: boolean;
   job: RecruitmentVacancy;
   locale: string;
 }
@@ -60,8 +69,13 @@ async function VacancySummary({
           label={t("employer")}
           value={job.metadata.company || "BISO"}
         />
+        {/* The accounting name carries a campus prefix; the campus has its
+            own row below, so the unit is shown by its public name. */}
         {job.department?.Name ? (
-          <SummaryRow label={t("department")} value={job.department.Name} />
+          <SummaryRow
+            label={t("department")}
+            value={unitDisplayName(job.department.Name)}
+          />
         ) : null}
         <SummaryRow label={t("deadline")} value={deadline} />
         {job.metadata.location ? (
@@ -89,10 +103,73 @@ async function VacancySummary({
   );
 }
 
+/**
+ * The facts that qualify the title. `undefined` when there are none, because
+ * `PageHeader` renders its meta row — margin included — for any truthy value,
+ * an empty fragment too.
+ */
+function headerMeta(
+  job: RecruitmentVacancy,
+  labels: { membersOnly: string; paid: string }
+): ReactNode {
+  const pills = [
+    job.metadata.employment_type ? (
+      <Pill key="type" tone="accent" uppercase>
+        {job.metadata.employment_type}
+      </Pill>
+    ) : null,
+    job.metadata.paid ? (
+      <Pill key="paid" tone="success">
+        {labels.paid}
+      </Pill>
+    ) : null,
+    job.metadata.audience === "members" ? (
+      <Pill key="members" tone="warning">
+        {labels.membersOnly}
+      </Pill>
+    ) : null,
+  ].filter(Boolean);
+  return pills.length > 0 ? pills : undefined;
+}
+
+async function CommitmentDetails({
+  dateLocale,
+  job,
+}: {
+  dateLocale: string;
+  job: RecruitmentVacancy;
+}) {
+  const { commitment, start_date: startDate, term } = job.metadata;
+  if (!(commitment || term || startDate)) {
+    return null;
+  }
+  const t = await getTranslations("jobs.detail");
+  return (
+    <div>
+      <h2 className="type-heading-card text-ink">{t("commitmentTitle")}</h2>
+      <dl className="mt-4 grid gap-x-8 sm:grid-cols-3">
+        {commitment ? (
+          <SummaryRow label={t("hours")} value={commitment} />
+        ) : null}
+        {term ? <SummaryRow label={t("term")} value={term} /> : null}
+        {startDate ? (
+          <SummaryRow
+            label={t("startDate")}
+            value={new Date(startDate).toLocaleDateString(dateLocale, {
+              timeZone: JOB_TIME_ZONE,
+            })}
+          />
+        ) : null}
+      </dl>
+    </div>
+  );
+}
+
 export async function JobDetailV2({
   applicantEmail,
   applicantName,
   isAuthenticated,
+  isMember = false,
   job,
   locale,
 }: JobDetailV2Props) {
@@ -106,12 +183,14 @@ export async function JobDetailV2({
   const translation = job.translations[0];
   const title = translation?.title ?? "";
   const description = translation?.description ?? "";
+  // Norwegian calendar dates, whatever zone the server runs in — the same
+  // zone the listing's cards format in, so the two never disagree on a day.
   const deadline = job.application_deadline
-    ? new Date(job.application_deadline).toLocaleDateString(intlLocale)
+    ? new Date(job.application_deadline).toLocaleDateString(intlLocale, {
+        timeZone: JOB_TIME_ZONE,
+      })
     : t("detail.rolling");
-  const hasCommitment = Boolean(
-    job.metadata.commitment || job.metadata.term || job.metadata.start_date
-  );
+  const membersOnly = job.metadata.audience === "members";
 
   return (
     <>
@@ -129,18 +208,10 @@ export async function JobDetailV2({
           { label: title },
         ]}
         lede={ledeFor(translation?.short_description, description)}
-        meta={
-          <>
-            {job.metadata.employment_type ? (
-              <Pill tone="accent" uppercase>
-                {job.metadata.employment_type}
-              </Pill>
-            ) : null}
-            {job.metadata.paid ? (
-              <Pill tone="success">{t("card.paid")}</Pill>
-            ) : null}
-          </>
-        }
+        meta={headerMeta(job, {
+          membersOnly: t("card.membersOnly"),
+          paid: t("card.paid"),
+        })}
         title={title}
       />
 
@@ -156,35 +227,7 @@ export async function JobDetailV2({
               </Prose>
             </div>
 
-            {hasCommitment ? (
-              <div>
-                <h2 className="type-heading-card text-ink">
-                  {t("detail.commitmentTitle")}
-                </h2>
-                <dl className="mt-4 grid gap-x-8 sm:grid-cols-3">
-                  {job.metadata.commitment ? (
-                    <SummaryRow
-                      label={t("detail.hours")}
-                      value={job.metadata.commitment}
-                    />
-                  ) : null}
-                  {job.metadata.term ? (
-                    <SummaryRow
-                      label={t("detail.term")}
-                      value={job.metadata.term}
-                    />
-                  ) : null}
-                  {job.metadata.start_date ? (
-                    <SummaryRow
-                      label={t("detail.startDate")}
-                      value={new Date(
-                        job.metadata.start_date
-                      ).toLocaleDateString(intlLocale)}
-                    />
-                  ) : null}
-                </dl>
-              </div>
-            ) : null}
+            <CommitmentDetails dateLocale={intlLocale} job={job} />
           </div>
 
           {/* The sidebar is source-ordered after the description: on mobile the
@@ -199,7 +242,9 @@ export async function JobDetailV2({
               customQuestions={job.custom_questions ?? []}
               cvRequired={Boolean(job.metadata.cv_required)}
               isAuthenticated={isAuthenticated}
+              isMember={isMember}
               jobId={job.$id}
+              membersOnly={membersOnly}
             />
 
             <div className="flex items-start gap-3 rounded-biso-md bg-surface-sunken p-5">

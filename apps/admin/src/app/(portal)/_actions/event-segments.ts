@@ -17,6 +17,7 @@ import { createTypedRow } from "@repo/api/write";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { getContentOwnership } from "@/lib/content-authorization";
+import { withNationalEventScope } from "@/lib/event-scope";
 import { assertWriteAccess, hasRowAccess } from "@/lib/utils/authorization";
 import { sendAnnouncement } from "./announcements";
 import { logAuditEvent } from "./audit-log";
@@ -120,7 +121,7 @@ export type SegmentWithCount = EventSegments & { member_count: number };
 export async function listSegments(
   eventId: string
 ): Promise<SegmentWithCount[]> {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const { db } = await createAdminClient();
 
   const event = await loadScopedEvent(db, ctx, eventId);
@@ -147,7 +148,7 @@ export async function listSegments(
 }
 
 export async function createSegment(values: SegmentFormValues) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const validated = segmentSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -188,7 +189,7 @@ export async function createSegment(values: SegmentFormValues) {
 }
 
 export async function updateSegment(id: string, values: SegmentFormValues) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const validated = segmentSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -237,7 +238,7 @@ export async function updateSegment(id: string, values: SegmentFormValues) {
 }
 
 export async function deleteSegment(id: string) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
 
   try {
     const { db } = await createAdminClient();
@@ -441,7 +442,7 @@ export async function importAttendeesCsv(
   csvText: string,
   _opts?: Record<string, never>
 ): Promise<{ data?: ImportSummary; error?: string }> {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
 
   try {
     const { db: sessionDb } = await createAdminClient();
@@ -524,7 +525,7 @@ export async function importAttendeesCsv(
 export async function listAttendees(
   eventId: string
 ): Promise<EventAttendees[]> {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const { db: sessionDb } = await createAdminClient();
 
   const event = await loadScopedEvent(sessionDb, ctx, eventId);
@@ -585,7 +586,7 @@ export async function assignToSegment(
   segmentId: string,
   userIds: string[]
 ): Promise<{ data?: AssignResult; error?: string }> {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
 
   try {
     const { db } = await createAdminClient();
@@ -683,7 +684,7 @@ export async function autoAssign(
   eventId: string,
   opts: { kind: string }
 ): Promise<{ data?: AutoAssignResult; error?: string }> {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
 
   try {
     const { db } = await createAdminClient();
@@ -838,7 +839,7 @@ export async function messageSegment(
   segmentId: string,
   content: MessageSegmentValues
 ) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const validated = messageSegmentSchema.safeParse(content);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };

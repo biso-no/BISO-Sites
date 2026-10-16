@@ -273,6 +273,22 @@ export type RecruitmentVacancyUpsertInput = z.infer<
   typeof recruitmentVacancyUpsertSchema
 >;
 
+/**
+ * What vacancy write actions accept. `custom_questions` and
+ * `interview_template` are owned by the applications workspace; omitting them
+ * on update keeps the stored values.
+ */
+export type RecruitmentVacancyWriteInput = Omit<
+  RecruitmentVacancyUpsertInput,
+  "custom_questions" | "interview_template"
+> &
+  Partial<
+    Pick<
+      RecruitmentVacancyUpsertInput,
+      "custom_questions" | "interview_template"
+    >
+  >;
+
 export function parseRecruitmentCustomQuestions(
   value: unknown
 ): RecruitmentCustomQuestion[] {
@@ -334,7 +350,9 @@ export const recruitmentApplicationSubmitSchema = z.object({
   applicant_name: z.string().trim().min(1, "Name is required").max(200),
   applicant_email: z.email("A valid email is required"),
   applicant_phone: nullableTrimmedString(50),
-  cover_letter: nullableTrimmedString(4000),
+  // Text extracted from the uploaded cover-letter PDF, for screening and
+  // the admin drawer. The PDF itself is stored next to the CV.
+  cover_letter: nullableTrimmedString(12_000),
   candidate_availability: z
     .array(z.string().trim().min(1).max(160))
     .max(12)
@@ -453,6 +471,12 @@ export interface RecruitmentVacancy {
   department_id: string | null;
   interview_template: RecruitmentInterviewTemplate | null;
   metadata: RecruitmentVacancyMetadata;
+  /**
+   * When set on a draft, the scheduled-publish dispatcher publishes the
+   * vacancy at this time. `metadata.scheduled_publish_at` is only the
+   * editor's saved preference; this column is what is actually armed.
+   */
+  scheduled_publish_at: string | null;
   screening_rubric: RecruitmentScreeningRubric | null;
   slug: string;
   status: JobsStatus;
@@ -689,15 +713,16 @@ export type RecruitmentAiDimensionScore = z.infer<
  * Deliberately separate from `recruitmentAiScreeningSchema`: OpenAI's strict
  * structured outputs reject any property that is missing from `required`, which
  * is exactly what `.optional()` / `.default()` emit. This schema therefore lists
- * every field as required, and omits the server-owned metadata
- * (`generated_at`, `model`, `version`) that the model has no way to know —
- * `screenApplication` stamps those after the call.
+ * every field as required, and omits the server-owned fields
+ * (`generated_at`, `model`, `version`) that the model has no way to know, plus
+ * `normalized_score`, which is derived deterministically from the 1–5 scores by
+ * `computeScreeningNormalizedScore` so the 0–100 bands mean the same thing for
+ * every candidate. `screenApplication` stamps those after the call.
  *
  * Keep this in sync with `recruitmentAiScreeningSchema` when adding fields.
  */
 export const recruitmentAiScreeningOutputSchema = z.object({
   overall_score: z.number().int().min(1).max(5),
-  normalized_score: z.number().int().min(0).max(100),
   recommended_status: z.enum(["reviewed", "interview", "rejected"]),
   summary: z.string().trim().min(1).max(2000),
   dimension_scores: z.array(recruitmentAiDimensionScoreSchema).max(10),
@@ -711,6 +736,55 @@ export const recruitmentAiScreeningOutputSchema = z.object({
 export type RecruitmentAiScreeningOutput = z.infer<
   typeof recruitmentAiScreeningOutputSchema
 >;
+
+/**
+ * 0–100 value for each point on the 1–5 screening scale. Anchored to the admin
+ * match bands (`matchTint`: 90+ / 80+ / 70+): a "strong fit" (4) lands in the
+ * 80s and a "plausible, trainable" candidate (3) at 70, rather than the linear
+ * 75 / 50 that made solid student applicants look like rejects.
+ */
+const SCREENING_SCORE_ANCHORS = [10, 40, 70, 82, 95] as const;
+
+const MIN_SCREENING_SCORE = 1;
+const MAX_SCREENING_SCORE = 5;
+
+function interpolateScreeningScore(value: number): number {
+  const clamped = Math.min(
+    MAX_SCREENING_SCORE,
+    Math.max(MIN_SCREENING_SCORE, value)
+  );
+  const lowerIndex = Math.floor(clamped) - MIN_SCREENING_SCORE;
+  const upperIndex = Math.min(
+    lowerIndex + 1,
+    SCREENING_SCORE_ANCHORS.length - 1
+  );
+  const fraction = clamped - Math.floor(clamped);
+  const lower = SCREENING_SCORE_ANCHORS[lowerIndex] ?? 0;
+  const upper = SCREENING_SCORE_ANCHORS[upperIndex] ?? lower;
+  return lower + (upper - lower) * fraction;
+}
+
+/**
+ * Derives the 0–100 match score from the model's 1–5 judgements: the overall
+ * score, blended equally with the mean dimension score when dimensions exist
+ * so two "4" candidates can still be told apart.
+ */
+export function computeScreeningNormalizedScore(
+  screening: Pick<
+    RecruitmentAiScreeningOutput,
+    "overall_score" | "dimension_scores"
+  >
+): number {
+  const dimensions = screening.dimension_scores;
+  const value =
+    dimensions.length > 0
+      ? (screening.overall_score +
+          dimensions.reduce((sum, dimension) => sum + dimension.score, 0) /
+            dimensions.length) /
+        2
+      : screening.overall_score;
+  return Math.round(interpolateScreeningScore(value));
+}
 
 /**
  * Persistence schema — parses rows read back from `job_applications`.
@@ -879,9 +953,33 @@ export type RecruitmentCandidateProfileUpsertInput = z.infer<
 
 export const RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS = 14;
 
+/** A panel member a candidate's booking will invite. Stored on the token. */
+export const recruitmentBookingPanelMemberSchema = z.object({
+  user_id: z.string().trim().min(1).max(50),
+  email: z.email(),
+  display_name: nullableTrimmedString(200),
+  is_lead: z.boolean().default(false),
+});
+
+export type RecruitmentBookingPanelMember = z.infer<
+  typeof recruitmentBookingPanelMemberSchema
+>;
+
+export function parseBookingPanel(
+  value: string | null | undefined
+): RecruitmentBookingPanelMember[] {
+  if (!value) {
+    return [];
+  }
+  const parsed = z
+    .array(recruitmentBookingPanelMemberSchema)
+    .safeParse(safeJsonParse(value));
+  return parsed.success ? parsed.data : [];
+}
+
 export const recruitmentBookingProposeSchema = z.object({
   application_id: z.string().trim().min(1).max(50),
-  panel_user_ids: z.array(z.string().trim().min(1).max(50)).min(1).max(10),
+  panel: z.array(recruitmentBookingPanelMemberSchema).min(1).max(10),
   duration_minutes: z.number().int().min(15).max(240).default(30),
   window_from: z
     .string()
@@ -909,7 +1007,6 @@ export const recruitmentBookingConfirmSchema = z.object({
   starts_at: z
     .string()
     .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid start time"),
-  duration_minutes: z.number().int().min(15).max(240),
 });
 
 export type RecruitmentBookingConfirmInput = z.infer<

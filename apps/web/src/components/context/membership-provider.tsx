@@ -44,6 +44,13 @@ export const MembershipProvider = ({
         ? "/api/membership?refresh=true"
         : "/api/membership";
       const response = await fetch(url);
+      if (!response.ok) {
+        // 503 = membership system unreachable, 5xx = route failure. Neither
+        // is an answer, so keep the status we already have rather than
+        // demoting a member to `isMember: false`.
+        console.error(`Membership check failed with ${response.status}`);
+        return;
+      }
       const data: MembershipStatus = await response.json();
 
       setStatus(data);

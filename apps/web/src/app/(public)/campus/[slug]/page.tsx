@@ -1,18 +1,21 @@
+import type { CampusData } from "@repo/api/types/appwrite";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getCampusMetadata } from "@/app/actions/campus";
+import { connection } from "next/server";
+import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { listNews } from "@/app/actions/news";
 import { CampusLanding } from "@/components/campus/v2/campus-landing";
+import { localizedFocusAreas } from "@/lib/campus-leadership";
 import { CAMPUS_SLUGS, campusSlugToId } from "@/lib/campus-scope";
-import { campusUnits } from "@/lib/data/campus-landing";
 import { campusLeadership } from "@/lib/data/campus-leadership";
 import {
   cachedHomeCounts,
   cachedShellCampuses,
 } from "@/lib/data/public-content";
+import { cachedPublicUnits } from "@/lib/data/units";
 
 /**
  * A campus as a place you can link to.
@@ -22,15 +25,12 @@ import {
  * lived entirely in a cookie and no campus view could be shared or bookmarked
  * (`00-current-state.md` §11.3).
  *
- * RD-016 gave the campus a URL; RD-023 gives it a page. The plan expected to
- * find that page half-built — 13 components in `campus/components/` that
- * nothing links to — and it expected `campus_metadata` to be "content that
- * already exists and is barely used". **Neither is true.** `campus_metadata`
- * and `campus_data` are both empty tables, and the tabbed experience is built
- * on them, so restyling it would have restyled a page with nothing in it.
- * What this renders instead is everything about a campus that *is* real: who
- * to write to, what is on, what has been written, what is open, and which
- * units are here. See PLACEHOLDER-009.
+ * RD-016 gave the campus a URL; RD-023 gave it a page; the merge with main
+ * moved the old `/campus` tabs onto it — the management board, the campus's
+ * student benefits and units, and its partnership offer. Every editorial field
+ * renders only when it has data (PLACEHOLDER-009): `campus_metadata` and
+ * `campus_data` were empty when the page was built, and the page fills itself
+ * in as those rows are written.
  */
 // No `dynamicParams = false` — it is incompatible with `cacheComponents`.
 // An unknown slug still 404s: `loadCampus` returns null and the page calls
@@ -39,8 +39,34 @@ export function generateStaticParams() {
   return CAMPUS_SLUGS.map((slug) => ({ slug }));
 }
 
+// Upcoming events and open positions are both filtered against `new Date()`,
+// which the Cache Components prerender rejects as an unstable value, and the
+// page fetches every block up front with no Suspense boundary. `instant =
+// false` lets it block (so an unknown slug is still a real 404) and
+// `connection()` below defers the clock read to request time — both are
+// needed, as on `/students`.
+export const instant = false;
+
+/** Preview sizes; each block links to its full, campus-scoped feed. */
+const EVENTS_PREVIEW = 4;
+const NEWS_PREVIEW = 4;
+const JOBS_PREVIEW = 3;
+
 interface Params {
   params: Promise<{ slug: string }>;
+}
+
+/** The visitor's language first, the other as fallback, field by field. */
+function pick<T>(
+  preferred: T | null | undefined,
+  fallback: T | null | undefined
+): T | null {
+  const isEmpty = (value: T | null | undefined) =>
+    value == null || (Array.isArray(value) && value.length === 0);
+  if (!isEmpty(preferred)) {
+    return preferred as T;
+  }
+  return isEmpty(fallback) ? null : (fallback as T);
 }
 
 async function loadCampus(slug: string) {
@@ -59,20 +85,41 @@ async function loadCampus(slug: string) {
   }
   const meta = metadata[id];
   const suffix = locale === "no" ? "_nb" : "_en";
+  const other = locale === "no" ? "_en" : "_nb";
   return {
     id,
     slug,
     locale,
     name: campus.name,
     // `campus.email` is the campus president's address and the one piece of
-    // contact data that exists — `campus_metadata` and `campus_data` are both
-    // empty tables (PLACEHOLDER-009).
+    // contact data every campus has.
     email: campus.email ?? null,
-    tagline: meta?.[`tagline${suffix}`] ?? null,
-    description: meta?.[`description${suffix}`] ?? null,
-    highlights: meta?.[`highlights${suffix}`] ?? [],
-    focusAreas: meta?.[`focusAreas${suffix}`] ?? [],
+    tagline: pick(meta?.[`tagline${suffix}`], meta?.[`tagline${other}`]),
+    description: pick(
+      meta?.[`description${suffix}`],
+      meta?.[`description${other}`]
+    ),
+    highlights:
+      pick(meta?.[`highlights${suffix}`], meta?.[`highlights${other}`]) ?? [],
+    focusAreas: localizedFocusAreas(meta ?? null, locale),
   };
+}
+
+/** This campus's `campus_data` row, by id or by name. */
+function campusDataFor(
+  rows: CampusData[],
+  id: string,
+  name: string
+): CampusData | null {
+  const wanted = name.toLowerCase();
+  return (
+    rows.find(
+      (row) =>
+        row.$id === id ||
+        row.name?.toLowerCase() === wanted ||
+        row.name_nb?.toLowerCase() === wanted
+    ) ?? null
+  );
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -88,6 +135,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function CampusPage({ params }: Params) {
+  // Must precede the fetches: see `instant` above.
+  await connection();
+
   const { slug } = await params;
   const campus = await loadCampus(slug);
 
@@ -95,53 +145,66 @@ export default async function CampusPage({ params }: Params) {
     notFound();
   }
 
-  // Every feed that can be campus-scoped, scoped. `/projects` has no
-  // `campus_id` to filter on, so it is not offered here.
-  // `events` and `jobs` are capped for the preview blocks; the stat row needs
-  // campus-wide totals, so those are read separately rather than inferred from
-  // the preview lengths.
-  const [events, news, jobs, units, counts, leadership] = await Promise.all([
+  // Every feed that can be campus-scoped, scoped — the list actions run
+  // `campusScopeIds`, so National rides along. `/projects` has no `campus_id`
+  // to filter on, so it is not offered here. The previews are capped; the stat
+  // row reads campus-wide totals from `cachedHomeCounts`, which counts with the
+  // same filters as the feeds the blocks link to (upcoming events, open roles).
+  //
+  // The cached readers throw rather than cache a failure, so each fallback
+  // lives here and lasts for this render only: a failed directory read or an
+  // unreachable board service drops that block, never the page.
+  const [
+    eventsResult,
+    news,
+    jobsResult,
+    units,
+    counts,
+    leadership,
+    campusDataRows,
+  ] = await Promise.all([
     listEvents({
       status: "published",
-      limit: 4,
       locale: campus.locale,
+      pageSize: EVENTS_PREVIEW,
+      upcomingOnly: true,
       campus: campus.id,
     }),
     listNews({
       status: "published",
-      limit: 4,
+      limit: NEWS_PREVIEW,
       locale: campus.locale,
       campus: campus.id,
     }),
     listJobs({
-      status: "published",
-      limit: 3,
       locale: campus.locale,
+      pageSize: JOBS_PREVIEW,
       campus: campus.id,
     }),
-    campusUnits(campus.id),
-    cachedHomeCounts(campus.id),
-    // Separate service (`apps/api` -> Azure AD). It resolves to an empty list
-    // on any failure, so the page renders without the section rather than 500.
-    campusLeadership(campus.id, campus.locale),
+    cachedPublicUnits(campus.locale).catch(() => null),
+    cachedHomeCounts(campus.id, campus.locale).catch(() => null),
+    campusLeadership(campus.id).catch(() => []),
+    getCampusData().catch((): CampusData[] => []),
   ]);
 
   return (
     <CampusLanding
-      description={campus.description}
+      campusData={campusDataFor(campusDataRows, campus.id, campus.name)}
+      description={campus.description ?? campus.tagline}
       email={campus.email}
-      eventCount={counts.eventCount}
-      events={events}
+      eventCount={counts?.eventCount ?? null}
+      events={eventsResult.rows}
       focusAreas={campus.focusAreas}
       highlights={campus.highlights}
-      jobCount={counts.jobCount}
-      jobs={jobs}
+      id={campus.id}
+      jobCount={counts?.jobCount ?? null}
+      jobs={jobsResult.rows}
       leadership={leadership}
       locale={campus.locale}
       name={campus.name}
       news={news}
       slug={campus.slug}
-      units={units}
+      units={(units ?? []).filter((unit) => unit.campusId === campus.id)}
     />
   );
 }

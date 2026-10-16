@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildMembershipInvoiceOrder } from "@repo/shared/utils/finago-membership-invoice";
 import {
   deriveAccrualMonths,
-  membershipAccrualStart,
   toMembershipPlan,
 } from "@repo/shared/utils/membership-plans";
 import { describe, expect, it } from "vitest";
@@ -39,10 +39,30 @@ describe("prices and benefits come from the tables", () => {
   });
 
   it("renders each benefit in the reader's locale with a fallback", () => {
-    expect(page).toContain("title_nb");
-    expect(page).toContain("title_en");
-    expect(page).toContain("description_nb");
-    expect(page).toContain("description_en");
+    // Merged from main (#87): one helper resolves title, teaser and
+    // description field by field across both languages, for this page and the
+    // member portal alike. Its behaviour is pinned in `lib/benefit-text.test.ts`.
+    expect(page).toContain("localizedBenefitText(benefit, locale)");
+    expect(code("src/lib/benefit-text.ts")).toContain("title_nb");
+    expect(code("src/lib/benefit-text.ts")).toContain("description_en");
+  });
+
+  it("links the three highlight cards to their project hubs", () => {
+    // Merged from main (#87): the cards rendered buttons with nowhere to go.
+    for (const href of [
+      "/projects/fadderullan",
+      "/projects/karrieredagene",
+      "/projects/winter-games",
+    ]) {
+      expect(page).toContain(`href: "${href}"`);
+    }
+  });
+
+  it("offers one price card per duration", () => {
+    // Merged from main (#83/#85): in June and December the catalog offers
+    // this season and next; the page labels plans by duration only and the
+    // join wizard makes the season choice.
+    expect(listPage).toContain("onePerDuration");
   });
 
   it("anchors the nav's #fordeler link", () => {
@@ -61,7 +81,11 @@ describe("the purchase flow is untouched", () => {
       "resolveMembershipGate",
       "<JoinWizard",
       "SignedOutState",
-      "NeedsBiLinkState",
+      // Main (#94) replaced account linking with BI sign-in: the state that
+      // offered "Link BI Student" now offers "Sign in with BI", and a student
+      // signed in with BI whose sync failed gets a retry instead of a loop.
+      "NeedsBiSignInState",
+      "RetryStudentSyncState",
       "AlreadyMemberState",
       "NoPlansAvailableState",
       "MembershipCheckUnavailableState",
@@ -78,15 +102,25 @@ describe("the purchase flow is untouched", () => {
   it("wraps the member portal in chrome and nothing else", () => {
     expect(memberPage).toContain("<MemberPortalContent");
     expect(memberPage.match(/\{portal\}/g)?.length).toBe(1);
-    expect(memberPage).toContain("verifyMembershipStatus");
+    // Main (#85) reads the live status from apps/api; `verifyMembershipStatus`
+    // is gone.
+    expect(memberPage).toContain("getMembershipStatus");
   });
 
   it("does not give the portal a second <h1>", () => {
-    // `member-portal-header` renders "Welcome back, …" as the page's `<h1>`.
-    // The standard `PageHeader` band would add another one.
+    // The portal's own header is the page's one navy band: `PageHeader`,
+    // carrying "Welcome back, …" as the `<h1>`. The page adds no band of its
+    // own, and the tabs sit in the paper section below it.
     expect(memberPage).not.toContain("PageHeader");
     expect(memberPage).not.toContain("ShopPageShell");
-    expect(memberPage).toContain("<Section");
+    const header = code(
+      "src/components/member-portal/shared/member-portal-header.tsx"
+    );
+    expect(header).toContain("<PageHeader");
+    expect(header).not.toContain("<h1");
+    expect(code("src/app/(public)/member/member-portal-content.tsx")).toContain(
+      '<Section tone="paper">'
+    );
   });
 
   it("gives the portal tabs a visible focus indicator", () => {
@@ -104,6 +138,15 @@ describe("the purchase flow is untouched", () => {
     expect(tabs).toContain("focus-visible:outline-solid");
     expect(tabs).toContain("focus-visible:outline-2");
     expect(tabs).toContain("focus-visible:outline-focus-ring");
+  });
+
+  it("keeps the portal tab bar's scroll inside the bar on a phone", () => {
+    // The members-only tabs carry an `sr-only` "locked" label, which is
+    // absolutely positioned. A scroll box clips such a child only when it is
+    // the child's containing block, so without `relative` the labels escaped
+    // it and widened `/member` to 580px at a 375px viewport (measured).
+    const tabs = code("src/components/member-portal/shared/tab-navigation.tsx");
+    expect(tabs).toContain('className="relative mb-8 overflow-x-auto"');
   });
 
   it("does not price, purchase or verify anything itself", () => {
@@ -153,16 +196,40 @@ describe("the catalogue reads the dates 24SevenOffice actually stores", () => {
 });
 
 /**
- * The accrual period a membership is booked into follows the **purchase**, not
- * the catalogue row: bought in the summer half it accrues from 1 July, in the
- * spring half from 1 January. Before this, `AccrualDate` was the catalogue
- * row's own fixed `startDate`, sent to 24SevenOffice in `DD.MM.YYYY` where the
- * API documents an ISO `date`.
+ * The accrual period a membership is booked into.
+ *
+ * Merged from main (#83, "start-date rule"): the redesign had derived the
+ * accrual start from the purchase date's half-year (`membershipAccrualStart`).
+ * Main's catalog sells this season's and, in June and December, next season's
+ * plans, so the accrual is the **purchased plan's own start** — and that start
+ * is normalised from the `DD.MM.YYYY` 24SevenOffice stores to the ISO `date`
+ * its API documents. Both defects the redesign fixed stay fixed: no catalog
+ * row's raw `01.07.2026` reaches 24SevenOffice, and the booked period follows
+ * what was bought, snapshotted at checkout.
  */
-describe("membershipAccrualStart", () => {
-  it("maps each half of the year to its boundary", () => {
-    expect(membershipAccrualStart("2027-02-14")).toBe("2027-01-01");
-    expect(membershipAccrualStart("2026-08-12")).toBe("2026-07-01");
+describe("membership accrual", () => {
+  it("books the plan's own start, as an ISO date", () => {
+    const plan = toMembershipPlan({
+      $id: "semester",
+      membership_id: "54",
+      name: "Semester",
+      price: 350,
+      category: "113176",
+      startDate: "01.07.2026",
+      expiryDate: "31.12.2026",
+    } as never);
+    expect(plan?.startDate).toBe("2026-07-01");
+    if (!plan) {
+      throw new Error("the Semester plan must stay buyable");
+    }
+    const order = buildMembershipInvoiceOrder({
+      campusId: "1",
+      customerId: 1,
+      invoicedOn: "2026-08-12",
+      plan,
+    });
+    expect(order.AccrualDate).toBe("2026-07-01");
+    expect(order.AccrualLength).toBe(6);
   });
 
   it("is what checkout snapshots onto the order item", () => {
@@ -173,8 +240,12 @@ describe("membershipAccrualStart", () => {
       ),
       "utf8"
     );
-    expect(checkout).toContain("membershipAccrualStart(new Date())");
-    expect(checkout).not.toContain("start_date: plan.startDate");
+    // The plan the student chose — this season's or next — not a catalogue
+    // row re-read at fulfilment time.
+    expect(checkout).toContain("start_date: plan.startDate");
+    expect(
+      code("../../packages/shared/utils/finago-membership-invoice.ts")
+    ).toContain("AccrualDate: plan.startDate");
   });
 });
 

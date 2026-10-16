@@ -5,7 +5,6 @@ import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useCampus } from "@/components/context/campus";
 import { ChevronFrame } from "@/components/ui/chevron-frame";
 import { Container } from "@/components/ui/container";
 import { campusIdToSlug } from "@/lib/campus-scope";
@@ -23,35 +22,68 @@ import { campusIdToSlug } from "@/lib/campus-scope";
  * identity rather than decoration: the panels show the campus you are on, so
  * "you are on Campus Oslo" is something you see rather than only read. That is
  * the whole reason campus needed a URL (RD-016).
+ *
+ * The campus arrives from the page, which resolves it the way every feed does
+ * (`?campus=` > cookie > all), so the headline names the same campus the
+ * sections below are scoped to — including on a shared `/?campus=bergen` link
+ * opened by someone whose cookie says otherwise. The live counts that used to
+ * sit here moved to the overview section with the rest of the campus overview
+ * (Branding Committee, batch G); the headline is the campus, not a sparkle
+ * pill.
  */
 const PANEL_COUNT = 3;
 const STAGGER_MS = 110;
 const MS = 1000;
 
-export interface HeroChevronProps {
-  eventCount: number;
-  jobCount: number;
+/**
+ * Campuses with a photo in `public/images/campus/`, in display order. National
+ * has none: it is a scope, not a place.
+ */
+const CAMPUS_PHOTOS = ["oslo", "bergen", "trondheim", "stavanger"];
+
+export interface HeroCampus {
+  id: string;
+  name: string;
 }
 
-export function HeroChevron({ eventCount, jobCount }: HeroChevronProps) {
+export interface HeroChevronProps {
+  /**
+   * The campus the page is scoped to. `null` for every campus — and for
+   * National, which counts as "no campus" for this copy.
+   */
+  campus: HeroCampus | null;
+  /** "View events", scoped like the page. */
+  eventsHref: string;
+  /**
+   * A member is not asked to join (the header's rule too): their primary
+   * action is the member portal.
+   */
+  isMember: boolean;
+}
+
+const PRIMARY_CTA =
+  "type-body-sm inline-flex items-center rounded-biso-pill bg-action px-5 py-2.5 font-semibold text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+const SECONDARY_CTA =
+  "type-body-sm inline-flex items-center rounded-biso-pill border border-edge px-5 py-2.5 text-ink transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+export function HeroChevron({
+  campus,
+  eventsHref,
+  isMember,
+}: HeroChevronProps) {
   const t = useTranslations("home.hero");
   const tNav = useTranslations("common.navigation");
-  const { activeCampus, campuses } = useCampus();
   const prefersReduced = useReducedMotion();
 
-  const campusName = activeCampus?.name;
-  const slug = campusIdToSlug(activeCampus?.$id);
+  const campusName = campus?.name;
+  const slug = campusIdToSlug(campus?.id);
 
-  // Campus photos are the only real imagery available; a campus with none
-  // falls back to the shared hero image rather than an invented placeholder.
-  const panels = (
-    campusName
-      ? [`/images/campus/${campusName.toLowerCase()}.png`]
-      : campuses
-          .map((c) => `/images/campus/${c.name.toLowerCase()}.png`)
-          .slice(0, PANEL_COUNT)
-  ).slice(0, PANEL_COUNT);
-  const images = panels.length > 0 ? panels : ["/images/hero-bg.png"];
+  // Campus photos are the only real imagery available: one panel for the
+  // campus you are on, otherwise the campuses side by side.
+  const ownPhoto = slug && CAMPUS_PHOTOS.includes(slug) ? slug : null;
+  const images = (
+    ownPhoto ? [ownPhoto] : CAMPUS_PHOTOS.slice(0, PANEL_COUNT)
+  ).map((photo) => `/images/campus/${photo}.png`);
 
   return (
     <section className="relative overflow-hidden" data-surface="deep">
@@ -62,7 +94,7 @@ export function HeroChevron({ eventCount, jobCount }: HeroChevronProps) {
                 has a huge intrinsic minimum, and without this the column refuses
                 to shrink and shoves the collage past the viewport edge. */}
             <div className="min-w-0">
-              <h1 className="type-display-hero max-w-[12ch] text-ink">
+              <h1 className="type-display-hero max-w-[16ch] text-ink">
                 {campusName
                   ? t("titleActive", { campusName })
                   : t("titleDefault")}
@@ -75,16 +107,16 @@ export function HeroChevron({ eventCount, jobCount }: HeroChevronProps) {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  className="type-body-sm inline-flex items-center rounded-biso-pill bg-action px-5 py-2.5 font-medium text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                  href="/membership"
-                >
-                  {t("ctas.join")}
-                </Link>
-                <Link
-                  className="type-body-sm inline-flex items-center rounded-biso-pill border border-edge px-5 py-2.5 text-ink transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                  href="/events"
-                >
+                {isMember ? (
+                  <Link className={PRIMARY_CTA} href="/member">
+                    {tNav("memberPortal")}
+                  </Link>
+                ) : (
+                  <Link className={PRIMARY_CTA} href="/membership">
+                    {t("ctas.join")}
+                  </Link>
+                )}
+                <Link className={SECONDARY_CTA} href={eventsHref}>
                   {t("ctas.viewEvents")}
                 </Link>
               </div>
@@ -112,26 +144,6 @@ export function HeroChevron({ eventCount, jobCount }: HeroChevronProps) {
                   </Link>
                 )}
               </p>
-
-              <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-4">
-                {[
-                  { value: eventCount, label: t("stats.events") },
-                  { value: jobCount, label: t("stats.jobs") },
-                  { value: campuses.length, label: t("stats.campuses") },
-                ]
-                  // Only real counts. No invented "1000+ members" tile.
-                  .filter((stat) => stat.value > 0)
-                  .map((stat) => (
-                    <div key={stat.label}>
-                      <dd className="type-data text-2xl text-ink leading-none">
-                        {stat.value}
-                      </dd>
-                      <dt className="type-body-sm mt-1 text-ink-muted">
-                        {stat.label}
-                      </dt>
-                    </div>
-                  ))}
-              </dl>
             </div>
 
             {/* The collage. Alternating lean gives the chevron its direction. */}

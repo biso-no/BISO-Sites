@@ -15,6 +15,12 @@ import {
   type EventUpsertInput,
   eventUpsertSchema,
 } from "@repo/shared/types/events";
+import { nextAutoSlug } from "@repo/shared/utils/content-slug";
+import {
+  isoToOsloWallClock,
+  OSLO_TIME_ZONE,
+  osloWallClockToIso,
+} from "@repo/shared/utils/oslo-time";
 import {
   ArrowLeft,
   ArrowRight,
@@ -47,13 +53,13 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createEvent,
   generateEventTranslationDraft,
   suggestEventDescriptionSection,
   updateEvent,
 } from "../../../_actions/events";
-import { uploadMediaFile } from "../../../_actions/upload";
 import {
   EVENT_STUDIO_SCHEMA_ID,
   registerAssistantFormTarget,
@@ -69,6 +75,7 @@ import {
   stripHtml,
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import { describePushAudience } from "./event-studio-push";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
@@ -156,7 +163,7 @@ const LOCATION_MODES = [
   },
 ] as const;
 
-const PUSH_FOLLOWERS = 4217;
+const MEMBER_POPULATION = 4217;
 const STUDENT_POPULATION = 6840;
 
 type LocaleCode = "en" | "no";
@@ -177,6 +184,8 @@ interface EventStudioEditorProps {
     saveError: string;
     saveSuccess: string;
   };
+  /** Push subscribers per campus id. `null` means the count is unavailable. */
+  pushSubscribers: Record<string, number | null>;
 }
 
 export type { EventStudioEditorProps };
@@ -185,18 +194,25 @@ export type { EventStudioEditorProps };
 /*                                  Utilities                                 */
 /* -------------------------------------------------------------------------- */
 
-function generateSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
+/** Characters a hand-typed slug may not contain. */
+const NON_SLUG_INPUT_RE = /[^a-z0-9-]/g;
+
+/**
+ * Event times are Oslo wall-clock time in the inputs and UTC ISO instants in
+ * state and storage; see `@repo/shared/utils/oslo-time`.
+ */
+const toDateTimeInput = isoToOsloWallClock;
+
+function fromDateTimeInput(value: string) {
+  return osloWallClockToIso(value);
 }
 
-function toDateTimeInput(value: string | null | undefined) {
-  return value ? value.slice(0, 16) : "";
-}
+const DATE_TIME_FIELDS: ReadonlySet<string> = new Set([
+  "end_date",
+  "registration_deadline",
+  "scheduled_publish_at",
+  "start_date",
+]);
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -209,6 +225,7 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
+    timeZone: OSLO_TIME_ZONE,
     year: "numeric",
   }).format(date);
 }
@@ -224,6 +241,7 @@ function formatTime(value: string | null | undefined) {
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: OSLO_TIME_ZONE,
   }).format(date);
 }
 
@@ -235,7 +253,10 @@ function formatMonthShort(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return "TBD";
   }
-  return new Intl.DateTimeFormat("en-GB", { month: "short" })
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    timeZone: OSLO_TIME_ZONE,
+  })
     .format(date)
     .toUpperCase();
 }
@@ -248,7 +269,10 @@ function formatDayNumber(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return "—";
   }
-  return String(date.getDate()).padStart(2, "0");
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    timeZone: OSLO_TIME_ZONE,
+  }).format(date);
 }
 
 function durationHours(
@@ -1445,6 +1469,8 @@ function EssentialsStep({
   locale,
   set,
   setLocale,
+  setSlugLocked,
+  slugLocked,
   values,
 }: {
   allowedDepartmentIds?: string[];
@@ -1458,6 +1484,8 @@ function EssentialsStep({
     value: EventUpsertInput[K]
   ) => void;
   setLocale: (locale: LocaleCode) => void;
+  setSlugLocked: (v: boolean) => void;
+  slugLocked: boolean;
   values: EventUpsertInput;
 }) {
   const [slugEditing, setSlugEditing] = useState(false);
@@ -1472,8 +1500,12 @@ function EssentialsStep({
 
   function onTitleChange(value: string) {
     set(titleKey, value);
-    if (!values.slug || values.slug.length === 0) {
-      set("slug", generateSlug(value));
+    // The Norwegian title is canonical for the slug; the English one only
+    // stands in while there is no Norwegian title to derive from.
+    const source = titleKey === "title_no" ? value : values.title_no || value;
+    const next = nextAutoSlug({ locked: slugLocked, title: source });
+    if (next !== null) {
+      set("slug", next);
     }
   }
 
@@ -1534,9 +1566,11 @@ function EssentialsStep({
           {slugEditing ? (
             <input
               onBlur={() => setSlugEditing(false)}
-              onChange={(event) =>
-                set("slug", generateSlug(event.target.value))
-              }
+              onChange={(e) => {
+                // A hand-typed slug wins from here on: stop mirroring the title.
+                setSlugLocked(true);
+                set("slug", e.target.value.replace(NON_SLUG_INPUT_RE, ""));
+              }}
               style={{
                 background: "transparent",
                 border: 0,
@@ -2062,7 +2096,7 @@ function ScheduleStep({
             </FieldLabel>
             <input
               onChange={(event) =>
-                set("start_date", event.target.value || null)
+                set("start_date", fromDateTimeInput(event.target.value))
               }
               style={fieldInputStyle()}
               type="datetime-local"
@@ -2074,7 +2108,9 @@ function ScheduleStep({
               <CalendarDays size={12} /> End
             </FieldLabel>
             <input
-              onChange={(event) => set("end_date", event.target.value || null)}
+              onChange={(event) =>
+                set("end_date", fromDateTimeInput(event.target.value))
+              }
               style={fieldInputStyle()}
               type="datetime-local"
               value={toDateTimeInput(values.end_date)}
@@ -2088,7 +2124,10 @@ function ScheduleStep({
           </FieldLabel>
           <input
             onChange={(event) =>
-              set("registration_deadline", event.target.value || null)
+              set(
+                "registration_deadline",
+                fromDateTimeInput(event.target.value)
+              )
             }
             style={fieldInputStyle()}
             type="datetime-local"
@@ -2434,9 +2473,11 @@ function capStepperBtn(left: boolean): React.CSSProperties {
 /* -------------------------------------------------------------------------- */
 
 function TicketsStep({
+  pushSubscribers,
   set,
   values,
 }: {
+  pushSubscribers: Record<string, number | null>;
   set: <K extends keyof EventUpsertInput>(
     key: K,
     value: EventUpsertInput[K]
@@ -2643,7 +2684,9 @@ function TicketsStep({
         />
         <ToggleCard
           active={values.notify_push ?? false}
-          description={`Notify ${PUSH_FOLLOWERS.toLocaleString("en-GB")} students who follow this tag. Sends once when published.`}
+          description={describePushAudience(
+            pushSubscribers[values.campus_id ?? ""] ?? null
+          )}
           icon={<Bell size={14} />}
           onClick={() => set("notify_push", !values.notify_push)}
           title="Push notification"
@@ -2691,7 +2734,10 @@ function TicketsStep({
             </FieldLabel>
             <input
               onChange={(event) =>
-                set("scheduled_publish_at", event.target.value || null)
+                set(
+                  "scheduled_publish_at",
+                  fromDateTimeInput(event.target.value)
+                )
               }
               style={fieldInputStyle()}
               type="datetime-local"
@@ -2831,7 +2877,7 @@ function ReviewStep({
       {
         label: "Audience",
         value: values.member_only
-          ? `Members only · ${PUSH_FOLLOWERS.toLocaleString("en-GB")} students`
+          ? `Members only · ${MEMBER_POPULATION.toLocaleString("en-GB")} students`
           : `All BI students · ${STUDENT_POPULATION.toLocaleString("en-GB")} students`,
         step: 3,
       },
@@ -3192,7 +3238,7 @@ function EventPreviewPane({
   const price =
     draft.pricing_mode === EventsPricingMode.FREE ? 0 : (draft.price ?? 0);
   const year = draft.start_date ? new Date(draft.start_date).getFullYear() : "";
-  const audience = draft.member_only ? PUSH_FOLLOWERS : STUDENT_POPULATION;
+  const audience = draft.member_only ? MEMBER_POPULATION : STUDENT_POPULATION;
   const audienceLabel = draft.member_only
     ? "with active BISO membership"
     : `on the ${campus?.name ?? "campus"}`;
@@ -4014,6 +4060,7 @@ export function EventStudioEditor({
   initialDepartments,
   isNew,
   labels,
+  pushSubscribers,
 }: EventStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState<StepIndex>(0);
@@ -4027,6 +4074,10 @@ export function EventStudioEditor({
     return defaults;
   });
   const [dirty, setDirty] = useState(false);
+  // An existing event's slug is already live: never let a title edit rewrite
+  // it. New events mirror the title until someone types a slug by hand. Lives
+  // here rather than in `EssentialsStep`, which unmounts when the step changes.
+  const [slugLocked, setSlugLocked] = useState(Boolean(event?.slug));
   const [submitting, setSubmitting] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -4092,16 +4143,22 @@ export function EventStudioEditor({
           onChangeBlocksNoRef.current(htmlToDescriptionBlocks(value));
           return;
         }
+        if (DATE_TIME_FIELDS.has(path) && typeof value === "string") {
+          // A bare wall-clock value is Oslo time, same as the inputs.
+          setRef.current(
+            path as keyof EventUpsertInput,
+            (osloWallClockToIso(value) ?? value) as never
+          );
+          return;
+        }
         setRef.current(path as keyof EventUpsertInput, value as never);
       }
     );
   }, []);
 
   async function handleUploadCover(file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
     setUploading(true);
-    const result = await uploadMediaFile(formData);
+    const result = await uploadMediaFile(file);
     setUploading(false);
 
     if (result.error) {
@@ -4409,6 +4466,8 @@ export function EventStudioEditor({
                 locale={locale}
                 set={set}
                 setLocale={setLocale}
+                setSlugLocked={setSlugLocked}
+                slugLocked={slugLocked}
                 values={values}
               />
             )}
@@ -4433,7 +4492,13 @@ export function EventStudioEditor({
                 values={values}
               />
             )}
-            {step === 3 && <TicketsStep set={set} values={values} />}
+            {step === 3 && (
+              <TicketsStep
+                pushSubscribers={pushSubscribers}
+                set={set}
+                values={values}
+              />
+            )}
             {step === 4 && (
               <ReviewStep
                 blocksEn={blocksEn}

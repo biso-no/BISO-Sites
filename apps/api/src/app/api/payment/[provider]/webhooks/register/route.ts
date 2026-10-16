@@ -49,12 +49,6 @@ export async function POST(
   ctx: { params: Promise<{ provider: string }> }
 ) {
   const { provider } = await ctx.params;
-  // DEBUG: trace the register flow end-to-end. Remove once registration works.
-  console.log(
-    `[payment/vipps/webhooks/register] → POST provider=${provider} hasAuthHeader=${Boolean(
-      request.headers.get("authorization")
-    )} hasXCronSecret=${Boolean(request.headers.get("x-cron-secret"))}`
-  );
   if (provider !== "vipps") {
     return NextResponse.json(
       { error: "Webhook registration is only supported for Vipps" },
@@ -63,31 +57,19 @@ export async function POST(
   }
 
   const secret = process.env.CRON_SECRET;
-  console.log(
-    `[payment/vipps/webhooks/register] CRON_SECRET configured=${Boolean(secret)}`
-  );
   if (!secret) {
     return NextResponse.json(
       { error: "CRON_SECRET is not configured" },
       { status: 500 }
     );
   }
-  const authorized = isAuthorized(request, secret);
-  console.log(`[payment/vipps/webhooks/register] authorized=${authorized}`);
-  if (!authorized) {
+  if (!isAuthorized(request, secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const { db } = await createAdminClient();
     const creds = await resolveVippsCredentials(db);
-    console.log(
-      `[payment/vipps/webhooks/register] credentials resolved=${creds !== null}${
-        creds
-          ? ` testMode=${creds.testMode} msn=${creds.merchantSerialNumber}`
-          : ""
-      }`
-    );
     if (!creds) {
       return NextResponse.json(
         { error: "Vipps is not configured" },
@@ -96,15 +78,9 @@ export async function POST(
     }
 
     const registeredUrl = webhookUrl(request);
-    console.log(
-      `[payment/vipps/webhooks/register] registering url=${registeredUrl}`
-    );
     const { id, secret: webhookSecret } = await registerVippsWebhook(
       registeredUrl,
       creds
-    );
-    console.log(
-      `[payment/vipps/webhooks/register] registered id=${id} secretLen=${webhookSecret.length}`
     );
 
     const column = creds.testMode
@@ -114,8 +90,8 @@ export async function POST(
       [column]: webhookSecret,
     });
     clearPaymentCredentialCache();
-    console.log(
-      `[payment/vipps/webhooks/register] ✓ stored secret in ${column} for db=${databaseId()}`
+    console.info(
+      `[payment/vipps/webhooks/register] registered ${registeredUrl} (${creds.testMode ? "test" : "live"})`
     );
 
     return NextResponse.json({
@@ -124,14 +100,11 @@ export async function POST(
       mode: creds.testMode ? "test" : "live",
     });
   } catch (error) {
+    // Logged server-side only: the underlying Vipps/SDK/DB message can carry
+    // internal detail that must not reach the caller.
     console.error("[payment/vipps/webhooks/register] error:", error);
-    // DEBUG: surface the underlying error (Vipps/SDK/DB) while diagnosing.
-    // Remove `detail` before production — it can leak internal messages.
     return NextResponse.json(
-      {
-        error: "Failed to register Vipps webhook",
-        detail: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to register Vipps webhook" },
       { status: 500 }
     );
   }

@@ -12,47 +12,31 @@ const syncItem = {
 };
 
 describe("mergeMembershipRow", () => {
-  it("seeds price from 24SO when the row is new", () => {
-    expect(mergeMembershipRow(syncItem, null)).toMatchObject({
-      membership_id: "54",
-      name: "BISO Membership fall 2026",
-      category: "113176",
-      price: 350,
+  it("writes the 24SO price and never marks a row purchasable", () => {
+    expect(mergeMembershipRow({ ...syncItem, price: 350 })).toEqual({
       canPurchase: false,
-      status: true,
-    });
-  });
-
-  it("preserves an administrator-set price on update", () => {
-    const merged = mergeMembershipRow(syncItem, {
-      price: 400,
-      canPurchase: true,
-    });
-    expect(merged.price).toBe(400);
-  });
-
-  it("preserves canPurchase on update", () => {
-    const merged = mergeMembershipRow(syncItem, {
+      category: String(syncItem.categoryId),
+      expiryDate: syncItem.expiryDate,
+      membership_id: String(syncItem.productId),
+      name: syncItem.productName,
       price: 350,
-      canPurchase: true,
+      startDate: syncItem.startDate,
+      status: syncItem.isActive,
     });
-    expect(merged.canPurchase).toBe(true);
   });
 
-  it("falls back to the 24SO price when the existing row has none", () => {
-    const merged = mergeMembershipRow(syncItem, {
-      price: 0,
-      canPurchase: false,
-    });
-    expect(merged.price).toBe(350);
+  it("no longer keeps an administrator-set price or canPurchase", () => {
+    // Older callers passed the existing row; 24SO now owns price and sales.
+    const merged = (
+      mergeMembershipRow as (...args: unknown[]) => Record<string, unknown>
+    )(syncItem, { canPurchase: true, price: 400 });
+    expect(merged).toMatchObject({ canPurchase: false, price: 350 });
   });
 
-  it("still refreshes name, dates and status on update", () => {
-    const merged = mergeMembershipRow(
-      { ...syncItem, isActive: false, productName: "Renamed" },
-      { price: 400, canPurchase: true }
-    );
-    expect(merged).toMatchObject({ name: "Renamed", status: false });
+  it("writes a null category when the product has no matching category", () => {
+    expect(
+      mergeMembershipRow({ ...syncItem, categoryId: null }).category
+    ).toBeNull();
   });
 });
 

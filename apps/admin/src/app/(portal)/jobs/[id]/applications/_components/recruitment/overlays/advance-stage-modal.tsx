@@ -15,6 +15,7 @@ import {
   stageMeta,
   type WorkspaceCandidate,
 } from "../view-model";
+import { draftEmailLabel, draftsEmailByDefault } from "./email-draft-default";
 import { ModalShell } from "./modal-shell";
 
 type EmailStage =
@@ -70,7 +71,9 @@ export function AdvanceStageModal({
   const [target, setTarget] = useState<JobApplicationsStatus | null>(
     forward ?? null
   );
-  const [includeEmail, setIncludeEmail] = useState(true);
+  const [includeEmail, setIncludeEmail] = useState(() =>
+    draftsEmailByDefault(forward ?? null)
+  );
   const [email, setEmail] = useState<{ subject: string; body: string } | null>(
     null
   );
@@ -78,7 +81,6 @@ export function AdvanceStageModal({
   const [loadingEmail, startLoadEmail] = useTransition();
   const [submitting, startSubmit] = useTransition();
   const [copied, setCopied] = useState(false);
-  const [steps, setSteps] = useState<Set<number>>(new Set([0, 1, 2]));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -156,8 +158,8 @@ export function AdvanceStageModal({
         <>
           <span className="m-foot-note">
             {includeEmail
-              ? "AI drafted the email — copy it into your mail client to send."
-              : "No email will be drafted."}
+              ? "AI drafted the email — copy it into your mail client to send. Nothing is sent by the system."
+              : "No email will be drafted, and nothing is sent to the candidate."}
           </span>
           <div className="m-foot-actions">
             <button className="btn-ghost" onClick={onClose} type="button">
@@ -196,7 +198,10 @@ export function AdvanceStageModal({
             <button
               className={cx("adv-target", target === status && "on")}
               key={status}
-              onClick={() => setTarget(status)}
+              onClick={() => {
+                setTarget(status);
+                setIncludeEmail(draftsEmailByDefault(status));
+              }}
               type="button"
             >
               {stageMeta(STAGE_OF_STATUS[status]).label}
@@ -211,7 +216,7 @@ export function AdvanceStageModal({
           onChange={(event) => setIncludeEmail(event.target.checked)}
           type="checkbox"
         />
-        Draft a candidate notification email
+        {draftEmailLabel(target)}
       </label>
 
       {includeEmail ? (
@@ -229,28 +234,17 @@ export function AdvanceStageModal({
         </div>
       ) : null}
 
+      {/* Suggestions only. These were checkboxes that nothing read on submit,
+          which made them look like actions the system would take. */}
       <div className="adv-steps">
-        <h4>AI-suggested next steps</h4>
-        {(NEXT_STEPS[target] ?? []).map((step, index) => (
-          <label className="adv-step" key={step}>
-            <input
-              checked={steps.has(index)}
-              onChange={() =>
-                setSteps((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(index)) {
-                    next.delete(index);
-                  } else {
-                    next.add(index);
-                  }
-                  return next;
-                })
-              }
-              type="checkbox"
-            />
-            {step}
-          </label>
-        ))}
+        <h4>Suggested next steps</h4>
+        <ul className="adv-step-list">
+          {(NEXT_STEPS[target] ?? []).map((step) => (
+            <li className="adv-step" key={step}>
+              {step}
+            </li>
+          ))}
+        </ul>
       </div>
 
       {error ? <p className="sched-error">{error}</p> : null}

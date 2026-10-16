@@ -16,7 +16,7 @@
 
 import "server-only";
 
-/** Website id for web.biso.no in the self-hosted Umami instance. */
+/** Website id for biso.no in the self-hosted Umami instance. */
 export const WEB_WEBSITE_ID = "ada2c233-ee4f-4064-87c0-feaeb52c56ce";
 
 /** Default reporting timezone for time-bucketed queries. */

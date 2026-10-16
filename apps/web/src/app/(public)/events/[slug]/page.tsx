@@ -10,6 +10,7 @@ import { getLocale } from "@/app/actions/locale";
 import { EventDetailV2 } from "@/components/events/v2/event-detail-v2";
 import { pickContent } from "@/components/events/v2/event-fields";
 import { DetailSkeleton } from "@/components/ui/loading-shell";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { toPlainText } from "@/lib/content-text";
 import { buildSummary } from "@/lib/news-article";
 
@@ -20,9 +21,10 @@ interface EventPageProps {
 }
 
 async function EventDetailsV2({ slug }: { slug: string }) {
-  const [locale, event] = await Promise.all([
+  const [locale, event, membership] = await Promise.all([
     getLocale(),
     getEventDetailBySlug(slug),
+    getMembershipStatus(),
   ]);
   if (!event) {
     notFound();
@@ -37,7 +39,10 @@ async function EventDetailsV2({ slug }: { slug: string }) {
     <EventDetailV2
       collectionEvents={collectionEvents}
       event={event}
+      isMember={membership.isMember}
       locale={locale}
+      // "Already a member? Sign in" is only an offer to a signed-out visitor.
+      showSignIn={membership.reason === "not_authenticated"}
     />
   );
 }

@@ -30,7 +30,7 @@ Legend: [P1] launch‑blocker, [P2] should‑have, [P3] nice‑to‑have
 - [P2] Apply for volunteer (WP: `/sok-utvalg`, `/en/apply-for-volunteer`) → App: `/volunteer` (explainer + CTA → `/jobs`)
 
 - Funding
-  - [P2] Apply for economic support (WP: `/sok-okonomisk-stotte`) → App: alias to `/bi-fondet` or short landing that points there
+  - [P2] Apply for economic support (WP: `/sok-okonomisk-stotte`) → App: `/okonomisk-stotte` (DONE — content migrated from WP; `/bi-fondet` and `/sok-okonomisk-stotte` both 308 here via `next.config.ts`)
 
 - Businesses/partners
 - [P2] Business Hotspot standalone (WP: `/business-hotspot`, `/en/business-hotspot`) → App: `/business-hotspot` (currently only a section on `/partner`)
@@ -85,10 +85,11 @@ Implement permanent redirects. In this app we use Next.js `redirects()` (build�
 
 - Volunteering/Funding
   - `/sok-utvalg`, `/en/apply-for-volunteer` → `/jobs` (until `/volunteer` exists)
-  - `/sok-okonomisk-stotte` → `/bi-fondet`
+  - `/sok-okonomisk-stotte` → `/okonomisk-stotte` (IMPLEMENTED in `next.config.ts`)
+  - `/bi-fondet` → `/okonomisk-stotte` (IMPLEMENTED in `next.config.ts`)
 
 
-Note: If hosting requires, these rules can be replicated at the reverse proxy (e.g., Nginx/Traefik) instead of Next.js; but using `redirects()` keeps them versioned with code and is compatible with Appwrite Sites.
+Note: The funding-page renames are the only rules currently implemented in `redirects()`. If hosting requires, these rules can be replicated at the reverse proxy (e.g., Nginx/Traefik) instead of Next.js; but using `redirects()` keeps them versioned with code and is compatible with Appwrite Sites.
 
 ## 3) SEO & Indexing Tasks
 

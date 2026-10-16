@@ -97,3 +97,14 @@ describe("recruitment Appwrite table permissions", () => {
     expect(table?.rowSecurity).toBe(true);
   });
 });
+
+describe("profile table permissions", () => {
+  test("signed-in users cannot create profile rows themselves", () => {
+    const table = loadAppwriteConfig().tables.find(
+      (candidate) => candidate.databaseId === "app" && candidate.$id === "user"
+    );
+
+    expect(table).toBeDefined();
+    expect(table?.$permissions).not.toContain('create("users")');
+  });
+});

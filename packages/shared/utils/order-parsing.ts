@@ -1,7 +1,17 @@
 export interface ParsedOrderItem {
   category?: string | null;
   custom_fields?: Array<{ id: string; label: string; value: string }>;
+  /** Ledger copy made at checkout; see `snapshotTarget`. */
+  finago_account_number?: number | null;
+  finago_department?: string | null;
+  finago_vat_code?: number | null;
   name?: string | null;
+  /**
+   * The `order_items` row id. Carried through so a refund line can point at
+   * the exact line it returns; absent for legacy `items_json` orders, which
+   * have no line rows to reference.
+   */
+  order_item_id?: string | null;
   price?: number | null;
   product_id?: string | null;
   product_name?: string | null;
@@ -12,12 +22,23 @@ export interface ParsedOrderItem {
   [key: string]: unknown;
 }
 
+/** One `order_item_field_answers` row, as the relationship returns it. */
+interface RelationalFieldAnswer {
+  field_key?: string | null;
+  label?: string | null;
+  sort_order?: number | null;
+  value?: string | null;
+}
+
 interface RelationalOrderItem {
   $id?: string;
   accrual_months?: number | null;
   category_id?: string | null;
-  custom_fields_json?: string | null;
   duration?: string | null;
+  field_answers?: RelationalFieldAnswer[] | null;
+  finago_account_number?: number | null;
+  finago_department?: string | null;
+  finago_vat_code?: number | null;
   line_total?: number | null;
   membership_id?: string | null;
   name?: string | null;
@@ -43,18 +64,28 @@ function relationshipId(
   return value?.$id;
 }
 
-function parseCustomFields(value?: string | null) {
-  if (!value) {
+/**
+ * Flattens the `field_answers` relationship into the `{ id, label, value }`
+ * shape every reader already expects — the order confirmation page, the admin
+ * CSV export and the Vipps receipt lines.
+ *
+ * `id` is the answer's `field_key`, not the row id: that key is what ties an
+ * answer to the question that collected it, and it survives the question being
+ * relabelled or deleted outright.
+ */
+function parseCustomFields(answers?: RelationalFieldAnswer[] | null) {
+  if (!Array.isArray(answers) || answers.length === 0) {
     return undefined;
   }
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? (parsed as Array<{ id: string; label: string; value: string }>)
-      : undefined;
-  } catch {
-    return undefined;
-  }
+  const parsed = answers
+    .filter((answer) => answer?.field_key && answer.value != null)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((answer) => ({
+      id: answer.field_key as string,
+      label: answer.label ?? (answer.field_key as string),
+      value: answer.value as string,
+    }));
+  return parsed.length > 0 ? parsed : undefined;
 }
 
 function normalizeRelationalOrderItem(
@@ -66,11 +97,15 @@ function normalizeRelationalOrderItem(
   return {
     accrual_months: item.accrual_months,
     category_id: item.category_id,
-    custom_fields: parseCustomFields(item.custom_fields_json),
+    custom_fields: parseCustomFields(item.field_answers),
     duration: item.duration,
+    finago_account_number: item.finago_account_number,
+    finago_department: item.finago_department,
+    finago_vat_code: item.finago_vat_code,
     line_total: item.line_total,
     membership_id: item.membership_id,
     name: item.name,
+    order_item_id: item.$id,
     product_id: relationshipId(item.product),
     product_type: item.product_type,
     quantity: item.quantity,

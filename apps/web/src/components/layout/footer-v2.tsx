@@ -2,6 +2,7 @@ import { Mail, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { getLocale } from "@/app/actions/locale";
 import { Container } from "@/components/ui/container";
 import { StatRow } from "@/components/ui/stat-row";
 import { cachedCampuses, cachedHomeCounts } from "@/lib/data/public-content";
@@ -9,16 +10,17 @@ import { FooterSocial } from "./footer-social";
 
 /**
  * The redesign's footer. A Server Component — the old one was `"use client"`
- * only because it called `useTranslations` and ran five `whileInView` reveals,
- * so it shipped its whole markup to the browser for no interactive behaviour.
+ * only because it called `useTranslations` and ran five scroll-triggered
+ * reveals, so it shipped its whole markup to the browser for no interactive
+ * behaviour.
  * The one genuinely client-side part, tracked outbound social links, is a
  * separate island (`footer-social.tsx`).
  *
  * Fixes carried from 00-current-state.md §8.5:
  *   - internal links were `<a>`, so every footer click was a full page reload
  *   - body copy measured 4.18:1, below AA
- *   - social buttons were `bg-inverted` on a `bg-inverted` footer: invisible
- *     until hover, and hovered to an off-brand purple/pink gradient
+ *   - social buttons had the footer's own background colour: invisible until
+ *     hover, and hovered to an off-brand purple/pink gradient
  *   - five scroll-triggered reveals, the pattern the brief asks to remove
  *
  * **PLACEHOLDER-004.** The reference shows "1000+ Active Members". Member
@@ -27,19 +29,23 @@ import { FooterSocial } from "./footer-social";
  * count; a tile is dropped entirely when its source returns nothing.
  */
 async function footerStats(): Promise<{ value: string; label: string }[]> {
-  const t = await getTranslations("common.footer.stats");
+  const [t, locale] = await Promise.all([
+    getTranslations("common.footer.stats"),
+    getLocale(),
+  ]);
 
   // Both readers are `"use cache"`, so the footer costs a cache lookup per page
   // rather than a query. Failures degrade to fewer tiles, never to a guess.
   const [counts, campuses] = await Promise.all([
-    cachedHomeCounts(null).catch(() => null),
-    cachedCampuses(null, false, true).catch(() => []),
+    cachedHomeCounts(null, locale).catch(() => null),
+    cachedCampuses(null, false, false).catch(() => []),
   ]);
 
-  const societies = campuses.reduce(
-    (total, campus) => total + (campus.departments?.length ?? 0),
-    0
-  );
+  // Public units only, counted the way `/units` lists them. Summing every
+  // campus's `departments` also counted the operating ledgers and governance
+  // bodies that have no public page (`isPublicUnit`), so the figure was larger
+  // than anything a visitor could find.
+  const societies = counts?.departmentCount ?? 0;
 
   const stats: { value: string; label: string }[] = [];
   if (societies > 0) {
@@ -69,7 +75,9 @@ export async function FooterV2() {
       id: "about",
       heading: t("headings.about"),
       links: [
-        { label: t("about.ourStory"), href: "/about/history" },
+        // The About subpages are sections of one /about page now; the old
+        // addresses only redirect here.
+        { label: t("about.ourStory"), href: "/about#historie" },
         { label: t("about.contact"), href: "/contact" },
       ],
     },

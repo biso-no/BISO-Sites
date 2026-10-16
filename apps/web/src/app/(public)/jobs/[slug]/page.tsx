@@ -4,6 +4,7 @@ import { getJobBySlug } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { JobDetailV2 } from "@/components/jobs/v2/job-detail-v2";
 import { DetailSkeleton } from "@/components/ui/loading-shell";
+import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 interface JobPageProps {
@@ -21,11 +22,20 @@ async function JobDetails({ slug }: { slug: string }) {
     notFound();
   }
 
+  // Only pay for the membership lookup when the answer can change the UI. The
+  // cached read is right here (this renders a form, it does not refuse a
+  // request); submitJobApplication re-checks live before accepting one.
+  const isMember =
+    user && job.metadata.audience === "members"
+      ? (await getMembershipStatus()).isMember
+      : false;
+
   return (
     <JobDetailV2
       applicantEmail={user?.user.email ?? ""}
       applicantName={user?.user.name ?? ""}
       isAuthenticated={Boolean(user)}
+      isMember={isMember}
       job={job}
       locale={locale}
     />

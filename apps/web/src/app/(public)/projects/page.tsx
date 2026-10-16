@@ -1,14 +1,17 @@
 import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listLargeEvents } from "@/app/actions/large-events";
 import { getLocale } from "@/app/actions/locale";
+import { projectPalette } from "@/components/projects/project-palette";
 import {
   type FeaturedVM,
   ProjectsBody,
   type ScheduleVM,
 } from "@/components/projects/projects-body";
 import { PageHeader } from "@/components/ui/page-header";
+import { statusPanelSecondaryAction } from "@/components/ui/status-panel";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 export const metadata: Metadata = {
@@ -17,21 +20,8 @@ export const metadata: Metadata = {
     "Explore the projects and large events organised by BI Student Organisation across our campuses.",
 };
 
-const DEFAULT_GRADIENT = ["#14355B", "#1E3A8A"];
-const WINTER_GAMES_GRADIENT = ["#0F172A", "#1E3A8A"];
-
 const pickEventBySlug = (events: ParsedLargeEvent[], slug: string) =>
   events.find((event) => event.slug === slug);
-
-const deriveAccent = (event?: ParsedLargeEvent, fallback?: string[]) => {
-  if (event?.gradient && event.gradient.length >= 2) {
-    return event.gradient;
-  }
-  if (event?.primaryColorHex && event?.secondaryColorHex) {
-    return [event.primaryColorHex, event.secondaryColorHex];
-  }
-  return fallback ?? DEFAULT_GRADIENT;
-};
 
 export default async function ProjectsPage() {
   const locale = (await getLocale()) as Locale;
@@ -58,13 +48,10 @@ export default async function ProjectsPage() {
       return {
         ctaLabel: config.cta,
         description: event?.description ?? config.description,
-        gradient: deriveAccent(
-          event,
-          key === "winterGames" ? WINTER_GAMES_GRADIENT : undefined
-        ),
         highlight: config.highlight,
         href: `/projects/${config.slug}`,
         key,
+        palette: projectPalette(event),
         slug: config.slug,
         title: event?.name ?? config.title,
       };
@@ -82,9 +69,9 @@ export default async function ProjectsPage() {
       formattedDate: event.startDate
         ? dateFormatter.format(new Date(event.startDate))
         : undefined,
-      gradient: deriveAccent(event),
       href: `/projects/${event.slug}`,
       id: event.$id,
+      palette: projectPalette(event),
       slug: event.slug,
       tag: event.showcaseType || undefined,
       title: event.name,
@@ -95,15 +82,22 @@ export default async function ProjectsPage() {
     { label: tNav("triggers.projects") },
   ];
 
-  // Chrome only. **`large_event` holds zero rows**, so the four projects
-  // below come from the `projects` message bundle and their gradients from
-  // constants in this file — there is no project data to restyle against,
-  // and `01-design-spec.md` §7.4's per-project palette override has nothing
-  // to override. See PLACEHOLDER-011.
+  // **`large_event` holds zero rows today** (PLACEHOLDER-011), so the
+  // flagships come from the `projects` message bundle and carry no palette;
+  // a project row that supplies its colours gets them in its card's chevron
+  // frame (spec §7.4).
   return (
     <>
       <PageHeader
+        actions={
+          otherEvents.length > 0 ? (
+            <Link className={statusPanelSecondaryAction} href="#calendar">
+              {t("hero.ctaSecondary")}
+            </Link>
+          ) : undefined
+        }
         breadcrumbs={crumbs}
+        eyebrow={t("hero.badge")}
         lede={t("hero.subtitle")}
         title={t("hero.title")}
       />

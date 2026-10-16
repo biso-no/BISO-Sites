@@ -95,4 +95,41 @@ describe("getAdminScope", () => {
       userId: "admin-user-1",
     });
   });
+
+  it("returns null when Appwrite rejects the session with 401", async () => {
+    mockedCreateSessionClient.mockResolvedValue({
+      account: {
+        get: vi
+          .fn()
+          .mockRejectedValue(
+            Object.assign(new Error("missing scope"), { code: 401 })
+          ),
+      },
+      teams: { list: vi.fn() },
+    } as unknown as Awaited<ReturnType<typeof createSessionClient>>);
+
+    await expect(getAdminScope(requestWithJwt())).resolves.toBeNull();
+  });
+
+  it("rethrows non-auth Appwrite failures instead of masking them as 401", async () => {
+    const outage = Object.assign(new Error("service unavailable"), {
+      code: 503,
+    });
+    mockedCreateSessionClient.mockResolvedValue({
+      account: { get: vi.fn().mockResolvedValue({ $id: "admin-user-1" }) },
+      teams: { list: vi.fn().mockRejectedValue(outage) },
+    } as unknown as Awaited<ReturnType<typeof createSessionClient>>);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toBe(outage);
+  });
+
+  it("rethrows network errors without an HTTP code", async () => {
+    const networkError = new TypeError("fetch failed");
+    mockedCreateSessionClient.mockResolvedValue({
+      account: { get: vi.fn().mockRejectedValue(networkError) },
+      teams: { list: vi.fn() },
+    } as unknown as Awaited<ReturnType<typeof createSessionClient>>);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toBe(networkError);
+  });
 });

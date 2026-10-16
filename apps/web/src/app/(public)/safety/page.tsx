@@ -93,23 +93,27 @@ export default async function SafetyPage() {
           </p>
         </Prose>
 
-        <SectionHeading as="h3" className="mt-12">
-          {t("codeOfConduct.title")}
-        </SectionHeading>
-        <p className="type-body text-ink-muted">{t("codeOfConduct.purpose")}</p>
-        <ul className="mt-5 space-y-3">
-          {RULE_KEYS.map((key) => (
-            <li className="flex items-start gap-3" key={key}>
-              <Check
-                aria-hidden="true"
-                className="mt-1 size-4 shrink-0 text-ink-accent"
-              />
-              <span className="type-body text-ink-muted">
-                {t(`codeOfConduct.${key}`)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {/* `#code-of-conduct` is a deep link: the footer points here.
+            `scroll-mt-*` keeps the heading clear of the fixed header. */}
+        <div className="mt-12 scroll-mt-28" id="code-of-conduct">
+          <SectionHeading as="h3">{t("codeOfConduct.title")}</SectionHeading>
+          <p className="type-body text-ink-muted">
+            {t("codeOfConduct.purpose")}
+          </p>
+          <ul className="mt-5 space-y-3">
+            {RULE_KEYS.map((key) => (
+              <li className="flex items-start gap-3" key={key}>
+                <Check
+                  aria-hidden="true"
+                  className="mt-1 size-4 shrink-0 text-ink-accent"
+                />
+                <span className="type-body text-ink-muted">
+                  {t(`codeOfConduct.${key}`)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <div className="mt-10 rounded-biso-md bg-surface-sunken p-6">
           <h3 className="type-heading-card text-ink">

@@ -5,6 +5,10 @@ import type {
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
+import type {
+  CurrentMembershipView,
+  PlanView,
+} from "@/lib/member-portal-membership";
 import { TabNavigation } from "./shared/tab-navigation";
 import { BenefitsTab } from "./tabs/benefits-tab";
 import { CampusTab } from "./tabs/campus-tab";
@@ -18,6 +22,7 @@ interface MemberPortalTabsProps {
   benefits: CampusBenefits[];
   benefitsCount: number;
   biEmail: string;
+  current: CurrentMembershipView | null;
   daysRemaining: number;
   estimatedSavings: number | null;
   expiryDate: string;
@@ -26,13 +31,13 @@ interface MemberPortalTabsProps {
   isGuest: boolean;
   isMember: boolean;
   membershipType: string;
+  plans: PlanView[];
   profile: Users | null;
   profileAccount: { name: string; email: string } | null;
   publicProfile: PublicProfiles | null;
   revealedBenefits: Set<string>;
   startDate: string;
-  studentId: string;
-  userName: string;
+  termDays: number;
 }
 
 export function MemberPortalTabs({
@@ -52,8 +57,9 @@ export function MemberPortalTabs({
   profileAccount,
   publicProfile,
   biEmail,
-  userName,
-  studentId,
+  current,
+  plans,
+  termDays,
   bankAccount: _bankAccount,
 }: MemberPortalTabsProps) {
   const handleTabChange = (tab: string) => {
@@ -82,6 +88,7 @@ export function MemberPortalTabs({
         onTabChange={handleTabChange}
         revealedBenefits={revealedBenefits}
         startDate={startDate}
+        termDays={termDays}
       />
 
       <BenefitsTab
@@ -97,14 +104,10 @@ export function MemberPortalTabs({
       <OpportunitiesTab />
 
       <MembershipTab
-        autoRenew={false}
-        currentPlan="year"
-        daysRemaining={daysRemaining}
-        expiryDate={expiryDate}
+        current={current}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
-        studentId={studentId}
-        userName={userName}
+        plans={plans}
       />
 
       <ProfileTab

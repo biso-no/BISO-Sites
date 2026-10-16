@@ -12,7 +12,7 @@ import { RemediationClient } from "../_components/remediation-client";
 export const maxDuration = 300;
 
 export default async function ItUsersAuditPage() {
-  await requireItPagePermission("it.users.view");
+  await requireItPagePermission("it.tenant.audit");
   const t = await getTranslations("adminPortal.it");
   const [snapshotResult, departmentsResult] = await Promise.all([
     getLatestRemediationSnapshot(),
@@ -41,6 +41,7 @@ export default async function ItUsersAuditPage() {
           expenseApprovals: t("users.tabs.expenseApprovals"),
           users: t("users.tabs.users"),
         }}
+        showTenantTools
       />
 
       {snapshotResult.error ? (

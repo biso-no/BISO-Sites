@@ -1,5 +1,6 @@
 "use server";
 
+import { extractTextFromPdf } from "@repo/ai/server/pdf-text-extractor";
 import {
   normalizeScreeningScore,
   screenApplication,
@@ -18,18 +19,21 @@ import {
   CandidateProfilesEmbeddingStatus,
   JobApplicationsEmbeddingStatus,
   JobApplicationsStatus,
-  JobsStatus,
 } from "@repo/api/types/appwrite";
 import type { CandidateProfileWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow, updateTypedRow } from "@repo/api/write";
 import {
   buildRecruitmentStaffRowPermissions,
-  fetchRecruitmentListRows,
+  fetchRecruitmentListPage,
   getRecruitmentJobById,
   getRecruitmentJobBySlug,
   isAuthenticatedAppwriteUser,
   localizeVacancy,
 } from "@repo/shared/recruitment";
+import {
+  coverLetterTextForScreening,
+  validateApplicationDocument,
+} from "@repo/shared/recruitment/application-documents";
 import {
   buildRecruitmentApplicationReviewMetadata,
   computeRecruitmentRetentionUntil,
@@ -45,66 +49,93 @@ import {
   serializeRecruitmentApplicationReviewMetadata,
   validateRecruitmentResumeFile,
 } from "@repo/shared/types/recruitment";
+import {
+  parseUnitCategory,
+  UNIT_CATEGORIES,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
+import { getLiveMembershipStatus } from "@/lib/actions/membership";
 import { campusScopeIds } from "@/lib/campus-scope";
+import { openVacancyQueries } from "@/lib/data/queries";
+import { findContentIdsBySearch } from "@/lib/data/search-content";
+import {
+  emptyWebResult,
+  WEB_PAGE_SIZE,
+  type WebPaginatedResult,
+} from "@/lib/list-params";
 
 // ---------- public reads (session/guest client — enforces row permissions) ----------
+
+export type JobSort = "deadline" | "newest";
 
 // Primitive arguments only: React cache() keys on argument identity
 // (Object.is), so an options object allocated fresh at each call site would
 // never hit the memo. See WEB_APP_APPWRITE_INCIDENT_AUDIT.md (F-6b).
+// `pageSize` is threaded as its own primitive argument for the same reason —
+// bundling it into an options object would silently kill the memo.
 const _listJobs = cache(
   async (
     campus: string | null,
     department: string | null,
+    category: string | null,
     locale: string,
-    limit: number,
-    search: string
-  ): Promise<RecruitmentVacancy[]> => {
+    page: number,
+    search: string,
+    sort: JobSort,
+    pageSize: number
+  ): Promise<WebPaginatedResult<RecruitmentVacancy>> => {
     try {
       const { db } = await createSessionClient();
 
+      let capped = false;
+      const idQueries: string[] = [];
+      if (search.trim()) {
+        const found = await findContentIdsBySearch(db, "job", search, locale);
+        if (found.ids.length === 0) {
+          return emptyWebResult<RecruitmentVacancy>(page, pageSize);
+        }
+        capped = found.capped;
+        idQueries.push(Query.equal("$id", found.ids));
+      }
+
       const queries: string[] = [
-        Query.equal("status", JobsStatus.PUBLISHED),
-        Query.orderDesc("$createdAt"),
-        Query.limit(Math.min(limit, 200)),
+        ...openVacancyQueries(),
+        ...idQueries,
+        sort === "deadline"
+          ? Query.orderAsc("application_deadline")
+          : Query.orderDesc("$createdAt"),
+        Query.limit(pageSize),
+        Query.offset((page - 1) * pageSize),
       ];
 
       const campusScope = campusScopeIds(campus);
       if (campusScope) {
         queries.push(Query.equal("campus_id", campusScope));
       }
-
       if (department) {
         queries.push(Query.equal("department_id", department));
       }
+      if (category) {
+        // Filter operators traverse relationships (verified); ordering does
+        // not, which is why there is no A-Z sort.
+        queries.push(Query.equal("department.type", category));
+      }
 
-      const vacancies = await fetchRecruitmentListRows(db, queries);
+      const { rows, total } = await fetchRecruitmentListPage(db, queries);
 
-      const lowerSearch = search?.trim().toLowerCase() ?? "";
-
-      return vacancies
-        .filter((v) =>
-          isRecruitmentVacancyOpen(v.status, v.application_deadline)
-        )
-        .map((v) => localizeVacancy(v, locale))
-        .filter((v) => {
-          if (!lowerSearch) {
-            return true;
-          }
-          const t = v.translations[0];
-          return (
-            (t?.title ?? "").toLowerCase().includes(lowerSearch) ||
-            (t?.description ?? "").toLowerCase().includes(lowerSearch) ||
-            (v.department?.Name ?? "").toLowerCase().includes(lowerSearch) ||
-            (v.metadata.company ?? "").toLowerCase().includes(lowerSearch)
-          );
-        });
+      return {
+        rows: rows.map((v) => localizeVacancy(v, locale)),
+        total,
+        page,
+        size: pageSize,
+        capped,
+      };
     } catch (error) {
       console.error("listJobs failed:", error);
-      return [];
+      return emptyWebResult<RecruitmentVacancy>(page, pageSize);
     }
   }
 );
@@ -112,19 +143,94 @@ const _listJobs = cache(
 // biome-ignore lint/suspicious/useAwait: async required by "use server" — returns cached promise
 export async function listJobs(params: {
   campus?: string | null;
+  category?: string | null;
   department?: string | null;
   locale?: string;
-  limit?: number;
+  page?: number;
+  /**
+   * Rows per page. Defaults to `WEB_PAGE_SIZE` (12) — the paginated `/jobs`
+   * surface should omit this so it keeps the size its load-more UI expects.
+   * First-N consumers (`/students`) that need a bigger pool in one fetch pass
+   * this explicitly.
+   */
+  pageSize?: number;
   search?: string;
-  status?: string;
-}): Promise<RecruitmentVacancy[]> {
+  sort?: JobSort;
+}): Promise<WebPaginatedResult<RecruitmentVacancy>> {
   return _listJobs(
     params.campus ?? null,
     params.department ?? null,
+    params.category ?? null,
     params.locale ?? "en",
-    params.limit ?? 100,
-    params.search ?? ""
+    params.page ?? 1,
+    params.search ?? "",
+    params.sort ?? "newest",
+    params.pageSize ?? WEB_PAGE_SIZE
   );
+}
+
+/**
+ * Filter options drawn from the whole filtered set, not the current page.
+ *
+ * Building the dropdowns from page 1 would offer twelve rows' worth of
+ * options. Two cheap projections over the open set (28 rows today) give the
+ * true lists, and the department count doubles as the hero's stat.
+ */
+export async function listJobFacets(params: {
+  campus?: string | null;
+}): Promise<{ categories: UnitCategory[]; departments: [string, string][] }> {
+  try {
+    const { db } = await createSessionClient();
+    const queries = [
+      ...openVacancyQueries(),
+      Query.select([
+        "$id",
+        "department_id",
+        "department.$id",
+        "department.Name",
+        "department.type",
+      ]),
+      Query.limit(300),
+    ];
+    const campusScope = campusScopeIds(params.campus ?? null);
+    if (campusScope) {
+      queries.push(Query.equal("campus_id", campusScope));
+    }
+
+    const response = await db.listRows<Jobs>("app", "jobs", queries);
+
+    const departments = new Map<string, string>();
+    const categories = new Set<UnitCategory>();
+    for (const job of response.rows) {
+      const dept = job.department as
+        | { $id?: string; Name?: string; type?: string | null }
+        | null
+        | undefined;
+      if (job.department_id && dept?.Name) {
+        departments.set(job.department_id, dept.Name);
+      }
+      const parsed = parseUnitCategory(dept?.type);
+      if (parsed) {
+        categories.add(parsed);
+      }
+    }
+
+    return {
+      // Ordered by the canonical list so the chips never reshuffle between
+      // renders; only categories actually present are offered.
+      categories: UNIT_CATEGORIES.filter((c) => categories.has(c)),
+      // Appwrite's row order is not stable across renders; sort in JS so the
+      // department dropdown doesn't reshuffle for no visible reason. (The
+      // "cannot order by nested attribute" restriction is on Appwrite's
+      // orderAsc, not on sorting already-fetched values.)
+      departments: [...departments.entries()].sort(([, a], [, b]) =>
+        a.localeCompare(b)
+      ),
+    };
+  } catch (error) {
+    console.error("listJobFacets failed:", error);
+    return { categories: [], departments: [] };
+  }
 }
 
 const _getJobBySlug = cache(
@@ -244,7 +350,8 @@ export async function submitJobApplication(
       applicant_phone: formData.get("applicant_phone"),
       answers,
       candidate_availability: readAvailabilitySlots(formData),
-      cover_letter: formData.get("cover_letter"),
+      // The text field is gone; the PDF's text is filled in after upload.
+      cover_letter: null,
       current_employer: formData.get("current_employer"),
       current_role: formData.get("current_role"),
       gdpr_consent:
@@ -271,6 +378,21 @@ export async function submitJobApplication(
       };
     }
 
+    // Members-only vacancies are visible to everyone — the gate is here, on
+    // applying, not on reading the row. Live (uncached) status: a student who
+    // paid for their membership a moment ago must be able to apply straight
+    // away, and this gate is the one thing that would tell them otherwise.
+    if (vacancy.metadata.audience === "members") {
+      const membership = await getLiveMembershipStatus();
+      if (!membership.isMember) {
+        return {
+          success: false,
+          error:
+            "This vacancy is open to BISO members only. Buy a membership to apply.",
+        };
+      }
+    }
+
     const missingAnswerError = assertRequiredAnswersPresent(
       vacancy.custom_questions,
       parsed.data.answers ?? []
@@ -291,20 +413,50 @@ export async function submitJobApplication(
       };
     }
 
+    // Both documents are checked before either is uploaded: a rejection
+    // after an upload would leave a file in the bucket that no row points
+    // at, which the retention cleanup never reclaims.
     const resume = formData.get("resume");
-    let resumeFileId: string | null = null;
-    if (resume instanceof File && resume.size > 0) {
+    const hasResume = resume instanceof File && resume.size > 0;
+    if (hasResume) {
       validateRecruitmentResumeFile(resume);
+    } else if (vacancy.metadata.cv_required) {
+      return { success: false, error: "A CV is required for this vacancy." };
+    }
+    // The cover letter is a required PDF. Its text is kept on the row for
+    // the screener and the admin drawer; the file is stored next to the CV.
+    const coverLetterFile = formData.get("cover_letter");
+    if (!(coverLetterFile instanceof File && coverLetterFile.size > 0)) {
+      return { success: false, error: "A cover letter (PDF) is required." };
+    }
+    validateApplicationDocument(coverLetterFile);
+
+    let resumeFileId: string | null = null;
+    let resumeBuffer: Buffer | null = null;
+    if (hasResume) {
       const buffer = Buffer.from(await resume.arrayBuffer());
+      resumeBuffer = buffer;
       const uploaded = await storage.createFile(
         RECRUITMENT_RESUME_BUCKET_ID,
         ID.unique(),
         InputFile.fromBuffer(buffer, resume.name)
       );
       resumeFileId = uploaded.$id;
-    } else if (vacancy.metadata.cv_required) {
-      return { success: false, error: "A CV is required for this vacancy." };
     }
+
+    const coverLetterBuffer = Buffer.from(await coverLetterFile.arrayBuffer());
+    const coverLetterUpload = await storage.createFile(
+      RECRUITMENT_RESUME_BUCKET_ID,
+      ID.unique(),
+      InputFile.fromBuffer(coverLetterBuffer, coverLetterFile.name)
+    );
+    const coverLetterFileId = coverLetterUpload.$id;
+    const coverLetterText = coverLetterTextForScreening(
+      await extractTextFromPdf(coverLetterBuffer).catch((err: unknown) => {
+        console.warn("Cover letter text extraction failed:", err);
+        return null;
+      })
+    );
 
     const consentDate = new Date();
     const retentionUntil = computeRecruitmentRetentionUntil(
@@ -393,7 +545,8 @@ export async function submitJobApplication(
         candidate_profile: candidateProfileId,
         candidate_profile_id: candidateProfileId,
         consent_date: consentDate.toISOString(),
-        cover_letter: parsed.data.cover_letter ?? null,
+        cover_letter: coverLetterText,
+        cover_letter_file_id: coverLetterFileId,
         data_processing_purpose: "BISO recruitment process",
         data_retention_until: retentionUntil,
         embedding_status: JobApplicationsEmbeddingStatus.PENDING,
@@ -449,6 +602,17 @@ export async function submitJobApplication(
         try {
           // Re-instantiate admin client inside after() to ensure no context loss
           const { db: afterDb } = await createAdminClient();
+          // A CV that fails to parse (scanned image, malformed PDF) should not
+          // block screening — the model is told no CV was provided.
+          const resumeText = resumeBuffer
+            ? await extractTextFromPdf(resumeBuffer).catch((err: unknown) => {
+                console.warn(
+                  `CV text extraction failed for application ${application.$id}:`,
+                  err
+                );
+                return null;
+              })
+            : null;
           const screening = await screenApplication({
             answers: (parsed.data.answers ?? []).map((a) => ({
               answer: a.answer ?? null,
@@ -456,13 +620,11 @@ export async function submitJobApplication(
             })),
             application: {
               $id: application.$id,
-              applicant_email: user.email,
               applicant_name: parsed.data.applicant_name,
-              cover_letter: parsed.data.cover_letter ?? null,
-              current_employer: parsed.data.current_employer ?? null,
+              cover_letter: coverLetterText,
               current_role: parsed.data.current_role ?? null,
-              linkedin_url: parsed.data.linkedin_url ?? null,
             },
+            resumeText,
             rubric:
               vacancy.screening_rubric ?? parseRecruitmentScreeningRubric(null),
             vacancy: {

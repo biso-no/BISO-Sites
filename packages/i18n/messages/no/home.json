@@ -46,10 +46,22 @@
       "title": "Om BISO",
       "subtitle": "BI Studentorganisasjon",
       "premier": "Norges ledende",
-      "studentCommunity": "Studentfellesskap",
+      "studentCommunity": "studentfellesskap",
       "paragraph1": "BI Studentorganisasjon (BISO) er hjertet i studentlivet på BI Norwegian Business School. Vi er dedikert til å skape uforglemmelige opplevelser, styrke meningsfulle kontakter og styrke studentene til å tjene det meste av sine universitetsår.",
       "paragraph2": "Fra spennende sosiale arrangementer og karriereworkshops til kulturelle festivaler og sportskonkurranser, vi tilbyr noe for alle. Bli med oss og bli en del av et fellesskap som feirer diversitet, styrker innovasjon og skaper minner som varer til livet."
     }
+  },
+  "overview": {
+    "eyebrow": "Om BISO",
+    "eyebrowCampus": "BISO {campusName}",
+    "focusTitle": "Dette jobber vi med"
+  },
+  "leadership": {
+    "title": "Ledelsen",
+    "titleCampus": "Ledelsen ved {campusName}",
+    "description": "Valgte studenter og ansatte som driver BISO nasjonalt.",
+    "descriptionCampus": "Studentene som driver BISO på ditt campus. Ta kontakt – de er der for deg.",
+    "cta": "Se hele ledelsen"
   },
   "identity": {
     "eyebrow": "Hvorfor BISO",
@@ -159,6 +171,11 @@
     "empty": "Ingen ledige stillinger akkurat nå.",
     "rolling": "Løpende søknader",
     "title": "Ledige stillinger og verv"
+  },
+  "units": {
+    "title": "Våre enheter",
+    "description": "{count, plural, one {# studentdrevet enhet} other {# studentdrevne enheter, foreninger og komiteer}}",
+    "cta": "Se alle enheter"
   },
   "quickLinks": {
     "benefits": {

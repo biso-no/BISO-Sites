@@ -4,21 +4,22 @@ import { listJobs } from "../_actions/jobs";
 import { JobStudioDashboard } from "./_components/job-studio-dashboard";
 
 interface JobsPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
 }
 
 export default async function JobsPage({ searchParams }: JobsPageProps) {
   await requireNavAccess("portal.jobs");
   const t = await getTranslations("adminPortal.jobs");
   const tc = await getTranslations("adminPortal.common");
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, search, status } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const jobs = await listJobs({ page });
+  const jobs = await listJobs({ page, search, status });
 
   return (
     <div>
       <JobStudioDashboard
+        counts={jobs.counts}
         initialJobs={jobs.rows}
         labels={{
           empty: t("empty"),

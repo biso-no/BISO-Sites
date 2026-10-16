@@ -1,3 +1,4 @@
+import { orNullIfNotFound } from "@repo/api/errors";
 import type { Memberships, Orders, Users } from "@repo/api/types/appwrite";
 import {
   assignMembershipCategory,
@@ -26,13 +27,6 @@ type PurchasedPlanSnapshot = Pick<
   | "productId"
   | "startDate"
 >;
-// Note on `startDate`: on a `MembershipPlan` it is the catalogue row's own
-// start, but what checkout snapshots onto the order item — and therefore what
-// arrives here — is the **accrual start for that purchase** (1 January or
-// 1 July, whichever half-year the purchase fell into). Orders placed before
-// that change carry the catalogue date instead, which
-// `buildMembershipInvoiceOrder` detects and replaces with one derived from the
-// invoice date.
 
 // Pending an `appwrite push tables`; extend locally until the generated types
 // are regenerated.
@@ -70,7 +64,18 @@ export interface MembershipFulfilmentResult {
     | "not_paid"
     | "missing_identity"
     | "plan_unavailable"
+    /**
+     * An Appwrite read needed to fulfil the order failed (outage, timeout,
+     * 401) — not a missing row. The claim is released so a later sweep
+     * retries; callers must treat this as an error.
+     */
+    | "read_failed"
     | "finago_failed";
+  /**
+   * The buyer's sanitised student number — the key of their membership status
+   * cache. Set only when `fulfilled` is true, so the caller can invalidate it.
+   */
+  studentNumber?: number;
 }
 
 const FULFILLABLE_STATUSES = new Set(["authorized", "paid"]);
@@ -241,17 +246,19 @@ async function claimFulfilmentLock(
 
 /**
  * Resolves the BI identity (student number + Azure employee id) backing the
- * order's buyer. Both are required: the employee id is the Finago customer
- * number and the student number is its `ExternalId`.
+ * order's buyer. Both are required: the student number is the Finago customer
+ * number and the employee id is its `ExternalId`.
  */
 async function resolveBuyerIdentity(
   order: MembershipOrder,
   db: DbClient
 ): Promise<{ employeeId: number; studentNumber: number } | null> {
   const { dbId } = tables();
-  const profile = (await db
-    .getRow(dbId, "user", order.userId ?? "")
-    .catch(() => null)) as BiUser | null;
+  // A 404 means no profile (→ missing_identity); any other failure throws so
+  // a backend blip is not reported as a buyer with no BI identity.
+  const profile = (await orNullIfNotFound(
+    db.getRow(dbId, "user", order.userId ?? "")
+  )) as BiUser | null;
   const studentNumber = sanitizeStudentNumber(profile?.student_id);
   const employeeId = sanitizeStudentNumber(profile?.bi_employee_id);
 
@@ -344,9 +351,11 @@ async function resolvePurchasedPlan(
     return { campusId, plan: snapshot };
   }
 
-  const planRow = (await db
-    .getRow(dbId, "memberships", item.product_id ?? "")
-    .catch(() => null)) as Memberships | null;
+  // A 404 means the plan is gone (→ plan_unavailable); any other failure
+  // throws so a backend blip is not reported as an unavailable plan.
+  const planRow = (await orNullIfNotFound(
+    db.getRow(dbId, "memberships", item.product_id ?? "")
+  )) as Memberships | null;
   const plan = planRow ? toMembershipPlan(planRow) : null;
   if (!plan) {
     return null;
@@ -362,22 +371,17 @@ async function resolvePurchasedPlan(
  */
 async function prepareFulfilment(
   orderId: string,
-  employeeId: number,
+  studentNumber: number,
   campusId: string,
   plan: PurchasedPlanSnapshot,
-  db: DbClient,
-  purchasedOn?: string
+  db: DbClient
 ): Promise<ReturnType<typeof buildMembershipInvoiceOrder> | null> {
   const { dbId, ordersId } = tables();
   try {
     const invoicePayload = buildMembershipInvoiceOrder({
       campusId,
-      customerId: employeeId,
+      customerId: studentNumber,
       plan,
-      // The accrual period follows the purchase, not this run: a webhook retry
-      // or the reconcile cron can fulfil an order days later, across 1 January
-      // or 1 July. `DateInvoiced` is still today — that one *is* about now.
-      purchasedOn,
       invoicedOn: new Date().toISOString().slice(0, 10),
     });
     await db.updateRow(dbId, ordersId, orderId, {
@@ -490,9 +494,12 @@ export async function fulfilMembershipOrder(
 ): Promise<MembershipFulfilmentResult> {
   const { dbId, ordersId } = tables();
 
-  const order = (await db
-    .getRow(dbId, ordersId, orderId, [ORDER_ITEMS_SELECT])
-    .catch(() => null)) as MembershipOrder | null;
+  // Only a 404 is "not found". Any other read failure throws: nothing has been
+  // claimed yet, and the reconcile sweep's per-order catch counts it as an
+  // error.
+  const order = (await orNullIfNotFound(
+    db.getRow(dbId, ordersId, orderId, [ORDER_ITEMS_SELECT])
+  )) as MembershipOrder | null;
   if (!order) {
     return { fulfilled: false, reason: "not_found" };
   }
@@ -514,7 +521,19 @@ export async function fulfilMembershipOrder(
   // Everything below, up to the marker write in prepareFulfilment, happens
   // before any Finago side effect — so a failure releases the claim for a
   // later retry.
-  const identity = await resolveBuyerIdentity(order, db);
+  let identity: Awaited<ReturnType<typeof resolveBuyerIdentity>>;
+  let purchase: Awaited<ReturnType<typeof resolvePurchasedPlan>>;
+  try {
+    identity = await resolveBuyerIdentity(order, db);
+    purchase = identity ? await resolvePurchasedPlan(order, db) : null;
+  } catch (error) {
+    await releaseClaim(orderId, db);
+    console.error(
+      `[Membership] Could not read fulfilment inputs for order ${orderId}; releasing the claim for retry:`,
+      error
+    );
+    return { fulfilled: false, reason: "read_failed" };
+  }
   if (!identity) {
     await releaseClaim(orderId, db);
     console.error(
@@ -523,7 +542,6 @@ export async function fulfilMembershipOrder(
     return { fulfilled: false, reason: "missing_identity" };
   }
 
-  const purchase = await resolvePurchasedPlan(order, db);
   if (!purchase) {
     await releaseClaim(orderId, db);
     console.error(
@@ -535,11 +553,10 @@ export async function fulfilMembershipOrder(
 
   const invoicePayload = await prepareFulfilment(
     orderId,
-    identity.employeeId,
+    identity.studentNumber,
     campusId,
     plan,
-    db,
-    order.$createdAt
+    db
   );
   if (!invoicePayload) {
     return { fulfilled: false, reason: "finago_failed" };
@@ -562,7 +579,11 @@ export async function fulfilMembershipOrder(
     };
   }
 
-  return { fulfilled: true, invoiceId: postResult.invoiceId };
+  return {
+    fulfilled: true,
+    invoiceId: postResult.invoiceId,
+    studentNumber: identity.studentNumber,
+  };
 }
 
 const STALE_CLAIM_MS = 30 * 60 * 1000;

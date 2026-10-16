@@ -8,7 +8,9 @@
   "labels": {
     "organisation": "BISO",
     "onThisPage": "På denne siden",
-    "scrollToContent": "Bla ned til innholdet"
+    "scrollToContent": "Bla ned til innholdet",
+    "emailPerson": "Send e-post til {name}",
+    "callPerson": "Ring {name}"
   },
   "locale": {
     "switcher": {
@@ -67,6 +69,7 @@
     "about": "Om oss",
     "openMenu": "Åpne meny",
     "closeMenu": "Lukk meny",
+    "moreMenu": "Mer",
     "account": {
       "menuLabel": "Min konto",
       "heading": "Min konto",
@@ -86,6 +89,8 @@
       "campus": "Campus",
       "resources": "Verv & ressurser",
       "flagships": "Flaggskip",
+      "campusProjects": "På ditt campus",
+      "moreProjects": "Flere prosjekter",
       "organisation": "Organisasjon",
       "policy": "Policy & juridisk",
       "contact": "Kontakt"
@@ -97,7 +102,7 @@
       "buyMembership": "Kjøp medlemskap",
       "units": "Verv & enheter",
       "jobs": "Ledige verv",
-      "biFondet": "BI-fondet",
+      "fundingSupport": "Økonomisk støtte",
       "studyQuality": "Studiekvalitet",
       "resources": "Ressurser",
       "allEvents": "Se alle arrangementer",
@@ -177,6 +182,17 @@
       "invitation_failed": "Vi kunne ikke godta invitasjonen. Prøv igjen.",
       "server_configuration": "Innlogging er midlertidig utilgjengelig. Prøv igjen senere.",
       "unexpected_error": "Noe gikk galt under innloggingen."
+    },
+    "biSignIn": "Logg inn med BI-studentkonto",
+    "biSignInPending": "Sender deg til BI …",
+    "biSignInHint": "BI-studenter: studentmedlemskapet og medlemsprisene følger BI-kontoen din.",
+    "orUseLoginLink": "Ikke BI-student? Bruk en innloggingslenke",
+    "staffUseAdmin": "BISO-kontoer for ansatte logger inn på admin.biso.no. Bruk din personlige e-postadresse her.",
+    "newHere": "Ny her? Når du logger inn med BI eller en innloggingslenke, opprettes kontoen din.",
+    "needHelp": "Trenger du hjelp med å logge inn?",
+    "biFailure": {
+      "existing_account": "BI kunne ikke logge deg inn på den eksisterende BISO-kontoen din. Bruk en innloggingslenke til student-e-posten din nedenfor, og gi oss beskjed via /contact så vi kan rette innloggingen.",
+      "failed": "Vi kunne ikke logge deg inn med BI. Prøv igjen, eller bruk en innloggingslenke."
     }
   },
   "breadcrumbs": {
@@ -201,7 +217,14 @@
       "linkBiso": "Koble til BISO",
       "heading": "Tilknyttede kontoer",
       "empty": "Ingen kontoer er koblet til ennå.",
-      "oauthNote": "Når du kobler til, sendes du videre for å fullføre påloggingen hos leverandøren."
+      "oauthNote": "Når du kobler til, sendes du videre for å fullføre påloggingen hos leverandøren.",
+      "signInBody": "Slik logger du inn. BI Student-identiteten din er det som bekrefter medlemskapet ditt; logg inn med BI for å legge den til.",
+      "remove": "Fjern",
+      "removed": "Identiteten er fjernet",
+      "removeFailed": "Kunne ikke fjerne",
+      "unknownError": "Ukjent feil",
+      "providerEmail": "E-post",
+      "providerLoginLink": "Innloggingslenke"
     },
     "privacy": {
       "title": "Dine personvernrettigheter",
@@ -212,20 +235,88 @@
       "deleteAccount": "Slett konto",
       "confirmTitle": "Er du helt sikker?",
       "cancel": "Avbryt",
-      "gdprNote": "Forespørsler behandles innen 30 dager, slik GDPR krever"
-    }
-  },
-  "booking": {
-    "title": "Velg et intervjutidspunkt",
-    "unavailable": "Bookinglenken er ikke gyldig",
-    "expired": "Ta kontakt med din BISO-kontakt for en ny lenke.",
-    "noSlots": "Ingen ledige tider i dette tidsrommet. Ta kontakt med BISO-teamet.",
-    "booked": "Tiden er booket!"
+      "gdprNote": "Forespørsler behandles innen 30 dager, slik GDPR krever",
+      "subtitle": "Etter GDPR har du rett til innsyn i, endring av og sletting av personopplysningene dine.",
+      "processingBefore": "Vi behandler opplysningene dine i samsvar med",
+      "policyLink": "personvernerklæringen vår",
+      "processingAfter": "og gjeldende personvernlovgivning. Du har rett til innsyn i, eksport av og sletting av opplysningene dine.",
+      "exportData": "Eksporter data",
+      "confirmBody": "Dette kan ikke angres. Kontoen din slettes permanent, og alle opplysningene dine fjernes fra serverne våre.",
+      "toasts": {
+        "requestSubmitted": "Forespørselen er sendt",
+        "requestSubmittedBody": "Vi gjør klar opplysningene dine og sender dem til e-posten din innen 30 dager.",
+        "requestFailed": "Forespørselen mislyktes",
+        "requestFailedBody": "Noe gikk galt da vi skulle be om opplysningene dine. Prøv igjen.",
+        "deleted": "Kontoen er slettet",
+        "deletedBody": "Kontoen din er slettet.",
+        "deleteFailed": "Slettingen mislyktes",
+        "deleteFailedBody": "Noe gikk galt da vi skulle slette kontoen din. Prøv igjen."
+      }
+    },
+    "fields": {
+      "name": {
+        "label": "Fullt navn",
+        "placeholder": "Skriv inn fullt navn"
+      },
+      "email": {
+        "label": "E-postadresse",
+        "placeholder": "Skriv inn e-postadressen din"
+      },
+      "phone": {
+        "label": "Telefonnummer",
+        "placeholder": "Skriv inn telefonnummeret ditt"
+      },
+      "address": {
+        "label": "Gateadresse",
+        "placeholder": "Skriv inn gateadressen din"
+      },
+      "city": {
+        "label": "Sted",
+        "placeholder": "Skriv inn stedet ditt"
+      },
+      "zip": {
+        "label": "Postnummer",
+        "placeholder": "Skriv inn postnummeret ditt"
+      },
+      "bankAccount": {
+        "label": "Bankkonto",
+        "placeholder": "Skriv inn kontonummeret ditt"
+      },
+      "swift": {
+        "label": "SWIFT-kode (valgfritt)",
+        "placeholder": "Skriv inn SWIFT-koden din, hvis du har en"
+      }
+    },
+    "update": "Oppdater profilen",
+    "updating": "Lagrer …",
+    "saved": "Profilen din er oppdatert.",
+    "saveFailed": "Vi kunne ikke oppdatere profilen din. Prøv igjen."
   },
   "approval": {
     "title": "Godkjenning av refusjon",
     "expired": "Denne godkjenningslenken har utløpt.",
-    "notePlaceholder": "Valgfri kommentar (en begrunnelse hjelper innsenderen ved avslag)"
+    "notePlaceholder": "Valgfri kommentar (en begrunnelse hjelper innsenderen ved avslag)",
+    "invalidLink": "Denne godkjenningslenken er ugyldig.",
+    "loadFailed": "Kunne ikke laste godkjenningsforespørselen.",
+    "decisionFailed": "Kunne ikke registrere avgjørelsen din.",
+    "loading": "Laster godkjenningsforespørselen …",
+    "reference": "Referanse",
+    "amount": "Beløp",
+    "department": "Enhet",
+    "receipts": "Kvitteringer",
+    "receipt": "Kvittering",
+    "viewReceipt": "Se kvittering",
+    "noteLabel": "Kommentar til innsenderen",
+    "approve": "Godkjenn",
+    "reject": "Avslå",
+    "decided": {
+      "approved": "Refusjon {number} er godkjent",
+      "rejected": "Refusjon {number} er avslått"
+    },
+    "decidedBody": {
+      "approved": "Takk – forespørselen er godkjent.",
+      "rejected": "Takk – forespørselen er avslått."
+    }
   },
   "theme": {
     "label": "Tema",

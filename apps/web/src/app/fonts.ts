@@ -1,41 +1,53 @@
-import { Archivo, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 
 /**
- * Body and UI. Renders every character on the site today and is kept: the
- * reference design's body copy is a neutral grotesque, Inter has the tabular
- * numerals the `data` type role needs, and keeping it spends the personality
- * budget on the display face and the chevron instead.
+ * Body and UI: Museo Sans, the brand face. 300 for text, 700 for bold — the two
+ * cuts the Branding Committee supplied. (The "Museo_700.otf" that arrived with
+ * them is the original Museo family, not Museo Sans, and is not used.)
+ *
+ * CSS font matching resolves a request for 400 or 500 to the 300 cut and 600 or
+ * more to the 700 cut, so `font-medium` reads as Light and `font-semibold` as
+ * Bold. Use `font-semibold`/`font-bold` where emphasis has to show.
+ */
+export const museoSans = localFont({
+  src: [
+    { path: "../../public/museo_sans_300.otf", weight: "300", style: "normal" },
+    { path: "../../public/Museo_Sans_700.otf", weight: "700", style: "normal" },
+  ],
+  variable: "--font-museo",
+  display: "swap",
+});
+
+/**
+ * Display: Museo Slab 700 and 900, the brand's heading face. Carries the
+ * redesign's display type roles (`.type-display-*`, `.type-heading-section`,
+ * `.type-label`) and every unstyled `h1`–`h3` on the brand surface.
+ *
+ * Replaces Archivo, which the redesign used only while no licensed heavy brand
+ * cut existed (docs/redesign/01-design-spec.md §2.2 named the brand face as the
+ * first choice). `--font-biso-display` in packages/ui/styles/biso-surface.css
+ * points here.
+ */
+export const museoSlab = localFont({
+  src: [
+    { path: "../../public/Museo_Slab_700.otf", weight: "700", style: "normal" },
+    { path: "../../public/Museo_Slab_900.otf", weight: "900", style: "normal" },
+  ],
+  variable: "--font-museo-slab",
+  display: "swap",
+});
+
+/**
+ * Fallback behind both Museo faces, and the face for any glyph they lack.
+ *
+ * `latin` only, deliberately. Norwegian æ ø å live in Latin-1 Supplement
+ * (U+00E5, U+00E6, U+00F8), which Google's `latin` subset covers. Adding
+ * `latin-ext` doubled the preloaded font payload for glyphs the site never
+ * renders. Verified in RD-006.
  */
 export const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
-});
-
-/**
- * Display. Heavy uppercase grotesque for the hero and section headings — the
- * treatment the chosen reference direction is built on.
- *
- * Replaces Museo Sans 300, which shipped as a 62 KB unsubsetted `.otf`,
- * appeared in the `Link: rel=preload` header on every route, and was rendered
- * **zero times** — the `font-display` utility appeared nowhere in the codebase
- * (see 00-current-state.md §4 and baseline/README.md FINDING-B). Museo Sans was
- * also Light-only, so it could not have produced this treatment at any weight.
- *
- * Museo Sans 900 remains the brand-correct choice if BISO holds a web licence
- * at that weight; swapping back is a change to this file plus the
- * `--font-biso-display` line in packages/ui/styles/biso-surface.css.
- *
- * Variable, so 800 and 900 cost one file.
- *
- * `latin` only, deliberately. Norwegian æ ø å live in Latin-1 Supplement
- * (U+00E5, U+00E6, U+00F8), which Google's `latin` subset covers — Inter has
- * shipped `latin` alone on this Norwegian-default site all along. Adding
- * `latin-ext` to both faces doubled the preloaded font payload from 109 KB to
- * 196 KB for glyphs the site never renders. Verified in RD-006.
- */
-export const archivo = Archivo({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-archivo",
 });

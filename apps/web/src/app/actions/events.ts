@@ -8,12 +8,28 @@ import type {
   Departments,
   Events,
 } from "@repo/api/types/appwrite";
+import { EventsCategory } from "@repo/api/types/appwrite";
+import { campusScopeIds } from "@/lib/campus-scope";
 import { filterTranslationRefs, queryEvents } from "@/lib/data/queries";
+import {
+  emptyWebResult,
+  WEB_PAGE_SIZE,
+  type WebPaginatedResult,
+} from "@/lib/list-params";
 
 interface ListEventsParams {
   campus?: string;
-  limit?: number;
+  category?: string | null;
   locale?: "en" | "no";
+  page?: number;
+  /**
+   * Rows per page. Defaults to `WEB_PAGE_SIZE` (12) — the paginated surfaces
+   * (`/events`, `/jobs`, `/shop`) should omit this so they keep the size the
+   * load-more UI expects. First-N consumers (`/students`) that need more than
+   * one page's worth of rows in a single fetch should set this explicitly
+   * rather than relying on a `limit` field that this action no longer honors.
+   */
+  pageSize?: number;
   search?: string;
   status?: string;
   /** Opt-in: hide events that have already finished, sorted soonest-first. */
@@ -22,13 +38,57 @@ interface ListEventsParams {
 
 export async function listEvents(
   params: ListEventsParams = {}
-): Promise<Events[]> {
+): Promise<WebPaginatedResult<Events>> {
+  const page = params.page ?? 1;
+  const size = params.pageSize ?? WEB_PAGE_SIZE;
   try {
     const { db } = await createSessionClient();
-    return await queryEvents(db, params);
+    const { rows, total, capped } = await queryEvents(db, {
+      ...params,
+      limit: size,
+      offset: (page - 1) * size,
+    });
+    return { rows, total, page, size, capped };
   } catch (error) {
+    // Logged with context: this catch returning [] is exactly how the
+    // rejected Query.search stayed invisible in production.
     console.error("Error fetching events:", error);
-    return [];
+    return emptyWebResult<Events>(page, size);
+  }
+}
+
+/**
+ * Categories present in the current event set.
+ *
+ * Rendering all eight `EventsCategory` values would give six chips that
+ * return nothing — only 3 events are published today.
+ */
+export async function listEventFacets(params: {
+  campus?: string;
+}): Promise<{ categories: EventsCategory[] }> {
+  try {
+    const { db } = await createSessionClient();
+    const queries = [
+      Query.equal("status", "published"),
+      Query.select(["category"]),
+      Query.limit(300),
+    ];
+    const campusScope = campusScopeIds(params.campus ?? null);
+    if (campusScope) {
+      queries.push(Query.equal("campus_id", campusScope));
+    }
+
+    const response = await db.listRows<Events>("app", "events", queries);
+    const present = new Set(
+      response.rows.map((e) => e.category).filter(Boolean)
+    );
+    // Ordered by the enum so chips never reshuffle between renders.
+    return {
+      categories: Object.values(EventsCategory).filter((c) => present.has(c)),
+    };
+  } catch (error) {
+    console.error("listEventFacets failed:", error);
+    return { categories: [] };
   }
 }
 
@@ -137,6 +197,9 @@ export async function getEventBySlug(
         "is_collection",
         "collection_pricing",
         "department_id",
+        "contact_name",
+        "contact_role",
+        "contact_email",
         "campus.$id",
         "campus.name",
         "department.$id",

@@ -1,41 +1,47 @@
-import { Check, Mail } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getOrgChartUrl, getPartners } from "@/app/actions/about";
-import { StrategyCards } from "@/components/about/strategy-cards";
-import { TopicGrid } from "@/components/about/topic-grid";
-import { Partners } from "@/components/home/partners";
-import { ChevronFrame } from "@/components/ui/chevron-frame";
+import { AlumniSaihSection } from "@/components/about/sections/alumni-saih-section";
+import { DocumentsSection } from "@/components/about/sections/documents-section";
+import { HistorySection } from "@/components/about/sections/history-section";
+import { OperationsSection } from "@/components/about/sections/operations-section";
+import { PoliticsSection } from "@/components/about/sections/politics-section";
+import { AboutSectionNav } from "@/components/about/sections/section-nav";
+import { StudyQualitySection } from "@/components/about/sections/study-quality-section";
+import { WhatIsBisoSection } from "@/components/about/sections/what-is-biso-section";
+import { WhatWeDoSection } from "@/components/about/sections/what-we-do-section";
+import { PartnerGrid } from "@/components/home/v2/partner-grid";
 import { PageHeader } from "@/components/ui/page-header";
-import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
-
-const ITEM_KEYS = ["0", "1", "2", "3", "4"] as const;
+import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("about");
   return { title: `${t("hub.title")} | BISO`, description: t("hub.subtitle") };
 }
 
+/**
+ * Om BISO on one page (Branding Committee, batch D). The former subpages —
+ * what BISO is, study quality, politics, history, operations, alumni and
+ * SAIH — are sections here, in `ABOUT_SECTIONS` order, and their old
+ * addresses 308 to the matching anchor (`about/<slug>/route.ts`). The bylaws
+ * address opens the bylaws shelf on /documents.
+ *
+ * Laid out as the content template (spec §4.5): the section menu is the
+ * "On this page" rail, the sections are the column beside it. Partners and the
+ * org chart are fetched here on the server; the merged page loaded both in a
+ * `useEffect`, so it shipped without them and filled in after hydration.
+ */
 export default async function AboutPage() {
-  // v1 fetched both of these in a `useEffect` after hydration, so the page
-  // shipped without them and filled in afterwards. They are awaited here.
   const [t, tCommon, partners, orgChartUrl] = await Promise.all([
     getTranslations("about"),
     getTranslations("common"),
-    getPartners().catch(() => []),
-    getOrgChartUrl().catch(() => null),
+    getPartners(),
+    getOrgChartUrl(),
   ]);
-
-  const whatWeDoItems = ITEM_KEYS.map((key) =>
-    t(`general.whatWeDo.items.${key}`)
-  );
-  const academicItems = ITEM_KEYS.map((key) =>
-    t(`general.academics.items.${key}`)
-  );
 
   return (
     <>
@@ -48,91 +54,56 @@ export default async function AboutPage() {
         title={t("hub.title")}
       />
 
-      <Section id="about-content" tone="paper" width="prose">
-        <Prose>
-          <p>{t("hub.description")}</p>
-        </Prose>
+      <Section as="div" tone="paper">
+        {/* A grid only from `lg`: a sticky grid item can move only within its
+            own cell, and in a one-column grid the menu's cell is just the
+            menu, so below `lg` it scrolled away instead of sticking. In
+            block flow its containing block is this wrapper — every section. */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] lg:gap-16">
+          <AboutSectionNav />
+          <div className="min-w-0">
+            <WhatIsBisoSection />
+            <WhatWeDoSection />
+            <StudyQualitySection />
+            <PoliticsSection />
+            <HistorySection />
+            <OperationsSection />
+            <AlumniSaihSection />
+            <DocumentsSection />
+          </div>
+        </div>
       </Section>
-
-      {/* Still Client Components — they call `useTranslations` at render and
-          are shared with other pages. A Server Component may render them; the
-          page itself no longer needs to be one. */}
-      <StrategyCards />
-
-      <Section className="border-edge border-t" tone="paper" width="prose">
-        <SectionHeading>{t("general.whatWeDo.title")}</SectionHeading>
-        <ul className="space-y-3">
-          {whatWeDoItems.map((item) => (
-            <li className="flex items-start gap-3" key={item}>
-              <Check
-                aria-hidden="true"
-                className="mt-1 size-4 shrink-0 text-ink-accent"
-              />
-              <span className="type-body text-ink-muted">{item}</span>
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      <Section className="border-edge border-t" tone="paper" width="prose">
-        <SectionHeading>{t("general.academics.subtitle")}</SectionHeading>
-        <p className="type-body text-ink-muted">
-          {t("general.academics.lead")}
-        </p>
-        <ul className="mt-5 space-y-3">
-          {academicItems.map((item) => (
-            <li className="flex items-start gap-3" key={item}>
-              <Check
-                aria-hidden="true"
-                className="mt-1 size-4 shrink-0 text-ink-accent"
-              />
-              <span className="type-body text-ink-muted">{item}</span>
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      <Section className="border-edge border-t" tone="paper" width="prose">
-        <SectionHeading
-          seeAllHref="/about/politics"
-          seeAllLabel={t("general.politics.cta")}
-        >
-          {t("general.politics.title")}
-        </SectionHeading>
-        <p className="type-body text-ink-muted">{t("general.politics.lead")}</p>
-      </Section>
-
-      <TopicGrid />
 
       {orgChartUrl ? (
         <Section className="border-edge border-t" tone="paper">
           <SectionHeading>{t("general.orgChart.title")}</SectionHeading>
-          <ChevronFrame className="bg-surface-sunken" ratio="16/9">
+          {/* A diagram, not a photo: it keeps its corners (no chevron crop)
+              and a light ground in both themes so its labels stay legible. */}
+          <figure className="overflow-hidden rounded-biso-md border border-edge bg-paper">
             <Image
               alt={t("general.orgChart.title")}
-              height={720}
-              sizes="(max-width: 1024px) 100vw, 1100px"
+              className="h-auto w-full"
+              height={900}
+              sizes="(max-width: 1200px) 100vw, 1200px"
               src={orgChartUrl}
-              width={1280}
+              width={1600}
             />
-          </ChevronFrame>
+          </figure>
         </Section>
       ) : null}
 
-      <Partners partners={partners} />
+      <PartnerGrid partners={partners} title={t("general.partners.title")} />
 
       <Section className="border-edge border-t" tone="paper" width="prose">
         <SectionHeading>{t("general.contact.title")}</SectionHeading>
         <p className="type-body text-ink-muted">
           {t("general.contact.subtitle")}
         </p>
-        <Link
-          className="type-label mt-6 inline-flex items-center gap-2 rounded-biso-pill bg-action px-5 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          href="/campus"
-        >
-          <Mail aria-hidden="true" className="size-4" />
-          {t("general.contact.campusCta")}
-        </Link>
+        <p className="mt-6">
+          <Link className={statusPanelPrimaryAction} href="/campus">
+            {t("general.contact.campusCta")}
+          </Link>
+        </p>
       </Section>
     </>
   );

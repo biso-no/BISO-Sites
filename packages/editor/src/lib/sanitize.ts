@@ -1,4 +1,7 @@
 const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "a", "br", "span"]);
+/** Browsers wrap each new line typed with Enter in one of these. */
+const LINE_BLOCK_TAGS = new Set(["div", "p"]);
+const SAFE_HREF = /^(?:https?:|mailto:|tel:|[/#?.])/i;
 
 export function sanitizeRichText(html: string): string {
   const tmp = document.createElement("div");
@@ -27,6 +30,10 @@ function cleanChild(child: Node): void {
   const tag = el.tagName.toLowerCase();
 
   if (!ALLOWED_TAGS.has(tag)) {
+    if (LINE_BLOCK_TAGS.has(tag) && el.previousSibling) {
+      el.before(document.createElement("br"));
+    }
+    cleanNode(el);
     unwrapElement(el);
     return;
   }
@@ -37,7 +44,11 @@ function cleanChild(child: Node): void {
 
 function stripAttributes(el: Element, tag: string): void {
   for (const attr of Array.from(el.attributes)) {
-    if (tag === "a" && attr.name === "href") {
+    if (
+      tag === "a" &&
+      attr.name === "href" &&
+      SAFE_HREF.test(attr.value.trim())
+    ) {
       continue;
     }
     el.removeAttribute(attr.name);

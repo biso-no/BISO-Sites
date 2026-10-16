@@ -7,7 +7,12 @@
  * It is NOT the `ProductNo` (1009/2004/3004) shown in the 24SO UI.
  */
 
+import { normalizeMembershipDate } from "./membership-dates";
+
 export type MembershipDuration = "semester" | "year" | "three_years";
+
+/** Whether a purchasable plan starts this season or next (see membership-seasons). */
+export type MembershipOffer = "current" | "next";
 
 /** The duration surfaced as "Popular" everywhere a plan picker renders one. */
 export const POPULAR_MEMBERSHIP_DURATION: MembershipDuration = "year";
@@ -28,6 +33,8 @@ export interface MembershipPlan {
   expiryDate: string;
   id: string;
   name: string;
+  /** Set on catalog candidates; see `membership-seasons`. */
+  offer?: MembershipOffer;
   price: number;
   productId: number;
   startDate: string;
@@ -65,71 +72,6 @@ const DURATION_BY_ACCRUAL: Record<6 | 12 | 36, MembershipDuration> = {
   36: "three_years",
 };
 
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
-const DOTTED_DATE = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
-
-/**
- * Parse the two date shapes a `memberships` row can hold, in UTC.
- *
- * **`new Date(string)` is not safe here.** The live catalogue is synced from
- * 24SevenOffice as `DD.MM.YYYY` — "01.07.2026", "31.12.2026" — which V8 does
- * not understand. `31.12.2026` parsed as an Invalid Date, so the Semester plan
- * was dropped from the catalogue and the 350 kr membership could not be
- * bought; the other two plans only survived because "01.07.20XX" was misread
- * as *January 7* on both sides, leaving the month difference accidentally
- * correct. Anything with a day past the 12th had no such luck.
- *
- * ISO is accepted too: the admin UI and older rows write `YYYY-MM-DD`.
- */
-function parseMembershipDate(value: string): Date | null {
-  const iso = ISO_DATE.exec(value);
-  if (iso) {
-    return utcDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
-  }
-  const dotted = DOTTED_DATE.exec(value);
-  if (dotted) {
-    return utcDate(Number(dotted[3]), Number(dotted[2]), Number(dotted[1]));
-  }
-  return null;
-}
-
-/** Builds a UTC date and rejects one that rolled over, e.g. 31 February. */
-function utcDate(year: number, month: number, day: number): Date | null {
-  if (month < 1 || month > 12 || day < 1 || day > 31) {
-    return null;
-  }
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-    ? date
-    : null;
-}
-
-/**
- * The start of the accrual period a purchase falls into, as `YYYY-MM-DD`.
- *
- * A membership bought in the summer half of the year accrues from **1 July**;
- * one bought in the spring half accrues from **1 January**. The boundary is
- * read in UTC so the accounting period does not depend on the timezone of
- * whichever host fulfils the order.
- *
- * This is a function of *when the student paid*, not of anything on the
- * catalogue row — which is what `AccrualDate` used to be sent from, so every
- * invoice booked the plan's own fixed start regardless of purchase date, in
- * `DD.MM.YYYY` where the API documents an ISO `date`.
- *
- * Idempotent: an accrual start maps to itself, which is how the invoice
- * builder tells a snapshot written at checkout from a legacy catalogue date.
- */
-export function membershipAccrualStart(on: Date | string): string | null {
-  const date = typeof on === "string" ? parseMembershipDate(on) : on;
-  if (!date || Number.isNaN(date.getTime())) {
-    return null;
-  }
-  const year = date.getUTCFullYear();
-  const half = date.getUTCMonth() < 6 ? "01" : "07";
-  return `${year}-${half}-01`;
-}
-
 /**
  * Snaps the calendar span between the product's parsed start and expiry to the
  * nearest supported accrual length. Product names encode e.g. "fall 2026"
@@ -142,10 +84,10 @@ export function deriveAccrualMonths(
   startDate: string,
   expiryDate: string
 ): 6 | 12 | 36 | null {
-  const start = parseMembershipDate(startDate);
-  const expiry = parseMembershipDate(expiryDate);
+  const start = new Date(normalizeMembershipDate(startDate) ?? startDate);
+  const expiry = new Date(normalizeMembershipDate(expiryDate) ?? expiryDate);
 
-  if (!(start && expiry)) {
+  if (Number.isNaN(start.getTime()) || Number.isNaN(expiry.getTime())) {
     return null;
   }
 
@@ -161,6 +103,47 @@ export function deriveAccrualMonths(
     }
   }
   return closest;
+}
+
+export interface MembershipTerm {
+  duration: MembershipDuration;
+  fromYear: number;
+  /** Set only for single-semester memberships. */
+  season: "spring" | "fall" | null;
+  toYear: number;
+}
+
+const LAST_SPRING_MONTH = 6;
+
+/**
+ * What a membership covers, for display: "Fall 2026" for a semester,
+ * "2026–2027" otherwise. Labels are localized by the caller.
+ */
+export function describeMembershipTerm(
+  startDate: string,
+  expiryDate: string
+): MembershipTerm | null {
+  const start = normalizeMembershipDate(startDate);
+  const expiry = normalizeMembershipDate(expiryDate);
+  if (!(start && expiry)) {
+    return null;
+  }
+  const accrualMonths = deriveAccrualMonths(start, expiry);
+  if (accrualMonths === null) {
+    return null;
+  }
+  const duration = DURATION_BY_ACCRUAL[accrualMonths];
+  const expiryMonth = Number(expiry.slice(5, 7));
+  let season: "spring" | "fall" | null = null;
+  if (duration === "semester") {
+    season = expiryMonth <= LAST_SPRING_MONTH ? "spring" : "fall";
+  }
+  return {
+    duration,
+    fromYear: Number(start.slice(0, 4)),
+    season,
+    toYear: Number(expiry.slice(0, 4)),
+  };
 }
 
 export function toMembershipPlan(
@@ -196,7 +179,7 @@ export function toMembershipPlan(
     categoryId,
     duration: DURATION_BY_ACCRUAL[accrualMonths],
     accrualMonths,
-    startDate: row.startDate,
-    expiryDate: row.expiryDate,
+    startDate: normalizeMembershipDate(row.startDate) ?? row.startDate,
+    expiryDate: normalizeMembershipDate(row.expiryDate) ?? row.expiryDate,
   };
 }

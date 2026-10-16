@@ -1,6 +1,6 @@
 /**
  * Re-exported from `@repo/connectors` so the 24SO membership sync's
- * price/canPurchase merge behaviour can be pinned by a regression test —
+ * catalog row builder can be pinned by a regression test —
  * `packages/connectors` has no vitest runner.
  *
  * This module intentionally does not add a `@repo/connectors` dependency
@@ -12,7 +12,6 @@
  * re-exported here.
  */
 export {
-  type ExistingMembershipRow,
   type MembershipSyncItemLike,
   mergeMembershipRow,
   parsePrice,

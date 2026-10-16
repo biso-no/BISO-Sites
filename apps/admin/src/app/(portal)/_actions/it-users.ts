@@ -14,6 +14,7 @@ import {
   type M365GroupMembershipInput,
   type M365LicenseManageInput,
   type M365ManagerUpdateInput,
+  type M365MfaResetResult,
   type M365Permission,
   type M365SubscribedSku,
   type M365UserDetail,
@@ -38,7 +39,11 @@ import {
 import { revalidatePath } from "next/cache";
 import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
 import { getAllowedTenantUser } from "@/lib/it/tenant-guard";
-import { requireItPermission } from "@/lib/it-permissions";
+import { resetUserMfaMethods } from "@/lib/it/turnover";
+import {
+  requireItPermission,
+  requireItScopedPermission,
+} from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
 const LEADING_AT_REGEX = /^@/;
@@ -326,7 +331,7 @@ export async function searchM365Users(input?: {
   query?: string;
 }): Promise<ActionResult<M365UserListItem[]>> {
   try {
-    await requireItPermission("it.users.view");
+    const { campusScope } = await requireItScopedPermission("it.users.view");
     const parsed = m365UserSearchSchema.parse({
       limit: input?.limit ?? 25,
       query: input?.query ?? "",
@@ -338,6 +343,10 @@ export async function searchM365Users(input?: {
       {
         allowedDomain: M365_DOMAIN,
         licensedOnly: true,
+        // Campus admins only ever see their own campus' accounts. Filtering
+        // happens inside searchUsers, before the result is capped to `limit`,
+        // so a scoped search still fills a page.
+        officeLocations: campusScope ?? undefined,
       }
     );
 
@@ -351,9 +360,9 @@ export async function getM365UserDetail(
   userId: string
 ): Promise<ActionResult<M365UserDetail>> {
   try {
-    await requireItPermission("it.users.view");
+    const { campusScope } = await requireItScopedPermission("it.users.view");
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, userId);
+    const user = await getAllowedTenantUser(graph, userId, campusScope);
 
     let manager: M365UserListItem | null = null;
     try {
@@ -373,9 +382,9 @@ export async function getUserGroups(
   userId: string
 ): Promise<ActionResult<M365UserGroup[]>> {
   try {
-    await requireItPermission("it.users.view");
+    const { campusScope } = await requireItScopedPermission("it.users.view");
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, userId);
+    const user = await getAllowedTenantUser(graph, userId, campusScope);
     const groups = await graph.getUserGroups(user.id);
     return {
       data: groups.map((group) => ({
@@ -399,9 +408,9 @@ export async function getUserLicenseDetails(
   userId: string
 ): Promise<ActionResult<M365UserLicenseDetail[]>> {
   try {
-    await requireItPermission("it.users.view");
+    const { campusScope } = await requireItScopedPermission("it.users.view");
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, userId);
+    const user = await getAllowedTenantUser(graph, userId, campusScope);
     const licenses = await graph.getUserLicenseDetails(user.id);
     return {
       data: licenses.map((license) => ({
@@ -421,15 +430,18 @@ export async function getUserLicenseDetails(
 
 export async function getAuthenticationMethodsSummary(userId: string) {
   try {
-    await requireItPermission("it.users.viewSecurity");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.viewSecurity"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, userId);
+    const user = await getAllowedTenantUser(graph, userId, campusScope);
     const methods = await graph.listAuthenticationMethods(user.id);
     return {
       data: {
         methods: methods.map((method) => ({
           id: method.id,
           odataType: method.odataType,
+          removable: method.removable,
           type: method.type,
           displayName: method.displayName ?? null,
           createdDateTime: method.createdDateTime ?? null,
@@ -451,10 +463,16 @@ export async function checkAliasConflict(input: {
   targetUserId?: string;
 }): Promise<ActionResult<M365AliasConflictResult>> {
   try {
-    await requireItPermission("it.users.manageAliases");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.manageAliases"
+    );
     const parsed = m365AliasConflictSchema.parse(input);
     if (parsed.targetUserId) {
-      await getAllowedTenantUser(getGraphService(), parsed.targetUserId);
+      await getAllowedTenantUser(
+        getGraphService(),
+        parsed.targetUserId,
+        campusScope
+      );
     }
     const conflict = await getGraphService().checkAliasConflict(parsed.alias);
     await writeItAudit("it.users.manageAliases", "it.m365.alias.check", {
@@ -532,10 +550,12 @@ export async function addM365UserAlias(
   input: unknown
 ): Promise<ActionResult<void>> {
   try {
-    const ctx = await requireItPermission("it.users.manageAliases");
+    const { campusScope, ctx } = await requireItScopedPermission(
+      "it.users.manageAliases"
+    );
     const parsed = m365AliasAddSchema.parse(input);
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
 
     const normalizedAlias = `smtp:${parsed.alias.toLowerCase()}`;
     const currentAddresses = user.proxyAddresses ?? [];
@@ -573,10 +593,12 @@ export async function removeM365UserAlias(
   input: unknown
 ): Promise<ActionResult<void>> {
   try {
-    const ctx = await requireItPermission("it.users.manageAliases");
+    const { campusScope, ctx } = await requireItScopedPermission(
+      "it.users.manageAliases"
+    );
     const parsed = m365AliasRemoveSchema.parse(input);
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
 
     if (parsed.alias.startsWith("SMTP:")) {
       throw new Error(
@@ -615,13 +637,15 @@ export async function transferM365Alias(
   input: unknown
 ): Promise<ActionResult<void>> {
   try {
-    const ctx = await requireItPermission("it.users.transferAlias");
+    const { campusScope, ctx } = await requireItScopedPermission(
+      "it.users.transferAlias"
+    );
     const parsed = m365AliasTransferSchema.parse(input);
     const graph = getGraphService();
 
     const [fromUser, toUser] = await Promise.all([
-      getAllowedTenantUser(graph, parsed.fromUserId),
-      getAllowedTenantUser(graph, parsed.toUserId),
+      getAllowedTenantUser(graph, parsed.fromUserId, campusScope),
+      getAllowedTenantUser(graph, parsed.toUserId, campusScope),
     ]);
 
     const targetAlias = `smtp:${parsed.alias.toLowerCase()}`;
@@ -699,7 +723,8 @@ export async function createM365User(input: M365CreateUserInput): Promise<
   let parsed: M365CreateUserInput | null = null;
 
   try {
-    const ctx = await requireItPermission("it.users.create");
+    const { campusScope, ctx } =
+      await requireItScopedPermission("it.users.create");
     parsed = m365CreateUserSchema.parse(input);
 
     const { campus, department } = await validateItLookupValues({
@@ -737,7 +762,7 @@ export async function createM365User(input: M365CreateUserInput): Promise<
     });
 
     if (parsed.managerId) {
-      await getAllowedTenantUser(graph, parsed.managerId);
+      await getAllowedTenantUser(graph, parsed.managerId, campusScope);
       await graph.setManager(graphUser.id, parsed.managerId);
     }
 
@@ -837,11 +862,13 @@ export async function updateM365UserManager(
   let parsed: M365ManagerUpdateInput | null = null;
   try {
     parsed = m365ManagerUpdateSchema.parse(input);
-    await requireItPermission("it.users.manageManagers");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.manageManagers"
+    );
     const graph = getGraphService();
     const [user, managerUser] = await Promise.all([
-      getAllowedTenantUser(graph, parsed.userId),
-      getAllowedTenantUser(graph, parsed.managerId),
+      getAllowedTenantUser(graph, parsed.userId, campusScope),
+      getAllowedTenantUser(graph, parsed.managerId, campusScope),
     ]);
     const before = await graph.getManager(user.id);
     await graph.setManager(user.id, managerUser.id);
@@ -884,9 +911,11 @@ export async function removeM365UserManager(input: {
   let parsed: { userId: string } | null = null;
   try {
     parsed = m365UserIdSchema.parse(input);
-    await requireItPermission("it.users.manageManagers");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.manageManagers"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     const before = await graph.getManager(user.id);
     await graph.removeManager(user.id);
     await writeItAudit(
@@ -956,9 +985,11 @@ export async function addM365UserToGroup(
   let parsed: M365GroupMembershipInput | null = null;
   try {
     parsed = m365GroupMembershipSchema.parse(input);
-    await requireItPermission("it.users.manageGroups");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.manageGroups"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     const group = await graph.getGroup(parsed.groupId);
     if (!group) {
       throw new Error("Group not found.");
@@ -992,9 +1023,11 @@ export async function removeM365UserFromGroup(
   let parsed: M365GroupMembershipInput | null = null;
   try {
     parsed = m365GroupMembershipSchema.parse(input);
-    await requireItPermission("it.users.manageGroups");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.manageGroups"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     const group = await graph.getGroup(parsed.groupId);
     await graph.removeUserFromGroup(user.id, parsed.groupId);
     await writeItAudit("it.users.manageGroups", "it.m365.user.group.remove", {
@@ -1044,9 +1077,11 @@ export async function assignM365License(
   let parsed: M365LicenseManageInput | null = null;
   try {
     parsed = m365LicenseManageSchema.parse(input);
-    await requireItPermission("it.users.manageLicenses");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.manageLicenses"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     await graph.manageLicense(user.id, [parsed.skuId], []);
     await writeItAudit(
       "it.users.manageLicenses",
@@ -1080,9 +1115,11 @@ export async function removeM365License(
   let parsed: M365LicenseManageInput | null = null;
   try {
     parsed = m365LicenseManageSchema.parse(input);
-    await requireItPermission("it.users.manageLicenses");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.manageLicenses"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     await graph.manageLicense(user.id, [], [parsed.skuId]);
     await writeItAudit(
       "it.users.manageLicenses",
@@ -1112,36 +1149,43 @@ export async function removeM365License(
 
 export async function resetM365Mfa(input: {
   userId: string;
-}): Promise<ActionResult<{ removedCount: number }>> {
+}): Promise<ActionResult<M365MfaResetResult>> {
   let parsed: { userId: string } | null = null;
   try {
     parsed = m365UserIdSchema.parse(input);
-    await requireItPermission("it.users.resetMfa");
+    const { campusScope } =
+      await requireItScopedPermission("it.users.resetMfa");
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
-    const methods = await graph.listAuthenticationMethods(user.id);
-    const PASSWORD_METHOD = "#microsoft.graph.passwordAuthenticationMethod";
-    const toRemove = methods.filter((m) => m.odataType !== PASSWORD_METHOD);
-    const removedTypes: string[] = [];
-    for (const method of toRemove) {
-      await graph.deleteAuthenticationMethod(
-        user.id,
-        method.id,
-        method.odataType
-      );
-      removedTypes.push(method.type);
-    }
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
+
+    // Removes Authenticator, phone and the private email recovery address —
+    // every method Graph lets us delete. Individual failures are collected
+    // rather than thrown so one stubborn method cannot leave the rest of the
+    // user's MFA registered.
+    const { failures, removedCount, removedTypes, skippedTypes } =
+      await resetUserMfaMethods(graph, user.id);
+
     await writeItAudit("it.users.resetMfa", "it.m365.user.mfa.reset", {
       resourceId: user.id,
-      success: true,
+      success: failures.length === 0,
       values: {
         removedMethodTypes: removedTypes,
-        removedCount: toRemove.length,
+        removedCount,
+        failedMethods: failures,
+        skippedMethodTypes: skippedTypes,
         userUpn: user.userPrincipalName,
       },
     });
     revalidatePath(`/it/users/${parsed.userId}`);
-    return { data: { removedCount: toRemove.length } };
+    return {
+      data: {
+        failures: failures.map(
+          (failure) => `${failure.type}: ${failure.error}`
+        ),
+        removedCount,
+        removedTypes,
+      },
+    };
   } catch (error) {
     await writeItAudit("it.users.resetMfa", "it.m365.user.mfa.reset", {
       resourceId: parsed?.userId,
@@ -1158,9 +1202,11 @@ export async function forcePasswordResetNextSignIn(input: {
   let parsed: { userId: string } | null = null;
   try {
     parsed = m365UserIdSchema.parse(input);
-    await requireItPermission("it.users.resetPassword");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.resetPassword"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     await graph.forcePasswordResetNextSignIn(user.id);
     await writeItAudit(
       "it.users.resetPassword",
@@ -1193,9 +1239,11 @@ export async function resetM365Password(input: {
   let parsed: { userId: string } | null = null;
   try {
     parsed = m365UserIdSchema.parse(input);
-    await requireItPermission("it.users.resetPassword");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.resetPassword"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     const temporaryPassword = generateTemporaryPassword();
     await graph.resetPassword(user.id, temporaryPassword);
     await writeItAudit(
@@ -1229,9 +1277,11 @@ export async function revokeM365SignInSessions(input: {
   let parsed: { userId: string } | null = null;
   try {
     parsed = m365UserIdSchema.parse(input);
-    await requireItPermission("it.users.revokeSessions");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.revokeSessions"
+    );
     const graph = getGraphService();
-    const user = await getAllowedTenantUser(graph, parsed.userId);
+    const user = await getAllowedTenantUser(graph, parsed.userId, campusScope);
     await graph.revokeSignInSessions(user.id);
     await writeItAudit(
       "it.users.revokeSessions",
@@ -1264,10 +1314,16 @@ export async function updateM365UserProfile(
 
   try {
     parsed = m365UserProfileUpdateSchema.parse(input);
-    await requireItPermission("it.users.editProfile");
+    const { campusScope } = await requireItScopedPermission(
+      "it.users.editProfile"
+    );
 
     const graph = getGraphService();
-    const before = await getAllowedTenantUser(graph, parsed.userId);
+    const before = await getAllowedTenantUser(
+      graph,
+      parsed.userId,
+      campusScope
+    );
     const accountStatusChange = getAccountStatusChange({
       before: before.accountEnabled,
       next: parsed.accountEnabled,
@@ -1296,6 +1352,9 @@ export async function updateM365UserProfile(
     } = buildProfilePatch(parsed);
     await graph.updateUser(parsed.userId, patch);
 
+    // Re-read without the campus scope: a profile edit may legitimately move
+    // the user to another officeLocation, and the pre-edit read above already
+    // proved the caller was allowed to touch this account.
     const after = await getAllowedTenantUser(graph, parsed.userId);
 
     await writeItAudit(

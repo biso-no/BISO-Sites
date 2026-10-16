@@ -1,173 +1,113 @@
 "use client";
 
-import { Button } from "@repo/ui/components/ui/button";
-import { Check, Copy, ExternalLink, QrCode, Sparkles } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-
-const CONFETTI_COUNT = 12;
-
-/**
- * Animated confetti effect for copy actions
- */
-export function ConfettiAnimation() {
-  return (
-    <motion.div
-      className="pointer-events-none absolute inset-0"
-      exit={{ opacity: 0 }}
-      initial={{ opacity: 1 }}
-    >
-      {[...new Array(CONFETTI_COUNT)].map((_, i) => (
-        <motion.div
-          animate={{
-            x: `${50 + (Math.random() - 0.5) * 100}%`,
-            y: `${50 + (Math.random() - 0.5) * 100}%`,
-            scale: [0, 1, 0],
-            opacity: [0, 1, 0],
-          }}
-          className="absolute h-2 w-2 rounded-full bg-brand"
-          initial={{ x: "50%", y: "50%", scale: 0 }}
-          key={i}
-          transition={{ duration: 0.6, delay: i * 0.03 }}
-        />
-      ))}
-    </motion.div>
-  );
-}
+import { cn } from "@repo/ui/lib/utils";
+import { Check, Copy, ExternalLink, Loader2, Sparkles } from "lucide-react";
+import { QrCode } from "@/components/member-pass/qr-code";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 
 interface CodeRevealProps {
   copiedCode: boolean;
   copiedLabel: string;
   copyLabel: string;
   onCopy: () => void;
-  showConfetti: boolean;
   value: string;
 }
 
-/**
- * Revealed code display with copy functionality
- */
+/** A revealed discount code, with a copy button that confirms in words. */
 export function CodeReveal({
   value,
-  showConfetti,
   copiedCode,
   onCopy,
   copyLabel,
   copiedLabel,
 }: CodeRevealProps) {
   return (
-    <div className="relative overflow-hidden rounded-xl border-2 border-brand-border border-dashed bg-brand-muted p-4 dark:border-brand-border-strong dark:bg-brand-muted-strong">
-      <AnimatePresence>{showConfetti && <ConfettiAnimation />}</AnimatePresence>
-
-      <div className="flex items-center justify-between gap-4">
-        <code className="font-mono text-foreground text-lg dark:text-foreground">
-          {value}
-        </code>
-        <Button
-          className="shrink-0"
-          onClick={onCopy}
-          size="sm"
-          variant="outline"
-        >
-          {copiedCode ? (
-            <>
-              <Check className="mr-2 h-4 w-4 text-green-500" />
-              {copiedLabel}
-            </>
-          ) : (
-            <>
-              <Copy className="mr-2 h-4 w-4" />
-              {copyLabel}
-            </>
-          )}
-        </Button>
-      </div>
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-biso-md border-2 border-edge border-dashed bg-surface-sunken p-4">
+      <code className="type-data min-w-0 break-all text-ink text-lg">
+        {value}
+      </code>
+      <button
+        className={cn(statusPanelSecondaryAction, "shrink-0 px-4 py-2")}
+        onClick={onCopy}
+        type="button"
+      >
+        {copiedCode ? (
+          <Check aria-hidden="true" className="size-4 shrink-0 text-success" />
+        ) : (
+          <Copy aria-hidden="true" className="size-4 shrink-0" />
+        )}
+        <span aria-live="polite">{copiedCode ? copiedLabel : copyLabel}</span>
+      </button>
     </div>
   );
 }
 
-interface QrRevealProps {
-  value: string;
-}
-
 /**
- * QR code display
+ * The benefit's own QR code. This used to draw a generic QR *icon* in place of
+ * the code, so a QR benefit could be revealed and never shown.
  */
-export function QrReveal({ value: _value }: QrRevealProps) {
+export function QrReveal({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-center rounded-xl bg-section p-6 dark:bg-inverted">
-      <div className="flex h-36 w-36 items-center justify-center rounded-xl border-2 border-border bg-background dark:border-border dark:bg-inverted">
-        <QrCode className="h-24 w-24 text-muted-foreground dark:text-muted-foreground" />
-      </div>
+    <div className="flex justify-center rounded-biso-md border border-edge bg-surface-sunken p-6">
+      <QrCode className="size-40" label={label} value={value} />
     </div>
   );
 }
 
 interface LinkRevealProps {
-  gradient: string;
   label: string;
   value: string;
 }
 
-/**
- * Link activation button
- */
-export function LinkReveal({ value, gradient, label }: LinkRevealProps) {
+/** The partner's redemption link, opened in a new tab. */
+export function LinkReveal({ value, label }: LinkRevealProps) {
   return (
-    <Button
-      className={`w-full bg-linear-to-r ${gradient} text-white hover:opacity-90`}
-      onClick={() => window.open(value, "_blank")}
+    <a
+      className={cn(statusPanelPrimaryAction, "w-full justify-center")}
+      href={value}
+      rel="noopener noreferrer"
+      target="_blank"
     >
-      <ExternalLink className="mr-2 h-4 w-4" />
+      <ExternalLink aria-hidden="true" className="size-4 shrink-0" />
       {label}
-    </Button>
+    </a>
   );
 }
 
 interface RevealButtonProps {
-  gradient: string;
   isRevealing: boolean;
   onReveal: () => void;
   revealingLabel: string;
   revealLabel: string;
 }
 
-/**
- * Button to reveal a benefit
- */
+/** Records the reveal server-side, then shows the code, QR or link. */
 export function RevealButton({
   isRevealing,
-  gradient,
   onReveal,
   revealLabel,
   revealingLabel,
 }: RevealButtonProps) {
   return (
-    <motion.div
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      initial={{ opacity: 0 }}
-      key="reveal-button"
+    <button
+      aria-busy={isRevealing}
+      className={cn(
+        statusPanelPrimaryAction,
+        "w-full justify-center disabled:opacity-60"
+      )}
+      disabled={isRevealing}
+      onClick={onReveal}
+      type="button"
     >
-      <Button
-        className={`w-full bg-linear-to-r ${gradient} text-white hover:opacity-90`}
-        disabled={isRevealing}
-        onClick={onReveal}
-      >
-        {isRevealing ? (
-          <motion.div
-            animate={{ rotate: 360 }}
-            className="mr-2 h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
-            transition={{
-              duration: 1,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "linear",
-            }}
-          />
-        ) : (
-          <Sparkles className="mr-2 h-4 w-4" />
-        )}
-        {isRevealing ? revealingLabel : revealLabel}
-      </Button>
-    </motion.div>
+      {isRevealing ? (
+        <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin" />
+      ) : (
+        <Sparkles aria-hidden="true" className="size-4 shrink-0" />
+      )}
+      {isRevealing ? revealingLabel : revealLabel}
+    </button>
   );
 }

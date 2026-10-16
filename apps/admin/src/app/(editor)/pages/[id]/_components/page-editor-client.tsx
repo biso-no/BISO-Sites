@@ -5,6 +5,7 @@ import type {
   PageTranslationEditorEntry,
 } from "@repo/api/page-builder";
 import type {
+  EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
@@ -12,6 +13,7 @@ import type {
 } from "@repo/editor";
 import { EditorShell, normalizePageDoc } from "@repo/editor";
 import "@repo/editor/theme/styles.css";
+import { generateSlug } from "@repo/shared/utils/content-slug";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -21,11 +23,12 @@ import {
   savePageEditorDoc,
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
-import { uploadMediaFile } from "@/app/(portal)/_actions/upload";
-import { sanitizeSlug } from "@/lib/utils";
+import { uploadMediaFile } from "@/lib/upload-client";
 
 interface PageEditorClientProps {
   availableLocales: EditorLocale[];
+  campuses: EditorCampus[];
+  defaultCampusId: string;
   departments: EditorDepartment[];
   initialLocale: EditorLocale;
   initialPage: PageEditorLoadResult | null;
@@ -47,12 +50,14 @@ function cloneDoc(doc: PageDoc): PageDoc {
 function emptyDoc({
   locale,
   slug,
+  campus,
   department,
   status,
   source,
 }: {
   locale: EditorLocale;
   slug?: string | null;
+  campus?: string | null;
   department?: string | null;
   status?: PageDoc["meta"]["status"];
   source?: PageDoc | null;
@@ -61,7 +66,8 @@ function emptyDoc({
   return {
     meta: {
       title,
-      slug: slug || sanitizeSlug(title) || "untitled",
+      slug: slug || generateSlug(title) || "untitled",
+      campus: campus ?? "",
       department: department ?? "",
       accentColor: source?.meta.accentColor ?? "#3DA9E0",
       description: "",
@@ -82,7 +88,8 @@ function getTranslationDoc(
 
 function buildInitialDocuments(
   initialPage: PageEditorLoadResult | null,
-  initialLocale: EditorLocale
+  initialLocale: EditorLocale,
+  defaultCampusId: string
 ): LocaleDocuments {
   const docs: LocaleDocuments = {};
 
@@ -90,7 +97,11 @@ function buildInitialDocuments(
     for (const locale of initialPage.availableLocales) {
       const doc = getTranslationDoc(initialPage.translations[locale]);
       if (doc) {
-        docs[locale] = cloneDoc(doc);
+        // Documents saved before campus lived on them get the page's campus.
+        docs[locale] = cloneDoc({
+          ...doc,
+          meta: { ...doc.meta, campus: doc.meta.campus ?? defaultCampusId },
+        });
       }
     }
   }
@@ -99,6 +110,7 @@ function buildInitialDocuments(
     docs[initialLocale] = emptyDoc({
       locale: initialLocale,
       slug: initialPage?.page.slug,
+      campus: defaultCampusId,
       department: initialPage?.page.departmentId,
       status: initialPage?.page.status === "published" ? "published" : "draft",
     });
@@ -129,6 +141,7 @@ function syncSharedMeta(
             meta: {
               ...doc.meta,
               slug: sourceDoc.meta.slug,
+              campus: sourceDoc.meta.campus,
               department: sourceDoc.meta.department,
               status: sourceDoc.meta.status,
               accentColor: sourceDoc.meta.accentColor,
@@ -144,6 +157,8 @@ export function PageEditorClient({
   initialLocale,
   availableLocales,
   pageId,
+  campuses,
+  defaultCampusId,
   departments,
   lockedMeta,
 }: PageEditorClientProps) {
@@ -151,7 +166,7 @@ export function PageEditorClient({
   const [currentPageId, setCurrentPageId] = useState<string | null>(pageId);
   const [activeLocale, setActiveLocale] = useState<EditorLocale>(initialLocale);
   const [documents, setDocuments] = useState<LocaleDocuments>(() =>
-    buildInitialDocuments(initialPage, initialLocale)
+    buildInitialDocuments(initialPage, initialLocale, defaultCampusId)
   );
   const [pendingTranslateLocale, setPendingTranslateLocale] =
     useState<EditorLocale | null>(null);
@@ -296,8 +311,12 @@ export function PageEditorClient({
   async function handleUpload(
     fd: FormData
   ): Promise<{ fileId: string; url: string }> {
-    const result = await uploadMediaFile(fd);
-    if ("error" in result) {
+    const file = fd.get("file");
+    if (!(file instanceof File)) {
+      throw new Error("No file provided");
+    }
+    const result = await uploadMediaFile(file);
+    if (result.error !== undefined) {
       throw new Error(result.error);
     }
     return { fileId: result.fileId, url: result.url };
@@ -307,10 +326,13 @@ export function PageEditorClient({
     router.push("/pages");
   }
 
+  // Both handlers reject on failure: the editor shell mirrors a resolved
+  // publish/unpublish into its own status, so resolving after a failure
+  // would mark a page published that is not.
   async function handlePublish(locale: EditorLocale) {
     if (!currentPageId) {
       toast.error("Save the page first before publishing.");
-      return;
+      throw new Error("Page not saved yet");
     }
     try {
       const result = await publishPageAction(currentPageId, locale, {
@@ -334,12 +356,13 @@ export function PageEditorClient({
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publish failed");
+      throw err;
     }
   }
 
   async function handleUnpublish(locale: EditorLocale) {
     if (!currentPageId) {
-      return;
+      throw new Error("Page not saved yet");
     }
     try {
       await unpublishPageAction(currentPageId, locale);
@@ -356,6 +379,7 @@ export function PageEditorClient({
       toast.success("Page unpublished");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unpublish failed");
+      throw err;
     }
   }
 
@@ -363,6 +387,7 @@ export function PageEditorClient({
     <>
       <EditorShell
         activeLocale={activeLocale}
+        campuses={campuses}
         departments={departments}
         initial={activeDoc}
         locales={localeOptions}

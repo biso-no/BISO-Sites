@@ -24,14 +24,17 @@
  *   read(team:sg-app-dept-operationsunit), update(team:sg-app-dept-operationsunit),
  *   read(user:<requester_id>)
  *
- * Create the collection and regenerate packages/api/types/appwrite.ts before
- * using these actions in production.
+ * The table now exists in packages/api/appwrite.config.json, so read failures
+ * are real errors and are reported as `{ error }`, never as an empty list.
  */
 
 import { ID, type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import type { ListParams, PaginatedResult } from "@/lib/list-params";
+import { paginationQueries } from "@/lib/list-queries";
+import { assertProductBookable } from "@/lib/shop/sales-type";
 import { assertPublishAccess } from "@/lib/utils/authorization";
 import {
   type ApprovalPublishPlan,
@@ -146,9 +149,11 @@ export async function createApprovalRequest(
 // List pending approvals for the current user's approver teams
 // ---------------------------------------------------------------------------
 
-export async function listPendingApprovals(): Promise<
-  { data: ApprovalRequest[] } | { error: string }
-> {
+export async function listPendingApprovals(
+  // `params.q` is intentionally ignored: search is not implemented for this
+  // surface.
+  params: ListParams
+): Promise<{ data: PaginatedResult<ApprovalRequest> } | { error: string }> {
   const ctx = await requireAuth();
 
   try {
@@ -161,7 +166,7 @@ export async function listPendingApprovals(): Promise<
     const queries: string[] = [
       Query.equal("status", "pending"),
       Query.orderDesc("$createdAt"),
-      Query.limit(50),
+      ...paginationQueries(params),
     ];
     if (ctx.activeCampusId) {
       queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
@@ -172,10 +177,19 @@ export async function listPendingApprovals(): Promise<
       queries
     );
 
-    return { data: result.rows };
-  } catch (_error) {
-    // If the table doesn't exist yet, return empty list gracefully
-    return { data: [] };
+    return {
+      data: {
+        rows: result.rows,
+        total: result.total,
+        page: params.page,
+        size: params.size,
+      },
+    };
+  } catch (error) {
+    // Don't degrade to an empty list: "no pending approvals" and "couldn't
+    // load approvals" must look different to the approver.
+    console.error("[approvals] Failed to list pending approvals:", error);
+    return { error: "Failed to load approvals" };
   }
 }
 
@@ -266,11 +280,38 @@ async function executeApprovalPublish(
       : null;
 
   assertPublishAccess(ctx, campusId);
-  await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
-    status: "published",
-  });
+
+  if (plan.domain === "shop") {
+    // Approving a request flips the product straight to "published"; refuse
+    // it here too so an approval can never bypass the same gate the editor
+    // enforces (a sales type may have been deactivated or deleted between
+    // the request being filed and it being approved). Sales types are read
+    // with the admin client: the table is readable only by the operations
+    // unit, and the approver is already authorised by `assertPublishAccess`.
+    const { db: adminDb } = await createAdminClient();
+    await assertProductBookable(adminDb, "published", {
+      departmentId: nonEmptyString(row.departmentId),
+      salesTypeId: nonEmptyString(row.sales_type),
+    });
+    // Unlike every other domain here, `webshop_products` has `rowSecurity:
+    // false` and grants only `create` permissions (no `update`), so the
+    // approver's session write would be refused regardless of role. Write
+    // through the admin client instead, now that both `assertPublishAccess`
+    // and `assertProductBookable` have passed.
+    await adminDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
+      status: "published",
+    });
+  } else {
+    await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
+      status: "published",
+    });
+  }
 
   revalidateApprovalPublishPaths(plan);
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function revalidateApprovalPublishPaths(plan: ApprovalPublishPlan) {

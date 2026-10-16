@@ -6,6 +6,7 @@
     "jobs": "Stillinger",
     "events": "Arrangementer",
     "shop": "Produkter",
+    "shopAccounting": "Regnskap",
     "benefits": "Fordeler",
     "documents": "Dokumenter",
     "news": "Nyheter",
@@ -78,7 +79,8 @@
       "closed": "Lukket",
       "cancelled": "Avlyst",
       "pending": "Venter",
-      "pending_approval": "Venter på godkjenning"
+      "pending_approval": "Venter på godkjenning",
+      "scheduled": "Planlagt"
     },
     "actions": "Handlinger",
     "new": "Ny",
@@ -100,6 +102,12 @@
     "locale": {
       "no": "Norsk",
       "en": "Engelsk"
+    },
+    "pagination": {
+      "summary": "{total} totalt · side {page} av {pages}",
+      "previous": "Forrige side",
+      "next": "Neste side",
+      "perPage": "Per side"
     }
   },
   "it": {
@@ -184,9 +192,11 @@
       "confirmRemoveLicenseDesc": "Dette vil umiddelbart fjerne tilgang til alle tilknyttede tjenester.",
       "resetMfa": "Tilbakestill MFA",
       "mfaReset": "MFA-metoder fjernet",
+      "mfaResetPartial": "Noen MFA-metoder kunne ikke fjernes",
       "noMfaMethods": "Ingen fjerbare MFA-metoder registrert.",
+      "campusScope": "Filtrert til ditt campus",
       "confirmResetMfaTitle": "Tilbakestill MFA",
-      "confirmResetMfaDesc": "Alle ikke-passord autentiseringsmetoder fjernes. Brukeren må registrere MFA på nytt.",
+      "confirmResetMfaDesc": "Authenticator, telefon og privat e-postadresse for gjenoppretting fjernes. Brukeren må registrere MFA på nytt.",
       "forcePasswordReset": "Tving passordbytte ved neste innlogging",
       "resetPassword": "Generer midlertidig passord",
       "passwordForcedReset": "Passordbytte planlagt ved neste innlogging",
@@ -412,6 +422,9 @@
       "deadlineDaysLeft": "{count}d igjen",
       "pastDeadline": "Frist passert",
       "duplicate": "Dupliser",
+      "duplicateHint": "Dupliser for en ny runde",
+      "duplicateSuccess": "Kopi opprettet som nytt utkast",
+      "duplicateError": "Kunne ikke lage kopien. Prøv igjen om litt.",
       "confirmDelete": "Bekreft sletting",
       "kpi": {
         "openPositions": "Åpne stillinger",
@@ -670,6 +683,7 @@
       "stock": "Lagerbeholdning",
       "status": "Status",
       "memberOnly": "Kun for medlemmer",
+      "unlisted": "Kun med lenke — skjult i oversikter",
       "sales": "Salg",
       "lowStock": "Lav beholdning"
     },
@@ -697,7 +711,8 @@
       },
       "kpi": {
         "liveProducts": "Publiserte produkter",
-        "revenue30d": "Omsetning (30d)"
+        "revenue": "Betalt omsetning",
+        "totalOrders": "Bestillinger"
       },
       "stock": {
         "unlimited": "Ubegrenset"
@@ -723,6 +738,7 @@
         "noCategory": "Ingen kategori"
       },
       "filters": {
+        "product": "Filtrer på produkt",
         "allProducts": "Alle produkter",
         "fromDate": "Fra dato",
         "toDate": "Til dato",
@@ -738,14 +754,40 @@
       },
       "csv": {
         "orderId": "Bestillings-ID",
+        "orderDate": "Bestillingsdato",
+        "status": "Status",
         "buyerName": "Kjøpernavn",
         "buyerEmail": "Kjøper-e-post",
         "buyerPhone": "Kjøpertelefon",
+        "campus": "Campus-ID",
+        "productName": "Produkt",
+        "productId": "Produkt-ID",
+        "variation": "Variant",
+        "quantity": "Antall",
+        "unitPrice": "Enhetspris",
+        "lineTotal": "Linjesum",
         "currency": "Valuta",
-        "paymentProvider": "Betalingsleverandør",
+        "orderSubtotal": "Delsum (bestilling)",
+        "orderDiscountTotal": "Rabatt (bestilling)",
+        "orderTotal": "Sum (bestilling)",
         "memberDiscount": "Medlemsrabatt %",
-        "receiptUrl": "Kvitterings-URL"
-      }
+        "paymentProvider": "Betalingsleverandør",
+        "receiptUrl": "Kvitterings-URL",
+        "customFields": "Tilleggsvalg"
+      },
+      "notice": {
+        "cappedTotal": "5000+ treff — avgrens på dato eller status for et eksakt tall",
+        "cappedRevenue": "Kun de 5000 nyeste treffene",
+        "truncatedOrders": "Dette produktet finnes i flere bestillinger enn listen kan vise. Kun de 500 første treffene vises her — eksporter CSV-filen for hele settet."
+      },
+      "export": {
+        "running": "Eksporterer…",
+        "success": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}}.",
+        "truncated": "{orders, plural, one {# bestilling} other {# bestillinger}} eksportert som {rows, plural, one {# varelinje} other {# varelinjer}} — filen nådde eksporttaket og inneholder ikke alle treff. Avgrens filtrene og eksporter på nytt.",
+        "empty": "Ingen bestillinger treffer disse filtrene, så det var ingenting å eksportere.",
+        "failed": "Eksporten mislyktes. Prøv igjen."
+      },
+      "viewOrder": "Vis ordre"
     },
     "preview": "Butikkvisning",
     "saveSuccess": "Produkt lagret",
@@ -852,6 +894,12 @@
       "localeEn": "Engelsk",
       "inactiveLiveNotice": "Denne avdelingen er inaktiv, så den publiserte siden er ikke offentlig tilgjengelig."
     },
+    "guidance": {
+      "heading": "Godt å vite",
+      "board": "Styret hentes fra Microsoft 365: hvem som sitter i hvilket verv styres av gruppemedlemskap der, og endres av BISO IT – ikke her.",
+      "newUnits": "Nye enheter og prosjekter opprettes i 24SevenOffice. De dukker opp her etter neste synkronisering, og får da sin egen side og adresse.",
+      "projectCategory": "Sett kategorien «Prosjekt» på enheter som driver et prosjekt. Da vises de under Prosjekter i menyen på biso.no for sitt campus."
+    },
     "categories": {
       "society": "Forening",
       "academic_association": "Fagforening",
@@ -877,7 +925,7 @@
       "description": "Kategori, bilder og tekst som vises for enheten på biso.no.",
       "typeLabel": "Kategori",
       "typeNone": "Ingen kategori",
-      "typeHint": "Styrer typefilteret på /units og jobbfilteret.",
+      "typeHint": "Styrer typefilteret på /units, jobbfilteret og om enheten vises under Prosjekter i menyen for sitt campus.",
       "logoLabel": "Logo",
       "logoHint": "Kvadratisk logo. Lagres som Appwrite-fil-ID fordi kolonnen bare rommer 100 tegn.",
       "heroLabel": "Toppbilde",
@@ -991,10 +1039,8 @@
       "scope": "Omfang",
       "campus": "Campus",
       "language": "Språk",
-      "version": "Versjonsetikett",
-      "versionNumber": "Versjonsnummer",
+      "version": "Versjon",
       "status": "Status",
-      "sortOrder": "Sorteringsrekkefølge",
       "file": "PDF-fil",
       "fileSize": "Filstørrelse",
       "lastUpdated": "Sist oppdatert"
@@ -1029,7 +1075,14 @@
     "sharepointError": "SharePoint-opplasting mislyktes",
     "deleteSuccess": "Dokument slettet",
     "deleteError": "Kunne ikke slette dokumentet",
-    "versionUploadHint": "Opplasting av ny versjon erstatter filen i SharePoint. SharePoints innebygde versjonshistorikk sporer forrige versjon."
+    "versionUploadHint": "Skriv inn det nye versjonsnummeret og velg PDF-en. Filen i SharePoint erstattes, så eksisterende lenker virker fortsatt, og forrige versjon blir liggende i historikken.",
+    "versionHistory": "Versjonshistorikk",
+    "noVersions": "Ingen versjoner registrert ennå.",
+    "copyLink": "Kopier lenke",
+    "linkCopied": "Lenke kopiert",
+    "notPublicWarning": "Lagret, men SharePoint ville ikke opprette en offentlig lenke. Personer utenfor BISO kan fortsatt laste ned dokumentet fra biso.no.",
+    "pathLockedHint": "Tittel, kategori, språk, omfang og campus kan ikke endres etter opplasting, fordi de bestemmer hvor filen lagres.",
+    "internalLinkNote": "Denne lenken virker bare for personer som er logget inn hos BISO."
   },
   "operations": {
     "title": "Driftshelse",
@@ -1131,6 +1184,48 @@
       "stripe": "Stripe (kort)"
     }
   },
+  "shopAccounting": {
+    "title": "Regnskap for nettbutikken",
+    "description": "Salgstyper, avregningskontoer og automatisk bokføring av nettbutikksalg i Finago. Endringer logges.",
+    "postingTitle": "Automatisk bokføring",
+    "postingOn": "På — betalte ordre bokføres i Finago",
+    "postingOff": "Av — betalte ordre venter og bokføres når dette slås på",
+    "postingHint": "Slå på når innstillingene er lagret og produktene har salgstype.",
+    "switchOn": "Slå på bokføring",
+    "switchOff": "Slå av bokføring",
+    "settingsTitle": "Bilag",
+    "settingsHint": "Avregningskontoen debiteres med brutto beløp. Utbetalingsbilaget fra Vipps/Stripe krediterer den og fører gebyret.",
+    "voucherType": "Bilagsart (nummer)",
+    "vippsClearing": "Avregningskonto Vipps",
+    "stripeClearing": "Avregningskonto Stripe",
+    "clearingChangeHint": "Endrer du en avregningskonto, flyttes ikke ordre som allerede er bokført. Refusjoner av tidligere ordre bokføres mot den nye kontoen.",
+    "notSaved": "Ikke lagret ennå — verdiene under er forslag",
+    "save": "Lagre",
+    "saved": "Lagret",
+    "saveError": "Kunne ikke lagre",
+    "salesTypesTitle": "Salgstyper",
+    "salesTypesHint": "Produktansvarlige velger en salgstype. Mva følger kontoen i Finago.",
+    "labelNo": "Navn (norsk)",
+    "labelEn": "Navn (engelsk)",
+    "account": "Inntektskonto",
+    "chooseAccount": "Velg konto",
+    "vat": "Mva",
+    "active": "Aktiv",
+    "sortOrder": "Rekkefølge",
+    "addSalesType": "Legg til salgstype",
+    "createDefaults": "Opprett standard salgstyper",
+    "noSalesTypes": "Ingen salgstyper ennå.",
+    "vatStandard": "25 % mva (kode 3)",
+    "vatExempt": "Avgiftsfritt (kode 5)",
+    "vatNone": "Ingen mva (kode 0)",
+    "vatOther": "Mva-kode {code}",
+    "vatUnknown": "Ukjent — synk kontoer",
+    "syncTitle": "Kontoplan",
+    "syncButton": "Synk kontoer fra Finago",
+    "lastSynced": "Sist synket {time}",
+    "neverSynced": "Aldri synket",
+    "syncDone": "Kontoplan synket"
+  },
   "settings": {
     "title": "Innstillinger",
     "description": "Konfigurer adminpreferansene dine.",
@@ -1183,32 +1278,144 @@
   },
   "members": {
     "title": "Medlemmer",
-    "description": "Alle med et BISO-medlemskap, på tvers av campusene du har tilgang til.",
-    "searchPlaceholder": "Søk på navn eller e-post…",
+    "description": "Betalende BISO-medlemmer fra 24SevenOffice, på campusene du har tilgang til.",
+    "searchPlaceholder": "Søk etter navn eller e-post…",
     "empty": "Ingen medlemmer funnet",
-    "emptyDescription": "Prøv et annet søk eller filter.",
+    "emptyDescription": "Prøv et annet søk, eller oppdater medlemslisten.",
     "unnamed": "Uten navn",
-    "noCampus": "Ingen campus registrert",
-    "noPlan": "Ingen medlemskap",
-    "noExpiry": "Ingen utløpsdato registrert",
-    "filters": {
-      "all": "Alle",
-      "active": "Aktive",
-      "inactive": "Inaktive"
+    "unknownCampus": "Ukjent campus",
+    "roster": {
+      "lastRefreshed": "Sist oppdatert {date}",
+      "neverRefreshed": "Ikke synkronisert ennå",
+      "lastFailed": "Siste oppdatering feilet {date}",
+      "refreshing": "Oppdaterer…",
+      "refresh": "Oppdater nå",
+      "queued": "Oppdatering startet. Det tar et par minutter.",
+      "alreadyRunning": "En oppdatering kjører allerede.",
+      "notConfigured": "Synkronisering av medlemslisten er ikke satt opp.",
+      "failed": "Kunne ikke starte oppdateringen. Prøv igjen senere.",
+      "statusUnavailable": "Status for oppdatering er ikke tilgjengelig."
+    }
+  },
+  "memberPass": {
+    "scanTitle": "Skann medlemskort",
+    "scanDescription": "Hold kameraet mot medlemskortet.",
+    "openScanner": "Skann medlemskort",
+    "manageLinks": "Gjesteskanner-lenker",
+    "manageAccess": "Skannertilgang",
+    "todaysColor": "Dagens farge",
+    "cameraError": "Kameraet er utilgjengelig. Gi tilgang til kameraet og last inn på nytt.",
+    "starting": "Starter kamera…",
+    "notConfigured": "Skanning av medlemskort er ikke satt opp.",
+    "tapToContinue": "Trykk for å skanne neste kort",
+    "results": {
+      "valid": "Gyldig medlem",
+      "duplicate": "Allerede skannet for {seconds}s siden",
+      "check_id": "Wallet-kort — sjekk legitimasjon",
+      "unavailable": "Kunne ikke sjekke — prøv igjen",
+      "denied": "Ikke gyldig"
     },
-    "status": {
-      "active": "Aktiv",
-      "inactive": "Ikke medlem"
+    "reasons": {
+      "bad_code": "Ikke et BISO-kort",
+      "stale": "Gammel kode — be personen åpne kortet på nytt",
+      "expired": "Medlemskapet har utløpt",
+      "not_member": "Ikke medlem",
+      "not_linked": "Ingen tilkoblet studentkonto"
     },
-    "detail": {
-      "back": "Tilbake til medlemmer",
-      "contact": "Kontakt",
+    "validUntil": "Gyldig til {date}",
+    "links": {
+      "title": "Gjesteskanner-lenker",
+      "description": "Gi vakter en skanner uten konto. Lenkene utløper automatisk og kan trekkes tilbake.",
+      "label": "Navn",
+      "labelPlaceholder": "f.eks. Fadderuke – dør 1",
       "campus": "Campus",
-      "expiry": "Utløper",
-      "membershipHistory": "Medlemskapshistorikk",
-      "noHistory": "Ingen medlemskapshistorikk registrert.",
-      "notFound": "Fant ikke medlemmet",
-      "planPrice": "{price} kr"
+      "allCampuses": "Alle campuser",
+      "expiresAt": "Gyldig til",
+      "create": "Lag lenke",
+      "created": "Lenken er laget — kopier den nå, den vises bare én gang.",
+      "copy": "Kopier lenke",
+      "copied": "Kopiert",
+      "active": "Aktive lenker",
+      "none": "Ingen aktive lenker.",
+      "revoke": "Trekk tilbake",
+      "revoked": "Lenken er trukket tilbake",
+      "expires": "Utløper {date}",
+      "errors": {
+        "invalid_label": "Skriv inn et navn.",
+        "invalid_expiry": "Velg et tidspunkt fram i tid (maks 48 timer).",
+        "forbidden_campus": "Du kan bare lage lenker for din egen campus.",
+        "not_found": "Lenken finnes ikke lenger.",
+        "failed": "Noe gikk galt. Prøv igjen.",
+        "not_configured": "Skanning av medlemskort er ikke satt opp.",
+        "invalid_link": "Denne skannerlenken er ikke lenger gyldig."
+      }
+    },
+    "access": {
+      "title": "Skannertilgang",
+      "description": "La personer utenfor BISO skanne medlemskort i BISO-appen. De logger inn med e-postadressen du skriver inn her.",
+      "addTitle": "Legg til skanner",
+      "email": "E-post",
+      "emailPlaceholder": "navn@eksempel.no",
+      "name": "Navn (valgfritt)",
+      "namePlaceholder": "f.eks. Ola Nordmann – Securitas",
+      "campus": "Campus",
+      "allCampuses": "Alle campuser",
+      "expiresAt": "Sluttdato (valgfritt)",
+      "expiresHint": "La stå tom for å beholde gjeldende sluttdato for eksisterende tilgang, eller for tilgang til den trekkes tilbake for nye personer. For å fjerne en sluttdato, trekk tilbake og legg til personen på nytt.",
+      "invite": "Gi tilgang og send invitasjon",
+      "invited": "Tilgang gitt og invitasjon sendt.",
+      "resent": "Invitasjonen er sendt på nytt.",
+      "emailNotSent": "Tilgangen er lagret, men invitasjonen ble ikke sendt — sjekk SMTP-innstillingene.",
+      "revoked": "Tilgangen er trukket tilbake.",
+      "listTitle": "Personer med skannertilgang",
+      "none": "Ingen har fått skannertilgang ennå.",
+      "noEndDate": "Ingen sluttdato",
+      "notInvited": "Ikke sendt",
+      "resend": "Send invitasjon på nytt",
+      "revoke": "Trekk tilbake",
+      "columns": {
+        "name": "Navn",
+        "email": "E-post",
+        "campus": "Campus",
+        "grantedBy": "Gitt av",
+        "expiresAt": "Sluttdato",
+        "status": "Status",
+        "invitedAt": "Sist invitert",
+        "actions": "Handlinger"
+      },
+      "status": {
+        "active": "Aktiv",
+        "expired": "Utløpt",
+        "revoked": "Trukket tilbake"
+      },
+      "errors": {
+        "invalid_email": "Skriv inn en gyldig e-postadresse.",
+        "invalid_name": "Navnet kan ha høyst 120 tegn.",
+        "invalid_expiry": "Velg en sluttdato fram i tid.",
+        "forbidden_campus": "Du kan bare gi tilgang for din egen campus.",
+        "not_found": "Tilgangen finnes ikke lenger.",
+        "not_active": "Denne tilgangen er avsluttet. Legg til personen på nytt i stedet.",
+        "failed": "Noe gikk galt. Prøv igjen."
+      }
+    },
+    "guest": {
+      "invalidTitle": "Denne skannerlenken er ikke gyldig",
+      "invalidDescription": "Den har utløpt eller blitt trukket tilbake. Be BISO om en ny lenke.",
+      "rateLimited": "For mange skanninger — vent litt."
+    },
+    "colors": {
+      "red": "Rød",
+      "orange": "Oransje",
+      "yellow": "Gul",
+      "lime": "Limegrønn",
+      "green": "Grønn",
+      "teal": "Blågrønn",
+      "cyan": "Turkis",
+      "blue": "Blå",
+      "indigo": "Indigo",
+      "purple": "Lilla",
+      "pink": "Rosa",
+      "brown": "Brun"
     }
   },
   "unauthorized": {

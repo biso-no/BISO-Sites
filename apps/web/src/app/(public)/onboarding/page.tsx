@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
-import { getLoggedInUser } from "@/lib/actions/user";
+import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
 
 export const metadata: Metadata = {
   description: "Set up your BISO profile to access events, benefits, and more.",
@@ -10,18 +10,16 @@ export const metadata: Metadata = {
 
 interface OnboardingPageProps {
   searchParams: Promise<{
+    link_error?: string;
     linked?: string;
-    oidc_failed?: string;
     required?: string;
   }>;
 }
 
-// A BI OIDC link completes at /api/auth/bi-link, which runs the sync + cache
-// invalidation itself and only then redirects here with `?linked=1` — see
-// that route's doc comment. This page never re-runs the sync: `params.linked`
-// below is read purely as a UI flag (mid-OAuth-flow bookkeeping), not a
-// trigger — a refresh of this URL is now inert instead of re-running the
-// Graph call and the DB write.
+// A BI sign-in completes at /auth/oauth, which writes the student number
+// itself and sends a brand-new student here with `?linked=1`. This page never
+// runs that sync: `params.linked` is read purely as a UI flag, so a refresh
+// of this URL is inert.
 export default async function OnboardingPage({
   searchParams,
 }: OnboardingPageProps) {
@@ -34,9 +32,17 @@ export default async function OnboardingPage({
   }
 
   // Already has a profile and not mid-OAuth-flow → nothing to do here
-  if (userData.profile && params.linked !== "1") {
+  if (userData.profile && params.linked !== "1" && !params.link_error) {
     redirect("/profile");
   }
+
+  // An account that already carries a BI identity has nothing to gain from
+  // the "sign in with BI" step, whether or not this visit came straight from
+  // the sign-in; a failed student sync is reported by the toast instead.
+  const identities = (await listIdentities())?.identities ?? [];
+  const hasBiIdentity = identities.some(
+    (identity) => identity.provider.toLowerCase() === "oidc"
+  );
 
   return (
     // `pt-20` clears the fixed 80px nav. `<main>` adds no offset — every page
@@ -44,17 +50,12 @@ export default async function OnboardingPage({
     // never did, so the flow's first rows sat behind the header. The flow's own
     // container is already sized `min-h-[calc(100vh-5rem)]`, i.e. it was
     // written expecting exactly this offset.
-    <div className="relative min-h-screen overflow-hidden bg-deep pt-20">
-      {/* Radial glow centred behind the card */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex items-center justify-center"
-      >
-        <div className="h-[520px] w-[520px] rounded-full bg-sky/10 blur-3xl" />
-      </div>
+    // The flow's card sits on the navy field itself; the blurred glow that
+    // used to sit behind it was decoration (no glows, no blur in v2).
+    <div className="min-h-screen bg-deep pt-20">
       <OnboardingFlow
         initialName={userData.user.name ?? ""}
-        linkedBi={params.linked === "1"}
+        linkedBi={params.linked === "1" || hasBiIdentity}
         required={params.required === "1"}
       />
     </div>

@@ -1,13 +1,17 @@
+import type { Locale } from "@repo/i18n/config";
 import { ArrowRight, Mail, MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { getLocale } from "@/app/actions/locale";
 import { CardGrid } from "@/components/ui/card-grid";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { cachedPublicUnits } from "@/lib/data/units";
+import { careerDaysHrefs } from "@/lib/project-unit-links";
 
 const BENEFITS = ["colleagues", "values", "match"] as const;
 const CAMPUSES = ["oslo", "bergen", "trondheim", "stavanger"] as const;
@@ -29,11 +33,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PartnerPage() {
-  const [t, tCommon, tHotspot] = await Promise.all([
+  const locale = (await getLocale()) as Locale;
+  const [t, tCommon, tHotspot, units] = await Promise.all([
     getTranslations("partner"),
     getTranslations("common"),
     getTranslations("businessHotspot"),
+    // A unit-directory outage must not take the page down: with no units every
+    // career days card falls back to the Karrieredagene project page.
+    cachedPublicUnits(locale).catch(() => []),
   ]);
+  const careerDaysLinks = careerDaysHrefs(units);
 
   return (
     <>
@@ -82,17 +91,18 @@ export default async function PartnerPage() {
               </h3>
               {/* The previous design put a prominent "JOIN US" button on each
                   of these four cards with no `href` and no handler — four dead
-                  CTAs. The destination is the campus business team, whose
-                  address is in this same bundle. */}
-              <a
+                  CTAs. Each now leads to that campus's Karrieredagene unit
+                  page, resolved by name from the unit directory, and falls
+                  back to the project page when a campus has no public unit. */}
+              <Link
                 className={`type-body-sm mt-auto pt-4 ${linkClass}`}
-                href={`mailto:${t(`contact.campuses.${key}.email`)}`}
+                href={careerDaysLinks[key]}
               >
                 <span className="min-w-0 break-words">
                   {t(`careerDays.cities.${key}.action`)}
                 </span>
                 <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
-              </a>
+              </Link>
             </li>
           ))}
         </CardGrid>

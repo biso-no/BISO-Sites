@@ -1,5 +1,5 @@
 import type { GraphUserService } from "@repo/connectors/azure/users";
-import { M365_DOMAIN } from "@/lib/it/graph";
+import { M365_DOMAIN } from "@/lib/it/m365-config";
 
 // Shared tenant-user guard. Lives in a plain module (NOT a "use server" file) so
 // both IT server actions and the remediation actions can reuse it — a sync
@@ -26,11 +26,38 @@ export function isAllowedTenantUser(user: {
   return hasDomain && hasLicense;
 }
 
-// Loads a user by id and asserts it's an allowed tenant user. Throws otherwise.
-// Use before any Graph mutation that takes a client-supplied user id.
+// True when the account sits inside the caller's campus scope. `null` means
+// unrestricted (global admin). BISO mirrors campus.name onto the M365
+// officeLocation attribute, so that is what the scope is matched against.
+//
+// Fails closed: an account with no officeLocation is out of scope for anyone
+// who is not a global admin, since there is no campus to check it against.
+export function isWithinCampusScope(
+  user: { officeLocation?: string },
+  campusScope: string[] | null
+): boolean {
+  if (campusScope === null) {
+    return true;
+  }
+
+  const officeLocation = user.officeLocation?.trim().toLowerCase();
+  if (!officeLocation) {
+    return false;
+  }
+
+  return campusScope.some(
+    (campus) => campus.trim().toLowerCase() === officeLocation
+  );
+}
+
+// Loads a user by id and asserts it's an allowed tenant user inside the
+// caller's campus scope. Throws otherwise. Use before any Graph read or
+// mutation that takes a client-supplied user id — this is the chokepoint that
+// keeps a campus admin from reaching another campus's account by id.
 export async function getAllowedTenantUser(
   graph: GraphUserService,
-  userId: string
+  userId: string,
+  campusScope: string[] | null = null
 ): Promise<NonNullable<Awaited<ReturnType<GraphUserService["getUser"]>>>> {
   const user = await graph.getUser(userId);
   if (!user) {
@@ -39,6 +66,11 @@ export async function getAllowedTenantUser(
   if (!isAllowedTenantUser(user)) {
     throw new Error(
       "Only licensed @biso.no Microsoft 365 users are visible in IT admin."
+    );
+  }
+  if (!isWithinCampusScope(user, campusScope)) {
+    throw new Error(
+      "This Microsoft 365 user belongs to another campus than the ones you manage."
     );
   }
   return user;

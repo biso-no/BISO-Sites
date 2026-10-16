@@ -1,6 +1,9 @@
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { reconcileVippsPayment } from "@repo/payment/vipps";
+import {
+  reconcileOrderPayment,
+  sweepPendingRefunds,
+} from "@repo/payment/reconcile";
 import {
   type FinagoOrder,
   postFinagoTransactionForOrder,
@@ -19,22 +22,37 @@ import { NextResponse } from "next/server";
 import { isProd } from "@/lib/utils";
 
 /**
+ * DEPRECATED — the sweep now runs in apps/api (`/api/cron/reconcile-orders`).
+ * This copy stays only until `ORDERS_RECONCILE_URL` in scheduled-dispatch
+ * points at the API app; delete it in the same follow-up that deletes the
+ * `/api/checkout/return` shim. Running both is safe: every settlement path
+ * claims atomically.
+ *
  * Order reconciliation sweep (PR-038). Driven on a schedule by the
  * `scheduled-dispatch` Appwrite Function (`ORDERS_RECONCILE_URL`), which POSTs
  * with an `x-cron-secret` header; can also be hit manually with
  * `Authorization: Bearer ${CRON_SECRET}`.
  *
  * Three passes per run:
- * 1. Payment reconcile — pending/authorized Vipps orders older than the grace
- *    window are re-fetched from Vipps (capture-if-authorized + idempotent
- *    status transition). Recovers orders whose webhook never landed and
- *    mobile buyers who never returned to the site.
+ * 1. Payment reconcile — pending/authorized orders older than the grace window
+ *    are re-fetched from their provider (Vipps: capture-if-authorized; Stripe:
+ *    re-read the Checkout Session) and put through the idempotent status
+ *    transition. Recovers orders whose webhook never landed and buyers who
+ *    never returned to the site. This is the ONLY recovery path that depends
+ *    on neither the buyer nor webhook delivery, so it must cover both
+ *    providers — when it was Vipps-only, a Stripe order with a missed webhook
+ *    stayed PENDING forever: stock never decremented and revenue never
+ *    posted.
  * 2. Finago recovery — paid/authorized shop orders with no
  *    `finago_transaction_id` get their ledger posting retried (stale posting
  *    claims are released first). The atomic claim inside
  *    postFinagoTransactionForOrder keeps this safe alongside the webhook and
  *    return-route triggers.
- * 3. Membership recovery — paid/authorized membership orders with no
+ * 3. Refund resolution — refunds still `pending` past the grace window are
+ *    resolved against the provider: settled ones run their deferred inventory
+ *    and ledger effects, failed ones release the refundable balance they were
+ *    holding. Without this pass a pending refund is permanent.
+ * 4. Membership recovery — paid/authorized membership orders with no
  *    `membership_invoice_id` get fulfilment retried (stale fulfilment claims
  *    are released first), the same way as pass 2. Recovers mobile buyers who
  *    never return to the browser return route.
@@ -77,11 +95,11 @@ async function sweepUnsettledOrders(db: AdminDb): Promise<{
     ]);
 
     for (const order of orders.rows) {
-      if (order.payment_provider !== "vipps" || !order.payment_session_id) {
+      if (!order.payment_session_id) {
         continue;
       }
       try {
-        await reconcileVippsPayment(order.$id, db);
+        await reconcileOrderPayment(order.$id, db);
         reconciled += 1;
       } catch (error) {
         errors += 1;
@@ -196,7 +214,10 @@ async function recoverMembershipFulfilment(db: AdminDb): Promise<{
       const result = await fulfilMembershipOrder(order.$id, db);
       if (result.fulfilled) {
         fulfilled += 1;
-      } else if (result.reason === "finago_failed") {
+      } else if (
+        result.reason === "finago_failed" ||
+        result.reason === "read_failed"
+      ) {
         errors += 1;
       }
     } catch (error) {
@@ -230,20 +251,33 @@ async function handle(request: Request) {
     const { db } = await createAdminClient();
     const reconcile = await sweepUnsettledOrders(db);
     const finago = await sweepMissingFinagoPostings(db);
+    const refunds = await sweepPendingRefunds(db, cutoffIso());
     const membership = await recoverMembershipFulfilment(db);
+
+    const errors =
+      reconcile.errors + finago.errors + refunds.errors + membership.errors;
+    // The scheduler judges target health by response.ok, so any failed order
+    // or refund must surface as a 5xx — a 200 would report a broken run
+    // (including an Appwrite outage swallowed per order) as a healthy ping.
+    const failed = errors > 0 || refunds.failed > 0;
 
     return NextResponse.json(
       {
-        success: true,
+        success: !failed,
         reconciled: reconcile.reconciled,
         finagoPosted: finago.posted,
         staleClaimsReleased: finago.released,
         membershipFulfilled: membership.fulfilled,
         membershipClaimsReleased: membership.released,
-        errors: reconcile.errors + finago.errors + membership.errors,
+        refundsSettled: refunds.settled,
+        refundsFailed: refunds.failed,
+        refundsStillPending: refunds.stillPending,
+        refundsUnresolved: refunds.unresolved,
+        refundErrors: refunds.errors,
+        errors,
         timestamp: new Date().toISOString(),
       },
-      { headers: { "Cache-Control": "no-store" } }
+      { status: failed ? 500 : 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
     console.error("Error in reconcile-orders cron:", error);

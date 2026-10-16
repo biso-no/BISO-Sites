@@ -2,41 +2,29 @@ import { Briefcase } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import type { MembershipCheckResult } from "@/components/profile/membership-status-card";
-import MembershipStatusCard from "@/components/profile/membership-status-card";
+import { MemberPass } from "@/components/member-pass/member-pass";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
-import { checkMembership } from "@/lib/profile";
 
 export const metadata: Metadata = {
   title: "Your Profile | BISO",
   description: "View and manage your profile and privacy settings.",
 };
 
-// A BI (or Microsoft) OIDC link completes at /api/auth/bi-link, which runs
-// the sync + cache invalidation itself and only then redirects here with
-// `?linked=1` — see that route's doc comment. This page never re-runs the
-// sync: it starts a brand-new request (this route group is already dynamic
-// via `getLoggedInUser()`'s cookie read), so the reads below already see
-// whatever the route handler just wrote. The `linked`/`error` query params
-// carry no behaviour on this page — they're read by nothing here.
+// A BI sign-in writes the student number at /auth/oauth before redirecting
+// here, and this route group is dynamic via `getLoggedInUser()`'s cookie
+// read, so the reads below already see it. Nothing on this page links or
+// syncs anything.
 export default async function PublicProfilePage() {
-  const [userData, identitiesResp, tNav] = await Promise.all([
+  const [userData, identitiesResp, tNav, tMembership] = await Promise.all([
     getLoggedInUser(),
     listIdentities(),
     getTranslations("common.navigation"),
+    getTranslations("memberPortal.membership"),
   ]);
-
-  const identities: { $id: string; provider: string }[] =
-    identitiesResp?.identities || [];
-  const hasBIIdentity = identities.some(
-    (i) => String(i?.provider || "").toLowerCase() === "oidc"
-  );
-  const membership: MembershipCheckResult | null = hasBIIdentity
-    ? await checkMembership()
-    : null;
 
   // The layout redirects to /onboarding when there is no profile, so a name is
   // normally present; `user.name` and then the account label cover the gap
@@ -62,11 +50,14 @@ export default async function PublicProfilePage() {
         title={displayName}
       />
 
+      {/* The live member pass, up front. It reads its own state from
+          /api/member-pass — active pass, not a member, expired, or no BI
+          sign-in — so the page passes it nothing. */}
       <Section tone="paper" width="prose">
-        <MembershipStatusCard
-          hasBIIdentity={hasBIIdentity}
-          initial={membership}
-        />
+        <SectionHeading>{tMembership("yourPass")}</SectionHeading>
+        <div className="max-w-md">
+          <MemberPass />
+        </div>
       </Section>
 
       {userData ? (

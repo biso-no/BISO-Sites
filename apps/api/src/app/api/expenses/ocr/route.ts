@@ -1,4 +1,5 @@
 import { balancedModel } from "@repo/ai/models";
+import { appwriteErrorStatus } from "@repo/api/errors";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
@@ -143,6 +144,9 @@ const ALLOWED_TYPES = [
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_INTERNAL_ERROR = 500;
 
 const buildErrorResponse = (
   message: string,
@@ -347,11 +351,21 @@ async function extractExpenseDataFromPdf(
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   // Auth check - supports both JWT (Authorization header) and session cookie
-  const { account } = await createAuthenticatedClient(req);
-  const user = await account.get();
-
-  if (!user) {
-    return buildErrorResponse("Unauthorized", 401, origin);
+  // account.get() throws (Appwrite 401) for a missing/expired session; keep it
+  // inside a try so the caller gets a JSON 401 with CORS, not an unhandled 500.
+  try {
+    const { account } = await createAuthenticatedClient(req);
+    await account.get();
+  } catch (error) {
+    if (appwriteErrorStatus(error) === HTTP_UNAUTHORIZED) {
+      return buildErrorResponse("Unauthorized", HTTP_UNAUTHORIZED, origin);
+    }
+    console.error("[expenses/ocr] Auth check failed:", error);
+    return buildErrorResponse(
+      "Authentication check failed",
+      HTTP_INTERNAL_ERROR,
+      origin
+    );
   }
 
   // Kill switch: AI receipt scanning is gated by the OCR flag and the parent

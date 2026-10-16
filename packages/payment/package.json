@@ -12,7 +12,9 @@
   "exports": {
     "./vipps": "./src/vipps/index.ts",
     "./stripe": "./src/stripe/index.ts",
-    "./credentials": "./src/credentials/index.ts"
+    "./credentials": "./src/credentials/index.ts",
+    "./refunds": "./src/refunds.ts",
+    "./reconcile": "./src/reconcile.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

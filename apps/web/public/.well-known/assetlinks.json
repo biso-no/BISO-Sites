@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.biso.no",
+      "sha256_cert_fingerprints": [
+        "62:37:90:A6:50:71:68:42:0C:CE:1A:43:2D:5C:60:5E:FF:90:72:6C:25:81:EE:E9:2E:80:7F:71:34:E0:A6:2D",
+        "38:C8:4E:4D:7C:3F:79:22:B8:EA:E0:9E:D0:F7:0C:3E:A4:86:3E:F3:02:C6:43:D0:65:B8:C3:2D:6D:16:A2:85"
+      ]
+    }
+  }
+]

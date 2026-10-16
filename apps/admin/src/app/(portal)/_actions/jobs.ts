@@ -3,14 +3,17 @@
 import { fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type {
-  ContentTranslations,
-  JobApplications,
-  Jobs,
+import {
+  type ContentTranslations,
+  type JobApplications,
+  type Jobs,
+  JobsStatus,
 } from "@repo/api/types/appwrite";
 import {
+  fetchRecruitmentListPage,
   fetchRecruitmentListRows,
   getRecruitmentJobById,
+  resolveUniqueRecruitmentJobSlug,
 } from "@repo/shared/recruitment";
 import {
   assertRecruitmentApplicationTransition,
@@ -23,6 +26,7 @@ import {
   type RecruitmentVacancy,
   type RecruitmentVacancyMetadata,
   type RecruitmentVacancyUpsertInput,
+  type RecruitmentVacancyWriteInput,
   recruitmentApplicationReviewUpdateSchema,
   recruitmentApplicationStatusUpdateSchema,
   recruitmentVacancyUpsertSchema,
@@ -31,6 +35,8 @@ import {
 } from "@repo/shared/types/recruitment";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
@@ -46,6 +52,11 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { resolveJobPublication } from "@/lib/job-publication";
+import {
+  buildDuplicateSlugCandidates,
+  buildDuplicateVacancyInput,
+} from "@/lib/job-reuse";
 import {
   applyDescriptionMerge,
   computeJobTranslationMemory,
@@ -54,6 +65,7 @@ import {
   planDescriptionMerge,
   serializeJobTranslationMemory,
 } from "@/lib/job-translation-memory";
+import { normalizeApplicationDeadline } from "@/lib/oslo-date";
 import {
   assertRecruitmentApplicationReviewAccess,
   assertRecruitmentVacancyWriteAccess,
@@ -66,12 +78,79 @@ import {
 } from "@/lib/recruitment";
 
 import { logAuditEvent } from "./audit-log";
+import { APPLICATIONS_PAGE_SIZE, JOBS_PAGE_SIZE } from "./schemas";
+
+function formatVacancyValidationError(error: z.ZodError): string {
+  const [issue] = error.issues;
+  if (!issue) {
+    return "Invalid vacancy payload";
+  }
+  const field = issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
+  return `${field}${issue.message}`;
+}
+
+function isAppwriteUnavailable(error: unknown): boolean {
+  const err = error as {
+    cause?: { code?: unknown };
+    code?: unknown;
+    message?: unknown;
+    name?: unknown;
+    type?: unknown;
+  } | null;
+  return (
+    (typeof err?.code === "number" && err.code >= 500) ||
+    err?.type === "appwrite_timeout" ||
+    err?.name === "TimeoutError" ||
+    err?.code === "ECONNREFUSED" ||
+    err?.cause?.code === "ECONNREFUSED" ||
+    (typeof err?.message === "string" &&
+      (err.message.includes("fetch failed") ||
+        err.message.includes("timed out")))
+  );
+}
+
+/**
+ * Logs a failed vacancy write with a short reference the user can quote to
+ * support, and returns a message that says whether the write may have landed.
+ */
+function reportVacancyWriteFailure(
+  operation: "createJob" | "updateJob",
+  error: unknown,
+  context: {
+    durationMs: number;
+    jobId?: string;
+    stage: string;
+    userId: string | null;
+  }
+): string {
+  const reference = crypto.randomUUID().slice(0, 8);
+  const err = error as { code?: unknown; type?: unknown } | null;
+  console.error(`[${operation}] failed`, {
+    ...context,
+    appwriteCode: err?.code,
+    appwriteType: err?.type,
+    error,
+    reference,
+  });
+
+  if (isAppwriteUnavailable(error)) {
+    const outcomes: Record<string, string> = {
+      "after-write":
+        "Your changes were saved, but finishing up failed — reload to check.",
+      write:
+        "The save may not have completed — check the jobs list before trying again.",
+    };
+    const outcome =
+      outcomes[context.stage] ?? "Nothing was saved. Try again in a moment.";
+    return `The server didn't respond in time. ${outcome} (ref ${reference})`;
+  }
+  const message =
+    error instanceof Error ? error.message : "Failed to save vacancy";
+  return `${message} (ref ${reference})`;
+}
 
 // Shorthand type for the db accessor — both admin and session clients return the same shape.
 type Db = Awaited<ReturnType<typeof createSessionClient>>["db"];
-
-const JOBS_PAGE_SIZE = 20;
-const APPLICATIONS_PAGE_SIZE = 20;
 
 // Fields to select when fetching job_applications with nested job data.
 const APPLICATION_SELECT = [
@@ -386,6 +465,20 @@ async function persistDeferredJobTranslation(
   });
 }
 
+/**
+ * The status a deferred translation expects to find. The scheduled-publish
+ * dispatcher may publish the vacancy while the task is queued; that is the
+ * planned outcome, not a scope change.
+ */
+function expectedTranslationStatus(
+  input: { scheduledPublishAt: string | null; status: JobsStatus },
+  currentStatus: JobsStatus
+): JobsStatus {
+  return input.scheduledPublishAt && currentStatus === JobsStatus.PUBLISHED
+    ? JobsStatus.PUBLISHED
+    : input.status;
+}
+
 function scheduleJobTranslation(input: {
   audience: "members" | "public";
   campusId: string;
@@ -396,6 +489,8 @@ function scheduleJobTranslation(input: {
   jobId: string;
   source: JobTranslationSnapshot;
   sourceLocale: ContentLocale;
+  /** Set when this save armed a scheduled publish. */
+  scheduledPublishAt: string | null;
   status: RecruitmentVacancyUpsertInput["status"];
 }): boolean {
   const hasSource = Boolean(
@@ -418,7 +513,7 @@ function scheduleJobTranslation(input: {
             audience: input.audience,
             campusId: input.campusId,
             departmentId: input.departmentId,
-            status: input.status,
+            status: expectedTranslationStatus(input, currentJob.status),
           },
           {
             audience: currentMetadata.audience ?? "public",
@@ -481,9 +576,14 @@ function scheduleJobTranslation(input: {
         currentTargetSnapshot,
         cache
       );
+      // Re-read status after the (slow) model call so a vacancy published in
+      // the meantime gets consumer-readable translation permissions.
+      const latestJob = await db.getRow<Jobs>("app", "jobs", input.jobId, [
+        Query.select(["status"]),
+      ]);
       const permissions = buildJobTranslationPermissions(
         input.audience,
-        input.status
+        latestJob.status
       );
       await persistDeferredJobTranslation(
         db,
@@ -498,6 +598,105 @@ function scheduleJobTranslation(input: {
   });
 }
 
+/** Batch size when walking every in-scope vacancy for a search. */
+const JOB_SEARCH_BATCH = 100;
+
+const JOB_STATUSES = [
+  JobsStatus.PUBLISHED,
+  JobsStatus.DRAFT,
+  JobsStatus.CLOSED,
+] as const;
+
+export type JobStatusCounts = Record<"all" | JobsStatus, number>;
+
+/**
+ * Case-insensitive substring match over the fields HR recognises a vacancy
+ * by. `search` must already be trimmed and lowercased.
+ */
+function vacancyMatchesSearch(vacancy: RecruitmentVacancy, search: string) {
+  const haystack = [
+    ...vacancy.translations.map((translation) => translation.title),
+    vacancy.slug,
+    vacancy.department?.Name,
+    vacancy.campus?.name,
+    vacancy.metadata.company,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(search);
+}
+
+/**
+ * Every vacancy matching `scopeQueries`, cursor-paged. Titles live on the
+ * `translations` relationship, which Appwrite can't substring-match, so a
+ * search has to filter the full scoped set in memory rather than one page.
+ */
+async function fetchAllScopedVacancies(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  scopeQueries: string[]
+) {
+  const vacancies: RecruitmentVacancy[] = [];
+  let cursor: string | undefined;
+  while (true) {
+    const batch = await fetchRecruitmentListRows(db, [
+      ...scopeQueries,
+      Query.orderDesc("$updatedAt"),
+      Query.limit(JOB_SEARCH_BATCH),
+      ...(cursor ? [Query.cursorAfter(cursor)] : []),
+    ]);
+    vacancies.push(...batch);
+    if (batch.length < JOB_SEARCH_BATCH) {
+      return vacancies;
+    }
+    cursor = batch.at(-1)?.$id;
+  }
+}
+
+function countVacanciesByStatus(
+  vacancies: RecruitmentVacancy[]
+): JobStatusCounts {
+  const counts: JobStatusCounts = {
+    all: vacancies.length,
+    closed: 0,
+    draft: 0,
+    published: 0,
+  };
+  for (const vacancy of vacancies) {
+    if (vacancy.status in counts) {
+      counts[vacancy.status as JobsStatus] += 1;
+    }
+  }
+  return counts;
+}
+
+async function countJobsByStatus(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  scopeQueries: string[]
+): Promise<JobStatusCounts> {
+  const countWhere = async (extra: string[]) =>
+    (
+      await db.listRows<Jobs>("app", "jobs", [
+        Query.select(["$id"]),
+        ...scopeQueries,
+        ...extra,
+        Query.limit(1),
+      ])
+    ).total;
+
+  const [all, ...byStatus] = await Promise.all([
+    countWhere([]),
+    ...JOB_STATUSES.map((status) =>
+      countWhere([Query.equal("status", status)])
+    ),
+  ]);
+  const counts: JobStatusCounts = { all, closed: 0, draft: 0, published: 0 };
+  JOB_STATUSES.forEach((status, index) => {
+    counts[status] = byStatus[index] ?? 0;
+  });
+  return counts;
+}
+
 export async function listJobs(opts?: {
   status?: string;
   search?: string;
@@ -509,15 +708,16 @@ export async function listJobs(opts?: {
   const lookups = await loadRecruitmentLookups(db);
   const page = Math.max(1, opts?.page ?? 1);
   const search = opts?.search?.trim().toLowerCase() ?? "";
+  const status = opts?.status && opts.status !== "all" ? opts.status : null;
 
   // Push the campus / department scope into the Appwrite query so we don't
   // fetch a global page of jobs only to throw most of them away in memory.
-  const queries: string[] = [Query.orderDesc("$updatedAt"), Query.limit(200)];
+  const scopeQueries: string[] = [];
   if (scope.canManageAnyCampus) {
     // Global / HR-national admins see every campus unless the campus switcher
     // narrows them to one. campus.$id mirrors the numeric campus_id values.
     if (ctx.activeCampusId) {
-      queries.push(Query.equal("campus.$id", [ctx.activeCampusId]));
+      scopeQueries.push(Query.equal("campus.$id", [ctx.activeCampusId]));
     }
   } else {
     const managedCampusIds = scope.managedCampusNames
@@ -529,12 +729,13 @@ export async function listJobs(opts?: {
 
     if (scope.isCampusAdmin && managedCampusIds.length > 0) {
       // Relationship-aware filter — new in Appwrite Relationships GA.
-      queries.push(Query.equal("campus.$id", managedCampusIds));
+      scopeQueries.push(Query.equal("campus.$id", managedCampusIds));
     } else if (managedDeptIds.length > 0) {
-      queries.push(Query.equal("department.$id", managedDeptIds));
+      scopeQueries.push(Query.equal("department.$id", managedDeptIds));
     } else {
       // No scope at all — short-circuit empty list.
       return {
+        counts: countVacanciesByStatus([]),
         page,
         pageSize: JOBS_PAGE_SIZE,
         rows: [] as RecruitmentVacancy[],
@@ -542,31 +743,42 @@ export async function listJobs(opts?: {
       };
     }
   }
-  if (opts?.status && opts.status !== "all") {
-    queries.push(Query.equal("status", opts.status));
-  }
-
-  const vacancies = await fetchRecruitmentListRows(db, queries);
-
-  const filtered = vacancies.filter((vacancy) => {
-    if (!search) {
-      return true;
-    }
-    const title =
-      vacancy.translations
-        .find((translation) => translation.locale === "no")
-        ?.title.toLowerCase() ?? "";
-    const company = vacancy.metadata.company?.toLowerCase() ?? "";
-    return title.includes(search) || company.includes(search);
-  });
 
   const start = (page - 1) * JOBS_PAGE_SIZE;
 
+  if (search) {
+    const matches = (await fetchAllScopedVacancies(db, scopeQueries)).filter(
+      (vacancy) => vacancyMatchesSearch(vacancy, search)
+    );
+    const filtered = status
+      ? matches.filter((vacancy) => vacancy.status === status)
+      : matches;
+    return {
+      counts: countVacanciesByStatus(matches),
+      page,
+      pageSize: JOBS_PAGE_SIZE,
+      rows: filtered.slice(start, start + JOBS_PAGE_SIZE),
+      total: filtered.length,
+    };
+  }
+
+  const [result, counts] = await Promise.all([
+    fetchRecruitmentListPage(db, [
+      ...scopeQueries,
+      ...(status ? [Query.equal("status", status)] : []),
+      Query.orderDesc("$updatedAt"),
+      Query.limit(JOBS_PAGE_SIZE),
+      Query.offset(start),
+    ]),
+    countJobsByStatus(db, scopeQueries),
+  ]);
+
   return {
+    counts,
     page,
     pageSize: JOBS_PAGE_SIZE,
-    rows: filtered.slice(start, start + JOBS_PAGE_SIZE),
-    total: filtered.length,
+    rows: result.rows,
+    total: result.total,
   };
 }
 
@@ -598,7 +810,7 @@ export async function getJob(id: string) {
 async function buildJobUpsertPayload(
   db: Db,
   jobId: string,
-  data: RecruitmentVacancyUpsertInput,
+  data: RecruitmentVacancyWriteInput,
   translationPerms: string[],
   existingMetadata?: RecruitmentVacancyMetadata
 ): Promise<Record<string, unknown>> {
@@ -623,9 +835,9 @@ async function buildJobUpsertPayload(
   );
 
   return {
-    application_deadline: data.application_deadline
-      ? new Date(data.application_deadline).toISOString()
-      : null,
+    application_deadline: normalizeApplicationDeadline(
+      data.application_deadline
+    ),
     auto_screen: data.auto_screen,
     campus: data.campus_id,
     campus_id: data.campus_id,
@@ -648,16 +860,31 @@ async function buildJobUpsertPayload(
 }
 
 export async function createJob(
-  values: RecruitmentVacancyUpsertInput,
+  values: RecruitmentVacancyWriteInput,
   autoTranslation?: AutoTranslationOptions
 ) {
-  const ctx = await requireAuth();
   const validated = recruitmentVacancyUpsertSchema.safeParse(values);
   if (!validated.success) {
-    return { error: "Invalid vacancy payload" };
+    return { error: formatVacancyValidationError(validated.error) };
   }
+  const publication = resolveJobPublication({
+    currentStatus: null,
+    publicationMode: validated.data.publication_mode,
+    requestedStatus: validated.data.status,
+    scheduledPublishAt: validated.data.scheduled_publish_at,
+  });
+  if (publication.error !== undefined) {
+    return { error: publication.error };
+  }
+  const vacancyData = { ...validated.data, status: publication.status };
 
+  const startedAt = Date.now();
+  let stage = "auth";
+  let userId: string | null = null;
   try {
+    const ctx = await requireAuth();
+    userId = ctx.userId;
+    stage = "lookups";
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db: sessionDb } = await createSessionClient();
     const { db: adminDb } = await createAdminClient();
@@ -669,18 +896,25 @@ export async function createJob(
       department_id: validated.data.department_id ?? null,
     });
     const jobId = ID.unique();
+    vacancyData.slug = await resolveUniqueRecruitmentJobSlug(
+      adminDb,
+      vacancyData.slug,
+      { year: new Date().getFullYear() }
+    );
     const audience = validated.data.audience ?? "public";
-    const jobPerms = buildJobRowPermissions(audience, validated.data.status);
+    const jobPerms = buildJobRowPermissions(audience, publication.status);
     const translationPerms = buildJobTranslationPermissions(
       audience,
-      validated.data.status
+      publication.status
     );
     const payload = await buildJobUpsertPayload(
       sessionDb,
       jobId,
-      validated.data,
+      vacancyData,
       translationPerms
     );
+    payload.scheduled_publish_at = publication.scheduledPublishAt;
+    stage = "write";
     const job = await adminDb.upsertRow(
       "app",
       "jobs",
@@ -688,6 +922,7 @@ export async function createJob(
       payload,
       jobPerms
     );
+    stage = "after-write";
 
     const translationQueued = scheduleJobTranslation({
       audience,
@@ -699,49 +934,67 @@ export async function createJob(
       ),
       enabled: translationOptions?.enabled ?? false,
       jobId: job.$id,
+      scheduledPublishAt: publication.scheduledPublishAt,
       source: getJobTranslationSnapshot(
         validated.data,
         translationOptions?.sourceLocale ?? "en"
       ),
       sourceLocale: translationOptions?.sourceLocale ?? "en",
-      status: validated.data.status,
+      status: publication.status,
     });
 
-    await logAuditEvent(ctx, "recruitment.vacancy.create", {
-      payload: {
-        campus_id: validated.data.campus_id,
-        department_id: validated.data.department_id ?? null,
-        status: validated.data.status,
-      },
-      resourceId: job.$id,
-      resourceType: "job",
-    });
+    // Audit writes swallow their own errors; run them after the response so
+    // a slow audit insert can't hold the editor on "Publishing...".
+    after(() =>
+      logAuditEvent(ctx, "recruitment.vacancy.create", {
+        payload: {
+          campus_id: validated.data.campus_id,
+          department_id: validated.data.department_id ?? null,
+          scheduled_publish_at: publication.scheduledPublishAt,
+          status: publication.status,
+        },
+        resourceId: job.$id,
+        resourceType: "job",
+      })
+    );
 
     revalidatePath("/jobs");
     revalidatePath("/");
     return {
       data: job.$id,
+      scheduledPublishAt: publication.scheduledPublishAt,
+      slug: vacancyData.slug,
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {
+    unstable_rethrow(error);
     return {
-      error: error instanceof Error ? error.message : "Failed to create job",
+      error: reportVacancyWriteFailure("createJob", error, {
+        durationMs: Date.now() - startedAt,
+        stage,
+        userId,
+      }),
     };
   }
 }
 
 export async function updateJob(
   id: string,
-  values: RecruitmentVacancyUpsertInput,
+  values: RecruitmentVacancyWriteInput,
   autoTranslation?: AutoTranslationOptions
 ) {
-  const ctx = await requireAuth();
   const validated = recruitmentVacancyUpsertSchema.safeParse(values);
   if (!validated.success) {
-    return { error: "Invalid vacancy payload" };
+    return { error: formatVacancyValidationError(validated.error) };
   }
 
+  const startedAt = Date.now();
+  let stage = "auth";
+  let userId: string | null = null;
   try {
+    const ctx = await requireAuth();
+    userId = ctx.userId;
+    stage = "lookups";
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
     const { db: sessionDb } = await createSessionClient();
     const { db: adminDb } = await createAdminClient();
@@ -758,21 +1011,58 @@ export async function updateJob(
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
+    const publication = resolveJobPublication({
+      currentStatus: vacancy.status,
+      publicationMode: validated.data.publication_mode,
+      requestedStatus: validated.data.status,
+      scheduledPublishAt: validated.data.scheduled_publish_at,
+    });
+    if (publication.error !== undefined) {
+      return { error: publication.error };
+    }
     const audience =
       validated.data.audience ?? vacancy.metadata.audience ?? "public";
-    const jobPerms = buildJobRowPermissions(audience, validated.data.status);
+    const jobPerms = buildJobRowPermissions(audience, publication.status);
     const translationPerms = buildJobTranslationPermissions(
       audience,
-      validated.data.status
+      publication.status
     );
+    // Application questions and interview rounds are edited in the
+    // applications workspace. Callers that don't send them (the job studio)
+    // must not wipe them with the schema defaults.
+    // A saved slug is a live URL: only a slug the editor changed is moved off
+    // a collision, never one the row already has.
+    const slug =
+      validated.data.slug === vacancy.slug
+        ? vacancy.slug
+        : await resolveUniqueRecruitmentJobSlug(adminDb, validated.data.slug, {
+            excludeJobId: id,
+            year: new Date().getFullYear(),
+          });
+    const data: RecruitmentVacancyWriteInput = {
+      ...validated.data,
+      slug,
+      status: publication.status,
+      custom_questions:
+        "custom_questions" in values
+          ? validated.data.custom_questions
+          : vacancy.custom_questions,
+      interview_template:
+        "interview_template" in values
+          ? validated.data.interview_template
+          : (vacancy.interview_template ?? undefined),
+    };
     const payload = await buildJobUpsertPayload(
       sessionDb,
       id,
-      validated.data,
+      data,
       translationPerms,
       vacancy.metadata
     );
+    payload.scheduled_publish_at = publication.scheduledPublishAt;
+    stage = "write";
     await adminDb.upsertRow("app", "jobs", id, payload, jobPerms);
+    stage = "after-write";
 
     const translationQueued = scheduleJobTranslation({
       audience,
@@ -784,34 +1074,45 @@ export async function updateJob(
       ),
       enabled: translationOptions?.enabled ?? false,
       jobId: id,
+      scheduledPublishAt: publication.scheduledPublishAt,
       source: getJobTranslationSnapshot(
         validated.data,
         translationOptions?.sourceLocale ?? "en"
       ),
       sourceLocale: translationOptions?.sourceLocale ?? "en",
-      status: validated.data.status,
+      status: publication.status,
     });
 
-    await logAuditEvent(ctx, "recruitment.vacancy.update", {
-      payload: {
-        campus_id: validated.data.campus_id,
-        department_id: validated.data.department_id ?? null,
-        status: validated.data.status,
-      },
-      resourceId: id,
-      resourceType: "job",
-    });
+    after(() =>
+      logAuditEvent(ctx, "recruitment.vacancy.update", {
+        payload: {
+          campus_id: validated.data.campus_id,
+          department_id: validated.data.department_id ?? null,
+          scheduled_publish_at: publication.scheduledPublishAt,
+          status: publication.status,
+        },
+        resourceId: id,
+        resourceType: "job",
+      })
+    );
 
     revalidatePath("/jobs");
     revalidatePath(`/jobs/${id}`);
     return {
       data: id,
+      scheduledPublishAt: publication.scheduledPublishAt,
+      slug,
       ...(translationQueued ? { translationQueued: true as const } : {}),
     };
   } catch (error) {
-    console.error("[updateJob] error", error);
+    unstable_rethrow(error);
     return {
-      error: error instanceof Error ? error.message : "Failed to update job",
+      error: reportVacancyWriteFailure("updateJob", error, {
+        durationMs: Date.now() - startedAt,
+        jobId: id,
+        stage,
+        userId,
+      }),
     };
   }
 }
@@ -960,6 +1261,124 @@ export async function deleteJob(id: string) {
   }
 }
 
+/**
+ * Applications received for a vacancy. The studio uses it to warn HR off
+ * rewriting a past round in place (see `describeJobReuse`).
+ */
+export async function getJobApplicationCount(id: string): Promise<number> {
+  const ctx = await requireAuth();
+  const { db } = await createSessionClient();
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+  const vacancy = await getRecruitmentJobById(db, id);
+  if (!vacancy) {
+    return 0;
+  }
+  assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
+
+  const applications = await db.listRows("app", "job_applications", [
+    Query.select(["$id"]),
+    Query.equal("job.$id", id),
+    Query.limit(1),
+  ]);
+  return applications.total;
+}
+
+const osloYearFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Oslo",
+  year: "numeric",
+});
+
+/**
+ * Copies a vacancy into a new draft for the next recruitment round. The copy
+ * keeps content, screening, questions and interview rounds, gets a fresh slug
+ * (`<base>-<year>`) and no applications, and leaves deadline / start date /
+ * schedule blank so the old round's dates can't leak into the new one.
+ */
+export async function duplicateJob(
+  id: string
+): Promise<{ data: string; error?: never } | { data?: never; error: string }> {
+  const ctx = await requireAuth();
+
+  try {
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(sessionDb);
+    const source = await getRecruitmentJobById(sessionDb, id);
+
+    if (!source) {
+      return { error: "Vacancy not found" };
+    }
+    assertRecruitmentVacancyWriteAccess(scope, lookups, source);
+
+    // Slugs are globally unique, including drafts on campuses this user can't
+    // read, so the availability check has to bypass row security.
+    const candidates = buildDuplicateSlugCandidates(
+      source.slug,
+      Number(osloYearFormatter.format(new Date()))
+    );
+    const taken = await adminDb.listRows<Jobs>("app", "jobs", [
+      Query.select(["slug"]),
+      Query.equal("slug", candidates),
+      Query.limit(candidates.length),
+    ]);
+    const takenSlugs = new Set(taken.rows.map((row) => row.slug));
+    const slug = candidates.find((candidate) => !takenSlugs.has(candidate));
+    if (!slug) {
+      return {
+        error: "Couldn't find a free web address for the copy. Try again.",
+      };
+    }
+
+    const data = buildDuplicateVacancyInput(source, slug);
+    const audience = data.audience ?? "members";
+    const jobId = ID.unique();
+    const payload = await buildJobUpsertPayload(
+      sessionDb,
+      jobId,
+      data,
+      buildJobTranslationPermissions(audience, JobsStatus.DRAFT)
+    );
+    payload.scheduled_publish_at = null;
+    await adminDb.upsertRow(
+      "app",
+      "jobs",
+      jobId,
+      payload,
+      buildJobRowPermissions(audience, JobsStatus.DRAFT)
+    );
+
+    after(() =>
+      logAuditEvent(ctx, "recruitment.vacancy.duplicate", {
+        payload: {
+          campus_id: source.campus_id,
+          department_id: source.department_id,
+          source_id: source.$id,
+        },
+        resourceId: jobId,
+        resourceType: "job",
+      })
+    );
+
+    revalidatePath("/jobs");
+    return { data: jobId };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("[duplicateJob] failed", { error, jobId: id });
+    if ((error as { code?: unknown } | null)?.code === 409) {
+      return {
+        error:
+          "Someone else just created a copy with the same web address. Try again.",
+      };
+    }
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to duplicate vacancy",
+    };
+  }
+}
+
 export async function listJobApplications(opts?: {
   jobId?: string;
   page?: number;
@@ -1006,12 +1425,9 @@ export async function listJobApplications(opts?: {
     ...(opts?.status && opts.status !== "all"
       ? [Query.equal("status", opts.status)]
       : []),
-    ...(search
-      ? [Query.limit(300)]
-      : [
-          Query.limit(APPLICATIONS_PAGE_SIZE),
-          Query.offset((page - 1) * APPLICATIONS_PAGE_SIZE),
-        ]),
+    ...(search ? [applicationSearchQuery(search, accessibleVacancies)] : []),
+    Query.limit(APPLICATIONS_PAGE_SIZE),
+    Query.offset((page - 1) * APPLICATIONS_PAGE_SIZE),
   ];
 
   const applicationsResponse = await db.listRows<JobApplications>(
@@ -1020,32 +1436,38 @@ export async function listJobApplications(opts?: {
     applicationQueries
   );
 
-  let rows: RecruitmentApplicationRecord[] = applicationsResponse.rows.map(
+  const rows: RecruitmentApplicationRecord[] = applicationsResponse.rows.map(
     (application) => buildRecruitmentApplicationRecord(application)
   );
-
-  if (search) {
-    rows = rows.filter((application) => {
-      const title = application.job?.title.toLowerCase() ?? "";
-      return (
-        application.applicant_name.toLowerCase().includes(search) ||
-        application.applicant_email.toLowerCase().includes(search) ||
-        title.includes(search)
-      );
-    });
-  }
 
   return {
     page,
     pageSize: APPLICATIONS_PAGE_SIZE,
-    rows: search
-      ? rows.slice(
-          (page - 1) * APPLICATIONS_PAGE_SIZE,
-          page * APPLICATIONS_PAGE_SIZE
-        )
-      : rows,
-    total: search ? rows.length : applicationsResponse.total,
+    rows,
+    total: applicationsResponse.total,
   };
+}
+
+/**
+ * Server-side applicant search: name or email substring (Appwrite's
+ * `contains` is a case-insensitive LIKE), or any application to a vacancy
+ * whose title/company matches. Vacancy titles live on a relationship Appwrite
+ * can't substring-match, so those are resolved to job ids first.
+ */
+function applicationSearchQuery(
+  search: string,
+  vacancies: RecruitmentVacancy[]
+) {
+  const matchingJobIds = vacancies
+    .filter((vacancy) => vacancyMatchesSearch(vacancy, search))
+    .map((vacancy) => vacancy.$id);
+  return Query.or([
+    Query.contains("applicant_name", search),
+    Query.contains("applicant_email", search),
+    ...(matchingJobIds.length > 0
+      ? [Query.equal("job_id", matchingJobIds)]
+      : []),
+  ]);
 }
 
 /** An HR team member, taken straight from the Appwrite team membership. */

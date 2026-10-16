@@ -31,10 +31,14 @@
  *   TICKSTER_EVENTS_SYNC_URL    e.g. https://api.biso.no/api/tickster/events/sync
  *   DEPARTURES_SYNC_URL         e.g. https://api.biso.no/api/departures/sync
  *   RESERVATIONS_CLEANUP_URL    e.g. https://biso.no/api/cron/cleanup-reservations
- *   ORDERS_RECONCILE_URL        e.g. https://biso.no/api/cron/reconcile-orders
+ *   ORDERS_RECONCILE_URL        e.g. https://api.biso.no/api/cron/reconcile-orders
  *   TURNOVER_RETENTION_STOP_URL e.g. https://admin.biso.no/api/it/turnover/stop-retention
+ *   JOBS_PUBLISH_SCHEDULED_URL  e.g. https://admin.biso.no/api/recruitment/publish-scheduled
  *   EXPENSES_POST_PENDING_URL   e.g. https://api.biso.no/api/expenses/post-pending
  *                               (defaults to a 300s timeout — the route's cap)
+ *   MEMBER_PASS_CLEANUP_URL     e.g. https://api.biso.no/api/cron/cleanup-member-pass
+ *   RECRUITMENT_RETENTION_CLEANUP_URL
+ *                               e.g. https://api.biso.no/api/cron/cleanup-recruitment
  *   CRON_TIMEOUT_MS             default per-request timeout (default 30000)
  *   <NAME>_TIMEOUT_MS           per-target timeout override, e.g.
  *                               EXPENSES_POST_PENDING_URL_TIMEOUT_MS
@@ -61,6 +65,9 @@ const TARGET_ENV_VARS = [
   "ORDERS_RECONCILE_URL",
   "TURNOVER_RETENTION_STOP_URL",
   "EXPENSES_POST_PENDING_URL",
+  "JOBS_PUBLISH_SCHEDULED_URL",
+  "MEMBER_PASS_CLEANUP_URL",
+  "RECRUITMENT_RETENTION_CLEANUP_URL",
 ] as const;
 
 type TargetName = (typeof TARGET_ENV_VARS)[number];
@@ -68,12 +75,15 @@ type TargetName = (typeof TARGET_ENV_VARS)[number];
 /**
  * Per-target timeout defaults (ms). Most pings finish quickly, but ledger posting
  * runs far longer: `/api/expenses/post-pending` allows up to 300s and 24SO
- * `uploadDocument` polls ~60s per expense, so it gets a generous default. Override
- * any target with `<ENV_VAR_NAME>_TIMEOUT_MS`. The function's overall `timeout`
- * (Appwrite console) must be >= the largest per-target timeout.
+ * `uploadDocument` polls ~60s per expense, so it gets a generous default.
+ * `/api/cron/reconcile-orders` gets the same default — its Finago posting pass
+ * makes the same 24SO calls. Override any target with `<ENV_VAR_NAME>_TIMEOUT_MS`.
+ * The function's overall `timeout` (Appwrite console) must be >= the largest
+ * per-target timeout.
  */
 const TARGET_TIMEOUT_DEFAULTS: Partial<Record<TargetName, number>> = {
   EXPENSES_POST_PENDING_URL: 300_000,
+  ORDERS_RECONCILE_URL: 300_000,
 };
 
 type LogFn = (...messages: unknown[]) => void;
@@ -195,6 +205,30 @@ function authorizeHttpTrigger(
   return false;
 }
 
+/**
+ * Some endpoints report partial failure inside a 2xx body (`ok: false`,
+ * `success: false`, a `failed` count > 0, or a non-empty `failed` list). Treat those as failures too so a
+ * degraded run is not logged as OK. Non-JSON bodies are judged by status only.
+ */
+function bodyReportsFailure(text: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return false;
+  }
+  const { ok, success, failed } = parsed as Record<string, unknown>;
+  return (
+    ok === false ||
+    success === false ||
+    (typeof failed === "number" && failed > 0) ||
+    (Array.isArray(failed) && failed.length > 0)
+  );
+}
+
 async function ping(target: Target, secret: string): Promise<PingResult> {
   const startedAt = Date.now();
   const controller = new AbortController();
@@ -210,7 +244,7 @@ async function ping(target: Target, secret: string): Promise<PingResult> {
       name: target.name,
       url: target.url,
       status: response.status,
-      ok: response.ok,
+      ok: response.ok && !bodyReportsFailure(text),
       body: text.slice(0, MAX_BODY_CHARS),
       durationMs: Date.now() - startedAt,
     };

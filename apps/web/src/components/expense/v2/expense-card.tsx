@@ -9,8 +9,10 @@ import { expenseStatusVisual } from "./expense-status";
 export interface ExpenseCardExpense {
   $createdAt: string;
   $id: string;
-  campus: string;
-  department: string;
+  /** Resolved by `getExpenses` from the campus relation, else the raw id. */
+  campusName: string;
+  /** Resolved by `getExpenses` from the department relation, else the raw id. */
+  departmentName: string;
   description: string | null;
   expenseAttachments?: ExpenseAttachments[];
   status: ExpensesStatus;
@@ -62,7 +64,7 @@ export async function ExpenseCard({
             <li className="flex items-center gap-2">
               <Building2 aria-hidden="true" className="size-4 shrink-0" />
               <span className="min-w-0 break-words">
-                {expense.campus} — {expense.department}
+                {expense.campusName} — {expense.departmentName}
               </span>
             </li>
             <li className="flex items-center gap-2">

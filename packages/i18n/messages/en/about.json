@@ -318,5 +318,46 @@
       "content": "BISO supports SAIH because education creates freedom and opportunities. We collaborate on activities that raise awareness and invite students to contribute through donations and events.",
       "cta": "Learn about SAIH"
     }
+  },
+  "sections": {
+    "navLabel": "Sections on this page",
+    "whatIsBiso": "What is BISO",
+    "whatWeDo": "What we do",
+    "studyQuality": "Study quality",
+    "politics": "Politics",
+    "history": "History",
+    "operations": "Operations",
+    "alumni": "Alumni and SAIH",
+    "documents": "Documents"
+  },
+  "documents": {
+    "title": "Documents and guidelines",
+    "intro": "Bylaws, statutes and policies are gathered on the documents page. These are the shortcuts.",
+    "items": {
+      "bylaws": {
+        "title": "Bylaws",
+        "description": "Local bylaws for each campus."
+      },
+      "statutes": {
+        "title": "National statutes",
+        "description": "The statutes that apply to all of BISO."
+      },
+      "conduct": {
+        "title": "Code of conduct",
+        "description": "Rules of conduct, including the drug and alcohol policy."
+      },
+      "drugsPolicy": {
+        "title": "Drug and alcohol policy",
+        "description": "What applies to drugs and alcohol at events."
+      },
+      "safety": {
+        "title": "Whistleblowing",
+        "description": "Report incidents in a safe way."
+      },
+      "all": {
+        "title": "All documents",
+        "description": "Search and download every published document."
+      }
+    }
   }
 }

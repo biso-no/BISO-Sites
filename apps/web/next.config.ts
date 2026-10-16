@@ -16,6 +16,9 @@ const baseConfig: NextConfig = {
     "@repo/payment",
     "@repo/typescript-config",
   ],
+  // pdfjs (CV text extraction for AI screening) loads its worker via a
+  // relative `./pdf.worker.mjs` import that breaks once bundled.
+  serverExternalPackages: ["pdfjs-dist"],
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
@@ -75,7 +78,56 @@ const baseConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
-  // No framework-level redirects at this time (user preference)
+  // Renaming `/bi-fondet` → `/okonomisk-stotte` is the only reason this block
+  // exists; the rest of the WordPress → app mappings in
+  // `docs/public-site-parity.md` are still handled outside the framework.
+  // `redirects()` emits 308 Permanent, which is SEO-equivalent to a 301.
+  redirects() {
+    return Promise.resolve([
+      {
+        // The BI "link your account" page is gone; the mobile app and old
+        // emails may still open it. The join page offers the BI sign-in.
+        source: "/membership/link",
+        destination: "/membership/join",
+        permanent: true,
+      },
+      {
+        source: "/bi-fondet",
+        destination: "/okonomisk-stotte",
+        permanent: true,
+      },
+      {
+        // The legacy WordPress URL, which still receives inbound links.
+        source: "/sok-okonomisk-stotte",
+        destination: "/okonomisk-stotte",
+        permanent: true,
+      },
+    ]);
+  },
+  // biome-ignore lint/suspicious/useAwait: Needs this for proper BISO App redirect on authentication
+  async headers() {
+    return [
+      {
+        source: "/.well-known/apple-app-site-association",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/json",
+          },
+        ],
+      },
+    ];
+  },
+
+  // biome-ignore lint/suspicious/useAwait: Rewrite to the Apple App Site Association API route, which returns the JSON file for iOS Universal Links.
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/apple-app-site-association",
+        destination: "/api/aasa",
+      },
+    ];
+  },
 };
 
 export default withNextIntl(baseConfig);

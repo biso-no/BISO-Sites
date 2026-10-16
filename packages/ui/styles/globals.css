@@ -357,7 +357,12 @@ html {
      * `hyphens: auto` uses the `lang` on <html> to break at legal points
      * instead of overflowing; the cap keeps the treatment large without
      * relying on hyphenation to save it. Found in RD-018. */
-    font-size: clamp(2.5rem, 7vw, 5rem);
+    /* Re-measured for Museo Slab 900 (2026-10-15), which sets "STUDENTSTEMME"
+     * at 9.5em — 15ch of its own "0". The old Archivo cap (5rem at 7vw)
+     * broke that word mid-letter at every width. This curve fits it with
+     * room at the two tight points: 375px (34px in a 343px column) and
+     * 1024px, where the two-column hero starts (56px in 568px). */
+    font-size: clamp(2.125rem, 5.5vw, 4rem);
     font-weight: 900;
     line-height: 0.85;
     letter-spacing: -0.02em;

@@ -22,8 +22,10 @@ export {
 } from "./categories";
 // Customer management
 export {
+  COMPANY_ID_BATCH_SIZE,
   createStudentCustomer,
   findOrCreateCompany,
+  getAllCompanies,
   getCompaniesByIds,
   getCompanyById,
   MembershipCustomerLookupError,
@@ -34,26 +36,36 @@ export {
 export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
 // Invoice management
 export { postMembershipInvoice } from "./invoice";
+// Membership invoices (read side — campus per member)
+export {
+  CUSTOMER_ID_BATCH_SIZE,
+  type GetInvoicesResponse,
+  getMembershipInvoices,
+  type MembershipInvoiceLine,
+  parseMembershipInvoiceLines,
+} from "./membership-invoices";
 // Membership product sync (admin)
 export {
   isActiveByDate,
   parseExpiryDate,
   parseStartDate,
   previewMembershipSync,
+  syncMembershipCatalog,
   syncMembershipsFrom24SO,
 } from "./membership-sync";
-// Membership sync row merge (administrator-owned price/canPurchase)
-export type {
-  ExistingMembershipRow,
-  MembershipSyncItemLike,
-} from "./membership-sync-merge";
+// Membership catalog row builder (24SO-owned price and dates)
+export type { MembershipSyncItemLike } from "./membership-sync-merge";
 export { mergeMembershipRow, parsePrice } from "./membership-sync-merge";
 // Products management
 export { getMembershipProducts, getProducts } from "./products";
 // Finago REST API
 export {
   type BuildExpenseTransactionParams,
+  type BuildShopTransactionParams,
   buildExpenseTransactionInput,
+  buildShopReversalTransactionInput,
+  buildShopTransactionInput,
+  CAMPUS_DIMENSION_TYPE,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   type ExpenseReceiptLine,
@@ -63,14 +75,23 @@ export {
   listTaxes,
   type PostExpenseTransactionParams,
   postExpenseTransaction,
-  postShopTransaction,
-  type ShopTransactionParams,
+  postLedgerTransaction,
+  type ShopLedgerLine,
+  type ShopTransactionInput,
   type TaxCode,
   type UploadDocumentResult,
   uploadDocument,
 } from "./rest";
 // Customer sync function
 export { hasMembershipProduct } from "./sync";
+// Tax codes (SOAP — tax id → posting tax number)
+export {
+  type GetTaxCodeListResult,
+  getTaxCodes,
+  parseTaxCodeList,
+  type TaxCodeListEntry,
+  taxNumberByTaxId,
+} from "./tax-codes";
 // Types
 export type {
   CategoryDefinition,

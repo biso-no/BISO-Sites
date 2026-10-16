@@ -12,6 +12,7 @@ import type {
   PaymentSettingsReader,
   VippsCredentials,
 } from "../credentials/types";
+import { PaymentRefundRejectedError } from "../errors";
 import { buildVippsClient, getVippsAccessToken } from "./client";
 import type { CheckoutSessionParams } from "./types";
 import { VIPPS_WEBHOOK_EVENTS } from "./webhook";
@@ -159,6 +160,50 @@ export async function cancelVippsPayment(
   return toSnapshot(result.data);
 }
 
+/**
+ * Ambiguity markers in a non-OK SDK result.
+ *
+ * The SDK does NOT throw for server-side failures: a 5xx comes back as
+ * `{ ok: false, error, retry: true }`, and a connection failure or an
+ * exhausted retry budget comes back as an ordinary `{ ok: false, error }`.
+ * Only a 4xx problem response means Vipps understood the request and refused
+ * it.
+ */
+const AMBIGUOUS_VIPPS_ERRORS = [
+  "Retry limit reached",
+  "Could not connect to Vipps MobilePay API",
+];
+
+export interface VippsFailure {
+  error?: unknown;
+  retry?: boolean;
+}
+
+/**
+ * Classifies a failed refund call.
+ *
+ * A 5xx or a transport failure may have been processed before the response was
+ * lost, so it must NOT surface as a definitive rejection: the caller releases
+ * the refundable balance on rejection, and a retry mints a fresh idempotency
+ * key (this SDK generates one per request), which would refund the same money
+ * twice. Those stay ordinary errors, which callers treat as an unknown outcome.
+ */
+export function toRefundFailure(result: VippsFailure): Error {
+  const message =
+    result.error instanceof Error
+      ? result.error.message
+      : JSON.stringify(result.error ?? result);
+
+  const ambiguous =
+    result.retry === true ||
+    AMBIGUOUS_VIPPS_ERRORS.some((marker) => message.includes(marker));
+
+  if (ambiguous) {
+    return new Error(`Vipps refund outcome unknown: ${message}`);
+  }
+  return new PaymentRefundRejectedError(`Vipps refund failed: ${message}`);
+}
+
 /** Refunds (the given amount of) a captured payment. */
 export async function refundVippsPayment(
   reference: string,
@@ -175,7 +220,7 @@ export async function refundVippsPayment(
   });
 
   if (!result.ok) {
-    throw new Error(`Vipps refund failed: ${JSON.stringify(result)}`);
+    throw toRefundFailure(result);
   }
   return toSnapshot(result.data);
 }

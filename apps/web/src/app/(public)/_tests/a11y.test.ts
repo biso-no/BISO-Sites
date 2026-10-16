@@ -107,11 +107,9 @@ describe("controls have accessible names", () => {
     }
   });
 
-  it("names the icon-only scroll button", () => {
-    const hero = read("components/about/about-hero.tsx");
-    expect(hero).toContain("aria-label={scrollLabel}");
-    expect(hero).toContain('aria-hidden="true"');
-  });
+  // "names the icon-only scroll button" lived here. Its subject, the
+  // `about-hero` scroll cue, went with the merge: every page now opens on
+  // `<PageHeader>`, which has no icon-only control.
 
   it("gives the select trigger a focus indicator that cannot be swallowed", () => {
     const select = readFileSync(
@@ -124,18 +122,17 @@ describe("controls have accessible names", () => {
 });
 
 describe("ARIA references resolve", () => {
-  it("keeps the unit tabs in one Radix root", () => {
-    // Two roots meant Radix generated ids independently, so every trigger's
-    // `aria-controls` pointed at a panel that does not exist — critical.
-    // `codeOnly`: the comment above the root says "<Tabs>" too.
-    const tabs = codeOnly(
-      read(
-        "app/(public)/units/[...segments]/components/department-tabs-client.tsx"
-      )
+  it("leaves the unit page no tab panels to mis-associate", () => {
+    // The tabbed unit page split its Radix root in two, so every trigger's
+    // `aria-controls` pointed at a panel that did not exist — critical. Main
+    // then rebuilt the page as one server-rendered document (the board was
+    // hidden behind a tab), and the merge kept that: there are no tabs left to
+    // associate. `codeOnly`: a comment may still say "tabs".
+    const view = codeOnly(
+      read("app/(public)/units/[...segments]/_components/unit-view.tsx")
     );
-    expect(tabs.match(ONE_TABS_ROOT)?.length).toBe(1);
-    expect(tabs).toContain("<TabsList");
-    expect(tabs).toContain("<TabsContent");
+    expect(view.match(ONE_TABS_ROOT)).toBeNull();
+    expect(view).toContain("<UnitBoardSection");
   });
 });
 
@@ -147,9 +144,16 @@ describe("heading order and dark-theme contrast", () => {
     );
     // Default unchanged, so every existing caller renders what it did before.
     expect(card).toContain('as: Tag = "h3"');
-    expect(read("components/projects/project-detail-body.tsx")).toContain(
-      'CardTitle as="h2"'
+    // The project page was the caller that needed `as="h2"`: its cards sat
+    // directly under the page's `<h1>`. Converted to v2 in the merge, it no
+    // longer uses `CardTitle` at all — its top-level sections open with an
+    // `<h2>` (`SectionHeading`, or an explicit `<h2>`).
+    const projectBody = codeOnly(
+      read("components/projects/project-detail-body.tsx")
     );
+    expect(projectBody).not.toContain("<CardTitle");
+    expect(projectBody).toContain("<SectionHeading");
+    expect(projectBody).toContain("<h2");
   });
 
   it("stops pairing white text with the dark theme's --brand-dark", () => {
@@ -157,7 +161,8 @@ describe("heading order and dark-theme contrast", () => {
     // a light cyan, so `bg-brand-dark text-white` measured 2.34:1 there.
     for (const file of [
       "app/(public)/shop/checkout/checkout-page-client.tsx",
-      "app/(public)/units/[...segments]/components/products-tab.tsx",
+      // The unit page's products tab, rebuilt by main as the shop section.
+      "app/(public)/units/[...segments]/_components/unit-feeds.tsx",
       "app/(public)/membership/join/join-wizard.tsx",
       "components/shop/cart/cart-summary.tsx",
     ]) {
@@ -167,15 +172,13 @@ describe("heading order and dark-theme contrast", () => {
 });
 
 describe("tab bars wrap instead of overflowing", () => {
+  // The unit page's tab bar ("News & Updates") was the second case; main
+  // replaced the tabs with one scrolling document, so it has no tab bar left.
   it.each([
     ["components/profile/profile-tabs.tsx", "Linked Accounts"],
-    [
-      "app/(public)/units/[...segments]/components/department-tabs-client.tsx",
-      "News & Updates",
-    ],
   ])("%s", (file) => {
-    // Both pushed their page past a 320px viewport with `whitespace-nowrap`
-    // labels in a fixed grid.
+    // It pushed its page past a 320px viewport with `whitespace-nowrap` labels
+    // in a fixed grid.
     const source = read(file);
     expect(source).toContain("whitespace-normal");
     expect(source).toContain("min-w-0");

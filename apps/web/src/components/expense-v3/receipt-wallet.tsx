@@ -1,17 +1,27 @@
 "use client";
 
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { Input } from "@repo/ui/components/ui/input";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
-import { ArrowLeft, FileText, Plus, Trash2, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Loader2,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { type ChangeEvent, type DragEvent, useCallback, useState } from "react";
+import { focusRingClass } from "./form-styles";
 import type { Receipt } from "./store";
+
+/** Shows a hidden file input's keyboard focus on the control drawn over it. */
+const fileInputFocusClass =
+  "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-surface";
 
 interface ReceiptWalletProps {
   onRemove: (id: string) => void;
@@ -72,62 +82,51 @@ export function ReceiptWallet({
     [onUpload]
   );
 
-  return (
-    <div className="flex h-full flex-col bg-card text-foreground dark:bg-card dark:text-white">
-      {/* Logo Area */}
-      <div className="flex items-center justify-start gap-4 border-border border-b p-6 dark:border-white/10">
-        <div className="flex flex-row gap-4">
-          <Image
-            alt="Home Logo"
-            className="hidden h-12 w-12 object-contain dark:block"
-            height={48}
-            src="/images/logo-dark.png"
-            width={48}
-          />
-          <Image
-            alt="Home Logo"
-            className="block h-12 w-12 object-contain dark:hidden"
-            height={48}
-            src="/images/logo-light.png"
-            width={48}
-          />
+  const t = useTranslations("expenses");
 
-          <Link
-            className="ml-auto flex items-center gap-2 font-medium text-lg text-muted-foreground transition-colors hover:text-foreground dark:text-white/60 dark:hover:text-white"
-            href="/fs"
-          >
-            <ArrowLeft className="h-6 w-6" />
-            Back to expenses
-          </Link>
-        </div>
+  return (
+    <div className="flex h-full flex-col bg-surface text-ink">
+      {/* Back to the list. The site header above already carries the logo. */}
+      <div className="border-edge border-b px-6 py-4">
+        <Link
+          className={cn(
+            "type-body-sm inline-flex items-center gap-2 rounded-biso-sm text-ink-muted transition-colors hover:text-ink",
+            focusRingClass
+          )}
+          href="/fs"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4 shrink-0" />
+          {t("back")}
+        </Link>
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between border-border border-b p-6 dark:border-white/10">
+      <div className="flex items-center justify-between gap-4 border-edge border-b p-6">
         <div>
-          <h2 className="font-medium text-foreground text-lg dark:text-white">
-            Receipts
+          <h2 className="type-heading-section text-ink">
+            {t("composer.wallet.title")}
           </h2>
-          <p className="text-muted-foreground text-sm dark:text-white/40">
-            {receipts.length} {receipts.length === 1 ? "item" : "items"}
+          <p className="type-body-sm mt-1 text-ink-muted">
+            {t("composer.wallet.count", { count: receipts.length })}
           </p>
         </div>
-        <div className="relative">
-          <Input
+        {/* The file input sits over the round button and takes the click; the
+            button underneath is only its drawing. */}
+        <div
+          className={cn(
+            "group relative flex size-10 shrink-0 items-center justify-center rounded-biso-pill border border-edge text-ink transition-colors hover:border-ink-accent hover:text-ink-accent",
+            fileInputFocusClass
+          )}
+        >
+          <input
             accept={RECEIPT_FILE_ACCEPT}
+            aria-label={t("composer.wallet.add")}
             className="absolute inset-0 cursor-pointer opacity-0"
             multiple
             onChange={handleFileInput}
             type="file"
           />
-          <Button
-            className="border-border bg-muted text-foreground hover:bg-muted/80 dark:border-white/20 dark:bg-background/5 dark:text-white dark:hover:bg-background/10"
-            size="icon"
-            type="button"
-            variant="outline"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+          <Plus aria-hidden="true" className="size-4" />
         </div>
       </div>
 
@@ -151,7 +150,10 @@ export function ReceiptWallet({
                     .map((child) => (
                       <div className="relative pl-6" key={child.id}>
                         {/* Connector Line */}
-                        <div className="absolute top-[-10px] bottom-1/2 left-3 w-px rounded-bl-lg border-border border-b border-l bg-border dark:border-white/10 dark:bg-background/10" />
+                        <div
+                          aria-hidden="true"
+                          className="absolute top-[-10px] bottom-1/2 left-3 w-px rounded-bl-biso-md border-edge border-b border-l bg-edge"
+                        />
 
                         <ReceiptItem
                           isChild
@@ -168,30 +170,30 @@ export function ReceiptWallet({
 
           {/* Empty State / Drop Target */}
           {receipts.length === 0 && (
-            <Card
+            <div
               className={cn(
-                "relative flex h-64 flex-col items-center justify-center rounded-xl border-2 border-border border-dashed transition-all hover:border-muted-foreground hover:bg-muted dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-background/5",
-                isDragActive && "border-sky-500 bg-sky-500/10"
+                "relative flex h-64 flex-col items-center justify-center gap-3 rounded-biso-md border-2 border-edge border-dashed text-ink-muted transition-colors hover:border-ink-muted hover:bg-ink-muted/8",
+                fileInputFocusClass,
+                isDragActive && "border-action bg-action/10 text-ink"
               )}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
             >
+              {/* The input covers the whole zone, so it is what a drag lands
+                  on; it takes the drop handlers itself. */}
               <input
                 accept={RECEIPT_FILE_ACCEPT}
+                aria-label={t("composer.wallet.add")}
                 className="absolute inset-0 cursor-pointer opacity-0"
                 multiple
                 onChange={handleFileInput}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
                 type="file"
               />
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted dark:bg-background/5">
-                <Upload className="h-6 w-6 text-muted-foreground dark:text-white/40" />
-              </div>
-              <p className="text-muted-foreground text-sm dark:text-white/60">
-                Drop receipts here
-              </p>
-            </Card>
+              <Upload aria-hidden="true" className="size-6" />
+              <p className="type-body-sm">{t("composer.wallet.dropzone")}</p>
+            </div>
           )}
         </div>
       </ScrollArea>
@@ -212,28 +214,39 @@ function ReceiptItem({
   onRemove: () => void;
   isChild?: boolean;
 }) {
+  const t = useTranslations("expenses");
+  const locale = useLocale();
+
   return (
     <motion.div
-      animate={{ opacity: 1, x: 0 }}
+      animate={{ opacity: 1 }}
       className={cn(
-        "group relative cursor-pointer overflow-hidden rounded-xl border transition-all hover:bg-muted dark:hover:bg-background/5",
+        "group relative overflow-hidden rounded-biso-md border bg-surface-raised transition-colors",
         isSelected
-          ? "border-sky-500 bg-muted ring-1 ring-sky-500 dark:bg-background/5"
-          : "border-border bg-muted dark:border-white/10 dark:bg-background/5",
-        isChild &&
-          "origin-left scale-95 border-l-2 border-l-muted-foreground dark:border-l-white/20"
+          ? "border-action ring-1 ring-action"
+          : "border-edge hover:border-ink-muted",
+        isChild && "origin-left scale-95 border-l-2 border-l-ink-muted"
       )}
-      exit={{ opacity: 0, scale: 0.9 }}
-      initial={{ opacity: 0, x: -20 }}
+      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }}
       layout
       onClick={onClick}
     >
-      <div className={cn("flex gap-3 p-3", isChild && "py-2")}>
+      {/* The card is the selection target; this button gives it a keyboard
+          stop and a name. Its click bubbles to the card's own handler. */}
+      <button
+        aria-current={isSelected ? "true" : undefined}
+        className={cn(
+          "flex w-full gap-3 p-3 pr-10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-inset",
+          isChild && "py-2"
+        )}
+        type="button"
+      >
         {/* Thumbnail */}
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted-foreground/10 dark:bg-black/20">
+        <span className="relative block size-16 shrink-0 overflow-hidden rounded-biso-sm bg-surface-sunken">
           {receipt.fileType.startsWith("image/") ? (
             <Image
-              alt="Receipt"
+              alt={t("composer.wallet.thumbnailAlt")}
               className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
               height={64}
               src={receipt.fileUrl}
@@ -241,66 +254,73 @@ function ReceiptItem({
               width={64}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <FileText className="h-6 w-6 text-muted-foreground dark:text-white/40" />
-            </div>
+            <span className="flex h-full w-full items-center justify-center">
+              <FileText aria-hidden="true" className="size-6 text-ink-muted" />
+            </span>
           )}
 
           {/* Status Overlay */}
           {receipt.status === "processing" && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-            </div>
+            <span
+              className="absolute inset-0 flex items-center justify-center bg-surface/70"
+              data-surface="deep"
+            >
+              <Loader2
+                aria-hidden="true"
+                className="size-4 animate-spin text-ink"
+              />
+            </span>
           )}
-        </div>
+        </span>
 
         {/* Info */}
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pr-6">
-          <div className="flex items-start justify-between gap-2">
-            <p
-              className={cn(
-                "wrap-break-word line-clamp-2 font-medium text-sm leading-tight",
-                receipt.description
-                  ? "text-foreground dark:text-white"
-                  : "text-muted-foreground italic dark:text-white/40"
-              )}
-            >
-              {receipt.description || "Scanning..."}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate font-mono text-muted-foreground text-xs dark:text-white/60">
-              {receipt.date || "Date pending"}
-            </p>
-            {receipt.amount > 0 && (
-              <p className="shrink-0 font-medium text-emerald-400 text-xs">
-                {receipt.amount.toLocaleString("nb-NO")} NOK
-              </p>
+        <span className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+          <span
+            className={cn(
+              "type-body-sm wrap-break-word line-clamp-2 leading-tight",
+              receipt.description
+                ? "font-semibold text-ink"
+                : "text-ink-muted italic"
             )}
-          </div>
-        </div>
+          >
+            {receipt.description || t("composer.wallet.scanning")}
+          </span>
 
-        {/* Actions */}
-        <Button
-          className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-        >
-          <div className="rounded-md p-1 text-muted-foreground hover:bg-red-500/20 hover:text-red-400 dark:text-white/40">
-            <Trash2 className="h-3.5 w-3.5" />
-          </div>
-        </Button>
-      </div>
+          <span className="flex items-center justify-between gap-2">
+            <span className="type-data truncate text-ink-muted text-xs">
+              {receipt.date || t("composer.wallet.datePending")}
+            </span>
+            {receipt.amount > 0 && (
+              <span className="type-data shrink-0 text-ink text-xs">
+                {receipt.amount.toLocaleString(locale)} NOK
+              </span>
+            )}
+          </span>
+        </span>
+      </button>
+
+      {/* Actions */}
+      <button
+        aria-label={t("composer.wallet.remove")}
+        className={cn(
+          "absolute top-2 right-2 rounded-biso-sm p-1 text-ink-muted opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
+          focusRingClass
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        type="button"
+      >
+        <Trash2 aria-hidden="true" className="size-3.5" />
+      </button>
 
       {/* Progress Bar */}
       {receipt.status !== "ready" && receipt.status !== "error" && (
-        <div className="h-1 w-full bg-muted dark:bg-background/5">
+        <div aria-hidden="true" className="h-1 w-full bg-surface-sunken">
           <motion.div
             animate={{ width: `${receipt.progress}%` }}
-            className="h-full bg-sky-500"
+            className="h-full bg-action"
             initial={{ width: 0 }}
           />
         </div>

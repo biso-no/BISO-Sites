@@ -4,11 +4,10 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { CardGrid } from "@/components/ui/card-grid";
 import { ChevronFrame } from "@/components/ui/chevron-frame";
-import { FilterChips, type FilterOption } from "@/components/ui/filter-chips";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
-import { CAMPUS_SLUGS, campusIdToSlug } from "@/lib/campus-scope";
+import { campusIdToSlug } from "@/lib/campus-scope";
 import { toPlainText } from "@/lib/content-text";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import { buildSummary, formatArticleDate } from "@/lib/news-article";
@@ -32,12 +31,16 @@ import { NewsSearch } from "./news-search";
  * Search keeps working and keeps its URL: `?search=` is already read on the
  * server by `filterArticles`, and `<NewsSearch>` is a real GET form rather than
  * `useState` plus `router.push`.
+ *
+ * Campus is not a control on this page. The header switcher is the one place
+ * to change campus (Branding Committee, #95); on this route it rewrites
+ * `?campus=<slug>`, which the page resolves with `resolveRequestCampus`. The
+ * search form carries the active campus forward.
  */
 export interface NewsV2Props {
   articles: News[];
   campusId: string | null;
   locale: "en" | "no";
-  searchParams: Record<string, string | string[] | undefined>;
   searchQuery: string;
 }
 
@@ -123,7 +126,6 @@ export async function NewsV2({
   articles,
   campusId,
   locale,
-  searchParams,
   searchQuery,
 }: NewsV2Props) {
   const [t, tCommon, tNav] = await Promise.all([
@@ -131,14 +133,6 @@ export async function NewsV2({
     getTranslations("common"),
     getTranslations("common.navigation"),
   ]);
-
-  const campusOptions: FilterOption[] = [
-    { value: "all", label: tNav("allCampuses") },
-    ...CAMPUS_SLUGS.map((slug) => ({
-      value: slug,
-      label: slug.charAt(0).toUpperCase() + slug.slice(1),
-    })),
-  ];
 
   // Sticky articles lead, then everything else newest first. `queryNews`
   // already orders by `$createdAt` descending; this only lifts the pinned ones.
@@ -176,21 +170,13 @@ export async function NewsV2({
       />
 
       <Section tone="paper">
-        <div className="mb-8 space-y-4">
+        <div className="mb-8">
           <NewsSearch
             defaultValue={searchQuery}
             hidden={hidden}
             label={t("list.searchLabel")}
             placeholder={t("list.searchPlaceholder")}
             submitLabel={t("list.searchSubmit")}
-          />
-          <FilterChips
-            active={activeCampus}
-            basePath="/news"
-            label={t("list.campusLabel")}
-            options={campusOptions}
-            param="campus"
-            searchParams={searchParams}
           />
         </div>
 
@@ -204,12 +190,17 @@ export async function NewsV2({
             <p className="type-body mt-2 text-ink-muted">
               {t("list.emptyBody")}
             </p>
-            <Link
-              className="type-label mt-5 inline-flex text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              href="/news"
-            >
-              {t("list.clear")}
-            </Link>
+            {/* Search is the only filter on this route (campus is the
+                header's), so with no query the link would lead to this
+                same page. */}
+            {searchQuery.trim() ? (
+              <Link
+                className="type-label mt-5 inline-flex text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                href="/news"
+              >
+                {t("list.clear")}
+              </Link>
+            ) : null}
           </div>
         ) : null}
 

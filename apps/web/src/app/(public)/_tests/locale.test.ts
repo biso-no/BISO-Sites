@@ -99,9 +99,11 @@ describe("strings this package moved into the bundles", () => {
     ["app/(protected)/applications/page.tsx", "No applications yet"],
     ["app/(protected)/fs/page.tsx", "No reimbursements yet"],
     ["components/expense/v2/expense-status.ts", "Posting failed"],
+    // The unit page's team tab became main's board section in the merge; its
+    // heading still comes from the bundle (`units.detail.board.title`).
     [
-      "app/(public)/units/[...segments]/components/team-tab.tsx",
-      "Meet Our Team",
+      "app/(public)/units/[...segments]/_components/unit-board-section.tsx",
+      "Meet the board",
     ],
     ["components/jobs/job-application-form.tsx", "Sign in to apply"],
     ["components/privacy-controls.tsx", "Your Privacy Rights"],

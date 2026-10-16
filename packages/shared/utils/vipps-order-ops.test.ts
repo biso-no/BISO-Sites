@@ -116,11 +116,23 @@ describe("createOrder", () => {
     expect(storedItem).toMatchObject({
       product: "product-1",
       variation: "v-large",
-      custom_fields_json: JSON.stringify([
+      field_answers: [
         // label falls back to the field id when no label is supplied.
-        { id: "engraving", label: "Engraving text", value: "Ada" },
-        { id: "gift", label: "gift", value: "yes" },
-      ]),
+        {
+          $permissions: ['read("user:user-1")'],
+          field_key: "engraving",
+          label: "Engraving text",
+          sort_order: 0,
+          value: "Ada",
+        },
+        {
+          $permissions: ['read("user:user-1")'],
+          field_key: "gift",
+          label: "gift",
+          sort_order: 1,
+          value: "yes",
+        },
+      ],
     });
     // The camelCase input keys must not leak into the persisted item.
     for (const key of [
@@ -146,6 +158,59 @@ describe("createOrder", () => {
         userId: "user-1",
       }),
       ['read("user:user-1")']
+    );
+  });
+
+  it("stores the ledger copy on each order line", async () => {
+    await createOrder(
+      {
+        ...checkoutParams,
+        items: [
+          {
+            finago_account_number: 3000,
+            finago_department: "44",
+            finago_vat_code: 3,
+            name: "Gensere til børsgruppen",
+            price: 490,
+            productId: "product-1",
+            product_type: "webshop_product",
+            quantity: 1,
+            title: "Gensere til børsgruppen",
+            unit_price: 490,
+          },
+        ],
+        subtotal: 490,
+        total: 490,
+      },
+      db
+    );
+
+    const storedItem = db.createRow.mock.calls[1]?.[3] as Record<
+      string,
+      unknown
+    >;
+    expect(storedItem).toEqual(
+      expect.objectContaining({
+        finago_account_number: 3000,
+        finago_department: "44",
+        finago_vat_code: 3,
+      })
+    );
+  });
+
+  it("stores an empty ledger copy when checkout could not resolve one", async () => {
+    await createOrder(checkoutParams, db);
+
+    const storedItem = db.createRow.mock.calls[1]?.[3] as Record<
+      string,
+      unknown
+    >;
+    expect(storedItem).toEqual(
+      expect.objectContaining({
+        finago_account_number: null,
+        finago_department: null,
+        finago_vat_code: null,
+      })
     );
   });
 });
@@ -621,5 +686,38 @@ describe("applyOrderStatusTransition with atomic column ops", () => {
       "product-1",
       expect.anything()
     );
+  });
+});
+
+describe("refund terminality", () => {
+  beforeEach(() => {
+    process.env.APPWRITE_DATABASE_ID = "app";
+    process.env.APPWRITE_ORDERS_COLLECTION_ID = "orders";
+    db.createRow.mockReset();
+    db.deleteRow.mockReset();
+    db.getRow.mockReset();
+    db.listRows.mockReset();
+    db.updateRow.mockReset();
+    db.listRows.mockResolvedValue({ rows: [] });
+  });
+
+  it("ignores a stale paid event on a refunded order", async () => {
+    // Stripe never rewrites the Checkout Session after a refund, so a retried
+    // webhook maps it back to PAID and would erase the refund.
+    db.getRow.mockResolvedValue({
+      $id: "order-1",
+      status: OrdersStatus.REFUNDED,
+      order_items: [],
+    });
+
+    const result = await applyOrderStatusTransition(
+      "order-1",
+      OrdersStatus.PAID,
+      {},
+      db
+    );
+
+    expect(result.newStatus).toBe(OrdersStatus.REFUNDED);
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 });

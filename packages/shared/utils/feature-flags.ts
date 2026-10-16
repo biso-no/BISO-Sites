@@ -79,6 +79,17 @@ export const FEATURE_FLAGS = [
     defaultEnabled: false,
   },
   {
+    key: "shop_ledger_posting",
+    group: "payments",
+    title: "Webshop → Finago ledger posting",
+    description:
+      "Post every paid webshop order to Finago as an Inntektsrapport voucher " +
+      "(clearing account against the sales type's revenue account). Off by " +
+      "default; turn on once sales types and shop accounting settings are " +
+      "saved. When off, paid orders wait and are posted after it is turned on.",
+    defaultEnabled: false,
+  },
+  {
     key: "ai_admin_copilot",
     group: "ai",
     title: "Admin AI copilot",

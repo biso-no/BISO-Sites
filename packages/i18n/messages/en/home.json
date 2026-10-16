@@ -51,6 +51,18 @@
       "paragraph2": "From exciting social events and career workshops to cultural festivals and sports competitions, we offer something for everyone. Join us and become part of a community that celebrates diversity, encourages innovation, and creates memories that last a lifetime."
     }
   },
+  "overview": {
+    "eyebrow": "About BISO",
+    "eyebrowCampus": "BISO {campusName}",
+    "focusTitle": "What we focus on"
+  },
+  "leadership": {
+    "title": "Leadership",
+    "titleCampus": "Leadership at {campusName}",
+    "description": "The elected students and staff who run BISO nationally.",
+    "descriptionCampus": "The students running BISO on your campus. Get in touch; they are there for you.",
+    "cta": "See the whole team"
+  },
   "identity": {
     "eyebrow": "Why BISO",
     "title": "Built by students for students",
@@ -159,6 +171,11 @@
     "empty": "No open positions right now.",
     "rolling": "Rolling applications",
     "title": "Open positions and jobs"
+  },
+  "units": {
+    "title": "Our units",
+    "description": "{count, plural, one {# student-run unit} other {# student-run units, societies and committees}}",
+    "cta": "See all units"
   },
   "quickLinks": {
     "benefits": {

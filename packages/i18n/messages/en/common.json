@@ -8,7 +8,9 @@
   "labels": {
     "organisation": "BISO",
     "onThisPage": "On this page",
-    "scrollToContent": "Scroll to content"
+    "scrollToContent": "Scroll to content",
+    "emailPerson": "Email {name}",
+    "callPerson": "Call {name}"
   },
   "locale": {
     "switcher": {
@@ -67,6 +69,7 @@
     "about": "About",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
+    "moreMenu": "More",
     "account": {
       "menuLabel": "My account",
       "heading": "My account",
@@ -86,6 +89,8 @@
       "campus": "Campus",
       "resources": "Roles & resources",
       "flagships": "Flagships",
+      "campusProjects": "On your campus",
+      "moreProjects": "More projects",
       "organisation": "Organisation",
       "policy": "Policy & legal",
       "contact": "Contact"
@@ -97,7 +102,7 @@
       "buyMembership": "Buy membership",
       "units": "Roles & units",
       "jobs": "Open positions",
-      "biFondet": "The BI Fund",
+      "fundingSupport": "Financial support",
       "studyQuality": "Study quality",
       "resources": "Resources",
       "allEvents": "See all events",
@@ -177,6 +182,17 @@
       "invitation_failed": "We couldn't accept that invitation. Please try again.",
       "server_configuration": "Login is temporarily unavailable. Please try again later.",
       "unexpected_error": "Something went wrong while signing you in."
+    },
+    "biSignIn": "Sign in with BI student account",
+    "biSignInPending": "Taking you to BI …",
+    "biSignInHint": "BI students: your student membership and member prices follow your BI account.",
+    "orUseLoginLink": "Not a BI student? Use a login link",
+    "staffUseAdmin": "BISO staff accounts sign in at admin.biso.no. Use your personal email address here.",
+    "newHere": "New here? Signing in with BI or a login link creates your account.",
+    "needHelp": "Need help signing in?",
+    "biFailure": {
+      "existing_account": "BI could not sign you into your existing BISO account. Use a login link to your student email below, and let us know at /contact so we can fix the sign-in.",
+      "failed": "We could not sign you in with BI. Please try again, or use a login link."
     }
   },
   "breadcrumbs": {
@@ -201,7 +217,14 @@
       "linkBiso": "Link BISO",
       "heading": "Linked Accounts",
       "empty": "No identities linked yet.",
-      "oauthNote": "When linking, you will be redirected to complete the OAuth flow."
+      "oauthNote": "When linking, you will be redirected to complete the OAuth flow.",
+      "signInBody": "How you sign in. Your BI Student identity is what verifies your membership; sign in with BI to add it.",
+      "remove": "Remove",
+      "removed": "Identity removed",
+      "removeFailed": "Failed to remove",
+      "unknownError": "Unknown error",
+      "providerEmail": "Email",
+      "providerLoginLink": "Login link"
     },
     "privacy": {
       "title": "Your Privacy Rights",
@@ -212,20 +235,88 @@
       "deleteAccount": "Delete Account",
       "confirmTitle": "Are you absolutely sure?",
       "cancel": "Cancel",
-      "gdprNote": "Data requests are processed within 30 days as required by GDPR"
-    }
-  },
-  "booking": {
-    "title": "Pick an interview slot",
-    "unavailable": "Booking link unavailable",
-    "expired": "Reach out to your BISO contact for a fresh link.",
-    "noSlots": "No slots available in this window. Please contact the BISO team.",
-    "booked": "You're booked!"
+      "gdprNote": "Data requests are processed within 30 days as required by GDPR",
+      "subtitle": "Under GDPR, you have the right to access, modify and delete your personal data.",
+      "processingBefore": "We process your data in accordance with our",
+      "policyLink": "privacy policy",
+      "processingAfter": "and applicable data protection laws. You have the right to access, export and request deletion of your data.",
+      "exportData": "Export data",
+      "confirmBody": "This action cannot be undone. It permanently deletes your account and removes all your data from our servers.",
+      "toasts": {
+        "requestSubmitted": "Data request submitted",
+        "requestSubmittedBody": "We'll prepare your data and send it to your email within 30 days.",
+        "requestFailed": "Data request failed",
+        "requestFailedBody": "There was a problem requesting your data. Please try again.",
+        "deleted": "Account deleted",
+        "deletedBody": "Your account has been deleted.",
+        "deleteFailed": "Deletion failed",
+        "deleteFailedBody": "There was a problem deleting your account. Please try again."
+      }
+    },
+    "fields": {
+      "name": {
+        "label": "Full name",
+        "placeholder": "Enter your full name"
+      },
+      "email": {
+        "label": "Email address",
+        "placeholder": "Enter your email address"
+      },
+      "phone": {
+        "label": "Phone number",
+        "placeholder": "Enter your phone number"
+      },
+      "address": {
+        "label": "Street address",
+        "placeholder": "Enter your street address"
+      },
+      "city": {
+        "label": "City",
+        "placeholder": "Enter your city"
+      },
+      "zip": {
+        "label": "Postal code",
+        "placeholder": "Enter your postal code"
+      },
+      "bankAccount": {
+        "label": "Bank account",
+        "placeholder": "Enter your bank account number"
+      },
+      "swift": {
+        "label": "SWIFT code (optional)",
+        "placeholder": "Enter your SWIFT code, if you have one"
+      }
+    },
+    "update": "Update profile",
+    "updating": "Saving…",
+    "saved": "Your profile is updated.",
+    "saveFailed": "We couldn't update your profile. Please try again."
   },
   "approval": {
     "title": "Reimbursement approval",
     "expired": "This approval link has expired.",
-    "notePlaceholder": "Optional note (required reasoning for a rejection helps the submitter)"
+    "notePlaceholder": "Optional note (required reasoning for a rejection helps the submitter)",
+    "invalidLink": "This approval link is invalid.",
+    "loadFailed": "Could not load the approval request.",
+    "decisionFailed": "Could not record your decision.",
+    "loading": "Loading the approval request…",
+    "reference": "Reference",
+    "amount": "Amount",
+    "department": "Department",
+    "receipts": "Receipts",
+    "receipt": "Receipt",
+    "viewReceipt": "View receipt",
+    "noteLabel": "Note to the submitter",
+    "approve": "Approve",
+    "reject": "Reject",
+    "decided": {
+      "approved": "Reimbursement {number} approved",
+      "rejected": "Reimbursement {number} rejected"
+    },
+    "decidedBody": {
+      "approved": "Thanks — this request has been approved.",
+      "rejected": "Thanks — this request has been rejected."
+    }
   },
   "theme": {
     "label": "Theme",

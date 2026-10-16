@@ -9,6 +9,8 @@ import { finago } from "./client";
 import type { components } from "./schema";
 
 export const DEPARTMENT_DIMENSION_TYPE = 2;
+/** Campus dimension type; element values are the app's campus ids "1".."5". */
+export const CAMPUS_DIMENSION_TYPE = 101;
 
 export type DimensionElement = components["schemas"]["DimensionElement"];
 

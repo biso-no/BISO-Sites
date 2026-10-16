@@ -18,11 +18,40 @@ import {
   getCartItemsWithDetails,
 } from "@/app/actions/cart-reservations";
 
-type ReservationFailureReason = "out_of_stock" | "error";
+type ReservationFailureReason =
+  | "members_only"
+  | "out_of_stock"
+  | "unavailable"
+  | "error";
+
+/**
+ * Why the hold was refused, in the shopper's words. `members_only` is not an
+ * error they can retry — the product is visible to everyone but only members
+ * can buy it — so it must not be reported as "please try again".
+ */
+function reservationFailureMessage(
+  reason: ReservationFailureReason | undefined,
+  t: (key: string) => string
+): string {
+  if (reason === "out_of_stock") {
+    return t("cart.outOfStock");
+  }
+  if (reason === "members_only") {
+    return t("cart.membersOnly");
+  }
+  if (reason === "unavailable") {
+    return t("cart.unavailable");
+  }
+  return t("cart.updateFailed");
+}
 
 export interface CartItem {
   category: string;
   contentId: string; // product content_id from database
+  /** Field id → label, so the order line records what was asked. */
+  customFieldLabels?: Record<string, string>;
+  /** Field id → the buyer's answer; submitted at checkout. */
+  customFields?: Record<string, string>;
   expiresAt?: string; // reservation expiration time
   id: string; // unique cart item id (contentId + options hash)
   image: string | null;
@@ -139,6 +168,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         stock: item.stock,
         expiresAt: item.expiresAt,
         metadata: item.metadata,
+        // Restored from the reservation row, so a reload of the cart or the
+        // checkout page keeps what the buyer filled in.
+        customFieldLabels: item.customFieldLabels,
+        customFields: item.customFields,
       }));
 
       setItems(cartItems);
@@ -154,17 +187,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     refreshCart();
   }, [refreshCart]);
 
-  // A reservation write failed (out of stock, or a server error). Never apply
-  // the returned quantity (it may be 0, which would strand an uncheckoutable
-  // line) — tell the shopper and re-sync the cart from the authoritative server
-  // state instead.
+  // A reservation write failed (out of stock, members-only, or a server error).
+  // Never apply the returned quantity (it may be 0, which would strand an
+  // uncheckoutable line) — tell the shopper and re-sync the cart from the
+  // authoritative server state instead.
   const handleReservationFailure = useCallback(
     (reason?: ReservationFailureReason) => {
-      toast.error(
-        reason === "out_of_stock"
-          ? t("cart.outOfStock")
-          : t("cart.updateFailed")
-      );
+      toast.error(reservationFailureMessage(reason, t));
       refreshCart();
     },
     [refreshCart, t]
@@ -189,7 +218,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // trust it over the optimistic local clamp so the cart can't oversell.
       const result = await createOrUpdateReservation(
         item.productId,
-        newQuantity
+        newQuantity,
+        item.customFields
+          ? {
+              customFieldLabels: item.customFieldLabels ?? {},
+              customFields: item.customFields,
+            }
+          : undefined
       );
       if (!result.success) {
         handleReservationFailure(result.reason);
@@ -220,7 +255,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const result = await createOrUpdateReservation(
       item.productId,
-      initialQuantity
+      initialQuantity,
+      item.customFields
+        ? {
+            customFieldLabels: item.customFieldLabels ?? {},
+            customFields: item.customFields,
+          }
+        : undefined
     );
     if (!result.success) {
       handleReservationFailure(result.reason);

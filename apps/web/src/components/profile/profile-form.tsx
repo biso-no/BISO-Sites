@@ -52,7 +52,7 @@ const ProfileInputField = ({
   return (
     <div className={colSpan ? "md:col-span-2" : undefined}>
       <label
-        className="mb-1 block font-medium text-muted-foreground text-sm"
+        className="type-body-sm mb-1.5 block font-semibold text-ink"
         htmlFor={name}
       >
         {label} {required ? "*" : null}
@@ -66,15 +66,21 @@ const ProfileInputField = ({
           outline paints the focus-ring blue it asks for. */}
       <input
         {...register(name)}
-        className={`w-full rounded-lg border px-4 py-2.5 ${
-          error ? "border-red-500" : "border-border"
+        aria-describedby={error ? `${name}-error` : undefined}
+        aria-invalid={error ? true : undefined}
+        className={`type-body w-full rounded-biso-md border bg-surface px-4 py-2.5 text-ink placeholder:text-ink-muted disabled:bg-surface-sunken disabled:text-ink-muted ${
+          error ? "border-danger" : "border-edge"
         } transition duration-200 focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2`}
         disabled={disabled}
         id={name}
         placeholder={placeholder}
         type={type}
       />
-      {error ? <p className="mt-1 text-red-500 text-sm">{error}</p> : null}
+      {error ? (
+        <p className="type-body-sm mt-1.5 text-danger" id={`${name}-error`}>
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 };
@@ -89,9 +95,10 @@ const FormMessages = ({ successMessage, errorMessage }: FormMessagesProps) => (
     {successMessage ? (
       <motion.div
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800"
+        className="type-body-sm rounded-biso-md border border-success/40 bg-success/5 p-4 text-success"
         exit={{ opacity: 0, y: -10 }}
         initial={{ opacity: 0, y: -10 }}
+        role="status"
       >
         {successMessage}
       </motion.div>
@@ -100,9 +107,10 @@ const FormMessages = ({ successMessage, errorMessage }: FormMessagesProps) => (
     {errorMessage ? (
       <motion.div
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"
+        className="type-body-sm rounded-biso-md border border-danger/40 bg-danger/5 p-4 text-danger"
         exit={{ opacity: 0, y: -10 }}
         initial={{ opacity: 0, y: -10 }}
+        role="alert"
       >
         {errorMessage}
       </motion.div>
@@ -138,22 +146,22 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
   const contactFields: ProfileFieldConfig[] = [
     {
       name: "name",
-      label: "Full Name",
-      placeholder: "Enter your full name",
+      label: t("fields.name.label"),
+      placeholder: t("fields.name.placeholder"),
       required: true,
       colSpan: true,
     },
     {
       name: "email",
-      label: "Email Address",
-      placeholder: "Enter your email address",
+      label: t("fields.email.label"),
+      placeholder: t("fields.email.placeholder"),
       type: "email",
       disabled: true,
     },
     {
       name: "phone",
-      label: "Phone Number",
-      placeholder: "Enter your phone number",
+      label: t("fields.phone.label"),
+      placeholder: t("fields.phone.placeholder"),
       type: "tel",
       required: true,
     },
@@ -162,21 +170,21 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
   const addressFields: ProfileFieldConfig[] = [
     {
       name: "address",
-      label: "Street Address",
-      placeholder: "Enter your street address",
+      label: t("fields.address.label"),
+      placeholder: t("fields.address.placeholder"),
       required: true,
       colSpan: true,
     },
     {
       name: "city",
-      label: "City",
-      placeholder: "Enter your city",
+      label: t("fields.city.label"),
+      placeholder: t("fields.city.placeholder"),
       required: true,
     },
     {
       name: "zip",
-      label: "ZIP/Postal code",
-      placeholder: "Enter your ZIP/Postal code",
+      label: t("fields.zip.label"),
+      placeholder: t("fields.zip.placeholder"),
       required: true,
     },
   ];
@@ -184,14 +192,14 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
   const bankingFields: ProfileFieldConfig[] = [
     {
       name: "bank_account",
-      label: "Bank account",
-      placeholder: "Enter your bank account number",
+      label: t("fields.bankAccount.label"),
+      placeholder: t("fields.bankAccount.placeholder"),
       required: true,
     },
     {
       name: "swift",
-      label: "SWIFT Code (Optional)",
-      placeholder: "Enter your SWIFT code (if applicable)",
+      label: t("fields.swift.label"),
+      placeholder: t("fields.swift.placeholder"),
     },
   ];
 
@@ -204,22 +212,25 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
       const result = await updateProfile(data);
 
       if (result) {
-        setSuccessMessage("Profile updated successfully");
+        setSuccessMessage(t("saved"));
       } else {
-        setErrorMessage("Failed to update profile. Server returned null.");
+        setErrorMessage(t("saveFailed"));
       }
     } catch (error) {
-      setErrorMessage(
-        `Failed to update profile: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+      // The reason goes to the console, not the visitor: the action's own
+      // error text is written for developers.
+      console.error("Failed to update profile:", error);
+      setErrorMessage(t("saveFailed"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-lg">
-      <form className="space-y-6 p-6" onSubmit={handleSubmit(onSubmit)}>
+    // The account tab already frames this form in a bordered panel; it adds
+    // no second card of its own.
+    <div>
+      <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
         <FormMessages
           errorMessage={errorMessage}
           successMessage={successMessage}
@@ -236,8 +247,8 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
           ))}
         </div>
 
-        <div className="border-border border-t pt-6 md:col-span-2">
-          <h3 className="mb-4 font-medium text-foreground text-lg">
+        <div className="border-edge border-t pt-6 md:col-span-2">
+          <h3 className="type-heading-card mb-4 text-ink">
             {t("addressInfo")}
           </h3>
         </div>
@@ -253,8 +264,8 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
           ))}
         </div>
 
-        <div className="border-border border-t pt-6 md:col-span-2">
-          <h3 className="mb-4 font-medium text-foreground text-lg">
+        <div className="border-edge border-t pt-6 md:col-span-2">
+          <h3 className="type-heading-card mb-4 text-ink">
             {t("bankingInfo")}
           </h3>
         </div>
@@ -272,14 +283,16 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
 
         <div className="flex items-center gap-3">
           <button
-            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:opacity-50"
+            aria-busy={isSubmitting}
+            className="type-label inline-flex items-center gap-2 rounded-biso-pill bg-action px-5 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-60"
             disabled={isSubmitting}
             type="submit"
           >
             {isSubmitting ? (
               <>
                 <svg
-                  className="mr-2 -ml-1 h-4 w-4 animate-spin text-white"
+                  aria-hidden="true"
+                  className="size-4 animate-spin"
                   fill="none"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
@@ -299,10 +312,10 @@ export function ProfileForm({ initialData, email }: ProfileFormProps) {
                     fill="currentColor"
                   />
                 </svg>
-                Submitting...
+                {t("updating")}
               </>
             ) : (
-              "Update Profile"
+              t("update")
             )}
           </button>
         </div>

@@ -1,217 +1,168 @@
 "use client";
 
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { Separator } from "@repo/ui/components/ui/separator";
+import { POPULAR_MEMBERSHIP_DURATION } from "@repo/shared/utils/membership-plans";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
-import { Check, Download, Share2, Smartphone, Sparkles } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { LockedContentOverlay } from "../shared/locked-content-overlay";
-import { MembershipCard } from "../shared/membership-card";
-
-type MembershipDuration = "semester" | "year" | "three-year";
-
-const MEMBERSHIP_PRICES = {
-  semester: 350,
-  year: 550,
-  "three-year": 1400,
-};
+import { ArrowRight, Check } from "lucide-react";
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
+import { MemberPass } from "@/components/member-pass/member-pass";
+import { MembershipPlanCard } from "@/components/membership/plan-card";
+import { Pill } from "@/components/ui/pill";
+import type {
+  CurrentMembershipView,
+  PlanView,
+} from "@/lib/member-portal-membership";
+import { LockedMembershipPanel } from "../shared/locked-membership-panel";
 
 interface MembershipTabProps {
-  autoRenew: boolean;
-  currentPlan: MembershipDuration;
-  daysRemaining: number;
-  expiryDate: string;
+  current: CurrentMembershipView | null;
   hasBIIdentity: boolean;
   isMember: boolean;
-  studentId: string;
-  userName: string;
+  plans: PlanView[];
 }
 
+const textLinkClass =
+  "type-label inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+function useDate() {
+  const format = useFormatter();
+  return (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Europe/Oslo",
+    });
+}
+
+function Fact({
+  label,
+  value,
+  hint,
+}: {
+  hint?: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-biso-md border border-edge p-5">
+      <dt className="type-label text-ink-muted">{label}</dt>
+      <dd className="type-heading-card mt-2 text-ink">{value}</dd>
+      {hint ? (
+        <dd className="type-body-sm mt-1 text-ink-muted">{hint}</dd>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The live membership, read from the Finago result: plan, start, expiry and
+ * days left, the member pass, and the longer plans on sale. Nothing here is
+ * invented — the previous tab always said "Year" and showed an auto-renew
+ * toggle that did not exist.
+ */
 export function MembershipTab({
-  userName,
-  studentId,
-  currentPlan,
-  expiryDate,
-  daysRemaining,
-  autoRenew,
-  isMember,
+  current,
   hasBIIdentity,
+  isMember,
+  plans,
 }: MembershipTabProps) {
   const t = useTranslations("memberPortal.membership");
-  const tPricing = useTranslations("memberPortal.states.notMember.pricing");
-  const [isAutoRenewEnabled, setIsAutoRenewEnabled] = useState(autoRenew);
+  const tPass = useTranslations("memberPass");
+  const formatDate = useDate();
 
-  const content = (
-    <>
-      <Card className="border-0 p-8 shadow-lg dark:bg-inverted/50 dark:backdrop-blur-sm">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h3 className="mb-2 font-bold text-foreground text-xl dark:text-foreground">
-              {t("title")}
-            </h3>
-            <p className="text-muted-foreground dark:text-muted-foreground">
-              {t("description")}
-            </p>
-          </div>
-          <Badge className="border-green-200 bg-green-100 px-4 py-2 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400">
-            <Check className="mr-2 h-4 w-4" />
-            {t("active")}
-          </Badge>
-        </div>
-
-        <div className="mb-8 grid gap-6 md:grid-cols-3">
-          <div className="rounded-lg bg-linear-to-br from-brand-muted to-brand-muted p-6">
-            <div className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
-              {t("currentPlan")}
-            </div>
-            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-              {tPricing(currentPlan)}
-            </div>
-            <div className="font-bold text-2xl text-foreground dark:text-foreground">
-              {MEMBERSHIP_PRICES[currentPlan]} NOK
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-section p-6 dark:bg-inverted">
-            <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
-              {t("nextBillingDate")}
-            </div>
-            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-              {new Date(expiryDate).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </div>
-            <div className="text-muted-foreground text-sm dark:text-muted-foreground">
-              {daysRemaining} days remaining
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-section p-6 dark:bg-inverted">
-            <div className="mb-1 text-muted-foreground text-sm dark:text-inverted-muted">
-              {t("autoRenewal")}
-            </div>
-            <div className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-              {isAutoRenewEnabled ? t("enabled") : t("disabled")}
-            </div>
-            <Button
-              className="mt-2"
-              onClick={() => setIsAutoRenewEnabled(!isAutoRenewEnabled)}
-              size="sm"
-              variant="outline"
-            >
-              {isAutoRenewEnabled ? t("disable") : t("enable")}
-            </Button>
-          </div>
-        </div>
-
-        <Separator className="my-8" />
-
-        <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
-          {t("upgradeMembership")}
-        </h3>
-        <p className="mb-6 text-muted-foreground dark:text-muted-foreground">
-          {t("upgradeDescription")}
-        </p>
-
-        <div className="mb-6 grid gap-6 sm:grid-cols-3">
-          {Object.entries(MEMBERSHIP_PRICES).map(([type, price]) => (
-            <Card
-              className={`cursor-pointer border-2 p-6 transition-all ${
-                type === currentPlan
-                  ? "border-brand bg-brand-muted"
-                  : "border-border hover:border-brand-border-strong"
-              }`}
-              key={type}
-            >
-              <div className="text-center">
-                {type === currentPlan && (
-                  <Badge className="mb-3 bg-brand text-white">
-                    {t("currentPlanBadge")}
-                  </Badge>
-                )}
-                <h3 className="mb-2 font-semibold text-foreground text-lg dark:text-foreground">
-                  {tPricing(type as MembershipDuration)}
-                </h3>
-                <div className="mb-1 font-bold text-2xl text-foreground dark:text-foreground">
-                  {price} NOK
-                </div>
-                <div className="mb-4 text-muted-foreground text-sm dark:text-muted-foreground">
-                  {type === "semester" && t("monthlyPrice", { price: 58 })}
-                  {type === "year" && t("monthlyPrice", { price: 46 })}
-                  {type === "three-year" && t("monthlyPrice", { price: 39 })}
-                </div>
-                {type === "three-year" && (
-                  <Badge
-                    className="border-green-200 bg-green-50 text-green-700"
-                    variant="outline"
-                  >
-                    {t("savePercent", { percent: 33 })}
-                  </Badge>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        <Alert className="border-brand-border bg-brand-muted">
-          <Sparkles className="h-4 w-4 text-brand" />
-          <AlertDescription className="text-muted-foreground">
-            <strong>{t("proTip")}</strong> {t("proTipDescription")}
-          </AlertDescription>
-        </Alert>
-
-        <Separator className="my-8" />
-
-        <h3 className="mb-4 font-semibold text-foreground text-lg dark:text-foreground">
-          {t("digitalCard")}
-        </h3>
-        <div className="grid gap-6 md:grid-cols-2">
-          <MembershipCard
-            expiryDate={expiryDate}
-            membershipType={tPricing(currentPlan)}
-            studentId={studentId}
-            userName={userName}
-          />
-
-          <div className="space-y-4">
-            <p className="text-muted-foreground dark:text-muted-foreground">
-              {t("useCard")}
-            </p>
-            <div className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                {t("addToAppleWallet")}
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Smartphone className="mr-2 h-4 w-4" />
-                {t("addToGooglePay")}
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Share2 className="mr-2 h-4 w-4" />
-                {t("shareCard")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
-    </>
-  );
+  if (!isMember) {
+    return (
+      <TabsContent value="membership">
+        <LockedMembershipPanel hasBIIdentity={hasBIIdentity} plans={plans} />
+      </TabsContent>
+    );
+  }
 
   return (
-    <TabsContent className="space-y-8" value="membership">
-      {isMember ? (
-        content
-      ) : (
-        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
-          {content}
-        </LockedContentOverlay>
-      )}
+    <TabsContent className="flex flex-col gap-12" value="membership">
+      <section>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="type-display-sm text-ink">{t("title")}</h2>
+            <p className="type-body mt-2 text-ink-muted">{t("description")}</p>
+          </div>
+          {current ? (
+            <Pill tone="success">
+              <Check aria-hidden="true" className="size-3.5 shrink-0" />
+              {t("active")}
+            </Pill>
+          ) : null}
+        </div>
+
+        {current ? (
+          <dl className="mt-6 grid gap-5 md:grid-cols-3">
+            <Fact
+              label={t("currentPlan")}
+              value={
+                current.duration
+                  ? tPass(`duration.${current.duration}`)
+                  : current.name
+              }
+            />
+            <Fact
+              label={t("startDate")}
+              value={formatDate(current.startDate)}
+            />
+            <Fact
+              hint={t("daysRemaining", { days: current.daysRemaining })}
+              label={t("validUntil")}
+              value={formatDate(current.expiryDate)}
+            />
+          </dl>
+        ) : null}
+      </section>
+
+      <section>
+        <h3 className="type-heading-section mb-4 text-ink">{t("yourPass")}</h3>
+        <div className="max-w-md">
+          <MemberPass />
+        </div>
+      </section>
+
+      <section className="border-edge border-t pt-10">
+        <h3 className="type-heading-section text-ink">{t("extendTitle")}</h3>
+        <p className="type-body mt-2 mb-6 text-ink-muted">
+          {t("extendDescription")}
+        </p>
+        {plans.length === 0 ? (
+          <p className="type-body-sm text-ink-muted">{t("noUpgrades")}</p>
+        ) : (
+          <ul className="grid gap-5 sm:grid-cols-3">
+            {plans.map((plan) => (
+              <li key={plan.id}>
+                <MembershipPlanCard
+                  footer={
+                    <>
+                      <p className="type-body-sm text-ink-muted">
+                        {t("validUntilDate", {
+                          date: formatDate(plan.expiryDate),
+                        })}
+                      </p>
+                      <Link
+                        className={`mt-auto pt-2 ${textLinkClass}`}
+                        href="/membership/join"
+                      >
+                        {t("choosePlan")}
+                        <ArrowRight aria-hidden="true" className="size-4" />
+                      </Link>
+                    </>
+                  }
+                  name={tPass(`duration.${plan.duration}`)}
+                  popular={plan.duration === POPULAR_MEMBERSHIP_DURATION}
+                  popularLabel={t("popular")}
+                  price={plan.price}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </TabsContent>
   );
 }

@@ -22,18 +22,25 @@ import { getPage } from "@repo/api/page-builder";
 import { createPublicClient } from "@repo/api/server";
 import type {
   Campus,
+  CampusMetadata,
   Departments,
   Events,
   Jobs,
   LargeEvent,
   News,
   Pages,
+  WebshopProducts,
 } from "@repo/api/types/appwrite";
 import {
   JobsStatus,
   PagesStatus,
   PagesVisibility,
 } from "@repo/api/types/appwrite";
+import {
+  fetchRecruitmentListPage,
+  localizeVacancy,
+} from "@repo/shared/recruitment";
+import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import { isRecruitmentVacancyOpen } from "@repo/shared/types/recruitment";
 import type {
   PageDepartmentsFeed,
@@ -49,12 +56,30 @@ import {
   readPageNewsFeed,
   readPagePartnersFeed,
 } from "@repo/shared/utils/page-feeds";
+import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import { cacheLife } from "next/cache";
 import type { Partner } from "@/app/actions/about";
 import { campusScopeIds } from "@/lib/campus-scope";
 import type { NavFeatured } from "@/lib/types/nav";
 import { buildNavFeatured } from "./nav-featured";
-import { type PublicLocale, queryEvents, queryNews } from "./queries";
+import { listedProductsOnly } from "./product-visibility";
+import {
+  countRows,
+  eventFilterQueries,
+  openVacancyQueries,
+  type PublicLocale,
+  queryEvents,
+  queryNews,
+} from "./queries";
+
+export interface HomeCounts {
+  departmentCount: number;
+  eventCount: number;
+  jobCount: number;
+}
+
+/** Same ceiling as `cachedPublicUnits`: the whole table with room to grow. */
+const HOME_DEPARTMENTS_LIMIT = 500;
 
 export async function cachedPublishedEvents(
   locale: PublicLocale,
@@ -67,13 +92,14 @@ export async function cachedPublishedEvents(
   // Same `upcomingOnly` the session-scoped path uses. Without it the anonymous
   // (cached) homepage feed would keep showing finished events while a signed-in
   // visitor's did not.
-  return await queryEvents(db, {
+  const { rows } = await queryEvents(db, {
     campus: campusId ?? undefined,
     limit,
     locale,
     status: "published",
     upcomingOnly: true,
   });
+  return rows;
 }
 
 export async function cachedPublishedNews(
@@ -93,37 +119,59 @@ export async function cachedPublishedNews(
 }
 
 /**
- * Homepage stat counters. The event count comes from the query `total`
- * (no rows transferred); the job count needs the open-deadline rule, so it
- * reads a minimal three-column projection — no relationship expansion.
+ * Homepage stat counters for the selected campus (`null` = every campus).
+ *
+ * Each figure uses the same filters as the page the card links to, so the
+ * number matches what the visitor finds there:
+ * - events: upcoming, published, translated into `locale` — as on `/events`;
+ * - jobs: open vacancies, campus-scoped with National riding along — `/jobs`;
+ * - departments: public units ON that campus — as on `/units`.
+ *
+ * Counted from rows, never from `listRows(...).total` (see `countRows`).
  */
 export async function cachedHomeCounts(
-  campusId: string | null
-): Promise<{ eventCount: number; jobCount: number }> {
+  campusId: string | null,
+  locale: PublicLocale
+): Promise<HomeCounts> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
 
-  const eventQueries = [Query.equal("status", "published"), Query.limit(1)];
+  const jobFilters = openVacancyQueries();
   const campusScope = campusScopeIds(campusId);
   if (campusScope) {
-    eventQueries.push(Query.equal("campus_id", campusScope));
+    jobFilters.push(Query.equal("campus_id", campusScope));
   }
 
-  const [eventsRes, jobsRes] = await Promise.all([
-    db.listRows<Events>("app", "events", eventQueries),
-    db.listRows<Jobs>("app", "jobs", [
-      Query.select(["$id", "status", "application_deadline"]),
-      Query.equal("status", JobsStatus.PUBLISHED),
-      Query.limit(200),
-    ]),
+  const departmentFilters = [
+    Query.select(["$id", "Name", "active"]),
+    Query.equal("active", true),
+    Query.limit(HOME_DEPARTMENTS_LIMIT),
+  ];
+  if (campusId) {
+    departmentFilters.push(Query.equal("campus_id", campusId));
+  }
+
+  const [eventCount, jobCount, departments] = await Promise.all([
+    countRows(
+      db,
+      "events",
+      eventFilterQueries({
+        campus: campusId ?? undefined,
+        locale,
+        status: "published",
+        upcomingOnly: true,
+      })
+    ),
+    countRows(db, "jobs", jobFilters),
+    db.listRows<Departments>("app", "departments", departmentFilters),
   ]);
 
-  const jobCount = jobsRes.rows.filter((job) =>
-    isRecruitmentVacancyOpen(job.status, job.application_deadline)
-  ).length;
-
-  return { eventCount: eventsRes.total, jobCount };
+  return {
+    departmentCount: departments.rows.filter(isPublicUnit).length,
+    eventCount,
+    jobCount,
+  };
 }
 
 export async function cachedCampuses(
@@ -184,6 +232,55 @@ export async function cachedShellCampuses(): Promise<Campus[]> {
   } catch {
     return [];
   }
+}
+
+/**
+ * Every campus's metadata, keyed by campus id AND campus name like
+ * `getCampusMetadata`, for the front page's focus areas. Public rows, so the
+ * guest client; one read an hour for everyone.
+ */
+export async function cachedCampusMetadata(): Promise<
+  Record<string, CampusMetadata>
+> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const result = await db.listRows<CampusMetadata>("app", "campus_metadata", [
+    Query.limit(100),
+  ]);
+  const metadata: Record<string, CampusMetadata> = {};
+  for (const row of result.rows) {
+    metadata[row.campus_id] = row;
+    metadata[row.campus_name] = row;
+  }
+  return metadata;
+}
+
+/**
+ * The first few open roles for a campus, for the front page. The same query
+ * `/jobs` runs through `listJobs`, minus the per-request session client: the
+ * front page is mostly anonymous traffic and must not reach Appwrite
+ * uncached (see the module header).
+ */
+export async function cachedOpenJobs(
+  campusId: string | null,
+  locale: PublicLocale,
+  limit: number
+): Promise<RecruitmentVacancy[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  const queries: string[] = [
+    ...openVacancyQueries(),
+    Query.orderAsc("application_deadline"),
+    Query.limit(limit),
+  ];
+  const campusScope = campusScopeIds(campusId);
+  if (campusScope) {
+    queries.push(Query.equal("campus_id", campusScope));
+  }
+  const { rows } = await fetchRecruitmentListPage(db, queries);
+  return rows.map((vacancy) => localizeVacancy(vacancy, locale));
 }
 
 export async function cachedPartners(): Promise<Partner[]> {
@@ -250,6 +347,19 @@ const DEPARTMENT_SELECT = [
   "type",
 ] as const;
 
+/*
+ * The three readers below all apply `isPublicUnit` on top of `active`.
+ *
+ * They are the ROUTING layer for /units/…, so the exclusion has to bite here,
+ * not only at render time: an operating ledger ("Drift Campus Oslo") is an
+ * active row with a slug, and letting it resolve would give it a live URL
+ * whose `generateMetadata` puts the accounting name in the page <title> before
+ * the body 404s. Excluding it here makes it indistinguishable from a slug that
+ * was never a unit — which is what it is, publicly.
+ *
+ * `Name` and `active` are in DEPARTMENT_SELECT for exactly this check.
+ */
+
 /**
  * Every active department sharing one slug — one row per campus.
  *
@@ -269,7 +379,7 @@ export async function cachedDepartmentsBySlug(
     Query.select([...DEPARTMENT_SELECT]),
     Query.limit(10),
   ]);
-  return res.rows;
+  return res.rows.filter(isPublicUnit);
 }
 
 /** The single active department at one campus. Full (slug, campus_id) hit. */
@@ -287,7 +397,8 @@ export async function cachedDepartmentBySlugAndCampus(
     Query.select([...DEPARTMENT_SELECT]),
     Query.limit(1),
   ]);
-  return res.rows[0] ?? null;
+  const row = res.rows[0];
+  return row && isPublicUnit(row) ? row : null;
 }
 
 /** Legacy 24SO-id lookup, used only to redirect old /units/<number> links. */
@@ -302,7 +413,8 @@ export async function cachedDepartmentById(
     Query.select([...DEPARTMENT_SELECT]),
     Query.limit(1),
   ]);
-  return res.rows[0] ?? null;
+  const row = res.rows[0];
+  return row && isPublicUnit(row) ? row : null;
 }
 
 /* ------------------------------------------------------------------------ *
@@ -426,80 +538,139 @@ export interface SitemapEntries {
   units: UnitSitemapRow[];
 }
 
-/**
- * Slug + timestamp projections for sitemap.xml. Minimal three-column selects:
- * no relationship expansion, one cached result for every crawler. Each list
- * is best-effort so one failing table cannot break the whole sitemap.
+/*
+ * sitemap.xml
+ *
+ * Each listing is its OWN cache entry, and each one THROWS on failure. This
+ * looks like more machinery than one composite reader, and it exists for one
+ * reason: `"use cache"` does not cache a rejected promise but it does cache a
+ * resolved `[]`. The previous single-entry version caught each query inside
+ * the cached function, so one transient Appwrite failure was written into the
+ * cache as "this table has no published rows" and every crawler for the next
+ * hour was served a sitemap silently missing a whole content type.
+ *
+ * The best-effort behaviour that catch was there for is preserved — it just
+ * moved to `sitemapEntries` below, where an empty list lives for one request
+ * instead of an hour. A failing table still yields a partial sitemap rather
+ * than a 500, and the lists now revalidate independently.
  */
-export async function cachedSitemapEntries(): Promise<SitemapEntries> {
+
+/** Minimal projection shared by the status-filtered content tables. */
+async function cachedSitemapPublished(table: string): Promise<SitemapRow[]> {
   "use cache";
   cacheLife("hours");
   const { db } = await createPublicClient();
+  const res = await db.listRows<Events>("app", table, [
+    Query.select([...SITEMAP_SELECT]),
+    Query.equal("status", "published"),
+    Query.limit(SITEMAP_LIMIT),
+  ]);
+  return sitemapRows(res.rows);
+}
 
-  const published = (table: string) =>
-    db
-      .listRows<Events>("app", table, [
-        Query.select([...SITEMAP_SELECT]),
-        Query.equal("status", "published"),
-        Query.limit(SITEMAP_LIMIT),
-      ])
-      .then((res) => sitemapRows(res.rows))
-      .catch(() => [] as SitemapRow[]);
+/**
+ * Products need the link-only predicate. An `unlisted` product is published and
+ * purchasable, so a plain status filter would advertise in the sitemap exactly
+ * the products staff marked as reachable only by direct link. The `/shop/<slug>`
+ * page stays live either way — it just goes unannounced, and renders `noindex`.
+ */
+async function cachedSitemapProducts(): Promise<SitemapRow[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<WebshopProducts>("app", "webshop_products", [
+    Query.select([...SITEMAP_SELECT]),
+    Query.equal("status", "published"),
+    listedProductsOnly(),
+    Query.limit(SITEMAP_LIMIT),
+  ]);
+  return sitemapRows(res.rows);
+}
 
-  // Jobs need the open-vacancy predicate: getJobBySlug() rejects vacancies
-  // past their application deadline, so a plain status filter would emit
-  // sitemap URLs that resolve to 404.
-  const openJobs = db
-    .listRows<Jobs>("app", "jobs", [
-      Query.select([...SITEMAP_SELECT, "status", "application_deadline"]),
-      Query.equal("status", JobsStatus.PUBLISHED),
-      Query.limit(SITEMAP_LIMIT),
-    ])
-    .then((res) =>
-      sitemapRows(
-        res.rows.filter((job) =>
-          isRecruitmentVacancyOpen(job.status, job.application_deadline)
-        )
-      )
+/**
+ * Jobs need the open-vacancy predicate: getJobBySlug() rejects vacancies past
+ * their application deadline, so a plain status filter would emit sitemap URLs
+ * that resolve to 404.
+ */
+async function cachedSitemapJobs(): Promise<SitemapRow[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Jobs>("app", "jobs", [
+    Query.select([...SITEMAP_SELECT, "status", "application_deadline"]),
+    Query.equal("status", JobsStatus.PUBLISHED),
+    Query.limit(SITEMAP_LIMIT),
+  ]);
+  return sitemapRows(
+    res.rows.filter((job) =>
+      isRecruitmentVacancyOpen(job.status, job.application_deadline)
     )
-    .catch(() => [] as SitemapRow[]);
+  );
+}
 
+async function cachedSitemapProjects(): Promise<SitemapRow[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<LargeEvent>("app", "large_event", [
+    Query.select([...SITEMAP_SELECT]),
+    Query.limit(SITEMAP_LIMIT),
+  ]);
+  return sitemapRows(res.rows);
+}
+
+async function cachedSitemapPages(): Promise<SitemapRow[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Pages>("app", "pages", [
+    Query.select([...SITEMAP_SELECT]),
+    Query.equal("status", PagesStatus.PUBLISHED),
+    Query.equal("visibility", PagesVisibility.PUBLIC),
+    Query.limit(SITEMAP_LIMIT),
+  ]);
+  return sitemapRows(res.rows);
+}
+
+async function cachedSitemapUnits(): Promise<UnitSitemapRow[]> {
+  "use cache";
+  cacheLife("hours");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Departments>("app", "departments", [
+    // `Name` is selected only to run the public-visibility rule: an operating
+    // ledger ("Drift BISO") and the national governance rows are
+    // `active: true` but have no public page, so advertising their URLs here
+    // would hand a crawler ~16 guaranteed 404s.
+    Query.select(["$id", "$updatedAt", "Name", "active", "campus_id", "slug"]),
+    Query.equal("active", true),
+    Query.limit(SITEMAP_LIMIT),
+  ]);
+  return res.rows.filter(isPublicUnit).map((row) => ({
+    $updatedAt: row.$updatedAt,
+    campus_id: row.campus_id,
+    slug: row.slug ?? null,
+  }));
+}
+
+/**
+ * Every slug the sitemap advertises.
+ *
+ * NOT itself a `"use cache"` entry — it composes the cached readers above and
+ * owns their fallbacks. That split is the whole point: the readers cache only
+ * answers they are sure of, and the tolerance for a failing table lives out
+ * here, where a degraded result is discarded at the end of the request instead
+ * of being served to every crawler for an hour.
+ */
+export async function sitemapEntries(): Promise<SitemapEntries> {
   const [jobs, events, news, products, projects, pages, units] =
     await Promise.all([
-      openJobs,
-      published("events"),
-      published("news"),
-      published("webshop_products"),
-      db
-        .listRows<LargeEvent>("app", "large_event", [
-          Query.select([...SITEMAP_SELECT]),
-          Query.limit(SITEMAP_LIMIT),
-        ])
-        .then((res) => sitemapRows(res.rows))
-        .catch(() => [] as SitemapRow[]),
-      db
-        .listRows<Pages>("app", "pages", [
-          Query.select([...SITEMAP_SELECT]),
-          Query.equal("status", PagesStatus.PUBLISHED),
-          Query.equal("visibility", PagesVisibility.PUBLIC),
-          Query.limit(SITEMAP_LIMIT),
-        ])
-        .then((res) => sitemapRows(res.rows))
-        .catch(() => [] as SitemapRow[]),
-      db
-        .listRows<Departments>("app", "departments", [
-          Query.select(["$id", "$updatedAt", "campus_id", "slug"]),
-          Query.equal("active", true),
-          Query.limit(SITEMAP_LIMIT),
-        ])
-        .then((res) =>
-          res.rows.map((row) => ({
-            $updatedAt: row.$updatedAt,
-            campus_id: row.campus_id,
-            slug: row.slug ?? null,
-          }))
-        )
-        .catch(() => [] as UnitSitemapRow[]),
+      cachedSitemapJobs().catch(() => [] as SitemapRow[]),
+      cachedSitemapPublished("events").catch(() => [] as SitemapRow[]),
+      cachedSitemapPublished("news").catch(() => [] as SitemapRow[]),
+      cachedSitemapProducts().catch(() => [] as SitemapRow[]),
+      cachedSitemapProjects().catch(() => [] as SitemapRow[]),
+      cachedSitemapPages().catch(() => [] as SitemapRow[]),
+      cachedSitemapUnits().catch(() => [] as UnitSitemapRow[]),
     ]);
 
   return { events, jobs, news, pages, products, projects, units };

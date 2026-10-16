@@ -202,12 +202,6 @@ export async function registerVippsWebhook(): Promise<
     const ctx = await requirePaymentAccess();
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
     const cronSecret = process.env.CRON_SECRET;
-    // DEBUG: trace the admin → API register call. Remove once it works.
-    console.log(
-      `[payment-settings/registerWebhook] start hasApiBase=${Boolean(
-        apiBase
-      )} hasCronSecret=${Boolean(cronSecret)}`
-    );
     if (!apiBase) {
       return { error: "NEXT_PUBLIC_API_BASE_URL is not configured" };
     }
@@ -216,7 +210,6 @@ export async function registerVippsWebhook(): Promise<
     }
 
     const url = `${apiBase.replace(TRAILING_SLASH, "")}/api/payment/vipps/webhooks/register`;
-    console.log(`[payment-settings/registerWebhook] POST ${url}`);
     const response = await fetch(url, {
       method: "POST",
       headers: { authorization: `Bearer ${cronSecret}` },
@@ -224,21 +217,15 @@ export async function registerVippsWebhook(): Promise<
     });
     const result = (await response.json().catch(() => null)) as
       | { id: string; mode: string; registeredUrl: string }
-      | { detail?: string; error: string }
+      | { error: string }
       | null;
-    console.log(
-      `[payment-settings/registerWebhook] response status=${response.status} ok=${response.ok} body=${JSON.stringify(
-        result
-      )}`
-    );
 
     if (!(response.ok && result) || "error" in result) {
-      const detail = result && "detail" in result ? result.detail : undefined;
-      const base =
-        (result && "error" in result && result.error) ||
-        "Failed to register Vipps webhook";
-      // DEBUG: include the API's `detail` so the toast shows the real cause.
-      return { error: detail ? `${base}: ${detail}` : base };
+      return {
+        error:
+          (result && "error" in result && result.error) ||
+          "Failed to register Vipps webhook",
+      };
     }
 
     await logAuditEvent(ctx, "payment_setting.update", {

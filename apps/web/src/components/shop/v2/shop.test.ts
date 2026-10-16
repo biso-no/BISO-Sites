@@ -7,6 +7,8 @@ const root = process.cwd();
 const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
 const LINE_COMMENT = /^\s*\/\/.*$/gm;
 const WHITESPACE = /\s+/g;
+/** The non-member filter the redesign once applied to the listing. */
+const MEMBER_ONLY_FILTER = /!\s*product\.member_only/;
 /** `line-clamp-N` is itself a display utility; a later one cancels it. */
 const CLAMP_THEN_DISPLAY =
   /line-clamp-\d+[^"']*\b(block|flex|grid|inline-block|inline-flex)\b/;
@@ -51,10 +53,27 @@ describe("shop list", () => {
     expect(listPage).toContain("resolveRequestCampus");
   });
 
+  it("leaves changing campus to the header, but keeps the scope it set", () => {
+    // Branding Committee (#95): the header switcher is the one place to change
+    // campus. The page draws no campus row, yet a scoped view stays scoped —
+    // category chips keep `?campus=` and search posts it as a hidden field.
+    expect(listSource).not.toContain('param="campus"');
+    expect(listSource).toContain("hidden.campus = activeCampus");
+    expect(listSource).toContain('param="category"');
+  });
+
   it("keeps search in the URL, as a form that needs no JavaScript", () => {
     expect(searchSource).toContain('method="get"');
     expect(searchSource).toContain('action="/shop"');
     expect(searchSource).not.toContain('"use client"');
+  });
+
+  it("lists members-only products for everyone, marked rather than hidden", () => {
+    // Main (#76): `member_only` limits who can BUY, not who can see. The card
+    // carries the pill; the product page and the reservation and checkout
+    // actions refuse a non-member.
+    expect(listSource).not.toMatch(MEMBER_ONLY_FILTER);
+    expect(listSource).toContain("product.member_only ?");
   });
 
   it("carries no motion import", () => {
@@ -75,8 +94,15 @@ describe("locale coverage", () => {
     const from = listPage.indexOf("await listProducts({", v2);
     expect(from).toBeGreaterThan(-1);
     const call = listPage.slice(from, listPage.indexOf("});", from));
-    expect(call).toContain('status: "published"');
     expect(call).not.toContain("locale");
+    // Main (#76) took `status` out of the caller's hands: `listProducts` is a
+    // server action, so any parameter is one the browser controls, and
+    // `status: "all"` once listed every draft. "published" and the link-only
+    // predicate are applied inside the action, unconditionally.
+    expect(call).not.toContain("status");
+    const actions = code("src/app/actions/webshop.ts");
+    expect(actions).toContain('Query.equal("status", "published")');
+    expect(actions).toContain("listedProductsOnly()");
   });
 
   it("reads the product detail without a locale filter too", () => {
@@ -85,17 +111,36 @@ describe("locale coverage", () => {
       "export async function getProductDetailBySlug"
     );
   });
+
+  it("marks a link-only product noindex from the same all-locale reader", () => {
+    // The locale-filtered reader returns nothing for a reader whose language
+    // has no translation row, which would drop the `noindex` with it.
+    const metadata = productPage.slice(
+      productPage.indexOf("export async function generateMetadata")
+    );
+    expect(metadata).toContain("getProductDetailBySlug");
+    expect(metadata).toContain("product.unlisted");
+    expect(metadata).toContain("index: false");
+  });
 });
 
 describe("commerce paths are untouched", () => {
-  it("reuses the v1 interactive components verbatim", () => {
+  it("keeps the purchase logic in the shared client components", () => {
+    // Restyled to the design system in the merge with main, but the logic —
+    // the members-only gate, required answers, stock and per-buyer limits — is
+    // theirs, and the page only composes them.
     for (const component of [
       "AddToCartClient",
       "ProductOptionsClient",
       "MemberCalloutClient",
+      "ProductCustomFieldsProvider",
     ]) {
       expect(detailSource).toContain(component);
     }
+    // Main moved the questions to `product_custom_fields`; nothing ever wrote
+    // `metadata.product_options`.
+    expect(detailSource).toContain("toProductCustomFields");
+    expect(detailSource).not.toContain("product_options");
     // The redesigned product page must not define its own cart behaviour.
     expect(detailSource).not.toContain("useCart");
     expect(detailSource).not.toContain("addItem");

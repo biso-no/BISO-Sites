@@ -21,7 +21,7 @@ export function CampusSelectorInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["switcher", "cards"] as const).map((v) => (
             <button
-              className={`pe-variant${mode === v ? "on" : ""}`}
+              className={`pe-variant ${mode === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("mode", v)}
               type="button"

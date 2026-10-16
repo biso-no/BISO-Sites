@@ -31,7 +31,8 @@ import { campusSwitchHref } from "@/lib/campus-scope";
  * `/campus/<slug>`, which turned the site's primary filter into a menu of
  * destinations: choosing Bergen from `/events` answered "show me Bergen" by
  * leaving the events feed. The way to a campus's own page is the Campus column
- * of the "For students" panel, which leads with the active one.
+ * of the "For students" panel, which links the active one. This is also the
+ * one place to change campus: the menus no longer list the campuses.
  *
  * Each option is still a real `<Link>`, because the filter belongs in the URL:
  * `/events?campus=bergen` is shareable, back undoes the switch, and a crawler

@@ -9,12 +9,15 @@ BISO has student organisations on each BI campus (Oslo, Bergen, Trondheim, Stava
 
 ## Campus landing page
 
-`/campus` is the main campus overview page. It shows a lot in one place:
+Since October 2026 the **front page** is the campus overview: once a visitor has picked a campus with the sun switcher in the header, `/` shows that campus's hero, a short intro with the campus's focus areas and three live counts, the campus leadership (the management unit's board from Microsoft 365, with the `campus_data` board as fallback), upcoming events, news, open roles and the unit grid, then membership and partners. With no campus picked it shows everything, and the national Operations Unit as the leadership. The old explainer video is gone.
+
+`/campus` keeps the campus-specific tabs that are not on the front page: **For students**, **For businesses** and **Management**. Its old overview tab was removed because it duplicated the front page, and the campus list was removed from the For students menu: the sun switcher is the one place to change campus.
+
+The campus page's tabs read these fields:
 
 | Section | What's in it |
 |---------|-------------|
 | Hero | Campus name, tagline, hero image. |
-| Focus areas | High-level pillars the campus emphasises this year. |
 | Services | What BISO offers students at this campus. |
 | Student benefits | Concrete perks for being a member. |
 | Career advantages | Why employers care about BISO involvement. |
@@ -28,9 +31,7 @@ All of this is driven by a single `campus_data` row per campus. The relevant fie
 
 ### Board members
 
-Board member photos and titles aren't stored in Appwrite directly. They're fetched on demand via the Appwrite function `get_board_members`. That function pulls fresh data from BISO's source of truth so a leadership change is reflected automatically the next time the page renders.
-
-The function ID is configured by the env var `APPWRITE_CAMPUS_BOARD_FUNCTION_ID`. See [Operations → Environment variables](/docs/operations/environment-variables) for env management.
+Board member names, roles, photos and contact details are not stored in Appwrite. They come from Microsoft 365 through `apps/api`'s `/api/campus/{campusId}/{departmentId}/board`, where `departmentId` is the campus's management unit (`MANAGEMENT_DEPARTMENT_IDS` in `apps/web/src/lib/campus-leadership.ts`). The campus page's Management tab fetches it in the browser; the front page reads it on the server through `cachedUnitBoard`, cached for hours, so an election shows up within the day. The `campus_data.departmentBoard` relationship is a legacy fallback the Management tab still reads when the directory is unavailable.
 
 ### Live transit departures
 
@@ -55,6 +56,19 @@ Department detail pages show:
 - Contact info.
 
 The data lives in the `departments` table, with related rows in `events`, `news`, and team membership tables.
+
+## Projects
+
+A flagship project such as Fadderullan or Karrieredagene is not one organisation: each campus has its own unit of that name, with its own board, page and events. The public project page is a **hub** assembled from those units.
+
+| Route | Shows |
+|-------|-------|
+| `/projects` | The flagship projects and any `large_event` rows. |
+| `/projects/[slug]` | The project's own copy plus one card per campus team: crest, summary, the next three published events, and a link to the team's unit page. |
+
+Which unit runs which project is the map in `packages/shared/utils/project-units.ts` (`PROJECT_UNIT_SLUGS`): the hub route on one side, the unit's `departments.slug` on the other. The match is exact, so a sub-unit like `karrieredagene-marketing` never stands in for Karrieredagene. Winter Games maps to the single national `wintergames` unit. A hub renders only when the project has copy in the `projectDetail` message bundle or a `large_event` row; Bergensbaneløpet has neither yet, so `/projects/bergensbanelopet` is a 404 and the menu links to its unit page directly.
+
+The **Projects** menu reacts to the visitor's selected campus. The flagship hubs are always listed. Below them, with a campus selected, come that campus's project units plus the national ones; with no campus selected, every project unit labelled with its campus, except a hub project that runs on several campuses (Fadderullan, Karrieredagene), which is reached through its hub instead, so the menu never shows four entries named Fadderullan. The campus choice is remembered in the browser, and "all campuses" counts as a choice. A unit counts as a project when its category is `project` **or** its slug is in the map — only some campuses set the category, so the map carries the rest. Admins fix a missing entry by setting the unit's category to Project in the admin app.
 
 ## Why the split between campus and departments matters
 

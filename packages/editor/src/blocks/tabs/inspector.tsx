@@ -27,7 +27,7 @@ export function TabsInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["pills", "underline", "cards"] as const).map((v) => (
             <button
-              className={`pe-variant${variant === v ? "on" : ""}`}
+              className={`pe-variant ${variant === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"

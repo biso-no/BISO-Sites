@@ -24,6 +24,11 @@ interface AppwriteService {
   };
 }
 
+vi.mock("next/headers", () => ({
+  cookies: () => Promise.resolve({ get: () => undefined }),
+  headers: () => Promise.resolve(new Headers()),
+}));
+
 const TEST_PROJECT_ID = "test-project";
 const TEST_API_KEY = "test-api-key";
 
@@ -69,6 +74,86 @@ async function createSlowServer(delayMs: number) {
   };
 }
 
+async function createStatusServer(status: number) {
+  const server = createServer((_request, response) => {
+    response.writeHead(status, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({ code: status, message: `status ${status}`, type: "x" })
+    );
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Expected local HTTP server address");
+  }
+
+  return {
+    endpoint: `http://127.0.0.1:${address.port}/v1`,
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      }),
+  };
+}
+
+async function createRowServer() {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        $id: "user-1",
+        $permissions: [],
+        $sequence: 1,
+        name: "Ada",
+      })
+    );
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Expected local HTTP server address");
+  }
+  return {
+    endpoint: `http://127.0.0.1:${address.port}/v1`,
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      }),
+  };
+}
+
+describe("createSessionJwt", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  test("returns null when Appwrite answers 401 (no session)", async () => {
+    const server = await createStatusServer(401);
+    try {
+      const { createSessionJwt } = await loadServerModule(server.endpoint);
+      await expect(createSessionJwt()).resolves.toBeNull();
+    } finally {
+      await server.close();
+    }
+  });
+
+  test("throws when Appwrite fails for any other reason", async () => {
+    const server = await createStatusServer(503);
+    try {
+      const { createSessionJwt } = await loadServerModule(server.endpoint);
+      await expect(createSessionJwt()).rejects.toMatchObject({ code: 503 });
+    } finally {
+      await server.close();
+    }
+  });
+});
+
 describe("server Appwrite clients", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -77,6 +162,22 @@ describe("server Appwrite clients", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+  });
+
+  test("read the API key when the client is created, not at module load", async () => {
+    // An Appwrite Function only learns its runtime key per execution (the
+    // x-appwrite-key header), after this module has already been imported.
+    const { createAdminClient } = await loadServerModule(
+      "https://appwrite.example.test/v1"
+    );
+    vi.stubEnv("APPWRITE_API_KEY", "");
+    vi.stubEnv("APPWRITE_FUNCTION_API_KEY", "runtime-key");
+
+    const admin = await createAdminClient();
+    const { client } = admin.account as AppwriteService & {
+      client: { headers: Record<string, string> };
+    };
+    expect(client.headers["X-Appwrite-Key"]).toBe("runtime-key");
   });
 
   test("reuse the same transport while giving each request its own deadline signal", async () => {
@@ -116,10 +217,45 @@ describe("server Appwrite clients", () => {
         client.call("GET", new URL(`${slowServer.endpoint}/ping`))
       ).rejects.toMatchObject({
         code: 504,
+        message: "Appwrite request timed out after 20ms (admin GET /ping)",
         type: "appwrite_timeout",
       });
     } finally {
       await slowServer.close();
+    }
+  });
+});
+
+describe("plain row results", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  // A server action that returns the row it wrote (updateProfile does) hands
+  // the result to a Client Component. The SDK's response objects carry a
+  // non-cloneable serializer property, which Next.js refuses with "Only plain
+  // objects … can be passed to Client Components". Reads were already
+  // wrapped; writes must be too.
+  test.each([
+    "createRow",
+    "updateRow",
+    "upsertRow",
+  ] as const)("%s answers with a plain, cloneable object", async (method) => {
+    const rowServer = await createRowServer();
+    try {
+      const { createAdminClient } = await loadServerModule(rowServer.endpoint);
+      const { db } = await createAdminClient();
+
+      const row = await db[method]("app", "user", "user-1", { name: "Ada" });
+
+      expect(Object.getPrototypeOf(row)).toBe(Object.prototype);
+      expect(Object.values(row).some((v) => typeof v === "function")).toBe(
+        false
+      );
+      expect(() => structuredClone(row)).not.toThrow();
+      expect(row).toMatchObject({ $id: "user-1", name: "Ada" });
+    } finally {
+      await rowServer.close();
     }
   });
 });

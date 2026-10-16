@@ -1,7 +1,7 @@
 # Action required — the work only you can do
 
 **The code is finished.** All 34 packages of the `apps/web` redesign are done,
-`main` is deployable, and nothing below blocks shipping. Everything here needs
+`main` was merged in on 2026-10-15 (every page is on the redesign), the branch is deployable, and nothing below blocks shipping. Everything here needs
 something I could not supply: BISO's own content, a schema change, an
 external console, or a decision that is yours.
 
@@ -16,6 +16,7 @@ you are not surprised by it later.
 | §4 | Decisions | 5 | Judgement |
 | §5 | Known issues being carried deliberately | 4 | None — read only |
 | §6 | Cleanup from my testing | 3 | Two minutes |
+| §7 | Raised by the `main` merge | 6 | Mixed — see each row |
 
 Every `PLACEHOLDER-###` below is also an inline comment at the exact place in the
 code it affects, so `grep -rn "PLACEHOLDER-009" apps/web/src` takes you straight
@@ -60,7 +61,7 @@ Until then the corresponding UI is deliberately absent, not broken.
 | **PLACEHOLDER-002** | `workload_pct: integer?` | `jobs` | The "20% / 15% / 10%" workload badge on job cards |
 | **PLACEHOLDER-003** | `category` enum | `news` | News category pills. Mirror the 8-value `EventsCategory` that already exists. Today `News` has only `metadata: string[]`, untyped and unvalidated |
 | **PLACEHOLDER-007** | `email` | `department_board` | The email icon on contact cards. `Campus.email` works as a fallback, or link to `/contact` instead |
-| — | `paid_at: datetime?` | `orders` | **A membership invoice booking into the wrong half-year.** The 24SO accrual period is derived from `orders.$createdAt`, but `createOrder` runs *before* the payment session, so that timestamp marks when checkout opened, not when it was paid. A session opened just before midnight on 30 June and paid just after books into the spring half. Once the column exists, write it in `applyOrderStatusTransition` on the PAID/AUTHORIZED transition and prefer it in `accrualDateFor` — the code already takes an optional timestamp for exactly this. Found in PR review; the window is minutes, twice a year |
+| — | ~~`paid_at: datetime?`~~ | `orders` | **No longer needed (2026-10-15).** This was the residual of the redesign's accrual-from-purchase-date fix. The merge with `main` reverted that fix: main's 24SO catalog sells one plan per season (and next season's in June and December), so the plan's own start date is the correct accrual date and the purchase moment no longer matters |
 
 ---
 
@@ -69,7 +70,7 @@ Until then the corresponding UI is deliberately absent, not broken.
 | ID | Needed | Why I stopped |
 |---|---|---|
 | **PLACEHOLDER-001** | **The BISO logo and chevron as SVG** | Only a PNG exists, in four variants. This blocks a crisp header lockup and the decorative marks in `<ChevronFrame>`. The highest-leverage single asset on this list |
-| **PLACEHOLDER-008** | **The alumni site URL** | `/about/alumni`'s CTA reads "Go to Alumni site" — it always meant an *external* site, and no such URL exists anywhere in the repo. The button is withheld rather than pointed at a guess |
+| **PLACEHOLDER-008** | **The alumni site URL** | The alumni section of `/about` (formerly `/about/alumni`) has a "Go to Alumni site" CTA — it always meant an *external* site, and no such URL exists anywhere in the repo. `main`'s merged page pointed it at `/alumni`, which is not a route either. The button is withheld rather than pointed at a guess |
 | **PLACEHOLDER-012** | **A Norwegian privacy statement** | `/privacy` is **English only**. The `privacy` message namespace holds a *different*, shorter five-section summary in both locales; substituting it would publish a weaker policy than the one BISO wrote, so I did not. Its "Last updated: December 2024" is kept verbatim — restamping it would assert a review that has not happened |
 | — | **Five Norwegian document-category labels** | `documents.categories.*`. "Lokale vedtekter" and "Næringslivsreglement" are *my* rendering of BISO's own governing-document names, not BISO's. **The keys on this list most worth a human check** — `packages/i18n/messages/no.ts` |
 | — | **Norwegian phrasing for `students.*` when a campus is named** | `students.hero.title`, `hero.badge`, `units.title` and `benefits.subtitle` all interpolate `på {campus}`. That is correct for the default — "på alle campus" — and wrong for a city: `/students?campus=bergen` renders "Alt du trenger for å trives **på Bergen**". Norwegian wants *i Bergen* or *på campus Bergen*, and neither substitutes cleanly into the "alle campus" case, so this is a copy decision rather than a find-and-replace. Pre-existing — the page has always taken the campus from the cookie — but far easier to hit now that the switcher puts the campus in the URL. `packages/i18n/messages/no/students.json` |
@@ -83,7 +84,7 @@ Until then the corresponding UI is deliberately absent, not broken.
 |---|---|---|
 | **Header search** (PLACEHOLDER-006) | There is **no search anywhere in `apps/web`**. Build it as its own work package, or leave the icon out | Leave it out until it is real. A decorative search field that does nothing is worse than none |
 | **Notification bar** (PLACEHOLDER-005) | No push infrastructure exists. Omit, or repurpose the slot for a real announcement | Repurpose it if you have announcements worth the space; otherwise omit |
-| **Museo Sans 900** (GATE-2) | The redesign ships Archivo 800–900. If BISO holds a **web** licence for Museo Sans 900, that is the brand-correct display face | Swapping back is two lines: `apps/web/src/app/fonts.ts` and the `--font-biso-display` line in `packages/ui/styles/biso-surface.css`. Worth checking the licence |
+| ~~**Museo Sans 900** (GATE-2)~~ | **Resolved 2026-10-15.** The Branding Committee supplied Museo Slab 700/900 and Museo Sans 700; the site now sets display type in Museo Slab and body in Museo Sans | One follow-up: the four faces ship as `.otf` (~220 KB, all preloaded). Converting them to subsetted `.woff2` would cut most of that, but `apps/web/CLAUDE.md` lists font binaries as do-not-touch, so it needs your go-ahead |
 | **`/units?campus=` and `/shop?campus=` in the sitemap** | Both scope server-side now and both are absent from `sitemap.xml`, unlike `/events`, `/news` and `/jobs` | Leave them out. All 141 `/units/<campus>/<slug>` pages are already listed — that is the campus content a crawler wants — and the filtered index would add five near-duplicates. Both now carry a canonical pointing at the unscoped URL either way |
 | **`packages/api/file.ts`** | It was deleted in the working tree, **not by me** — a one-line `export { InputFile } from "node-appwrite/file"` that five call sites across both apps import. `node-appwrite@28` still exports `./file`, so I restored it | Keep it. If the deletion was deliberate, `git rm packages/api/file.ts` and fix the five importers |
 
@@ -119,7 +120,7 @@ performance item left in `apps/web`**. The fix is to pass the provider only the
 namespaces a page's client components actually read. It needs nothing from this
 redesign.
 
-**The desktop header bar has 4px of gutter left, not 32.** Measured at its
+**The desktop header bar has 4px of gutter left, not 32.** *(2026-10-15: largely handled — the merge brought main's overflow "…" menu into the redesign header, so Business, Shop and News fold into it, in that order, when the row runs out of room. The measurement below describes the bar before that.)* Measured at its
 1340px breakpoint: logo 161 + menu 516 + utilities 595 + two 16px gaps = 1304
 inside a 1276 content box, so the row eats 28 of its own 32px right gutter.
 Nothing clips, nothing overflows and no control is off-screen — it just has no
@@ -153,6 +154,22 @@ I never typed the password you gave me into a login form — sessions were minte
 server-side with the admin key instead. No magic-link email was sent, and OAuth
 providers were verified with external requests stubbed locally, so Google,
 Facebook and Apple were never contacted.
+
+---
+
+## §7 · Raised by the `main` merge (2026-10-15)
+
+None of these block shipping. Each was found while reconciling the two
+branches and left as is because it is a product decision or predates both.
+
+| Item | What | Suggested next step |
+|---|---|---|
+| **"Export data" on `/profile` is a stub** | On both branches the button waits 1.5 s and tells the user their data will be emailed within 30 days — nothing is sent. GDPR access requests are real obligations | Wire it to a real request (an email to the privacy contact, or an admin queue), or remove the button and point to the contact address in the privacy policy |
+| **Membership copy states a price** | `membership.json`'s FAQ and CTA copy still says "NOK 550" while the page's plans and prices come from the 24SO catalog | Remove the figure from the copy, or let it be interpolated from the catalog |
+| **Feed totals can be the whole table** | `main` notes (`countRows` in `lib/data/queries.ts`) that Appwrite's `listRows().total` now reports the table size, not the filtered count. The events and jobs feeds guard the display (a short page ends the list and is the count), but a full first page still shows Appwrite's figure | Count with `countRows` inside `queryEvents` / `listJobs` |
+| **Some readers still turn failures into empty lists** | `listProducts`, `getProductDetailBySlug`, `listJobs` and `listJobFacets` return `[]`/`null` on any error, which #77 set out to stop: an outage shows an empty shop or a 404 | Let them throw and catch at the call site, as `lib/data/units.ts` does |
+| **`/students` benefits** | The section is omitted when the campus has no benefit rows, instead of main's "will be published soon" placeholder (spec §6 rule) | Write the `campus_benefits` rows, or decide you want the placeholder back |
+| **`@repo/editor` type-check** | `src/lib/sanitize.test.ts` imports `happy-dom`, which no `package.json` declares — fails on `main` too | Add `happy-dom` as a dev dependency of `packages/editor` |
 
 ---
 

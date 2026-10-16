@@ -29,7 +29,7 @@ describe("computeRetentionStopAt", () => {
 });
 
 describe("resetUserMfaMethods", () => {
-  test("removes every non-password method and reports the types", async () => {
+  test("removes every removable method and reports the types", async () => {
     const deleted: string[] = [];
     const graph = {
       listAuthenticationMethods: mock(() =>
@@ -38,17 +38,28 @@ describe("resetUserMfaMethods", () => {
             id: "m1",
             odataType:
               "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod",
-            type: "authenticator",
+            removable: true,
+            type: "microsoftAuthenticatorAuthenticationMethod",
           },
           {
             id: "m2",
             odataType: "#microsoft.graph.passwordAuthenticationMethod",
-            type: "password",
+            removable: false,
+            type: "passwordAuthenticationMethod",
           },
           {
             id: "m3",
             odataType: "#microsoft.graph.phoneAuthenticationMethod",
-            type: "phone",
+            removable: true,
+            type: "phoneAuthenticationMethod",
+          },
+          // The method that used to abort the whole sweep with
+          // "Unsupported authentication method type".
+          {
+            id: "m4",
+            odataType: "#microsoft.graph.emailAuthenticationMethod",
+            removable: true,
+            type: "emailAuthenticationMethod",
           },
         ])
       ),
@@ -60,9 +71,57 @@ describe("resetUserMfaMethods", () => {
 
     const result = await resetUserMfaMethods(graph, "user-1");
 
-    expect(result.removedCount).toBe(2);
-    expect(result.removedTypes).toEqual(["authenticator", "phone"]);
-    expect(deleted).toEqual(["m1", "m3"]);
+    expect(result.removedCount).toBe(3);
+    expect(result.removedTypes).toEqual([
+      "microsoftAuthenticatorAuthenticationMethod",
+      "phoneAuthenticationMethod",
+      "emailAuthenticationMethod",
+    ]);
+    expect(result.failures).toEqual([]);
+    expect(result.skippedTypes).toEqual(["passwordAuthenticationMethod"]);
+    expect(deleted).toEqual(["m1", "m3", "m4"]);
+  });
+
+  test("keeps sweeping after a method fails and reports the failure", async () => {
+    const deleted: string[] = [];
+    const graph = {
+      listAuthenticationMethods: mock(() =>
+        Promise.resolve([
+          {
+            id: "m1",
+            odataType: "#microsoft.graph.phoneAuthenticationMethod",
+            removable: true,
+            type: "phoneAuthenticationMethod",
+          },
+          {
+            id: "m2",
+            odataType:
+              "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod",
+            removable: true,
+            type: "microsoftAuthenticatorAuthenticationMethod",
+          },
+        ])
+      ),
+      deleteAuthenticationMethod: mock((_u: string, id: string) => {
+        if (id === "m1") {
+          return Promise.reject(new Error("Graph said no"));
+        }
+        deleted.push(id);
+        return Promise.resolve();
+      }),
+    } as never;
+
+    const result = await resetUserMfaMethods(graph, "user-1");
+
+    // The Authenticator is still removed even though the phone method failed.
+    expect(deleted).toEqual(["m2"]);
+    expect(result.removedCount).toBe(1);
+    expect(result.removedTypes).toEqual([
+      "microsoftAuthenticatorAuthenticationMethod",
+    ]);
+    expect(result.failures).toEqual([
+      { type: "phoneAuthenticationMethod", error: "Graph said no" },
+    ]);
   });
 });
 

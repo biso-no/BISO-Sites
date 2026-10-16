@@ -50,7 +50,10 @@ export interface DbClient {
 
 function buildStoredOrderItems(
   orderId: string,
-  items: CheckoutSessionParams["items"]
+  items: CheckoutSessionParams["items"],
+  /** Stamped on each nested answer row; `order_item_field_answers` has row
+   * security on, so without it the buyer cannot read their own answers back. */
+  answerPermissions: string[]
 ) {
   return items.map((item) => {
     const {
@@ -62,17 +65,20 @@ function buildStoredOrderItems(
       ...rest
     } = item;
 
-    // Persist fulfillment metadata in the snake_case shape the order
-    // confirmation / fulfillment reader expects: `variation_name`, and
-    // `custom_fields` as a [{ id, label, value }] list merged from the
-    // id→value (`customFields`) and id→label (`customFieldLabels`) maps.
-    const customFieldList = Object.entries(customFields ?? {}).map(
-      ([id, value]) => ({
-        id,
+    // The buyer's answers become `order_item_field_answers` rows, written as
+    // nested children of the line so a line and its answers land together.
+    // `label` is stored alongside the key because an order is a historical
+    // record: the question may later be relabelled or deleted, and the receipt
+    // must still show what was actually asked.
+    const fieldAnswers = Object.entries(customFields ?? {})
+      .filter(([, value]) => value?.trim())
+      .map(([id, value], sortOrder) => ({
+        $permissions: answerPermissions,
+        field_key: id,
         label: customFieldLabels?.[id] ?? id,
+        sort_order: sortOrder,
         value,
-      })
-    );
+      }));
     const unitPrice = Number(rest.unit_price ?? rest.price ?? 0);
     const displayName =
       rest.title ??
@@ -81,9 +87,15 @@ function buildStoredOrderItems(
     return {
       accrual_months: rest.accrual_months ?? null,
       category_id: rest.category_id ?? null,
-      custom_fields_json:
-        customFieldList.length > 0 ? JSON.stringify(customFieldList) : null,
       duration: rest.duration ?? null,
+      // Snapshotted at sale time. A product's `finago_account_number` is
+      // editable, so resolving it from the product row at refund time could
+      // debit an account the original sale never credited — leaving revenue
+      // stranded on one account while reducing an unrelated one.
+      finago_account_number: rest.finago_account_number ?? null,
+      finago_department: rest.finago_department ?? null,
+      finago_vat_code: rest.finago_vat_code ?? null,
+      field_answers: fieldAnswers,
       line_total: unitPrice * rest.quantity,
       membership_id: rest.membership_id ?? null,
       name: displayName,
@@ -150,7 +162,11 @@ export async function createOrder(
     orderCreated = true;
 
     const itemPermissions = buildOrderPermissions(params.userId);
-    for (const item of buildStoredOrderItems(orderId, params.items)) {
+    for (const item of buildStoredOrderItems(
+      orderId,
+      params.items,
+      itemPermissions
+    )) {
       await databases.createRow(
         process.env.APPWRITE_DATABASE_ID ?? "app",
         process.env.APPWRITE_ORDER_ITEMS_COLLECTION_ID ?? "order_items",
@@ -253,6 +269,15 @@ function isStaleBackwardTransition(
   if (settledOrTerminal && PRE_SETTLEMENT_STATUSES.includes(newStatus)) {
     return true;
   }
+  // REFUNDED is terminal. The provider's own session/payment stays "paid"
+  // after a refund — Stripe's Checkout Session is never rewritten — so a
+  // retried webhook or a second visit to the return URL maps the order back to
+  // PAID and silently erases the refund, putting the money back on the books
+  // and back into purchase-limit counting.
+  if (oldStatus === OrdersStatus.REFUNDED && newStatus === OrdersStatus.PAID) {
+    return true;
+  }
+
   // A real cancellation moves to CANCELLED, never back to PENDING — so an
   // authorized order regressing to pending is always a stale event.
   return (

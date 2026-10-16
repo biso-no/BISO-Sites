@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveAccrualMonths,
+  describeMembershipTerm,
   MEMBERSHIP_DIMENSION_IDS,
   MEMBERSHIP_DIMENSION_LABELS,
-  membershipAccrualStart,
   toMembershipPlan,
 } from "./membership-plans";
 
@@ -35,6 +35,12 @@ describe("deriveAccrualMonths", () => {
     expect(deriveAccrualMonths("2026-08-01", "2027-06-30")).toBe(12);
   });
 
+  it("reads DD.MM.YYYY dates", () => {
+    expect(deriveAccrualMonths("01.07.2026", "31.12.2026")).toBe(6);
+    expect(deriveAccrualMonths("01.07.2026", "01.07.2027")).toBe(12);
+    expect(deriveAccrualMonths("01.07.2026", "01.07.2029")).toBe(36);
+  });
+
   it("maps a three year span to 36", () => {
     expect(deriveAccrualMonths("2026-08-01", "2029-06-30")).toBe(36);
   });
@@ -62,6 +68,18 @@ describe("deriveAccrualMonths", () => {
 });
 
 describe("toMembershipPlan", () => {
+  it("hands DD.MM.YYYY row dates on as YYYY-MM-DD", () => {
+    expect(
+      toMembershipPlan(
+        row({ startDate: "01.07.2026", expiryDate: "31.12.2026" })
+      )
+    ).toMatchObject({
+      accrualMonths: 6,
+      expiryDate: "2026-12-31",
+      startDate: "2026-07-01",
+    });
+  });
+
   it("maps a semester row", () => {
     expect(toMembershipPlan(row())).toEqual({
       id: "54",
@@ -124,84 +142,39 @@ describe("toMembershipPlan", () => {
   });
 });
 
-describe("membership dates as 24SevenOffice actually stores them", () => {
-  // Every fixture above is ISO, which is why this went unnoticed: the live
-  // `memberships` rows are `DD.MM.YYYY` — "01.07.2026", "31.12.2026". `new
-  // Date()` does not understand that format, so the Semester plan's expiry
-  // parsed as Invalid Date and the plan was dropped from the catalogue
-  // entirely. The 350 kr membership could not be bought.
-  it("parses the DD.MM.YYYY the catalogue is synced with", () => {
-    expect(deriveAccrualMonths("01.07.2026", "31.12.2026")).toBe(6);
-    expect(deriveAccrualMonths("01.07.2026", "01.07.2027")).toBe(12);
-    expect(deriveAccrualMonths("01.07.2026", "01.07.2029")).toBe(36);
+describe("describeMembershipTerm", () => {
+  it("describes a fall semester", () => {
+    expect(describeMembershipTerm("01.07.2026", "31.12.2026")).toEqual({
+      duration: "semester",
+      fromYear: 2026,
+      season: "fall",
+      toYear: 2026,
+    });
   });
 
-  it("keeps the Semester plan in the catalogue", () => {
-    const plan = toMembershipPlan(
-      row({
-        name: "Semester",
-        startDate: "01.07.2026",
-        expiryDate: "31.12.2026",
-      })
-    );
-    expect(plan).not.toBeNull();
-    expect(plan?.accrualMonths).toBe(6);
-    expect(plan?.duration).toBe("semester");
+  it("describes a spring semester", () => {
+    expect(describeMembershipTerm("2027-01-01", "2027-06-30")).toEqual({
+      duration: "semester",
+      fromYear: 2027,
+      season: "spring",
+      toYear: 2027,
+    });
   });
 
-  it("does not read a day over 12 as a month", () => {
-    // The two surviving plans only worked by accident: "01.07.20XX" was being
-    // misread as *January 7* on both sides, so the difference happened to be
-    // right. A day past the 12th has no such luck.
-    expect(deriveAccrualMonths("13.07.2026", "13.01.2027")).toBe(6);
-    expect(deriveAccrualMonths("31.12.2026", "30.06.2027")).toBe(6);
+  it("describes multi-semester terms by year span without a season", () => {
+    expect(describeMembershipTerm("01.07.2026", "01.07.2027")).toEqual({
+      duration: "year",
+      fromYear: 2026,
+      season: null,
+      toYear: 2027,
+    });
+    expect(describeMembershipTerm("01.07.2026", "01.07.2029")).toMatchObject({
+      duration: "three_years",
+      toYear: 2029,
+    });
   });
 
-  it("still rejects what is genuinely not a date", () => {
-    expect(deriveAccrualMonths("not-a-date", "31.12.2026")).toBeNull();
-    expect(deriveAccrualMonths("01.07.2026", "")).toBeNull();
-    expect(deriveAccrualMonths("31.02.2026", "31.12.2026")).toBeNull();
-    expect(deriveAccrualMonths("01.13.2026", "31.12.2026")).toBeNull();
-  });
-});
-
-describe("membershipAccrualStart", () => {
-  // The accrual period a membership is booked into starts at the half-year
-  // boundary containing the purchase: buy in the summer half and it accrues
-  // from 1 July; buy in the spring half and it accrues from 1 January.
-  it("books a purchase in the first half of the year from 1 January", () => {
-    for (const on of ["2027-01-01", "2027-02-14", "2027-06-30"]) {
-      expect(membershipAccrualStart(on), on).toBe("2027-01-01");
-    }
-  });
-
-  it("books a purchase in the second half of the year from 1 July", () => {
-    for (const on of ["2026-07-01", "2026-08-12", "2026-12-31"]) {
-      expect(membershipAccrualStart(on), on).toBe("2026-07-01");
-    }
-  });
-
-  it("reads the boundary in UTC, not the server's timezone", () => {
-    // 30 June 23:00 UTC is 1 July in Oslo. The accounting period must not
-    // depend on where the fulfilment host happens to run.
-    expect(membershipAccrualStart(new Date("2026-06-30T23:00:00Z"))).toBe(
-      "2026-01-01"
-    );
-    expect(membershipAccrualStart(new Date("2026-07-01T00:00:00Z"))).toBe(
-      "2026-07-01"
-    );
-  });
-
-  it("is idempotent — an accrual start maps to itself", () => {
-    // Relied on by the invoice builder to tell a snapshot written by checkout
-    // from a legacy catalogue date.
-    expect(membershipAccrualStart("2026-07-01")).toBe("2026-07-01");
-    expect(membershipAccrualStart("2027-01-01")).toBe("2027-01-01");
-  });
-
-  it("returns null for something it cannot read", () => {
-    expect(membershipAccrualStart("01.07.2026")).toBe("2026-07-01");
-    expect(membershipAccrualStart("not-a-date")).toBeNull();
-    expect(membershipAccrualStart("")).toBeNull();
+  it("returns null for unreadable dates", () => {
+    expect(describeMembershipTerm("soon", "2026-12-31")).toBeNull();
   });
 });

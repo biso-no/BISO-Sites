@@ -1,21 +1,19 @@
-import type { Metadata } from "next";
-import { archivo, inter } from "./fonts";
-import Providers from "./providers";
+import { getLocale } from "@/app/actions/locale";
 import "@/app/styles.css";
+import type { Metadata } from "next";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
-import { getLocale } from "@/app/actions/locale";
-import { AccountLinkSessionCleanup } from "@/components/account-link-session-cleanup";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
+import { BiSignInNotice } from "@/components/bi-sign-in-notice";
+import { inter, museoSans, museoSlab } from "./fonts";
+import Providers from "./providers";
 export const metadata: Metadata = {
   title: "BI Student Organisation",
   description:
     "BISO is the student organisation at BI Norwegian Business School — events, volunteer roles, student benefits and campus life across Oslo, Bergen, Trondheim and Stavanger.",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL ?? "https://web.biso.no"
-  ),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no"),
   icons: {
     icon: [{ url: "/favico.png" }, { url: "/favico.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
@@ -49,7 +47,7 @@ export default async function RootLayout({
     // the same page. apps/admin mounts only `biso-surface` and is unaffected.
     // RD-030 drops the legacy class once nothing reads its tokens.
     <html
-      className={`${archivo.variable} ${inter.variable} biso-surface biso-surface-v2`}
+      className={`${museoSans.variable} ${museoSlab.variable} ${inter.variable} biso-surface biso-surface-v2`}
       lang={locale}
       suppressHydrationWarning
     >
@@ -65,14 +63,14 @@ export default async function RootLayout({
                 (public) and (protected), (auth)/layout.tsx for the login tree,
                 and not-found/unauthorized supply their own. */}
             <AnalyticsTracker locale={locale} />
-            {/* Reads `?linked=1`, so it needs a Suspense boundary — this
+            {/* Reads `?link_error=`, so it needs a Suspense boundary — this
                 layout is not force-dynamic. Renders nothing either way. */}
             <Suspense fallback={null}>
-              <AccountLinkSessionCleanup />
+              <BiSignInNotice />
             </Suspense>
             {children}
             <Script
-              data-domains="web.biso.no,biso.no,www.biso.no"
+              data-domains="biso.no,www.biso.no"
               data-performance="true"
               data-website-id="ada2c233-ee4f-4064-87c0-feaeb52c56ce"
               defer

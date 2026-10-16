@@ -129,7 +129,7 @@ Measured from `1.png`: hero cap-height 56px with 66px baseline-to-baseline
 
 | Role | Size | Weight | Line-height | Tracking | Case |
 |---|---|---|---|---|---|
-| `display-hero` | `clamp(2.5rem, 7vw, 5rem)` | 900 | **0.85** | `-0.02em` | UPPER |
+| `display-hero` | `clamp(2.125rem, 5.5vw, 4rem)` | 900 | **0.85** | `-0.02em` | UPPER |
 | `display-lg` | `clamp(2rem, 5vw, 3.5rem)` | 900 | 0.9 | `-0.015em` | UPPER |
 | `display-sm` | `clamp(1.5rem, 3vw, 2.25rem)` | 800 | 0.95 | `-0.01em` | UPPER |
 | `heading-section` | `1.125rem` | 800 | 1.2 | `0.04em` | UPPER |
@@ -150,6 +150,14 @@ which need `font-variant-numeric: tabular-nums` so columns align.
 > set `hyphens: auto` (which uses the `lang` on `<html>`) and
 > `overflow-wrap: break-word`, and the hero cap dropped to 5rem so the
 > treatment does not depend on hyphenation to fit.
+
+> **Re-measured 2026-10-15 for Museo Slab.** The display face became the
+> brand's Museo Slab 900 (Branding Committee). It is wider than Archivo:
+> "STUDENTSTEMME" sets at 9.5em, about 15ch of its own "0", so the home hero
+> (capped at 12ch) broke it mid-letter at every width. The hero now caps at
+> 16ch and sizes `clamp(2.125rem, 5.5vw, 4rem)`, measured to fit that word in
+> the hero column from 375px to 1920px; the tightest points are 375px and
+> 1024px, where the two-column hero begins.
 
 **Measure:** `--measure: 54ch` on every prose container, replacing the 51 uses
 of `max-w-4xl` (≈100ch) found in Phase 0.
@@ -736,6 +744,11 @@ Against the 139-component Phase 0 inventory.
 **`expense-v3/*` is kept untouched** — 2,711 LOC behind a feature flag, reached
 only from the account menu, zero design value in migrating it. It inherits the
 new tokens automatically. Flagged as an explicit scope exclusion.
+
+> **Amended at the main → redesign merge (RD-036):** the exclusion is lifted.
+> Every page of `apps/web` is on the redesign, so the reimbursement composer was
+> restyled like the rest (behaviour unchanged, strings translated), and
+> `src/app/redesign-coverage.test.ts` now scans it with everything else.
 
 ### 5.5 Deletions
 

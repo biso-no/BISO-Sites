@@ -42,5 +42,140 @@
     "success": "Reimbursed",
     "rejected": "Rejected",
     "failed": "Posting failed"
+  },
+  "composer": {
+    "title": "New reimbursement",
+    "close": "Close",
+    "campusPlaceholder": "Select campus",
+    "gate": {
+      "title": "Choose cost allocation",
+      "body": "Select campus and department before uploading receipts so AI can write a clearer accounting description.",
+      "continue": "Continue to upload"
+    },
+    "department": {
+      "placeholder": "Select department",
+      "search": "Search departments…",
+      "empty": "No department found."
+    },
+    "tabs": {
+      "receipts": "Receipts",
+      "report": "Report"
+    },
+    "backToReport": "Back to report",
+    "toast": {
+      "receiptFailed": "Failed to process receipt",
+      "statementLinked": "Bank statement linked to {name}",
+      "statementLinkedFallback": "receipt",
+      "selectBeforeUpload": "Select campus and department before uploading receipts",
+      "selectBeforeDraft": "Select campus and department before saving a draft",
+      "bankAccountBeforeDraft": "Add a bank account before saving a draft",
+      "waitBeforeSaving": "Wait for receipt processing to finish before saving",
+      "draftSaved": "Draft saved",
+      "draftFailed": "Failed to save draft",
+      "requiredFields": "Please fill in all required fields",
+      "waitBeforeSubmitting": "Wait for receipt processing to finish before submitting",
+      "submitted": "Expense submitted!",
+      "submitFailed": "Submission failed",
+      "statementAdded": "Bank statement uploaded and added to the list",
+      "statementUploaded": "Bank statement uploaded",
+      "uploadFailed": "Upload failed"
+    },
+    "report": {
+      "title": "Expense report",
+      "submitter": "Submitter",
+      "unknownUser": "Unknown user",
+      "noBankAccount": "No bank account connected",
+      "costAllocation": "Cost allocation",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description of the expenses (e.g. “Cabin trip with the unit”)…",
+      "generatingSummary": "AI is writing a summary…",
+      "financialManager": "I am the financial manager of this department",
+      "financialManagerHint": "Turn this on so the approval is routed to your department manager instead of you.",
+      "itemColumn": "Item description",
+      "empty": "No receipts added yet",
+      "processing": "Processing…",
+      "verifying": "Verifying…",
+      "statusReady": "Ready",
+      "statusProcessing": "Processing",
+      "verifiedByStatement": "Verified via bank statement",
+      "estimatedFrom": "Estimated from {currency} ({rate})",
+      "removeStatement": "Remove bank statement",
+      "uploadStatement": "Upload statement",
+      "analyzing": "Analyzing…",
+      "uploading": "Uploading…",
+      "attachedCount": "{count, plural, one {# receipt attached} other {# receipts attached}}",
+      "total": "Total reimbursement",
+      "saveDraft": "Save draft",
+      "saving": "Saving…",
+      "submit": "Submit expense",
+      "submitting": "Submitting…"
+    },
+    "preview": {
+      "title": "Receipt details",
+      "analyzing": "Analyzing receipt…",
+      "extracted": "AI extracted",
+      "imageAlt": "Receipt preview",
+      "noPreview": "No preview available",
+      "foreignTitle": "Foreign currency detected ({currency})",
+      "foreignBody": "The amount is estimated using historical rates ({rate}). Please upload a bank statement for the exact amount.",
+      "statementAttached": "Statement attached",
+      "removeStatement": "Remove",
+      "uploadStatement": "Upload bank statement",
+      "analyzingStatement": "Analyzing statement…",
+      "uploading": "Uploading…",
+      "vendor": "Vendor",
+      "unknownVendor": "Unknown vendor",
+      "amount": "Amount (NOK)",
+      "amountEstimated": "Amount (NOK, estimated)",
+      "originalAmount": "Original ({currency})",
+      "costType": "Cost type",
+      "costTypePlaceholder": "Select cost type"
+    },
+    "costTypes": {
+      "travel": "Travel",
+      "social": "Social event",
+      "academic": "Academic event",
+      "other": "Other"
+    },
+    "wallet": {
+      "title": "Receipts",
+      "count": "{count, plural, one {# item} other {# items}}",
+      "add": "Add receipts",
+      "dropzone": "Drop receipts here",
+      "scanning": "Scanning…",
+      "datePending": "Date pending",
+      "thumbnailAlt": "Receipt",
+      "remove": "Remove receipt"
+    },
+    "profile": {
+      "title": "Complete your profile",
+      "required": "The following information is required to submit expenses:",
+      "update": "Update profile",
+      "dialogBody": "Please provide the following information to submit expense reports.",
+      "cancel": "Cancel",
+      "save": "Save profile",
+      "saving": "Saving…",
+      "missing": "Please fill in: {fields}",
+      "updated": "Profile updated successfully",
+      "updateFailed": "Failed to update profile",
+      "fields": {
+        "name": "Full name",
+        "email": "Email address",
+        "phone": "Phone number",
+        "bankAccount": "Bank account number",
+        "address": "Street address",
+        "zip": "Postal code",
+        "city": "City"
+      },
+      "placeholders": {
+        "name": "Your full name",
+        "email": "your@email.com",
+        "phone": "+47 123 45 678",
+        "bankAccount": "1234 56 78901",
+        "address": "Street name 123",
+        "zip": "0123",
+        "city": "Oslo"
+      }
+    }
   }
 }

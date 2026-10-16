@@ -1,3 +1,4 @@
+import { OSLO_TIME_ZONE } from "@repo/shared/utils/oslo-time";
 import { cn } from "@repo/ui/lib/utils";
 
 const NON_DIGIT = /\D/g;
@@ -23,15 +24,21 @@ export function DateBlock({
   className,
 }: DateBlockProps) {
   const value = typeof date === "string" ? new Date(date) : date;
-  const iso = value.toISOString().slice(0, 10);
-  // Formatted in UTC, matching the `dateTime` above it. Content dates are
-  // stored as the editor's wall clock with a `+00:00` stamp (the admin studio
-  // round-trips `<input type="datetime-local">` with a plain string slice), so
-  // reading them back in the server's local zone can move an evening event to
-  // the following day. UTC prints the day that was typed, on every host.
+  // Formatted in Oslo time. Content dates are stored as UTC instants and an
+  // event's day is the day it happens in Norway (`@repo/shared/utils/oslo-time`),
+  // so a UTC reading would print the previous day for anything starting
+  // between midnight and 02:00 Oslo time. The `dateTime` attribute is the
+  // same Oslo calendar date, so the machine-readable value agrees with the
+  // printed one. `en-CA` formats as YYYY-MM-DD.
+  const iso = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: OSLO_TIME_ZONE,
+    year: "numeric",
+  }).format(value);
   const month = new Intl.DateTimeFormat(locale, {
     month: "short",
-    timeZone: "UTC",
+    timeZone: OSLO_TIME_ZONE,
   })
     .format(value)
     .replace(".", "")
@@ -40,7 +47,7 @@ export function DateBlock({
   // bare numeral, and so tabular alignment is not thrown by a trailing period.
   const day = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
-    timeZone: "UTC",
+    timeZone: OSLO_TIME_ZONE,
   })
     .format(value)
     .replace(NON_DIGIT, "");

@@ -6,7 +6,9 @@
     "subtitle": "Oppdag medlemsfordeler, verv og støtteressurser på ett sted, slik at du kan fokusere på å engasjere deg.",
     "ctaPrimary": "Bli medlem",
     "ctaSecondary": "Utforsk enheter",
-    "ctaTertiary": "Se ledige verv"
+    "ctaTertiary": "Se ledige verv",
+    "breadcrumbHome": "Hjem",
+    "breadcrumbCurrent": "For studenter"
   },
   "benefits": {
     "title": "Medlemsfordeler",
@@ -25,7 +27,8 @@
       "socialNetwork": "Studentliv og fellesskap",
       "safety": "Trygghet og støtte",
       "businessBenefits": "For partnere"
-    }
+    },
+    "empty": "Medlemsfordeler for {campus} publiseres snart."
   },
   "units": {
     "title": "Enheter og foreninger på {campus}",

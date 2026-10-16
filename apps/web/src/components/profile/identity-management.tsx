@@ -1,20 +1,10 @@
 "use client";
 
-import { clientAccount, OAuthProvider } from "@repo/api/client";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Link2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { ensureClientAppwriteSession } from "@/lib/account-link-client";
+import { Pill } from "@/components/ui/pill";
 import { removeIdentity } from "@/lib/actions/user";
 
 interface Identity {
@@ -23,6 +13,11 @@ interface Identity {
   providerUid?: string;
 }
 
+/**
+ * How the account signs in — read-only apart from removing a secondary
+ * identity. There is no "link" step any more: a BI student signs in with BI,
+ * and that sign-in attaches the BI identity to the account by itself.
+ */
 export function IdentityManagement({
   initialIdentities,
 }: {
@@ -32,16 +27,19 @@ export function IdentityManagement({
   const [identities, setIdentities] = useState<Identity[] | undefined>(
     initialIdentities
   );
-  const [isLinking, startLinkTransition] = useTransition();
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   const canRemove = (id: Identity) => {
     const provider = (id.provider || "").toLowerCase();
-    // Keep core email/magic-url intact to avoid locking user out
+    // Keep core email/magic-url intact to avoid locking user out. The BI
+    // identity is how a student signs in and what backs their membership;
+    // there is nothing to gain from removing it and no way to add it back
+    // except signing in with BI again.
     if (
       provider === "email" ||
       provider === "magic-url" ||
-      provider === "magicurl"
+      provider === "magicurl" ||
+      provider === "oidc"
     ) {
       return false;
     }
@@ -61,55 +59,12 @@ export function IdentityManagement({
       return "BI Student";
     }
     if (key === "email") {
-      return "Email";
+      return t("identities.providerEmail");
     }
     if (key === "magic-url" || key === "magicurl") {
-      return "Magic URL";
+      return t("identities.providerLoginLink");
     }
     return p;
-  };
-
-  const failureUrl = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-    return `${window.location.origin}/profile?error=oauth_failed`;
-  }, []);
-
-  const linkProvider = (provider: OAuthProvider) => {
-    startLinkTransition(async () => {
-      try {
-        // Appwrite links an identity only when it can see an active session on
-        // the OAuth navigation, and this app's server-side session is invisible
-        // to the browser's Appwrite client. Without this the redirect silently
-        // creates a second account instead of linking — see
-        // `ensureClientAppwriteSession`. Applies to every provider, not just
-        // OIDC.
-        await ensureClientAppwriteSession();
-
-        const base = window.location.origin;
-        // Only the OIDC (BI Student) provider needs the BI sync: its success
-        // URL routes through /api/auth/bi-link, which runs the sync + cache
-        // invalidation outside the render path and only then redirects back
-        // here — see that route's doc comment for why. Other providers
-        // (Microsoft/BISO) don't touch BI identity fields, so they go
-        // straight back to /profile.
-        const successUrl =
-          provider === OAuthProvider.Oidc
-            ? `${base}/api/auth/bi-link?returnTo=/profile`
-            : `${base}/profile?linked=1`;
-        await clientAccount.createOAuth2Session(
-          provider,
-          successUrl,
-          failureUrl,
-          ["openid", "email", "profile"]
-        );
-        // Browser will redirect; no-op here
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        toast.error(`Linking failed: ${message}`);
-      }
-    });
   };
 
   const onRemove = async (identity: Identity) => {
@@ -123,15 +78,15 @@ export function IdentityManagement({
         setIdentities((prev) =>
           (prev || []).filter((i) => i.$id !== identity.$id)
         );
-        toast.success("Identity removed");
+        toast.success(t("identities.removed"));
       } else {
-        toast.error("Failed to remove", {
-          description: String(res?.error || "Unknown error"),
+        toast.error(t("identities.removeFailed"), {
+          description: String(res?.error || t("identities.unknownError")),
         });
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      toast.error("Failed to remove", {
+      toast.error(t("identities.removeFailed"), {
         description: message,
       });
     } finally {
@@ -140,81 +95,45 @@ export function IdentityManagement({
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="border border-primary/10">
-        <CardHeader>
-          <CardTitle>{t("identities.heading")}</CardTitle>
-          <CardDescription>
-            Link your BISO account and your BI Student account. Linking your BI
-            Student account lets us verify your paid semester membership for
-            benefits and discounts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              className="rounded-lg"
-              disabled={isLinking}
-              onClick={() => linkProvider(OAuthProvider.Microsoft)}
-            >
-              <Link2 className="mr-2 h-4 w-4" />
-              {t("identities.linkBiso")}
-            </Button>
-            <Button
-              className="rounded-lg"
-              disabled={isLinking}
-              onClick={() => linkProvider(OAuthProvider.Oidc)}
-              variant="outline"
-            >
-              <Link2 className="mr-2 h-4 w-4" />
-              {t("identities.linkBi")}
-            </Button>
-          </div>
-          <p className="text-primary-60 text-xs">{t("identities.oauthNote")}</p>
-        </CardContent>
-      </Card>
+    <section className="rounded-biso-md border border-edge p-6">
+      <h2 className="type-heading-card text-ink">{t("identities.title")}</h2>
+      <p className="type-body-sm mt-1 mb-6 text-ink-muted">
+        {t("identities.signInBody")}
+      </p>
 
-      <Card className="border border-primary/10">
-        <CardHeader>
-          <CardTitle>{t("identities.title")}</CardTitle>
-          <CardDescription>{t("identities.body")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(identities?.length || 0) === 0 ? (
-            <div className="text-primary-60 text-sm">
-              {t("identities.empty")}
-            </div>
-          ) : (
-            identities?.map((id) => (
-              <div
-                className="flex items-center justify-between rounded-lg border border-primary/10 bg-background px-3 py-2"
-                key={id.$id}
-              >
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary">
-                    {providerLabel(id.provider)}
-                  </Badge>
-                  <div
-                    className="max-w-[28ch] truncate text-primary-80 text-sm"
-                    title={id.providerUid || id.$id}
-                  >
-                    {id.providerUid || id.$id}
-                  </div>
-                </div>
-                <Button
-                  className="text-red-600 hover:bg-red-50"
-                  disabled={!canRemove(id) || removingId === id.$id}
-                  onClick={() => onRemove(id)}
-                  size="sm"
-                  variant="ghost"
+      {(identities?.length || 0) === 0 ? (
+        <p className="type-body-sm text-ink-muted">{t("identities.empty")}</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {identities?.map((id) => (
+            <li
+              className="flex flex-wrap items-center justify-between gap-3 rounded-biso-md border border-edge px-4 py-3"
+              key={id.$id}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <Pill tone="accent">{providerLabel(id.provider)}</Pill>
+                <span
+                  className="type-body-sm max-w-[28ch] truncate text-ink-muted"
+                  title={id.providerUid || id.$id}
                 >
-                  <Trash2 className="mr-1 h-4 w-4" /> Remove
-                </Button>
+                  {id.providerUid || id.$id}
+                </span>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              {canRemove(id) ? (
+                <button
+                  className="type-label inline-flex items-center gap-1.5 rounded-biso-pill px-3 py-2 text-danger transition-colors hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-60"
+                  disabled={removingId === id.$id}
+                  onClick={() => onRemove(id)}
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" className="size-4 shrink-0" />
+                  {t("identities.remove")}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

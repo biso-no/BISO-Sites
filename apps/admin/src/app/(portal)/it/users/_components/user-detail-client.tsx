@@ -125,6 +125,7 @@ interface UserDetailClientProps {
     managerAssigned: string;
     managerRemoved: string;
     mfaReset: string;
+    mfaResetPartial: string;
     newTemporaryPassword: string;
     noAvailableLicenses: string;
     noManager: string;
@@ -426,9 +427,10 @@ export function UserDetailClient({
       sku.prepaidUnits.enabled > sku.consumedUnits
   );
 
-  const removableMfaMethods = authMethods.methods.filter(
-    (m) => m.odataType !== "#microsoft.graph.passwordAuthenticationMethod"
-  );
+  // The server decides what an MFA reset can actually delete — the password
+  // method and any type Graph exposes no DELETE route for stay listed but are
+  // not counted here.
+  const removableMfaMethods = authMethods.methods.filter((m) => m.removable);
 
   function buildProfilePayload(formData: FormData): M365UserProfileUpdateInput {
     return {
@@ -834,7 +836,14 @@ export function UserDetailClient({
             toast.error(result.error);
             return;
           }
-          toast.success(labels.mfaReset);
+          // A reset is per-method: report what is still registered rather than
+          // claiming a clean wipe.
+          const failures = result.data?.failures ?? [];
+          if (failures.length > 0) {
+            toast.error(`${labels.mfaResetPartial}: ${failures.join(" · ")}`);
+          } else {
+            toast.success(labels.mfaReset);
+          }
           router.refresh();
         });
       },

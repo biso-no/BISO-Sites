@@ -1,0 +1,341 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const account = vi.hoisted(() => ({ get: vi.fn() }));
+const getRow = vi.hoisted(() => vi.fn());
+const getMembershipStatusForStudent = vi.hoisted(() => vi.fn());
+const getMembershipOfferCandidates = vi.hoisted(() => vi.fn());
+
+vi.mock("server-only", () => ({}));
+vi.mock("@repo/connectors/24sevenoffice", () => ({
+  getCustomerCategories: vi.fn(),
+}));
+vi.mock("@/lib/auth", () => ({
+  createAuthenticatedClient: vi.fn(async () => ({ account })),
+}));
+vi.mock("@repo/api/server", () => ({
+  createAdminClient: vi.fn(async () => ({ db: { getRow } })),
+}));
+vi.mock("@/lib/membership-status-cache", () => ({
+  getMembershipStatusForStudent,
+}));
+vi.mock("@repo/shared/utils/membership-catalog", () => ({
+  getMembershipOfferCandidates,
+}));
+
+import { GET } from "./route";
+
+const PLAN = {
+  accrualMonths: 12,
+  categoryId: 113_178,
+  duration: "year",
+  expiryDate: "2027-06-30",
+  id: "71",
+  name: "BISO Membership fall 2026 and spring 2027",
+  offer: "current",
+  price: 550,
+  productId: 71,
+  startDate: "2026-07-01",
+};
+const NEXT_PLAN = {
+  ...PLAN,
+  expiryDate: "2027-12-31",
+  id: "92",
+  name: "BISO Membership spring 2027 - fall 2027",
+  offer: "next",
+  productId: 92,
+  startDate: "2027-01-01",
+};
+
+const LINKED_PROFILE = {
+  $id: "user-1",
+  bi_campus_id: "2",
+  bi_employee_id: "1015882",
+  student_id: "s1715738",
+};
+
+function status(overrides: Record<string, unknown> = {}) {
+  return {
+    checkedAt: Date.parse("2026-09-15T08:00:00.000Z"),
+    expiredMemberships: [],
+    finagoCategoryIds: [],
+    isMember: false,
+    memberships: [],
+    reason: "no_categories",
+    ...overrides,
+  };
+}
+
+function overviewRequest(query = "", authorization = "Bearer jwt") {
+  const headers = new Headers();
+  if (authorization) {
+    headers.set("authorization", authorization);
+  }
+  return new Request(`https://api.biso.no/api/membership${query}`, {
+    headers,
+  }) as never;
+}
+
+describe("GET /api/membership", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Outside a season's last month: only this season's plans are offered.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-29T12:00:00Z"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    account.get.mockResolvedValue({ $id: "user-1" });
+    getRow.mockResolvedValue(LINKED_PROFILE);
+    getMembershipStatusForStudent.mockResolvedValue(status());
+    getMembershipOfferCandidates.mockResolvedValue([PLAN]);
+  });
+
+  it("requires a bearer token", async () => {
+    const response = await GET(overviewRequest("", ""));
+
+    expect(response.status).toBe(401);
+    expect(getRow).not.toHaveBeenCalled();
+  });
+
+  it("asks an unlinked student to link, without touching 24SevenOffice", async () => {
+    getRow.mockResolvedValue({ $id: "user-1", student_id: null });
+
+    const body = await (await GET(overviewRequest())).json();
+
+    expect(body).toMatchObject({
+      isMember: false,
+      offeredPlans: [],
+      state: "needs_bi_link",
+      studentId: null,
+    });
+    expect(body.campuses.map((c: { id: string }) => c.id)).toEqual([
+      "1",
+      "2",
+      "3",
+      "4",
+    ]);
+    expect(getMembershipStatusForStudent).not.toHaveBeenCalled();
+  });
+
+  it("offers plans to a linked non-member", async () => {
+    const response = await GET(overviewRequest());
+    const body = await response.json();
+
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(getMembershipStatusForStudent).toHaveBeenCalledWith(1_715_738, {
+      refresh: false,
+    });
+    expect(body).toMatchObject({
+      checkedAt: "2026-09-15T08:00:00.000Z",
+      currentExpiry: null,
+      defaultCampusId: "2",
+      isMember: false,
+      reason: "no_categories",
+      state: "eligible",
+      studentId: "s1715738",
+    });
+    expect(body.offeredPlans).toEqual([
+      {
+        accrualMonths: 12,
+        duration: "year",
+        expiryDate: "2027-06-30",
+        id: "71",
+        name: "BISO Membership fall 2026 and spring 2027",
+        offer: "current",
+        price: 550,
+        startDate: "2026-07-01",
+      },
+    ]);
+  });
+
+  it("tells a member whose cover already reaches the plan's end that they are covered", async () => {
+    const membership = {
+      category: "113178",
+      expiryDate: "2027-06-30",
+      id: "71",
+      name: "BISO Membership fall 2026 and spring 2027",
+      startDate: "2026-07-01",
+    };
+    getMembershipStatusForStudent.mockResolvedValue(
+      status({ isMember: true, memberships: [membership], reason: undefined })
+    );
+
+    const body = await (await GET(overviewRequest())).json();
+
+    expect(body).toMatchObject({
+      currentExpiry: "2027-06-30",
+      isMember: true,
+      memberships: [membership],
+      offeredPlans: [],
+      reason: null,
+      state: "already_member",
+    });
+  });
+
+  it("offers next season's plan in December and passes upcoming memberships through", async () => {
+    vi.setSystemTime(new Date("2026-12-10T12:00:00Z"));
+    getMembershipOfferCandidates.mockResolvedValue([PLAN, NEXT_PLAN]);
+    const upcoming = {
+      category: "113179",
+      expiryDate: "2027-06-30",
+      id: "55",
+      name: "BISO Membership spring 2027",
+      startDate: "2027-01-01",
+    };
+    getMembershipStatusForStudent.mockResolvedValue(
+      status({ reason: "upcoming", upcomingMemberships: [upcoming] })
+    );
+
+    const body = await (await GET(overviewRequest())).json();
+
+    expect(body.upcomingMemberships).toEqual([upcoming]);
+    expect(body.currentExpiry).toBe("2027-06-30");
+    expect(
+      body.offeredPlans.map((p: { id: string; offer: string }) => [
+        p.id,
+        p.offer,
+      ])
+    ).toEqual([["92", "next"]]);
+  });
+
+  it("forces a refresh when asked", async () => {
+    await GET(overviewRequest("?refresh=1"));
+
+    expect(getMembershipStatusForStudent).toHaveBeenCalledWith(1_715_738, {
+      refresh: true,
+    });
+  });
+
+  it("reports an unavailable check instead of 'not a member' when 24SevenOffice fails", async () => {
+    getMembershipStatusForStudent.mockResolvedValue(
+      status({ reason: "finago_error" })
+    );
+
+    const body = await (await GET(overviewRequest())).json();
+
+    expect(body).toMatchObject({
+      offeredPlans: [],
+      reason: "finago_error",
+      state: "membership_check_unavailable",
+    });
+  });
+
+  it("reports an unavailable check when the profile cannot be read", async () => {
+    getRow.mockRejectedValue(
+      Object.assign(new Error("timeout"), { code: 500 })
+    );
+
+    const body = await (await GET(overviewRequest())).json();
+
+    expect(body).toMatchObject({
+      reason: "profile_unavailable",
+      state: "membership_check_unavailable",
+    });
+    expect(getMembershipStatusForStudent).not.toHaveBeenCalled();
+  });
+
+  it("reports an unavailable check when the catalog cannot be read", async () => {
+    getMembershipOfferCandidates.mockRejectedValue(new Error("appwrite down"));
+
+    const body = await (await GET(overviewRequest())).json();
+
+    expect(body).toMatchObject({
+      reason: "catalog_unavailable",
+      state: "membership_check_unavailable",
+    });
+  });
+
+  describe("view=status", () => {
+    it("returns the raw status without reading the catalog", async () => {
+      const member = status({
+        finagoCategoryIds: [113_178],
+        isMember: true,
+        memberships: [{ id: "71", name: "BISO Membership" }],
+        reason: undefined,
+      });
+      getMembershipStatusForStudent.mockResolvedValue(member);
+
+      const response = await GET(overviewRequest("?view=status"));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(await response.json()).toEqual(JSON.parse(JSON.stringify(member)));
+      expect(getMembershipStatusForStudent).toHaveBeenCalledWith(1_715_738, {
+        refresh: false,
+      });
+      expect(getMembershipOfferCandidates).not.toHaveBeenCalled();
+    });
+
+    it("forces a refresh when asked", async () => {
+      await GET(overviewRequest("?view=status&refresh=1"));
+
+      expect(getMembershipStatusForStudent).toHaveBeenCalledWith(1_715_738, {
+        refresh: true,
+      });
+    });
+
+    it("requires a bearer token", async () => {
+      const response = await GET(overviewRequest("?view=status", ""));
+
+      expect(response.status).toBe(401);
+    });
+
+    it("reports an unlinked student without touching 24SevenOffice", async () => {
+      getRow.mockResolvedValue({ $id: "user-1", student_id: null });
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({ isMember: false, reason: "no_student_id" });
+      expect(body).not.toHaveProperty("state");
+      expect(getMembershipStatusForStudent).not.toHaveBeenCalled();
+    });
+
+    it("reports an unreadable student id", async () => {
+      getRow.mockResolvedValue({ $id: "user-1", student_id: "no-digits" });
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({
+        isMember: false,
+        reason: "invalid_student_id",
+      });
+    });
+
+    it("reports profile_unavailable when the profile cannot be read", async () => {
+      getRow.mockRejectedValue(
+        Object.assign(new Error("timeout"), { code: 500 })
+      );
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({
+        isMember: false,
+        reason: "profile_unavailable",
+      });
+      expect(body).not.toHaveProperty("state");
+    });
+
+    it("passes a failed Finago read through as its reason", async () => {
+      getMembershipStatusForStudent.mockResolvedValue(
+        status({ reason: "finago_error" })
+      );
+
+      const body = await (await GET(overviewRequest("?view=status"))).json();
+
+      expect(body).toMatchObject({ isMember: false, reason: "finago_error" });
+    });
+  });
+
+  it.each([
+    "",
+    "?view=overview",
+  ])("keeps the full overview for %j", async (query) => {
+    const body = await (await GET(overviewRequest(query))).json();
+
+    expect(body).toHaveProperty("state");
+    expect(body).toHaveProperty("offeredPlans");
+    expect(body).toHaveProperty("campuses");
+  });
+});

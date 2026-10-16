@@ -1,9 +1,13 @@
 {
   "hero": {
-    "title": "Enheter og foreninger",
-    "subtitle": "Alt fra festivaler og finans til politikk og velferd — drevet av studenter, på hver eneste BI-campus."
+    "badge": "Studentenheter",
+    "title": "Finn menneskene du skal ta graden sammen med",
+    "subtitle": "Alle BISO-enheter drives av studenter, for studenter — fagutvalg, foreninger, festivaler og komiteer på alle fire campus.",
+    "ctaPrimary": "Se ledige verv"
   },
   "list": {
+    "heading": "{count, plural, one {# enhet} other {# enheter}}",
+    "headingFiltered": "{count, plural, one {# enhet} other {# enheter}} av {total}",
     "stats": {
       "units": "Aktive enheter",
       "campuses": "Campuser"
@@ -15,48 +19,59 @@
     "categoryLabel": "Filtrer enheter etter kategori",
     "categoryAll": "Alle",
     "results": "{count, plural, one {# enhet} other {# enheter}}",
-    "emptyTitle": "Ingen enheter passer med det.",
+    "emptyTitle": "Ingen enheter passer med filtrene",
+    "emptyBody": "Prøv å nullstille søket eller velge et annet campus.",
+    "unavailableTitle": "Enhetene er utilgjengelige akkurat nå",
+    "unavailableBody": "Vi fikk ikke lastet enhetsoversikten. Prøv igjen om et øyeblikk.",
     "clear": "Tøm filtre"
   },
+  "card": {
+    "noSummary": "Denne enheten har ikke skrevet introduksjonen sin ennå — åpne siden for å møte styret."
+  },
+  "cta": {
+    "title": "Finner du ikke din greie?",
+    "body": "Enheter startes av studenter. Passer ingenting her, ta ideen med til campusstyret — det er slik de fleste av disse begynte.",
+    "primary": "Kontakt ditt campus",
+    "secondary": "Se ledige verv"
+  },
   "detail": {
-    "tabs": {
-      "overview": "Oversikt",
-      "team": "Vårt team",
-      "news": "Nyheter",
-      "products": "Produkter og billetter"
-    },
-    "overview": {
-      "highlights": "Siste høydepunkter",
-      "stats": {
-        "team": "Teammedlemmer",
-        "events": "Arrangementer arrangert",
-        "students": "Studenter nådd"
-      }
-    },
-    "team": {
-      "title": "Møt teamet vårt",
-      "emptyTitle": "Ingen teammedlemmer ennå",
-      "emptyBody": "Informasjon om teamet kommer snart.",
-      "joinTitle": "Vil du bli med i teamet?",
-      "joinCta": "Se ledige verv"
-    },
     "news": {
-      "title": "Nyheter og oppdateringer",
-      "subtitle": "Hold deg oppdatert på alt som skjer i denne enheten",
-      "emptyTitle": "Ingen nyheter ennå",
-      "emptyBody": "Kom tilbake snart for nyheter og oppdateringer.",
-      "readMore": "Les mer"
+      "title": "Nyheter fra {name}"
     },
-    "products": {
-      "title": "Produkter og billetter",
-      "subtitle": "Kjøp billetter og effekter fra denne enheten",
-      "emptyTitle": "Ingen produkter tilgjengelig",
-      "emptyBody": "Kom tilbake snart for nye produkter og billetter.",
-      "membersOnly": "Kun for medlemmer",
-      "soldOut": "Utsolgt"
+    "shop": {
+      "title": "Billetter og effekter",
+      "memberOnly": "Kun for medlemmer",
+      "soldOut": "Utsolgt",
+      "memberPrice": "{price} for medlemmer"
+    },
+    "join": {
+      "title": "Vil du bli med i {name}?",
+      "body": "Styrene velges hvert år, og de fleste enheter rekrutterer gjennom BISOs vervutlysninger.",
+      "primary": "Se ledige verv",
+      "secondary": "Utforsk andre enheter"
     },
     "follow": "Følg oss:",
     "about": "Om {name}",
-    "back": "Tilbake"
+    "aboutFallbackTitle": "Om denne enheten",
+    "aboutFallback": "{name} er en av {count, plural, one {# studentdrevet enhet} other {# studentdrevne enheter}} ved BISO {campus}. Styret under driver enheten — ta kontakt med dem for å høre hva de jobber med og hvordan du blir med.",
+    "facts": {
+      "campus": "Campus",
+      "category": "Type",
+      "board": "Styremedlemmer",
+      "uncategorised": "Studentenhet"
+    },
+    "board": {
+      "title": "Møt styret",
+      "subtitle": "Valgte studenter som driver {name} i år.",
+      "emptyTitle": "Styreinformasjonen kommer",
+      "emptyBody": "Styret til denne enheten er ikke publisert i BISO-katalogen ennå. Campusstyret kan peke deg videre i mellomtiden.",
+      "emailAction": "Send e-post til {name}",
+      "source": "Direkte fra BISOs Microsoft 365-katalog"
+    },
+    "campusBadge": "Campus {campus}"
+  },
+  "chooser": {
+    "unavailable": "Ikke på {campus}. Finnes på:",
+    "ambiguous": "Denne enheten finnes på {count, plural, one {# campus} other {# campuser}}. Hvilken er din?"
   }
 }

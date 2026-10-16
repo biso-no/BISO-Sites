@@ -492,6 +492,25 @@ export class SharePointService {
     };
   }
 
+  /**
+   * Creates (or returns the existing) "Anyone with the link can view" link for
+   * a file. Rejects when the tenant or site forbids anonymous links.
+   */
+  async createAnonymousViewLink(
+    driveId: string,
+    itemId: string
+  ): Promise<string> {
+    const client = await this.getAuthenticatedClient();
+    const response: { link?: { webUrl?: string } } = await client
+      .api(`/drives/${driveId}/items/${itemId}/createLink`)
+      .post({ scope: "anonymous", type: "view" });
+    const url = response.link?.webUrl;
+    if (!url) {
+      throw new Error("SharePoint did not return a sharing link");
+    }
+    return url;
+  }
+
   private async getSiteByUrl(
     client: Client,
     siteUrl: string

@@ -1,203 +1,102 @@
-import type { Events } from "@repo/api/types/appwrite";
-import Image from "next/image";
+import type { Events, EventsCategory } from "@repo/api/types/appwrite";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-import { CardGrid } from "@/components/ui/card-grid";
-import { ChevronFrame } from "@/components/ui/chevron-frame";
-import { DateBlock } from "@/components/ui/date-block";
 import { FeedSearch } from "@/components/ui/feed-search";
 import { FilterChips, type FilterOption } from "@/components/ui/filter-chips";
 import { PageHeader } from "@/components/ui/page-header";
-import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
-import { CAMPUS_SLUGS, campusIdToSlug } from "@/lib/campus-scope";
-import { getPrimaryTranslation } from "@/lib/content-translation";
-import {
-  EVENT_CATEGORIES,
-  eventPrice,
-  isPastEvent,
-  parseCategory,
-  pickContent,
-  sortForFeed,
-} from "./event-fields";
+import { EventCardV2, eventCardLabels } from "./event-card-v2";
+import { EVENT_CATEGORIES } from "./event-fields";
+import { EventsFeedList } from "./events-feed-list";
 
 /**
- * The events feed, rebuilt as a Server Component with link-based filters.
+ * The events feed: a Server Component with link-based filters, over main's
+ * paged reader.
  *
- * Three things the current list gets wrong against the real data, all fixed
- * here and all visible on the live site today:
+ * Three things the v1 list got wrong against the real data, all fixed here:
  *
- * 1. **Nothing links to an event.** Every card opens `<EventDetailModal>` from
- *    a `<Button onClick>`, so `/events/[slug]` — which exists, is indexed in
- *    the sitemap and is what a shared link resolves to — is unreachable from
- *    the feed and appears in none of its HTML. Cards are links now.
- * 2. **The category filter cannot match anything.** It reads
- *    `JSON.parse(metadata).category` against a hardcoded five-value list, and
- *    `metadata` is null on every published row, so four chips return zero
- *    results and one returns everything. Chips run on the real `category` enum.
- * 3. **Member-only events are hidden from everybody.** The list drops them
- *    unless `isMember`, and `isMember` is never passed — while the detail page
- *    renders the same event in full to anonymous visitors. `member_only` is a
- *    pricing and access fact, not a visibility one, so the card states it
- *    rather than suppressing the event.
+ * 1. **Nothing linked to an event.** Every card opened a modal from a
+ *    `<Button onClick>`, so `/events/[slug]` was reachable from no page. Cards
+ *    are links (`EventCardV2`).
+ * 2. **The category filter could not match anything.** It parsed a `metadata`
+ *    blob that is null on every published row. Chips now run on the real
+ *    `category` column — filtered in the query by `listEvents`, offered from
+ *    `listEventFacets`, so a category no published event carries is not
+ *    offered.
+ * 3. **Member-only events were hidden from everybody.** `member_only` limits
+ *    who can join, not who can see: the card states it, and `isMember` only
+ *    decides which price a card leads with.
  *
- * Chips are derived from the data, so a category no event carries is not
- * offered; a hand-typed `?category=` for any of the eight enum values still
- * filters correctly.
+ * Campus is not a control on this page. The header switcher is the one place
+ * to change campus (Branding Committee, #95); on this route it rewrites
+ * `?campus=<slug>`, which the page resolves with `resolveRequestCampus`, so a
+ * scoped view stays a shareable URL. Search and the category chips carry the
+ * parameter forward.
+ *
+ * Paging, search and "finished events are hidden" are the data layer's:
+ * `listEvents({ upcomingOnly: true })` filters and orders by start date in the
+ * query and searches through `content_translations`, so page 1 here and every
+ * page `EventsFeedList` appends come from the same query.
  */
 export interface EventsV2Props {
+  /** Resolved campus id (URL > cookie > all); `null` is every campus. */
   campusId: string | null;
+  /** Phase-1 search hit its cap, so `total` counts the first matches only. */
+  capped: boolean;
+  /** Categories some published event in scope carries (`listEventFacets`). */
+  categories: EventsCategory[];
+  /** The validated `?category=`, or null for none. */
+  category: EventsCategory | null;
+  /** Page 1, as `listEvents` returned it. */
   events: Events[];
-  locale: string;
+  isMember: boolean;
+  locale: "en" | "no";
+  /** The trimmed search term (`?q=`, or the older `?search=`). */
+  search: string;
+  /** The request's query string, so filters keep the parameters they don't own. */
   searchParams: Record<string, string | string[] | undefined>;
+  /** Rows matching the filters across every page. */
+  total: number;
 }
 
-interface CardLabels {
-  free: string;
-  infoOnly: string;
-  membersOnly: string;
-  past: string;
-  priceTba: string;
-  registerNow: string;
-}
-
-function PriceLine({ event, labels }: { event: Events; labels: CardLabels }) {
-  const price = eventPrice(event);
-  if (price.kind === "free") {
-    return <span className="type-data text-ink-muted">{labels.free}</span>;
-  }
-  if (price.kind === "unknown") {
-    return <span className="type-data text-ink-muted">{labels.priceTba}</span>;
-  }
-  return <span className="type-data text-ink-muted">{price.amount} NOK</span>;
-}
-
-function EventCardBody({
-  event,
-  labels,
-  locale,
-  categoryLabel,
-  title,
-}: {
-  categoryLabel: string | null;
-  event: Events;
-  labels: CardLabels;
-  locale: string;
-  title: string;
-}) {
-  const past = isPastEvent(event, new Date());
-  return (
-    <>
-      {event.image ? (
-        <ChevronFrame className="bg-surface-sunken" ratio="16/9">
-          <Image
-            alt=""
-            className="transition-transform duration-500 group-hover:scale-[1.03]"
-            height={360}
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-            src={event.image}
-            width={640}
-          />
-        </ChevronFrame>
-      ) : null}
-
-      <span className="mt-4 flex flex-wrap items-center gap-2">
-        {categoryLabel ? (
-          <Pill tone="accent" uppercase>
-            {categoryLabel}
-          </Pill>
-        ) : null}
-        {event.member_only ? (
-          <Pill tone="warning">{labels.membersOnly}</Pill>
-        ) : null}
-        {past ? <Pill tone="neutral">{labels.past}</Pill> : null}
-      </span>
-
-      <span className="mt-3 flex items-start gap-4">
-        {event.start_date ? (
-          <DateBlock
-            date={event.start_date}
-            locale={locale === "no" ? "nb-NO" : "en-GB"}
-          />
-        ) : null}
-        <span className="min-w-0">
-          <span className="type-heading-card block text-ink group-hover:text-ink-accent">
-            {title}
-          </span>
-          {event.location ? (
-            <span className="type-body-sm mt-1 block text-ink-muted">
-              {event.location}
-            </span>
-          ) : null}
-        </span>
-      </span>
-
-      <span className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
-        <PriceLine event={event} labels={labels} />
-        {/* Derived from `ticket_url`, never hardcoded — same rule as home. */}
-        <Pill tone={event.ticket_url ? "success" : "accent"}>
-          {event.ticket_url ? labels.registerNow : labels.infoOnly}
-        </Pill>
-      </span>
-    </>
-  );
-}
-
-function EventCard({
-  event,
-  labels,
-  locale,
-  categoryLabel,
-}: {
-  categoryLabel: string | null;
-  event: Events;
-  labels: CardLabels;
-  locale: string;
-}) {
-  const title = getPrimaryTranslation(event, locale)?.title ?? "";
-  const body = (
-    <EventCardBody
-      categoryLabel={categoryLabel}
-      event={event}
-      labels={labels}
-      locale={locale}
-      title={title}
-    />
-  );
-  const shell = "group flex h-full flex-col";
-
-  return (
-    <li>
-      {/* An event with no slug has no detail URL to point at, so it is shown
-          without a link rather than given one that would 404. */}
-      {event.slug ? (
-        <Link
-          className={`${shell} rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-4 focus-visible:ring-offset-surface`}
-          href={`/events/${event.slug}`}
-        >
-          {body}
-        </Link>
-      ) : (
-        <div className={shell}>{body}</div>
-      )}
-    </li>
-  );
-}
+/**
+ * Dropped from every filter link: a new filter starts at page 1, and the search
+ * term is re-added under `q` — the name `listEvents`' callers read — so a link
+ * made from an old `?search=` URL carries it forward under the current name.
+ * `?campus=` is kept, so a category chip never widens a campus-scoped view.
+ */
+const RESET_ON_FILTER = new Set(["page", "q", "search"]);
 
 export async function EventsV2({
-  events,
-  locale,
-  searchParams,
   campusId,
+  capped,
+  categories,
+  category,
+  events,
+  isMember,
+  locale,
+  search,
+  searchParams,
+  total,
 }: EventsV2Props): Promise<ReactNode> {
   const [t, tCommon, tNav] = await Promise.all([
     getTranslations("events"),
     getTranslations("common"),
     getTranslations("common.navigation"),
   ]);
+  const labels = eventCardLabels(t);
 
-  const activeCategory = parseCategory(searchParams.category);
+  const filterParams: Record<string, string | string[] | undefined> = {};
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (!RESET_ON_FILTER.has(key)) {
+      filterParams[key] = value;
+    }
+  }
+  if (search) {
+    filterParams.q = search;
+  }
+
   // Searching must not silently drop the category or campus already chosen.
   const searchHidden: Record<string, string> = {};
   for (const key of ["campus", "category"]) {
@@ -207,69 +106,20 @@ export async function EventsV2({
     }
   }
 
-  // A collection's child sessions are reachable from the collection's own page
-  // (`getCollectionEvents` builds the sibling list there); listing them here as
-  // well makes one event look like several. The v1 feed excluded them with this
-  // predicate and the rewrite dropped it — restored before the counts are
-  // derived, so the category chips agree with what the grid shows.
-  const searchQuery =
-    typeof searchParams.search === "string"
-      ? searchParams.search.trim().toLowerCase()
-      : "";
-
-  // v1 filtered the fetched list on title and description; `listEvents`
-  // declares a `search` option but never implemented one, so the rewrite lost
-  // the feature outright. Same semantics as v1, over the same 50-row page.
-  const matchesSearch = (event: Events) => {
-    if (!searchQuery) {
-      return true;
-    }
-    const content = pickContent(event.translation_refs, locale);
-    return `${content.title} ${content.shortDescription ?? ""} ${content.description}`
-      .toLowerCase()
-      .includes(searchQuery);
-  };
-
-  const feed = events.filter(
-    (event) =>
-      (event.is_collection || !event.collection_id) && matchesSearch(event)
-  );
-
-  const present = EVENT_CATEGORIES.filter((category) =>
-    feed.some((event) => event.category === category)
-  );
+  // Facets list what published events carry; a hand-typed `?category=` for a
+  // category none carries still filters, and still shows as the active chip.
   const categoryOptions: FilterOption[] = [
     { value: "all", label: t("filters.all") },
-    ...present.map((category) => ({
-      value: category,
-      label: t(`category.${category}`),
-      count: feed.filter((event) => event.category === category).length,
-    })),
+    ...EVENT_CATEGORIES.filter(
+      (value) => value === category || categories.includes(value)
+    ).map((value) => ({ value, label: labels.categories[value] })),
   ];
 
-  const campusOptions: FilterOption[] = [
-    { value: "all", label: tNav("allCampuses") },
-    ...CAMPUS_SLUGS.map((slug) => ({
-      value: slug,
-      label: slug.charAt(0).toUpperCase() + slug.slice(1),
-    })),
-  ];
-
-  const visible = sortForFeed(
-    activeCategory
-      ? feed.filter((event) => event.category === activeCategory)
-      : feed,
-    new Date()
-  );
-
-  const labels: CardLabels = {
-    free: t("card.free"),
-    infoOnly: t("card.infoOnly"),
-    membersOnly: t("card.membersOnly"),
-    past: t("card.past"),
-    priceTba: t("card.priceTba"),
-    registerNow: t("card.registerNow"),
-  };
+  const hasActiveFilters =
+    search !== "" ||
+    category !== null ||
+    typeof searchParams.campus === "string";
+  const campusKey = campusId ?? "all";
 
   return (
     <>
@@ -286,52 +136,51 @@ export async function EventsV2({
         <div className="mb-8 space-y-3">
           <FeedSearch
             action="/events"
-            defaultValue={
-              typeof searchParams.search === "string" ? searchParams.search : ""
-            }
+            defaultValue={search}
             hidden={searchHidden}
             label={t("filters.searchLabel")}
-            name="search"
+            name="q"
             placeholder={t("filters.searchPlaceholder")}
             submitLabel={t("filters.searchSubmit")}
             surface="events"
           />
           <FilterChips
-            active={activeCategory ?? "all"}
+            active={category ?? "all"}
             basePath="/events"
             label={t("filters.categoryLabel")}
             options={categoryOptions}
             param="category"
-            searchParams={searchParams}
-          />
-          <FilterChips
-            active={campusIdToSlug(campusId) ?? "all"}
-            basePath="/events"
-            label={t("filters.campusLabel")}
-            options={campusOptions}
-            param="campus"
-            searchParams={searchParams}
+            searchParams={filterParams}
           />
         </div>
 
         <p className="type-body-sm mb-6 text-ink-muted">
-          {t("filters.showingResults", { count: visible.length })}
+          {capped
+            ? t("filters.showingFirstResults", { count: total })
+            : t("filters.showingResults", { count: total })}
         </p>
 
-        {visible.length > 0 ? (
-          <CardGrid className="gap-x-6 gap-y-10">
-            {visible.map((event) => (
-              <EventCard
-                categoryLabel={
-                  event.category ? t(`category.${event.category}`) : null
-                }
+        {events.length > 0 ? (
+          <EventsFeedList
+            campus={campusKey}
+            category={category}
+            firstPageCount={events.length}
+            isMember={isMember}
+            key={`${campusKey}|${category ?? "all"}|${search}`}
+            locale={locale}
+            search={search}
+            total={total}
+          >
+            {events.map((event) => (
+              <EventCardV2
                 event={event}
+                isMember={isMember}
                 key={event.$id}
                 labels={labels}
                 locale={locale}
               />
             ))}
-          </CardGrid>
+          </EventsFeedList>
         ) : (
           <div>
             <p className="type-heading-card text-ink">
@@ -340,12 +189,14 @@ export async function EventsV2({
             <p className="type-body mt-2 text-ink-muted">
               {t("emptyState.description")}
             </p>
-            <Link
-              className="type-label mt-5 inline-flex text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              href="/events"
-            >
-              {t("filters.clearFilters")}
-            </Link>
+            {hasActiveFilters ? (
+              <Link
+                className="type-label mt-5 inline-flex text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                href="/events"
+              >
+                {t("filters.clearFilters")}
+              </Link>
+            ) : null}
           </div>
         )}
       </Section>

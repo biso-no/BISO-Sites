@@ -68,16 +68,6 @@ export function sanitizeRedirectTarget(
   return decoded;
 }
 
-export function sanitizeSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 const MEMBERS_TEAM = "biso-members";
 
 /**

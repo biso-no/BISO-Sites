@@ -12,6 +12,7 @@ import {
   Teams,
   Users,
 } from "node-appwrite";
+import { appwriteErrorStatus } from "./errors";
 
 /**
  * Returns the base URL of the current deployment.
@@ -46,46 +47,36 @@ export async function getBaseUrl(): Promise<string> {
 }
 
 /**
- * Methods whose result crosses the RSC boundary and therefore must be a plain
- * object, not an Appwrite SDK class instance.
- *
- * The writes were missing until RD-030, and it was a live bug: only reads
- * were wrapped, so a server action returning the row it had just written threw
- * "Only plain objects … can be passed to Client Components" — after the
- * write had committed. That is what broke `updateProfile` in `apps/web`:
- * onboarding created the profile row and then told the user it had failed, and
- * retrying hit the update branch and failed the same way, so a new account
- * could not get past onboarding at all. `apps/web` patched it at the call site
- * in RD-028; this is the actual fix, and it covers every other caller.
+ * Every TablesDB method that answers with a row or a list of rows. Each is
+ * wrapped so the result is a plain object: a server action that returns the
+ * row it just wrote (`updateProfile` does) would otherwise hand an SDK class
+ * instance to the client, which Next.js refuses to serialize ("Only plain
+ * objects … can be passed to Client Components").
  */
-const PLAIN_METHODS = new Set([
-  "listRows",
-  "getRow",
+const ROW_RETURNING_METHODS: ReadonlySet<string | symbol> = new Set([
   "createRow",
-  "updateRow",
-  "upsertRow",
   "createRows",
-  "updateRows",
-  "upsertRows",
-  "incrementRowColumn",
   "decrementRowColumn",
+  "getRow",
+  "incrementRowColumn",
+  "listRows",
+  "updateRow",
+  "updateRows",
+  "upsertRow",
+  "upsertRows",
 ]);
 
 /**
- * Wrap a TablesDB instance so that row reads and writes return plain objects
- * instead of Appwrite SDK class instances, which Next.js cannot serialize
- * across the RSC → Client Component boundary.
+ * Wrap a TablesDB instance so that row reads AND row writes return plain
+ * objects instead of Appwrite SDK class instances, which Next.js cannot
+ * serialize across the RSC → Client Component boundary.
  */
 function plainDb(db: TablesDB): TablesDB {
   return new Proxy(db, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
 
-      if (
-        typeof prop === "string" &&
-        PLAIN_METHODS.has(prop) &&
-        typeof value === "function"
-      ) {
+      if (ROW_RETURNING_METHODS.has(prop) && typeof value === "function") {
         return async (...args: unknown[]) => {
           const result = await (value as (...a: unknown[]) => unknown).apply(
             target,
@@ -109,7 +100,15 @@ function plainDb(db: TablesDB): TablesDB {
   });
 }
 
-const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
+/**
+ * Read on every call, not at module load: inside an Appwrite Function the key
+ * arrives per execution (the `x-appwrite-key` header, which the function copies
+ * into `APPWRITE_FUNCTION_API_KEY`) — after this module has been imported. The
+ * injected `APPWRITE_FUNCTION_API_KEY` env var itself only exists at build time.
+ */
+function resolveApiKey(): string | undefined {
+  return process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
+}
 
 const APPWRITE_PROJECT =
   process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
@@ -133,6 +132,7 @@ const SESSION_COOKIE_FALLBACK_NAME =
   process.env.APPWRITE_SESSION_COOKIE_FALLBACK;
 
 const DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS = 8000;
+const V1_PREFIX_REGEX = /^\/v1\//;
 const APPWRITE_TIMEOUT_ERROR_TYPE = "appwrite_timeout";
 
 const APPWRITE_REQUEST_TIMEOUT_MS = readPositiveInteger(
@@ -140,21 +140,73 @@ const APPWRITE_REQUEST_TIMEOUT_MS = readPositiveInteger(
   DEFAULT_APPWRITE_REQUEST_TIMEOUT_MS
 );
 
+const DEFAULT_APPWRITE_SLOW_REQUEST_MS = 2000;
+
+/** Calls slower than this are logged, so stalls can be traced to an endpoint. */
+const APPWRITE_SLOW_REQUEST_MS = readPositiveInteger(
+  process.env.APPWRITE_SLOW_REQUEST_MS,
+  DEFAULT_APPWRITE_SLOW_REQUEST_MS
+);
+
+type AppwriteClientKind = "admin" | "public" | "session";
+
 /**
- * The request options the installed SDK actually uses — derived from its own
- * `prepareRequest` signature rather than named as `RequestInit`.
- *
- * `node-appwrite@28` brought `undici` with it and types this against
- * **undici's** `RequestInit`, whose `body` is `BodyInit | undefined`. The DOM
- * lib's `RequestInit` has `body?: BodyInit | null`, and the two `BodyInit`s do
- * not agree on `ArrayBufferView` either, so writing `RequestInit` here bound us
- * to whichever of the two the compiler resolved and broke the assignment below
- * on the upgrade. Deriving it means the shim follows the SDK instead of
- * guessing which `RequestInit` is in scope.
+ * `METHOD /path` for logs and error messages. The query string is dropped —
+ * it carries row filters and can be long — and the `/v1` prefix is implied.
  */
-type AppwriteRequestOptions = ReturnType<
-  Client["prepareRequest"]
->["options"] & {
+function describeAppwriteRequest(method: string, url: URL | string): string {
+  try {
+    const { pathname } = typeof url === "string" ? new URL(url) : url;
+    return `${method.toUpperCase()} ${pathname.replace(V1_PREFIX_REGEX, "/")}`;
+  } catch {
+    return method.toUpperCase();
+  }
+}
+
+function createAppwriteTimeoutError(
+  kind: AppwriteClientKind,
+  request: string
+): AppwriteException {
+  return new AppwriteException(
+    `Appwrite request timed out after ${APPWRITE_REQUEST_TIMEOUT_MS}ms (${kind} ${request})`,
+    504,
+    APPWRITE_TIMEOUT_ERROR_TYPE
+  );
+}
+
+function logAppwriteTiming(
+  kind: AppwriteClientKind,
+  request: string,
+  elapsedMs: number,
+  outcome: "ok" | "error" | "timeout"
+) {
+  const durationMs = Math.round(elapsedMs);
+  if (outcome === "timeout") {
+    console.error("[appwrite] request timed out", {
+      client: kind,
+      durationMs,
+      request,
+    });
+    return;
+  }
+  if (durationMs >= APPWRITE_SLOW_REQUEST_MS) {
+    console.warn("[appwrite] slow request", {
+      client: kind,
+      durationMs,
+      outcome,
+      request,
+    });
+  }
+}
+
+/**
+ * The SDK types `prepareRequest` against undici's `RequestInit`, which is not
+ * the same type as the global `RequestInit`. Derive from the SDK so this keeps
+ * compiling across node-appwrite releases.
+ */
+type AppwritePreparedRequest = ReturnType<Client["prepareRequest"]>;
+
+type AppwriteRequestOptions = AppwritePreparedRequest["options"] & {
   agent?: unknown;
   dispatcher?: unknown;
 };
@@ -224,9 +276,13 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
-function configureServerClient(client: Client): Client {
+function configureServerClient(
+  client: Client,
+  kind: AppwriteClientKind
+): Client {
   const prepareRequest = client.prepareRequest.bind(client);
   const call = client.call.bind(client);
+  const redirect = client.redirect.bind(client);
 
   client.prepareRequest = (method, url, requestHeaders, params) => {
     const request = prepareRequest(method, url, requestHeaders, params);
@@ -243,18 +299,55 @@ function configureServerClient(client: Client): Client {
     };
   };
 
+  // Durations use `performance.now()`, not `Date.now()`: these clients run
+  // while Next.js prerenders with Cache Components, and a wall-clock read
+  // there fails the render ("blocking-prerender-current-time").
   client.call = async (...args: Parameters<Client["call"]>) => {
+    const request = describeAppwriteRequest(args[0], args[1]);
+    const startedAt = performance.now();
     try {
-      return await call(...args);
+      const result = await call(...args);
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
+      return result;
     } catch (error) {
       if (isAbortError(error)) {
-        throw new AppwriteException(
-          `Appwrite request timed out after ${APPWRITE_REQUEST_TIMEOUT_MS}ms`,
-          504,
-          APPWRITE_TIMEOUT_ERROR_TYPE
+        logAppwriteTiming(
+          kind,
+          request,
+          performance.now() - startedAt,
+          "timeout"
         );
+        throw createAppwriteTimeoutError(kind, request);
       }
 
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "error");
+      throw error;
+    }
+  };
+
+  // `redirect()` powers the OAuth token endpoints. It takes the timeout signal
+  // from prepareRequest but does NOT route through call(), so without this the
+  // abort surfaces as a raw TimeoutError and blows up the sign-in server action
+  // instead of becoming a handled AppwriteException.
+  client.redirect = async (...args: Parameters<Client["redirect"]>) => {
+    const request = describeAppwriteRequest(args[0], args[1]);
+    const startedAt = performance.now();
+    try {
+      const result = await redirect(...args);
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "ok");
+      return result;
+    } catch (error) {
+      if (isAbortError(error)) {
+        logAppwriteTiming(
+          kind,
+          request,
+          performance.now() - startedAt,
+          "timeout"
+        );
+        throw createAppwriteTimeoutError(kind, request);
+      }
+
+      logAppwriteTiming(kind, request, performance.now() - startedAt, "error");
       throw error;
     }
   };
@@ -286,7 +379,8 @@ export async function createSessionClient(jwt?: string) {
   const client = configureServerClient(
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
-      .setProject(APPWRITE_PROJECT)
+      .setProject(APPWRITE_PROJECT),
+    "session"
   );
 
   if (jwt) {
@@ -334,7 +428,8 @@ export async function createPublicClient() {
   const client = configureServerClient(
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
-      .setProject(APPWRITE_PROJECT)
+      .setProject(APPWRITE_PROJECT),
+    "public"
   );
 
   return {
@@ -349,7 +444,8 @@ export async function createPublicClient() {
 
 // biome-ignore lint/suspicious/useAwait: Needs to be async.
 export async function createAdminClient() {
-  if (!APPWRITE_API_KEY) {
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
     throw new Error(
       "APPWRITE_API_KEY is not configured — admin Appwrite operations cannot run."
     );
@@ -359,7 +455,8 @@ export async function createAdminClient() {
     new Client()
       .setEndpoint(NEXT_PUBLIC_APPWRITE_ENDPOINT)
       .setProject(APPWRITE_PROJECT)
-      .setKey(APPWRITE_API_KEY)
+      .setKey(apiKey),
+    "admin"
   );
 
   return {
@@ -387,6 +484,24 @@ export async function createAdminClient() {
   };
 }
 
+const UNAUTHORIZED = 401;
+
+/**
+ * Resolves to `null` when Appwrite answers 401 (no session, or an expired
+ * one) and rethrows every other failure, so an outage is not mistaken for a
+ * signed-out caller.
+ */
+async function nullIfNoSession<T>(read: Promise<T>): Promise<T | null> {
+  try {
+    return await read;
+  } catch (error) {
+    if (appwriteErrorStatus(error) === UNAUTHORIZED) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 /**
  * Mint a JWT scoped to the caller's own Appwrite session.
  *
@@ -403,15 +518,16 @@ export async function createAdminClient() {
  * without it Appwrite picks one of the user's sessions on its own, and the token
  * could outlive the logout of the session that asked for it.
  *
- * Returns `null` when there is no usable session. Misconfiguration (a missing
- * `APPWRITE_API_KEY`) still throws.
+ * Returns `null` when there is no usable session (Appwrite answers 401).
+ * Any other failure — an outage, a timeout, misconfiguration such as a missing
+ * `APPWRITE_API_KEY` — throws.
  */
 export async function createSessionJwt(): Promise<string | null> {
   const { account } = await createSessionClient();
 
   const [user, session] = await Promise.all([
-    account.get().catch(() => null),
-    account.getSession({ sessionId: "current" }).catch(() => null),
+    nullIfNoSession(account.get()),
+    nullIfNoSession(account.getSession({ sessionId: "current" })),
   ]);
 
   if (!(user?.$id && session?.$id)) {

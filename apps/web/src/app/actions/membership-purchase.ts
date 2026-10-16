@@ -9,7 +9,7 @@ import type { Users } from "@repo/api/types/appwrite";
 import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { CAMPUS_INVOICE_NAMES } from "@repo/shared/utils/finago-membership-invoice";
-import { getMembershipPlanById } from "@/lib/membership-catalog";
+import { getMembershipPlanById } from "@repo/shared/utils/membership-catalog";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
 // packages/api/types/appwrite.ts is regenerated. Mirrors the pattern in
@@ -113,7 +113,9 @@ export async function startMembershipCheckout(
         // Non-critical: the campus is carried on the order regardless.
       });
 
-    const jwt = await createSessionJwt().catch(() => null);
+    // Null only when there is no session; an Appwrite outage throws into the
+    // catch below instead of reading as "sign in again".
+    const jwt = await createSessionJwt();
     if (!jwt) {
       return { success: false, error: "A valid session is required." };
     }

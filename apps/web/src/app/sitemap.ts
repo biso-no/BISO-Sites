@@ -4,21 +4,12 @@ import {
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
 import { CAMPUS_SLUGS } from "@/lib/campus-scope";
-import { cachedSitemapEntries } from "@/lib/data/public-content";
+import { sitemapEntries } from "@/lib/data/public-content";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://web.biso.no";
+const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
 
-const ABOUT_SUBROUTES = [
-  "what-is-biso",
-  "politics",
-  "study-quality",
-  "history",
-  "bylaws",
-  "operations",
-  "alumni",
-  "saih",
-  "academics-contact",
-];
+// The other former subpages redirect into sections of /about.
+const ABOUT_SUBROUTES = ["drugs-policy", "academics-contact"];
 
 interface SlugWithTimestamp {
   $updatedAt: string;
@@ -51,13 +42,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/news`, changeFrequency: "daily", priority: 0.7 },
     { url: `${BASE}/shop`, changeFrequency: "daily", priority: 0.7 },
     { url: `${BASE}/about`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE}/documents`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE}/campus`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE}/membership`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/business`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE}/contact`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${BASE}/units`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE}/projects`, changeFrequency: "weekly", priority: 0.6 },
-    { url: `${BASE}/bi-fondet`, changeFrequency: "monthly", priority: 0.5 },
+    {
+      url: `${BASE}/okonomisk-stotte`,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
     { url: `${BASE}/resources`, changeFrequency: "monthly", priority: 0.5 },
     {
       url: `${BASE}/business-hotspot`,
@@ -97,18 +93,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];
 
-  // One cached, minimal-select (slug + timestamp) read serves every crawler;
-  // inside the cached reader each listing is still best-effort so a failing
-  // table produces a partial sitemap rather than a 500.
-  const entries = await cachedSitemapEntries().catch(() => ({
-    events: [],
-    jobs: [],
-    news: [],
-    pages: [],
-    products: [],
-    projects: [],
-    units: [],
-  }));
+  // Minimal-select (slug + timestamp) cached reads serve every crawler, one
+  // cache entry per table. Each listing is independently best-effort — a
+  // failing table produces a partial sitemap rather than a 500 — and that
+  // tolerance lives in `sitemapEntries`, outside the cache, so a degraded
+  // result is never the thing the next crawler is served. It catches every
+  // branch itself and cannot reject, so there is nothing to catch here.
+  const entries = await sitemapEntries();
 
   return [
     ...staticRoutes,

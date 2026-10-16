@@ -3,6 +3,7 @@ import { expect, mock } from "bun:test";
 export const sessionDb = {
   createRow: mock(),
   deleteRow: mock(),
+  getRow: mock(),
   listRows: mock(),
   updateRow: mock(),
   upsertRow: mock(),
@@ -16,6 +17,14 @@ export const adminDb = {
   updateRow: mock(),
   upsertRow: mock(),
 };
+
+/**
+ * The content_translations reads behind the deferred translation write.
+ * `adminDb.listRows` answers the jobs-table slug-uniqueness scan itself (no
+ * collisions) and forwards every other table here, so a queued
+ * `mockImplementationOnce` isn't eaten by the scan that runs first.
+ */
+export const translationRows = mock();
 
 export const createAdminClientSpy = mock(async () => ({ db: adminDb }));
 export const assertRecruitmentVacancyWriteAccessSpy = mock(() => undefined);
@@ -67,7 +76,11 @@ mock.module("@repo/api/server", () => ({
 }));
 
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => ({ userId: "editor-1" })),
+  requireAuth: mock(async () => ({
+    managedCampusIds: [],
+    roles: [],
+    userId: "editor-1",
+  })),
 }));
 
 mock.module("@/lib/recruitment", () => ({
@@ -103,6 +116,16 @@ mock.module("@/lib/announcements/send", () => ({
   dispatchAnnouncement: mock(async () => undefined),
 }));
 
+// `after()` needs a request scope; run deferred work inline in tests.
+export const afterSpy = mock((task: () => unknown) => {
+  const result = typeof task === "function" ? task() : task;
+  return result;
+});
+
+mock.module("next/server", () => ({
+  after: afterSpy,
+}));
+
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
@@ -122,7 +145,16 @@ export const resetTranslationHarness = (): void => {
     db.upsertRow.mockReset();
   }
   adminDb.getRow.mockReset();
+  sessionDb.getRow.mockReset();
+  afterSpy.mockClear();
   sessionDb.listRows.mockImplementation(async () => ({ rows: [], total: 0 }));
+  translationRows.mockReset();
+  adminDb.listRows.mockImplementation(
+    (databaseId: string, tableId: string, queries?: string[]) =>
+      tableId === "jobs"
+        ? { rows: [], total: 0 }
+        : translationRows(databaseId, tableId, queries)
+  );
   adminDb.upsertRow.mockImplementation(
     (_databaseId: string, tableId: string) => {
       primaryWriteCompleted = true;

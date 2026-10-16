@@ -14,7 +14,9 @@ function code(path: string): string {
 
 const list = code("src/components/units/v2/units-v2.tsx");
 const listPage = code("src/app/(public)/units/page.tsx");
-const reader = code("src/lib/data/campus-landing.ts");
+// Main's unit directory. The redesign's own `campus-landing.ts` reader fixed
+// the same "0 units" bug independently and was retired in its favour.
+const reader = code("src/lib/data/units.ts");
 const projectsPage = code("src/app/(public)/projects/page.tsx");
 
 describe("the units index reads the department rows", () => {
@@ -23,9 +25,18 @@ describe("the units index reads the department rows", () => {
     // `content_type = "department"`, and that table holds **zero** department
     // rows — so the page rendered "0 units" and `--` for every stat while 141
     // active departments sat in `departments`.
-    expect(listPage).toContain("activeUnits(campus)");
+    expect(listPage).toContain("cachedPublicUnits(locale)");
     expect(reader).toContain('"departments"');
     expect(reader).toContain('Query.equal("active", true)');
+    // `active` is not a publication flag: the public-visibility rule is the
+    // second half of the filter, applied once in the reader.
+    expect(reader).toContain(".filter(isPublicUnit)");
+  });
+
+  it("tells a failed read apart from an empty directory", () => {
+    // #77: a read that failed renders "unavailable", never "0 units".
+    expect(listPage).toContain(".catch(() => null)");
+    expect(list).toContain("units === null");
   });
 
   it("is the only units index (RD-030)", () => {
@@ -45,7 +56,9 @@ describe("PLACEHOLDER-010 — nothing is rendered that has no source", () => {
     expect(list).not.toContain("availableTypes");
     expect(list).toContain("presentCategories");
     expect(list).toContain("UNIT_CATEGORIES.filter");
-    expect(list).toContain("parseUnitCategory(unit.type)");
+    // The reader normalises the free-text column once; the list reads that.
+    expect(reader).toContain("parseUnitCategory(department.type)");
+    expect(list).toContain("unit.category");
   });
 
   it("shows no member count", () => {
@@ -55,15 +68,23 @@ describe("PLACEHOLDER-010 — nothing is rendered that has no source", () => {
     expect(list).not.toContain("members");
   });
 
-  it("renders no unit imagery or description", () => {
+  it("renders unit imagery only through the shared card", () => {
+    // Units have started uploading logos (main #87), and `UnitCard` →
+    // `UnitCrest` owns them, falling back to the name-derived monogram. The
+    // list itself reads no image or description column.
+    expect(list).toContain("<UnitCard");
     for (const column of ["logo", "hero", "description"]) {
       expect(list, column).not.toContain(`unit.${column}`);
     }
   });
 
-  it("links a unit only when it has a slug to link to", () => {
-    expect(list).toContain("unit.slug");
-    expect(list).toContain("unitCanonicalPath");
+  it("links every unit to a page that exists", () => {
+    // A unit without a slug still has a page at its legacy `/units/<id>` URL
+    // (`cachedUnitDetail` is keyed on the row id), so the reader builds the
+    // canonical path where it can and falls back to that one.
+    expect(reader).toContain("unitCanonicalPath");
+    // Joined so the source holds no literal `${` (noTemplateCurlyInString).
+    expect(reader).toContain(["`/units/", "{department.$id}`"].join("$"));
   });
 });
 

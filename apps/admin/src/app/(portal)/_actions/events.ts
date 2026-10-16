@@ -3,6 +3,7 @@
 import { fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import type { Announcements } from "@repo/api/types/appwrite";
 import {
   type ContentTranslations,
   type Events,
@@ -10,10 +11,7 @@ import {
   EventsCollectionPricing,
   type EventsStatus,
 } from "@repo/api/types/appwrite";
-
-const EVENTS_PUSH_TOPIC_ID = "events";
-
-import type { Announcements } from "@repo/api/types/appwrite";
+import { topicIdFor } from "@repo/shared/utils/notification-topics";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -35,6 +33,7 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { withNationalEventScope } from "@/lib/event-scope";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -103,8 +102,9 @@ interface EventTranslationSnapshot {
 /**
  * Send a published-event push through the unified announcement delivery path.
  * Creates a transient `announcement` row (category "event", topic audience on
- * the "events" topic) and dispatches it. Resilient by design: any failure is
- * logged and never blocks publishing.
+ * the campus-scoped "events" topic, e.g. "events_oslo" or "events_national")
+ * and dispatches it. Resilient by design: any failure is logged and never
+ * blocks publishing.
  */
 async function sendEventAnnouncement(input: {
   eventId: string;
@@ -125,7 +125,10 @@ async function sendEventAnnouncement(input: {
         status: "sent",
         category: "event",
         audience_type: "topic",
-        audience_value: EVENTS_PUSH_TOPIC_ID,
+        // Campus-scoped: a published event notifies students at its own campus,
+        // and `topicIdFor` resolves a null campus to the national topic, which
+        // every subscriber holds.
+        audience_value: topicIdFor("events", input.campusId),
         title_en: input.titleEn,
         title_no: input.titleNo,
         body_en: input.bodyEn,
@@ -525,7 +528,7 @@ export async function listEvents(opts?: {
   timeframe?: "all" | "upcoming" | "past";
   page?: number;
 }) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   // Private admin read: the service client bypasses row security, so the
   // relationship scope filters below are the authorization boundary.
   const { db } = await createAdminClient();
@@ -601,7 +604,7 @@ export async function listEvents(opts?: {
 }
 
 export async function getEvent(id: string) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const { db } = await createAdminClient();
 
   const response = await db.listRows<Events>("app", "events", [
@@ -635,7 +638,7 @@ export async function createEvent(
   values: EventFormValues,
   autoTranslation?: AutoTranslationOptions
 ) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const validated = eventSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -729,7 +732,7 @@ export async function updateEvent(
   values: EventFormValues,
   autoTranslation?: AutoTranslationOptions
 ) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const validated = eventSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -827,7 +830,7 @@ export async function updateEvent(
 }
 
 export async function deleteEvent(id: string) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
 
   try {
     const { db } = await createAdminClient();
@@ -876,7 +879,7 @@ export async function deleteEvent(id: string) {
 }
 
 export async function publishEvent(id: string) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
 
   try {
     const { db } = await createAdminClient();
@@ -974,7 +977,7 @@ export async function generateEventTranslationDraft(input: {
   sourceLocale: ContentLocale;
   title: string;
 }) {
-  const ctx = await requireAuth();
+  const ctx = withNationalEventScope(await requireAuth());
   const validated = eventTranslationDraftSchema.safeParse(input);
   if (!validated.success) {
     return { error: "Add source content first." };

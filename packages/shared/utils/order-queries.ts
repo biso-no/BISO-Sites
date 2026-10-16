@@ -6,4 +6,6 @@ export const ORDER_ITEMS_SELECT = Query.select([
   "order_items.*",
   "order_items.product.*",
   "order_items.variation.*",
+  // The buyer's answers to the product's checkout questions.
+  "order_items.field_answers.*",
 ]);

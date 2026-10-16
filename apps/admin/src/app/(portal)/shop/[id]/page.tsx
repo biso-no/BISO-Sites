@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import { requireNavAccess } from "@/lib/authorization";
-import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
+import {
+  listCampuses,
+  listDepartmentsForCampus,
+  listSalesTypeOptions,
+} from "../../_actions/lookups";
 import { getProduct } from "../../_actions/shop";
 import { ShopStudioEditor } from "./_components/shop-studio-editor";
 
@@ -13,9 +17,15 @@ export default async function ShopEditorPage({ params }: Props) {
   const { id } = await params;
   const isNew = id === "new";
 
-  const [product, campuses] = await Promise.all([
-    isNew ? null : getProduct(id),
+  const productPromise = isNew ? Promise.resolve(null) : getProduct(id);
+  const [product, campuses, salesTypes] = await Promise.all([
+    productPromise,
     listCampuses(),
+    // Includes the product's saved sales type even if it has since been
+    // deactivated, so the editor can show its label.
+    productPromise.then((saved) =>
+      listSalesTypeOptions(saved?.sales_type ?? null)
+    ),
   ]);
 
   if (!(isNew || product)) {
@@ -71,6 +81,7 @@ export default async function ShopEditorPage({ params }: Props) {
       departments={filteredDepartments}
       isNew={isNew}
       product={product}
+      salesTypes={salesTypes}
     />
   );
 }

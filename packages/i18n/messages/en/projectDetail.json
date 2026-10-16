@@ -63,31 +63,17 @@
       }
     ]
   },
-  "inspire": {
-    "title": "Inspire",
-    "tagline": "A stage for new perspectives",
-    "description": "Inspire is BISO’s talk and storytelling platform where students, alumni and partners share experiences and insight.",
-    "ctaLabel": "Register your interest",
-    "highlights": [
-      "Panels and keynotes from industry leaders and alumni",
-      "Stories from student leaders and entrepreneurs",
-      "Opportunities to pitch your own projects"
-    ],
-    "sections": [
-      {
-        "title": "Stories from our community",
-        "body": "Inspire highlights initiatives, intrapreneurship and lessons learned from BISO’s own projects."
-      },
-      {
-        "title": "Meet mentors and partners",
-        "body": "The stage creates a direct link to partners, mentors and potential sponsors."
-      }
-    ]
-  },
   "schedule": {
     "title": "Campus schedule",
     "subtitle": "Details are updated continuously and may change.",
     "ticket": "Tickets"
+  },
+  "campuses": {
+    "title": "The teams behind the project",
+    "subtitle": "Each campus runs its own team, with its own page, programme and events.",
+    "upcoming": "Coming up",
+    "noEvents": "No upcoming events published yet.",
+    "visit": "Go to {name}"
   },
   "overview": {
     "title": "At a glance",

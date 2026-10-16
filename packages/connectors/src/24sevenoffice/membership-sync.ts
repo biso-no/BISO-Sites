@@ -17,6 +17,8 @@ import type {
   Product,
 } from "./types";
 
+const SEASON_PATTERN = /(spring|fall)\s+\d{4}/i;
+
 /**
  * Parse the expiry date from a membership product name.
  *
@@ -58,7 +60,8 @@ export function parseExpiryDate(name: string): string {
 
 /**
  * Parse the start date from a membership product name.
- * Uses the FIRST season/year mentioned.
+ * Uses the FIRST season/year mentioned. Fall starts 1 July so there is no
+ * summer gap between spring (ends 30 June) and fall.
  */
 export function parseStartDate(name: string): string {
   const pattern = /(spring|fall)\s+(\d{4})/gi;
@@ -75,7 +78,7 @@ export function parseStartDate(name: string): string {
   if (season === "spring") {
     return `${year}-01-01`;
   }
-  return `${year}-08-01`;
+  return `${year}-07-01`;
 }
 
 /**
@@ -148,8 +151,7 @@ function isNotFoundError(error: unknown): boolean {
  * Upsert a membership to Appwrite.
  *
  * Reads the existing row first (rather than blind-updating and creating on a
- * 404 catch) so `mergeMembershipRow` can decide whether an administrator-set
- * `price`/`canPurchase` should be preserved. A read failure that is not a 404
+ * 404 catch) to choose between update and create. A read failure that is not a 404
  * — e.g. a network or permissions error — is rethrown instead of being
  * treated as "row doesn't exist", so it can't silently fall through to a
  * duplicate create attempt.
@@ -169,7 +171,7 @@ async function upsertMembership(
     }
   }
 
-  const docData = mergeMembershipRow(syncItem, existing);
+  const docData = mergeMembershipRow(syncItem);
 
   if (existing) {
     await db.updateRow("app", "memberships", docId, docData);
@@ -232,6 +234,13 @@ export async function syncMembershipsFrom24SO(): Promise<MembershipProductSyncRe
         continue;
       }
 
+      // parseExpiryDate falls back to "end of this year" for a name without
+      // a season, which would put a junk product on sale.
+      if (!SEASON_PATTERN.test(product.Name)) {
+        result.skipped += 1;
+        continue;
+      }
+
       try {
         const syncItem = buildSyncItem(product, membershipCategories);
         result.items.push(syncItem);
@@ -264,6 +273,29 @@ export async function syncMembershipsFrom24SO(): Promise<MembershipProductSyncRe
   }
 
   return result;
+}
+
+/**
+ * Catalog step for the member-roster-sync function: runs the sync and throws
+ * if it failed or any product errored, so the run stops before the roster
+ * step reads a half-written catalog.
+ */
+export async function syncMembershipCatalog(): Promise<{
+  created: number;
+  skipped: number;
+  updated: number;
+}> {
+  const result = await syncMembershipsFrom24SO();
+  if (!result.success || result.errors.length > 0) {
+    throw new Error(
+      `Membership catalog sync failed: ${result.errors.join("; ")}`
+    );
+  }
+  return {
+    created: result.created,
+    skipped: result.skipped,
+    updated: result.updated,
+  };
 }
 
 /**

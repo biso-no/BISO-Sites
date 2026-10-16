@@ -5,6 +5,7 @@ export {
   type TaxCode,
 } from "./accounts";
 export {
+  CAMPUS_DIMENSION_TYPE,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   getDepartments,
@@ -15,10 +16,14 @@ export {
 } from "./files";
 export {
   type BuildExpenseTransactionParams,
+  type BuildShopTransactionParams,
   buildExpenseTransactionInput,
+  buildShopReversalTransactionInput,
+  buildShopTransactionInput,
   type ExpenseReceiptLine,
   type PostExpenseTransactionParams,
   postExpenseTransaction,
-  postShopTransaction,
-  type ShopTransactionParams,
+  postLedgerTransaction,
+  type ShopLedgerLine,
+  type ShopTransactionInput,
 } from "./transactions";

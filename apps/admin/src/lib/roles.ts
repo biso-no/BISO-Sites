@@ -75,6 +75,9 @@ export const NAV_ACCESS = {
   "portal.jobs": [ROLES.GLOBAL_ADMIN, ROLES.HR],
   "portal.events": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.shop": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
+  // Webshop accounting (sales types, clearing accounts, posting switch) is an
+  // organisation-wide finance surface: global and campus admins only.
+  "portal.shopAccounting": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.news": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
@@ -87,7 +90,10 @@ export const NAV_ACCESS = {
   "portal.drafts": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.settings": [ROLES.GLOBAL_ADMIN],
   "portal.documents": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  "portal.it": [ROLES.GLOBAL_ADMIN],
+  // Campus admins reach IT user administration too, but the data layer scopes
+  // them to their own campus (officeLocation) and grants read-only access —
+  // see lib/it-permissions.ts.
+  "portal.it": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.analytics": [ROLES.GLOBAL_ADMIN],
   "portal.inbox": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.members": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
@@ -100,6 +106,14 @@ export type NavKey = keyof typeof NAV_ACCESS;
  * department product authors may manage their catalog but never see orders.
  */
 export function canViewShopOperations(userRoles: string[]): boolean {
+  return (
+    userRoles.includes(ROLES.GLOBAL_ADMIN) ||
+    userRoles.includes(ROLES.CAMPUS_ADMIN)
+  );
+}
+
+/** Who may edit sales types, shop posting settings and the posting switch. */
+export function canManageAccounting(userRoles: string[]): boolean {
   return (
     userRoles.includes(ROLES.GLOBAL_ADMIN) ||
     userRoles.includes(ROLES.CAMPUS_ADMIN)

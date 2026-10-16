@@ -16,20 +16,19 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
   if (publishing) {
     publishLabel = "…";
   } else if (isPublished) {
-    publishLabel = "Published ✓";
+    // Edits only ever reach the draft; publishing again copies them live.
+    publishLabel = "Publish changes";
   }
 
-  async function handlePublish() {
-    if (!(onPublish || onUnpublish)) {
+  async function run(action?: (locale: typeof activeLocale) => Promise<void>) {
+    if (!action) {
       return;
     }
     setPublishing(true);
     try {
-      if (isPublished && onUnpublish) {
-        await onUnpublish(activeLocale);
-      } else if (!isPublished && onPublish) {
-        await onPublish(activeLocale);
-      }
+      await action(activeLocale);
+    } catch {
+      // The host reports the failure itself; the status stays as it was.
     } finally {
       setPublishing(false);
     }
@@ -88,13 +87,28 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
           )}
           {saving === "idle" && null}
         </span>
-        {!isPublished && actions}
-        {(onPublish || onUnpublish) && (
+        {actions}
+        {isPublished && onUnpublish && (
           <button
-            className={`pe-publish${isPublished ? "pe-publish--live" : ""}`}
+            className="pe-topbar__unpublish"
             disabled={publishing || saving === "pending"}
-            onClick={handlePublish}
-            title={isPublished ? "Unpublish this page" : "Publish to biso.no"}
+            onClick={() => run(onUnpublish)}
+            title="Take this page off biso.no"
+            type="button"
+          >
+            Unpublish
+          </button>
+        )}
+        {onPublish && (
+          <button
+            className={`pe-publish ${isPublished ? "pe-publish--live" : ""}`}
+            disabled={publishing || saving === "pending"}
+            onClick={() => run(onPublish)}
+            title={
+              isPublished
+                ? "Publish the latest edits to biso.no"
+                : "Publish to biso.no"
+            }
             type="button"
           >
             {!isPublished && (

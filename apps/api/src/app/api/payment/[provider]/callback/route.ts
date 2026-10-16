@@ -3,18 +3,12 @@ import {
   resolveStripeCredentials,
   resolveVippsCredentials,
 } from "@repo/payment/credentials";
-import { verifyStripeWebhook } from "@repo/payment/stripe";
+import { getStripeReceiptUrl, verifyStripeWebhook } from "@repo/payment/stripe";
 import {
   parseVippsWebhookEvent,
   reconcileVippsPayment,
   verifyVippsWebhookSignature,
 } from "@repo/payment/vipps";
-import { postFinagoTransactionForOrder } from "@repo/shared/utils/finago-order-posting";
-import {
-  fulfilMembershipOrder,
-  isMembershipOrder,
-} from "@repo/shared/utils/membership-fulfilment";
-import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import {
   determineStatusFromStripeSession,
   type StripeSessionLike,
@@ -22,6 +16,7 @@ import {
 import { applyOrderStatusTransition } from "@repo/shared/utils/vipps-order-ops";
 import { type NextRequest, NextResponse } from "next/server";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { settleOrder } from "@/lib/settle-order";
 
 const STRIPE_SESSION_EVENTS = new Set([
   "checkout.session.completed",
@@ -33,43 +28,6 @@ const STRIPE_SESSION_EVENTS = new Set([
 type StripeWebhookSession = StripeSessionLike & {
   metadata?: Record<string, string> | null;
 };
-
-type CallbackDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
-
-/**
- * Best-effort settlement after a paid/authorized transition. Membership
- * orders are fulfilled as a 24SO invoice (fulfilMembershipOrder); every other
- * order is posted as a shop ledger transaction (postFinagoTransactionForOrder)
- * — never both, or the same revenue would be booked twice. Never fails the
- * webhook response — a missed settlement is recovered by the reconciliation
- * cron, and the atomic claim inside each helper prevents duplicates.
- */
-async function settleFinagoIfPaid(orderId: string, db: CallbackDb) {
-  try {
-    const order = (await db.getRow("app", "orders", orderId, [
-      ORDER_ITEMS_SELECT,
-    ])) as {
-      items_json?: string | null;
-      order_items?: Record<string, unknown>[];
-      status?: string;
-    } | null;
-    if (
-      !(order && (order.status === "paid" || order.status === "authorized"))
-    ) {
-      return;
-    }
-    if (isMembershipOrder(order)) {
-      await fulfilMembershipOrder(orderId, db);
-      return;
-    }
-    await postFinagoTransactionForOrder(orderId, db);
-  } catch (error) {
-    console.error(
-      `[payment/callback] Finago settlement failed for ${orderId}:`,
-      error
-    );
-  }
-}
 
 async function handleVippsCallback(req: NextRequest, origin: string | null) {
   const json = (data: unknown, status = 200) =>
@@ -111,10 +69,10 @@ async function handleVippsCallback(req: NextRequest, origin: string | null) {
   await reconcileVippsPayment(event.reference, db);
 
   // Settle revenue from the webhook too, so mobile buyers who never hit the
-  // browser return route still get a ledger entry or membership invoice. The
-  // atomic claim inside each helper makes this safe alongside the return
-  // route and reconciliation cron.
-  await settleFinagoIfPaid(event.reference, db);
+  // browser return route still get a ledger entry or membership invoice.
+  // `settleOrder` is idempotent, so this is safe alongside the return
+  // route, the app's verify call and the reconciliation cron.
+  await settleOrder(event.reference, db);
 
   return json({ received: true });
 }
@@ -148,8 +106,20 @@ async function handleStripeCallback(req: NextRequest, origin: string | null) {
         session,
         event.type
       );
+      // Store the hosted receipt alongside the status. `payment_receipt_url` is
+      // what the admin order view and the buyer's confirmation page link to;
+      // nothing else ever writes it, so without this the link is always dead.
+      if (typeof updateData.payment_intent_id === "string") {
+        const receiptUrl = await getStripeReceiptUrl(
+          updateData.payment_intent_id,
+          creds
+        ).catch(() => null);
+        if (receiptUrl) {
+          updateData.payment_receipt_url = receiptUrl;
+        }
+      }
       await applyOrderStatusTransition(orderId, status, updateData, db);
-      await settleFinagoIfPaid(orderId, db);
+      await settleOrder(orderId, db);
     }
   }
 

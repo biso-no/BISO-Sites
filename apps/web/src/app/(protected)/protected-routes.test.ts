@@ -8,6 +8,8 @@ const PROTECTED = join(root, "src/app/(protected)");
 const SRC = join(root, "src");
 
 const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
+/** A class glued to an interpolation, e.g. `text-ink${…}`. */
+const FUSED_INK_CLASS = /text-ink\$\{/;
 const page = (dir: string) =>
   readFileSync(join(PROTECTED, dir, "page.tsx"), "utf8");
 
@@ -62,7 +64,7 @@ describe("the reimbursements kill switch still works", () => {
   });
 });
 
-describe("expense-v3 is out of scope and untouched", () => {
+describe("the expense composer (expense-v3)", () => {
   it("is still what /fs/new renders", () => {
     expect(page("fs/new")).toContain(
       'from "@/components/expense-v3/expense-split-view"'
@@ -105,6 +107,12 @@ describe("defects this package fixed", () => {
   it("no longer fuses a status class into the next one", () => {
     // `${config.color}text-sm` produced `border-yellow-200text-sm`.
     expect(page("fs/[id]")).not.toContain("}text-sm");
+  });
+
+  it("no longer fuses the monospace class onto the ink colour", () => {
+    // `text-ink${mono ? " font-mono" : ""}` lost its space to Biome's class
+    // sorter and emitted `text-inkfont-mono` — no colour, no monospace.
+    expect(codeOnly(page("fs/[id]"))).not.toMatch(FUSED_INK_CLASS);
   });
 
   it("no longer nests a <button> inside a <Link>", () => {

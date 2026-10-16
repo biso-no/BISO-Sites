@@ -1,21 +1,43 @@
 {
   "meta": {
     "title": "Press & Media | BISO",
-    "description": "Brand assets, press contact and usage guidance."
+    "description": "Press contact, logos and brand guidelines for BI Student Organisation."
   },
   "title": "Press & Media",
+  "breadcrumbHome": "Home",
+  "subtitle": "Press contact, logos and brand guidelines for journalists and partners.",
+  "intro": {
+    "title": "Writing about BISO?",
+    "body": "BI Student Organisation (BISO) is the student organisation at BI Norwegian Business School, with campuses in Oslo, Bergen, Trondheim and Stavanger. Get in touch for comments, interviews or background on student life at BI."
+  },
   "contact": {
-    "title": "Press Contact",
-    "body": "For media inquiries, interviews and brand use, contact us at:"
+    "title": "Press contact",
+    "body": "For media inquiries, interviews and brand use, contact us at:",
+    "cta": "Send an email"
   },
   "assets": {
-    "title": "Brand Assets",
-    "logoLight": "BISO logo (light)",
-    "logoDark": "BISO logo (dark)",
-    "orgChart": "Organization chart"
+    "title": "Logos and materials",
+    "lead": "Download the files in full resolution. Pick the logo version that matches your background.",
+    "download": "Download",
+    "downloadAria": "Download {name}",
+    "logoLight": "Logo for light backgrounds",
+    "logoDark": "Logo for dark backgrounds",
+    "orgChart": "Organisation chart"
   },
   "usage": {
-    "title": "Brand Usage",
-    "body": "Use the logo with clear space and do not alter colors or proportions."
+    "title": "Using the logo",
+    "doTitle": "Do",
+    "dontTitle": "Don't",
+    "do": [
+      "Leave clear space around the logo on all sides",
+      "Use the dark-background version on dark or photographic backgrounds",
+      "Scale the logo proportionally"
+    ],
+    "dont": [
+      "Change the logo's colours",
+      "Stretch, rotate or crop the logo",
+      "Add effects such as shadows or outlines"
+    ],
+    "note": "Planning a collaboration or co-branded material? Contact us before you publish."
   }
 }

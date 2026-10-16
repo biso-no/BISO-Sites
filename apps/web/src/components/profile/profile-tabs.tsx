@@ -49,10 +49,10 @@ export function ProfileTabs({
   // change to arrive at the value Radix already held.
   return (
     <Tabs className="space-y-6" defaultValue="account">
-      {/* `bg-surface-strong` and `shadow-card-soft` were both unregistered —
-          Tailwind emitted nothing for either, so this bar had no background and
-          no shadow. Same family as the two dead utilities RD-019 and RD-021
-          found; `styles.test.ts` now scans this directory too. */}
+      {/* The bar's previous background and shadow utilities were both
+          unregistered — Tailwind emitted nothing for either, so it had no
+          background and no shadow. Same family as the two dead utilities
+          RD-019 and RD-021 found; `styles.test.ts` now scans this directory. */}
       <TabsList className="w-full rounded-biso-md border border-edge bg-surface-sunken p-1">
         <TabsTrigger className={triggerClass} value="account">
           <User aria-hidden="true" className="size-4 shrink-0" />

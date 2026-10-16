@@ -40,7 +40,7 @@ export function NewsArticleSchema({
       "@type": "Organization",
       name: "BI Student Organisation",
     },
-    mainEntityOfPage: `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://web.biso.no"}/news/${slug}`,
+    mainEntityOfPage: `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://biso.no"}/news/${slug}`,
   };
 
   return (

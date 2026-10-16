@@ -23,10 +23,6 @@ vi.mock("@/lib/auth-utils", () => ({
   isAuthenticatedAccount: vi.fn(() => true),
 }));
 
-vi.mock("@/lib/profile", () => ({
-  checkMembership: vi.fn(async () => true),
-}));
-
 import { revealBenefit } from "./member-portal";
 
 describe("member portal benefit reveals", () => {

@@ -10,20 +10,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@repo/ui/components/ui/alert-dialog";
-import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
-import { AlertCircle, Download, Shield, Trash2 } from "lucide-react";
+import { AlertCircle, Download, Loader2, Shield, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { statusPanelSecondaryAction } from "@/components/ui/status-panel";
 import { deleteUserData } from "@/lib/actions/user";
+
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+/**
+ * The dialog's two buttons start from the shared button variants; these
+ * settle what the type role and the variants both set (size, weight, height).
+ */
+const dialogButtonFix = "h-auto font-semibold text-xs";
+
+/**
+ * Destructive actions in the danger colour. `text-surface` on `bg-danger`
+ * holds in both themes: white on the light theme's red, navy on the dark
+ * theme's lighter red — white on that one would fail contrast.
+ */
+const dangerFilled = `type-label inline-flex items-center gap-2 rounded-biso-pill bg-danger px-5 py-3 text-surface transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`;
+const dangerOutline = `type-label inline-flex items-center gap-2 rounded-biso-pill border border-danger/40 px-5 py-3 text-danger transition-colors hover:bg-danger/10 ${focusRing}`;
 
 export function PrivacyControls() {
   const t = useTranslations("common.profile.privacy");
@@ -41,14 +51,12 @@ export function PrivacyControls() {
       // Simulate API request
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      toast.success("Data Request Submitted", {
-        description:
-          "We'll prepare your data and send it to your email within 30 days.",
+      toast.success(t("toasts.requestSubmitted"), {
+        description: t("toasts.requestSubmittedBody"),
       });
     } catch (_error) {
-      toast.error("Data Request Failed", {
-        description:
-          "There was a problem requesting your data. Please try again.",
+      toast.error(t("toasts.requestFailed"), {
+        description: t("toasts.requestFailedBody"),
       });
     } finally {
       setRequestingData(false);
@@ -62,8 +70,8 @@ export function PrivacyControls() {
       const deleted = await deleteUserData();
 
       if (deleted) {
-        toast.success("Account Deleted", {
-          description: "Your account has been successfully deleted.",
+        toast.success(t("toasts.deleted"), {
+          description: t("toasts.deletedBody"),
         });
       } else {
         throw new Error("Failed to delete account");
@@ -71,9 +79,8 @@ export function PrivacyControls() {
 
       setDeleteDialogOpen(false);
     } catch (_error) {
-      toast.error("Deletion Failed", {
-        description:
-          "There was a problem deleting your account. Please try again.",
+      toast.error(t("toasts.deleteFailed"), {
+        description: t("toasts.deleteFailedBody"),
       });
     } finally {
       setDeletingData(false);
@@ -82,102 +89,91 @@ export function PrivacyControls() {
 
   return (
     <>
-      <Card className="border border-border shadow-sm">
-        <CardHeader className="border-border border-b">
-          <CardTitle className="flex items-center text-foreground">
-            <Shield className="mr-2 h-5 w-5 text-primary" />
-            {t("title")}
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Under GDPR, you have the right to access, modify, and delete your
-            personal data
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-6">
-          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
-            <p className="text-muted-foreground text-sm">
-              We process your data in accordance with our{" "}
-              <a className="text-primary hover:underline" href="/privacy">
-                privacy policy
-              </a>{" "}
-              and applicable data protection laws. You have the right to access,
-              export, and request deletion of your data.
-            </p>
-          </div>
+      <section className="rounded-biso-md border border-edge p-6">
+        <h2 className="type-heading-card flex items-center gap-2 text-ink">
+          <Shield
+            aria-hidden="true"
+            className="size-5 shrink-0 text-ink-accent"
+          />
+          {t("title")}
+        </h2>
+        <p className="type-body-sm mt-1 text-ink-muted">{t("subtitle")}</p>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-md p-3 transition-colors hover:bg-section">
-              <div>
-                <h3 className="font-medium text-foreground text-sm">
-                  {t("requestTitle")}
-                </h3>
-                <p className="text-muted-foreground text-xs">
-                  {t("requestBody")}
-                </p>
-              </div>
-              <Button
-                className="flex items-center border-border text-foreground hover:bg-muted"
-                disabled={requestingData}
-                onClick={handleDataRequest}
-                size="sm"
-                variant="outline"
-              >
-                {requestingData ? (
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-b-transparent" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                Export Data
-              </Button>
-            </div>
+        <p className="type-body-sm mt-6 rounded-biso-md bg-surface-sunken p-4 text-ink-muted">
+          {t("processingBefore")}{" "}
+          <Link
+            className={`rounded-biso-sm text-ink-accent underline underline-offset-4 hover:no-underline ${focusRing}`}
+            href="/privacy"
+          >
+            {t("policyLink")}
+          </Link>{" "}
+          {t("processingAfter")}
+        </p>
 
-            <div className="flex items-center justify-between rounded-md p-3 transition-colors hover:bg-section">
-              <div>
-                <h3 className="flex items-center font-medium text-red-600 text-sm">
-                  <AlertCircle className="mr-1 h-4 w-4" />
-                  {t("deleteTitle")}
-                </h3>
-                <p className="text-muted-foreground text-xs">
-                  {t("deleteBody")}
-                </p>
-              </div>
-              <Button
-                className="flex items-center bg-red-600 hover:bg-red-700"
-                onClick={() => setDeleteDialogOpen(true)}
-                size="sm"
-                variant="destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {t("deleteAccount")}
-              </Button>
+        <ul className="mt-6 border-edge border-y">
+          <li className="flex flex-wrap items-center justify-between gap-4 border-edge border-b py-4">
+            <div className="min-w-0">
+              <h3 className="type-body-sm font-semibold text-ink">
+                {t("requestTitle")}
+              </h3>
+              <p className="type-body-sm text-ink-muted">{t("requestBody")}</p>
             </div>
-          </div>
-        </CardContent>
-        <CardFooter className="border-border border-t pt-4 text-muted-foreground text-xs">
-          {t("gdprNote")}
-        </CardFooter>
-      </Card>
+            <button
+              className={`${statusPanelSecondaryAction} disabled:cursor-not-allowed disabled:opacity-50`}
+              disabled={requestingData}
+              onClick={handleDataRequest}
+              type="button"
+            >
+              {requestingData ? (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+              ) : (
+                <Download aria-hidden="true" className="size-4" />
+              )}
+              {t("exportData")}
+            </button>
+          </li>
+
+          <li className="flex flex-wrap items-center justify-between gap-4 py-4">
+            <div className="min-w-0">
+              <h3 className="type-body-sm flex items-center gap-1 font-semibold text-danger">
+                <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
+                {t("deleteTitle")}
+              </h3>
+              <p className="type-body-sm text-ink-muted">{t("deleteBody")}</p>
+            </div>
+            <button
+              className={dangerOutline}
+              onClick={() => setDeleteDialogOpen(true)}
+              type="button"
+            >
+              <Trash2 aria-hidden="true" className="size-4" />
+              {t("deleteAccount")}
+            </button>
+          </li>
+        </ul>
+
+        <p className="type-body-sm mt-4 text-ink-muted">{t("gdprNote")}</p>
+      </section>
 
       <AlertDialog onOpenChange={setDeleteDialogOpen} open={deleteDialogOpen}>
-        <AlertDialogContent className="border border-border bg-background text-foreground">
+        <AlertDialogContent className="rounded-biso-lg border border-edge bg-surface text-ink shadow-elev-2 sm:rounded-biso-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">
+            <AlertDialogTitle className="type-heading-card font-bold text-ink">
               {t("confirmTitle")}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              This action cannot be undone. This will permanently delete your
-              account and remove all your data from our servers.
+            <AlertDialogDescription className="type-body-sm text-ink-muted">
+              {t("confirmBody")}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="border-border border-t pt-4">
+          <AlertDialogFooter className="border-edge border-t pt-4">
             <AlertDialogCancel
-              className="border-border text-muted-foreground hover:bg-muted"
+              className={`${statusPanelSecondaryAction} ${dialogButtonFix}`}
               disabled={deletingData}
             >
               {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 text-white hover:bg-red-700"
+              className={`${dangerFilled} ${dialogButtonFix}`}
               disabled={deletingData}
               onClick={(e) => {
                 e.preventDefault();
@@ -185,9 +181,9 @@ export function PrivacyControls() {
               }}
             >
               {deletingData ? (
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-b-transparent" />
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
               ) : null}
-              Delete Account
+              {t("deleteAccount")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -81,7 +81,10 @@ async function handleSync(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ...result, ok: true });
+    // Surface failed upserts to the scheduler (matches tickster/events/sync):
+    // lastCursor points at the first failing page for a manual `?from=` retry.
+    const ok = result.failed === 0;
+    return NextResponse.json({ ...result, ok }, { status: ok ? 200 : 502 });
   } catch (error) {
     console.error("[tickster/sync] Unexpected error:", error);
     return NextResponse.json(

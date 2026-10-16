@@ -56,11 +56,8 @@ const departmentValues: DocumentMetadataFormValues = {
   description: null,
   language: "no",
   scope: "campus",
-  sort_order: 0,
   status: "draft",
   title: "Vedtekter",
-  version: null,
-  version_number: 1,
 };
 
 mock.module("@repo/api/server", () => ({
@@ -101,6 +98,16 @@ const SHAREPOINT_FIELDS = {
   sharepoint_web_url: "https://example.sharepoint.com/doc",
 };
 
+// The stored values that decide the SharePoint path. A metadata edit must
+// leave them as they are, so rows that are edited successfully carry them.
+const OSLO_PATH_FIELDS = {
+  campus_id: "campus-oslo",
+  category: "campus-bylaws",
+  language: "no",
+  scope: "campus",
+  title: "Vedtekter",
+};
+
 beforeEach(() => {
   currentCtx = departmentCtx;
   db.createRow.mockReset();
@@ -135,6 +142,7 @@ describe("document ownership persistence", () => {
     mockDocumentRow({
       $id: "doc-1",
       ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
       campus: { $id: "campus-oslo" },
       department: { $id: "dept-1" },
       status: "draft",
@@ -154,11 +162,34 @@ describe("document ownership persistence", () => {
         department: "dept-1",
         // SharePoint metadata is not rewritten by metadata updates.
         title: "Vedtekter",
-      })
+      }),
+      expect.any(Array)
     );
     const payload = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
     expect(payload).not.toHaveProperty("sharepoint_item_id");
     expect(payload).not.toHaveProperty("sharepoint_drive_id");
+  });
+
+  test("publishing through a metadata edit opens the row to the public, and back", async () => {
+    mockDocumentRow({
+      $id: "doc-1",
+      ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
+      campus: { $id: "campus-oslo" },
+      department: { $id: "dept-1" },
+      status: "draft",
+      version_number: 1,
+    });
+
+    await updateDocumentMetadata("doc-1", {
+      ...departmentValues,
+      status: "published",
+    });
+    expect(db.updateRow.mock.calls[0]?.[4]).toEqual(['read("any")']);
+
+    db.updateRow.mockClear();
+    await updateDocumentMetadata("doc-1", departmentValues);
+    expect(db.updateRow.mock.calls[0]?.[4]).toEqual([]);
   });
 
   test("department author cannot move a document to another department", async () => {
@@ -185,6 +216,7 @@ describe("document ownership persistence", () => {
     mockDocumentRow({
       $id: "doc-1",
       ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
       campus: { $id: "campus-oslo" },
       department: null,
       status: "draft",
@@ -204,9 +236,11 @@ describe("document ownership persistence", () => {
     mockDocumentRow({
       $id: "doc-1",
       ...SHAREPOINT_FIELDS,
+      ...OSLO_PATH_FIELDS,
       campus: null,
       campus_id: null,
       department: null,
+      scope: "national",
       status: "draft",
       version_number: 1,
     });
@@ -218,7 +252,8 @@ describe("document ownership persistence", () => {
       scope: "national",
     });
     expect(denied).toEqual({
-      error: "Only global admins can manage national documents",
+      error:
+        "Only global admins and the control committee can manage national documents",
     });
 
     currentCtx = globalAdminCtx;

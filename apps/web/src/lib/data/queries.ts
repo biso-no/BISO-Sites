@@ -13,7 +13,10 @@ import type {
   Events,
   News,
 } from "@repo/api/types/appwrite";
+import { JobsStatus } from "@repo/api/types/appwrite";
 import { campusScopeIds } from "@/lib/campus-scope";
+import { WEB_PAGE_SIZE } from "@/lib/list-params";
+import { findContentIdsBySearch } from "./search-content";
 
 export type Db = Awaited<ReturnType<typeof createSessionClient>>["db"];
 
@@ -40,8 +43,10 @@ export function filterTranslationRefs<T extends { translation_refs?: unknown }>(
 
 export interface ListEventsQuery {
   campus?: string;
+  category?: string | null;
   limit?: number;
   locale?: PublicLocale;
+  offset?: number;
   search?: string;
   status?: string;
   /**
@@ -50,40 +55,6 @@ export interface ListEventsQuery {
    * admin-ish surfaces legitimately want the full history.
    */
   upcomingOnly?: boolean;
-}
-
-const MS_PER_DAY = 86_400_000;
-
-/**
- * How far back the Appwrite-side prefilter reaches. An event is "past" only
- * once its `end_date` (or `start_date` when there is no end) has gone by, and
- * Appwrite cannot express that coalesce in one query — so the server filter is
- * deliberately generous and the exact check runs in JS below. 30 days covers
- * any realistic multi-day event that started before today but is still running.
- */
-const UPCOMING_PREFILTER_DAYS = 30;
-
-/**
- * True when the event has not finished yet. Prefers `end_date`, falls back to
- * `start_date`. Rows with neither date (both columns are optional in the
- * schema) stay visible rather than silently disappearing from the listing.
- *
- * Same shape as the `application_deadline` post-filter `_listJobs` applies in
- * `apps/web/src/app/actions/jobs.ts`.
- */
-export function isEventUpcoming(
-  event: Pick<Events, "end_date" | "start_date">,
-  now: number = Date.now()
-): boolean {
-  const endsAt = event.end_date ?? event.start_date;
-  if (!endsAt) {
-    return true;
-  }
-  const endsAtTime = new Date(endsAt).getTime();
-  if (Number.isNaN(endsAtTime)) {
-    return true;
-  }
-  return endsAtTime >= now;
 }
 
 const EVENT_SELECT = [
@@ -132,37 +103,98 @@ const EVENT_SELECT = [
   "translation_refs.additional_fields",
 ] as const;
 
+/**
+ * "Has not finished yet", as a query rather than a post-fetch filter.
+ *
+ * Prefers `end_date`, falls back to `start_date`, and keeps rows with neither
+ * (both columns are optional). Appwrite allows one level of `and` nested in
+ * `or`, which is what makes the fallback expressible — verified against the
+ * live instance.
+ */
+function upcomingQueries(nowIso: string): string[] {
+  return [
+    Query.or([
+      Query.greaterThanEqual("end_date", nowIso),
+      Query.and([
+        Query.isNull("end_date"),
+        Query.greaterThanEqual("start_date", nowIso),
+      ]),
+      Query.and([Query.isNull("end_date"), Query.isNull("start_date")]),
+    ]),
+  ];
+}
+
 export async function queryEvents(
   db: Db,
   params: ListEventsQuery = {}
-): Promise<Events[]> {
+): Promise<{ capped: boolean; rows: Events[]; total: number }> {
   const {
-    limit = 25,
-    status = "published",
     campus,
+    category,
+    limit = WEB_PAGE_SIZE,
     locale,
+    offset = 0,
     search,
+    status = "published",
     upcomingOnly = false,
   } = params;
 
   const queries = [Query.select([...EVENT_SELECT])];
 
+  let capped = false;
+
+  if (search?.trim()) {
+    const found = await findContentIdsBySearch(db, "event", search, locale);
+    if (found.ids.length === 0) {
+      return { rows: [], total: 0, capped: false };
+    }
+    capped = found.capped;
+    queries.push(Query.equal("$id", found.ids));
+  }
+
   if (upcomingOnly) {
-    const prefilterFrom = new Date(
-      Date.now() - UPCOMING_PREFILTER_DAYS * MS_PER_DAY
-    ).toISOString();
-    queries.push(
-      // `isNull` keeps undated rows in the result set — a bare
-      // `greaterThanEqual` would drop them server-side before the JS check
-      // below ever sees them.
-      Query.or([
-        Query.greaterThanEqual("start_date", prefilterFrom),
-        Query.isNull("start_date"),
-      ]),
-      Query.orderAsc("start_date")
-    );
+    queries.push(Query.orderAsc("start_date"));
   } else {
     queries.push(Query.orderDesc("$createdAt"));
+  }
+
+  queries.push(
+    ...eventFilterQueries({ campus, category, locale, status, upcomingOnly })
+  );
+
+  queries.push(Query.limit(limit), Query.offset(offset));
+
+  const response = await db.listRows<Events>("app", "events", queries);
+
+  return {
+    rows: response.rows.map((event) => filterTranslationRefs(event, locale)),
+    total: response.total,
+    capped,
+  };
+}
+
+/**
+ * The row filters behind every public event listing — everything except
+ * projection, search, ordering and paging. Shared with the homepage counter
+ * so "N upcoming events" counts exactly the rows `/events` would list.
+ */
+export function eventFilterQueries(
+  params: Pick<
+    ListEventsQuery,
+    "campus" | "category" | "locale" | "status" | "upcomingOnly"
+  >
+): string[] {
+  const {
+    campus,
+    category,
+    locale,
+    status = "published",
+    upcomingOnly,
+  } = params;
+  const queries: string[] = [];
+
+  if (upcomingOnly) {
+    queries.push(...upcomingQueries(new Date().toISOString()));
   }
 
   if (locale) {
@@ -183,19 +215,79 @@ export async function queryEvents(
     queries.push(Query.equal("campus_id", campusScope));
   }
 
-  if (search?.trim()) {
-    queries.push(Query.search("translation_refs.title", search.trim()));
+  if (category) {
+    queries.push(Query.equal("category", category));
   }
 
-  queries.push(Query.limit(limit));
+  // Deliberately no `member_only` filter, for anyone: members-only limits who
+  // can JOIN an event, not who can see it. Surfaces render a badge instead.
 
-  const eventsResponse = await db.listRows<Events>("app", "events", queries);
+  // Collections and standalone events only — never an item inside a
+  // collection. Also formerly client-side. The empty-string arm is defensive:
+  // every current row has collection_id NULL, but the admin editor may write "".
+  queries.push(
+    Query.or([
+      Query.equal("is_collection", true),
+      Query.isNull("collection_id"),
+      Query.equal("collection_id", ""),
+    ])
+  );
 
-  const rows = upcomingOnly
-    ? eventsResponse.rows.filter((event) => isEventUpcoming(event))
-    : eventsResponse.rows;
+  return queries;
+}
 
-  return rows.map((event) => filterTranslationRefs(event, locale));
+/**
+ * Open vacancies, as an Appwrite query rather than a post-fetch filter.
+ *
+ * `isRecruitmentVacancyOpen` used to run over an already-fetched window, which
+ * meant any open vacancy outside the newest 100 rows never reached the page —
+ * only 28 of 253 published jobs are open. It also made `total` overcount, which
+ * pagination cannot tolerate. The helper's "unparseable date -> keep" branch is
+ * unreachable for a datetime column, so this is equivalent.
+ */
+export function openVacancyQueries(): string[] {
+  return [
+    Query.equal("status", JobsStatus.PUBLISHED),
+    Query.or([
+      Query.isNull("application_deadline"),
+      Query.greaterThanEqual("application_deadline", new Date().toISOString()),
+    ]),
+  ];
+}
+
+/** Page size for `countRows`; Appwrite's per-request ceiling is 5000. */
+const COUNT_PAGE_SIZE = 1000;
+
+/**
+ * Number of rows matching `filters`, counted from the rows themselves.
+ *
+ * Don't read a count off `listRows(...).total`: since the recent Appwrite
+ * release it reports the size of the whole table, not of the filtered result,
+ * so every "N matching" figure derived from it silently became the table size.
+ * This projects `$id` only and walks cursor pages, so it stays cheap and exact
+ * at any size.
+ */
+export async function countRows(
+  db: Db,
+  tableId: string,
+  filters: string[]
+): Promise<number> {
+  let count = 0;
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await db.listRows("app", tableId, [
+      ...filters,
+      Query.select(["$id"]),
+      Query.limit(COUNT_PAGE_SIZE),
+      ...(cursor ? [Query.cursorAfter(cursor)] : []),
+    ]);
+    count += page.rows.length;
+    const last = page.rows.at(-1);
+    if (page.rows.length < COUNT_PAGE_SIZE || !last) {
+      return count;
+    }
+    cursor = last.$id;
+  }
 }
 
 export interface ListNewsQuery {

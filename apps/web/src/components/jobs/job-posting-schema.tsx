@@ -4,10 +4,10 @@ import { serializeJsonLd } from "@/lib/json-ld";
 /**
  * `JobPosting` structured data — what puts a BISO vacancy into Google Jobs.
  *
- * Extracted from `job-details-client` in RD-019 so the redesigned server-
- * rendered detail page emits byte-identical markup. It carries no "use client"
- * directive: it is a plain `<script>` tag and both the v1 client view and the
- * v2 server view render it.
+ * Extracted from the v1 `job-details-client` in RD-019 so the redesigned
+ * server-rendered detail page (`v2/job-detail-v2.tsx`, now the only one)
+ * emits byte-identical markup. It carries no "use client" directive: it is a
+ * plain `<script>` tag.
  */
 
 function mapEmploymentType(

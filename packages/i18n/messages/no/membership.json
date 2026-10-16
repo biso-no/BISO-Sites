@@ -183,10 +183,18 @@
       "cta": "Logg inn"
     },
     "needsBiLink": {
-      "title": "Koble til BI-studentkontoen din",
-      "body": "Vi bekrefter medlemskapet ditt mot BI-studentregisteret. Å logge inn med studentmailen er ikke nok — du må koble til selve kontoen.",
-      "cta": "Koble til BI Student-konto",
-      "linkFailed": "Vi fikk ikke fullført koblingen. Vennligst prøv igjen, eller kontakt oss hvis det fortsetter å mislykkes."
+      "title": "Logg inn med BI-studentkontoen din",
+      "body": "Medlemskapet følger studentnummeret ditt, så du må være logget inn med BI-kontoen din. Du er logget inn med en annen konto nå – logg inn på nytt med BI, så er du i gang.",
+      "cta": "Logg inn med BI",
+      "linkFailed": "Vi fikk ikke bekreftet studentnummeret ditt etter innloggingen. Prøv igjen, eller kontakt oss hvis det fortsetter å feile.",
+      "alreadyLinked": "Denne BI-studentkontoen hører allerede til en annen BISO-konto. Logg inn med den, eller kontakt BISO.",
+      "invalidBiEmail": "BI-kontoen du logget inn med er ikke en studentkonto. Logg inn med studentkontoen for s-nummeret ditt (s1234567@bi.no)."
+    },
+    "biSyncFailed": {
+      "title": "Vi fikk ikke bekreftet studentnummeret ditt",
+      "body": "Du er logget inn med BI, men studentnummeret kom ikke på plass. Det kan være et forbigående problem, eller BI-kontoen er ikke en studentkonto med s-nummer. Du er ikke belastet noe.",
+      "retry": "Prøv igjen",
+      "contact": "Kontakt oss"
     },
     "needsDirectoryRecord": {
       "title": "Vi kunne ikke bekrefte BI-registreringen din",
@@ -209,7 +217,9 @@
       "title": "Du er allerede medlem",
       "body": "Medlemskapet ditt løper til {expiry}.",
       "bodyUnknownExpiry": "Du har allerede et aktivt medlemskap.",
-      "cta": "Gå til medlemsportalen"
+      "cta": "Gå til medlemsportalen",
+      "upcomingTitle": "Medlemskapet ditt er på vei",
+      "upcomingBody": "Medlemskapet ditt starter {start} og varer til {end}. Fordelene blir tilgjengelige fra startdatoen."
     },
     "noPlansAvailable": {
       "title": "Medlemskap kan ikke kjøpes akkurat nå",
@@ -223,7 +233,10 @@
       "three_years": "Tre år",
       "price": "{price} kr",
       "extends": "Utvider medlemskapet ditt til {expiry}",
-      "popular": "Mest populær"
+      "popular": "Mest populær",
+      "endsSoon": "Dette medlemskapet utløper {end}.",
+      "buyThisSeason": "Kjøp for dette semesteret (til {end})",
+      "buyNextSeason": "Start neste semester i stedet ({start} – {end})"
     },
     "campus": {
       "legend": "Hvilken campus studerer du ved?",

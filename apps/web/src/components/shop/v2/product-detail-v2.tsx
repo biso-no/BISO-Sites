@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { AddToCartClient } from "@/components/shop/add-to-cart-client";
 import { MemberCalloutClient } from "@/components/shop/member-callout-client";
+import { ProductCustomFieldsProvider } from "@/components/shop/product-custom-fields-context";
 import { ProductOptionsClient } from "@/components/shop/product-options-client";
 import { ChevronFrame } from "@/components/ui/chevron-frame";
 import { PageHeader } from "@/components/ui/page-header";
@@ -17,26 +18,32 @@ import { toPlainText } from "@/lib/content-text";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 import {
-  calculateSavings,
-  getDisplayPrice,
-  type ProductOption,
-  parseProductMetadata,
-} from "@/lib/types/webshop";
+  type ProductCustomFieldRow,
+  toProductCustomFields,
+} from "@/lib/types/product";
+import { calculateSavings, getDisplayPrice } from "@/lib/types/webshop";
 
 /**
- * The product page, rebuilt on the design system.
+ * The product page, rebuilt on the design system: the detail template with a
+ * sticky buy card (spec §4.6).
  *
- * **Every interactive part is the v1 component, unchanged.**
- * `<AddToCartClient>`, `<ProductOptionsClient>` and `<MemberCalloutClient>` are
- * imported and given the identical prop list they receive today: this package
- * restyles the shop, and the cart, reservation and checkout paths carry real
- * money. The price arithmetic is likewise the same `getDisplayPrice` /
- * `calculateSavings` the current page calls.
+ * **The purchase logic is the shared client components', unchanged.**
+ * `<AddToCartClient>` carries the members-only gate, the required-answer check
+ * and the stock and per-buyer limits; `<ProductOptionsClient>` renders the
+ * product's checkout questions from `product_custom_fields`; both read the
+ * answers through `<ProductCustomFieldsProvider>`. The cart, reservation and
+ * checkout paths carry real money, and every refusal made here is made again
+ * server-side. The price arithmetic is the same `getDisplayPrice` /
+ * `calculateSavings` the cart uses.
  *
- * What changes is the frame around them — and the back control, which v1
- * renders as a bare `<Link>` dropped inside an absolutely-positioned flex row
- * next to the title block, where it lands on top of the hero rather than above
- * it. Here it is a breadcrumb, like every other detail page.
+ * The questions sit inside the buy card, between the price and the button. On
+ * a phone the card comes before the description, so a question left down in
+ * the body would be out of sight of the button that refuses without it.
+ *
+ * A members-only product renders for everyone, with its pill: `member_only`
+ * limits who can buy, not who can see. A link-only (`unlisted`) product renders
+ * like any other — it is only absent from listings, and `generateMetadata`
+ * marks it `noindex`.
  *
  * `formatPrice` is not used: it returns the literal string "Free" regardless of
  * locale. The label comes from the message bundle instead.
@@ -70,8 +77,11 @@ export async function ProductDetailV2({
   // Legacy imports store a bare Appwrite file ID in `image` rather than a URL.
   const imageUrl = resolveStorageFileUrl(product.image);
 
-  const metadata = parseProductMetadata(product.metadata);
-  const productOptions = (metadata.product_options as ProductOption[]) || [];
+  // Definitions live in `product_custom_fields`; `metadata.product_options`
+  // was never written by anything and never rendered a single field.
+  const customFields = toProductCustomFields(
+    (product as { custom_fields?: ProductCustomFieldRow[] }).custom_fields
+  );
 
   const regularPrice = product.regular_price ?? 0;
   const memberPrice = product.member_price;
@@ -121,26 +131,32 @@ export async function ProductDetailV2({
       <Section tone="paper">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
           {/* The buying controls come first on a phone: on a product page the
-              price and the button are what the reader came for, and the
-              description is what they read to decide. `order` puts the column
-              back on the right at desktop. */}
-          <aside className="space-y-6 lg:order-2">
-            <AddToCartClient
-              availableStock={availableStock}
-              displayPrice={displayPrice}
-              hasDiscount={hasDiscount}
-              isMember={isMember}
-              memberPrice={memberPrice}
-              product={product}
-              regularPrice={regularPrice}
-              savings={savings}
-              stock={product.stock}
-              userId={userId}
-            />
+              price, the questions and the button are what the reader came
+              for, and the description is what they read to decide. `order`
+              puts the column back on the right at desktop, where it becomes
+              the sticky rail the detail template calls for. */}
+          <aside className="lg:order-2">
+            <div className="space-y-6 lg:sticky lg:top-24">
+              <ProductCustomFieldsProvider fields={customFields}>
+                <AddToCartClient
+                  availableStock={availableStock}
+                  displayPrice={displayPrice}
+                  hasDiscount={hasDiscount}
+                  isMember={isMember}
+                  memberPrice={memberPrice}
+                  product={product}
+                  questions={<ProductOptionsClient />}
+                  regularPrice={regularPrice}
+                  savings={savings}
+                  stock={product.stock}
+                  userId={userId}
+                />
+              </ProductCustomFieldsProvider>
 
-            {isMember || product.category === "Membership" ? null : (
-              <MemberCalloutClient />
-            )}
+              {isMember || product.category === "Membership" ? null : (
+                <MemberCalloutClient />
+              )}
+            </div>
           </aside>
 
           <div className="min-w-0 space-y-10 lg:order-1">
@@ -170,13 +186,6 @@ export async function ProductDetailV2({
                   <PlateContentRenderer value={description || null} />
                 </Prose>
               </div>
-            ) : null}
-
-            {productOptions.length > 0 ? (
-              <ProductOptionsClient
-                productOptions={productOptions}
-                productRefId={product.$id}
-              />
             ) : null}
 
             <div className="flex items-start gap-3 rounded-biso-md bg-surface-sunken p-5">

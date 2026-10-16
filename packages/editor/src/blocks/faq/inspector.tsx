@@ -21,7 +21,7 @@ export function FaqInspector({ block, onPatch }: Props) {
         <div className="pe-variant-grid">
           {(["list", "accordion-themed"] as const).map((v) => (
             <button
-              className={`pe-variant${variant === v ? "on" : ""}`}
+              className={`pe-variant ${variant === v ? "on" : ""}`}
               key={v}
               onClick={() => onPatch("variant", v)}
               type="button"

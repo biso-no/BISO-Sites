@@ -11,6 +11,11 @@ const PUBLIC = join(root, "src/app/(public)");
  * Ten routes onto the content template, plus `/[...slug]`, which is the block
  * editor's catch-all and is deliberately **not** on it: its blocks own their
  * own layout, and the package's contract is that editor rendering is unchanged.
+ *
+ * Merged with main since: `/bi-fondet` became `/okonomisk-stotte` (it 308s
+ * there from `next.config.ts`), and the drug policy moved from
+ * `/policies/drugs-policy` to `/about/drugs-policy` (the old address is a 308
+ * route handler).
  */
 const CONVERTED = [
   "privacy",
@@ -19,10 +24,10 @@ const CONVERTED = [
   "contact",
   "business",
   "business-hotspot",
-  "bi-fondet",
+  "okonomisk-stotte",
   "documents",
   "students",
-  "policies/drugs-policy",
+  "about/drugs-policy",
 ];
 
 /** Biome's `noTemplateCurlyInString` fires on a literal `${`; these assertions
@@ -31,6 +36,8 @@ const D = "$";
 /** Hoisted: `useTopLevelRegex` forbids building this inside the assertion. */
 const SECTION_ID = /^\s{4}id: "([a-z-]+)"/gm;
 const OWN_TITLE = /export (async function generateMetadata|const metadata)/;
+const BI_FONDET_REDIRECT =
+  /source: "\/bi-fondet",\s*destination: "\/okonomisk-stotte",\s*permanent: true/;
 
 function page(dir: string): string {
   return readFileSync(join(PUBLIC, dir, "page.tsx"), "utf8");
@@ -72,8 +79,15 @@ describe("the client components these pages depended on are gone", () => {
     "business/business-page-client.tsx",
     "business-hotspot/business-hotspot-client.tsx",
     "students/students-page-client.tsx",
+    "okonomisk-stotte/funding-support-page-client.tsx",
   ])("%s is deleted", (file) => {
     expect(existsSync(join(PUBLIC, file))).toBe(false);
+  });
+
+  it("retires the pre-redesign page header", () => {
+    expect(
+      existsSync(join(root, "src/components/public/public-page-header.tsx"))
+    ).toBe(false);
   });
 
   it.each([
@@ -129,13 +143,34 @@ describe("the privacy statement", () => {
   });
 });
 
+describe("addresses that moved answer a real 308", () => {
+  it("sends /policies/drugs-policy to /about/drugs-policy", () => {
+    // A route handler, not a page calling `redirect()`: under
+    // `cacheComponents` the page would flush a 200 shell first (RD-034).
+    const alias = join(PUBLIC, "policies/drugs-policy");
+    expect(existsSync(join(alias, "page.tsx"))).toBe(false);
+    const route = readFileSync(join(alias, "route.ts"), "utf8");
+    expect(route).toContain('"/about/drugs-policy"');
+    expect(route).toContain("308");
+  });
+
+  it("serves /bi-fondet from the config redirect, with no page left behind", () => {
+    expect(existsSync(join(PUBLIC, "bi-fondet"))).toBe(false);
+    const config = readFileSync(join(root, "next.config.ts"), "utf8");
+    expect(config).toMatch(BI_FONDET_REDIRECT);
+  });
+});
+
 describe("dead controls this package removed", () => {
   it("gives every career-day card a real destination", () => {
-    // Four prominent 'JOIN US' buttons had neither href nor handler.
+    // Four prominent 'JOIN US' buttons had neither href nor handler. Each now
+    // leads to that campus's Karrieredagene unit page, resolved from the unit
+    // directory, falling back to the project page (main #87).
     const source = page("business");
-    expect(source).toContain(
-      `mailto:${D}{t(\`contact.campuses.${D}{key}.email\`)}`
-    );
+    expect(source).toContain("careerDaysHrefs(units)");
+    expect(source).toContain("href={careerDaysLinks[key]}");
+    // An outage in the unit directory must not take the page down.
+    expect(source).toContain("cachedPublicUnits(locale).catch(");
   });
 
   it("stops gating the Business Hotspot section on a campus cookie", () => {
@@ -148,11 +183,21 @@ describe("dead controls this package removed", () => {
     expect(page("business")).not.toContain(`campuses.${D}{key}.phone`);
   });
 
-  it("asks for a funding key that exists", () => {
-    // `overview.rows` is in neither bundle; the key is `overview.documents`.
-    const source = page("bi-fondet");
-    expect(source).not.toContain('t("overview.rows")');
-    expect(source).toContain('t("overview.documents")');
+  it("keeps the funding page's links overridable from Appwrite", () => {
+    // The prose is in the `fundingProgram` bundle; the `funding_programs` row
+    // only overrides the volatile links, and every one falls back.
+    const source = page("okonomisk-stotte");
+    expect(source).toContain('getFundingProgramBySlug("bi-fondet")');
+    expect(source).toContain("DEFAULT_PROGRAM_LINKS");
+    expect(source).toContain('program.status !== "closed"');
+  });
+
+  it("answers the funding FAQ in a disclosure list, not an accordion widget", () => {
+    const source = page("okonomisk-stotte");
+    expect(source).toContain("<details");
+    expect(source).toContain("<summary");
+    expect(source).not.toContain("Accordion");
+    expect(source).toContain("statusPanelPrimaryAction");
   });
 
   it("keeps the terms highlight guard, so an empty callout is not drawn", () => {
@@ -168,7 +213,27 @@ describe("documents", () => {
     expect(source).toContain("<FilterChips");
     expect(source).toContain('param="category"');
     // A plain GET form, so search survives a reload and works without JS.
-    expect(source).toContain('<form action="/documents"');
+    expect(source).toContain("<FeedSearch");
+    expect(source).toContain('action="/documents"');
+  });
+
+  it("opens the shelf and the campus a link asks for", () => {
+    // `?category=` is validated by main's `resolveDocumentsFilters`; campus is
+    // URL > cookie > all, national documents riding along with any campus.
+    expect(source).toContain("resolveDocumentsFilters(");
+    expect(source).toContain("resolveRequestCampus(sp.campus");
+    expect(source).toContain("listPublishedDocuments({ campusId: campus })");
+  });
+
+  it("shows the current version and every earlier one", () => {
+    const row = readFileSync(
+      join(root, "src/components/documents/v2/document-row.tsx"),
+      "utf8"
+    );
+    expect(row).toContain("displayDocumentVersion(doc.version)");
+    expect(row).toContain("doc.previousVersions.map");
+    expect(row).toContain("<details");
+    expect(row).toContain(`download?version=${D}{version.id}`);
   });
 
   it("leaves the download and SharePoint routes untouched", () => {
@@ -187,6 +252,21 @@ describe("documents", () => {
 
   it("records PLACEHOLDER-014 — the table is empty", () => {
     expect(source).toContain("PLACEHOLDER-014");
+  });
+});
+
+describe("press", () => {
+  const source = page("press");
+
+  it("carries main's restructured press kit", () => {
+    // d5da221d: an intro, a contact panel, previewed downloads named for the
+    // background each logo is for, and do/don't usage lists.
+    expect(source).toContain('t("intro.title")');
+    expect(source).toContain('t("assets.downloadAria", { name })');
+    expect(source).toContain('t.raw("usage.do")');
+    expect(source).toContain('t.raw("usage.dont")');
+    // The single usage paragraph it replaced is gone from both bundles.
+    expect(source).not.toContain('t("usage.body")');
   });
 });
 
@@ -210,21 +290,33 @@ describe("the block editor catch-all is untouched", () => {
   });
 });
 
-describe("the duplication between /students and /campus is resolved", () => {
+/**
+ * Merged with main. The redesign had reduced `/students` to an index of links;
+ * main (#63, #87) rebuilt it with its own sections — benefits, units, funding,
+ * upcoming events, open positions — and the merge keeps main's sections on the
+ * redesign's primitives. What the redesign was guarding against still holds:
+ * the feeds are scoped server-side rather than fetched site-wide and sliced,
+ * and a section with no data is omitted rather than promised.
+ */
+describe("/students carries main's sections without the redesign's traps", () => {
   const source = page("students");
+  const sections = readFileSync(
+    join(PUBLIC, "students/_components/student-sections.tsx"),
+    "utf8"
+  );
 
-  it("stops restating the campus feeds", () => {
-    // `/campus/<slug>`, `/events` and `/jobs` are the canonical lists; this
-    // page links to them instead of fetching and rendering them again.
-    expect(source).not.toContain("listEvents");
-    expect(source).not.toContain("listJobs");
+  it("scopes its feeds by campus on the server and shows only what is ahead", () => {
+    expect(source).toContain("resolveRequestCampus(sp.campus");
+    expect(source).toContain("upcomingOnly: true");
     expect(source).not.toContain("getDepartments");
+    expect(source).not.toContain("useCampus");
   });
 
-  it("stops reading the empty campus_data table for benefits", () => {
-    // `campus_data` holds zero rows, so the benefits block rendered nothing.
-    // The 18 real rows are on /membership#fordeler, where this now points.
-    expect(source).not.toContain("getGlobalMembershipBenefits");
+  it("omits the benefits block while campus_data has nothing to show", () => {
+    // `campus_data` was empty when the redesign audited it; the block renders
+    // only when a campus (or the national row) has entries, and points at the
+    // full list on /membership#fordeler.
+    expect(sections).toContain("cards.length === 0");
     expect(source).toContain("/membership#fordeler");
   });
 });

@@ -9,10 +9,10 @@
       "signIn": "Logg inn med e-post"
     },
     "noBIEmail": {
-      "title": "Koble til din BI-student e-post",
-      "description": "For å verifisere medlemskapet ditt og få tilgang til fordeler, vennligst koble til din BI-student e-postkonto. Dette lar oss sikkert validere student-IDen din.",
+      "title": "Logg inn med BI-studentkontoen din",
+      "description": "Medlemskapet følger studentnummeret ditt. Logg inn med BI-kontoen din, så bekrefter vi student-ID-en din automatisk.",
       "securityNote": "Du vil bli omdirigert til BIs sikre autentiseringssystem. Påloggingsdetaljene dine lagres aldri av BISO.",
-      "linkEmail": "Koble til BI-student e-post"
+      "linkEmail": "Logg inn med BI"
     },
     "notMember": {
       "title": "Bli BISO-medlem",
@@ -49,7 +49,8 @@
     "benefits": "Fordeler",
     "campus": "Campus",
     "opportunities": "Muligheter",
-    "settings": "Innstillinger"
+    "settings": "Innstillinger",
+    "locked": "Kun for medlemmer"
   },
   "overview": {
     "quickStats": "Hurtigstatistikk",
@@ -80,7 +81,8 @@
       "potential": "Spar mer ved å bruke fordeler"
     },
     "discoverEyebrow": "Oppdag BISO-fordelene",
-    "discoverTitle": "Se hva du går glipp av"
+    "discoverTitle": "Se hva du går glipp av",
+    "discoverDescription": "Som BISO-medlem får du eksklusive rabatter og fordeler hos partnerne våre. Se hva som er tilgjengelig, og bli medlem i dag!"
   },
   "profile": {
     "title": "Personlig informasjon",
@@ -105,34 +107,25 @@
     "saveChanges": "Lagre endringer",
     "login": "Logg inn",
     "guestTitle": "Gjestetilgang",
-    "guestDescription": "Logg inn for å se hele profilen din og administrere medlemskapet ditt."
+    "guestDescription": "Logg inn for å se hele profilen din og administrere medlemskapet ditt.",
+    "saving": "Lagrer …"
   },
   "membership": {
     "title": "Ditt medlemskap",
     "description": "Administrer ditt BISO-medlemskap og fakturering",
     "active": "Aktiv",
     "currentPlan": "Nåværende plan",
-    "nextBillingDate": "Neste faktureringsdato",
-    "autoRenewal": "Automatisk fornyelse",
-    "enabled": "Aktivert",
-    "disabled": "Deaktivert",
-    "enable": "Aktiver",
-    "disable": "Deaktiver",
-    "upgradeMembership": "Oppgrader medlemskapet ditt",
-    "upgradeDescription": "Spar mer med lengre medlemskapsperioder",
-    "currentPlanBadge": "Nåværende plan",
-    "monthlyPrice": "~{price} NOK/måned",
-    "savePercent": "Spar {percent}%",
-    "proTip": "Protips:",
-    "proTipDescription": "3-års medlemskapet sparer deg over 450 NOK sammenlignet med årlige fornyelser!",
-    "digitalCard": "Digitalt medlemskort",
-    "bisoMember": "BISO-medlem",
-    "studentId": "Student-ID",
+    "startDate": "Startet",
+    "daysRemaining": "{days, plural, one {# dag igjen} other {# dager igjen}}",
     "validUntil": "Gyldig til",
-    "useCard": "Bruk ditt digitale medlemskort for å få tilgang til fordeler og verifisere medlemskapsstatus.",
-    "addToAppleWallet": "Legg til i Apple Wallet",
-    "addToGooglePay": "Legg til i Google Pay",
-    "shareCard": "Del kort"
+    "yourPass": "Medlemskortet ditt",
+    "extendTitle": "Forleng medlemskapet",
+    "extendDescription": "Kjøp en lengre plan før denne går ut.",
+    "noUpgrades": "Du har allerede den lengste planen som selges.",
+    "popular": "Populær",
+    "validUntilDate": "Gyldig til {date}",
+    "choosePlan": "Velg plan",
+    "upcomingMembership": "Medlemskapet ditt starter {start}."
   },
   "benefits": {
     "title": "Dine fordeler og rabatter",
@@ -160,7 +153,10 @@
       "software": "Programvare",
       "travel": "Reise",
       "education": "Utdanning"
-    }
+    },
+    "all": "Alle",
+    "categoriesLabel": "Kategorier for fordeler",
+    "qrLabel": "QR-kode for denne fordelen"
   },
   "settings": {
     "notificationPreferences": "Varslingsinnstillinger",
@@ -191,17 +187,12 @@
   },
   "showcase": {
     "title": "Eksklusive medlemsfordeler",
-    "description": "Som BISO-medlem får du tilgang til vårt omfattende nettverk av partnerrabatter og eksklusive tilbud",
-    "stats": {
-      "partners": "Partnerselskaper",
-      "savings": "Gj.snitt årlig besparelse",
-      "members": "Aktive medlemmer"
-    }
+    "description": "Som BISO-medlem får du tilgang til vårt omfattende nettverk av partnerrabatter og eksklusive tilbud"
   },
   "cta": {
     "badge": "Bli BISO-medlem i dag",
     "title": "Lås opp alle medlemsfordeler",
-    "description": "Få umiddelbar tilgang til 50+ eksklusive rabatter, medlemsarrangementer og karriereressurser",
+    "description": "Få umiddelbar tilgang til eksklusive rabatter, medlemsarrangementer og karriereressurser",
     "plans": {
       "semester": "Semester",
       "year": "Ett år",
@@ -212,9 +203,8 @@
     "save": "Spar {percent}%",
     "joinNow": "Bli BISO-medlem nå",
     "processing": "Behandler...",
-    "socialProof": "Bli med 10 000+ BI-studenter som allerede sparer",
     "benefits": {
-      "discounts": "Eksklusive rabatter hos 50+ partnere",
+      "discounts": "Eksklusive rabatter hos BISOs partnere",
       "events": "Tilgang til medlemsarrangementer",
       "career": "Karriereressurser og nettverksbygging",
       "card": "Digitalt medlemskort",
@@ -271,5 +261,10 @@
       "title": "Kompetanseutvikling",
       "description": "Delta på workshops og kurs for å bygge CV-en din og utvikle ferdighetene dine."
     }
+  },
+  "unavailable": {
+    "title": "Vi kan ikke sjekke medlemskapet ditt akkurat nå",
+    "body": "Medlemsregisteret svarte ikke. Det sier ingenting om medlemskapet ditt – prøv igjen om noen minutter.",
+    "retry": "Prøv igjen"
   }
 }

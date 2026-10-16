@@ -73,8 +73,10 @@
     "price": "Pris",
     "tax": "Mva",
     "included": "Inkludert",
-    "options": "Produktvalg",
-    "required": "Dette feltet er påkrevd"
+    "optionsTitle": "Tilleggsinformasjon",
+    "optionRequired": "Dette feltet må fylles ut",
+    "membersOnly": "Kun for medlemmer",
+    "membersOnlyNotice": "Dette produktet er for BISO-medlemmer. Bli medlem for å kjøpe det."
   },
   "member": {
     "notMember": "Ikke medlem ennå?",
@@ -90,6 +92,8 @@
     "title": "Handlekurven din",
     "itemsReady": "{count} {count, plural, one {vare} other {varer}} klar for henting",
     "outOfStock": "Beklager, denne er dessverre utsolgt akkurat nå.",
+    "membersOnly": "Dette produktet er kun for BISO-medlemmer.",
+    "unavailable": "Dette produktet er ikke tilgjengelig lenger.",
     "updateFailed": "Kunne ikke oppdatere handlekurven. Prøv igjen.",
     "empty": {
       "title": "Handlekurven er tom",
@@ -204,7 +208,9 @@
     "membershipWelcome": {
       "title": "Du er nå medlem",
       "desc": "Medlemskapet ditt er aktivert. Alle rabatter og fordeler er tilgjengelige i BISO-appen og medlemsportalen med det samme.",
-      "cta": "Gå til medlemsportalen"
+      "cta": "Gå til medlemsportalen",
+      "upcomingTitle": "Du er klar",
+      "upcomingDesc": "Medlemskapet ditt starter {start}. Rabatter og fordeler blir tilgjengelige i BISO-appen og medlemsportalen fra den dagen."
     },
     "success": {
       "title": "Takk for kjøpet!",
@@ -262,6 +268,7 @@
       "continue": "Fortsett å handle",
       "print": "Skriv ut bestilling",
       "receipt": "Se Vipps-kvittering",
+      "viewReceipt": "Se kvittering",
       "returnToCart": "Tilbake til handlekurv",
       "backToShop": "Tilbake til butikken"
     },
@@ -287,8 +294,7 @@
   "list": {
     "searchLabel": "Søk i produkter",
     "searchSubmit": "Søk",
-    "categoryLabel": "Filtrer produkter etter kategori",
-    "campusLabel": "Filtrer produkter etter campus"
+    "categoryLabel": "Filtrer produkter etter kategori"
   },
   "toast": {
     "outOfStock": "Denne varen er utsolgt",

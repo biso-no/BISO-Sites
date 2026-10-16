@@ -2,7 +2,7 @@
   "hero": {
     "badge": "Flagships",
     "title": "Projects that unite BI students",
-    "subtitle": "Fadderullan, Winter Games, Karrieredagene and Inspire create community, networking and unforgettable experiences across every campus.",
+    "subtitle": "Fadderullan, Winter Games and Karrieredagene create community, networking and unforgettable experiences across every campus.",
     "ctaPrimary": "Explore the flagships",
     "ctaSecondary": "View the overview"
   },
@@ -12,13 +12,12 @@
     "item2": "Partners meet students throughout the year on meaningful arenas.",
     "item3": "They build traditions, pride and CV-worthy experience for everyone involved."
   },
-  "featuredTitle": "Four highlights you should not miss",
+  "featuredTitle": "Three highlights you should not miss",
   "featuredSubtitle": "Start with the projects that define BISO’s culture.",
   "featuredLabels": {
     "fadderullan": "Welcome week",
     "winterGames": "National trip",
-    "karrieredagene": "Career",
-    "inspire": "Inspiration"
+    "karrieredagene": "Career"
   },
   "featured": {
     "fadderullan": {
@@ -41,13 +40,6 @@
       "description": "Meet leading companies, join workshops and secure interviews with top employers in your region.",
       "cta": "Explore Karrieredagene",
       "highlight": "Career"
-    },
-    "inspire": {
-      "slug": "inspire",
-      "title": "Inspire",
-      "description": "A stage for inspirational talks, insights and stories from students, alumni and leaders.",
-      "cta": "Get inspired",
-      "highlight": "Talks"
     }
   },
   "schedule": {

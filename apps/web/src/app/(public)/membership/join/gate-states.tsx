@@ -1,25 +1,27 @@
 "use client";
 
-import { clientAccount, OAuthProvider } from "@repo/api/client";
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
 import {
   AlertTriangle,
   CheckCircle2,
-  Link2,
+  GraduationCap,
   LogIn,
   RefreshCw,
   UserSearch,
 } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import type { ComponentType } from "react";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
+import { clearBrowserAppwriteSession } from "@/lib/bi-sign-in-client";
+import { switchToBiSignIn } from "@/lib/server";
 
-// The page's <h1> lives in the branded hero shell above (join/page.tsx); this
-// is the state's own secondary heading.
-function StateCard({
+// The page's <h1> lives in the `PageHeader` band above (join/page.tsx); this
+// is the state's own secondary heading. Same shape as `<StatusPanel>`'s body.
+export function StateCard({
   icon: Icon,
   title,
   body,
@@ -33,68 +35,120 @@ function StateCard({
   title: string;
 }) {
   return (
-    <Card className="mx-auto max-w-xl rounded-3xl border-border/60 p-8 text-center shadow-sm sm:p-10">
-      <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
-        <Icon className="h-6 w-6 text-brand-dark dark:text-brand" />
-      </div>
-      <h2 className="mb-2 font-bold text-foreground text-xl">{title}</h2>
-      <p className="mb-6 text-muted-foreground text-sm">{body}</p>
-      {alert ? <div className="mb-6">{alert}</div> : null}
-      <div className="flex flex-wrap justify-center gap-3">{children}</div>
-    </Card>
+    <div className="flex flex-col items-start gap-4 rounded-biso-md border border-edge p-8 sm:p-10">
+      <span aria-hidden="true" className="text-ink-muted">
+        <Icon className="size-8" />
+      </span>
+      <h2 className="type-display-sm break-words text-ink">{title}</h2>
+      <p className="type-body text-ink-muted">{body}</p>
+      {alert ? <div className="w-full">{alert}</div> : null}
+      <div className="mt-2 flex flex-wrap gap-3">{children}</div>
+    </div>
   );
 }
 
-export function SignedOutState() {
+/** A failure the visitor needs to read, inside a state card. */
+function StateAlert({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="type-body-sm rounded-biso-md border border-danger/40 bg-danger/5 p-4 text-danger"
+      role="alert"
+    >
+      {children}
+    </p>
+  );
+}
+
+export function SignedOutState({
+  redirectTo = "/membership/join",
+}: {
+  redirectTo?: string;
+}) {
   const t = useTranslations("membership.join.signedOut");
   return (
     <StateCard body={t("body")} icon={LogIn} title={t("title")}>
-      <Button asChild>
-        <Link href="/auth/login?redirectTo=/membership/join">{t("cta")}</Link>
-      </Button>
+      <Link
+        className={statusPanelPrimaryAction}
+        href={`/auth/login?redirectTo=${redirectTo}`}
+      >
+        {t("cta")}
+      </Link>
     </StateCard>
   );
 }
 
-export function NeedsBiLinkState({
-  linkFailed = false,
+/**
+ * Signed in, but not with a BI account. There is no linking any more: the
+ * student signs out of this account and in with BI, and the membership
+ * follows the student number.
+ */
+export function NeedsBiSignInState({
+  returnTo = "/membership/join",
 }: {
-  linkFailed?: boolean;
+  returnTo?: string;
 }) {
   const t = useTranslations("membership.join.needsBiLink");
-  const [isLinking, startLink] = useTransition();
+  const [isStarting, start] = useTransition();
+  const [startFailed, setStartFailed] = useState(false);
 
-  const link = () => {
-    startLink(async () => {
-      const base = window.location.origin;
-      // Success routes through /api/auth/bi-link, which runs the sync +
-      // cache invalidation outside the render path and only then redirects
-      // back here — see that route's doc comment for why.
-      await clientAccount.createOAuth2Session(
-        OAuthProvider.Oidc,
-        `${base}/api/auth/bi-link?returnTo=/membership/join`,
-        `${base}/membership/join?oidc_failed=1`,
-        ["openid", "email", "profile"]
-      );
+  const signIn = () => {
+    setStartFailed(false);
+    start(async () => {
+      try {
+        await clearBrowserAppwriteSession();
+        await switchToBiSignIn(returnTo);
+      } catch {
+        setStartFailed(true);
+      }
     });
   };
 
   return (
     <StateCard
-      alert={
-        linkFailed ? (
-          <Alert className="text-left" variant="destructive">
-            <AlertDescription>{t("linkFailed")}</AlertDescription>
-          </Alert>
-        ) : null
-      }
+      alert={startFailed ? <StateAlert>{t("linkFailed")}</StateAlert> : null}
       body={t("body")}
-      icon={Link2}
+      icon={GraduationCap}
       title={t("title")}
     >
-      <Button disabled={isLinking} onClick={link}>
+      <button
+        aria-busy={isStarting}
+        className={`${statusPanelPrimaryAction} disabled:opacity-60`}
+        disabled={isStarting}
+        onClick={signIn}
+        type="button"
+      >
         {t("cta")}
-      </Button>
+      </button>
+    </StateCard>
+  );
+}
+
+/**
+ * Signed in with BI, yet no student number on the profile. Not a sign-in
+ * problem, so no sign-in button: retry the sync, or get help.
+ */
+export function BiSyncFailedState({
+  isRetrying = false,
+  onRetry,
+}: {
+  isRetrying?: boolean;
+  onRetry: () => void;
+}) {
+  const t = useTranslations("membership.join.biSyncFailed");
+  return (
+    <StateCard body={t("body")} icon={AlertTriangle} title={t("title")}>
+      <button
+        aria-busy={isRetrying}
+        className={`${statusPanelSecondaryAction} disabled:opacity-60`}
+        disabled={isRetrying}
+        onClick={onRetry}
+        type="button"
+      >
+        {t("retry")}
+      </button>
+      <Link className={statusPanelPrimaryAction} href="/contact">
+        {t("contact")}
+      </Link>
     </StateCard>
   );
 }
@@ -109,27 +163,65 @@ export function NeedsDirectoryRecordState({
   const t = useTranslations("membership.join.needsDirectoryRecord");
   return (
     <StateCard body={t("body")} icon={UserSearch} title={t("title")}>
-      <Button disabled={isRetrying} onClick={onRetry} variant="outline">
+      <button
+        aria-busy={isRetrying}
+        className={`${statusPanelSecondaryAction} disabled:opacity-60`}
+        disabled={isRetrying}
+        onClick={onRetry}
+        type="button"
+      >
         {t("retry")}
-      </Button>
-      <Button asChild>
-        <Link href="/contact">{t("contact")}</Link>
-      </Button>
+      </button>
+      <Link className={statusPanelPrimaryAction} href="/contact">
+        {t("contact")}
+      </Link>
     </StateCard>
   );
 }
 
-export function AlreadyMemberState({ expiry }: { expiry: string | null }) {
+/**
+ * Nothing left to buy. `startsOn` is set when the student is not a member yet
+ * but has bought a plan that starts later (next season): say when it starts
+ * rather than "you're already a member".
+ */
+export function AlreadyMemberState({
+  expiry,
+  startsOn = null,
+}: {
+  expiry: string | null;
+  startsOn?: string | null;
+}) {
   const t = useTranslations("membership.join.alreadyMember");
+  const format = useFormatter();
+  const date = (value: string) =>
+    format.dateTime(new Date(`${value}T12:00:00Z`), {
+      dateStyle: "long",
+      timeZone: "Europe/Oslo",
+    });
+  if (startsOn && expiry) {
+    return (
+      <StateCard
+        body={t("upcomingBody", { end: date(expiry), start: date(startsOn) })}
+        icon={CheckCircle2}
+        title={t("upcomingTitle")}
+      >
+        <Link className={statusPanelPrimaryAction} href="/member">
+          {t("cta")}
+        </Link>
+      </StateCard>
+    );
+  }
   return (
     <StateCard
-      body={expiry ? t("body", { expiry }) : t("bodyUnknownExpiry")}
+      body={
+        expiry ? t("body", { expiry: date(expiry) }) : t("bodyUnknownExpiry")
+      }
       icon={CheckCircle2}
       title={t("title")}
     >
-      <Button asChild>
-        <Link href="/member">{t("cta")}</Link>
-      </Button>
+      <Link className={statusPanelPrimaryAction} href="/member">
+        {t("cta")}
+      </Link>
     </StateCard>
   );
 }
@@ -146,9 +238,9 @@ export function MembershipCheckUnavailableState() {
   const t = useTranslations("membership.join.checkUnavailable");
   return (
     <StateCard body={t("body")} icon={RefreshCw} title={t("title")}>
-      <Button asChild>
-        <Link href="/membership/join">{t("cta")}</Link>
-      </Button>
+      <Link className={statusPanelPrimaryAction} href="/membership/join">
+        {t("cta")}
+      </Link>
     </StateCard>
   );
 }
@@ -163,9 +255,9 @@ export function NoPlansAvailableState() {
   const t = useTranslations("membership.join.noPlansAvailable");
   return (
     <StateCard body={t("body")} icon={AlertTriangle} title={t("title")}>
-      <Button asChild>
-        <Link href="/contact">{t("cta")}</Link>
-      </Button>
+      <Link className={statusPanelPrimaryAction} href="/contact">
+        {t("cta")}
+      </Link>
     </StateCard>
   );
 }

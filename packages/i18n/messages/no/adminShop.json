@@ -179,7 +179,8 @@
       "refunded": "Refundert",
       "paid": "Betalt",
       "authorized": "Autorisert",
-      "failed": "Feilet"
+      "failed": "Feilet",
+      "partiallyRefunded": "Delvis refundert"
     },
     "analytics": {
       "overviewTitle": "Bestillingsoversikt",
@@ -257,6 +258,36 @@
       "exportCsv": "Eksporter CSV",
       "exportReady": "Eksport klar – CSV lastet ned.",
       "exportError": "Kunne ikke eksportere bestillinger."
+    },
+    "refund": {
+      "title": "Refusjon",
+      "historyTitle": "Refusjonshistorikk",
+      "historyEmpty": "Ingen refusjoner er utført på denne ordren.",
+      "refundableOf": "{refundable} av {total} kan fortsatt refunderes",
+      "refundedToDate": "{amount} refundert hittil.",
+      "refundedLabel": "Refundert",
+      "modeLines": "Per vare",
+      "modeAmount": "Per beløp",
+      "amountLabel": "Beløp (NOK)",
+      "reasonLabel": "Årsak",
+      "reasonPlaceholder": "Vises kun for ansatte",
+      "restockLabel": "Legg de refunderte varene tilbake på lager",
+      "nothingLeftOnLines": "Alle varelinjer er allerede refundert i sin helhet.",
+      "lineRefunded": "{count} allerede refundert",
+      "membershipLedgerNote": "Dette er et medlemskapskjøp, ført som faktura i 24SO. Refusjonen betaler tilbake pengene, men fakturaen må krediteres manuelt i 24SO.",
+      "submit": "Refunder {amount}",
+      "submitting": "Refunderer…",
+      "success": "Refunderte {amount}.",
+      "memberDiscount": "Medlemsrabatt",
+      "sessionId": "Sesjon",
+      "intentId": "Betalingsintensjon",
+      "ledger": "Regnskap",
+      "membershipInvoice": "Faktura",
+      "blocked": {
+        "fully_refunded": "Denne ordren er refundert i sin helhet.",
+        "no_payment": "Denne ordren har ingen betalingsleverandør, så det er ingenting å refundere.",
+        "not_settled": "Kun en oppgjort (betalt) ordre kan refunderes. En autorisert reservasjon bør heller kanselleres i Vipps."
+      }
     }
   },
   "dashboard": {

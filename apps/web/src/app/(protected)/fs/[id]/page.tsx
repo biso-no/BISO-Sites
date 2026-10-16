@@ -1,10 +1,11 @@
+import { cn } from "@repo/ui/lib/utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
-import { ExpenseDetailSkeleton } from "@/components/expense/expense-skeleton";
 import { expenseStatusVisual } from "@/components/expense/v2/expense-status";
+import { DetailSkeleton } from "@/components/ui/loading-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
@@ -51,7 +52,12 @@ function Fact({
     <div>
       <dt className="type-label text-ink-muted">{label}</dt>
       <dd
-        className={`type-body mt-1 min-w-0 break-words text-ink${mono ? "font-mono" : ""}`}
+        // `cn`, not a template literal: Biome's class sorter trims the space
+        // inside `" font-mono"`, which fused this into `text-inkfont-mono`.
+        className={cn(
+          "type-body mt-1 min-w-0 break-words text-ink",
+          mono && "font-mono"
+        )}
       >
         {value}
       </dd>
@@ -102,8 +108,14 @@ async function ExpenseDetails({ expenseId }: { expenseId: string }) {
 
       <Section tone="paper">
         <dl className="grid gap-6 sm:grid-cols-2">
-          <Fact label={t("detail.campus")} value={expense.campus} />
-          <Fact label={t("detail.department")} value={expense.department} />
+          <Fact
+            label={t("detail.campus")}
+            value={expense.campusRel?.name ?? expense.campus}
+          />
+          <Fact
+            label={t("detail.department")}
+            value={expense.departmentRel?.Name ?? expense.department}
+          />
           <Fact label={t("detail.submitted")} value={submittedDate} />
           <Fact
             label={t("detail.bankAccount")}
@@ -182,7 +194,7 @@ export default async function ExpenseViewPage({ params }: ExpenseDetailsProps) {
   const { id } = await params;
 
   return (
-    <Suspense fallback={<ExpenseDetailSkeleton />}>
+    <Suspense fallback={<DetailSkeleton />}>
       <ExpenseDetails expenseId={id} />
     </Suspense>
   );

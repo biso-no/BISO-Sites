@@ -5,7 +5,8 @@ session using the handoff format at the bottom.
 
 > ## 👉 [**ACTION-REQUIRED.md**](ACTION-REQUIRED.md) — everything left is yours
 >
-> The code is finished: 34 of 34 packages, `main` deployable. What remains needs
+> The code is finished: 34 of 34 packages, plus the 2026-10-15 merge of `main`
+> (RD-036) — every page of `apps/web` is on the redesign. What remains needs
 > BISO's own content, an Appwrite schema change, an external console or a
 > decision. That one page collects all of it, grouped and prioritised. Start
 > there rather than reading this log.
@@ -23,7 +24,7 @@ These gate work. Nothing downstream of a gate can start until it is answered.
 | Gate | Question | Recommendation | Blocks | Status |
 |---|---|---|---|---|
 | **GATE-1** | Where do the new tokens live? `apps/web/src/app/styles.test.ts` asserts `--brand`/`--inverted`/`--section` must **not** be declared in `apps/web`, so the palette cannot be defined locally. | Add a second surface class in `packages/ui/styles/biso-surface.css` alongside the existing one, mounted only by `apps/web`. Additive, cannot affect `admin`, and doubles as the Phase 4 old/new switch. **Shared-package edit — needs approval.** | RD-005 → all of Stage 1+ | **DECIDED 2026-08-31 — option B approved.** Second surface class in `packages/ui/styles/biso-surface.css`, mounted only by `apps/web`. Shared-package edit authorised. |
-| **GATE-2** | Display typeface. Museo Sans ships in Light 300 only and renders zero characters today. | Museo Sans 900 if BISO holds a web licence at that weight; otherwise Archivo variable 800–900 (~28 KB via `next/font`, no npm dependency). | RD-006 | **DECIDED 2026-08-31 — Archivo variable 800–900.** Museo Sans 900 was the conditional first choice but depends on a licence I cannot verify; Archivo is the unconditional recommendation and is a one-file swap if a 900 licence turns out to exist. |
+| **GATE-2** | Display typeface. Museo Sans ships in Light 300 only and renders zero characters today. | Museo Sans 900 if BISO holds a web licence at that weight; otherwise Archivo variable 800–900 (~28 KB via `next/font`, no npm dependency). | RD-006 | **DECIDED 2026-08-31 — Archivo variable 800–900.** Museo Sans 900 was the conditional first choice but depends on a licence I cannot verify; Archivo is the unconditional recommendation and is a one-file swap if a 900 licence turns out to exist. **SUPERSEDED 2026-10-15** — the Branding Committee supplied Museo Slab 700/900 (display) and Museo Sans 700 (body, with the existing 300) on `main` (#97). The merge adopted them: every `.type-display-*` role now sets in Museo Slab and body text in Museo Sans; Archivo is gone. |
 | **FINDING-A** | Should the lost 308 redirects be fixed? `/varsling` and `/shop/membership` return **200 + a client-side redirect instead of 308**, and four protected routes return **200 instead of 401** — a consequence of `cacheComponents` + PPR flushing the shell before the redirect runs. Both redirects exist solely to preserve external inbound links, so no link equity is passing. Predates the redesign. | Fix in Stage 0 by moving the two redirects to route handlers (true 308, ~S). Auth cases render correctly and are cosmetic — lower priority. | nothing (new work) | **DECIDED 2026-08-31 — approved.** Added as **RD-034**, executed inside Stage 0. IDs are never renumbered, so it takes the next free number rather than an inserted one. |
 | **GATE-3** | Campus routing. The design states "YOU ARE ON CAMPUS OSLO" but campus has no URL, so such a page cannot be linked or shared. | `/campus/[slug]` landing pages + `?campus=` on five feeds. Purely additive — no existing URL changes meaning. **Routing change — needs approval.** | RD-016, RD-023 | **DECIDED 2026-08-31 — approved.** `/campus/[slug]` + `?campus=` on five feeds. |
 
@@ -131,6 +132,34 @@ Blocked: RD-### — <what is blocking, what decision is needed>
 Deviations from plan: <what changed and why, or "none">
 Next session should start with: <specific first action>
 ```
+
+## 2026-10-15 — `main` merged into the redesign (Branding Committee batches A–H)
+Completed: RD-036 (new — reconcile six weeks of `main` with the redesign; 107 conflicted files).
+In progress: none
+Blocked: none
+Deviations from plan: **the redesign now carries main's information architecture where the Branding Committee changed it**, and main's pages now carry the redesign. The rule applied file by file: *the redesign wins on visuals, main wins on behaviour* — data sources, queries, gates, redirects, copy and IA decisions made after September stay main's.
+
+**What main had changed since the redesign branched (445 commits, PRs #54–#99).** Pagination and "Load more" on the public feeds (#61); `/bi-fondet` → `/okonomisk-stotte` (#63); the units directory rebuilt on `departments` with Microsoft 365 boards and a single-document unit page (#64/#65); membership status from `apps/api`, the 24SO catalog with current/next-season offers, the member pass (#74/#75/#83/#85); link-only and member-only products (#76); no more masked failures (#77); versioned governing documents (#86); and the Branding Committee batches — quick fixes (#87), documents on one shelf and **Om BISO merged into one page** (#91), project hubs (#93), **BI sign-in replacing account linking** (#94), **the front page as the campus overview** (#95), editor pages on the site's look (#96) and **Museo Slab / Museo Sans** (#97).
+
+**How each collision was settled.**
+- **Typefaces (GATE-2):** the brand's Museo Slab 700/900 carries the display roles; Museo Sans 300/700 is the body face. `.biso-surface-v2` no longer overrides the faces. `font-medium` resolves to the Light cut, so emphasis uses `font-semibold`.
+- **Front page:** the redesign's chevron hero (now naming the campus), then main's overview — three live counts and focus areas — the campus leadership board in its own Suspense boundary, events and news, open roles, the campus's units, the membership band (non-members) and partners.
+- **Om BISO:** main's single page with a section menu, rendered as a v2 content page; the retired subpages, `/about/bylaws` and `/policies/drugs-policy` answer with real 308s from route handlers (FINDING-A's fix, applied to main's new redirects).
+- **Campus (GATE-3 stands):** `/campus` stays the index and `/campus/<slug>` the landing; main's tab content (management board, for students, for businesses) is folded into the landings, each block omitted when empty.
+- **Units:** main's data layer (`lib/data/units.ts`, `isPublicUnit`, throwing cached readers) replaced the redesign's own fix for the same "zero units" bug; units render as one shared `UnitCard` (crest = logo or monogram) on `/units`, the landings and the front page.
+- **Feeds:** page 1 server-rendered through main's paged actions, the redesign's link-based chips and GET search on top, main's "Load more" as a client island sharing the card markup. **Campus chips were removed from `/events`, `/news`, `/jobs` and `/shop`**: the committee made the header switcher "the one place to change campus" (#95) and main's feeds had none. `/units` keeps its campus filter, which main had.
+- **Membership invoicing:** the redesign's accrual-from-purchase-date fix (Membership accrual entry below) was **reverted to main's behaviour**. With main's date-driven catalog the plan's own start date is the correct accrual date, including next-season plans sold in June and December, which the purchase date would have booked into the wrong half-year.
+- **Auth:** BI sign-in is the primary action; Google, Facebook and Apple are gone; no linking step anywhere.
+- **`expense-v3`:** the scope exclusion in spec §5.4 was lifted — the reimbursement flow is restyled onto the redesign like every other page.
+
+**Found and fixed during the merge.**
+- `DateBlock` formatted in UTC; main stores event times as UTC instants (`oslo-time`), so events starting 00:00–02:00 Oslo time showed the previous day. It formats in Europe/Oslo now.
+- State colours on a navy band (light theme) measured ~2.9:1 against their tint; `[data-surface="deep"]` now takes the dark-theme variants.
+- The 404 page and the reimbursement approval page were still on the old palette; both are v2 now. Hard-coded English on `/profile` (privacy panel, profile form, identities) and the approval page is translated.
+
+**New guards.** `src/app/redesign-coverage.test.ts` fails if any file under `src/` reintroduces the legacy palette, decorative gradients, glass, scroll reveals or shadcn's semantic colours (one documented exception: the member pass body). The dead-colour-utility check in `styles.test.ts` now scans the whole app instead of a list of v2 folders.
+
+Next session should start with: the open items in `ACTION-REQUIRED.md`; nothing in the code is pending.
 
 ## 2026-09-02 — Post-redesign: campus becomes a site-wide filter again
 Completed: RD-035 (new — campus filtering restored as a site-wide filter).

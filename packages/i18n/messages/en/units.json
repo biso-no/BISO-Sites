@@ -1,9 +1,13 @@
 {
   "hero": {
-    "title": "Units and societies",
-    "subtitle": "Everything from festivals and finance to politics and welfare — run by students, on every BI campus."
+    "badge": "Student units",
+    "title": "Find the people you'll spend your degree with",
+    "subtitle": "Every BISO unit is run by students, for students — academic associations, societies, festivals and committees across all four campuses.",
+    "ctaPrimary": "See open positions"
   },
   "list": {
+    "heading": "{count, plural, one {# unit} other {# units}}",
+    "headingFiltered": "{count, plural, one {# unit} other {# units}} of {total}",
     "stats": {
       "units": "Active units",
       "campuses": "Campuses"
@@ -15,48 +19,59 @@
     "categoryLabel": "Filter units by category",
     "categoryAll": "All",
     "results": "{count, plural, one {# unit} other {# units}}",
-    "emptyTitle": "No units match that.",
+    "emptyTitle": "No units match those filters",
+    "emptyBody": "Try clearing the search or picking another campus.",
+    "unavailableTitle": "Units are unavailable right now",
+    "unavailableBody": "We couldn't load the unit directory. Please try again in a moment.",
     "clear": "Clear filters"
   },
+  "card": {
+    "noSummary": "This unit hasn't written its introduction yet — open the page to meet the board."
+  },
+  "cta": {
+    "title": "Can't find your thing?",
+    "body": "Units are started by students. If nothing here fits, bring the idea to your campus board — that's how most of these began.",
+    "primary": "Contact your campus",
+    "secondary": "See open positions"
+  },
   "detail": {
-    "tabs": {
-      "overview": "Overview",
-      "team": "Our Team",
-      "news": "News",
-      "products": "Products & Tickets"
-    },
-    "overview": {
-      "highlights": "Recent Highlights",
-      "stats": {
-        "team": "Team Members",
-        "events": "Events Organized",
-        "students": "Students Reached"
-      }
-    },
-    "team": {
-      "title": "Meet Our Team",
-      "emptyTitle": "No Team Members Yet",
-      "emptyBody": "Team information will be available soon.",
-      "joinTitle": "Want to Join Our Team?",
-      "joinCta": "View Open Positions"
-    },
     "news": {
-      "title": "News & Updates",
-      "subtitle": "Stay up to date with everything happening in this department",
-      "emptyTitle": "No News Available",
-      "emptyBody": "Check back soon for news and updates!",
-      "readMore": "Read More"
+      "title": "News from {name}"
     },
-    "products": {
-      "title": "Products & Event Tickets",
-      "subtitle": "Get your tickets and merchandise from this department",
-      "emptyTitle": "No Products Available",
-      "emptyBody": "Check back soon for new products and event tickets!",
-      "membersOnly": "Members Only",
-      "soldOut": "Sold Out"
+    "shop": {
+      "title": "Tickets and merch",
+      "memberOnly": "Members only",
+      "soldOut": "Sold out",
+      "memberPrice": "{price} for members"
+    },
+    "join": {
+      "title": "Want to join {name}?",
+      "body": "Boards are elected every year and most units recruit through BISO's position listings.",
+      "primary": "See open positions",
+      "secondary": "Explore other units"
     },
     "follow": "Follow us:",
     "about": "About {name}",
-    "back": "Back"
+    "aboutFallbackTitle": "About this unit",
+    "aboutFallback": "{name} is one of {count, plural, one {# student-run unit} other {# student-run units}} at BISO {campus}. The board below runs it — get in touch with them to find out what they're working on and how to join.",
+    "facts": {
+      "campus": "Campus",
+      "category": "Type",
+      "board": "Board members",
+      "uncategorised": "Student unit"
+    },
+    "board": {
+      "title": "Meet the board",
+      "subtitle": "Elected students running {name} this year.",
+      "emptyTitle": "Board details are on their way",
+      "emptyBody": "This unit's board hasn't been published to the BISO directory yet. Your campus board can point you to the right person in the meantime.",
+      "emailAction": "Email {name}",
+      "source": "Live from the BISO Microsoft 365 directory"
+    },
+    "campusBadge": "{campus} campus"
+  },
+  "chooser": {
+    "unavailable": "Not at {campus}. Available at:",
+    "ambiguous": "This unit exists at {count, plural, one {# campus} other {# campuses}}. Which is yours?"
   }
 }

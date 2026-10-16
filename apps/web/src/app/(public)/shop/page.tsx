@@ -39,8 +39,13 @@ async function ShopListV2({
   // `getPrimaryTranslation` prefers the reader's locale per product, falling
   // back to the one that exists. A Norwegian product title in an English shop
   // is a smaller problem than a shop that is 95% invisible.
+  //
+  // No `status` either: `listProducts` applies "published" and the link-only
+  // predicate (`listedProductsOnly`) itself, unconditionally, because a server
+  // action's arguments are whatever the browser sends. Members-only products
+  // are listed for everyone and carry a badge — `member_only` gates the
+  // purchase, not the listing.
   const products = await listProducts({
-    status: "published",
     limit: 100,
     campus: campus || "all",
   });

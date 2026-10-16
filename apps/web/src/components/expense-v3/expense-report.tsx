@@ -2,8 +2,6 @@
 
 import type { Campus, Users } from "@repo/api/types/appwrite";
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
-import { Button } from "@repo/ui/components/ui/button";
-import { Combobox } from "@repo/ui/components/ui/combobox";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import {
   Select,
@@ -12,30 +10,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/ui/select";
-import { Switch } from "@repo/ui/components/ui/switch";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { cn } from "@repo/ui/lib/utils";
-import { format } from "date-fns";
 import {
   AlertTriangle,
   ArrowRight,
-  Building2,
   Check,
-  CreditCard,
-  FileText,
   Loader2,
   Save,
   Sparkles,
   Upload,
-  User,
+  X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { v4 as uuid } from "uuid";
+import { Pill } from "@/components/ui/pill";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
+import { DepartmentCombobox } from "./department-combobox";
+import {
+  fieldClass,
+  fieldLabelClass,
+  focusRingClass,
+  primaryActionClass,
+  secondaryActionClass,
+  selectContentClass,
+  selectItemClass,
+  selectTriggerClass,
+} from "./form-styles";
 import { ProfileCompletionBanner } from "./profile-completion-banner";
 import type { Receipt } from "./store";
 
@@ -67,23 +73,18 @@ function ReceiptRow({
   setUploadState,
   fileInputRef,
 }: ReceiptRowProps) {
+  const t = useTranslations("expenses");
   const isForeign = receipt.currency && receipt.currency !== "NOK";
   const isAnalyzing =
     uploadState?.id === receipt.id && uploadState.phase === "analyzing";
-  const amountContent = getReceiptAmountContent(receipt, isAnalyzing);
+  const isReady = receipt.status === "ready";
 
   return (
     <motion.tr
-      animate={{
-        opacity: 1,
-        backgroundColor:
-          selectedId === receipt.id ? "var(--highlight-bg)" : "transparent",
-      }}
+      animate={{ opacity: 1 }}
       className={cn(
-        "group cursor-pointer transition-colors hover:bg-muted dark:hover:bg-inverted/30",
-        selectedId === receipt.id
-          ? "bg-sky-50 [--highlight-bg:rgba(14,165,233,0.1)] dark:bg-sky-900/10"
-          : ""
+        "group cursor-pointer transition-colors hover:bg-ink-muted/8",
+        selectedId === receipt.id && "bg-action/10"
       )}
       initial={{ opacity: 0 }}
       key={receipt.id}
@@ -91,38 +92,61 @@ function ReceiptRow({
       onClick={() => onSelect(receipt.id)}
     >
       <td className="p-0" colSpan={3}>
-        <div className="flex w-full items-center border-border border-b px-0 py-4 dark:border-border/50">
+        <div className="flex w-full items-center px-0 py-4">
           <div className="w-full max-w-50 px-4 md:max-w-75 md:px-8">
             <div className="flex items-center gap-3">
-              <div
+              <span
+                aria-hidden="true"
                 className={cn(
-                  "h-2 w-2 shrink-0 rounded-full",
-                  receipt.status === "ready"
-                    ? "bg-emerald-500"
-                    : "animate-pulse bg-amber-500"
+                  "size-2 shrink-0 rounded-biso-pill",
+                  isReady ? "bg-success" : "animate-pulse bg-warning"
                 )}
               />
-              <div className="flex flex-col gap-0.5">
-                <div className="truncate font-medium text-foreground dark:text-white">
-                  {receipt.vendor || receipt.description || "Processing..."}
-                </div>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                {/* The row is the mouse target; this is its keyboard stop. */}
+                <button
+                  className={cn(
+                    "block max-w-full truncate rounded-biso-sm text-left font-semibold text-ink",
+                    focusRingClass
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(receipt.id);
+                  }}
+                  type="button"
+                >
+                  {receipt.vendor ||
+                    receipt.description ||
+                    t("composer.report.processing")}
+                  <span className="sr-only">
+                    {" "}
+                    (
+                    {isReady
+                      ? t("composer.report.statusReady")
+                      : t("composer.report.statusProcessing")}
+                    )
+                  </span>
+                </button>
                 {/* Show date on mobile only */}
-                <div className="block text-muted-foreground text-xs md:hidden">
+                <div className="type-data block text-ink-muted text-xs md:hidden">
                   {receipt.date || "-"}
                 </div>
               </div>
             </div>
             {receipt.status === "analyzing" && (
-              <div className="mt-1 ml-5 h-1 w-24 overflow-hidden rounded-full bg-muted dark:bg-inverted">
-                <div className="h-full w-full animate-indeterminate bg-sky-500" />
+              <div
+                aria-hidden="true"
+                className="mt-1 ml-5 h-1 w-24 overflow-hidden rounded-biso-pill bg-surface-sunken"
+              >
+                <div className="h-full w-full animate-pulse bg-action" />
               </div>
             )}
           </div>
-          <div className="hidden flex-1 px-4 text-muted-foreground md:block">
+          <div className="type-data hidden flex-1 px-4 text-ink-muted md:block">
             {receipt.date || "-"}
           </div>
-          <div className="w-[150px] px-4 text-right font-medium font-mono md:px-8">
-            {amountContent}
+          <div className="type-data w-[150px] px-4 text-right md:px-8">
+            <ReceiptAmount isAnalyzing={isAnalyzing} receipt={receipt} />
           </div>
         </div>
 
@@ -141,20 +165,29 @@ function ReceiptRow({
   );
 }
 
-function getReceiptAmountContent(receipt: Receipt, isAnalyzing: boolean) {
+function ReceiptAmount({
+  receipt,
+  isAnalyzing,
+}: {
+  receipt: Receipt;
+  isAnalyzing: boolean;
+}) {
+  const t = useTranslations("expenses");
+  const locale = useLocale();
+
   if (isAnalyzing) {
     return (
-      <span className="flex items-center justify-end gap-1.5 text-muted-foreground text-xs">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        Verifying…
+      <span className="type-body-sm flex items-center justify-end gap-1.5 text-ink-muted text-xs">
+        <Loader2 aria-hidden="true" className="size-3 animate-spin" />
+        {t("composer.report.verifying")}
       </span>
     );
   }
 
   if (receipt.amount) {
     return (
-      <span className="text-foreground dark:text-white">
-        {receipt.amount.toLocaleString()} NOK
+      <span className="text-ink">
+        {receipt.amount.toLocaleString(locale)} NOK
       </span>
     );
   }
@@ -177,23 +210,31 @@ function ForeignCurrencyWarning({
   setUploadState,
   fileInputRef,
 }: ForeignCurrencyWarningProps) {
+  const t = useTranslations("expenses");
   const phase = uploadState?.id === receipt.id ? uploadState.phase : null;
 
   if (receipt.bankStatementId) {
     return (
-      <div className="bg-amber-50/50 px-4 py-3 md:px-8 dark:bg-amber-900/10">
+      <div className="bg-warning/10 px-4 py-3 md:px-8">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-amber-700 text-xs dark:text-amber-400">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span>Verified via bank statement</span>
+          <div className="type-body-sm flex items-center gap-2 text-ink">
+            <AlertTriangle
+              aria-hidden="true"
+              className="size-3.5 shrink-0 text-warning"
+            />
+            <span>{t("composer.report.verifiedByStatement")}</span>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-600 text-xs">
-            <Check className="h-3 w-3" />
+          <div className="type-body-sm flex items-center gap-2 rounded-biso-pill bg-success/10 px-2 py-1 font-semibold text-success">
+            <Check aria-hidden="true" className="size-3 shrink-0" />
             <span className="max-w-[100px] truncate md:max-w-[200px]">
               {receipt.bankStatementName}
             </span>
-            <Button
-              className="ml-1 hover:text-emerald-700"
+            <button
+              aria-label={t("composer.report.removeStatement")}
+              className={cn(
+                "ml-1 rounded-biso-pill p-0.5 transition-colors hover:bg-success/15",
+                focusRingClass
+              )}
               onClick={(e) => {
                 e.stopPropagation();
                 onUpdate(receipt.id, {
@@ -201,68 +242,69 @@ function ForeignCurrencyWarning({
                   bankStatementName: undefined,
                 });
               }}
+              type="button"
             >
-              ×
-            </Button>
+              <X aria-hidden="true" className="size-3" />
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  const uploadIcon = getStatementUploadIcon(phase);
-  const uploadLabel = getStatementUploadLabel(phase);
+  let uploadLabel = t("composer.report.uploadStatement");
+  if (phase === "analyzing") {
+    uploadLabel = t("composer.report.analyzing");
+  } else if (phase === "uploading") {
+    uploadLabel = t("composer.report.uploading");
+  }
 
   return (
-    <div className="bg-amber-50/50 px-4 py-3 md:px-8 dark:bg-amber-900/10">
+    <div className="bg-warning/10 px-4 py-3 md:px-8">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-amber-700 text-xs dark:text-amber-400">
-          <AlertTriangle className="h-3.5 w-3.5" />
+        <div className="type-body-sm flex items-center gap-2 text-ink">
+          <AlertTriangle
+            aria-hidden="true"
+            className="size-3.5 shrink-0 text-warning"
+          />
           <span>
-            Estimated from {receipt.currency} ({receipt.exchangeRate})
+            {t("composer.report.estimatedFrom", {
+              currency: receipt.currency,
+              rate: String(receipt.exchangeRate),
+            })}
           </span>
         </div>
-        <Button
-          className="h-7 gap-1 border-amber-200 bg-background text-amber-700 text-xs hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
+        <button
+          className={cn(
+            secondaryActionClass,
+            "shrink-0 gap-1 bg-surface px-3 py-1.5"
+          )}
           disabled={phase !== null}
           onClick={(e) => {
             e.stopPropagation();
             setUploadState({ id: receipt.id, phase: "uploading" });
             fileInputRef.current?.click();
           }}
-          size="sm"
-          variant="outline"
+          type="button"
         >
-          {uploadIcon}
+          <StatementUploadIcon phase={phase} />
           {uploadLabel}
-        </Button>
+        </button>
       </div>
     </div>
   );
 }
 
-function getStatementUploadIcon(phase: UploadPhase | null) {
+function StatementUploadIcon({ phase }: { phase: UploadPhase | null }) {
   if (phase === "analyzing") {
-    return <Sparkles className="h-3 w-3 animate-spin" />;
+    return <Sparkles aria-hidden="true" className="size-3 animate-spin" />;
   }
 
   if (phase === "uploading") {
-    return <Loader2 className="h-3 w-3 animate-spin" />;
+    return <Loader2 aria-hidden="true" className="size-3 animate-spin" />;
   }
 
-  return <Upload className="h-3 w-3" />;
-}
-
-function getStatementUploadLabel(phase: UploadPhase | null) {
-  if (phase === "analyzing") {
-    return "Analyzing…";
-  }
-
-  if (phase === "uploading") {
-    return "Uploading…";
-  }
-
-  return "Upload Statement";
+  return <Upload aria-hidden="true" className="size-3" />;
 }
 
 interface ExpenseReportProps {
@@ -312,10 +354,15 @@ export function ExpenseReport({
   submitterIsFinancialManager,
   onSubmitterIsFinancialManagerChange,
 }: ExpenseReportProps) {
-  const today = format(new Date(), "MMMM d, yyyy");
-
-  // Generate a stable draft number that doesn't change on re-renders
-  const draftNumber = useMemo(() => Math.floor(Math.random() * 10_000), []);
+  const t = useTranslations("expenses");
+  const locale = useLocale();
+  const campusFieldId = useId();
+  const departmentFieldId = useId();
+  const today = new Date().toLocaleDateString(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   // Find departments for selected campus
   const selectedCampus = campuses.find((c) => c.$id === selectedCampusId);
@@ -425,9 +472,9 @@ export function ExpenseReport({
       await applyBankStatementOcr(file, receiptId);
       addBankStatementReceipt(receiptId, file, fileId, fileUrl);
 
-      toast.success("Bank statement uploaded and added to list");
+      toast.success(t("composer.toast.statementAdded"));
     } catch (_error) {
-      toast.error("Upload failed");
+      toast.error(t("composer.toast.uploadFailed"));
     } finally {
       setUploadState(null);
       if (fileInputRef.current) {
@@ -437,7 +484,7 @@ export function ExpenseReport({
   };
 
   return (
-    <ScrollArea className="flex h-full flex-col bg-muted/50 p-4 md:p-8 dark:bg-inverted/50">
+    <ScrollArea className="flex h-full flex-col p-4 md:p-8">
       <div>
         <input
           accept={RECEIPT_FILE_ACCEPT}
@@ -449,82 +496,93 @@ export function ExpenseReport({
           type="file"
         />
 
-        {/* Paper Document Effect */}
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-card shadow-xl dark:bg-card dark:shadow-2xl dark:shadow-black/40"
-          initial={{ opacity: 0, y: 20 }}
-        >
+        {/* The report document: a bordered surface on the sunken pane. */}
+        <div className="mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-biso-md border border-edge bg-surface-raised">
           {/* Document Header */}
-          <div className="border-border border-b p-6 md:p-8">
+          <div className="border-edge border-b p-6 md:p-8">
             <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row">
               <div>
-                <h1 className="font-bold text-2xl text-foreground tracking-tight md:text-3xl dark:text-white">
-                  Expense Report
-                </h1>
-                <p className="text-muted-foreground">{today}</p>
+                <h2 className="type-display-sm text-ink">
+                  {t("composer.report.title")}
+                </h2>
+                <p className="type-body-sm mt-2 text-ink-muted">{today}</p>
               </div>
-              <div className="rounded-full bg-muted px-4 py-1.5 font-medium text-muted-foreground text-sm">
-                Draft #{draftNumber}
-              </div>
+              <Pill>{t("status.draft")}</Pill>
             </div>
 
             {/* User & Assignment Info */}
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground text-sm dark:text-white">
-                      {userProfile?.name || "Unknown User"}
-                    </p>
-                    <p className="text-xs">{userProfile?.email}</p>
-                  </div>
+              <dl className="space-y-4">
+                <div>
+                  <dt className="type-label text-ink-muted">
+                    {t("composer.report.submitter")}
+                  </dt>
+                  <dd className="type-body-sm mt-1 font-semibold text-ink">
+                    {userProfile?.name || t("composer.report.unknownUser")}
+                  </dd>
+                  <dd className="type-body-sm break-words text-ink-muted">
+                    {userProfile?.email}
+                  </dd>
                 </div>
+                <div>
+                  <dt className="type-label text-ink-muted">
+                    {t("detail.bankAccount")}
+                  </dt>
+                  <dd
+                    className={cn(
+                      "mt-1",
+                      userProfile?.bank_account
+                        ? "type-data text-ink"
+                        : "type-body-sm text-ink-muted"
+                    )}
+                  >
+                    {userProfile?.bank_account ||
+                      t("composer.report.noBankAccount")}
+                  </dd>
+                </div>
+              </dl>
 
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                    <CreditCard className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground text-sm dark:text-white">
-                      Reimbursement
-                    </p>
-                    <p className="font-mono text-xs">
-                      {userProfile?.bank_account || "No bank account connected"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 rounded-lg bg-muted p-4 dark:bg-inverted/50">
-                <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wider">
-                  <Building2 className="h-3 w-3" />
-                  Cost Allocation
-                </div>
+              <div className="space-y-3 rounded-biso-md bg-surface-sunken p-4">
+                <p className="type-label text-ink-muted">
+                  {t("composer.report.costAllocation")}
+                </p>
 
                 <div className="grid gap-2">
+                  <label className="sr-only" htmlFor={campusFieldId}>
+                    {t("detail.campus")}
+                  </label>
                   <Select
                     onValueChange={(val) => onAssign(val, "")}
                     value={selectedCampusId}
                   >
-                    <SelectTrigger className="h-9 border-border bg-background dark:border-border dark:bg-inverted">
-                      <SelectValue placeholder="Select Campus" />
+                    <SelectTrigger
+                      className={selectTriggerClass}
+                      id={campusFieldId}
+                    >
+                      <SelectValue
+                        placeholder={t("composer.campusPlaceholder")}
+                      />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={selectContentClass}>
                       {campuses.map((campus) => (
-                        <SelectItem key={campus.$id} value={campus.$id}>
+                        <SelectItem
+                          className={selectItemClass}
+                          key={campus.$id}
+                          value={campus.$id}
+                        >
                           {campus.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
-                  <Combobox
+                  <label className="sr-only" htmlFor={departmentFieldId}>
+                    {t("detail.department")}
+                  </label>
+                  <DepartmentCombobox
                     defaultValue={selectedDepartmentId}
                     disabled={!selectedCampusId}
+                    id={departmentFieldId}
                     items={departments.map((dept) => ({
                       value: dept.$id,
                       label: dept.Name,
@@ -544,81 +602,99 @@ export function ExpenseReport({
 
             {/* Description / Summary */}
             <div className="mt-8">
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex items-center justify-between gap-4">
                 <label
-                  className="font-medium text-foreground text-sm"
+                  className={fieldLabelClass}
                   htmlFor="expense-description"
                 >
-                  Description
+                  {t("composer.report.description")}
                 </label>
                 {isGeneratingSummary && (
-                  <div className="flex animate-pulse items-center gap-2 text-sky-500 text-xs">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    AI Generating Summary...
+                  <div className="type-body-sm flex animate-pulse items-center gap-2 text-ink-accent">
+                    <Loader2
+                      aria-hidden="true"
+                      className="size-3 animate-spin"
+                    />
+                    {t("composer.report.generatingSummary")}
                   </div>
                 )}
               </div>
               <Textarea
-                className="min-h-[80px] resize-none border-border bg-muted text-sm focus:bg-background dark:border-border dark:bg-inverted/50 dark:focus:bg-inverted"
+                className={cn(fieldClass, "min-h-[80px] resize-none")}
                 disabled={isGeneratingSummary}
                 id="expense-description"
                 onChange={(e) => onDescriptionChange(e.target.value)}
-                placeholder="Brief description of the expenses (e.g. 'Cabintrip with the unit')..."
+                placeholder={t("composer.report.descriptionPlaceholder")}
                 value={description}
               />
             </div>
 
             {selectedCampusId === OSLO_CAMPUS_ID &&
               selectedDepartmentId !== LEDELSEN_OSLO_DEPARTMENT_ID && (
-                <div className="mt-4 flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/50 p-4 dark:bg-inverted/30">
+                <div className="mt-4 flex items-start justify-between gap-4 rounded-biso-md border border-edge p-4">
                   <div className="space-y-1">
                     <label
-                      className="font-medium text-foreground text-sm"
+                      className="type-body-sm font-semibold text-ink"
                       htmlFor="financial-manager-toggle"
                     >
-                      I am the financial manager of this department
+                      {t("composer.report.financialManager")}
                     </label>
-                    <p className="text-muted-foreground text-xs">
-                      Turn this on so the approval is routed to your department
-                      manager instead of you.
+                    <p
+                      className="type-body-sm text-ink-muted"
+                      id="financial-manager-toggle-hint"
+                    >
+                      {t("composer.report.financialManagerHint")}
                     </p>
                   </div>
-                  <Switch
+                  {/* A native switch, as on the member portal: the shared one
+                      paints its "on" state in the sky blue, under the 3:1 a
+                      control's state needs against white. */}
+                  <input
+                    aria-checked={submitterIsFinancialManager}
+                    aria-describedby="financial-manager-toggle-hint"
                     checked={submitterIsFinancialManager}
+                    className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2"
                     id="financial-manager-toggle"
-                    onCheckedChange={onSubmitterIsFinancialManagerChange}
+                    onChange={(e) =>
+                      onSubmitterIsFinancialManagerChange(e.target.checked)
+                    }
+                    role="switch"
+                    type="checkbox"
                   />
                 </div>
               )}
           </div>
 
           {/* Line Items */}
-          <div className="flex-1 overflow-y-auto bg-card p-0 dark:bg-card">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-muted text-muted-foreground dark:bg-inverted/50">
+          <div className="flex-1 overflow-y-auto">
+            <table className="type-body-sm w-full text-left">
+              <thead className="sticky top-0 z-10 bg-surface-sunken text-ink-muted">
                 <tr>
-                  <th className="px-4 py-3 font-medium md:px-8">
-                    Item Description
+                  <th className="type-label px-4 py-3 md:px-8" scope="col">
+                    {t("composer.report.itemColumn")}
                   </th>
-                  <th className="hidden px-4 py-3 font-medium md:table-cell">
-                    Date
+                  <th
+                    className="type-label hidden px-4 py-3 md:table-cell"
+                    scope="col"
+                  >
+                    {t("detail.date")}
                   </th>
-                  <th className="px-4 py-3 text-right font-medium md:px-8">
-                    Amount
+                  <th
+                    className="type-label px-4 py-3 text-right md:px-8"
+                    scope="col"
+                  >
+                    {t("detail.amount")}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border dark:divide-gray-800">
+              <tbody className="divide-y divide-edge">
                 {receipts.length === 0 ? (
                   <tr>
                     <td
-                      className="py-12 text-center text-muted-foreground"
+                      className="py-12 text-center text-ink-muted"
                       colSpan={3}
                     >
-                      <div className="flex flex-col items-center gap-3">
-                        <FileText className="h-8 w-8 opacity-20" />
-                        <p>No receipts added yet</p>
-                      </div>
+                      {t("composer.report.empty")}
                     </td>
                   </tr>
                 ) : (
@@ -640,66 +716,81 @@ export function ExpenseReport({
           </div>
 
           {/* Footer / Totals */}
-          <div className="border-border border-t bg-muted p-6 md:p-8 dark:bg-inverted/30">
+          <div className="border-edge border-t bg-surface-sunken p-6 md:p-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="text-muted-foreground">
-                <p className="text-sm">
-                  {receipts.length}{" "}
-                  {receipts.length === 1 ? "receipt" : "receipts"} attached
+              <p className="type-body-sm text-ink-muted">
+                {t("composer.report.attachedCount", {
+                  count: receipts.length,
+                })}
+              </p>
+              <div className="flex items-end justify-between gap-4 md:block md:text-right">
+                <p className="type-label text-ink-muted">
+                  {t("composer.report.total")}
                 </p>
-              </div>
-              <div className="flex items-end justify-between md:block md:text-right">
-                <p className="text-muted-foreground text-sm">
-                  Total Reimbursement
-                </p>
-                <p className="font-bold text-2xl text-foreground tracking-tight md:text-3xl dark:text-white">
-                  {totalAmount.toLocaleString()}{" "}
-                  <span className="text-lg text-muted-foreground">NOK</span>
+                <p className="type-data mt-1 text-2xl text-ink md:text-3xl">
+                  {totalAmount.toLocaleString(locale)}{" "}
+                  <span className="text-ink-muted text-lg">NOK</span>
                 </p>
               </div>
             </div>
 
             <div className="mt-8 flex flex-col-reverse gap-3 md:flex-row md:justify-end">
-              <Button
-                className="w-full gap-2 md:w-auto md:min-w-[160px]"
+              <button
+                aria-busy={isSavingDraft}
+                className={cn(
+                  secondaryActionClass,
+                  "w-full md:w-auto md:min-w-40"
+                )}
                 disabled={isSavingDraft || isSubmitting || !canSaveDraft}
                 onClick={onSaveDraft}
-                size="lg"
-                variant="outline"
+                type="button"
               >
                 {isSavingDraft ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving...
+                    <Loader2
+                      aria-hidden="true"
+                      className="size-4 shrink-0 animate-spin"
+                    />
+                    {t("composer.report.saving")}
                   </>
                 ) : (
                   <>
-                    <Save className="h-4 w-4" />
-                    Save Draft
+                    <Save aria-hidden="true" className="size-4 shrink-0" />
+                    {t("composer.report.saveDraft")}
                   </>
                 )}
-              </Button>
-              <Button
-                className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 md:w-auto md:min-w-[200px] dark:bg-background dark:text-brand-dark dark:hover:bg-background/90"
+              </button>
+              <button
+                aria-busy={isSubmitting}
+                className={cn(
+                  primaryActionClass,
+                  "w-full md:w-auto md:min-w-50"
+                )}
                 disabled={isSavingDraft || isSubmitting || !canSubmit}
                 onClick={onSubmit}
-                size="lg"
+                type="button"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting...
+                    <Loader2
+                      aria-hidden="true"
+                      className="size-4 shrink-0 animate-spin"
+                    />
+                    {t("composer.report.submitting")}
                   </>
                 ) : (
                   <>
-                    Submit Expense
-                    <ArrowRight className="h-4 w-4" />
+                    {t("composer.report.submit")}
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="size-4 shrink-0"
+                    />
                   </>
                 )}
-              </Button>
+              </button>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </ScrollArea>
   );

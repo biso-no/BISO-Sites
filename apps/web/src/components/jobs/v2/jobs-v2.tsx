@@ -1,137 +1,174 @@
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import {
-  parseUnitCategory,
-  UNIT_CATEGORIES,
   UNIT_CATEGORY_MESSAGE_KEYS,
+  type UnitCategory,
 } from "@repo/shared/utils/unit-categories";
+import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { CardGrid } from "@/components/ui/card-grid";
+import type { JobSort } from "@/app/actions/jobs";
 import { FeedSearch } from "@/components/ui/feed-search";
 import { FilterChips, type FilterOption } from "@/components/ui/filter-chips";
 import { PageHeader } from "@/components/ui/page-header";
-import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
-import { CAMPUS_SLUGS, campusIdToSlug } from "@/lib/campus-scope";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
+import type { WebPaginatedResult } from "@/lib/list-params";
+import { JobCard, type JobCardLabels, toJobCardModel } from "./job-card";
+import { JobsLoadMore } from "./jobs-load-more";
+import { feedTotal } from "./paging";
 
 /**
- * The jobs listing, rebuilt as a Server Component with link-based filters.
+ * The jobs listing: a Server Component with link-based filters over a feed
+ * that pages on the server.
  *
- * The current list holds its filters in `useState` and mirrors them to the URL
- * with `router.replace`. That makes a filtered view shareable but **not
- * navigable**: `replace` writes no history entry, so the back button skips
- * straight past every filter change the visitor made. Links fix that, and they
- * also mean the list renders without waiting for hydration.
+ * The page hands in the first page from `listJobs` (open vacancies filtered,
+ * searched, scoped and sorted in the Appwrite query) and the filter options
+ * from `listJobFacets`, which reads the whole open set — so a filter offers
+ * what exists, not what happens to be on page one. Further pages are appended
+ * by the `JobsLoadMore` island with the same card.
  *
- * `?campus=` (RD-016) composes with `?type=` here because `<FilterChips>`
- * rebuilds each href from the current parameters and changes only its own.
+ * Every filter is a URL parameter the query resolves: `?q=`, `?category=`
+ * (the owning unit's category), `?department=` and `?sort=`. Employment type
+ * and "paid only" are not offered — both live in the vacancy's JSON metadata,
+ * which Appwrite cannot filter on, and filtering one page client-side would
+ * leave holes in every later page.
  *
- * **PLACEHOLDER-002.** The reference design shows a workload badge on each card
- * — "20%", "15%". `Jobs` has no such column, so no badge is rendered. Adding
- * `workload_pct` to the table is the smallest fix.
+ * Campus has no row here. The header's campus switcher is the one place to
+ * change it (Branding Committee, #95) and rewrites `?campus=` on this route;
+ * every link and the search form carry the parameter along unchanged.
+ *
+ * Links rather than state: a filtered view is shareable, works before
+ * hydration, and the back button steps through filter changes.
  */
 export interface JobsV2Props {
   campusId: string | null;
-  jobs: RecruitmentVacancy[];
+  category: UnitCategory | null;
+  department: string | null;
+  facets: { categories: UnitCategory[]; departments: [string, string][] };
   locale: string;
+  result: WebPaginatedResult<RecruitmentVacancy>;
+  search: string;
   searchParams: Record<string, string | string[] | undefined>;
+  sort: JobSort;
+}
+
+const ALL = "all";
+const DEFAULT_SORT: JobSort = "newest";
+
+/** Parameters the search form carries so a search keeps the other filters. */
+const SEARCH_KEEPS = ["campus", "category", "department", "sort"] as const;
+
+/** The filters a search submission must keep, from the URL as it stands. */
+function searchHiddenFields(
+  searchParams: Record<string, string | string[] | undefined>
+): Record<string, string> {
+  const hidden: Record<string, string> = {};
+  for (const key of SEARCH_KEEPS) {
+    const value = searchParams[key];
+    if (typeof value === "string") {
+      hidden[key] = value;
+    }
+  }
+  return hidden;
 }
 
 /**
- * The v1 sort orders, kept because shared `?sort=` URLs still carry them.
- * `localizeVacancy` sorts the requested locale first, so `translations[0]` is
- * the displayed title — the same one the card renders.
+ * Clearing the filters keeps the campus the URL chose: scope is not a filter
+ * the visitor typed, it is where they are.
  */
-function sortJobs(
-  jobs: RecruitmentVacancy[],
-  sort: string
-): RecruitmentVacancy[] {
-  if (sort === "deadline") {
-    return [...jobs].sort((a, b) => {
-      const da = a.application_deadline
-        ? new Date(a.application_deadline).getTime()
-        : Number.POSITIVE_INFINITY;
-      const db = b.application_deadline
-        ? new Date(b.application_deadline).getTime()
-        : Number.POSITIVE_INFINITY;
-      return da - db;
-    });
-  }
-  if (sort === "alpha") {
-    return [...jobs].sort((a, b) =>
-      (a.translations[0]?.title ?? "").localeCompare(
-        b.translations[0]?.title ?? ""
-      )
-    );
-  }
-  // "newest" is the server's own order; an unrecognised value falls here too
-  // rather than shuffling the list into something the URL did not ask for.
-  return jobs;
+function clearFiltersHref(
+  searchParams: Record<string, string | string[] | undefined>
+): string {
+  const campus = searchParams.campus;
+  return typeof campus === "string"
+    ? `/jobs?campus=${encodeURIComponent(campus)}`
+    : "/jobs";
 }
 
-function JobCard({
-  job,
-  locale,
-  paidLabel,
-  deadlineLabel,
+/** A filter change starts the list over, so no link carries `page` along. */
+function withoutPage(
+  searchParams: Record<string, string | string[] | undefined>
+): Record<string, string | string[] | undefined> {
+  return Object.fromEntries(
+    Object.entries(searchParams).filter(([key]) => key !== "page")
+  );
+}
+
+/**
+ * Units are named for students with `unitDisplayName` (no campus prefix).
+ * Across all campuses two units can then share a name, and two identical
+ * chips would be a choice nobody can make — those keep the accounting name.
+ */
+function departmentOptions(
+  departments: [string, string][],
+  locale: string
+): FilterOption[] {
+  const named = departments.map(([id, name]) => ({
+    id,
+    name,
+    display: unitDisplayName(name),
+  }));
+  const uses = new Map<string, number>();
+  for (const { display } of named) {
+    uses.set(display, (uses.get(display) ?? 0) + 1);
+  }
+  return named
+    .map(({ id, name, display }) => ({
+      value: id,
+      label: (uses.get(display) ?? 0) > 1 ? name : display,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
+}
+
+/**
+ * No roles at all reads as the season it is (with the interest address);
+ * no roles for a search or filter offers the way back.
+ */
+function EmptyFeed({
+  clearHref,
+  copy,
+  filtered,
 }: {
-  deadlineLabel: string;
-  job: RecruitmentVacancy;
-  locale: string;
-  paidLabel: string;
+  clearHref: string;
+  copy: {
+    body: string;
+    clear: string;
+    interest: string;
+    title: string;
+  };
+  filtered: boolean;
 }) {
-  // `localizeVacancy` (in `listJobs`) already sorts the requested locale to the
-  // front, so index 0 is the right translation — same convention as `job-card`.
-  const translation = job.translations[0];
-  const deadline = job.application_deadline
-    ? new Date(job.application_deadline).toLocaleDateString(
-        locale === "no" ? "nb-NO" : "en-GB"
-      )
-    : null;
-  const hasPills = Boolean(job.metadata.employment_type || job.metadata.paid);
-
   return (
-    <li>
-      <Link
-        className="flex h-full flex-col rounded-biso-md border border-edge p-5 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-        href={`/jobs/${job.slug || job.$id}`}
-      >
-        {/* Only render the row when there is a pill for it — an empty flex
-            row still carries its bottom margin. */}
-        {hasPills ? (
-          <span className="mb-3 flex flex-wrap gap-2">
-            {job.metadata.employment_type ? (
-              <Pill tone="accent" uppercase>
-                {job.metadata.employment_type}
-              </Pill>
-            ) : null}
-            {job.metadata.paid ? <Pill tone="success">{paidLabel}</Pill> : null}
-          </span>
+    <div className="flex flex-col items-start gap-4 rounded-biso-md border border-edge p-10">
+      <h2 className="type-heading-card text-ink">{copy.title}</h2>
+      <p className="type-body max-w-(--measure) text-ink-muted">{copy.body}</p>
+      <div className="mt-2 flex flex-wrap gap-3">
+        <a className={statusPanelPrimaryAction} href="mailto:jobs@biso.no">
+          {copy.interest}
+        </a>
+        {filtered ? (
+          <Link className={statusPanelSecondaryAction} href={clearHref}>
+            {copy.clear}
+          </Link>
         ) : null}
-
-        <span className="type-heading-card text-ink">{translation?.title}</span>
-
-        {job.department?.Name ? (
-          <span className="type-body-sm mt-2 text-ink-muted">
-            {job.department.Name}
-          </span>
-        ) : null}
-
-        {deadline ? (
-          <span className="type-data mt-auto pt-4 text-ink-muted">
-            {deadlineLabel} {deadline}
-          </span>
-        ) : null}
-      </Link>
-    </li>
+      </div>
+    </div>
   );
 }
 
 export async function JobsV2({
-  jobs,
-  locale,
-  searchParams,
   campusId,
+  category,
+  department,
+  facets,
+  locale,
+  result,
+  search,
+  searchParams,
+  sort,
 }: JobsV2Props) {
   const [t, tCommon, tNav] = await Promise.all([
     getTranslations("jobs"),
@@ -139,100 +176,58 @@ export async function JobsV2({
     getTranslations("common.navigation"),
   ]);
 
-  const activeType =
-    typeof searchParams.type === "string" ? searchParams.type : "all";
+  const linkParams = withoutPage(searchParams);
 
-  // The organisational category of the unit that owns the vacancy — societies,
-  // projects, academic associations, staff functions, national. Distinct from
-  // `?type=`, which is the employment type. `departments.type` is free text and
-  // still null on most units, so the options are derived from the loaded jobs
-  // and `<FilterChips>` drops the row entirely while none of them carry one.
-  const activeCategory =
-    parseUnitCategory(searchParams.category) ?? ("all" as const);
-  const presentCategories = new Set(
-    jobs.map((job) => parseUnitCategory(job.department?.type)).filter(Boolean)
-  );
+  // The active category stays offered even when the campus has no open role
+  // in it, so the applied filter is visible and can be cleared.
+  const categories = [
+    ...new Set([...facets.categories, ...(category ? [category] : [])]),
+  ];
   const categoryOptions: FilterOption[] = [
-    { value: "all", label: t("filters.all") },
-    ...UNIT_CATEGORIES.filter((value) => presentCategories.has(value)).map(
-      (value) => ({
-        value,
-        label: t(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[value]}`),
-        count: jobs.filter(
-          (job) => parseUnitCategory(job.department?.type) === value
-        ).length,
-      })
-    ),
-  ];
-
-  // Employment types come from the data, not a hardcoded list — a value that
-  // stops appearing stops being offered.
-  const typeOptions: FilterOption[] = [
-    { value: "all", label: t("filters.all") },
-    ...[
-      ...new Set(
-        jobs.map((job) => job.metadata.employment_type).filter(Boolean)
-      ),
-    ].map((type) => ({
-      value: String(type),
-      label: String(type),
-      count: jobs.filter((job) => job.metadata.employment_type === type).length,
+    { value: ALL, label: t("filters.all") },
+    ...categories.map((value) => ({
+      value,
+      label: t(`filters.${UNIT_CATEGORY_MESSAGE_KEYS[value]}`),
     })),
   ];
 
-  const campusOptions: FilterOption[] = [
-    { value: "all", label: tNav("allCampuses") },
-    ...CAMPUS_SLUGS.map((slug) => ({
-      value: slug,
-      label: slug.charAt(0).toUpperCase() + slug.slice(1),
-    })),
-  ];
-
-  // `?paid=true` and `?sort=` are pre-redesign URL contracts: the v1 client
-  // filtered and sorted on them, and shared links still carry them. The v2
-  // filter row does not offer a sort control — the v1 one used hardcoded
-  // English labels and no localized copy for it exists — so `sort` is honoured
-  // for inbound links without being newly settable. `paid` gets a chip, because
-  // `filters.paidOnly` is already translated in both locales.
-  // A search must not silently drop the filters already applied.
-  const searchHidden: Record<string, string> = {};
-  for (const key of ["campus", "type", "category", "paid", "sort"]) {
-    const value = searchParams[key];
-    if (typeof value === "string") {
-      searchHidden[key] = value;
-    }
-  }
-
-  const paidOnly = searchParams.paid === "true";
-  const activeSort =
-    typeof searchParams.sort === "string" ? searchParams.sort : "newest";
-
-  // Offering a filter that can only empty the list is not a choice; FilterChips
-  // already drops itself below two options, so an empty array hides the row.
-  const paidCount = jobs.filter((job) => job.metadata.paid === true).length;
-  const paidOptions: FilterOption[] =
-    paidCount > 0
+  // One unit is no choice: the row appears once roles span two or more.
+  const unitOptions: FilterOption[] =
+    facets.departments.length > 1
       ? [
-          { value: "all", label: t("filters.all") },
-          { value: "true", label: t("filters.paidOnly"), count: paidCount },
+          { value: ALL, label: t("filters.all") },
+          ...departmentOptions(facets.departments, locale),
         ]
       : [];
 
-  const filtered = jobs.filter((job) => {
-    if (activeType !== "all" && job.metadata.employment_type !== activeType) {
-      return false;
-    }
-    // An uncategorised unit only drops out once a category is actively picked.
-    if (
-      activeCategory !== "all" &&
-      parseUnitCategory(job.department?.type) !== activeCategory
-    ) {
-      return false;
-    }
-    return !paidOnly || job.metadata.paid === true;
+  // `listJobs` reports Appwrite's total, which can be the whole table's; a
+  // short page is the exact count (see `./paging`).
+  const total = feedTotal({
+    pageRows: result.rows.length,
+    pageSize: result.size,
+    reportedTotal: result.total,
+    startPage: result.page,
   });
 
-  const visible = sortJobs(filtered, activeSort);
+  // Ordering fewer than two roles changes nothing.
+  const sortOptions: FilterOption[] =
+    total > 1
+      ? [
+          { value: "newest", label: t("filters.sortNewest") },
+          { value: "deadline", label: t("filters.sortDeadline") },
+        ]
+      : [];
+
+  const labels: JobCardLabels = {
+    deadline: t("card.deadline"),
+    membersOnly: t("card.membersOnly"),
+    paid: t("card.paid"),
+  };
+  const initial = result.rows.map((job) => toJobCardModel(job, locale));
+
+  const filtered = Boolean(
+    search || category || department || sort !== DEFAULT_SORT
+  );
 
   return (
     <>
@@ -247,15 +242,11 @@ export async function JobsV2({
 
       <Section tone="paper">
         <div className="mb-8 space-y-3">
-          {/* `?q=` filtered server-side all along; the rewrite dropped the only
-              control that could set it, so the feature was reachable by URL
-              only. */}
           <FeedSearch
             action="/jobs"
-            defaultValue={
-              typeof searchParams.q === "string" ? searchParams.q : ""
-            }
-            hidden={searchHidden}
+            defaultValue={search}
+            // A search must not silently drop the filters already applied.
+            hidden={searchHiddenFields(searchParams)}
             label={t("filters.searchLabel")}
             name="q"
             placeholder={t("filters.searchPlaceholder")}
@@ -263,57 +254,86 @@ export async function JobsV2({
             surface="jobs"
           />
           <FilterChips
-            active={activeType}
-            basePath="/jobs"
-            label={t("filters.employmentTypeLabel")}
-            options={typeOptions}
-            param="type"
-            searchParams={searchParams}
-          />
-          <FilterChips
-            active={activeCategory}
+            active={category ?? ALL}
             basePath="/jobs"
             label={t("filters.categoryLabel")}
             options={categoryOptions}
             param="category"
-            searchParams={searchParams}
+            searchParams={linkParams}
           />
           <FilterChips
-            active={campusIdToSlug(campusId) ?? "all"}
+            active={department ?? ALL}
             basePath="/jobs"
-            label={t("filters.campusLabel")}
-            options={campusOptions}
-            param="campus"
-            searchParams={searchParams}
+            label={t("filters.departmentLabel")}
+            options={unitOptions}
+            param="department"
+            searchParams={linkParams}
           />
           <FilterChips
-            active={paidOnly ? "true" : "all"}
+            active={sort}
             basePath="/jobs"
-            label={t("filters.paidOnly")}
-            options={paidOptions}
-            param="paid"
-            searchParams={searchParams}
+            defaultValue={DEFAULT_SORT}
+            label={t("filters.sortLabel")}
+            options={sortOptions}
+            param="sort"
+            searchParams={linkParams}
           />
         </div>
 
         <p className="type-body-sm mb-6 text-ink-muted">
-          {t("results.count", { count: visible.length })}
+          {/* A capped search counted only the first candidates it found, so
+              the total is a floor and the visitor is told to narrow it. */}
+          {result.capped
+            ? t("filters.showingFirstResults", { count: total })
+            : t("results.count", { count: total })}
         </p>
 
-        {visible.length > 0 ? (
-          <CardGrid>
-            {visible.map((job) => (
-              <JobCard
-                deadlineLabel={t("card.deadline")}
-                job={job}
-                key={job.$id}
-                locale={locale}
-                paidLabel={t("card.paid")}
-              />
+        {initial.length > 0 ? (
+          <JobsLoadMore
+            campus={campusId}
+            category={category}
+            department={department}
+            firstPageIds={initial.map((job) => job.id)}
+            // Remounts on any filter change so the appended pages reset to the
+            // new filter's first page instead of continuing the old one.
+            key={`${campusId ?? ALL}|${category ?? ALL}|${department ?? ALL}|${search}|${sort}|${result.page}`}
+            labels={{
+              ...labels,
+              loadMore: t("filters.loadMore"),
+              loadMoreFailed: t("filters.loadMoreFailed"),
+              loading: t("filters.loading"),
+            }}
+            locale={locale}
+            search={search}
+            sort={sort}
+            startPage={result.page}
+            total={total}
+          >
+            {/* Server-rendered: in the HTML before any script runs. */}
+            {initial.map((job) => (
+              <JobCard job={job} key={job.id} labels={labels} />
             ))}
-          </CardGrid>
+          </JobsLoadMore>
         ) : (
-          <p className="type-body text-ink-muted">{t("emptyState.title")}</p>
+          <EmptyFeed
+            clearHref={clearFiltersHref(searchParams)}
+            copy={
+              filtered
+                ? {
+                    body: t("emptyState.description"),
+                    clear: t("emptyState.clearFilters"),
+                    interest: t("emptyState.interestCta"),
+                    title: t("emptyState.title"),
+                  }
+                : {
+                    body: t("emptyState.seasonalBody"),
+                    clear: t("emptyState.clearFilters"),
+                    interest: t("emptyState.interestCta"),
+                    title: t("emptyState.seasonalTitle"),
+                  }
+            }
+            filtered={filtered}
+          />
         )}
       </Section>
     </>

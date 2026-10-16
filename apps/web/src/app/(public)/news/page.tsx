@@ -31,12 +31,10 @@ interface NewsPageProps {
 async function NewsListV2({
   campus,
   locale,
-  searchParams,
   searchQuery,
 }: {
   campus: string | null;
   locale: "en" | "no";
-  searchParams: Record<string, string | string[] | undefined>;
   searchQuery: string;
 }) {
   const articles = await listNews({
@@ -51,7 +49,6 @@ async function NewsListV2({
       articles={filterArticles(articles, "All", searchQuery)}
       campusId={campus}
       locale={locale}
-      searchParams={searchParams}
       searchQuery={searchQuery}
     />
   );
@@ -78,12 +75,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
 
   return (
     <Suspense fallback={<FeedSkeleton />}>
-      <NewsListV2
-        campus={campus}
-        locale={locale}
-        searchParams={sp}
-        searchQuery={searchQuery}
-      />
+      <NewsListV2 campus={campus} locale={locale} searchQuery={searchQuery} />
     </Suspense>
   );
 }

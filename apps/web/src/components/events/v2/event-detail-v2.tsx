@@ -1,11 +1,15 @@
 import type { Events } from "@repo/api/types/appwrite";
 import { EventsLocationMode } from "@repo/api/types/appwrite";
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
-import { ArrowLeft, Mail, Ticket } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import {
+  MembersOnlyBadge,
+  MembersOnlyNotice,
+} from "@/components/events/members-only";
 import { ChevronFrame } from "@/components/ui/chevron-frame";
 import { CopyLinkButton } from "@/components/ui/copy-link-button";
 import { DateBlock } from "@/components/ui/date-block";
@@ -15,38 +19,53 @@ import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import {
+  EVENT_CATEGORY_MESSAGE_KEYS,
+  type EventRegistrationMode,
+  getEventHref,
+  resolveEventRegistration,
+} from "@/lib/types/event";
+import {
+  type EventPrice,
   eventPrice,
   formatEventDate,
+  formatEventTime,
   formatEventTimeRange,
   isPastEvent,
   pickContent,
 } from "./event-fields";
+import { TicketLink } from "./ticket-link";
 
 /**
  * The event detail page, rebuilt as a Server Component.
  *
  * The meta rail of the article template is replaced here by a **sticky action
- * card** (§4.3): when, where, what it costs, and the one thing to do next. That
- * card is also where this page stops making a promise the data cannot keep.
+ * card** (§4.3): when, where, what it costs, and the one thing to do next.
  *
- * **The current page renders a dead "Register Now" button.** When `ticket_url`
- * is absent — which it is on every published event — `EventActions` still shows
- * a full-width primary CTA reading "Register Now", under the line "Spaces are
- * limited! Register now to guarantee your attendance." Its `onClick` fires an
- * analytics event and nothing else: there is no registration system behind it,
- * and for the one paid event the real mechanism is a discount code written in
- * the body copy. Here a ticket link renders only when there is a ticket to link
- * to; otherwise the card offers the event's own organiser, whose name, role and
- * address are real columns the current page ignores in favour of a hardcoded
- * `events@biso.no`.
+ * What to do next follows `resolveEventRegistration`: a ticket link only when
+ * there is a `ticket_url` to send the student to; "registration required" with
+ * the deadline and capacity when the event takes sign-ups but has nowhere to
+ * link; and "no registration needed — just show up" for a drop-in. The v1 page
+ * once rendered a "Register Now" button on every event whose `onClick` fired an
+ * analytics ping and nothing else; nothing here offers an action that does not
+ * exist.
  *
- * Everything else on the card is likewise read from the columns rather than
- * from `metadata`, which is `null` on every published row.
+ * A members-only event is shown to everyone with a notice: members are told
+ * they can join, everyone else how to become one. A member sees the member
+ * price they pay. Questions go to the event's own point of contact —
+ * `contact_name`, `contact_role` and `contact_email` are per-event columns —
+ * never to a hardcoded address.
+ *
+ * Everything on the card is read from the columns rather than from `metadata`,
+ * which is `null` on every published row.
  */
 export interface EventDetailV2Props {
   collectionEvents: Events[];
   event: Events;
+  /** Signed-in member: member pricing applies and the notice confirms access. */
+  isMember: boolean;
   locale: string;
+  /** Offer "already a member? sign in" — only to signed-out visitors. */
+  showSignIn: boolean;
 }
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
@@ -58,52 +77,161 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-const linkClass =
-  "inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
-function PriceRow({
-  event,
-  label,
-  freeLabel,
-  tbaLabel,
-  memberLabel,
-}: {
-  event: Events;
-  freeLabel: string;
-  label: string;
-  memberLabel: (price: string) => string;
-  tbaLabel: string;
-}) {
-  const price = eventPrice(event);
+const linkClass = `inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline ${focusRing}`;
+
+const inlineLinkClass = `break-words text-ink-accent underline underline-offset-4 ${focusRing}`;
+
+interface PriceCopy {
+  free: string;
+  memberPriceLabel: string;
+  membersPrice: (price: string) => string;
+  tba: string;
+}
+
+/** The amount as the card shows it, or the word for free/unknown. */
+function priceText(price: EventPrice, copy: PriceCopy): string {
   if (price.kind === "free") {
-    return <DetailRow label={label} value={freeLabel} />;
+    return copy.free;
   }
   if (price.kind === "unknown") {
-    return <DetailRow label={label} value={tbaLabel} />;
+    return copy.tba;
   }
+  return `${price.amount} NOK`;
+}
+
+function PriceValue({
+  copy,
+  isMember,
+  note,
+  price,
+}: {
+  copy: PriceCopy;
+  isMember: boolean;
+  note: string | null;
+  price: EventPrice;
+}) {
+  const noteLine = note ? (
+    <span className="mt-1 block text-ink-muted">{note}</span>
+  ) : null;
+
+  if (price.kind !== "paid" || price.memberAmount === null) {
+    return (
+      <>
+        {priceText(price, copy)}
+        {noteLine}
+      </>
+    );
+  }
+
+  const memberAmount = `${price.memberAmount} NOK`;
   return (
-    <DetailRow
-      label={label}
-      value={
+    <>
+      {isMember ? (
+        <>
+          <s className="text-ink-muted">{price.amount} NOK</s>
+          <span className="mt-1 block text-ink">
+            {memberAmount} {copy.memberPriceLabel}
+          </span>
+        </>
+      ) : (
         <>
           {price.amount} NOK
-          {price.memberAmount === null ? null : (
-            <span className="mt-1 block text-ink-accent">
-              {memberLabel(`${price.memberAmount} NOK`)}
-            </span>
-          )}
+          <span className="mt-1 block text-ink-accent">
+            {copy.membersPrice(memberAmount)}
+          </span>
         </>
-      }
-    />
+      )}
+      {noteLine}
+    </>
   );
 }
 
+/** The server translator for the `events` namespace. */
+type EventsTranslator = Awaited<ReturnType<typeof getTranslations<"events">>>;
+
+interface RegistrationCopy {
+  body: string;
+  title: string;
+}
+
+/** Copy for the two modes with nothing to click; `ticket` gets the link. */
+function registrationCopy(
+  mode: EventRegistrationMode,
+  memberOnly: boolean,
+  t: EventsTranslator
+): RegistrationCopy | null {
+  if (mode === "ticket") {
+    return null;
+  }
+  if (mode === "expected") {
+    return {
+      title: t("actions.registrationRequired"),
+      body: t("actions.registrationPendingDescription"),
+    };
+  }
+  return {
+    title: t("actions.noRegistrationTitle"),
+    body: memberOnly
+      ? t("actions.noRegistrationMembersDescription")
+      : t("actions.noRegistrationDescription"),
+  };
+}
+
+/**
+ * The line under the price — which price, for what. `collection_pricing`
+ * defaults to "individual" on every row, so it means something only on a
+ * collection parent.
+ */
+function priceNote(
+  event: Events,
+  price: EventPrice,
+  collectionCount: number,
+  t: EventsTranslator
+): string | null {
+  if (price.kind === "free") {
+    return event.member_only
+      ? t("infoCards.freeForMembers")
+      : t("infoCards.freeEvent");
+  }
+  if (event.is_collection && event.collection_pricing === "bundle") {
+    return t("infoCards.bundleAccess", { count: collectionCount });
+  }
+  if (event.is_collection && event.collection_pricing === "individual") {
+    return t("infoCards.individualRegister");
+  }
+  if (event.collection_id && !event.is_collection) {
+    return t("infoCards.partOfCollection");
+  }
+  return null;
+}
+
+function priceLabel(event: Events, t: EventsTranslator): string {
+  if (event.is_collection && event.collection_pricing === "bundle") {
+    return t("infoCards.bundlePrice");
+  }
+  if (event.is_collection && event.collection_pricing === "individual") {
+    return t("infoCards.pricing");
+  }
+  return t("infoCards.price");
+}
+
 async function ActionCard({
+  collectionCount,
   event,
   intlLocale,
+  isMember,
+  priceCopy,
+  showSignIn,
 }: {
+  collectionCount: number;
   event: Events;
   intlLocale: string;
+  isMember: boolean;
+  priceCopy: PriceCopy;
+  showSignIn: boolean;
 }) {
   const t = await getTranslations("events");
   const date = event.start_date
@@ -116,6 +244,20 @@ async function ActionCard({
   );
   const online =
     event.location_mode !== EventsLocationMode.PHYSICAL && event.online_url;
+  const price = eventPrice(event);
+  const registration = resolveEventRegistration(event);
+  const registrationNote = registrationCopy(
+    registration.mode,
+    Boolean(event.member_only),
+    t
+  );
+  // A deadline is a moment, not a day: "closes 22 September, 23:59".
+  const deadline = registration.deadline
+    ? `${formatEventDate(registration.deadline, intlLocale)}, ${formatEventTime(registration.deadline, intlLocale)}`
+    : null;
+  const contactEmail = event.contact_email?.trim();
+  const contactName = event.contact_name?.trim();
+  const contactRole = event.contact_role?.trim();
 
   return (
     <div className="rounded-biso-md border border-edge bg-surface-raised p-6">
@@ -141,60 +283,76 @@ async function ActionCard({
             }
           />
         ) : null}
-        <PriceRow
-          event={event}
-          freeLabel={t("card.free")}
-          label={t("infoCards.price")}
-          memberLabel={(price) => t("card.membersPrice", { price })}
-          tbaLabel={t("card.priceTba")}
+        <DetailRow
+          label={priceLabel(event, t)}
+          value={
+            <PriceValue
+              copy={priceCopy}
+              isMember={isMember}
+              note={priceNote(event, price, collectionCount, t)}
+              price={price}
+            />
+          }
         />
         {/* `capacity` is 0 when unset, which is not a capacity of zero. */}
-        {event.capacity > 0 ? (
+        {registration.capacity === null ? null : (
           <DetailRow
             label={t("detail.capacity")}
-            value={t("detail.capacityValue", { count: event.capacity })}
+            value={t("detail.capacityValue", {
+              count: registration.capacity,
+            })}
           />
-        ) : null}
-        {event.registration_deadline ? (
+        )}
+        {deadline ? (
           <DetailRow
             label={t("detail.registrationDeadline")}
-            value={formatEventDate(event.registration_deadline, intlLocale)}
+            value={deadline}
           />
         ) : null}
       </dl>
 
-      {event.ticket_url ? (
-        <a
-          className="type-label mt-5 inline-flex w-full items-center justify-center gap-2 rounded-biso-sm bg-action px-4 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          href={event.ticket_url}
-          rel="noopener"
-          target="_blank"
-        >
-          <Ticket aria-hidden="true" className="h-4 w-4" />
-          {t("detail.getTickets")}
-        </a>
-      ) : (
-        <p className="type-body-sm mt-5 text-ink-muted">
-          {t("detail.noRegistration")}
-        </p>
-      )}
+      {registrationNote ? (
+        <div className="mt-5">
+          <p className="type-body-sm font-semibold text-ink">
+            {registrationNote.title}
+          </p>
+          <p className="type-body-sm mt-1 text-ink-muted">
+            {registrationNote.body}
+          </p>
+        </div>
+      ) : null}
 
-      {event.contact_email ? (
+      {event.member_only ? (
+        <div className="mt-5">
+          <MembersOnlyNotice isMember={isMember} showSignIn={showSignIn} />
+        </div>
+      ) : null}
+
+      {registration.ticketUrl ? (
+        <div className="mt-5">
+          <TicketLink
+            eventId={event.slug ?? event.$id}
+            href={registration.ticketUrl}
+            label={t("detail.getTickets")}
+          />
+        </div>
+      ) : null}
+
+      {contactEmail ? (
         <div className="mt-5 border-edge border-t pt-5">
-          <p className="type-label text-ink-muted">{t("detail.organiser")}</p>
-          <a
-            className={`${linkClass} mt-2`}
-            href={`mailto:${event.contact_email}`}
-          >
-            <Mail aria-hidden="true" className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 break-words">
-              {event.contact_name || event.contact_email}
-            </span>
-          </a>
-          {event.contact_role ? (
-            <p className="type-body-sm mt-1 text-ink-muted">
-              {event.contact_role}
-            </p>
+          <p className="type-label text-ink-muted">
+            {t("infoCards.questions")}
+          </p>
+          <p className="type-body-sm mt-2 text-ink">
+            {contactName
+              ? t("infoCards.contactPerson", { name: contactName })
+              : t("infoCards.contactOrganizer")}{" "}
+            <a className={inlineLinkClass} href={`mailto:${contactEmail}`}>
+              {contactEmail}
+            </a>
+          </p>
+          {contactName && contactRole ? (
+            <p className="type-body-sm mt-1 text-ink-muted">{contactRole}</p>
           ) : null}
         </div>
       ) : null}
@@ -202,38 +360,49 @@ async function ActionCard({
   );
 }
 
+interface CollectionCopy {
+  description: string | null;
+  priceFor: (event: Events) => string | null;
+  pricing: string | null;
+  title: string;
+}
+
 function CollectionList({
+  copy,
   events,
-  currentId,
   locale,
-  title,
 }: {
-  currentId: string;
+  copy: CollectionCopy;
   events: Events[];
   locale: string;
-  title: string;
 }) {
-  const others = events.filter((event) => event.$id !== currentId);
-  if (others.length === 0) {
+  if (events.length === 0) {
     return null;
   }
   return (
     <div>
-      <h2 className="type-heading-section text-ink">{title}</h2>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="type-heading-section text-ink">{copy.title}</h2>
+        {copy.pricing ? <Pill tone="neutral">{copy.pricing}</Pill> : null}
+      </div>
+      {copy.description ? (
+        <p className="type-body-sm mt-3 max-w-(--measure) text-ink-muted">
+          {copy.description}
+        </p>
+      ) : null}
       <ul className="mt-5 space-y-3">
-        {others.map((event) => (
-          <li key={event.$id}>
-            <Link
-              className="flex items-start gap-4 rounded-biso-md border border-edge p-4 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              href={`/events/${event.slug}`}
-            >
+        {events.map((event) => {
+          const href = getEventHref(event);
+          const price = copy.priceFor(event);
+          const row = (
+            <>
               {event.start_date ? (
                 <DateBlock
                   date={event.start_date}
                   locale={locale === "no" ? "nb-NO" : "en-GB"}
                 />
               ) : null}
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="type-heading-card block text-ink">
                   {getPrimaryTranslation(event, locale)?.title}
                 </span>
@@ -243,9 +412,32 @@ function CollectionList({
                   </span>
                 ) : null}
               </span>
-            </Link>
-          </li>
-        ))}
+              {price ? (
+                <span className="type-data shrink-0 text-ink-muted">
+                  {price}
+                </span>
+              ) : null}
+            </>
+          );
+          const rowClass =
+            "flex items-start gap-4 rounded-biso-md border border-edge p-4";
+          return (
+            <li key={event.$id}>
+              {/* The detail route resolves by slug; a row without one is
+                  listed without a link rather than linked to a 404. */}
+              {href ? (
+                <Link
+                  className={`${rowClass} transition-colors hover:border-ink-accent ${focusRing}`}
+                  href={href}
+                >
+                  {row}
+                </Link>
+              ) : (
+                <div className={rowClass}>{row}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -254,7 +446,9 @@ function CollectionList({
 export async function EventDetailV2({
   event,
   collectionEvents,
+  isMember,
   locale,
+  showSignIn,
 }: EventDetailV2Props) {
   const [t, tCommon, tNav] = await Promise.all([
     getTranslations("events"),
@@ -268,6 +462,33 @@ export async function EventDetailV2({
   const translated =
     content.descriptionLocale === null || content.descriptionLocale === locale;
 
+  // The rest of the collection: a parent lists its sessions, a session lists
+  // its siblings. Pricing is the collection's, which only the parent carries
+  // (`collection_pricing` defaults to "individual" on every row).
+  const others = collectionEvents.filter((item) => item.$id !== event.$id);
+  const isParent = Boolean(event.is_collection);
+  const collectionPricing =
+    (isParent ? event : collectionEvents.find((item) => item.is_collection))
+      ?.collection_pricing ?? null;
+  const priceCopy: PriceCopy = {
+    free: t("card.free"),
+    memberPriceLabel: t("card.memberPriceLabel"),
+    membersPrice: (amount) => t("card.membersPrice", { price: amount }),
+    tba: t("card.priceTba"),
+  };
+  let collectionDescription: string | null = null;
+  let collectionPricingLabel: string | null = null;
+  if (isParent && collectionPricing === "bundle") {
+    collectionPricingLabel = t("collection.bundlePricing");
+    collectionDescription = t("collection.bundleDescription", {
+      price: priceText(eventPrice(event), priceCopy),
+      count: others.length,
+    });
+  } else if (isParent && collectionPricing === "individual") {
+    collectionPricingLabel = t("collection.individualPricing");
+    collectionDescription = t("collection.individualDescription");
+  }
+
   return (
     <>
       <PageHeader
@@ -276,6 +497,10 @@ export async function EventDetailV2({
             copiedLabel={t("detail.copied")}
             copyLabel={t("detail.share")}
             shareTitle={content.title}
+            track={{
+              event: "share",
+              props: { type: "event", eventId: event.slug ?? event.$id },
+            }}
           />
         }
         breadcrumbs={[
@@ -288,12 +513,10 @@ export async function EventDetailV2({
           <>
             {event.category ? (
               <Pill tone="accent" uppercase>
-                {t(`category.${event.category}`)}
+                {t(`filters.${EVENT_CATEGORY_MESSAGE_KEYS[event.category]}`)}
               </Pill>
             ) : null}
-            {event.member_only ? (
-              <Pill tone="warning">{t("card.membersOnly")}</Pill>
-            ) : null}
+            {event.member_only ? <MembersOnlyBadge /> : null}
             {past ? <Pill tone="neutral">{t("card.past")}</Pill> : null}
             {event.campus?.name ? (
               <Pill tone="neutral">{event.campus.name}</Pill>
@@ -311,7 +534,14 @@ export async function EventDetailV2({
               it becomes the sticky rail the article template calls for. */}
           <aside className="lg:order-2">
             <div className="space-y-6 lg:sticky lg:top-24">
-              <ActionCard event={event} intlLocale={intlLocale} />
+              <ActionCard
+                collectionCount={others.length}
+                event={event}
+                intlLocale={intlLocale}
+                isMember={isMember}
+                priceCopy={priceCopy}
+                showSignIn={showSignIn}
+              />
 
               {event.tags && event.tags.length > 0 ? (
                 <div>
@@ -367,10 +597,20 @@ export async function EventDetailV2({
             </div>
 
             <CollectionList
-              currentId={event.$id}
-              events={collectionEvents}
+              copy={{
+                description: collectionDescription,
+                pricing: collectionPricingLabel,
+                // Sessions sold one by one show what each costs.
+                priceFor: (item) =>
+                  collectionPricing === "individual"
+                    ? priceText(eventPrice(item), priceCopy)
+                    : null,
+                title: isParent
+                  ? t("collection.title")
+                  : t("collection.otherTitle"),
+              }}
+              events={others}
               locale={locale}
-              title={t("collection.otherTitle")}
             />
           </div>
         </div>

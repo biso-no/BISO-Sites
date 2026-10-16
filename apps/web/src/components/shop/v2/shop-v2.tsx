@@ -9,7 +9,7 @@ import { FilterChips, type FilterOption } from "@/components/ui/filter-chips";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
-import { CAMPUS_SLUGS, campusIdToSlug } from "@/lib/campus-scope";
+import { campusIdToSlug } from "@/lib/campus-scope";
 import { toPlainText } from "@/lib/content-text";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import { ShopSearch } from "./shop-search";
@@ -33,6 +33,10 @@ import { ShopSearch } from "./shop-search";
  * **The list re-fetched itself on hydration.** Campus lived in a context, so
  * the client re-ran `listProducts` in an effect and threw the server render
  * away. Campus is `?campus=` now, resolved on the server like every other feed.
+ * There is no campus row on the page: the header's campus switcher is the one
+ * place to change campus (Branding Committee, #95) and rewrites `?campus=` on
+ * this route. The scope still rides along — the category chips keep it, and
+ * the search form carries it as a hidden field.
  *
  * Prices are unchanged: `regular_price`, `member_price` and the member state
  * come from the same places, and nothing here writes.
@@ -199,17 +203,14 @@ export async function ShopV2({
   const activeCategory =
     typeof searchParams.category === "string" ? searchParams.category : "all";
 
-  // A member-only product is not offered to a non-member. The v1 listing
-  // excluded these rows and the rewrite dropped the predicate, which put
-  // restricted products in front of everyone — and nothing downstream stops
-  // them being bought at the regular price, in v1 or here. Filtered before the
-  // category counts so the chips cannot advertise rows the grid will not show.
-  const offered = isMember
-    ? products
-    : products.filter((product) => !product.member_only);
-
+  // Members-only products are listed for everyone, deliberately: `member_only`
+  // limits who can BUY a product, not who can see it — the rule events follow
+  // too. The card carries the "Members only" pill, the product page refuses a
+  // non-member before the cart, and the reservation and checkout actions refuse
+  // them server-side. Link-only (`unlisted`) products never reach this list:
+  // `listProducts` filters them out.
   const present = [
-    ...new Set(offered.map((product) => product.category).filter(Boolean)),
+    ...new Set(products.map((product) => product.category).filter(Boolean)),
   ].sort() as string[];
 
   const categoryOptions: FilterOption[] = [
@@ -217,22 +218,14 @@ export async function ShopV2({
     ...present.map((category) => ({
       value: category,
       label: category,
-      count: offered.filter((product) => product.category === category).length,
-    })),
-  ];
-
-  const campusOptions: FilterOption[] = [
-    { value: "all", label: tNav("allCampuses") },
-    ...CAMPUS_SLUGS.map((slug) => ({
-      value: slug,
-      label: slug.charAt(0).toUpperCase() + slug.slice(1),
+      count: products.filter((product) => product.category === category).length,
     })),
   ];
 
   const visible =
     activeCategory === "all"
-      ? offered
-      : offered.filter((product) => product.category === activeCategory);
+      ? products
+      : products.filter((product) => product.category === activeCategory);
 
   const activeCampus = campusIdToSlug(campusId) ?? "all";
   const hidden: Record<string, string> = {};
@@ -282,14 +275,6 @@ export async function ShopV2({
             param="category"
             searchParams={searchParams}
           />
-          <FilterChips
-            active={activeCampus}
-            basePath="/shop"
-            label={t("list.campusLabel")}
-            options={campusOptions}
-            param="campus"
-            searchParams={searchParams}
-          />
         </div>
 
         <p className="type-body-sm mb-6 text-ink-muted">
@@ -316,12 +301,16 @@ export async function ShopV2({
             <p className="type-body mt-2 text-ink-muted">
               {t("emptyState.description")}
             </p>
-            <Link
-              className="type-label mt-5 inline-flex text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              href="/shop"
-            >
-              {t("filters.clearFilters")}
-            </Link>
+            {/* Only when there is something to clear: campus is the header's,
+                so with no search or category the link would lead here. */}
+            {searchQuery.trim() || activeCategory !== "all" ? (
+              <Link
+                className="type-label mt-5 inline-flex text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                href="/shop"
+              >
+                {t("filters.clearFilters")}
+              </Link>
+            ) : null}
           </div>
         )}
       </Section>

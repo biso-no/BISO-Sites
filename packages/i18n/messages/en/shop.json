@@ -73,8 +73,10 @@
     "price": "Price",
     "tax": "Tax",
     "included": "Included",
-    "options": "Product Options",
-    "required": "This field is required"
+    "optionsTitle": "Additional information",
+    "optionRequired": "This field is required",
+    "membersOnly": "Members only",
+    "membersOnlyNotice": "This product is for BISO members. Join to buy it."
   },
   "member": {
     "notMember": "Not a member yet?",
@@ -90,6 +92,8 @@
     "title": "Your Cart",
     "itemsReady": "{count} {count, plural, one {item} other {items}} ready for pickup",
     "outOfStock": "Sorry, that's out of stock right now.",
+    "membersOnly": "This product is for BISO members only.",
+    "unavailable": "That product isn't available anymore.",
     "updateFailed": "Couldn't update your cart. Please try again.",
     "empty": {
       "title": "Your cart is empty",
@@ -204,7 +208,9 @@
     "membershipWelcome": {
       "title": "You're a member now",
       "desc": "Your membership is active. All discounts and benefits are available right away in the BISO app and the member portal.",
-      "cta": "Go to the member portal"
+      "cta": "Go to the member portal",
+      "upcomingTitle": "You're all set",
+      "upcomingDesc": "Your membership starts {start}. Discounts and benefits become available in the BISO app and the member portal from that day."
     },
     "success": {
       "title": "Thank you for your purchase!",
@@ -262,6 +268,7 @@
       "continue": "Continue Shopping",
       "print": "Print Order",
       "receipt": "View Vipps Receipt",
+      "viewReceipt": "View receipt",
       "returnToCart": "Return to Cart",
       "backToShop": "Back to Shop"
     },
@@ -287,8 +294,7 @@
   "list": {
     "searchLabel": "Search products",
     "searchSubmit": "Search",
-    "categoryLabel": "Filter products by category",
-    "campusLabel": "Filter products by campus"
+    "categoryLabel": "Filter products by category"
   },
   "toast": {
     "outOfStock": "This item is out of stock",

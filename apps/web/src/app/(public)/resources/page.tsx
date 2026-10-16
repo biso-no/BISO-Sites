@@ -16,13 +16,16 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 
+// Straight to where each topic lives now: the About subpages are sections of
+// /about, the bylaws are a shelf on /documents, and the fund is
+// /okonomisk-stotte — no hop through a redirect.
 const INTERNAL_LINKS = [
-  { key: "biFond", href: "/bi-fondet", Icon: PiggyBank },
-  { key: "studyQuality", href: "/about/study-quality", Icon: GraduationCap },
-  { key: "politics", href: "/about/politics", Icon: Landmark },
+  { key: "biFond", href: "/okonomisk-stotte", Icon: PiggyBank },
+  { key: "studyQuality", href: "/about#studiekvalitet", Icon: GraduationCap },
+  { key: "politics", href: "/about#politikk", Icon: Landmark },
   { key: "safety", href: "/safety", Icon: ShieldAlert },
-  { key: "bylaws", href: "/about/bylaws", Icon: Gavel },
-  { key: "alumni", href: "/about/alumni", Icon: Users },
+  { key: "bylaws", href: "/documents?category=campus-bylaws", Icon: Gavel },
+  { key: "alumni", href: "/about#alumni", Icon: Users },
 ] as const;
 
 // Keys under `external.*`, NOT `links.*` — the two blocks are separate in the

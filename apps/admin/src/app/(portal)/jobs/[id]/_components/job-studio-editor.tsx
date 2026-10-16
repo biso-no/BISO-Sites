@@ -5,7 +5,11 @@ import {
   type Departments,
   JobsStatus,
 } from "@repo/api/types/appwrite";
-import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import type {
+  RecruitmentVacancy,
+  RecruitmentVacancyWriteInput,
+} from "@repo/shared/types/recruitment";
+import { generateSlug } from "@repo/shared/utils/content-slug";
 import {
   ArrowLeft,
   ArrowRight,
@@ -32,15 +36,17 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import type { JobReuseSignals } from "@/lib/job-reuse";
+import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createJob,
+  duplicateJob,
   generateJobTranslationDraft,
   suggestJobDescriptionSection,
   updateJob,
 } from "../../../_actions/jobs";
 import { listDepartmentsForCampus } from "../../../_actions/lookups";
 import { type JobFormValues, jobSchema } from "../../../_actions/schemas";
-import { uploadMediaFile } from "../../../_actions/upload";
 import {
   JOB_STUDIO_SCHEMA_ID,
   registerAssistantFormTarget,
@@ -53,6 +59,12 @@ import {
   newBlock,
   stripHtml,
 } from "../../../_components/description-blocks";
+import { describeJobFormIssues, type JobFormIssue } from "./job-form-issues";
+import {
+  FreshDuplicateBanner,
+  JobReuseBanner,
+  JobReuseDialog,
+} from "./job-reuse-notice";
 
 interface JobStudioEditorProps {
   allowedDepartmentIds?: string[];
@@ -60,6 +72,8 @@ interface JobStudioEditorProps {
   canChangeCampus?: boolean;
   defaultCampusId?: string;
   initialDepartments: Departments[];
+  /** Opened straight after "Duplicate" — prompt HR to set the new dates. */
+  isFreshDuplicate?: boolean;
   isNew: boolean;
   job: RecruitmentVacancy | null;
   labels: {
@@ -70,7 +84,10 @@ interface JobStudioEditorProps {
     saveError: string;
     saveSuccess: string;
   };
+  reuse?: JobReuseSignals | null;
 }
+
+const LOGISTICS_STEP = 2;
 
 const BRAND = {
   accent: "#3DA9E0",
@@ -122,21 +139,51 @@ function getTranslation(job: RecruitmentVacancy | null, locale: "en" | "no") {
   return job?.translations.find((translation) => translation.locale === locale);
 }
 
-function generateSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
+const TEASER_MAX_LENGTH = 280;
+
+function formatTeaserRemaining(remaining: number) {
+  return remaining >= 0
+    ? `${remaining} characters left`
+    : `${-remaining} characters over the limit`;
 }
 
 function toDateInput(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
 
-function toDateTimeInput(value: string | null | undefined) {
-  return value ? value.slice(0, 16) : "";
+function padTwo(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+/** ISO instant → `datetime-local` value in the browser's own timezone. */
+function toLocalDateTimeInput(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return `${date.getFullYear()}-${padTwo(date.getMonth() + 1)}-${padTwo(date.getDate())}T${padTwo(date.getHours())}:${padTwo(date.getMinutes())}`;
+}
+
+/** `datetime-local` value (browser timezone) → ISO instant for the server. */
+function localDateTimeToIso(value: string) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+const scheduleFormatter = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Europe/Oslo",
+});
+
+function formatScheduledTime(value: string) {
+  return `${scheduleFormatter.format(new Date(value))} (Oslo time)`;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -191,7 +238,12 @@ function buildDefaultValues(
     paid: Boolean(metadata?.paid),
     publication_mode: fallback(metadata?.publication_mode, "now"),
     push_to_inboxes: Boolean(metadata?.push_to_inboxes),
-    scheduled_publish_at: fallback(metadata?.scheduled_publish_at, null),
+    // Older saves stored a bare "YYYY-MM-DDTHH:mm" (no timezone). Normalise
+    // in the browser's timezone so re-scheduling doesn't shift by the UTC
+    // offset on the server.
+    scheduled_publish_at: metadata?.scheduled_publish_at
+      ? localDateTimeToIso(metadata.scheduled_publish_at)
+      : null,
     short_description_en: fallback(
       en?.short_description ?? metadata?.short_description,
       null
@@ -208,8 +260,10 @@ function buildDefaultValues(
     title_en: fallback(en?.title, ""),
     title_no: fallback(no?.title, ""),
     auto_screen: job?.auto_screen ?? true,
-    custom_questions: [],
-    interview_template: { rounds: [] },
+    // Managed in the applications workspace, not this editor. They are
+    // stripped before save so updateJob keeps the stored values.
+    custom_questions: job?.custom_questions ?? [],
+    interview_template: job?.interview_template ?? { rounds: [] },
     screening_rubric: job?.screening_rubric ?? {
       must_have: [],
       nice_to_have: [],
@@ -635,9 +689,11 @@ export function JobStudioEditor({
   canChangeCampus = true,
   defaultCampusId,
   initialDepartments,
+  isFreshDuplicate = false,
   isNew,
   job,
   labels,
+  reuse,
 }: JobStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -657,6 +713,31 @@ export function JobStudioEditor({
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [formIssues, setFormIssues] = useState<JobFormIssue[]>([]);
+  const [showFreshDuplicate, setShowFreshDuplicate] =
+    useState(isFreshDuplicate);
+  // Past-round nudge: the banner shows on load, the dialog interrupts the
+  // first edit or a publish, and "keep editing" silences both for this visit.
+  const suggestDuplicate = Boolean(reuse?.suggestDuplicate && job);
+  const [reuseAcknowledged, setReuseAcknowledged] = useState(false);
+  const [reuseDialog, setReuseDialog] = useState<{
+    intent: "edit" | "publish";
+    open: boolean;
+  }>({ intent: "edit", open: false });
+  const reusePromptedRef = useRef(false);
+  useEffect(() => {
+    if (isFreshDuplicate) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [isFreshDuplicate]);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const isBusy = isSaving || isPublishing;
+  const isLive = job?.status === JobsStatus.PUBLISHED;
+  const willSchedule = form.publication_mode === "scheduled" && !isLive;
+  const publishLabel = willSchedule ? "Schedule" : labels.publish;
+  const publishingLabel = willSchedule ? "Scheduling..." : "Publishing...";
+  const armedSchedule =
+    job?.status === JobsStatus.DRAFT ? job.scheduled_publish_at : null;
   const [autoTranslate, setAutoTranslate] = useState(() =>
     Boolean(job?.metadata.auto_translate)
   );
@@ -681,6 +762,57 @@ export function JobStudioEditor({
   ) {
     setForm((current) => ({ ...current, [key]: value }));
     setDirty(true);
+    promptReuseOnFirstEdit();
+  }
+
+  function promptReuseOnFirstEdit() {
+    if (!suggestDuplicate || reuseAcknowledged || reusePromptedRef.current) {
+      return;
+    }
+    reusePromptedRef.current = true;
+    setReuseDialog({ intent: "edit", open: true });
+  }
+
+  function acknowledgeReuse() {
+    reusePromptedRef.current = true;
+    setReuseAcknowledged(true);
+    const shouldPublish = reuseDialog.intent === "publish" && reuseDialog.open;
+    setReuseDialog((current) => ({ ...current, open: false }));
+    if (shouldPublish) {
+      submit(JobsStatus.PUBLISHED);
+    }
+  }
+
+  async function handleDuplicate() {
+    if (!job || isDuplicating) {
+      return;
+    }
+    if (
+      dirty &&
+      // biome-ignore lint/suspicious/noAlert: Same unsaved-work confirmation pattern as the translation replacement above.
+      !window.confirm(
+        "The copy is made from the last saved version. Your unsaved edits here will be discarded. Continue?"
+      )
+    ) {
+      return;
+    }
+    setIsDuplicating(true);
+    try {
+      const result = await duplicateJob(job.$id);
+      if (result.error !== undefined) {
+        toast.error(result.error);
+        return;
+      }
+      setDirty(false);
+      setReuseDialog((current) => ({ ...current, open: false }));
+      toast.success("Copy created as a new draft");
+      router.push(`/jobs/${result.data}?duplicated=1`);
+    } catch (error) {
+      console.error("[JobStudio] duplicate failed", error);
+      toast.error("Couldn't create the copy. Try again in a moment.");
+    } finally {
+      setIsDuplicating(false);
+    }
   }
 
   // Keep a ref to the latest setValue so the form bridge effect registers once on mount
@@ -692,6 +824,24 @@ export function JobStudioEditor({
       setValueRef.current(path as keyof JobFormValues, value as never)
     );
   }, []);
+
+  useEffect(() => {
+    if (!dirty) {
+      return;
+    }
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirty]);
+
+  function goToIssue(issue: JobFormIssue) {
+    setStep(issue.step);
+    if (issue.locale) {
+      setLocale(issue.locale);
+    }
+  }
 
   async function handleCampusChange(campusId: string) {
     setValue("campus_id", campusId);
@@ -727,7 +877,9 @@ export function JobStudioEditor({
 
   function handleAutoTranslateChange(checked: boolean) {
     setAutoTranslate(checked);
-    setValue("auto_translate", checked);
+    // Not a content edit, so bypass setValue's past-round prompt.
+    setForm((current) => ({ ...current, auto_translate: checked }));
+    setDirty(true);
   }
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Translation replacement keeps both locale branches explicit so destination writes remain auditable.
@@ -853,10 +1005,8 @@ export function JobStudioEditor({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
     setIsUploading(true);
-    const result = await uploadMediaFile(formData);
+    const result = await uploadMediaFile(file);
     setIsUploading(false);
 
     if (result.error) {
@@ -873,13 +1023,111 @@ export function JobStudioEditor({
     toast.success("Cover image uploaded");
   }
 
-  async function submit(status: JobsStatus) {
-    const payload = { ...form, status };
-    const validated = jobSchema.safeParse(payload);
-    if (!validated.success) {
+  function showValidationIssues(issues: JobFormIssue[]) {
+    setFormIssues(issues);
+    const [first] = issues;
+    if (!first) {
       toast.error(labels.saveError);
       return;
     }
+    goToIssue(first);
+    toast.error(`${first.label}: ${first.message}`, {
+      description:
+        issues.length > 1
+          ? `${issues.length - 1} more field(s) need attention.`
+          : undefined,
+    });
+  }
+
+  /** Flags a scheduled publish with no time chosen. */
+  function isMissingScheduleTime() {
+    if (!willSchedule || form.scheduled_publish_at) {
+      return false;
+    }
+    showValidationIssues([
+      {
+        field: "scheduled_publish_at",
+        label: "Scheduled publish time",
+        locale: null,
+        message: "Choose a publish time, or switch to Publish now",
+        step: 4,
+      },
+    ]);
+    return true;
+  }
+
+  function getSuccessMessage(
+    status: JobsStatus,
+    scheduledPublishAt: string | null | undefined
+  ) {
+    if (scheduledPublishAt) {
+      return `Scheduled to publish ${formatScheduledTime(scheduledPublishAt)}.`;
+    }
+    return status === JobsStatus.PUBLISHED
+      ? labels.publishSuccess
+      : labels.saveSuccess;
+  }
+
+  function persistVacancy(vacancy: RecruitmentVacancyWriteInput) {
+    const translation = { enabled: autoTranslate, sourceLocale: locale };
+    return isNew || !job
+      ? createJob(vacancy, translation)
+      : updateJob(job.$id, vacancy, translation);
+  }
+
+  function announceSaved(
+    status: JobsStatus,
+    result: Awaited<ReturnType<typeof persistVacancy>>
+  ) {
+    // The server moves a colliding slug to `-{year}`; show what was saved.
+    if ("slug" in result && result.slug) {
+      setValue("slug", result.slug);
+    }
+    setDirty(false);
+    const successMessage = getSuccessMessage(
+      status,
+      "scheduledPublishAt" in result ? result.scheduledPublishAt : null
+    );
+    toast.success(
+      "translationQueued" in result && result.translationQueued
+        ? `${successMessage} Translation queued.`
+        : successMessage
+    );
+  }
+
+  /** Publish, but ask first when this looks like a past-round vacancy. */
+  function requestPublish() {
+    if (suggestDuplicate && !reuseAcknowledged) {
+      reusePromptedRef.current = true;
+      setReuseDialog({ intent: "publish", open: true });
+      return;
+    }
+    submit(JobsStatus.PUBLISHED);
+  }
+
+  async function submit(status: JobsStatus) {
+    if (isSaving || isPublishing) {
+      return;
+    }
+
+    const payload = { ...form, status };
+    const validated = jobSchema.safeParse(payload);
+    if (!validated.success) {
+      showValidationIssues(describeJobFormIssues(validated.error.issues));
+      return;
+    }
+    if (status === JobsStatus.PUBLISHED && isMissingScheduleTime()) {
+      return;
+    }
+    setFormIssues([]);
+
+    // custom_questions / interview_template are edited in the applications
+    // workspace; omitting them makes updateJob keep the stored values.
+    const {
+      custom_questions: _customQuestions,
+      interview_template: _interviewTemplate,
+      ...vacancy
+    } = validated.data;
 
     if (status === JobsStatus.PUBLISHED) {
       setIsPublishing(true);
@@ -887,41 +1135,36 @@ export function JobStudioEditor({
       setIsSaving(true);
     }
 
-    const result = isNew
-      ? await createJob(validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
-        })
-      : await updateJob(job!.$id, validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
+    try {
+      const result = await persistVacancy(vacancy);
+
+      if (result.error) {
+        toast.error(result.error, {
+          description: "Your changes are still here. Try again in a moment.",
+          duration: 15_000,
         });
+        return;
+      }
 
-    setIsPublishing(false);
-    setIsSaving(false);
+      announceSaved(status, result);
 
-    if (result.error) {
-      toast.error(result.error);
-      return;
+      if (isNew && "data" in result && result.data) {
+        router.push(`/jobs/${result.data}`);
+        return;
+      }
+
+      router.refresh();
+    } catch (error) {
+      console.error("[JobStudio] save failed", error);
+      toast.error(labels.saveError, {
+        description:
+          "We couldn't reach the server. Your changes are still here — don't refresh, try again in a moment.",
+        duration: 15_000,
+      });
+    } finally {
+      setIsPublishing(false);
+      setIsSaving(false);
     }
-
-    setDirty(false);
-    const successMessage =
-      status === JobsStatus.PUBLISHED
-        ? labels.publishSuccess
-        : labels.saveSuccess;
-    toast.success(
-      "translationQueued" in result && result.translationQueued
-        ? `${successMessage} Translation queued.`
-        : successMessage
-    );
-
-    if (isNew && "data" in result && result.data) {
-      router.push(`/jobs/${result.data}`);
-      return;
-    }
-
-    router.refresh();
   }
 
   return (
@@ -949,7 +1192,7 @@ export function JobStudioEditor({
             <AutoTranslateControl
               checked={autoTranslate}
               className="max-w-[280px]"
-              disabled={isSaving || isPublishing}
+              disabled={isBusy}
               onCheckedChange={handleAutoTranslateChange}
               operation="save or publish"
               sourceLocale={locale}
@@ -963,7 +1206,7 @@ export function JobStudioEditor({
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm transition hover:border-[#3DA9E0]/50"
-              disabled={isSaving}
+              disabled={isBusy}
               onClick={() => submit(JobsStatus.DRAFT)}
               type="button"
             >
@@ -972,12 +1215,12 @@ export function JobStudioEditor({
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5"
-              disabled={isPublishing}
-              onClick={() => submit(JobsStatus.PUBLISHED)}
+              disabled={isBusy}
+              onClick={requestPublish}
               type="button"
             >
               <Send size={15} />
-              {isPublishing ? "Publishing..." : labels.publish}
+              {isPublishing ? publishingLabel : publishLabel}
             </button>
           </div>
         </header>
@@ -1002,6 +1245,66 @@ export function JobStudioEditor({
                   Step {step + 1} of {STEPS.length} · {STEPS[step]}
                 </span>
               </div>
+
+              {showFreshDuplicate && (
+                <FreshDuplicateBanner
+                  onDismiss={() => setShowFreshDuplicate(false)}
+                  onGoToDates={() => {
+                    setStep(LOGISTICS_STEP);
+                    setShowFreshDuplicate(false);
+                  }}
+                />
+              )}
+
+              {suggestDuplicate && reuse && job && (
+                <JobReuseBanner
+                  acknowledged={reuseAcknowledged}
+                  applicationDeadline={job.application_deadline}
+                  dirty={dirty}
+                  isDuplicating={isDuplicating}
+                  onAcknowledge={acknowledgeReuse}
+                  onDuplicate={handleDuplicate}
+                  reuse={reuse}
+                />
+              )}
+
+              {armedSchedule && (
+                <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#3DA9E0]/40 bg-[#3DA9E0]/10 p-4 text-sm">
+                  <CalendarDays
+                    className="mt-0.5 shrink-0 text-[#3DA9E0]"
+                    size={18}
+                  />
+                  <p className="text-[#001731]">
+                    Scheduled to publish {formatScheduledTime(armedSchedule)}.
+                    Saving as a draft cancels the schedule.
+                  </p>
+                </div>
+              )}
+
+              {formIssues.length > 0 && (
+                <div
+                  className="mb-6 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm"
+                  role="alert"
+                >
+                  <p className="font-medium text-red-800">
+                    Fix these before saving:
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {formIssues.map((issue) => (
+                      <li key={issue.field}>
+                        <button
+                          className="text-left text-red-700 underline-offset-2 hover:underline"
+                          onClick={() => goToIssue(issue)}
+                          type="button"
+                        >
+                          {issue.label} — {issue.message} (step {issue.step + 1}
+                          )
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {step === 0 && (
                 <div className="space-y-7">
@@ -1079,12 +1382,13 @@ export function JobStudioEditor({
                   </div>
 
                   <Field
-                    help={`${Math.max(0, 280 - ((locale === "no" ? form.short_description_no : form.short_description_en)?.length ?? 0))} characters left · ${locale.toUpperCase()}`}
+                    help={`${formatTeaserRemaining(TEASER_MAX_LENGTH - ((locale === "no" ? form.short_description_no : form.short_description_en)?.length ?? 0))} · ${locale.toUpperCase()}`}
                     label="One-line teaser"
                     required
                   >
                     <textarea
                       className={inputClass("min-h-24 resize-none text-base")}
+                      maxLength={TEASER_MAX_LENGTH}
                       onChange={(event) =>
                         setValue(
                           locale === "no"
@@ -1810,8 +2114,9 @@ export function JobStudioEditor({
                           Publication timing
                         </p>
                         <p className="mt-1 text-slate-500 text-sm">
-                          Publish immediately from the final step, or store a
-                          scheduled time for the rollout queue.
+                          {isLive
+                            ? "This vacancy is already live. Scheduling only applies to vacancies that are not yet published."
+                            : "Publish now makes the vacancy visible immediately. Schedule keeps it hidden and publishes it automatically at the chosen time (checked every 5 minutes). Saving as a draft cancels a schedule."}
                         </p>
                       </div>
                     </div>
@@ -1859,11 +2164,13 @@ export function JobStudioEditor({
                             onChange={(event) =>
                               setValue(
                                 "scheduled_publish_at",
-                                event.target.value || null
+                                localDateTimeToIso(event.target.value)
                               )
                             }
                             type="datetime-local"
-                            value={toDateTimeInput(form.scheduled_publish_at)}
+                            value={toLocalDateTimeInput(
+                              form.scheduled_publish_at
+                            )}
                           />
                         </Field>
                       </div>
@@ -2017,14 +2324,14 @@ export function JobStudioEditor({
             <AutoTranslateControl
               checked={autoTranslate}
               className="max-w-[280px] md:hidden"
-              disabled={isSaving || isPublishing}
+              disabled={isBusy}
               onCheckedChange={handleAutoTranslateChange}
               operation="save or publish"
               sourceLocale={locale}
             />
             <button
-              className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm sm:inline-flex"
-              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm disabled:opacity-60"
+              disabled={isBusy}
               onClick={() => submit(JobsStatus.DRAFT)}
               type="button"
             >
@@ -2052,17 +2359,32 @@ export function JobStudioEditor({
             ) : (
               <button
                 className="inline-flex items-center gap-2 rounded-lg bg-[#001731] px-4 py-2 font-medium text-sm text-white"
-                disabled={isPublishing}
-                onClick={() => submit(JobsStatus.PUBLISHED)}
+                disabled={isBusy}
+                onClick={requestPublish}
                 type="button"
               >
                 <Send size={15} />
-                {isPublishing ? "Publishing..." : labels.publish}
+                {isPublishing ? publishingLabel : publishLabel}
               </button>
             )}
           </div>
         </footer>
       </div>
+
+      {suggestDuplicate && reuse && job && (
+        <JobReuseDialog
+          applicationDeadline={job.application_deadline}
+          intent={reuseDialog.intent}
+          isDuplicating={isDuplicating}
+          onAcknowledge={acknowledgeReuse}
+          onDuplicate={handleDuplicate}
+          onOpenChange={(open) =>
+            setReuseDialog((current) => ({ ...current, open }))
+          }
+          open={reuseDialog.open}
+          reuse={reuse}
+        />
+      )}
     </div>
   );
 }

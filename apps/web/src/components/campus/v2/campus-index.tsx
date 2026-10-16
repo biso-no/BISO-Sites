@@ -20,7 +20,8 @@ export interface CampusIndexEntry {
   email: string | null;
   name: string;
   slug: string;
-  unitCount: number;
+  /** Public units on the campus; `null` when the directory could not be read. */
+  unitCount: number | null;
 }
 
 export async function CampusIndex({
@@ -61,7 +62,7 @@ export async function CampusIndex({
                   />
                 </span>
 
-                {campus.unitCount > 0 ? (
+                {campus.unitCount ? (
                   <span className="type-data mt-3 text-ink-muted">
                     {t("index.units", { count: campus.unitCount })}
                   </span>

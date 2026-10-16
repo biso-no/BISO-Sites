@@ -179,7 +179,8 @@
       "refunded": "Refunded",
       "paid": "Paid",
       "authorized": "Authorized",
-      "failed": "Failed"
+      "failed": "Failed",
+      "partiallyRefunded": "Partially refunded"
     },
     "analytics": {
       "overviewTitle": "Orders overview",
@@ -257,6 +258,36 @@
       "exportCsv": "Export CSV",
       "exportReady": "Export ready – CSV downloaded.",
       "exportError": "Could not export orders."
+    },
+    "refund": {
+      "title": "Refund",
+      "historyTitle": "Refund history",
+      "historyEmpty": "No refunds have been issued on this order.",
+      "refundableOf": "{refundable} of {total} still refundable",
+      "refundedToDate": "{amount} refunded to date.",
+      "refundedLabel": "Refunded",
+      "modeLines": "By item",
+      "modeAmount": "By amount",
+      "amountLabel": "Amount (NOK)",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Shown only to staff",
+      "restockLabel": "Return the refunded items to stock",
+      "nothingLeftOnLines": "Every line has already been refunded in full.",
+      "lineRefunded": "{count} already refunded",
+      "membershipLedgerNote": "This is a membership purchase, booked as a 24SO invoice. The refund returns the money, but the invoice needs a credit note in 24SO — that is not automatic.",
+      "submit": "Refund {amount}",
+      "submitting": "Refunding…",
+      "success": "Refunded {amount}.",
+      "memberDiscount": "Member discount",
+      "sessionId": "Session",
+      "intentId": "Payment intent",
+      "ledger": "Ledger",
+      "membershipInvoice": "Invoice",
+      "blocked": {
+        "fully_refunded": "This order has been refunded in full.",
+        "no_payment": "This order has no payment provider, so there is nothing to refund.",
+        "not_settled": "Only a settled (paid) order can be refunded. An authorized reservation should be cancelled in Vipps instead."
+      }
     }
   },
   "dashboard": {

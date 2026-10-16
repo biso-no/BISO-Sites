@@ -38,29 +38,29 @@ export interface PendingItem {
   updatedAt: string;
 }
 
+/**
+ * Active notices for the bell. Throws on backend failure so callers can tell
+ * "no notices" apart from "couldn't load notices".
+ */
 export async function fetchNotifications(): Promise<Notification[]> {
-  try {
-    const { db } = await createSessionClient();
+  const { db } = await createSessionClient();
 
-    const response = await db.listRows<AppNotices>(DATABASE_ID, NOTICES_TABLE, [
-      Query.equal("isActive", true),
-      Query.orderDesc("priority"),
-      Query.orderDesc("$createdAt"),
-      Query.limit(50),
-    ]);
+  const response = await db.listRows<AppNotices>(DATABASE_ID, NOTICES_TABLE, [
+    Query.equal("isActive", true),
+    Query.orderDesc("priority"),
+    Query.orderDesc("$createdAt"),
+    Query.limit(50),
+  ]);
 
-    return response.rows.map((notice) => ({
-      id: notice.$id,
-      type: mapColorToType(notice.color),
-      priority: mapPriorityToLevel(notice.priority),
-      title: notice.title,
-      message: notice.description || notice.title,
-      timestamp: notice.$createdAt,
-      actionUrl: notice.actionUrl || undefined,
-    }));
-  } catch {
-    return [];
-  }
+  return response.rows.map((notice) => ({
+    id: notice.$id,
+    type: mapColorToType(notice.color),
+    priority: mapPriorityToLevel(notice.priority),
+    title: notice.title,
+    message: notice.description || notice.title,
+    timestamp: notice.$createdAt,
+    actionUrl: notice.actionUrl || undefined,
+  }));
 }
 
 export async function fetchPendingItems(): Promise<PendingItem[]> {

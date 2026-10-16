@@ -427,6 +427,43 @@ export enum ContentTranslationsContentType {
   PAGE = "page",
 }
 
+export enum ProductCustomFieldsType {
+  TEXT = "text",
+  TEXTAREA = "textarea",
+  NUMBER = "number",
+  SELECT = "select",
+  EMAIL = "email",
+}
+
+export enum OrderRefundsCurrency {
+  NOK = "NOK",
+}
+
+export enum OrderRefundsStatus {
+  PENDING = "pending",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+}
+
+export enum OrderRefundsProvider {
+  VIPPS = "vipps",
+  STRIPE = "stripe",
+}
+
+export enum MemberPassScansResult {
+  VALID = "valid",
+  DUPLICATE = "duplicate",
+  CHECK_ID = "check_id",
+  DENIED = "denied",
+  UNAVAILABLE = "unavailable",
+}
+
+export enum MemberPassScansCodeKind {
+  WEB = "web",
+  GOOGLE = "google",
+  APPLE = "apple",
+}
+
 export type News = Models.Row & {
   slug: string | null;
   status: NewsStatus;
@@ -799,6 +836,7 @@ export type LedgerAccounts = Models.Row & {
   tax_code: number | null;
   active: boolean;
   synced_at: string | null;
+  vat_code: number | null;
 };
 
 export type VarslingSettings = Models.Row & {
@@ -814,6 +852,7 @@ export type CartReservations = Models.Row & {
   user_id: string;
   quantity: number;
   expires_at: string;
+  field_answers: CartFieldAnswers[];
 };
 
 export type EventSegments = Models.Row & {
@@ -895,6 +934,7 @@ export type Jobs = Models.Row & {
   application_deadline: string | null;
   applications: JobApplications[];
   campus: Campus;
+  scheduled_publish_at: string | null;
 };
 
 export type Documents = Models.Row & {
@@ -1393,6 +1433,10 @@ export type Orders = Models.Row & {
   membership_invoice_id: string | null;
   membership_fulfilment_lock: number;
   order_items: OrderItems[];
+  refunded_total: number | null;
+  refunded_at: string | null;
+  refund_lock: number;
+  refunds: OrderRefunds[];
 };
 
 export type LargeEventItem = Models.Row & {
@@ -1456,6 +1500,9 @@ export type WebshopProducts = Models.Row & {
   inventory_mode: WebshopProductsInventoryMode;
   finago_account_number: number | null;
   variations: ProductVariations[];
+  custom_fields: ProductCustomFields[];
+  sales_type: string | null;
+  unlisted: boolean;
 };
 
 export type Memberships = Models.Row & {
@@ -1492,7 +1539,6 @@ export type OrderItems = Models.Row & {
   unit_price: number | null;
   quantity: number | null;
   product_type: string | null;
-  custom_fields_json: string | null;
   membership_id: string | null;
   category_id: string | null;
   duration: string | null;
@@ -1501,6 +1547,10 @@ export type OrderItems = Models.Row & {
   product: WebshopProducts;
   variation: ProductVariations;
   line_total: number | null;
+  field_answers: OrderItemFieldAnswers[];
+  finago_account_number: number | null;
+  finago_vat_code: number | null;
+  finago_department: string | null;
 };
 
 export type ProductVariations = Models.Row & {
@@ -1513,6 +1563,130 @@ export type ProductVariations = Models.Row & {
   enabled: boolean;
   product: WebshopProducts;
 };
+
+export type ProductCustomFields = Models.Row & {
+  field_key: string;
+  label: string;
+  type: ProductCustomFieldsType;
+  is_required: boolean;
+  placeholder: string | null;
+  help_text: string | null;
+  options: string[] | null;
+  product: WebshopProducts;
+  sort_order: number;
+  enabled: boolean;
+};
+
+export type CartFieldAnswers = Models.Row & {
+  reservation: CartReservations;
+  field: ProductCustomFields;
+  field_key: string;
+  value: string;
+  sort_order: number;
+  label: string;
+};
+
+export type OrderItemFieldAnswers = Models.Row & {
+  order_item: OrderItems;
+  field: ProductCustomFields;
+  field_key: string;
+  label: string;
+  value: string;
+  sort_order: number;
+};
+
+export type OrderRefunds = Models.Row & {
+  amount: number;
+  currency: OrderRefundsCurrency;
+  status: OrderRefundsStatus;
+  provider: OrderRefundsProvider | null;
+  provider_refund_id: string | null;
+  idempotency_key: string | null;
+  reason: string | null;
+  restock: boolean;
+  finago_transaction_id: string | null;
+  error: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
+  lines: OrderRefundLines[];
+  order: Orders;
+  ledger_allocation: string | null;
+};
+
+export type OrderRefundLines = Models.Row & {
+  refund: OrderRefunds;
+  order_item: OrderItems;
+  quantity: number | null;
+  amount: number | null;
+  name: string | null;
+};
+
+export type SalesTypes = Models.Row & {
+  label_no: string;
+  label_en: string;
+  account_number: number;
+  active: boolean;
+  sort_order: number;
+};
+
+export type MemberPassScannerLinks = Models.Row & {
+  label: string;
+  campus_id: string | null;
+  token_hash: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_by: string;
+};
+
+export type MemberPassScans = Models.Row & {
+  member_user_id: string;
+  result: MemberPassScansResult;
+  reason: string | null;
+  code_kind: MemberPassScansCodeKind | null;
+  scanner_user_id: string | null;
+  scanner_link_id: string | null;
+};
+
+export type MemberPassScanners = Models.Row & {
+  user_id: string;
+  email: string;
+  name: string | null;
+  campus_id: string | null;
+  granted_by: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  invited_at: string | null;
+};
+
+export type TwentyFourSevenOfficeDepartments = Models.Row & {
+  Id: string;
+  Name: string;
+  Campus: string | null;
+};
+
 export type AuthTokens = Models.Row & {
   token: string;
+};
+
+export type MemberRoster = Models.Row & {
+  company_id: number;
+  name: string;
+  email: string | null;
+  campus_id: string | null;
+  membership_id: string;
+  membership_name: string;
+  expiry_date: string;
+  invoiced_at: string | null;
+  sync_run_id: string;
+};
+
+export type DocumentVersions = Models.Row & {
+  document_id: string;
+  version_major: number;
+  version_minor: number;
+  sharepoint_item_id: string;
+  sharepoint_drive_id: string;
+  file_name: string;
+  file_size: number | null;
+  uploaded_by: string | null;
 };

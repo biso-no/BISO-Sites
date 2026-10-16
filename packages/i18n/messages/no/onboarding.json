@@ -33,15 +33,15 @@
     }
   },
   "student": {
-    "title": "Koble til BI-kontoen din",
-    "description": "Koble til din BI Business School-konto for å bekrefte semesterregistreringen din og låse opp fordeler og rabatter.",
+    "title": "Logg inn med BI-kontoen din",
+    "description": "Du er logget inn med en privat e-post. Logg inn med BI-studentkontoen din i stedet, så bekrefter vi studentstatusen din automatisk og du slipper egne koblinger.",
     "benefits": {
       "title": "Hva du låser opp",
       "membership": "Bekreftet medlemsstatus og semesterrabatter",
       "events": "Tilgang til arrangementer kun for studenter",
       "sso": "Enkel pålogging med BI-legitimasjonen din"
     },
-    "linkButton": "Koble til BI-studentkonto",
+    "linkButton": "Logg inn med BI-studentkonto",
     "skip": "Hopp over for nå"
   },
   "personal": {
@@ -95,7 +95,8 @@
     "back": "Tilbake",
     "continue": "Fortsett",
     "complete": "Fullfør oppsett",
-    "saving": "Lagrer…"
+    "saving": "Lagrer…",
+    "stepOf": "Steg {current} av {total}"
   },
   "errors": {
     "nameRequired": "Fullt navn er påkrevd",

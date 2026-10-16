@@ -258,3 +258,82 @@ describe("savePageEditorDoc: ordinary (non-unit) pages", () => {
     expect(call?.doc.meta.slug).toBe("about/team");
   });
 });
+
+describe("savePageEditorDoc: campus chosen in the editor", () => {
+  test("a global admin's chosen campus is saved, on create and on update", async () => {
+    currentCtx = { ...globalAdminCtx, activeCampusId: "campus-oslo" };
+
+    await savePageEditorDoc({
+      doc: makeDoc({ campus: "campus-bergen" }),
+      id: null,
+    });
+    expect(savePageDraftSpy.mock.calls[0]?.[0].campusId).toBe("campus-bergen");
+
+    adminDb.getRow.mockResolvedValueOnce({
+      $id: "page-1",
+      campus: "campus-oslo",
+      campus_id: "campus-oslo",
+      department: null,
+      department_id: null,
+      slug: "about/team",
+      status: "draft",
+    });
+    await savePageEditorDoc({
+      doc: makeDoc({ campus: "campus-bergen" }),
+      id: "page-1",
+    });
+    expect(savePageDraftSpy.mock.calls[1]?.[0].campusId).toBe("campus-bergen");
+  });
+
+  test("a global admin may save a national page with no campus", async () => {
+    currentCtx = { ...globalAdminCtx, activeCampusId: "campus-oslo" };
+
+    await savePageEditorDoc({ doc: makeDoc({ campus: "" }), id: null });
+
+    expect(savePageDraftSpy.mock.calls[0]?.[0].campusId).toBeNull();
+  });
+
+  test("a department user cannot move a page to another campus", async () => {
+    currentCtx = departmentCtx;
+    // The department is re-read to check it belongs to the campus.
+    adminDb.getRow.mockResolvedValueOnce({
+      $id: "dept-1",
+      campus: { $id: "campus-oslo" },
+    });
+
+    await savePageEditorDoc({
+      doc: makeDoc({ campus: "campus-bergen", department: "dept-1" }),
+      id: null,
+    });
+
+    expect(savePageDraftSpy.mock.calls[0]?.[0].campusId).toBe("campus-oslo");
+  });
+
+  test("a unit page keeps its campus even if the document says otherwise", async () => {
+    currentCtx = globalAdminCtx;
+    adminDb.getRow.mockResolvedValueOnce({
+      $id: "page-unit",
+      campus: "campus-oslo",
+      campus_id: "campus-oslo",
+      department: "dept-1",
+      department_id: "dept-1",
+      slug: "units/oslo/fadderullan",
+      status: "draft",
+    });
+    adminDb.getRow.mockResolvedValueOnce({
+      $id: "dept-1",
+      campus: { $id: "campus-oslo" },
+    });
+
+    await savePageEditorDoc({
+      doc: makeDoc({
+        campus: "campus-bergen",
+        department: "dept-1",
+        slug: "units/oslo/fadderullan",
+      }),
+      id: "page-unit",
+    });
+
+    expect(savePageDraftSpy.mock.calls[0]?.[0].campusId).toBe("campus-oslo");
+  });
+});

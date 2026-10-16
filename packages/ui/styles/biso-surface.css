@@ -9,10 +9,11 @@
 
 :where(.biso-surface) {
   --font-biso-sans:
-    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
+    var(--font-museo), var(--font-inter), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-biso-display:
-    var(--font-museo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    var(--font-museo-slab), var(--font-museo), var(--font-inter), ui-sans-serif,
+    system-ui, sans-serif;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -149,18 +150,15 @@
 
 :where(.biso-surface-v2) {
   /* --- typefaces -------------------------------------------------------
-   * Overrides the legacy block's `--font-biso-display`, which points at
-   * `--font-museo`. apps/web no longer loads Museo Sans (62 KB preloaded on
-   * every route, rendered zero times, and Light-only so it could never produce
-   * the reference's heavy uppercase display). apps/admin loads its own copy
-   * from apps/admin/public and still resolves the legacy block, so it is
-   * unaffected.
+   * Deliberately not set here. The faces are the brand's, chosen by the
+   * Branding Committee, and both surfaces share them through the legacy block
+   * above: Museo Sans 300/700 for body (`--font-biso-sans`) and Museo Slab
+   * 700/900 for display (`--font-biso-display`). The redesign's display roles
+   * (`.type-display-*`, `.type-heading-section`, `.type-label`) read
+   * `--font-display`, so they set in Museo Slab with no override.
    *
-   * Swap `--font-archivo` for `--font-museo` here if a Museo Sans 900 web
-   * licence turns out to exist — that plus apps/web/src/app/fonts.ts is the
-   * whole change. */
-  --font-biso-display:
-    var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+   * The redesign shipped Archivo here while no heavy licensed brand cut
+   * existed; Museo Slab 900 replaced it. See apps/web/src/app/fonts.ts. */
 
   /* --- the six named brand values ------------------------------------- */
   --biso-deep: #001a35;   /* navy: dark surfaces, and the ink colour on light */
@@ -219,6 +217,16 @@
   --action: var(--biso-sky);
   --action-ink: var(--biso-deep);
   --focus-ring: var(--biso-sky);
+
+  /* State colours on navy take the lightened variants the dark theme defines
+     below. A navy band sits inside light pages too, and there the light-mode
+     green, amber and red measure 3.03 / 3.04 / 2.76:1 against their own 10%
+     tint — below AA — so a status pill in a `PageHeader` (a reimbursement's
+     state, an event's "members only") needs them whatever the theme. Found in
+     the main → redesign merge, when pills started appearing in headers. */
+  --biso-success: #26b66d;
+  --biso-warning: #dd9000;
+  --biso-danger: #ff6f61;
 }
 
 /* Dark theme: the navy band becomes the page. Same alias names, so every
@@ -263,8 +271,8 @@
  *
  * Scoped to the brand surface so the admin chrome keeps its own type, while the
  * page-editor canvas — which also mounts `.biso-surface` — previews the real thing.
- * On apps/web `--font-display` resolves through `.biso-surface-v2` above, so this
- * hands unstyled headings Archivo rather than Museo Sans.
+ * On both apps `--font-display` resolves to Museo Slab, so an unstyled heading
+ * sets in the brand's display face.
  *
  * In `@layer base`, not unlayered: the redesign's `.type-*` roles live in
  * `@layer components` and some of them (`.type-heading-card`) deliberately pick

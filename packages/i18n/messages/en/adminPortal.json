@@ -6,6 +6,7 @@
     "jobs": "Jobs",
     "events": "Events",
     "shop": "Products",
+    "shopAccounting": "Accounting",
     "benefits": "Benefits",
     "documents": "Documents",
     "news": "News",
@@ -78,7 +79,8 @@
       "closed": "Closed",
       "cancelled": "Cancelled",
       "pending": "Pending",
-      "pending_approval": "Pending Approval"
+      "pending_approval": "Pending Approval",
+      "scheduled": "Scheduled"
     },
     "actions": "Actions",
     "new": "New",
@@ -100,6 +102,12 @@
     "locale": {
       "no": "Norwegian",
       "en": "English"
+    },
+    "pagination": {
+      "summary": "{total} total · page {page} of {pages}",
+      "previous": "Previous page",
+      "next": "Next page",
+      "perPage": "Per page"
     }
   },
   "it": {
@@ -184,9 +192,11 @@
       "confirmRemoveLicenseDesc": "This will immediately revoke access to all associated services.",
       "resetMfa": "Reset MFA",
       "mfaReset": "MFA methods removed",
+      "mfaResetPartial": "Some MFA methods could not be removed",
       "noMfaMethods": "No removable MFA methods registered.",
+      "campusScope": "Filtered to your campus",
       "confirmResetMfaTitle": "Reset MFA",
-      "confirmResetMfaDesc": "All non-password authentication methods will be removed. The user must re-enroll MFA at next sign-in.",
+      "confirmResetMfaDesc": "Authenticator, phone and private email recovery methods will be removed. The user must re-enroll MFA at next sign-in.",
       "forcePasswordReset": "Force password reset at next sign-in",
       "resetPassword": "Generate temporary password",
       "passwordForcedReset": "Password reset flagged for next sign-in",
@@ -412,6 +422,9 @@
       "deadlineDaysLeft": "{count}d left",
       "pastDeadline": "Past deadline",
       "duplicate": "Duplicate",
+      "duplicateHint": "Duplicate for a new round",
+      "duplicateSuccess": "Copy created as a new draft",
+      "duplicateError": "Couldn't create the copy. Try again in a moment.",
       "confirmDelete": "Confirm delete",
       "kpi": {
         "openPositions": "Open positions",
@@ -670,6 +683,7 @@
       "stock": "Stock",
       "status": "Status",
       "memberOnly": "Members only",
+      "unlisted": "Link only — hidden from listings",
       "sales": "Sales",
       "lowStock": "Low stock"
     },
@@ -697,7 +711,8 @@
       },
       "kpi": {
         "liveProducts": "Live products",
-        "revenue30d": "Revenue (30d)"
+        "revenue": "Paid revenue",
+        "totalOrders": "Orders"
       },
       "stock": {
         "unlimited": "Unlimited"
@@ -723,6 +738,7 @@
         "noCategory": "No category"
       },
       "filters": {
+        "product": "Filter by product",
         "allProducts": "All products",
         "fromDate": "From date",
         "toDate": "To date",
@@ -738,14 +754,40 @@
       },
       "csv": {
         "orderId": "Order ID",
+        "orderDate": "Order Date",
+        "status": "Status",
         "buyerName": "Buyer Name",
         "buyerEmail": "Buyer Email",
         "buyerPhone": "Buyer Phone",
+        "campus": "Campus ID",
+        "productName": "Product",
+        "productId": "Product ID",
+        "variation": "Variation",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "lineTotal": "Line Total",
         "currency": "Currency",
-        "paymentProvider": "Payment Provider",
+        "orderSubtotal": "Order Subtotal",
+        "orderDiscountTotal": "Order Discount",
+        "orderTotal": "Order Total",
         "memberDiscount": "Member Discount %",
-        "receiptUrl": "Receipt URL"
-      }
+        "paymentProvider": "Payment Provider",
+        "receiptUrl": "Receipt URL",
+        "customFields": "Custom Fields"
+      },
+      "notice": {
+        "cappedTotal": "5000+ matching — narrow by date or status for an exact count",
+        "cappedRevenue": "Newest 5000 matching orders only",
+        "truncatedOrders": "This product matches more orders than the list can show. Only the first 500 matching orders appear here — export the CSV for the full set."
+      },
+      "export": {
+        "running": "Exporting…",
+        "success": "{orders, plural, one {# order} other {# orders}} exported as {rows, plural, one {# line item row} other {# line item rows}}.",
+        "truncated": "{orders, plural, one {# order} other {# orders}} exported as {rows, plural, one {# line item row} other {# line item rows}} — the file hit the export ceiling and does not contain every matching order. Narrow the filters and export again.",
+        "empty": "No orders match these filters, so there was nothing to export.",
+        "failed": "The export failed. Please try again."
+      },
+      "viewOrder": "View order"
     },
     "preview": "Storefront Preview",
     "saveSuccess": "Product saved",
@@ -852,6 +894,12 @@
       "localeEn": "English",
       "inactiveLiveNotice": "This department is inactive, so its published page is not publicly reachable."
     },
+    "guidance": {
+      "heading": "Good to know",
+      "board": "The board comes from Microsoft 365: who holds which role is decided by group membership there and changed by BISO IT, not here.",
+      "newUnits": "New units and projects are created in 24SevenOffice. They appear here after the next sync and get their own page and address then.",
+      "projectCategory": "Set the “Project” category on units that run a project. They are then listed under Projects in the biso.no menu for their campus."
+    },
     "categories": {
       "society": "Society",
       "academic_association": "Academic association",
@@ -877,7 +925,7 @@
       "description": "The category, imagery and copy shown for this unit on biso.no.",
       "typeLabel": "Category",
       "typeNone": "No category",
-      "typeHint": "Drives the type filter on /units and the jobs category filter.",
+      "typeHint": "Drives the type filter on /units, the job filter and whether the unit is listed under Projects in the menu for its campus.",
       "logoLabel": "Logo",
       "logoHint": "Square logo. Stored as an Appwrite file id because the column only holds 100 characters.",
       "heroLabel": "Hero image",
@@ -991,10 +1039,8 @@
       "scope": "Scope",
       "campus": "Campus",
       "language": "Language",
-      "version": "Version Label",
-      "versionNumber": "Version Number",
+      "version": "Version",
       "status": "Status",
-      "sortOrder": "Sort Order",
       "file": "PDF File",
       "fileSize": "File Size",
       "lastUpdated": "Last Updated"
@@ -1029,7 +1075,14 @@
     "sharepointError": "SharePoint upload failed",
     "deleteSuccess": "Document deleted",
     "deleteError": "Failed to delete document",
-    "versionUploadHint": "Uploading a new version will replace the file in SharePoint. SharePoint's native version history will track the previous version."
+    "versionUploadHint": "Enter the new version number and choose the PDF. The file on SharePoint is replaced, so existing links keep working, and the earlier version stays in the history.",
+    "versionHistory": "Version history",
+    "noVersions": "No versions recorded yet.",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "notPublicWarning": "Saved, but SharePoint would not create a public link. People outside BISO can still download the document from biso.no.",
+    "pathLockedHint": "Title, category, language, scope and campus cannot be changed after upload, because they decide where the file is stored.",
+    "internalLinkNote": "This link only works for people signed in to BISO."
   },
   "operations": {
     "title": "Operations health",
@@ -1131,6 +1184,48 @@
       "stripe": "Stripe (card)"
     }
   },
+  "shopAccounting": {
+    "title": "Webshop accounting",
+    "description": "Sales types, clearing accounts and automatic posting of webshop sales to Finago. Changes are audited.",
+    "postingTitle": "Automatic posting",
+    "postingOn": "On — paid orders are posted to Finago",
+    "postingOff": "Off — paid orders wait and are posted once this is switched on",
+    "postingHint": "Switch on once the settings are saved and products have a sales type.",
+    "switchOn": "Switch posting on",
+    "switchOff": "Switch posting off",
+    "settingsTitle": "Voucher",
+    "settingsHint": "The clearing account is debited with the gross amount. The Vipps/Stripe payout voucher credits it and books the fee.",
+    "voucherType": "Voucher type (number)",
+    "vippsClearing": "Vipps clearing account",
+    "stripeClearing": "Stripe clearing account",
+    "clearingChangeHint": "Changing a clearing account does not move orders that are already posted. Refunds of earlier orders will be booked against the new account.",
+    "notSaved": "Not saved yet — the values below are suggestions",
+    "save": "Save",
+    "saved": "Saved",
+    "saveError": "Could not save",
+    "salesTypesTitle": "Sales types",
+    "salesTypesHint": "Product authors pick a sales type. VAT follows the account in Finago.",
+    "labelNo": "Name (Norwegian)",
+    "labelEn": "Name (English)",
+    "account": "Revenue account",
+    "chooseAccount": "Choose account",
+    "vat": "VAT",
+    "active": "Active",
+    "sortOrder": "Order",
+    "addSalesType": "Add sales type",
+    "createDefaults": "Create default sales types",
+    "noSalesTypes": "No sales types yet.",
+    "vatStandard": "25 % VAT (code 3)",
+    "vatExempt": "VAT-exempt (code 5)",
+    "vatNone": "No VAT (code 0)",
+    "vatOther": "VAT code {code}",
+    "vatUnknown": "Unknown — sync accounts",
+    "syncTitle": "Chart of accounts",
+    "syncButton": "Sync accounts from Finago",
+    "lastSynced": "Last synced {time}",
+    "neverSynced": "Never synced",
+    "syncDone": "Chart of accounts synced"
+  },
   "settings": {
     "title": "Settings",
     "description": "Configure your admin preferences.",
@@ -1183,32 +1278,144 @@
   },
   "members": {
     "title": "Members",
-    "description": "Everyone with a BISO membership, across the campuses you can see.",
+    "description": "Paid BISO members from 24SevenOffice, across the campuses you can see.",
     "searchPlaceholder": "Search by name or email…",
     "empty": "No members found",
-    "emptyDescription": "Try a different search or filter.",
+    "emptyDescription": "Try a different search, or refresh the roster.",
     "unnamed": "Unnamed",
-    "noCampus": "No campus on file",
-    "noPlan": "No plan",
-    "noExpiry": "No expiry on file",
-    "filters": {
-      "all": "All",
-      "active": "Active",
-      "inactive": "Inactive"
+    "unknownCampus": "Unknown campus",
+    "roster": {
+      "lastRefreshed": "Last refreshed {date}",
+      "neverRefreshed": "Not synced yet",
+      "lastFailed": "Last refresh failed {date}",
+      "refreshing": "Refreshing…",
+      "refresh": "Refresh now",
+      "queued": "Refresh started. It takes a couple of minutes.",
+      "alreadyRunning": "A refresh is already running.",
+      "notConfigured": "Roster sync is not configured.",
+      "failed": "Could not start a refresh. Try again later.",
+      "statusUnavailable": "Refresh status unavailable."
+    }
+  },
+  "memberPass": {
+    "scanTitle": "Scan member passes",
+    "scanDescription": "Point the camera at a member's pass.",
+    "openScanner": "Scan passes",
+    "manageLinks": "Guest scanner links",
+    "manageAccess": "Scanner access",
+    "todaysColor": "Today's color",
+    "cameraError": "Camera unavailable. Allow camera access and reload.",
+    "starting": "Starting camera…",
+    "notConfigured": "Pass scanning is not configured.",
+    "tapToContinue": "Tap to scan the next pass",
+    "results": {
+      "valid": "Valid member",
+      "duplicate": "Already scanned {seconds}s ago",
+      "check_id": "Wallet pass — check ID",
+      "unavailable": "Couldn't check — try again",
+      "denied": "Not valid"
     },
-    "status": {
-      "active": "Active",
-      "inactive": "Not a member"
+    "reasons": {
+      "bad_code": "Not a BISO pass",
+      "stale": "Old code — ask them to open the pass again",
+      "expired": "Membership has ended",
+      "not_member": "Not a member",
+      "not_linked": "No linked student account"
     },
-    "detail": {
-      "back": "Back to members",
-      "contact": "Contact",
+    "validUntil": "Valid until {date}",
+    "links": {
+      "title": "Guest scanner links",
+      "description": "Give event security a scanner without an account. Links expire automatically and can be revoked.",
+      "label": "Label",
+      "labelPlaceholder": "e.g. Fadderuke – door 1",
       "campus": "Campus",
-      "expiry": "Expires",
-      "membershipHistory": "Membership history",
-      "noHistory": "No membership history on file.",
-      "notFound": "Member not found",
-      "planPrice": "{price} kr"
+      "allCampuses": "All campuses",
+      "expiresAt": "Valid until",
+      "create": "Create link",
+      "created": "Link created — copy it now, it is shown only once.",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "active": "Active links",
+      "none": "No active links.",
+      "revoke": "Revoke",
+      "revoked": "Link revoked",
+      "expires": "Expires {date}",
+      "errors": {
+        "invalid_label": "Enter a label.",
+        "invalid_expiry": "Choose a time in the future (max 48 hours).",
+        "forbidden_campus": "You can only create links for your own campus.",
+        "not_found": "That link no longer exists.",
+        "failed": "Something went wrong. Try again.",
+        "not_configured": "Pass scanning is not configured.",
+        "invalid_link": "This scanner link is no longer valid."
+      }
+    },
+    "access": {
+      "title": "Scanner access",
+      "description": "Let people outside BISO scan member passes in the BISO app. They sign in with the email address you enter here.",
+      "addTitle": "Add scanner",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "name": "Name (optional)",
+      "namePlaceholder": "e.g. Ola Nordmann – Securitas",
+      "campus": "Campus",
+      "allCampuses": "All campuses",
+      "expiresAt": "End date (optional)",
+      "expiresHint": "Leave empty to keep the current end date for existing access, or for access until revoked for new people. To remove an end date, revoke and add the person again.",
+      "invite": "Give access and send invitation",
+      "invited": "Access given and invitation sent.",
+      "resent": "Invitation sent again.",
+      "emailNotSent": "Access saved, but the invitation was not sent — check SMTP settings.",
+      "revoked": "Access revoked.",
+      "listTitle": "People with scanner access",
+      "none": "Nobody has been given scanner access yet.",
+      "noEndDate": "No end date",
+      "notInvited": "Not sent",
+      "resend": "Resend invitation",
+      "revoke": "Revoke",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "campus": "Campus",
+        "grantedBy": "Granted by",
+        "expiresAt": "End date",
+        "status": "Status",
+        "invitedAt": "Last invited",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "errors": {
+        "invalid_email": "Enter a valid email address.",
+        "invalid_name": "Name must be 120 characters or fewer.",
+        "invalid_expiry": "Choose an end date in the future.",
+        "forbidden_campus": "You can only give access for your own campus.",
+        "not_found": "That access no longer exists.",
+        "not_active": "This access has ended. Add the person again instead.",
+        "failed": "Something went wrong. Try again."
+      }
+    },
+    "guest": {
+      "invalidTitle": "This scanner link is not valid",
+      "invalidDescription": "It has expired or been revoked. Ask BISO staff for a new link.",
+      "rateLimited": "Too many scans — wait a moment."
+    },
+    "colors": {
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "purple": "Purple",
+      "pink": "Pink",
+      "brown": "Brown"
     }
   },
   "unauthorized": {

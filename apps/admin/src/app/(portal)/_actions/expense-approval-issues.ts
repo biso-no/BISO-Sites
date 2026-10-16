@@ -25,7 +25,7 @@ export async function listExpenseApprovalIssues(): Promise<
   ActionResult<ExpenseApprovalIssues[]>
 > {
   try {
-    await requireItPermission("it.users.view");
+    await requireItPermission("it.tenant.audit");
     const { db } = await createAdminClient();
     const result = await db.listRows<ExpenseApprovalIssues>(
       "app",
@@ -52,6 +52,7 @@ export async function resolveExpenseApprovalIssue(
   id: string
 ): Promise<{ error?: string; success: boolean }> {
   try {
+    await requireItPermission("it.tenant.audit");
     const ctx = await requireItPermission("it.users.editProfile");
     const { db } = await createAdminClient();
     await db.updateRow("app", ISSUES_TABLE, id, {
@@ -81,6 +82,7 @@ export async function resendExpenseApprovalNotification(
   expenseId: string
 ): Promise<{ error?: string; success: boolean }> {
   try {
+    await requireItPermission("it.tenant.audit");
     const ctx = await requireItPermission("it.users.editProfile");
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
     const cronSecret = process.env.CRON_SECRET;

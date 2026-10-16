@@ -58,6 +58,18 @@ describe("news list structure", () => {
     );
   });
 
+  it("leaves campus to the header switcher, while ?campus= still scopes", () => {
+    // The Branding Committee made the header switcher the one place to change
+    // campus (#95), so the feed offers no campus chips of its own.
+    expect(listSource).not.toContain('param="campus"');
+    // The URL still decides the scope, and the read honours it.
+    const page = pageSource("src/app/(public)/news/page.tsx");
+    expect(page).toContain("resolveRequestCampus(sp.campus");
+    expect(page).toContain('campus: campus ?? "all"');
+    // Searching keeps the active campus.
+    expect(listSource).toContain("hidden.campus = activeCampus");
+  });
+
   it("carries no whileInView or motion import", () => {
     for (const source of [listSource, detailSource, searchSource]) {
       expect(source).not.toContain("whileInView");
@@ -170,5 +182,21 @@ describe("news message bundle", () => {
     expect(bundle("no").list?.emptyTitle).not.toBe(
       bundle("en").list?.emptyTitle
     );
+  });
+});
+
+describe("news behaviour kept from main", () => {
+  it("names the article in the share event", () => {
+    // Main's share button sent `{ type: "news", newsId }`; the redesign's
+    // first cut dropped the id, so shares could not be told apart.
+    expect(detailSource).toContain(
+      'props: { type: "news", newsId: article.$id }'
+    );
+  });
+
+  it("offers to clear the search only when there is one", () => {
+    // Campus is the header's on this route, so with no query the link led
+    // back to the page it was on.
+    expect(listSource).toContain("searchQuery.trim() ? (");
   });
 });

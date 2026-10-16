@@ -45,8 +45,10 @@ export async function GET(request: NextRequest) {
     path: "/",
     httpOnly: true,
     sameSite: isProd ? "none" : "lax",
-    secure: true,
-    domain: isProd ? ".biso.no" : "localhost",
+    // Safari drops Secure cookies on http://localhost, which breaks local
+    // sign-in entirely. Chrome/Firefox exempt localhost; Safari does not.
+    secure: isProd,
+    ...(isProd && { domain: ".biso.no" }),
   });
 
   return redirect(sanitizeRedirectTarget(redirectTo));

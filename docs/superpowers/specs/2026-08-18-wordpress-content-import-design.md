@@ -111,7 +111,7 @@ packages/wp-import/
     transform/
       jobs.ts               # WP job     → Jobs row + 2 content_translations
       products.ts           # WP product → WebshopProducts row + translations
-      orders.ts             # Woo order  → Orders row + items_json
+      orders.ts             # Woo order  → Orders row + order_items rows
       departments.ts        # name → Appwrite departments.Id matcher
       html.ts               # WP/Gutenberg HTML → studio-safe subset
       locale.ts             # language detection + AI translation
@@ -243,16 +243,104 @@ Historical records only: no payment re-processing, no Finago posting,
 - **Status mapping** to the `pending|authorized|paid|cancelled|failed|refunded`
   enum: `completed`/`processing` → `paid`; `on-hold`/`pending` → `pending`;
   `cancelled`, `refunded`, `failed` map directly.
-- **`items_json`** matches `ParsedOrderItem`
-  (`packages/shared/utils/order-parsing.ts`): `{name, title, price, unit_price,
-  quantity, product_id, category}`. `product_id` points at the **new Appwrite**
-  product IDs so order history links to imported products.
+- **Line items are rows in `order_items`**, not a JSON blob. See "Order items
+  table" below. `product_id` points at the **new Appwrite** product IDs so
+  order history links to imported products.
 - **Buyer identity**: `billing` → `buyer_name`, `buyer_email`, `buyer_phone`.
   Email is matched against the `user` table to populate `userId`; unmatched
   orders keep `buyer_email` with `userId` null.
 - **Currency**: the column is a `NOK`-only enum, so non-NOK orders are rejected
   into the report rather than coerced.
 - `campus_id` is derived from the ACF campus of the ordered products.
+- **Original dates preserved.** See "Historical timestamps" below.
+
+### Order items table
+
+`orders.items_json` is replaced by an `order_items` table. The columns mirror
+the shape the apps already read out of that JSON, so the app-side migration is
+close to a rename plus an opt-in query rather than a reshaping.
+
+`ParsedOrderItem` declares eight fields but carries `[key: string]: unknown`,
+and the live checkout (`buildStoredOrderItems`,
+`packages/shared/utils/vipps-order-ops.ts`) writes more than those eight. The
+table covers the full set actually persisted:
+
+| Group | Columns |
+|---|---|
+| `ParsedOrderItem` core | `name`, `title`, `price`, `unit_price`, `quantity`, `category`, `product_type`, `product_id` |
+| Variant / fulfilment | `variation_id`, `variation_name`, `custom_fields_json` |
+| Membership snapshot | `membership_id`, `category_id`, `duration`, `accrual_months`, `start_date` |
+
+The membership snapshot is load-bearing, not incidental: `resolvePurchasedPlan`
+prefers it over a fresh `memberships` read because an administrator can edit
+the catalogue between payment and fulfilment, and the invoice must book what
+the student actually paid. Dropping it would have been a silent regression.
+
+`custom_fields` stays JSON (`custom_fields_json`) — it is a `[{id, label,
+value}]` list of arbitrary per-product questions, which is genuinely
+variable-shape rather than a missing table.
+
+**Relationships**
+
+| Column | Target | Type | On delete |
+|---|---|---|---|
+| `orders.order_items` ↔ `order_items.order` | two-way | `oneToMany` (orders is parent) | `cascade` |
+| `order_items.product` → `webshop_products` | one-way | `manyToOne` | `setNull` |
+
+`cascade` on the order side means deleting an order removes its lines.
+`setNull` on the product side is deliberate: deleting a product must never
+delete order history. The flat `product_id` string is written alongside the
+relationship, so a line still records what was bought after its product row is
+gone.
+
+The product link is **one-way** — `webshop_products` gains no column. Sales per
+product are queried from the item side, which Appwrite now supports via
+dot-notation filters: `Query.equal("product.$id", [productId])` on
+`order_items`. This keeps the publicly readable catalogue table free of a
+traversal path into order data.
+
+**Reading them back.** Appwrite no longer returns related rows by default —
+relationship loading is opt-in as of the recent versions. A reader that wants
+the lines must ask for them:
+
+```ts
+db.getRow({
+  databaseId: "app",
+  tableId: "orders",
+  rowId,
+  queries: [Query.select(["*", "order_items.*"])],
+});
+```
+
+Without the `select`, `order_items` comes back absent, not empty — a
+distinction worth holding onto when migrating the app call sites.
+
+**Writing them.** The importer nests the children inside the parent upsert.
+Each child carries its own `$id` (derived from the WooCommerce line-item id, so
+a re-run updates in place instead of appending duplicates) and its own
+`$permissions` mirroring the order's. Nesting depth here is orders →
+order_items → product, which is within Appwrite's max depth of three.
+
+### Historical timestamps
+
+`orders`, `jobs` and `webshop_products` have no creation-date column; the app
+reads `$createdAt` for the shop dashboard's revenue date filter and for the
+default ordering of every job, product and order list. Left to Appwrite, the
+whole archive would be stamped at cutover.
+
+Appwrite lets a server SDK holding an API key set `$createdAt` / `$updatedAt`
+inside `data` on create/update/upsert routes — the documented mechanism for
+migrating historical records. **No schema change is required**, which
+supersedes the earlier note that preserving order dates would need a new
+column.
+
+`buildTimestampOverrides()` maps each source's UTC `*_gmt` dates onto those
+columns: `date_created_gmt`/`date_modified_gmt` for orders, post
+`date_gmt`/`modified_gmt` for jobs and products. The site-local variants are
+deliberately unused — they carry no timezone suffix and would be parsed in the
+host's local time, shifting every row by the operator's UTC offset. An absent
+or unparseable date omits the key so Appwrite stamps its own, degrading to
+today rather than failing the row.
 
 ### Media mirroring
 

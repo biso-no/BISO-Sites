@@ -1,34 +1,47 @@
-import type { Documents } from "@repo/api/types/appwrite";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { listPublishedDocuments } from "@/app/actions/documents";
 import { getLocale } from "@/app/actions/locale";
 import { isKnownCategory } from "@/components/documents/v2/document-categories";
-import { DocumentRow } from "@/components/documents/v2/document-row";
+import {
+  DocumentRow,
+  type DocumentRowLabels,
+} from "@/components/documents/v2/document-row";
+import { FeedSearch } from "@/components/ui/feed-search";
 import { FilterChips } from "@/components/ui/filter-chips";
 import { ListSkeleton } from "@/components/ui/loading-shell";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { getUserPreferences } from "@/lib/auth-utils";
 import { resolveRequestCampus } from "@/lib/campus-scope";
+import { DOCUMENT_CATEGORIES, type PublicDocument } from "@/lib/documents";
+import { resolveDocumentsFilters } from "@/lib/documents-filters";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("documents");
   return {
-    // Campus-scoped view of the same list, not a competing one.
+    // A campus- or category-scoped view of the same list, not a competing one.
     alternates: { canonical: "/documents" },
     title: `${t("title")} | BISO`,
-    description: t("intro"),
+    description: t("hero.subtitle"),
   };
 }
 
-interface DocumentsPageProps {
-  searchParams: Promise<{ campus?: string; category?: string; q?: string }>;
-}
+type SearchParam = string | string[] | undefined;
 
-function matchesSearch(doc: Documents, query: string): boolean {
+type DocumentsSearchParams = Promise<{
+  campus?: SearchParam;
+  category?: SearchParam;
+  q?: SearchParam;
+}>;
+
+const first = (value: SearchParam): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
+function matchesSearch(doc: PublicDocument, query: string): boolean {
   if (!query) {
     return true;
   }
@@ -39,89 +52,106 @@ function matchesSearch(doc: Documents, query: string): boolean {
   );
 }
 
+/**
+ * Reads the request — the URL and the campus cookie — inside the Suspense
+ * boundary, so the header above it is not held back by them.
+ */
 async function DocumentsList({
-  campusId,
-  category,
-  query,
   searchParams,
 }: {
-  campusId: string | null;
-  category: string;
-  query: string;
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: DocumentsSearchParams;
 }) {
-  const [t, locale, all] = await Promise.all([
+  const [sp, prefs, t, locale] = await Promise.all([
+    searchParams,
+    getUserPreferences(),
     getTranslations("documents"),
     getLocale(),
-    // The category filter is applied by the query, not in memory, so a
-    // filtered view costs the same as the unfiltered one.
-    listPublishedDocuments({ campusId }),
   ]);
 
-  // Options come from the rows that exist. `FilterChips` renders nothing when
-  // that leaves fewer than two, so an empty table shows no chip row rather
-  // than furniture that filters nothing.
-  const categories = [...new Set(all.map((d) => d.category))].sort();
+  // URL beats cookie beats "all", like every other campus-scoped route, so a
+  // shared `/documents?campus=bergen` shows Bergen whatever the reader's own
+  // cookie holds. National documents ride along with any campus.
+  const campus = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campus === undefined) {
+    notFound();
+  }
+
+  // `?category=` opens one shelf — the bylaws address and the About page link
+  // straight to theirs. An unknown category falls back to every document.
+  const { category } = resolveDocumentsFilters(
+    { category: sp.category },
+    campus
+  );
+  const query = first(sp.q)?.trim() ?? "";
+
+  const all = await listPublishedDocuments({ campusId: campus });
+
+  const counts = new Map<string, number>();
+  for (const doc of all) {
+    counts.set(doc.category, (counts.get(doc.category) ?? 0) + 1);
+  }
+  // Every shelf that holds a document, in display order — plus the one the
+  // link asked for, so a deep link to an empty shelf still shows where it is.
   const options = [
-    { value: "all", label: t("filter.all") },
-    ...categories.map((value) => ({
+    { value: "all", label: t("categories.all") },
+    ...DOCUMENT_CATEGORIES.filter(
+      (value) => counts.has(value) || value === category
+    ).map((value) => ({
       value,
-      label: isKnownCategory(value) ? t(`categories.${value}`) : value,
-      count: all.filter((d) => d.category === value).length,
+      label: t(`categories.${value}`),
+      count: counts.get(value) ?? 0,
     })),
   ];
 
   const rows = all
-    .filter((d) => category === "all" || d.category === category)
-    .filter((d) => matchesSearch(d, query));
+    .filter((doc) => category === "all" || doc.category === category)
+    .filter((doc) => matchesSearch(doc, query));
 
-  const labels = {
-    category: (value: string) =>
-      isKnownCategory(value) ? t(`categories.${value}`) : value,
+  // The search keeps the shelf and the campus the visitor is looking at.
+  const campusParam = first(sp.campus);
+  const hidden: Record<string, string> = {};
+  if (category !== "all") {
+    hidden.category = category;
+  }
+  if (campusParam) {
+    hidden.campus = campusParam;
+  }
+
+  const labels: DocumentRowLabels = {
     campus: t("row.campus"),
+    category: (value) =>
+      isKnownCategory(value) ? t(`categories.${value}`) : value,
     download: t("row.download"),
-    updated: t("row.updated"),
+    previousVersions: (count) => t("row.previousVersions", { count }),
+    updated: (date) => t("row.updated", { date }),
     view: t("row.view"),
   };
 
+  const isFiltered = category !== "all" || query !== "";
+
   return (
     <>
-      <FilterChips
-        active={category}
-        basePath="/documents"
-        className="mb-8"
-        defaultValue="all"
-        label={t("filter.label")}
-        options={options}
-        param="category"
-        searchParams={searchParams}
-      />
-
-      {/* A plain GET form: the filtered view is a URL, and searching works
-          with JavaScript disabled. The previous search box was `useState`
-          inside a client list, so a search could not be linked or reloaded. */}
-      <form action="/documents" className="mb-10 flex flex-wrap gap-3">
-        {category === "all" ? null : (
-          <input name="category" type="hidden" value={category} />
-        )}
-        <label className="min-w-0 flex-1" htmlFor="documents-search">
-          <span className="sr-only">{t("search.label")}</span>
-          <input
-            className="type-body w-full rounded-biso-sm border border-edge bg-surface px-4 py-2 text-ink placeholder:text-ink-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-            defaultValue={query}
-            id="documents-search"
-            name="q"
-            placeholder={t("search.label")}
-            type="search"
-          />
-        </label>
-        <button
-          className="type-body-sm rounded-biso-sm bg-action px-5 py-2 font-medium text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          type="submit"
-        >
-          {t("search.submit")}
-        </button>
-      </form>
+      <div className="mb-10 flex flex-col gap-6">
+        <FilterChips
+          active={category}
+          basePath="/documents"
+          defaultValue="all"
+          label={t("filter.label")}
+          options={options}
+          param="category"
+          searchParams={sp}
+        />
+        <FeedSearch
+          action="/documents"
+          defaultValue={query}
+          hidden={hidden}
+          label={t("search")}
+          name="q"
+          placeholder={t("search")}
+          submitLabel={t("searchSubmit")}
+          surface="documents"
+        />
+      </div>
 
       {rows.length > 0 ? (
         <ul className="border-edge border-t">
@@ -135,40 +165,47 @@ async function DocumentsList({
           ))}
         </ul>
       ) : (
-        <p className="type-body text-ink-muted">
-          {all.length === 0 ? t("empty") : t("emptyFiltered")}
-        </p>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+          <p className="type-body text-ink-muted">
+            {all.length === 0 ? t("nonePublished") : t("empty")}
+          </p>
+          {isFiltered ? (
+            <Link
+              className="type-body-sm rounded-biso-sm text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              href={
+                campusParam
+                  ? `/documents?campus=${encodeURIComponent(campusParam)}`
+                  : "/documents"
+              }
+            >
+              {t("clearFilters")}
+            </Link>
+          ) : null}
+        </div>
       )}
     </>
   );
 }
 
 /**
- * Official BISO documents, backed by SharePoint.
+ * Official BISO documents — the one place for governing documents (Branding
+ * Committee, batch D): `?category=` and `?campus=` open a shelf, the current
+ * version reads `v<version>`, and every earlier version stays downloadable.
  *
- * **PLACEHOLDER-014: the `documents` table holds zero published rows**, so the
- * empty state below is what this route actually serves today. The list, the
- * category chips and both actions per row are therefore unverified against
- * real data — the download route (`/api/documents/[id]/download`) and the
- * SharePoint link are untouched by this package.
+ * **PLACEHOLDER-014:** when RD-027 converted this page the `documents` table
+ * held zero published rows, so the list, the chips and both per-row actions
+ * were verified against fixtures rather than live data. The download route
+ * (`/api/documents/[id]/download`) and the SharePoint link are main's.
  */
 export default async function DocumentsPage({
   searchParams,
-}: DocumentsPageProps) {
-  const [sp, prefs, t, tCommon] = await Promise.all([
-    searchParams,
-    getUserPreferences(),
+}: {
+  searchParams: DocumentsSearchParams;
+}) {
+  const [t, tCommon] = await Promise.all([
     getTranslations("documents"),
     getTranslations("common"),
   ]);
-
-  // URL beats cookie beats "all", like every other campus-scoped route. The
-  // list read the cookie alone, so a shared `/documents?campus=bergen` served
-  // whatever campus the reader's own cookie held.
-  const campusId = resolveRequestCampus(sp.campus, prefs?.campusId);
-  if (campusId === undefined) {
-    notFound();
-  }
 
   return (
     <>
@@ -177,17 +214,13 @@ export default async function DocumentsPage({
           { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: t("title") },
         ]}
-        lede={t("intro")}
-        title={t("title")}
+        eyebrow={t("hero.eyebrow")}
+        lede={t("hero.subtitle")}
+        title={t("hero.title")}
       />
       <Section tone="paper">
         <Suspense fallback={<ListSkeleton />}>
-          <DocumentsList
-            campusId={campusId}
-            category={sp.category ?? "all"}
-            query={sp.q ?? ""}
-            searchParams={sp}
-          />
+          <DocumentsList searchParams={searchParams} />
         </Suspense>
       </Section>
     </>

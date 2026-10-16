@@ -7,6 +7,7 @@
     "./components/*": "./components/*",
     "./lib/*": "./lib/*.ts",
     "./hooks/*": "./hooks/*.ts",
+    "./hooks/use-list-params": "./hooks/use-list-params.tsx",
     "./hooks/use-mobile": "./hooks/use-mobile.ts",
     "./hooks/use-hydration": "./hooks/use-hydration.ts",
     "./styles/globals.css": "./styles/globals.css"

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hasNavAccess, ROLES } from "./roles";
+import { canManageAccounting, hasNavAccess, ROLES } from "./roles";
 
 const GENERAL_PUBLISHING_KEYS = [
   "portal.pages",
@@ -55,5 +55,25 @@ describe("operational surfaces stay narrow", () => {
 
   test("benefit partner administration is not opened to departments", () => {
     expect(hasNavAccess("portal.benefitsPartners", [], true)).toBe(false);
+  });
+});
+
+describe("canManageAccounting", () => {
+  test("allows global and campus admins", () => {
+    expect(canManageAccounting([ROLES.GLOBAL_ADMIN])).toBe(true);
+    expect(canManageAccounting([ROLES.CAMPUS_ADMIN])).toBe(true);
+  });
+
+  test("denies department members", () => {
+    expect(canManageAccounting(["department"])).toBe(false);
+    expect(hasNavAccess("portal.shopAccounting", ["department"], true)).toBe(
+      false
+    );
+  });
+
+  test("opens the accounting page to campus admins", () => {
+    expect(
+      hasNavAccess("portal.shopAccounting", [ROLES.CAMPUS_ADMIN], false)
+    ).toBe(true);
   });
 });

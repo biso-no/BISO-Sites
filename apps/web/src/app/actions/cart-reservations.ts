@@ -8,16 +8,90 @@ import type {
   WebshopProducts,
 } from "@repo/api/types/appwrite";
 import {
+  cartReservationRowId,
+  isRowAlreadyExists,
+} from "@repo/shared/utils/cart-reservation-id";
+import {
   computeAvailableStock,
   sumReservedQuantity,
 } from "@repo/shared/utils/stock-availability";
+import { getLiveMembershipStatus } from "@/lib/actions/membership";
 import { ensureAnonymousSession } from "@/lib/anon-session";
+
+/** One `cart_field_answers` row, as the relationship returns it. */
+interface CartFieldAnswerRow {
+  $id?: string;
+  field_key?: string | null;
+  label?: string | null;
+  sort_order?: number | null;
+  value?: string | null;
+}
 
 type CartReservationRow = Models.Row & {
   expires_at?: string;
+  /** The buyer's answers to this product's checkout questions. */
+  field_answers?: CartFieldAnswerRow[] | null;
   product_id: string;
   quantity: number;
 };
+
+/**
+ * The buyer's answers as they travel between the product page, the cart and
+ * checkout: id → value, plus id → label so the cart summary can name each
+ * answer and the order line can record what was asked.
+ */
+export interface CartCustomFieldAnswers {
+  customFieldLabels: Record<string, string>;
+  customFields: Record<string, string>;
+}
+
+/**
+ * Answers are persisted as `cart_field_answers` rows rather than held in React
+ * state, because the cart is rehydrated from the database on every mount —
+ * otherwise a reload of the checkout page would lose them and the order would
+ * be stored with no record of what the buyer filled in.
+ *
+ * `field` links the answer to the question that collected it;
+ * `importedFieldIds` is not needed here as the definitions are always live
+ * while a ten-minute reservation exists.
+ */
+function buildAnswerRows(
+  answers: CartCustomFieldAnswers | undefined,
+  permissions: string[]
+): Record<string, unknown>[] {
+  return Object.entries(answers?.customFields ?? {})
+    .filter(([, value]) => value?.trim())
+    .map(([id, value], sortOrder) => ({
+      $permissions: permissions,
+      field: id,
+      field_key: id,
+      label: answers?.customFieldLabels?.[id] ?? id,
+      sort_order: sortOrder,
+      value,
+    }));
+}
+
+function readAnswerRows(
+  rows: CartFieldAnswerRow[] | null | undefined
+): CartCustomFieldAnswers | undefined {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return undefined;
+  }
+  const customFieldLabels: Record<string, string> = {};
+  const customFields: Record<string, string> = {};
+  for (const row of [...rows].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  )) {
+    if (!row.field_key) {
+      continue;
+    }
+    customFieldLabels[row.field_key] = row.label ?? row.field_key;
+    customFields[row.field_key] = row.value ?? "";
+  }
+  return Object.keys(customFields).length > 0
+    ? { customFieldLabels, customFields }
+    : undefined;
+}
 
 function buildUserRowPermissions(userId: string): string[] {
   const user = Role.user(userId);
@@ -26,6 +100,53 @@ function buildUserRowPermissions(userId: string): string[] {
     Permission.update(user),
     Permission.delete(user),
   ];
+}
+
+/**
+ * Whether the caller may hold stock of this product at all.
+ *
+ * Two independent reasons to refuse:
+ *
+ * - The product is not published. A draft has never been offered for sale, so
+ *   it must not be findable or buyable; `webshop_products` grants read to
+ *   `any`, so nothing else stops a known id being reserved here.
+ * - The product is members-only and the caller is not a member. That restricts
+ *   who may BUY, not who may see, so the listing and product page show it to
+ *   everyone and this is where a non-member is stopped from parking the stock.
+ *   An anonymous visitor is never a member, which is the intended answer rather
+ *   than an edge case — reservations are deliberately open to anonymous carts.
+ *
+ * A failed read is reported as `unavailable` rather than assumed innocent: the
+ * product may genuinely be gone, and the reservation write that follows would
+ * fail anyway.
+ */
+async function reservationRefusalReason(
+  productId: string
+): Promise<"members_only" | "unavailable" | null> {
+  let product: WebshopProducts;
+  try {
+    const { db } = await createSessionClient();
+    product = await db.getRow<WebshopProducts>(
+      "app",
+      "webshop_products",
+      productId,
+      [Query.select(["member_only", "status"])]
+    );
+  } catch {
+    return "unavailable";
+  }
+
+  if (product.status !== "published") {
+    return "unavailable";
+  }
+  if (product.member_only !== true) {
+    return null;
+  }
+  // Live, not the ten-minute cache: a student who paid for their membership a
+  // moment ago must be able to buy straight away, and this gate is the first
+  // thing that would tell them otherwise.
+  const status = await getLiveMembershipStatus();
+  return status.isMember ? null : "members_only";
 }
 
 /**
@@ -94,12 +215,13 @@ export async function getAvailableStock(productId: string): Promise<number> {
  */
 export async function createOrUpdateReservation(
   productId: string,
-  quantity: number
+  quantity: number,
+  answers?: CartCustomFieldAnswers
 ): Promise<{
   success: boolean;
   message?: string;
   quantity?: number;
-  reason?: "out_of_stock" | "error";
+  reason?: "members_only" | "out_of_stock" | "unavailable" | "error";
 }> {
   try {
     // Reserving stock is the first action that genuinely needs a per-user
@@ -112,6 +234,25 @@ export async function createOrUpdateReservation(
     // Get session user ID (works for both authenticated and anonymous sessions)
     const session = await account.get();
     const userId = session.$id;
+
+    // Refuse before writing a hold at all. Mirrors the same gate on the app's
+    // route (`apps/api/src/app/api/shop/cart/route.ts`); the authoritative
+    // refusal is still the one on the checkout path.
+    const refusal = await reservationRefusalReason(productId);
+    if (refusal === "members_only") {
+      return {
+        success: false,
+        message: "This product is for BISO members only",
+        reason: "members_only",
+      };
+    }
+    if (refusal === "unavailable") {
+      return {
+        success: false,
+        message: "This product is not available",
+        reason: "unavailable",
+      };
+    }
 
     // Set expiration to 10 minutes from now
     const now = Date.now();
@@ -150,27 +291,58 @@ export async function createOrUpdateReservation(
     }
 
     const effectiveQuantity = Math.max(1, Math.min(quantity, effectiveMax));
+    // `cart_field_answers` has row security on, so the children need the same
+    // per-user grant the reservation itself carries.
+    const permissions = buildUserRowPermissions(userId);
 
     if (existing) {
       await db.updateRow("app", "cart_reservations", existing.$id, {
         quantity: effectiveQuantity,
         expires_at: expiresAt,
+        // Only rewrite when this add carried answers, so a plain quantity
+        // bump from the cart page does not wipe what was already filled in.
+        // Replacing the child list drops the previous rows (cascade delete).
+        ...(answers
+          ? { field_answers: buildAnswerRows(answers, permissions) }
+          : {}),
       });
     } else {
-      // Create new reservation (user_id from session)
+      // Create new reservation (user_id from session). The row id is derived
+      // from (buyer, product) rather than random, so the table's primary key
+      // settles a race between two first writes — this action and the app's
+      // `PUT /api/shop/cart`, or one request retried. Without it both would
+      // look first, find nothing, and mint a row each, leaving the buyer
+      // holding twice what they asked for and inflating the own-hold credit
+      // that `effectiveMax` above adds back.
+      const rowId = cartReservationRowId(userId, productId);
       const { db: adminDb } = await createAdminClient();
-      await adminDb.createRow(
-        "app",
-        "cart_reservations",
-        "unique()",
-        {
-          product_id: productId,
-          user_id: userId,
+      try {
+        await adminDb.createRow(
+          "app",
+          "cart_reservations",
+          rowId,
+          {
+            product_id: productId,
+            user_id: userId,
+            quantity: effectiveQuantity,
+            expires_at: expiresAt,
+            field_answers: buildAnswerRows(answers, permissions),
+          },
+          permissions
+        );
+      } catch (error) {
+        if (!isRowAlreadyExists(error)) {
+          throw error;
+        }
+        // The other writer won; update its row rather than adding a second.
+        await db.updateRow("app", "cart_reservations", rowId, {
           quantity: effectiveQuantity,
           expires_at: expiresAt,
-        },
-        buildUserRowPermissions(userId)
-      );
+          ...(answers
+            ? { field_answers: buildAnswerRows(answers, permissions) }
+            : {}),
+        });
+      }
     }
 
     return { success: true, quantity: effectiveQuantity };
@@ -272,32 +444,30 @@ const CLEANUP_MAX_PAGES = 20;
  * Only call this from trusted contexts (the CRON_SECRET-gated route).
  */
 export async function cleanupAllExpiredReservations(): Promise<number> {
-  try {
-    const { db } = await createAdminClient();
-    let deletedCount = 0;
+  // Deliberately no try/catch: a failure here must reach the cron route so it
+  // answers 500. Swallowing it into `0` made an outage look like "nothing to
+  // clean up" and the scheduler never saw the failure.
+  const { db } = await createAdminClient();
+  let deletedCount = 0;
 
-    for (let page = 0; page < CLEANUP_MAX_PAGES; page++) {
-      const now = new Date().toISOString();
-      const expired = await db.listRows("app", "cart_reservations", [
-        Query.lessThan("expires_at", now),
-        Query.limit(CLEANUP_PAGE_SIZE),
-      ]);
+  for (let page = 0; page < CLEANUP_MAX_PAGES; page++) {
+    const now = new Date().toISOString();
+    const expired = await db.listRows("app", "cart_reservations", [
+      Query.lessThan("expires_at", now),
+      Query.limit(CLEANUP_PAGE_SIZE),
+    ]);
 
-      for (const reservation of expired.rows) {
-        await db.deleteRow("app", "cart_reservations", reservation.$id);
-        deletedCount += 1;
-      }
-
-      if (expired.rows.length < CLEANUP_PAGE_SIZE) {
-        break;
-      }
+    for (const reservation of expired.rows) {
+      await db.deleteRow("app", "cart_reservations", reservation.$id);
+      deletedCount += 1;
     }
 
-    return deletedCount;
-  } catch (error) {
-    console.error("Error cleaning up all expired reservations:", error);
-    return 0;
+    if (expired.rows.length < CLEANUP_PAGE_SIZE) {
+      break;
+    }
   }
+
+  return deletedCount;
 }
 
 /**
@@ -351,7 +521,11 @@ async function getUserCartReservations(): Promise<CartReservationRow[]> {
     const reservations = await db.listRows<CartReservationRow>(
       "app",
       "cart_reservations",
-      [Query.greaterThan("expires_at", now), Query.limit(1000)]
+      [
+        Query.greaterThan("expires_at", now),
+        Query.select(["*", "field_answers.*"]),
+        Query.limit(1000),
+      ]
     );
 
     return reservations.rows;
@@ -367,6 +541,8 @@ async function getUserCartReservations(): Promise<CartReservationRow[]> {
  */
 interface CartItem {
   category: string;
+  customFieldLabels?: Record<string, string>;
+  customFields?: Record<string, string>;
   expiresAt?: string;
   image: string | null;
   memberOnly: boolean;
@@ -411,6 +587,7 @@ function toCartItem({
   locale: "en" | "no";
 }): CartItem {
   const translation = getProductTranslation(product, locale);
+  const answers = readAnswerRows(reservation.field_answers);
   return {
     reservationId: reservation.$id,
     productId: product.$id,
@@ -424,6 +601,8 @@ function toCartItem({
     quantity: reservation.quantity,
     stock: product.stock,
     expiresAt: reservation.expires_at,
+    customFieldLabels: answers?.customFieldLabels,
+    customFields: answers?.customFields,
     metadata: parseProductMetadata(product.metadata),
   };
 }

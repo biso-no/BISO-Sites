@@ -2,13 +2,20 @@
   "filters": {
     "searchPlaceholder": "Søk etter arrangementer...",
     "all": "Alle",
-    "Social": "Sosialt",
-    "Career": "Karriere",
-    "Academic": "Faglig",
-    "Sports": "Idrett",
-    "Culture": "Kultur",
+    "social": "Sosialt",
+    "career": "Karriere",
+    "workshop": "Workshop",
+    "talk": "Foredrag",
+    "party": "Fest",
+    "sport": "Idrett",
+    "academic": "Faglig",
+    "trip": "Tur",
     "clearFilters": "Tøm filtre",
     "showingResults": "Viser {count} {count, plural, one {arrangement} other {arrangementer}}",
+    "loadMore": "Last inn flere arrangementer",
+    "loading": "Laster...",
+    "loadMoreFailed": "Kunne ikke laste inn flere arrangementer.",
+    "showingFirstResults": "Viser de første {count} treffene — forfin søket ditt",
     "categoryLabel": "Filtrer arrangementer etter kategori",
     "campusLabel": "Filtrer arrangementer etter campus",
     "searchLabel": "Søk i arrangementer",
@@ -67,7 +74,15 @@
     "registrationDeadline": "Påmeldingsfrist {date}",
     "capacityLimited": "Begrenset til {count} plasser",
     "noRegistrationTitle": "Ingen påmelding nødvendig",
-    "noRegistrationDescription": "Bare møt opp — dette arrangementet er åpent for alle, uten påmelding."
+    "noRegistrationDescription": "Bare møt opp — dette arrangementet er åpent for alle, uten påmelding.",
+    "noRegistrationMembersDescription": "Bare møt opp — ingen påmelding, men arrangementet er kun for BISO-medlemmer."
+  },
+  "membersOnly": {
+    "title": "Arrangement kun for medlemmer",
+    "description": "Alle kan se dette arrangementet, men bare BISO-medlemmer kan delta.",
+    "memberConfirmed": "Du er BISO-medlem, så du kan delta på dette arrangementet.",
+    "becomeMember": "Bli medlem",
+    "signIn": "Allerede medlem? Logg inn"
   },
   "collection": {
     "title": "Arrangementer i denne samlingen",
@@ -91,6 +106,7 @@
     "pricing": "Priser",
     "price": "Pris",
     "freeEvent": "Dette arrangementet er gratis for alle studenter!",
+    "freeForMembers": "Dette arrangementet er gratis for BISO-medlemmer!",
     "bundleAccess": "Én betaling gir deg tilgang til alle {count} arrangementer i denne samlingen!",
     "individualRegister": "Registrer deg for individuelle arrangementer basert på dine interesser.",
     "partOfCollection": "Dette arrangementet er en del av en samling. Se samlingsdetaljer for pakkepris.",
@@ -104,7 +120,8 @@
     "emailConfirmation": "Bekreftelse på registrering sendes på e-post",
     "refunds": "Refusjon tilgjengelig inntil 48 timer før arrangementet",
     "questions": "Spørsmål?",
-    "contactTeam": "Kontakt vårt arrangementsteam på"
+    "contactPerson": "Kontakt {name} på",
+    "contactOrganizer": "Kontakt arrangøren på"
   },
   "category": {
     "social": "Sosialt",

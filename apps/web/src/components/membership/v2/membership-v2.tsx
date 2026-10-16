@@ -11,6 +11,9 @@ import { Pill } from "@/components/ui/pill";
 import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
+import { localizedBenefitText } from "@/lib/benefit-text";
+import { MembershipJoinLink } from "./membership-join-link";
 
 /**
  * The public membership page, rebuilt on real data.
@@ -19,16 +22,17 @@ import { SectionHeading } from "@/components/ui/section-heading";
  *
  * 1. **Prices were hardcoded in the message bundle.** `membership.durations`
  *    carries "350 kr" / "550 kr" / "1350 kr" as translated strings, in two
- *    locales, while the `memberships` table holds the same three plans with
+ *    locales, while the `memberships` table holds the same plans with
  *    administrator-controlled prices that `syncMembershipsFrom24SO` keeps in
  *    step with 24SevenOffice. A price change needed a code deploy — and needed
  *    it in both bundles, or the two locales would quote different numbers. The
- *    plans come from the table here.
+ *    plans come from the catalog here, one card per duration; the join wizard
+ *    offers the this/next-season choice in June and December.
  * 2. **The benefits table was unused.** The page described member benefits from
  *    five hardcoded category blurbs in the bundle, while `campus_benefits`
- *    holds **18 published rows**, fully bilingual, categorised and
- *    campus-scoped, which only the signed-in member portal ever read. They are
- *    the reason to join, so they are on the page you join from.
+ *    holds published rows, fully bilingual, categorised and campus-scoped,
+ *    which only the signed-in member portal ever read. They are the reason to
+ *    join, so they are on the page you join from.
  *
  * The purchase flow is untouched: this page links to `/membership/join`, which
  * owns the gate and the wizard.
@@ -40,18 +44,17 @@ export interface MembershipV2Props {
   plans: MembershipPlan[];
 }
 
-function benefitText(benefit: CampusBenefits, locale: "en" | "no") {
-  const title = locale === "no" ? benefit.title_nb : benefit.title_en;
-  const description =
-    locale === "no" ? benefit.description_nb : benefit.description_en;
-  return {
-    // Every row carries both locales today, but a fallback costs one `??` and
-    // means a half-translated row still reads rather than rendering blank.
-    title: title || benefit.title_en || benefit.title_nb || "",
-    description:
-      description || benefit.description_en || benefit.description_nb,
-  };
-}
+/** The three flagship projects, each a hub at `/projects/<slug>`. */
+const HIGHLIGHTS = [
+  { key: "fadderullan", href: "/projects/fadderullan" },
+  { key: "careerDays", href: "/projects/karrieredagene" },
+  { key: "winterGames", href: "/projects/winter-games" },
+] as const;
+
+const FAQ_KEYS = ["cost", "discounts", "switchCampus", "engagement"] as const;
+
+const textLinkClass =
+  "type-label inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 function BenefitCard({
   benefit,
@@ -62,7 +65,11 @@ function BenefitCard({
   locale: "en" | "no";
   offerLabel: string;
 }) {
-  const { title, description } = benefitText(benefit, locale);
+  // Title and description follow the reader's language and fall back to the
+  // other one field by field, so a half-translated row still reads.
+  const { title, description } = localizedBenefitText(benefit, locale);
+  // The admin editor stores HTML; older rows may hold plain text.
+  const isHtml = description.trimStart().startsWith("<");
   return (
     <li className="flex h-full flex-col rounded-biso-md border border-edge p-5">
       <span className="flex flex-wrap items-center gap-2">
@@ -78,11 +85,16 @@ function BenefitCard({
         ) : null}
       </span>
 
-      <h3 className="type-heading-card mt-3 text-ink">{title}</h3>
+      {/* `h4`: each card sits under its category's `h3`. */}
+      <h4 className="type-heading-card mt-3 text-ink">{title}</h4>
 
       {description ? (
         <Prose className="type-body-sm [&_p]:type-body-sm mt-2 text-ink-muted [&_p]:mb-2">
-          <PlateContentRenderer value={description} />
+          {isHtml ? (
+            <PlateContentRenderer value={description} />
+          ) : (
+            <p>{description}</p>
+          )}
         </Prose>
       ) : null}
     </li>
@@ -106,11 +118,18 @@ export async function MembershipV2({
     Boolean
   ) as string[];
 
-  const faqKeys = ["cost", "discounts", "switchCampus", "engagement"] as const;
-
   return (
     <>
       <PageHeader
+        actions={
+          <MembershipJoinLink
+            campus={campusName}
+            className={statusPanelPrimaryAction}
+          >
+            {t("hero.ctas.join")}
+            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+          </MembershipJoinLink>
+        }
         breadcrumbs={[
           { label: tCommon("breadcrumbs.home"), href: "/" },
           { label: tNav("becomeMember") },
@@ -131,20 +150,22 @@ export async function MembershipV2({
             {plans.map((plan) => (
               <li key={plan.id}>
                 <div className="flex h-full flex-col rounded-biso-md border border-edge p-6">
-                  <span className="type-label text-ink-muted">{plan.name}</span>
+                  <span className="type-label text-ink-muted">
+                    {t(`join.plan.${plan.duration}`)}
+                  </span>
                   <span className="type-display-sm mt-2 text-ink">
                     {membershipPriceFormatter.format(plan.price)}
                   </span>
                   <span className="type-body-sm mt-2 text-ink-muted">
                     {t("plans.months", { count: plan.accrualMonths })}
                   </span>
-                  <Link
-                    className="type-label mt-auto inline-flex items-center gap-2 pt-6 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                    href="/membership/join"
+                  <MembershipJoinLink
+                    campus={campusName}
+                    className={`mt-auto pt-6 ${textLinkClass}`}
                   >
                     {t("ctaCard.primary")}
                     <ArrowRight aria-hidden="true" className="size-4" />
-                  </Link>
+                  </MembershipJoinLink>
                 </div>
               </li>
             ))}
@@ -187,10 +208,47 @@ export async function MembershipV2({
         </Section>
       ) : null}
 
+      {/* The three flagship projects. Each card leads to that project's hub,
+          which collects the campus units that run it; the heading's link is
+          the full events calendar. */}
+      <Section className="border-edge border-t" tone="paper">
+        <SectionHeading
+          seeAllHref="/events?campus=all"
+          seeAllLabel={t("highlights.ctaAll")}
+        >
+          {t("highlights.title")}
+        </SectionHeading>
+        <p className="type-body-sm mb-8 max-w-(--measure) text-ink-muted">
+          {t("highlights.subtitle")}
+        </p>
+        <CardGrid columns={3}>
+          {HIGHLIGHTS.map((highlight) => (
+            <li
+              className="flex h-full flex-col rounded-biso-md border border-edge p-6"
+              key={highlight.key}
+            >
+              <h3 className="type-heading-card text-ink">
+                {t(`highlights.items.${highlight.key}.title`)}
+              </h3>
+              <p className="type-body-sm mt-2 text-ink-muted">
+                {t(`highlights.items.${highlight.key}.description`)}
+              </p>
+              <Link
+                className={`mt-auto pt-6 ${textLinkClass}`}
+                href={highlight.href}
+              >
+                {t(`highlights.items.${highlight.key}.cta`)}
+                <ArrowRight aria-hidden="true" className="size-4" />
+              </Link>
+            </li>
+          ))}
+        </CardGrid>
+      </Section>
+
       <Section className="border-edge border-t" tone="paper">
         <SectionHeading>{t("faq.title")}</SectionHeading>
         <dl className="max-w-(--measure)">
-          {faqKeys.map((key) => (
+          {FAQ_KEYS.map((key) => (
             <div
               className="border-edge border-b py-5 last:border-b-0"
               key={key}
@@ -205,13 +263,13 @@ export async function MembershipV2({
           ))}
         </dl>
 
-        <Link
-          className="type-label mt-10 inline-flex items-center gap-2 rounded-biso-pill bg-action px-5 py-3 text-action-ink transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          href="/membership/join"
+        <MembershipJoinLink
+          campus={campusName}
+          className={`mt-10 ${statusPanelPrimaryAction}`}
         >
           <Check aria-hidden="true" className="size-4" />
           {t("ctaCard.primary")}
-        </Link>
+        </MembershipJoinLink>
       </Section>
     </>
   );

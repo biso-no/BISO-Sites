@@ -38,9 +38,9 @@ export function FooterSocial() {
             // Named for assistive tech: the link's only content is an icon.
             aria-label={social.label}
             // Bordered, so the buttons are visible before hover. The old footer
-            // set `bg-inverted` on a `bg-inverted` footer, making them invisible
-            // until hovered, and hovered to a purple/pink gradient with no
-            // relationship to the palette.
+            // gave them the footer's own background colour, making them
+            // invisible until hovered, and hovered to a purple/pink gradient
+            // with no relationship to the palette.
             className="flex size-10 items-center justify-center rounded-biso-md border border-edge text-ink transition-colors hover:border-transparent hover:bg-action hover:text-action-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
             href={social.href}
             onClick={() =>

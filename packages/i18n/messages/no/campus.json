@@ -1,13 +1,14 @@
 {
   "stats": {
     "units": "Enheter her",
-    "events": "Publiserte arrangementer",
+    "events": "Kommende arrangementer",
     "jobs": "Ledige verv"
   },
   "seeAll": {
     "events": "Alle arrangementer her",
     "news": "Alle nyheter her",
-    "jobs": "Alle verv her"
+    "jobs": "Alle verv her",
+    "units": "Alle enheter her"
   },
   "empty": {
     "events": "Ingenting i kalenderen her akkurat nå.",
@@ -25,6 +26,46 @@
   },
   "leadership": {
     "title": "Ledelsen",
-    "lede": "Studentene som er valgt til å drive BISO på denne campusen."
+    "lede": "Studentene som er valgt til å drive BISO på denne campusen.",
+    "ledeNational": "Et team av valgte studenter og ansatte som jobber for å utvikle BISO nasjonalt.",
+    "groups": {
+      "operations": "Operations Unit",
+      "administration": "Administrasjon",
+      "controlCommittee": "Kontrollkomiteen",
+      "brandingCommittee": "Brandingkomiteen"
+    }
+  },
+  "actions": {
+    "join": "Bli medlem"
+  },
+  "forStudents": {
+    "title": "For studenter",
+    "lede": "Lås opp eksklusive muligheter og støtte gjennom hele studietiden.",
+    "groups": {
+      "studentBenefits": {
+        "title": "Medlemsfordeler",
+        "description": "Eksklusive fordeler og rabatter for BISO-medlemmer."
+      },
+      "careerAdvantages": {
+        "title": "Karrierefordeler",
+        "description": "Bygg ditt profesjonelle nettverk og styrk CV-en din."
+      },
+      "socialNetwork": {
+        "title": "Sosialt nettverk",
+        "description": "Bli kjent med medstudenter og bygg varige vennskap."
+      },
+      "safety": {
+        "title": "Trygghet og støtte",
+        "description": "Vi sikrer et trygt og støttende miljø for alle medlemmer."
+      }
+    }
+  },
+  "forBusinesses": {
+    "title": "For bedrifter",
+    "lede": "Få kontakt med talentfulle studenter og bygg merkevaren deres på {campus}.",
+    "benefitsTitle": "Partnerskapsfordeler",
+    "ctaTitle": "Klar til å samarbeide?",
+    "ctaBody": "Ta kontakt med partnerskapsteamet vårt for å utforske samarbeidsmuligheter og skape meningsfulle forbindelser med studenter.",
+    "cta": "Kontakt partnerskapsteamet"
   }
 }

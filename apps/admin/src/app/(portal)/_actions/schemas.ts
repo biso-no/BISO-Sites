@@ -10,6 +10,7 @@ import {
   type RecruitmentVacancyUpsertInput,
   recruitmentVacancyUpsertSchema,
 } from "@repo/shared/types/recruitment";
+import { DOCUMENT_VERSION_PATTERN } from "@repo/shared/utils/document-version";
 import { z } from "zod";
 import { hasRichContent } from "@/lib/plate-content";
 
@@ -37,18 +38,14 @@ export const benefitSchema = z
     sort_order: z.coerce.number().int().nonnegative().default(0),
   })
   .superRefine((values, context) => {
-    const hasNorwegian = Boolean(
-      values.title_nb.trim() && values.description_nb.trim()
-    );
-    const hasEnglish = Boolean(
-      values.title_en.trim() && values.description_en.trim()
-    );
-    if (hasNorwegian || hasEnglish) {
+    // The description is optional: some benefits are fully described by
+    // their title, so only a title in one language is required.
+    if (values.title_nb.trim() || values.title_en.trim()) {
       return;
     }
     context.addIssue({
       code: "custom",
-      message: "Complete either the Norwegian or English benefit content",
+      message: "Add a title in Norwegian or English",
       path: ["title_nb"],
     });
   });
@@ -61,6 +58,8 @@ export type EventFormValues = EventUpsertInput;
 
 export const jobSchema = recruitmentVacancyUpsertSchema;
 export type JobFormValues = RecruitmentVacancyUpsertInput;
+export const JOBS_PAGE_SIZE = 20;
+export const APPLICATIONS_PAGE_SIZE = 20;
 
 export const newsSchema = z
   .object({
@@ -135,7 +134,22 @@ export const productSchema = z
     category: z.string().optional().nullable(),
     regular_price: z.coerce.number().nonnegative("Price must be 0 or more"),
     member_price: z.coerce.number().nonnegative().optional().nullable(),
-    member_only: z.boolean().default(false),
+    // `member_only` and `unlisted` are `.optional()` rather than
+    // `.default(false)` on purpose. A product row is written with `upsertRow`,
+    // a full-document replace, and not every caller sends a complete form: the
+    // AI assistant (`app/api/assistant/route.ts`) passes a partial payload
+    // straight to `updateProduct`. With a `false` default, "change this
+    // product's price" would also publish a hidden product into the shop and
+    // open a members-only product to everyone. Omitted now means "leave as it
+    // is" — see `buildProductFields` — while the editor always sends both, so
+    // switching either one off still works.
+    member_only: z.boolean().optional(),
+    // Hides the product from every public listing (shop index, unit feeds,
+    // sitemap) while leaving it fully published and purchasable to anyone who
+    // has the `/shop/<slug>` link. Orthogonal to `status`: an unlisted product
+    // is still subject to the same publish gates and is not confidential — the
+    // slug is guessable and `webshop_products` is world-readable.
+    unlisted: z.boolean().optional(),
     // Imported products carry a bare Appwrite file ID here; normalize it to a
     // full URL so the row is stored in the canonical form the CMS writes.
     image: z.preprocess(
@@ -158,6 +172,38 @@ export const productSchema = z
     // Temporary input compatibility for already-open admin tabs. The value is
     // converted to product_variations rows and is never written to products.
     variants_json: z.string().optional().nullable(),
+    // Per-product questions answered at checkout, stored as
+    // `product_custom_fields` rows. `id` is the Appwrite row id and is absent
+    // for a field the editor has just added; the server assigns it. The row's
+    // `field_key` — the identifier written onto each `order_item_field_answers` row
+    // — is never sent by the client, so a relabel can never orphan the answers
+    // already recorded against it.
+    custom_fields: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(36).optional(),
+          label: z.string().min(1, "Label is required").max(255),
+          type: z.enum(["text", "textarea", "number", "select", "email"]),
+          required: z.boolean().default(false),
+          placeholder: z.string().max(255).optional().nullable(),
+          help_text: z.string().max(500).optional().nullable(),
+          options: z.array(z.string().max(255)).optional(),
+        })
+      )
+      // A `select` with no options renders an empty dropdown the buyer cannot
+      // answer, which would then block checkout if the field is required.
+      .superRefine((fields, ctx) => {
+        for (const [index, field] of fields.entries()) {
+          if (field.type === "select" && !field.options?.length) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `"${field.label}" is a dropdown, so it needs at least one option`,
+              path: [index, "options"],
+            });
+          }
+        }
+      })
+      .optional(),
     tags: z.array(z.string()).optional().nullable(),
     images: z.preprocess(
       (value) =>
@@ -173,22 +219,36 @@ export const productSchema = z
     linked_event_id: z.string().optional().nullable(),
     inventory_mode: z.enum(["tracked", "unlimited"]).default("unlimited"),
     short_description: z.string().optional().nullable(),
-    finago_account_number: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .nullable(),
+    // `sales_types` row id. Decides the Finago revenue account and VAT code a
+    // sale of this product is booked under.
+    sales_type: z.string().max(36).optional().nullable(),
   })
   .superRefine((values, context) => {
-    if (values.name.trim() || values.name_en?.trim()) {
-      return;
+    if (!(values.name.trim() || values.name_en?.trim())) {
+      context.addIssue({
+        code: "custom",
+        message: "A Norwegian or English name is required",
+        path: ["name"],
+      });
     }
-    context.addIssue({
-      code: "custom",
-      message: "A Norwegian or English name is required",
-      path: ["name"],
-    });
+    const goesLive =
+      values.status === "published" || values.status === "pending_approval";
+    if (goesLive && !values.sales_type) {
+      context.addIssue({
+        code: "custom",
+        message: "Choose a sales type before publishing",
+        path: ["sales_type"],
+      });
+    }
+    // Ledger posting books revenue on the product's department; a live
+    // product without one would never be booked.
+    if (goesLive && !values.department_id) {
+      context.addIssue({
+        code: "custom",
+        message: "Choose a department before publishing",
+        path: ["department_id"],
+      });
+    }
   });
 const _PRODUCTS_PAGE_SIZE = 20;
 export type ProductFormValues = z.infer<typeof productSchema>;
@@ -292,10 +352,19 @@ export const documentMetadataSchema = z.object({
   campus_id: z.string().optional().nullable(),
   department_id: z.string().optional().nullable(),
   language: z.enum(["no", "en"]),
-  version: z.string().optional().nullable(),
-  version_number: z.coerce.number().int().positive().default(1),
   status: z.enum(["draft", "published"]),
-  sort_order: z.coerce.number().int().nonnegative().default(0),
 });
 
 export type DocumentMetadataFormValues = z.infer<typeof documentMetadataSchema>;
+
+/** Stored without the "v" prefix, e.g. "12" or "7.1". */
+export const documentVersionSchema = z
+  .string()
+  .trim()
+  .regex(DOCUMENT_VERSION_PATTERN, "Version must be a number like 12 or 7.1");
+
+export const documentCreateSchema = documentMetadataSchema.extend({
+  version: documentVersionSchema,
+});
+
+export type DocumentCreateFormValues = z.infer<typeof documentCreateSchema>;

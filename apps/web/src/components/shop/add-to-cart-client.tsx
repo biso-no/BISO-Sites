@@ -1,17 +1,19 @@
 "use client";
 
 import type { WebshopProducts } from "@repo/api/types/appwrite";
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { Separator } from "@repo/ui/components/ui/separator";
+import { cn } from "@repo/ui/lib/utils";
 import { AlertCircle, CheckCircle2, ShoppingCart } from "lucide-react";
-import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { formatPrice } from "@/lib/types/webshop";
-import { PriceDetails } from "./price-details";
+import type { ReactNode } from "react";
+import { Pill } from "@/components/ui/pill";
+import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
+import { PriceDetails, PriceRow } from "./price-details";
+import {
+  buildFieldLabels,
+  findMissingRequired,
+  productFieldDomId,
+  useProductCustomFields,
+} from "./product-custom-fields-context";
 import { StockStatusCard } from "./stock-status-card";
 import { useProductActions } from "./use-product-actions";
 
@@ -22,13 +24,28 @@ interface AddToCartClientProps {
   isMember: boolean;
   memberPrice?: number | null;
   product: WebshopProducts;
+  /**
+   * The product's checkout questions (`<ProductOptionsClient />`), placed
+   * between the price and the button so they are answered where the purchase
+   * is made. Both read the same ProductCustomFieldsProvider.
+   */
+  questions?: ReactNode;
   regularPrice: number;
   savings: number;
   stock: number | null;
   userId: string | null;
 }
 
-// This component encapsulates all interactive sidebar elements
+/**
+ * The product page's buy card: price, live stock, the product's questions,
+ * the members-only gate and the button — one card, sticky beside the
+ * description on a wide screen and first on a phone.
+ *
+ * The purchase logic is main's, unchanged: required answers are checked here
+ * and again server-side, a members-only product is refused to a non-member
+ * here and again by the reservation and checkout actions, and stock and the
+ * per-buyer limits run through `useProductActions`.
+ */
 export function AddToCartClient({
   product,
   isMember,
@@ -37,14 +54,15 @@ export function AddToCartClient({
   memberPrice,
   displayPrice,
   hasDiscount,
+  questions,
   savings,
   stock,
   availableStock = null,
 }: AddToCartClientProps) {
   const t = useTranslations("shop");
-  // Option state would ideally be managed by a global state/context or the parent server component's useFormState
-  // For simplicity, we use the bare minimum here.
-  const [selectedOptions] = useState<Record<string, string>>({});
+  // Answers are held by ProductCustomFieldsProvider, which the inputs write
+  // to. Reading them here is what stops the buyer's input being discarded.
+  const customFieldState = useProductCustomFields();
 
   const { handleAddToCart: addToCartAction, addedToCart } = useProductActions(
     product,
@@ -57,109 +75,139 @@ export function AddToCartClient({
   const isOutOfStock =
     stock !== null && availableStock !== null && availableStock <= 0;
 
+  // A members-only product is shown to everyone — `member_only` limits who can
+  // buy, not who can see — so this is where a non-member is stopped. The real
+  // gate is server-side in `apps/api`; this only saves them the round trip.
+  const isMemberOnlyBlocked = Boolean(product.member_only) && !isMember;
+
   const handleAddToCart = async () => {
-    // Need to get selectedOptions from somewhere (e.g., context/parent state)
-    await addToCartAction(selectedOptions);
+    const fields = customFieldState?.fields ?? [];
+    const answers = customFieldState?.answers ?? {};
+
+    // Blocked here as well as server-side: this is the only place that can
+    // point at the specific empty box rather than failing the whole checkout.
+    const missing = findMissingRequired(fields, answers);
+    if (missing.length > 0) {
+      customFieldState?.setMissing(missing);
+      // Take the buyer to the first box to fill rather than leaving them to
+      // find the error text.
+      document.getElementById(productFieldDomId(missing[0]))?.focus();
+      return;
+    }
+
+    await addToCartAction({
+      customFieldLabels: buildFieldLabels(fields),
+      customFields: answers,
+    });
   };
 
+  const price = (amount: number) =>
+    amount > 0 ? `${amount} NOK` : t("card.free");
+
+  let buttonLabel = t("product.addToCart");
+  if (isMemberOnlyBlocked) {
+    buttonLabel = t("product.membersOnly");
+  } else if (isOutOfStock) {
+    buttonLabel = t("card.outOfStock");
+  }
+
+  const showMemberSaving =
+    !(isMemberOnlyBlocked || isMember) &&
+    Boolean(memberPrice) &&
+    (memberPrice ?? 0) < regularPrice;
+
   return (
-    <>
-      {/* Stock Status */}
-      {stock !== null && (
-        <StockStatusCard
-          availableStock={availableStock}
-          isLoading={false}
-          totalStock={stock}
-        />
+    <div className="rounded-biso-md border border-edge bg-surface-raised p-6">
+      <p className="type-label text-ink-muted">
+        {hasDiscount ? t("product.yourPrice") : t("product.price")}
+      </p>
+      <p className="type-display-sm mt-2 text-ink">{price(displayPrice)}</p>
+      {hasDiscount ? (
+        <p className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="type-data text-ink-muted line-through">
+            {price(regularPrice)}
+          </span>
+          <Pill tone="success">{t("card.save", { amount: savings })}</Pill>
+        </p>
+      ) : null}
+
+      {stock === null ? null : (
+        <div className="mt-5">
+          <StockStatusCard
+            availableStock={availableStock}
+            isLoading={false}
+            totalStock={stock}
+          />
+        </div>
       )}
 
-      {/* Add to Cart */}
-      <motion.div
-        animate={{ opacity: 1, x: 0 }}
-        initial={{ opacity: 0, x: 20 }}
-        transition={{ delay: 0.3 }}
+      {questions}
+
+      {isMemberOnlyBlocked ? (
+        <p className="type-body-sm mt-6 flex items-start gap-2 rounded-biso-sm border border-warning/30 bg-warning/10 p-3 text-ink">
+          <AlertCircle
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-warning"
+          />
+          {t("product.membersOnlyNotice")}
+        </p>
+      ) : null}
+
+      {showMemberSaving ? (
+        <p className="type-body-sm mt-6 rounded-biso-sm bg-surface-sunken p-3 text-ink">
+          {t("product.becomeMemberSave", {
+            amount: regularPrice - (memberPrice ?? 0),
+          })}
+        </p>
+      ) : null}
+
+      <button
+        className={cn(
+          statusPanelPrimaryAction,
+          "mt-6 w-full justify-center disabled:cursor-not-allowed disabled:opacity-50"
+        )}
+        disabled={isOutOfStock || isMemberOnlyBlocked}
+        onClick={handleAddToCart}
+        type="button"
       >
-        <Card className="border-0 bg-linear-to-br from-brand-gradient-to to-brand-gradient-from p-6 shadow-lg">
-          <div className="mb-6 text-center">
-            {hasDiscount ? (
-              <>
-                <div className="mb-1 text-sm text-white/80 line-through">
-                  {formatPrice(regularPrice)}
-                </div>
-                <div className="mb-2 font-bold text-4xl text-white">
-                  {formatPrice(displayPrice)}
-                </div>
-                <Badge className="border-0 bg-background/20 text-white">
-                  {t("card.save", { amount: savings })}
-                </Badge>
-              </>
-            ) : (
-              <div className="font-bold text-4xl text-white">
-                {formatPrice(displayPrice)}
-              </div>
-            )}
-          </div>
+        <ShoppingCart aria-hidden="true" className="size-4" />
+        {buttonLabel}
+      </button>
 
-          {!isMember && memberPrice && memberPrice < regularPrice && (
-            <Alert className="mb-4 border-white/20 bg-background/10">
-              <AlertCircle className="h-4 w-4 text-white" />
-              <AlertDescription className="text-sm text-white">
-                {t("product.becomeMemberSave", {
-                  amount: regularPrice - memberPrice,
-                })}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Button
-            className="mb-3 w-full bg-background text-brand-dark hover:bg-background/90 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isOutOfStock}
-            onClick={handleAddToCart}
-          >
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            {isOutOfStock ? t("card.outOfStock") : t("product.addToCart")}
-          </Button>
-
-          {addedToCart && (
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center justify-center gap-2 text-sm text-white"
-              initial={{ opacity: 0, y: -10 }}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {t("product.addedToCart")}
-            </motion.div>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Price Breakdown */}
-      <motion.div
-        animate={{ opacity: 1, x: 0 }}
-        initial={{ opacity: 0, x: 20 }}
-        transition={{ delay: 0.4 }}
+      {/* Mounted empty so the confirmation is announced when it appears. */}
+      <p
+        aria-live="polite"
+        className="type-body-sm mt-3 flex min-h-5 items-center justify-center gap-2 text-success"
+        role="status"
       >
-        <Card className="border-0 p-6 shadow-lg">
-          <h3 className="mb-4 font-bold text-foreground">
-            {t("product.priceDetails")}
-          </h3>
-          <div className="space-y-3">
-            <PriceDetails
-              displayPrice={displayPrice}
-              hasDiscount={!!hasDiscount}
-              isMember={isMember}
-              memberPrice={memberPrice}
-              regularPrice={regularPrice}
-              savings={savings}
-            />
-            <Separator />
-            <div className="flex justify-between text-muted-foreground text-sm">
-              <span>{t("product.tax")}</span>
-              <span>{t("product.included")}</span>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-    </>
+        {addedToCart ? (
+          <>
+            <CheckCircle2 aria-hidden="true" className="size-4" />
+            {t("product.addedToCart")}
+          </>
+        ) : null}
+      </p>
+
+      <div className="mt-4 border-edge border-t pt-5">
+        <h2 className="type-label text-ink-muted">
+          {t("product.priceDetails")}
+        </h2>
+        <dl className="mt-2">
+          <PriceDetails
+            displayPrice={displayPrice}
+            hasDiscount={hasDiscount}
+            isMember={isMember}
+            memberPrice={memberPrice}
+            regularPrice={regularPrice}
+            savings={savings}
+          />
+          <PriceRow
+            className="text-ink-muted"
+            label={t("product.tax")}
+            value={t("product.included")}
+          />
+        </dl>
+      </div>
+    </div>
   );
 }

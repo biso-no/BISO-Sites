@@ -195,7 +195,10 @@ export async function NewsDetailV2({
                 copiedLabel={t("linkCopied")}
                 copyLabel={t("share")}
                 shareTitle={title}
-                track={{ event: "share", props: { type: "news" } }}
+                track={{
+                  event: "share",
+                  props: { type: "news", newsId: article.$id },
+                }}
               />
             </div>
           </aside>

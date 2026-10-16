@@ -36,10 +36,13 @@ function formatDate(value: string | null, locale: string, fallback: string) {
     return value;
   }
   // The visitor's locale, not the Node process's — `toLocaleString(undefined)`
-  // on a Server Component is the container's.
+  // on a Server Component is the container's. The same goes for the zone:
+  // interviews are booked in Oslo time (`job_interviews.timezone`), and
+  // without one the container's zone would shift every time shown here.
   return date.toLocaleString(locale, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "Europe/Oslo",
   });
 }
 

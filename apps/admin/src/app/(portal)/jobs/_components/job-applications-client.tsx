@@ -8,6 +8,10 @@ import {
   type RecruitmentApplicationReviewMetadata,
 } from "@repo/shared/types/recruitment";
 import {
+  isoToOsloWallClock,
+  osloWallClockToIso,
+} from "@repo/shared/utils/oslo-time";
+import {
   Briefcase,
   CalendarClock,
   Download,
@@ -29,6 +33,7 @@ import {
   updateJobApplicationReview,
   updateJobApplicationStatus,
 } from "../../_actions/jobs";
+import { APPLICATIONS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
 import { SearchToolbar } from "../../_components/search-toolbar";
@@ -88,9 +93,8 @@ function formatDateTime(value: string): string {
   });
 }
 
-function toDateTimeInput(value: string | null | undefined): string {
-  return value ? value.slice(0, 16) : "";
-}
+/** Interview times are entered as Oslo wall-clock time, stored as UTC ISO. */
+const toDateTimeInput = isoToOsloWallClock;
 
 function pipelineStats(applications: RecruitmentApplicationRecord[]) {
   return {
@@ -525,7 +529,9 @@ function RecruitmentProcessPanel({
             <input
               className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               onChange={(event) =>
-                patchDraft({ interview_starts_at: event.target.value || null })
+                patchDraft({
+                  interview_starts_at: osloWallClockToIso(event.target.value),
+                })
               }
               style={inputStyle}
               type="datetime-local"
@@ -1143,7 +1149,7 @@ export function JobApplicationsClient({
         </div>
       )}
 
-      <PaginationBar page={page} total={total} />
+      <PaginationBar page={page} size={APPLICATIONS_PAGE_SIZE} total={total} />
     </div>
   );
 }

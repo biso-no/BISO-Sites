@@ -45,11 +45,6 @@ const MEMBERSHIP_ITEMS = JSON.stringify([
 // Carries the full checkout-time snapshot (category_id/duration/
 // accrual_months/start_date on top of the fields MEMBERSHIP_ITEMS already
 // has) — this is what a membership-checkout-route order actually persists.
-//
-// `start_date` is the **accrual start for that purchase**: 1 July for a
-// purchase in the summer half of the year, 1 January for one in the spring
-// half. It used to be the catalogue row's own fixed date, which meant every
-// invoice booked the same accrual whenever it was bought.
 const SNAPSHOTTED_MEMBERSHIP_ITEMS = JSON.stringify([
   {
     product_id: "71",
@@ -58,7 +53,7 @@ const SNAPSHOTTED_MEMBERSHIP_ITEMS = JSON.stringify([
     category_id: "113178",
     duration: "year",
     accrual_months: 12,
-    start_date: "2026-07-01",
+    start_date: "2026-08-01",
     quantity: 1,
     price: 550,
     unit_price: 550,
@@ -150,12 +145,10 @@ describe("fulfilMembershipOrder", () => {
     db.incrementRowColumn.mockResolvedValue({ membership_fulfilment_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({ membership_fulfilment_lock: 0 });
     db.updateRow.mockResolvedValue({});
-    // Deliberately different from profile.bi_employee_id ("9001234"):
-    // upsertMembershipCustomer resolves-or-creates and can legitimately
-    // return a different 24SO company id for an existing customer record. If
-    // postToFinago regressed to using identity.employeeId instead of this
-    // resolved id, the assertions below on assignMembershipCategory /
-    // postMembershipInvoice would fail.
+    // Deliberately different from both the student number and the employee
+    // id: the invoice and category must use whatever customer id
+    // upsertMembershipCustomer resolves, never an id recomputed from the
+    // profile.
     upsertMembershipCustomer.mockResolvedValue(5_550_001);
     assignMembershipCategory.mockResolvedValue(undefined);
     postMembershipInvoice.mockResolvedValue(556_677);
@@ -170,7 +163,11 @@ describe("fulfilMembershipOrder", () => {
 
     const result = await fulfilMembershipOrder("order-1", db);
 
-    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    expect(result).toEqual({
+      fulfilled: true,
+      invoiceId: 556_677,
+      studentNumber: 1_715_738,
+    });
     expect(upsertMembershipCustomer).toHaveBeenCalledWith(
       expect.objectContaining({
         employeeId: 9_001_234,
@@ -248,6 +245,79 @@ describe("fulfilMembershipOrder", () => {
     expect(db.decrementRowColumn).toHaveBeenCalled();
   });
 
+  it("throws when the order read fails for a reason other than 404", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("Service unavailable"), { code: 503 })
+    );
+
+    await expect(fulfilMembershipOrder("order-1", db)).rejects.toThrow(
+      "Service unavailable"
+    );
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+  });
+
+  it("returns not_found only when the order read 404s", async () => {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("row_not_found"), { code: 404 })
+    );
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "not_found" });
+  });
+
+  it("reports read_failed, not missing_identity, when the profile read fails", async () => {
+    db.getRow.mockImplementation((_dbId: string, table: string) => {
+      if (table === "orders") {
+        return Promise.resolve(paidMembershipOrder());
+      }
+      return Promise.reject(
+        Object.assign(new Error("Request timed out"), { code: 504 })
+      );
+    });
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "read_failed" });
+    expect(postMembershipInvoice).not.toHaveBeenCalled();
+    expect(db.decrementRowColumn).toHaveBeenCalled();
+  });
+
+  it("reports missing_identity when the profile row does not exist", async () => {
+    db.getRow.mockImplementation((_dbId: string, table: string) => {
+      if (table === "orders") {
+        return Promise.resolve(paidMembershipOrder());
+      }
+      return Promise.reject(
+        Object.assign(new Error("row_not_found"), { code: 404 })
+      );
+    });
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "missing_identity" });
+  });
+
+  it("reports read_failed, not plan_unavailable, when the plan read fails", async () => {
+    db.getRow.mockImplementation((_dbId: string, table: string) => {
+      if (table === "orders") {
+        return Promise.resolve(paidMembershipOrder());
+      }
+      if (table === "user") {
+        return Promise.resolve(profile);
+      }
+      return Promise.reject(
+        Object.assign(new Error("Service unavailable"), { code: 503 })
+      );
+    });
+
+    const result = await fulfilMembershipOrder("order-1", db);
+
+    expect(result).toEqual({ fulfilled: false, reason: "read_failed" });
+    expect(postMembershipInvoice).not.toHaveBeenCalled();
+    expect(db.decrementRowColumn).toHaveBeenCalled();
+  });
+
   it("keeps the marker and does not release when Finago already ran", async () => {
     wireReads(paidMembershipOrder());
     postMembershipInvoice.mockRejectedValue(new Error("timeout"));
@@ -269,13 +339,15 @@ describe("fulfilMembershipOrder", () => {
 
     const result = await fulfilMembershipOrder("order-1", db);
 
-    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    expect(result).toEqual({
+      fulfilled: true,
+      invoiceId: 556_677,
+      studentNumber: 1_715_738,
+    });
     expect(postMembershipInvoice).toHaveBeenCalledWith(
       expect.objectContaining({
         PaymentAmount: 550,
-        // Straight from the snapshot: the purchase was made in the summer
-        // half, so it accrues from 1 July regardless of when it fulfils.
-        AccrualDate: "2026-07-01",
+        AccrualDate: "2026-08-01",
         AccrualLength: 12,
         InvoiceRows: {
           InvoiceRow: expect.objectContaining({ Price: 550, ProductId: 71 }),
@@ -296,7 +368,11 @@ describe("fulfilMembershipOrder", () => {
 
     const result = await fulfilMembershipOrder("order-1", db);
 
-    expect(result).toEqual({ fulfilled: true, invoiceId: 556_677 });
+    expect(result).toEqual({
+      fulfilled: true,
+      invoiceId: 556_677,
+      studentNumber: 1_715_738,
+    });
     // planRow's price/dates (from wireReads) are what get booked.
     expect(postMembershipInvoice).toHaveBeenCalledWith(
       expect.objectContaining({ PaymentAmount: 550, AccrualLength: 12 })

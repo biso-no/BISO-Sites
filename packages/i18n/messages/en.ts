@@ -22,6 +22,7 @@ import expenses from "./en/expenses.json";
 import fundingProgram from "./en/fundingProgram.json";
 import home from "./en/home.json";
 import jobs from "./en/jobs.json";
+import memberPass from "./en/memberPass.json";
 import memberPortal from "./en/memberPortal.json";
 import membership from "./en/membership.json";
 import news from "./en/news.json";
@@ -48,9 +49,9 @@ export default {
   businessHotspot,
   common,
   cookies,
+  documents,
   contact,
   applications,
-  documents,
   expenses,
   events,
   home,
@@ -70,6 +71,7 @@ export default {
   terms,
   projects,
   memberPortal,
+  memberPass,
   fundingProgram,
   projectDetail,
   volunteer,

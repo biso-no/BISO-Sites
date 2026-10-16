@@ -8,7 +8,10 @@ const INVERTED_DECLARATION = /^\s*--inverted:/m;
 const SECTION_DECLARATION = /^\s*--section:/m;
 const V2_PALETTE_DECLARATION = /^\s*--biso-(deep|blue|sky|sun):/m;
 const V2_CONTRAST_NOTE = /2\.80:1|fails AA/;
-const V2_DISPLAY_FONT = /--font-biso-display:\s*\n?\s*var\(--font-archivo\)/;
+const V2_FONT_OVERRIDE = /--font-biso-(display|sans):/;
+const SANS_LEADS_WITH_MUSEO = /--font-biso-sans:\s*var\(--font-museo\)/;
+const DISPLAY_LEADS_WITH_MUSEO_SLAB =
+  /--font-biso-display:\s*var\(--font-museo-slab\)/;
 
 const styles = readFileSync(join(import.meta.dirname, "styles.css"), "utf8");
 const adminStyles = readFileSync(
@@ -54,11 +57,13 @@ describe("brand typography", () => {
     expect(surface).toContain("--font-biso-sans:");
     expect(surface).toContain("--font-biso-display:");
     expect(surface).toContain("var(--font-inter)");
-    // The legacy block still references --font-museo, and must: apps/admin
-    // loads its own Museo Sans from apps/admin/public and resolves this block.
-    // apps/web no longer loads it — `.biso-surface-v2` overrides
-    // --font-biso-display with Archivo (see the RD-006 block below).
+    // Both apps resolve their faces from this block — apps/web mounts
+    // `.biso-surface-v2` beside it, which deliberately sets no font.
     expect(surface).toContain("var(--font-museo)");
+    // Museo Sans is the body face with Inter behind it; Museo Slab is the
+    // display face with Museo Sans and Inter behind it.
+    expect(surface).toMatch(SANS_LEADS_WITH_MUSEO);
+    expect(surface).toMatch(DISPLAY_LEADS_WITH_MUSEO_SLAB);
     expect(globals).toContain("--font-sans: var(--font-biso-sans,");
     expect(globals).toContain("--font-display: var(--font-biso-display,");
     expect(globals).not.toContain("--font-display: var(--font-display)");
@@ -144,20 +149,33 @@ describe("BISO 2026 redesign surface (RD-005)", () => {
 });
 
 describe("BISO 2026 display typeface (RD-006)", () => {
-  it("overrides the display face in v2 without touching the legacy block", () => {
-    // apps/admin resolves the legacy block and must keep Museo Sans; apps/web
-    // mounts v2 and gets Archivo. Both live in the same file, later wins.
-    expect(surface).toContain("--font-archivo");
-    expect(surface).toMatch(V2_DISPLAY_FONT);
+  it("sets the redesign's display roles in the brand's Museo Slab", () => {
+    // The redesign shipped Archivo while no heavy licensed brand cut existed.
+    // The Branding Committee then supplied Museo Slab 700/900, and the v2
+    // surface stopped overriding the face: an override here would put a
+    // second display face beside the brand's.
+    const v2Block = surface.slice(
+      surface.indexOf(":where(.biso-surface-v2) {")
+    );
+    expect(v2Block).not.toMatch(V2_FONT_OVERRIDE);
+    expect(codeOnly(surface)).not.toContain("--font-archivo");
   });
 
-  it("no longer ships Museo Sans from apps/web", () => {
-    // 62 KB unsubsetted .otf, in the Link: rel=preload header on every route,
-    // rendered zero times — the `font-display` utility appeared nowhere.
-    // See baseline/README.md FINDING-B.
-    expect(
-      existsSync(join(import.meta.dirname, "../../public/museo_sans_300.otf"))
-    ).toBe(false);
+  it("ships every brand cut the font declarations reference", () => {
+    // Museo Sans 300/700 is the body face and Museo Slab 700/900 the display
+    // face. A missing file fails the build in `next/font/local` — and the
+    // redesign once deleted museo_sans_300.otf while it was unrendered.
+    for (const file of [
+      "museo_sans_300.otf",
+      "Museo_Sans_700.otf",
+      "Museo_Slab_700.otf",
+      "Museo_Slab_900.otf",
+    ]) {
+      expect(
+        existsSync(join(import.meta.dirname, `../../public/${file}`)),
+        file
+      ).toBe(true);
+    }
   });
 
   it("defines all nine type roles", () => {
@@ -181,8 +199,9 @@ describe("BISO 2026 display typeface (RD-006)", () => {
     // line-height 0.85. If this drifts to a normal 1.1, the treatment is gone.
     expect(globals).toContain("line-height: 0.85");
     // Capped in RD-018: Norwegian compounds are unbreakable tokens and at
-    // 6.5rem the longest overflowed its grid cell. See 01-design-spec.md §1.5.
-    expect(globals).toContain("clamp(2.5rem, 7vw, 5rem)");
+    // 6.5rem the longest overflowed its grid cell. Re-measured for Museo Slab
+    // in the main merge — it is wider than Archivo. See 01-design-spec.md §1.5.
+    expect(globals).toContain("clamp(2.125rem, 5.5vw, 4rem)");
   });
 
   it("makes the data role tabular so columns align", () => {
@@ -293,6 +312,8 @@ const NON_COLOR_VALUES = new Set([
   "full",
   "screen",
   "px",
+  // `ring-inset` draws the ring inside the box; it names no colour.
+  "inset",
   // Bare side utilities are widths, not colours: `border-b`, `border-t`.
   "t",
   "r",
@@ -375,35 +396,26 @@ describe("colour utilities resolve to registered tokens", () => {
     )
   );
 
-  const roots = [
-    join(import.meta.dirname, "../components/ui"),
-    join(import.meta.dirname, "../components/home/v2"),
-    join(import.meta.dirname, "../components/jobs/v2"),
-    join(import.meta.dirname, "../components/events/v2"),
-    join(import.meta.dirname, "../components/news/v2"),
-    join(import.meta.dirname, "../components/shop/v2"),
-    join(import.meta.dirname, "../components/campus/v2"),
-    join(import.meta.dirname, "../components/membership/v2"),
-    join(import.meta.dirname, "../components/units/v2"),
-    join(import.meta.dirname, "../components/documents/v2"),
-    // Not a `v2` folder, but converted by RD-028 — and the directory where the
-    // third and fourth dead utilities were found (`bg-surface-strong`, plus a
-    // `bg-secondary-30` / `bg-blue-accent` pair painting two invisible blur
-    // orbs). Scanned from here on so the class of bug cannot come back.
-    join(import.meta.dirname, "../components/profile"),
-    join(import.meta.dirname, "../components/expense/v2"),
-    join(import.meta.dirname, "../components/nav"),
-    join(import.meta.dirname, "../components/layout"),
-  ].filter((dir) => existsSync(dir));
-
-  const files = roots.flatMap((dir) =>
-    readdirSync(dir)
-      .filter((name) => name.endsWith(".tsx"))
-      .map((name) => join(dir, name))
+  // The whole app since the main → redesign merge: every page is on the
+  // redesign now (see `redesign-coverage.test.ts`), so a dead colour name is a
+  // bug wherever it is written. The list of v2 folders this used to name kept
+  // missing the converted pages that live outside them.
+  const files = [
+    join(import.meta.dirname, "../components"),
+    join(import.meta.dirname, "../app"),
+  ].flatMap((dir) =>
+    readdirSync(dir, { recursive: true, withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.endsWith(".tsx") &&
+          !entry.name.includes(".test.")
+      )
+      .map((entry) => join(entry.parentPath, entry.name))
   );
 
-  it("scans the redesign's components", () => {
-    expect(files.length).toBeGreaterThan(20);
+  it("scans the whole app", () => {
+    expect(files.length).toBeGreaterThan(200);
   });
 
   it("finds no utility naming a colour Tailwind was never told about", () => {

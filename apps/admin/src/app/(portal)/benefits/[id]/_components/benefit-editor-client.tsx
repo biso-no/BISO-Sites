@@ -18,6 +18,7 @@ import {
   type BenefitFormValues,
   benefitSchema,
 } from "@/app/(portal)/_actions/schemas";
+import { benefitDisplayTitle } from "@/lib/benefit-title";
 import { type ContentLocale, getTargetLocale } from "@/lib/content-translation";
 import {
   createBenefit,
@@ -40,6 +41,10 @@ import {
   STUDIO,
   studioSurface,
 } from "../../../_components/studio";
+import {
+  describeBenefitSaveError,
+  settleBenefitSave,
+} from "./benefit-save-error";
 
 interface BenefitEditorClientProps {
   benefit: CampusBenefits | null;
@@ -204,23 +209,44 @@ export function BenefitEditorClient({
     benefit?.redemption_type ?? "none"
   );
 
+  const fieldLabels = {
+    campus_id: labels.campus,
+    category: labels.category,
+    department_id: labels.department,
+    description_en: labels.descriptionEn,
+    description_nb: labels.descriptionNo,
+    image_url: labels.imageUrl,
+    kind: labels.kind,
+    partner_name: labels.partnerName,
+    redemption_type: labels.redemptionType,
+    redemption_value: labels.redemptionValue,
+    status: labels.status,
+    title_en: labels.titleEn,
+    title_nb: labels.titleNo,
+  };
+
   async function handleFormSubmit(value: BenefitFormValues) {
     const validated = benefitSchema.safeParse(value);
     if (!validated.success) {
-      toast.error(labels.saveError);
+      toast.error(
+        describeBenefitSaveError(
+          validated.error.flatten().fieldErrors,
+          labels.saveError,
+          fieldLabels
+        )
+      );
       return;
     }
-    const result = isNew
-      ? await createBenefit(validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
-        })
-      : await updateBenefit(benefit!.$id, validated.data, {
-          enabled: autoTranslate,
-          sourceLocale: locale,
-        });
+    const translation = { enabled: autoTranslate, sourceLocale: locale };
+    const result = await settleBenefitSave(() =>
+      isNew
+        ? createBenefit(validated.data, translation)
+        : updateBenefit(benefit!.$id, validated.data, translation)
+    );
     if (result.error) {
-      toast.error(labels.saveError);
+      toast.error(
+        describeBenefitSaveError(result.error, labels.saveError, fieldLabels)
+      );
       return;
     }
     toast.success(
@@ -322,7 +348,11 @@ export function BenefitEditorClient({
         backHref="/benefits"
         backLabel={labels.back}
         status={isNew ? undefined : benefit?.status}
-        title={isNew ? "New Benefit" : (benefit?.title_en ?? "Edit Benefit")}
+        title={
+          isNew || !benefit
+            ? "New Benefit"
+            : benefitDisplayTitle(benefit) || "Edit Benefit"
+        }
       >
         <AutoTranslateControl
           checked={autoTranslate}
