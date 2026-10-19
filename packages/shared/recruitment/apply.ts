@@ -35,6 +35,7 @@ import {
 } from "@repo/shared/recruitment";
 import {
   coverLetterTextForScreening,
+  pdfStorageName,
   validateApplicationDocument,
 } from "@repo/shared/recruitment/application-documents";
 import {
@@ -332,7 +333,10 @@ async function uploadDocuments(
     const uploaded = await storage.createFile(
       RECRUITMENT_RESUME_BUCKET_ID,
       ID.unique(),
-      InputFile.fromBuffer(resumeBuffer, documents.resume.name)
+      InputFile.fromBuffer(
+        resumeBuffer,
+        pdfStorageName(documents.resume.name, "cv")
+      )
     );
     resumeFileId = uploaded.$id;
   }
@@ -343,7 +347,10 @@ async function uploadDocuments(
   const coverLetterUpload = await storage.createFile(
     RECRUITMENT_RESUME_BUCKET_ID,
     ID.unique(),
-    InputFile.fromBuffer(coverLetterBuffer, documents.coverLetter.name)
+    InputFile.fromBuffer(
+      coverLetterBuffer,
+      pdfStorageName(documents.coverLetter.name, "cover-letter")
+    )
   );
   const coverLetterText = coverLetterTextForScreening(
     await extractPdfText(coverLetterBuffer).catch((err: unknown) => {

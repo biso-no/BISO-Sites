@@ -46,13 +46,20 @@ const USER = {
   name: "Kari Nordmann",
 };
 
-function postRequest(form: FormData, authorization = "Bearer jwt") {
+function postRequest(
+  form: FormData,
+  authorization = "Bearer jwt",
+  headers: Record<string, string> = {}
+) {
   return new Request("https://api.biso.no/api/recruitment/applications", {
     body: form,
-    headers: authorization ? { authorization } : {},
+    headers: authorization ? { authorization, ...headers } : headers,
     method: "POST",
   }) as unknown as NextRequest;
 }
+
+/** The API proxy's body cap, in bytes. */
+const PROXY_BODY_LIMIT = 10_485_760;
 
 function getRequest(authorization = "Bearer jwt") {
   return new Request("https://api.biso.no/api/recruitment/applications", {
@@ -152,6 +159,34 @@ describe("/api/recruitment/applications", () => {
       success: false,
     });
     expect(submitRecruitmentApplication).not.toHaveBeenCalled();
+  });
+
+  it("413 invalid_file when the body is over the proxy's 10 MB cap", async () => {
+    const response = await POST(
+      postRequest(applicationForm(), "Bearer jwt", {
+        "content-length": String(PROXY_BODY_LIMIT + 1),
+      })
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({
+      code: "invalid_file",
+      error:
+        "Your files are too large together. Keep the CV and cover letter under 9 MB in total.",
+      success: false,
+    });
+    expect(submitRecruitmentApplication).not.toHaveBeenCalled();
+  });
+
+  it("accepts a body of exactly 10 MB", async () => {
+    const response = await POST(
+      postRequest(applicationForm(), "Bearer jwt", {
+        "content-length": String(PROXY_BODY_LIMIT),
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(submitRecruitmentApplication).toHaveBeenCalledOnce();
   });
 
   it("maps each error code to its status", async () => {

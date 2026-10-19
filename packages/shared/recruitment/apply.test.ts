@@ -382,6 +382,26 @@ describe("submitRecruitmentApplication", () => {
     expect(fake.files).toHaveLength(filesAfterFirst);
   });
 
+  it("stores each PDF under a name ending in .pdf", async () => {
+    // The bucket allows the `pdf` extension only; validation checks the MIME
+    // type, so a PDF named "CV" would otherwise pass and then fail to upload.
+    seedJob();
+
+    const result = await submit(
+      applicationForm({
+        cover_letter: pdf("Cover letter.PDF"),
+        resume: pdf("CV"),
+      })
+    );
+
+    expect(result).toMatchObject({ success: true });
+    expect(
+      fake.storage.createFile.mock.calls.map(
+        ([, , file]) => (file as { filename: string }).filename
+      )
+    ).toEqual(["CV.pdf", "Cover letter.pdf"]);
+  });
+
   it("stores files, application and answers with staff-only permissions", async () => {
     seedJob();
     const deps = makeDeps();

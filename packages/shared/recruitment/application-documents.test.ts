@@ -4,6 +4,7 @@ import {
   applicationDocumentFileId,
   coverLetterTextForScreening,
   isApplicationDocument,
+  pdfStorageName,
   validateApplicationDocument,
 } from "./application-documents";
 
@@ -36,6 +37,20 @@ describe("application documents", () => {
     expect(() => validateApplicationDocument(pdf(5 * 1024 * 1024 + 1))).toThrow(
       "too large"
     );
+  });
+
+  it("stores every document under a name ending in .pdf", () => {
+    // The `resumes` bucket only takes the `pdf` extension by name, while the
+    // upload is validated by MIME type, so a PDF called "CV" must be renamed.
+    expect(pdfStorageName("cv.pdf", "cv")).toBe("cv.pdf");
+    expect(pdfStorageName("CV", "cv")).toBe("CV.pdf");
+    expect(pdfStorageName("Søknad.PDF", "cv")).toBe("Søknad.pdf");
+    expect(pdfStorageName("letter.docx", "cover-letter")).toBe(
+      "letter.docx.pdf"
+    );
+    expect(pdfStorageName("  CV  ", "cv")).toBe("CV.pdf");
+    expect(pdfStorageName("   ", "cover-letter")).toBe("cover-letter.pdf");
+    expect(pdfStorageName(".pdf", "cv")).toBe("cv.pdf");
   });
 
   it("keeps extracted cover letter text within what the screener reads", () => {

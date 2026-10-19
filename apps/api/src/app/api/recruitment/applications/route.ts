@@ -31,6 +31,18 @@ const STATUS_BY_CODE: Record<RecruitmentApplyErrorCode, number> = {
   vacancy_closed: 404,
 };
 
+/**
+ * The API proxy's request body cap. A larger body is cut off before it gets
+ * here, so `req.formData()` would fail and the applicant would be told their
+ * data is invalid; the declared length is checked first instead.
+ */
+const MAX_BODY_BYTES = 10_485_760;
+
+function isOverBodyLimit(req: NextRequest): boolean {
+  const declared = Number(req.headers.get("content-length"));
+  return Number.isFinite(declared) && declared > MAX_BODY_BYTES;
+}
+
 function isRowNotFound(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === 404;
 }
@@ -101,6 +113,18 @@ export async function POST(req: NextRequest) {
   const applicant = await authenticatedApplicant(req);
   if (!applicant) {
     return json({ success: false, error: "Authentication required" }, 401);
+  }
+
+  if (isOverBodyLimit(req)) {
+    return json(
+      {
+        code: "invalid_file",
+        error:
+          "Your files are too large together. Keep the CV and cover letter under 9 MB in total.",
+        success: false,
+      },
+      413
+    );
   }
 
   const formData = await req.formData().catch(() => null);
