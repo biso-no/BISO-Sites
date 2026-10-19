@@ -118,6 +118,7 @@ The standalone JWT REST service.
 | `APPWRITE_BUCKET_ID` | Default bucket |
 | `OPENAI_API_KEY` | OpenAI |
 | `AZURE_*` | Azure AD + Graph |
+| `BI_AZURE_TENANT_ID` / `BI_AZURE_CLIENT_ID` / `BI_AZURE_CLIENT_SECRET` | BISO's app registration in **BI's** tenant (not the `AZURE_*` one), for the BI directory lookup in `POST /api/auth/bi-sync`. Without them the sync writes `student_id` but answers `directory_unavailable` and `bi_employee_id` stays empty, so the student cannot buy a membership. Same values as `web`. |
 | `SHAREPOINT_*` | SharePoint |
 | `VIPPS_*` | Vipps payment provider |
 | `STRIPE_*` | Stripe |
