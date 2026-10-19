@@ -1,11 +1,3 @@
-import { ID, type Models, Query } from "@repo/api";
-import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
-import { InputFile } from "@repo/api/file";
-import { createAdminClient } from "@repo/api/server";
-import type { Users } from "@repo/api/types/appwrite";
-import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
-import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
-import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import { createApprovalChain } from "@/lib/expense-approval";
@@ -16,6 +8,14 @@ import {
   parseExpensePayload,
 } from "@/lib/expense-payload";
 import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
+import { ID, type Models, Query } from "@repo/api";
+import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
+import { InputFile } from "@repo/api/file";
+import { createAdminClient } from "@repo/api/server";
+import type { Users } from "@repo/api/types/appwrite";
+import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { type NextRequest, NextResponse } from "next/server";
 
 export type CreateExpenseData = Models.Row &
   ExpenseRowInput & {
@@ -473,13 +473,15 @@ export async function POST(req: NextRequest) {
       undefined,
       attachmentsIdsArray
     );
-
+    if (!process.env.INVOICE_USER_ID) {
+      throw new Error("INVOICE_USER_ID environment variable is not set");
+    }
     await messaging.createEmail(
       ID.unique(),
       `User ${profile.name} has submitted expense ${reimbursementNumber}`,
       invoiceEmailHtml,
       undefined,
-      ["invoice"],
+      [process.env.INVOICE_USER_ID],
       undefined,
       undefined,
       undefined,
