@@ -14,6 +14,8 @@
  * route with their own token learns nothing but their own claims.
  */
 
+import { normalizeBiDisplayName } from "@repo/shared/utils/person-name";
+
 export const GRAPH_USERINFO_ENDPOINT =
   "https://graph.microsoft.com/oidc/userinfo";
 
@@ -44,4 +46,18 @@ export function vouchForBiEmail(
     email: verified ? email.trim().toLowerCase() : email,
     email_verified: verified,
   };
+}
+
+/**
+ * Everything this endpoint returns: the email vouched for, and the name as
+ * "First Last". Appwrite names a new account from this `name`, and BI's
+ * directory spells it "(Student) Heien, Markus".
+ */
+export function biUserinfoClaims(
+  claims: Record<string, unknown>
+): Record<string, unknown> {
+  const vouched = vouchForBiEmail(claims);
+  return typeof vouched.name === "string"
+    ? { ...vouched, name: normalizeBiDisplayName(vouched.name) }
+    : vouched;
 }

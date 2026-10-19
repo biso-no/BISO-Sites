@@ -46,6 +46,9 @@ export function pickSelfServiceProfileFields(
 const optionalText = (maxLength: number) =>
   z.string().trim().max(maxLength).nullable().optional();
 
+/** Size of the `user.name` column. */
+export const PROFILE_NAME_MAX_LENGTH = 30;
+
 /**
  * Request-body validation for self-service profile writes. Lengths match the
  * `user` table's columns; unknown keys (including identity columns) are
@@ -61,7 +64,7 @@ export const selfServiceProfileSchema = z.object({
   city: optionalText(50),
   departments: z.array(z.string().trim().min(1).max(36)).max(50).optional(),
   is_public: z.boolean().optional(),
-  name: z.string().trim().min(1).max(30).optional(),
+  name: z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH).optional(),
   phone: optionalText(20),
   swift: optionalText(15),
   zip: optionalText(20),
