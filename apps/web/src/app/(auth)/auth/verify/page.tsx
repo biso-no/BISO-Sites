@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+// The URL carries a sign-in secret that is still valid here: never send it on
+// as a Referer, from the "sign in on the website" link or anything else.
+// Analytics drops the query string itself (`@/lib/analytics-privacy`).
+export const metadata: Metadata = {
+  referrer: "no-referrer",
+};
 
 // Shown when the emailed app sign-in link opens in a browser instead of the
 // BISO app. It never consumes the token: it only offers the custom-scheme
