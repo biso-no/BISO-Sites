@@ -8,7 +8,8 @@
     "./member-pass/*": "./member-pass/*.ts",
     "./recruitment": "./recruitment.ts",
     "./recruitment/booking-slots": "./recruitment/booking-slots.ts",
-    "./recruitment/application-documents": "./recruitment/application-documents.ts"
+    "./recruitment/application-documents": "./recruitment/application-documents.ts",
+    "./recruitment/apply": "./recruitment/apply.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
