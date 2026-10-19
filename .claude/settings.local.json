@@ -15,6 +15,7 @@
       "Bash(bun x *)",
       "Bash(git commit *)",
       "Bash(bunx ultracite *)"
-    ]
+    ],
+    "additionalDirectories": ["/Users/markus/Documents/dev/BISO-Flutter"]
   }
 }
