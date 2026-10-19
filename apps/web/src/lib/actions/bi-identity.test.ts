@@ -39,7 +39,7 @@ import {
   isFreshMergeIntoPasswordAccount,
   shouldMarkEmailVerified,
   syncBiStudentIdentityAfterSignIn,
-} from "@/lib/bi-identity-sync";
+} from "@repo/shared/utils/bi-identity-sync";
 import { syncBiStudentIdentity } from "./bi-identity";
 
 const ROTATED_PASSWORD_RE = /^[A-Za-z0-9_-]{40,}$/;

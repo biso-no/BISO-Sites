@@ -50,6 +50,10 @@ The Google, Facebook and Apple buttons were removed in October 2026 at the Brand
 
 One consequence to know about: the profile row the sync creates is what the protected layout checks to decide whether onboarding is done, so a new student who abandons onboarding is not sent back to it.
 
+### Mobile app
+
+The BISO app signs in with the same OIDC provider, through Appwrite's mobile OAuth flow, so it ends up with an Appwrite session for the same account the web would use. The app cannot call the web's `/auth/oauth` route, so after sign-in it calls `POST /api/auth/bi-sync` on `apps/api` with its Appwrite JWT as a bearer token. The route runs the same `syncBiStudentIdentityAfterSignIn` from `@repo/shared/utils/bi-identity-sync`, passing the JWT's session as the one to keep when a pre-registered password account is locked out. It returns `{ success: true, studentId, hasEmployeeId, campusHint }`, or a `200` with `{ success: false, error }` for a domain outcome (`no_bi_identity`, `invalid_bi_email`, `directory_unavailable`, `already_linked`, `sync_failed`, `not_authenticated`). A missing or rejected JWT is a `401`.
+
 ### There is no account linking
 
 Earlier versions let a student "link" their BI account to an account created with a private email, through a browser-side Appwrite session and an OAuth link. That is gone: the link helpers, `/api/auth/bi-link`, `/membership/link` and the onboarding link step were removed in October 2026. Wherever the site finds a signed-in account without a BI identity (the onboarding student step, the membership gate, the member portal), it offers **Sign in with BI** instead, which signs that account out and starts the BI sign-in (`switchToBiSignIn`). Membership follows the student number in Finago, so it is on the BI account automatically; orders and tickets stay on the old account, which still opens with a login link.
