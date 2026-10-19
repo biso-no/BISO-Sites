@@ -8,7 +8,8 @@
     "./member-pass/*": "./member-pass/*.ts",
     "./recruitment": "./recruitment.ts",
     "./recruitment/booking-slots": "./recruitment/booking-slots.ts",
-    "./recruitment/application-documents": "./recruitment/application-documents.ts"
+    "./recruitment/application-documents": "./recruitment/application-documents.ts",
+    "./recruitment/apply": "./recruitment/apply.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
@@ -17,7 +18,8 @@
     "check-types": "tsc --noEmit",
     "test": "vitest run",
     "lockdown:expense-rows": "bun --env-file=../../apps/admin/.env.local scripts/revoke-expense-owner-writes.ts",
-    "lockdown:profile-rows": "bun --env-file=../../apps/admin/.env.local scripts/lock-profile-rows.ts"
+    "lockdown:profile-rows": "bun --env-file=../../apps/admin/.env.local scripts/lock-profile-rows.ts",
+    "backfill:bi-names": "bun --env-file=../../apps/admin/.env.local scripts/backfill-bi-names.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

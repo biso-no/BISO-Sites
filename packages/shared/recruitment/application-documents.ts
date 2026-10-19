@@ -11,6 +11,7 @@ export const APPLICATION_DOCUMENT_MAX_BYTES = 5 * 1024 * 1024;
 const PDF_MIME_TYPE = "application/pdf";
 /** How much extracted cover-letter text the screener and the drawer get. */
 const COVER_LETTER_TEXT_MAX_CHARS = 12_000;
+const PDF_EXTENSION = /\.pdf$/i;
 
 export interface ApplicationDocumentFiles {
   cover_letter_file_id?: string | null;
@@ -40,6 +41,18 @@ export function validateApplicationDocument(file: File): void {
   if (file.type !== PDF_MIME_TYPE) {
     throw new Error("The file must be a PDF");
   }
+}
+
+/**
+ * The name a document is stored under. The `resumes` bucket only accepts the
+ * `pdf` extension by file name, while uploads are validated by MIME type, so
+ * a PDF the device named "CV" (or "CV.PDF") would pass validation and then be
+ * refused by Storage. Every stored file therefore ends in a lowercase `.pdf`;
+ * a blank name falls back to `fallbackBase`.
+ */
+export function pdfStorageName(name: string, fallbackBase: string): string {
+  const base = name.trim().replace(PDF_EXTENSION, "").trim();
+  return `${base || fallbackBase}.pdf`;
 }
 
 /** Trim and cap the text pulled out of a cover-letter PDF. */

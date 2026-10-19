@@ -46,6 +46,9 @@ export function pickSelfServiceProfileFields(
 const optionalText = (maxLength: number) =>
   z.string().trim().max(maxLength).nullable().optional();
 
+/** Size of the `user.name` column. */
+export const PROFILE_NAME_MAX_LENGTH = 30;
+
 /**
  * Request-body validation for self-service profile writes. Lengths match the
  * `user` table's columns; unknown keys (including identity columns) are
@@ -61,7 +64,7 @@ export const selfServiceProfileSchema = z.object({
   city: optionalText(50),
   departments: z.array(z.string().trim().min(1).max(36)).max(50).optional(),
   is_public: z.boolean().optional(),
-  name: z.string().trim().min(1).max(30).optional(),
+  name: z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH).optional(),
   phone: optionalText(20),
   swift: optionalText(15),
   zip: optionalText(20),
@@ -72,4 +75,23 @@ export type SelfServiceProfileInput = z.infer<typeof selfServiceProfileSchema>;
 /** A `user` profile row is readable by its owner and writable by no client. */
 export function buildProfileRowPermissions(userId: string): string[] {
   return [Permission.read(Role.user(userId))];
+}
+
+/** Size of the `user.email` column. */
+export const PROFILE_EMAIL_MAX_LENGTH = 100;
+
+/**
+ * The `email` to stamp on an account's profile row: the address the account
+ * signs in with. Never self-service — every server-side profile write takes it
+ * from the account, never from the request. An address the column cannot hold
+ * is left out, so the rest of the write still lands.
+ */
+export function accountEmailField(email: string | null | undefined): {
+  email?: string;
+} {
+  const trimmed = email?.trim();
+  if (!trimmed || trimmed.length > PROFILE_EMAIL_MAX_LENGTH) {
+    return {};
+  }
+  return { email: trimmed };
 }

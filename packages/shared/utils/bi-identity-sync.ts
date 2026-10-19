@@ -2,8 +2,8 @@
 // not held elsewhere, enrich from BI's directory and write the profile. This
 // module is deliberately NOT a "use server" file: it takes a user id and
 // writes through the admin client, so it must never be reachable as a server
-// action. The session-bound action in ./actions/bi-identity.ts and the OAuth
-// return route are its only callers.
+// action. The session-bound action in apps/web/src/lib/actions/bi-identity.ts,
+// the web OAuth return route and the API bi-sync route are its only callers.
 
 import "server-only";
 
@@ -16,9 +16,11 @@ import {
   BI_STUDENT_EMAIL_DOMAIN,
   identityBacksStudentId,
   parseBiStudentEmail,
-} from "@repo/shared/utils/bi-student";
-import { buildProfileRowPermissions } from "@repo/shared/utils/profile-fields";
-import { unstable_rethrow } from "next/navigation";
+} from "./bi-student";
+import {
+  accountEmailField,
+  buildProfileRowPermissions,
+} from "./profile-fields";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
 // packages/api/types/appwrite.ts is regenerated.
@@ -499,6 +501,7 @@ export async function syncBiStudentIdentityFor(
     }
 
     const update: Partial<BiUser> = {
+      ...accountEmailField(user.email),
       student_id: parsed.studentId,
       bi_linked_at: new Date().toISOString(),
     };
@@ -558,7 +561,6 @@ export async function syncBiStudentIdentityFor(
       campusHint,
     };
   } catch (error) {
-    unstable_rethrow(error);
     console.error("[BI Identity] Sync failed:", error);
     // Everything that can throw into here runs before or during the profile
     // write, so the link did NOT land. Reporting this as

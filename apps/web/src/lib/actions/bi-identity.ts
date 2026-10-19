@@ -1,13 +1,13 @@
 "use server";
 
 import { createSessionClient } from "@repo/api/server";
-import { unstable_rethrow } from "next/navigation";
 import {
   type BiIdentitySyncResult,
   syncBiStudentIdentityFor,
-} from "@/lib/bi-identity-sync";
+} from "@repo/shared/utils/bi-identity-sync";
+import { unstable_rethrow } from "next/navigation";
 
-export type { BiIdentitySyncResult } from "@/lib/bi-identity-sync";
+export type { BiIdentitySyncResult } from "@repo/shared/utils/bi-identity-sync";
 
 /**
  * Completes a BI student account link for the current session.

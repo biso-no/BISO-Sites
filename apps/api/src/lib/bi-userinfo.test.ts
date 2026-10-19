@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBiEmail, vouchForBiEmail } from "./bi-userinfo";
+import { biUserinfoClaims, isBiEmail, vouchForBiEmail } from "./bi-userinfo";
 
 describe("isBiEmail", () => {
   it("accepts any address on bi.no, whatever the local part", () => {
@@ -42,6 +42,35 @@ describe("vouchForBiEmail", () => {
     expect(vouchForBiEmail({ sub: "abc" })).toEqual({
       email_verified: false,
       sub: "abc",
+    });
+  });
+});
+
+describe("biUserinfoClaims", () => {
+  it("gives Appwrite the name as first name, last name, with the email vouched for", () => {
+    expect(
+      biUserinfoClaims({
+        email: "S1715738@bi.no",
+        name: "(Student) Heien, Markus",
+        sub: "abc",
+      })
+    ).toEqual({
+      email: "s1715738@bi.no",
+      email_verified: true,
+      name: "Markus Heien",
+      sub: "abc",
+    });
+  });
+
+  it("leaves a missing or non-string name alone", () => {
+    expect(biUserinfoClaims({ email: "s1@bi.no" })).toEqual({
+      email: "s1@bi.no",
+      email_verified: true,
+    });
+    expect(biUserinfoClaims({ email: "s1@bi.no", name: 42 })).toEqual({
+      email: "s1@bi.no",
+      email_verified: true,
+      name: 42,
     });
   });
 });

@@ -71,6 +71,7 @@ describe("PUT /api/profile", () => {
 
     expect(response.status).toBe(200);
     expect(adminDb.updateRow).toHaveBeenCalledWith("app", "user", "user-1", {
+      email: "ada@example.com",
       is_public: true,
       name: "Ada L",
     });
@@ -96,6 +97,36 @@ describe("PUT /api/profile", () => {
       ['read("user:user-1")']
     );
     expect(users.updateName).not.toHaveBeenCalled();
+  });
+
+  it("stamps the account email, never one from the request", async () => {
+    adminDb.getRow.mockResolvedValue({ $id: "user-1" });
+
+    const response = await PUT(
+      profileRequest({ email: "someone-else@example.com", phone: "12345678" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(adminDb.updateRow).toHaveBeenCalledWith("app", "user", "user-1", {
+      email: "ada@example.com",
+      phone: "12345678",
+    });
+  });
+
+  it("still saves the profile when the account email is too long for the column", async () => {
+    adminDb.getRow.mockResolvedValue({ $id: "user-1" });
+    account.get.mockResolvedValue({
+      $id: "user-1",
+      email: `${"a".repeat(101)}@example.com`,
+      name: "Ada",
+    });
+
+    const response = await PUT(profileRequest({ phone: "12345678" }));
+
+    expect(response.status).toBe(200);
+    expect(adminDb.updateRow).toHaveBeenCalledWith("app", "user", "user-1", {
+      phone: "12345678",
+    });
   });
 
   it("answers 500 without creating anything when the lookup fails", async () => {

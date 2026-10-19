@@ -39,7 +39,7 @@ import {
   isFreshMergeIntoPasswordAccount,
   shouldMarkEmailVerified,
   syncBiStudentIdentityAfterSignIn,
-} from "@/lib/bi-identity-sync";
+} from "@repo/shared/utils/bi-identity-sync";
 import { syncBiStudentIdentity } from "./bi-identity";
 
 const ROTATED_PASSWORD_RE = /^[A-Za-z0-9_-]{40,}$/;
@@ -260,6 +260,37 @@ describe("syncBiStudentIdentity", () => {
         bi_employee_id: "9001234",
         bi_campus_id: "2",
         bi_linked_at: expect.any(String),
+      }),
+      expect.any(Array)
+    );
+  });
+
+  it("stamps the account email on the profile row it updates or creates", async () => {
+    account.get.mockResolvedValue({ $id: "user-1", email: "s1715738@bi.no" });
+    account.listIdentities.mockResolvedValue({
+      identities: [oidcIdentity("s1715738@bi.no")],
+    });
+    getBiDirectoryUser.mockResolvedValue(null);
+
+    await syncBiStudentIdentity();
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "user",
+      "user-1",
+      expect.objectContaining({ email: "s1715738@bi.no" })
+    );
+
+    db.updateRow.mockRejectedValueOnce(
+      Object.assign(new Error("not found"), { code: 404 })
+    );
+    await syncBiStudentIdentity();
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "user",
+      "user-1",
+      expect.objectContaining({
+        email: "s1715738@bi.no",
+        student_id: "s1715738",
       }),
       expect.any(Array)
     );

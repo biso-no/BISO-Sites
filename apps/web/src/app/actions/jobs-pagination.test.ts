@@ -7,11 +7,11 @@ vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: sessionDb })),
 }));
 
-// recruitment-screener and pdf-text-extractor import "server-only", which
-// throws outside Next's webpack loader (vitest runs in a plain node
-// environment).
+// recruitment-screener, pdf-text-extractor and @repo/shared/recruitment/apply
+// import "server-only", which throws outside Next's webpack loader (vitest
+// runs in a plain node environment).
+vi.mock("server-only", () => ({}));
 vi.mock("@repo/ai/server/recruitment-screener", () => ({
-  normalizeScreeningScore: vi.fn(),
   screenApplication: vi.fn(),
 }));
 vi.mock("@repo/ai/server/pdf-text-extractor", () => ({

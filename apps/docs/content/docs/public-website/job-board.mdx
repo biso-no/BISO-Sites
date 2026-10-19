@@ -25,7 +25,7 @@ The list page filters by campus. A user who navigated in via a campus landing pa
 1. The user opens a job page and clicks **Apply**.
 2. If they're not signed in, they're sent to `/auth/login` and bounced back afterwards.
 3. The application form asks for the position's `custom_questions` (JSON-defined per job — e.g., "why do you want this role?"), a cover letter as a PDF (always required) and a CV as a PDF (required when the vacancy says so).
-4. On submit, `submitJobApplication()` validates inputs, stores both PDFs in Appwrite Storage, extracts the cover letter's text for screening, and creates a `job_applications` row.
+4. On submit, `submitJobApplication()` validates inputs, stores both PDFs in Appwrite Storage, extracts the cover letter's text for screening, and creates a `job_applications` row. The flow itself lives in `submitRecruitmentApplication()` in `@repo/shared/recruitment/apply`, which the BISO app reaches through `apps/api` (below).
 5. The user is redirected to `/applications` where their submission appears with status `submitted`.
 
 The applicant can later see the status of every application they've made under `/applications`. They can't edit a submitted application from the public site.
@@ -38,7 +38,16 @@ The applicant can later see the status of every application they've made under `
 | `getJobBySlug()` | Returns one job by slug with translations. |
 | `submitJobApplication()` | Validates and stores a new application. |
 
-These live under `apps/web/src/app/actions/` and are called from the corresponding pages.
+These live under `apps/web/src/app/actions/` and are called from the corresponding pages. `submitJobApplication()` only authenticates the visitor; applying and listing one's applications are `submitRecruitmentApplication()` and `listApplicationsForApplicant()` in `@repo/shared/recruitment/apply`, shared with the app.
+
+## App route
+
+The BISO app applies and lists its applications through `apps/api`, with its Appwrite JWT as a bearer token:
+
+| Route | What it does |
+|-------|--------------|
+| `POST /api/recruitment/applications` | Applies for a vacancy. Same `multipart/form-data` fields as the web form (`job_id`, `cover_letter`, `resume`, answers); the applicant's email and name come from the account. Returns `201 { success: true, applicationId }`, or `{ success: false, code, error }` with a status per code. A body over 10 MB is refused up front with `413` (`code: "invalid_file"`). |
+| `GET /api/recruitment/applications` | The caller's own applications, newest first. |
 
 ## Data model
 
@@ -47,7 +56,7 @@ These live under `apps/web/src/app/actions/` and are called from the correspondi
 | `jobs` | `slug`, `status`, `campus_id`, `department_id`, `custom_questions`, `deadline` | The position itself. |
 | `job_applications` | `job_id`, `user_id`, `answers`, `resume_file_id`, `cover_letter_file_id`, `cover_letter` (extracted text), `status` | One row per submitted application. |
 
-Resumes are stored in Appwrite Storage; the row holds the file ID. Only the applicant and the assigned reviewers can read the file (Appwrite permissions enforce this).
+Both PDFs are stored in the `resumes` bucket in Appwrite Storage; the row holds the file IDs. The files are staff-only: they carry no file-level grants and the bucket grants nobody, so only the admin key reads them, through the admin app. Applicants cannot read their own uploaded files back, from the site or the app. Stored file names always end in `.pdf`, since the bucket only accepts that extension.
 
 ## What happens after applying
 

@@ -8,6 +8,7 @@ import {
 } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import {
+  accountEmailField,
   buildProfileRowPermissions,
   pickSelfServiceProfileFields,
 } from "@repo/shared/utils/profile-fields";
@@ -238,7 +239,10 @@ export async function updateProfile(profile: Partial<Users>) {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
-    const writable = pickSelfServiceProfileFields(profile);
+    const writable = {
+      ...pickSelfServiceProfileFields(profile),
+      ...accountEmailField(user.email),
+    };
     const { db: adminDb } = await createAdminClient();
 
     const existing = await orNullIfNotFound(
