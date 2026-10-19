@@ -1,3 +1,5 @@
+import { APP_LINK_COMPONENTS } from "@/lib/app-links";
+
 export function GET() {
   return Response.json({
     applinks: {
@@ -5,7 +7,7 @@ export function GET() {
       details: [
         {
           appIDs: ["4JQ6VWVRGY.com.biso.no"],
-          components: [{ "/": "/auth/*" }],
+          components: APP_LINK_COMPONENTS,
         },
       ],
     },
