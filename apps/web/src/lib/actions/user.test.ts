@@ -165,7 +165,7 @@ describe("removeIdentity failures", () => {
 describe("updateProfile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    account.get.mockResolvedValue({ $id: "user-1" });
+    account.get.mockResolvedValue({ $id: "user-1", email: "ada@example.com" });
     account.updateName.mockResolvedValue({});
     adminDb.updateRow.mockResolvedValue({ $id: "user-1" });
     adminDb.createRow.mockResolvedValue({ $id: "user-1" });
@@ -183,13 +183,14 @@ describe("updateProfile", () => {
     } as never);
 
     expect(adminDb.updateRow).toHaveBeenCalledWith("app", "user", "user-1", {
+      email: "ada@example.com",
       name: "Ada",
       phone: "12345678",
     });
     expect(account.updateName).toHaveBeenCalledWith("Ada");
   });
 
-  it("creates a missing row readable by its owner only", async () => {
+  it("creates a missing row with the account email, readable by its owner only", async () => {
     adminDb.getRow.mockRejectedValue(
       Object.assign(new Error("not found"), { code: 404 })
     );
@@ -200,7 +201,7 @@ describe("updateProfile", () => {
       "app",
       "user",
       "user-1",
-      { name: "Ada" },
+      { email: "ada@example.com", name: "Ada" },
       ['read("user:user-1")']
     );
   });

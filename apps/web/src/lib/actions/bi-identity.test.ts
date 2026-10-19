@@ -265,6 +265,37 @@ describe("syncBiStudentIdentity", () => {
     );
   });
 
+  it("stamps the account email on the profile row it updates or creates", async () => {
+    account.get.mockResolvedValue({ $id: "user-1", email: "s1715738@bi.no" });
+    account.listIdentities.mockResolvedValue({
+      identities: [oidcIdentity("s1715738@bi.no")],
+    });
+    getBiDirectoryUser.mockResolvedValue(null);
+
+    await syncBiStudentIdentity();
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "user",
+      "user-1",
+      expect.objectContaining({ email: "s1715738@bi.no" })
+    );
+
+    db.updateRow.mockRejectedValueOnce(
+      Object.assign(new Error("not found"), { code: 404 })
+    );
+    await syncBiStudentIdentity();
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "user",
+      "user-1",
+      expect.objectContaining({
+        email: "s1715738@bi.no",
+        student_id: "s1715738",
+      }),
+      expect.any(Array)
+    );
+  });
+
   it("rethrows a genuine update failure instead of falling through to create", async () => {
     account.listIdentities.mockResolvedValue({
       identities: [oidcIdentity("s1715738@bi.no")],

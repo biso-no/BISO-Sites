@@ -73,3 +73,22 @@ export type SelfServiceProfileInput = z.infer<typeof selfServiceProfileSchema>;
 export function buildProfileRowPermissions(userId: string): string[] {
   return [Permission.read(Role.user(userId))];
 }
+
+/** Size of the `user.email` column. */
+export const PROFILE_EMAIL_MAX_LENGTH = 100;
+
+/**
+ * The `email` to stamp on an account's profile row: the address the account
+ * signs in with. Never self-service — every server-side profile write takes it
+ * from the account, never from the request. An address the column cannot hold
+ * is left out, so the rest of the write still lands.
+ */
+export function accountEmailField(email: string | null | undefined): {
+  email?: string;
+} {
+  const trimmed = email?.trim();
+  if (!trimmed || trimmed.length > PROFILE_EMAIL_MAX_LENGTH) {
+    return {};
+  }
+  return { email: trimmed };
+}

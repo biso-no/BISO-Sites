@@ -17,7 +17,10 @@ import {
   identityBacksStudentId,
   parseBiStudentEmail,
 } from "./bi-student";
-import { buildProfileRowPermissions } from "./profile-fields";
+import {
+  accountEmailField,
+  buildProfileRowPermissions,
+} from "./profile-fields";
 
 // The bi_* columns are pending an `appwrite push tables`; extend locally until
 // packages/api/types/appwrite.ts is regenerated.
@@ -498,6 +501,7 @@ export async function syncBiStudentIdentityFor(
     }
 
     const update: Partial<BiUser> = {
+      ...accountEmailField(user.email),
       student_id: parsed.studentId,
       bi_linked_at: new Date().toISOString(),
     };
