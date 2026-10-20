@@ -206,6 +206,13 @@
                     "size": 100,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "notify_push",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
             "indexes": [
@@ -710,6 +717,18 @@
                     "array": false,
                     "default": null,
                     "format": ""
+                },
+                {
+                    "key": "locale",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "en",
+                        "no"
+                    ]
                 }
             ],
             "indexes": [
@@ -3594,6 +3613,66 @@
                     "twoWayKey": "announcements",
                     "onDelete": "setNull",
                     "side": "parent"
+                },
+                {
+                    "key": "source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "manual",
+                    "format": "enum",
+                    "elements": [
+                        "manual",
+                        "auto"
+                    ]
+                },
+                {
+                    "key": "content_type",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "event",
+                        "news",
+                        "job"
+                    ]
+                },
+                {
+                    "key": "content_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "content_ids",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "items",
+                    "type": "mediumtext",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "image",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -3638,6 +3717,145 @@
                         "audience_type"
                     ],
                     "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_content",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "content_type",
+                        "content_id"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "content_notifications",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Content Notifications",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "content_type",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "event",
+                        "news",
+                        "job"
+                    ]
+                },
+                {
+                    "key": "content_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "channel",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "pending",
+                    "format": "enum",
+                    "elements": [
+                        "pending",
+                        "sent",
+                        "skipped",
+                        "cancelled"
+                    ]
+                },
+                {
+                    "key": "reason",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "due_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "sent_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "announcement_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_status_due",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status",
+                        "due_at"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "uniq_content",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "content_type",
+                        "content_id"
+                    ],
+                    "orders": [
+                        "ASC",
                         "ASC"
                     ]
                 }
@@ -4600,6 +4818,13 @@
                     "array": false,
                     "default": null,
                     "format": ""
+                },
+                {
+                    "key": "notify_push",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
             "indexes": [
@@ -12215,6 +12440,356 @@
         {
             "$id": "general",
             "name": "Important announcements",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_no",
+            "name": "Everyone (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_en",
+            "name": "Everyone (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_oslo_no",
+            "name": "Everyone — Oslo (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_oslo_en",
+            "name": "Everyone — Oslo (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_bergen_no",
+            "name": "Everyone — Bergen (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_bergen_en",
+            "name": "Everyone — Bergen (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_trondheim_no",
+            "name": "Everyone — Trondheim (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_trondheim_en",
+            "name": "Everyone — Trondheim (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_stavanger_no",
+            "name": "Everyone — Stavanger (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "general_stavanger_en",
+            "name": "Everyone — Stavanger (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_oslo_no",
+            "name": "News — Oslo (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_oslo_en",
+            "name": "News — Oslo (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_bergen_no",
+            "name": "News — Bergen (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_bergen_en",
+            "name": "News — Bergen (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_trondheim_no",
+            "name": "News — Trondheim (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_trondheim_en",
+            "name": "News — Trondheim (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_stavanger_no",
+            "name": "News — Stavanger (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_stavanger_en",
+            "name": "News — Stavanger (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_national_no",
+            "name": "News — National (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "news_national_en",
+            "name": "News — National (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_oslo_no",
+            "name": "Events — Oslo (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_oslo_en",
+            "name": "Events — Oslo (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_bergen_no",
+            "name": "Events — Bergen (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_bergen_en",
+            "name": "Events — Bergen (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_trondheim_no",
+            "name": "Events — Trondheim (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_trondheim_en",
+            "name": "Events — Trondheim (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_stavanger_no",
+            "name": "Events — Stavanger (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_stavanger_en",
+            "name": "Events — Stavanger (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_national_no",
+            "name": "Events — National (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "events_national_en",
+            "name": "Events — National (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_oslo_no",
+            "name": "Jobs — Oslo (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_oslo_en",
+            "name": "Jobs — Oslo (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_bergen_no",
+            "name": "Jobs — Bergen (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_bergen_en",
+            "name": "Jobs — Bergen (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_trondheim_no",
+            "name": "Jobs — Trondheim (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_trondheim_en",
+            "name": "Jobs — Trondheim (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_stavanger_no",
+            "name": "Jobs — Stavanger (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_stavanger_en",
+            "name": "Jobs — Stavanger (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_national_no",
+            "name": "Jobs — National (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "jobs_national_en",
+            "name": "Jobs — National (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_oslo_no",
+            "name": "Shop — Oslo (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_oslo_en",
+            "name": "Shop — Oslo (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_bergen_no",
+            "name": "Shop — Bergen (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_bergen_en",
+            "name": "Shop — Bergen (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_trondheim_no",
+            "name": "Shop — Trondheim (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_trondheim_en",
+            "name": "Shop — Trondheim (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_stavanger_no",
+            "name": "Shop — Stavanger (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_stavanger_en",
+            "name": "Shop — Stavanger (English)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_national_no",
+            "name": "Shop — National (Norsk)",
+            "subscribe": [
+                "users"
+            ]
+        },
+        {
+            "$id": "shop_national_en",
+            "name": "Shop — National (English)",
             "subscribe": [
                 "users"
             ]
