@@ -3,7 +3,7 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Announcements } from "@repo/api/types/appwrite";
-import { resolveAnnouncementTopicId } from "@repo/shared/utils/notification-topics";
+import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
 import {
   buildDeepLink,
@@ -407,6 +407,10 @@ function buildAnnouncementColumns(
     audience_type: values.audience_type,
     audience_value: audienceValue,
     event_id: values.event_id || null,
+    // An event-linked announcement records the event as its content, like an
+    // automatic event send does; anything else carries no content link.
+    content_type: values.event_id ? "event" : null,
+    content_id: values.event_id || null,
     // Canonical ownership relationships; the scalar column remains as
     // migration-era compatibility metadata only.
     campus: values.campus_id || null,
@@ -577,25 +581,30 @@ export async function updateAnnouncement(
       departmentId: validated.data.department_id ?? null,
     });
 
-    // A sent row is already in students' inboxes. The inbox scopes a topic row
-    // to its campus, and honours opt-outs, only when `audience_value` is a
-    // campus-scoped id such as "events_oslo" — a bare "events" is shown to
-    // every campus. The composer edits the logical topic, so resolve a sent
-    // row's topic here, against the campus being saved, as dispatch would: the
-    // row is then scoped even if a re-send is deferred or never runs. Drafts
-    // and scheduled rows keep the logical topic; dispatch resolves it and
-    // writes the id back when they go out. The status is the stored row's,
-    // never the caller's.
-    const audienceValue =
-      announcement.status === "sent" && validated.data.audience_type === "topic"
-        ? resolveAnnouncementTopicId(
+    // A sent row is already in students' inboxes. The inbox scopes a topic or
+    // broadcast row to its campus, and honours opt-outs, only when
+    // `audience_value` holds the resolved channel, such as "events_oslo" or
+    // "general_oslo" — a bare "events", or an empty broadcast, is shown to
+    // every campus. The composer edits the logical topic (and no value for a
+    // broadcast), so resolve a sent row's channel here, against the campus
+    // being saved, as dispatch would: the row is then scoped even if a re-send
+    // is deferred or never runs. Drafts and scheduled rows keep the logical
+    // value; dispatch resolves it and writes the channel back when they go
+    // out. The status is the stored row's, never the caller's.
+    const sentChannel =
+      announcement.status === "sent"
+        ? resolvePushChannel(
+            validated.data.audience_type,
             validated.data.audience_value,
             validated.data.campus_id || null
           )
-        : await normalizeAudienceValue(
-            validated.data.audience_type,
-            validated.data.audience_value
-          );
+        : null;
+    const audienceValue =
+      sentChannel ??
+      (await normalizeAudienceValue(
+        validated.data.audience_type,
+        validated.data.audience_value
+      ));
 
     await db.updateRow("app", "announcements", id, {
       ...buildAnnouncementColumns(validated.data, audienceValue),
@@ -716,15 +725,17 @@ const dispatchPersistedAnnouncement = async ({
     sent_at: new Date().toISOString(),
     data: dataPayload,
     deep_link: enriched.deep_link,
-    // Persist the topic id dispatch actually resolved and pushed to, so the
-    // row records reality instead of the logical topic the composer wrote.
+    // Persist the channel dispatch actually resolved and pushed to, so the
+    // row records reality instead of the logical value the composer wrote.
     // Without this, the Flutter inbox's campus/opt-out filtering (which only
-    // recognises campus-scoped ids like "events_oslo") never applies to this
-    // row and it falls back to always-visible. Only a `topic` audience has a
-    // topic to persist — broadcast/segment/users are untouched, and an
-    // already campus-scoped value passes through `resolveAnnouncementTopicId`
-    // unchanged, so re-dispatch is idempotent.
-    ...(announcement.audience_type === "topic" && resolvedTopic
+    // recognises channel ids like "events_oslo" or "general_oslo") never
+    // applies to this row and it falls back to always-visible. Only `topic`
+    // and `broadcast` audiences have a channel to persist — segment/users are
+    // untouched, and an already-resolved value resolves to itself, so
+    // re-dispatch is idempotent.
+    ...((announcement.audience_type === "topic" ||
+      announcement.audience_type === "broadcast") &&
+    resolvedTopic
       ? { audience_value: resolvedTopic }
       : {}),
   });

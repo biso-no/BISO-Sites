@@ -102,9 +102,12 @@ interface EventTranslationSnapshot {
 /**
  * Send a published-event push through the unified announcement delivery path.
  * Creates a transient `announcement` row (category "event", topic audience on
- * the campus-scoped "events" topic, e.g. "events_oslo" or "events_national")
- * and dispatches it. Resilient by design: any failure is logged and never
- * blocks publishing.
+ * the campus-scoped "events" topic, e.g. "events_oslo" or "events_national",
+ * marked as an automatic send linked to the event) and dispatches it.
+ * Resilient by design: any failure is logged and never blocks publishing.
+ *
+ * Callers send only on the transition into "published", never on a save of an
+ * already-published event, so editing a live event doesn't push it again.
  */
 async function sendEventAnnouncement(input: {
   eventId: string;
@@ -134,6 +137,9 @@ async function sendEventAnnouncement(input: {
         body_en: input.bodyEn,
         body_no: input.bodyNo,
         event_id: input.eventId,
+        source: "auto",
+        content_type: "event",
+        content_id: input.eventId,
         campus: input.campusId,
         campus_id: input.campusId,
         deep_link: deepLink,
@@ -804,7 +810,11 @@ export async function updateEvent(
       },
     });
 
-    if (validated.data.status === "published" && validated.data.notify_push) {
+    // Push only when this save publishes the event: `event` is the row as
+    // stored before the save, so re-saving a live event doesn't re-send.
+    const publishesNow =
+      event.status !== "published" && validated.data.status === "published";
+    if (publishesNow && validated.data.notify_push) {
       await sendEventAnnouncement({
         eventId: id,
         titleEn: validated.data.title_en,
@@ -940,7 +950,9 @@ export async function publishEvent(id: string) {
       payload: { status: "published" },
     });
 
-    if (event.notify_push) {
+    // Push only on the transition into "published"; publishing an event
+    // that is already live doesn't send it again.
+    if (event.status !== "published" && event.notify_push) {
       const enTranslation = publishTranslations.rows.find(
         (row) => row.locale === "en"
       );

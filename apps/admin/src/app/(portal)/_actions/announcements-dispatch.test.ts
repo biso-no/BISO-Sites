@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Announcements } from "@repo/api/types/appwrite";
-import { resolveAnnouncementTopicId } from "@repo/shared/utils/notification-topics";
+import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
 import type { DispatchAnnouncementResult } from "@/lib/announcements/send";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { AnnouncementFormValues } from "./schemas";
@@ -35,26 +35,25 @@ const globalAdminCtx: UserAuthContext = {
 
 /**
  * What the real `dispatchAnnouncement` reports for a row, without delivering
- * anything: the topic the real `resolveAnnouncementTopicId` resolves from the
- * row's own `audience_value` and `campus_id`, and only for a TOPIC audience
- * (see `DispatchAnnouncementResult`). The ids these tests expect are produced
- * by that resolution rather than dictated by the stub, so a broken resolver —
- * or a row that reaches dispatch with the wrong audience or campus — fails
- * them. The resolver lives outside the mocked `send` module for this reason.
+ * anything: the channel the real `resolvePushChannel` resolves from the row's
+ * own `audience_type`, `audience_value` and `campus_id`, for a TOPIC or
+ * BROADCAST audience only (see `DispatchAnnouncementResult`). The ids these
+ * tests expect are produced by that resolution rather than dictated by the
+ * stub, so a broken resolver — or a row that reaches dispatch with the wrong
+ * audience or campus — fails them. The resolver lives outside the mocked
+ * `send` module for this reason.
  */
 function resolveLikeDispatch(
   announcement: Announcements
 ): DispatchAnnouncementResult {
-  if (announcement.audience_type !== "topic") {
-    return { recipients: 0 };
-  }
-  return {
-    recipients: 0,
-    topic: resolveAnnouncementTopicId(
-      announcement.audience_value,
-      announcement.campus_id
-    ),
-  };
+  const channel = resolvePushChannel(
+    announcement.audience_type,
+    announcement.audience_value,
+    announcement.campus_id
+  );
+  return channel === null
+    ? { recipients: 0 }
+    : { recipients: 0, topic: channel };
 }
 
 const dispatchAnnouncement = mock(
@@ -180,18 +179,37 @@ describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
     );
   });
 
-  test("does not write audience_value for a broadcast announcement, even when dispatch reports a topic", async () => {
-    // The real dispatch never reports a topic for a broadcast. This one does,
-    // so the only thing keeping it off the row is the `audience_type ===
-    // "topic"` check where the sent row is written.
-    dispatchAnnouncement.mockResolvedValueOnce({
-      recipients: 0,
-      topic: "general",
-    });
+  test.each([
+    ["1", "general_oslo"],
+    ["5", "general"],
+    [null, "general"],
+  ])("persists the resolved channel for a broadcast announcement (campus %p)", async (campusId, channel) => {
     mockAnnouncementRow({
       ...baseRow,
       audience_type: "broadcast",
       audience_value: null,
+      campus_id: campusId,
+    });
+
+    await sendAnnouncement("announcement-1");
+
+    expect(findSentUpdate()).toEqual(
+      expect.objectContaining({ audience_value: channel })
+    );
+  });
+
+  test("does not write audience_value for a users announcement, even when dispatch reports a topic", async () => {
+    // The real dispatch never reports a topic for people. This one does, so
+    // the only thing keeping it off the row is the audience check where the
+    // sent row is written.
+    dispatchAnnouncement.mockResolvedValueOnce({
+      recipients: 1,
+      topic: "general",
+    });
+    mockAnnouncementRow({
+      ...baseRow,
+      audience_type: "users",
+      audience_value: '["u1"]',
     });
 
     await sendAnnouncement("announcement-1");
@@ -340,6 +358,75 @@ describe("updateAnnouncement keeps a sent topic announcement campus-scoped", () 
     expect(storedRow).toMatchObject({
       audience_value: "events_bergen",
       status: "sent",
+    });
+  });
+});
+
+/** A broadcast as dispatch leaves it: sent, its channel resolved. */
+const sentBroadcastRow = {
+  ...baseRow,
+  audience_type: "broadcast",
+  audience_value: "general_oslo",
+  sent_at: "2026-09-01T00:00:00.000Z",
+  status: "sent",
+};
+
+// The inbox filters sent broadcasts on the stored channel, so a save from the
+// composer — which edits a broadcast with no audience value — must not wipe it.
+describe("updateAnnouncement keeps a sent broadcast's channel", () => {
+  test("a save with nothing changed keeps the stored channel", async () => {
+    mockAnnouncementRow(sentBroadcastRow);
+
+    await updateAnnouncement(
+      "announcement-1",
+      composerValues({ audience_type: "broadcast", audience_value: null })
+    );
+
+    expect(storedRow).toMatchObject({
+      audience_type: "broadcast",
+      audience_value: "general_oslo",
+      status: "sent",
+    });
+  });
+
+  test.each([
+    ["2", "general_bergen"],
+    [null, "general"],
+  ])("a save that moves it to campus %p stores that campus's channel", async (campusId, channel) => {
+    mockAnnouncementRow(sentBroadcastRow);
+
+    await updateAnnouncement(
+      "announcement-1",
+      composerValues({
+        audience_type: "broadcast",
+        audience_value: null,
+        campus_id: campusId,
+      })
+    );
+
+    expect(storedRow).toMatchObject({
+      audience_value: channel,
+      campus_id: campusId,
+      status: "sent",
+    });
+  });
+
+  test("a draft broadcast keeps no stored channel", async () => {
+    mockAnnouncementRow({
+      ...baseRow,
+      audience_type: "broadcast",
+      audience_value: null,
+    });
+
+    await updateAnnouncement(
+      "announcement-1",
+      composerValues({ audience_type: "broadcast", audience_value: null })
+    );
+
+    expect(storedRow).toMatchObject({
+      audience_type: "broadcast",
+      audience_value: null,
+      status: "draft",
     });
   });
 });

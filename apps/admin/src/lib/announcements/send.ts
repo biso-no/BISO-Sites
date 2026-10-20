@@ -13,9 +13,10 @@ import {
   dispatchAnnouncement,
 } from "@repo/shared/utils/push-dispatch";
 
-// The push dispatch itself lives in `@repo/shared/utils/push-dispatch` so web
-// and admin share one implementation. Re-exported here so admin callers keep
-// importing from `@/lib/announcements/send`.
+// The push dispatch itself lives in `@repo/shared/utils/push-dispatch` so admin
+// and the content-notifier Appwrite Function share one implementation.
+// Re-exported here so admin callers keep importing from
+// `@/lib/announcements/send`.
 export {
   buildDeepLink,
   buildPushData,
@@ -70,11 +71,13 @@ export async function dispatchDueAnnouncements(
         sent_at: now.toISOString(),
         data: enriched.data,
         deep_link: enriched.deep_link,
-        // Persist the resolved topic id onto a TOPIC row so it records what
-        // it was actually pushed to (see `DispatchAnnouncementResult`).
-        // Idempotent: an already campus-scoped `audience_value` resolves to
-        // itself, so re-dispatching a row doesn't change it further.
-        ...(announcement.audience_type === AnnouncementsAudienceType.TOPIC &&
+        // Persist the resolved channel onto a TOPIC or BROADCAST row so it
+        // records what it was actually pushed to (see
+        // `DispatchAnnouncementResult`). Idempotent: an already-resolved
+        // `audience_value` resolves to itself, so re-dispatching a row doesn't
+        // change it further.
+        ...((announcement.audience_type === AnnouncementsAudienceType.TOPIC ||
+          announcement.audience_type === AnnouncementsAudienceType.BROADCAST) &&
         dispatchResult.topic
           ? { audience_value: dispatchResult.topic }
           : {}),

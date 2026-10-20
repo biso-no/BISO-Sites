@@ -108,13 +108,16 @@ mock.module("./audit-log", () => ({
 // NOTE: never mock.module("./announcements") here — bun module mocks are
 // process-wide and would clobber the real announcements action module for
 // every later test file in the suite.
+const dispatchAnnouncement = mock(async () => ({ recipients: 0 }));
 mock.module("@/lib/announcements/send", () => ({
   buildPushData: mock(() => ({})),
   buildDeepLink: mock(() => "biso://announcements/announcement-1"),
-  dispatchAnnouncement: mock(async () => ({ recipients: 0 })),
+  dispatchAnnouncement,
 }));
 
-const { createEvent, getEvent, updateEvent } = await import("./events");
+const { createEvent, getEvent, publishEvent, updateEvent } = await import(
+  "./events"
+);
 const { createSegment } = await import("./event-segments");
 
 function mockEventRow(event: Record<string, unknown> | null): void {
@@ -128,6 +131,7 @@ function mockEventRow(event: Record<string, unknown> | null): void {
 
 beforeEach(() => {
   currentCtx = departmentCtx;
+  dispatchAnnouncement.mockClear();
   db.createRow.mockReset();
   db.deleteRow.mockReset();
   db.getRow.mockReset();
@@ -224,6 +228,79 @@ describe("event relationship persistence", () => {
     });
 
     await expect(getEvent("event-1")).resolves.toBeNull();
+  });
+});
+
+describe("event push on publish", () => {
+  const storedEvent = {
+    $id: "event-1",
+    campus: { $id: "campus-oslo" },
+    department: { $id: "dept-1" },
+    member_only: false,
+    notify_push: true,
+    slug: "student-event",
+  };
+  const publishedValues: EventUpsertInput = {
+    ...departmentEventValues,
+    notify_push: true,
+    status: EventsStatus.PUBLISHED,
+  };
+
+  test("re-saving an already-published event sends no push", async () => {
+    mockEventRow({ ...storedEvent, status: "published" });
+
+    const result = await updateEvent("event-1", publishedValues);
+
+    expect(result).toEqual({ data: "event-1" });
+    expect(dispatchAnnouncement).not.toHaveBeenCalled();
+  });
+
+  test("publishing a draft through a save sends the push once", async () => {
+    mockEventRow({ ...storedEvent, status: "draft" });
+
+    const result = await updateEvent("event-1", publishedValues);
+
+    expect(result).toEqual({ data: "event-1" });
+    expect(dispatchAnnouncement).toHaveBeenCalledTimes(1);
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "announcements",
+      expect.any(String),
+      expect.objectContaining({
+        content_id: "event-1",
+        content_type: "event",
+        event_id: "event-1",
+        source: "auto",
+      })
+    );
+  });
+
+  test("publishing an already-published event sends no push", async () => {
+    mockEventRow({ ...storedEvent, status: "published" });
+
+    const result = await publishEvent("event-1");
+
+    expect(result).toEqual({ data: "event-1" });
+    expect(dispatchAnnouncement).not.toHaveBeenCalled();
+  });
+
+  test("publishing a draft sends the push once", async () => {
+    mockEventRow({ ...storedEvent, status: "draft" });
+
+    const result = await publishEvent("event-1");
+
+    expect(result).toEqual({ data: "event-1" });
+    expect(dispatchAnnouncement).toHaveBeenCalledTimes(1);
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "announcements",
+      expect.any(String),
+      expect.objectContaining({
+        content_id: "event-1",
+        content_type: "event",
+        source: "auto",
+      })
+    );
   });
 });
 

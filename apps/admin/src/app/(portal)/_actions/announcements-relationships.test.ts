@@ -150,6 +150,32 @@ describe("announcement ownership persistence", () => {
     );
   });
 
+  test("an event-linked announcement records the event as its content", async () => {
+    await createAnnouncement({ ...departmentValues, event_id: "event-1" });
+
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "announcements",
+      expect.any(String),
+      expect.objectContaining({
+        content_id: "event-1",
+        content_type: "event",
+        event_id: "event-1",
+      })
+    );
+  });
+
+  test("an announcement with no event records no content", async () => {
+    await createAnnouncement(departmentValues);
+
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "announcements",
+      expect.any(String),
+      expect.objectContaining({ content_id: null, content_type: null })
+    );
+  });
+
   test("department author keeps their own department", async () => {
     const result = await createAnnouncement({
       ...departmentValues,

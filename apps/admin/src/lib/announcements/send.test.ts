@@ -127,12 +127,16 @@ describe("dispatchDueAnnouncements", () => {
     );
   });
 
-  test("does not add audience_value when marking a broadcast row sent", async () => {
+  test.each([
+    ["1", "general_oslo"],
+    [null, "general"],
+  ])("persists the resolved channel when marking a broadcast row sent (campus %p)", async (campusId, channel) => {
     const row = makeAnnouncement({
       $id: "row-3",
       status: "scheduled",
       audience_type: "broadcast",
       audience_value: null,
+      campus_id: campusId,
       data: null,
     });
     const { clients, db } = makeDueClients([row]);
@@ -141,6 +145,27 @@ describe("dispatchDueAnnouncements", () => {
 
     // `db.updateRow` is also called once for the row's read permissions;
     // find the call that actually flips status to "sent" and check that one.
+    const sentCall = db.updateRow.mock.calls.find(
+      (call) =>
+        (call[3] as Record<string, unknown> | undefined)?.status === "sent"
+    );
+    expect(sentCall?.[3]).toEqual(
+      expect.objectContaining({ audience_value: channel })
+    );
+  });
+
+  test("does not add audience_value when marking a users row sent", async () => {
+    const row = makeAnnouncement({
+      $id: "row-6",
+      status: "scheduled",
+      audience_type: "users",
+      audience_value: '["u1"]',
+      data: null,
+    });
+    const { clients, db } = makeDueClients([row]);
+
+    await dispatchDueAnnouncements(clients, new Date("2026-01-01T00:00:00Z"));
+
     const sentCall = db.updateRow.mock.calls.find(
       (call) =>
         (call[3] as Record<string, unknown> | undefined)?.status === "sent"
