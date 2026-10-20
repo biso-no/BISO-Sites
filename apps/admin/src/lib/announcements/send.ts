@@ -9,8 +9,10 @@ import {
   type SegmentMembers,
   type UserNotifications,
 } from "@repo/api/types/appwrite";
-import { GENERAL_TOPIC_ID } from "@repo/shared/utils/notification-topics";
-import { resolveAnnouncementTopicId } from "./topic-id";
+import {
+  GENERAL_TOPIC_ID,
+  resolveAnnouncementTopicId,
+} from "@repo/shared/utils/notification-topics";
 
 /** Appwrite list pagination ceiling for a single `Query.limit` call. */
 const SEGMENT_MEMBER_PAGE_SIZE = 200;
@@ -232,7 +234,7 @@ async function applyAnnouncementReadPermissions(
  * Result of dispatching a single announcement.
  *
  * `topic` is set only for a TOPIC audience, to the actual Appwrite topic id
- * the push was resolved to and sent on (see `resolveAnnouncementTopicId`).
+ * the push was resolved to and sent on (see `resolveAnnouncementTopicId` in `@repo/shared/utils/notification-topics`).
  * Callers persist it back onto the row's `audience_value` so the stored value
  * matches what was really pushed to — that's what lets the Flutter inbox's
  * campus/opt-out filtering (which only recognises campus-scoped ids) apply to

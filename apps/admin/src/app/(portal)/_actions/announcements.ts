@@ -3,9 +3,9 @@
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type { Announcements } from "@repo/api/types/appwrite";
+import { resolveAnnouncementTopicId } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
 import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
-import { resolveAnnouncementTopicId } from "@/lib/announcements/topic-id";
 import { requireAuth } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
@@ -597,8 +597,7 @@ export async function updateAnnouncement(
     // writes the id back when they go out. The status is the stored row's,
     // never the caller's.
     const audienceValue =
-      announcement.status === "sent" &&
-      validated.data.audience_type === "topic"
+      announcement.status === "sent" && validated.data.audience_type === "topic"
         ? resolveAnnouncementTopicId(
             validated.data.audience_value,
             validated.data.campus_id || null

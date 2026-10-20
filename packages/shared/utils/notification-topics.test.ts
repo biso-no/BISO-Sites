@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALL_PUSH_TOPIC_IDS,
+  broadcastChannelFor,
   campusSlugFor,
   GENERAL_TOPIC_ID,
   isNotificationTopic,
+  localizedTopicId,
   logicalTopicFor,
   NOTIFICATION_TOPICS,
+  resolveAnnouncementTopicId,
+  resolvePushChannel,
   topicIdFor,
 } from "./notification-topics";
 
@@ -96,5 +101,85 @@ describe("the taxonomy", () => {
 
   it("keeps general out of the campus-scoped set", () => {
     expect(NOTIFICATION_TOPICS).not.toContain(GENERAL_TOPIC_ID);
+  });
+});
+
+describe("resolveAnnouncementTopicId", () => {
+  it("resolves an empty audience value to the general topic", () => {
+    expect(resolveAnnouncementTopicId("", "1")).toBe("general");
+    expect(resolveAnnouncementTopicId(null, "1")).toBe("general");
+    expect(resolveAnnouncementTopicId(undefined, "1")).toBe("general");
+  });
+
+  it("resolves a whitespace-only audience value to the general topic", () => {
+    expect(resolveAnnouncementTopicId("   ", "1")).toBe("general");
+  });
+
+  it("expands a logical topic to its campus-scoped id", () => {
+    expect(resolveAnnouncementTopicId("events", "1")).toBe("events_oslo");
+  });
+
+  it("falls back to the national scope when the campus is null - campus-less content reaches every campus's subscribers", () => {
+    expect(resolveAnnouncementTopicId("events", null)).toBe("events_national");
+  });
+
+  it("maps the retired 'products' alias to the 'shop' topic", () => {
+    expect(resolveAnnouncementTopicId("products", "2")).toBe("shop_bergen");
+  });
+
+  it("passes an already campus-scoped topic id through unchanged, regardless of the announcement's campus", () => {
+    expect(resolveAnnouncementTopicId("events_oslo", "2")).toBe("events_oslo");
+    expect(resolveAnnouncementTopicId("events_oslo", null)).toBe("events_oslo");
+  });
+
+  it("passes 'general' through unchanged", () => {
+    expect(resolveAnnouncementTopicId("general", "1")).toBe("general");
+  });
+});
+
+describe("localizedTopicId", () => {
+  it("appends the language", () => {
+    expect(localizedTopicId("events_bergen", "no")).toBe("events_bergen_no");
+    expect(localizedTopicId("general", "en")).toBe("general_en");
+  });
+});
+
+describe("broadcastChannelFor", () => {
+  it("scopes to a real campus", () => {
+    expect(broadcastChannelFor("1")).toBe("general_oslo");
+    expect(broadcastChannelFor("4")).toBe("general_stavanger");
+  });
+  it("means everyone for National, no campus or an unknown campus", () => {
+    expect(broadcastChannelFor("5")).toBe("general");
+    expect(broadcastChannelFor(null)).toBe("general");
+    expect(broadcastChannelFor("")).toBe("general");
+    expect(broadcastChannelFor("99")).toBe("general");
+  });
+});
+
+describe("resolvePushChannel", () => {
+  it("resolves topic and broadcast audiences, not people", () => {
+    expect(resolvePushChannel("topic", "events", "2")).toBe("events_bergen");
+    expect(resolvePushChannel("broadcast", null, "2")).toBe("general_bergen");
+    expect(resolvePushChannel("broadcast", null, "5")).toBe("general");
+    expect(resolvePushChannel("users", '["u1"]', "2")).toBeNull();
+    expect(resolvePushChannel("segment", "seg1", "2")).toBeNull();
+  });
+});
+
+describe("ALL_PUSH_TOPIC_IDS", () => {
+  it("lists exactly the 50 language channels", () => {
+    expect(ALL_PUSH_TOPIC_IDS).toHaveLength(50);
+    expect(new Set(ALL_PUSH_TOPIC_IDS).size).toBe(50);
+    expect(ALL_PUSH_TOPIC_IDS).toContain("general_no");
+    expect(ALL_PUSH_TOPIC_IDS).toContain("general_oslo_en");
+    expect(ALL_PUSH_TOPIC_IDS).toContain("events_national_en");
+    expect(ALL_PUSH_TOPIC_IDS).toContain("shop_stavanger_no");
+    expect(ALL_PUSH_TOPIC_IDS).not.toContain("general_national_no");
+  });
+  it("fits Appwrite's 36-character id limit", () => {
+    for (const id of ALL_PUSH_TOPIC_IDS) {
+      expect(id.length).toBeLessThanOrEqual(36);
+    }
   });
 });

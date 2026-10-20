@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Announcements } from "@repo/api/types/appwrite";
+import { resolveAnnouncementTopicId } from "@repo/shared/utils/notification-topics";
 import type { DispatchAnnouncementResult } from "@/lib/announcements/send";
-import { resolveAnnouncementTopicId } from "@/lib/announcements/topic-id";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { AnnouncementFormValues } from "./schemas";
 
