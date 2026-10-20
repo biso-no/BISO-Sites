@@ -21,4 +21,10 @@ describe("appwrite.config.json push topics", () => {
       expect(byId.get(id)?.subscribe, id).toEqual(["users"]);
     }
   });
+
+  it("appwrite.config.json defines exactly the push topics", () => {
+    expect(new Set(config.topics.map((topic) => topic.$id))).toEqual(
+      new Set(ALL_PUSH_TOPIC_IDS)
+    );
+  });
 });
