@@ -327,3 +327,41 @@ describe("re-saving a sent topic announcement from the composer", () => {
     });
   });
 });
+
+describe("the review step says who an Everyone announcement reaches", () => {
+  function reviewAudience(container: TestElement): string {
+    // A review row reads as its label, then its value: "AudienceEveryone…".
+    return findButtonWhere(container, "Audience review row", (text) =>
+      text.startsWith("Audience")
+    ).textContent.slice("Audience".length);
+  }
+
+  test("a campus broadcast names the campus", async () => {
+    const composer = await openInComposer({
+      ...draftBroadcastRow,
+      campus_id: "2",
+    });
+
+    await click(
+      findButtonWhere(composer, "Review step", (text) =>
+        text.endsWith("Review")
+      )
+    );
+
+    expect(reviewAudience(composer)).toBe("Everyone at Bergen");
+  });
+
+  test("an app-wide broadcast reaches all campuses", async () => {
+    const composer = await openInComposer(draftBroadcastRow);
+
+    await openDistributionStep(composer);
+    await chooseCampus(composer, "");
+    await click(
+      findButtonWhere(composer, "Review step", (text) =>
+        text.endsWith("Review")
+      )
+    );
+
+    expect(reviewAudience(composer)).toBe("Everyone (all campuses)");
+  });
+});

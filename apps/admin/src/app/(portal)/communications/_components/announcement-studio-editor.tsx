@@ -1,7 +1,11 @@
 "use client";
 
 import type { Announcements } from "@repo/api/types/appwrite";
-import { logicalTopicFor } from "@repo/shared/utils/notification-topics";
+import {
+  broadcastChannelFor,
+  GENERAL_TOPIC_ID,
+  logicalTopicFor,
+} from "@repo/shared/utils/notification-topics";
 import {
   isoToOsloWallClock,
   OSLO_TIME_ZONE,
@@ -124,7 +128,7 @@ const AUDIENCE_TYPES: Array<{
   {
     id: "broadcast",
     label: "Everyone",
-    description: "Broadcast to every app user via the default topic.",
+    description: "Every app user at the campus you pick below.",
     icon: Globe,
   },
   {
@@ -185,7 +189,8 @@ const WHITESPACE_PATTERN = /\s+/g;
 /**
  * Flatten the editor's HTML body to a single line of plain text for the push
  * previews and audience checks. Matches the dispatch-side flattening in
- * `lib/announcements/send.ts`.
+ * `@repo/shared/utils/push-dispatch` (`htmlToPlainText`), which this client
+ * component can't import because that module pulls in the server SDK.
  */
 function htmlToPlainText(html: string | null | undefined): string {
   if (!html) {
@@ -885,10 +890,30 @@ function ContentStep({
 /*                              Distribution step                             */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The campus an Everyone announcement is limited to, or `null` when it reaches
+ * every app user. Same rule as dispatch (`broadcastChannelFor`): a real campus
+ * scopes it to that campus; National or no campus means everyone.
+ */
+function broadcastCampusName(
+  campusId: string | null | undefined,
+  campusOptions: Array<{ value: string; label: string }>
+): string | null {
+  if (broadcastChannelFor(campusId) === GENERAL_TOPIC_ID) {
+    return null;
+  }
+  return (
+    campusOptions.find((campus) => campus.value === campusId)?.label ??
+    "the selected campus"
+  );
+}
+
 function AudienceDetail({
+  campusOptions,
   set,
   values,
 }: {
+  campusOptions: Array<{ value: string; label: string }>;
   set: <K extends keyof AnnouncementFormValues>(
     key: K,
     value: AnnouncementFormValues[K]
@@ -954,9 +979,16 @@ function AudienceDetail({
     );
   }
 
+  const campusName = broadcastCampusName(values.campus_id, campusOptions);
+  const offersAllCampuses = campusOptions.some((campus) => campus.value === "");
   return (
     <p style={{ color: BRAND.ink4, fontSize: 12.5, margin: 0 }}>
-      Broadcast reaches every app user via the default app topic.
+      {campusName
+        ? `Everyone at ${campusName} gets this.`
+        : "Every app user gets this, at all campuses."}
+      {campusName && offersAllCampuses
+        ? " Choose “All campuses (app-wide)” as the campus to reach every app user."
+        : null}
     </p>
   );
 }
@@ -1005,7 +1037,11 @@ function DistributionStep({
       </div>
 
       <div style={{ marginTop: 18 }}>
-        <AudienceDetail set={set} values={values} />
+        <AudienceDetail
+          campusOptions={campusOptions}
+          set={set}
+          values={values}
+        />
       </div>
 
       <div style={{ display: "grid", gap: 22, marginTop: 24 }}>
@@ -1096,7 +1132,10 @@ function buildReviewRows(
     campusOptions.find((c) => c.value === (values.campus_id ?? ""))?.label ??
     "—";
   let audienceDetail = "";
-  if (values.audience_type === "topic") {
+  if (values.audience_type === "broadcast") {
+    const campusName = broadcastCampusName(values.campus_id, campusOptions);
+    audienceDetail = campusName ? ` at ${campusName}` : " (all campuses)";
+  } else if (values.audience_type === "topic") {
     audienceDetail = ` · ${values.audience_value ?? ""}`;
   } else if (values.audience_type === "users") {
     const count = (values.audience_value ?? "")
