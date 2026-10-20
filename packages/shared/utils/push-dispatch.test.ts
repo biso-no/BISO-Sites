@@ -1,4 +1,4 @@
-import { MessagePriority } from "@repo/api";
+import { MessagePriority, Permission, Role } from "@repo/api";
 import type { Announcements } from "@repo/api/types/appwrite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -82,6 +82,15 @@ describe("localizedPushContent", () => {
     });
     expect(c.no).toEqual({ title: "Party", body: "Fre" });
     expect(c.en).toEqual({ title: "Party", body: "Fre" });
+  });
+  it("falls back when a language's body is markup with no text", () => {
+    const c = localizedPushContent({
+      title_en: "Party",
+      title_no: "Fest",
+      body_en: "<p>Fri</p>",
+      body_no: "<p>&nbsp;</p>",
+    });
+    expect(c.no.body).toBe("Fri");
   });
 });
 
@@ -255,12 +264,12 @@ describe("dispatchAnnouncement", () => {
     expect(messaging.createPush).toHaveBeenCalledWith(
       expect.objectContaining({ topics: ["general_oslo_en"] })
     );
-    expect(result).toEqual({ recipients: 0 });
+    expect(result).toEqual({ recipients: 0, topic: "general_oslo" });
   });
 
   it("sends Everyone with no campus to everyone", async () => {
     const { clients, messaging } = makeClients();
-    await dispatchAnnouncement(
+    const result = await dispatchAnnouncement(
       makeAnnouncement({
         audience_type: "broadcast",
         audience_value: null,
@@ -274,6 +283,7 @@ describe("dispatchAnnouncement", () => {
     expect(messaging.createPush).toHaveBeenCalledWith(
       expect.objectContaining({ topics: ["general_en"] })
     );
+    expect(result).toEqual({ recipients: 0, topic: "general" });
   });
 
   it("sends urgent with high priority", async () => {
@@ -343,5 +353,120 @@ describe("dispatchAnnouncement", () => {
     await dispatchAnnouncement(makeAnnouncement({ push: false }), clients);
     expect(messaging.createPush).not.toHaveBeenCalled();
     expect(db.updateRow).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a fresh message id per push", async () => {
+    const { clients, messaging } = makeClients();
+    await dispatchAnnouncement(makeAnnouncement(), clients);
+    const calls = messaging.createPush.mock.calls as unknown as [
+      { messageId: string },
+    ][];
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.[0].messageId).not.toBe(calls[1]?.[0].messageId);
+  });
+
+  it("pushes a repeated recipient once", async () => {
+    const { clients, db, messaging } = makeClients([
+      { $id: "u1", locale: "no" },
+    ]);
+    const result = await dispatchAnnouncement(
+      makeAnnouncement({
+        audience_type: "users",
+        audience_value: '["u1","u1"]',
+      }),
+      clients
+    );
+    expect(messaging.createPush).toHaveBeenCalledTimes(1);
+    expect(messaging.createPush).toHaveBeenCalledWith(
+      expect.objectContaining({ users: ["u1"] })
+    );
+    expect(db.createRow).toHaveBeenCalledTimes(1);
+    expect(db.createRow).toHaveBeenCalledWith(
+      "app",
+      "user_notifications",
+      expect.any(String),
+      expect.objectContaining({ user_id: "u1" }),
+      expect.any(Array)
+    );
+    expect(result.recipients).toBe(1);
+  });
+
+  describe("restricts who can read the row", () => {
+    it.each([
+      ["topic", "events"],
+      ["broadcast", null],
+    ])("a %s row is readable by any signed-in user", async (audienceType, audienceValue) => {
+      const { clients, db } = makeClients();
+      await dispatchAnnouncement(
+        makeAnnouncement({
+          audience_type: audienceType,
+          audience_value: audienceValue,
+        }),
+        clients
+      );
+      expect(db.updateRow).toHaveBeenCalledTimes(1);
+      expect(db.updateRow).toHaveBeenCalledWith(
+        "app",
+        "announcements",
+        "announcement-1",
+        undefined,
+        [Permission.read(Role.users())]
+      );
+    });
+
+    it("a users row is readable by its recipients only", async () => {
+      const { clients, db } = makeClients([
+        { $id: "u1", locale: "no" },
+        { $id: "u2", locale: "en" },
+      ]);
+      await dispatchAnnouncement(
+        makeAnnouncement({
+          audience_type: "users",
+          audience_value: '["u1","u2"]',
+        }),
+        clients
+      );
+      expect(db.updateRow).toHaveBeenCalledTimes(1);
+      expect(db.updateRow).toHaveBeenCalledWith(
+        "app",
+        "announcements",
+        "announcement-1",
+        undefined,
+        [Permission.read(Role.user("u1")), Permission.read(Role.user("u2"))]
+      );
+    });
+  });
+
+  describe("makes the row readable before anything points at it", () => {
+    it("sets topic permissions before the pushes", async () => {
+      const { clients, db, messaging } = makeClients();
+      await dispatchAnnouncement(makeAnnouncement(), clients);
+      const permissionsAt = db.updateRow.mock.invocationCallOrder[0] ?? 0;
+      expect(messaging.createPush).toHaveBeenCalledTimes(2);
+      for (const pushAt of messaging.createPush.mock.invocationCallOrder) {
+        expect(permissionsAt).toBeLessThan(pushAt);
+      }
+    });
+
+    it("sets users permissions, then pushes, then fans out the inbox rows", async () => {
+      const { clients, db, messaging } = makeClients([
+        { $id: "u1", locale: "no" },
+        { $id: "u2", locale: "en" },
+      ]);
+      await dispatchAnnouncement(
+        makeAnnouncement({
+          audience_type: "users",
+          audience_value: '["u1","u2"]',
+        }),
+        clients
+      );
+      const permissionsAt = db.updateRow.mock.invocationCallOrder[0] ?? 0;
+      const pushes = messaging.createPush.mock.invocationCallOrder;
+      const inboxRows = db.createRow.mock.invocationCallOrder;
+      expect(pushes).toHaveLength(2);
+      expect(inboxRows).toHaveLength(2);
+      expect(permissionsAt).toBeLessThan(Math.min(...pushes));
+      expect(Math.max(...pushes)).toBeLessThan(Math.min(...inboxRows));
+    });
   });
 });

@@ -177,6 +177,62 @@ describe("ALL_PUSH_TOPIC_IDS", () => {
     expect(ALL_PUSH_TOPIC_IDS).toContain("shop_stavanger_no");
     expect(ALL_PUSH_TOPIC_IDS).not.toContain("general_national_no");
   });
+  it("is exactly this list, in a form to diff against the Flutter mirror", () => {
+    expect([...ALL_PUSH_TOPIC_IDS].sort()).toEqual(
+      [
+        "events_bergen_en",
+        "events_bergen_no",
+        "events_national_en",
+        "events_national_no",
+        "events_oslo_en",
+        "events_oslo_no",
+        "events_stavanger_en",
+        "events_stavanger_no",
+        "events_trondheim_en",
+        "events_trondheim_no",
+        "general_bergen_en",
+        "general_bergen_no",
+        "general_en",
+        "general_no",
+        "general_oslo_en",
+        "general_oslo_no",
+        "general_stavanger_en",
+        "general_stavanger_no",
+        "general_trondheim_en",
+        "general_trondheim_no",
+        "jobs_bergen_en",
+        "jobs_bergen_no",
+        "jobs_national_en",
+        "jobs_national_no",
+        "jobs_oslo_en",
+        "jobs_oslo_no",
+        "jobs_stavanger_en",
+        "jobs_stavanger_no",
+        "jobs_trondheim_en",
+        "jobs_trondheim_no",
+        "news_bergen_en",
+        "news_bergen_no",
+        "news_national_en",
+        "news_national_no",
+        "news_oslo_en",
+        "news_oslo_no",
+        "news_stavanger_en",
+        "news_stavanger_no",
+        "news_trondheim_en",
+        "news_trondheim_no",
+        "shop_bergen_en",
+        "shop_bergen_no",
+        "shop_national_en",
+        "shop_national_no",
+        "shop_oslo_en",
+        "shop_oslo_no",
+        "shop_stavanger_en",
+        "shop_stavanger_no",
+        "shop_trondheim_en",
+        "shop_trondheim_no",
+      ].sort()
+    );
+  });
   it("fits Appwrite's 36-character id limit", () => {
     for (const id of ALL_PUSH_TOPIC_IDS) {
       expect(id.length).toBeLessThanOrEqual(36);

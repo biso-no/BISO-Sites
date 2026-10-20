@@ -102,23 +102,24 @@ export function htmlToPlainText(html: string | null | undefined): string {
 
 /**
  * Title/body per push language. Each language uses its own text and falls back
- * to the other when missing. Bodies are flattened to plain text.
+ * to the other when missing. Bodies are flattened to plain text first, so a
+ * body that is only markup (e.g. `<p>&nbsp;</p>`) counts as missing.
  */
 export function localizedPushContent(
   a: Pick<Announcements, "title_en" | "title_no" | "body_en" | "body_no">
 ): Record<PushLocale, LocalizedPush> {
   const titleEn = a.title_en?.trim() ?? "";
   const titleNo = a.title_no?.trim() ?? "";
-  const bodyEn = a.body_en?.trim() ?? "";
-  const bodyNo = a.body_no?.trim() ?? "";
+  const bodyEn = htmlToPlainText(a.body_en);
+  const bodyNo = htmlToPlainText(a.body_no);
   return {
     no: {
       title: titleNo || titleEn,
-      body: htmlToPlainText(bodyNo || bodyEn),
+      body: bodyNo || bodyEn,
     },
     en: {
       title: titleEn || titleNo,
-      body: htmlToPlainText(bodyEn || bodyNo),
+      body: bodyEn || bodyNo,
     },
   };
 }
@@ -283,9 +284,11 @@ async function applyAnnouncementReadPermissions(
 /**
  * Result of dispatching a single announcement.
  *
- * `topic` is the language-neutral channel (e.g. `events_bergen`), set only for
- * a TOPIC audience. Callers persist it back onto the row's `audience_value`.
- * BROADCAST, SEGMENT and USERS audiences never carry a topic.
+ * `topic` is the language-neutral channel the push went to: for a TOPIC
+ * audience e.g. `events_bergen`, for a BROADCAST `general_bergen` (one campus)
+ * or `general` (everyone). Callers persist it back onto the row's
+ * `audience_value` so the app inbox can filter on it. SEGMENT and USERS
+ * audiences never carry a topic.
  */
 export interface DispatchAnnouncementResult {
   recipients: number;
@@ -323,6 +326,10 @@ async function sendPush(
  * Send the push for an announcement (one per language) and, for user-targeted
  * sends, fan out in-app `user_notifications` rows.
  *
+ * The row's read permissions are set before any push goes out, so a fast tap
+ * on the push's `biso://announcement?id=` link never lands on a row the app
+ * cannot read yet. Order: permissions → push(es) → `user_notifications`.
+ *
  * Push failures are logged but swallowed so the caller can still mark the
  * announcement as sent.
  */
@@ -342,6 +349,12 @@ export async function dispatchAnnouncement(
   );
 
   if (channel !== null) {
+    // Topic/broadcast rows are readable by any signed-in student so they
+    // surface in the in-app feed (the row carries the body, which is
+    // non-sensitive here).
+    await applyAnnouncementReadPermissions(db, announcement.$id, [
+      Permission.read(Role.users()),
+    ]);
     if (announcement.push) {
       for (const locale of PUSH_LOCALES) {
         await sendPush(
@@ -353,16 +366,9 @@ export async function dispatchAnnouncement(
         );
       }
     }
-    // Broadcasts are readable by any signed-in student so they surface in the
-    // in-app feed (the row carries the body, which is non-sensitive here).
-    await applyAnnouncementReadPermissions(db, announcement.$id, [
-      Permission.read(Role.users()),
-    ]);
     // Topic/broadcast pushes are surfaced in-app by querying announcements,
     // so we do not fan out user_notifications rows here.
-    const isTopicAudience =
-      announcement.audience_type === AnnouncementsAudienceType.TOPIC;
-    return { recipients: 0, ...(isTopicAudience ? { topic: channel } : {}) };
+    return { recipients: 0, topic: channel };
   }
 
   // `segment` resolves audience_value as a segment_id → its assigned members.
@@ -376,6 +382,14 @@ export async function dispatchAnnouncement(
   if (userIds.length === 0) {
     return { recipients: 0 };
   }
+
+  // Targeted/segment bodies are personal: restrict row read to the recipients
+  // so they are not world-readable (row security is on for announcements).
+  await applyAnnouncementReadPermissions(
+    db,
+    announcement.$id,
+    userIds.map((userId) => Permission.read(Role.user(userId)))
+  );
 
   if (announcement.push) {
     const byLocale = await groupUserIdsByLocale(db, userIds);
@@ -394,14 +408,6 @@ export async function dispatchAnnouncement(
   }
 
   await fanOutUserNotifications(db, announcement.$id, userIds);
-
-  // Targeted/segment bodies are personal: restrict row read to the recipients
-  // so they are not world-readable (row security is on for announcements).
-  await applyAnnouncementReadPermissions(
-    db,
-    announcement.$id,
-    userIds.map((userId) => Permission.read(Role.user(userId)))
-  );
 
   return { recipients: userIds.length };
 }
