@@ -8,6 +8,11 @@ export enum NewsStatus {
   PUBLISHED = "published",
 }
 
+export enum UsersLocale {
+  EN = "en",
+  NO = "no",
+}
+
 export enum ContentEntryLocalesLocale {
   NO = "no",
   EN = "en",
@@ -116,6 +121,30 @@ export enum AnnouncementsAudienceType {
   USERS = "users",
   SEGMENT = "segment",
   BROADCAST = "broadcast",
+}
+
+export enum AnnouncementsSource {
+  MANUAL = "manual",
+  AUTO = "auto",
+}
+
+export enum AnnouncementsContentType {
+  EVENT = "event",
+  NEWS = "news",
+  JOB = "job",
+}
+
+export enum ContentNotificationsContentType {
+  EVENT = "event",
+  NEWS = "news",
+  JOB = "job",
+}
+
+export enum ContentNotificationsStatus {
+  PENDING = "pending",
+  SENT = "sent",
+  SKIPPED = "skipped",
+  CANCELLED = "cancelled",
 }
 
 export enum PageTranslationsLocale {
@@ -477,6 +506,7 @@ export type News = Models.Row & {
   department: Departments;
   metadata: string[] | null;
   author: string | null;
+  notify_push: boolean;
 };
 
 export type Subscriptions = Models.Row & {
@@ -534,6 +564,7 @@ export type Users = Models.Row & {
   bi_employee_id: string | null;
   bi_campus_id: string | null;
   bi_linked_at: string | null;
+  locale: UsersLocale | null;
 };
 
 export type ContentEntryLocales = Models.Row & {
@@ -677,6 +708,7 @@ export type JobApplications = Models.Row & {
   data_processing_purpose: string;
   data_retention_until: string;
   resume_file_id: string | null;
+  cover_letter_file_id: string | null;
   cover_letter: string | null;
   review_metadata: string | null;
   candidate_profile_id: string | null;
@@ -828,6 +860,24 @@ export type Announcements = Models.Row & {
   created_by: string | null;
   campus: Campus;
   department: Departments;
+  source: AnnouncementsSource;
+  content_type: AnnouncementsContentType | null;
+  content_id: string | null;
+  content_ids: string[] | null;
+  items: string | null;
+  image: string | null;
+};
+
+export type ContentNotifications = Models.Row & {
+  content_type: ContentNotificationsContentType;
+  content_id: string;
+  campus_id: string | null;
+  channel: string;
+  status: ContentNotificationsStatus;
+  reason: string | null;
+  due_at: string | null;
+  sent_at: string | null;
+  announcement_id: string | null;
 };
 
 export type LedgerAccounts = Models.Row & {
@@ -935,6 +985,7 @@ export type Jobs = Models.Row & {
   applications: JobApplications[];
   campus: Campus;
   scheduled_publish_at: string | null;
+  notify_push: boolean;
 };
 
 export type Documents = Models.Row & {
@@ -1656,12 +1707,6 @@ export type MemberPassScanners = Models.Row & {
   expires_at: string | null;
   revoked_at: string | null;
   invited_at: string | null;
-};
-
-export type TwentyFourSevenOfficeDepartments = Models.Row & {
-  Id: string;
-  Name: string;
-  Campus: string | null;
 };
 
 export type AuthTokens = Models.Row & {
