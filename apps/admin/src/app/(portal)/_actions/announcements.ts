@@ -5,7 +5,11 @@ import { createAdminClient } from "@repo/api/server";
 import type { Announcements } from "@repo/api/types/appwrite";
 import { resolveAnnouncementTopicId } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
-import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
+import {
+  buildDeepLink,
+  buildPushData,
+  dispatchAnnouncement,
+} from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
@@ -339,20 +343,6 @@ export async function generateAnnouncementTranslationDraft(
           : "Failed to generate announcement translation",
     };
   }
-}
-
-function buildDataPayload(announcement: Announcements): string {
-  return JSON.stringify({
-    type: "announcement",
-    announcement_id: announcement.$id,
-    event_id: announcement.event_id ?? "",
-    segment_id:
-      announcement.audience_type === "segment"
-        ? (announcement.audience_value ?? "")
-        : "",
-    deep_link: announcement.deep_link ?? buildDeepLink(announcement),
-    category: announcement.category ?? "general",
-  });
 }
 
 /**
@@ -696,7 +686,7 @@ const dispatchPersistedAnnouncement = async ({
   client: AnnouncementAdminClient;
   ctx: Awaited<ReturnType<typeof requireAuth>>;
 }): Promise<SendAnnouncementResult> => {
-  const dataPayload = buildDataPayload(announcement);
+  const dataPayload = JSON.stringify(buildPushData(announcement));
   const enriched: Announcements = {
     ...announcement,
     data: dataPayload,
@@ -709,7 +699,6 @@ const dispatchPersistedAnnouncement = async ({
     const result = await dispatchAnnouncement(enriched, {
       db: client.db,
       messaging: client.messaging,
-      users: client.users,
     });
     recipients = result.recipients;
     resolvedTopic = result.topic;

@@ -58,6 +58,7 @@ mock.module("@repo/api/server", () => ({
 }));
 
 mock.module("@/lib/announcements/send", () => ({
+  buildPushData: mock(() => ({})),
   buildDeepLink: mock(() => "biso://announcements/announcement-1"),
   dispatchAnnouncement,
 }));

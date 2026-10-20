@@ -113,6 +113,7 @@ mock.module("@/lib/content-translation.server", () => ({
 }));
 
 mock.module("@/lib/announcements/send", () => ({
+  buildPushData: mock(() => ({})),
   dispatchAnnouncement: mock(async () => undefined),
 }));
 

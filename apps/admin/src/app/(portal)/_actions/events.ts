@@ -115,7 +115,7 @@ async function sendEventAnnouncement(input: {
   campusId: string | null;
 }): Promise<void> {
   try {
-    const { db, messaging, users } = await createAdminClient();
+    const { db, messaging } = await createAdminClient();
     const deepLink = `biso://event?id=${input.eventId}`;
     const announcement = await db.createRow(
       "app",
@@ -145,7 +145,6 @@ async function sendEventAnnouncement(input: {
     await dispatchAnnouncement(announcement as unknown as Announcements, {
       db,
       messaging,
-      users,
     });
   } catch (error) {
     console.error("Failed to send event push notification:", error);

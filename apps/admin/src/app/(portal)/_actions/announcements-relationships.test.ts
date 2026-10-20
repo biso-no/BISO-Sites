@@ -69,6 +69,7 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ db })),
 }));
 mock.module("@/lib/announcements/send", () => ({
+  buildPushData: mock(() => ({})),
   buildDeepLink: mock(() => "biso://announcements/announcement-1"),
   dispatchAnnouncement: mock(async () => ({ recipients: 0 })),
 }));
