@@ -5,6 +5,7 @@ export {
   Client,
   Functions,
   ID,
+  MessagePriority,
   Messaging,
   MessagingProviderType,
   OAuthProvider,
