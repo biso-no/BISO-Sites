@@ -440,7 +440,7 @@ test('saves a Bokmål app language as no', ...);                          // loc
   - Tap behaviour is unchanged: mark read, then the deep link.
   - `AnnouncementDetailScreen`: when the announcement has items, it lists every item as a row (thumbnail, title, date) opening `item.route`.
 
-- [ ] **Step 1: Write the failing widget tests** (the inbox provider overridden with fixtures, and fixed `now` via `inbox_layout` injection or provider):
+- [ ] **Step 1: Write the failing widget tests.** Override the inbox provider with fixtures. `NotificationsScreen` takes an optional `DateTime Function()? clock` (default `DateTime.now`) that it passes to `pinUrgent`/`groupByDay`, and the tests inject a fixed clock:
   - shows "Today"/"Earlier" sections in the app language
   - the News chip shows only news rows
   - an unread urgent row appears above the Today section
