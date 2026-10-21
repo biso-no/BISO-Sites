@@ -32,6 +32,7 @@ import { ID, type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
+import { publishBenefit } from "@/lib/benefit-publish";
 import type { ListParams, PaginatedResult } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
 import { assertProductBookable } from "@/lib/shop/sales-type";
@@ -266,6 +267,21 @@ async function executeApprovalPublish(
     if ("error" in result) {
       throw new Error(result.error);
     }
+    return;
+  }
+
+  if (plan.domain === "benefits") {
+    // setBenefitStatus authorizes on the stored campus and rewrites the row's
+    // permissions; a bare session status update would leave them stale.
+    const result = await publishBenefit(plan.resourceId);
+    if ("error" in result) {
+      throw new Error(
+        typeof result.error === "string"
+          ? result.error
+          : "Could not publish the benefit"
+      );
+    }
+    revalidateApprovalPublishPaths(plan);
     return;
   }
 

@@ -57,6 +57,9 @@ mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
 
+const publishBenefit = mock();
+mock.module("@/lib/benefit-publish", () => ({ publishBenefit }));
+
 const { approveRequest, listPendingApprovals } = await import("./approvals");
 
 describe("listPendingApprovals", () => {
@@ -310,5 +313,59 @@ describe("approveRequest: non-shop domains still write through the session clien
       expect.anything(),
       expect.anything()
     );
+  });
+});
+
+describe("approveRequest: benefits publish through publishBenefit", () => {
+  const benefitRequest = {
+    $id: "req-ben-1",
+    action: "benefits.publish",
+    payload: "{}",
+    resource_id: "ben-1",
+    status: "pending" as const,
+  };
+
+  beforeEach(() => {
+    currentCtx = baseCtx;
+    publishBenefit.mockReset();
+    for (const client of [db, sessionDb]) {
+      client.getRow.mockReset();
+      client.updateRow.mockReset();
+      client.createRow.mockReset();
+    }
+    sessionDb.getRow.mockImplementation(
+      (_databaseId: string, table: string) => {
+        if (table === "approval_requests") {
+          return Promise.resolve(benefitRequest);
+        }
+        if (table === "campus_benefits") {
+          return Promise.resolve({ $id: "ben-1", campus_id: "campus-oslo" });
+        }
+        return Promise.reject(new Error(`unexpected getRow(${table})`));
+      }
+    );
+  });
+
+  test("calls publishBenefit and never writes status directly", async () => {
+    publishBenefit.mockResolvedValue({ data: "ben-1" });
+
+    const result = await approveRequest("req-ben-1");
+
+    expect(result).toEqual({ data: "req-ben-1" });
+    expect(publishBenefit).toHaveBeenCalledWith("ben-1");
+    expect(sessionDb.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "campus_benefits",
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  test("surfaces a publishBenefit error", async () => {
+    publishBenefit.mockResolvedValue({ error: "Not allowed" });
+
+    const result = await approveRequest("req-ben-1");
+
+    expect(result).toEqual({ error: "Not allowed" });
   });
 });
