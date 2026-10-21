@@ -78,16 +78,17 @@ export function pickEnglishFirstTitle(
   );
 }
 
+const CONTENT_DATE_KEYS: Record<ComposerContentType, string> = {
+  event: "start_date",
+  job: "application_deadline",
+  news: "$createdAt",
+};
+
 function contentDate(
   type: ComposerContentType,
   row: Record<string, unknown>
 ): string | null {
-  const key =
-    type === "event"
-      ? "start_date"
-      : type === "news"
-        ? "$createdAt"
-        : "application_deadline";
+  const key = CONTENT_DATE_KEYS[type];
   const value = row[key];
   return typeof value === "string" && value ? value : null;
 }

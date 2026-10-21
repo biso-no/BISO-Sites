@@ -214,11 +214,11 @@ describe("listGroupsForEvent", () => {
 });
 
 describe("getGroupById", () => {
-  function mockGroup(eventCampus: string) {
+  function mockGroup(eventCampus: string, groupCampus: string | null = null) {
     db.listRows.mockImplementation((_d: string, table: string) => {
       if (table === "event_segments") {
         return Promise.resolve({
-          rows: [{ $id: "s1", event_id: "e1", campus_id: null }],
+          rows: [{ $id: "s1", event_id: "e1", campus_id: groupCampus }],
         });
       }
       if (table === "segment_members") {
@@ -236,7 +236,7 @@ describe("getGroupById", () => {
     });
     db.getRow.mockResolvedValue({
       $id: "s1",
-      campus_id: null,
+      campus_id: groupCampus,
       event_id: "e1",
       name: "Bus 2",
     });
@@ -262,6 +262,43 @@ describe("getGroupById", () => {
     };
     mockGroup("1");
     expect(await getGroupById("s1")).toBeNull();
+  });
+
+  test("a campus admin cannot read a group whose own campus is another one", async () => {
+    currentCtx = {
+      ...baseCtx,
+      roles: ["campusadmin"],
+      managedCampusIds: ["2"],
+    };
+    mockGroup("2", "1");
+    expect(await getGroupById("s1")).toBeNull();
+  });
+
+  test("a campus admin cannot read a group on a National event", async () => {
+    currentCtx = {
+      ...baseCtx,
+      roles: ["campusadmin"],
+      managedCampusIds: ["2"],
+    };
+    mockGroup("5");
+    expect(await getGroupById("s1")).toBeNull();
+  });
+
+  test("a campus admin can read a group on their own campus", async () => {
+    currentCtx = {
+      ...baseCtx,
+      roles: ["campusadmin"],
+      managedCampusIds: ["2"],
+    };
+    mockGroup("2");
+    expect((await getGroupById("s1"))?.groupName).toBe("Bus 2");
+  });
+
+  test("a global admin reads groups on any campus or National events", async () => {
+    mockGroup("2", "1");
+    expect((await getGroupById("s1"))?.campusId).toBe("1");
+    mockGroup("5");
+    expect((await getGroupById("s1"))?.campusId).toBe("5");
   });
 
   test("a missing group is null", async () => {
@@ -347,16 +384,18 @@ describe("getAudienceReach audience checks", () => {
   });
 
   function mockSegment(eventCampus: string) {
-    db.listRows.mockImplementation(async (_d: string, table: string) => {
+    db.listRows.mockImplementation((_d: string, table: string) => {
       if (table === "event_segments") {
-        return {
+        return Promise.resolve({
           rows: [{ $id: "s1", event_id: "e1", campus_id: null }],
-        };
+        });
       }
       if (table === "events") {
-        return { rows: [{ $id: "e1", campus_id: eventCampus }] };
+        return Promise.resolve({
+          rows: [{ $id: "e1", campus_id: eventCampus }],
+        });
       }
-      return { rows: [], total: 7 };
+      return Promise.resolve({ rows: [], total: 7 });
     });
     db.getRow.mockResolvedValue({ $id: "s1", name: "Crew" });
   }

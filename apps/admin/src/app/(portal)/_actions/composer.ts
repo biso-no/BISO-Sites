@@ -233,7 +233,19 @@ export async function getGroupById(
   try {
     const { db } = await createAdminClient();
     const resolved = await resolveSegmentCampus(db, ctx, segmentId);
-    if (!resolved) {
+    if (
+      !(
+        resolved &&
+        isAudienceAllowed(
+          { roles: ctx.roles, managedCampusIds: ctx.managedCampusIds },
+          {
+            audienceType: "segment",
+            campusId: null,
+            segmentCampusId: resolved.campusId,
+          }
+        )
+      )
+    ) {
       return null;
     }
     const segment = await db.getRow<EventSegments>(
