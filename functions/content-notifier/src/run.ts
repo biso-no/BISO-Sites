@@ -11,7 +11,9 @@
  *                      cancelled
  * `sent` and `skipped` are final, and so is any lock carrying an
  * `announcement_id`/`sent_at`: updates are partial, so those survive a stale
- * write that changed the status. Every status write re-reads the lock first.
+ * write that changed the status. Event-driven status writes and the dispatch
+ * re-check re-read the lock first; the mark-sent loop writes right after the
+ * announcement is created, off the lock read that listed the item as due.
  */
 
 import {
@@ -86,6 +88,11 @@ export interface NotifierDeps {
   /** Pending locks with `due_at <= now`, oldest due first. */
   listDueLocks: (now: Date, limit: number) => Promise<ContentNotifications[]>;
   log: (msg: string) => void;
+  /**
+   * MUST be a partial update (`db.updateRow`), never an upsert or a replace:
+   * the "sent is final" guarantee relies on `announcement_id` and `sent_at`
+   * surviving later writes that only carry a status, channel or due time.
+   */
   updateLock: (lockId: string, data: LockPatch) => Promise<void>;
 }
 
@@ -134,6 +141,13 @@ function errorMessage(error: unknown): string {
 /** The lock was marked sent at some point, whatever its status says now. */
 function wasSent(lock: ContentNotifications): boolean {
   return Boolean(lock.announcement_id || lock.sent_at);
+}
+
+/** A lock reopened after listing carries a new, later due time. */
+function isDueBy(lock: ContentNotifications, now: Date): boolean {
+  return (
+    lock.due_at !== null && new Date(lock.due_at).getTime() <= now.getTime()
+  );
 }
 
 function isFinal(lock: ContentNotifications): boolean {
@@ -317,7 +331,8 @@ async function recheckDue(
   if (
     !current ||
     current.status !== ContentNotificationsStatus.PENDING ||
-    isFinal(current)
+    isFinal(current) ||
+    !isDueBy(current, now)
   ) {
     if (current) {
       await restoreSent(deps, current);

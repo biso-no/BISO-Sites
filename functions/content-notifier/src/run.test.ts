@@ -746,3 +746,28 @@ test("an item whose re-check fails stays pending and does not block the others",
   expect(f.announcements.map((c) => c.content_id)).toEqual(["e2"]);
   expect(f.logs.some((line) => line.includes("upstream timeout"))).toBe(true);
 });
+
+test("a lock reopened after listing waits for its new due time", async () => {
+  const f = fake();
+  f.setContent("event", eventRow("e1"));
+  await handleContentChange(f.deps, "event", "e1", at(0));
+
+  // Listed as due, then reopened (new due time) before the re-check reads it.
+  const listed = await f.deps.listDueLocks(at(5), DUE_PAGE_SIZE);
+  expect(listed).toHaveLength(1);
+  f.locks.set("event_e1", {
+    ...(f.locks.get("event_e1") as ContentNotifications),
+    due_at: iso(30),
+  });
+  f.deps.listDueLocks = mock(() => Promise.resolve(listed));
+
+  expect(await dispatchDue(f.deps, at(5))).toEqual({
+    announcements: 0,
+    cancelled: 0,
+    sent: 0,
+  });
+  expect(f.deps.dispatch).not.toHaveBeenCalled();
+  expect(lockOf(f, "event", "e1")?.status).toBe(
+    ContentNotificationsStatus.PENDING
+  );
+});
