@@ -147,7 +147,7 @@ describe("getLinkedContentPrefill", () => {
   test("builds titles, bodies, topic and label", async () => {
     db.listRows.mockResolvedValue({ rows: [eventRow] });
     const prefill = await getLinkedContentPrefill("event", "e1");
-    expect(prefill).toEqual({
+    expect(prefill).toMatchObject({
       title_en: "Autumn party",
       title_no: "Høstfest",
       body_en: "<p>Come along</p>",
@@ -155,6 +155,12 @@ describe("getLinkedContentPrefill", () => {
       topic: "events",
       campusId: "2",
       label: "Autumn party (Fri 23 Oct)",
+    });
+    expect(prefill?.item).toMatchObject({
+      campusName: "Bergen",
+      dateLabel: "Fri 23 Oct",
+      id: "e1",
+      title: "Autumn party",
     });
   });
 

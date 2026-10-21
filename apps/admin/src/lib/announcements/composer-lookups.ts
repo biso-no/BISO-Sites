@@ -174,6 +174,7 @@ export function toPrefill(
     body_no: prefillBody(no),
     topic: topics[type],
     campusId: item.campusId,
+    item,
     label: item.dateLabel ? `${item.title} (${item.dateLabel})` : item.title,
   };
 }

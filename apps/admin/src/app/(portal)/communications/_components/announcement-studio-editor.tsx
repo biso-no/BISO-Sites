@@ -234,18 +234,18 @@ function categoryAccent(id: CategoryId): string {
   }
 }
 
-/**
- * The topic a topic announcement holds when it has none. The form stores it
- * rather than only displaying it: dispatch sends an empty topic to `general`,
- * which is every student, so a Topic select showing Events over an empty value
- * would message everyone.
- */
 const AUDIENCE_KEYS = new Set<keyof AnnouncementFormValues>([
   "audience_type",
   "audience_value",
   "campus_id",
 ]);
 
+/**
+ * The topic a topic announcement holds when it has none. The form stores it
+ * rather than only displaying it: dispatch sends an empty topic to `general`,
+ * which is every student, so a Topic select showing Events over an empty value
+ * would message everyone.
+ */
 const DEFAULT_TOPIC: (typeof TOPIC_OPTIONS)[number]["value"] = "events";
 
 /** Gives a topic announcement with no topic the default one. */

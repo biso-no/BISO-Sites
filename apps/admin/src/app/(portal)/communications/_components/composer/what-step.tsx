@@ -17,7 +17,7 @@ import {
   TYPE_CARDS,
 } from "./composer-state";
 import { ContentPicker } from "./content-picker";
-import { buildLinkState, type LinkState } from "./link-state";
+import type { LinkState } from "./link-state";
 import {
   BRAND,
   FieldLabel,
@@ -43,6 +43,7 @@ const TOPIC_NAMES: Record<ComposerTopic, string> = {
 
 interface LinkedPrefill extends PrefillSnapshot {
   campusId: string | null;
+  item: LinkableItem;
   label: string;
   topic: ComposerTopic;
 }
@@ -184,6 +185,9 @@ export function WhatStep({
   valuesRef.current = values;
   const linkRef = useRef(link);
   linkRef.current = link;
+  // Bumped by every pick, clear and type change, so a prefill response that
+  // arrives after the admin moved on is ignored.
+  const requestRef = useRef(0);
 
   const card = TYPE_CARDS.find((item) => item.id === values.category);
   const linkType = card?.linkType ?? null;
@@ -208,7 +212,12 @@ export function WhatStep({
         }
         setLink({
           ...linkRef.current,
-          display: { id, image: null, meta: "", title: found.label },
+          display: {
+            id,
+            image: found.item.image,
+            meta: metaFor(found.item),
+            title: found.item.title,
+          },
         });
       })
       .catch(() => undefined);
@@ -224,6 +233,7 @@ export function WhatStep({
   ]);
 
   const chooseType = (id: ComposerTypeId) => {
+    requestRef.current += 1;
     const nextLinkType =
       TYPE_CARDS.find((item) => item.id === id)?.linkType ?? null;
     const dropsLink =
@@ -234,13 +244,15 @@ export function WhatStep({
       return dropsLink ? withLinkFields(next, null, null) : next;
     });
     if (dropsLink) {
-      setLink(buildLinkState());
+      // The snapshot stays: text it filled in is still replaceable later.
+      setLink({ ...linkRef.current, display: null, tip: null });
     }
   };
 
   const clearLink = () => {
+    requestRef.current += 1;
     update((previous) => withLinkFields(previous, null, null));
-    setLink(buildLinkState());
+    setLink({ ...linkRef.current, display: null, tip: null });
   };
 
   const pick = async (item: LinkableItem) => {
@@ -253,6 +265,8 @@ export function WhatStep({
       meta: metaFor(item),
       title: item.title,
     };
+    requestRef.current += 1;
+    const request = requestRef.current;
     const previousSnapshot = linkRef.current.snapshot;
     update((previous) => withLinkFields(previous, linkType, item.id));
     setLink({ display, snapshot: previousSnapshot, tip: null });
@@ -263,7 +277,16 @@ export function WhatStep({
     } catch {
       found = null;
     }
+    if (request !== requestRef.current) {
+      return;
+    }
     if (!found) {
+      setLink({
+        display,
+        snapshot: previousSnapshot,
+        tip: `Couldn't fill in the text from the ${NOUN[linkType]}. Write it yourself.`,
+        tipQuiet: true,
+      });
       return;
     }
     const snapshot: PrefillSnapshot = {
@@ -370,9 +393,9 @@ export function WhatStep({
           {link.tip && (
             <div
               style={{
-                background: "#eef4ee",
+                background: link.tipQuiet ? BRAND.paper2 : "#eef4ee",
                 borderRadius: 9,
-                color: BRAND.green,
+                color: link.tipQuiet ? BRAND.ink3 : BRAND.green,
                 fontSize: 12.5,
                 lineHeight: 1.5,
                 marginTop: 2,
@@ -421,6 +444,7 @@ export function WhatStep({
             padding: 0,
             width: "100%",
           }}
+          type="text"
           value={titleValue}
         />
       </div>

@@ -15,6 +15,8 @@ export interface LinkState {
   snapshot: PrefillSnapshot | null;
   /** The one-line note shown after linking. */
   tip: string | null;
+  /** The tip is a quiet note (prefill failed), not a success message. */
+  tipQuiet?: boolean;
 }
 
 export function buildLinkState(): LinkState {
