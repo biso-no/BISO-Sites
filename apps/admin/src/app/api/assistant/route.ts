@@ -378,10 +378,16 @@ async function createAssistantContent(
       );
       break;
     case "events":
-      result = await createEvent({ ...context.payload } as never);
+      result = await createEvent({
+        ...context.payload,
+        notify_push: true,
+      } as never);
       break;
     case "news":
-      result = await createNews({ ...context.payload } as never);
+      result = await createNews({
+        ...context.payload,
+        notify_push: true,
+      } as never);
       break;
     case "shop":
       result = await createProduct({ ...context.payload } as never);
@@ -426,6 +432,7 @@ async function createJobContent(
     department: departmentId ?? (payload.department as string) ?? null,
     application_deadline: (payload.application_deadline as string) ?? null,
     ...(payload.metadata ? { metadata: payload.metadata } : {}),
+    notify_push: true,
   } as never);
 }
 
