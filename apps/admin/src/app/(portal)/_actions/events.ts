@@ -3,7 +3,6 @@
 import { fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Announcements } from "@repo/api/types/appwrite";
 import {
   type ContentTranslations,
   type Events,
@@ -11,11 +10,9 @@ import {
   EventsCollectionPricing,
   type EventsStatus,
 } from "@repo/api/types/appwrite";
-import { topicIdFor } from "@repo/shared/utils/notification-topics";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { dispatchAnnouncement } from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
@@ -97,64 +94,6 @@ interface EventTranslationSnapshot {
   description: string;
   short_description: string;
   title: string;
-}
-
-/**
- * Send a published-event push through the unified announcement delivery path.
- * Creates a transient `announcement` row (category "event", topic audience on
- * the campus-scoped "events" topic, e.g. "events_oslo" or "events_national",
- * marked as an automatic send linked to the event) and dispatches it.
- * Resilient by design: any failure is logged and never blocks publishing.
- *
- * Callers send only on the transition into "published", never on a save of an
- * already-published event, so editing a live event doesn't push it again.
- */
-async function sendEventAnnouncement(input: {
-  eventId: string;
-  titleEn: string;
-  titleNo: string | null;
-  bodyEn: string | null;
-  bodyNo: string | null;
-  campusId: string | null;
-}): Promise<void> {
-  try {
-    const { db, messaging } = await createAdminClient();
-    const deepLink = `biso://event?id=${input.eventId}`;
-    const announcement = await db.createRow(
-      "app",
-      "announcements",
-      ID.unique(),
-      {
-        status: "sent",
-        category: "event",
-        audience_type: "topic",
-        // Campus-scoped: a published event notifies students at its own campus,
-        // and `topicIdFor` resolves a null campus to the national topic, which
-        // every subscriber holds.
-        audience_value: topicIdFor("events", input.campusId),
-        title_en: input.titleEn,
-        title_no: input.titleNo,
-        body_en: input.bodyEn,
-        body_no: input.bodyNo,
-        event_id: input.eventId,
-        source: "auto",
-        content_type: "event",
-        content_id: input.eventId,
-        campus: input.campusId,
-        campus_id: input.campusId,
-        deep_link: deepLink,
-        push: true,
-        sent_at: new Date().toISOString(),
-      }
-    );
-
-    await dispatchAnnouncement(announcement as unknown as Announcements, {
-      db,
-      messaging,
-    });
-  } catch (error) {
-    console.error("Failed to send event push notification:", error);
-  }
 }
 
 function serializeAdditionalFields(payload: {
@@ -709,17 +648,6 @@ export async function createEvent(
       },
     });
 
-    if (status === "published" && validated.data.notify_push) {
-      await sendEventAnnouncement({
-        bodyEn: validated.data.short_description_en ?? null,
-        bodyNo: validated.data.short_description_no ?? null,
-        campusId: validated.data.campus_id ?? null,
-        eventId: event.$id,
-        titleEn: validated.data.title_en,
-        titleNo: validated.data.title_no || null,
-      });
-    }
-
     revalidatePath("/events");
     return {
       data: event.$id,
@@ -809,21 +737,6 @@ export async function updateEvent(
         status: validated.data.status,
       },
     });
-
-    // Push only when this save publishes the event: `event` is the row as
-    // stored before the save, so re-saving a live event doesn't re-send.
-    const publishesNow =
-      event.status !== "published" && validated.data.status === "published";
-    if (publishesNow && validated.data.notify_push) {
-      await sendEventAnnouncement({
-        eventId: id,
-        titleEn: validated.data.title_en,
-        titleNo: validated.data.title_no || null,
-        bodyEn: validated.data.short_description_en ?? null,
-        bodyNo: validated.data.short_description_no ?? null,
-        campusId: validated.data.campus_id ?? null,
-      });
-    }
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);
@@ -949,26 +862,6 @@ export async function publishEvent(id: string) {
       resourceType: "event",
       payload: { status: "published" },
     });
-
-    // Push only on the transition into "published"; publishing an event
-    // that is already live doesn't send it again.
-    if (event.status !== "published" && event.notify_push) {
-      const enTranslation = publishTranslations.rows.find(
-        (row) => row.locale === "en"
-      );
-      const noTranslation = publishTranslations.rows.find(
-        (row) => row.locale === "no"
-      );
-
-      await sendEventAnnouncement({
-        eventId: id,
-        titleEn: enTranslation?.title ?? event.slug ?? "New Event",
-        titleNo: noTranslation?.title ?? null,
-        bodyEn: enTranslation?.short_description ?? null,
-        bodyNo: noTranslation?.short_description ?? null,
-        campusId: ownership.campus,
-      });
-    }
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);

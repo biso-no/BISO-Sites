@@ -246,61 +246,25 @@ describe("event push on publish", () => {
     status: EventsStatus.PUBLISHED,
   };
 
-  test("re-saving an already-published event sends no push", async () => {
-    mockEventRow({ ...storedEvent, status: "published" });
-
-    const result = await updateEvent("event-1", publishedValues);
-
-    expect(result).toEqual({ data: "event-1" });
+  const expectNoDirectPush = () => {
     expect(dispatchAnnouncement).not.toHaveBeenCalled();
-  });
-
-  test("publishing a draft through a save sends the push once", async () => {
-    mockEventRow({ ...storedEvent, status: "draft" });
-
-    const result = await updateEvent("event-1", publishedValues);
-
-    expect(result).toEqual({ data: "event-1" });
-    expect(dispatchAnnouncement).toHaveBeenCalledTimes(1);
-    expect(db.createRow).toHaveBeenCalledWith(
-      "app",
-      "announcements",
-      expect.any(String),
-      expect.objectContaining({
-        content_id: "event-1",
-        content_type: "event",
-        event_id: "event-1",
-        source: "auto",
-      })
+    const announcementCalls = db.createRow.mock.calls.filter(
+      (call: unknown[]) => call[1] === "announcements"
     );
-  });
+    expect(announcementCalls).toHaveLength(0);
+  };
 
-  test("publishing an already-published event sends no push", async () => {
-    mockEventRow({ ...storedEvent, status: "published" });
-
-    const result = await publishEvent("event-1");
-
-    expect(result).toEqual({ data: "event-1" });
-    expect(dispatchAnnouncement).not.toHaveBeenCalled();
-  });
-
-  test("publishing a draft sends the push once", async () => {
+  test("publishing an event with notify on no longer pushes directly", async () => {
     mockEventRow({ ...storedEvent, status: "draft" });
+    await updateEvent("event-1", publishedValues);
+    expectNoDirectPush();
 
-    const result = await publishEvent("event-1");
+    mockEventRow({ ...storedEvent, status: "draft" });
+    await publishEvent("event-1");
+    expectNoDirectPush();
 
-    expect(result).toEqual({ data: "event-1" });
-    expect(dispatchAnnouncement).toHaveBeenCalledTimes(1);
-    expect(db.createRow).toHaveBeenCalledWith(
-      "app",
-      "announcements",
-      expect.any(String),
-      expect.objectContaining({
-        content_id: "event-1",
-        content_type: "event",
-        source: "auto",
-      })
-    );
+    await createEvent(publishedValues);
+    expectNoDirectPush();
   });
 });
 
