@@ -12,19 +12,14 @@ import {
   osloWallClockToIso,
 } from "@repo/shared/utils/oslo-time";
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Bell,
-  Briefcase,
-  Bus,
   CalendarDays,
   Check,
   ChevronRight,
   Globe,
-  Link2,
-  Megaphone,
-  Newspaper,
+  type Megaphone,
   Save,
   Send,
   Sparkles,
@@ -38,10 +33,7 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
-import type {
-  AutoTranslationOptions,
-  ContentLocale,
-} from "@/lib/content-translation";
+import type { AutoTranslationOptions } from "@/lib/content-translation";
 import {
   createAnnouncement,
   generateAnnouncementTranslationDraft,
@@ -59,48 +51,29 @@ import {
   canContinue,
   TYPE_CARDS,
 } from "./composer/composer-state";
+import { buildLinkState, type LinkState } from "./composer/link-state";
+import {
+  BRAND,
+  FieldLabel,
+  fieldInputStyle,
+  type LocaleCode,
+  LocaleTabs,
+  MONO,
+  StepIntro,
+  TYPE_ICONS,
+} from "./composer/ui";
+import { WhatStep } from "./composer/what-step";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
 /* -------------------------------------------------------------------------- */
 
-const BRAND = {
-  bisoBlue: "#1A77E9",
-  claret: "#6b1e1e",
-  gold: "#b08a3e",
-  green: "#2f5d3a",
-  ink: "#1a1814",
-  ink2: "#3a342a",
-  ink3: "#6b6357",
-  ink4: "#9c9385",
-  leaf: "#2f5d3a",
-  paper: "#faf7f2",
-  paper2: "#f3eee5",
-  paper3: "#ede6d8",
-  red: "#b91c1c",
-  rule: "#e5dcca",
-  rule2: "#d8cdb6",
-} as const;
-
-const SERIF = "'Instrument Serif', Georgia, serif";
-const MONO = "ui-monospace, Menlo, Monaco, monospace";
-
 const STEPS = COMPOSER_STEPS;
 
 type StepIndex = 0 | 1 | 2 | 3;
-type LocaleCode = ContentLocale;
 
 type CategoryId = AnnouncementFormValues["category"];
 type AudienceType = AnnouncementFormValues["audience_type"];
-
-const CATEGORY_ICONS: Record<CategoryId, typeof Megaphone> = {
-  event: CalendarDays,
-  general: Megaphone,
-  job: Briefcase,
-  news: Newspaper,
-  trip: Bus,
-  urgent: AlertTriangle,
-};
 
 const CATEGORIES: Array<{
   id: CategoryId;
@@ -109,7 +82,7 @@ const CATEGORIES: Array<{
   icon: typeof Megaphone;
 }> = TYPE_CARDS.map((card) => ({
   description: card.description,
-  icon: CATEGORY_ICONS[card.id],
+  icon: TYPE_ICONS[card.id],
   id: card.id,
   label: card.label,
 }));
@@ -267,6 +240,12 @@ function categoryAccent(id: CategoryId): string {
  * which is every student, so a Topic select showing Events over an empty value
  * would message everyone.
  */
+const AUDIENCE_KEYS = new Set<keyof AnnouncementFormValues>([
+  "audience_type",
+  "audience_value",
+  "campus_id",
+]);
+
 const DEFAULT_TOPIC: (typeof TOPIC_OPTIONS)[number]["value"] = "events";
 
 /** Gives a topic announcement with no topic the default one. */
@@ -510,127 +489,6 @@ function StepRail({
   );
 }
 
-function LocaleTabs({
-  locale,
-  pendingNo,
-  setLocale,
-}: {
-  locale: LocaleCode;
-  pendingNo: boolean;
-  setLocale: (locale: LocaleCode) => void;
-}) {
-  return (
-    <div
-      style={{
-        background: BRAND.paper2,
-        border: `0.5px solid ${BRAND.rule2}`,
-        borderRadius: 8,
-        display: "inline-flex",
-        gap: 2,
-        marginBottom: 8,
-        padding: 3,
-      }}
-    >
-      {(["en", "no"] as const).map((item) => {
-        const on = locale === item;
-        return (
-          <button
-            key={item}
-            onClick={() => setLocale(item)}
-            style={{
-              alignItems: "center",
-              background: on ? "white" : "transparent",
-              border: 0,
-              borderRadius: 5,
-              boxShadow: on ? "0 1px 2px rgba(0,0,0,.05)" : "none",
-              color: on ? BRAND.ink : BRAND.ink3,
-              cursor: "pointer",
-              display: "flex",
-              fontSize: 11,
-              gap: 6,
-              padding: "4px 12px",
-            }}
-            type="button"
-          >
-            {item === "en" ? "English" : "Norsk"}
-            {item === "no" && pendingNo && (
-              <span
-                style={{
-                  background: BRAND.gold,
-                  borderRadius: "50%",
-                  height: 5,
-                  width: 5,
-                }}
-                title="Not yet filled"
-              />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function FieldLabel({
-  children,
-  help,
-  required,
-}: {
-  children: React.ReactNode;
-  help?: string;
-  required?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        color: BRAND.ink3,
-        display: "flex",
-        fontSize: 11.5,
-        fontWeight: 500,
-        gap: 8,
-        letterSpacing: ".04em",
-        textTransform: "uppercase",
-      }}
-    >
-      {children}
-      {required && (
-        <span style={{ color: BRAND.claret, fontSize: 10 }}>required</span>
-      )}
-      {help && (
-        <span
-          style={{
-            color: BRAND.ink4,
-            fontSize: 10.5,
-            fontWeight: 400,
-            letterSpacing: 0,
-            marginLeft: "auto",
-            textTransform: "none",
-          }}
-        >
-          {help}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function fieldInputStyle(extra?: React.CSSProperties): React.CSSProperties {
-  return {
-    appearance: "none",
-    background: "rgba(255,255,255,.6)",
-    border: `0.5px solid ${BRAND.rule2}`,
-    borderRadius: 8,
-    color: BRAND.ink,
-    fontSize: 14,
-    outline: 0,
-    padding: "10px 12px",
-    transition: "border-color .15s, background .15s",
-    width: "100%",
-    ...extra,
-  };
-}
-
 function SelectCard({
   active,
   description,
@@ -742,165 +600,9 @@ function SelectCard({
   );
 }
 
-function StepIntro({ eyebrow, title }: { eyebrow: string; title: string }) {
-  return (
-    <div style={{ padding: "8px 0 18px" }}>
-      <span
-        style={{
-          color: BRAND.ink4,
-          fontSize: 11,
-          letterSpacing: ".08em",
-          textTransform: "uppercase",
-        }}
-      >
-        {eyebrow}
-      </span>
-      <div
-        style={{
-          color: BRAND.ink,
-          fontFamily: SERIF,
-          fontSize: 40,
-          letterSpacing: "-0.015em",
-          lineHeight: 1.05,
-          marginTop: 4,
-        }}
-      >
-        {title}
-      </div>
-    </div>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*                                  What step                                 */
 /* -------------------------------------------------------------------------- */
-
-const LINK_LABELS = {
-  event: "Event",
-  job: "Position",
-  news: "Article",
-} as const;
-
-function WhatStep({
-  locale,
-  set,
-  setLocale,
-  values,
-}: {
-  locale: LocaleCode;
-  set: <K extends keyof AnnouncementFormValues>(
-    key: K,
-    value: AnnouncementFormValues[K]
-  ) => void;
-  setLocale: (locale: LocaleCode) => void;
-  values: AnnouncementFormValues;
-}) {
-  const titleValue =
-    locale === "en" ? values.title_en : (values.title_no ?? "");
-  const titleKey = locale === "en" ? "title_en" : "title_no";
-  const linkType =
-    TYPE_CARDS.find((card) => card.id === values.category)?.linkType ?? null;
-
-  const chooseType = (id: CategoryId) => {
-    const nextLinkType = TYPE_CARDS.find((card) => card.id === id)?.linkType;
-    set("category", id);
-    if (nextLinkType !== values.content_type) {
-      set("content_type", nextLinkType ?? null);
-      set("content_id", null);
-      set("event_id", null);
-    }
-  };
-
-  return (
-    <div>
-      <div style={{ padding: "8px 0 24px" }}>
-        <LocaleTabs
-          locale={locale}
-          pendingNo={!values.title_no?.trim()}
-          setLocale={setLocale}
-        />
-        <input
-          onChange={(event) =>
-            set(
-              titleKey,
-              locale === "en" ? event.target.value : event.target.value || null
-            )
-          }
-          placeholder={
-            locale === "en"
-              ? "A headline students can't miss…"
-              : "En overskrift studentene ikke kan overse…"
-          }
-          style={{
-            appearance: "none",
-            background: "transparent",
-            border: 0,
-            color: BRAND.ink,
-            fontFamily: SERIF,
-            fontSize: 52,
-            fontWeight: 400,
-            letterSpacing: "-0.018em",
-            lineHeight: 1.02,
-            outline: 0,
-            padding: 0,
-            width: "100%",
-          }}
-          value={titleValue}
-        />
-      </div>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <FieldLabel help="Sets the icon and accent" required>
-          <Megaphone size={12} /> Type
-        </FieldLabel>
-        <div
-          style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}
-        >
-          {CATEGORIES.map((category) => {
-            const Icon = category.icon;
-            return (
-              <SelectCard
-                active={values.category === category.id}
-                description={category.description}
-                icon={<Icon size={14} />}
-                key={category.id}
-                onClick={() => chooseType(category.id)}
-                title={category.label}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {linkType && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            marginTop: 22,
-          }}
-        >
-          <FieldLabel help="Deep-links the push to this content">
-            <Link2 size={12} /> {LINK_LABELS[linkType]} ID
-          </FieldLabel>
-          <input
-            onChange={(event) => {
-              set("content_type", linkType);
-              set("content_id", event.target.value || null);
-              if (linkType === "event") {
-                set("event_id", event.target.value || null);
-              }
-            }}
-            placeholder="e.g. 64f0c1a2b3…"
-            style={fieldInputStyle({ fontFamily: MONO, fontSize: 13 })}
-            value={values.content_id ?? ""}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /*                                 Content step                               */
@@ -1986,18 +1688,35 @@ export function AnnouncementStudioEditor({
 }: AnnouncementStudioEditorProps) {
   const router = useRouter();
   const [step, setStep] = useState<StepIndex>(0);
-  const [locale, setLocale] = useState<LocaleCode>("en");
+  const [locale, setLocale] = useState<LocaleCode>("no");
   const [previewLocale, setPreviewLocale] = useState<LocaleCode>("en");
   const [values, setValues] = useState<AnnouncementFormValues>(() =>
     buildInitialValues(announcement, defaultCampusId, pinnedDepartmentId)
   );
   const [dirty, setDirty] = useState(false);
+  const [link, setLink] = useState<LinkState>(buildLinkState);
+  // The audience counts as touched when the admin changes it here, or when a
+  // saved draft already carries a non-default one.
+  const [audienceTouched, setAudienceTouched] = useState(
+    () =>
+      announcement !== null &&
+      (announcement.audience_type !== "broadcast" ||
+        Boolean(announcement.audience_value) ||
+        (announcement.campus_id ?? "") !== defaultCampusId)
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [autoTranslate, setAutoTranslate] = useState(false);
   const [confirmTranslationOverwrite, setConfirmTranslationOverwrite] =
     useState(false);
+
+  // The page passes only the campuses this author may use, which for a campus
+  // admin are exactly their managed ones.
+  const audienceContext = {
+    managedCampusIds: campuses.map((campus) => campus.id),
+    roles: allowGlobalCampus ? ["globaladmin"] : ["campusadmin"],
+  };
 
   const campusOptions = [
     ...(allowGlobalCampus
@@ -2013,6 +1732,16 @@ export function AnnouncementStudioEditor({
     // Switching the audience to Topic with no topic set picks the default, so
     // the Topic select shows what will be stored and sent.
     setValues((prev) => withTopicDefault({ ...prev, [key]: value }));
+    setDirty(true);
+    if (AUDIENCE_KEYS.has(key)) {
+      setAudienceTouched(true);
+    }
+  }
+
+  function update(
+    change: (previous: AnnouncementFormValues) => AnnouncementFormValues
+  ) {
+    setValues((prev) => withTopicDefault(change(prev)));
     setDirty(true);
   }
 
@@ -2265,9 +1994,14 @@ export function AnnouncementStudioEditor({
           >
             {step === 0 && (
               <WhatStep
+                audienceContext={audienceContext}
+                audienceTouched={audienceTouched}
+                link={link}
                 locale={locale}
                 set={set}
+                setLink={setLink}
                 setLocale={setLocale}
+                update={update}
                 values={values}
               />
             )}

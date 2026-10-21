@@ -56,8 +56,10 @@ mock.module("@repo/api/server", () => ({
 mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => globalAdminCtx),
 }));
+// `unstable_cache` is read at import by the composer lookups the What step uses.
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
+  unstable_cache: (fn: unknown) => fn,
 }));
 mock.module("../../_actions/audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
