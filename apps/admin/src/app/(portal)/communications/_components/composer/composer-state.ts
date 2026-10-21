@@ -1,3 +1,4 @@
+import { parseAudiencePeople } from "@/lib/announcements/audience-people";
 import type { AnnouncementFormValues } from "../../../_actions/schemas";
 
 /**
@@ -154,30 +155,6 @@ export function applyLinkedAudience(
     audience_value: link.topic,
     campus_id: link.campusId,
   };
-}
-
-/** The people picked for a "users" audience: a JSON id array, or legacy text. */
-export function parseAudiencePeople(
-  value: string | null | undefined
-): string[] {
-  const raw = value?.trim() ?? "";
-  if (!raw) {
-    return [];
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.filter(
-        (entry): entry is string => typeof entry === "string" && entry !== ""
-      );
-    }
-  } catch {
-    // Not JSON: older drafts hold a comma-separated list.
-  }
-  return raw
-    .split(",")
-    .map((token) => token.trim())
-    .filter(Boolean);
 }
 
 export function canContinue(

@@ -11,6 +11,7 @@ import {
 import type { Announcements } from "@repo/api/types/appwrite";
 import { act, createElement, type ReactNode } from "react";
 import type { Root } from "react-dom/client";
+import { parseAudiencePeople } from "@/lib/announcements/audience-people";
 import type { UserAuthContext } from "@/lib/authorization";
 import {
   findButton,
@@ -408,5 +409,19 @@ describe("buildInitialValues", () => {
     );
 
     expect(values).toMatchObject({ content_id: "n-1", content_type: "news" });
+  });
+
+  test("a stored people list reopens as the same ids", () => {
+    const values = buildInitialValues(
+      {
+        ...draftBroadcastRow,
+        audience_type: "users",
+        audience_value: '["u1","u2"]',
+      } as unknown as Announcements,
+      "1",
+      null
+    );
+
+    expect(parseAudiencePeople(values.audience_value)).toEqual(["u1", "u2"]);
   });
 });

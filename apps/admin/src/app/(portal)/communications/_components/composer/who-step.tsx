@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, Globe, User, Users } from "lucide-react";
+import { parseAudiencePeople } from "@/lib/announcements/audience-people";
 import {
   type AudienceContext,
   type AudienceType,
@@ -8,7 +9,7 @@ import {
 } from "@/lib/announcements/audience-policy";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 import { DepartmentCombobox } from "../../../_components/department-combobox";
-import { type ComposerValues, parseAudiencePeople } from "./composer-state";
+import type { ComposerValues } from "./composer-state";
 import { GroupPicker } from "./group-picker";
 import { PeoplePicker } from "./people-picker";
 import { ReachBox, type ReachRequest } from "./reach-box";

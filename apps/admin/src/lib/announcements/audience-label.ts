@@ -2,6 +2,7 @@ import {
   isNotificationTopic,
   logicalTopicFor,
 } from "@repo/shared/utils/notification-topics";
+import { parseAudiencePeople } from "./audience-people";
 
 /** The stored fields a history row's audience label is derived from. */
 export interface AudienceLabelRow {
@@ -89,22 +90,6 @@ function topicLabel(
   return `${topic} · ${scopeLabel(channelCampus ?? row.campus_id, campusNames)}`;
 }
 
-function countPeople(value: string | null | undefined): number {
-  const raw = value?.trim() ?? "";
-  if (!raw) {
-    return 0;
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((id) => typeof id === "string" && id !== "").length;
-    }
-  } catch {
-    // Not JSON: older rows hold comma-separated text.
-  }
-  return raw.split(",").filter((token) => token.trim() !== "").length;
-}
-
 /**
  * The plain-English audience of a stored announcement, for the history list.
  * `campusNames` maps campus id to name; `segmentName` is the group's name for
@@ -121,7 +106,7 @@ export function audienceLabel(
     case "topic":
       return topicLabel(row, campusNames);
     case "users":
-      return `${countPeople(row.audience_value)} people`;
+      return `${parseAudiencePeople(row.audience_value).length} people`;
     case "segment":
       return segmentName ? `Group: ${segmentName}` : "Group";
     default:

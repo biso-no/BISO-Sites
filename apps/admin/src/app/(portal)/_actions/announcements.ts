@@ -5,6 +5,7 @@ import { createAdminClient } from "@repo/api/server";
 import type { Announcements, EventSegments } from "@repo/api/types/appwrite";
 import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
+import { parseAudiencePeople } from "@/lib/announcements/audience-people";
 import {
   ALREADY_SENT_MESSAGE,
   AUDIENCE_FORBIDDEN_MESSAGE,
@@ -363,9 +364,10 @@ export async function generateAnnouncementTranslationDraft(
 }
 
 /**
- * For "users" audiences, the editor may submit a comma-separated mix of user
- * ids and emails. Resolve emails to Appwrite user ids (best-effort) and store
- * the result as a JSON array of ids in `audience_value`.
+ * For "users" audiences, the composer submits a JSON array of user ids; older
+ * drafts hold a comma-separated mix of ids and emails. Resolve emails to
+ * Appwrite user ids (best-effort) and store the result as a JSON array of ids
+ * in `audience_value`.
  */
 async function normalizeAudienceValue(
   audienceType: string,
@@ -375,10 +377,7 @@ async function normalizeAudienceValue(
     return rawValue ?? null;
   }
 
-  const tokens = (rawValue ?? "")
-    .split(",")
-    .map((token) => token.trim())
-    .filter(Boolean);
+  const tokens = parseAudiencePeople(rawValue);
 
   if (tokens.length === 0) {
     return JSON.stringify([]);
