@@ -22,6 +22,11 @@ Follow the order. Each stage's steps assume the previous ones are done.
      - **A line that merges into two rows** (for example Trondheim's Karrieredagene line) keeps both rows, so nothing is lost. Trim `mergeInto` if you prefer.
      - **"Finnes også som lokal fordel på …"** means a national line also exists as a local benefit. Delete or merge the local one later in the new admin.
      - **Partners marked "(forslag)"** were guessed from the benefit titles. Fix the `name` or remove the `partnerKey`.
+   - Trim Trondheim's "Karrieredagene Trondheim – …" `mergeInto` down to the Karrieredagene row alone. The second target, "Bedriftspresentasjoner", is a false match. It does no harm, but it's misleading.
+   - Some near-duplicates aren't flagged because their wording is too different. Check these yourself and merge them by hand:
+     - Oslo "Medlemspriser på BISO Oslos arrangementer gjennom hele året" vs national "Bedre priser på BISO-arrangementer"
+     - Oslo's and Trondheim's "Bli med i undergrupper …" vs national "Verv og undergrupper"
+   - Two existing benefits carry a code. Before deleting either of them in the new admin, for example after making Rekom or Econa national, copy its code to the benefit that replaces it.
    - Check that Trondheim's "Rabatt på billett til Fadderullan" really is 40 %. It merges into the national "40% rabatt på Fadderullan".
    - The draft titled "los t" is proposed for deletion. Set `"approved": true` if you want it deleted.
    - The apply step replaces each published benefit's permissions with `read("any")`. That's correct for today's rows, which only carry `read("team:biso-members")`.
