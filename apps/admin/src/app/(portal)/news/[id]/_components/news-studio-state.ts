@@ -128,6 +128,7 @@ export const createNewsStudioDefaults = (
     description_en: english?.description ?? "",
     description_no: norwegian?.description ?? "",
     image: article?.image ?? "",
+    notify_push: article?.notify_push ?? false,
     slug: article?.slug ?? "",
     status: article?.status === "published" ? "published" : "draft",
     sticky: article?.sticky ?? false,

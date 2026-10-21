@@ -81,6 +81,7 @@ export const newsSchema = z
     category: z.string().optional().nullable(),
     image: z.string().url().optional().nullable().or(z.literal("")),
     sticky: z.boolean().default(false),
+    notify_push: z.boolean().default(false),
   })
   .superRefine((values, context) => {
     if (!(values.title_no.trim() || values.title_en.trim())) {

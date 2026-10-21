@@ -245,6 +245,7 @@ export const recruitmentVacancyUpsertSchema = z
     auto_translate: z.boolean().default(false),
     push_to_inboxes: z.boolean().default(false),
     newsletter: z.boolean().default(false),
+    notify_push: z.boolean().default(false),
     publication_mode: recruitmentPublicationModeSchema.nullable().optional(),
     scheduled_publish_at: nullableDateString,
     auto_screen: z.boolean().default(true),
@@ -471,6 +472,7 @@ export interface RecruitmentVacancy {
   department_id: string | null;
   interview_template: RecruitmentInterviewTemplate | null;
   metadata: RecruitmentVacancyMetadata;
+  notify_push: boolean;
   /**
    * When set on a draft, the scheduled-publish dispatcher publishes the
    * vacancy at this time. `metadata.scheduled_publish_at` is only the

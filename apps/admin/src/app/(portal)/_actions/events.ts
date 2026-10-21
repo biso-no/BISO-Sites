@@ -31,6 +31,7 @@ import {
   translateContentFields,
 } from "@/lib/content-translation.server";
 import { withNationalEventScope } from "@/lib/event-scope";
+import { resolveNotifyPush } from "@/lib/notify-push-guard";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -409,7 +410,10 @@ async function buildEventPermissions(
   };
 }
 
-function buildEventColumns(values: EventFormValues): Record<string, unknown> {
+function buildEventColumns(
+  values: EventFormValues,
+  notifyPush: boolean
+): Record<string, unknown> {
   return {
     slug: values.slug,
     // Canonical ownership relationships; the scalar columns remain as
@@ -437,7 +441,7 @@ function buildEventColumns(values: EventFormValues): Record<string, unknown> {
     member_only: values.member_only,
     is_collection: values.is_collection,
     collection_pricing: EventsCollectionPricing.INDIVIDUAL,
-    notify_push: values.notify_push,
+    notify_push: notifyPush,
     publish_mode: values.publish_mode,
     scheduled_publish_at: values.scheduled_publish_at ?? null,
     contact_name: values.contact_name ?? null,
@@ -619,7 +623,15 @@ export async function createEvent(
       "events",
       eventId,
       {
-        ...buildEventColumns(validated.data),
+        ...buildEventColumns(
+          validated.data,
+          resolveNotifyPush({
+            campusId: validated.data.campus_id,
+            isGlobalAdmin: ctx.roles.includes("globaladmin"),
+            requested: validated.data.notify_push,
+            stored: null,
+          })
+        ),
         status: status as EventsStatus,
         translation_refs: buildEventTranslationChildren(
           eventId,
@@ -709,7 +721,15 @@ export async function updateEvent(
       "events",
       id,
       {
-        ...buildEventColumns(validated.data),
+        ...buildEventColumns(
+          validated.data,
+          resolveNotifyPush({
+            campusId: validated.data.campus_id,
+            isGlobalAdmin: ctx.roles.includes("globaladmin"),
+            requested: validated.data.notify_push,
+            stored: event.notify_push,
+          })
+        ),
         status: validated.data.status,
         translation_refs: buildEventTranslationChildren(
           id,

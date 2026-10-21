@@ -135,6 +135,7 @@ describe("admin content update scoping", () => {
       description_en: "",
       description_no: "Body",
       image: "",
+      notify_push: false,
       slug: "campus-news",
       status: "draft",
       sticky: false,

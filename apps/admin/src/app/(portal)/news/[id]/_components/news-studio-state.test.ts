@@ -21,6 +21,7 @@ const createValues = (): NewsFormValues => ({
   description_en: "",
   description_no: "Norsk brødtekst",
   image: "",
+  notify_push: false,
   slug: "student-news",
   status: "draft",
   sticky: false,

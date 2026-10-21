@@ -24,6 +24,7 @@ const values: NewsFormValues = {
   description_en: "",
   description_no: "",
   image: "",
+  notify_push: false,
   slug: "student-news",
   status: "draft",
   sticky: false,

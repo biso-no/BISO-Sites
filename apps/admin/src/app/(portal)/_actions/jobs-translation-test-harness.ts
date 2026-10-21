@@ -75,12 +75,15 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ db: sessionDb })),
 }));
 
+const defaultAuthCtx = (): Record<string, unknown> => ({
+  managedCampusIds: [],
+  roles: [],
+  userId: "editor-1",
+});
+export const authState = { ctx: defaultAuthCtx() };
+
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => ({
-    managedCampusIds: [],
-    roles: [],
-    userId: "editor-1",
-  })),
+  requireAuth: mock(async () => authState.ctx),
 }));
 
 mock.module("@/lib/recruitment", () => ({
@@ -136,6 +139,7 @@ mock.module("./audit-log", () => ({
 }));
 
 export const resetTranslationHarness = (): void => {
+  authState.ctx = defaultAuthCtx();
   deferredTask = undefined;
   primaryWriteCompleted = false;
   for (const db of [sessionDb, adminDb]) {

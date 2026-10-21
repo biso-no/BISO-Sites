@@ -235,6 +235,7 @@ function buildDefaultValues(
     employment_type: fallback(metadata?.employment_type, null),
     location: fallback(metadata?.location, null),
     newsletter: Boolean(metadata?.newsletter),
+    notify_push: job?.notify_push ?? false,
     paid: Boolean(metadata?.paid),
     publication_mode: fallback(metadata?.publication_mode, "now"),
     push_to_inboxes: Boolean(metadata?.push_to_inboxes),
