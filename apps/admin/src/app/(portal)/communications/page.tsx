@@ -4,19 +4,21 @@ import { listAnnouncements } from "../_actions/announcements";
 import { PageHeader } from "../_components/page-header";
 import { StudioLinkButton } from "../_components/studio";
 import { AnnouncementListClient } from "./_components/announcement-list-client";
+import { parseSourceFilter } from "./_components/source-filter";
 
 interface CommunicationsPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; source?: string }>;
 }
 
 export default async function CommunicationsPage({
   searchParams,
 }: CommunicationsPageProps) {
   await requireNavAccess("portal.communications");
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, source: sourceParam } = await searchParams;
+  const source = parseSourceFilter(sourceParam);
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const announcements = await listAnnouncements({ page });
+  const announcements = await listAnnouncements({ page, source });
 
   return (
     <div className="pb-12">
@@ -33,6 +35,8 @@ export default async function CommunicationsPage({
       <AnnouncementListClient
         initialAnnouncements={announcements.rows}
         page={page}
+        segmentNames={announcements.segmentNames}
+        source={source}
         total={announcements.total}
       />
     </div>

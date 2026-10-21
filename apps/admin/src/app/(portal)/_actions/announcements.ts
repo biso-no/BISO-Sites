@@ -2,7 +2,7 @@
 
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Announcements } from "@repo/api/types/appwrite";
+import type { Announcements, EventSegments } from "@repo/api/types/appwrite";
 import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
 import {
@@ -505,6 +505,7 @@ export async function listAnnouncements(opts?: {
   status?: string;
   campusId?: string;
   page?: number;
+  source?: "all" | "manual" | "auto";
 }) {
   const ctx = await requireAuth();
   const { db } = await createAdminClient();
@@ -523,13 +524,40 @@ export async function listAnnouncements(opts?: {
   if (opts?.campusId) {
     queries.push(Query.equal("campus_id", opts.campusId));
   }
+  if (opts?.source === "auto") {
+    queries.push(Query.equal("source", "auto"));
+  } else if (opts?.source === "manual") {
+    // Rows from before `source` existed have null, and were all manual.
+    queries.push(
+      Query.or([Query.isNull("source"), Query.equal("source", "manual")])
+    );
+  }
 
   const response = await db.listRows<Announcements>(
     "app",
     "announcements",
     queries
   );
-  return { rows: response.rows, total: response.total };
+
+  // One batched lookup for the groups named on this page, not one per row.
+  const segmentIds = [
+    ...new Set(
+      response.rows
+        .filter((row) => row.audience_type === "segment" && row.audience_value)
+        .map((row) => row.audience_value as string)
+    ),
+  ];
+  const segmentNames: Record<string, string> = {};
+  if (segmentIds.length > 0) {
+    const segments = await db.listRows<EventSegments>("app", "event_segments", [
+      Query.equal("$id", segmentIds),
+      Query.limit(segmentIds.length),
+    ]);
+    for (const segment of segments.rows) {
+      segmentNames[segment.$id] = segment.name;
+    }
+  }
+  return { rows: response.rows, segmentNames, total: response.total };
 }
 
 export async function getAnnouncement(id: string) {
