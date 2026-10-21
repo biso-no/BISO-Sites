@@ -4,6 +4,7 @@ import {
   benefitAccessFor,
   canEditBenefitCampus,
   canManageMembershipTexts,
+  hasVerifiedBenefitEditorIdentity,
   isBenefitEditorEmail,
   parseBenefitEditorEmails,
 } from "./benefit-access";
@@ -83,5 +84,40 @@ describe("canManageMembershipTexts", () => {
     expect(canManageMembershipTexts({ roles: ["campusadmin"] })).toBe(false);
     expect(canManageMembershipTexts({ roles: ["benefitseditor"] })).toBe(true);
     expect(canManageMembershipTexts({ roles: ["globaladmin"] })).toBe(true);
+  });
+});
+
+describe("hasVerifiedBenefitEditorIdentity", () => {
+  const configured = "pr@biso.no";
+
+  test("microsoft identity with a listed email is verified", () => {
+    expect(
+      hasVerifiedBenefitEditorIdentity(
+        [{ provider: "microsoft", providerEmail: "PR@biso.no" }],
+        configured
+      )
+    ).toBe(true);
+  });
+
+  test("microsoft identity with another email is not", () => {
+    expect(
+      hasVerifiedBenefitEditorIdentity(
+        [{ provider: "microsoft", providerEmail: "x@biso.no" }],
+        configured
+      )
+    ).toBe(false);
+  });
+
+  test("another provider with the listed email is not", () => {
+    expect(
+      hasVerifiedBenefitEditorIdentity(
+        [{ provider: "google", providerEmail: "pr@biso.no" }],
+        configured
+      )
+    ).toBe(false);
+  });
+
+  test("no identities is not", () => {
+    expect(hasVerifiedBenefitEditorIdentity([], configured)).toBe(false);
   });
 });

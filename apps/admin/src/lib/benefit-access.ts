@@ -35,6 +35,24 @@ export function isBenefitEditorEmail(
   return parseBenefitEditorEmails(configured).has(email.trim().toLowerCase());
 }
 
+const MICROSOFT_PROVIDER = "microsoft";
+
+/**
+ * True when some Microsoft OAuth identity carries a configured editor email.
+ * The account email alone is not trusted: anonymous/email-password sessions
+ * can set any address, while a Microsoft identity is vouched for by Azure AD.
+ */
+export function hasVerifiedBenefitEditorIdentity(
+  identities: { provider: string; providerEmail?: string | null }[],
+  configured: string | undefined = process.env.BENEFITS_EDITOR_EMAILS
+): boolean {
+  return identities.some(
+    (identity) =>
+      identity.provider === MICROSOFT_PROVIDER &&
+      isBenefitEditorEmail(identity.providerEmail, configured)
+  );
+}
+
 export interface BenefitAccess {
   editableCampusIds: string[];
   visibleCampusIds: string[];

@@ -14,7 +14,10 @@ import {
   parseTeamMemberships,
   type TeamParseResult,
 } from "./authorization-team-memberships";
-import { isBenefitEditorEmail } from "./benefit-access";
+import {
+  hasVerifiedBenefitEditorIdentity,
+  isBenefitEditorEmail,
+} from "./benefit-access";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
@@ -37,6 +40,23 @@ export interface UserAuthContext {
   resolvedDepartmentIds: string[]; // Appwrite Departments row $ids matching departmentNames
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;
+}
+
+/**
+ * Fail-closed check that the session's account has a Microsoft identity with
+ * a configured benefits-editor email.
+ */
+async function hasMicrosoftEditorIdentity(account: {
+  listIdentities: () => Promise<{
+    identities: { provider: string; providerEmail?: string | null }[];
+  }>;
+}): Promise<boolean> {
+  try {
+    const { identities } = await account.listIdentities();
+    return hasVerifiedBenefitEditorIdentity(identities);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -121,7 +141,8 @@ export const getUserAuthContext = cache(
       const { roles, managedCampuses } = deriveRoles(parsed);
       if (
         isBenefitEditorEmail(user.email) &&
-        !roles.includes(ROLES.BENEFITS_EDITOR)
+        !roles.includes(ROLES.BENEFITS_EDITOR) &&
+        (await hasMicrosoftEditorIdentity(account))
       ) {
         roles.push(ROLES.BENEFITS_EDITOR);
       }

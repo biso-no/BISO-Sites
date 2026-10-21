@@ -70,8 +70,7 @@ describe("filterNavTree", () => {
 
   test("benefits editor sees benefits and lands on it", () => {
     const nodes = filterNavTree(benefitsEditor);
-    const flat = JSON.stringify(nodes);
-    expect(flat).toContain('"benefits"');
+    expect(flattenNavTree(nodes).map((l) => l.labelKey)).toEqual(["benefits"]);
     expect(getDefaultNavPath(benefitsEditor)).toBe("/benefits");
   });
 
