@@ -80,6 +80,17 @@ describe("benefit catalog", () => {
     }
   });
 
+  it("maps inherited object keys to other", () => {
+    for (const value of [
+      "constructor",
+      "__proto__",
+      "toString",
+      "hasOwnProperty",
+    ]) {
+      expect(mapLegacyBenefitCategory(value)).toBe("other");
+    }
+  });
+
   it("keeps resolveBenefitCampusIds behaviour", () => {
     expect(resolveBenefitCampusIds(null)).toEqual(["5"]);
     expect(resolveBenefitCampusIds("5")).toEqual(["5"]);

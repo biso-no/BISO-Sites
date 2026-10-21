@@ -64,14 +64,15 @@ export function isBenefitCategory(value: unknown): value is BenefitCategoryKey {
   );
 }
 
-const LEGACY_CATEGORY_MAP: Record<string, BenefitCategoryKey> = {
-  health: "health_fitness",
-  "health & fitness": "health_fitness",
-  "food & drink": "food_drink",
-  entertainment: "events",
-  travel: "travel",
-  software: "software",
-};
+/** A Map, so inherited keys such as "constructor" never count as categories. */
+const LEGACY_CATEGORY_MAP = new Map<string, BenefitCategoryKey>([
+  ["health", "health_fitness"],
+  ["health & fitness", "health_fitness"],
+  ["food & drink", "food_drink"],
+  ["entertainment", "events"],
+  ["travel", "travel"],
+  ["software", "software"],
+]);
 
 export function mapLegacyBenefitCategory(
   value: string | null | undefined
@@ -80,5 +81,5 @@ export function mapLegacyBenefitCategory(
   if (isBenefitCategory(normalized)) {
     return normalized;
   }
-  return LEGACY_CATEGORY_MAP[normalized] ?? "other";
+  return LEGACY_CATEGORY_MAP.get(normalized) ?? "other";
 }

@@ -13,6 +13,7 @@ import {
 } from "./benefit-catalog";
 import {
   type BenefitMatch,
+  benefitTokens,
   compareBenefitTexts,
   isMergeMatch,
   isPossibleMatch,
@@ -147,6 +148,12 @@ const PUBLIC_READ = 'read("any")';
 const ID_HEX_LENGTH = 20;
 const MISSING_ENGLISH = "Mangler engelsk tekst";
 const DUPLICATE = "Duplikat";
+const POSSIBLE_DUPLICATE = "Mulig duplikat: ";
+const UNPUBLISHED = "ikke publisert";
+/** A line needs this many words before containment alone can merge it. */
+const MIN_CONTAINMENT_TOKENS = 2;
+/** `title_nb` / `title_en` column size in campus_benefits. */
+const MAX_TITLE_LENGTH = 200;
 const NOTE_SEPARATOR = "; ";
 const EMPTY_CELL = "–";
 
@@ -424,6 +431,20 @@ function similarityNote(row: PlannedRowUpdate): string {
   return `Ligner på «${row.title}» (${campusName(row.campusId)}, ${sectionLabel(row.section)})`;
 }
 
+/** Names the row id so a reviewer can merge by hand (`mergeInto`). */
+function possibleDuplicateNote(
+  row: PlannedRowUpdate,
+  published: boolean
+): string {
+  const details = [
+    campusName(row.campusId),
+    sectionLabel(row.section),
+    published ? null : UNPUBLISHED,
+    `id ${row.rowId}`,
+  ];
+  return `${POSSIBLE_DUPLICATE}«${row.title}» (${details.filter(Boolean).join(", ")})`;
+}
+
 function otherCampusNote(
   line: DraftLine,
   rows: PlannedRowUpdate[]
@@ -470,9 +491,11 @@ function baseLine(line: DraftLine): Omit<PlannedLine, "action" | "note"> {
 }
 
 /**
- * Rule 5: merge into same-section candidates, or create with notes. Only
- * published rows can be merge targets, so a live line never folds into a
- * draft or archived row; those still show up as possible matches.
+ * Rule 5: merge into same-section candidates, or create with notes. A line of
+ * two or more words also merges into a row whose whole text it contains
+ * ("Gratis bedriftspresentasjoner på campus" into "Bedriftspresentasjoner").
+ * Only published rows can be merge targets, so a live line never folds into a
+ * draft or archived row; those still show up as possible duplicates.
  */
 function matchLine(
   line: DraftLine,
@@ -488,10 +511,15 @@ function matchLine(
       match: compareBenefitTexts(line.titleNb, row.title),
       row,
     }));
+  const canMergeByContainment =
+    benefitTokens(line.titleNb).length >= MIN_CONTAINMENT_TOKENS;
   const sameSection = scored.filter(({ row }) => row.section === line.section);
   const targets = sameSection
     .filter(
-      ({ match, row }) => isMergeMatch(match) && publishedIds.has(row.rowId)
+      ({ match, row }) =>
+        (isMergeMatch(match) ||
+          (canMergeByContainment && match.containment === 1)) &&
+        publishedIds.has(row.rowId)
     )
     .map(({ row }) => row);
   const similar = scored
@@ -500,7 +528,11 @@ function matchLine(
         !targets.includes(row) &&
         (isMergeMatch(match) || isPossibleMatch(match))
     )
-    .map(({ row }) => similarityNote(row));
+    .map(({ row }) =>
+      row.section === line.section
+        ? possibleDuplicateNote(row, publishedIds.has(row.rowId))
+        : similarityNote(row)
+    );
   const notes = [...line.notes, ...similar, otherCampusNote(line, rows)];
   const note = notes.filter(Boolean).join(NOTE_SEPARATOR) || null;
   const score =
@@ -626,6 +658,7 @@ export function planBenefitMigration(input: MigrationInput): MigrationPlan {
 // ── Validation ────────────────────────────────────────────────────────────
 
 interface PlanLookups {
+  approvedDeletions: Set<string>;
   partnerKeys: Set<string>;
   rowIds: Set<string>;
 }
@@ -661,6 +694,10 @@ function lineProblems(line: PlannedLine, lookups: PlanLookups): string[] {
   for (const rowId of line.mergeInto) {
     if (!lookups.rowIds.has(rowId)) {
       problems.push(`${label} viser til ukjent rad ${rowId} i mergeInto`);
+    } else if (lookups.approvedDeletions.has(rowId)) {
+      problems.push(
+        `${label} slås sammen med rad ${rowId}, som er godkjent for sletting`
+      );
     }
   }
   if (line.partnerKey !== null && !lookups.partnerKeys.has(line.partnerKey)) {
@@ -674,7 +711,23 @@ function lineProblems(line: PlannedLine, lookups: PlanLookups): string[] {
   if (line.action === "create" && !line.titleNb.trim()) {
     problems.push(`Linje ${line.id} er ny, men titleNb er tom`);
   }
+  if (line.action === "create") {
+    problems.push(...titleLengthProblems(line, label));
+  }
   return problems;
+}
+
+/** Appwrite rejects a longer title, which would stop apply halfway. */
+function titleLengthProblems(line: PlannedLine, label: string): string[] {
+  const fields = ["titleNb", "titleEn"] as const;
+  return fields.flatMap((field) => {
+    const length = [...line[field]].length;
+    return length > MAX_TITLE_LENGTH
+      ? [
+          `${label} er ny, men ${field} er ${length} tegn (maks ${MAX_TITLE_LENGTH})`,
+        ]
+      : [];
+  });
 }
 
 function rowUpdateProblems(
@@ -710,6 +763,12 @@ function referenceProblems(plan: MigrationPlan, rowIds: Set<string>): string[] {
 /** Returns one readable problem per mistake; an empty list means valid. */
 export function validateMigrationPlan(plan: MigrationPlan): string[] {
   const lookups: PlanLookups = {
+    // Same test as apply, which deletes on any truthy `approved`.
+    approvedDeletions: new Set(
+      plan.deletions
+        .filter((deletion) => deletion.approved)
+        .map((deletion) => deletion.rowId)
+    ),
     partnerKeys: new Set(plan.partners.map((partner) => partner.key)),
     rowIds: new Set(plan.rowUpdates.map((row) => row.rowId)),
   };
@@ -809,6 +868,7 @@ function lineRow(line: PlannedLine, lookups: ReviewLookups): string[] {
   const details = [line.note, partner && `Partner: ${partner}`];
   return [
     line.titleNb,
+    line.titleEn,
     lineAction(line, lookups.titles),
     details.filter(Boolean).join(NOTE_SEPARATOR),
   ];
@@ -830,7 +890,7 @@ function renderCampusLines(
       .map((line) => lineRow(line, lookups));
     if (rows.length > 0) {
       out.push(`### ${sectionLabel(section)}`, "");
-      out.push(...table(["Tekst", "Handling", "Detaljer"], rows));
+      out.push(...table(["Tekst", "Engelsk", "Handling", "Detaljer"], rows));
     }
   }
   return out;
@@ -891,6 +951,8 @@ const REVIEW_INSTRUCTIONS = [
   "   - `mergeInto`: ID-ene til de eksisterende radene linjen slås sammen med.",
   "   - `partnerKey`: nøkkelen til en partner i `partners`, eller `null` for ingen partner.",
   "   - `approved`: sett til `true` på slettinger du godkjenner.",
+  '   - «Mulig duplikat»: er det samme tilbud, sett `action` til `"merge"` og `mergeInto` til `["<id>"]` med ID-en fra notatet. En rad merket «ikke publisert» vises ikke på nettsiden, så linjen forsvinner fra nettsiden hvis den slås sammen med en slik rad.',
+  '   - «vurder å gjøre det nasjonalt»: skal tilbudet gjelde hele BISO, sett `campusId` til `"5"` på én av linjene og `action` til `"skip"` på de andre linjene med samme tilbud. Den eksisterende raden på den andre campusen blir værende som lokal fordel; slett den i admin etterpå, ellers vises tilbudet to ganger der.',
   "2. Kjør apply fra `packages/shared`: `bun run migrate:benefits --apply --plan <sti til plan.json>`.",
   "",
 ];

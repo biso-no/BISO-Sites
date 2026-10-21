@@ -30,6 +30,8 @@ const FADDERULLAN = "40 % rabatt på billett til Fadderullan";
 const REKOM = "Rabatt på alle Rekom-utesteder i Norden og Storbritannia";
 const PEPPES = "25 % rabatt på Peppes Pizza Nydalen";
 const VARSLING = "Trygg varslingskanal for alle studenter";
+const BEDRIFT = "Gratis bedriftspresentasjoner på campus";
+const MAX_TITLE = 200;
 
 function campusRow(id: string, lists: Record<string, unknown[]>) {
   return { $id: id, ...lists } satisfies CampusDataInput;
@@ -421,7 +423,7 @@ describe("planBenefitMigration matching", () => {
       expect(result.lines[0]).toMatchObject({
         action: "create",
         mergeInto: [],
-        note: "Ligner på «25 % hos Peppes Pizza Nydalen» (Oslo, Medlemsfordeler)",
+        note: "Mulig duplikat: «25 % hos Peppes Pizza Nydalen» (Oslo, Medlemsfordeler, ikke publisert, id peppes)",
       });
       expect(result.rowUpdates[0]?.sortOrder).toBeNull();
     }
@@ -481,7 +483,26 @@ describe("planBenefitMigration matching", () => {
     });
   });
 
-  it("notes a possible match and scores it", () => {
+  it("merges a longer line that contains a published row's whole text", () => {
+    const result = plan(
+      [
+        benefitRow({
+          $id: "bedrift",
+          campus_id: "5",
+          section: "career",
+          title_nb: "Bedriftspresentasjoner",
+        }),
+      ],
+      [campusRow("1", { careerAdvantages_nb: [BEDRIFT] })]
+    );
+    expect(result.lines[0]).toMatchObject({
+      action: "merge",
+      campusId: "1",
+      mergeInto: ["bedrift"],
+    });
+  });
+
+  it("scores a containment merge by its dice", () => {
     const result = plan(productionFixture().benefits, [
       campusRow("2", {
         careerAdvantages_en: ["Career days Bergen"],
@@ -491,11 +512,74 @@ describe("planBenefitMigration matching", () => {
       }),
     ]);
     const [line] = result.lines;
-    expect(line?.action).toBe("create");
+    expect(line?.action).toBe("merge");
+    expect(line?.mergeInto).toEqual(["karrieredagene"]);
     expect(line?.score).toBeCloseTo(1 / 3);
-    expect(line?.note).toBe(
-      "Ligner på «Karrieredagene» (Hele BISO, Karrierefordeler)"
+  });
+
+  it("does not merge a one-word line by containment alone", () => {
+    const result = plan(
+      [
+        benefitRow({
+          $id: "bedrift",
+          campus_id: "5",
+          section: "career",
+          title_nb: BEDRIFT,
+        }),
+      ],
+      [
+        campusRow("1", {
+          careerAdvantages_en: ["Company presentations"],
+          careerAdvantages_nb: ["Bedriftspresentasjoner"],
+        }),
+      ]
     );
+    expect(result.lines[0]).toMatchObject({ action: "create", mergeInto: [] });
+  });
+
+  it("marks a same-section possible match as a possible duplicate with its row id", () => {
+    const result = plan(
+      [
+        benefitRow({
+          $id: "bedrift",
+          campus_id: "5",
+          section: "career",
+          title_nb: BEDRIFT,
+        }),
+      ],
+      [
+        campusRow("1", {
+          careerAdvantages_en: ["Company presentations"],
+          careerAdvantages_nb: ["Bedriftspresentasjoner"],
+        }),
+      ]
+    );
+    expect(result.lines[0]?.note).toBe(
+      `Mulig duplikat: «${BEDRIFT}» (Hele BISO, Karrierefordeler, id bedrift)`
+    );
+  });
+
+  it("keeps a cross-section possible match as a plain similarity note", () => {
+    const result = plan(
+      [
+        benefitRow({
+          $id: "bedrift",
+          campus_id: "5",
+          section: "social",
+          title_nb: BEDRIFT,
+        }),
+      ],
+      [
+        campusRow("1", {
+          careerAdvantages_en: ["Company presentations"],
+          careerAdvantages_nb: ["Bedriftspresentasjoner"],
+        }),
+      ]
+    );
+    expect(result.lines[0]).toMatchObject({
+      action: "create",
+      note: `Ligner på «${BEDRIFT}» (Hele BISO, Sosialt nettverk)`,
+    });
   });
 
   it("suggests a partner for a new member line", () => {
@@ -748,6 +832,49 @@ describe("validateMigrationPlan", () => {
     expect(problems.join("\n")).toContain("missing-deletion-row");
     expect(problems.join("\n")).not.toContain("SECRET");
   });
+
+  it("reports a merge into a row that is approved for deletion", () => {
+    const broken = structuredClone(planBenefitMigration(productionFixture()));
+    const merge = broken.lines.find((line) => line.action === "merge");
+    if (!merge) {
+      throw new Error("fixture needs a merge line");
+    }
+    merge.mergeInto = [...merge.mergeInto, "los-t"];
+    expect(validateMigrationPlan(broken)).toEqual([]);
+
+    broken.deletions = broken.deletions.map((deletion) => ({
+      ...deletion,
+      approved: true,
+    }));
+    broken.codes.push({ rowId: "los-t", value: "SECRET" });
+    const problems = validateMigrationPlan(broken);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(merge.id);
+    expect(problems[0]).toContain("los-t");
+    expect(problems[0]).toContain("sletting");
+    expect(problems[0]).not.toContain("SECRET");
+  });
+
+  it("reports a new line whose title is longer than 200 characters", () => {
+    const broken = structuredClone(planBenefitMigration(productionFixture()));
+    const [longNb, longEn, exact] = broken.lines.filter(
+      (line) => line.action === "create"
+    );
+    if (!(longNb && longEn && exact)) {
+      throw new Error("fixture needs three create lines");
+    }
+    longNb.titleNb = "a".repeat(MAX_TITLE + 1);
+    longEn.titleEn = "b".repeat(MAX_TITLE + 1);
+    exact.titleNb = "c".repeat(MAX_TITLE);
+    exact.titleEn = "d".repeat(MAX_TITLE);
+    const problems = validateMigrationPlan(broken);
+    expect(problems).toHaveLength(2);
+    expect(problems[0]).toContain(longNb.id);
+    expect(problems[0]).toContain("titleNb");
+    expect(problems[0]).toContain("201");
+    expect(problems[1]).toContain(longEn.id);
+    expect(problems[1]).toContain("titleEn");
+  });
 });
 
 describe("renderMigrationReview", () => {
@@ -758,11 +885,16 @@ describe("renderMigrationReview", () => {
     expect(review).toContain("Kildelinjer: 21");
     expect(review).toContain("## Oslo");
     expect(review).toContain("## Hele BISO");
-    expect(review).toContain("| Tekst | Handling | Detaljer |");
+    expect(review).toContain("| Tekst | Engelsk | Handling | Detaljer |");
     expect(review).toContain(
-      `| ${INTERVJU} | Slås sammen med «Intervju-coaching» |`
+      `| ${INTERVJU} | Interview coaching with BISO HR | Slås sammen med «Intervju-coaching» |`
     );
-    expect(review).toContain(`| ${REKOM} | Hoppes over | Duplikat |`);
+    expect(review).toContain(
+      `| ${REKOM} | ${REKOM} | Hoppes over | Duplikat |`
+    );
+    expect(review).toContain(
+      `| ${VARSLING} | A safe whistleblowing channel for all students | Ny |`
+    );
     expect(review).toContain(
       "| 25 % hos Peppes Pizza Nydalen | Oslo | Medlemsfordeler | Annet | Peppes Pizza Nydalen |  |"
     );
@@ -780,5 +912,38 @@ describe("renderMigrationReview", () => {
     expect(review.trimEnd().endsWith("--plan <sti til plan.json>`.")).toBe(
       true
     );
+  });
+
+  it("shows the row id of a possible duplicate and explains how to act on notes", () => {
+    const review = renderMigrationReview(
+      plan(
+        [
+          benefitRow({
+            $id: "bedrift",
+            campus_id: "5",
+            section: "career",
+            title_nb: BEDRIFT,
+          }),
+        ],
+        [
+          campusRow("1", {
+            careerAdvantages_en: ["Company presentations"],
+            careerAdvantages_nb: ["Bedriftspresentasjoner"],
+          }),
+        ]
+      )
+    );
+    expect(review).toContain(
+      `Mulig duplikat: «${BEDRIFT}» (Hele BISO, Karrierefordeler, id bedrift)`
+    );
+    const instructions = review.slice(
+      review.indexOf("## Slik godkjenner du planen")
+    );
+    expect(instructions).toContain("«Mulig duplikat»");
+    expect(instructions).toContain('`action` til `"merge"`');
+    expect(instructions).toContain("`mergeInto`");
+    expect(instructions).toContain("«vurder å gjøre det nasjonalt»");
+    expect(instructions).toContain('`campusId` til `"5"`');
+    expect(instructions).toContain('`action` til `"skip"`');
   });
 });
