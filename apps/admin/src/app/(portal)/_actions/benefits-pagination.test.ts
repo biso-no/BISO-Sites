@@ -66,6 +66,23 @@ describe("listBenefits pagination", () => {
     expect(queries).toContain(Query.equal("$id", "__no_benefit_access__"));
   });
 
+  test("never returns a code", async () => {
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        { $id: "b1", campus_id: "2", redemption_value: "BISO20" },
+        { $id: "b2", campus_id: "5", redemption_value: null },
+      ],
+      total: 2,
+    });
+
+    const result = await listBenefits({ page: 1, size: 25, q: "" });
+
+    expect(result.rows.map((row) => row.$id)).toEqual(["b1", "b2"]);
+    for (const row of result.rows) {
+      expect(row.redemption_value ?? null).toBeNull();
+    }
+  });
+
   test("filters by status", async () => {
     db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
 

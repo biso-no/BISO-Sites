@@ -14,8 +14,9 @@ interface ParsedQuery {
 const notFound = (): Error =>
   Object.assign(new Error("Row not found"), { code: 404 });
 
-// In-memory tables. `equal` queries filter; ordering and limits are ignored,
-// so the actions must not rely on the database to pick a row for them.
+// In-memory tables. `equal`, `isNull` and `or` queries filter; ordering and
+// limits are ignored, so the actions must not rely on the database to pick a
+// row for them.
 let benefitRows: Row[] = [];
 let partnerRows: Row[] = [];
 let codeRows = new Map<string, string>();
@@ -27,14 +28,24 @@ const tableRows = (tableId: string): Row[] => {
   return tableId === "benefit_partners" ? partnerRows : [];
 };
 
+const matchesQuery = (row: Row, query: ParsedQuery): boolean => {
+  const value = row[query.attribute ?? ""];
+  switch (query.method) {
+    case "equal":
+      return (query.values ?? []).includes(value);
+    case "isNull":
+      return value === null || value === undefined;
+    case "or":
+      return ((query.values ?? []) as ParsedQuery[]).some((nested) =>
+        matchesQuery(row, nested)
+      );
+    default:
+      return true;
+  }
+};
+
 const matchesQueries = (row: Row, queries: string[] = []): boolean =>
-  queries
-    .map((query) => JSON.parse(query) as ParsedQuery)
-    .every(
-      (query) =>
-        query.method !== "equal" ||
-        (query.values ?? []).includes(row[query.attribute ?? ""])
-    );
+  queries.every((query) => matchesQuery(row, JSON.parse(query) as ParsedQuery));
 
 const db = {
   createRow: mock(),
@@ -272,6 +283,42 @@ describe("createBenefit", () => {
     );
   });
 
+  test("legacy member rows without a section count for the sort order", async () => {
+    benefitRows = [
+      storedBenefit({ $id: "a", sort_order: 1 }),
+      storedBenefit({ $id: "legacy", section: null, sort_order: 6 }),
+    ];
+
+    await createBenefit(memberValues);
+
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({ sort_order: 7 })
+    );
+  });
+
+  test("refuses a partner from another campus and allows a national one", async () => {
+    partnerRows = [
+      { $id: "bergen", campus_id: "3", logo_url: null, name: "Bergen bar" },
+      { $id: "rekom", campus_id: "5", logo_url: null, name: "Rekom" },
+    ];
+
+    const foreign = await createBenefit({
+      ...memberValues,
+      partner_id: "bergen",
+    });
+    expect(foreign).toEqual({ error: "Partner not found" });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+
+    const national = await createBenefit({
+      ...memberValues,
+      partner_id: "rekom",
+    });
+    expect(national).toEqual({ data: expect.any(String) });
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({ partner_id: "rekom", partner_name: "Rekom" })
+    );
+  });
+
   test("snapshots the chosen partner and refuses a missing one", async () => {
     partnerRows = [
       {
@@ -347,6 +394,21 @@ describe("updateBenefit", () => {
     expect(result).toEqual({
       error: "Unauthorized: no write access to this campus",
     });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("refuses a partner from another campus", async () => {
+    benefitRows = [storedBenefit()];
+    partnerRows = [
+      { $id: "bergen", campus_id: "3", logo_url: null, name: "Bergen bar" },
+    ];
+
+    const result = await updateBenefit("benefit-1", {
+      ...memberValues,
+      partner_id: "bergen",
+    });
+
+    expect(result).toEqual({ error: "Partner not found" });
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
@@ -439,6 +501,39 @@ describe("reorderBenefits", () => {
     expect(result).toEqual({ error: "Reorder list is out of date" });
     expect(db.updateRow).not.toHaveBeenCalled();
   });
+
+  test("includes legacy member rows without a section", async () => {
+    benefitRows = [
+      ...benefitRows,
+      storedBenefit({ $id: "legacy", section: null, sort_order: 3 }),
+    ];
+
+    const result = await reorderBenefits("2", "member", [
+      "legacy",
+      "a",
+      "b",
+      "c",
+    ]);
+
+    expect(result).toEqual({ data: true });
+    expect(db.updateRow.mock.calls).toEqual([
+      ["app", "campus_benefits", "legacy", { sort_order: 0 }],
+      ["app", "campus_benefits", "a", { sort_order: 1 }],
+      ["app", "campus_benefits", "b", { sort_order: 2 }],
+      ["app", "campus_benefits", "c", { sort_order: 3 }],
+    ]);
+  });
+
+  test("a campus admin cannot reorder Hele BISO", async () => {
+    benefitRows = [storedBenefit({ $id: "national", campus_id: "5" })];
+
+    const result = await reorderBenefits("5", "member", ["national"]);
+
+    expect(result).toEqual({
+      error: "Unauthorized: no write access to this campus",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
 });
 
 describe("setBenefitStatus", () => {
@@ -462,6 +557,51 @@ describe("setBenefitStatus", () => {
     expect(upsertCall("benefit_codes")?.[3]).toEqual(
       expect.objectContaining({ value: "BISO20" })
     );
+  });
+
+  for (const campusId of ["3", "5"]) {
+    test(`a campus admin of 2 cannot change a benefit on campus ${campusId}`, async () => {
+      benefitRows = [storedBenefit({ campus_id: campusId })];
+      codeRows.set("benefit-1", "BISO20");
+
+      const result = await setBenefitStatus("benefit-1", "published");
+
+      expect(result).toEqual({
+        error: "Unauthorized: no write access to this campus",
+      });
+      // Refused before the code row is even read.
+      expect(db.getRow).not.toHaveBeenCalled();
+      expect(db.upsertRow).not.toHaveBeenCalled();
+      expect(db.deleteRow).not.toHaveBeenCalled();
+    });
+  }
+
+  test("refuses a stored partner from another campus", async () => {
+    benefitRows = [storedBenefit({ partner_id: "bergen" })];
+    partnerRows = [
+      { $id: "bergen", campus_id: "3", logo_url: null, name: "Bergen bar" },
+    ];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await setBenefitStatus("benefit-1", "published");
+
+    expect(result).toEqual({ error: "Partner not found" });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("asks for the editor when a legacy QR benefit still has a value", async () => {
+    benefitRows = [
+      storedBenefit({ redemption_type: "qr", redemption_value: "QR-123" }),
+    ];
+
+    const result = await setBenefitStatus("benefit-1", "published");
+
+    expect(result).toEqual({
+      error:
+        "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.",
+    });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
   });
 });
 
@@ -536,5 +676,28 @@ describe("getBenefitForEdit", () => {
     benefitRows = [storedBenefit({ campus_id: "3" })];
 
     await expect(getBenefitForEdit("benefit-1")).resolves.toBeNull();
+  });
+
+  test("a read-only viewer gets no code", async () => {
+    benefitRows = [storedBenefit({ campus_id: "5", redemption_value: "OLD" })];
+    codeRows.set("benefit-1", "BISO20");
+
+    const benefit = await getBenefitForEdit("benefit-1");
+
+    expect(benefit).toEqual(
+      expect.objectContaining({ editable: false, redemption_value: null })
+    );
+  });
+
+  test("a benefits editor gets the national code", async () => {
+    currentCtx = benefitsEditorCtx;
+    benefitRows = [storedBenefit({ campus_id: "5" })];
+    codeRows.set("benefit-1", "BISO20");
+
+    const benefit = await getBenefitForEdit("benefit-1");
+
+    expect(benefit).toEqual(
+      expect.objectContaining({ editable: true, redemption_value: "BISO20" })
+    );
   });
 });

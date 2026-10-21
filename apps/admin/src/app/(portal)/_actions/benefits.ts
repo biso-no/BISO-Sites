@@ -12,6 +12,7 @@ import type {
 import {
   isBenefitSection,
   mapLegacyBenefitCategory,
+  NATIONAL_CAMPUS_ID,
 } from "@repo/shared/utils/benefit-catalog";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { revalidatePath } from "next/cache";
@@ -106,11 +107,24 @@ const PARTNERS_TABLE = "benefit_partners";
 const REORDER_OUT_OF_DATE = "Reorder list is out of date";
 const SAVE_FAILED = "Failed to save benefit";
 const REDEMPTION_TYPES = ["none", "code", "link", "onsite"] as const;
+const LEGACY_REDEMPTION_ERROR =
+  "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.";
 /** Matches no row: a caller without benefit access lists nothing. */
 const NO_MATCH_FILTER = Query.equal("$id", "__no_benefit_access__");
 
 const errorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
+
+const isRedemptionType = (
+  value: string | null | undefined
+): value is (typeof REDEMPTION_TYPES)[number] =>
+  REDEMPTION_TYPES.some((type) => type === value);
+
+/** Rows saved before sections existed have none; they are member benefits. */
+const sectionFilter = (section: string): string =>
+  section === "member"
+    ? Query.or([Query.equal("section", "member"), Query.isNull("section")])
+    : Query.equal("section", section);
 
 const toBoardBenefit = (row: CampusBenefits): BoardBenefit => ({
   $createdAt: row.$createdAt,
@@ -195,21 +209,12 @@ async function writeBenefitCode(
   );
 }
 
-async function findPartnerSnapshot(
+async function findPartner(
   db: AdminDb,
   partnerId: string
-): Promise<BenefitPartnerSnapshot | null> {
+): Promise<BenefitPartners | null> {
   try {
-    const partner = await db.getRow<BenefitPartners>(
-      "app",
-      PARTNERS_TABLE,
-      partnerId
-    );
-    return {
-      id: partner.$id,
-      logo_url: partner.logo_url ?? null,
-      name: partner.name,
-    };
+    return await db.getRow<BenefitPartners>("app", PARTNERS_TABLE, partnerId);
   } catch (error) {
     if (isRowNotFound(error)) {
       return null;
@@ -226,7 +231,7 @@ async function nextSortOrder(
 ): Promise<number> {
   const response = await db.listRows<CampusBenefits>("app", BENEFITS_TABLE, [
     Query.equal("campus_id", campusId),
-    Query.equal("section", section),
+    sectionFilter(section),
     Query.orderDesc("sort_order"),
     Query.limit(1),
   ]);
@@ -278,6 +283,10 @@ type PartnerLookup =
   | { ok: true; partner: BenefitPartnerSnapshot | null }
   | { ok: false };
 
+/**
+ * A deal links to a partner on its own campus or a national one (spec D5).
+ * Any other partner reads as missing, so other campuses' partners stay hidden.
+ */
 async function lookupPartner(
   db: AdminDb,
   values: BenefitFormValues
@@ -285,8 +294,21 @@ async function lookupPartner(
   if (!values.partner_id) {
     return { ok: true, partner: null };
   }
-  const partner = await findPartnerSnapshot(db, values.partner_id);
-  return partner ? { ok: true, partner } : { ok: false };
+  const partner = await findPartner(db, values.partner_id);
+  const inScope =
+    partner?.campus_id === values.campus_id ||
+    partner?.campus_id === NATIONAL_CAMPUS_ID;
+  if (!(partner && inScope)) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    partner: {
+      id: partner.$id,
+      logo_url: partner.logo_url ?? null,
+      name: partner.name,
+    },
+  };
 }
 
 /** Maps a stored row back to form values so a status change re-saves it. */
@@ -295,8 +317,9 @@ function formValuesFromRow(
   code: string | null
 ): BenefitFormValues {
   const section = isBenefitSection(row.section) ? row.section : "member";
-  const redemptionType =
-    REDEMPTION_TYPES.find((type) => type === row.redemption_type) ?? "none";
+  const redemptionType = isRedemptionType(row.redemption_type)
+    ? row.redemption_type
+    : "none";
   return {
     // The schema re-validates the campus id inside `updateBenefit`.
     campus_id: row.campus_id as BenefitFormValues["campus_id"],
@@ -410,15 +433,20 @@ export async function getBenefitForEdit(
   if (!(row && access.visibleCampusIds.includes(row.campus_id))) {
     return null;
   }
-  const code = await readBenefitCode(db, id);
+  const editable = canEditBenefitCampus(access, row.campus_id);
+  // Only editors of the row's campus see the code; Hele BISO is read-only
+  // for campus admins. Rows saved before `benefit_codes` existed still hold
+  // the value inline.
+  const code = editable
+    ? ((await readBenefitCode(db, id)) ?? row.redemption_value ?? null)
+    : null;
 
   return {
     ...toBoardBenefit(row),
     description_en: row.description_en ?? null,
     description_nb: row.description_nb ?? null,
-    editable: canEditBenefitCampus(access, row.campus_id),
-    // Rows saved before `benefit_codes` existed still hold the value inline.
-    redemption_value: code ?? row.redemption_value ?? null,
+    editable,
+    redemption_value: code,
     terms_en: row.terms_en ?? null,
     terms_nb: row.terms_nb ?? null,
   };
@@ -587,7 +615,7 @@ export async function reorderBenefits(
     const { db } = await createAdminClient();
     const response = await db.listRows<CampusBenefits>("app", BENEFITS_TABLE, [
       Query.equal("campus_id", campusId),
-      Query.equal("section", section),
+      sectionFilter(section),
       Query.limit(BOARD_LIMIT),
     ]);
     const current = new Map(
@@ -631,7 +659,7 @@ export async function setBenefitStatus(
   id: string,
   status: "draft" | "published" | "archived"
 ): Promise<BenefitMutationResult> {
-  await requireAuth();
+  const ctx = await requireAuth();
 
   try {
     const { db } = await createAdminClient();
@@ -639,8 +667,18 @@ export async function setBenefitStatus(
     if (!stored) {
       return { error: "Benefit not found" };
     }
+    // Refuse before the code row is read.
+    assertBenefitCampusWrite(ctx, stored.campus_id);
     const code =
       (await readBenefitCode(db, id)) ?? stored.redemption_value ?? null;
+    // Mapping a legacy type (e.g. "qr") to "none" would delete its value.
+    if (
+      stored.redemption_type &&
+      !isRedemptionType(stored.redemption_type) &&
+      code?.trim()
+    ) {
+      return { error: LEGACY_REDEMPTION_ERROR };
+    }
     return await updateBenefit(id, {
       ...formValuesFromRow(stored, code),
       status,
@@ -691,7 +729,8 @@ export async function listBenefits(
   );
 
   return {
-    rows: response.rows,
+    // The list never needs codes; drop the compatibility copy.
+    rows: response.rows.map((row) => ({ ...row, redemption_value: null })),
     total: response.total,
     page: params.page,
     size: params.size,
