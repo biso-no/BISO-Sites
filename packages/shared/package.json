@@ -19,7 +19,8 @@
     "test": "vitest run",
     "lockdown:expense-rows": "bun --env-file=../../apps/admin/.env.local scripts/revoke-expense-owner-writes.ts",
     "lockdown:profile-rows": "bun --env-file=../../apps/admin/.env.local scripts/lock-profile-rows.ts",
-    "backfill:bi-names": "bun --env-file=../../apps/admin/.env.local scripts/backfill-bi-names.ts"
+    "backfill:bi-names": "bun --env-file=../../apps/admin/.env.local scripts/backfill-bi-names.ts",
+    "backfill:notification-locks": "bun --env-file=../../apps/admin/.env.local scripts/backfill-content-notification-locks.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
