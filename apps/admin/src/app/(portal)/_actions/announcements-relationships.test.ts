@@ -253,6 +253,94 @@ describe("announcement ownership persistence", () => {
     }
   });
 
+  test("a news announcement without a link is refused", async () => {
+    currentCtx = campusAdminCtx;
+    const result = await createAnnouncement({
+      ...departmentValues,
+      category: "news",
+    });
+
+    expect(result).toEqual({
+      error: {
+        content_id: ["Pick the event, article or position this is about."],
+      },
+    });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("an event announcement with a legacy event_id is accepted", async () => {
+    currentCtx = campusAdminCtx;
+    db.listRows.mockImplementation((_d: string, tableId: string) => ({
+      rows:
+        tableId === "events"
+          ? [{ $id: "event-1", status: "published", campus_id: "campus-oslo" }]
+          : [],
+      total: 0,
+    }));
+    const result = await createAnnouncement({
+      ...departmentValues,
+      category: "event",
+      event_id: "event-1",
+    });
+
+    expect(result).toEqual({ data: expect.any(String) });
+    expect(db.createRow).toHaveBeenCalled();
+  });
+
+  test("an old event row with no link can still have its title edited", async () => {
+    currentCtx = campusAdminCtx;
+    db.listRows.mockImplementation((_d: string, tableId: string) => ({
+      rows:
+        tableId === "announcements"
+          ? [
+              {
+                $id: "announcement-1",
+                campus_id: "campus-oslo",
+                category: "event",
+                status: "draft",
+              },
+            ]
+          : [],
+      total: 1,
+    }));
+    const result = await updateAnnouncement("announcement-1", {
+      ...departmentValues,
+      category: "event",
+      title_en: "New title",
+    });
+
+    expect(result).toEqual({ data: "announcement-1" });
+  });
+
+  test("moving an old row to a linked category without a link is refused", async () => {
+    currentCtx = campusAdminCtx;
+    db.listRows.mockImplementation((_d: string, tableId: string) => ({
+      rows:
+        tableId === "announcements"
+          ? [
+              {
+                $id: "announcement-1",
+                campus_id: "campus-oslo",
+                category: "general",
+                status: "draft",
+              },
+            ]
+          : [],
+      total: 1,
+    }));
+    const result = await updateAnnouncement("announcement-1", {
+      ...departmentValues,
+      category: "job",
+    });
+
+    expect(result).toEqual({
+      error: {
+        content_id: ["Pick the event, article or position this is about."],
+      },
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
   test("an announcement with no event records no content", async () => {
     currentCtx = campusAdminCtx;
     await createAnnouncement(departmentValues);

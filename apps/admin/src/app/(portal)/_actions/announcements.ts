@@ -478,6 +478,16 @@ function buildAnnouncementColumns(
   };
 }
 
+const LINK_REQUIRED_CATEGORIES = new Set(["event", "news", "job"]);
+const LINK_REQUIRED_MESSAGE =
+  "Pick the event, article or position this is about.";
+const LINK_REQUIRED_ERROR = { content_id: [LINK_REQUIRED_MESSAGE] };
+
+/** Event, news and job notifications are about something: they need a link. */
+function missingRequiredLink(category: string, link: unknown): boolean {
+  return LINK_REQUIRED_CATEGORIES.has(category) && !link;
+}
+
 /**
  * Resolve the link on an update. Only a changed link is re-checked; an
  * unchanged one keeps its stored columns (null), so edits aren't blocked if
@@ -488,11 +498,23 @@ async function resolveLinkChange(
   values: AnnouncementFormValues,
   stored: Announcements
 ): Promise<
-  { ok: true; columns: LinkedColumns | null } | { ok: false; error: string }
+  | { ok: true; columns: LinkedColumns | null }
+  | { ok: false; error: string | typeof LINK_REQUIRED_ERROR }
 > {
   const selection = normalizeLink(values);
   if (!selection.ok) {
     return selection;
+  }
+  // Only when the category or link changes, so an old row without a link can
+  // still have unrelated fields edited.
+  const linkOrCategoryChanged =
+    values.category !== stored.category ||
+    !sameLink(selection.link, storedLink(stored));
+  if (
+    linkOrCategoryChanged &&
+    missingRequiredLink(values.category, selection.link)
+  ) {
+    return { ok: false, error: LINK_REQUIRED_ERROR };
   }
   if (sameLink(selection.link, storedLink(stored))) {
     return { ok: true, columns: null };
@@ -618,6 +640,9 @@ export async function createAnnouncement(
     const selection = normalizeLink(validated.data);
     if (!selection.ok) {
       return { error: selection.error };
+    }
+    if (missingRequiredLink(validated.data.category, selection.link)) {
+      return { error: LINK_REQUIRED_ERROR };
     }
     const linked = await resolveLinkedContent(db, selection.link);
     if (!linked.ok) {
