@@ -27,6 +27,7 @@ import {
   toPersonResult,
   toPrefill,
 } from "@/lib/announcements/composer-lookups";
+import { resolveSegmentCampus } from "@/lib/announcements/segment-scope";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { applyContentRelationshipScopeQueries } from "@/lib/content-authorization";
 import { withNationalEventScope } from "@/lib/event-scope";
@@ -243,19 +244,23 @@ export async function getAudienceReach(
     }
     try {
       const { db } = await createAdminClient();
+      const resolved = await resolveSegmentCampus(db, ctx, req.audienceValue);
+      if (
+        !(
+          resolved &&
+          isAudienceAllowed(
+            { roles: ctx.roles, managedCampusIds: ctx.managedCampusIds },
+            { ...req, segmentCampusId: resolved.campusId }
+          )
+        )
+      ) {
+        return empty;
+      }
       const segment = await db.getRow<EventSegments>(
         "app",
         "event_segments",
         req.audienceValue
       );
-      if (
-        !isAudienceAllowed(
-          { roles: ctx.roles, managedCampusIds: ctx.managedCampusIds },
-          { ...req, segmentCampusId: segment.campus_id }
-        )
-      ) {
-        return empty;
-      }
       const members = await db.listRows<SegmentMembers>(
         "app",
         "segment_members",
@@ -269,9 +274,19 @@ export async function getAudienceReach(
           groupName: segment.name,
         }),
       };
-    } catch {
+    } catch (error) {
+      console.error("[composer] segment reach failed:", error);
       return empty;
     }
+  }
+
+  if (
+    !isAudienceAllowed(
+      { roles: ctx.roles, managedCampusIds: ctx.managedCampusIds },
+      req
+    )
+  ) {
+    return empty;
   }
 
   const channel = resolvePushChannel(

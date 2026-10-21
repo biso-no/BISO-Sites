@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 
 mock.module("server-only", () => ({}));
@@ -46,6 +47,7 @@ mock.module("./event-segments", () => ({ listSegments }));
 
 const {
   getAudienceReach,
+  getPeopleByIds,
   getLinkedContentPrefill,
   listGroupsForEvent,
   searchLinkableContent,
@@ -82,7 +84,9 @@ describe("searchLinkableContent", () => {
     db.listRows.mockResolvedValue({ rows: [eventRow] });
     const items = await searchLinkableContent("event", "aut");
     expect(queriesOf().join("|")).toContain("translation_refs.title");
-    expect(queriesOf().join("|")).toContain("search");
+    expect(queriesOf()).toContain(
+      Query.search("translation_refs.title", "aut")
+    );
     expect(items).toEqual([
       {
         id: "e1",
@@ -110,7 +114,7 @@ describe("searchLinkableContent", () => {
     const joined = queriesOf().join("|");
     expect(joined).toContain("campus.$id");
     expect(joined).not.toContain("search");
-    expect(joined).toContain("8");
+    expect(queriesOf()).toContain(Query.limit(8));
   });
 
   test("a department ctx gets empty results without a db call", async () => {
@@ -235,6 +239,82 @@ describe("getAudienceReach", () => {
       count: null,
       sentence: "Reach unavailable right now",
     });
+  });
+});
+
+describe("getPeopleByIds", () => {
+  test("an empty list makes no db call", async () => {
+    expect(await getPeopleByIds([])).toEqual([]);
+    expect(db.listRows).not.toHaveBeenCalled();
+  });
+});
+
+describe("getAudienceReach audience checks", () => {
+  const campusAdmin = (): UserAuthContext => ({
+    ...baseCtx,
+    roles: ["campusadmin"],
+    managedCampusIds: ["2"],
+  });
+
+  test("users reach counts the ids", async () => {
+    const reach = await getAudienceReach({
+      audienceType: "users",
+      audienceValue: null,
+      campusId: null,
+      userIds: ["a", "b", "c"],
+    });
+    expect(reach).toEqual({ count: 3, sentence: "3 people" });
+  });
+
+  test("broadcast to another campus is unavailable for a campus admin", async () => {
+    currentCtx = campusAdmin();
+    const reach = await getAudienceReach({
+      audienceType: "broadcast",
+      audienceValue: null,
+      campusId: "1",
+    });
+    expect(reach.count).toBeNull();
+    expect(listSubscribers).not.toHaveBeenCalled();
+  });
+
+  function mockSegment(eventCampus: string) {
+    db.listRows.mockImplementation(async (_d: string, table: string) => {
+      if (table === "event_segments") {
+        return {
+          rows: [{ $id: "s1", event_id: "e1", campus_id: null }],
+        };
+      }
+      if (table === "events") {
+        return { rows: [{ $id: "e1", campus_id: eventCampus }] };
+      }
+      return { rows: [], total: 7 };
+    });
+    db.getRow.mockResolvedValue({ $id: "s1", name: "Crew" });
+  }
+  const segmentReq = {
+    audienceType: "segment" as const,
+    audienceValue: "s1",
+    campusId: null,
+  };
+
+  test("a campus-less group uses its event's campus", async () => {
+    currentCtx = campusAdmin();
+    mockSegment("2");
+    expect(await getAudienceReach(segmentReq)).toEqual({
+      count: 7,
+      sentence: "7 people in Crew",
+    });
+  });
+
+  test("a campus-less group on another campus's event is refused", async () => {
+    currentCtx = campusAdmin();
+    mockSegment("1");
+    expect((await getAudienceReach(segmentReq)).count).toBeNull();
+  });
+
+  test("a missing segment is unavailable", async () => {
+    db.listRows.mockResolvedValue({ rows: [] });
+    expect((await getAudienceReach(segmentReq)).count).toBeNull();
   });
 });
 
