@@ -17,6 +17,10 @@ import {
 import type { AnnouncementWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow } from "@repo/api/write";
 import { revalidatePath } from "next/cache";
+import {
+  canSendNotifications,
+  SEND_FORBIDDEN_MESSAGE,
+} from "@/lib/announcements/audience-policy";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { getContentOwnership } from "@/lib/content-authorization";
 import { withNationalEventScope } from "@/lib/event-scope";
@@ -842,6 +846,9 @@ export async function messageSegment(
   content: MessageSegmentValues
 ) {
   const ctx = withNationalEventScope(await requireAuth());
+  if (!canSendNotifications(ctx.roles)) {
+    return { error: SEND_FORBIDDEN_MESSAGE };
+  }
   const validated = messageSegmentSchema.safeParse(content);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -863,6 +870,7 @@ export async function messageSegment(
     // them); author via the admin client after the access check above.
     const { db: adminDb } = await createAdminClient();
     const eventId = segment.event_id ?? null;
+    const segmentCampusId = segment.campus_id ?? event.campus_id ?? null;
     const announcement = await createTypedRow<
       Announcements,
       AnnouncementWriteInput
@@ -876,7 +884,8 @@ export async function messageSegment(
       body_en: validated.data.body_en ?? null,
       body_no: validated.data.body_no ?? null,
       event_id: eventId,
-      campus_id: segment.campus_id ?? event.campus_id ?? null,
+      campus_id: segmentCampusId,
+      campus: segmentCampusId,
       push: validated.data.push,
       deep_link: eventId ? `biso://event?id=${eventId}` : null,
       source: AnnouncementsSource.MANUAL,

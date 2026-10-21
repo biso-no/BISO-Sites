@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  ALREADY_SENT_MESSAGE,
+  AUDIENCE_FORBIDDEN_MESSAGE,
+  SEND_FORBIDDEN_MESSAGE,
+} from "@/lib/announcements/audience-policy";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { AnnouncementFormValues } from "./schemas";
 
@@ -134,6 +139,7 @@ beforeEach(() => {
 
 describe("announcement ownership persistence", () => {
   test("createAnnouncement persists both ownership relationships", async () => {
+    currentCtx = campusAdminCtx;
     const result = await createAnnouncement(departmentValues);
 
     expect(result).toEqual({ data: expect.any(String) });
@@ -151,6 +157,7 @@ describe("announcement ownership persistence", () => {
   });
 
   test("an event-linked announcement records the event as its content", async () => {
+    currentCtx = campusAdminCtx;
     await createAnnouncement({ ...departmentValues, event_id: "event-1" });
 
     expect(db.createRow).toHaveBeenCalledWith(
@@ -166,6 +173,7 @@ describe("announcement ownership persistence", () => {
   });
 
   test("an announcement with no event records no content", async () => {
+    currentCtx = campusAdminCtx;
     await createAnnouncement(departmentValues);
 
     expect(db.createRow).toHaveBeenCalledWith(
@@ -176,16 +184,115 @@ describe("announcement ownership persistence", () => {
     );
   });
 
-  test("department author keeps their own department", async () => {
+  test("department members can't create announcements", async () => {
+    const result = await createAnnouncement(departmentValues);
+
+    expect(result).toEqual({ error: SEND_FORBIDDEN_MESSAGE });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("a campus admin can't broadcast to all campuses", async () => {
+    currentCtx = campusAdminCtx;
     const result = await createAnnouncement({
       ...departmentValues,
-      department_id: "dept-other",
+      campus_id: null,
+      department_id: null,
     });
 
     expect(result).toEqual({
-      error: "Unauthorized: no write access to this department",
+      error: "Unauthorized: campus is required for this content",
     });
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("a campus admin can't send a topic to a campus they don't manage", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["2"],
+      resolvedCampusIds: ["2"],
+      roles: ["campusadmin"],
+    });
+    const result = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "topic",
+      audience_value: "events",
+      campus_id: "1",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ error: expect.any(String) });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("a campus admin can't message a group from a campus they don't manage", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["2"],
+      resolvedCampusIds: ["2"],
+      roles: ["campusadmin"],
+    });
+    db.listRows.mockImplementation((_d: string, tableId: string) => {
+      if (tableId === "event_segments") {
+        return {
+          rows: [{ $id: "seg-1", campus_id: "1", event_id: "event-1" }],
+          total: 1,
+        };
+      }
+      if (tableId === "events") {
+        return { rows: [{ $id: "event-1", campus_id: "5" }], total: 1 };
+      }
+      return { rows: [], total: 0 };
+    });
+    const result = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "segment",
+      audience_value: "seg-1",
+      campus_id: "2",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ error: AUDIENCE_FORBIDDEN_MESSAGE });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("a campus admin can message their own campus's group on a National event", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["1"],
+      resolvedCampusIds: ["1"],
+      roles: ["campusadmin"],
+    });
+    db.listRows.mockImplementation((_d: string, tableId: string) => {
+      if (tableId === "event_segments") {
+        return {
+          rows: [{ $id: "seg-1", campus_id: "1", event_id: "event-1" }],
+          total: 1,
+        };
+      }
+      if (tableId === "events") {
+        return { rows: [{ $id: "event-1", campus_id: "5" }], total: 1 };
+      }
+      return { rows: [], total: 0 };
+    });
+    const result = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "segment",
+      audience_value: "seg-1",
+      campus_id: "1",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ data: expect.any(String) });
+  });
+
+  test("a segment announcement needs an existing segment", async () => {
+    currentCtx = globalAdminCtx;
+    const result = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "segment",
+      audience_value: "missing",
+      campus_id: null,
+      department_id: null,
+    });
+
+    expect(result).toEqual({ error: AUDIENCE_FORBIDDEN_MESSAGE });
   });
 
   test("campus author may create campus-wide announcements", async () => {
@@ -239,6 +346,7 @@ describe("announcement ownership persistence", () => {
 
 describe("announcement dispatch authorization", () => {
   test("sending requires scope over the announcement's ownership", async () => {
+    currentCtx = campusAdminCtx;
     mockAnnouncementRow({
       $id: "announcement-1",
       audience_type: "broadcast",
@@ -256,12 +364,54 @@ describe("announcement dispatch authorization", () => {
     const result = await sendAnnouncement("announcement-1");
 
     expect(result).toEqual({
-      error: "Unauthorized: no access to this campus",
+      error: "Unauthorized: no write access to this campus",
     });
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
-  test("a department author can send their own department's announcement", async () => {
+  test("department members can't send", async () => {
+    mockAnnouncementRow({
+      $id: "announcement-1",
+      audience_type: "broadcast",
+      audience_value: null,
+      campus: { $id: "campus-oslo" },
+      category: "general",
+      data: null,
+      department: { $id: "dept-1" },
+      push: true,
+      scheduled_at: null,
+      status: "draft",
+      title_en: "English title",
+    });
+
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ error: SEND_FORBIDDEN_MESSAGE });
+  });
+
+  test("a sent announcement can't be sent again", async () => {
+    currentCtx = globalAdminCtx;
+    mockAnnouncementRow({
+      $id: "announcement-1",
+      audience_type: "broadcast",
+      audience_value: null,
+      campus_id: "1",
+      category: "general",
+      data: null,
+      push: true,
+      scheduled_at: null,
+      status: "sent",
+      title_en: "English title",
+    });
+
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ error: ALREADY_SENT_MESSAGE });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("a campus admin can send their own campus's announcement", async () => {
+    currentCtx = campusAdminCtx;
     mockAnnouncementRow({
       $id: "announcement-1",
       audience_type: "broadcast",

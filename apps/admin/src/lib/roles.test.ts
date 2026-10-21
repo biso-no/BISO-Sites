@@ -7,7 +7,6 @@ const GENERAL_PUBLISHING_KEYS = [
   "portal.events",
   "portal.shop",
   "portal.benefits",
-  "portal.communications",
   "portal.documents",
 ] as const;
 
@@ -22,6 +21,21 @@ describe("general publishing navigation", () => {
     for (const key of GENERAL_PUBLISHING_KEYS) {
       expect(hasNavAccess(key, [], false), key).toBe(false);
     }
+  });
+});
+
+describe("communications navigation", () => {
+  test("department members do not reach communications", () => {
+    expect(hasNavAccess("portal.communications", [], true)).toBe(false);
+  });
+
+  test("campus and global admins reach communications", () => {
+    expect(
+      hasNavAccess("portal.communications", [ROLES.CAMPUS_ADMIN], true)
+    ).toBe(true);
+    expect(
+      hasNavAccess("portal.communications", [ROLES.GLOBAL_ADMIN], false)
+    ).toBe(true);
   });
 });
 

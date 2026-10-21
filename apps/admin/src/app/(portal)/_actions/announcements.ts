@@ -6,11 +6,20 @@ import type { Announcements } from "@repo/api/types/appwrite";
 import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
 import {
+  ALREADY_SENT_MESSAGE,
+  AUDIENCE_FORBIDDEN_MESSAGE,
+  type AudienceType,
+  canSendNotifications,
+  isAudienceAllowed,
+  SEND_FORBIDDEN_MESSAGE,
+} from "@/lib/announcements/audience-policy";
+import { resolveSegmentCampus } from "@/lib/announcements/segment-scope";
+import {
   buildDeepLink,
   buildPushData,
   dispatchAnnouncement,
 } from "@/lib/announcements/send";
-import { requireAuth } from "@/lib/authorization";
+import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
   assertContentOwnership,
@@ -394,6 +403,42 @@ async function normalizeAudienceValue(
   return JSON.stringify(Array.from(new Set(ids)));
 }
 
+/**
+ * Enforce who may reach an audience. For segments the group must exist and
+ * its event must be in the caller's event scope; the group's campus (else the
+ * event's) is what is checked against the caller's own campuses.
+ */
+async function assertAudienceAllowed(
+  db: AnnouncementAdminClient["db"],
+  ctx: UserAuthContext,
+  audience: {
+    audienceType: string;
+    audienceValue: string | null | undefined;
+    campusId: string | null;
+  }
+): Promise<void> {
+  const audienceType = audience.audienceType as AudienceType;
+  let segmentCampusId: string | null = null;
+  if (audienceType === "segment") {
+    const segment = audience.audienceValue
+      ? await resolveSegmentCampus(db, ctx, audience.audienceValue)
+      : null;
+    if (!segment) {
+      throw new Error(AUDIENCE_FORBIDDEN_MESSAGE);
+    }
+    segmentCampusId = segment.campusId;
+  }
+  if (
+    !isAudienceAllowed(ctx, {
+      audienceType,
+      campusId: audience.campusId,
+      segmentCampusId,
+    })
+  ) {
+    throw new Error(AUDIENCE_FORBIDDEN_MESSAGE);
+  }
+}
+
 function buildAnnouncementColumns(
   values: AnnouncementFormValues,
   audienceValue: string | null
@@ -478,6 +523,9 @@ export async function createAnnouncement(
   autoTranslation?: AutoTranslationOptions
 ): Promise<AnnouncementMutationResult> {
   const ctx = await requireAuth();
+  if (!canSendNotifications(ctx.roles)) {
+    return { error: SEND_FORBIDDEN_MESSAGE };
+  }
   const validated = announcementSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -492,6 +540,11 @@ export async function createAnnouncement(
       allowGlobalCampus: true,
       campusId: validated.data.campus_id || null,
       departmentId: validated.data.department_id ?? null,
+    });
+    await assertAudienceAllowed(db, ctx, {
+      audienceType: validated.data.audience_type,
+      audienceValue: validated.data.audience_value,
+      campusId: validated.data.campus_id || null,
     });
     const audienceValue = await normalizeAudienceValue(
       validated.data.audience_type,
@@ -552,6 +605,9 @@ export async function updateAnnouncement(
   autoTranslation?: AutoTranslationOptions
 ): Promise<AnnouncementMutationResult> {
   const ctx = await requireAuth();
+  if (!canSendNotifications(ctx.roles)) {
+    return { error: SEND_FORBIDDEN_MESSAGE };
+  }
   const validated = announcementSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -579,6 +635,11 @@ export async function updateAnnouncement(
       allowGlobalCampus: true,
       campusId: validated.data.campus_id || null,
       departmentId: validated.data.department_id ?? null,
+    });
+    await assertAudienceAllowed(db, ctx, {
+      audienceType: validated.data.audience_type,
+      audienceValue: validated.data.audience_value,
+      campusId: validated.data.campus_id || null,
     });
 
     // A sent row is already in students' inboxes. The inbox scopes a topic or
@@ -836,6 +897,9 @@ export async function sendAnnouncement(
   autoTranslation?: AutoTranslationOptions
 ): Promise<SendAnnouncementResult> {
   const ctx = await requireAuth();
+  if (!canSendNotifications(ctx.roles)) {
+    return { error: SEND_FORBIDDEN_MESSAGE };
+  }
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
@@ -858,6 +922,14 @@ export async function sendAnnouncement(
       legacyFallback: true,
     });
     assertPublishAccess(ctx, sendOwnership.campus, sendOwnership.department);
+    if (announcement.status === "sent") {
+      return { error: ALREADY_SENT_MESSAGE };
+    }
+    await assertAudienceAllowed(client.db, ctx, {
+      audienceType: announcement.audience_type,
+      audienceValue: announcement.audience_value,
+      campusId: announcement.campus_id ?? sendOwnership.campus ?? null,
+    });
 
     const automaticSource = translationOptions?.enabled
       ? getAnnouncementTranslationSnapshot(

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Announcements } from "@repo/api/types/appwrite";
 import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
+import { ALREADY_SENT_MESSAGE } from "@/lib/announcements/audience-policy";
 import type { DispatchAnnouncementResult } from "@/lib/announcements/send";
 import type { UserAuthContext } from "@/lib/authorization";
 import type { AnnouncementFormValues } from "./schemas";
@@ -219,7 +220,7 @@ describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
     expect(sentUpdate).not.toHaveProperty("audience_value");
   });
 
-  test("keeps an already campus-scoped audience_value unchanged on re-dispatch", async () => {
+  test("keeps an already campus-scoped audience_value unchanged on first dispatch", async () => {
     mockAnnouncementRow({
       ...baseRow,
       audience_value: "events_oslo",
@@ -231,6 +232,21 @@ describe("dispatchPersistedAnnouncement persists the resolved topic", () => {
     expect(findSentUpdate()).toEqual(
       expect.objectContaining({ audience_value: "events_oslo" })
     );
+  });
+
+  test("refuses to re-send a row that is already sent", async () => {
+    mockAnnouncementRow({
+      ...baseRow,
+      audience_value: "events_oslo",
+      campus_id: "1",
+      status: "sent",
+    });
+
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ error: ALREADY_SENT_MESSAGE });
+    expect(dispatchAnnouncement).not.toHaveBeenCalled();
+    expect(findSentUpdate()).toBeUndefined();
   });
 });
 
@@ -333,7 +349,7 @@ describe("updateAnnouncement keeps a sent topic announcement campus-scoped", () 
     });
   });
 
-  test("Send's save scopes the row before dispatch reads it, and the send keeps it scoped", async () => {
+  test("Send's save scopes the row, and a re-send is refused", async () => {
     mockAnnouncementRow(sentTopicRow);
 
     // The composer's Send saves, then sends. With auto-translate on, the send
@@ -345,16 +361,11 @@ describe("updateAnnouncement keeps a sent topic announcement campus-scoped", () 
     );
     expect(storedRow).toMatchObject({ audience_value: "events_bergen" });
 
+    // A sent row is never delivered twice, so the save is what keeps it scoped.
     const result = await sendAnnouncement("announcement-1");
 
-    expect(result).toEqual({ data: { recipients: 0, status: "sent" } });
-    expect(dispatchAnnouncement).toHaveBeenCalledWith(
-      expect.objectContaining({
-        audience_value: "events_bergen",
-        campus_id: "2",
-      }),
-      expect.anything()
-    );
+    expect(result).toEqual({ error: ALREADY_SENT_MESSAGE });
+    expect(dispatchAnnouncement).not.toHaveBeenCalled();
     expect(storedRow).toMatchObject({
       audience_value: "events_bergen",
       status: "sent",
