@@ -106,7 +106,7 @@ describe("resolveLinkedContent", () => {
   });
 
   test("a half-filled pair is an error", () => {
-    const error = { ok: false, error: "Pick the content to link." };
+    const error = { ok: false as const, error: "Pick the content to link." };
     expect(normalizeLink({ content_type: "news", content_id: "" })).toEqual(
       error
     );
