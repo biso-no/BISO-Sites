@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { audienceLabel } from "./audience-label";
 
 const label = (
@@ -7,12 +6,7 @@ const label = (
   audience_value: string | null,
   campus_id: string | null,
   segmentName?: string
-) =>
-  audienceLabel(
-    { audience_type, audience_value, campus_id },
-    CAMPUS_ID_TO_NAME,
-    segmentName
-  );
+) => audienceLabel({ audience_type, audience_value, campus_id }, segmentName);
 
 describe("audienceLabel", () => {
   test("broadcast to a campus", () => {
@@ -55,10 +49,19 @@ describe("audienceLabel", () => {
     expect(label("topic", "news_oslo_en", "2")).toBe("News · Oslo");
   });
 
+  test("the legacy products topic reads as Shop", () => {
+    expect(label("topic", "products", "2")).toBe("Shop · Bergen");
+    expect(label("topic", "products_oslo", null)).toBe("Shop · Oslo");
+  });
+
   test("users as a count, JSON or legacy comma text", () => {
     expect(label("users", '["a","b","c"]', null)).toBe("3 people");
     expect(label("users", "a, b", null)).toBe("2 people");
     expect(label("users", null, null)).toBe("0 people");
+  });
+
+  test("one person is singular", () => {
+    expect(label("users", '["a"]', null)).toBe("1 person");
   });
 
   test("segment with and without a known name", () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { getAudienceReach } from "@/app/(portal)/_actions/composer";
+import { BRAND, SERIF } from "./ui";
 import {
   type GetReach,
   isChannelAudience,
@@ -9,7 +10,6 @@ import {
   reachHeadline,
   useAudienceReach,
 } from "./use-audience-reach";
-import { BRAND, SERIF } from "./ui";
 
 export type { ReachRequest } from "./use-audience-reach";
 

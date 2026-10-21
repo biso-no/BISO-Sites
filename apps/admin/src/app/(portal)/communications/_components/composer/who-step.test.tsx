@@ -105,6 +105,21 @@ async function mount(node: ReturnType<typeof createElement>) {
   return container;
 }
 
+/** Mounts and lets the first lookups land inside act, so none escapes it. */
+async function mountSettled(
+  node: ReturnType<typeof createElement>,
+  ms = 0
+): Promise<TestElement> {
+  const container = installedDom.document.createElement("div");
+  installedDom.document.body.appendChild(container);
+  root = createRoot(container as unknown as Element);
+  await act(async () => {
+    root?.render(node);
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  });
+  return container;
+}
+
 const getReach = mock(async (_req: unknown) => ({
   count: 412 as number | null,
   sentence: "Bergen students who follow Events.",
@@ -259,6 +274,23 @@ describe("ReachBox", () => {
     expect(container.textContent).not.toContain("Tapping opens");
   });
 
+  test("one phone is singular", async () => {
+    const container = await mountSettled(
+      createElement(ReachBox, {
+        getReach: async () => ({ count: 1, sentence: "Everyone at Bergen." }),
+        request: {
+          audienceType: "broadcast",
+          audienceValue: "",
+          campusId: "2",
+        },
+        tappingOpens: null,
+      }),
+      450
+    );
+    expect(container.textContent).toContain("About 1 phone");
+    expect(container.textContent).not.toContain("phones");
+  });
+
   test("a people audience shows just the sentence", async () => {
     const container = await mount(
       createElement(ReachBox, {
@@ -368,6 +400,7 @@ describe("GroupPicker", () => {
   test("a reopened group shows its event and name", async () => {
     const resolveGroup = mock(async (_id: string) => ({
       campusId: "3",
+      eventCampusId: "3",
       eventId: "ev-1",
       eventTitle: "Trondheim trip",
       groupId: "g1",
@@ -390,5 +423,64 @@ describe("GroupPicker", () => {
     expect(container.textContent).toContain("Trondheim trip");
     expect(container.textContent).toContain("Bus 2 (34 people)");
     expect(container.textContent).not.toContain("A group is chosen");
+  });
+
+  test("after reopening, another campus-less group takes the event's campus", async () => {
+    const onChange = mock(
+      (_id: string | null, _campus: string | null) => undefined
+    );
+    const container = await mountSettled(
+      createElement(GroupPicker, {
+        listEvents: async () => [],
+        listGroups: async () => [
+          { campusId: "2", id: "g1", memberCount: 4, name: "Bergen bus" },
+          { campusId: null, id: "g2", memberCount: 6, name: "Crew" },
+        ],
+        onChange,
+        // The stored group has its own campus; its event is National.
+        resolveGroup: async () => ({
+          campusId: "2",
+          eventCampusId: "5",
+          eventId: "ev-1",
+          eventTitle: "National trip",
+          groupId: "g1",
+          groupName: "Bergen bus",
+          memberCount: 4,
+        }),
+        value: "g1",
+      })
+    );
+    const select = findElements(
+      container,
+      (e) => e.tagName === "SELECT"
+    )[0] as TestElement;
+    await act(() => {
+      select.value = "g2";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenLastCalledWith("g2", "5");
+  });
+
+  test("a group of one is one person", async () => {
+    const container = await mountSettled(
+      createElement(GroupPicker, {
+        listEvents: async () => [],
+        listGroups: async () => [
+          { campusId: null, id: "g1", memberCount: 1, name: "Driver" },
+        ],
+        onChange: () => undefined,
+        resolveGroup: async () => ({
+          campusId: "3",
+          eventCampusId: "3",
+          eventId: "ev-1",
+          eventTitle: "Trondheim trip",
+          groupId: "g1",
+          groupName: "Driver",
+          memberCount: 1,
+        }),
+        value: "g1",
+      })
+    );
+    expect(container.textContent).toContain("Driver (1 person)");
   });
 });

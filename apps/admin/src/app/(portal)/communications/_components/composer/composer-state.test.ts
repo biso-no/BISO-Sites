@@ -5,6 +5,7 @@ import {
   COMPOSER_STEPS,
   type ComposerValues,
   canContinue,
+  clearDepartmentOnCampusChange,
   initialComposerStep,
   type PrefillSnapshot,
   TYPE_CARDS,
@@ -164,5 +165,39 @@ describe("initialComposerStep", () => {
     expect(initialComposerStep("who")).toBe(0);
     expect(initialComposerStep("3")).toBe(0);
     expect(initialComposerStep(["check", "who"])).toBe(0);
+  });
+});
+
+describe("clearDepartmentOnCampusChange", () => {
+  const withDepartment = { ...base, department_id: "dept-1" };
+
+  test("a new campus drops the department", () => {
+    expect(
+      clearDepartmentOnCampusChange(withDepartment, {
+        ...withDepartment,
+        campus_id: "2",
+      }).department_id
+    ).toBeNull();
+    expect(
+      clearDepartmentOnCampusChange(withDepartment, {
+        ...withDepartment,
+        campus_id: null,
+      }).department_id
+    ).toBeNull();
+  });
+
+  test("the same campus keeps it", () => {
+    const next = { ...withDepartment, title_en: "Hi" };
+    expect(clearDepartmentOnCampusChange(withDepartment, next)).toBe(next);
+  });
+
+  test("a department picked with the campus change is kept", () => {
+    expect(
+      clearDepartmentOnCampusChange(withDepartment, {
+        ...withDepartment,
+        campus_id: "2",
+        department_id: "dept-2",
+      }).department_id
+    ).toBe("dept-2");
   });
 });

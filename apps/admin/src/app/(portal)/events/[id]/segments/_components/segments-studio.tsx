@@ -36,6 +36,8 @@ import type { SegmentFormState, SegmentWithCount } from "./types";
 interface SegmentsStudioProps {
   attendees: EventAttendees[];
   campusId: string | null;
+  /** Only campus and national admins may message a segment. */
+  canMessage: boolean;
   eventId: string;
   eventTitle: string;
   segments: SegmentWithCount[];
@@ -80,6 +82,7 @@ function toFormValues(
 export function SegmentsStudio({
   attendees,
   campusId,
+  canMessage,
   eventId,
   eventTitle,
   segments,
@@ -141,7 +144,11 @@ export function SegmentsStudio({
       </Link>
 
       <StudioPageHeader
-        description="Group attendees into buses, rooms, or any segment, import the attendee list, and message each group."
+        description={
+          canMessage
+            ? "Group attendees into buses, rooms, or any segment, import the attendee list, and message each group."
+            : "Group attendees into buses, rooms, or any segment, and import the attendee list."
+        }
         eyebrow={<>Logistics</>}
         title={eventTitle}
       >
@@ -184,7 +191,7 @@ export function SegmentsStudio({
               setEditingId(segment.$id);
               setCreating(false);
             }}
-            onMessage={() => setMessagingId(segment.$id)}
+            onMessage={canMessage ? () => setMessagingId(segment.$id) : null}
             onRequestDelete={() => setConfirmDeleteId(segment.$id)}
             onUpdate={(state) => handleUpdate(segment.$id, state)}
             segment={segment}
@@ -215,7 +222,7 @@ export function SegmentsStudio({
         />
       </StudioPanel>
 
-      {messagingSegment && (
+      {canMessage && messagingSegment && (
         <Modal
           onClose={() => setMessagingId(null)}
           title={`Message ${messagingSegment.name}`}
@@ -241,7 +248,8 @@ interface SegmentCardProps {
   onCancelEdit: () => void;
   onDelete: () => void;
   onEdit: () => void;
-  onMessage: () => void;
+  /** Null when the viewer may not message segments. */
+  onMessage: (() => void) | null;
   onRequestDelete: () => void;
   onUpdate: (state: SegmentFormState) => Promise<void>;
   segment: SegmentWithCount;
@@ -310,9 +318,11 @@ function SegmentCard({
       <SegmentMeta meta={meta} />
 
       <div className="flex items-center gap-2 pt-1">
-        <PortalButton onClick={onMessage} size="sm" variant="secondary">
-          <MessageSquare size={13} /> Message
-        </PortalButton>
+        {onMessage && (
+          <PortalButton onClick={onMessage} size="sm" variant="secondary">
+            <MessageSquare size={13} /> Message
+          </PortalButton>
+        )}
         <PortalButton
           aria-label="Edit segment"
           onClick={onEdit}

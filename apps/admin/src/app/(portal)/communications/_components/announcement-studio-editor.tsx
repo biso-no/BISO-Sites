@@ -13,9 +13,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AutoTranslateControl } from "@/app/_components/content-translation-controls";
+import type { TOPIC_OPTIONS } from "@/lib/announcements/audience-names";
 import type { AutoTranslationOptions } from "@/lib/content-translation";
 import {
   createAnnouncement,
@@ -33,9 +34,14 @@ import {
   COMPOSER_STEPS,
   type ComposerStepIndex,
   canContinue,
+  clearDepartmentOnCampusChange,
   TYPE_CARDS,
 } from "./composer/composer-state";
-import { buildLinkState, type LinkState } from "./composer/link-state";
+import {
+  buildLinkState,
+  type LinkState,
+  storedLinkFrom,
+} from "./composer/link-state";
 import {
   BRAND,
   type LocaleCode,
@@ -69,13 +75,6 @@ const CATEGORIES: Array<{
   id: card.id,
   label: card.label,
 }));
-
-const TOPIC_OPTIONS = [
-  { value: "news", label: "News" },
-  { value: "events", label: "Events" },
-  { value: "jobs", label: "Jobs" },
-  { value: "shop", label: "Shop" },
-] as const;
 
 const PUSH_PREVIEW_CHARS = 140;
 
@@ -196,8 +195,8 @@ const AUDIENCE_KEYS = new Set<keyof AnnouncementFormValues>([
 /**
  * The topic a topic announcement holds when it has none. The form stores it
  * rather than only displaying it: dispatch sends an empty topic to `general`,
- * which is every student, so a Topic select showing Events over an empty value
- * would message everyone.
+ * which is every student, so an Events pill shown over an empty value would
+ * message everyone.
  */
 const DEFAULT_TOPIC: (typeof TOPIC_OPTIONS)[number]["value"] = "events";
 
@@ -208,6 +207,17 @@ function withTopicDefault(
   return values.audience_type === "topic" && !values.audience_value?.trim()
     ? { ...values, audience_value: DEFAULT_TOPIC }
     : values;
+}
+
+/**
+ * Every form change goes through here: a topic audience keeps a topic, and a
+ * campus change drops a department that belongs to the old campus.
+ */
+function nextValues(
+  previous: AnnouncementFormValues,
+  next: AnnouncementFormValues
+): AnnouncementFormValues {
+  return withTopicDefault(clearDepartmentOnCampusChange(previous, next));
 }
 
 /** An explicit link wins; a legacy draft with only `event_id` is an event link. */
@@ -243,12 +253,12 @@ export function buildInitialValues(
     }
   } else if (announcement?.audience_type === "topic" && audienceValue) {
     // A sent row holds the campus-scoped id dispatch resolved (e.g.
-    // "events_oslo" — see `resolveAnnouncementTopicId`), but the <select> in
-    // AudienceDetail only offers the four logical topics. Editing the logical
-    // topic does two things: it keeps that select on a real option, and it
-    // makes a re-send target the campus chosen now. The resolver passes an
-    // already-scoped id through unchanged, so an "events_oslo" row moved to
-    // Bergen would otherwise still push to Oslo.
+    // "events_oslo" — see `resolveAnnouncementTopicId`), but the Who step's
+    // topic pills offer only the four logical topics. Editing the logical
+    // topic does two things: it keeps a pill selected, and it makes a re-send
+    // target the campus chosen now. The resolver passes an already-scoped id
+    // through unchanged, so an "events_oslo" row moved to Bergen would
+    // otherwise still push to Oslo.
     //
     // It is not what keeps a sent row scoped — saving writes the logical topic
     // back. `updateAnnouncement` does that on the server, resolving a sent
@@ -1100,6 +1110,14 @@ export function AnnouncementStudioEditor({
   );
   const [dirty, setDirty] = useState(false);
   const [link, setLink] = useState<LinkState>(buildLinkState);
+  const storedLink = useMemo(
+    () =>
+      storedLinkFrom(
+        announcement?.items ?? null,
+        initialLink(announcement).content_id ?? null
+      ),
+    [announcement]
+  );
   // The audience counts as touched when the admin changes it here, or when a
   // saved draft already carries a non-default one.
   const [audienceTouched, setAudienceTouched] = useState(
@@ -1132,8 +1150,8 @@ export function AnnouncementStudioEditor({
     value: AnnouncementFormValues[K]
   ) {
     // Switching the audience to Topic with no topic set picks the default, so
-    // the Topic select shows what will be stored and sent.
-    setValues((prev) => withTopicDefault({ ...prev, [key]: value }));
+    // the topic pills show what will be stored and sent.
+    setValues((prev) => nextValues(prev, { ...prev, [key]: value }));
     setDirty(true);
     if (AUDIENCE_KEYS.has(key)) {
       setAudienceTouched(true);
@@ -1148,7 +1166,7 @@ export function AnnouncementStudioEditor({
       >
     >
   ) {
-    setValues((prev) => withTopicDefault({ ...prev, ...patch }));
+    setValues((prev) => nextValues(prev, { ...prev, ...patch }));
     setDirty(true);
     setAudienceTouched(true);
   }
@@ -1156,7 +1174,7 @@ export function AnnouncementStudioEditor({
   function update(
     change: (previous: AnnouncementFormValues) => AnnouncementFormValues
   ) {
-    setValues((prev) => withTopicDefault(change(prev)));
+    setValues((prev) => nextValues(prev, change(prev)));
     setDirty(true);
   }
 
@@ -1415,6 +1433,7 @@ export function AnnouncementStudioEditor({
                 set={set}
                 setLink={setLink}
                 setLocale={setLocale}
+                storedLink={storedLink}
                 update={update}
                 values={values}
               />
@@ -1443,6 +1462,7 @@ export function AnnouncementStudioEditor({
             )}
             {step === 3 && (
               <CheckStep
+                alreadySent={status === "sent"}
                 campusOptions={campusOptions}
                 confirmTranslationOverwrite={confirmTranslationOverwrite}
                 link={values.content_id ? link.display : null}

@@ -9,13 +9,19 @@ import {
   listEventsWithGroups,
   listGroupsForEvent,
 } from "@/app/(portal)/_actions/composer";
-import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
+import {
+  campusIdForName,
+  campusNameFor,
+  peopleCount,
+} from "@/lib/announcements/audience-names";
 import { BRAND, fieldInputStyle } from "./ui";
 import { useOutsideClick } from "./use-outside-click";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface EventOption {
+  /** The event's own campus; a campus-less group of it takes this one. */
+  campusId?: string | null;
   campusName: string;
   dateLabel: string;
   id: string;
@@ -40,10 +46,6 @@ interface GroupPickerProps {
 
 function details(event: EventOption): string {
   return [event.dateLabel, event.campusName].filter(Boolean).join(" · ");
-}
-
-function peopleLabel(count: number): string {
-  return `${count} ${count === 1 ? "person" : "people"}`;
 }
 
 function EventCard({
@@ -161,8 +163,11 @@ export function GroupPicker({
           setLookup("missing");
           return;
         }
+        // The event's own campus, not the group's: another campus-less group
+        // of this event must take the event's campus.
         setEvent({
-          campusName: CAMPUS_ID_TO_NAME[found.campusId ?? ""] ?? "",
+          campusId: found.eventCampusId,
+          campusName: campusNameFor(found.eventCampusId),
           dateLabel: "",
           id: found.eventId,
           title: found.eventTitle,
@@ -233,7 +238,10 @@ export function GroupPicker({
       onChange(null, null);
       return;
     }
-    const eventCampus = CAMPUS_NAME_TO_ID[event.campusName] ?? null;
+    const eventCampus =
+      event.campusId === undefined
+        ? campusIdForName(event.campusName)
+        : event.campusId;
     onChange(group.id, group.campusId ?? eventCampus);
   }
 
@@ -405,7 +413,7 @@ export function GroupPicker({
             </option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
-                {group.name} ({peopleLabel(group.memberCount)})
+                {group.name} ({peopleCount(group.memberCount)})
               </option>
             ))}
           </select>

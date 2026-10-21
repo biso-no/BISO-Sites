@@ -549,12 +549,19 @@ export async function listAnnouncements(opts?: {
   ];
   const segmentNames: Record<string, string> = {};
   if (segmentIds.length > 0) {
-    const segments = await db.listRows<EventSegments>("app", "event_segments", [
-      Query.equal("$id", segmentIds),
-      Query.limit(segmentIds.length),
-    ]);
-    for (const segment of segments.rows) {
-      segmentNames[segment.$id] = segment.name;
+    // The names only make the labels nicer ("Group: Bus 2" over "Group"), so a
+    // failed lookup must never take the history page down with it.
+    try {
+      const segments = await db.listRows<EventSegments>(
+        "app",
+        "event_segments",
+        [Query.equal("$id", segmentIds), Query.limit(segmentIds.length)]
+      );
+      for (const segment of segments.rows) {
+        segmentNames[segment.$id] = segment.name;
+      }
+    } catch (error) {
+      console.error("Failed to load announcement group names:", error);
     }
   }
   return { rows: response.rows, segmentNames, total: response.total };

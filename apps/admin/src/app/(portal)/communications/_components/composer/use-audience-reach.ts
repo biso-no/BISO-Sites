@@ -3,6 +3,7 @@
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
 import { useEffect, useState } from "react";
 import { getAudienceReach } from "@/app/(portal)/_actions/composer";
+import { phoneCount } from "@/lib/announcements/audience-names";
 
 const REACH_DEBOUNCE_MS = 400;
 
@@ -48,7 +49,7 @@ export function reachHeadline(
     return REACH_UNAVAILABLE;
   }
   return isChannelAudience(request)
-    ? `About ${result.count} phones`
+    ? `About ${phoneCount(result.count)}`
     : result.sentence;
 }
 

@@ -1,13 +1,17 @@
 "use client";
 
 import { Bell, Globe, User, Users } from "lucide-react";
+import {
+  campusNameFor,
+  isNationalOrUnset,
+  TOPIC_OPTIONS,
+} from "@/lib/announcements/audience-names";
 import { parseAudiencePeople } from "@/lib/announcements/audience-people";
 import {
   type AudienceContext,
   type AudienceType,
   allowedCampusChoices,
 } from "@/lib/announcements/audience-policy";
-import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 import { DepartmentCombobox } from "../../../_components/department-combobox";
 import type { ComposerValues } from "./composer-state";
 import { GroupPicker } from "./group-picker";
@@ -15,16 +19,8 @@ import { PeoplePicker } from "./people-picker";
 import { ReachBox, type ReachRequest } from "./reach-box";
 import { BRAND, FieldLabel, Pill, SERIF } from "./ui";
 
-const NATIONAL_CAMPUS_ID = CAMPUS_NAME_TO_ID.National as string;
 const NATIONAL_ONLY_NOTE = "Only national admins can send to every campus.";
 const DEFAULT_TOPIC = "events";
-
-const TOPICS = [
-  { label: "News", value: "news" },
-  { label: "Events", value: "events" },
-  { label: "Jobs", value: "jobs" },
-  { label: "Shop", value: "shop" },
-] as const;
 
 const AUDIENCE_CARDS: Array<{
   description: string;
@@ -89,10 +85,6 @@ export interface WhoStepProps extends PeopleProps, GroupProps {
   /** "{title} ({date})" of the linked content, or null when not linked. */
   tappingOpens: string | null;
   values: ComposerValues;
-}
-
-function isNationalOrUnset(campusId: string | null | undefined): boolean {
-  return !campusId || campusId === NATIONAL_CAMPUS_ID;
 }
 
 /** A campus that suits the new audience type, keeping the current one if it does. */
@@ -228,7 +220,7 @@ function CampusPills({
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
         {choices.campusIds.map((id) => (
           <Pill active={value === id} key={id} onClick={() => onPick(id)}>
-            {CAMPUS_ID_TO_NAME[id]}
+            {campusNameFor(id)}
           </Pill>
         ))}
         {choices.allCampuses && (
@@ -363,7 +355,7 @@ export function WhoStep({
                       marginTop: 6,
                     }}
                   >
-                    {TOPICS.map((topic) => (
+                    {TOPIC_OPTIONS.map((topic) => (
                       <Pill
                         active={values.audience_value === topic.value}
                         key={topic.value}

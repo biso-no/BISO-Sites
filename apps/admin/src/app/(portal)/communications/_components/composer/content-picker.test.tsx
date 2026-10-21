@@ -108,6 +108,20 @@ async function mount(node: ReturnType<typeof createElement>) {
   return container;
 }
 
+/** Mounts and lets the first lookups land inside act, so none escapes it. */
+async function mountSettled(
+  node: ReturnType<typeof createElement>
+): Promise<TestElement> {
+  const container = installedDom.document.createElement("div");
+  installedDom.document.body.appendChild(container);
+  root = createRoot(container as unknown as Element);
+  await act(async () => {
+    root?.render(node);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  return container;
+}
+
 async function wait(ms = 400): Promise<void> {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, ms));
@@ -222,10 +236,12 @@ function Harness({
   initial,
   loadPrefill,
   searchFn = search,
+  storedLink,
 }: {
   initial?: Partial<ComposerValues>;
   searchFn?: (type: string, query: string) => Promise<LinkableItem[]>;
   loadPrefill: (type: "event" | "news" | "job", id: string) => Promise<unknown>;
+  storedLink?: { image: string | null; title: string } | null;
 }) {
   const [values, setValues] = useState<ComposerValues>({
     ...baseValues,
@@ -244,6 +260,7 @@ function Harness({
       setValues((prev) => ({ ...prev, [key]: value })),
     setLink,
     setLocale,
+    storedLink,
     update: (fn: (prev: ComposerValues) => ComposerValues) =>
       setValues((prev) => fn(prev)),
     values,
@@ -445,6 +462,40 @@ describe("WhatStep", () => {
     await wait(0);
     expect(container.textContent).toContain("Autumn party");
     expect(container.textContent).toContain("Fri 24 Oct · Bergen");
+  });
+
+  describe("a reopened draft whose content can't be loaded", () => {
+    test.each([
+      ["the lookup fails", () => Promise.reject(new Error("down"))],
+      ["the content is gone", async () => null],
+    ])("keeps a card when %s, and says so", async (_label, loadPrefill) => {
+      const container = await mountSettled(
+        createElement(Harness, {
+          initial: { content_id: "ev-1", content_type: "event" },
+          loadPrefill,
+        })
+      );
+
+      expect(findButton(container, "Change")).toBeDefined();
+      expect(container.textContent).toContain("Linked event");
+      expect(container.textContent).toContain(
+        "Couldn't load the linked event."
+      );
+      expect(probe0(container)).toContain("ID:ev-1");
+    });
+
+    test("the card uses the title the row was saved with", async () => {
+      const container = await mountSettled(
+        createElement(Harness, {
+          initial: { content_id: "ev-1", content_type: "event" },
+          loadPrefill: () => Promise.reject(new Error("down")),
+          storedLink: { image: null, title: "Autumn party" },
+        })
+      );
+
+      expect(container.textContent).toContain("Autumn party");
+      expect(container.textContent).not.toContain("Linked event");
+    });
   });
 
   test("re-linking replaces only the fields still holding the last prefill", async () => {

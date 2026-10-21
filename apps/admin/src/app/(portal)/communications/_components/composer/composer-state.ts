@@ -152,6 +152,25 @@ export function applyPrefill(
 }
 
 /**
+ * Drops the department when the campus changes. Departments belong to one
+ * campus, so the server would refuse the old one ("Department does not belong
+ * to the selected campus"), and a campus-wide audience can have none at all.
+ * A department set in the same change is kept.
+ */
+export function clearDepartmentOnCampusChange(
+  previous: ComposerValues,
+  next: ComposerValues
+): ComposerValues {
+  const campusChanged =
+    (previous.campus_id ?? null) !== (next.campus_id ?? null);
+  const departmentKept = next.department_id === previous.department_id;
+  if (campusChanged && departmentKept && next.department_id) {
+    return { ...next, department_id: null };
+  }
+  return next;
+}
+
+/**
  * Points the audience at the linked content's topic and campus, unless the
  * admin already chose an audience or it is not allowed for them.
  */

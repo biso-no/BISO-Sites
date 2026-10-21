@@ -1,6 +1,11 @@
 import { formatOsloDate } from "@repo/shared/utils/oslo-time";
 import { htmlToPlainText } from "@repo/shared/utils/push-dispatch";
-import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
+import {
+  campusNameFor,
+  isNationalOrUnset,
+  peopleCount,
+  topicNameFor,
+} from "./audience-names";
 
 export type ComposerContentType = "event" | "news" | "job";
 
@@ -31,24 +36,10 @@ interface TranslationLike {
   title?: string | null;
 }
 
-const NATIONAL_CAMPUS_ID = CAMPUS_NAME_TO_ID.National as string;
 const PREFILL_MAX = 300;
 const LOCALE = "en-GB";
 const DAY_LABEL = { weekday: "short", day: "numeric", month: "short" } as const;
 const DEADLINE_LABEL = { day: "numeric", month: "short" } as const;
-const TOPIC_NAMES: Record<string, string> = {
-  news: "News",
-  events: "Events",
-  jobs: "Jobs",
-  shop: "Shop",
-};
-
-export function campusNameFor(campusId: string | null | undefined): string {
-  if (!campusId) {
-    return "";
-  }
-  return CAMPUS_ID_TO_NAME[campusId] ?? "";
-}
 
 function asTranslations(value: unknown): TranslationLike[] {
   return Array.isArray(value)
@@ -193,24 +184,23 @@ export const REACH_UNAVAILABLE = "Reach unavailable right now";
 /** The descriptive part of the reach line; the UI prefixes "About {n} phones". */
 export function reachSentence(input: ReachSentenceInput): string {
   const { audienceType, audienceValue, campusId, count, groupName } = input;
-  if (audienceType === "users") {
-    return count === null ? REACH_UNAVAILABLE : `${count} people`;
-  }
-  if (audienceType === "segment") {
-    if (count === null) {
-      return REACH_UNAVAILABLE;
-    }
-    return groupName ? `${count} people in ${groupName}` : `${count} people`;
-  }
   if (count === null) {
     return REACH_UNAVAILABLE;
   }
+  if (audienceType === "users") {
+    return peopleCount(count);
+  }
+  if (audienceType === "segment") {
+    return groupName
+      ? `${peopleCount(count)} in ${groupName}`
+      : peopleCount(count);
+  }
   const campus = campusNameFor(campusId);
-  const isNational = !campusId || campusId === NATIONAL_CAMPUS_ID || !campus;
+  const isNational = isNationalOrUnset(campusId) || !campus;
   if (audienceType === "broadcast") {
     return isNational ? "Everyone, at all campuses." : `Everyone at ${campus}.`;
   }
-  const topic = TOPIC_NAMES[audienceValue ?? ""] ?? audienceValue ?? "";
+  const topic = topicNameFor(audienceValue);
   return isNational
     ? `Students who follow ${topic}, at all campuses.`
     : `${campus} students who follow ${topic}.`;

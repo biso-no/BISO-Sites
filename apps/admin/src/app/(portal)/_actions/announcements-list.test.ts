@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 
@@ -99,6 +99,31 @@ describe("listAnnouncements segment names", () => {
     expect(segmentCalls).toHaveLength(1);
     expect(segmentCalls[0]?.[2]).toContain(Query.equal("$id", ["s1", "s2"]));
     expect(result.segmentNames).toEqual({ s1: "Board" });
+  });
+
+  test("a failed name lookup still lists the announcements", async () => {
+    const consoleError = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "announcements") {
+        return {
+          rows: [{ $id: "a1", audience_type: "segment", audience_value: "s1" }],
+          total: 1,
+        };
+      }
+      return Promise.reject(new Error("event_segments unavailable"));
+    });
+    try {
+      const result = await listAnnouncements();
+
+      expect(result.rows).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.segmentNames).toEqual({});
+      expect(consoleError).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   test("skips the lookup when there are no segment rows", async () => {

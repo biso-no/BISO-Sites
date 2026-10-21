@@ -11,13 +11,13 @@ import type {
   Users,
 } from "@repo/api/types/appwrite";
 import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
+import { campusNameFor } from "@/lib/announcements/audience-names";
 import {
   canSendNotifications,
   isAudienceAllowed,
 } from "@/lib/announcements/audience-policy";
 import {
   type ComposerContentType,
-  campusNameFor,
   dateLabelFor,
   type LinkableItem,
   type PersonResult,
@@ -170,10 +170,14 @@ export async function getPeopleByIds(ids: string[]): Promise<PersonResult[]> {
   return response.rows.map((row) => toPersonResult(row));
 }
 
-export async function listEventsWithGroups(
-  query: string
-): Promise<
-  Array<{ id: string; title: string; dateLabel: string; campusName: string }>
+export async function listEventsWithGroups(query: string): Promise<
+  Array<{
+    campusId: string | null;
+    campusName: string;
+    dateLabel: string;
+    id: string;
+    title: string;
+  }>
 > {
   const ctx = await requireAuth();
   if (!canSendNotifications(ctx.roles)) {
@@ -213,6 +217,7 @@ export async function listEventsWithGroups(
       id: row.$id,
       title: pickEnglishFirstTitle(row.translation_refs, row.$id),
       dateLabel: dateLabelFor("event", row.start_date),
+      campusId: row.campus_id ?? null,
       campusName: campusNameFor(row.campus_id),
     }))
     .filter((event) => event.title.toLowerCase().includes(needle))
@@ -255,7 +260,10 @@ export async function listGroupsForEvent(eventId: string): Promise<
 }
 
 export interface GroupDetails {
+  /** The campus the group reaches: its own, else its event's. */
   campusId: string | null;
+  /** The event's own campus, which a campus-less group of it takes. */
+  eventCampusId: string | null;
   eventId: string;
   eventTitle: string;
   groupId: string;
@@ -314,6 +322,7 @@ export async function getGroupById(
     }
     return {
       campusId: resolved.campusId,
+      eventCampusId: event.campus_id ?? null,
       eventId: event.$id,
       eventTitle: pickEnglishFirstTitle(event.translation_refs, event.$id),
       groupId: segment.$id,

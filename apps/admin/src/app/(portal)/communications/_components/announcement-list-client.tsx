@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { audienceLabel } from "@/lib/announcements/audience-label";
-import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { deleteAnnouncement } from "../../_actions/announcements";
 import { ANNOUNCEMENTS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
@@ -183,7 +182,6 @@ export function AnnouncementListClient({
                 >
                   {audienceLabel(
                     announcement,
-                    CAMPUS_ID_TO_NAME,
                     segmentNames[announcement.audience_value ?? ""]
                   )}
                   {" · "}

@@ -24,3 +24,44 @@ export interface LinkState {
 export function buildLinkState(): LinkState {
   return { display: null, snapshot: null, tip: null };
 }
+
+/** The title and image the row was saved with for its linked content. */
+export interface StoredLink {
+  image: string | null;
+  title: string;
+}
+
+function asText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * The linked content as the stored row's `items` snapshot describes it, so a
+ * reopened draft can still show its card when the content can't be loaded.
+ */
+export function storedLinkFrom(
+  items: string | null | undefined,
+  contentId: string | null | undefined
+): StoredLink | null {
+  if (!(items && contentId)) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(items);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+  const item = parsed.find(
+    (entry): entry is Record<string, unknown> =>
+      typeof entry === "object" && entry !== null && entry.id === contentId
+  );
+  const title = asText(item?.title_en) || asText(item?.title_no);
+  if (!(item && title)) {
+    return null;
+  }
+  return { image: asText(item.image) || null, title };
+}

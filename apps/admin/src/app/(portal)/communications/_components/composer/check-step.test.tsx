@@ -68,8 +68,8 @@ afterAll(() => installedDom.restore());
 const baseValues: ComposerValues = {
   audience_type: "broadcast",
   audience_value: "",
-  body_en: null,
-  body_no: null,
+  body_en: "<p>Hello</p>",
+  body_no: "<p>Hei</p>",
   campus_id: "2",
   category: "general",
   content_id: null,
@@ -111,6 +111,7 @@ const getReach = mock(async (_req: unknown) => ({
 }));
 
 interface HarnessProps {
+  alreadySent?: boolean;
   initial?: Partial<ComposerValues>;
   link?: { label?: string; title: string } | null;
   now?: Date;
@@ -121,6 +122,7 @@ interface HarnessProps {
 }
 
 function Harness({
+  alreadySent = false,
   initial,
   link = null,
   now = MIDDAY,
@@ -134,6 +136,7 @@ function Harness({
     ...initial,
   });
   return createElement(CheckStep, {
+    alreadySent,
     campusOptions,
     confirmTranslationOverwrite: false,
     getReach: reach,
@@ -195,6 +198,29 @@ describe("the summary", () => {
     const container = await mount({ initial: { title_no: null } });
     expect(container.textContent).toContain(
       "English only — students get it in English"
+    );
+  });
+
+  test("a language counts only with both its title and its message", async () => {
+    const noBody = await mount({ initial: { body_no: "<p></p>" } });
+    expect(noBody.textContent).toContain(
+      "English only — students get it in English"
+    );
+  });
+
+  test("Norwegian alone is Norwegian only", async () => {
+    const container = await mount({ initial: { body_en: null } });
+    expect(container.textContent).toContain(
+      "Norwegian only — students get it in Norwegian"
+    );
+  });
+
+  test("with no language complete, it says what is missing", async () => {
+    const container = await mount({
+      initial: { body_en: null, body_no: null },
+    });
+    expect(container.textContent).toContain(
+      "No language has both a title and a message yet."
     );
   });
 
@@ -294,6 +320,30 @@ describe("sending", () => {
     expect(dialog.textContent).toContain("This reaches about 412 phones.");
     await click(findButton(dialog, "Send"));
     expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
+  test("one phone is singular", async () => {
+    const one = mock(async (_req: unknown) => ({
+      count: 1 as number | null,
+      sentence: "Everyone at Bergen.",
+    }));
+    const container = await mount({ reach: one });
+    await click(sendButton(container));
+    expect(container.textContent).toContain("This reaches about 1 phone.");
+  });
+
+  test("an already sent notification cannot be sent again", async () => {
+    const container = await mount({ alreadySent: true });
+    expect(container.textContent).toContain(
+      "This notification has already been sent."
+    );
+    expect(
+      findElements(
+        container,
+        (element) =>
+          element.tagName === "BUTTON" && element.textContent === "Send"
+      )
+    ).toHaveLength(0);
   });
 
   test("it asks about every student when no campus is set", async () => {

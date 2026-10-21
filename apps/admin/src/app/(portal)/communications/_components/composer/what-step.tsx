@@ -3,9 +3,12 @@
 import { Check, Link2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { getLinkedContentPrefill } from "@/app/(portal)/_actions/composer";
+import {
+  isNationalOrUnset,
+  TOPIC_NAMES,
+} from "@/lib/announcements/audience-names";
 import { isAudienceAllowed } from "@/lib/announcements/audience-policy";
 import type { LinkableItem } from "@/lib/announcements/composer-lookups";
-import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 import {
   applyLinkedAudience,
   applyPrefill,
@@ -17,7 +20,7 @@ import {
   TYPE_CARDS,
 } from "./composer-state";
 import { ContentPicker } from "./content-picker";
-import type { LinkState } from "./link-state";
+import type { LinkedDisplay, LinkState, StoredLink } from "./link-state";
 import {
   BRAND,
   FieldLabel,
@@ -27,18 +30,10 @@ import {
   TYPE_ICONS,
 } from "./ui";
 
-const NATIONAL_CAMPUS_ID = CAMPUS_NAME_TO_ID.National;
-
 const NOUN: Record<ComposerLinkType, string> = {
   event: "event",
   job: "position",
   news: "article",
-};
-
-const TOPIC_NAMES: Record<ComposerTopic, string> = {
-  events: "Events",
-  jobs: "Jobs",
-  news: "News",
 };
 
 interface LinkedPrefill extends PrefillSnapshot {
@@ -67,6 +62,8 @@ export interface WhatStepProps {
   ) => void;
   setLink: (link: LinkState) => void;
   setLocale: (locale: LocaleCode) => void;
+  /** What the saved row says about its link, for when it can't be loaded. */
+  storedLink?: StoredLink | null;
   /** Replaces the form values in one step, from the latest ones. */
   update: (change: (previous: ComposerValues) => ComposerValues) => void;
   values: ComposerValues;
@@ -91,6 +88,20 @@ function labelFor(item: LinkableItem): string {
 
 function metaFor(item: LinkableItem): string {
   return [item.dateLabel, item.campusName].filter(Boolean).join(" · ");
+}
+
+/** A card for a link that couldn't be loaded, from what the row stored. */
+function storedDisplay(
+  type: ComposerLinkType,
+  id: string,
+  stored: StoredLink | null | undefined
+): LinkedDisplay {
+  return {
+    id,
+    image: stored?.image ?? null,
+    meta: "",
+    title: stored?.title || `Linked ${NOUN[type]}`,
+  };
 }
 
 function TypeCard({
@@ -182,6 +193,7 @@ export function WhatStep({
   set,
   setLink,
   setLocale,
+  storedLink,
   update,
   values,
 }: WhatStepProps) {
@@ -202,6 +214,8 @@ export function WhatStep({
   // A draft reopens with an id but no card: look up its name.
   const hasLink = Boolean(values.content_id && values.content_type);
   const needsDisplay = hasLink && !link.display;
+  const storedLinkRef = useRef(storedLink);
+  storedLinkRef.current = storedLink;
   useEffect(() => {
     if (!(needsDisplay && values.content_type && values.content_id)) {
       return;
@@ -209,9 +223,25 @@ export function WhatStep({
     let cancelled = false;
     const type = values.content_type;
     const id = values.content_id;
+    // The link stays: keep a card from what the row stored, and say so.
+    const keepStoredCard = () => {
+      if (cancelled) {
+        return;
+      }
+      setLink({
+        ...linkRef.current,
+        display: storedDisplay(type, id, storedLinkRef.current),
+        tip: `Couldn't load the linked ${NOUN[type]}.`,
+        tipQuiet: true,
+      });
+    };
     loadPrefill(type, id)
       .then((found) => {
-        if (cancelled || !found) {
+        if (cancelled) {
+          return;
+        }
+        if (!found) {
+          keepStoredCard();
           return;
         }
         setLink({
@@ -225,7 +255,7 @@ export function WhatStep({
           },
         });
       })
-      .catch(() => undefined);
+      .catch(keepStoredCard);
     return () => {
       cancelled = true;
     };
@@ -324,8 +354,9 @@ export function WhatStep({
     const audienceSet = outcome.final !== outcome.filled;
     update((previous) => build(previous).final);
 
-    const isNational = !found.campusId || found.campusId === NATIONAL_CAMPUS_ID;
-    const campusLabel = isNational ? "all campuses" : item.campusName;
+    const campusLabel = isNationalOrUnset(found.campusId)
+      ? "all campuses"
+      : item.campusName;
     const tip = `✓ Title and text filled in from the ${NOUN[linkType]}. Edit freely.${
       audienceSet
         ? ` Audience set to ${TOPIC_NAMES[found.topic]} · ${campusLabel}.`

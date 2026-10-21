@@ -346,6 +346,7 @@ describe("getGroupById", () => {
     mockGroup("3");
     expect(await getGroupById("s1")).toEqual({
       campusId: "3",
+      eventCampusId: "3",
       eventId: "e1",
       eventTitle: "Trondheim trip",
       groupId: "s1",
@@ -392,6 +393,14 @@ describe("getGroupById", () => {
     };
     mockGroup("2");
     expect((await getGroupById("s1"))?.groupName).toBe("Bus 2");
+  });
+
+  test("a group with its own campus keeps its event's campus apart", async () => {
+    mockGroup("5", "2");
+    expect(await getGroupById("s1")).toMatchObject({
+      campusId: "2",
+      eventCampusId: "5",
+    });
   });
 
   test("a global admin reads groups on any campus or National events", async () => {
@@ -553,5 +562,30 @@ describe("reachSentence", () => {
     expect(reachSentence({ ...base, audienceType: "topic", count: null })).toBe(
       "Reach unavailable right now"
     );
+  });
+
+  test("one person is singular", () => {
+    expect(reachSentence({ ...base, audienceType: "users", count: 1 })).toBe(
+      "1 person"
+    );
+    expect(
+      reachSentence({
+        ...base,
+        audienceType: "segment",
+        count: 1,
+        groupName: "Crew",
+      })
+    ).toBe("1 person in Crew");
+  });
+
+  test("the legacy products topic reads as Shop", () => {
+    expect(
+      reachSentence({
+        ...base,
+        audienceType: "topic",
+        audienceValue: "products",
+        campusId: "2",
+      })
+    ).toBe("Bergen students who follow Shop.");
   });
 });

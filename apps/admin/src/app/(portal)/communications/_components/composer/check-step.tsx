@@ -13,6 +13,7 @@ import { Moon, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { TranslationReviewCard } from "@/app/_components/content-translation-controls";
 import { getAudienceReach } from "@/app/(portal)/_actions/composer";
+import { phoneCount } from "@/lib/announcements/audience-names";
 import type { AnnouncementFormValues } from "../../../_actions/schemas";
 import {
   type ComposerStepIndex,
@@ -44,6 +45,8 @@ interface CampusOption {
 }
 
 interface CheckStepProps {
+  /** The notification has gone out; it can be edited but not sent again. */
+  alreadySent?: boolean;
   campusOptions: CampusOption[];
   confirmTranslationOverwrite: boolean;
   getReach?: GetReach;
@@ -66,6 +69,10 @@ interface CheckStepProps {
   translating: boolean;
   values: AnnouncementFormValues;
 }
+
+const ALREADY_SENT_NOTE = "This notification has already been sent.";
+const HTML_TAG = /<[^>]*>/g;
+const NBSP = /&nbsp;/g;
 
 const WHAT_STEP = 0;
 const MESSAGE_STEP = 1;
@@ -91,11 +98,21 @@ function broadcastCampusName(
   );
 }
 
+/** Whether a message body holds any text once its markup is gone. */
+function hasText(html: string | null | undefined): boolean {
+  return Boolean(html?.replace(HTML_TAG, "").replace(NBSP, " ").trim());
+}
+
+/** A language counts only when both its title and its message are written. */
 function languagesSentence(values: AnnouncementFormValues): string {
-  const hasNorwegian = Boolean(values.title_no?.trim());
-  const hasEnglish = Boolean(values.title_en.trim());
+  const hasNorwegian =
+    Boolean(values.title_no?.trim()) && hasText(values.body_no);
+  const hasEnglish = Boolean(values.title_en.trim()) && hasText(values.body_en);
   if (hasNorwegian && hasEnglish) {
     return "Norwegian and English";
+  }
+  if (!(hasNorwegian || hasEnglish)) {
+    return "No language has both a title and a message yet.";
   }
   const one = hasNorwegian ? "Norwegian" : "English";
   return `${one} only — students get it in ${one}`;
@@ -303,7 +320,7 @@ function ConfirmEveryone({
             margin: "8px 0 0",
           }}
         >
-          {count === null ? "" : `This reaches about ${count} phones.`}
+          {count === null ? "" : `This reaches about ${phoneCount(count)}.`}
         </p>
         <div
           style={{
@@ -421,6 +438,7 @@ function sendLabel(sending: boolean, mode: TimingMode): string {
 }
 
 export function CheckStep({
+  alreadySent = false,
   campusOptions,
   confirmTranslationOverwrite,
   getReach = getAudienceReach,
@@ -585,36 +603,42 @@ export function CheckStep({
         </p>
       )}
 
-      <div style={{ marginTop: 28 }}>
-        <button
-          disabled={Boolean(blocker) || sending || saving}
-          onClick={pressSend}
-          ref={sendRef}
-          style={{
-            alignItems: "center",
-            background: BRAND.bisoBlue,
-            border: `0.5px solid ${BRAND.bisoBlue}`,
-            borderRadius: 10,
-            color: "white",
-            cursor: blocker || sending || saving ? "not-allowed" : "pointer",
-            display: "flex",
-            fontSize: 15,
-            fontWeight: 500,
-            gap: 8,
-            opacity: blocker ? 0.5 : 1,
-            padding: "12px 24px",
-          }}
-          type="button"
-        >
-          <Send size={15} />
-          {sendLabel(sending, mode)}
-        </button>
-        {blocker && (
-          <p style={{ color: BRAND.claret, fontSize: 13, margin: "8px 0 0" }}>
-            {blocker}
-          </p>
-        )}
-      </div>
+      {alreadySent ? (
+        <p style={{ color: BRAND.ink3, fontSize: 14, margin: "28px 0 0" }}>
+          {ALREADY_SENT_NOTE}
+        </p>
+      ) : (
+        <div style={{ marginTop: 28 }}>
+          <button
+            disabled={Boolean(blocker) || sending || saving}
+            onClick={pressSend}
+            ref={sendRef}
+            style={{
+              alignItems: "center",
+              background: BRAND.bisoBlue,
+              border: `0.5px solid ${BRAND.bisoBlue}`,
+              borderRadius: 10,
+              color: "white",
+              cursor: blocker || sending || saving ? "not-allowed" : "pointer",
+              display: "flex",
+              fontSize: 15,
+              fontWeight: 500,
+              gap: 8,
+              opacity: blocker ? 0.5 : 1,
+              padding: "12px 24px",
+            }}
+            type="button"
+          >
+            <Send size={15} />
+            {sendLabel(sending, mode)}
+          </button>
+          {blocker && (
+            <p style={{ color: BRAND.claret, fontSize: 13, margin: "8px 0 0" }}>
+              {blocker}
+            </p>
+          )}
+        </div>
+      )}
 
       {confirming && (
         <ConfirmEveryone

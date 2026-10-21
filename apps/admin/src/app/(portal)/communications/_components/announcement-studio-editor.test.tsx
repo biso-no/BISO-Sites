@@ -384,6 +384,40 @@ describe("the check step asks before an Everyone announcement goes out", () => {
   });
 });
 
+describe("a sent notification on Check & send", () => {
+  test("says it was sent, offers no Send, and still saves edits", async () => {
+    const composer = await openInComposer(sentTopicRow, { initialStep: 3 });
+
+    expect(composer.textContent).toContain(
+      "This notification has already been sent."
+    );
+    expect(
+      findElements(
+        composer,
+        (element) =>
+          element.tagName === "BUTTON" && element.textContent === "Send"
+      )
+    ).toHaveLength(0);
+    await saveDraft(composer);
+    expect(storedRow).toMatchObject({ status: "sent" });
+  });
+});
+
+describe("changing the campus drops a department from another campus", () => {
+  test("All campuses clears the department, so the save goes through", async () => {
+    const composer = await openInComposer({
+      ...draftBroadcastRow,
+      department: "dept-1",
+    });
+
+    await openDistributionStep(composer);
+    await chooseCampus(composer, "");
+    await saveDraft(composer);
+
+    expect(storedRow).toMatchObject({ campus_id: null, department: null });
+  });
+});
+
 describe("where the composer opens", () => {
   test("it opens on What by default", async () => {
     const composer = await openInComposer(draftBroadcastRow);
