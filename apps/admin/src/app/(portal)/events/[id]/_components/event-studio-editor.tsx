@@ -55,7 +55,11 @@ import {
 } from "@/app/_components/content-translation-controls";
 import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 import type { ContentNotificationState } from "@/lib/content-notification-state";
-import { defaultNotifyPush, notifyToggleCopy } from "@/lib/notify-toggle-copy";
+import {
+  defaultNotifyPush,
+  type NotifyToggleCopy,
+  notifyToggleCopy,
+} from "@/lib/notify-toggle-copy";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createEvent,
@@ -2482,8 +2486,63 @@ function capStepperBtn(left: boolean): React.CSSProperties {
 /*                              Tickets step                                  */
 /* -------------------------------------------------------------------------- */
 
+function NotifyCard({
+  audience,
+  notify,
+  onToggle,
+}: {
+  audience: string;
+  notify: NotifyToggleCopy;
+  onToggle: () => void;
+}) {
+  if (!notify.showToggle) {
+    return (
+      <div
+        style={{
+          background: "rgba(255,255,255,.55)",
+          border: `0.5px solid ${BRAND.rule2}`,
+          borderRadius: 12,
+          color: BRAND.ink,
+          padding: "16px 18px",
+        }}
+      >
+        <div
+          style={{
+            alignItems: "center",
+            display: "flex",
+            fontSize: 14,
+            fontWeight: 500,
+            gap: 8,
+          }}
+        >
+          <Bell size={14} />
+          {notify.title}
+        </div>
+        <p style={{ color: BRAND.ink3, fontSize: 12.5, marginTop: 6 }}>
+          {notify.description}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <ToggleCard
+      active={notify.effectiveOn}
+      description={
+        notify.disabled
+          ? notify.description
+          : `${notify.description} ${audience}`
+      }
+      disabled={notify.disabled}
+      icon={<Bell size={14} />}
+      onClick={onToggle}
+      title={notify.title}
+    />
+  );
+}
+
 function TicketsStep({
   canNotifyNational,
+  event,
   isPublished,
   notificationState,
   pushSubscribers,
@@ -2491,6 +2550,7 @@ function TicketsStep({
   values,
 }: {
   canNotifyNational: boolean;
+  event: EventRecord | null;
   isPublished: boolean;
   notificationState: ContentNotificationState;
   pushSubscribers: Record<string, number | null>;
@@ -2501,10 +2561,14 @@ function TicketsStep({
   values: EventUpsertInput;
 }) {
   const notify = notifyToggleCopy({
+    campusId: values.campus_id,
     canNotifyNational,
     isNational: values.campus_id === CAMPUS_NAME_TO_ID.National,
     isPublished,
+    requested: values.notify_push ?? false,
     state: notificationState,
+    stored: event?.notify_push ?? null,
+    storedCampusId: event?.campus_id ?? null,
   });
   const isFree = values.pricing_mode === EventsPricingMode.FREE;
   const price = values.price ?? 0;
@@ -2704,44 +2768,13 @@ function TicketsStep({
           onClick={() => set("is_collection", !values.is_collection)}
           title="Part of a series"
         />
-        {notify.showToggle ? (
-          <ToggleCard
-            active={values.notify_push ?? false}
-            description={`${notify.description} ${describePushAudience(
-              pushSubscribers[values.campus_id ?? ""] ?? null
-            )}`}
-            disabled={notify.disabled}
-            icon={<Bell size={14} />}
-            onClick={() => set("notify_push", !values.notify_push)}
-            title={notify.title}
-          />
-        ) : (
-          <div
-            style={{
-              background: "rgba(255,255,255,.55)",
-              border: `0.5px solid ${BRAND.rule2}`,
-              borderRadius: 12,
-              color: BRAND.ink,
-              padding: "16px 18px",
-            }}
-          >
-            <div
-              style={{
-                alignItems: "center",
-                display: "flex",
-                fontSize: 14,
-                fontWeight: 500,
-                gap: 8,
-              }}
-            >
-              <Bell size={14} />
-              {notify.title}
-            </div>
-            <p style={{ color: BRAND.ink3, fontSize: 12.5, marginTop: 6 }}>
-              {notify.description}
-            </p>
-          </div>
-        )}
+        <NotifyCard
+          audience={describePushAudience(
+            pushSubscribers[values.campus_id ?? ""] ?? null
+          )}
+          notify={notify}
+          onToggle={() => set("notify_push", !values.notify_push)}
+        />
       </div>
 
       <div
@@ -4548,6 +4581,7 @@ export function EventStudioEditor({
             {step === 3 && (
               <TicketsStep
                 canNotifyNational={canNotifyNational}
+                event={event}
                 isPublished={event?.status === EventsStatus.PUBLISHED}
                 notificationState={notificationState}
                 pushSubscribers={pushSubscribers}

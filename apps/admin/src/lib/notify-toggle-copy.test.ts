@@ -17,6 +17,7 @@ describe("notifyToggleCopy", () => {
     expect(copy).toEqual({
       description: "Sent Mon 2 Nov at 08:00.",
       disabled: false,
+      effectiveOn: true,
       showToggle: false,
       title: "Students were notified",
     });
@@ -35,6 +36,7 @@ describe("notifyToggleCopy", () => {
     expect(copy).toEqual({
       description: "This item can't send a notification.",
       disabled: false,
+      effectiveOn: true,
       showToggle: false,
       title: "Published before automatic notifications",
     });
@@ -48,6 +50,7 @@ describe("notifyToggleCopy", () => {
     expect(copy).toEqual({
       description: "Goes out Mon 2 Nov at 08:00. Untick to cancel.",
       disabled: false,
+      effectiveOn: true,
       showToggle: true,
       title: "Notification scheduled",
     });
@@ -59,6 +62,7 @@ describe("notifyToggleCopy", () => {
       description:
         "Sends one notification to students who follow this topic, a few minutes after you save.",
       disabled: false,
+      effectiveOn: true,
       showToggle: true,
       title: "Notify students now",
     });
@@ -80,6 +84,7 @@ describe("notifyToggleCopy", () => {
       description:
         "Students who follow this topic get one notification when it goes live.",
       disabled: false,
+      effectiveOn: true,
       showToggle: true,
       title: "Notify students when published",
     });
@@ -94,9 +99,56 @@ describe("notifyToggleCopy", () => {
     expect(copy).toEqual({
       description: "Only national admins can notify every student.",
       disabled: true,
+      effectiveOn: false,
       showToggle: true,
       title: "Notify students now",
     });
+  });
+
+  test("disabled national toggle shows what the server will save", () => {
+    const national = {
+      ...base,
+      campusId: "5",
+      isNational: true,
+      requested: true,
+      state: { kind: "none" } as const,
+    };
+    expect(notifyToggleCopy(national).effectiveOn).toBe(false);
+    expect(
+      notifyToggleCopy({
+        ...national,
+        stored: true,
+        storedCampusId: "5",
+      }).effectiveOn
+    ).toBe(true);
+    expect(
+      notifyToggleCopy({ ...national, canNotifyNational: true }).effectiveOn
+    ).toBe(true);
+  });
+
+  test("pending national for a non-national admin keeps the due time", () => {
+    const copy = notifyToggleCopy({
+      ...base,
+      campusId: "5",
+      isNational: true,
+      stored: true,
+      storedCampusId: "5",
+      state: { dueAt: "2026-11-02T07:00:00.000Z", kind: "pending" },
+    });
+    expect(copy.description).toBe(
+      "Goes out Mon 2 Nov at 08:00. Only national admins can change this."
+    );
+    expect(copy.disabled).toBe(true);
+  });
+
+  test("pending item switched off says it will be cancelled on save", () => {
+    const copy = notifyToggleCopy({
+      ...base,
+      requested: false,
+      state: { dueAt: "2026-11-02T07:00:00.000Z", kind: "pending" },
+    });
+    expect(copy.description).toBe("Will be cancelled when you save.");
+    expect(copy.effectiveOn).toBe(false);
   });
 
   test("national with national rights is a normal toggle", () => {

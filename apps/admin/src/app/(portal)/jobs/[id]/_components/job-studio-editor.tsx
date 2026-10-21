@@ -23,6 +23,7 @@ import {
   Plus,
   Save,
   Send,
+  Smartphone,
   Sparkles,
   Trash2,
   Upload,
@@ -742,10 +743,14 @@ export function JobStudioEditor({
   const isBusy = isSaving || isPublishing;
   const isLive = job?.status === JobsStatus.PUBLISHED;
   const notify = notifyToggleCopy({
+    campusId: form.campus_id,
     canNotifyNational,
     isNational: form.campus_id === CAMPUS_NAME_TO_ID.National,
     isPublished: isLive,
+    requested: Boolean(form.notify_push),
     state: notificationState,
+    stored: job?.notify_push ?? null,
+    storedCampusId: job?.campus_id ?? null,
   });
   const willSchedule = form.publication_mode === "scheduled" && !isLive;
   const publishLabel = willSchedule ? "Schedule" : labels.publish;
@@ -2060,10 +2065,10 @@ export function JobStudioEditor({
                       ...(notify.showToggle
                         ? [
                             {
-                              active: Boolean(form.notify_push),
+                              active: notify.effectiveOn,
                               description: notify.description,
                               disabled: notify.disabled,
-                              icon: Bell,
+                              icon: Smartphone,
                               label: notify.title,
                               onClick: () =>
                                 setValue("notify_push", !form.notify_push),

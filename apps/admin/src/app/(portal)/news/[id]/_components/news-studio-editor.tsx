@@ -84,6 +84,7 @@ interface EssentialsStepProps extends StepProps {
 }
 
 interface MediaVisibilityStepProps extends StepProps {
+  article: NewsWithTranslations | null;
   campusName: string;
   canNotifyNational: boolean;
   departmentName: string;
@@ -531,6 +532,7 @@ function NewsEssentialsStep({
 }
 
 function NewsMediaVisibilityStep({
+  article,
   campusName,
   canNotifyNational,
   departmentName,
@@ -540,12 +542,16 @@ function NewsMediaVisibilityStep({
   values,
 }: MediaVisibilityStepProps) {
   const notify = notifyToggleCopy({
+    campusId: values.campus_id,
     canNotifyNational,
     isNational: values.campus_id === CAMPUS_NAME_TO_ID.National,
     isPublished,
+    requested: Boolean(values.notify_push),
     state: notificationState,
+    stored: article?.notify_push ?? null,
+    storedCampusId: article?.campus_id ?? null,
   });
-  const notifyOn = Boolean(values.notify_push);
+  const notifyOn = notify.effectiveOn;
   return (
     <div className="space-y-7">
       <div>
@@ -1042,6 +1048,7 @@ export function NewsStudioEditor({
               )}
               {step === 2 && (
                 <NewsMediaVisibilityStep
+                  article={article}
                   campusName={campusName}
                   canNotifyNational={canNotifyNational}
                   departmentName={departmentName}

@@ -4,25 +4,25 @@ import { describePushAudience } from "./event-studio-push";
 describe("describePushAudience", () => {
   test("says the count is unavailable rather than guessing", () => {
     expect(describePushAudience(null)).toBe(
-      "Notify devices subscribed to events at this campus. Subscriber count unavailable. Sends once when published."
+      "Follower count unavailable for this campus."
     );
   });
 
   test("reports genuinely zero subscribers distinctly from unavailable", () => {
     expect(describePushAudience(0)).toBe(
-      "No devices are subscribed to event notifications at this campus yet. Sends once when published."
+      "No devices follow events at this campus yet."
     );
   });
 
   test("uses the singular for exactly one device", () => {
     expect(describePushAudience(1)).toBe(
-      "Notify 1 device subscribed to events at this campus. Sends once when published."
+      "1 device follows events at this campus."
     );
   });
 
   test("uses the plural, thousands-separated, for more than one device", () => {
     expect(describePushAudience(1234)).toBe(
-      "Notify 1,234 devices subscribed to events at this campus. Sends once when published."
+      "1,234 devices follow events at this campus."
     );
   });
 
