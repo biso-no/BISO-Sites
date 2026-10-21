@@ -16,19 +16,31 @@ Two kinds of execution reach this one function:
 2. **A dispatch pass**, from the schedule or an HTTP ping. It re-checks every
    pending lock that is due, groups the items still eligible by channel, writes
    one announcement per channel (two or more items become one grouped
-   notification), marks the locks `sent`, then pushes.
+   notification), marks the locks `sent`, then pushes. A lock that comes due
+   just before 22:00 but is dispatched in the Oslo night waits for 08:00. An
+   item with no title in either language goes out under its slug, or is
+   cancelled (`no title`) when it has none.
+
+A dispatch pass answers `200 {"announcements","cancelled","failed","sent"}`.
+When a re-check, an announcement or lock write, or a push fails, it answers
+**500** with the same counts (`failed` > 0) so `scheduled-dispatch` reports
+the ping as failed; the execution's error log has the details.
 
 ### Single-runner assumption
 
-The dispatch pass has no claim step, so two passes at once could push the same
-item twice. The design relies on one dispatcher:
+The dispatch pass has no claim step. The design relies on one dispatcher, with
+these guards for when two passes do overlap:
 
 - `scheduled-dispatch` pings this function every 5 minutes
-  (`CONTENT_NOTIFIER_URL`). Appwrite caps a domain (sync) execution at about
-  30s, far below the 5-minute interval, so pings do not pile up. Function
-  timeout can stay 120s.
+  (`CONTENT_NOTIFIER_URL`). The function timeout is 120s, well under the
+  5-minute interval, so a pass has ended before the next ping arrives.
 - Locks are marked `sent` before the push, so any failure or crash sends at
   most once, never twice.
+- Each group's announcement row id is `auto_` plus the sha256 of its sorted
+  lock ids (36 characters). A second pass that builds the same group gets a
+  409 on that id, marks the locks `sent` with the existing announcement and
+  does not push. Two passes that group differently (an item came due between
+  them) are not caught by this; the guards above keep that window small.
 - A best-effort overlap guard lists this function's `http`/`schedule`
   executions that are `waiting` or `processing` (created within 15 minutes)
   and, if another exists, answers `200 {"ok":true,"skipped":"already-running"}`
@@ -75,3 +87,28 @@ item twice. The design relies on one dispatcher:
 - Give the function a domain and set it as `CONTENT_NOTIFIER_URL` on
   `scheduled-dispatch`.
 - Keep execution logging on.
+
+## Go-live order
+
+Follow this order. Skipping a step either pushes twice or notifies students
+about old content.
+
+1. **Deploy admin and api from this branch first.** The old admin still pushes
+   events directly when they are published; with the function live as well,
+   students would get two pushes.
+2. **Backfill the launch locks.** From `packages/shared`, run the dry run and
+   check the counts, then apply:
+
+   ```bash
+   bun run backfill:notification-locks             # dry run, prints counts
+   bun run backfill:notification-locks -- --apply
+   ```
+
+   This writes a `skipped` lock for everything already published, so an edit
+   to old content never notifies.
+3. **Create the function** as described under "Console setup": events,
+   scopes, variables, domain, and `CONTENT_NOTIFIER_URL` on
+   `scheduled-dispatch`. Deploy it.
+4. **Re-run the backfill dry run** and expect `Total: would create 0`.
+   Anything above 0 was published between steps 2 and 3 and has no lock yet;
+   run `-- --apply` again before anyone edits it.

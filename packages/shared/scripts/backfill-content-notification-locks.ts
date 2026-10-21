@@ -7,6 +7,15 @@
  * Usage (from packages/shared):
  *   bun run backfill:notification-locks           # dry run, prints counts
  *   bun run backfill:notification-locks -- --apply
+ *
+ * Go-live order (details in functions/content-notifier/README.md):
+ *   1. Deploy admin and api from the content-notifier branch first; the old
+ *      admin still pushes events directly.
+ *   2. Run this dry run, then `-- --apply`.
+ *   3. Create the content-notifier function (events, scopes, variables,
+ *      domain) and set CONTENT_NOTIFIER_URL on scheduled-dispatch.
+ *   4. Run the dry run again and expect "Total: would create 0". Anything
+ *      above 0 was published between steps 2 and 3: run `-- --apply` again.
  */
 import { AppwriteException, Client, Query, TablesDB } from "node-appwrite";
 import {
