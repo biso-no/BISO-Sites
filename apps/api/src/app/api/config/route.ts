@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { NextResponse } from "next/server";
+import { readAppVersions } from "@/lib/app-versions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,14 +39,18 @@ function readStaticConfig(): AppConfigFile {
  *
  * `features.expenses` follows the admin's `expenses_module` switch — the same
  * flag the expense routes enforce — so the app offers reimbursements exactly
- * when the server will accept them.
+ * when the server will accept them. `versions` carries the per-platform
+ * minimum and recommended app versions the app uses to nudge outdated installs.
  */
 export async function GET() {
   const config = readStaticConfig();
-  const expenses = await isFeatureEnabled("expenses_module");
+  const [expenses, versions] = await Promise.all([
+    isFeatureEnabled("expenses_module"),
+    readAppVersions(),
+  ]);
 
   return NextResponse.json(
-    { ...config, features: { ...config.features, expenses } },
+    { ...config, features: { ...config.features, expenses }, versions },
     { headers: { "Cache-Control": "public, max-age=0, s-maxage=15" } }
   );
 }
