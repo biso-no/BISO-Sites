@@ -8,6 +8,7 @@ import {
   applyBenefitMigration,
   InvalidMigrationPlanError,
   type MigrationWriter,
+  parseMigrationPlanJson,
 } from "./benefit-migration-apply";
 
 interface Call {
@@ -30,10 +31,41 @@ function recordingWriter(): { calls: Call[]; writer: MigrationWriter } {
         await record("deleteRow")(...args);
         return "deleted" as const;
       },
-      updateRow: record("updateRow"),
+      updateRow: async (...args: unknown[]) => {
+        await record("updateRow")(...args);
+        return "updated" as const;
+      },
       upsertRow: record("upsertRow"),
     } as MigrationWriter,
   };
+}
+
+function statefulWriter(rowIds: string[]): {
+  store: Map<string, Record<string, unknown>>;
+  writer: MigrationWriter;
+} {
+  const store = new Map<string, Record<string, unknown>>(
+    rowIds.map((id) => [`campus_benefits/${id}`, { title: id }])
+  );
+  const writer: MigrationWriter = {
+    deleteRow: (table, id) =>
+      Promise.resolve(store.delete(`${table}/${id}`) ? "deleted" : "missing"),
+    updateRow: (table, id, data) => {
+      const key = `${table}/${id}`;
+      const row = store.get(key);
+      if (!row) {
+        return Promise.resolve("missing");
+      }
+      store.set(key, { ...row, ...data });
+      return Promise.resolve("updated");
+    },
+    upsertRow: (table, id, data) => {
+      const key = `${table}/${id}`;
+      store.set(key, { ...store.get(key), ...data });
+      return Promise.resolve();
+    },
+  };
+  return { store, writer };
 }
 
 function line(overrides: Partial<PlannedLine>): PlannedLine {
@@ -132,6 +164,7 @@ describe("applyBenefitMigration", () => {
       created: 2,
       deleted: 1,
       partners: 1,
+      skippedMissing: 0,
       updated: 2,
     });
   });
@@ -258,37 +291,37 @@ describe("applyBenefitMigration", () => {
   });
 
   it("converges when applied twice against a stateful store", async () => {
-    const store = new Map<string, Record<string, unknown>>();
-    store.set("campus_benefits/row-public", { title: "x" });
-    store.set("campus_benefits/row-private", { title: "y" });
-    store.set("campus_benefits/row-old", { title: "z" });
-    const writer: MigrationWriter = {
-      deleteRow: (table, id) => {
-        const key = `${table}/${id}`;
-        const existed = store.delete(key);
-        return Promise.resolve(existed ? "deleted" : "missing");
-      },
-      updateRow: (table, id, data) => {
-        const key = `${table}/${id}`;
-        const row = store.get(key);
-        if (!row) {
-          return Promise.reject(new Error("404"));
-        }
-        store.set(key, { ...row, ...data });
-        return Promise.resolve();
-      },
-      upsertRow: (table, id, data) => {
-        const key = `${table}/${id}`;
-        store.set(key, { ...store.get(key), ...data });
-        return Promise.resolve();
-      },
-    };
+    const { store, writer } = statefulWriter([
+      "row-public",
+      "row-private",
+      "row-old",
+    ]);
     const plan = basePlan({ approved: true });
-    await applyBenefitMigration(plan, writer);
+    const first = await applyBenefitMigration(plan, writer);
     const afterFirst = structuredClone([...store]);
-    await expect(applyBenefitMigration(plan, writer)).resolves.toBeDefined();
+    const second = await applyBenefitMigration(plan, writer);
     expect([...store]).toEqual(afterFirst);
     expect(store.has("campus_benefits/row-old")).toBe(false);
+    expect(first).toMatchObject({ deleted: 1, skippedMissing: 0, updated: 2 });
+    expect(second).toMatchObject({ deleted: 0, skippedMissing: 0, updated: 2 });
+  });
+
+  it("skips and counts a row deleted outside the plan", async () => {
+    const { store, writer } = statefulWriter(["row-public", "row-old"]);
+    const plan = basePlan({ approved: true });
+    plan.codes.push({ rowId: "row-private", value: "ORPHAN" });
+    const result = await applyBenefitMigration(plan, writer);
+    expect(result).toMatchObject({
+      codes: 1,
+      deleted: 1,
+      skippedMissing: 1,
+      updated: 1,
+    });
+    expect(store.has("campus_benefits/row-private")).toBe(false);
+    expect(store.has("benefit_codes/row-private")).toBe(false);
+    expect(store.get("campus_benefits/row-public")).toMatchObject({
+      section: "member",
+    });
   });
 
   it("rejects an invalid plan before any write", async () => {
@@ -299,5 +332,18 @@ describe("applyBenefitMigration", () => {
     expect(error).toBeInstanceOf(InvalidMigrationPlanError);
     expect(error.problems).toHaveLength(1);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("parseMigrationPlanJson", () => {
+  it("parses a plan file", () => {
+    expect(parseMigrationPlanJson(JSON.stringify(basePlan()))).toEqual(
+      basePlan()
+    );
+  });
+
+  it("returns null for a broken file instead of the parser's message", () => {
+    expect(parseMigrationPlanJson('{"codes":[{"value":"SECRET"')).toBeNull();
+    expect(parseMigrationPlanJson("")).toBeNull();
   });
 });

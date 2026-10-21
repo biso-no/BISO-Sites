@@ -5,6 +5,20 @@
  * and `review.md` (never contains codes) to the output directory. Apply only
  * writes what an approved plan.json says, and is safe to re-run.
  *
+ * What apply overwrites:
+ *   - A row it makes public gets its whole permission list replaced with
+ *     `['read("any")']`. That is right for today's rows, which only carry
+ *     `read("team:biso-members")`; a row with other permissions would lose them.
+ *   - A re-run after editors have changed migrated benefits in the new admin
+ *     resets them: every created row back to the plan's title, status
+ *     (published), section, order, category, partner, redemption type (none),
+ *     featured flag and public permissions; every updated row back to the
+ *     plan's section, category, partner and order; and every planned partner
+ *     to active with the plan's name and logo. Re-run only before editors
+ *     start.
+ *   - A planned row that was deleted outside the plan is skipped (with its
+ *     code) and counted as `skippedMissing`.
+ *
  * Usage (from packages/shared):
  *   bun run migrate:benefits                                  # dry run
  *   bun run migrate:benefits --out <dir>                      # custom output dir
@@ -29,7 +43,6 @@ import { AppwriteException, Client, Query, TablesDB } from "node-appwrite";
 import {
   type CampusDataInput,
   type ExistingBenefitInput,
-  type MigrationPlan,
   planBenefitMigration,
   renderMigrationReview,
   summarizeMigrationPlan,
@@ -39,11 +52,14 @@ import {
   applyBenefitMigration,
   InvalidMigrationPlanError,
   type MigrationWriter,
+  parseMigrationPlanJson,
 } from "../utils/benefit-migration-apply";
 
 const DATABASE_ID = "app";
 const PAGE_SIZE = 100;
 const NOT_FOUND = 404;
+/** Fixed on purpose: a JSON parse error can quote the file (codes). */
+const INVALID_PLAN_JSON = "plan.json er ikke gyldig JSON";
 const DEFAULT_OUT_DIR = join(
   import.meta.dirname,
   "../../../.superpowers/benefits-migration"
@@ -133,6 +149,10 @@ async function dryRun(): Promise<void> {
   }
 }
 
+function isNotFound(error: unknown): boolean {
+  return error instanceof AppwriteException && error.code === NOT_FOUND;
+}
+
 function createWriter(): MigrationWriter {
   return {
     async deleteRow(table, rowId) {
@@ -140,20 +160,28 @@ function createWriter(): MigrationWriter {
         await db.deleteRow({ databaseId: DATABASE_ID, tableId: table, rowId });
         return "deleted";
       } catch (error) {
-        if (error instanceof AppwriteException && error.code === NOT_FOUND) {
+        if (isNotFound(error)) {
           return "missing";
         }
         throw error;
       }
     },
     async updateRow(table, rowId, data, permissions) {
-      await db.updateRow({
-        databaseId: DATABASE_ID,
-        tableId: table,
-        rowId,
-        data,
-        ...(permissions ? { permissions } : {}),
-      });
+      try {
+        await db.updateRow({
+          databaseId: DATABASE_ID,
+          tableId: table,
+          rowId,
+          data,
+          ...(permissions ? { permissions } : {}),
+        });
+        return "updated";
+      } catch (error) {
+        if (isNotFound(error)) {
+          return "missing";
+        }
+        throw error;
+      }
     },
     async upsertRow(table, rowId, data, permissions) {
       await db.upsertRow({
@@ -175,9 +203,13 @@ async function apply(): Promise<void> {
     );
     process.exit(1);
   }
-  const plan = JSON.parse(
+  const plan = parseMigrationPlanJson(
     await readFile(resolve(planPath), "utf8")
-  ) as MigrationPlan;
+  );
+  if (!plan) {
+    console.error(INVALID_PLAN_JSON);
+    process.exit(1);
+  }
   try {
     const result = await applyBenefitMigration(plan, createWriter());
     console.log("Mode: APPLY");

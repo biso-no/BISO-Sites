@@ -16,12 +16,13 @@ export interface MigrationWriter {
     table: "campus_benefits",
     rowId: string
   ): Promise<"deleted" | "missing">;
+  /** "missing" means the row was deleted outside the plan (Appwrite 404). */
   updateRow(
     table: "campus_benefits",
     rowId: string,
     data: Record<string, unknown>,
     permissions?: string[]
-  ): Promise<void>;
+  ): Promise<"updated" | "missing">;
   upsertRow(
     table: MigrationTable,
     rowId: string,
@@ -35,6 +36,8 @@ export interface MigrationApplyResult {
   created: number;
   deleted: number;
   partners: number;
+  /** Planned row updates whose row was already gone; their codes are skipped too. */
+  skippedMissing: number;
   updated: number;
 }
 
@@ -63,6 +66,18 @@ async function guarded<T>(
 }
 
 const PUBLIC_READ = ['read("any")'];
+
+/**
+ * Parses a plan file, or returns null when it is not valid JSON. The parser's
+ * own message can quote file content (redemption codes), so it is dropped.
+ */
+export function parseMigrationPlanJson(text: string): MigrationPlan | null {
+  try {
+    return JSON.parse(text) as MigrationPlan;
+  } catch {
+    return null;
+  }
+}
 
 function createData(
   line: PlannedLine,
@@ -119,11 +134,13 @@ export async function applyBenefitMigration(
   const deletedIds = new Set(
     plan.deletions.filter((d) => d.approved).map((d) => d.rowId)
   );
+  const missingIds = new Set<string>();
   const result: MigrationApplyResult = {
     codes: 0,
     created: 0,
     deleted: 0,
     partners: 0,
+    skippedMissing: 0,
     updated: 0,
   };
 
@@ -163,7 +180,7 @@ export async function applyBenefitMigration(
     if (deletedIds.has(row.rowId)) {
       continue;
     }
-    await guarded("campus_benefits", row.rowId, () =>
+    const outcome = await guarded("campus_benefits", row.rowId, () =>
       writer.updateRow(
         "campus_benefits",
         row.rowId,
@@ -171,11 +188,16 @@ export async function applyBenefitMigration(
         row.makePublic ? PUBLIC_READ : undefined
       )
     );
-    result.updated += 1;
+    if (outcome === "missing") {
+      missingIds.add(row.rowId);
+      result.skippedMissing += 1;
+    } else {
+      result.updated += 1;
+    }
   }
 
   for (const code of plan.codes) {
-    if (deletedIds.has(code.rowId)) {
+    if (deletedIds.has(code.rowId) || missingIds.has(code.rowId)) {
       continue;
     }
     await guarded("benefit_codes", code.rowId, () =>
