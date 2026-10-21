@@ -56,6 +56,8 @@ interface CheckStepProps {
   /** Runs the send. Called once any needed confirmation has been given. */
   onSend: () => void;
   onTranslate: () => void;
+  /** A draft save is in flight; sending waits for it. */
+  saving?: boolean;
   sending: boolean;
   set: <K extends keyof AnnouncementFormValues>(
     key: K,
@@ -209,19 +211,50 @@ function ConfirmEveryone({
   onConfirm: () => void;
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  // The latest handler, so the listener below is set up once and the focus
+  // below is taken once, whatever re-renders happen while the dialog is open.
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+
   useEffect(() => {
     cancelRef.current?.focus();
-    const closeOnEscape = (event: KeyboardEvent) => {
+    const keepFocusInside = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onCancel();
+        onCancelRef.current();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      const first = cancelRef.current;
+      const last = confirmRef.current;
+      const active = document.activeElement;
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first?.focus();
+      } else if (active !== first && active !== last) {
+        event.preventDefault();
+        first?.focus();
       }
     };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [onCancel]);
+    document.addEventListener("keydown", keepFocusInside);
+    return () => document.removeEventListener("keydown", keepFocusInside);
+  }, []);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: a backdrop click cancels; Escape is the keyboard route.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: same backdrop click.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled on the document while the dialog is open.
     <div
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onCancel();
+        }
+      }}
       style={{
         alignItems: "center",
         background: "rgba(26,24,20,.45)",
@@ -298,6 +331,7 @@ function ConfirmEveryone({
           </button>
           <button
             onClick={onConfirm}
+            ref={confirmRef}
             style={{
               background: BRAND.bisoBlue,
               border: `0.5px solid ${BRAND.bisoBlue}`,
@@ -359,7 +393,8 @@ function LateNightOffer({ onAccept }: { onAccept: () => void }) {
 /** Why Send is off, or null when the announcement is ready to go. */
 function sendBlocker(
   values: AnnouncementFormValues,
-  mode: TimingMode
+  mode: TimingMode,
+  now: Date
 ): string | null {
   for (const step of [WHAT_STEP, WHO_STEP] as const) {
     const gate = canContinue(step, values);
@@ -367,8 +402,14 @@ function sendBlocker(
       return gate.reason ?? "This is not ready to send.";
     }
   }
-  return mode === "schedule" && !values.scheduled_at
-    ? "Pick a date and time."
+  if (mode !== "schedule") {
+    return null;
+  }
+  if (!values.scheduled_at) {
+    return "Pick a date and time.";
+  }
+  return new Date(values.scheduled_at).getTime() <= now.getTime()
+    ? "Pick a time in the future."
     : null;
 }
 
@@ -389,6 +430,7 @@ export function CheckStep({
   onEdit,
   onSend,
   onTranslate,
+  saving = false,
   sending,
   set,
   translating,
@@ -398,10 +440,11 @@ export function CheckStep({
     values.scheduled_at ? "schedule" : "now"
   );
   const [confirming, setConfirming] = useState(false);
+  const sendRef = useRef<HTMLButtonElement>(null);
   const reach = useAudienceReach(reachRequest(values), getReach);
   const current = now();
 
-  const blocker = sendBlocker(values, mode);
+  const blocker = sendBlocker(values, mode, current);
 
   const showLateOffer =
     mode === "now" && values.category !== "urgent" && isQuietHoursOslo(current);
@@ -415,6 +458,11 @@ export function CheckStep({
   function sendAtMorning() {
     set("scheduled_at", nextMorningOslo(now()).toISOString());
     setMode("schedule");
+  }
+
+  function closeConfirm() {
+    setConfirming(false);
+    sendRef.current?.focus();
   }
 
   function pressSend() {
@@ -539,15 +587,16 @@ export function CheckStep({
 
       <div style={{ marginTop: 28 }}>
         <button
-          disabled={Boolean(blocker) || sending}
+          disabled={Boolean(blocker) || sending || saving}
           onClick={pressSend}
+          ref={sendRef}
           style={{
             alignItems: "center",
             background: BRAND.bisoBlue,
             border: `0.5px solid ${BRAND.bisoBlue}`,
             borderRadius: 10,
             color: "white",
-            cursor: blocker || sending ? "not-allowed" : "pointer",
+            cursor: blocker || sending || saving ? "not-allowed" : "pointer",
             display: "flex",
             fontSize: 15,
             fontWeight: 500,
@@ -571,9 +620,9 @@ export function CheckStep({
         <ConfirmEveryone
           campusName={broadcastCampusName(values.campus_id, campusOptions)}
           count={reach.result?.count ?? null}
-          onCancel={() => setConfirming(false)}
+          onCancel={closeConfirm}
           onConfirm={() => {
-            setConfirming(false);
+            closeConfirm();
             onSend();
           }}
         />

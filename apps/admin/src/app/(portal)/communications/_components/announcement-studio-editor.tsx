@@ -571,7 +571,7 @@ function ActionBar({
         sourceLocale={locale}
       />
       <button
-        disabled={submitting}
+        disabled={submitting || sending}
         onClick={onSaveDraft}
         style={actionBtnStyle()}
         type="button"
@@ -1446,6 +1446,7 @@ export function AnnouncementStudioEditor({
                 onEdit={setStep}
                 onSend={handleSend}
                 onTranslate={handleTranslate}
+                saving={isSaving}
                 sending={isSending}
                 set={set}
                 translating={translating}

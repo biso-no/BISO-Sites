@@ -117,6 +117,7 @@ interface HarnessProps {
   onEdit?: (step: number) => void;
   onSend?: () => void;
   reach?: typeof getReach;
+  saving?: boolean;
 }
 
 function Harness({
@@ -126,6 +127,7 @@ function Harness({
   onEdit,
   onSend,
   reach = getReach,
+  saving = false,
 }: HarnessProps) {
   const [values, setValues] = useState<ComposerValues>({
     ...baseValues,
@@ -141,6 +143,7 @@ function Harness({
     onEdit: onEdit ?? (() => undefined),
     onSend: onSend ?? (() => undefined),
     onTranslate: () => undefined,
+    saving,
     sending: false,
     set: (key: keyof ComposerValues, value: never) =>
       setValues((previous) => ({ ...previous, [key]: value })),
@@ -341,6 +344,107 @@ describe("sending", () => {
     });
     expect(isDisabled(sendButton(container))).toBe(true);
     expect(container.textContent).toContain("Add at least one person.");
+  });
+});
+
+describe("scheduling", () => {
+  test("a time in the past cannot be sent", async () => {
+    const container = await mount({
+      initial: { scheduled_at: "2026-01-14T10:00:00.000Z" },
+    });
+    expect(isDisabled(findButton(container, "Schedule send"))).toBe(true);
+    expect(container.textContent).toContain("Pick a time in the future.");
+  });
+
+  test("a time ahead can be sent", async () => {
+    const container = await mount({
+      initial: { scheduled_at: "2026-01-15T07:00:00.000Z" },
+    });
+    expect(isDisabled(findButton(container, "Schedule send"))).toBe(false);
+  });
+});
+
+describe("while a draft is saving", () => {
+  test("Send is disabled", async () => {
+    const container = await mount({ saving: true });
+    expect(isDisabled(sendButton(container))).toBe(true);
+  });
+});
+
+describe("the Everyone dialog", () => {
+  function press(key: string, extra: Record<string, unknown> = {}) {
+    const event = Object.assign(new Event("keydown", { cancelable: true }), {
+      key,
+      ...extra,
+    });
+    installedDom.document.dispatchEvent(event);
+  }
+
+  test("a re-render does not steal focus", async () => {
+    let resolveReach: (value: { count: number; sentence: string }) => void =
+      () => undefined;
+    const slow = mock(
+      (_req: unknown) =>
+        new Promise<{ count: number | null; sentence: string }>((resolve) => {
+          resolveReach = resolve;
+        })
+    );
+    const container = await mount({ reach: slow });
+    await click(sendButton(container));
+    const dialog = findElements(
+      container,
+      (element) => element.getAttribute("role") === "alertdialog"
+    )[0] as TestElement;
+    const confirm = findButton(dialog, "Send");
+    await act(() => {
+      confirm.focus();
+    });
+    await act(async () => {
+      resolveReach({ count: 7, sentence: "Everyone at Bergen." });
+      await Promise.resolve();
+    });
+    expect(dialog.textContent).toContain("about 7 phones");
+    expect(installedDom.document.activeElement).toBe(confirm);
+  });
+
+  test("Tab wraps between its buttons", async () => {
+    const container = await mount();
+    await click(sendButton(container));
+    const cancel = findButton(container, "Cancel");
+    const dialog = findElements(
+      container,
+      (element) => element.getAttribute("role") === "alertdialog"
+    )[0] as TestElement;
+    const confirm = findButton(dialog, "Send");
+    expect(installedDom.document.activeElement).toBe(cancel);
+    await act(() => press("Tab", { shiftKey: true }));
+    expect(installedDom.document.activeElement).toBe(confirm);
+    await act(() => press("Tab", { shiftKey: false }));
+    expect(installedDom.document.activeElement).toBe(cancel);
+  });
+
+  test("Escape cancels, sends nothing and returns focus to Send", async () => {
+    const onSend = mock(() => undefined);
+    const container = await mount({ onSend });
+    const send = sendButton(container);
+    await click(send);
+    await act(() => press("Escape"));
+    expect(container.textContent).not.toContain("Send to everyone");
+    expect(onSend).not.toHaveBeenCalled();
+    expect(installedDom.document.activeElement).toBe(send);
+  });
+
+  test("a click on the backdrop cancels without sending", async () => {
+    const onSend = mock(() => undefined);
+    const container = await mount({ onSend });
+    await click(sendButton(container));
+    const dialog = findElements(
+      container,
+      (element) => element.getAttribute("role") === "alertdialog"
+    )[0] as TestElement;
+    await click(dialog.parentNode as TestElement);
+    expect(container.textContent).not.toContain("Send to everyone");
+    expect(onSend).not.toHaveBeenCalled();
   });
 });
 
