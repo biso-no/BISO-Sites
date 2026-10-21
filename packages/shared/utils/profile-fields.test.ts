@@ -41,6 +41,20 @@ describe("profile self-service fields", () => {
     );
   });
 
+  it("keeps the push language the app sends", () => {
+    for (const locale of ["en", "no"]) {
+      const parsed = selfServiceProfileSchema.safeParse({ locale });
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data).toEqual({ locale });
+    }
+  });
+
+  it("rejects a language pushes are not sent in", () => {
+    expect(selfServiceProfileSchema.safeParse({ locale: "de" }).success).toBe(
+      false
+    );
+  });
+
   it("makes a profile row readable by its owner only", () => {
     expect(buildProfileRowPermissions("user-1")).toEqual([
       'read("user:user-1")',

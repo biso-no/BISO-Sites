@@ -26,6 +26,8 @@
  * Required env vars (set on the function in the Appwrite console):
  *   CRON_SECRET                 shared secret sent to (and checked by) the endpoints
  * Optional:
+ *   CONTENT_NOTIFIER_URL        the content-notifier function's domain, e.g.
+ *                               https://content-notifier.biso.no
  *   ANNOUNCEMENTS_DISPATCH_URL  e.g. https://admin.biso.no/api/announcements/dispatch
  *   TICKSTER_SYNC_URL           e.g. https://api.biso.no/api/tickster/sync
  *   TICKSTER_EVENTS_SYNC_URL    e.g. https://api.biso.no/api/tickster/events/sync
@@ -57,6 +59,7 @@ const LOG_TAG = "[scheduled-dispatch]";
 
 /** Env vars that hold a target endpoint URL, in dispatch order. */
 const TARGET_ENV_VARS = [
+  "CONTENT_NOTIFIER_URL",
   "ANNOUNCEMENTS_DISPATCH_URL",
   "TICKSTER_SYNC_URL",
   "TICKSTER_EVENTS_SYNC_URL",

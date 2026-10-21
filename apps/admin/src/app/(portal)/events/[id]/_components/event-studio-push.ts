@@ -22,11 +22,11 @@
  */
 export function describePushAudience(count: number | null): string {
   if (count === null) {
-    return "Notify devices subscribed to events at this campus. Subscriber count unavailable. Sends once when published.";
+    return "Follower count unavailable for this campus.";
   }
   if (count === 0) {
-    return "No devices are subscribed to event notifications at this campus yet. Sends once when published.";
+    return "No devices follow events at this campus yet.";
   }
-  const devices = count === 1 ? "device" : "devices";
-  return `Notify ${count.toLocaleString("en-GB")} ${devices} subscribed to events at this campus. Sends once when published.`;
+  const devices = count === 1 ? "device follows" : "devices follow";
+  return `${count.toLocaleString("en-GB")} ${devices} events at this campus.`;
 }

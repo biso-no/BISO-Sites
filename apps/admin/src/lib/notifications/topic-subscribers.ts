@@ -2,7 +2,11 @@ import "server-only";
 
 import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { topicIdFor } from "@repo/shared/utils/notification-topics";
+import {
+  localizedTopicId,
+  PUSH_LOCALES,
+  topicIdFor,
+} from "@repo/shared/utils/notification-topics";
 import { unstable_cache } from "next/cache";
 
 /** How long a subscriber count may be stale. Counts move slowly. */
@@ -47,8 +51,37 @@ export async function getTopicSubscriberCount(
 }
 
 /**
- * Push subscriber counts for the events topic of each campus, keyed by campus
- * id. Fetched in parallel and cached briefly.
+ * How many push targets are subscribed to a language-neutral channel such as
+ * `events_bergen`: the sum of its per-language topics (`events_bergen_no`,
+ * `events_bergen_en`). `null` if any language's count is unknown — a partial
+ * sum would understate the reach.
+ */
+async function sumChannelSubscribers(channel: string): Promise<number | null> {
+  const counts = await Promise.all(
+    PUSH_LOCALES.map((locale) =>
+      getTopicSubscriberCount(localizedTopicId(channel, locale))
+    )
+  );
+  let total = 0;
+  for (const count of counts) {
+    if (count === null) {
+      return null;
+    }
+    total += count;
+  }
+  return total;
+}
+
+/** Cached per channel; see {@link sumChannelSubscribers}. */
+export const getChannelSubscriberCount = unstable_cache(
+  sumChannelSubscribers,
+  ["channel-subscriber-count"],
+  { revalidate: COUNT_TTL_SECONDS }
+);
+
+/**
+ * Push subscriber counts for the events channel of each campus, across both
+ * languages, keyed by campus id. Fetched in parallel and cached briefly.
  */
 export const getEventTopicSubscriberCounts = unstable_cache(
   async (campusIds: string[]): Promise<Record<string, number | null>> => {
@@ -57,7 +90,7 @@ export const getEventTopicSubscriberCounts = unstable_cache(
         async (campusId) =>
           [
             campusId,
-            await getTopicSubscriberCount(topicIdFor("events", campusId)),
+            await sumChannelSubscribers(topicIdFor("events", campusId)),
           ] as const
       )
     );

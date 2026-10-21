@@ -3,6 +3,7 @@ import type {
   ContentTranslations,
   News,
 } from "@repo/api/types/appwrite";
+import { defaultNotifyPush } from "@/lib/notify-toggle-copy";
 import { hasRichContent } from "@/lib/plate-content";
 import type { NewsFormValues } from "../../../_actions/schemas";
 
@@ -128,6 +129,7 @@ export const createNewsStudioDefaults = (
     description_en: english?.description ?? "",
     description_no: norwegian?.description ?? "",
     image: article?.image ?? "",
+    notify_push: defaultNotifyPush(article?.notify_push, article === null),
     slug: article?.slug ?? "",
     status: article?.status === "published" ? "published" : "draft",
     sticky: article?.sticky ?? false,

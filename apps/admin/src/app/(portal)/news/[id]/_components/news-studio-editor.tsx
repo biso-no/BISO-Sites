@@ -10,7 +10,10 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
+import type { ContentNotificationState } from "@/lib/content-notification-state";
 import { getTargetLocale } from "@/lib/content-translation";
+import { notifyToggleCopy } from "@/lib/notify-toggle-copy";
 import { listDepartmentsForCampus } from "../../../_actions/lookups";
 import {
   createNews,
@@ -58,10 +61,12 @@ interface NewsStudioEditorProps {
   article: NewsWithTranslations | null;
   campuses: Campus[];
   canChangeCampus?: boolean;
+  canNotifyNational?: boolean;
   defaultCampusId: string;
   initialDepartments: Departments[];
   isNew: boolean;
   labels: NewsStudioLabels;
+  notificationState?: ContentNotificationState;
   previewTimestamp: string;
 }
 
@@ -79,8 +84,12 @@ interface EssentialsStepProps extends StepProps {
 }
 
 interface MediaVisibilityStepProps extends StepProps {
+  article: NewsWithTranslations | null;
   campusName: string;
+  canNotifyNational: boolean;
   departmentName: string;
+  isPublished: boolean;
+  notificationState: ContentNotificationState;
 }
 
 interface ReviewStepProps extends StepProps {
@@ -523,11 +532,26 @@ function NewsEssentialsStep({
 }
 
 function NewsMediaVisibilityStep({
+  article,
   campusName,
+  canNotifyNational,
   departmentName,
+  isPublished,
+  notificationState,
   setValue,
   values,
 }: MediaVisibilityStepProps) {
+  const notify = notifyToggleCopy({
+    campusId: values.campus_id,
+    canNotifyNational,
+    isNational: values.campus_id === CAMPUS_NAME_TO_ID.National,
+    isPublished,
+    requested: Boolean(values.notify_push),
+    state: notificationState,
+    stored: article?.notify_push ?? null,
+    storedCampusId: article?.campus_id ?? null,
+  });
+  const notifyOn = notify.effectiveOn;
   return (
     <div className="space-y-7">
       <div>
@@ -572,6 +596,42 @@ function NewsMediaVisibilityStep({
           </span>
         </span>
       </button>
+
+      {notify.showToggle ? (
+        <button
+          aria-disabled={notify.disabled}
+          aria-pressed={notifyOn}
+          className={`flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white/75 p-4 text-left transition ${
+            notify.disabled
+              ? "cursor-not-allowed opacity-60"
+              : "hover:border-[#3DA9E0]/50"
+          }`}
+          disabled={notify.disabled}
+          onClick={() => setValue("notify_push", !notifyOn)}
+          type="button"
+        >
+          <span
+            className="relative h-6 w-11 shrink-0 rounded-full transition"
+            style={{ background: notifyOn ? "#001731" : "#cbd5e1" }}
+          >
+            <span
+              className="absolute top-1 h-4 w-4 rounded-full bg-white transition-all"
+              style={{ left: notifyOn ? "1.5rem" : "0.25rem" }}
+            />
+          </span>
+          <span>
+            <span className="block font-medium text-sm">{notify.title}</span>
+            <span className="mt-1 block text-slate-500 text-xs">
+              {notify.description}
+            </span>
+          </span>
+        </button>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white/75 p-4">
+          <p className="font-medium text-sm">{notify.title}</p>
+          <p className="mt-1 text-slate-500 text-xs">{notify.description}</p>
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-[#001731] p-5 text-white">
         <p className="font-medium text-[11px] text-white/60 uppercase tracking-[0.14em]">
@@ -764,10 +824,12 @@ export function NewsStudioEditor({
   article,
   campuses,
   canChangeCampus = true,
+  canNotifyNational = false,
   defaultCampusId,
   initialDepartments,
   isNew,
   labels,
+  notificationState = { kind: "none" },
   previewTimestamp,
 }: NewsStudioEditorProps) {
   const router = useRouter();
@@ -986,9 +1048,13 @@ export function NewsStudioEditor({
               )}
               {step === 2 && (
                 <NewsMediaVisibilityStep
+                  article={article}
                   campusName={campusName}
+                  canNotifyNational={canNotifyNational}
                   departmentName={departmentName}
+                  isPublished={article?.status === "published"}
                   locale={locale}
+                  notificationState={notificationState}
                   setValue={setValue}
                   values={values}
                 />

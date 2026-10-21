@@ -53,11 +53,13 @@ const globalAdminContext: UserAuthContext = {
 
 const requireAuth = mock(async () => globalAdminContext);
 
+mock.module("server-only", () => ({}));
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db, messaging, users })),
 }));
 
 mock.module("@/lib/announcements/send", () => ({
+  buildPushData: mock(() => ({})),
   buildDeepLink: mock(() => "biso://announcements/announcement-1"),
   dispatchAnnouncement,
 }));

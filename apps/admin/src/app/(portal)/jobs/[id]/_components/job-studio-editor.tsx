@@ -23,6 +23,7 @@ import {
   Plus,
   Save,
   Send,
+  Smartphone,
   Sparkles,
   Trash2,
   Upload,
@@ -36,7 +37,10 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
+import type { ContentNotificationState } from "@/lib/content-notification-state";
 import type { JobReuseSignals } from "@/lib/job-reuse";
+import { defaultNotifyPush, notifyToggleCopy } from "@/lib/notify-toggle-copy";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createJob,
@@ -70,6 +74,7 @@ interface JobStudioEditorProps {
   allowedDepartmentIds?: string[];
   campuses: Campus[];
   canChangeCampus?: boolean;
+  canNotifyNational?: boolean;
   defaultCampusId?: string;
   initialDepartments: Departments[];
   /** Opened straight after "Duplicate" — prompt HR to set the new dates. */
@@ -84,6 +89,7 @@ interface JobStudioEditorProps {
     saveError: string;
     saveSuccess: string;
   };
+  notificationState?: ContentNotificationState;
   reuse?: JobReuseSignals | null;
 }
 
@@ -235,6 +241,7 @@ function buildDefaultValues(
     employment_type: fallback(metadata?.employment_type, null),
     location: fallback(metadata?.location, null),
     newsletter: Boolean(metadata?.newsletter),
+    notify_push: defaultNotifyPush(job?.notify_push, job === null),
     paid: Boolean(metadata?.paid),
     publication_mode: fallback(metadata?.publication_mode, "now"),
     push_to_inboxes: Boolean(metadata?.push_to_inboxes),
@@ -687,12 +694,14 @@ export function JobStudioEditor({
   allowedDepartmentIds,
   campuses,
   canChangeCampus = true,
+  canNotifyNational = false,
   defaultCampusId,
   initialDepartments,
   isFreshDuplicate = false,
   isNew,
   job,
   labels,
+  notificationState = { kind: "none" },
   reuse,
 }: JobStudioEditorProps) {
   const router = useRouter();
@@ -733,6 +742,16 @@ export function JobStudioEditor({
   const [isDuplicating, setIsDuplicating] = useState(false);
   const isBusy = isSaving || isPublishing;
   const isLive = job?.status === JobsStatus.PUBLISHED;
+  const notify = notifyToggleCopy({
+    campusId: form.campus_id,
+    canNotifyNational,
+    isNational: form.campus_id === CAMPUS_NAME_TO_ID.National,
+    isPublished: isLive,
+    requested: Boolean(form.notify_push),
+    state: notificationState,
+    stored: job?.notify_push ?? null,
+    storedCampusId: job?.campus_id ?? null,
+  });
   const willSchedule = form.publication_mode === "scheduled" && !isLive;
   const publishLabel = willSchedule ? "Schedule" : labels.publish;
   const publishingLabel = willSchedule ? "Scheduling..." : "Publishing...";
@@ -2043,6 +2062,19 @@ export function JobStudioEditor({
                   </Field>
                   <div className="grid gap-4 md:grid-cols-2">
                     {[
+                      ...(notify.showToggle
+                        ? [
+                            {
+                              active: notify.effectiveOn,
+                              description: notify.description,
+                              disabled: notify.disabled,
+                              icon: Smartphone,
+                              label: notify.title,
+                              onClick: () =>
+                                setValue("notify_push", !form.notify_push),
+                            },
+                          ]
+                        : []),
                       {
                         active: form.push_to_inboxes,
                         description:
@@ -2061,9 +2093,17 @@ export function JobStudioEditor({
                         onClick: () => setValue("newsletter", !form.newsletter),
                       },
                     ].map(
-                      ({ active, description, icon: Icon, label, onClick }) => (
+                      ({
+                        active,
+                        description,
+                        disabled,
+                        icon: Icon,
+                        label,
+                        onClick,
+                      }) => (
                         <button
-                          className="relative rounded-xl border p-4 text-left transition"
+                          className="relative rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={disabled}
                           key={label}
                           onClick={onClick}
                           style={
@@ -2103,6 +2143,14 @@ export function JobStudioEditor({
                       )
                     )}
                   </div>
+                  {!notify.showToggle && (
+                    <div className="rounded-xl border border-slate-200 bg-white/65 p-4">
+                      <p className="font-medium text-sm">{notify.title}</p>
+                      <p className="mt-1 text-slate-500 text-sm">
+                        {notify.description}
+                      </p>
+                    </div>
+                  )}
                   <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
                     <div className="flex items-start gap-3">
                       <CalendarDays

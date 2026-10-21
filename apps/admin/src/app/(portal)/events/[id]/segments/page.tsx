@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { canSendNotifications } from "@/lib/announcements/audience-policy";
 import { requireNavAccess } from "@/lib/authorization";
 import { listAttendees, listSegments } from "../../../_actions/event-segments";
 import { getEvent } from "../../../_actions/events";
@@ -9,7 +10,7 @@ interface SegmentsPageProps {
 }
 
 export default async function EventSegmentsPage({ params }: SegmentsPageProps) {
-  await requireNavAccess("portal.events");
+  const ctx = await requireNavAccess("portal.events");
   const { id } = await params;
 
   const event = await getEvent(id);
@@ -32,6 +33,7 @@ export default async function EventSegmentsPage({ params }: SegmentsPageProps) {
     <SegmentsStudio
       attendees={attendees}
       campusId={event.campus_id ?? null}
+      canMessage={canSendNotifications(ctx.roles)}
       eventId={id}
       eventTitle={enTitle}
       segments={segments}

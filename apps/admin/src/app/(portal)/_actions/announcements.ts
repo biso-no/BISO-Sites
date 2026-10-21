@@ -2,11 +2,34 @@
 
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Announcements } from "@repo/api/types/appwrite";
+import type { Announcements, EventSegments } from "@repo/api/types/appwrite";
+import { resolvePushChannel } from "@repo/shared/utils/notification-topics";
 import { revalidatePath } from "next/cache";
-import { buildDeepLink, dispatchAnnouncement } from "@/lib/announcements/send";
-import { resolveAnnouncementTopicId } from "@/lib/announcements/topic-id";
-import { requireAuth } from "@/lib/authorization";
+import { parseAudiencePeople } from "@/lib/announcements/audience-people";
+import {
+  ALREADY_SENT_MESSAGE,
+  AUDIENCE_FORBIDDEN_MESSAGE,
+  type AudienceType,
+  canSendNotifications,
+  isAudienceAllowed,
+  isTopicValueAllowed,
+  NO_PEOPLE_MESSAGE,
+  SEND_FORBIDDEN_MESSAGE,
+} from "@/lib/announcements/audience-policy";
+import {
+  type LinkedColumns,
+  normalizeLink,
+  resolveLinkedContent,
+  sameLink,
+  storedLink,
+} from "@/lib/announcements/linked-content";
+import { resolveSegmentCampus } from "@/lib/announcements/segment-scope";
+import {
+  buildDeepLink,
+  buildPushData,
+  dispatchAnnouncement,
+} from "@/lib/announcements/send";
+import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
   assertContentOwnership,
@@ -341,24 +364,11 @@ export async function generateAnnouncementTranslationDraft(
   }
 }
 
-function buildDataPayload(announcement: Announcements): string {
-  return JSON.stringify({
-    type: "announcement",
-    announcement_id: announcement.$id,
-    event_id: announcement.event_id ?? "",
-    segment_id:
-      announcement.audience_type === "segment"
-        ? (announcement.audience_value ?? "")
-        : "",
-    deep_link: announcement.deep_link ?? buildDeepLink(announcement),
-    category: announcement.category ?? "general",
-  });
-}
-
 /**
- * For "users" audiences, the editor may submit a comma-separated mix of user
- * ids and emails. Resolve emails to Appwrite user ids (best-effort) and store
- * the result as a JSON array of ids in `audience_value`.
+ * For "users" audiences, the composer submits a JSON array of user ids; older
+ * drafts hold a comma-separated mix of ids and emails. Resolve emails to
+ * Appwrite user ids (best-effort) and store the result as a JSON array of ids
+ * in `audience_value`.
  */
 async function normalizeAudienceValue(
   audienceType: string,
@@ -368,10 +378,7 @@ async function normalizeAudienceValue(
     return rawValue ?? null;
   }
 
-  const tokens = (rawValue ?? "")
-    .split(",")
-    .map((token) => token.trim())
-    .filter(Boolean);
+  const tokens = parseAudiencePeople(rawValue);
 
   if (tokens.length === 0) {
     return JSON.stringify([]);
@@ -404,9 +411,52 @@ async function normalizeAudienceValue(
   return JSON.stringify(Array.from(new Set(ids)));
 }
 
+/**
+ * Enforce who may reach an audience. For segments the group must exist and
+ * its event must be in the caller's event scope; the group's campus (else the
+ * event's) is what is checked against the caller's own campuses.
+ */
+async function assertAudienceAllowed(
+  db: AnnouncementAdminClient["db"],
+  ctx: UserAuthContext,
+  audience: {
+    audienceType: string;
+    audienceValue: string | null | undefined;
+    campusId: string | null;
+  }
+): Promise<void> {
+  const audienceType = audience.audienceType as AudienceType;
+  if (
+    audienceType === "topic" &&
+    !isTopicValueAllowed(audience.audienceValue, audience.campusId)
+  ) {
+    throw new Error(AUDIENCE_FORBIDDEN_MESSAGE);
+  }
+  let segmentCampusId: string | null = null;
+  if (audienceType === "segment") {
+    const segment = audience.audienceValue
+      ? await resolveSegmentCampus(db, ctx, audience.audienceValue)
+      : null;
+    if (!segment) {
+      throw new Error(AUDIENCE_FORBIDDEN_MESSAGE);
+    }
+    segmentCampusId = segment.campusId;
+  }
+  if (
+    !isAudienceAllowed(ctx, {
+      audienceType,
+      campusId: audience.campusId,
+      segmentCampusId,
+    })
+  ) {
+    throw new Error(AUDIENCE_FORBIDDEN_MESSAGE);
+  }
+}
+
 function buildAnnouncementColumns(
   values: AnnouncementFormValues,
-  audienceValue: string | null
+  audienceValue: string | null,
+  linked: LinkedColumns | null
 ): Record<string, unknown> {
   return {
     title_en: values.title_en,
@@ -416,7 +466,8 @@ function buildAnnouncementColumns(
     category: values.category,
     audience_type: values.audience_type,
     audience_value: audienceValue,
-    event_id: values.event_id || null,
+    // Linked content (event, news or job), resolved and checked server-side.
+    ...(linked ?? {}),
     // Canonical ownership relationships; the scalar column remains as
     // migration-era compatibility metadata only.
     campus: values.campus_id || null,
@@ -424,14 +475,59 @@ function buildAnnouncementColumns(
     department: values.department_id ?? null,
     push: values.push,
     scheduled_at: values.scheduled_at || null,
-    deep_link: values.event_id ? `biso://event?id=${values.event_id}` : null,
   };
+}
+
+const LINK_REQUIRED_CATEGORIES = new Set(["event", "news", "job"]);
+const LINK_REQUIRED_MESSAGE =
+  "Pick the event, article or position this is about.";
+const LINK_REQUIRED_ERROR = { content_id: [LINK_REQUIRED_MESSAGE] };
+
+/** Event, news and job notifications are about something: they need a link. */
+function missingRequiredLink(category: string, link: unknown): boolean {
+  return LINK_REQUIRED_CATEGORIES.has(category) && !link;
+}
+
+/**
+ * Resolve the link on an update. Only a changed link is re-checked; an
+ * unchanged one keeps its stored columns (null), so edits aren't blocked if
+ * the content was unpublished later.
+ */
+async function resolveLinkChange(
+  db: AnnouncementAdminClient["db"],
+  values: AnnouncementFormValues,
+  stored: Announcements
+): Promise<
+  | { ok: true; columns: LinkedColumns | null }
+  | { ok: false; error: string | typeof LINK_REQUIRED_ERROR }
+> {
+  const selection = normalizeLink(values);
+  if (!selection.ok) {
+    return selection;
+  }
+  // Only when the category or link changes, so an old row without a link can
+  // still have unrelated fields edited.
+  const linkOrCategoryChanged =
+    values.category !== stored.category ||
+    !sameLink(selection.link, storedLink(stored));
+  if (
+    linkOrCategoryChanged &&
+    missingRequiredLink(values.category, selection.link)
+  ) {
+    return { ok: false, error: LINK_REQUIRED_ERROR };
+  }
+  if (sameLink(selection.link, storedLink(stored))) {
+    return { ok: true, columns: null };
+  }
+  const linked = await resolveLinkedContent(db, selection.link);
+  return linked.ok ? { ok: true, columns: linked.columns } : linked;
 }
 
 export async function listAnnouncements(opts?: {
   status?: string;
   campusId?: string;
   page?: number;
+  source?: "all" | "manual" | "auto";
 }) {
   const ctx = await requireAuth();
   const { db } = await createAdminClient();
@@ -450,13 +546,47 @@ export async function listAnnouncements(opts?: {
   if (opts?.campusId) {
     queries.push(Query.equal("campus_id", opts.campusId));
   }
+  if (opts?.source === "auto") {
+    queries.push(Query.equal("source", "auto"));
+  } else if (opts?.source === "manual") {
+    // Rows from before `source` existed have null, and were all manual.
+    queries.push(
+      Query.or([Query.isNull("source"), Query.equal("source", "manual")])
+    );
+  }
 
   const response = await db.listRows<Announcements>(
     "app",
     "announcements",
     queries
   );
-  return { rows: response.rows, total: response.total };
+
+  // One batched lookup for the groups named on this page, not one per row.
+  const segmentIds = [
+    ...new Set(
+      response.rows
+        .filter((row) => row.audience_type === "segment" && row.audience_value)
+        .map((row) => row.audience_value as string)
+    ),
+  ];
+  const segmentNames: Record<string, string> = {};
+  if (segmentIds.length > 0) {
+    // The names only make the labels nicer ("Group: Bus 2" over "Group"), so a
+    // failed lookup must never take the history page down with it.
+    try {
+      const segments = await db.listRows<EventSegments>(
+        "app",
+        "event_segments",
+        [Query.equal("$id", segmentIds), Query.limit(segmentIds.length)]
+      );
+      for (const segment of segments.rows) {
+        segmentNames[segment.$id] = segment.name;
+      }
+    } catch (error) {
+      console.error("Failed to load announcement group names:", error);
+    }
+  }
+  return { rows: response.rows, segmentNames, total: response.total };
 }
 
 export async function getAnnouncement(id: string) {
@@ -484,6 +614,9 @@ export async function createAnnouncement(
   autoTranslation?: AutoTranslationOptions
 ): Promise<AnnouncementMutationResult> {
   const ctx = await requireAuth();
+  if (!canSendNotifications(ctx.roles)) {
+    return { error: SEND_FORBIDDEN_MESSAGE };
+  }
   const validated = announcementSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -499,6 +632,22 @@ export async function createAnnouncement(
       campusId: validated.data.campus_id || null,
       departmentId: validated.data.department_id ?? null,
     });
+    await assertAudienceAllowed(db, ctx, {
+      audienceType: validated.data.audience_type,
+      audienceValue: validated.data.audience_value,
+      campusId: validated.data.campus_id || null,
+    });
+    const selection = normalizeLink(validated.data);
+    if (!selection.ok) {
+      return { error: selection.error };
+    }
+    if (missingRequiredLink(validated.data.category, selection.link)) {
+      return { error: LINK_REQUIRED_ERROR };
+    }
+    const linked = await resolveLinkedContent(db, selection.link);
+    if (!linked.ok) {
+      return { error: linked.error };
+    }
     const audienceValue = await normalizeAudienceValue(
       validated.data.audience_type,
       validated.data.audience_value
@@ -509,7 +658,11 @@ export async function createAnnouncement(
       "announcements",
       ID.unique(),
       {
-        ...buildAnnouncementColumns(validated.data, audienceValue),
+        ...buildAnnouncementColumns(
+          validated.data,
+          audienceValue,
+          linked.columns
+        ),
         status: "draft",
         created_by: ctx.userId,
       }
@@ -558,6 +711,9 @@ export async function updateAnnouncement(
   autoTranslation?: AutoTranslationOptions
 ): Promise<AnnouncementMutationResult> {
   const ctx = await requireAuth();
+  if (!canSendNotifications(ctx.roles)) {
+    return { error: SEND_FORBIDDEN_MESSAGE };
+  }
   const validated = announcementSchema.safeParse(values);
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };
@@ -586,30 +742,49 @@ export async function updateAnnouncement(
       campusId: validated.data.campus_id || null,
       departmentId: validated.data.department_id ?? null,
     });
+    await assertAudienceAllowed(db, ctx, {
+      audienceType: validated.data.audience_type,
+      audienceValue: validated.data.audience_value,
+      campusId: validated.data.campus_id || null,
+    });
 
-    // A sent row is already in students' inboxes. The inbox scopes a topic row
-    // to its campus, and honours opt-outs, only when `audience_value` is a
-    // campus-scoped id such as "events_oslo" — a bare "events" is shown to
-    // every campus. The composer edits the logical topic, so resolve a sent
-    // row's topic here, against the campus being saved, as dispatch would: the
-    // row is then scoped even if a re-send is deferred or never runs. Drafts
-    // and scheduled rows keep the logical topic; dispatch resolves it and
-    // writes the id back when they go out. The status is the stored row's,
-    // never the caller's.
-    const audienceValue =
-      announcement.status === "sent" &&
-      validated.data.audience_type === "topic"
-        ? resolveAnnouncementTopicId(
+    const linkChange = await resolveLinkChange(
+      db,
+      validated.data,
+      announcement
+    );
+    if (!linkChange.ok) {
+      return { error: linkChange.error };
+    }
+    const linkedColumns = linkChange.columns;
+
+    // A sent row is already in students' inboxes. The inbox scopes a topic or
+    // broadcast row to its campus, and honours opt-outs, only when
+    // `audience_value` holds the resolved channel, such as "events_oslo" or
+    // "general_oslo" — a bare "events", or an empty broadcast, is shown to
+    // every campus. The composer edits the logical topic (and no value for a
+    // broadcast), so resolve a sent row's channel here, against the campus
+    // being saved, as dispatch would: the row is then scoped even if a re-send
+    // is deferred or never runs. Drafts and scheduled rows keep the logical
+    // value; dispatch resolves it and writes the channel back when they go
+    // out. The status is the stored row's, never the caller's.
+    const sentChannel =
+      announcement.status === "sent"
+        ? resolvePushChannel(
+            validated.data.audience_type,
             validated.data.audience_value,
             validated.data.campus_id || null
           )
-        : await normalizeAudienceValue(
-            validated.data.audience_type,
-            validated.data.audience_value
-          );
+        : null;
+    const audienceValue =
+      sentChannel ??
+      (await normalizeAudienceValue(
+        validated.data.audience_type,
+        validated.data.audience_value
+      ));
 
     await db.updateRow("app", "announcements", id, {
-      ...buildAnnouncementColumns(validated.data, audienceValue),
+      ...buildAnnouncementColumns(validated.data, audienceValue, linkedColumns),
       ...(getTranslationPendingToken(announcement.data) ? { data: null } : {}),
     });
 
@@ -697,7 +872,7 @@ const dispatchPersistedAnnouncement = async ({
   client: AnnouncementAdminClient;
   ctx: Awaited<ReturnType<typeof requireAuth>>;
 }): Promise<SendAnnouncementResult> => {
-  const dataPayload = buildDataPayload(announcement);
+  const dataPayload = JSON.stringify(buildPushData(announcement));
   const enriched: Announcements = {
     ...announcement,
     data: dataPayload,
@@ -710,7 +885,6 @@ const dispatchPersistedAnnouncement = async ({
     const result = await dispatchAnnouncement(enriched, {
       db: client.db,
       messaging: client.messaging,
-      users: client.users,
     });
     recipients = result.recipients;
     resolvedTopic = result.topic;
@@ -728,15 +902,17 @@ const dispatchPersistedAnnouncement = async ({
     sent_at: new Date().toISOString(),
     data: dataPayload,
     deep_link: enriched.deep_link,
-    // Persist the topic id dispatch actually resolved and pushed to, so the
-    // row records reality instead of the logical topic the composer wrote.
+    // Persist the channel dispatch actually resolved and pushed to, so the
+    // row records reality instead of the logical value the composer wrote.
     // Without this, the Flutter inbox's campus/opt-out filtering (which only
-    // recognises campus-scoped ids like "events_oslo") never applies to this
-    // row and it falls back to always-visible. Only a `topic` audience has a
-    // topic to persist — broadcast/segment/users are untouched, and an
-    // already campus-scoped value passes through `resolveAnnouncementTopicId`
-    // unchanged, so re-dispatch is idempotent.
-    ...(announcement.audience_type === "topic" && resolvedTopic
+    // recognises channel ids like "events_oslo" or "general_oslo") never
+    // applies to this row and it falls back to always-visible. Only `topic`
+    // and `broadcast` audiences have a channel to persist — segment/users are
+    // untouched, and an already-resolved value resolves to itself, so
+    // re-dispatch is idempotent.
+    ...((announcement.audience_type === "topic" ||
+      announcement.audience_type === "broadcast") &&
+    resolvedTopic
       ? { audience_value: resolvedTopic }
       : {}),
   });
@@ -837,6 +1013,9 @@ export async function sendAnnouncement(
   autoTranslation?: AutoTranslationOptions
 ): Promise<SendAnnouncementResult> {
   const ctx = await requireAuth();
+  if (!canSendNotifications(ctx.roles)) {
+    return { error: SEND_FORBIDDEN_MESSAGE };
+  }
 
   try {
     const translationOptions = parseAutoTranslationOptions(autoTranslation);
@@ -859,6 +1038,21 @@ export async function sendAnnouncement(
       legacyFallback: true,
     });
     assertPublishAccess(ctx, sendOwnership.campus, sendOwnership.department);
+    if (announcement.status === "sent") {
+      return { error: ALREADY_SENT_MESSAGE };
+    }
+    // A draft may be saved with nobody picked yet, but it can't go out.
+    if (
+      announcement.audience_type === "users" &&
+      parseAudiencePeople(announcement.audience_value).length === 0
+    ) {
+      return { error: NO_PEOPLE_MESSAGE };
+    }
+    await assertAudienceAllowed(client.db, ctx, {
+      audienceType: announcement.audience_type,
+      audienceValue: announcement.audience_value,
+      campusId: announcement.campus_id ?? null,
+    });
 
     const automaticSource = translationOptions?.enabled
       ? getAnnouncementTranslationSnapshot(

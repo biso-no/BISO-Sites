@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { describeJobReuse } from "@/lib/job-reuse";
+import { getContentNotificationState } from "../../_actions/content-notifications";
 import { getJob, getJobApplicationCount } from "../../_actions/jobs";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { JobStudioEditor } from "./_components/job-studio-editor";
@@ -39,6 +40,9 @@ export default async function JobEditorPage({
   }
 
   const isGlobalAdmin = ctx.roles.includes("globaladmin");
+  const notificationState = isNew
+    ? ({ kind: "none" } as const)
+    : await getContentNotificationState("job", id);
   const isCampusAdmin = ctx.roles.includes("campusadmin");
 
   const effectiveCampusId = (() => {
@@ -92,6 +96,7 @@ export default async function JobEditorPage({
       allowedDepartmentIds={allowedDepartmentIds}
       campuses={filteredCampuses}
       canChangeCampus={canChangeCampus}
+      canNotifyNational={isGlobalAdmin}
       defaultCampusId={effectiveCampusId}
       initialDepartments={initialDepartments}
       isFreshDuplicate={Boolean(duplicated) && !isNew}
@@ -105,6 +110,7 @@ export default async function JobEditorPage({
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
       }}
+      notificationState={notificationState}
       reuse={reuse}
     />
   );

@@ -1,0 +1,136 @@
+<style>
+  .wrap { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:14px; }
+  @media (max-width:1100px){ .wrap{ grid-template-columns:1fr; } }
+  .panel { background:#faf7f2; border:1px solid #e5dcca; border-radius:14px; padding:22px 24px; color:#1a1814; font-family:-apple-system, system-ui, sans-serif; }
+  .stepper { display:flex; gap:6px; margin-bottom:18px; font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+  .stepper span { padding:5px 10px; border-radius:999px; border:1px solid #d8cdb6; color:#6b6357; }
+  .stepper span.on { background:#1a1814; color:#faf7f2; border-color:#1a1814; }
+  .stepper span.done { color:#2f5d3a; border-color:#2f5d3a; }
+  .ttl { font-family:'Instrument Serif', Georgia, serif; font-size:30px; line-height:1.1; margin:0 0 4px; }
+  .help { font-size:13px; color:#6b6357; margin:0 0 16px; }
+  .lbl { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:#6b6357; margin:16px 0 7px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .grid2 { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .cat { border:1px solid #d8cdb6; border-radius:10px; padding:10px; background:#fff; font-size:13px; }
+  .cat b { display:block; font-size:13.5px; margin-bottom:2px; }
+  .cat small { color:#6b6357; font-size:11.5px; line-height:1.3; display:block; }
+  .cat.on { border:2px solid #1A77E9; padding:9px; background:#f2f7fe; }
+  .ic { font-size:16px; margin-bottom:4px; display:block; }
+  .field { background:#fff; border:1px solid #d8cdb6; border-radius:9px; padding:9px 11px; font-size:13.5px; display:flex; align-items:center; gap:8px; }
+  .field.big { font-family:'Instrument Serif', Georgia, serif; font-size:20px; }
+  .field .ph { color:#9c9385; }
+  .tabs { display:inline-flex; border:1px solid #d8cdb6; border-radius:8px; overflow:hidden; font-size:12px; margin-bottom:6px; }
+  .tabs span { padding:4px 10px; } .tabs span.on { background:#1a1814; color:#fff; }
+  .linked { background:#fff; border:1px solid #d8cdb6; border-radius:12px; display:flex; gap:12px; padding:10px; align-items:center; }
+  .linked .img { width:64px; height:48px; border-radius:8px; background:url(https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200) center/cover; flex:none; }
+  .linked .t { font-weight:700; font-size:14px; }
+  .linked .s { font-size:12px; color:#6b6357; }
+  .linked .chg { margin-left:auto; font-size:12px; color:#1A77E9; font-weight:600; }
+  .dd { background:#fff; border:1px solid #d8cdb6; border-radius:10px; margin-top:6px; box-shadow:0 8px 24px rgba(26,24,20,.10); overflow:hidden; }
+  .dd .q { padding:9px 11px; border-bottom:1px solid #ede6d8; font-size:13px; color:#9c9385; }
+  .dd .it { display:flex; gap:10px; align-items:center; padding:8px 11px; font-size:13px; border-bottom:1px solid #f3eee5; }
+  .dd .it:last-child{ border-bottom:none; }
+  .dd .it .th { width:38px; height:28px; border-radius:6px; background-size:cover; background-position:center; flex:none; }
+  .dd .it small { color:#6b6357; display:block; font-size:11.5px; }
+  .dd .it.hl { background:#f2f7fe; }
+  .tip { font-size:12.5px; color:#2f5d3a; background:#eef4ee; border-radius:9px; padding:8px 11px; margin-top:8px; }
+  .aud { border:1px solid #d8cdb6; border-radius:12px; padding:11px 12px; background:#fff; margin-bottom:8px; }
+  .aud.on { border:2px solid #1A77E9; padding:10px 11px; background:#f2f7fe; }
+  .aud b { font-size:14px; } .aud small { display:block; color:#6b6357; font-size:12px; margin-top:2px; }
+  .sub { margin-top:10px; padding-top:10px; border-top:1px dashed #d8cdb6; }
+  .pills { display:flex; gap:6px; flex-wrap:wrap; }
+  .p { font-size:12.5px; padding:5px 11px; border-radius:999px; border:1px solid #d8cdb6; background:#fff; }
+  .p.on { background:#1a1814; color:#fff; border-color:#1a1814; }
+  .reach { margin-top:14px; background:#1a1814; color:#faf7f2; border-radius:12px; padding:13px 15px; font-size:13.5px; line-height:1.45; }
+  .reach .n { font-family:'Instrument Serif', Georgia, serif; font-size:26px; }
+  .chipu { display:inline-flex; align-items:center; gap:6px; background:#ede6d8; border-radius:999px; padding:3px 9px 3px 4px; font-size:12px; margin:0 4px 4px 0; }
+  .av { width:18px; height:18px; border-radius:9px; background:#b08a3e; color:#fff; font-size:10px; display:inline-flex; align-items:center; justify-content:center; }
+  .muted { color:#9c9385; font-size:12px; }
+</style>
+
+<h2>Admin: Communications composer, reworked</h2>
+<p class="subtitle">Left: step 1, where you link the content. Right: the Audience step (today called "Distribution"). Both are written for non-technical admins. React in the terminal; nothing to click here.</p>
+
+<div class="wrap">
+  <!-- ESSENTIALS -->
+  <div class="panel">
+    <div class="stepper"><span class="on">1 · What</span><span>2 · Message</span><span>3 · Who</span><span>4 · Check &amp; send</span></div>
+    <div class="ttl">What is this about?</div>
+    <p class="help">Pick a type. If it's about something on the website, link it, and students go straight there when they tap.</p>
+
+    <div class="grid3">
+      <div class="cat"><span class="ic">📣</span><b>General</b><small>An update from BISO</small></div>
+      <div class="cat on"><span class="ic">📅</span><b>Event</b><small>Links to an event</small></div>
+      <div class="cat"><span class="ic">📰</span><b>News</b><small>Links to an article</small></div>
+      <div class="cat"><span class="ic">💼</span><b>Job</b><small>Links to a position</small></div>
+      <div class="cat"><span class="ic">🚌</span><b>Trip</b><small>Travel info for a trip</small></div>
+      <div class="cat"><span class="ic">⚠️</span><b>Urgent</b><small>Shown in red, delivered with priority</small></div>
+    </div>
+
+    <div class="lbl">Which event?</div>
+    <div class="field"><span>🔍</span><span>autumn</span></div>
+    <div class="dd">
+      <div class="it hl"><div class="th" style="background-image:url(https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200)"></div><div><b>Autumn party</b><small>Fri 24 Oct · Bergen · Published</small></div></div>
+      <div class="it"><div class="th" style="background-image:url(https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200)"></div><div><b>Autumn hike to Fløyen</b><small>Sun 2 Nov · Bergen · Published</small></div></div>
+      <div class="it"><div class="th" style="background-image:url(https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200)"></div><div><b>Autumn career fair</b><small>Tue 4 Nov · Oslo · Draft (can't link drafts)</small></div></div>
+    </div>
+
+    <div class="lbl" style="margin-top:18px">After picking: linked</div>
+    <div class="linked"><div class="img"></div><div><div class="t">Autumn party</div><div class="s">Fri 24 Oct, 20:00 · Bergen</div></div><span class="chg">Change</span></div>
+    <div class="tip">✓ Title and text filled in from the event. Edit freely. Audience set to <b>Events · Bergen</b>.</div>
+
+    <div class="lbl">Title</div>
+    <div class="tabs"><span class="on">Norsk</span><span>English</span></div>
+    <div class="field big">Høstfest fredag 24. oktober 🎉</div>
+  </div>
+
+  <!-- AUDIENCE -->
+  <div class="panel">
+    <div class="stepper"><span class="done">1 · What ✓</span><span class="done">2 · Message ✓</span><span class="on">3 · Who</span><span>4 · Check &amp; send</span></div>
+    <div class="ttl">Who should get it?</div>
+    <p class="help">Everyone gets it in their own language, Norwegian or English, and only once.</p>
+
+    <div class="aud">
+      <b>📢 Everyone at a campus</b>
+      <small>Every student with notifications on. Use sparingly.</small>
+    </div>
+
+    <div class="aud on">
+      <b>🔔 Students who follow a topic</b>
+      <small>Only students who chose to follow it in the app</small>
+      <div class="sub">
+        <div class="lbl" style="margin-top:0">Topic</div>
+        <div class="pills"><span class="p">News</span><span class="p on">Events</span><span class="p">Jobs</span><span class="p">Shop</span></div>
+        <div class="lbl">Campus</div>
+        <div class="pills"><span class="p">Oslo</span><span class="p on">Bergen</span><span class="p">Trondheim</span><span class="p">Stavanger</span><span class="p">All campuses</span></div>
+      </div>
+    </div>
+
+    <div class="aud">
+      <b>👤 Specific people</b>
+      <small>Search by name or email</small>
+      <div class="sub">
+        <div class="field" style="flex-wrap:wrap;gap:4px;padding:6px 8px">
+          <span class="chipu"><span class="av">KN</span>Kari Nordmann</span>
+          <span class="chipu"><span class="av">OH</span>Ola Hansen</span>
+          <span class="ph" style="font-size:13px">Search…</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="aud">
+      <b>👥 A group from an event</b>
+      <small>e.g. everyone on Bus 2 of the Trondheim trip</small>
+      <div class="sub">
+        <div class="field"><span class="ph">Choose event…</span></div>
+        <div class="field" style="margin-top:6px"><span class="ph">Choose group…</span></div>
+      </div>
+    </div>
+
+    <div class="reach">
+      <div class="n">≈ 412 students</div>
+      Bergen students who follow Events.<br>
+      <span style="opacity:.75">Tapping opens: Autumn party (Fri 24 Oct)</span>
+    </div>
+  </div>
+</div>

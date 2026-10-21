@@ -488,6 +488,8 @@ async function upsertRow(
     tableId: string;
     /** `false` updates an existing row only; a missing row is reported, not created. */
     createIfMissing?: boolean;
+    /** Merged into the data of `createRow` only; never sent on any update. */
+    createOnlyData?: Record<string, unknown>;
   }
 ): Promise<"created" | "updated" | "missing"> {
   const { data, databaseId, permissions, rowId, tableId } = options;
@@ -502,7 +504,13 @@ async function upsertRow(
       return "missing";
     }
     try {
-      await db.createRow({ data, databaseId, permissions, rowId, tableId });
+      await db.createRow({
+        data: { ...data, ...options.createOnlyData },
+        databaseId,
+        permissions,
+        rowId,
+        tableId,
+      });
       return "created";
     } catch (createError) {
       if (getErrorCode(createError) !== HTTP_CONFLICT) {
@@ -539,6 +547,7 @@ async function upsertEvent(
 
   const outcome = await upsertRow(db, {
     createIfMissing: sale.createIfMissing,
+    createOnlyData: { notify_push: true },
     data: buildEventData({
       campusId,
       detail,

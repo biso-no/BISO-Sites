@@ -108,12 +108,16 @@ mock.module("./audit-log", () => ({
 // NOTE: never mock.module("./announcements") here — bun module mocks are
 // process-wide and would clobber the real announcements action module for
 // every later test file in the suite.
+const dispatchAnnouncement = mock(async () => ({ recipients: 0 }));
 mock.module("@/lib/announcements/send", () => ({
+  buildPushData: mock(() => ({})),
   buildDeepLink: mock(() => "biso://announcements/announcement-1"),
-  dispatchAnnouncement: mock(async () => ({ recipients: 0 })),
+  dispatchAnnouncement,
 }));
 
-const { createEvent, getEvent, updateEvent } = await import("./events");
+const { createEvent, getEvent, publishEvent, updateEvent } = await import(
+  "./events"
+);
 const { createSegment } = await import("./event-segments");
 
 function mockEventRow(event: Record<string, unknown> | null): void {
@@ -127,6 +131,7 @@ function mockEventRow(event: Record<string, unknown> | null): void {
 
 beforeEach(() => {
   currentCtx = departmentCtx;
+  dispatchAnnouncement.mockClear();
   db.createRow.mockReset();
   db.deleteRow.mockReset();
   db.getRow.mockReset();
@@ -226,6 +231,43 @@ describe("event relationship persistence", () => {
   });
 });
 
+describe("event push on publish", () => {
+  const storedEvent = {
+    $id: "event-1",
+    campus: { $id: "campus-oslo" },
+    department: { $id: "dept-1" },
+    member_only: false,
+    notify_push: true,
+    slug: "student-event",
+  };
+  const publishedValues: EventUpsertInput = {
+    ...departmentEventValues,
+    notify_push: true,
+    status: EventsStatus.PUBLISHED,
+  };
+
+  const expectNoDirectPush = () => {
+    expect(dispatchAnnouncement).not.toHaveBeenCalled();
+    const announcementCalls = db.createRow.mock.calls.filter(
+      (call: unknown[]) => call[1] === "announcements"
+    );
+    expect(announcementCalls).toHaveLength(0);
+  };
+
+  test("publishing an event with notify on no longer pushes directly", async () => {
+    mockEventRow({ ...storedEvent, status: "draft" });
+    await updateEvent("event-1", publishedValues);
+    expectNoDirectPush();
+
+    mockEventRow({ ...storedEvent, status: "draft" });
+    await publishEvent("event-1");
+    expectNoDirectPush();
+
+    await createEvent(publishedValues);
+    expectNoDirectPush();
+  });
+});
+
 describe("national events for campus admins", () => {
   const osloCampusAdmin = makeCtx({
     campusNames: ["Oslo"],
@@ -321,5 +363,34 @@ describe("event segment authorization", () => {
 
     expect(result).toEqual({ error: "Event not found" });
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("event notify_push national guard", () => {
+  test("moving a notify-on campus event to National does not carry the flag", async () => {
+    currentCtx = makeCtx({
+      campusNames: ["Oslo"],
+      managedCampusIds: ["campus-oslo"],
+      resolvedCampusIds: ["campus-oslo"],
+      roles: ["campusadmin"],
+    });
+    mockEventRow({
+      $id: "event-1",
+      campus_id: "campus-oslo",
+      department_id: null,
+      member_only: false,
+      notify_push: true,
+      status: "draft",
+    });
+
+    await updateEvent("event-1", {
+      ...departmentEventValues,
+      campus_id: "5",
+      department_id: null,
+      notify_push: true,
+    });
+
+    const call = db.upsertRow.mock.calls.find((c) => c[1] === "events");
+    expect(call?.[3]).toEqual(expect.objectContaining({ notify_push: false }));
   });
 });

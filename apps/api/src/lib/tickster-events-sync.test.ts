@@ -202,6 +202,53 @@ describe("syncTicksterEvents", () => {
     expect(eventCreate.data.slug).toBe("biso-hostball-arlig-apning-g1abc");
   });
 
+  const run = (db: unknown) =>
+    syncTicksterEvents({
+      client: makeClient() as never,
+      config: baseConfig(),
+      db: db as never,
+      now: () => new Date("2026-06-25T00:00:00.000Z"),
+    });
+
+  it("a newly created Tickster event notifies", async () => {
+    const { createRow, db } = makeDb();
+    await run(db);
+    const eventCreate = createRow.mock.calls.find(
+      ([args]) => args.tableId === "events"
+    )?.[0];
+    expect(eventCreate.data.notify_push).toBe(true);
+  });
+
+  it("syncing an existing Tickster event never switches notify on", async () => {
+    const { createRow, db, updateRow } = makeDb();
+    updateRow.mockResolvedValue({});
+    await run(db);
+    const eventUpdate = updateRow.mock.calls.find(
+      ([args]) => args.tableId === "events"
+    )?.[0];
+    expect(eventUpdate).toBeDefined();
+    expect(eventUpdate.data).not.toHaveProperty("notify_push");
+    expect(
+      createRow.mock.calls.some(([args]) => args.tableId === "events")
+    ).toBe(false);
+  });
+
+  it("a 409 on create falls back to an update without notify_push", async () => {
+    const { createRow, db, updateRow } = makeDb();
+    createRow.mockImplementation(({ tableId }) =>
+      tableId === "events" ? Promise.reject({ code: 409 }) : Promise.resolve({})
+    );
+    updateRow.mockRejectedValueOnce({ code: 404 }).mockResolvedValue({});
+    await run(db);
+    const eventUpdates = updateRow.mock.calls.filter(
+      ([args]) => args.tableId === "events"
+    );
+    expect(eventUpdates).toHaveLength(2);
+    for (const [args] of eventUpdates) {
+      expect(args.data).not.toHaveProperty("notify_push");
+    }
+  });
+
   it("upserts an enriched event row with both translations", async () => {
     const { createRow, db } = makeDb();
     const client = makeClient();

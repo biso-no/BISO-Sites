@@ -147,6 +147,8 @@ export function buildDuplicateVacancyInput(
     interview_template: source.interview_template ?? { rounds: [] },
     location: metadata.location ?? null,
     newsletter: metadata.newsletter,
+    // A copy never announces itself; the editor opts in explicitly.
+    notify_push: false,
     paid: metadata.paid,
     publication_mode: "now",
     push_to_inboxes: metadata.push_to_inboxes,

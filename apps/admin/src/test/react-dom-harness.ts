@@ -161,6 +161,15 @@ class TestText extends TestNode {
   override set textContent(value: string) {
     this.data = value;
   }
+
+  /** react-dom updates a changed text node through `nodeValue`. */
+  get nodeValue(): string {
+    return this.data;
+  }
+
+  set nodeValue(value: string) {
+    this.data = value;
+  }
 }
 
 class TestComment extends TestText {
@@ -307,6 +316,11 @@ export class TestDocument extends TestNode {
   readonly body: TestElement;
   readonly defaultView: Record<string, unknown>;
   readonly documentElement: TestElement;
+  /**
+   * react-dom feature-detects the `input` event with `"oninput" in document`.
+   * Without it, typing falls back to an IE polyfill the harness cannot drive.
+   */
+  oninput: null = null;
 
   constructor() {
     super(9, "#document", undefined as unknown as TestDocument);

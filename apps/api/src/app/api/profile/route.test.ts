@@ -99,6 +99,18 @@ describe("PUT /api/profile", () => {
     expect(users.updateName).not.toHaveBeenCalled();
   });
 
+  it("saves the push language the app sends", async () => {
+    adminDb.getRow.mockResolvedValue({ $id: "user-1" });
+
+    const response = await PUT(profileRequest({ locale: "no" }));
+
+    expect(response.status).toBe(200);
+    expect(adminDb.updateRow).toHaveBeenCalledWith("app", "user", "user-1", {
+      email: "ada@example.com",
+      locale: "no",
+    });
+  });
+
   it("stamps the account email, never one from the request", async () => {
     adminDb.getRow.mockResolvedValue({ $id: "user-1" });
 

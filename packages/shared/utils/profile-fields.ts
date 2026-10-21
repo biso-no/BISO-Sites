@@ -25,6 +25,7 @@ export const SELF_SERVICE_PROFILE_FIELDS = [
   "is_public",
   "campus_id",
   "departments",
+  "locale",
 ] as const satisfies readonly (keyof Users)[];
 
 export type SelfServiceProfileField =
@@ -64,6 +65,8 @@ export const selfServiceProfileSchema = z.object({
   city: optionalText(50),
   departments: z.array(z.string().trim().min(1).max(36)).max(50).optional(),
   is_public: z.boolean().optional(),
+  /** The language the person's pushes are sent in. */
+  locale: z.enum(["en", "no"]).optional(),
   name: z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH).optional(),
   phone: optionalText(20),
   swift: optionalText(15),
