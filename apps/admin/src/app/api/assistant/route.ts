@@ -34,7 +34,7 @@ import {
 // Server actions — content domains
 import {
   createBenefit,
-  getBenefit,
+  getBenefitForEdit,
   listBenefits,
   updateBenefit,
 } from "@/app/(portal)/_actions/benefits";
@@ -509,7 +509,7 @@ function buildDeps(
         case "shop":
           return await getProduct(id);
         case "benefits":
-          return await getBenefit(id);
+          return await getBenefitForEdit(id);
         case "documents":
           return await getDocument(id);
         default:

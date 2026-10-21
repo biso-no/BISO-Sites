@@ -12,13 +12,22 @@ const campusAdminCtx: UserAuthContext = {
   departmentTeamIds: [],
   email: "admin@example.com",
   managedCampuses: ["Oslo"],
-  managedCampusIds: ["campus-oslo"],
+  managedCampusIds: ["2"],
   name: "Oslo Admin",
-  resolvedCampusIds: ["campus-oslo"],
+  resolvedCampusIds: ["2"],
   resolvedDepartmentIds: [],
   roles: ["campusadmin"],
   userId: "user-1",
 };
+
+const departmentOnlyCtx: UserAuthContext = {
+  ...campusAdminCtx,
+  managedCampuses: [],
+  managedCampusIds: [],
+  roles: ["department"],
+};
+
+let currentCtx: UserAuthContext = campusAdminCtx;
 
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
@@ -26,14 +35,44 @@ mock.module("@repo/api/server", () => ({
 }));
 
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => campusAdminCtx),
+  requireAuth: mock(async () => currentCtx),
 }));
 
 const { listBenefits } = await import("./benefits");
 
 describe("listBenefits pagination", () => {
   beforeEach(() => {
+    currentCtx = campusAdminCtx;
     db.listRows.mockReset();
+  });
+
+  test("scopes a campus admin to their campus and Hele BISO", async () => {
+    db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listBenefits({ page: 1, size: 25, q: "" });
+
+    const queries = db.listRows.mock.calls[0][2] as string[];
+    expect(queries).toContain(Query.equal("campus_id", ["2", "5"]));
+  });
+
+  test("matches nothing for a user without benefit access", async () => {
+    currentCtx = departmentOnlyCtx;
+    db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listBenefits({ page: 1, size: 25, q: "" });
+
+    const queries = db.listRows.mock.calls[0][2] as string[];
+    expect(queries.some((query) => query.includes('"campus_id"'))).toBe(false);
+    expect(queries).toContain(Query.equal("$id", "__no_benefit_access__"));
+  });
+
+  test("filters by status", async () => {
+    db.listRows.mockResolvedValueOnce({ rows: [], total: 0 });
+
+    await listBenefits({ page: 1, q: "", size: 25, status: "draft" });
+
+    const queries = db.listRows.mock.calls[0][2] as string[];
+    expect(queries).toContain(Query.equal("status", "draft"));
   });
 
   test("reports the true total and offsets correctly", async () => {
@@ -76,6 +115,7 @@ const { listPartners } = await import("./benefits");
 
 describe("listPartners pagination", () => {
   beforeEach(() => {
+    currentCtx = campusAdminCtx;
     db.listRows.mockReset();
   });
 
@@ -105,7 +145,7 @@ describe("listPartners pagination", () => {
     await listPartners({ page: 5, size: 25, q: "" });
 
     const queries = db.listRows.mock.calls[0][2] as string[];
-    expect(queries).toContain(Query.equal("campus_id", ["campus-oslo"]));
+    expect(queries).toContain(Query.equal("campus_id", ["2"]));
     expect(queries).toContain(Query.offset(100));
   });
 });
