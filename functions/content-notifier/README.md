@@ -64,23 +64,23 @@ these guards for when two passes do overlap:
 
 - Entrypoint: `functions/content-notifier/dist/main.js`.
 - Events (Settings → Events):
-  - `tablesdb.app.tables.events.rows.*.create`
-  - `tablesdb.app.tables.events.rows.*.update`
-  - `tablesdb.app.tables.news.rows.*.create`
-  - `tablesdb.app.tables.news.rows.*.update`
-  - `tablesdb.app.tables.jobs.rows.*.create`
-  - `tablesdb.app.tables.jobs.rows.*.update`
+  - `databases.app.tables.events.rows.*`
+  - `databases.app.tables.news.rows.*`
+  - `databases.app.tables.jobs.rows.*`
 
-  Deploy check: edit a news row and confirm a non-400 `event` execution
-  appears. If none fires, the database is legacy-type: subscribe to
-  `databases.app.tables.{events,news,jobs}.rows.*.{create,update}` instead
+  These match any row event (create, update, upsert, delete). Admin saves use
+  upsert, so subscribing to `.create`/`.update` alone misses them. For
+  tablesdb-type databases use `tablesdb.app.tables.<table>.rows.*` instead
   (the function accepts both forms, and `collections`/`documents` too).
+
+  Deploy check: save a news row in admin and confirm a non-400 `event`
+  execution appears.
 - Execute access: `any`. This is needed for the HTTP ping through the
   function's domain; the ping must carry `CRON_SECRET` (`x-cron-secret` or
   `Authorization: Bearer`), otherwise it answers 401.
-- Scopes: `rows.read`, `rows.write`, `messages.write`, `execution.read` (the
-  overlap guard lists this function's executions; Appwrite's scope name is
-  singular).
+- Scopes: `rows.read`, `rows.write`, `messages.write`, `executions.read` (the
+  overlap guard lists this function's executions; `execution.read` is
+  deprecated).
 - Timeout: 120s. No schedule: the ping drives dispatch.
 - Variables: `CRON_SECRET`; optional `NOTIFY_DELAY_MINUTES` (default 3).
   Do **not** set `APPWRITE_*` variables.

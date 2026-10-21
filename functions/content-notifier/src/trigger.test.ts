@@ -28,12 +28,6 @@ test("an event on another table is rejected with 400", () => {
   ).toMatchObject({ kind: "reject", status: 400 });
 });
 
-test("a delete event is rejected with 400", () => {
-  expect(
-    classifyTrigger(event("tablesdb.app.tables.news.rows.n1.delete"), SECRET)
-  ).toMatchObject({ kind: "reject", status: 400 });
-});
-
 test("an event without a header name is rejected with 400", () => {
   expect(
     classifyTrigger({ "x-appwrite-trigger": "event" }, SECRET)
@@ -134,6 +128,42 @@ test("legacy databases events classify like tablesdb ones", () => {
   expect(
     classifyTrigger(
       event("tablesdb.app.collections.news.documents.n1.update"),
+      SECRET
+    )
+  ).toMatchObject({ kind: "reject", status: 400 });
+});
+
+test("upsert events become content triggers in every event form", () => {
+  expect(
+    classifyTrigger(event("databases.app.tables.news.rows.n1.upsert"), SECRET)
+  ).toEqual({ id: "n1", kind: "content", type: "news" });
+  expect(
+    classifyTrigger(event("tablesdb.app.tables.news.rows.n1.upsert"), SECRET)
+  ).toEqual({ id: "n1", kind: "content", type: "news" });
+  expect(
+    classifyTrigger(
+      event("databases.app.collections.jobs.documents.j1.upsert"),
+      SECRET
+    )
+  ).toEqual({ id: "j1", kind: "content", type: "job" });
+  expect(
+    classifyTrigger(event("databases.app.tables.*.rows.*.upsert"), SECRET, {
+      $id: "e9",
+      $tableId: "events",
+    })
+  ).toEqual({ id: "e9", kind: "content", type: "event" });
+});
+
+test("delete events route to the content change", () => {
+  expect(
+    classifyTrigger(event("databases.app.tables.events.rows.e1.delete"), SECRET)
+  ).toEqual({ id: "e1", kind: "content", type: "event" });
+});
+
+test("an unknown row action is rejected with 400", () => {
+  expect(
+    classifyTrigger(
+      event("databases.app.tables.events.rows.e1.unknownaction"),
       SECRET
     )
   ).toMatchObject({ kind: "reject", status: 400 });

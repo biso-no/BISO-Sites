@@ -16,7 +16,7 @@ const HTTP_SERVER_ERROR = 500;
 const WILDCARD = "*";
 /** `tablesdb.<database>.tables.<table>.rows.<row>.<action>` */
 const EVENT_PARTS = 7;
-const CONTENT_ACTIONS = new Set(["create", "update"]);
+const CONTENT_ACTIONS = new Set(["create", "update", "upsert", "delete"]);
 
 function reject(status: number, reason: string): Trigger {
   return { kind: "reject", reason, status };
