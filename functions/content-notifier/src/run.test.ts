@@ -1,4 +1,5 @@
 import { expect, mock, test } from "bun:test";
+import { createHash } from "node:crypto";
 import {
   type Announcements,
   type ContentNotifications,
@@ -10,6 +11,7 @@ import {
   type NotifyContentType,
 } from "@repo/shared/utils/content-notifications";
 import {
+  announcementIdFor,
   DUE_PAGE_SIZE,
   dispatchDue,
   handleContentChange,
@@ -41,6 +43,7 @@ function eventRow(id: string, overrides: Row = {}): Row {
     image: null,
     location: "Nydalen",
     notify_push: true,
+    publish_mode: "now",
     scheduled_publish_at: null,
     start_date: "2026-11-01T17:00:00.000Z",
     status: "published",
@@ -79,12 +82,15 @@ function lockRow(lockId: string, data: NewLock | Row): ContentNotifications {
 }
 
 interface Fake {
+  /** Announcement rows by row id, as the table holds them. */
+  announcementRows: Map<string, Announcements>;
   /** Announcement columns in the order they were created. */
   announcements: AutoAnnouncementColumns[];
   /** Writes in the order they happened: creates, updates, announcements, pushes. */
   calls: string[];
   content: Map<string, Row>;
   deps: NotifierDeps;
+  errors: string[];
   /** Lock rows by row id. */
   locks: Map<string, ContentNotifications>;
   logs: string[];
@@ -94,18 +100,25 @@ interface Fake {
 function fake(overrides: Partial<NotifierDeps> = {}): Fake {
   const content = new Map<string, Row>();
   const locks = new Map<string, ContentNotifications>();
+  const announcementRows = new Map<string, Announcements>();
   const announcements: AutoAnnouncementColumns[] = [];
   const calls: string[] = [];
+  const errors: string[] = [];
   const logs: string[] = [];
 
   const deps: NotifierDeps = {
-    createAnnouncement: mock((columns: AutoAnnouncementColumns) => {
+    // Like Appwrite: a row id that is taken answers with the existing row.
+    createAnnouncement: mock((id: string, columns: AutoAnnouncementColumns) => {
+      const existing = announcementRows.get(id);
+      if (existing) {
+        calls.push("createAnnouncement:exists");
+        return Promise.resolve({ announcement: existing, created: false });
+      }
       announcements.push(columns);
       calls.push("createAnnouncement");
-      return Promise.resolve({
-        ...columns,
-        $id: `ann_${announcements.length}`,
-      } as unknown as Announcements);
+      const row = { ...columns, $id: id } as unknown as Announcements;
+      announcementRows.set(id, row);
+      return Promise.resolve({ announcement: row, created: true });
     }),
     createLock: mock((lockId: string, data: NewLock) => {
       calls.push(`createLock:${lockId}`);
@@ -119,6 +132,9 @@ function fake(overrides: Partial<NotifierDeps> = {}): Fake {
     dispatch: mock((announcement: Announcements) => {
       calls.push(`dispatch:${announcement.$id}`);
       return Promise.resolve();
+    }),
+    error: mock((message: string) => {
+      errors.push(message);
     }),
     getContent: mock((type: NotifyContentType, id: string) => {
       const row = content.get(contentKey(type, id));
@@ -164,10 +180,12 @@ function fake(overrides: Partial<NotifierDeps> = {}): Fake {
   };
 
   return {
+    announcementRows,
     announcements,
     calls,
     content,
     deps,
+    errors,
     locks,
     logs,
     setContent: (type, row) => {
@@ -231,6 +249,66 @@ test("a scheduled item is due at its publish time when that is later than the de
   await handleContentChange(f.deps, "news", "n1", at(0));
 
   expect(lockOf(f, "news", "n1")?.due_at).toBe(iso(60));
+});
+
+test("a Publish now event ignores a stale scheduled date", async () => {
+  const f = fake();
+  // Scheduled once, then switched to Publish now: the old date is still saved.
+  f.setContent(
+    "event",
+    eventRow("e1", { publish_mode: "now", scheduled_publish_at: iso(60) })
+  );
+
+  await handleContentChange(f.deps, "event", "e1", at(0));
+
+  expect(lockOf(f, "event", "e1")?.due_at).toBe(iso(DELAY_MINUTES));
+});
+
+test("moving a pending event's scheduled time later moves its due time", async () => {
+  const f = fake();
+  f.setContent(
+    "event",
+    eventRow("e1", { publish_mode: "scheduled", scheduled_publish_at: iso(60) })
+  );
+  await handleContentChange(f.deps, "event", "e1", at(0));
+  expect(lockOf(f, "event", "e1")?.due_at).toBe(iso(60));
+
+  f.setContent(
+    "event",
+    eventRow("e1", {
+      publish_mode: "scheduled",
+      scheduled_publish_at: iso(120),
+    })
+  );
+  expect(await handleContentChange(f.deps, "event", "e1", at(10))).toBe(
+    "unchanged"
+  );
+
+  expect(lockOf(f, "event", "e1")).toMatchObject({
+    due_at: iso(120),
+    status: "pending",
+  });
+  expect((await dispatchDue(f.deps, at(65))).sent).toBe(0);
+  expect((await dispatchDue(f.deps, at(120))).sent).toBe(1);
+});
+
+test("a plain re-save keeps the due time", async () => {
+  const f = fake();
+  f.setContent(
+    "event",
+    eventRow("e1", { publish_mode: "scheduled", scheduled_publish_at: iso(60) })
+  );
+  await handleContentChange(f.deps, "event", "e1", at(0));
+
+  // Also just before it goes live, when now + delay is past the schedule.
+  for (const minute of [10, 58]) {
+    expect(await handleContentChange(f.deps, "event", "e1", at(minute))).toBe(
+      "unchanged"
+    );
+  }
+
+  expect(lockOf(f, "event", "e1")?.due_at).toBe(iso(60));
+  expect(f.deps.updateLock).not.toHaveBeenCalled();
 });
 
 test("re-saving a published item never creates a second lock or a second push", async () => {
@@ -298,6 +376,7 @@ test("unpublishing within the delay cancels; republishing later sends once", asy
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 0,
     cancelled: 0,
+    failed: 0,
     sent: 0,
   });
   expect(f.deps.dispatch).not.toHaveBeenCalled();
@@ -315,6 +394,7 @@ test("unpublishing within the delay cancels; republishing later sends once", asy
   expect(await dispatchDue(f.deps, at(31))).toEqual({
     announcements: 0,
     cancelled: 0,
+    failed: 0,
     sent: 0,
   });
   await dispatchDue(f.deps, at(40));
@@ -446,6 +526,7 @@ test("dispatch re-checks eligibility and cancels items that became ineligible", 
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 0,
     cancelled: 2,
+    failed: 0,
     sent: 0,
   });
 
@@ -471,6 +552,7 @@ test("dispatch groups items on the same channel into one announcement and marks 
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 1,
     cancelled: 0,
+    failed: 0,
     sent: 2,
   });
 
@@ -485,7 +567,7 @@ test("dispatch groups items on the same channel into one announcement and marks 
   });
   for (const id of ["e1", "e2"]) {
     expect(lockOf(f, "event", id)).toMatchObject({
-      announcement_id: "ann_1",
+      announcement_id: announcementIdFor(["event_e1", "event_e2"]),
       sent_at: iso(5),
       status: "sent",
     });
@@ -507,7 +589,7 @@ test("locks are marked sent before the push", async () => {
     "createAnnouncement",
     "updateLock:event_e1:sent",
     "updateLock:event_e2:sent",
-    "dispatch:ann_1",
+    `dispatch:${announcementIdFor(["event_e1", "event_e2"])}`,
   ]);
 });
 
@@ -521,15 +603,16 @@ test("a failed push does not reopen the locks", async () => {
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 1,
     cancelled: 0,
+    failed: 1,
     sent: 1,
   });
   await dispatchDue(f.deps, at(10));
 
   expect(lockOf(f, "event", "e1")).toMatchObject({
-    announcement_id: "ann_1",
+    announcement_id: announcementIdFor(["event_e1"]),
     status: "sent",
   });
-  expect(f.logs.some((line) => line.includes("FCM unavailable"))).toBe(true);
+  expect(f.errors.some((line) => line.includes("FCM unavailable"))).toBe(true);
   expect(f.deps.createAnnouncement).toHaveBeenCalledTimes(1);
   expect(f.deps.dispatch).toHaveBeenCalledTimes(1);
 });
@@ -546,6 +629,7 @@ test("items on different channels get separate announcements", async () => {
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 3,
     cancelled: 0,
+    failed: 0,
     sent: 3,
   });
 
@@ -562,12 +646,14 @@ test("items on different channels get separate announcements", async () => {
 test("a channel whose announcement cannot be created does not block the others", async () => {
   const f = fake();
   const createAnnouncement = f.deps.createAnnouncement;
-  f.deps.createAnnouncement = mock(async (columns: AutoAnnouncementColumns) => {
-    if (columns.audience_value === "events_oslo") {
-      throw new Error("write refused");
+  f.deps.createAnnouncement = mock(
+    async (id: string, columns: AutoAnnouncementColumns) => {
+      if (columns.audience_value === "events_oslo") {
+        throw new Error("write refused");
+      }
+      return await createAnnouncement(id, columns);
     }
-    return await createAnnouncement(columns);
-  });
+  );
   f.setContent("event", eventRow("oslo", { campus_id: "1" }));
   f.setContent("event", eventRow("bergen", { campus_id: "2" }));
   await handleContentChange(f.deps, "event", "oslo", at(0));
@@ -576,6 +662,7 @@ test("a channel whose announcement cannot be created does not block the others",
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 1,
     cancelled: 0,
+    failed: 1,
     sent: 1,
   });
 
@@ -586,7 +673,7 @@ test("a channel whose announcement cannot be created does not block the others",
   expect(lockOf(f, "event", "bergen")?.status).toBe(
     ContentNotificationsStatus.SENT
   );
-  expect(f.logs.some((line) => line.includes("write refused"))).toBe(true);
+  expect(f.errors.some((line) => line.includes("write refused"))).toBe(true);
   expect(f.deps.dispatch).toHaveBeenCalledTimes(1);
 });
 
@@ -625,7 +712,7 @@ test("notify off racing a dispatch never cancels or reopens the sent lock", asyn
   expect(raced).toBe(true);
   expect(f.deps.dispatch).toHaveBeenCalledTimes(1);
   expect(lockOf(f, "event", "e1")).toMatchObject({
-    announcement_id: "ann_1",
+    announcement_id: announcementIdFor(["event_e1"]),
     status: "sent",
   });
 });
@@ -669,6 +756,7 @@ test("a lock that went out stays final even after a stale write changed its stat
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 0,
     cancelled: 0,
+    failed: 0,
     sent: 0,
   });
 
@@ -694,6 +782,7 @@ test("a due item whose campus changed since its lock was written goes to its new
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 2,
     cancelled: 0,
+    failed: 0,
     sent: 2,
   });
 
@@ -734,6 +823,7 @@ test("an item whose re-check fails stays pending and does not block the others",
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 1,
     cancelled: 0,
+    failed: 1,
     sent: 1,
   });
 
@@ -744,7 +834,7 @@ test("an item whose re-check fails stays pending and does not block the others",
     ContentNotificationsStatus.SENT
   );
   expect(f.announcements.map((c) => c.content_id)).toEqual(["e2"]);
-  expect(f.logs.some((line) => line.includes("upstream timeout"))).toBe(true);
+  expect(f.errors.some((line) => line.includes("upstream timeout"))).toBe(true);
 });
 
 test("a lock reopened after listing waits for its new due time", async () => {
@@ -764,10 +854,170 @@ test("a lock reopened after listing waits for its new due time", async () => {
   expect(await dispatchDue(f.deps, at(5))).toEqual({
     announcements: 0,
     cancelled: 0,
+    failed: 0,
     sent: 0,
   });
   expect(f.deps.dispatch).not.toHaveBeenCalled();
   expect(lockOf(f, "event", "e1")?.status).toBe(
     ContentNotificationsStatus.PENDING
   );
+});
+
+test("a group whose locks cannot be marked sent pushes nothing and names its announcement", async () => {
+  const f = fake();
+  f.setContent("event", eventRow("e1"));
+  await handleContentChange(f.deps, "event", "e1", at(0));
+  const writeLock = f.deps.updateLock;
+  f.deps.updateLock = mock((lockId: string, data: LockPatch) =>
+    data.status === ContentNotificationsStatus.SENT
+      ? Promise.reject(new Error("lock write refused"))
+      : writeLock(lockId, data)
+  );
+  const announcementId = announcementIdFor(["event_e1"]);
+
+  expect(await dispatchDue(f.deps, at(5))).toEqual({
+    announcements: 0,
+    cancelled: 0,
+    failed: 1,
+    sent: 0,
+  });
+  expect(f.deps.dispatch).not.toHaveBeenCalled();
+  expect(lockOf(f, "event", "e1")?.status).toBe(
+    ContentNotificationsStatus.PENDING
+  );
+  expect(
+    f.errors.some(
+      (line) =>
+        line.includes(announcementId) && line.includes("lock write refused")
+    )
+  ).toBe(true);
+
+  // The next run meets the recorded announcement: it marks the lock sent and
+  // still pushes nothing, so the item skips once and never goes out twice.
+  f.deps.updateLock = writeLock;
+  expect(await dispatchDue(f.deps, at(10))).toEqual({
+    announcements: 0,
+    cancelled: 0,
+    failed: 0,
+    sent: 1,
+  });
+  expect(f.deps.dispatch).not.toHaveBeenCalled();
+  expect(lockOf(f, "event", "e1")).toMatchObject({
+    announcement_id: announcementId,
+    status: "sent",
+  });
+});
+
+test("a group's announcement id is auto_ plus the sha256 of its sorted lock ids", async () => {
+  const f = fake();
+  f.setContent("event", eventRow("e2"));
+  f.setContent("event", eventRow("e1"));
+  await handleContentChange(f.deps, "event", "e2", at(0));
+  await handleContentChange(f.deps, "event", "e1", at(0));
+
+  await dispatchDue(f.deps, at(5));
+
+  const hash = createHash("sha256").update("event_e1,event_e2").digest("hex");
+  const expected = `auto_${hash.slice(0, 31)}`;
+  expect(expected).toHaveLength(36);
+  expect(announcementIdFor(["event_e2", "event_e1"])).toBe(expected);
+  expect(f.deps.createAnnouncement).toHaveBeenCalledTimes(1);
+  expect(f.deps.createAnnouncement).toHaveBeenCalledWith(
+    expected,
+    expect.objectContaining({ content_ids: ["e2", "e1"] })
+  );
+  expect(lockOf(f, "event", "e1")?.announcement_id).toBe(expected);
+});
+
+test("a second dispatch of the same group marks its locks sent with the existing announcement and does not push", async () => {
+  const f = fake();
+  f.setContent("event", eventRow("e1"));
+  f.setContent("event", eventRow("e2"));
+  await handleContentChange(f.deps, "event", "e1", at(0));
+  await handleContentChange(f.deps, "event", "e2", at(0));
+  // Another dispatch already recorded this group (and pushes it itself).
+  const announcementId = announcementIdFor(["event_e1", "event_e2"]);
+  f.announcementRows.set(announcementId, {
+    $id: announcementId,
+  } as unknown as Announcements);
+
+  expect(await dispatchDue(f.deps, at(5))).toEqual({
+    announcements: 0,
+    cancelled: 0,
+    failed: 0,
+    sent: 2,
+  });
+
+  expect(f.calls).toContain("createAnnouncement:exists");
+  expect(f.deps.dispatch).not.toHaveBeenCalled();
+  for (const id of ["e1", "e2"]) {
+    expect(lockOf(f, "event", id)).toMatchObject({
+      announcement_id: announcementId,
+      sent_at: iso(5),
+      status: "sent",
+    });
+  }
+});
+
+test("a lock that comes due just before the night waits for the morning", async () => {
+  const f = fake();
+  // 21:58 and 22:03 in Oslo (CEST, UTC+2), and 08:00 the next Oslo day.
+  const dueAt = "2026-10-21T19:58:00.000Z";
+  const morning = "2026-10-22T06:00:00.000Z";
+  f.setContent("event", eventRow("e1"));
+  f.locks.set(
+    "event_e1",
+    lockRow("event_e1", {
+      campus_id: "1",
+      channel: "events_oslo",
+      content_id: "e1",
+      content_type: "event",
+      due_at: dueAt,
+    })
+  );
+
+  expect(
+    await dispatchDue(f.deps, new Date("2026-10-21T20:03:00.000Z"))
+  ).toEqual({ announcements: 0, cancelled: 0, failed: 0, sent: 0 });
+
+  expect(f.deps.createAnnouncement).not.toHaveBeenCalled();
+  expect(f.deps.dispatch).not.toHaveBeenCalled();
+  expect(lockOf(f, "event", "e1")).toMatchObject({
+    due_at: morning,
+    status: "pending",
+  });
+
+  expect((await dispatchDue(f.deps, new Date(morning))).sent).toBe(1);
+  expect(f.deps.dispatch).toHaveBeenCalledTimes(1);
+});
+
+test("an item without a title goes out under its slug, and one with neither is left out", async () => {
+  const f = fake();
+  const readTranslations = f.deps.getTranslations;
+  f.deps.getTranslations = mock((type: NotifyContentType, id: string) =>
+    id === "e1" ? readTranslations(type, id) : Promise.resolve([])
+  );
+  f.setContent("event", eventRow("e1"));
+  f.setContent("event", eventRow("e2", { slug: "autumn-party" }));
+  f.setContent("event", eventRow("e3", { slug: null }));
+  for (const id of ["e1", "e2", "e3"]) {
+    await handleContentChange(f.deps, "event", id, at(0));
+  }
+
+  expect(await dispatchDue(f.deps, at(5))).toEqual({
+    announcements: 1,
+    cancelled: 1,
+    failed: 0,
+    sent: 2,
+  });
+
+  expect(f.announcements[0]).toMatchObject({
+    body_en: "Title e1 · autumn-party",
+    content_ids: ["e1", "e2"],
+  });
+  expect(lockOf(f, "event", "e3")).toMatchObject({
+    reason: "no title",
+    status: "cancelled",
+  });
+  expect(f.logs.some((line) => line.includes("event_e3"))).toBe(true);
 });

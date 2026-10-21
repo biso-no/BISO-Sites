@@ -22,6 +22,7 @@ export interface HandlerInput {
 }
 
 const OK_STATUS = 200;
+const FAILED_STATUS = 500;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -88,5 +89,9 @@ export async function handleRequest(
   }
   const result = await dispatchDue(deps, now);
   deps.log(`dispatched ${JSON.stringify(result)}`);
-  return { body: result, status: OK_STATUS };
+  // A failure answers 500 so scheduled-dispatch reports the ping as failed.
+  return {
+    body: result,
+    status: result.failed > 0 ? FAILED_STATUS : OK_STATUS,
+  };
 }

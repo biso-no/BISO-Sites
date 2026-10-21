@@ -1,4 +1,5 @@
 import { expect, mock, test } from "bun:test";
+import type { ContentNotifications } from "@repo/api/types/appwrite";
 import { handleRequest, readEventBody } from "./handler";
 import type { NotifierDeps } from "./run";
 
@@ -10,6 +11,7 @@ function deps(): NotifierDeps {
     createLock: mock(() => Promise.resolve("created" as const)),
     delayMinutes: 3,
     dispatch: mock(() => Promise.resolve()),
+    error: mock(() => undefined),
     getContent: mock(() => Promise.resolve(null)),
     getLock: mock(() => Promise.resolve(null)),
     getTranslations: mock(() => Promise.resolve([])),
@@ -50,8 +52,43 @@ test("an empty-body http ping with the secret reaches dispatch", async () => {
     secret: SECRET,
   });
   expect(result.status).toBe(200);
-  expect(result.body).toEqual({ announcements: 0, cancelled: 0, sent: 0 });
+  expect(result.body).toEqual({
+    announcements: 0,
+    cancelled: 0,
+    failed: 0,
+    sent: 0,
+  });
   expect(d.listDueLocks).toHaveBeenCalledTimes(1);
+});
+
+test("a dispatch pass with failures answers 500 with its counts", async () => {
+  const d = deps();
+  d.listDueLocks = mock(() =>
+    Promise.resolve([
+      {
+        $id: "event_e1",
+        content_id: "e1",
+        content_type: "event",
+        due_at: "2026-10-21T09:55:00.000Z",
+        status: "pending",
+      } as unknown as ContentNotifications,
+    ])
+  );
+  d.getContent = mock(() => Promise.reject(new Error("upstream timeout")));
+
+  const result = await handleRequest({
+    deps: d,
+    isDispatchRunning: () => Promise.resolve(false),
+    now: NOW,
+    req: { headers: { "x-appwrite-trigger": "schedule" } },
+    secret: undefined,
+  });
+
+  expect(result).toEqual({
+    body: { announcements: 0, cancelled: 0, failed: 1, sent: 0 },
+    status: 500,
+  });
+  expect(d.error).toHaveBeenCalledTimes(1);
 });
 
 test("a schedule run reaches dispatch", async () => {

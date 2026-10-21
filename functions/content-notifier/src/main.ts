@@ -11,11 +11,14 @@
  * `{ ok: true, skipped: "already-running" }`) when it can see another dispatch
  * execution in flight; Appwrite persists sync/domain executions only after
  * they finish, so the guard mostly catches scheduled runs. The real protection
- * is that domain executions are capped at ~30s against a 5-minute ping, and
- * that locks are marked sent before the push (at most once on any failure).
+ * is that the function timeout (120s) is far below the 5-minute ping, that
+ * locks are marked sent before the push (at most once on any failure), and
+ * that a group's announcement id is derived from its locks, so a second
+ * dispatch of the same group collides (409) instead of pushing again. A pass
+ * with failures answers 500 with its counts.
  */
 
-import { ID, type Models, Query } from "@repo/api";
+import { type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type {
   Announcements,
@@ -74,16 +77,38 @@ function resolveDelayMinutes(): number {
 
 type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
-function buildDeps(client: AdminClient, log: LogFn): NotifierDeps {
+function buildDeps(
+  client: AdminClient,
+  log: LogFn,
+  logError: LogFn
+): NotifierDeps {
   const { db, messaging } = client;
   return {
-    createAnnouncement: (columns) =>
-      db.createRow({
-        data: columns as unknown as Omit<Announcements, keyof Models.Row>,
-        databaseId: DB,
-        rowId: ID.unique(),
-        tableId: ANNOUNCEMENT_TABLE,
-      }) as unknown as ReturnType<NotifierDeps["createAnnouncement"]>,
+    createAnnouncement: async (id, columns) => {
+      try {
+        const announcement = await db.createRow({
+          data: columns as unknown as Omit<Announcements, keyof Models.Row>,
+          databaseId: DB,
+          rowId: id,
+          tableId: ANNOUNCEMENT_TABLE,
+        });
+        return {
+          announcement: announcement as unknown as Announcements,
+          created: true,
+        };
+      } catch (error) {
+        if (errorCode(error) !== HTTP_CONFLICT) {
+          throw error;
+        }
+        // Another dispatch already recorded this group under the same id.
+        const existing = await db.getRow<Announcements>({
+          databaseId: DB,
+          rowId: id,
+          tableId: ANNOUNCEMENT_TABLE,
+        });
+        return { announcement: existing, created: false };
+      }
+    },
     createLock: async (lockId, data) => {
       try {
         await db.createRow({
@@ -104,6 +129,7 @@ function buildDeps(client: AdminClient, log: LogFn): NotifierDeps {
     dispatch: async (announcement) => {
       await dispatchAnnouncement(announcement, { db, messaging });
     },
+    error: (message) => logError(`${LOG_TAG} ${message}`),
     getContent: async (type: NotifyContentType, id) => {
       try {
         return (await db.getRow({
@@ -198,7 +224,7 @@ export default async function main(context: AppwriteContext) {
   try {
     const client = await createAdminClient();
     const result = await handleRequest({
-      deps: buildDeps(client, log),
+      deps: buildDeps(client, log, error),
       isDispatchRunning: (selfId) =>
         anotherDispatchRunning(client, selfId, new Date()),
       now: new Date(),
@@ -207,7 +233,7 @@ export default async function main(context: AppwriteContext) {
     });
     if (result.status >= HTTP_BAD_REQUEST) {
       error(
-        `${LOG_TAG} rejected (${result.status}): ${JSON.stringify(result.body)}`
+        `${LOG_TAG} answered ${result.status}: ${JSON.stringify(result.body)}`
       );
     }
     return res.json(result.body, result.status);
