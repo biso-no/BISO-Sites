@@ -114,3 +114,27 @@ test("an unknown trigger is rejected with 400", () => {
     status: 400,
   });
 });
+
+test("legacy databases events classify like tablesdb ones", () => {
+  expect(
+    classifyTrigger(event("databases.app.tables.news.rows.n1.update"), SECRET)
+  ).toEqual({ id: "n1", kind: "content", type: "news" });
+  expect(
+    classifyTrigger(
+      event("databases.app.collections.events.documents.e1.create"),
+      SECRET
+    )
+  ).toEqual({ id: "e1", kind: "content", type: "event" });
+  expect(
+    classifyTrigger(
+      event("databases.app.collections.campus.documents.c1.update"),
+      SECRET
+    )
+  ).toMatchObject({ kind: "reject", status: 400 });
+  expect(
+    classifyTrigger(
+      event("tablesdb.app.collections.news.documents.n1.update"),
+      SECRET
+    )
+  ).toMatchObject({ kind: "reject", status: 400 });
+});

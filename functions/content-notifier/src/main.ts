@@ -7,7 +7,12 @@
  *    (`content_notifications`) in step with the content.
  *  - A schedule or secret-guarded HTTP ping (from scheduled-dispatch): send
  *    every lock that has come due.
- * Only one dispatch pass runs at a time; a second one answers 409 and exits.
+ * Dispatch passes should not overlap. A best-effort guard skips (200,
+ * `{ ok: true, skipped: "already-running" }`) when it can see another dispatch
+ * execution in flight; Appwrite persists sync/domain executions only after
+ * they finish, so the guard mostly catches scheduled runs. The real protection
+ * is that domain executions are capped at ~30s against a 5-minute ping, and
+ * that locks are marked sent before the push (at most once on any failure).
  */
 
 import { ID, type Models, Query } from "@repo/api";
@@ -22,20 +27,11 @@ import {
   NOTIFY_DEFAULT_DELAY_MINUTES,
   type NotifyContentType,
 } from "@repo/shared/utils/content-notifications";
-import {
-  SKIPPED_STATUS_CODE,
-  STALE_EXECUTION_MS,
-} from "@repo/shared/utils/member-roster-sync";
 import { dispatchAnnouncement } from "@repo/shared/utils/push-dispatch";
-import { isAnotherDispatchRunning } from "./overlap";
-import {
-  dispatchDue,
-  handleContentChange,
-  type NotifierDeps,
-  type TranslationRow,
-} from "./run";
+import { handleRequest } from "./handler";
+import { isAnotherDispatchRunning, STALE_EXECUTION_MS } from "./overlap";
+import type { NotifierDeps, TranslationRow } from "./run";
 import { adoptRuntimeApiKey } from "./runtime-key";
-import { classifyTrigger } from "./trigger";
 
 const DB = "app";
 const LOCK_TABLE = "content_notifications";
@@ -45,6 +41,8 @@ const TRANSLATION_LIMIT = 10;
 const EXECUTION_LIMIT = 25;
 const HTTP_CONFLICT = 409;
 const HTTP_NOT_FOUND = 404;
+const HTTP_BAD_REQUEST = 400;
+const HTTP_SERVER_ERROR = 500;
 const LOG_TAG = "[content-notifier]";
 
 type LogFn = (...messages: unknown[]) => void;
@@ -54,6 +52,7 @@ interface AppwriteContext {
   log: LogFn;
   req: {
     bodyJson?: unknown;
+    bodyText?: string;
     headers?: Record<string, string | undefined>;
     method?: string;
   };
@@ -66,12 +65,6 @@ function errorCode(error: unknown): number | undefined {
     return typeof code === "number" ? code : undefined;
   }
   return;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function resolveDelayMinutes(): number {
@@ -187,6 +180,7 @@ async function anotherDispatchRunning(
   const list = await client.functions.listExecutions({
     functionId,
     queries: [
+      Query.equal("trigger", ["http", "schedule"]),
       Query.equal("status", ["waiting", "processing"]),
       Query.greaterThan(
         "$createdAt",
@@ -202,47 +196,24 @@ export default async function main(context: AppwriteContext) {
   const { req, res, log, error } = context;
   adoptRuntimeApiKey(req.headers);
   try {
-    const headers = req.headers ?? {};
-    const trigger = classifyTrigger(
-      headers,
-      process.env.CRON_SECRET,
-      asRecord(req.bodyJson)
-    );
-    if (trigger.kind === "reject") {
-      error(`${LOG_TAG} rejected (${trigger.status}): ${trigger.reason}`);
-      return res.json({ error: trigger.reason, ok: false }, trigger.status);
-    }
-
     const client = await createAdminClient();
-    const deps = buildDeps(client, log);
-    const now = new Date();
-
-    if (trigger.kind === "content") {
-      const result = await handleContentChange(
-        deps,
-        trigger.type,
-        trigger.id,
-        now
+    const result = await handleRequest({
+      deps: buildDeps(client, log),
+      isDispatchRunning: (selfId) =>
+        anotherDispatchRunning(client, selfId, new Date()),
+      now: new Date(),
+      req,
+      secret: process.env.CRON_SECRET,
+    });
+    if (result.status >= HTTP_BAD_REQUEST) {
+      error(
+        `${LOG_TAG} rejected (${result.status}): ${JSON.stringify(result.body)}`
       );
-      log(`${LOG_TAG} ${trigger.type} ${trigger.id}: ${result}`);
-      return res.json({ result });
     }
-
-    const busy = await anotherDispatchRunning(
-      client,
-      headers["x-appwrite-execution-id"],
-      now
-    );
-    if (busy) {
-      log(`${LOG_TAG} another dispatch is running; skipping`);
-      return res.json({ skipped: true }, SKIPPED_STATUS_CODE);
-    }
-    const result = await dispatchDue(deps, now);
-    log(`${LOG_TAG} dispatched ${JSON.stringify(result)}`);
-    return res.json(result);
+    return res.json(result.body, result.status);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     error(`${LOG_TAG} failed: ${message}`);
-    return res.json({ error: message, ok: false }, 500);
+    return res.json({ error: message, ok: false }, HTTP_SERVER_ERROR);
   }
 }

@@ -1,4 +1,5 @@
-import { STALE_EXECUTION_MS } from "@repo/shared/utils/member-roster-sync";
+/** An execution older than this is treated as stuck, not running. */
+export const STALE_EXECUTION_MS = 15 * 60 * 1000;
 
 /** The execution fields the overlap guard reads. */
 export interface ExecutionSummary {

@@ -49,12 +49,17 @@ function classifyEvent(
 ): Trigger {
   const parts = eventName?.split(".") ?? [];
   const [root, , tablesKey, headerTable, rowsKey, headerId, action] = parts;
-  if (
-    parts.length !== EVENT_PARTS ||
-    root !== "tablesdb" ||
-    tablesKey !== "tables" ||
-    rowsKey !== "rows"
-  ) {
+  // `tablesdb` databases emit tables/rows; legacy ones emit the same shape
+  // under `databases`, or collections/documents.
+  const knownShape =
+    (root === "tablesdb" || root === "databases") &&
+    tablesKey === "tables" &&
+    rowsKey === "rows";
+  const legacyShape =
+    root === "databases" &&
+    tablesKey === "collections" &&
+    rowsKey === "documents";
+  if (parts.length !== EVENT_PARTS || !(knownShape || legacyShape)) {
     return reject(
       HTTP_BAD_REQUEST,
       `Unsupported event: ${eventName ?? "none"}`

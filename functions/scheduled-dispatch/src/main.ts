@@ -27,7 +27,7 @@
  *   CRON_SECRET                 shared secret sent to (and checked by) the endpoints
  * Optional:
  *   CONTENT_NOTIFIER_URL        the content-notifier function's domain, e.g.
- *                               https://content-notifier.biso.no (120s timeout)
+ *                               https://content-notifier.biso.no
  *   ANNOUNCEMENTS_DISPATCH_URL  e.g. https://admin.biso.no/api/announcements/dispatch
  *   TICKSTER_SYNC_URL           e.g. https://api.biso.no/api/tickster/sync
  *   TICKSTER_EVENTS_SYNC_URL    e.g. https://api.biso.no/api/tickster/events/sync
@@ -85,7 +85,6 @@ type TargetName = (typeof TARGET_ENV_VARS)[number];
  * per-target timeout.
  */
 const TARGET_TIMEOUT_DEFAULTS: Partial<Record<TargetName, number>> = {
-  CONTENT_NOTIFIER_URL: 120_000,
   EXPENSES_POST_PENDING_URL: 300_000,
   ORDERS_RECONCILE_URL: 300_000,
 };

@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
-import { STALE_EXECUTION_MS } from "@repo/shared/utils/member-roster-sync";
-import { type ExecutionSummary, isAnotherDispatchRunning } from "./overlap";
+import {
+  type ExecutionSummary,
+  isAnotherDispatchRunning,
+  STALE_EXECUTION_MS,
+} from "./overlap";
 
 const NOW = new Date("2026-10-21T10:00:00.000Z");
 

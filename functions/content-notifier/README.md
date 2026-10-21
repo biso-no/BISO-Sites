@@ -21,18 +21,22 @@ Two kinds of execution reach this one function:
 ### Single-runner assumption
 
 The dispatch pass has no claim step, so two passes at once could push the same
-item twice. The design relies on exactly one dispatcher:
+item twice. The design relies on one dispatcher:
 
 - `scheduled-dispatch` pings this function every 5 minutes
-  (`CONTENT_NOTIFIER_URL`) and this function's timeout is 120s, so a healthy
-  pass always ends before the next ping.
-- An overlap guard backs that up. Before dispatching, the function lists its
-  own executions; if another `http` or `schedule` execution is `waiting` or
-  `processing` (created within the last 15 minutes), it answers
-  `409 {"skipped": true}` and does nothing. Event executions never block a
-  dispatch pass. The current execution is identified by the
-  `x-appwrite-execution-id` header; without it the function counts itself and
-  skips when more than one dispatch execution is running.
+  (`CONTENT_NOTIFIER_URL`). Appwrite caps a domain (sync) execution at about
+  30s, far below the 5-minute interval, so pings do not pile up. Function
+  timeout can stay 120s.
+- Locks are marked `sent` before the push, so any failure or crash sends at
+  most once, never twice.
+- A best-effort overlap guard lists this function's `http`/`schedule`
+  executions that are `waiting` or `processing` (created within 15 minutes)
+  and, if another exists, answers `200 {"ok":true,"skipped":"already-running"}`
+  without dispatching. Appwrite stores sync/domain executions only after they
+  finish, so it cannot see an in-flight HTTP ping; it mainly covers scheduled
+  runs. Event executions never block a pass. The current execution is
+  identified by `x-appwrite-execution-id`; without it the function counts
+  itself and skips when more than one dispatch execution is running.
 - Appwrite event executions and HTTP pings both target this one function. Do
   not add a second schedule or a second copy of the function.
 
@@ -54,6 +58,11 @@ item twice. The design relies on exactly one dispatcher:
   - `tablesdb.app.tables.news.rows.*.update`
   - `tablesdb.app.tables.jobs.rows.*.create`
   - `tablesdb.app.tables.jobs.rows.*.update`
+
+  Deploy check: edit a news row and confirm a non-400 `event` execution
+  appears. If none fires, the database is legacy-type: subscribe to
+  `databases.app.tables.{events,news,jobs}.rows.*.{create,update}` instead
+  (the function accepts both forms, and `collections`/`documents` too).
 - Execute access: `any`. This is needed for the HTTP ping through the
   function's domain; the ping must carry `CRON_SECRET` (`x-cron-secret` or
   `Authorization: Bearer`), otherwise it answers 401.

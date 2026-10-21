@@ -10,7 +10,7 @@ It currently drives:
 
 | Endpoint env var | What it does | Where |
 |---|---|---|
-| `CONTENT_NOTIFIER_URL` (optional) | sends the automatic push for events, news and jobs that have gone live (120s default timeout; pinged first) | `functions/content-notifier` (its own domain) |
+| `CONTENT_NOTIFIER_URL` (optional) | sends the automatic push for events, news and jobs that have gone live (pinged first) | `functions/content-notifier` (its own domain) |
 | `ANNOUNCEMENTS_DISPATCH_URL` | sends scheduled announcements whose time has passed | `apps/admin` → `POST /api/announcements/dispatch` |
 | `TICKSTER_SYNC_URL` (optional) | pulls Tickster purchasers into `event_attendees` | `apps/api` → `POST /api/tickster/sync` |
 | `TICKSTER_EVENTS_SYNC_URL` (optional) | mirrors published Tickster events into the `events` table | `apps/api` → `POST /api/tickster/events/sync` |
@@ -36,9 +36,9 @@ Set these on the function in the Appwrite console (**Settings → Variables**) �
   header, and also required on HTTP/domain triggers (see Security below).
 - `ANNOUNCEMENTS_DISPATCH_URL` — full URL to the admin dispatch route.
 - `CONTENT_NOTIFIER_URL` — optional; the content-notifier function's domain.
-  Its per-request timeout defaults to 120s, so keep this function's own
-  `timeout` above that. A ping that lands while another dispatch is still
-  running answers 409 `{"skipped":true}`, which shows as a `FAIL` line here.
+  It uses the default per-request timeout (`CRON_TIMEOUT_MS`, 30s), which
+  matches Appwrite's cap on domain executions. A ping that lands while another
+  dispatch is running answers 200 `{"ok":true,"skipped":"already-running"}`.
 - `TICKSTER_SYNC_URL`, `DEPARTURES_SYNC_URL`, `RESERVATIONS_CLEANUP_URL`,
   `ORDERS_RECONCILE_URL`, `TURNOVER_RETENTION_STOP_URL`,
   `JOBS_PUBLISH_SCHEDULED_URL`, `MEMBER_PASS_CLEANUP_URL`,
