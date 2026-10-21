@@ -212,7 +212,7 @@ Rules the tests don't fully determine:
     - `"Karrieredagene Bergen – to dager med inspirerende foredrag og messedag"` vs `"Karrieredagene"` (containment 1)
     - `"Gratis bedriftspresentasjoner på campus"` vs `"Bedriftspresentasjoner"`
     - `"Arbeidslivsspesifikke kurs og workshops"` vs `"Arbeidslivsrettede kurs"` (dice 0.4)
-  - neither: `"Gratis bedriftspresentasjoner på campus"` vs `"Gratis synsundersøkelse hos Okkult"`; `"Styrker studentstemmen din i politikken"` vs `"Winter Games"`.
+  - neither (a capitalised first word never anchors): `"Bli med i undergrupper og utvalg"` vs `"Bli med på Winter Games på Storefjell med BI-studenter fra hele landet"`; `"Styrker studentstemmen din i politikken"` vs `"Winter Games"`.
   - `suggestPartnerName`:
     - `"25 % hos Peppes Pizza Nydalen"` → `"Peppes Pizza Nydalen"`
     - `"20 % rabatt på alle briller (ordinær pris) og gratis synsprøve hos Okkult"` → `"Okkult"`
