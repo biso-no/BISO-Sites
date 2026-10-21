@@ -23,13 +23,13 @@ import {
 import type { SegmentFormValues } from "../../../../_actions/schemas";
 import { PortalButton } from "../../../../_components/portal-button";
 import {
+  buttonStyle,
   STUDIO,
   StudioCard,
   StudioPageHeader,
   StudioPanel,
 } from "../../../../_components/studio";
 import { AttendeePanel } from "./attendee-panel";
-import { MessageComposer } from "./message-composer";
 import { SegmentForm } from "./segment-form";
 import type { SegmentFormState, SegmentWithCount } from "./types";
 
@@ -91,7 +91,6 @@ export function SegmentsStudio({
   const [, startTransition] = useTransition();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [messagingId, setMessagingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const refresh = () => startTransition(() => router.refresh());
@@ -128,10 +127,6 @@ export function SegmentsStudio({
     setConfirmDeleteId(null);
     refresh();
   };
-
-  const messagingSegment = segments.find(
-    (segment) => segment.$id === messagingId
-  );
 
   return (
     <div>
@@ -185,13 +180,15 @@ export function SegmentsStudio({
             confirmingDelete={confirmDeleteId === segment.$id}
             editing={editingId === segment.$id}
             key={segment.$id}
+            messageHref={
+              canMessage ? `/communications/new?group=${segment.$id}` : null
+            }
             onCancelEdit={() => setEditingId(null)}
             onDelete={() => handleDelete(segment.$id)}
             onEdit={() => {
               setEditingId(segment.$id);
               setCreating(false);
             }}
-            onMessage={canMessage ? () => setMessagingId(segment.$id) : null}
             onRequestDelete={() => setConfirmDeleteId(segment.$id)}
             onUpdate={(state) => handleUpdate(segment.$id, state)}
             segment={segment}
@@ -221,23 +218,6 @@ export function SegmentsStudio({
           segments={segments}
         />
       </StudioPanel>
-
-      {canMessage && messagingSegment && (
-        <Modal
-          onClose={() => setMessagingId(null)}
-          title={`Message ${messagingSegment.name}`}
-        >
-          <MessageComposer
-            onClose={() => setMessagingId(null)}
-            onSent={() => {
-              setMessagingId(null);
-              refresh();
-            }}
-            segmentId={messagingSegment.$id}
-            segmentName={messagingSegment.name}
-          />
-        </Modal>
-      )}
     </div>
   );
 }
@@ -245,11 +225,11 @@ export function SegmentsStudio({
 interface SegmentCardProps {
   confirmingDelete: boolean;
   editing: boolean;
+  /** Null when the viewer may not message segments. */
+  messageHref: string | null;
   onCancelEdit: () => void;
   onDelete: () => void;
   onEdit: () => void;
-  /** Null when the viewer may not message segments. */
-  onMessage: (() => void) | null;
   onRequestDelete: () => void;
   onUpdate: (state: SegmentFormState) => Promise<void>;
   segment: SegmentWithCount;
@@ -261,7 +241,7 @@ function SegmentCard({
   onCancelEdit,
   onDelete,
   onEdit,
-  onMessage,
+  messageHref,
   onRequestDelete,
   onUpdate,
   segment,
@@ -318,10 +298,14 @@ function SegmentCard({
       <SegmentMeta meta={meta} />
 
       <div className="flex items-center gap-2 pt-1">
-        {onMessage && (
-          <PortalButton onClick={onMessage} size="sm" variant="secondary">
+        {messageHref && (
+          <Link
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-xs transition-all"
+            href={messageHref}
+            style={buttonStyle("secondary")}
+          >
             <MessageSquare size={13} /> Message
-          </PortalButton>
+          </Link>
         )}
         <PortalButton
           aria-label="Edit segment"
@@ -383,38 +367,6 @@ function SegmentMeta({
           {meta.notes}
         </p>
       )}
-    </div>
-  );
-}
-
-function Modal({
-  children,
-  onClose,
-  title,
-}: {
-  children: React.ReactNode;
-  onClose: () => void;
-  title: string;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(26,24,20,0.32)" }}
-    >
-      <StudioCard
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-6"
-        style={{ background: STUDIO.paper }}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-medium text-base" style={{ color: STUDIO.ink }}>
-            {title}
-          </h2>
-          <PortalButton aria-label="Close" onClick={onClose} variant="ghost">
-            Close
-          </PortalButton>
-        </div>
-        {children}
-      </StudioCard>
     </div>
   );
 }

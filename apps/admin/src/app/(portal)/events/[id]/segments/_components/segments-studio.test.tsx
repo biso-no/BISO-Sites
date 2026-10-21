@@ -110,23 +110,25 @@ async function mount(canMessage: boolean): Promise<TestElement> {
   return container;
 }
 
-function messageButtons(container: TestElement): TestElement[] {
+function messageLinks(container: TestElement): TestElement[] {
   return findElements(
     container,
     (element) =>
-      element.tagName === "BUTTON" && element.textContent.trim() === "Message"
+      element.tagName === "A" && element.textContent.trim() === "Message"
   );
 }
 
 describe("messaging a segment", () => {
-  test("campus and national admins can message a segment", async () => {
+  test("campus and national admins get a link into the composer", async () => {
     const container = await mount(true);
-    expect(messageButtons(container)).toHaveLength(1);
+    const links = messageLinks(container);
+    expect(links).toHaveLength(1);
+    expect(links[0]?.getAttribute("href")).toBe("/communications/new?group=s1");
   });
 
   test("department members cannot", async () => {
     const container = await mount(false);
-    expect(messageButtons(container)).toHaveLength(0);
+    expect(messageLinks(container)).toHaveLength(0);
     expect(container.textContent).toContain("Bus 2");
   });
 });

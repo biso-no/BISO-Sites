@@ -118,7 +118,7 @@ mock.module("@/lib/announcements/send", () => ({
 const { createEvent, getEvent, publishEvent, updateEvent } = await import(
   "./events"
 );
-const { createSegment, messageSegment } = await import("./event-segments");
+const { createSegment } = await import("./event-segments");
 
 function mockEventRow(event: Record<string, unknown> | null): void {
   db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
@@ -363,71 +363,6 @@ describe("event segment authorization", () => {
 
     expect(result).toEqual({ error: "Event not found" });
     expect(db.createRow).not.toHaveBeenCalled();
-  });
-});
-
-describe("messageSegment", () => {
-  const content = {
-    body_en: "Body",
-    category: "general" as const,
-    push: true,
-    title_en: "Title",
-  };
-
-  function mockSegmentRows(): void {
-    db.listRows.mockImplementation((_d: string, tableId: string) => {
-      if (tableId === "event_segments") {
-        return {
-          rows: [
-            { $id: "seg-1", campus_id: "campus-oslo", event_id: "event-1" },
-          ],
-          total: 1,
-        };
-      }
-      if (tableId === "events") {
-        return {
-          rows: [
-            {
-              $id: "event-1",
-              campus: { $id: "campus-oslo" },
-              campus_id: "campus-oslo",
-            },
-          ],
-          total: 1,
-        };
-      }
-      return { rows: [], total: 0 };
-    });
-  }
-
-  test("department members can't message a segment", async () => {
-    mockSegmentRows();
-
-    const result = await messageSegment("seg-1", content);
-
-    expect(result).toEqual({
-      error: "Only campus and national admins can send notifications.",
-    });
-    expect(db.createRow).not.toHaveBeenCalled();
-  });
-
-  test("writes the campus relationship next to campus_id", async () => {
-    currentCtx = makeCtx({
-      managedCampusIds: ["campus-oslo"],
-      resolvedCampusIds: ["campus-oslo"],
-      roles: ["campusadmin"],
-    });
-    mockSegmentRows();
-
-    await messageSegment("seg-1", content);
-
-    const row = db.createRow.mock.calls.find(
-      (call: unknown[]) => call[1] === "announcements"
-    )?.[3];
-    expect(row).toMatchObject({
-      campus: "campus-oslo",
-      campus_id: "campus-oslo",
-    });
   });
 });
 

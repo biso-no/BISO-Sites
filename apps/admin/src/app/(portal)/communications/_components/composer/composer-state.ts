@@ -30,6 +30,50 @@ export function initialComposerStep(
   return param === "check" ? CHECK_STEP : 0;
 }
 
+const GROUP_ID_PATTERN = /^[A-Za-z0-9_-]{1,36}$/;
+
+/** The `?group=` value when it looks like a row id; anything else is ignored. */
+export function groupIdFromParam(
+  param: string | string[] | undefined
+): string | null {
+  return typeof param === "string" && GROUP_ID_PATTERN.test(param)
+    ? param
+    : null;
+}
+
+/** The message step: where a group's "Message" link opens the composer. */
+export const MESSAGE_STEP: ComposerStepIndex = 1;
+
+/** The event group a composer opens for, as the page resolved it. */
+export interface ComposerGroup {
+  /** The group's own campus, else its event's. */
+  campusId: string | null;
+  eventCampusId: string | null;
+  eventId: string;
+  groupId: string;
+}
+
+/**
+ * A new composer for one event group: a trip linked to the group's event and
+ * aimed at the group. Title and body stay empty, since a bus message is not
+ * the event description.
+ */
+export function initialValuesForGroup(
+  values: ComposerValues,
+  groupId: string,
+  group: Pick<ComposerGroup, "campusId" | "eventCampusId" | "eventId">
+): ComposerValues {
+  return {
+    ...values,
+    audience_type: "segment",
+    audience_value: groupId,
+    campus_id: group.campusId ?? group.eventCampusId ?? null,
+    category: "trip",
+    content_id: group.eventId,
+    content_type: "event",
+  };
+}
+
 /** The form values already carry `content_type` and `content_id`. */
 export type ComposerValues = AnnouncementFormValues;
 

@@ -32,9 +32,11 @@ import { DescriptionBlockEditor } from "../../_components/description-block-edit
 import { CheckStep } from "./composer/check-step";
 import {
   COMPOSER_STEPS,
+  type ComposerGroup,
   type ComposerStepIndex,
   canContinue,
   clearDepartmentOnCampusChange,
+  initialValuesForGroup,
   TYPE_CARDS,
 } from "./composer/composer-state";
 import {
@@ -87,6 +89,8 @@ interface AnnouncementStudioEditorProps {
   announcement: Announcements | null;
   campuses: CampusOption[];
   defaultCampusId: string;
+  /** The event group a new composer opens for (from the group's Message link). */
+  group?: ComposerGroup | null;
   /** The step to open on; the history list's "Review & send" opens Check & send. */
   initialStep?: StepIndex;
   isGlobalAdmin: boolean;
@@ -1097,6 +1101,7 @@ export function AnnouncementStudioEditor({
   announcement,
   campuses,
   defaultCampusId,
+  group = null,
   initialStep = 0,
   isGlobalAdmin,
   isNew,
@@ -1108,9 +1113,16 @@ export function AnnouncementStudioEditor({
   const [step, setStep] = useState<StepIndex>(initialStep);
   const [locale, setLocale] = useState<LocaleCode>("no");
   const [previewLocale, setPreviewLocale] = useState<LocaleCode>("en");
-  const [values, setValues] = useState<AnnouncementFormValues>(() =>
-    buildInitialValues(announcement, defaultCampusId, pinnedDepartmentId)
-  );
+  const [values, setValues] = useState<AnnouncementFormValues>(() => {
+    const initial = buildInitialValues(
+      announcement,
+      defaultCampusId,
+      pinnedDepartmentId
+    );
+    return group && isNew
+      ? initialValuesForGroup(initial, group.groupId, group)
+      : initial;
+  });
   const [dirty, setDirty] = useState(false);
   const [link, setLink] = useState<LinkState>(buildLinkState);
   const storedLink = useMemo(
@@ -1125,10 +1137,11 @@ export function AnnouncementStudioEditor({
   // saved draft already carries a non-default one.
   const [audienceTouched, setAudienceTouched] = useState(
     () =>
-      announcement !== null &&
-      (announcement.audience_type !== "broadcast" ||
-        Boolean(announcement.audience_value) ||
-        (announcement.campus_id ?? "") !== defaultCampusId)
+      Boolean(group && isNew) ||
+      (announcement !== null &&
+        (announcement.audience_type !== "broadcast" ||
+          Boolean(announcement.audience_value) ||
+          (announcement.campus_id ?? "") !== defaultCampusId))
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);

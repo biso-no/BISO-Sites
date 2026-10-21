@@ -2,39 +2,20 @@
 
 import { ID, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, type createSessionClient } from "@repo/api/server";
-import {
-  type Announcements,
-  AnnouncementsAudienceType,
-  AnnouncementsContentType,
-  AnnouncementsSource,
-  AnnouncementsStatus,
-  type EventAttendees,
-  type EventSegments,
-  type Events,
-  type SegmentMembers,
-  type Users,
+import type {
+  EventAttendees,
+  EventSegments,
+  Events,
+  SegmentMembers,
+  Users,
 } from "@repo/api/types/appwrite";
-import type { AnnouncementWriteInput } from "@repo/api/types/inputs";
-import { createTypedRow } from "@repo/api/write";
 import { revalidatePath } from "next/cache";
-import {
-  AUDIENCE_FORBIDDEN_MESSAGE,
-  canSendNotifications,
-  isAudienceAllowed,
-  SEND_FORBIDDEN_MESSAGE,
-} from "@/lib/announcements/audience-policy";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { getContentOwnership } from "@/lib/content-authorization";
 import { withNationalEventScope } from "@/lib/event-scope";
 import { assertWriteAccess, hasRowAccess } from "@/lib/utils/authorization";
-import { sendAnnouncement } from "./announcements";
 import { logAuditEvent } from "./audit-log";
-import {
-  type MessageSegmentValues,
-  messageSegmentSchema,
-  type SegmentFormValues,
-  segmentSchema,
-} from "./schemas";
+import { type SegmentFormValues, segmentSchema } from "./schemas";
 
 const EMAIL_PATTERN = /@/;
 const CSV_LINE_SPLIT = /\r?\n/;
@@ -837,99 +818,4 @@ async function listAttendeesForEvent(
   }
 
   return rows;
-}
-
-// ---------------------------------------------------------------------------
-// Message a segment
-// ---------------------------------------------------------------------------
-
-export async function messageSegment(
-  segmentId: string,
-  content: MessageSegmentValues
-) {
-  const authCtx = await requireAuth();
-  const ctx = withNationalEventScope(authCtx);
-  if (!canSendNotifications(ctx.roles)) {
-    return { error: SEND_FORBIDDEN_MESSAGE };
-  }
-  const validated = messageSegmentSchema.safeParse(content);
-  if (!validated.success) {
-    return { error: validated.error.flatten().fieldErrors };
-  }
-
-  try {
-    const { db } = await createAdminClient();
-    const segment = await loadSegment(db, segmentId);
-    if (!segment) {
-      return { error: "Segment not found" };
-    }
-    const event = await loadScopedEvent(db, ctx, segment.event_id ?? "");
-    if (!event) {
-      return { error: "Event not found" };
-    }
-    assertEventScopeAccess(ctx, event);
-
-    // announcements are service-key-only to create (so app users can't forge
-    // them); author via the admin client after the access check above.
-    const { db: adminDb } = await createAdminClient();
-    const eventId = segment.event_id ?? null;
-    const segmentCampusId = segment.campus_id ?? event.campus_id ?? null;
-    if (
-      !isAudienceAllowed(authCtx, {
-        audienceType: "segment",
-        campusId: segmentCampusId,
-        segmentCampusId,
-      })
-    ) {
-      return { error: AUDIENCE_FORBIDDEN_MESSAGE };
-    }
-    const announcement = await createTypedRow<
-      Announcements,
-      AnnouncementWriteInput
-    >(adminDb, "app", "announcements", ID.unique(), {
-      status: AnnouncementsStatus.DRAFT,
-      category: validated.data.category,
-      audience_type: AnnouncementsAudienceType.SEGMENT,
-      audience_value: segmentId,
-      title_en: validated.data.title_en,
-      title_no: validated.data.title_no ?? null,
-      body_en: validated.data.body_en ?? null,
-      body_no: validated.data.body_no ?? null,
-      event_id: eventId,
-      campus_id: segmentCampusId,
-      campus: segmentCampusId,
-      push: validated.data.push,
-      deep_link: eventId ? `biso://event?id=${eventId}` : null,
-      source: AnnouncementsSource.MANUAL,
-      content_type: eventId ? AnnouncementsContentType.EVENT : null,
-      content_id: eventId,
-      content_ids: null,
-      items: null,
-      image: null,
-      data: null,
-      scheduled_at: null,
-      sent_at: null,
-      created_by: ctx.userId,
-    });
-
-    await logAuditEvent(ctx, "event_segment.message", {
-      resourceId: segmentId,
-      resourceType: "event_segment",
-      payload: { announcement_id: announcement.$id },
-    });
-
-    // Flow through the single announcement delivery path.
-    const sent = await sendAnnouncement(announcement.$id);
-    if ("error" in sent && sent.error) {
-      return { error: sent.error as string };
-    }
-
-    revalidatePath(`/events/${segment.event_id}/segments`);
-    return { data: { announcement_id: announcement.$id } };
-  } catch (error) {
-    return {
-      error:
-        error instanceof Error ? error.message : "Failed to message segment",
-    };
-  }
 }

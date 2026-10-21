@@ -6,7 +6,9 @@ import {
   type ComposerValues,
   canContinue,
   clearDepartmentOnCampusChange,
+  groupIdFromParam,
   initialComposerStep,
+  initialValuesForGroup,
   type PrefillSnapshot,
   TYPE_CARDS,
   topicForType,
@@ -209,5 +211,47 @@ describe("clearDepartmentOnCampusChange", () => {
         department_id: "dept-2",
       }).department_id
     ).toBe("dept-2");
+  });
+});
+
+describe("opening the composer for an event group", () => {
+  const group = { campusId: "2", eventCampusId: "3", eventId: "e1" };
+
+  test("prefills a trip linked to the event, aimed at the group", () => {
+    const values = initialValuesForGroup(base, "seg-1", group);
+    expect(values).toMatchObject({
+      audience_type: "segment",
+      audience_value: "seg-1",
+      campus_id: "2",
+      category: "trip",
+      content_id: "e1",
+      content_type: "event",
+    });
+  });
+
+  test("leaves title and body empty", () => {
+    const values = initialValuesForGroup(base, "seg-1", group);
+    expect(values.title_en).toBe("");
+    expect(values.title_no).toBeNull();
+    expect(values.body_en).toBeNull();
+  });
+
+  test("takes the event campus when the group has none", () => {
+    const values = initialValuesForGroup(base, "seg-1", {
+      ...group,
+      campusId: null,
+    });
+    expect(values.campus_id).toBe("3");
+  });
+
+  test("only id-like group params are used", () => {
+    expect(groupIdFromParam("abc123")).toBe("abc123");
+    expect(groupIdFromParam("seg_1-x")).toBe("seg_1-x");
+    expect(groupIdFromParam(["a", "b"])).toBeNull();
+    expect(groupIdFromParam("")).toBeNull();
+    expect(groupIdFromParam(undefined)).toBeNull();
+    expect(groupIdFromParam("a b")).toBeNull();
+    expect(groupIdFromParam("../x")).toBeNull();
+    expect(groupIdFromParam("a".repeat(37))).toBeNull();
   });
 });

@@ -1,13 +1,21 @@
 import { notFound } from "next/navigation";
 import { requireNavAccess } from "@/lib/authorization";
 import { getAnnouncement } from "../../_actions/announcements";
+import { getGroupById } from "../../_actions/composer";
 import { listCampuses } from "../../_actions/lookups";
 import { AnnouncementStudioEditor } from "../_components/announcement-studio-editor";
-import { initialComposerStep } from "../_components/composer/composer-state";
+import {
+  groupIdFromParam,
+  initialComposerStep,
+  MESSAGE_STEP,
+} from "../_components/composer/composer-state";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ step?: string | string[] }>;
+  searchParams: Promise<{
+    group?: string | string[];
+    step?: string | string[];
+  }>;
 }
 
 export default async function AnnouncementEditorPage({
@@ -16,13 +24,26 @@ export default async function AnnouncementEditorPage({
 }: Props) {
   const ctx = await requireNavAccess("portal.communications");
   const { id } = await params;
-  const { step } = await searchParams;
+  const { group: groupParam, step } = await searchParams;
   const isNew = id === "new";
 
-  const [announcement, campuses] = await Promise.all([
+  // The event page's group "Message" link opens a new composer for that group.
+  // A group outside the caller's scope resolves to null: the normal composer.
+  const groupId = isNew ? groupIdFromParam(groupParam) : null;
+
+  const [announcement, campuses, groupDetails] = await Promise.all([
     isNew ? null : getAnnouncement(id),
     listCampuses(),
+    groupId ? getGroupById(groupId) : null,
   ]);
+  const group = groupDetails
+    ? {
+        campusId: groupDetails.campusId,
+        eventCampusId: groupDetails.eventCampusId,
+        eventId: groupDetails.eventId,
+        groupId: groupDetails.groupId,
+      }
+    : null;
 
   if (!(isNew || announcement)) {
     notFound();
@@ -65,7 +86,8 @@ export default async function AnnouncementEditorPage({
         name: campus.name,
       }))}
       defaultCampusId={defaultCampusId}
-      initialStep={initialComposerStep(step)}
+      group={group}
+      initialStep={group ? MESSAGE_STEP : initialComposerStep(step)}
       isGlobalAdmin={isGlobalAdmin}
       isNew={isNew}
       lockDepartment={Boolean(pinnedDepartmentId)}
