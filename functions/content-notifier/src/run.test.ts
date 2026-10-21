@@ -589,3 +589,160 @@ test("a channel whose announcement cannot be created does not block the others",
   expect(f.logs.some((line) => line.includes("write refused"))).toBe(true);
   expect(f.deps.dispatch).toHaveBeenCalledTimes(1);
 });
+
+test("notify off racing a dispatch never cancels or reopens the sent lock", async () => {
+  const f = fake();
+  f.setContent("event", eventRow("e1"));
+  await handleContentChange(f.deps, "event", "e1", at(0));
+
+  // The editor turns notify off. The event for that save reads the lock while
+  // it is still pending; meanwhile a dispatch that re-checked the item just
+  // before the save marks the lock sent and pushes.
+  const readLock = f.deps.getLock;
+  let raced = false;
+  f.deps.getLock = mock(async (lockId: string) => {
+    const snapshot = await readLock(lockId);
+    if (!raced) {
+      raced = true;
+      f.setContent("event", eventRow("e1"));
+      await dispatchDue(f.deps, at(5));
+      f.setContent("event", eventRow("e1", { notify_push: false }));
+    }
+    return snapshot;
+  });
+  f.setContent("event", eventRow("e1", { notify_push: false }));
+  expect(await handleContentChange(f.deps, "event", "e1", at(5))).toBe(
+    "unchanged"
+  );
+
+  // Notify back on later: nothing reopens and nothing is pushed again.
+  f.setContent("event", eventRow("e1"));
+  expect(await handleContentChange(f.deps, "event", "e1", at(6))).toBe(
+    "unchanged"
+  );
+  await dispatchDue(f.deps, at(20));
+
+  expect(raced).toBe(true);
+  expect(f.deps.dispatch).toHaveBeenCalledTimes(1);
+  expect(lockOf(f, "event", "e1")).toMatchObject({
+    announcement_id: "ann_1",
+    status: "sent",
+  });
+});
+
+test("a lock that went out stays final even after a stale write changed its status", async () => {
+  const f = fake();
+  // A stale cancel landed on a sent lock, and a stale reopen on another one;
+  // the announcement id survives both because updates are partial.
+  f.locks.set(
+    "event_cancelled",
+    lockRow("event_cancelled", {
+      announcement_id: "ann_old",
+      campus_id: "1",
+      channel: "events_oslo",
+      content_id: "cancelled",
+      content_type: "event",
+      reason: "notify off",
+      sent_at: iso(-10),
+      status: ContentNotificationsStatus.CANCELLED,
+    })
+  );
+  f.locks.set(
+    "event_reopened",
+    lockRow("event_reopened", {
+      announcement_id: "ann_old",
+      campus_id: "1",
+      channel: "events_oslo",
+      content_id: "reopened",
+      content_type: "event",
+      due_at: iso(3),
+      sent_at: iso(-10),
+      status: ContentNotificationsStatus.PENDING,
+    })
+  );
+  f.setContent("event", eventRow("cancelled"));
+  f.setContent("event", eventRow("reopened"));
+
+  expect(await handleContentChange(f.deps, "event", "cancelled", at(0))).toBe(
+    "unchanged"
+  );
+  expect(await dispatchDue(f.deps, at(5))).toEqual({
+    announcements: 0,
+    cancelled: 0,
+    sent: 0,
+  });
+
+  expect(f.deps.createAnnouncement).not.toHaveBeenCalled();
+  expect(f.deps.dispatch).not.toHaveBeenCalled();
+  for (const id of ["cancelled", "reopened"]) {
+    expect(lockOf(f, "event", id)).toMatchObject({
+      announcement_id: "ann_old",
+      status: "sent",
+    });
+  }
+});
+
+test("a due item whose campus changed since its lock was written goes to its new campus", async () => {
+  const f = fake();
+  f.setContent("event", eventRow("b1", { campus_id: "2" }));
+  f.setContent("event", eventRow("b2", { campus_id: "2" }));
+  await handleContentChange(f.deps, "event", "b1", at(0));
+  await handleContentChange(f.deps, "event", "b2", at(0));
+  // Moved to Oslo; the row event has not been processed yet.
+  f.setContent("event", eventRow("b2", { campus_id: "1" }));
+
+  expect(await dispatchDue(f.deps, at(5))).toEqual({
+    announcements: 2,
+    cancelled: 0,
+    sent: 2,
+  });
+
+  expect(
+    f.announcements
+      .map((c) => [c.audience_value, c.campus_id, c.content_id])
+      .sort()
+  ).toEqual([
+    ["events_bergen", "2", "b1"],
+    ["events_oslo", "1", "b2"],
+  ]);
+  expect(lockOf(f, "event", "b2")).toMatchObject({
+    campus_id: "1",
+    channel: "events_oslo",
+    status: "sent",
+  });
+  expect(lockOf(f, "event", "b1")).toMatchObject({
+    campus_id: "2",
+    channel: "events_bergen",
+    status: "sent",
+  });
+});
+
+test("an item whose re-check fails stays pending and does not block the others", async () => {
+  const f = fake();
+  f.setContent("event", eventRow("e1"));
+  f.setContent("event", eventRow("e2"));
+  await handleContentChange(f.deps, "event", "e1", at(0));
+  await handleContentChange(f.deps, "event", "e2", at(1));
+
+  const readContent = f.deps.getContent;
+  f.deps.getContent = mock((type: NotifyContentType, id: string) =>
+    id === "e1"
+      ? Promise.reject(new Error("upstream timeout"))
+      : readContent(type, id)
+  );
+
+  expect(await dispatchDue(f.deps, at(5))).toEqual({
+    announcements: 1,
+    cancelled: 0,
+    sent: 1,
+  });
+
+  expect(lockOf(f, "event", "e1")?.status).toBe(
+    ContentNotificationsStatus.PENDING
+  );
+  expect(lockOf(f, "event", "e2")?.status).toBe(
+    ContentNotificationsStatus.SENT
+  );
+  expect(f.announcements.map((c) => c.content_id)).toEqual(["e2"]);
+  expect(f.logs.some((line) => line.includes("upstream timeout"))).toBe(true);
+});

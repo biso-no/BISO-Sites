@@ -9,7 +9,9 @@
  *            ineligible  │  │ eligible again (new due time)
  *                        ▼  │
  *                      cancelled
- * `sent` and `skipped` are final.
+ * `sent` and `skipped` are final, and so is any lock carrying an
+ * `announcement_id`/`sent_at`: updates are partial, so those survive a stale
+ * write that changed the status. Every status write re-reads the lock first.
  */
 
 import {
@@ -100,13 +102,21 @@ export interface DispatchResult {
 }
 
 /** Where a content row says its lock should be, as of one event. */
-interface LockTarget {
-  campusId: string | null;
-  channel: string;
-  /** Computed only when a lock (re)opens, so re-saves keep the due time. */
-  dueAt: () => string;
-  eligibility: Eligibility;
-}
+type LockTarget =
+  | { eligible: false; reason: string }
+  | {
+      campusId: string | null;
+      channel: string;
+      /** Computed only when a lock (re)opens, so re-saves keep the due time. */
+      dueAt: () => string;
+      eligible: true;
+    };
+
+/** What the dispatch re-check decided for one due lock. */
+type DueCheck =
+  | { kind: "cancelled" }
+  | { item: NotifyItem; kind: "send" }
+  | { kind: "skipped" };
 
 interface DueItem {
   item: NotifyItem;
@@ -121,20 +131,73 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function cancelIfPending(
+/** The lock was marked sent at some point, whatever its status says now. */
+function wasSent(lock: ContentNotifications): boolean {
+  return Boolean(lock.announcement_id || lock.sent_at);
+}
+
+function isFinal(lock: ContentNotifications): boolean {
+  return (
+    wasSent(lock) ||
+    lock.status === ContentNotificationsStatus.SENT ||
+    lock.status === ContentNotificationsStatus.SKIPPED
+  );
+}
+
+/** Put `sent` back on a lock that went out but was overwritten by a stale write. */
+async function restoreSent(
+  deps: NotifierDeps,
+  lock: ContentNotifications
+): Promise<void> {
+  if (!wasSent(lock) || lock.status === ContentNotificationsStatus.SENT) {
+    return;
+  }
+  deps.log(
+    `Lock ${lock.$id} went out but reads ${lock.status}; restoring sent`
+  );
+  await deps.updateLock(lock.$id, { status: ContentNotificationsStatus.SENT });
+}
+
+/**
+ * Write only if the lock still has the status the decision was based on, so
+ * an older read never overwrites a newer state (such as `sent`).
+ */
+async function updateIfStill(
   deps: NotifierDeps,
   lockId: string,
-  lock: ContentNotifications,
-  reason: string
-): Promise<ContentChangeResult> {
-  if (lock.status !== ContentNotificationsStatus.PENDING) {
-    return "unchanged";
+  expected: ContentNotificationsStatus,
+  data: LockPatch
+): Promise<boolean> {
+  const current = await deps.getLock(lockId);
+  if (!current || current.status !== expected || isFinal(current)) {
+    return false;
   }
-  await deps.updateLock(lockId, {
-    reason,
-    status: ContentNotificationsStatus.CANCELLED,
-  });
-  return "cancelled";
+  await deps.updateLock(lockId, data);
+  return true;
+}
+
+function targetFor(
+  deps: NotifierDeps,
+  type: NotifyContentType,
+  row: Record<string, unknown>,
+  now: Date
+): LockTarget {
+  const eligibility = eligibilityFor(type, row, now);
+  if (!eligibility.ok) {
+    return { eligible: false, reason: eligibility.reason };
+  }
+  const campusId = stringOrNull(row.campus_id);
+  return {
+    campusId,
+    channel: channelFor(type, campusId),
+    dueAt: () =>
+      dueAtFor({
+        delayMinutes: deps.delayMinutes,
+        now,
+        scheduledPublishAt: stringOrNull(row.scheduled_publish_at),
+      }).toISOString(),
+    eligible: true,
+  };
 }
 
 /** Apply the state machine to an existing lock. */
@@ -144,15 +207,24 @@ async function advanceLock(
   lock: ContentNotifications,
   target: LockTarget
 ): Promise<ContentChangeResult> {
-  const { eligibility } = target;
+  if (isFinal(lock)) {
+    await restoreSent(deps, lock);
+    return "unchanged";
+  }
 
   if (lock.status === ContentNotificationsStatus.PENDING) {
-    if (!eligibility.ok) {
-      return await cancelIfPending(deps, lockId, lock, eligibility.reason);
+    if (!target.eligible) {
+      const cancelled = await updateIfStill(
+        deps,
+        lockId,
+        ContentNotificationsStatus.PENDING,
+        { reason: target.reason, status: ContentNotificationsStatus.CANCELLED }
+      );
+      return cancelled ? "cancelled" : "unchanged";
     }
     // Moved to another campus: follow it, but keep the original due time.
     if (lock.channel !== target.channel || lock.campus_id !== target.campusId) {
-      await deps.updateLock(lockId, {
+      await updateIfStill(deps, lockId, ContentNotificationsStatus.PENDING, {
         campus_id: target.campusId,
         channel: target.channel,
       });
@@ -160,18 +232,23 @@ async function advanceLock(
     return "unchanged";
   }
 
-  if (lock.status === ContentNotificationsStatus.CANCELLED && eligibility.ok) {
-    await deps.updateLock(lockId, {
-      campus_id: target.campusId,
-      channel: target.channel,
-      due_at: target.dueAt(),
-      reason: null,
-      status: ContentNotificationsStatus.PENDING,
-    });
-    return "reopened";
+  if (lock.status === ContentNotificationsStatus.CANCELLED && target.eligible) {
+    const reopened = await updateIfStill(
+      deps,
+      lockId,
+      ContentNotificationsStatus.CANCELLED,
+      {
+        campus_id: target.campusId,
+        channel: target.channel,
+        due_at: target.dueAt(),
+        reason: null,
+        status: ContentNotificationsStatus.PENDING,
+      }
+    );
+    return reopened ? "reopened" : "unchanged";
   }
 
-  // `sent` and `skipped` are final; `cancelled` stays put while ineligible.
+  // A cancelled lock stays put while the item is ineligible.
   return "unchanged";
 }
 
@@ -190,30 +267,14 @@ export async function handleContentChange(
     deps.getContent(type, contentId),
     deps.getLock(lockId),
   ]);
-
-  if (!row) {
-    return lock
-      ? await cancelIfPending(deps, lockId, lock, DELETED_REASON)
-      : "unchanged";
-  }
-
-  const campusId = stringOrNull(row.campus_id);
-  const target: LockTarget = {
-    campusId,
-    channel: channelFor(type, campusId),
-    dueAt: () =>
-      dueAtFor({
-        delayMinutes: deps.delayMinutes,
-        now,
-        scheduledPublishAt: stringOrNull(row.scheduled_publish_at),
-      }).toISOString(),
-    eligibility: eligibilityFor(type, row, now),
-  };
+  const target: LockTarget = row
+    ? targetFor(deps, type, row, now)
+    : { eligible: false, reason: DELETED_REASON };
 
   if (lock) {
     return await advanceLock(deps, lockId, lock, target);
   }
-  if (!target.eligibility.ok) {
+  if (!target.eligible) {
     return "unchanged";
   }
 
@@ -238,28 +299,42 @@ export async function handleContentChange(
   return await advanceLock(deps, lockId, existing, target);
 }
 
-/** Re-fetch a due item; cancel its lock and return null when it may not go out. */
+/** Re-fetch a due item and decide whether it may still go out. */
 async function recheckDue(
   deps: NotifierDeps,
   lock: ContentNotifications,
   now: Date
-): Promise<NotifyItem | null> {
+): Promise<DueCheck> {
   const type: NotifyContentType = lock.content_type;
   const row = await deps.getContent(type, lock.content_id);
   const eligibility: Eligibility = row
     ? eligibilityFor(type, row, now)
     : { ok: false, reason: DELETED_REASON };
 
+  // Re-read right before deciding: an event may have moved the lock since it
+  // was listed, or a stale write may have put a sent lock back to pending.
+  const current = await deps.getLock(lock.$id);
+  if (
+    !current ||
+    current.status !== ContentNotificationsStatus.PENDING ||
+    isFinal(current)
+  ) {
+    if (current) {
+      await restoreSent(deps, current);
+    }
+    return { kind: "skipped" };
+  }
+
   if (!(row && eligibility.ok)) {
     await deps.updateLock(lock.$id, {
       reason: eligibility.ok ? DELETED_REASON : eligibility.reason,
       status: ContentNotificationsStatus.CANCELLED,
     });
-    return null;
+    return { kind: "cancelled" };
   }
 
   const translations = await deps.getTranslations(type, lock.content_id);
-  return toNotifyItem(type, row, translations);
+  return { item: toNotifyItem(type, row, translations), kind: "send" };
 }
 
 /**
@@ -281,10 +356,13 @@ async function sendGroup(
       )
     );
     // Mark sent before the push: a crash after this skips once, never twice.
+    // The channel and campus are the ones the push actually went to.
     const sentAt = now.toISOString();
-    for (const { lockId } of entries) {
+    for (const { item, lockId } of entries) {
       await deps.updateLock(lockId, {
         announcement_id: announcement.$id,
+        campus_id: item.campusId,
+        channel: item.channel,
         sent_at: sentAt,
         status: ContentNotificationsStatus.SENT,
       });
@@ -307,6 +385,37 @@ async function sendGroup(
 }
 
 /**
+ * Re-check every due lock and group the items that may go out by the channel
+ * their current row maps to. A failing re-check leaves only that lock pending.
+ */
+async function collectDue(
+  deps: NotifierDeps,
+  now: Date,
+  result: DispatchResult
+): Promise<Map<string, DueItem[]>> {
+  const groups = new Map<string, DueItem[]>();
+  for (const lock of await deps.listDueLocks(now, DUE_PAGE_SIZE)) {
+    let check: DueCheck;
+    try {
+      check = await recheckDue(deps, lock, now);
+    } catch (error) {
+      deps.log(
+        `Could not re-check lock ${lock.$id}; it stays pending: ${errorMessage(error)}`
+      );
+      continue;
+    }
+    if (check.kind === "cancelled") {
+      result.cancelled += 1;
+    } else if (check.kind === "send") {
+      const group = groups.get(check.item.channel) ?? [];
+      group.push({ item: check.item, lockId: lock.$id });
+      groups.set(check.item.channel, group);
+    }
+  }
+  return groups;
+}
+
+/**
  * Send every due pending lock. Items still eligible are grouped by channel;
  * two or more on one channel become a single grouped notification.
  */
@@ -315,18 +424,7 @@ export async function dispatchDue(
   now: Date
 ): Promise<DispatchResult> {
   const result: DispatchResult = { announcements: 0, cancelled: 0, sent: 0 };
-  const groups = new Map<string, DueItem[]>();
-
-  for (const lock of await deps.listDueLocks(now, DUE_PAGE_SIZE)) {
-    const item = await recheckDue(deps, lock, now);
-    if (!item) {
-      result.cancelled += 1;
-      continue;
-    }
-    const group = groups.get(lock.channel) ?? [];
-    group.push({ item, lockId: lock.$id });
-    groups.set(lock.channel, group);
-  }
+  const groups = await collectDue(deps, now, result);
 
   for (const [channel, entries] of groups) {
     if (await sendGroup(deps, channel, entries, now)) {
