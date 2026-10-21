@@ -99,10 +99,26 @@ describe("resolveLinkedContent", () => {
 
   test("a legacy event_id links as an event", () => {
     expect(normalizeLink({ event_id: "e1" })).toEqual({
-      type: "event",
-      id: "e1",
+      ok: true,
+      link: { type: "event", id: "e1" },
     });
-    expect(normalizeLink({})).toBeNull();
+    expect(normalizeLink({})).toEqual({ ok: true, link: null });
+  });
+
+  test("a half-filled pair is an error", () => {
+    const error = { ok: false, error: "Pick the content to link." };
+    expect(normalizeLink({ content_type: "news", content_id: "" })).toEqual(
+      error
+    );
+    expect(normalizeLink({ content_type: null, content_id: "n1" })).toEqual(
+      error
+    );
+  });
+
+  test("explicit nulls unlink even with a stale event_id", () => {
+    expect(
+      normalizeLink({ content_type: null, content_id: null, event_id: "e1" })
+    ).toEqual({ ok: true, link: null });
   });
 
   test("unlinking clears all six columns", async () => {

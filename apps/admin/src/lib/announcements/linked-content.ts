@@ -54,22 +54,53 @@ interface LinkValues {
   event_id?: string | null;
 }
 
-/** Reads the link from the form values; a legacy `event_id` links an event. */
+export const INCOMPLETE_LINK_MESSAGE = "Pick the content to link.";
+
+export type LinkSelection = { type: LinkedContentType; id: string } | null;
+
+/**
+ * Reads the link from the form values. A legacy `event_id` links an event
+ * only when `content_type` and `content_id` are both absent (undefined); an
+ * explicit null clears the link. A half-filled pair is an error.
+ */
 export function normalizeLink(
   values: LinkValues
-): { type: LinkedContentType; id: string } | null {
-  if (values.content_type && values.content_id) {
-    return { type: values.content_type, id: values.content_id };
+): { ok: true; link: LinkSelection } | { ok: false; error: string } {
+  const { content_type: type, content_id: id } = values;
+  if (type && id) {
+    return { ok: true, link: { type, id } };
   }
-  if (!values.content_type && values.event_id) {
-    return { type: "event", id: values.event_id };
+  if (type || id) {
+    return { ok: false, error: INCOMPLETE_LINK_MESSAGE };
+  }
+  if (type === undefined && id === undefined && values.event_id) {
+    return { ok: true, link: { type: "event", id: values.event_id } };
+  }
+  return { ok: true, link: null };
+}
+
+/** The link a stored announcement row carries (legacy `event_id` counts). */
+export function storedLink(row: {
+  content_id?: string | null;
+  content_type?: string | null;
+  event_id?: string | null;
+}): LinkSelection {
+  if (row.content_type && row.content_id) {
+    return { type: row.content_type as LinkedContentType, id: row.content_id };
+  }
+  if (!row.content_type && row.event_id) {
+    return { type: "event", id: row.event_id };
   }
   return null;
 }
 
+export function sameLink(a: LinkSelection, b: LinkSelection): boolean {
+  return a?.type === b?.type && a?.id === b?.id;
+}
+
 export async function resolveLinkedContent(
   db: LinkDb,
-  link: { type: LinkedContentType; id: string } | null
+  link: LinkSelection
 ): Promise<LinkedContentResult> {
   if (!link) {
     return { ok: true, columns: { ...EMPTY_COLUMNS } };

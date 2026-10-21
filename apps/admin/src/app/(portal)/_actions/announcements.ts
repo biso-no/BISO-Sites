@@ -18,6 +18,8 @@ import {
   type LinkedColumns,
   normalizeLink,
   resolveLinkedContent,
+  sameLink,
+  storedLink,
 } from "@/lib/announcements/linked-content";
 import { resolveSegmentCampus } from "@/lib/announcements/segment-scope";
 import {
@@ -454,7 +456,7 @@ async function assertAudienceAllowed(
 function buildAnnouncementColumns(
   values: AnnouncementFormValues,
   audienceValue: string | null,
-  linked: LinkedColumns
+  linked: LinkedColumns | null
 ): Record<string, unknown> {
   return {
     title_en: values.title_en,
@@ -465,7 +467,7 @@ function buildAnnouncementColumns(
     audience_type: values.audience_type,
     audience_value: audienceValue,
     // Linked content (event, news or job), resolved and checked server-side.
-    ...linked,
+    ...(linked ?? {}),
     // Canonical ownership relationships; the scalar column remains as
     // migration-era compatibility metadata only.
     campus: values.campus_id || null,
@@ -474,6 +476,29 @@ function buildAnnouncementColumns(
     push: values.push,
     scheduled_at: values.scheduled_at || null,
   };
+}
+
+/**
+ * Resolve the link on an update. Only a changed link is re-checked; an
+ * unchanged one keeps its stored columns (null), so edits aren't blocked if
+ * the content was unpublished later.
+ */
+async function resolveLinkChange(
+  db: AnnouncementAdminClient["db"],
+  values: AnnouncementFormValues,
+  stored: Announcements
+): Promise<
+  { ok: true; columns: LinkedColumns | null } | { ok: false; error: string }
+> {
+  const selection = normalizeLink(values);
+  if (!selection.ok) {
+    return selection;
+  }
+  if (sameLink(selection.link, storedLink(stored))) {
+    return { ok: true, columns: null };
+  }
+  const linked = await resolveLinkedContent(db, selection.link);
+  return linked.ok ? { ok: true, columns: linked.columns } : linked;
 }
 
 export async function listAnnouncements(opts?: {
@@ -555,10 +580,11 @@ export async function createAnnouncement(
       audienceValue: validated.data.audience_value,
       campusId: validated.data.campus_id || null,
     });
-    const linked = await resolveLinkedContent(
-      db,
-      normalizeLink(validated.data)
-    );
+    const selection = normalizeLink(validated.data);
+    if (!selection.ok) {
+      return { error: selection.error };
+    }
+    const linked = await resolveLinkedContent(db, selection.link);
     if (!linked.ok) {
       return { error: linked.error };
     }
@@ -662,13 +688,15 @@ export async function updateAnnouncement(
       campusId: validated.data.campus_id || null,
     });
 
-    const linked = await resolveLinkedContent(
+    const linkChange = await resolveLinkChange(
       db,
-      normalizeLink(validated.data)
+      validated.data,
+      announcement
     );
-    if (!linked.ok) {
-      return { error: linked.error };
+    if (!linkChange.ok) {
+      return { error: linkChange.error };
     }
+    const linkedColumns = linkChange.columns;
 
     // A sent row is already in students' inboxes. The inbox scopes a topic or
     // broadcast row to its campus, and honours opt-outs, only when
@@ -696,11 +724,7 @@ export async function updateAnnouncement(
       ));
 
     await db.updateRow("app", "announcements", id, {
-      ...buildAnnouncementColumns(
-        validated.data,
-        audienceValue,
-        linked.columns
-      ),
+      ...buildAnnouncementColumns(validated.data, audienceValue, linkedColumns),
       ...(getTranslationPendingToken(announcement.data) ? { data: null } : {}),
     });
 

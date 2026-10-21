@@ -93,9 +93,12 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { createAnnouncement, getAnnouncement, sendAnnouncement } = await import(
-  "./announcements"
-);
+const {
+  createAnnouncement,
+  getAnnouncement,
+  sendAnnouncement,
+  updateAnnouncement,
+} = await import("./announcements");
 
 function mockAnnouncementRow(row: Record<string, unknown> | null): void {
   db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
@@ -198,6 +201,56 @@ describe("announcement ownership persistence", () => {
 
     expect(result).toEqual({ error: "Only published content can be linked." });
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("a half-filled link returns a validation error", async () => {
+    currentCtx = campusAdminCtx;
+    const result = await createAnnouncement({
+      ...departmentValues,
+      content_id: "",
+      content_type: "news",
+    });
+
+    expect(result).toEqual({ error: "Pick the content to link." });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("an unchanged link to now-unpublished content doesn't block an edit", async () => {
+    currentCtx = campusAdminCtx;
+    const stored = {
+      $id: "announcement-1",
+      campus_id: "campus-oslo",
+      content_id: "n1",
+      content_type: "news",
+      status: "draft",
+    };
+    db.listRows.mockImplementation((_d: string, tableId: string) => ({
+      rows:
+        tableId === "announcements"
+          ? [stored]
+          : [{ $id: "n1", status: "draft" }],
+      total: 1,
+    }));
+    const result = await updateAnnouncement("announcement-1", {
+      ...departmentValues,
+      content_id: "n1",
+      content_type: "news",
+      title_en: "New title",
+    });
+
+    expect(result).toEqual({ data: "announcement-1" });
+    const written = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(written.title_en).toBe("New title");
+    for (const key of [
+      "content_type",
+      "content_id",
+      "event_id",
+      "deep_link",
+      "image",
+      "items",
+    ]) {
+      expect(key in written).toBe(false);
+    }
   });
 
   test("an announcement with no event records no content", async () => {
