@@ -18,6 +18,7 @@ export const ROLES = {
   GLOBAL_ADMIN: "globaladmin", // National + OperationsUnit
   CAMPUS_ADMIN: "campusadmin", // Ledelsen{City} + Campus-{City}
   HR: "hr", // Membership in the HR department (normalized team name "hr")
+  BENEFITS_EDITOR: "benefitseditor", // Email allow-list (BENEFITS_EDITOR_EMAILS)
 } as const;
 
 // Pseudo-role for any user with at least one SG-App-Dept-* membership
@@ -60,7 +61,7 @@ export const NAV_ACCESS = {
   benefitsPartners: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   benefitsAnalytics: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   // New admin portal (/admin/*) nav keys.
-  // General publishing surfaces (pages, news, events, shop products, benefits,
+  // General publishing surfaces (pages, news, events, shop products,
   // communications, documents) are open to department members; the data layer
   // scopes them to their own campus + department via ownership relationships.
   "portal.dashboard": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
@@ -78,8 +79,16 @@ export const NAV_ACCESS = {
   // Webshop accounting (sales types, clearing accounts, posting switch) is an
   // organisation-wide finance surface: global and campus admins only.
   "portal.shopAccounting": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  "portal.benefits": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
-  "portal.benefitsPartners": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  "portal.benefits": [
+    ROLES.GLOBAL_ADMIN,
+    ROLES.CAMPUS_ADMIN,
+    ROLES.BENEFITS_EDITOR,
+  ],
+  "portal.benefitsPartners": [
+    ROLES.GLOBAL_ADMIN,
+    ROLES.CAMPUS_ADMIN,
+    ROLES.BENEFITS_EDITOR,
+  ],
   "portal.news": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN, DEPARTMENT_ROLE],
   "portal.communications": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   "portal.activity": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],

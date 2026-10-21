@@ -10,6 +10,10 @@ const globalAdmin = { hasDepartmentMembership: true, roles: ["globaladmin"] };
 const campusAdmin = { hasDepartmentMembership: true, roles: ["campusadmin"] };
 const departmentUser = { hasDepartmentMembership: true, roles: [] };
 const hrUser = { hasDepartmentMembership: true, roles: ["hr"] };
+const benefitsEditor = {
+  hasDepartmentMembership: false,
+  roles: ["benefitseditor"],
+};
 const noAccess = { hasDepartmentMembership: false, roles: [] };
 
 function labels(nodes: ReturnType<typeof filterNavTree>) {
@@ -61,8 +65,14 @@ describe("filterNavTree", () => {
       "pages",
       "news",
       "events",
-      "benefits",
     ]);
+  });
+
+  test("benefits editor sees benefits and lands on it", () => {
+    const nodes = filterNavTree(benefitsEditor);
+    const flat = JSON.stringify(nodes);
+    expect(flat).toContain('"benefits"');
+    expect(getDefaultNavPath(benefitsEditor)).toBe("/benefits");
   });
 
   test("HR user additionally sees jobs", () => {

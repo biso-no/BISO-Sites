@@ -14,6 +14,7 @@ import {
   parseTeamMemberships,
   type TeamParseResult,
 } from "./authorization-team-memberships";
+import { isBenefitEditorEmail } from "./benefit-access";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
@@ -118,6 +119,12 @@ export const getUserAuthContext = cache(
 
       const parsed = parseTeamMemberships(teamMemberships.teams);
       const { roles, managedCampuses } = deriveRoles(parsed);
+      if (
+        isBenefitEditorEmail(user.email) &&
+        !roles.includes(ROLES.BENEFITS_EDITOR)
+      ) {
+        roles.push(ROLES.BENEFITS_EDITOR);
+      }
 
       const managedCampusIds = managedCampuses
         .map((n) => CAMPUS_NAME_TO_ID[n])
@@ -294,7 +301,9 @@ export async function requireAdminAccess(): Promise<UserAuthContext> {
     redirect("/auth/login");
   }
   const hasTeam =
-    ctx.campusTeamIds.length > 0 || ctx.departmentTeamIds.length > 0;
+    ctx.campusTeamIds.length > 0 ||
+    ctx.departmentTeamIds.length > 0 ||
+    ctx.roles.includes(ROLES.BENEFITS_EDITOR);
   if (!hasTeam) {
     unauthorized();
   }

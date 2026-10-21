@@ -6,7 +6,6 @@ const GENERAL_PUBLISHING_KEYS = [
   "portal.news",
   "portal.events",
   "portal.shop",
-  "portal.benefits",
   "portal.documents",
 ] as const;
 
@@ -20,6 +19,18 @@ describe("general publishing navigation", () => {
   test("users without any scope reach nothing", () => {
     for (const key of GENERAL_PUBLISHING_KEYS) {
       expect(hasNavAccess(key, [], false), key).toBe(false);
+    }
+  });
+});
+
+describe("benefits navigation", () => {
+  test("department members do not reach benefits", () => {
+    expect(hasNavAccess("portal.benefits", [], true)).toBe(false);
+  });
+
+  test("benefits editors reach benefits and partners", () => {
+    for (const key of ["portal.benefits", "portal.benefitsPartners"] as const) {
+      expect(hasNavAccess(key, [ROLES.BENEFITS_EDITOR], false), key).toBe(true);
     }
   });
 });
