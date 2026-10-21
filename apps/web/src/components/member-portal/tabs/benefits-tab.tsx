@@ -274,7 +274,7 @@ function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
               transition={{ duration: 0.2, delay: index * 0.05 }}
             >
               <BenefitPreviewCard
-                category={benefit.category}
+                category={benefit.category ?? ""}
                 discountText={benefitHeadline(benefit, locale)}
                 index={index}
                 partnerName={benefit.partner_name || "Partner"}

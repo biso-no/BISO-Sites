@@ -58,7 +58,7 @@ export function BenefitCard({
   const [showConfetti, setShowConfetti] = useState(false);
 
   const Icon = getBenefitIcon(benefit.redemption_type);
-  const categoryStyle = getCategoryColor(benefit.category);
+  const categoryStyle = getCategoryColor(benefit.category ?? "");
 
   const handleReveal = async () => {
     if (revealed || isRevealing) {

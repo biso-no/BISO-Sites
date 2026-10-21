@@ -83,12 +83,12 @@ const getBenefitTranslationSnapshot = (
 ): BenefitTranslationSnapshot =>
   sourceLocale === "no"
     ? {
-        description: benefit.description_nb,
+        description: benefit.description_nb ?? "",
         teaser: benefit.teaser_nb ?? "",
         title: benefit.title_nb,
       }
     : {
-        description: benefit.description_en,
+        description: benefit.description_en ?? "",
         teaser: benefit.teaser_en ?? "",
         title: benefit.title_en,
       };

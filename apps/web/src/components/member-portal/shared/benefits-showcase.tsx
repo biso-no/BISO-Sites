@@ -49,7 +49,7 @@ export function BenefitsShowcase({ benefits }: { benefits: CampusBenefits[] }) {
                 key={benefit.$id || index}
               >
                 <BenefitPreviewCard
-                  category={benefit.category}
+                  category={benefit.category ?? ""}
                   discountText={benefitHeadline(benefit, locale)}
                   index={index}
                   partnerName={benefit.partner_name || "Partner"}
