@@ -10,44 +10,98 @@ import {
   type RecruitmentVacancyUpsertInput,
   recruitmentVacancyUpsertSchema,
 } from "@repo/shared/types/recruitment";
+import {
+  BENEFIT_CATEGORIES,
+  BENEFIT_SECTIONS,
+  CAMPUS_IDS,
+  NATIONAL_CAMPUS_ID,
+} from "@repo/shared/utils/benefit-catalog";
 import { DOCUMENT_VERSION_PATTERN } from "@repo/shared/utils/document-version";
 import { z } from "zod";
 import { hasRichContent } from "@/lib/plate-content";
 
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const HTTPS_URL_REGEX = /^https:\/\/\S+$/i;
+
+const optionalText = (max: number) => z.string().max(max).optional().nullable();
+const optionalDate = z
+  .string()
+  .regex(DATE_ONLY_REGEX, "Use the format YYYY-MM-DD")
+  .optional()
+  .nullable();
+
 export const benefitSchema = z
   .object({
-    title_nb: z.string(),
-    title_en: z.string(),
-    description_nb: z.string(),
-    description_en: z.string(),
-    teaser_nb: z.string().optional().nullable(),
-    teaser_en: z.string().optional().nullable(),
-    campus_id: z.string().min(1, "Campus is required"),
-    department_id: z.string().optional().nullable(),
+    section: z.enum(BENEFIT_SECTIONS).default("member"),
+    campus_id: z.enum([...CAMPUS_IDS, NATIONAL_CAMPUS_ID]),
     status: z.enum(["draft", "published", "archived"]),
-    kind: z.enum(["offer", "perk", "service"]),
-    redemption_type: z.enum(["none", "code", "link", "qr", "onsite"]),
-    redemption_value: z.string().optional().nullable(),
-    category: z.string().min(1, "Category is required"),
-    partner_name: z.string().optional().nullable(),
-    image_url: z.string().url().optional().nullable().or(z.literal("")),
+    title_nb: z.string().trim().max(200),
+    title_en: z.string().trim().max(200),
+    description_nb: optionalText(2000),
+    description_en: optionalText(2000),
+    partner_id: optionalText(36),
+    redemption_type: z.enum(["none", "code", "link", "onsite"]).default("none"),
+    redemption_value: z.string().trim().max(500).optional().nullable(),
+    category: z.enum(BENEFIT_CATEGORIES).optional().nullable(),
+    terms_nb: optionalText(1000),
+    terms_en: optionalText(1000),
+    image_url: z
+      .string()
+      .url()
+      .max(500)
+      .optional()
+      .nullable()
+      .or(z.literal("")),
     is_featured: z.boolean().default(false),
-    is_member_only: z.boolean().default(true),
-    publish_start: z.string().optional().nullable(),
-    publish_end: z.string().optional().nullable(),
-    sort_order: z.coerce.number().int().nonnegative().default(0),
+    publish_start: optionalDate,
+    publish_end: optionalDate,
   })
   .superRefine((values, context) => {
-    // The description is optional: some benefits are fully described by
-    // their title, so only a title in one language is required.
-    if (values.title_nb.trim() || values.title_en.trim()) {
-      return;
+    if (!(values.title_nb || values.title_en)) {
+      context.addIssue({
+        code: "custom",
+        message: "Add a title in Norwegian or English",
+        path: ["title_nb"],
+      });
     }
-    context.addIssue({
-      code: "custom",
-      message: "Add a title in Norwegian or English",
-      path: ["title_nb"],
-    });
+
+    if (values.section === "member") {
+      const value = values.redemption_value?.trim() ?? "";
+      if (values.redemption_type === "code" && !value) {
+        context.addIssue({
+          code: "custom",
+          message: "Add the code",
+          path: ["redemption_value"],
+        });
+      }
+      if (values.redemption_type === "link") {
+        if (!value) {
+          context.addIssue({
+            code: "custom",
+            message: "Add the link",
+            path: ["redemption_value"],
+          });
+        } else if (!HTTPS_URL_REGEX.test(value)) {
+          context.addIssue({
+            code: "custom",
+            message: "The link must start with https://",
+            path: ["redemption_value"],
+          });
+        }
+      }
+    }
+
+    if (
+      values.publish_start &&
+      values.publish_end &&
+      values.publish_end < values.publish_start
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "The end date must be on or after the start date",
+        path: ["publish_end"],
+      });
+    }
   });
 
 export type BenefitFormValues = z.infer<typeof benefitSchema>;
