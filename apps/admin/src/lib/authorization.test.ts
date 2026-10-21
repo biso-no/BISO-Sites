@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const account = {
   get: mock(),
@@ -29,7 +29,10 @@ mock.module("next/headers", () => ({
   headers: mock(async () => new Headers()),
 }));
 
+const actualNavigation = await import("next/navigation");
+
 mock.module("next/navigation", () => ({
+  ...actualNavigation,
   notFound: mock(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
@@ -112,7 +115,16 @@ describe("admin authorization team parsing", () => {
 });
 
 describe("benefits editor role", () => {
+  const originalEditorEmails = process.env.BENEFITS_EDITOR_EMAILS;
   const editorEmail = "pr@biso.no";
+
+  afterAll(() => {
+    if (originalEditorEmails === undefined) {
+      Reflect.deleteProperty(process.env, "BENEFITS_EDITOR_EMAILS");
+    } else {
+      process.env.BENEFITS_EDITOR_EMAILS = originalEditorEmails;
+    }
+  });
   const microsoft = [{ provider: "microsoft", providerEmail: "PR@biso.no" }];
 
   beforeEach(() => {
@@ -156,9 +168,16 @@ describe("benefits editor role", () => {
 
   test("fails closed when listIdentities throws", async () => {
     account.listIdentities.mockRejectedValue(new Error("boom"));
+    teams.list.mockResolvedValue({
+      teams: [{ $id: "sg-app-dept-hr", name: "HR" }],
+    });
     const result = await getUserRolesForClient();
     expect(result.roles).not.toContain("benefitseditor");
-    expect(result.roles).toEqual([]);
+    expect(result.roles).toContain("hr");
+    expect(result.hasDepartmentMembership).toBe(true);
+    expect(result.departmentNames).toEqual(["HR"]);
+    const ctx = await requireAdminAccess();
+    expect(ctx.departmentTeamIds).toEqual(["sg-app-dept-hr"]);
   });
 
   test("requireAdminAccess admits a teamless editor", async () => {
