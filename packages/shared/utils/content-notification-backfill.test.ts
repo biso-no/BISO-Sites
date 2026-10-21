@@ -30,13 +30,19 @@ describe("backfillLocks", () => {
       jobs: [{ $id: "j1" }, { $id: "j2" }],
     });
     const createLock = vi.fn(() => Promise.resolve("created" as const));
+    const lockExists = vi.fn(() => Promise.resolve(false));
 
     const result = await backfillLocks(
-      { listPublished, createLock },
+      { listPublished, createLock, lockExists },
       { dryRun: false }
     );
 
-    expect(result).toEqual({ created: 6, existing: 0 });
+    expect(result).toMatchObject({ created: 6, existing: 0 });
+    expect(result.byTable).toEqual({
+      events: { created: 3, existing: 0 },
+      news: { created: 1, existing: 0 },
+      jobs: { created: 2, existing: 0 },
+    });
     expect(createLock).toHaveBeenCalledTimes(6);
     expect(createLock).toHaveBeenCalledWith(lockRowIdFor("event", "e1"), {
       content_type: "event",
@@ -58,32 +64,48 @@ describe("backfillLocks", () => {
       news: [],
       jobs: [],
     });
+    const lockExists = vi.fn(() => Promise.resolve(false));
     const createLock = vi.fn((id: string) =>
       Promise.resolve(id === lockRowIdFor("event", "e1") ? "exists" : "created")
     );
 
     const result = await backfillLocks(
-      { listPublished, createLock: createLock as never },
+      { listPublished, createLock: createLock as never, lockExists },
       { dryRun: false }
     );
 
-    expect(result).toEqual({ created: 1, existing: 1 });
+    expect(result).toMatchObject({ created: 1, existing: 1 });
   });
 
-  it("dry run creates nothing but reports counts", async () => {
+  it("dry run creates nothing and splits existing from new per table", async () => {
     const listPublished = fakeListPublished({
-      events: [{ $id: "e1" }],
+      events: [{ $id: "e1" }, { $id: "e2" }],
       news: [{ $id: "n1" }],
       jobs: [],
     });
     const createLock = vi.fn(() => Promise.resolve("created" as const));
+    const existingIds = new Set([
+      lockRowIdFor("event", "e1"),
+      lockRowIdFor("news", "n1"),
+    ]);
+    const lockExists = vi.fn((id: string) =>
+      Promise.resolve(existingIds.has(id))
+    );
 
     const result = await backfillLocks(
-      { listPublished, createLock },
+      { listPublished, createLock, lockExists },
       { dryRun: true }
     );
 
     expect(createLock).not.toHaveBeenCalled();
-    expect(result).toEqual({ created: 2, existing: 0 });
+    expect(result).toEqual({
+      created: 1,
+      existing: 2,
+      byTable: {
+        events: { created: 1, existing: 1 },
+        news: { created: 0, existing: 1 },
+        jobs: { created: 0, existing: 0 },
+      },
+    });
   });
 });

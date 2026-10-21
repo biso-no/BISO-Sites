@@ -23,38 +23,50 @@ export interface BackfillDeps {
     table: string,
     cursor: string | null
   ): Promise<{ rows: BackfillRow[]; nextCursor: string | null }>;
+  /** Used by dry runs to tell existing locks from ones that would be created. */
+  lockExists(lockId: string): Promise<boolean>;
 }
 
-export interface BackfillResult {
+export interface BackfillCounts {
   created: number;
   existing: number;
+}
+
+export interface BackfillResult extends BackfillCounts {
+  byTable: Record<"events" | "news" | "jobs", BackfillCounts>;
 }
 
 /**
  * Writes a `skipped` lock for every already-published event, news item and
  * job so the notifier never announces content that predates launch. Existing
- * locks are never modified. In a dry run nothing is written and every row is
- * counted as `created` (whether a lock already exists is unknown without
- * attempting the write).
+ * locks are never modified. In a dry run nothing is written; `lockExists`
+ * decides whether a row counts as `existing` or as one that would be
+ * `created`. Counts are reported per table and as totals.
  */
 export async function backfillLocks(
   deps: BackfillDeps,
   opts: { dryRun: boolean }
 ): Promise<BackfillResult> {
-  const result: BackfillResult = { created: 0, existing: 0 };
+  const byTable: BackfillResult["byTable"] = {
+    events: { created: 0, existing: 0 },
+    news: { created: 0, existing: 0 },
+    jobs: { created: 0, existing: 0 },
+  };
 
   for (const type of CONTENT_TYPES) {
     const table = contentTableFor(type);
+    const counts = byTable[table];
     let cursor: string | null = null;
     do {
       const page = await deps.listPublished(table, cursor);
       for (const row of page.rows) {
+        const campusId = row.campus_id ?? null;
+        const lockId = lockRowIdFor(type, row.$id);
         if (opts.dryRun) {
-          result.created += 1;
+          counts[(await deps.lockExists(lockId)) ? "existing" : "created"] += 1;
           continue;
         }
-        const campusId = row.campus_id ?? null;
-        const outcome = await deps.createLock(lockRowIdFor(type, row.$id), {
+        const outcome = await deps.createLock(lockId, {
           content_type: type,
           content_id: row.$id,
           campus_id: campusId,
@@ -62,15 +74,16 @@ export async function backfillLocks(
           status: "skipped",
           reason: BACKFILL_LOCK_REASON,
         });
-        if (outcome === "created") {
-          result.created += 1;
-        } else {
-          result.existing += 1;
-        }
+        counts[outcome === "created" ? "created" : "existing"] += 1;
       }
       cursor = page.nextCursor;
     } while (cursor);
   }
 
-  return result;
+  const all = Object.values(byTable);
+  return {
+    byTable,
+    created: all.reduce((sum, c) => sum + c.created, 0),
+    existing: all.reduce((sum, c) => sum + c.existing, 0),
+  };
 }

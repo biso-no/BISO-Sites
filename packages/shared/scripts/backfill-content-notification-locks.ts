@@ -18,6 +18,7 @@ const DATABASE_ID = "app";
 const LOCK_TABLE_ID = "content_notifications";
 const PAGE_SIZE = 100;
 const CONFLICT = 409;
+const NOT_FOUND = 404;
 
 const endpoint =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ?? process.env.APPWRITE_ENDPOINT;
@@ -63,6 +64,21 @@ const result = await backfillLocks(
         nextCursor: rows.length === PAGE_SIZE && last ? last.$id : null,
       };
     },
+    async lockExists(lockId) {
+      try {
+        await db.getRow({
+          databaseId: DATABASE_ID,
+          tableId: LOCK_TABLE_ID,
+          rowId: lockId,
+        });
+        return true;
+      } catch (error) {
+        if (error instanceof AppwriteException && error.code === NOT_FOUND) {
+          return false;
+        }
+        throw error;
+      }
+    },
     async createLock(lockId, data) {
       try {
         await db.createRow({
@@ -84,6 +100,12 @@ const result = await backfillLocks(
 );
 
 console.log(`Mode: ${apply ? "APPLY" : "dry-run"}`);
+const verb = apply ? "created" : "would create";
+for (const [table, counts] of Object.entries(result.byTable)) {
+  console.log(
+    `${table}: ${verb} ${counts.created}, already existed ${counts.existing}`
+  );
+}
 console.log(
-  `${apply ? "Created" : "Would create"}: ${result.created}, already existed: ${result.existing}`
+  `Total: ${verb} ${result.created}, already existed ${result.existing}`
 );
