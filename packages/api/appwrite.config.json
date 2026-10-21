@@ -3347,6 +3347,62 @@
             "indexes": []
         },
         {
+            "$id": "app_versions",
+            "$permissions": [
+                "create(\"team:sg-app-dept-operationsunit\")",
+                "read(\"team:sg-app-dept-operationsunit\")",
+                "update(\"team:sg-app-dept-operationsunit\")",
+                "delete(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "App versions",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "platform",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "format": "enum",
+                    "elements": [
+                        "ios",
+                        "android"
+                    ]
+                },
+                {
+                    "key": "minimum_version",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "recommended_version",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "platform_unique",
+                    "type": "unique",
+                    "columns": [
+                        "platform"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
             "$id": "notices",
             "$permissions": [
                 "read(\"guests\")",
