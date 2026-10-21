@@ -151,6 +151,87 @@ describe("notifyToggleCopy", () => {
     expect(copy.effectiveOn).toBe(false);
   });
 
+  test("pending item moved to National by a non-national admin will be cancelled", () => {
+    const copy = notifyToggleCopy({
+      ...base,
+      campusId: "5",
+      isNational: true,
+      requested: true,
+      state: { dueAt: "2026-11-02T07:00:00.000Z", kind: "pending" },
+      stored: true,
+      storedCampusId: "1",
+    });
+    expect(copy.description).toBe("Will be cancelled when you save.");
+    expect(copy.effectiveOn).toBe(false);
+    expect(copy.disabled).toBe(true);
+  });
+
+  test("published with notify saved on but no lock yet: on its way", () => {
+    const copy = notifyToggleCopy({
+      ...base,
+      state: { kind: "none" },
+      stored: true,
+    });
+    expect(copy).toEqual({
+      description:
+        "Students who follow this topic get one notification within a few minutes.",
+      disabled: false,
+      effectiveOn: true,
+      showToggle: true,
+      title: "Notification on its way",
+    });
+  });
+
+  test("on its way, switched off, says it will be cancelled on save", () => {
+    const copy = notifyToggleCopy({
+      ...base,
+      requested: false,
+      state: { kind: "none" },
+      stored: true,
+    });
+    expect(copy.title).toBe("Notification on its way");
+    expect(copy.description).toBe("Will be cancelled when you save.");
+    expect(copy.effectiveOn).toBe(false);
+  });
+
+  test("on its way for a National item a non-national admin cannot change", () => {
+    const copy = notifyToggleCopy({
+      ...base,
+      campusId: "5",
+      isNational: true,
+      state: { kind: "none" },
+      stored: true,
+      storedCampusId: "5",
+    });
+    expect(copy).toEqual({
+      description:
+        "Students who follow this topic get one notification within a few minutes. Only national admins can change this.",
+      disabled: true,
+      effectiveOn: true,
+      showToggle: true,
+      title: "Notification on its way",
+    });
+  });
+
+  test("notify saved on but not published, or saved off: no on-its-way copy", () => {
+    expect(
+      notifyToggleCopy({
+        ...base,
+        isPublished: false,
+        state: { kind: "none" },
+        stored: true,
+      }).title
+    ).toBe("Notify students when published");
+    expect(
+      notifyToggleCopy({ ...base, state: { kind: "none" }, stored: false })
+        .title
+    ).toBe("Notify students now");
+    expect(
+      notifyToggleCopy({ ...base, state: { kind: "cancelled" }, stored: true })
+        .title
+    ).toBe("Notify students now");
+  });
+
   test("national with national rights is a normal toggle", () => {
     const copy = notifyToggleCopy({
       ...base,

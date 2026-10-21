@@ -40,19 +40,35 @@ export function formatNotifyLabel(iso: string): string {
   return `${date.replace(",", "")} at ${time}`;
 }
 
+const CANCEL_ON_SAVE = "Will be cancelled when you save.";
+const NATIONAL_ONLY = "Only national admins can change this.";
+
 function pendingDescription(
   label: string,
   nationalBlocked: boolean,
   effectiveOn: boolean
 ): string {
   const when = label || "soon";
-  if (nationalBlocked) {
-    return `Goes out ${when}. Only national admins can change this.`;
-  }
+  // Off first: a non-national admin moving the item to National cancels it.
   if (!effectiveOn) {
-    return "Will be cancelled when you save.";
+    return CANCEL_ON_SAVE;
+  }
+  if (nationalBlocked) {
+    return `Goes out ${when}. ${NATIONAL_ONLY}`;
   }
   return `Goes out ${when}. Untick to cancel.`;
+}
+
+function onItsWayDescription(
+  nationalBlocked: boolean,
+  effectiveOn: boolean
+): string {
+  if (!effectiveOn) {
+    return CANCEL_ON_SAVE;
+  }
+  const soon =
+    "Students who follow this topic get one notification within a few minutes.";
+  return nationalBlocked ? `${soon} ${NATIONAL_ONLY}` : soon;
 }
 
 export function notifyToggleCopy(
@@ -98,6 +114,18 @@ export function notifyToggleCopy(
       effectiveOn,
       showToggle: true,
       title: "Notification scheduled",
+    };
+  }
+
+  // Published with notify saved on, but the notifier has not written the lock
+  // yet: it is on its way, not waiting for another save.
+  if (isPublished && state.kind === "none" && input.stored === true) {
+    return {
+      description: onItsWayDescription(nationalBlocked, effectiveOn),
+      disabled: nationalBlocked,
+      effectiveOn,
+      showToggle: true,
+      title: "Notification on its way",
     };
   }
 
