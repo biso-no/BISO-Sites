@@ -201,26 +201,15 @@ describe("the summary", () => {
     );
   });
 
-  test("a language counts only with both its title and its message", async () => {
-    const noBody = await mount({ initial: { body_no: "<p></p>" } });
-    expect(noBody.textContent).toContain(
-      "English only — students get it in English"
-    );
+  test("a title-only language still counts", async () => {
+    const container = await mount({ initial: { body_no: null } });
+    expect(container.textContent).toContain("Norwegian and English");
   });
 
   test("Norwegian alone is Norwegian only", async () => {
-    const container = await mount({ initial: { body_en: null } });
+    const container = await mount({ initial: { title_en: "" } });
     expect(container.textContent).toContain(
       "Norwegian only — students get it in Norwegian"
-    );
-  });
-
-  test("with no language complete, it says what is missing", async () => {
-    const container = await mount({
-      initial: { body_en: null, body_no: null },
-    });
-    expect(container.textContent).toContain(
-      "No language has both a title and a message yet."
     );
   });
 

@@ -155,12 +155,17 @@ export function applyPrefill(
  * Drops the department when the campus changes. Departments belong to one
  * campus, so the server would refuse the old one ("Department does not belong
  * to the selected campus"), and a campus-wide audience can have none at all.
- * A department set in the same change is kept.
+ * A department set in the same change is kept, and so is a pinned one
+ * (`keepDepartment`): the author cannot re-pick it.
  */
 export function clearDepartmentOnCampusChange(
   previous: ComposerValues,
-  next: ComposerValues
+  next: ComposerValues,
+  options: { keepDepartment?: boolean } = {}
 ): ComposerValues {
+  if (options.keepDepartment) {
+    return next;
+  }
   const campusChanged =
     (previous.campus_id ?? null) !== (next.campus_id ?? null);
   const departmentKept = next.department_id === previous.department_id;

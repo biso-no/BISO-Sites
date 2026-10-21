@@ -71,8 +71,6 @@ interface CheckStepProps {
 }
 
 const ALREADY_SENT_NOTE = "This notification has already been sent.";
-const HTML_TAG = /<[^>]*>/g;
-const NBSP = /&nbsp;/g;
 
 const WHAT_STEP = 0;
 const MESSAGE_STEP = 1;
@@ -98,21 +96,12 @@ function broadcastCampusName(
   );
 }
 
-/** Whether a message body holds any text once its markup is gone. */
-function hasText(html: string | null | undefined): boolean {
-  return Boolean(html?.replace(HTML_TAG, "").replace(NBSP, " ").trim());
-}
-
-/** A language counts only when both its title and its message are written. */
+/** A language counts when its title is written; the message is optional. */
 function languagesSentence(values: AnnouncementFormValues): string {
-  const hasNorwegian =
-    Boolean(values.title_no?.trim()) && hasText(values.body_no);
-  const hasEnglish = Boolean(values.title_en.trim()) && hasText(values.body_en);
+  const hasNorwegian = Boolean(values.title_no?.trim());
+  const hasEnglish = Boolean(values.title_en.trim());
   if (hasNorwegian && hasEnglish) {
     return "Norwegian and English";
-  }
-  if (!(hasNorwegian || hasEnglish)) {
-    return "No language has both a title and a message yet.";
   }
   const one = hasNorwegian ? "Norwegian" : "English";
   return `${one} only — students get it in ${one}`;

@@ -186,6 +186,16 @@ describe("clearDepartmentOnCampusChange", () => {
     ).toBeNull();
   });
 
+  test("a pinned department survives a campus change", () => {
+    expect(
+      clearDepartmentOnCampusChange(
+        withDepartment,
+        { ...withDepartment, campus_id: "2" },
+        { keepDepartment: true }
+      ).department_id
+    ).toBe("dept-1");
+  });
+
   test("the same campus keeps it", () => {
     const next = { ...withDepartment, title_en: "Hi" };
     expect(clearDepartmentOnCampusChange(withDepartment, next)).toBe(next);

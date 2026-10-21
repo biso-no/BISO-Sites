@@ -215,9 +215,12 @@ function withTopicDefault(
  */
 function nextValues(
   previous: AnnouncementFormValues,
-  next: AnnouncementFormValues
+  next: AnnouncementFormValues,
+  keepDepartment: boolean
 ): AnnouncementFormValues {
-  return withTopicDefault(clearDepartmentOnCampusChange(previous, next));
+  return withTopicDefault(
+    clearDepartmentOnCampusChange(previous, next, { keepDepartment })
+  );
 }
 
 /** An explicit link wins; a legacy draft with only `event_id` is an event link. */
@@ -1151,7 +1154,9 @@ export function AnnouncementStudioEditor({
   ) {
     // Switching the audience to Topic with no topic set picks the default, so
     // the topic pills show what will be stored and sent.
-    setValues((prev) => nextValues(prev, { ...prev, [key]: value }));
+    setValues((prev) =>
+      nextValues(prev, { ...prev, [key]: value }, lockDepartment)
+    );
     setDirty(true);
     if (AUDIENCE_KEYS.has(key)) {
       setAudienceTouched(true);
@@ -1166,7 +1171,9 @@ export function AnnouncementStudioEditor({
       >
     >
   ) {
-    setValues((prev) => nextValues(prev, { ...prev, ...patch }));
+    setValues((prev) =>
+      nextValues(prev, { ...prev, ...patch }, lockDepartment)
+    );
     setDirty(true);
     setAudienceTouched(true);
   }
@@ -1174,7 +1181,7 @@ export function AnnouncementStudioEditor({
   function update(
     change: (previous: AnnouncementFormValues) => AnnouncementFormValues
   ) {
-    setValues((prev) => nextValues(prev, change(prev)));
+    setValues((prev) => nextValues(prev, change(prev), lockDepartment));
     setDirty(true);
   }
 
