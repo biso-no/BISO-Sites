@@ -251,6 +251,7 @@
   "roles": {
     "globalAdmin": "Global administrator",
     "campusAdmin": "Campusadministrator",
-    "member": "Medlem"
+    "member": "Medlem",
+    "benefitsEditor": "Fordelsansvarlig"
   }
 }

@@ -251,6 +251,7 @@
   "roles": {
     "globalAdmin": "Global Admin",
     "campusAdmin": "Campus Admin",
-    "member": "Member"
+    "member": "Member",
+    "benefitsEditor": "Benefits manager"
   }
 }
