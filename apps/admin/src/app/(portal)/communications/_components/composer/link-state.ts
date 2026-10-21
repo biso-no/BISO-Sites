@@ -4,6 +4,8 @@ import type { PrefillSnapshot } from "./composer-state";
 export interface LinkedDisplay {
   id: string;
   image: string | null;
+  /** "{title} ({date})", shown as where a tap on the push lands. */
+  label?: string;
   /** "{dateLabel} · {campus}", empty when only the title is known. */
   meta: string;
   title: string;

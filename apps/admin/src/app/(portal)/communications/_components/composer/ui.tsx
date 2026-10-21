@@ -197,3 +197,34 @@ export const TYPE_ICONS: Record<ComposerTypeId, typeof Megaphone> = {
   trip: Bus,
   urgent: AlertTriangle,
 };
+
+/** A rounded toggle used for campus and topic choices. */
+export function Pill({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      onClick={onClick}
+      style={{
+        background: active ? BRAND.ink : "white",
+        border: `1px solid ${active ? BRAND.ink : BRAND.rule2}`,
+        borderRadius: 999,
+        color: active ? "white" : BRAND.ink,
+        cursor: "pointer",
+        fontSize: 12.5,
+        padding: "5px 11px",
+        transition: "background .12s, border-color .12s",
+      }}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}

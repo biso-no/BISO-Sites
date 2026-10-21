@@ -85,6 +85,10 @@ function withLinkFields(
   };
 }
 
+function labelFor(item: LinkableItem): string {
+  return item.dateLabel ? `${item.title} (${item.dateLabel})` : item.title;
+}
+
 function metaFor(item: LinkableItem): string {
   return [item.dateLabel, item.campusName].filter(Boolean).join(" · ");
 }
@@ -215,6 +219,7 @@ export function WhatStep({
           display: {
             id,
             image: found.item.image,
+            label: found.label,
             meta: metaFor(found.item),
             title: found.item.title,
           },
@@ -262,6 +267,7 @@ export function WhatStep({
     const display = {
       id: item.id,
       image: item.image,
+      label: labelFor(item),
       meta: metaFor(item),
       title: item.title,
     };

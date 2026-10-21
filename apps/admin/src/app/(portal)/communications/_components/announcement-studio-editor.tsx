@@ -18,12 +18,9 @@ import {
   CalendarDays,
   Check,
   ChevronRight,
-  Globe,
   type Megaphone,
   Save,
   Send,
-  Sparkles,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,11 +41,11 @@ import {
   type AnnouncementFormValues,
   announcementSchema,
 } from "../../_actions/schemas";
-import { DepartmentCombobox } from "../../_components/department-combobox";
 import { DescriptionBlockEditor } from "../../_components/description-block-editor";
 import {
   COMPOSER_STEPS,
   canContinue,
+  parseAudiencePeople,
   TYPE_CARDS,
 } from "./composer/composer-state";
 import { buildLinkState, type LinkState } from "./composer/link-state";
@@ -63,6 +60,7 @@ import {
   TYPE_ICONS,
 } from "./composer/ui";
 import { WhatStep } from "./composer/what-step";
+import { WhoStep } from "./composer/who-step";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
@@ -87,39 +85,12 @@ const CATEGORIES: Array<{
   label: card.label,
 }));
 
-const AUDIENCE_TYPES: Array<{
-  id: AudienceType;
-  label: string;
-  description: string;
-  icon: typeof Globe;
-  disabledNote?: string;
-}> = [
-  {
-    id: "broadcast",
-    label: "Everyone",
-    description: "Every app user at the campus you pick below.",
-    icon: Globe,
-  },
-  {
-    id: "topic",
-    label: "Topic",
-    description: "Only students subscribed to a topic channel.",
-    icon: Bell,
-  },
-  {
-    id: "users",
-    label: "Specific users",
-    description: "A hand-picked list of emails or user ids.",
-    icon: Users,
-  },
-  {
-    id: "segment",
-    label: "Segment",
-    description: "Dynamic audience segments.",
-    icon: Sparkles,
-    disabledNote: "Coming in Phase 2",
-  },
-];
+const AUDIENCE_LABELS: Record<AudienceType, string> = {
+  broadcast: "Everyone",
+  segment: "Group",
+  topic: "Topic",
+  users: "Specific users",
+};
 
 const TOPIC_OPTIONS = [
   { value: "news", label: "News" },
@@ -136,13 +107,15 @@ interface CampusOption {
 }
 
 interface AnnouncementStudioEditorProps {
-  allowGlobalCampus: boolean;
   announcement: Announcements | null;
   campuses: CampusOption[];
   defaultCampusId: string;
+  isGlobalAdmin: boolean;
   isNew: boolean;
   /** Single-department authors are pinned to their department. */
   lockDepartment: boolean;
+  /** Campuses a campus admin manages; empty for others. */
+  managedCampusIds: string[];
   pinnedDepartmentId: string | null;
 }
 
@@ -668,99 +641,10 @@ function broadcastCampusName(
   );
 }
 
-function AudienceDetail({
-  campusOptions,
+function DeliveryOptions({
   set,
   values,
 }: {
-  campusOptions: Array<{ value: string; label: string }>;
-  set: <K extends keyof AnnouncementFormValues>(
-    key: K,
-    value: AnnouncementFormValues[K]
-  ) => void;
-  values: AnnouncementFormValues;
-}) {
-  if (values.audience_type === "topic") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <FieldLabel>
-          <Bell size={12} /> Topic channel
-        </FieldLabel>
-        <select
-          onChange={(event) => set("audience_value", event.target.value)}
-          style={fieldInputStyle()}
-          value={values.audience_value ?? ""}
-        >
-          {TOPIC_OPTIONS.map((topic) => (
-            <option key={topic.value} value={topic.value}>
-              {topic.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-
-  if (values.audience_type === "users") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <FieldLabel help="Emails are resolved on save">
-          <Users size={12} /> Recipients
-        </FieldLabel>
-        <textarea
-          onChange={(event) => set("audience_value", event.target.value)}
-          placeholder="ada@bi.no, ola@biso.no, 64f0c1a2b3…"
-          style={fieldInputStyle({
-            minHeight: 76,
-            resize: "none",
-          })}
-          value={values.audience_value ?? ""}
-        />
-      </div>
-    );
-  }
-
-  if (values.audience_type === "segment") {
-    return (
-      <div
-        style={{
-          background: BRAND.paper2,
-          border: `0.5px solid ${BRAND.rule2}`,
-          borderRadius: 10,
-          color: BRAND.ink3,
-          fontSize: 12.5,
-          lineHeight: 1.5,
-          padding: "12px 14px",
-        }}
-      >
-        Dynamic segments arrive in Phase 2. For now this behaves like a
-        broadcast — pick another audience for precise targeting.
-      </div>
-    );
-  }
-
-  const campusName = broadcastCampusName(values.campus_id, campusOptions);
-  const offersAllCampuses = campusOptions.some((campus) => campus.value === "");
-  return (
-    <p style={{ color: BRAND.ink4, fontSize: 12.5, margin: 0 }}>
-      {campusName
-        ? `Everyone at ${campusName} gets this.`
-        : "Every app user gets this, at all campuses."}
-      {campusName && offersAllCampuses
-        ? " Choose “All campuses (app-wide)” as the campus to reach every app user."
-        : null}
-    </p>
-  );
-}
-
-function WhoStep({
-  campusOptions,
-  lockDepartment,
-  set,
-  values,
-}: {
-  campusOptions: Array<{ value: string; label: string }>;
-  lockDepartment: boolean;
   set: <K extends keyof AnnouncementFormValues>(
     key: K,
     value: AnnouncementFormValues[K]
@@ -768,99 +652,31 @@ function WhoStep({
   values: AnnouncementFormValues;
 }) {
   return (
-    <div>
-      <StepIntro eyebrow="Step 3" title="Who should get it?" />
+    <div style={{ display: "grid", gap: 22, marginTop: 26 }}>
+      <SelectCard
+        active={values.push}
+        description={
+          values.push
+            ? "Fires a device push and adds the message to the in-app inbox."
+            : "Inbox-only — appears in the app without a device push."
+        }
+        icon={<Bell size={14} />}
+        onClick={() => set("push", !values.push)}
+        title={values.push ? "Send device push" : "Inbox only"}
+      />
 
-      <div style={{ display: "grid", gap: 8 }}>
-        <FieldLabel required>
-          <Users size={12} /> Audience
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <FieldLabel help="Leave empty to send immediately">
+          <CalendarDays size={12} /> Schedule
         </FieldLabel>
-        <div
-          style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}
-        >
-          {AUDIENCE_TYPES.map((audience) => {
-            const Icon = audience.icon;
-            return (
-              <SelectCard
-                active={values.audience_type === audience.id}
-                description={audience.description}
-                disabled={audience.id === "segment"}
-                disabledNote={audience.disabledNote}
-                icon={<Icon size={14} />}
-                key={audience.id}
-                onClick={() => set("audience_type", audience.id)}
-                title={audience.label}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 18 }}>
-        <AudienceDetail
-          campusOptions={campusOptions}
-          set={set}
-          values={values}
-        />
-      </div>
-
-      <div style={{ display: "grid", gap: 22, marginTop: 24 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel>
-            <Globe size={12} /> Campus
-          </FieldLabel>
-          <select
-            onChange={(event) => set("campus_id", event.target.value || null)}
-            style={fieldInputStyle()}
-            value={values.campus_id ?? ""}
-          >
-            {campusOptions.map((campus) => (
-              <option key={campus.value || "all"} value={campus.value}>
-                {campus.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel help="Owning department; leave empty for campus-wide">
-            <Globe size={12} /> Department
-          </FieldLabel>
-          <DepartmentCombobox
-            campusId={values.campus_id ?? null}
-            disabled={lockDepartment}
-            initialDepartments={[]}
-            onChange={(id) => set("department_id", id)}
-            placeholder="Campus-wide (no department)"
-            value={values.department_id ?? null}
-          />
-        </div>
-
-        <SelectCard
-          active={values.push}
-          description={
-            values.push
-              ? "Fires a device push and adds the message to the in-app inbox."
-              : "Inbox-only — appears in the app without a device push."
+        <input
+          onChange={(event) =>
+            set("scheduled_at", osloWallClockToIso(event.target.value))
           }
-          icon={<Bell size={14} />}
-          onClick={() => set("push", !values.push)}
-          title={values.push ? "Send device push" : "Inbox only"}
+          style={fieldInputStyle()}
+          type="datetime-local"
+          value={isoToOsloWallClock(values.scheduled_at)}
         />
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel help="Leave empty to send immediately">
-            <CalendarDays size={12} /> Schedule
-          </FieldLabel>
-          <input
-            onChange={(event) =>
-              set("scheduled_at", osloWallClockToIso(event.target.value))
-            }
-            style={fieldInputStyle()}
-            type="datetime-local"
-            value={isoToOsloWallClock(values.scheduled_at)}
-          />
-        </div>
       </div>
     </div>
   );
@@ -875,7 +691,6 @@ function buildReviewRows(
   campusOptions: Array<{ value: string; label: string }>
 ): Array<{ label: string; value: string | null; step: StepIndex }> {
   const category = categoryById(values.category);
-  const audience = AUDIENCE_TYPES.find((a) => a.id === values.audience_type);
   const campusLabel =
     campusOptions.find((c) => c.value === (values.campus_id ?? ""))?.label ??
     "—";
@@ -886,10 +701,7 @@ function buildReviewRows(
   } else if (values.audience_type === "topic") {
     audienceDetail = ` · ${values.audience_value ?? ""}`;
   } else if (values.audience_type === "users") {
-    const count = (values.audience_value ?? "")
-      .split(",")
-      .map((token) => token.trim())
-      .filter(Boolean).length;
+    const count = parseAudiencePeople(values.audience_value).length;
     audienceDetail = ` · ${count} recipient${count === 1 ? "" : "s"}`;
   }
 
@@ -916,7 +728,7 @@ function buildReviewRows(
     },
     {
       label: "Audience",
-      value: `${audience?.label ?? "—"}${audienceDetail}`,
+      value: `${AUDIENCE_LABELS[values.audience_type] ?? "—"}${audienceDetail}`,
       step: 2,
     },
     { label: "Campus", value: campusLabel, step: 2 },
@@ -1678,12 +1490,13 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function AnnouncementStudioEditor({
-  allowGlobalCampus,
   announcement,
   campuses,
   defaultCampusId,
+  isGlobalAdmin,
   isNew,
   lockDepartment,
+  managedCampusIds,
   pinnedDepartmentId,
 }: AnnouncementStudioEditorProps) {
   const router = useRouter();
@@ -1711,17 +1524,14 @@ export function AnnouncementStudioEditor({
   const [confirmTranslationOverwrite, setConfirmTranslationOverwrite] =
     useState(false);
 
-  // The page passes only the campuses this author may use, which for a campus
-  // admin are exactly their managed ones.
+  // Mirrors the server's audience rules (`isAudienceAllowed`).
   const audienceContext = {
-    managedCampusIds: campuses.map((campus) => campus.id),
-    roles: allowGlobalCampus ? ["globaladmin"] : ["campusadmin"],
+    managedCampusIds,
+    roles: isGlobalAdmin ? ["globaladmin"] : ["campusadmin"],
   };
 
   const campusOptions = [
-    ...(allowGlobalCampus
-      ? [{ value: "", label: "All campuses (app-wide)" }]
-      : []),
+    ...(isGlobalAdmin ? [{ value: "", label: "All campuses (app-wide)" }] : []),
     ...campuses.map((campus) => ({ value: campus.id, label: campus.name })),
   ];
 
@@ -1736,6 +1546,19 @@ export function AnnouncementStudioEditor({
     if (AUDIENCE_KEYS.has(key)) {
       setAudienceTouched(true);
     }
+  }
+
+  function setAudience(
+    patch: Partial<
+      Pick<
+        AnnouncementFormValues,
+        "audience_type" | "audience_value" | "campus_id"
+      >
+    >
+  ) {
+    setValues((prev) => withTopicDefault({ ...prev, ...patch }));
+    setDirty(true);
+    setAudienceTouched(true);
   }
 
   function update(
@@ -2014,12 +1837,21 @@ export function AnnouncementStudioEditor({
               />
             )}
             {step === 2 && (
-              <WhoStep
-                campusOptions={campusOptions}
-                lockDepartment={lockDepartment}
-                set={set}
-                values={values}
-              />
+              <>
+                <WhoStep
+                  audienceContext={audienceContext}
+                  lockDepartment={lockDepartment}
+                  set={set}
+                  setAudience={setAudience}
+                  tappingOpens={
+                    values.content_id && link.display
+                      ? (link.display.label ?? link.display.title)
+                      : null
+                  }
+                  values={values}
+                />
+                <DeliveryOptions set={set} values={values} />
+              </>
             )}
             {step === 3 && (
               <CheckStep

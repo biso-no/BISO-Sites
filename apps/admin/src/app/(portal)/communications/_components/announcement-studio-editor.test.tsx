@@ -180,15 +180,16 @@ async function openInComposer(
   await act(() => {
     root?.render(
       createElement(AnnouncementStudioEditor, {
-        allowGlobalCampus: true,
         announcement: row as unknown as Announcements,
         campuses: [
           { id: "1", name: "Oslo" },
           { id: "2", name: "Bergen" },
         ],
         defaultCampusId: "1",
+        isGlobalAdmin: true,
         isNew: false,
         lockDepartment: false,
+        managedCampusIds: [],
         pinnedDepartmentId: null,
       })
     );
@@ -239,19 +240,12 @@ async function chooseCampus(
   container: TestElement,
   campusId: string
 ): Promise<void> {
-  const campusSelect = findElements(
-    container,
-    (element) =>
-      element.tagName === "SELECT" &&
-      element.options.some((option) => option.textContent === "Bergen")
-  )[0];
-  if (!campusSelect) {
-    throw new Error("Campus select not found");
-  }
-  await act(() => {
-    campusSelect.value = campusId;
-    campusSelect.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  const names: Record<string, string> = {
+    "": "All campuses",
+    "1": "Oslo",
+    "2": "Bergen",
+  };
+  await click(findButton(container, names[campusId] ?? campusId));
   await settle();
 }
 
@@ -268,7 +262,7 @@ describe("a Topic audience stores the topic its select shows", () => {
     const composer = await openInComposer(draftBroadcastRow);
 
     await openDistributionStep(composer);
-    await chooseAudience(composer, "Topic");
+    await chooseAudience(composer, "Students who follow a topic");
     await saveDraft(composer);
 
     expect(storedRow).toMatchObject({

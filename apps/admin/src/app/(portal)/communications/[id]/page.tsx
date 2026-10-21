@@ -53,15 +53,16 @@ export default async function AnnouncementEditorPage({ params }: Props) {
 
   return (
     <AnnouncementStudioEditor
-      allowGlobalCampus={isGlobalAdmin}
       announcement={announcement}
       campuses={filteredCampuses.map((campus) => ({
         id: campus.$id,
         name: campus.name,
       }))}
       defaultCampusId={defaultCampusId}
+      isGlobalAdmin={isGlobalAdmin}
       isNew={isNew}
       lockDepartment={Boolean(pinnedDepartmentId)}
+      managedCampusIds={ctx.managedCampusIds}
       pinnedDepartmentId={pinnedDepartmentId}
     />
   );
