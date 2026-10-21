@@ -6,10 +6,7 @@ import type { BenefitPartners } from "@repo/api/types/appwrite";
 import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
-import {
-  assertBenefitCampusWrite,
-  benefitAccessFor,
-} from "@/lib/benefit-access";
+import { benefitAccessFor, canEditBenefitCampus } from "@/lib/benefit-access";
 import { logAuditEvent } from "./audit-log";
 import type { BoardPartner } from "./benefits";
 
@@ -17,6 +14,8 @@ const PARTNERS_TABLE = "benefit_partners";
 const PARTNER_LIMIT = 500;
 const NAME_MAX = 200;
 const NAME_REQUIRED = "Add the partner's name";
+const WRITE_REFUSED = "Unauthorized: no write access to this campus";
+const LOGO_INVALID = "The logo must be an https:// address";
 const WEBSITE_INVALID = "The website must start with https://";
 
 const toBoardPartner = (row: BenefitPartners): BoardPartner => ({
@@ -65,7 +64,9 @@ export async function createBenefitPartner(input: {
   website_url?: string | null;
 }): Promise<{ data: BoardPartner } | { error: string }> {
   const ctx = await requireAuth();
-  assertBenefitCampusWrite(ctx, input.campus_id);
+  if (!canEditBenefitCampus(benefitAccessFor(ctx), input.campus_id)) {
+    return { error: WRITE_REFUSED };
+  }
 
   const name = input.name.trim();
   if (name.length === 0 || name.length > NAME_MAX) {
@@ -74,6 +75,11 @@ export async function createBenefitPartner(input: {
   const websiteUrl = blankToNull(input.website_url);
   if (websiteUrl !== null && !isHttpsUrl(websiteUrl)) {
     return { error: WEBSITE_INVALID };
+  }
+
+  const logoUrl = blankToNull(input.logo_url);
+  if (logoUrl !== null && !isHttpsUrl(logoUrl)) {
+    return { error: LOGO_INVALID };
   }
 
   const { db } = await createAdminClient();
@@ -85,7 +91,7 @@ export async function createBenefitPartner(input: {
     {
       campus_id: input.campus_id,
       is_active: true,
-      logo_url: blankToNull(input.logo_url),
+      logo_url: logoUrl,
       name,
       website_url: websiteUrl,
     },

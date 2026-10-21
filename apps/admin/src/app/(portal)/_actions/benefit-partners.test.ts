@@ -115,9 +115,20 @@ describe("listBenefitPartners", () => {
 
 describe("createBenefitPartner", () => {
   test("refuses a campus the caller cannot write", async () => {
-    await expect(
-      createBenefitPartner({ campus_id: "5", name: "Kaffebar" })
-    ).rejects.toThrow("Unauthorized: no write access to this campus");
+    expect(
+      await createBenefitPartner({ campus_id: "5", name: "Kaffebar" })
+    ).toEqual({ error: "Unauthorized: no write access to this campus" });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("returns an error for a non-https logo", async () => {
+    expect(
+      await createBenefitPartner({
+        campus_id: "2",
+        logo_url: "http://x/logo.png",
+        name: "Kaffebar",
+      })
+    ).toEqual({ error: "The logo must be an https:// address" });
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
