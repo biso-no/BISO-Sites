@@ -13,11 +13,16 @@ import {
 } from "@/lib/content-notification-state";
 import { isRowNotFound } from "@/lib/shop/sales-type";
 
+const NOTIFY_CONTENT_TYPES: readonly string[] = ["event", "news", "job"];
+
 export async function getContentNotificationState(
   type: NotifyContentType,
   contentId: string
 ): Promise<ContentNotificationState> {
-  await requireAuth();
+  const ctx = await requireAuth();
+  if (!NOTIFY_CONTENT_TYPES.includes(type)) {
+    return { kind: "none" };
+  }
   const { db } = await createAdminClient();
   try {
     const lock = await db.getRow<ContentNotifications>(
@@ -25,7 +30,12 @@ export async function getContentNotificationState(
       "content_notifications",
       lockRowIdFor(type, contentId)
     );
-    return toNotificationState(lock);
+    const inScope =
+      ctx.roles.includes("globaladmin") ||
+      !lock.campus_id ||
+      ctx.managedCampusIds.includes(lock.campus_id) ||
+      ctx.resolvedCampusIds.includes(lock.campus_id);
+    return inScope ? toNotificationState(lock) : { kind: "none" };
   } catch (error) {
     if (isRowNotFound(error)) {
       return { kind: "none" };

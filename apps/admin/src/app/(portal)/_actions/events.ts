@@ -630,6 +630,7 @@ export async function createEvent(
             isGlobalAdmin: ctx.roles.includes("globaladmin"),
             requested: validated.data.notify_push,
             stored: null,
+            storedCampusId: null,
           })
         ),
         status: status as EventsStatus,
@@ -728,6 +729,7 @@ export async function updateEvent(
             isGlobalAdmin: ctx.roles.includes("globaladmin"),
             requested: validated.data.notify_push,
             stored: event.notify_push,
+            storedCampusId: event.campus_id,
           })
         ),
         status: validated.data.status,

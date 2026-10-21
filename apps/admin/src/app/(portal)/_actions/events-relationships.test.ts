@@ -365,3 +365,32 @@ describe("event segment authorization", () => {
     expect(db.createRow).not.toHaveBeenCalled();
   });
 });
+
+describe("event notify_push national guard", () => {
+  test("moving a notify-on campus event to National does not carry the flag", async () => {
+    currentCtx = makeCtx({
+      campusNames: ["Oslo"],
+      managedCampusIds: ["campus-oslo"],
+      resolvedCampusIds: ["campus-oslo"],
+      roles: ["campusadmin"],
+    });
+    mockEventRow({
+      $id: "event-1",
+      campus_id: "campus-oslo",
+      department_id: null,
+      member_only: false,
+      notify_push: true,
+      status: "draft",
+    });
+
+    await updateEvent("event-1", {
+      ...departmentEventValues,
+      campus_id: "5",
+      department_id: null,
+      notify_push: true,
+    });
+
+    const call = db.upsertRow.mock.calls.find((c) => c[1] === "events");
+    expect(call?.[3]).toEqual(expect.objectContaining({ notify_push: false }));
+  });
+});

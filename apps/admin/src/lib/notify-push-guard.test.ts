@@ -8,6 +8,7 @@ describe("resolveNotifyPush", () => {
         campusId: "5",
         isGlobalAdmin: false,
         requested: true,
+        storedCampusId: "5",
         stored: false,
       })
     ).toBe(false);
@@ -16,6 +17,7 @@ describe("resolveNotifyPush", () => {
         campusId: "5",
         isGlobalAdmin: false,
         requested: false,
+        storedCampusId: "5",
         stored: true,
       })
     ).toBe(true);
@@ -27,9 +29,34 @@ describe("resolveNotifyPush", () => {
         campusId: "5",
         isGlobalAdmin: false,
         requested: true,
+        storedCampusId: "5",
         stored: null,
       })
     ).toBe(false);
+  });
+
+  test("moving a notify-on Bergen item to National forces false", () => {
+    expect(
+      resolveNotifyPush({
+        campusId: "5",
+        isGlobalAdmin: false,
+        requested: true,
+        stored: true,
+        storedCampusId: "1",
+      })
+    ).toBe(false);
+  });
+
+  test("re-saving an already-National item keeps stored true over requested false", () => {
+    expect(
+      resolveNotifyPush({
+        campusId: "5",
+        isGlobalAdmin: false,
+        requested: false,
+        stored: true,
+        storedCampusId: "5",
+      })
+    ).toBe(true);
   });
 
   test("a global admin on National gets the requested value", () => {
@@ -38,6 +65,7 @@ describe("resolveNotifyPush", () => {
         campusId: "5",
         isGlobalAdmin: true,
         requested: true,
+        storedCampusId: "5",
         stored: false,
       })
     ).toBe(true);
@@ -49,6 +77,7 @@ describe("resolveNotifyPush", () => {
         campusId: "1",
         isGlobalAdmin: false,
         requested: true,
+        storedCampusId: "5",
         stored: false,
       })
     ).toBe(true);
@@ -57,6 +86,7 @@ describe("resolveNotifyPush", () => {
         campusId: null,
         isGlobalAdmin: false,
         requested: true,
+        storedCampusId: "5",
         stored: undefined,
       })
     ).toBe(true);

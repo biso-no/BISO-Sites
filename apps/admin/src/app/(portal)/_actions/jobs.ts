@@ -920,6 +920,7 @@ export async function createJob(
         isGlobalAdmin: ctx.roles.includes("globaladmin"),
         requested: validated.data.notify_push,
         stored: null,
+        storedCampusId: null,
       })
     );
     payload.scheduled_publish_at = publication.scheduledPublishAt;
@@ -1071,6 +1072,7 @@ export async function updateJob(
         isGlobalAdmin: ctx.roles.includes("globaladmin"),
         requested: validated.data.notify_push,
         stored: vacancy.notify_push,
+        storedCampusId: vacancy.campus_id,
       }),
       vacancy.metadata
     );

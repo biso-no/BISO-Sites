@@ -670,4 +670,20 @@ describe("job notify_push", () => {
 
     expect(savedPayload().notify_push).toBe(true);
   });
+
+  test("moving a notify-on campus vacancy to National does not carry the flag", async () => {
+    authState.ctx = {
+      managedCampusIds: ["campus-oslo", "5"],
+      roles: ["campusadmin"],
+    };
+    stubVacancy("campus-oslo", true);
+
+    await updateJob(
+      "job-1",
+      { ...jobValues, campus_id: "5", notify_push: true },
+      options
+    );
+
+    expect(savedPayload().notify_push).toBe(false);
+  });
 });

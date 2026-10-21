@@ -468,6 +468,7 @@ export async function createNews(
           isGlobalAdmin: ctx.roles.includes("globaladmin"),
           requested: validated.data.notify_push,
           stored: null,
+          storedCampusId: null,
         }),
         author: validated.data.author ?? null,
         translation_refs: buildNestedTranslations(
@@ -594,6 +595,7 @@ export async function updateNews(
           isGlobalAdmin: ctx.roles.includes("globaladmin"),
           requested: validated.data.notify_push,
           stored: article.notify_push,
+          storedCampusId: article.campus_id,
         }),
         author: validated.data.author ?? null,
         translation_refs: buildNestedTranslations(

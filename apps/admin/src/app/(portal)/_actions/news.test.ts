@@ -314,4 +314,39 @@ describe("news notify_push", () => {
       expect.objectContaining({ notify_push: true })
     );
   });
+
+  test("moving a notify-on campus article to National does not carry the flag", async () => {
+    currentCtx = {
+      ...campusAdminCtx,
+      managedCampusIds: ["campus-oslo", "5"],
+      resolvedCampusIds: ["campus-oslo", "5"],
+    };
+    db.listRows.mockImplementation(
+      async (_databaseId: string, tableId: string) => ({
+        rows:
+          tableId === "news"
+            ? [
+                {
+                  $id: "news-1",
+                  campus_id: "campus-oslo",
+                  department_id: null,
+                  notify_push: true,
+                  status: "draft",
+                },
+              ]
+            : [],
+        total: tableId === "news" ? 1 : 0,
+      })
+    );
+
+    await updateNews("news-1", {
+      ...publishedValues,
+      campus_id: "5",
+      notify_push: true,
+    });
+
+    expect(newsWriteData()).toEqual(
+      expect.objectContaining({ notify_push: false })
+    );
+  });
 });
