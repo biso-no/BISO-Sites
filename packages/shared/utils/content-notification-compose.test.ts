@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   composeAutoAnnouncement,
+  hasNotifyTitle,
   type NotifyItem,
   toNotifyItem,
 } from "./content-notification-compose";
@@ -29,6 +30,7 @@ function item(overrides: Partial<NotifyItem> = {}): NotifyItem {
     date: "2026-10-24T18:00:00Z",
     location: "Kafé",
     image: "img1",
+    slug: null,
     ...overrides,
   };
 }
@@ -66,6 +68,29 @@ describe("single item", () => {
     const out = composeAutoAnnouncement([item({ titleNo: null })], NOW);
     expect(out.title_no).toBe("Autumn party");
     expect(out.title_en).toBe("Autumn party");
+  });
+
+  it("falls back to the slug when neither language has a title", () => {
+    const untitled = item({
+      titleEn: null,
+      titleNo: null,
+      slug: "autumn-party",
+    });
+    const out = composeAutoAnnouncement([untitled], NOW);
+    expect(out.title_en).toBe("autumn-party");
+    expect(out.title_no).toBe("autumn-party");
+    const [snapshot] = JSON.parse(out.items) as Record<string, unknown>[];
+    expect(snapshot).toMatchObject({
+      title_en: "autumn-party",
+      title_no: "autumn-party",
+    });
+    expect(hasNotifyTitle(untitled)).toBe(true);
+  });
+
+  it("reports an item with no title and no slug as untitled", () => {
+    expect(hasNotifyTitle(item())).toBe(true);
+    expect(hasNotifyTitle(item({ titleEn: null }))).toBe(true);
+    expect(hasNotifyTitle(item({ titleEn: null, titleNo: null }))).toBe(false);
   });
 
   it("uses plain text description cut to 140 chars for news", () => {
@@ -231,6 +256,7 @@ describe("toNotifyItem", () => {
         start_date: "2026-10-24T18:00:00Z",
         location: "Kafé",
         image: "img",
+        slug: "autumn-party",
       },
       [
         { locale: "en", title: "A", short_description: "s", description: "d" },
@@ -250,6 +276,7 @@ describe("toNotifyItem", () => {
       date: "2026-10-24T18:00:00Z",
       location: "Kafé",
       image: "img",
+      slug: "autumn-party",
     });
   });
 
@@ -266,6 +293,7 @@ describe("toNotifyItem", () => {
     );
     expect(news.date).toBe("2026-10-01T00:00:00Z");
     expect(news.channel).toBe("news_national");
+    expect(news.slug).toBeNull();
     const job = toNotifyItem(
       "job",
       {

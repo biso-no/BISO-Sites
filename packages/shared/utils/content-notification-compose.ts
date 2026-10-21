@@ -17,6 +17,8 @@ export interface NotifyItem {
   id: string;
   image: string | null;
   location: string | null;
+  /** Last-resort title when neither language has one. */
+  slug: string | null;
   summaryEn: string | null;
   summaryNo: string | null;
   titleEn: string | null;
@@ -115,6 +117,7 @@ export function toNotifyItem(
     date,
     location: type === "event" ? str(row.location) : null,
     image: type === "job" ? null : str(row.image),
+    slug: str(row.slug),
   };
 }
 
@@ -125,7 +128,15 @@ function cut(text: string, max: number): string {
 function titleOf(item: NotifyItem, lang: Lang): string {
   const own = lang === "en" ? item.titleEn : item.titleNo;
   const other = lang === "en" ? item.titleNo : item.titleEn;
-  return own ?? other ?? "";
+  return own ?? other ?? item.slug ?? "";
+}
+
+/**
+ * Whether the item has something to show as its title: a translation in
+ * either language, else its slug. Leave untitled items out of a send.
+ */
+export function hasNotifyTitle(item: NotifyItem): boolean {
+  return titleOf(item, "en") !== "";
 }
 
 function summaryOf(item: NotifyItem, lang: Lang): string {
