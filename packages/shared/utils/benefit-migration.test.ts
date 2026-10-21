@@ -399,6 +399,38 @@ describe("planBenefitMigration matching", () => {
     ]);
   });
 
+  it("merges only into published rows", () => {
+    const planWith = (status: string) =>
+      plan(
+        [
+          benefitRow({
+            $id: "peppes",
+            status,
+            title_nb: "25 % hos Peppes Pizza Nydalen",
+          }),
+        ],
+        [
+          campusRow("1", {
+            studentBenefits_en: ["25% off at Peppes Pizza Nydalen"],
+            studentBenefits_nb: [PEPPES],
+          }),
+        ]
+      );
+    for (const status of ["draft", "archived"]) {
+      const result = planWith(status);
+      expect(result.lines[0]).toMatchObject({
+        action: "create",
+        mergeInto: [],
+        note: "Ligner på «25 % hos Peppes Pizza Nydalen» (Oslo, Medlemsfordeler)",
+      });
+      expect(result.rowUpdates[0]?.sortOrder).toBeNull();
+    }
+    expect(planWith("published").lines[0]).toMatchObject({
+      action: "merge",
+      mergeInto: ["peppes"],
+    });
+  });
+
   it("does not take over the order of a national row from a campus line", () => {
     const result = plan(
       [

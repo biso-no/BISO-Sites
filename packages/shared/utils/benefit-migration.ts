@@ -469,8 +469,16 @@ function baseLine(line: DraftLine): Omit<PlannedLine, "action" | "note"> {
   };
 }
 
-/** Rule 5: merge into same-section candidates, or create with notes. */
-function matchLine(line: DraftLine, rows: PlannedRowUpdate[]): PlannedLine {
+/**
+ * Rule 5: merge into same-section candidates, or create with notes. Only
+ * published rows can be merge targets, so a live line never folds into a
+ * draft or archived row; those still show up as possible matches.
+ */
+function matchLine(
+  line: DraftLine,
+  rows: PlannedRowUpdate[],
+  publishedIds: Set<string>
+): PlannedLine {
   const scored: ScoredRow[] = rows
     .filter(
       (row) =>
@@ -482,7 +490,9 @@ function matchLine(line: DraftLine, rows: PlannedRowUpdate[]): PlannedLine {
     }));
   const sameSection = scored.filter(({ row }) => row.section === line.section);
   const targets = sameSection
-    .filter(({ match }) => isMergeMatch(match))
+    .filter(
+      ({ match, row }) => isMergeMatch(match) && publishedIds.has(row.rowId)
+    )
     .map(({ row }) => row);
   const similar = scored
     .filter(
@@ -517,13 +527,14 @@ function matchLine(line: DraftLine, rows: PlannedRowUpdate[]): PlannedLine {
 
 function matchLines(
   drafts: DraftLine[],
-  rows: PlannedRowUpdate[]
+  rows: PlannedRowUpdate[],
+  publishedIds: Set<string>
 ): PlannedLine[] {
   return drafts.map(
     (line): PlannedLine =>
       line.duplicate
         ? { ...baseLine(line), action: "skip", note: DUPLICATE }
-        : matchLine(line, rows)
+        : matchLine(line, rows, publishedIds)
   );
 }
 
@@ -594,7 +605,12 @@ function collectPartners(variants: PartnerVariant[]): PlannedPartner[] {
 export function planBenefitMigration(input: MigrationInput): MigrationPlan {
   const { updates, variants } = proposeRowUpdates(input.benefits);
   const drafts = collapseLines(collectSourceLines(input.campusData));
-  const lines = matchLines(drafts, updates);
+  const publishedIds = new Set(
+    input.benefits
+      .filter((row) => row.status === "published")
+      .map((row) => row.$id)
+  );
+  const lines = matchLines(drafts, updates, publishedIds);
   applyMergeOrder(lines, updates);
   return {
     codes: collectCodes(input.benefits),
