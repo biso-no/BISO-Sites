@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { benefitHeadline, localizedBenefitText } from "./benefit-text";
+import {
+  benefitCategoryLabel,
+  benefitHeadline,
+  localizedBenefitText,
+} from "./benefit-text";
 
 const BOTH = {
   description_en: "<p>Show your member pass.</p>",
@@ -59,5 +63,41 @@ describe("benefitHeadline", () => {
     expect(
       benefitHeadline({ ...BOTH, teaser_en: null, teaser_nb: null }, "no")
     ).toBe("Kantina");
+  });
+});
+
+describe("localizedBenefitText on a migrated row", () => {
+  it("reads null descriptions and teasers as empty", () => {
+    // Migrated one-line rows carry no description or teaser at all.
+    const migrated = {
+      ...BOTH,
+      description_en: null,
+      description_nb: null,
+      teaser_en: null,
+      teaser_nb: null,
+    } as unknown as typeof BOTH;
+
+    expect(localizedBenefitText(migrated, "no")).toEqual({
+      description: "",
+      teaser: "",
+      title: "Kantina",
+    });
+  });
+});
+
+describe("benefitCategoryLabel", () => {
+  it("labels a studio category in the visitor's language", () => {
+    expect(benefitCategoryLabel("food_drink", "no")).toBe("Mat og drikke");
+    expect(benefitCategoryLabel("food_drink", "en")).toBe("Food & drink");
+    expect(benefitCategoryLabel("other", "no")).toBe("Annet");
+  });
+
+  it("shows a legacy category as stored", () => {
+    expect(benefitCategoryLabel("Food & Drink", "no")).toBe("Food & Drink");
+  });
+
+  it("is empty when the row has no category", () => {
+    expect(benefitCategoryLabel(null, "en")).toBe("");
+    expect(benefitCategoryLabel(undefined, "no")).toBe("");
   });
 });

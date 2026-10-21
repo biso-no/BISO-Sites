@@ -14,6 +14,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useLocale } from "next-intl";
+import { benefitCategoryLabel } from "@/lib/benefit-text";
 
 interface BenefitPreviewCardProps {
   category: string;
@@ -48,6 +50,7 @@ export function BenefitPreviewCard({
 }: BenefitPreviewCardProps) {
   const Icon = getCategoryIcon(category);
   const gradient = getCategoryGradient(category);
+  const categoryLabel = benefitCategoryLabel(category, useLocale());
 
   return (
     <motion.div
@@ -88,11 +91,13 @@ export function BenefitPreviewCard({
         {/* Content */}
         <div className="p-5">
           {/* Category badge */}
-          <Badge
-            className={`mb-3 bg-linear-to-r ${gradient} border-0 text-white`}
-          >
-            {category}
-          </Badge>
+          {categoryLabel && (
+            <Badge
+              className={`mb-3 bg-linear-to-r ${gradient} border-0 text-white`}
+            >
+              {categoryLabel}
+            </Badge>
+          )}
 
           {/* Partner name (partial blur effect) */}
           <h3 className="mb-1 font-semibold text-foreground text-lg dark:text-foreground">

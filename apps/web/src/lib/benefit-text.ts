@@ -1,4 +1,8 @@
 import type { CampusBenefits } from "@repo/api/types/appwrite";
+import {
+  BENEFIT_CATEGORY_LABELS,
+  isBenefitCategory,
+} from "@repo/shared/utils/benefit-catalog";
 
 type BenefitTextFields = Pick<
   CampusBenefits,
@@ -50,4 +54,19 @@ export function benefitHeadline(
 ): string {
   const text = localizedBenefitText(benefit, locale);
   return text.teaser || text.title;
+}
+
+/**
+ * The category chip text: a studio category key (migrated rows) in the
+ * visitor's language, a legacy value as stored, empty when there is none.
+ */
+export function benefitCategoryLabel(
+  category: string | null | undefined,
+  locale: string
+): string {
+  if (!isBenefitCategory(category)) {
+    return category ?? "";
+  }
+  const label = BENEFIT_CATEGORY_LABELS[category];
+  return locale === "no" ? label.nb : label.en;
 }

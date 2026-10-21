@@ -10,7 +10,7 @@ import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
-import { localizedBenefitText } from "@/lib/benefit-text";
+import { benefitCategoryLabel, localizedBenefitText } from "@/lib/benefit-text";
 import {
   CodeReveal,
   LinkReveal,
@@ -46,7 +46,9 @@ export function BenefitCard({
   isRevealed: initialRevealed,
 }: BenefitCardProps) {
   const t = useTranslations("memberPortal.benefits");
-  const text = localizedBenefitText(benefit, useLocale());
+  const locale = useLocale();
+  const text = localizedBenefitText(benefit, locale);
+  const categoryLabel = benefitCategoryLabel(benefit.category, locale);
   const [revealed, setRevealed] = useState(initialRevealed);
   const [value, setValue] = useState<string | null>(
     benefit.redemption_value || null
@@ -141,11 +143,13 @@ export function BenefitCard({
                 )}
               </div>
             </div>
-            <Badge
-              className={`${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border}`}
-            >
-              {benefit.category}
-            </Badge>
+            {categoryLabel && (
+              <Badge
+                className={`${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border}`}
+              >
+                {categoryLabel}
+              </Badge>
+            )}
           </div>
 
           {/* Description — optional, so no empty spacer when it's blank.

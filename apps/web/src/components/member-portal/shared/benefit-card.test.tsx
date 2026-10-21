@@ -81,4 +81,31 @@ describe("BenefitCard", () => {
 
     expect(html).toContain("10 % rabatt i kantina");
   });
+
+  it("renders a migrated row without null text and with a readable category", () => {
+    // Migrated member rows have no description, teaser or partner name, and
+    // a studio category key instead of a legacy label.
+    locale.current = "no";
+    const html = render({
+      category: "food_drink",
+      description_en: null,
+      description_nb: null,
+      teaser_en: null,
+      teaser_nb: null,
+    } as unknown as Partial<CampusBenefits>);
+
+    expect(html).toContain("10 % rabatt i kantina");
+    expect(html).toContain("Mat og drikke");
+    expect(html).not.toContain("food_drink");
+    expect(html).not.toContain("null");
+    expect(html).not.toContain("undefined");
+  });
+
+  it("labels a studio category in English for an English visitor", () => {
+    expect(render({ category: "other" })).toContain("Other");
+  });
+
+  it("keeps a legacy category label as stored", () => {
+    expect(render({})).toContain("Lifestyle");
+  });
 });

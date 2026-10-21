@@ -23,6 +23,7 @@ import { benefitHeadline } from "@/lib/benefit-text";
 import { BenefitCard } from "../shared/benefit-card";
 import { BenefitPreviewCard } from "../shared/benefit-preview-card";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
+import { matchesBenefitSearch } from "./benefit-search";
 
 interface BenefitsTabProps {
   benefits: CampusBenefits[];
@@ -57,17 +58,7 @@ function MemberBenefitsView({
   const filteredBenefits = benefits.filter((benefit) => {
     const matchesCategory =
       selectedCategory === "all" || benefit.category === selectedCategory;
-    const matchesSearch =
-      benefit.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      benefit.title_nb.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (benefit.partner_name ?? "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      benefit.description_en
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      benefit.description_nb.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesBenefitSearch(benefit, searchQuery);
   });
 
   const categoryCounts = categories.reduce(
