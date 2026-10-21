@@ -327,12 +327,24 @@ describe("re-saving a sent topic announcement from the composer", () => {
   });
 });
 
-describe("the review step says who an Everyone announcement reaches", () => {
-  function reviewAudience(container: TestElement): string {
-    // A review row reads as its label, then its value: "AudienceEveryone…".
-    return findButtonWhere(container, "Audience review row", (text) =>
-      text.startsWith("Audience")
-    ).textContent.slice("Audience".length);
+describe("the check step asks before an Everyone announcement goes out", () => {
+  function openCheckStep(container: TestElement): Promise<void> {
+    return click(
+      findButtonWhere(container, "Check & send step", (text) =>
+        text.endsWith("Check & send")
+      )
+    );
+  }
+
+  function confirmationText(container: TestElement): string {
+    const dialog = findElements(
+      container,
+      (element) => element.getAttribute("role") === "alertdialog"
+    )[0];
+    if (!dialog) {
+      throw new Error("The Everyone confirmation is not open.");
+    }
+    return dialog.textContent;
   }
 
   test("a campus broadcast names the campus", async () => {
@@ -341,27 +353,31 @@ describe("the review step says who an Everyone announcement reaches", () => {
       campus_id: "2",
     });
 
-    await click(
-      findButtonWhere(composer, "Check & send step", (text) =>
-        text.endsWith("Check & send")
-      )
-    );
+    await openCheckStep(composer);
+    await click(findButton(composer, "Send"));
 
-    expect(reviewAudience(composer)).toBe("Everyone at Bergen");
+    expect(confirmationText(composer)).toContain("Send to everyone at Bergen?");
   });
 
-  test("an app-wide broadcast reaches all campuses", async () => {
+  test("an app-wide broadcast reaches every student", async () => {
     const composer = await openInComposer(draftBroadcastRow);
 
     await openDistributionStep(composer);
     await chooseCampus(composer, "");
-    await click(
-      findButtonWhere(composer, "Check & send step", (text) =>
-        text.endsWith("Check & send")
-      )
-    );
+    await openCheckStep(composer);
+    await click(findButton(composer, "Send"));
 
-    expect(reviewAudience(composer)).toBe("Everyone (all campuses)");
+    expect(confirmationText(composer)).toContain("Send to every student?");
+  });
+
+  test("cancelling the confirmation sends nothing", async () => {
+    const composer = await openInComposer(draftBroadcastRow);
+
+    await openCheckStep(composer);
+    await click(findButton(composer, "Send"));
+    await click(findButton(composer, "Cancel"));
+
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 });
 

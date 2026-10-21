@@ -1,35 +1,21 @@
 "use client";
 
 import type { Announcements } from "@repo/api/types/appwrite";
-import {
-  broadcastChannelFor,
-  GENERAL_TOPIC_ID,
-  logicalTopicFor,
-} from "@repo/shared/utils/notification-topics";
-import {
-  isoToOsloWallClock,
-  OSLO_TIME_ZONE,
-  osloWallClockToIso,
-} from "@repo/shared/utils/oslo-time";
+import { logicalTopicFor } from "@repo/shared/utils/notification-topics";
 import {
   ArrowLeft,
   ArrowRight,
   Bell,
-  CalendarDays,
   Check,
   ChevronRight,
   type Megaphone,
   Save,
-  Send,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  AutoTranslateControl,
-  TranslationReviewCard,
-} from "@/app/_components/content-translation-controls";
+import { AutoTranslateControl } from "@/app/_components/content-translation-controls";
 import type { AutoTranslationOptions } from "@/lib/content-translation";
 import {
   createAnnouncement,
@@ -45,14 +31,12 @@ import { DescriptionBlockEditor } from "../../_components/description-block-edit
 import {
   COMPOSER_STEPS,
   canContinue,
-  parseAudiencePeople,
   TYPE_CARDS,
 } from "./composer/composer-state";
+import { CheckStep } from "./composer/check-step";
 import { buildLinkState, type LinkState } from "./composer/link-state";
 import {
   BRAND,
-  FieldLabel,
-  fieldInputStyle,
   type LocaleCode,
   LocaleTabs,
   MONO,
@@ -84,13 +68,6 @@ const CATEGORIES: Array<{
   id: card.id,
   label: card.label,
 }));
-
-const AUDIENCE_LABELS: Record<AudienceType, string> = {
-  broadcast: "Everyone",
-  segment: "Group",
-  topic: "Topic",
-  users: "Specific users",
-};
 
 const TOPIC_OPTIONS = [
   { value: "news", label: "News" },
@@ -305,14 +282,6 @@ function announcementDepartmentId(
   return typeof department === "string" ? department : department.$id;
 }
 
-function isFutureSchedule(scheduledAt: string | null | undefined): boolean {
-  if (!scheduledAt) {
-    return false;
-  }
-  const time = new Date(scheduledAt).getTime();
-  return Number.isFinite(time) && time > Date.now();
-}
-
 /* -------------------------------------------------------------------------- */
 /*                              Shared primitives                             */
 /* -------------------------------------------------------------------------- */
@@ -462,125 +431,6 @@ function StepRail({
   );
 }
 
-function SelectCard({
-  active,
-  description,
-  disabled,
-  disabledNote,
-  icon,
-  onClick,
-  title,
-}: {
-  active: boolean;
-  description?: string;
-  disabled?: boolean;
-  disabledNote?: string;
-  icon?: React.ReactNode;
-  onClick: () => void;
-  title: string;
-}) {
-  return (
-    <button
-      disabled={disabled}
-      onClick={disabled ? undefined : onClick}
-      style={{
-        background: active ? BRAND.ink : "rgba(255,255,255,.55)",
-        border: `0.5px solid ${active ? BRAND.ink : BRAND.rule2}`,
-        borderRadius: 12,
-        color: active ? BRAND.paper : BRAND.ink,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.7 : 1,
-        padding: "16px 18px",
-        position: "relative",
-        textAlign: "left",
-        transition: "background .12s, border-color .12s",
-      }}
-      type="button"
-    >
-      <div
-        style={{
-          alignItems: "center",
-          display: "flex",
-          fontSize: 14,
-          fontWeight: 500,
-          gap: 8,
-        }}
-      >
-        {icon && (
-          <span
-            style={{
-              alignItems: "center",
-              background: active ? "rgba(255,255,255,.12)" : BRAND.paper2,
-              borderRadius: 8,
-              color: active ? BRAND.paper : BRAND.ink2,
-              display: "grid",
-              height: 28,
-              placeItems: "center",
-              width: 28,
-            }}
-          >
-            {icon}
-          </span>
-        )}
-        {title}
-      </div>
-      {description && (
-        <p
-          style={{
-            color: active ? "rgba(250,247,242,.7)" : BRAND.ink3,
-            fontSize: 12.5,
-            lineHeight: 1.45,
-            margin: "8px 0 0",
-          }}
-        >
-          {description}
-        </p>
-      )}
-      {disabledNote && (
-        <span
-          style={{
-            background: active ? "rgba(255,255,255,.16)" : BRAND.paper2,
-            borderRadius: 999,
-            color: active ? BRAND.paper : BRAND.ink3,
-            display: "inline-block",
-            fontSize: 10,
-            marginTop: 8,
-            padding: "2px 8px",
-          }}
-        >
-          {disabledNote}
-        </span>
-      )}
-      <span
-        style={{
-          alignItems: "center",
-          background: active ? BRAND.leaf : "white",
-          border: `1px solid ${active ? BRAND.leaf : BRAND.rule2}`,
-          borderRadius: "50%",
-          color: "white",
-          display: "grid",
-          height: 18,
-          placeItems: "center",
-          position: "absolute",
-          right: 14,
-          top: 14,
-          width: 18,
-        }}
-      >
-        {active && <Check size={11} />}
-      </span>
-    </button>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                  What step                                 */
-/* -------------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------------- */
-/*                                 Content step                               */
-/* -------------------------------------------------------------------------- */
-
 function ContentStep({
   locale,
   set,
@@ -620,243 +470,6 @@ function ContentStep({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                  Who step                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The campus an Everyone announcement is limited to, or `null` when it reaches
- * every app user. Same rule as dispatch (`broadcastChannelFor`): a real campus
- * scopes it to that campus; National or no campus means everyone.
- */
-function broadcastCampusName(
-  campusId: string | null | undefined,
-  campusOptions: Array<{ value: string; label: string }>
-): string | null {
-  if (broadcastChannelFor(campusId) === GENERAL_TOPIC_ID) {
-    return null;
-  }
-  return (
-    campusOptions.find((campus) => campus.value === campusId)?.label ??
-    "the selected campus"
-  );
-}
-
-function DeliveryOptions({
-  set,
-  values,
-}: {
-  set: <K extends keyof AnnouncementFormValues>(
-    key: K,
-    value: AnnouncementFormValues[K]
-  ) => void;
-  values: AnnouncementFormValues;
-}) {
-  return (
-    <div style={{ display: "grid", gap: 22, marginTop: 26 }}>
-      <SelectCard
-        active={values.push}
-        description={
-          values.push
-            ? "Fires a device push and adds the message to the in-app inbox."
-            : "Inbox-only — appears in the app without a device push."
-        }
-        icon={<Bell size={14} />}
-        onClick={() => set("push", !values.push)}
-        title={values.push ? "Send device push" : "Inbox only"}
-      />
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <FieldLabel help="Leave empty to send immediately">
-          <CalendarDays size={12} /> Schedule
-        </FieldLabel>
-        <input
-          onChange={(event) =>
-            set("scheduled_at", osloWallClockToIso(event.target.value))
-          }
-          style={fieldInputStyle()}
-          type="datetime-local"
-          value={isoToOsloWallClock(values.scheduled_at)}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                              Check & send step                             */
-/* -------------------------------------------------------------------------- */
-
-function buildReviewRows(
-  values: AnnouncementFormValues,
-  campusOptions: Array<{ value: string; label: string }>
-): Array<{ label: string; value: string | null; step: StepIndex }> {
-  const category = categoryById(values.category);
-  const campusLabel =
-    campusOptions.find((c) => c.value === (values.campus_id ?? ""))?.label ??
-    "—";
-  let audienceDetail = "";
-  if (values.audience_type === "broadcast") {
-    const campusName = broadcastCampusName(values.campus_id, campusOptions);
-    audienceDetail = campusName ? ` at ${campusName}` : " (all campuses)";
-  } else if (values.audience_type === "topic") {
-    audienceDetail = ` · ${values.audience_value ?? ""}`;
-  } else if (values.audience_type === "users") {
-    const count = parseAudiencePeople(values.audience_value).length;
-    audienceDetail = ` · ${count} recipient${count === 1 ? "" : "s"}`;
-  }
-
-  let scheduleValue = "Send immediately";
-  if (values.scheduled_at) {
-    scheduleValue = isFutureSchedule(values.scheduled_at)
-      ? `Scheduled · ${new Date(values.scheduled_at).toLocaleString("en-GB", { timeZone: OSLO_TIME_ZONE })}`
-      : `Send immediately (past date ${new Date(values.scheduled_at).toLocaleString("en-GB", { timeZone: OSLO_TIME_ZONE })})`;
-  }
-
-  return [
-    { label: "Title (EN)", value: values.title_en || null, step: 0 },
-    { label: "Title (NO)", value: values.title_no || null, step: 0 },
-    { label: "Category", value: category.label, step: 0 },
-    {
-      label: "Body (EN)",
-      value: htmlToPlainText(values.body_en) || null,
-      step: 1,
-    },
-    {
-      label: "Body (NO)",
-      value: htmlToPlainText(values.body_no) || null,
-      step: 1,
-    },
-    {
-      label: "Audience",
-      value: `${AUDIENCE_LABELS[values.audience_type] ?? "—"}${audienceDetail}`,
-      step: 2,
-    },
-    { label: "Campus", value: campusLabel, step: 2 },
-    {
-      label: "Linked content",
-      value: values.content_id
-        ? `${values.content_type ?? "event"} · ${values.content_id}`
-        : null,
-      step: 0,
-    },
-    {
-      label: "Push",
-      value: values.push ? "Device push + inbox" : "Inbox only",
-      step: 2,
-    },
-    { label: "Schedule", value: scheduleValue, step: 2 },
-  ];
-}
-
-function CheckStep({
-  campusOptions,
-  confirmTranslationOverwrite,
-  locale,
-  onTranslate,
-  setStep,
-  translating,
-  values,
-}: {
-  campusOptions: Array<{ value: string; label: string }>;
-  confirmTranslationOverwrite: boolean;
-  locale: LocaleCode;
-  onTranslate: () => void;
-  setStep: (step: StepIndex) => void;
-  translating: boolean;
-  values: AnnouncementFormValues;
-}) {
-  const rows = buildReviewRows(values, campusOptions);
-
-  return (
-    <div>
-      <StepIntro eyebrow="Step 4" title="Check & send" />
-      <p
-        style={{
-          color: BRAND.ink3,
-          fontSize: 13.5,
-          margin: "0 0 18px",
-          maxWidth: "50ch",
-        }}
-      >
-        Click any row to jump back and edit. The previews on the right show
-        exactly how this lands on a phone and in the in-app inbox.
-      </p>
-
-      <TranslationReviewCard
-        className="mb-5"
-        isTranslating={translating}
-        onTranslate={onTranslate}
-        sourceLocale={locale}
-      />
-      {confirmTranslationOverwrite && (
-        <p
-          style={{ color: BRAND.gold, fontSize: 12.5, margin: "-10px 0 18px" }}
-        >
-          The destination already has content. Click Generate again to replace
-          it.
-        </p>
-      )}
-
-      <div
-        style={{
-          background: "rgba(255,255,255,.5)",
-          border: `0.5px solid ${BRAND.rule}`,
-          borderRadius: 14,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {rows.map((row, index) => (
-          <button
-            key={row.label}
-            onClick={() => setStep(row.step)}
-            style={{
-              alignItems: "center",
-              background: "transparent",
-              border: 0,
-              borderTop: index > 0 ? `0.5px solid ${BRAND.rule}` : 0,
-              cursor: "pointer",
-              display: "grid",
-              gap: 14,
-              gridTemplateColumns: "140px 1fr auto",
-              padding: "14px 18px",
-              textAlign: "left",
-              width: "100%",
-            }}
-            type="button"
-          >
-            <span
-              style={{
-                color: BRAND.ink3,
-                fontSize: 11.5,
-                letterSpacing: ".04em",
-                textTransform: "uppercase",
-              }}
-            >
-              {row.label}
-            </span>
-            <span
-              style={{
-                color: row.value ? BRAND.ink : BRAND.ink4,
-                fontSize: 14,
-                fontStyle: row.value ? "normal" : "italic",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {row.value ?? "Not set"}
-            </span>
-            <ChevronRight size={14} style={{ color: BRAND.ink4 }} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /*                                 Action bar                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -866,8 +479,6 @@ function ActionBar({
   locale,
   onAutoTranslateChange,
   onSaveDraft,
-  onSend,
-  scheduledFuture,
   sending,
   setStep,
   step,
@@ -879,8 +490,6 @@ function ActionBar({
   locale: LocaleCode;
   onAutoTranslateChange: (checked: boolean) => void;
   onSaveDraft: () => void;
-  onSend: () => void;
-  scheduledFuture: boolean;
   sending: boolean;
   setStep: (step: StepIndex) => void;
   step: StepIndex;
@@ -899,11 +508,6 @@ function ActionBar({
   );
   const nextStepName = step < STEPS.length - 1 ? STEPS[step + 1] : null;
   const gate = canContinue(step, values);
-
-  let sendLabel = scheduledFuture ? "Schedule" : "Send now";
-  if (sending) {
-    sendLabel = "Sending…";
-  }
 
   return (
     <div
@@ -1001,23 +605,7 @@ function ActionBar({
         >
           Continue · {nextStepName} <ArrowRight size={14} />
         </button>
-      ) : (
-        <button
-          disabled={sending}
-          onClick={onSend}
-          style={{
-            ...actionBtnStyle(),
-            background: BRAND.bisoBlue,
-            border: `0.5px solid ${BRAND.bisoBlue}`,
-            color: "white",
-            padding: "9px 18px",
-          }}
-          type="button"
-        >
-          <Send size={13} />
-          {sendLabel}
-        </button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1707,7 +1295,6 @@ export function AnnouncementStudioEditor({
   }
 
   const status = isNew ? "draft" : (announcement?.status ?? "draft");
-  const scheduledFuture = isFutureSchedule(values.scheduled_at);
 
   return (
     <div
@@ -1837,29 +1424,30 @@ export function AnnouncementStudioEditor({
               />
             )}
             {step === 2 && (
-              <>
-                <WhoStep
-                  audienceContext={audienceContext}
-                  lockDepartment={lockDepartment}
-                  set={set}
-                  setAudience={setAudience}
-                  tappingOpens={
-                    values.content_id && link.display
-                      ? (link.display.label ?? link.display.title)
-                      : null
-                  }
-                  values={values}
-                />
-                <DeliveryOptions set={set} values={values} />
-              </>
+              <WhoStep
+                audienceContext={audienceContext}
+                lockDepartment={lockDepartment}
+                set={set}
+                setAudience={setAudience}
+                tappingOpens={
+                  values.content_id && link.display
+                    ? (link.display.label ?? link.display.title)
+                    : null
+                }
+                values={values}
+              />
             )}
             {step === 3 && (
               <CheckStep
                 campusOptions={campusOptions}
                 confirmTranslationOverwrite={confirmTranslationOverwrite}
+                link={values.content_id ? link.display : null}
                 locale={locale}
+                onEdit={setStep}
+                onSend={handleSend}
                 onTranslate={handleTranslate}
-                setStep={setStep}
+                sending={isSending}
+                set={set}
                 translating={translating}
                 values={values}
               />
@@ -1871,8 +1459,6 @@ export function AnnouncementStudioEditor({
             locale={locale}
             onAutoTranslateChange={setAutoTranslate}
             onSaveDraft={handleSaveDraft}
-            onSend={handleSend}
-            scheduledFuture={scheduledFuture}
             sending={isSending}
             setStep={setStep}
             step={step}

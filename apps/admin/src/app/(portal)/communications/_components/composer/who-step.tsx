@@ -263,7 +263,7 @@ function CampusPills({
   );
 }
 
-function reachRequest(values: ComposerValues): ReachRequest {
+export function reachRequest(values: ComposerValues): ReachRequest {
   const request: ReachRequest = {
     audienceType: values.audience_type,
     audienceValue: values.audience_value ?? null,
