@@ -26,7 +26,10 @@ function recordingWriter(): { calls: Call[]; writer: MigrationWriter } {
   return {
     calls,
     writer: {
-      deleteRow: record("deleteRow"),
+      deleteRow: async (...args: unknown[]) => {
+        await record("deleteRow")(...args);
+        return "deleted" as const;
+      },
       updateRow: record("updateRow"),
       upsertRow: record("upsertRow"),
     } as MigrationWriter,
@@ -121,7 +124,6 @@ describe("applyBenefitMigration", () => {
       ["upsertRow", "campus_benefits", "line-career"],
       ["updateRow", "campus_benefits", "row-public"],
       ["updateRow", "campus_benefits", "row-private"],
-      ["updateRow", "campus_benefits", "row-old"],
       ["upsertRow", "benefit_codes", "row-public"],
       ["deleteRow", "campus_benefits", "row-old"],
     ]);
@@ -130,7 +132,7 @@ describe("applyBenefitMigration", () => {
       created: 2,
       deleted: 1,
       partners: 1,
-      updated: 3,
+      updated: 2,
     });
   });
 
@@ -208,18 +210,85 @@ describe("applyBenefitMigration", () => {
     );
   });
 
-  it("is idempotent: the same plan issues identical calls", async () => {
-    const first = recordingWriter();
-    const second = recordingWriter();
+  it("skips updates and codes for rows with an approved deletion", async () => {
+    const { calls, writer } = recordingWriter();
     const plan = basePlan({ approved: true });
-    await applyBenefitMigration(plan, first.writer);
-    await applyBenefitMigration(plan, second.writer);
-    expect(second.calls).toEqual(first.calls);
-    expect(Object.keys(first.writer).sort()).toEqual([
-      "deleteRow",
-      "updateRow",
-      "upsertRow",
-    ]);
+    plan.codes.push({ rowId: "row-old", value: "GONE" });
+    const result = await applyBenefitMigration(plan, writer);
+    expect(
+      calls.some((c) => c.method === "updateRow" && c.args[1] === "row-old")
+    ).toBe(false);
+    expect(
+      calls.some((c) => c.method === "upsertRow" && c.args[1] === "row-old")
+    ).toBe(false);
+    expect(result).toMatchObject({ codes: 1, updated: 2, deleted: 1 });
+  });
+
+  it("still updates rows whose deletion is not approved", async () => {
+    const { calls, writer } = recordingWriter();
+    const result = await applyBenefitMigration(basePlan(), writer);
+    expect(
+      calls.some((c) => c.method === "updateRow" && c.args[1] === "row-old")
+    ).toBe(true);
+    expect(result.updated).toBe(3);
+  });
+
+  it("counts a missing row as already deleted", async () => {
+    const { writer } = recordingWriter();
+    writer.deleteRow = () => Promise.resolve("missing");
+    const result = await applyBenefitMigration(
+      basePlan({ approved: true }),
+      writer
+    );
+    expect(result.deleted).toBe(0);
+  });
+
+  it("names the table and row id when a write fails, without data values", async () => {
+    const { writer } = recordingWriter();
+    const cause = new Error("boom");
+    writer.upsertRow = (table) =>
+      table === "benefit_codes" ? Promise.reject(cause) : Promise.resolve();
+    const error = await applyBenefitMigration(basePlan(), writer).catch(
+      (e) => e
+    );
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe("benefit_codes/row-public: boom");
+    expect(error.message).not.toContain("SECRET");
+    expect(error.cause).toBe(cause);
+  });
+
+  it("converges when applied twice against a stateful store", async () => {
+    const store = new Map<string, Record<string, unknown>>();
+    store.set("campus_benefits/row-public", { title: "x" });
+    store.set("campus_benefits/row-private", { title: "y" });
+    store.set("campus_benefits/row-old", { title: "z" });
+    const writer: MigrationWriter = {
+      deleteRow: (table, id) => {
+        const key = `${table}/${id}`;
+        const existed = store.delete(key);
+        return Promise.resolve(existed ? "deleted" : "missing");
+      },
+      updateRow: (table, id, data) => {
+        const key = `${table}/${id}`;
+        const row = store.get(key);
+        if (!row) {
+          return Promise.reject(new Error("404"));
+        }
+        store.set(key, { ...row, ...data });
+        return Promise.resolve();
+      },
+      upsertRow: (table, id, data) => {
+        const key = `${table}/${id}`;
+        store.set(key, { ...store.get(key), ...data });
+        return Promise.resolve();
+      },
+    };
+    const plan = basePlan({ approved: true });
+    await applyBenefitMigration(plan, writer);
+    const afterFirst = structuredClone([...store]);
+    await expect(applyBenefitMigration(plan, writer)).resolves.toBeDefined();
+    expect([...store]).toEqual(afterFirst);
+    expect(store.has("campus_benefits/row-old")).toBe(false);
   });
 
   it("rejects an invalid plan before any write", async () => {

@@ -11,7 +11,11 @@ export type MigrationTable =
   | "campus_benefits";
 
 export interface MigrationWriter {
-  deleteRow(table: "campus_benefits", rowId: string): Promise<void>;
+  /** "missing" means the row was already gone (Appwrite 404). */
+  deleteRow(
+    table: "campus_benefits",
+    rowId: string
+  ): Promise<"deleted" | "missing">;
   updateRow(
     table: "campus_benefits",
     rowId: string,
@@ -41,6 +45,20 @@ export class InvalidMigrationPlanError extends Error {
     super(`Ugyldig migreringsplan: ${problems.length} problem(er)`);
     this.name = "InvalidMigrationPlanError";
     this.problems = problems;
+  }
+}
+
+/** Rethrows with table/row context; never includes data values (codes). */
+async function guarded<T>(
+  table: MigrationTable,
+  rowId: string,
+  write: () => Promise<T>
+): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`${table}/${rowId}: ${reason}`, { cause: error });
   }
 }
 
@@ -77,7 +95,7 @@ function updateData(
     category: row.category,
   };
   if (row.partnerKey !== null) {
-    data.partner_id = partnerIds.get(row.partnerKey);
+    data.partner_id = partnerIds.get(row.partnerKey) ?? null;
   }
   if (row.sortOrder !== null) {
     data.sort_order = row.sortOrder;
@@ -98,6 +116,9 @@ export async function applyBenefitMigration(
     throw new InvalidMigrationPlanError(problems);
   }
   const partnerIds = new Map(plan.partners.map((p) => [p.key, p.id]));
+  const deletedIds = new Set(
+    plan.deletions.filter((d) => d.approved).map((d) => d.rowId)
+  );
   const result: MigrationApplyResult = {
     codes: 0,
     created: 0,
@@ -107,16 +128,18 @@ export async function applyBenefitMigration(
   };
 
   for (const partner of plan.partners) {
-    await writer.upsertRow(
-      "benefit_partners",
-      partner.id,
-      {
-        name: partner.name,
-        campus_id: partner.campusId,
-        logo_url: partner.logoUrl,
-        is_active: true,
-      },
-      PUBLIC_READ
+    await guarded("benefit_partners", partner.id, () =>
+      writer.upsertRow(
+        "benefit_partners",
+        partner.id,
+        {
+          name: partner.name,
+          campus_id: partner.campusId,
+          logo_url: partner.logoUrl,
+          is_active: true,
+        },
+        PUBLIC_READ
+      )
     );
     result.partners += 1;
   }
@@ -125,31 +148,43 @@ export async function applyBenefitMigration(
     if (line.action !== "create") {
       continue;
     }
-    await writer.upsertRow(
-      "campus_benefits",
-      line.id,
-      createData(line, partnerIds),
-      PUBLIC_READ
+    await guarded("campus_benefits", line.id, () =>
+      writer.upsertRow(
+        "campus_benefits",
+        line.id,
+        createData(line, partnerIds),
+        PUBLIC_READ
+      )
     );
     result.created += 1;
   }
 
   for (const row of plan.rowUpdates) {
-    await writer.updateRow(
-      "campus_benefits",
-      row.rowId,
-      updateData(row, partnerIds),
-      row.makePublic ? PUBLIC_READ : undefined
+    if (deletedIds.has(row.rowId)) {
+      continue;
+    }
+    await guarded("campus_benefits", row.rowId, () =>
+      writer.updateRow(
+        "campus_benefits",
+        row.rowId,
+        updateData(row, partnerIds),
+        row.makePublic ? PUBLIC_READ : undefined
+      )
     );
     result.updated += 1;
   }
 
   for (const code of plan.codes) {
-    await writer.upsertRow(
-      "benefit_codes",
-      code.rowId,
-      { benefit_id: code.rowId, value: code.value },
-      []
+    if (deletedIds.has(code.rowId)) {
+      continue;
+    }
+    await guarded("benefit_codes", code.rowId, () =>
+      writer.upsertRow(
+        "benefit_codes",
+        code.rowId,
+        { benefit_id: code.rowId, value: code.value },
+        []
+      )
     );
     result.codes += 1;
   }
@@ -158,8 +193,12 @@ export async function applyBenefitMigration(
     if (!deletion.approved) {
       continue;
     }
-    await writer.deleteRow("campus_benefits", deletion.rowId);
-    result.deleted += 1;
+    const outcome = await guarded("campus_benefits", deletion.rowId, () =>
+      writer.deleteRow("campus_benefits", deletion.rowId)
+    );
+    if (outcome === "deleted") {
+      result.deleted += 1;
+    }
   }
 
   return result;
