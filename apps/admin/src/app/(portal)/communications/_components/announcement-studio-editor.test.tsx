@@ -79,7 +79,7 @@ mock.module("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
 
-const { AnnouncementStudioEditor } = await import(
+const { AnnouncementStudioEditor, buildInitialValues } = await import(
   "./announcement-studio-editor"
 );
 
@@ -218,11 +218,9 @@ function findButtonWhere(
 }
 
 function openDistributionStep(container: TestElement): Promise<void> {
-  // A step rail button reads as its number, then its name: "03Distribution".
+  // A step rail button reads as its number, then its name: "03Who".
   return click(
-    findButtonWhere(container, "Distribution step", (text) =>
-      text.endsWith("Distribution")
-    )
+    findButtonWhere(container, "Who step", (text) => text.endsWith("Who"))
   );
 }
 
@@ -343,8 +341,8 @@ describe("the review step says who an Everyone announcement reaches", () => {
     });
 
     await click(
-      findButtonWhere(composer, "Review step", (text) =>
-        text.endsWith("Review")
+      findButtonWhere(composer, "Check & send step", (text) =>
+        text.endsWith("Check & send")
       )
     );
 
@@ -357,11 +355,41 @@ describe("the review step says who an Everyone announcement reaches", () => {
     await openDistributionStep(composer);
     await chooseCampus(composer, "");
     await click(
-      findButtonWhere(composer, "Review step", (text) =>
-        text.endsWith("Review")
+      findButtonWhere(composer, "Check & send step", (text) =>
+        text.endsWith("Check & send")
       )
     );
 
     expect(reviewAudience(composer)).toBe("Everyone (all campuses)");
+  });
+});
+
+describe("buildInitialValues", () => {
+  test("a legacy event_id opens as an event link", () => {
+    const values = buildInitialValues(
+      { ...draftBroadcastRow, event_id: "ev-1" } as unknown as Announcements,
+      "1",
+      null
+    );
+
+    expect(values).toMatchObject({
+      content_id: "ev-1",
+      content_type: "event",
+    });
+  });
+
+  test("an explicit link wins over event_id", () => {
+    const values = buildInitialValues(
+      {
+        ...draftBroadcastRow,
+        content_id: "n-1",
+        content_type: "news",
+        event_id: "ev-1",
+      } as unknown as Announcements,
+      "1",
+      null
+    );
+
+    expect(values).toMatchObject({ content_id: "n-1", content_type: "news" });
   });
 });

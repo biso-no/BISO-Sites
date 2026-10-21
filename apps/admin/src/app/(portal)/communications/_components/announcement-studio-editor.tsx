@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bell,
+  Briefcase,
   Bus,
   CalendarDays,
   Check,
@@ -23,6 +24,7 @@ import {
   Globe,
   Link2,
   Megaphone,
+  Newspaper,
   Save,
   Send,
   Sparkles,
@@ -52,6 +54,11 @@ import {
 } from "../../_actions/schemas";
 import { DepartmentCombobox } from "../../_components/department-combobox";
 import { DescriptionBlockEditor } from "../../_components/description-block-editor";
+import {
+  COMPOSER_STEPS,
+  canContinue,
+  TYPE_CARDS,
+} from "./composer/composer-state";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
@@ -78,7 +85,7 @@ const BRAND = {
 const SERIF = "'Instrument Serif', Georgia, serif";
 const MONO = "ui-monospace, Menlo, Monaco, monospace";
 
-const STEPS = ["Essentials", "Content", "Distribution", "Review"] as const;
+const STEPS = COMPOSER_STEPS;
 
 type StepIndex = 0 | 1 | 2 | 3;
 type LocaleCode = ContentLocale;
@@ -86,37 +93,26 @@ type LocaleCode = ContentLocale;
 type CategoryId = AnnouncementFormValues["category"];
 type AudienceType = AnnouncementFormValues["audience_type"];
 
+const CATEGORY_ICONS: Record<CategoryId, typeof Megaphone> = {
+  event: CalendarDays,
+  general: Megaphone,
+  job: Briefcase,
+  news: Newspaper,
+  trip: Bus,
+  urgent: AlertTriangle,
+};
+
 const CATEGORIES: Array<{
   id: CategoryId;
   label: string;
   description: string;
   icon: typeof Megaphone;
-}> = [
-  {
-    id: "general",
-    label: "General",
-    description: "Everyday updates and reminders.",
-    icon: Megaphone,
-  },
-  {
-    id: "trip",
-    label: "Trip",
-    description: "Travel, excursions and away events.",
-    icon: Bus,
-  },
-  {
-    id: "urgent",
-    label: "Urgent",
-    description: "Time-sensitive, high-priority alerts.",
-    icon: AlertTriangle,
-  },
-  {
-    id: "event",
-    label: "Event",
-    description: "Tied to a specific campus event.",
-    icon: CalendarDays,
-  },
-];
+}> = TYPE_CARDS.map((card) => ({
+  description: card.description,
+  icon: CATEGORY_ICONS[card.id],
+  id: card.id,
+  label: card.label,
+}));
 
 const AUDIENCE_TYPES: Array<{
   id: AudienceType;
@@ -282,7 +278,23 @@ function withTopicDefault(
     : values;
 }
 
-function buildInitialValues(
+/** An explicit link wins; a legacy draft with only `event_id` is an event link. */
+function initialLink(
+  announcement: Announcements | null
+): Pick<AnnouncementFormValues, "content_id" | "content_type"> {
+  if (announcement?.content_type && announcement.content_id) {
+    return {
+      content_id: announcement.content_id,
+      content_type: announcement.content_type,
+    };
+  }
+  if (announcement?.event_id) {
+    return { content_id: announcement.event_id, content_type: "event" };
+  }
+  return { content_id: null, content_type: null };
+}
+
+export function buildInitialValues(
   announcement: Announcements | null,
   defaultCampusId: string,
   pinnedDepartmentId: string | null
@@ -320,6 +332,7 @@ function buildInitialValues(
     category: (announcement?.category as CategoryId) ?? "general",
     audience_type: (announcement?.audience_type as AudienceType) ?? "broadcast",
     audience_value: audienceValue,
+    ...initialLink(announcement),
     event_id: announcement?.event_id ?? null,
     campus_id: announcement?.campus_id ?? defaultCampusId ?? null,
     department_id: announcementDepartmentId(announcement) ?? pinnedDepartmentId,
@@ -759,10 +772,16 @@ function StepIntro({ eyebrow, title }: { eyebrow: string; title: string }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                Essentials step                             */
+/*                                  What step                                 */
 /* -------------------------------------------------------------------------- */
 
-function EssentialsStep({
+const LINK_LABELS = {
+  event: "Event",
+  job: "Position",
+  news: "Article",
+} as const;
+
+function WhatStep({
   locale,
   set,
   setLocale,
@@ -779,6 +798,18 @@ function EssentialsStep({
   const titleValue =
     locale === "en" ? values.title_en : (values.title_no ?? "");
   const titleKey = locale === "en" ? "title_en" : "title_no";
+  const linkType =
+    TYPE_CARDS.find((card) => card.id === values.category)?.linkType ?? null;
+
+  const chooseType = (id: CategoryId) => {
+    const nextLinkType = TYPE_CARDS.find((card) => card.id === id)?.linkType;
+    set("category", id);
+    if (nextLinkType !== values.content_type) {
+      set("content_type", nextLinkType ?? null);
+      set("content_id", null);
+      set("event_id", null);
+    }
+  };
 
   return (
     <div>
@@ -820,7 +851,7 @@ function EssentialsStep({
 
       <div style={{ display: "grid", gap: 8 }}>
         <FieldLabel help="Sets the icon and accent" required>
-          <Megaphone size={12} /> Category
+          <Megaphone size={12} /> Type
         </FieldLabel>
         <div
           style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}
@@ -833,13 +864,40 @@ function EssentialsStep({
                 description={category.description}
                 icon={<Icon size={14} />}
                 key={category.id}
-                onClick={() => set("category", category.id)}
+                onClick={() => chooseType(category.id)}
                 title={category.label}
               />
             );
           })}
         </div>
       </div>
+
+      {linkType && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            marginTop: 22,
+          }}
+        >
+          <FieldLabel help="Deep-links the push to this content">
+            <Link2 size={12} /> {LINK_LABELS[linkType]} ID
+          </FieldLabel>
+          <input
+            onChange={(event) => {
+              set("content_type", linkType);
+              set("content_id", event.target.value || null);
+              if (linkType === "event") {
+                set("event_id", event.target.value || null);
+              }
+            }}
+            placeholder="e.g. 64f0c1a2b3…"
+            style={fieldInputStyle({ fontFamily: MONO, fontSize: 13 })}
+            value={values.content_id ?? ""}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -887,7 +945,7 @@ function ContentStep({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Distribution step                             */
+/*                                  Who step                                  */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -993,7 +1051,7 @@ function AudienceDetail({
   );
 }
 
-function DistributionStep({
+function WhoStep({
   campusOptions,
   lockDepartment,
   set,
@@ -1009,7 +1067,7 @@ function DistributionStep({
 }) {
   return (
     <div>
-      <StepIntro eyebrow="Step 3" title="Who gets it, and when." />
+      <StepIntro eyebrow="Step 3" title="Who should get it?" />
 
       <div style={{ display: "grid", gap: 8 }}>
         <FieldLabel required>
@@ -1076,18 +1134,6 @@ function DistributionStep({
           />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel help="Deep-links the push to an event">
-            <Link2 size={12} /> Event id
-          </FieldLabel>
-          <input
-            onChange={(event) => set("event_id", event.target.value || null)}
-            placeholder="e.g. 64f0c1a2b3…"
-            style={fieldInputStyle({ fontFamily: MONO, fontSize: 13 })}
-            value={values.event_id ?? ""}
-          />
-        </div>
-
         <SelectCard
           active={values.push}
           description={
@@ -1119,7 +1165,7 @@ function DistributionStep({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                Review step                                 */
+/*                              Check & send step                             */
 /* -------------------------------------------------------------------------- */
 
 function buildReviewRows(
@@ -1172,7 +1218,13 @@ function buildReviewRows(
       step: 2,
     },
     { label: "Campus", value: campusLabel, step: 2 },
-    { label: "Event id", value: values.event_id || null, step: 2 },
+    {
+      label: "Linked content",
+      value: values.content_id
+        ? `${values.content_type ?? "event"} · ${values.content_id}`
+        : null,
+      step: 0,
+    },
     {
       label: "Push",
       value: values.push ? "Device push + inbox" : "Inbox only",
@@ -1182,7 +1234,7 @@ function buildReviewRows(
   ];
 }
 
-function ReviewStep({
+function CheckStep({
   campusOptions,
   confirmTranslationOverwrite,
   locale,
@@ -1203,7 +1255,7 @@ function ReviewStep({
 
   return (
     <div>
-      <StepIntro eyebrow="Step 4" title="One last look." />
+      <StepIntro eyebrow="Step 4" title="Check & send" />
       <p
         style={{
           color: BRAND.ink3,
@@ -1332,6 +1384,7 @@ function ActionBar({
     (filled.filter(Boolean).length / filled.length) * 100
   );
   const nextStepName = step < STEPS.length - 1 ? STEPS[step + 1] : null;
+  const gate = canContinue(step, values);
 
   let sendLabel = scheduledFuture ? "Schedule" : "Send now";
   if (sending) {
@@ -1419,14 +1472,17 @@ function ActionBar({
       )}
       {step < STEPS.length - 1 ? (
         <button
+          disabled={!gate.ok}
           onClick={() => setStep((step + 1) as StepIndex)}
           style={{
             ...actionBtnStyle(),
             background: BRAND.ink,
             border: `0.5px solid ${BRAND.ink}`,
             color: BRAND.paper,
+            opacity: gate.ok ? 1 : 0.5,
             padding: "9px 18px",
           }}
+          title={gate.reason}
           type="button"
         >
           Continue · {nextStepName} <ArrowRight size={14} />
@@ -2208,7 +2264,7 @@ export function AnnouncementStudioEditor({
             }}
           >
             {step === 0 && (
-              <EssentialsStep
+              <WhatStep
                 locale={locale}
                 set={set}
                 setLocale={setLocale}
@@ -2224,7 +2280,7 @@ export function AnnouncementStudioEditor({
               />
             )}
             {step === 2 && (
-              <DistributionStep
+              <WhoStep
                 campusOptions={campusOptions}
                 lockDepartment={lockDepartment}
                 set={set}
@@ -2232,7 +2288,7 @@ export function AnnouncementStudioEditor({
               />
             )}
             {step === 3 && (
-              <ReviewStep
+              <CheckStep
                 campusOptions={campusOptions}
                 confirmTranslationOverwrite={confirmTranslationOverwrite}
                 locale={locale}
