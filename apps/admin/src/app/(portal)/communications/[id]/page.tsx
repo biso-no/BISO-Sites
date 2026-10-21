@@ -3,14 +3,20 @@ import { requireNavAccess } from "@/lib/authorization";
 import { getAnnouncement } from "../../_actions/announcements";
 import { listCampuses } from "../../_actions/lookups";
 import { AnnouncementStudioEditor } from "../_components/announcement-studio-editor";
+import { initialComposerStep } from "../_components/composer/composer-state";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ step?: string | string[] }>;
 }
 
-export default async function AnnouncementEditorPage({ params }: Props) {
+export default async function AnnouncementEditorPage({
+  params,
+  searchParams,
+}: Props) {
   const ctx = await requireNavAccess("portal.communications");
   const { id } = await params;
+  const { step } = await searchParams;
   const isNew = id === "new";
 
   const [announcement, campuses] = await Promise.all([
@@ -59,6 +65,7 @@ export default async function AnnouncementEditorPage({ params }: Props) {
         name: campus.name,
       }))}
       defaultCampusId={defaultCampusId}
+      initialStep={initialComposerStep(step)}
       isGlobalAdmin={isGlobalAdmin}
       isNew={isNew}
       lockDepartment={Boolean(pinnedDepartmentId)}

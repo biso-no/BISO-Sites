@@ -8,10 +8,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { audienceLabel } from "@/lib/announcements/audience-label";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
-import {
-  deleteAnnouncement,
-  sendAnnouncement,
-} from "../../_actions/announcements";
+import { deleteAnnouncement } from "../../_actions/announcements";
 import { ANNOUNCEMENTS_PAGE_SIZE } from "../../_actions/schemas";
 import { EmptyState } from "../../_components/empty-state";
 import { PaginationBar } from "../../_components/pagination-bar";
@@ -109,26 +106,6 @@ export function AnnouncementListClient({
     });
   }
 
-  function handleSend(id: string) {
-    startTransition(async () => {
-      const result = await sendAnnouncement(id);
-      if (result.error) {
-        toast.error(
-          typeof result.error === "string"
-            ? result.error
-            : "Failed to send announcement"
-        );
-        return;
-      }
-      toast.success(
-        result.data?.status === "scheduled"
-          ? "Announcement scheduled"
-          : "Announcement sent"
-      );
-      router.refresh();
-    });
-  }
-
   if (initialAnnouncements.length === 0 && source !== "all") {
     return (
       <div>
@@ -165,7 +142,9 @@ export function AnnouncementListClient({
       <SourceFilterTabs source={source} />
       <div className="space-y-3">
         {initialAnnouncements.map((announcement) => {
-          // `sent` rows can't be re-sent; the server refuses it anyway.
+          // `sent` rows can't be re-sent; the server refuses it anyway. The
+          // others go through the composer's Check & send step, so every send
+          // gets its confirmations and checks.
           const canSend =
             announcement.status === "draft" ||
             announcement.status === "scheduled" ||
@@ -217,15 +196,12 @@ export function AnnouncementListClient({
 
               <div className="flex shrink-0 items-center gap-2">
                 {canSend && (
-                  <PortalButton
-                    disabled={isPending}
-                    onClick={() => handleSend(announcement.$id)}
-                    size="sm"
-                    variant="primary"
-                  >
-                    <Send size={13} />
-                    Send
-                  </PortalButton>
+                  <Link href={`/communications/${announcement.$id}?step=check`}>
+                    <PortalButton size="sm" variant="primary">
+                      <Send size={13} />
+                      Review & send
+                    </PortalButton>
+                  </Link>
                 )}
                 <Link href={`/communications/${announcement.$id}`}>
                   <PortalButton size="sm" variant="secondary">

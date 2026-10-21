@@ -177,7 +177,8 @@ async function settle(): Promise<void> {
 }
 
 async function openInComposer(
-  row: Record<string, unknown>
+  row: Record<string, unknown>,
+  extraProps: Record<string, unknown> = {}
 ): Promise<TestElement> {
   storedRow = { ...row };
   const container = installedDom.document.createElement("div");
@@ -197,6 +198,7 @@ async function openInComposer(
         lockDepartment: false,
         managedCampusIds: [],
         pinnedDepartmentId: null,
+        ...extraProps,
       })
     );
   });
@@ -379,6 +381,24 @@ describe("the check step asks before an Everyone announcement goes out", () => {
     await click(findButton(composer, "Cancel"));
 
     expect(db.updateRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("where the composer opens", () => {
+  test("it opens on What by default", async () => {
+    const composer = await openInComposer(draftBroadcastRow);
+
+    expect(composer.textContent).toContain("What is this about?");
+    expect(composer.textContent).not.toContain("Have a last look.");
+  });
+
+  test("Review & send from the list opens Check & send", async () => {
+    const composer = await openInComposer(draftBroadcastRow, {
+      initialStep: 3,
+    });
+
+    expect(composer.textContent).toContain("Have a last look.");
+    findButton(composer, "Send");
   });
 });
 

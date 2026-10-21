@@ -14,6 +14,7 @@ export const SEND_FORBIDDEN_MESSAGE =
   "Only campus and national admins can send notifications.";
 export const AUDIENCE_FORBIDDEN_MESSAGE = "You can't send to that audience.";
 export const ALREADY_SENT_MESSAGE = "This announcement has already been sent.";
+export const NO_PEOPLE_MESSAGE = "Add at least one person.";
 
 export type AudienceType = "broadcast" | "topic" | "users" | "segment";
 

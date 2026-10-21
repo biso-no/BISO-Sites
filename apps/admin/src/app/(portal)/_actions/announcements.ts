@@ -13,6 +13,7 @@ import {
   canSendNotifications,
   isAudienceAllowed,
   isTopicValueAllowed,
+  NO_PEOPLE_MESSAGE,
   SEND_FORBIDDEN_MESSAGE,
 } from "@/lib/announcements/audience-policy";
 import {
@@ -1007,6 +1008,13 @@ export async function sendAnnouncement(
     assertPublishAccess(ctx, sendOwnership.campus, sendOwnership.department);
     if (announcement.status === "sent") {
       return { error: ALREADY_SENT_MESSAGE };
+    }
+    // A draft may be saved with nobody picked yet, but it can't go out.
+    if (
+      announcement.audience_type === "users" &&
+      parseAudiencePeople(announcement.audience_value).length === 0
+    ) {
+      return { error: NO_PEOPLE_MESSAGE };
     }
     await assertAudienceAllowed(client.db, ctx, {
       audienceType: announcement.audience_type,

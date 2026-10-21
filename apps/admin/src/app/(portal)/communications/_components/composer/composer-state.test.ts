@@ -5,6 +5,7 @@ import {
   COMPOSER_STEPS,
   type ComposerValues,
   canContinue,
+  initialComposerStep,
   type PrefillSnapshot,
   TYPE_CARDS,
   topicForType,
@@ -149,5 +150,19 @@ describe("canContinue", () => {
       true
     );
     expect(canContinue(2, base).ok).toBe(true);
+  });
+});
+
+describe("initialComposerStep", () => {
+  test("?step=check opens Check & send", () => {
+    expect(initialComposerStep("check")).toBe(3);
+  });
+
+  test("anything else opens What", () => {
+    expect(initialComposerStep(undefined)).toBe(0);
+    expect(initialComposerStep("")).toBe(0);
+    expect(initialComposerStep("who")).toBe(0);
+    expect(initialComposerStep("3")).toBe(0);
+    expect(initialComposerStep(["check", "who"])).toBe(0);
   });
 });

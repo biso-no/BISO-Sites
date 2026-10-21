@@ -1,4 +1,5 @@
 import { parseAudiencePeople } from "@/lib/announcements/audience-people";
+import { NO_PEOPLE_MESSAGE } from "@/lib/announcements/audience-policy";
 import type { AnnouncementFormValues } from "../../../_actions/schemas";
 
 /**
@@ -15,6 +16,19 @@ export const COMPOSER_STEPS = [
 ] as const;
 
 export type ComposerStepIndex = 0 | 1 | 2 | 3;
+
+const CHECK_STEP: ComposerStepIndex = 3;
+
+/**
+ * The step the composer opens on. The history list's "Review & send" links to
+ * `?step=check`, so every send passes the Check & send safeguards; anything
+ * else opens on What.
+ */
+export function initialComposerStep(
+  param: string | string[] | undefined
+): ComposerStepIndex {
+  return param === "check" ? CHECK_STEP : 0;
+}
 
 /** The form values already carry `content_type` and `content_id`. */
 export type ComposerValues = AnnouncementFormValues;
@@ -178,7 +192,7 @@ export function canContinue(
     values.audience_type === "users" &&
     parseAudiencePeople(values.audience_value).length === 0
   ) {
-    return { ok: false, reason: "Add at least one person." };
+    return { ok: false, reason: NO_PEOPLE_MESSAGE };
   }
   return { ok: true };
 }

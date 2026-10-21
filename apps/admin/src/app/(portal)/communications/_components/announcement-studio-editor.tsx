@@ -28,12 +28,13 @@ import {
   announcementSchema,
 } from "../../_actions/schemas";
 import { DescriptionBlockEditor } from "../../_components/description-block-editor";
+import { CheckStep } from "./composer/check-step";
 import {
   COMPOSER_STEPS,
+  type ComposerStepIndex,
   canContinue,
   TYPE_CARDS,
 } from "./composer/composer-state";
-import { CheckStep } from "./composer/check-step";
 import { buildLinkState, type LinkState } from "./composer/link-state";
 import {
   BRAND,
@@ -52,7 +53,7 @@ import { WhoStep } from "./composer/who-step";
 
 const STEPS = COMPOSER_STEPS;
 
-type StepIndex = 0 | 1 | 2 | 3;
+type StepIndex = ComposerStepIndex;
 
 type CategoryId = AnnouncementFormValues["category"];
 type AudienceType = AnnouncementFormValues["audience_type"];
@@ -87,6 +88,8 @@ interface AnnouncementStudioEditorProps {
   announcement: Announcements | null;
   campuses: CampusOption[];
   defaultCampusId: string;
+  /** The step to open on; the history list's "Review & send" opens Check & send. */
+  initialStep?: StepIndex;
   isGlobalAdmin: boolean;
   isNew: boolean;
   /** Single-department authors are pinned to their department. */
@@ -1081,6 +1084,7 @@ export function AnnouncementStudioEditor({
   announcement,
   campuses,
   defaultCampusId,
+  initialStep = 0,
   isGlobalAdmin,
   isNew,
   lockDepartment,
@@ -1088,7 +1092,7 @@ export function AnnouncementStudioEditor({
   pinnedDepartmentId,
 }: AnnouncementStudioEditorProps) {
   const router = useRouter();
-  const [step, setStep] = useState<StepIndex>(0);
+  const [step, setStep] = useState<StepIndex>(initialStep);
   const [locale, setLocale] = useState<LocaleCode>("no");
   const [previewLocale, setPreviewLocale] = useState<LocaleCode>("en");
   const [values, setValues] = useState<AnnouncementFormValues>(() =>

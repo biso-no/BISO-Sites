@@ -53,9 +53,8 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { createAnnouncement, updateAnnouncement } = await import(
-  "./announcements"
-);
+const { createAnnouncement, sendAnnouncement, updateAnnouncement } =
+  await import("./announcements");
 
 const peopleValues: AnnouncementFormValues = {
   audience_type: "users",
@@ -172,5 +171,41 @@ describe("a Specific people audience stores the picked ids", () => {
 
     expect(result).toEqual({ data: "announcement-1" });
     expect(writtenAudienceValue()).toBe("[]");
+  });
+});
+
+describe("sending to Specific people with nobody picked", () => {
+  test.each([
+    ["an empty id list", "[]"],
+    ["no value", null],
+    ["blank text", "  "],
+  ])("is refused for %s", async (_label, audienceValue) => {
+    storedRow = { ...storedPeopleRow, audience_value: audienceValue };
+
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ error: "Add at least one person." });
+    expect(dispatchAnnouncement).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("a scheduled send with nobody picked is refused too", async () => {
+    storedRow = {
+      ...storedPeopleRow,
+      audience_value: "[]",
+      scheduled_at: "2999-01-01T08:00:00.000Z",
+    };
+
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ error: "Add at least one person." });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("a row with people goes out", async () => {
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ data: { recipients: 0, status: "sent" } });
+    expect(dispatchAnnouncement).toHaveBeenCalledTimes(1);
   });
 });
