@@ -1,15 +1,14 @@
-import { requireNavAccess } from "@/lib/authorization";
-import { StudioPageHeader } from "../_components/studio";
+import { BenefitBoardPage } from "./_components/benefit-board-page";
 
-// Placeholder while the benefits board is rebuilt.
-export default async function BenefitsPage() {
-  await requireNavAccess("portal.benefits");
+export default async function BenefitsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { campus } = await searchParams;
   return (
-    <div className="pb-12">
-      <StudioPageHeader
-        description="Siden bygges om."
-        title="Medlemsfordeler"
-      />
-    </div>
+    <BenefitBoardPage
+      campus={typeof campus === "string" ? campus : undefined}
+    />
   );
 }

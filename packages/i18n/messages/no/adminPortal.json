@@ -874,7 +874,19 @@
       "readOnlyNational": "Disse gjelder alle campuser. Bare administratorer kan endre dem.",
       "emptySection": "Ingen her ennå. Trykk «+ Legg til» for å lage den første.",
       "dragHint": "Dra for å endre rekkefølgen. Det er rekkefølgen studentene ser.",
-      "reorderFailed": "Kunne ikke lagre rekkefølgen. Prøv igjen."
+      "reorderFailed": "Kunne ikke lagre rekkefølgen. Prøv igjen.",
+      "campusTabs": "Velg campus",
+      "moveItem": "Flytt «{title}»",
+      "untitled": "Uten tittel",
+      "emptySectionReadOnly": "Ingen her ennå.",
+      "drag": {
+        "instructions": "Trykk mellomrom for å plukke opp. Flytt med piltastene, trykk mellomrom igjen for å slippe, eller Esc for å avbryte.",
+        "pickedUp": "«{title}» er plukket opp.",
+        "movedOver": "«{title}» er nå på plass {position} av {total}.",
+        "dropped": "«{title}» ble lagt på plass {position} av {total}.",
+        "cancelled": "Flyttingen ble avbrutt. «{title}» ligger der den lå.",
+        "roleDescription": "flyttbar"
+      }
     },
     "states": {
       "visible": "Synlig",

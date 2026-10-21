@@ -874,7 +874,19 @@
       "readOnlyNational": "These apply to all campuses. Only administrators can change them.",
       "emptySection": "None here yet. Press “+ Add” to create the first one.",
       "dragHint": "Drag to change the order. This is the order students see.",
-      "reorderFailed": "Could not save the order. Try again."
+      "reorderFailed": "Could not save the order. Try again.",
+      "campusTabs": "Choose campus",
+      "moveItem": "Move “{title}”",
+      "untitled": "Untitled",
+      "emptySectionReadOnly": "None here yet.",
+      "drag": {
+        "instructions": "Press space to pick it up. Move it with the arrow keys, press space again to drop it, or Esc to cancel.",
+        "pickedUp": "Picked up “{title}”.",
+        "movedOver": "“{title}” is now in position {position} of {total}.",
+        "dropped": "“{title}” was placed in position {position} of {total}.",
+        "cancelled": "Moving was cancelled. “{title}” stays where it was.",
+        "roleDescription": "movable"
+      }
     },
     "states": {
       "visible": "Visible",
