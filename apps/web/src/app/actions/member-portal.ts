@@ -74,6 +74,7 @@ export async function getMemberPortalBenefits(
       [
         Query.equal("campus_id", campusIds),
         Query.equal("status", CampusBenefitsStatus.PUBLISHED),
+        Query.or([Query.equal("section", "member"), Query.isNull("section")]),
         Query.orderAsc("sort_order"),
         Query.orderDesc("is_featured"),
         Query.limit(100),
@@ -101,6 +102,7 @@ export async function getFeaturedBenefits(
       [
         Query.equal("campus_id", campusIds),
         Query.equal("status", CampusBenefitsStatus.PUBLISHED),
+        Query.or([Query.equal("section", "member"), Query.isNull("section")]),
         Query.equal("is_featured", true),
         Query.orderAsc("sort_order"),
         Query.limit(6),

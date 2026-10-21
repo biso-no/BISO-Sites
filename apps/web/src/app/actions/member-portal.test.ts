@@ -23,7 +23,12 @@ vi.mock("@/lib/auth-utils", () => ({
   isAuthenticatedAccount: vi.fn(() => true),
 }));
 
-import { revealBenefit } from "./member-portal";
+import { Query } from "@repo/api";
+import {
+  getFeaturedBenefits,
+  getMemberPortalBenefits,
+  revealBenefit,
+} from "./member-portal";
 
 describe("member portal benefit reveals", () => {
   beforeEach(() => {
@@ -68,6 +73,38 @@ describe("member portal benefit reveals", () => {
         user_id: "member-user-1",
       }),
       ['read("user:member-user-1")']
+    );
+  });
+});
+
+describe("member portal benefit listing", () => {
+  const memberSectionQuery = Query.or([
+    Query.equal("section", "member"),
+    Query.isNull("section"),
+  ]);
+
+  beforeEach(() => {
+    sessionDb.listRows.mockReset();
+    sessionDb.listRows.mockResolvedValue({ rows: [], total: 0 });
+  });
+
+  it("lists only member-section (or unsectioned) benefits", async () => {
+    await getMemberPortalBenefits("2");
+
+    expect(sessionDb.listRows).toHaveBeenCalledWith(
+      "app",
+      "campus_benefits",
+      expect.arrayContaining([memberSectionQuery])
+    );
+  });
+
+  it("features only member-section (or unsectioned) benefits", async () => {
+    await getFeaturedBenefits("2");
+
+    expect(sessionDb.listRows).toHaveBeenCalledWith(
+      "app",
+      "campus_benefits",
+      expect.arrayContaining([memberSectionQuery])
     );
   });
 });
