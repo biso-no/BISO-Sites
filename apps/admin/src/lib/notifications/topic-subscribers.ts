@@ -56,9 +56,7 @@ export async function getTopicSubscriberCount(
  * `events_bergen_en`). `null` if any language's count is unknown — a partial
  * sum would understate the reach.
  */
-async function getChannelSubscriberCount(
-  channel: string
-): Promise<number | null> {
+async function sumChannelSubscribers(channel: string): Promise<number | null> {
   const counts = await Promise.all(
     PUSH_LOCALES.map((locale) =>
       getTopicSubscriberCount(localizedTopicId(channel, locale))
@@ -74,6 +72,13 @@ async function getChannelSubscriberCount(
   return total;
 }
 
+/** Cached per channel; see {@link sumChannelSubscribers}. */
+export const getChannelSubscriberCount = unstable_cache(
+  sumChannelSubscribers,
+  ["channel-subscriber-count"],
+  { revalidate: COUNT_TTL_SECONDS }
+);
+
 /**
  * Push subscriber counts for the events channel of each campus, across both
  * languages, keyed by campus id. Fetched in parallel and cached briefly.
@@ -85,7 +90,7 @@ export const getEventTopicSubscriberCounts = unstable_cache(
         async (campusId) =>
           [
             campusId,
-            await getChannelSubscriberCount(topicIdFor("events", campusId)),
+            await sumChannelSubscribers(topicIdFor("events", campusId)),
           ] as const
       )
     );
