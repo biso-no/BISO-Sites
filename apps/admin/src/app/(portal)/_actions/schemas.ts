@@ -260,13 +260,19 @@ export const announcementSchema = z
     title_no: z.string().optional().nullable(),
     body_en: z.string().optional().nullable(),
     body_no: z.string().optional().nullable(),
-    category: z.enum(["general", "trip", "urgent", "event"]).default("general"),
+    category: z
+      .enum(["general", "trip", "urgent", "event", "news", "job"])
+      .default("general"),
     audience_type: z
       .enum(["topic", "users", "segment", "broadcast"])
       .default("broadcast"),
     // For "topic": a topic id. For "users": comma-separated user ids or emails
     // (resolved server-side). For "segment": a segment id. For "broadcast": empty.
     audience_value: z.string().optional().nullable(),
+    // Linked content. `event_id` stays for older clients and is read as an
+    // event link when `content_*` is absent.
+    content_type: z.enum(["event", "news", "job"]).nullable().optional(),
+    content_id: z.string().nullable().optional(),
     event_id: z.string().optional().nullable(),
     campus_id: z.string().optional().nullable(),
     department_id: z.string().optional().nullable(),

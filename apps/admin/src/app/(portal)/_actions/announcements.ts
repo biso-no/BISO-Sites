@@ -14,6 +14,11 @@ import {
   isTopicValueAllowed,
   SEND_FORBIDDEN_MESSAGE,
 } from "@/lib/announcements/audience-policy";
+import {
+  type LinkedColumns,
+  normalizeLink,
+  resolveLinkedContent,
+} from "@/lib/announcements/linked-content";
 import { resolveSegmentCampus } from "@/lib/announcements/segment-scope";
 import {
   buildDeepLink,
@@ -448,7 +453,8 @@ async function assertAudienceAllowed(
 
 function buildAnnouncementColumns(
   values: AnnouncementFormValues,
-  audienceValue: string | null
+  audienceValue: string | null,
+  linked: LinkedColumns
 ): Record<string, unknown> {
   return {
     title_en: values.title_en,
@@ -458,11 +464,8 @@ function buildAnnouncementColumns(
     category: values.category,
     audience_type: values.audience_type,
     audience_value: audienceValue,
-    event_id: values.event_id || null,
-    // An event-linked announcement records the event as its content, like an
-    // automatic event send does; anything else carries no content link.
-    content_type: values.event_id ? "event" : null,
-    content_id: values.event_id || null,
+    // Linked content (event, news or job), resolved and checked server-side.
+    ...linked,
     // Canonical ownership relationships; the scalar column remains as
     // migration-era compatibility metadata only.
     campus: values.campus_id || null,
@@ -470,7 +473,6 @@ function buildAnnouncementColumns(
     department: values.department_id ?? null,
     push: values.push,
     scheduled_at: values.scheduled_at || null,
-    deep_link: values.event_id ? `biso://event?id=${values.event_id}` : null,
   };
 }
 
@@ -553,6 +555,13 @@ export async function createAnnouncement(
       audienceValue: validated.data.audience_value,
       campusId: validated.data.campus_id || null,
     });
+    const linked = await resolveLinkedContent(
+      db,
+      normalizeLink(validated.data)
+    );
+    if (!linked.ok) {
+      return { error: linked.error };
+    }
     const audienceValue = await normalizeAudienceValue(
       validated.data.audience_type,
       validated.data.audience_value
@@ -563,7 +572,11 @@ export async function createAnnouncement(
       "announcements",
       ID.unique(),
       {
-        ...buildAnnouncementColumns(validated.data, audienceValue),
+        ...buildAnnouncementColumns(
+          validated.data,
+          audienceValue,
+          linked.columns
+        ),
         status: "draft",
         created_by: ctx.userId,
       }
@@ -649,6 +662,14 @@ export async function updateAnnouncement(
       campusId: validated.data.campus_id || null,
     });
 
+    const linked = await resolveLinkedContent(
+      db,
+      normalizeLink(validated.data)
+    );
+    if (!linked.ok) {
+      return { error: linked.error };
+    }
+
     // A sent row is already in students' inboxes. The inbox scopes a topic or
     // broadcast row to its campus, and honours opt-outs, only when
     // `audience_value` holds the resolved channel, such as "events_oslo" or
@@ -675,7 +696,11 @@ export async function updateAnnouncement(
       ));
 
     await db.updateRow("app", "announcements", id, {
-      ...buildAnnouncementColumns(validated.data, audienceValue),
+      ...buildAnnouncementColumns(
+        validated.data,
+        audienceValue,
+        linked.columns
+      ),
       ...(getTranslationPendingToken(announcement.data) ? { data: null } : {}),
     });
 

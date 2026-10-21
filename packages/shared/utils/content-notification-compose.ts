@@ -209,6 +209,19 @@ function groupBody(items: NotifyItem[], lang: Lang): string {
   return items.length > GROUP_TITLES_SHOWN ? `${titles} …` : titles;
 }
 
+/** The one-item snapshot shape the app reads from an announcement's `items`. */
+export function toSnapshotItem(item: NotifyItem) {
+  return {
+    type: item.type,
+    id: item.id,
+    title_en: titleOf(item, "en"),
+    title_no: titleOf(item, "no"),
+    image: item.image,
+    date: item.date,
+    campus_id: item.campusId,
+  };
+}
+
 export function composeAutoAnnouncement(
   items: NotifyItem[],
   now: Date
@@ -235,17 +248,7 @@ export function composeAutoAnnouncement(
     content_type: first.type,
     content_id: single ? first.id : null,
     content_ids: single ? null : items.map((i) => i.id),
-    items: JSON.stringify(
-      items.map((i) => ({
-        type: i.type,
-        id: i.id,
-        title_en: titleOf(i, "en"),
-        title_no: titleOf(i, "no"),
-        image: i.image,
-        date: i.date,
-        campus_id: i.campusId,
-      }))
-    ),
+    items: JSON.stringify(items.map(toSnapshotItem)),
     image: first.image,
     title_en: title("en"),
     title_no: title("no"),

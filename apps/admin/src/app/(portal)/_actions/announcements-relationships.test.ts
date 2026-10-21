@@ -163,6 +163,13 @@ describe("announcement ownership persistence", () => {
 
   test("an event-linked announcement records the event as its content", async () => {
     currentCtx = campusAdminCtx;
+    db.listRows.mockImplementation((_d: string, tableId: string) => ({
+      rows:
+        tableId === "events"
+          ? [{ $id: "event-1", status: "published", campus_id: "campus-oslo" }]
+          : [],
+      total: 0,
+    }));
     await createAnnouncement({ ...departmentValues, event_id: "event-1" });
 
     expect(db.createRow).toHaveBeenCalledWith(
@@ -175,6 +182,22 @@ describe("announcement ownership persistence", () => {
         event_id: "event-1",
       })
     );
+  });
+
+  test("a draft link returns an error and writes no row", async () => {
+    currentCtx = campusAdminCtx;
+    db.listRows.mockImplementation((_d: string, tableId: string) => ({
+      rows: tableId === "news" ? [{ $id: "n1", status: "draft" }] : [],
+      total: 0,
+    }));
+    const result = await createAnnouncement({
+      ...departmentValues,
+      content_id: "n1",
+      content_type: "news",
+    });
+
+    expect(result).toEqual({ error: "Only published content can be linked." });
+    expect(db.createRow).not.toHaveBeenCalled();
   });
 
   test("an announcement with no event records no content", async () => {
