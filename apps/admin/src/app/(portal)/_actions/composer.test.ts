@@ -50,6 +50,7 @@ const {
   getGroupById,
   getPeopleByIds,
   getLinkedContentPrefill,
+  listEventsWithGroups,
   listGroupsForEvent,
   searchLinkableContent,
   searchPeople,
@@ -209,6 +210,105 @@ describe("listGroupsForEvent", () => {
     ]);
     expect(await listGroupsForEvent("e1")).toEqual([
       { id: "s1", name: "Volunteers", memberCount: 4, campusId: "2" },
+    ]);
+  });
+
+  const mixedGroups = [
+    { $id: "bergen", name: "Bergen bus", member_count: 4, campus_id: "2" },
+    { $id: "oslo", name: "Oslo bus", member_count: 5, campus_id: "1" },
+    { $id: "none", name: "Crew", member_count: 6, campus_id: null },
+  ];
+
+  function mockEvent(campusId: string) {
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      Promise.resolve(
+        table === "events"
+          ? { rows: [{ $id: "e1", campus_id: campusId }], total: 1 }
+          : { rows: [], total: 0 }
+      )
+    );
+  }
+
+  test("a campus admin on a National event sees only their campus's groups", async () => {
+    currentCtx = {
+      ...baseCtx,
+      roles: ["campusadmin"],
+      managedCampusIds: ["2"],
+    };
+    listSegments.mockResolvedValue(mixedGroups);
+    mockEvent("5");
+    expect((await listGroupsForEvent("e1")).map((group) => group.id)).toEqual([
+      "bergen",
+    ]);
+  });
+
+  test("a campus-less group on the admin's own campus event is offered", async () => {
+    currentCtx = {
+      ...baseCtx,
+      roles: ["campusadmin"],
+      managedCampusIds: ["2"],
+    };
+    listSegments.mockResolvedValue(mixedGroups);
+    mockEvent("2");
+    expect((await listGroupsForEvent("e1")).map((group) => group.id)).toEqual([
+      "bergen",
+      "none",
+    ]);
+  });
+
+  test("a global admin sees every group", async () => {
+    listSegments.mockResolvedValue(mixedGroups);
+    mockEvent("5");
+    expect((await listGroupsForEvent("e1")).map((group) => group.id)).toEqual([
+      "bergen",
+      "oslo",
+      "none",
+    ]);
+  });
+});
+
+describe("listEventsWithGroups", () => {
+  function mockEventsWithGroups() {
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "event_segments") {
+        return Promise.resolve({
+          rows: [
+            { $id: "s1", event_id: "national-oslo-only", campus_id: "1" },
+            { $id: "s2", event_id: "national-mixed", campus_id: "1" },
+            { $id: "s3", event_id: "national-mixed", campus_id: "2" },
+            { $id: "s4", event_id: "bergen-event", campus_id: null },
+          ],
+        });
+      }
+      return Promise.resolve({
+        rows: [
+          { $id: "national-oslo-only", campus_id: "5", translation_refs: [] },
+          { $id: "national-mixed", campus_id: "5", translation_refs: [] },
+          { $id: "bergen-event", campus_id: "2", translation_refs: [] },
+        ],
+      });
+    });
+  }
+
+  test("a campus admin is not offered an event with only other campuses' groups", async () => {
+    currentCtx = {
+      ...baseCtx,
+      roles: ["campusadmin"],
+      managedCampusIds: ["2"],
+    };
+    mockEventsWithGroups();
+    expect((await listEventsWithGroups("")).map((event) => event.id)).toEqual([
+      "national-mixed",
+      "bergen-event",
+    ]);
+  });
+
+  test("a global admin is offered every event with groups", async () => {
+    mockEventsWithGroups();
+    expect((await listEventsWithGroups("")).map((event) => event.id)).toEqual([
+      "national-oslo-only",
+      "national-mixed",
+      "bergen-event",
     ]);
   });
 });

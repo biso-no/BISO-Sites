@@ -53,6 +53,25 @@ function translationsKey(type: ComposerContentType): string {
   return type === "job" ? "translations" : "translation_refs";
 }
 
+/**
+ * Whether the caller may message a group: the group's own campus, else its
+ * event's, must be one the caller may reach (the server's segment rule).
+ */
+function canReachGroup(
+  ctx: UserAuthContext,
+  groupCampusId: string | null | undefined,
+  eventCampusId: string | null | undefined
+): boolean {
+  return isAudienceAllowed(
+    { roles: ctx.roles, managedCampusIds: ctx.managedCampusIds },
+    {
+      audienceType: "segment",
+      campusId: null,
+      segmentCampusId: groupCampusId ?? eventCampusId ?? null,
+    }
+  );
+}
+
 /** Campus scope for the "newest" list: all for global admins, else managed. */
 function ownCampusQueries(ctx: UserAuthContext): string[] {
   if (ctx.roles.includes("globaladmin")) {
@@ -180,8 +199,16 @@ export async function listEventsWithGroups(
     Query.limit(EVENT_LOAD_LIMIT),
     ...applyContentRelationshipScopeQueries(scoped),
   ]);
+  // Only events with at least one group the caller may message.
+  const reachable = events.rows.filter((event) =>
+    segments.rows.some(
+      (segment) =>
+        segment.event_id === event.$id &&
+        canReachGroup(ctx, segment.campus_id, event.campus_id)
+    )
+  );
   const needle = query.trim().toLowerCase();
-  return events.rows
+  return reachable
     .map((row) => ({
       id: row.$id,
       title: pickEnglishFirstTitle(row.translation_refs, row.$id),
@@ -205,7 +232,21 @@ export async function listGroupsForEvent(eventId: string): Promise<
     return [];
   }
   const segments = await listSegments(eventId);
-  return segments.map((segment) => ({
+  let allowed = segments;
+  if (!ctx.roles.includes("globaladmin") && segments.length > 0) {
+    // A campus admin is offered only the groups they may message, which
+    // matters on National events: their buses can sit beside other campuses'.
+    const { db } = await createAdminClient();
+    const events = await db.listRows<Events>("app", "events", [
+      Query.equal("$id", eventId),
+      Query.limit(1),
+    ]);
+    const eventCampusId = events.rows[0]?.campus_id ?? null;
+    allowed = segments.filter((segment) =>
+      canReachGroup(ctx, segment.campus_id, eventCampusId)
+    );
+  }
+  return allowed.map((segment) => ({
     id: segment.$id,
     name: segment.name,
     memberCount: segment.member_count,
