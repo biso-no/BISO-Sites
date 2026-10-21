@@ -70,6 +70,28 @@ describe("getContentNotificationState", () => {
     expect((await getContentNotificationState("news", "n1")).kind).toBe("sent");
   });
 
+  test("campus admins see a National event's real state", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["campus-oslo"],
+      roles: ["campusadmin"],
+    });
+    db.getRow.mockResolvedValue(sentLock("5"));
+    expect((await getContentNotificationState("event", "e1")).kind).toBe(
+      "sent"
+    );
+  });
+
+  test("the National widening applies to events only", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["campus-oslo"],
+      roles: ["campusadmin"],
+    });
+    db.getRow.mockResolvedValue(sentLock("5"));
+    expect(await getContentNotificationState("news", "n1")).toEqual({
+      kind: "none",
+    });
+  });
+
   test("maps a 404 to none", async () => {
     db.getRow.mockRejectedValue({ code: 404 });
     expect(await getContentNotificationState("job", "j1")).toEqual({

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
+import { getContentNotificationState } from "../../_actions/content-notifications";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { getNewsArticle } from "../../_actions/news";
 import { getNewsAllowedDepartmentIds } from "./_components/news-studio-access";
@@ -26,6 +27,9 @@ export default async function NewsEditorPage({ params }: Props) {
   }
 
   const isGlobalAdmin = ctx.roles.includes("globaladmin");
+  const notificationState = isNew
+    ? ({ kind: "none" } as const)
+    : await getContentNotificationState("news", id);
   const isCampusAdmin = ctx.roles.includes("campusadmin");
 
   const effectiveCampusId = (() => {
@@ -69,6 +73,7 @@ export default async function NewsEditorPage({ params }: Props) {
       article={article}
       campuses={filteredCampuses}
       canChangeCampus={canChangeCampus}
+      canNotifyNational={isGlobalAdmin}
       defaultCampusId={effectiveCampusId}
       initialDepartments={initialDepartments}
       isNew={isNew}
@@ -90,6 +95,7 @@ export default async function NewsEditorPage({ params }: Props) {
         saveError: t("saveError"),
         publishSuccess: t("publishSuccess"),
       }}
+      notificationState={notificationState}
       previewTimestamp={article?.$createdAt ?? new Date().toISOString()}
     />
   );

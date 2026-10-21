@@ -11,6 +11,7 @@ import {
   type ContentNotificationState,
   toNotificationState,
 } from "@/lib/content-notification-state";
+import { withNationalEventScope } from "@/lib/event-scope";
 import { isRowNotFound } from "@/lib/shop/sales-type";
 
 const NOTIFY_CONTENT_TYPES: readonly string[] = ["event", "news", "job"];
@@ -19,10 +20,12 @@ export async function getContentNotificationState(
   type: NotifyContentType,
   contentId: string
 ): Promise<ContentNotificationState> {
-  const ctx = await requireAuth();
+  const baseCtx = await requireAuth();
   if (!NOTIFY_CONTENT_TYPES.includes(type)) {
     return { kind: "none" };
   }
+  // Campus admins can edit National events, so they must see their real state.
+  const ctx = type === "event" ? withNationalEventScope(baseCtx) : baseCtx;
   const { db } = await createAdminClient();
   try {
     const lock = await db.getRow<ContentNotifications>(

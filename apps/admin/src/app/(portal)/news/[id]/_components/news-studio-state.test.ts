@@ -110,6 +110,29 @@ describe("news studio state", () => {
     expect(values.description_en).toBe("English body");
   });
 
+  test("defaults notify_push to true for a new article", () => {
+    const values = createNewsStudioDefaults(null, [], "campus-oslo");
+    expect(values.notify_push).toBe(true);
+  });
+
+  test("keeps the stored notify_push for an existing article", () => {
+    const base = { campus_id: "campus-oslo", translation_refs: [] };
+    expect(
+      createNewsStudioDefaults(
+        { ...base, notify_push: false } as never,
+        [],
+        "campus-oslo"
+      ).notify_push
+    ).toBe(false);
+    expect(
+      createNewsStudioDefaults(
+        { ...base, notify_push: true } as never,
+        [],
+        "campus-oslo"
+      ).notify_push
+    ).toBe(true);
+  });
+
   test("keeps a missing locale empty for a legacy article", () => {
     const values = createNewsStudioDefaults(
       {

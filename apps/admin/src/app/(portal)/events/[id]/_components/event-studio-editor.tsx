@@ -53,6 +53,9 @@ import {
   AutoTranslateControl,
   TranslationReviewCard,
 } from "@/app/_components/content-translation-controls";
+import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
+import type { ContentNotificationState } from "@/lib/content-notification-state";
+import { defaultNotifyPush, notifyToggleCopy } from "@/lib/notify-toggle-copy";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
   createEvent,
@@ -172,6 +175,7 @@ interface EventStudioEditorProps {
   allowedDepartmentIds?: string[];
   campuses: Campus[];
   canChangeCampus?: boolean;
+  canNotifyNational?: boolean;
   defaultCampusId?: string;
   event: EventRecord | null;
   initialDepartments: Departments[];
@@ -184,6 +188,7 @@ interface EventStudioEditorProps {
     saveError: string;
     saveSuccess: string;
   };
+  notificationState?: ContentNotificationState;
   /** Push subscribers per campus id. `null` means the count is unavailable. */
   pushSubscribers: Record<string, number | null>;
 }
@@ -351,7 +356,7 @@ function buildDefaultValues(
     ticket_url: fallback(event?.ticket_url, null),
     member_only: fallback(event?.member_only, false),
     is_collection: fallback(event?.is_collection, false),
-    notify_push: fallback(event?.notify_push, false),
+    notify_push: defaultNotifyPush(event?.notify_push, event === null),
     publish_mode: fallback(event?.publish_mode, EventsPublishMode.NOW),
     scheduled_publish_at: fallback(event?.scheduled_publish_at, null),
     contact_name: fallback(event?.contact_name, null),
@@ -1289,6 +1294,7 @@ function ToggleCard({
   active,
   children,
   description,
+  disabled = false,
   icon,
   onClick,
   title,
@@ -1296,19 +1302,23 @@ function ToggleCard({
   active: boolean;
   children?: React.ReactNode;
   description?: string;
+  disabled?: boolean;
   icon?: React.ReactNode;
   onClick: () => void;
   title: string;
 }) {
   return (
     <button
+      aria-disabled={disabled}
+      disabled={disabled}
       onClick={onClick}
       style={{
         background: active ? BRAND.ink : "rgba(255,255,255,.55)",
         border: `0.5px solid ${active ? BRAND.ink : BRAND.rule2}`,
         borderRadius: 12,
         color: active ? BRAND.paper : BRAND.ink,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.6 : 1,
         padding: "16px 18px",
         position: "relative",
         textAlign: "left",
@@ -2473,10 +2483,16 @@ function capStepperBtn(left: boolean): React.CSSProperties {
 /* -------------------------------------------------------------------------- */
 
 function TicketsStep({
+  canNotifyNational,
+  isPublished,
+  notificationState,
   pushSubscribers,
   set,
   values,
 }: {
+  canNotifyNational: boolean;
+  isPublished: boolean;
+  notificationState: ContentNotificationState;
   pushSubscribers: Record<string, number | null>;
   set: <K extends keyof EventUpsertInput>(
     key: K,
@@ -2484,6 +2500,12 @@ function TicketsStep({
   ) => void;
   values: EventUpsertInput;
 }) {
+  const notify = notifyToggleCopy({
+    canNotifyNational,
+    isNational: values.campus_id === CAMPUS_NAME_TO_ID.National,
+    isPublished,
+    state: notificationState,
+  });
   const isFree = values.pricing_mode === EventsPricingMode.FREE;
   const price = values.price ?? 0;
   const memberPrice = values.member_price ?? 0;
@@ -2682,15 +2704,44 @@ function TicketsStep({
           onClick={() => set("is_collection", !values.is_collection)}
           title="Part of a series"
         />
-        <ToggleCard
-          active={values.notify_push ?? false}
-          description={describePushAudience(
-            pushSubscribers[values.campus_id ?? ""] ?? null
-          )}
-          icon={<Bell size={14} />}
-          onClick={() => set("notify_push", !values.notify_push)}
-          title="Push notification"
-        />
+        {notify.showToggle ? (
+          <ToggleCard
+            active={values.notify_push ?? false}
+            description={`${notify.description} ${describePushAudience(
+              pushSubscribers[values.campus_id ?? ""] ?? null
+            )}`}
+            disabled={notify.disabled}
+            icon={<Bell size={14} />}
+            onClick={() => set("notify_push", !values.notify_push)}
+            title={notify.title}
+          />
+        ) : (
+          <div
+            style={{
+              background: "rgba(255,255,255,.55)",
+              border: `0.5px solid ${BRAND.rule2}`,
+              borderRadius: 12,
+              color: BRAND.ink,
+              padding: "16px 18px",
+            }}
+          >
+            <div
+              style={{
+                alignItems: "center",
+                display: "flex",
+                fontSize: 14,
+                fontWeight: 500,
+                gap: 8,
+              }}
+            >
+              <Bell size={14} />
+              {notify.title}
+            </div>
+            <p style={{ color: BRAND.ink3, fontSize: 12.5, marginTop: 6 }}>
+              {notify.description}
+            </p>
+          </div>
+        )}
       </div>
 
       <div
@@ -4055,11 +4106,13 @@ export function EventStudioEditor({
   allowedDepartmentIds,
   campuses,
   canChangeCampus = true,
+  canNotifyNational = false,
   defaultCampusId,
   event,
   initialDepartments,
   isNew,
   labels,
+  notificationState = { kind: "none" },
   pushSubscribers,
 }: EventStudioEditorProps) {
   const router = useRouter();
@@ -4494,6 +4547,9 @@ export function EventStudioEditor({
             )}
             {step === 3 && (
               <TicketsStep
+                canNotifyNational={canNotifyNational}
+                isPublished={event?.status === EventsStatus.PUBLISHED}
+                notificationState={notificationState}
                 pushSubscribers={pushSubscribers}
                 set={set}
                 values={values}
