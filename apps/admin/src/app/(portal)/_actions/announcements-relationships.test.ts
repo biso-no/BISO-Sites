@@ -50,6 +50,11 @@ const campusAdminCtx = makeCtx({
   resolvedCampusIds: ["campus-oslo"],
   roles: ["campusadmin"],
 });
+const bergenAdminCtx = makeCtx({
+  managedCampusIds: ["2"],
+  resolvedCampusIds: ["2"],
+  roles: ["campusadmin"],
+});
 const globalAdminCtx = makeCtx({ roles: ["globaladmin"] });
 
 let currentCtx: UserAuthContext = departmentCtx;
@@ -220,6 +225,77 @@ describe("announcement ownership persistence", () => {
     });
 
     expect(result).toEqual({ error: expect.any(String) });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["general"],
+    ["events_national"],
+    ["events_oslo"],
+    ["news_oslo"],
+  ])("a Bergen campus admin can't create a topic announcement with value %p", async (value) => {
+    currentCtx = bergenAdminCtx;
+    const result = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "topic",
+      audience_value: value,
+      campus_id: "2",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ error: AUDIENCE_FORBIDDEN_MESSAGE });
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["events"],
+    ["events_bergen"],
+  ])("a Bergen campus admin may create a topic announcement with value %p", async (value) => {
+    currentCtx = bergenAdminCtx;
+    const result = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "topic",
+      audience_value: value,
+      campus_id: "2",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ data: expect.any(String) });
+  });
+
+  test("global admin: bare topic with no campus is fine, general as a topic is not", async () => {
+    currentCtx = globalAdminCtx;
+    const ok = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "topic",
+      audience_value: "events",
+      campus_id: null,
+      department_id: null,
+    });
+    expect(ok).toEqual({ data: expect.any(String) });
+    const bad = await createAnnouncement({
+      ...departmentValues,
+      audience_type: "topic",
+      audience_value: "general",
+      campus_id: null,
+      department_id: null,
+    });
+    expect(bad).toEqual({ error: AUDIENCE_FORBIDDEN_MESSAGE });
+  });
+
+  test("a campus admin who owns the campus can't broadcast to all campuses (policy)", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["campus-oslo", "5"],
+      resolvedCampusIds: ["campus-oslo"],
+      roles: ["campusadmin"],
+    });
+    const result = await createAnnouncement({
+      ...departmentValues,
+      campus_id: "5",
+      department_id: null,
+    });
+
+    expect(result).toEqual({ error: AUDIENCE_FORBIDDEN_MESSAGE });
     expect(db.createRow).not.toHaveBeenCalled();
   });
 
@@ -410,6 +486,31 @@ describe("announcement dispatch authorization", () => {
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ["general"],
+    ["events_national"],
+    ["events_oslo"],
+  ])("sending a stored topic row with value %p is refused for a Bergen admin", async (value) => {
+    currentCtx = bergenAdminCtx;
+    mockAnnouncementRow({
+      $id: "announcement-1",
+      audience_type: "topic",
+      audience_value: value,
+      campus_id: "2",
+      category: "general",
+      data: null,
+      push: true,
+      scheduled_at: null,
+      status: "draft",
+      title_en: "English title",
+    });
+
+    const result = await sendAnnouncement("announcement-1");
+
+    expect(result).toEqual({ error: AUDIENCE_FORBIDDEN_MESSAGE });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
   test("a campus admin can send their own campus's announcement", async () => {
     currentCtx = campusAdminCtx;
     mockAnnouncementRow({
@@ -417,6 +518,7 @@ describe("announcement dispatch authorization", () => {
       audience_type: "broadcast",
       audience_value: null,
       campus: { $id: "campus-oslo" },
+      campus_id: "campus-oslo",
       category: "general",
       data: null,
       department: { $id: "dept-1" },

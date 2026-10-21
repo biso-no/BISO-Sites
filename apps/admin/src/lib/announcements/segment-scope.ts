@@ -5,7 +5,7 @@ import { getContentOwnership } from "@/lib/content-authorization";
 import { withNationalEventScope } from "@/lib/event-scope";
 import { hasRowAccess } from "@/lib/utils/authorization";
 
-interface RowLister {
+export interface RowLister {
   listRows: <T>(
     databaseId: string,
     tableId: string,
@@ -19,21 +19,19 @@ interface RowLister {
  * of the caller's event scope.
  */
 export async function resolveSegmentCampus(
-  db: unknown,
+  db: RowLister,
   ctx: UserAuthContext,
   segmentId: string
 ): Promise<{ campusId: string | null } | null> {
-  const lister = db as RowLister;
-  const segments = await lister.listRows<EventSegments>(
-    "app",
-    "event_segments",
-    [Query.equal("$id", segmentId), Query.limit(1)]
-  );
+  const segments = await db.listRows<EventSegments>("app", "event_segments", [
+    Query.equal("$id", segmentId),
+    Query.limit(1),
+  ]);
   const segment = segments.rows[0];
   if (!segment?.event_id) {
     return null;
   }
-  const events = await lister.listRows<Events>("app", "events", [
+  const events = await db.listRows<Events>("app", "events", [
     Query.equal("$id", segment.event_id),
     Query.limit(1),
   ]);

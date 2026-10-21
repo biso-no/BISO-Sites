@@ -11,6 +11,7 @@ import {
   type AudienceType,
   canSendNotifications,
   isAudienceAllowed,
+  isTopicValueAllowed,
   SEND_FORBIDDEN_MESSAGE,
 } from "@/lib/announcements/audience-policy";
 import { resolveSegmentCampus } from "@/lib/announcements/segment-scope";
@@ -418,6 +419,12 @@ async function assertAudienceAllowed(
   }
 ): Promise<void> {
   const audienceType = audience.audienceType as AudienceType;
+  if (
+    audienceType === "topic" &&
+    !isTopicValueAllowed(audience.audienceValue, audience.campusId)
+  ) {
+    throw new Error(AUDIENCE_FORBIDDEN_MESSAGE);
+  }
   let segmentCampusId: string | null = null;
   if (audienceType === "segment") {
     const segment = audience.audienceValue
@@ -928,7 +935,7 @@ export async function sendAnnouncement(
     await assertAudienceAllowed(client.db, ctx, {
       audienceType: announcement.audience_type,
       audienceValue: announcement.audience_value,
-      campusId: announcement.campus_id ?? sendOwnership.campus ?? null,
+      campusId: announcement.campus_id ?? null,
     });
 
     const automaticSource = translationOptions?.enabled

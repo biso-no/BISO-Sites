@@ -1,3 +1,9 @@
+import {
+  isNotificationTopic,
+  logicalTopicFor,
+  resolveAnnouncementTopicId,
+  topicIdFor,
+} from "@repo/shared/utils/notification-topics";
 import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 
 const NATIONAL_CAMPUS_ID = CAMPUS_NAME_TO_ID.National as string;
@@ -79,4 +85,27 @@ export function allowedCampusChoices(
     allCampuses: false,
     campusIds: ctx.managedCampusIds.filter((id) => id !== NATIONAL_CAMPUS_ID),
   };
+}
+
+/**
+ * A topic audience must name a real logical topic, either bare or as exactly
+ * that topic's channel for the row's campus. Dispatch passes any other value
+ * through unchanged, which would reach another campus or every device.
+ */
+export function isTopicValueAllowed(
+  value: string | null | undefined,
+  campusId: string | null | undefined
+): boolean {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return false;
+  }
+  const logical = logicalTopicFor(trimmed === "products" ? "shop" : trimmed);
+  if (!isNotificationTopic(logical)) {
+    return false;
+  }
+  return (
+    resolveAnnouncementTopicId(trimmed, campusId) ===
+    topicIdFor(logical, campusId)
+  );
 }

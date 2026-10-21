@@ -3,6 +3,7 @@ import {
   allowedCampusChoices,
   canSendNotifications,
   isAudienceAllowed,
+  isTopicValueAllowed,
 } from "./audience-policy";
 
 const global = { managedCampusIds: [], roles: ["globaladmin"] };
@@ -108,5 +109,24 @@ describe("allowedCampusChoices", () => {
       allCampuses: false,
       campusIds: ["2"],
     });
+  });
+});
+
+describe("isTopicValueAllowed", () => {
+  test.each([
+    ["events", "2", true],
+    ["events_bergen", "2", true],
+    ["products", "2", true],
+    ["shop_bergen", "2", true],
+    ["events", null, true],
+    ["events_national", null, true],
+    ["general", "2", false],
+    ["events_national", "2", false],
+    ["events_oslo", "2", false],
+    ["news_oslo", "2", false],
+    ["", "2", false],
+    [null, "2", false],
+  ])("value %p on campus %p -> %p", (value, campus, expected) => {
+    expect(isTopicValueAllowed(value, campus)).toBe(expected);
   });
 });

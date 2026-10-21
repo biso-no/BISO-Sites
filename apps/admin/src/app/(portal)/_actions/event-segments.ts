@@ -18,7 +18,9 @@ import type { AnnouncementWriteInput } from "@repo/api/types/inputs";
 import { createTypedRow } from "@repo/api/write";
 import { revalidatePath } from "next/cache";
 import {
+  AUDIENCE_FORBIDDEN_MESSAGE,
   canSendNotifications,
+  isAudienceAllowed,
   SEND_FORBIDDEN_MESSAGE,
 } from "@/lib/announcements/audience-policy";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
@@ -845,7 +847,8 @@ export async function messageSegment(
   segmentId: string,
   content: MessageSegmentValues
 ) {
-  const ctx = withNationalEventScope(await requireAuth());
+  const authCtx = await requireAuth();
+  const ctx = withNationalEventScope(authCtx);
   if (!canSendNotifications(ctx.roles)) {
     return { error: SEND_FORBIDDEN_MESSAGE };
   }
@@ -871,6 +874,15 @@ export async function messageSegment(
     const { db: adminDb } = await createAdminClient();
     const eventId = segment.event_id ?? null;
     const segmentCampusId = segment.campus_id ?? event.campus_id ?? null;
+    if (
+      !isAudienceAllowed(authCtx, {
+        audienceType: "segment",
+        campusId: segmentCampusId,
+        segmentCampusId,
+      })
+    ) {
+      return { error: AUDIENCE_FORBIDDEN_MESSAGE };
+    }
     const announcement = await createTypedRow<
       Announcements,
       AnnouncementWriteInput
