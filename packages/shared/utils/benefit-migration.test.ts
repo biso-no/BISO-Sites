@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { BenefitCategoryKey, BenefitSection } from "./benefit-catalog";
-import { partnerKey } from "./benefit-match";
+import { normalizeBenefitText, partnerKey } from "./benefit-match";
 import {
   type CampusDataInput,
   type ExistingBenefitInput,
   type MigrationInput,
   type MigrationPlan,
+  type PlannedLine,
   planBenefitMigration,
   renderMigrationReview,
   summarizeMigrationPlan,
@@ -14,12 +15,12 @@ import {
 } from "./benefit-migration";
 
 const GENERATED_AT = "2026-10-21T12:00:00.000Z";
-const LIST_KEYS = [
-  "studentBenefits",
-  "careerAdvantages",
-  "socialNetwork",
-  "safety",
-  "businessBenefits",
+const LIST_SECTIONS: [string, BenefitSection][] = [
+  ["studentBenefits", "member"],
+  ["careerAdvantages", "career"],
+  ["socialNetwork", "social"],
+  ["safety", "safety"],
+  ["businessBenefits", "business"],
 ];
 const LINE_ID = /^mb-[0-9a-f]{20}$/;
 const PARTNER_ID = /^bp-[0-9a-f]{20}$/;
@@ -108,6 +109,7 @@ function productionFixture(): MigrationInput {
       benefitRow({
         $id: "los-t",
         description_nb: "",
+        partner_name: "los t",
         status: "draft",
         title_nb: "los t",
       }),
@@ -175,20 +177,32 @@ function productionFixture(): MigrationInput {
   };
 }
 
-function countNonBlankSourceEntries(campusData: CampusDataInput[]): number {
-  let count = 0;
+/** One `campus|section|normalized text` entry per non-blank source string. */
+function sourceEntries(campusData: CampusDataInput[]): string[] {
+  const entries: string[] = [];
   for (const row of campusData) {
-    for (const key of LIST_KEYS) {
+    for (const [key, section] of LIST_SECTIONS) {
       const list = row[`${key}_nb`];
-      if (!Array.isArray(list)) {
-        continue;
+      for (const entry of Array.isArray(list) ? list : []) {
+        if (typeof entry === "string" && entry.trim() !== "") {
+          entries.push(`${row.$id}|${section}|${normalizeBenefitText(entry)}`);
+        }
       }
-      count += list.filter(
-        (entry) => typeof entry === "string" && entry.trim() !== ""
-      ).length;
     }
   }
-  return count;
+  return entries.sort();
+}
+
+/** The same entries rebuilt from planned lines, one per source campus. */
+function lineEntries(lines: PlannedLine[]): string[] {
+  return lines
+    .flatMap((line) =>
+      line.sourceCampusIds.map(
+        (campusId) =>
+          `${campusId}|${line.section}|${normalizeBenefitText(line.titleNb)}`
+      )
+    )
+    .sort();
 }
 
 function sha1Prefix(value: string): string {
@@ -199,14 +213,31 @@ describe("planBenefitMigration source lines", () => {
   it("accounts for every non-blank source line exactly once", () => {
     const input = productionFixture();
     const result = planBenefitMigration(input);
-    const expected = countNonBlankSourceEntries(input.campusData);
-    const fromLines = result.lines.reduce(
-      (sum, line) => sum + line.sourceCampusIds.length,
-      0
+    const expected = sourceEntries(input.campusData);
+    expect(expected).toHaveLength(21);
+    expect(lineEntries(result.lines)).toEqual(expected);
+    expect(summarizeMigrationPlan(result).sourceLines).toBe(expected.length);
+  });
+
+  it("refuses benefit lines on a campus_data row outside campuses 1–4", () => {
+    expect(() =>
+      plan([], [campusRow("legacy-national", { safety_nb: [VARSLING] })])
+    ).toThrow("legacy-national");
+  });
+
+  it("accepts campus_data rows outside campuses 1–4 with only empty lists", () => {
+    const result = plan(
+      [],
+      [
+        campusRow("1", { safety_nb: [VARSLING] }),
+        campusRow("5", {
+          careerAdvantages_nb: [],
+          highlights_nb: ["Hele BISO"],
+          safety_nb: ["  "],
+        }),
+      ]
     );
-    expect(expected).toBe(21);
-    expect(summarizeMigrationPlan(result).sourceLines).toBe(expected);
-    expect(fromLines).toBe(expected);
+    expect(result.lines).toHaveLength(1);
   });
 
   it("collapses a line found on all four campuses into one national line", () => {
@@ -400,6 +431,24 @@ describe("planBenefitMigration matching", () => {
     );
   });
 
+  it("tells a national line about a matching local row", () => {
+    const result = plan(
+      [benefitRow({ $id: "rekom", campus_id: "1", title_nb: "REKOM-rabatt" })],
+      ["1", "2", "3", "4"].map((id) =>
+        campusRow(id, {
+          studentBenefits_en: ["Discounts at all Rekom venues"],
+          studentBenefits_nb: [REKOM],
+        })
+      )
+    );
+    expect(result.lines).toHaveLength(1);
+    expect(result.lines[0]).toMatchObject({
+      action: "create",
+      campusId: "5",
+      note: "Finnes også som lokal fordel på Oslo – slett den lokale eller slå sammen",
+    });
+  });
+
   it("notes a possible match and scores it", () => {
     const result = plan(productionFixture().benefits, [
       campusRow("2", {
@@ -494,6 +543,48 @@ describe("planBenefitMigration ids and partners", () => {
     ]);
   });
 
+  it("never plans BISO itself as a partner", () => {
+    const result = plan(
+      [
+        benefitRow({
+          $id: "biso",
+          partner_name: "BISO",
+          title_nb: "Frukt i pausen",
+        }),
+        benefitRow({
+          $id: "biso-as",
+          partner_name: "BISO AS",
+          title_nb: "Te på huset",
+        }),
+      ],
+      [campusRow("1", { studentBenefits_nb: ["Gratis kaffe hos BISO"] })]
+    );
+    expect(result.rowUpdates.map((u) => u.partnerKey)).toEqual([null, null]);
+    expect(result.lines[0]).toMatchObject({
+      action: "create",
+      partnerKey: null,
+    });
+    expect(result.partners).toEqual([]);
+  });
+
+  it("plans no partner for a row proposed for deletion", () => {
+    const result = plan(
+      [
+        benefitRow({
+          $id: "los-t",
+          description_nb: "",
+          partner_name: "los t",
+          status: "draft",
+          title_nb: "los t",
+        }),
+      ],
+      []
+    );
+    expect(result.deletions.map((d) => d.rowId)).toEqual(["los-t"]);
+    expect(result.rowUpdates[0]?.partnerKey).toBeNull();
+    expect(result.partners.find((p) => p.key === "los t")).toBeUndefined();
+  });
+
   it("gives no partner key to a row that already has a partner", () => {
     const result = plan(
       [
@@ -547,6 +638,7 @@ describe("planBenefitMigration codes, deletions and permissions", () => {
       ["public", false],
       ["draft", false],
     ]);
+    expect(summarizeMigrationPlan(result).madePublic).toBe(1);
   });
 
   it("re-sections perks and maps legacy categories", () => {
@@ -640,7 +732,14 @@ describe("renderMigrationReview", () => {
     );
     expect(review).toContain(`| ${REKOM} | Hoppes over | Duplikat |`);
     expect(review).toContain(
-      "| 25 % hos Peppes Pizza Nydalen | Oslo | Medlemsfordeler | Annet | Peppes Pizza Nydalen |"
+      "| 25 % hos Peppes Pizza Nydalen | Oslo | Medlemsfordeler | Annet | Peppes Pizza Nydalen |  |"
+    );
+    expect(review).toContain("Gjøres offentlige: 1");
+    expect(review).toContain(
+      "| Tittel | Campus | Seksjon | Kategori | Partner | Blir offentlig |"
+    );
+    expect(review).toContain(
+      "| 20% hos Løft studios | Oslo | Medlemsfordeler | Annet | Løft studios | ja |"
     );
     expect(review).toContain("| Løft studios (forslag) | Oslo |");
     expect(review.indexOf("## Oslo")).toBeLessThan(

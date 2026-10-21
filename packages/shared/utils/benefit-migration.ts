@@ -115,6 +115,7 @@ export interface MigrationSummary {
   codes: number;
   created: number;
   deletions: number;
+  madePublic: number;
   merged: number;
   partners: number;
   skipped: number;
@@ -138,7 +139,10 @@ const CAMPUS_NAMES: Record<string, string> = {
   [NATIONAL_CAMPUS_ID]: "Hele BISO",
 };
 const REVIEW_CAMPUS_ORDER = [...CAMPUS_IDS, NATIONAL_CAMPUS_ID];
+const CAMPUS_LIST: readonly string[] = CAMPUS_IDS;
 const OSLO_CAMPUS_ID = "1";
+/** BISO itself is never planned as a partner (spec D12.4). */
+const BISO_PARTNER_KEY = "biso";
 const PUBLIC_READ = 'read("any")';
 const ID_HEX_LENGTH = 20;
 const MISSING_ENGLISH = "Mangler engelsk tekst";
@@ -218,22 +222,32 @@ function proposeSection(row: ExistingBenefitInput): BenefitSection {
   return "member";
 }
 
+function partnerKeyFor(name: string | null): string | null {
+  const key = name ? partnerKey(name) : null;
+  return key === BISO_PARTNER_KEY ? null : key;
+}
+
+function isDeletionCandidate(row: ExistingBenefitInput): boolean {
+  return row.status === "draft" && !row.description_nb?.trim();
+}
+
 function rowPartnerVariant(
   row: ExistingBenefitInput,
   section: BenefitSection
 ): PartnerVariant | null {
-  if (section !== "member" || row.partner_id) {
+  if (section !== "member" || row.partner_id || isDeletionCandidate(row)) {
     return null;
   }
   const explicit = row.partner_name?.trim();
   const name = explicit || suggestPartnerName(row.title_nb ?? "");
-  if (!name) {
+  const key = partnerKeyFor(name);
+  if (!(name && key)) {
     return null;
   }
   return {
     campusId: row.campus_id,
     explicit: Boolean(explicit),
-    key: partnerKey(name),
+    key,
     logoUrl: row.partner_logo_url?.trim() || null,
     name,
   };
@@ -283,7 +297,7 @@ function collectCodes(benefits: ExistingBenefitInput[]): PlannedCode[] {
 
 function collectDeletions(benefits: ExistingBenefitInput[]): PlannedDeletion[] {
   return benefits
-    .filter((row) => row.status === "draft" && !row.description_nb?.trim())
+    .filter(isDeletionCandidate)
     .map((row) => ({ approved: false, rowId: row.$id, title: rowTitle(row) }));
 }
 
@@ -320,7 +334,25 @@ function listSourceLines(
   return lines;
 }
 
+/** Throws rather than silently dropping lines on rows outside campuses 1–4. */
+function assertOnlyCampusSources(campusData: CampusDataInput[]): void {
+  for (const row of campusData) {
+    if (CAMPUS_LIST.includes(row.$id)) {
+      continue;
+    }
+    const listed = LIST_SECTIONS.find(([key]) =>
+      asList(row[`${key}_nb`]).some((value) => cleanText(value))
+    );
+    if (listed) {
+      throw new Error(
+        `campus_data-rad «${row.$id}» har fordelslinjer i ${listed[0]}_nb, men bare campus 1–4 migreres`
+      );
+    }
+  }
+}
+
 function collectSourceLines(campusData: CampusDataInput[]): SourceLine[] {
+  assertOnlyCampusSources(campusData);
   const lines: SourceLine[] = [];
   for (const campusId of CAMPUS_IDS) {
     const row = campusData.find((candidate) => candidate.$id === campusId);
@@ -409,15 +441,17 @@ function otherCampusNote(
   if (campuses.length === 0) {
     return null;
   }
-  return `Samme tilbud finnes på ${campuses.map(campusName).join(", ")} – vurder å gjøre det nasjonalt`;
+  const names = campuses.map(campusName).join(", ");
+  return line.campusId === NATIONAL_CAMPUS_ID
+    ? `Finnes også som lokal fordel på ${names} – slett den lokale eller slå sammen`
+    : `Samme tilbud finnes på ${names} – vurder å gjøre det nasjonalt`;
 }
 
 function createPartnerKey(line: DraftLine): string | null {
   if (line.section !== "member") {
     return null;
   }
-  const name = suggestPartnerName(line.titleNb);
-  return name ? partnerKey(name) : null;
+  return partnerKeyFor(suggestPartnerName(line.titleNb));
 }
 
 function baseLine(line: DraftLine): Omit<PlannedLine, "action" | "note"> {
@@ -580,6 +614,11 @@ interface PlanLookups {
   rowIds: Set<string>;
 }
 
+/**
+ * Skip lines share the ID of the line they duplicate (same campus, section and
+ * text, rule 6), and only create lines write a row under their ID, so only
+ * create lines are checked for duplicates.
+ */
 function duplicateCreateProblems(lines: PlannedLine[]): string[] {
   const counts = new Map<string, number>();
   for (const line of lines) {
@@ -678,6 +717,7 @@ export function summarizeMigrationPlan(plan: MigrationPlan): MigrationSummary {
     codes: plan.codes.length,
     created: count("create"),
     deletions: plan.deletions.length,
+    madePublic: plan.rowUpdates.filter((row) => row.makePublic).length,
     merged: count("merge"),
     partners: plan.partners.length,
     skipped: count("skip"),
@@ -735,6 +775,7 @@ function renderHeader(plan: MigrationPlan): string[] {
     `- Slås sammen: ${summary.merged}`,
     `- Hoppes over: ${summary.skipped}`,
     `- Eksisterende fordeler som oppdateres: ${summary.updated}`,
+    `- Gjøres offentlige: ${summary.madePublic}`,
     `- Nye partnere: ${summary.partners}`,
     `- Koder: ${summary.codes}`,
     `- Foreslått slettet: ${summary.deletions}`,
@@ -791,11 +832,15 @@ function renderExisting(
       ? (BENEFIT_CATEGORY_LABELS[row.category]?.nb ?? row.category)
       : EMPTY_CELL,
     partnerLabel(row.partnerKey, partners) ?? EMPTY_CELL,
+    row.makePublic ? "ja" : "",
   ]);
   return [
     "## Eksisterende fordeler",
     "",
-    ...table(["Tittel", "Campus", "Seksjon", "Kategori", "Partner"], rows),
+    ...table(
+      ["Tittel", "Campus", "Seksjon", "Kategori", "Partner", "Blir offentlig"],
+      rows
+    ),
   ];
 }
 
