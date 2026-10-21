@@ -213,4 +213,18 @@ describe("PeoplePicker", () => {
     expect(container.textContent).toContain("Kari Nordmann");
     expect(container.textContent).toContain("Ola Hansen");
   });
+
+  test("an id that never resolves becomes Unknown person", async () => {
+    const container = await mount(
+      createElement(Harness, {
+        initial: ["gone"],
+        onValue: () => undefined,
+        resolve: async () => [],
+        search: async () => [],
+      })
+    );
+    await wait(0);
+    expect(findByAriaLabel(container, "Remove Unknown person")).toBeTruthy();
+    expect(container.textContent).not.toContain("Loading");
+  });
 });

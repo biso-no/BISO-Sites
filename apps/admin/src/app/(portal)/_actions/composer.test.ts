@@ -47,6 +47,7 @@ mock.module("./event-segments", () => ({ listSegments }));
 
 const {
   getAudienceReach,
+  getGroupById,
   getPeopleByIds,
   getLinkedContentPrefill,
   listGroupsForEvent,
@@ -209,6 +210,68 @@ describe("listGroupsForEvent", () => {
     expect(await listGroupsForEvent("e1")).toEqual([
       { id: "s1", name: "Volunteers", memberCount: 4, campusId: "2" },
     ]);
+  });
+});
+
+describe("getGroupById", () => {
+  function mockGroup(eventCampus: string) {
+    db.listRows.mockImplementation((_d: string, table: string) => {
+      if (table === "event_segments") {
+        return Promise.resolve({
+          rows: [{ $id: "s1", event_id: "e1", campus_id: null }],
+        });
+      }
+      if (table === "segment_members") {
+        return Promise.resolve({ rows: [], total: 34 });
+      }
+      return Promise.resolve({
+        rows: [
+          {
+            $id: "e1",
+            campus_id: eventCampus,
+            translation_refs: [{ locale: "en", title: "Trondheim trip" }],
+          },
+        ],
+      });
+    });
+    db.getRow.mockResolvedValue({
+      $id: "s1",
+      campus_id: null,
+      event_id: "e1",
+      name: "Bus 2",
+    });
+  }
+
+  test("names the group and its event, with the event's campus", async () => {
+    mockGroup("3");
+    expect(await getGroupById("s1")).toEqual({
+      campusId: "3",
+      eventId: "e1",
+      eventTitle: "Trondheim trip",
+      groupId: "s1",
+      groupName: "Bus 2",
+      memberCount: 34,
+    });
+  });
+
+  test("a group on another campus's event is out of scope", async () => {
+    currentCtx = {
+      ...baseCtx,
+      roles: ["campusadmin"],
+      managedCampusIds: ["2"],
+    };
+    mockGroup("1");
+    expect(await getGroupById("s1")).toBeNull();
+  });
+
+  test("a missing group is null", async () => {
+    db.listRows.mockResolvedValue({ rows: [] });
+    expect(await getGroupById("nope")).toBeNull();
+  });
+
+  test("a department user gets null", async () => {
+    currentCtx = { ...baseCtx, roles: ["department"] };
+    expect(await getGroupById("s1")).toBeNull();
   });
 });
 

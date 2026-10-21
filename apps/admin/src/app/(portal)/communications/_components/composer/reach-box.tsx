@@ -54,27 +54,29 @@ export function ReachBox({
 }: ReachBoxProps) {
   const key = JSON.stringify(request);
   const settled = useDebounce(key, REACH_DEBOUNCE_MS);
-  const [result, setResult] = useState<ReachResult | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Each outcome is tied to the request it answers, so a pending request never
+  // shows the previous audience's sentence.
+  const [outcome, setOutcome] = useState<{
+    key: string;
+    result: ReachResult | null;
+  } | null>(null);
 
   useEffect(() => {
     const settledRequest = JSON.parse(settled) as ReachRequest;
     if (incompleteHint(settledRequest)) {
-      setResult(null);
-      setFailed(false);
+      setOutcome(null);
       return;
     }
     let cancelled = false;
     getReach(settledRequest)
       .then((next) => {
         if (!cancelled) {
-          setResult(next);
-          setFailed(false);
+          setOutcome({ key: settled, result: next });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setFailed(true);
+          setOutcome({ key: settled, result: null });
         }
       });
     return () => {
@@ -82,6 +84,9 @@ export function ReachBox({
     };
   }, [settled, getReach]);
 
+  const current = outcome?.key === key ? outcome : null;
+  const result = current?.result ?? null;
+  const failed = current !== null && current.result === null;
   const hint = incompleteHint(request);
   const isChannel =
     request.audienceType === "broadcast" || request.audienceType === "topic";

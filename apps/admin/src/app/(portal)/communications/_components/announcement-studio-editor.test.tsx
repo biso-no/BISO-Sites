@@ -50,7 +50,12 @@ const globalAdminCtx: UserAuthContext = {
 };
 
 mock.module("@repo/api/server", () => ({
-  createAdminClient: mock(async () => ({ db, messaging: {}, users: {} })),
+  createAdminClient: mock(async () => ({
+    db,
+    // The Who step's live reach counts subscribers; none is fine here.
+    messaging: { listSubscribers: async () => ({ subscribers: [], total: 0 }) },
+    users: {},
+  })),
   createSessionClient: mock(async () => ({ db })),
 }));
 mock.module("@/lib/authorization", () => ({

@@ -213,6 +213,66 @@ export async function listGroupsForEvent(eventId: string): Promise<
   }));
 }
 
+export interface GroupDetails {
+  campusId: string | null;
+  eventId: string;
+  eventTitle: string;
+  groupId: string;
+  groupName: string;
+  memberCount: number;
+}
+
+/** One group with its event, or null when missing or outside the caller's scope. */
+export async function getGroupById(
+  segmentId: string
+): Promise<GroupDetails | null> {
+  const ctx = await requireAuth();
+  if (!(canSendNotifications(ctx.roles) && segmentId)) {
+    return null;
+  }
+  try {
+    const { db } = await createAdminClient();
+    const resolved = await resolveSegmentCampus(db, ctx, segmentId);
+    if (!resolved) {
+      return null;
+    }
+    const segment = await db.getRow<EventSegments>(
+      "app",
+      "event_segments",
+      segmentId
+    );
+    if (!segment.event_id) {
+      return null;
+    }
+    const [events, members] = await Promise.all([
+      db.listRows<Events>("app", "events", [
+        Query.select(["*", "translation_refs.*"]),
+        Query.equal("$id", segment.event_id),
+        Query.limit(1),
+      ]),
+      db.listRows<SegmentMembers>("app", "segment_members", [
+        Query.equal("segment_id", segment.$id),
+        Query.limit(1),
+      ]),
+    ]);
+    const event = events.rows[0];
+    if (!event) {
+      return null;
+    }
+    return {
+      campusId: resolved.campusId,
+      eventId: event.$id,
+      eventTitle: pickEnglishFirstTitle(event.translation_refs, event.$id),
+      groupId: segment.$id,
+      groupName: segment.name,
+      memberCount: members.total,
+    };
+  } catch (error) {
+    console.error("[composer] group lookup failed:", error);
+    return null;
+  }
+}
+
 export interface AudienceReachRequest {
   audienceType: "broadcast" | "topic" | "users" | "segment";
   audienceValue: string | null;

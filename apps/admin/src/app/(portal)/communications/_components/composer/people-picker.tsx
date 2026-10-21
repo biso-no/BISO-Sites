@@ -2,10 +2,11 @@
 
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
 import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getPeopleByIds, searchPeople } from "@/app/(portal)/_actions/composer";
 import type { PersonResult } from "@/lib/announcements/composer-lookups";
 import { BRAND } from "./ui";
+import { useOutsideClick } from "./use-outside-click";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
@@ -67,6 +68,8 @@ export function PeoplePicker({
   const debouncedQuery = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
   const containerRef = useRef<HTMLDivElement>(null);
   const asked = useRef(new Set<string>());
+  // Ids whose lookup finished, found or not.
+  const [settledIds, setSettledIds] = useState<Set<string>>(new Set());
 
   // Names for ids we have not seen yet, such as a reopened draft.
   useEffect(() => {
@@ -77,6 +80,8 @@ export function PeoplePicker({
     for (const id of missing) {
       asked.current.add(id);
     }
+    const markSettled = () =>
+      setSettledIds((previous) => new Set([...previous, ...missing]));
     resolve(missing)
       .then((people) => {
         setKnown((previous) => {
@@ -86,8 +91,9 @@ export function PeoplePicker({
           }
           return next;
         });
+        markSettled();
       })
-      .catch(() => undefined);
+      .catch(markSettled);
   }, [value, known, resolve]);
 
   const searchable = debouncedQuery.length >= MIN_QUERY_LENGTH;
@@ -117,21 +123,8 @@ export function PeoplePicker({
     };
   }, [debouncedQuery, searchable, search]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handlePointerDown(event: PointerEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+  const closeDropdown = useCallback(() => setOpen(false), []);
+  useOutsideClick(containerRef, open, closeDropdown);
 
   function add(person: PersonResult) {
     setKnown((previous) => ({ ...previous, [person.id]: person }));
@@ -172,7 +165,9 @@ export function PeoplePicker({
       >
         {value.map((id) => {
           const person = known[id];
-          const name = person?.name ?? "Loading…";
+          const name =
+            person?.name ??
+            (settledIds.has(id) ? "Unknown person" : "Loading…");
           return (
             <span
               key={id}

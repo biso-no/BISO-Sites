@@ -2,13 +2,16 @@
 
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
 import { Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  type GroupDetails,
+  getGroupById,
   listEventsWithGroups,
   listGroupsForEvent,
 } from "@/app/(portal)/_actions/composer";
-import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
+import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 import { BRAND, fieldInputStyle } from "./ui";
+import { useOutsideClick } from "./use-outside-click";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -29,8 +32,9 @@ interface GroupOption {
 interface GroupPickerProps {
   listEvents?: (query: string) => Promise<EventOption[]>;
   listGroups?: (eventId: string) => Promise<GroupOption[]>;
-  /** The segment id and the campus it belongs to (its own, else its event's). */
   onChange: (segmentId: string | null, campusId: string | null) => void;
+  /** The segment id and the campus it belongs to (its own, else its event's). */
+  resolveGroup?: (segmentId: string) => Promise<GroupDetails | null>;
   value: string | null;
 }
 
@@ -44,9 +48,11 @@ function peopleLabel(count: number): string {
 
 function EventCard({
   event,
+  fallback = "",
   onChange,
 }: {
   event: EventOption | null;
+  fallback?: string;
   onChange: () => void;
 }) {
   return (
@@ -63,7 +69,7 @@ function EventCard({
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: BRAND.ink, fontSize: 13.5, fontWeight: 600 }}>
-          {event?.title ?? "A group is chosen"}
+          {event?.title ?? fallback}
         </div>
         {event && (
           <div style={{ color: BRAND.ink3, fontSize: 12 }}>
@@ -94,6 +100,7 @@ export function GroupPicker({
   listEvents = listEventsWithGroups,
   listGroups = listGroupsForEvent,
   onChange,
+  resolveGroup = getGroupById,
   value,
 }: GroupPickerProps) {
   const [event, setEvent] = useState<EventOption | null>(null);
@@ -107,6 +114,7 @@ export function GroupPicker({
   const [groupStatus, setGroupStatus] = useState<"idle" | "loading" | "error">(
     "idle"
   );
+  const [lookup, setLookup] = useState<"idle" | "loading" | "missing">("idle");
   const debouncedQuery = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -136,6 +144,41 @@ export function GroupPicker({
   }, [open, debouncedQuery, listEvents]);
 
   const eventId = event?.id ?? null;
+  // A reopened draft, or a step that remounted, knows the group but not its event.
+  useEffect(() => {
+    if (!value || event) {
+      setLookup("idle");
+      return;
+    }
+    let cancelled = false;
+    setLookup("loading");
+    resolveGroup(value)
+      .then((found) => {
+        if (cancelled) {
+          return;
+        }
+        if (!found) {
+          setLookup("missing");
+          return;
+        }
+        setEvent({
+          campusName: CAMPUS_ID_TO_NAME[found.campusId ?? ""] ?? "",
+          dateLabel: "",
+          id: found.eventId,
+          title: found.eventTitle,
+        });
+        setLookup("idle");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLookup("missing");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [value, event, resolveGroup]);
+
   useEffect(() => {
     if (!eventId) {
       setGroups([]);
@@ -161,21 +204,8 @@ export function GroupPicker({
     };
   }, [eventId, listGroups]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handlePointerDown(pointer: PointerEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(pointer.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+  const closeDropdown = useCallback(() => setOpen(false), []);
+  useOutsideClick(containerRef, open, closeDropdown);
 
   useEffect(() => {
     if (open) {
@@ -208,8 +238,18 @@ export function GroupPicker({
   }
 
   // A reopened draft knows the group but not its event.
-  if (!event && value && !open) {
-    return <EventCard event={null} onChange={changeEvent} />;
+  if (!event && value) {
+    return (
+      <EventCard
+        event={null}
+        fallback={
+          lookup === "missing"
+            ? "This group is no longer available"
+            : "Loading group…"
+        }
+        onChange={changeEvent}
+      />
+    );
   }
 
   let eventMessage: string | null = null;

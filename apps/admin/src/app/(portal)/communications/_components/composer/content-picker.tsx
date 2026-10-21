@@ -3,12 +3,13 @@
 import { useDebounce } from "@repo/ui/hooks/use-debounce";
 import { Search } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { searchLinkableContent } from "@/app/(portal)/_actions/composer";
 import type { LinkableItem } from "@/lib/announcements/composer-lookups";
 import type { ComposerLinkType } from "./composer-state";
 import type { LinkedDisplay } from "./link-state";
 import { BRAND } from "./ui";
+import { useOutsideClick } from "./use-outside-click";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -169,21 +170,8 @@ export function ContentPicker({
     };
   }, [open, debouncedQuery, search, type]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handlePointerDown(event: PointerEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+  const closeDropdown = useCallback(() => setOpen(false), []);
+  useOutsideClick(containerRef, open, closeDropdown);
 
   useEffect(() => {
     if (open) {

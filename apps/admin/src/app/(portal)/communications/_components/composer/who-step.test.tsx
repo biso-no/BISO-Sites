@@ -278,6 +278,42 @@ describe("ReachBox", () => {
   });
 });
 
+describe("ReachBox while a request is pending", () => {
+  test("changing the request hides the old sentence", async () => {
+    let finish: (value: { count: number; sentence: string }) => void = () =>
+      undefined;
+    const pending = new Promise<{ count: number; sentence: string }>(
+      (resolve) => {
+        finish = resolve;
+      }
+    );
+    const reach = mock(async (request: { campusId: string | null }) =>
+      request.campusId === "2"
+        ? { count: 10, sentence: "Bergen sentence." }
+        : pending
+    );
+    const make = (campusId: string) =>
+      createElement(ReachBox, {
+        getReach: reach,
+        request: { audienceType: "broadcast", audienceValue: "", campusId },
+        tappingOpens: null,
+      });
+    const container = await mount(make("2"));
+    await wait();
+    expect(container.textContent).toContain("Bergen sentence.");
+
+    await act(() => {
+      root?.render(make("1"));
+    });
+    expect(container.textContent).not.toContain("Bergen sentence.");
+    await wait();
+    expect(container.textContent).not.toContain("Bergen sentence.");
+    finish({ count: 3, sentence: "Oslo sentence." });
+    await wait(0);
+    expect(container.textContent).toContain("Oslo sentence.");
+  });
+});
+
 describe("GroupPicker", () => {
   const event = {
     campusName: "Trondheim",
@@ -327,5 +363,32 @@ describe("GroupPicker", () => {
     });
     // The group has no campus of its own, so the event's campus is used.
     expect(onChange).toHaveBeenLastCalledWith("g1", "3");
+  });
+
+  test("a reopened group shows its event and name", async () => {
+    const resolveGroup = mock(async (_id: string) => ({
+      campusId: "3",
+      eventId: "ev-1",
+      eventTitle: "Trondheim trip",
+      groupId: "g1",
+      groupName: "Bus 2",
+      memberCount: 34,
+    }));
+    const container = await mount(
+      createElement(GroupPicker, {
+        listEvents: async () => [],
+        listGroups: async () => [
+          { campusId: null, id: "g1", memberCount: 34, name: "Bus 2" },
+        ],
+        onChange: () => undefined,
+        resolveGroup,
+        value: "g1",
+      })
+    );
+    await wait(0);
+    expect(resolveGroup).toHaveBeenCalledWith("g1");
+    expect(container.textContent).toContain("Trondheim trip");
+    expect(container.textContent).toContain("Bus 2 (34 people)");
+    expect(container.textContent).not.toContain("A group is chosen");
   });
 });
