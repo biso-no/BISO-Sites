@@ -106,6 +106,8 @@ export const benefitSchema = z
   });
 
 export type BenefitFormValues = z.infer<typeof benefitSchema>;
+/** What a caller may send before defaults apply (the assistant omits some). */
+export type BenefitFormInput = z.input<typeof benefitSchema>;
 
 export const eventSchema = eventUpsertSchema;
 export const EVENTS_PAGE_SIZE = 20;

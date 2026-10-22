@@ -19,6 +19,8 @@ export const BENEFIT_ERRORS = {
   partnerNameRequired: "Add the partner's name",
   partnerNotFound: "Partner not found",
   partnerWebsiteInvalid: "The website must start with https://",
+  redemptionChangeNeedsPanel:
+    "This benefit has a code or link. Change how students redeem it in the benefits panel.",
   reorderOutOfDate: "Reorder list is out of date",
 } as const;
 

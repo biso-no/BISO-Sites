@@ -969,6 +969,7 @@
       "noCampusAccess": "Du har ikke tilgang til å endre fordeler for denne campusen.",
       "partnerNotFound": "Fant ikke partneren. Velg partneren på nytt.",
       "legacyRedemption": "Velg hvordan studentene får rabatten, og lagre på nytt.",
+      "redemptionChangeNeedsPanel": "Fordelen har en rabattkode eller lenke. Åpne den under Fordeler og endre «Hvordan får studentene rabatten?» der.",
       "benefitNotFound": "Fant ikke fordelen. Den kan være slettet.",
       "logoNotFound": "Fant ikke logoen. Den kan være fjernet.",
       "companyNameRequired": "Skriv inn navnet på bedriften.",

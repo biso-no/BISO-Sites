@@ -22,6 +22,7 @@ import {
   canEditBenefitCampus,
 } from "@/lib/benefit-access";
 import {
+  BENEFIT_SECRET_TYPES,
   type BenefitPartnerSnapshot,
   benefitRowPermissions,
   benefitSecretValue,
@@ -50,7 +51,11 @@ import { paginationQueries } from "@/lib/list-queries";
 import { isRowNotFound } from "@/lib/shop/sales-type";
 import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
-import { type BenefitFormValues, benefitSchema } from "./schemas";
+import {
+  type BenefitFormInput,
+  type BenefitFormValues,
+  benefitSchema,
+} from "./schemas";
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
@@ -118,6 +123,11 @@ const isRedemptionType = (
   value: string | null | undefined
 ): value is (typeof REDEMPTION_TYPES)[number] =>
   REDEMPTION_TYPES.some((type) => type === value);
+
+const isSecretType = (
+  type: string | null | undefined
+): type is (typeof BENEFIT_SECRET_TYPES)[number] =>
+  BENEFIT_SECRET_TYPES.some((secretType) => secretType === type);
 
 /** Rows saved before sections existed have none; they are member benefits. */
 const sectionFilter = (section: string): string =>
@@ -276,6 +286,43 @@ async function saveBenefitRow({
   );
   await writeBenefitCode(db, ctx, saved.$id, values);
   return { columns, id: saved.$id };
+}
+
+type StoredCodeMerge = { ok: true; values: BenefitFormInput } | { ok: false };
+
+/**
+ * The admin assistant never sees a benefit's code, so its edits leave
+ * `redemption_value` out. Leaving it out keeps the stored code: it is filled
+ * back in while the benefit still uses a code or link, and a change that
+ * would drop it (another redemption type, or a section without one) is
+ * refused so the editor makes it in the panel. The panel always sends the
+ * field, so an empty value from it still clears the code.
+ */
+async function withStoredCode(
+  db: AdminDb,
+  stored: CampusBenefits,
+  values: BenefitFormInput
+): Promise<StoredCodeMerge> {
+  if (values.redemption_value !== undefined) {
+    return { ok: true, values };
+  }
+  const code =
+    (await readBenefitCode(db, stored.$id)) ?? stored.redemption_value ?? null;
+  const redemptionType =
+    values.redemption_type ??
+    (isSecretType(stored.redemption_type) ? stored.redemption_type : undefined);
+  const isMember = (values.section ?? "member") === "member";
+  if (isMember && isSecretType(redemptionType)) {
+    return {
+      ok: true,
+      values: {
+        ...values,
+        redemption_type: redemptionType,
+        redemption_value: code,
+      },
+    };
+  }
+  return code?.trim() ? { ok: false } : { ok: true, values };
 }
 
 type PartnerLookup =
@@ -492,8 +539,8 @@ export async function createBenefit(
       options: translationOptions,
       values: data,
     });
-    await notifyWebsite(["benefits"]);
     revalidatePath("/benefits");
+    await notifyWebsite(["benefits"]);
     return {
       data: saved.id,
       ...(translationQueued ? { translationQueued: true as const } : {}),
@@ -505,25 +552,30 @@ export async function createBenefit(
 
 export async function updateBenefit(
   id: string,
-  values: BenefitFormValues,
+  values: BenefitFormInput,
   autoTranslation?: AutoTranslationOptions
 ): Promise<BenefitMutationResult> {
   const ctx = await requireAuth();
-  const validated = benefitSchema.safeParse(values);
-  if (!validated.success) {
-    return { error: validated.error.flatten().fieldErrors };
-  }
 
   try {
-    const translationOptions = parseAutoTranslationOptions(autoTranslation);
-    const data = normalizeBenefitValues(validated.data);
     const { db } = await createAdminClient();
     const stored = await loadBenefitRow(db, id);
     if (!stored) {
       return { error: BENEFIT_ERRORS.benefitNotFound };
     }
-    // Moving a benefit needs write access on both campuses.
+    // Refuse before the code row is read. Moving a benefit needs write
+    // access on both campuses; the new one is checked once it is validated.
     assertBenefitCampusWrite(ctx, stored.campus_id);
+    const merged = await withStoredCode(db, stored, values);
+    if (!merged.ok) {
+      return { error: BENEFIT_ERRORS.redemptionChangeNeedsPanel };
+    }
+    const validated = benefitSchema.safeParse(merged.values);
+    if (!validated.success) {
+      return { error: validated.error.flatten().fieldErrors };
+    }
+    const translationOptions = parseAutoTranslationOptions(autoTranslation);
+    const data = normalizeBenefitValues(validated.data);
     assertBenefitCampusWrite(ctx, data.campus_id);
 
     const lookup = await lookupPartner(db, data);
@@ -590,8 +642,8 @@ export async function deleteBenefit(
       resourceId: id,
       resourceType: "campus_benefit",
     });
-    await notifyWebsite(["benefits"]);
     revalidatePath("/benefits");
+    await notifyWebsite(["benefits"]);
     return { data: id };
   } catch (error) {
     return { error: errorMessage(error, "Failed to delete benefit") };
@@ -649,8 +701,8 @@ export async function reorderBenefits(
       payload: { campusId, ids: orderedIds, section },
       resourceType: "campus_benefit",
     });
-    await notifyWebsite(["benefits"]);
     revalidatePath("/benefits");
+    await notifyWebsite(["benefits"]);
     return { data: true };
   } catch (error) {
     return { error: errorMessage(error, "Failed to reorder benefits") };

@@ -25,6 +25,7 @@ export type BenefitErrorKey =
   | "errors.partnerNameRequired"
   | "errors.partnerNotFound"
   | "errors.partnerWebsiteInvalid"
+  | "errors.redemptionChangeNeedsPanel"
   | "errors.titleRequired";
 
 const REASONS: ReadonlyMap<string, BenefitErrorKey> = new Map([
@@ -44,6 +45,10 @@ const REASONS: ReadonlyMap<string, BenefitErrorKey> = new Map([
   [BENEFIT_ERRORS.partnerNameRequired, "errors.partnerNameRequired"],
   [BENEFIT_ERRORS.partnerNotFound, "errors.partnerNotFound"],
   [BENEFIT_ERRORS.partnerWebsiteInvalid, "errors.partnerWebsiteInvalid"],
+  [
+    BENEFIT_ERRORS.redemptionChangeNeedsPanel,
+    "errors.redemptionChangeNeedsPanel",
+  ],
   [BENEFIT_ERRORS.reorderOutOfDate, "board.reorderFailed"],
 ]);
 

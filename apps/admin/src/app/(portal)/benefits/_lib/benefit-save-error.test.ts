@@ -8,6 +8,8 @@ import {
 
 const LEGACY =
   "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.";
+const KEEP_CODE =
+  "This benefit has a code or link. Change how students redeem it in the benefits panel.";
 
 const no = await loadMessages("no");
 const en = await loadMessages("en");
@@ -37,6 +39,7 @@ describe("benefitErrorKeys", () => {
     ["Partner not found", "errors.partnerNotFound"],
     ["Logo not found", "errors.logoNotFound"],
     [LEGACY, "errors.legacyRedemption"],
+    [KEEP_CODE, "errors.redemptionChangeNeedsPanel"],
     ["Benefit not found", "errors.benefitNotFound"],
     ["Reorder list is out of date", "board.reorderFailed"],
     ["Add the partner's name", "errors.partnerNameRequired"],
@@ -113,6 +116,9 @@ describe("describeBenefitSaveError", () => {
     expect(describeBenefitSaveError(LEGACY, norwegian)).toBe(
       "Velg hvordan studentene får rabatten, og lagre på nytt."
     );
+    expect(describeBenefitSaveError(KEEP_CODE, norwegian)).toBe(
+      "Fordelen har en rabattkode eller lenke. Åpne den under Fordeler og endre «Hvordan får studentene rabatten?» der."
+    );
     expect(describeBenefitSaveError("Benefit not found", norwegian)).toBe(
       "Fant ikke fordelen. Den kan være slettet."
     );
@@ -180,6 +186,7 @@ describe("describeBenefitSaveError", () => {
       "errors.partnerNameRequired",
       "errors.partnerNotFound",
       "errors.partnerWebsiteInvalid",
+      "errors.redemptionChangeNeedsPanel",
       "errors.titleRequired",
     ];
     for (const key of keys) {

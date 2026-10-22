@@ -99,12 +99,24 @@ mock.module("@repo/api/server", () => ({
 mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => currentCtx),
 }));
-mock.module("next/cache", () => ({
-  revalidatePath: mock(() => undefined),
-}));
+const revalidatePath = mock((_path: string) => undefined);
+mock.module("next/cache", () => ({ revalidatePath }));
 mock.module("./audit-log", () => ({ logAuditEvent }));
 const notifyWebsite = mock(async (_tags: string[]) => undefined);
 mock.module("@/lib/web-revalidate", () => ({ notifyWebsite }));
+
+/** The order in which the admin cache and the website were refreshed. */
+function trackRefreshOrder(): string[] {
+  const order: string[] = [];
+  revalidatePath.mockImplementation(() => {
+    order.push("revalidatePath");
+  });
+  notifyWebsite.mockImplementation(() => {
+    order.push("notifyWebsite");
+    return Promise.resolve(undefined);
+  });
+  return order;
+}
 
 const {
   createBenefit,
@@ -182,7 +194,10 @@ beforeEach(() => {
   translationRows = [];
   codeRows = new Map();
   logAuditEvent.mockClear();
-  notifyWebsite.mockClear();
+  revalidatePath.mockReset();
+  revalidatePath.mockImplementation(() => undefined);
+  notifyWebsite.mockReset();
+  notifyWebsite.mockImplementation(async () => undefined);
   for (const fn of Object.values(db)) {
     fn.mockReset();
   }
@@ -278,6 +293,14 @@ describe("createBenefit", () => {
     expect(upsertCall("campus_benefits")?.[3]).toEqual(
       expect.objectContaining({ campus_id: "5" })
     );
+  });
+
+  test("tells the website after refreshing the admin", async () => {
+    const order = trackRefreshOrder();
+
+    await createBenefit(memberValues);
+
+    expect(order).toEqual(["revalidatePath", "notifyWebsite"]);
   });
 
   test("a new row goes after the highest sort order of its campus and section", async () => {
@@ -518,6 +541,228 @@ describe("updateBenefit", () => {
       expect.objectContaining({ section: "career", sort_order: 6 })
     );
   });
+
+  test("tells the website after refreshing the admin", async () => {
+    benefitRows = [storedBenefit()];
+    const order = trackRefreshOrder();
+
+    await updateBenefit("benefit-1", memberValues);
+
+    expect(order.at(-1)).toBe("notifyWebsite");
+    expect(order).toContain("revalidatePath");
+  });
+});
+
+// The admin assistant never sees the code, so its edits leave
+// `redemption_value` out. Leaving it out must keep the stored code.
+describe("updateBenefit without redemption_value", () => {
+  const { redemption_value: _code, ...assistantValues } = memberValues;
+  const KEEP_CODE_ERROR =
+    "This benefit has a code or link. Change how students redeem it in the benefits panel.";
+
+  test("keeps the code stored in benefit_codes", async () => {
+    benefitRows = [storedBenefit({ status: "published" })];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await updateBenefit("benefit-1", {
+      ...assistantValues,
+      title_nb: "Ny tittel",
+    });
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("benefit_codes")?.[3]).toEqual(
+      expect.objectContaining({ benefit_id: "benefit-1", value: "BISO20" })
+    );
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(codeRows.get("benefit-1")).toBe("BISO20");
+  });
+
+  test("keeps a code that only sits in the legacy column", async () => {
+    benefitRows = [storedBenefit({ redemption_value: "OLD" })];
+
+    const result = await updateBenefit("benefit-1", assistantValues);
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("benefit_codes")?.[3]).toEqual(
+      expect.objectContaining({ benefit_id: "benefit-1", value: "OLD" })
+    );
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({ redemption_value: null })
+    );
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  test("keeps a member link", async () => {
+    benefitRows = [storedBenefit({ redemption_type: "link" })];
+    codeRows.set("benefit-1", "https://partner.example/biso");
+
+    const result = await updateBenefit("benefit-1", {
+      ...assistantValues,
+      redemption_type: "link",
+    });
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("benefit_codes")?.[3]).toEqual(
+      expect.objectContaining({ value: "https://partner.example/biso" })
+    );
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  test("keeps the stored type and code when the payload names neither", async () => {
+    benefitRows = [storedBenefit()];
+    codeRows.set("benefit-1", "BISO20");
+    const { redemption_type: _type, ...withoutRedemption } = assistantValues;
+
+    const result = await updateBenefit("benefit-1", withoutRedemption);
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({ redemption_type: "code" })
+    );
+    expect(upsertCall("benefit_codes")?.[3]).toEqual(
+      expect.objectContaining({ value: "BISO20" })
+    );
+    expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+
+  for (const redemptionType of ["none", "onsite"] as const) {
+    test(`refuses a switch to ${redemptionType} and leaves the code alone`, async () => {
+      benefitRows = [storedBenefit({ status: "published" })];
+      codeRows.set("benefit-1", "BISO20");
+
+      const result = await updateBenefit("benefit-1", {
+        ...assistantValues,
+        redemption_type: redemptionType,
+      });
+
+      expect(result).toEqual({ error: KEEP_CODE_ERROR });
+      expect(db.deleteRow).not.toHaveBeenCalled();
+      expect(db.upsertRow).not.toHaveBeenCalled();
+      expect(codeRows.get("benefit-1")).toBe("BISO20");
+      expect(notifyWebsite).not.toHaveBeenCalled();
+    });
+  }
+
+  test("refuses a switch to none for a legacy-column code", async () => {
+    benefitRows = [storedBenefit({ redemption_value: "OLD" })];
+
+    const result = await updateBenefit("benefit-1", {
+      ...assistantValues,
+      redemption_type: "none",
+    });
+
+    expect(result).toEqual({ error: KEEP_CODE_ERROR });
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("refuses a move out of the member section, which would drop the code", async () => {
+    currentCtx = benefitsEditorCtx;
+    benefitRows = [storedBenefit()];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await updateBenefit("benefit-1", {
+      ...assistantValues,
+      section: "career",
+    });
+
+    expect(result).toEqual({ error: KEEP_CODE_ERROR });
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("saves a switch to none when there is no code", async () => {
+    benefitRows = [storedBenefit({ redemption_type: "none" })];
+
+    const result = await updateBenefit("benefit-1", {
+      ...assistantValues,
+      redemption_type: "none",
+    });
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("benefit_codes")).toBeUndefined();
+  });
+
+  test("reads no code before the stored campus is authorized", async () => {
+    benefitRows = [storedBenefit({ campus_id: "3" })];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await updateBenefit("benefit-1", {
+      ...assistantValues,
+      campus_id: "3",
+    });
+
+    expect(result).toEqual({
+      error: "Unauthorized: no write access to this campus",
+    });
+    expect(db.getRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+});
+
+// The panel always sends `redemption_value`, so it keeps full control.
+describe("updateBenefit with redemption_value sent", () => {
+  test("an empty value with no redemption clears the code", async () => {
+    benefitRows = [storedBenefit()];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await updateBenefit("benefit-1", {
+      ...memberValues,
+      redemption_type: "none",
+      redemption_value: "",
+    });
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "benefit_codes",
+      "benefit-1"
+    );
+    expect(codeRows.has("benefit-1")).toBe(false);
+  });
+
+  test("null with no redemption clears the code", async () => {
+    benefitRows = [storedBenefit()];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await updateBenefit("benefit-1", {
+      ...memberValues,
+      redemption_type: "none",
+      redemption_value: null,
+    });
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(codeRows.has("benefit-1")).toBe(false);
+  });
+
+  test("a new value replaces the stored code", async () => {
+    benefitRows = [storedBenefit()];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await updateBenefit("benefit-1", {
+      ...memberValues,
+      redemption_value: "NEW30",
+    });
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("benefit_codes")?.[3]).toEqual(
+      expect.objectContaining({ value: "NEW30" })
+    );
+  });
+
+  test("an empty code for a code benefit is still refused", async () => {
+    benefitRows = [storedBenefit()];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await updateBenefit("benefit-1", {
+      ...memberValues,
+      redemption_value: "",
+    });
+
+    expect(result).toEqual({ error: { redemption_value: ["Add the code"] } });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+    expect(codeRows.get("benefit-1")).toBe("BISO20");
+  });
 });
 
 describe("deleteBenefit", () => {
@@ -538,6 +783,15 @@ describe("deleteBenefit", () => {
       expect.objectContaining({ resourceId: "benefit-1" })
     );
     expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
+  });
+
+  test("tells the website after refreshing the admin", async () => {
+    benefitRows = [storedBenefit()];
+    const order = trackRefreshOrder();
+
+    await deleteBenefit("benefit-1");
+
+    expect(order).toEqual(["revalidatePath", "notifyWebsite"]);
   });
 
   test("refuses a benefit on another campus", async () => {
@@ -577,6 +831,14 @@ describe("reorderBenefits", () => {
       expect.anything()
     );
     expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
+  });
+
+  test("tells the website after refreshing the admin", async () => {
+    const order = trackRefreshOrder();
+
+    await reorderBenefits("2", "member", ["a", "c", "b"]);
+
+    expect(order).toEqual(["revalidatePath", "notifyWebsite"]);
   });
 
   test("refuses an id from another section", async () => {
