@@ -283,8 +283,10 @@ export async function readPagePartnersFeed(
   db: FeedDb
 ): Promise<PagePartnerItem[]> {
   const partners = await db.listRows<Partners>("app", "partners", [
-    Query.select(["$id", "name", "url", "image_url"]),
+    Query.select(["$id", "name", "url", "image_url", "sort_order"]),
     Query.equal("level", "national"),
+    Query.orderAsc("sort_order"),
+    Query.orderAsc("$createdAt"),
     Query.limit(PARTNER_LIMIT),
   ]);
 
