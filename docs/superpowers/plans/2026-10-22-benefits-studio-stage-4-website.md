@@ -215,6 +215,7 @@ Admin action tests must mock `@/lib/web-revalidate` (process-wide, so spread or 
     - No code-seeded state: the value comes only from `revealBenefit`.
     - It shows `terms` in the visitor's locale and formats the end date with the visitor's locale.
     - It shows the partner logo and name from `partner`, and `imageUrl` when present.
+    - It keeps the current description rendering: stored HTML or Plate JSON (a value starting with `<` or `[`) goes through `PlateContentRenderer`, and plain text renders in a `<p>` with `whitespace-pre-line`. Older benefits still hold HTML, and the stage 2 panel sends unchanged HTML back as it is.
     - `onsite` shows the i18n line "Vis medlemskortet i appen" instead of a reveal button.
     - For a reveal failure it shows the i18n message for `not_member`, `unavailable` and `no_code`.
   - `benefits-tab.tsx`: category chips from `BENEFIT_CATEGORIES` + labels (show only categories present); filter on keys.
