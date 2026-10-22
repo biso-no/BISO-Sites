@@ -139,7 +139,13 @@ describe("GET /api/benefits", () => {
     const response = await GET(request("?campus=2"));
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "unavailable" });
-    expect(JSON.stringify(spy.mock.calls)).not.toContain("boom");
+    // JSON.stringify drops an Error's message; map it in so the check bites.
+    const logged = JSON.stringify(
+      spy.mock.calls.map((args) =>
+        args.map((a) => (a instanceof Error ? { message: a.message } : a))
+      )
+    );
+    expect(logged).not.toContain("boom");
     spy.mockRestore();
   });
 });
