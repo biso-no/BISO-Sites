@@ -814,6 +814,7 @@
       "noDeals": "Ingen tilbud ennå",
       "ended": "Avsluttet",
       "emptyDeals": "Ingen partnere her ennå. Trykk «+ Ny partner» for å legge til den første.",
+      "emptyOnlyEnded": "Alle partnerne her er avsluttet. Trykk «Vis avsluttede» for å se dem.",
       "partnerPanelNew": "Ny partner",
       "partnerPanelEdit": "Endre partner",
       "name": "Navn",
@@ -846,6 +847,7 @@
       "restartedToast": "Samarbeidet er i gang igjen",
       "deletedToast": "Slettet",
       "failed": "Kunne ikke lagre. Prøv igjen.",
+      "changeFailed": "Kunne ikke endre samarbeidet. Prøv igjen.",
       "readOnly": "Bare administratorer kan endre partnere for hele BISO."
     },
     "board": {

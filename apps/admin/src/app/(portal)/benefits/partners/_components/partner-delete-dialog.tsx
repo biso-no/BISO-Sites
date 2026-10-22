@@ -20,7 +20,7 @@ export interface PartnerDeleteDialogProps {
   /** The button that opens it; focus returns there when it closes. */
   children: ReactElement;
   /** Every offer linked to the partner: they are deleted with it. */
-  dealTitles: string[];
+  deals: { id: string; title: string }[];
   name: string;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
@@ -31,7 +31,7 @@ export interface PartnerDeleteDialogProps {
 /** The last "are you sure": names every offer that goes with the partner. */
 export function PartnerDeleteDialog({
   children,
-  dealTitles,
+  deals,
   name,
   onConfirm,
   onOpenChange,
@@ -39,7 +39,7 @@ export function PartnerDeleteDialog({
   pending,
 }: PartnerDeleteDialogProps) {
   const t = useTranslations("adminPortal.benefits.partnersPage");
-  const hasDeals = dealTitles.length > 0;
+  const hasDeals = deals.length > 0;
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
       <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
@@ -66,13 +66,13 @@ export function PartnerDeleteDialog({
             className="max-h-56 overflow-y-auto rounded-xl border bg-white px-4 py-1 text-sm"
             style={{ borderColor: STUDIO.rule, color: STUDIO.ink }}
           >
-            {dealTitles.map((title, index) => (
+            {deals.map((deal) => (
               <li
                 className="border-t border-dashed py-2 first:border-t-0"
-                key={`${index}-${title}`}
+                key={deal.id}
                 style={{ borderColor: STUDIO.rule }}
               >
-                {title}
+                {deal.title}
               </li>
             ))}
           </ul>

@@ -61,6 +61,14 @@ type PendingAction = "delete" | "end" | "restart" | "save";
 type Confirmation = "delete" | "end";
 type Result = { data: unknown } | { error: string };
 
+interface RunMessages {
+  /** Shown when the request fails, with a known reason under it. */
+  failed: string;
+  /** A known reason is shown instead of `failed`, not under it. */
+  reasonFirst?: boolean;
+  succeeded: string;
+}
+
 const textareaStyle = {
   ...panelInputStyle,
   lineHeight: 1.5,
@@ -159,13 +167,17 @@ export function PartnerSheet({
     }
   };
 
-  /** Runs one request; success toasts, closes and shows the fresh page. */
+  /**
+   * Runs one request; success toasts, closes and shows the fresh page. The
+   * buttons stay disabled while the sheet slides away, and a closing sheet
+   * sends nothing more, so a second click can't save or delete twice.
+   */
   const run = async (
     action: PendingAction,
     request: () => Promise<Result>,
-    messages: { failed: string; succeeded: string }
+    messages: RunMessages
   ) => {
-    if (pending) {
+    if (pending !== null || !live.current) {
       return;
     }
     setPending(action);
@@ -175,18 +187,22 @@ export function PartnerSheet({
     } catch {
       result = { error: "" };
     }
-    setPending(null);
     setConfirming(null);
     if ("error" in result) {
+      setPending(null);
       // The server's reason is English and for developers; it stays here.
       console.warn("[partners] request failed:", result.error);
       const details = describeBenefitSaveError(result.error, (key) =>
         tBenefits(key)
       );
-      toast.error(
-        messages.failed,
-        details ? { description: details } : undefined
-      );
+      if (messages.reasonFirst) {
+        toast.error(details ?? messages.failed);
+      } else {
+        toast.error(
+          messages.failed,
+          details ? { description: details } : undefined
+        );
+      }
       return;
     }
     toast.success(messages.succeeded);
@@ -229,8 +245,11 @@ export function PartnerSheet({
       end: t("endedToast"),
       restart: t("restartedToast"),
     };
+    const isDelete = action === "delete";
     run(action, requests[action], {
-      failed: action === "delete" ? tPanel("deleteFailed") : t("failed"),
+      failed: isDelete ? tPanel("deleteFailed") : t("changeFailed"),
+      // "Kunne ikke endre samarbeidet" says nothing a known reason doesn't.
+      reasonFirst: !isDelete,
       succeeded: succeeded[action],
     });
   };
@@ -592,9 +611,10 @@ function PartnerSheetFooter({
       <div className="flex flex-wrap items-center justify-between gap-3">
         {card ? (
           <PartnerDeleteDialog
-            dealTitles={card.dealStates.map(
-              ({ deal }) => benefitTitle(deal, locale) || tBoard("untitled")
-            )}
+            deals={card.dealStates.map(({ deal }) => ({
+              id: deal.$id,
+              title: benefitTitle(deal, locale) || tBoard("untitled"),
+            }))}
             name={card.partner.name}
             onConfirm={() => onChangePartnership("delete")}
             onOpenChange={opensWith("delete")}

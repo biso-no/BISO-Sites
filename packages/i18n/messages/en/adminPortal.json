@@ -814,6 +814,7 @@
       "noDeals": "No offers yet",
       "ended": "Ended",
       "emptyDeals": "No partners here yet. Press “+ New partner” to add the first one.",
+      "emptyOnlyEnded": "All partners here have ended. Turn on “Show ended” to see them.",
       "partnerPanelNew": "New partner",
       "partnerPanelEdit": "Edit partner",
       "name": "Name",
@@ -846,6 +847,7 @@
       "restartedToast": "The partnership is active again",
       "deletedToast": "Deleted",
       "failed": "Could not save. Try again.",
+      "changeFailed": "Couldn't change the partnership. Try again.",
       "readOnly": "Only administrators can edit partners for all of BISO."
     },
     "board": {

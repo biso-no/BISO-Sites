@@ -24,6 +24,56 @@ export interface PartnerFilter {
   showEnded: boolean;
 }
 
+const ENDED_FLAG = "1";
+
+/**
+ * The filter an address asks for (`?campus=`, `?ended=1`). A campus the
+ * viewer cannot see falls back to every partner.
+ */
+export function parsePartnerFilter(
+  query: { campus?: string | null; ended?: string | null },
+  visibleCampusIds: readonly string[]
+): PartnerFilter {
+  const campus = query.campus ?? "";
+  return {
+    campusId: visibleCampusIds.includes(campus) ? campus : ALL_CAMPUSES,
+    showEnded: query.ended === ENDED_FLAG,
+  };
+}
+
+/** Why no card shows, so the page says the right thing. Ask only then. */
+export type EmptyPartnersReason =
+  /** Every partner here has ended and "Vis avsluttede" is off. */
+  | "onlyEnded"
+  /** A campus the viewer can look at but not change. */
+  | "readOnly"
+  /** The viewer can change no campus at all. */
+  | "noAccess"
+  /** Nothing yet: the first one can be added. */
+  | "noneYet";
+
+export function emptyPartnersReason(
+  partners: PartnerWithDeals[],
+  filter: PartnerFilter,
+  editableCampusIds: readonly string[]
+): EmptyPartnersReason {
+  const onCampus = (p: PartnerWithDeals) =>
+    filter.campusId === ALL_CAMPUSES || p.campus_id === filter.campusId;
+  if (!filter.showEnded && partners.some((p) => onCampus(p))) {
+    return "onlyEnded";
+  }
+  if (editableCampusIds.length === 0) {
+    return "noAccess";
+  }
+  if (
+    filter.campusId !== ALL_CAMPUSES &&
+    !editableCampusIds.includes(filter.campusId)
+  ) {
+    return "readOnly";
+  }
+  return "noneYet";
+}
+
 const COLLATION_LOCALE = "nb";
 
 export function buildPartnerCards(

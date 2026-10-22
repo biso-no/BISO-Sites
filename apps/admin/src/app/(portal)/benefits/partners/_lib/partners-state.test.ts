@@ -6,7 +6,9 @@ import type {
 import type { SiteLogo, SiteLogoGroup } from "../../../_actions/site-logos";
 import {
   buildPartnerCards,
+  emptyPartnersReason,
   moveLogo,
+  parsePartnerFilter,
   publishedDealCount,
   visibleDealCount,
 } from "./partners-state";
@@ -109,6 +111,55 @@ describe("visibleDealCount", () => {
     });
     const [card] = buildPartnerCards([p], all, NOW);
     expect(card ? visibleDealCount(card) : -1).toBe(1);
+  });
+});
+
+describe("parsePartnerFilter", () => {
+  const visible = ["2", "5"];
+
+  it("reads a visible campus and the ended switch", () => {
+    expect(parsePartnerFilter({ campus: "5", ended: "1" }, visible)).toEqual({
+      campusId: "5",
+      showEnded: true,
+    });
+  });
+
+  it("falls back to every partner for a missing or hidden campus", () => {
+    expect(parsePartnerFilter({}, visible)).toEqual({
+      campusId: "all",
+      showEnded: false,
+    });
+    expect(parsePartnerFilter({ campus: "3", ended: "yes" }, visible)).toEqual({
+      campusId: "all",
+      showEnded: false,
+    });
+  });
+});
+
+describe("emptyPartnersReason", () => {
+  const editable = ["oslo"];
+
+  it("says so when only ended partners are hidden", () => {
+    const ps = [partner("a", { is_active: false })];
+    expect(emptyPartnersReason(ps, all, editable)).toBe("onlyEnded");
+  });
+
+  it("does not suggest adding where the viewer cannot", () => {
+    expect(
+      emptyPartnersReason([], { campusId: "5", showEnded: false }, editable)
+    ).toBe("readOnly");
+    expect(emptyPartnersReason([], all, [])).toBe("noAccess");
+  });
+
+  it("invites the first partner otherwise", () => {
+    expect(emptyPartnersReason([], all, editable)).toBe("noneYet");
+    expect(
+      emptyPartnersReason(
+        [partner("a", { campus_id: "bergen", is_active: false })],
+        { campusId: "oslo", showEnded: false },
+        editable
+      )
+    ).toBe("noneYet");
   });
 });
 

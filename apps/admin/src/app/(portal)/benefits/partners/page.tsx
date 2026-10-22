@@ -10,7 +10,7 @@ import { loadPartnersPage } from "../../_actions/benefit-partners";
 import { listCampuses } from "../../_actions/lookups";
 import type { AdminLocale } from "../_lib/board-display";
 import { PartnersPage, type PartnersTab } from "./_components/partners-page";
-import { ALL_CAMPUSES, type PartnerFilter } from "./_lib/partners-state";
+import { parsePartnerFilter } from "./_lib/partners-state";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -47,12 +47,10 @@ export default async function BenefitPartnersPage({
     ])
   );
   const visibleCampusIds = orderBoardCampuses(data.visibleCampusIds);
-  const campus = single(query.campus);
-  const filter: PartnerFilter = {
-    campusId:
-      campus && visibleCampusIds.includes(campus) ? campus : ALL_CAMPUSES,
-    showEnded: single(query.ended) === "1",
-  };
+  const filter = parsePartnerFilter(
+    { campus: single(query.campus), ended: single(query.ended) },
+    visibleCampusIds
+  );
   const tab: PartnersTab = single(query.tab) === "logos" ? "logos" : "deals";
 
   return (

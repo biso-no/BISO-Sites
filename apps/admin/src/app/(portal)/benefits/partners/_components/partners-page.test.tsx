@@ -61,6 +61,8 @@ mock.module("next-intl", () => ({
 }));
 
 let refreshes = 0;
+/** The address bar's query, as `useSearchParams` reads it. */
+let currentSearch = "";
 const actualNavigation = await import("next/navigation");
 mock.module("next/navigation", () => ({
   ...actualNavigation,
@@ -74,7 +76,7 @@ mock.module("next/navigation", () => ({
     },
     replace: () => undefined,
   }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(currentSearch),
 }));
 
 const actualLink = await import("next/link");
@@ -123,27 +125,39 @@ const actualSonner = await import("sonner");
 mock.module("sonner", () => ({ ...actualSonner, toast }));
 
 // Radix dialogs portal into `document.body` and lean on browser APIs this
-// harness lacks, so they render inline here, exactly as the benefit panel's
-// suite stubs them; the real Sheet is checked in the browser.
+// harness lacks, so they render inline here; the real Sheet is checked in
+// the browser. Like Radix during its exit animation, a closing sheet stays
+// on screen (`data-state="closed"`) and its buttons can still be pressed.
 type Slot = { children?: ReactNode } & Record<string, unknown>;
 type OpenChange = (open: boolean) => void;
-const SheetOpenChange = createContext<OpenChange>(() => undefined);
+interface SheetState {
+  onOpenChange: OpenChange;
+  open: boolean;
+}
+const SheetContext = createContext<SheetState>({
+  onOpenChange: () => undefined,
+  open: true,
+});
 const actualSheet = await import("@repo/ui/components/ui/sheet");
 mock.module("@repo/ui/components/ui/sheet", () => ({
   ...actualSheet,
   Sheet: ({ children, onOpenChange, open }: Slot) =>
-    open === false
-      ? null
-      : createElement(
-          SheetOpenChange.Provider,
-          { value: onOpenChange as OpenChange },
-          children
-        ),
+    createElement(
+      SheetContext.Provider,
+      {
+        value: {
+          onOpenChange: onOpenChange as OpenChange,
+          open: open !== false,
+        },
+      },
+      children
+    ),
   SheetContent({ children, onEscapeKeyDown }: Slot) {
-    const onOpenChange = useContext(SheetOpenChange);
+    const { onOpenChange, open } = useContext(SheetContext);
     return createElement(
       "div",
       {
+        "data-state": open ? "open" : "closed",
         onKeyDown: (event: { defaultPrevented: boolean; key: string }) => {
           if (event.key !== "Escape") {
             return;
@@ -268,6 +282,7 @@ afterEach(async () => {
   }
   root = null;
   refreshes = 0;
+  currentSearch = "";
   addresses.length = 0;
   toasts.length = 0;
   serverError = null;
@@ -366,11 +381,19 @@ function props(overrides: Partial<DealPartnersProps> = {}): DealPartnersProps {
 /** Where the chips moved the address bar, without asking the server again. */
 const addresses: string[] = [];
 
+/** Renders again with new props, as a server render or a navigation would. */
+async function rerender(overrides: Partial<DealPartnersProps> = {}) {
+  await act(() => {
+    root?.render(<PartnersPage deals={props(overrides)} tab="deals" />);
+  });
+}
+
 async function mount(overrides: Partial<DealPartnersProps> = {}) {
   Object.assign(window, {
     history: {
       replaceState: (_state: unknown, _title: string, url: string) => {
         addresses.push(url);
+        currentSearch = url.split("?")[1] ?? "";
       },
     },
   });
@@ -438,11 +461,38 @@ async function openCard(name: string): Promise<void> {
   await press(button);
 }
 
+/** The open sheet; a closing one no longer counts. */
 function sheet(): TestElement | undefined {
   return findElements(
     page(),
-    (element) => element.getAttribute("role") === "dialog"
+    (element) =>
+      element.getAttribute("role") === "dialog" &&
+      element.getAttribute("data-state") === "open"
   )[0];
+}
+
+function closingSheet(): TestElement | undefined {
+  return findElements(
+    page(),
+    (element) =>
+      element.getAttribute("role") === "dialog" &&
+      element.getAttribute("data-state") === "closed"
+  )[0];
+}
+
+/** Whether the element, or anything around it in the page, is see-through. */
+function dimmed(element: TestElement): boolean {
+  let node: TestNode | null = element;
+  while (node && node !== page()) {
+    if (node instanceof Object && "style" in node) {
+      const opacity = (node as TestElement).style.opacity;
+      if (typeof opacity === "string" && opacity !== "") {
+        return true;
+      }
+    }
+    node = node.parentNode;
+  }
+  return false;
 }
 
 function alertDialog(): TestElement {
@@ -534,8 +584,17 @@ describe("PartnersPage, deal partners", () => {
     ).toBe("true");
     const ended = card("Gamle Bakeriet");
     expect(ended.textContent).toContain("Avsluttet");
-    const item = ended.parentNode as TestElement;
-    expect(item.style.opacity).toBe("0.55");
+    // The card sits back, but its pills and buttons keep full contrast.
+    const name = findElements(ended, (element) => element.tagName === "H2")[0];
+    expect(name && dimmed(name)).toBe(true);
+    const pills = findElements(
+      ended,
+      (element) =>
+        element.tagName === "SPAN" && element.textContent === "Avsluttet"
+    );
+    expect(pills.length).toBeGreaterThan(0);
+    expect(pills.some(dimmed)).toBe(false);
+    expect(dimmed(findButton(ended, "Endre"))).toBe(false);
     // Its offer is not on the website any more.
     expect(ended.textContent).toContain("Gratis kaffe");
     expect(ended.textContent).not.toContain("Synlig");
@@ -705,6 +764,71 @@ describe("PartnersPage, deal partners", () => {
     expect(sheet()).toBeDefined();
   });
 
+  test("the chips follow the address when a link changes it", async () => {
+    currentSearch = "campus=5";
+    await mount({ filter: { campusId: "5", showEnded: false } });
+    expect(findButton(page(), "Hele BISO").getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+
+    // The "Tilbudspartnere" tab links to the page without a filter.
+    currentSearch = "";
+    await rerender();
+
+    expect(findButton(page(), "Alle").getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+    expect(cards()).toHaveLength(3);
+  });
+
+  test("when every partner here has ended, the page says so", async () => {
+    await mount({ partners: [bakery] });
+
+    expect(page().textContent).toContain(
+      "Alle partnerne her er avsluttet. Trykk «Vis avsluttede» for å se dem."
+    );
+    expect(page().textContent).not.toContain("legge til den første");
+  });
+
+  test("a campus the viewer cannot change never suggests adding a partner", async () => {
+    await mount({ partners: [loft] });
+
+    await click("Hele BISO");
+
+    expect(page().textContent).toContain(
+      "Bare administratorer kan endre partnere for hele BISO."
+    );
+    expect(page().textContent).not.toContain("legge til den første");
+  });
+
+  test("under a read-only campus chip there is no new-partner card", async () => {
+    await mount();
+
+    await click("Hele BISO");
+
+    const buttons = findElements(
+      page(),
+      (element) => element.tagName === "BUTTON"
+    ).map((button) => button.textContent);
+    expect(buttons).not.toContain("Ny partner");
+  });
+
+  test("a save cannot be sent twice while the sheet closes", async () => {
+    await mount();
+    await click("+ Ny partner");
+    await type(labelled("Navn"), "Kaffebar");
+    const save = findButton(sheet() as TestElement, "Lagre");
+
+    await press(save);
+    expect(calls.create).toHaveLength(1);
+    expect(closingSheet()).toBeDefined();
+
+    await press(save);
+
+    expect(calls.create).toHaveLength(1);
+    expect(toasts.map((call) => call.message)).toEqual(["Lagret"]);
+  });
+
   describe("ending a partnership", () => {
     const zero = partner("p-zero", "Null AS", {
       deals: [deal("p-zero", "Kommer snart", { status: "draft" })],
@@ -754,6 +878,43 @@ describe("PartnersPage, deal partners", () => {
       expect(sheet()).toBeUndefined();
     });
 
+    test("an end that fails says the partnership did not change", async () => {
+      await mount({ partners: [three] });
+      await openCard("Tre AS");
+      await click("Avslutt samarbeid");
+      serverError = "Some developer-facing reason";
+
+      await click("Avslutt samarbeid", alertDialog());
+
+      expect(toasts).toEqual([
+        {
+          description: undefined,
+          kind: "error",
+          message: "Kunne ikke endre samarbeidet. Prøv igjen.",
+        },
+      ]);
+      expect(refreshes).toBe(0);
+      expect(sheet()).toBeDefined();
+    });
+
+    test("a refused restart gives the reason in Norwegian", async () => {
+      await mount({ filter: { campusId: "all", showEnded: true } });
+      await openCard("Gamle Bakeriet");
+      serverError = BENEFIT_ERRORS.noCampusAccess;
+
+      await click("Start samarbeidet igjen");
+
+      expect(toasts).toEqual([
+        {
+          description: undefined,
+          kind: "error",
+          message:
+            "Du har ikke tilgang til å endre fordeler for denne campusen.",
+        },
+      ]);
+      expect(refreshes).toBe(0);
+    });
+
     test("an ended partner can start again", async () => {
       await mount({ filter: { campusId: "all", showEnded: true } });
       await openCard("Gamle Bakeriet");
@@ -797,6 +958,11 @@ describe("PartnersPage, deal partners", () => {
       expect(calls.delete).toEqual([["p-dog"]]);
       expect(toasts.map((call) => call.message)).toEqual(["Slettet"]);
       expect(refreshes).toBe(1);
+      // While the sheet slides away, nothing can be deleted a second time.
+      const closing = closingSheet() as TestElement;
+      expect(
+        findButton(closing, "Slett for godt").hasAttribute("disabled")
+      ).toBe(true);
     });
 
     test("the end confirmation also leads to deleting", async () => {

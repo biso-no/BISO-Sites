@@ -56,34 +56,36 @@ export function PartnerCardView({
     .filter(Boolean)
     .join(" · ");
   const canAddDeal = partner.editable && !ended && Boolean(campusId);
+  // An ended partner's details sit back; its pills and buttons keep full
+  // contrast, so they stay readable and clearly usable.
+  const dim = ended ? { opacity: ENDED_OPACITY } : undefined;
 
   return (
-    <li
-      className="h-full"
-      style={{ opacity: ended ? ENDED_OPACITY : undefined }}
-    >
+    <li className="h-full">
       <article
         aria-labelledby={nameId}
         className="flex h-full flex-col rounded-xl border border-[#e5dcca] bg-white p-4"
       >
         <div className="flex items-start gap-3">
-          <PartnerLogo logoUrl={partner.logo_url} name={partner.name} />
-          <div className="min-w-0 flex-1">
-            <h2
-              className="break-words font-semibold text-[15px] leading-snug"
-              id={nameId}
-              style={{ color: STUDIO.ink }}
-            >
-              {partner.name}
-            </h2>
-            {meta ? (
-              <p
-                className="mt-0.5 break-words text-[13px] leading-5"
-                style={{ color: STUDIO.ink3 }}
+          <div className="flex min-w-0 flex-1 items-start gap-3" style={dim}>
+            <PartnerLogo logoUrl={partner.logo_url} name={partner.name} />
+            <div className="min-w-0 flex-1">
+              <h2
+                className="break-words font-semibold text-[15px] leading-snug"
+                id={nameId}
+                style={{ color: STUDIO.ink }}
               >
-                {meta}
-              </p>
-            ) : null}
+                {partner.name}
+              </h2>
+              {meta ? (
+                <p
+                  className="mt-0.5 break-words text-[13px] leading-5"
+                  style={{ color: STUDIO.ink3 }}
+                >
+                  {meta}
+                </p>
+              ) : null}
+            </div>
           </div>
           {ended ? (
             <span
@@ -107,7 +109,7 @@ export function PartnerCardView({
                   key={deal.$id}
                   style={{ borderColor: STUDIO.rule }}
                 >
-                  <span className="min-w-0">
+                  <span className="min-w-0" style={dim}>
                     {visibleCampusIds.includes(deal.campus_id) ? (
                       <Link
                         className={`break-words rounded-sm hover:underline ${BOARD_FOCUS_RING}`}
@@ -136,7 +138,7 @@ export function PartnerCardView({
         ) : (
           <p
             className="mt-3 border-t border-dashed pt-2 text-[13px] leading-5"
-            style={{ borderColor: STUDIO.rule, color: STUDIO.ink3 }}
+            style={{ borderColor: STUDIO.rule, color: STUDIO.ink3, ...dim }}
           >
             {t("noDeals")}
           </p>

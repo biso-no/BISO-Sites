@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import type { PartnerWithDeals } from "../../../_actions/benefit-partners";
@@ -19,8 +20,11 @@ import {
 import {
   ALL_CAMPUSES,
   buildPartnerCards,
+  type EmptyPartnersReason,
+  emptyPartnersReason,
   type PartnerCard,
   type PartnerFilter,
+  parsePartnerFilter,
 } from "../_lib/partners-state";
 import { PartnerCardView } from "./partner-card";
 import { PartnerSheet } from "./partner-sheet";
@@ -141,6 +145,33 @@ function rememberFilter(filter: PartnerFilter) {
   );
 }
 
+const filterKey = (filter: PartnerFilter): string =>
+  `${filter.campusId}|${filter.showEnded}`;
+
+/** Said in place of the cards, matched to why there are none. */
+function EmptyPartners({ reason }: { reason: EmptyPartnersReason }) {
+  const t = useTranslations("adminPortal.benefits.partnersPage");
+  const tBoard = useTranslations("adminPortal.benefits.board");
+  const messages: Record<EmptyPartnersReason, string> = {
+    noAccess: tBoard("emptySectionReadOnly"),
+    noneYet: t("emptyDeals"),
+    onlyEnded: t("emptyOnlyEnded"),
+    readOnly: t("readOnly"),
+  };
+  return (
+    <p
+      className="rounded-xl border border-dashed px-5 py-5 text-sm leading-6"
+      style={{
+        background: "rgba(255,255,255,0.32)",
+        borderColor: STUDIO.rule2,
+        color: STUDIO.ink3,
+      }}
+    >
+      {messages[reason]}
+    </p>
+  );
+}
+
 interface SheetState {
   /** The partner as it was when the sheet opened; null for a new one. */
   card: PartnerCard | null;
@@ -160,8 +191,19 @@ function DealPartners({
   visibleCampusIds,
 }: DealPartnersProps) {
   const t = useTranslations("adminPortal.benefits.partnersPage");
-  const tBoard = useTranslations("adminPortal.benefits.board");
+  const searchParams = useSearchParams();
+  const urlFilter = parsePartnerFilter(
+    { campus: searchParams.get("campus"), ended: searchParams.get("ended") },
+    visibleCampusIds
+  );
   const [filter, setFilter] = useState(initialFilter);
+  const [seenUrl, setSeenUrl] = useState(() => filterKey(urlFilter));
+  if (filterKey(urlFilter) !== seenUrl) {
+    // The address changed without the chips (a tab or another link): the
+    // chips follow it, so what they show always matches the address.
+    setSeenUrl(filterKey(urlFilter));
+    setFilter(urlFilter);
+  }
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const now = useMemo(() => new Date(nowIso), [nowIso]);
@@ -170,6 +212,12 @@ function DealPartners({
     [partners, filter, now]
   );
   const canCreate = editableCampusIds.length > 0;
+  // Under a campus the viewer cannot change, a new partner would land
+  // elsewhere, so that view does not offer one.
+  const canCreateHere =
+    canCreate &&
+    (filter.campusId === ALL_CAMPUSES ||
+      editableCampusIds.includes(filter.campusId));
   const campusLabel = (campusId: string): string =>
     campusLabels[campusId] ?? "";
   const newPartnerCampus =
@@ -241,16 +289,9 @@ function DealPartners({
       </div>
 
       {cards.length === 0 ? (
-        <p
-          className="rounded-xl border border-dashed px-5 py-5 text-sm leading-6"
-          style={{
-            background: "rgba(255,255,255,0.32)",
-            borderColor: STUDIO.rule2,
-            color: STUDIO.ink3,
-          }}
-        >
-          {canCreate ? t("emptyDeals") : tBoard("emptySectionReadOnly")}
-        </p>
+        <EmptyPartners
+          reason={emptyPartnersReason(partners, filter, editableCampusIds)}
+        />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => (
@@ -263,7 +304,7 @@ function DealPartners({
               visibleCampusIds={visibleCampusIds}
             />
           ))}
-          {canCreate ? (
+          {canCreateHere ? (
             <li className="h-full">
               <button
                 className={`flex h-full min-h-[9.5rem] w-full flex-col items-center justify-center gap-1 rounded-xl border-[1.5px] border-dashed font-medium text-sm transition-colors hover:border-[#d8cdb6] hover:bg-[rgba(255,255,255,0.5)] ${BOARD_FOCUS_RING}`}
