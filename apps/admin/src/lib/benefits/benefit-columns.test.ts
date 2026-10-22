@@ -52,6 +52,38 @@ describe("buildBenefitColumns", () => {
     expect(columns.sort_order).toBe(3);
   });
 
+  test("keeps a legacy free-text partner when no partner is linked", () => {
+    const legacy = { logo_url: "https://x.no/rekom.png", name: "Rekom" };
+    const columns = buildBenefitColumns(base, null, 0, legacy);
+    expect(columns.partner_id).toBeNull();
+    expect(columns.partner_name).toBe("Rekom");
+    expect(columns.partner_logo_url).toBe("https://x.no/rekom.png");
+  });
+
+  test("a linked partner wins over the legacy one", () => {
+    const columns = buildBenefitColumns(
+      { ...base, partner_id: "p1" },
+      partner,
+      0,
+      { logo_url: null, name: "Rekom" }
+    );
+    expect(columns.partner_id).toBe("p1");
+    expect(columns.partner_name).toBe("Kafe");
+  });
+
+  test("other sections never keep a legacy partner", () => {
+    const columns = buildBenefitColumns(
+      { ...base, section: "career" },
+      null,
+      0,
+      {
+        logo_url: null,
+        name: "Rekom",
+      }
+    );
+    expect(columns.partner_name).toBeNull();
+  });
+
   test("falls back to the other language's title", () => {
     const columns = buildBenefitColumns(base, null, 0);
     expect(columns.title_en).toBe("Norsk fordel");

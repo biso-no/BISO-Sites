@@ -2,6 +2,7 @@ import {
   CAMPUS_IDS,
   NATIONAL_CAMPUS_ID,
 } from "@repo/shared/utils/benefit-catalog";
+import { BENEFIT_ERRORS } from "./benefits/benefit-errors";
 import { ROLES } from "./roles";
 
 /** Every campus id a benefit can belong to: the four campuses plus national. */
@@ -100,7 +101,7 @@ export function assertBenefitCampusWrite(
   campusId: string | null | undefined
 ): void {
   if (!canEditBenefitCampus(benefitAccessFor(ctx), campusId)) {
-    throw new Error("Unauthorized: no write access to this campus");
+    throw new Error(BENEFIT_ERRORS.noCampusAccess);
   }
 }
 

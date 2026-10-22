@@ -7,16 +7,17 @@ import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import { benefitAccessFor, canEditBenefitCampus } from "@/lib/benefit-access";
+import { BENEFIT_ERRORS } from "@/lib/benefits/benefit-errors";
 import { logAuditEvent } from "./audit-log";
 import type { BoardPartner } from "./benefits";
 
 const PARTNERS_TABLE = "benefit_partners";
 const PARTNER_LIMIT = 500;
 const NAME_MAX = 200;
-const NAME_REQUIRED = "Add the partner's name";
-const WRITE_REFUSED = "Unauthorized: no write access to this campus";
-const LOGO_INVALID = "The logo must be an https:// address";
-const WEBSITE_INVALID = "The website must start with https://";
+const NAME_REQUIRED = BENEFIT_ERRORS.partnerNameRequired;
+const WRITE_REFUSED = BENEFIT_ERRORS.noCampusAccess;
+const LOGO_INVALID = BENEFIT_ERRORS.partnerLogoInvalid;
+const WEBSITE_INVALID = BENEFIT_ERRORS.partnerWebsiteInvalid;
 
 const toBoardPartner = (row: BenefitPartners): BoardPartner => ({
   campus_id: row.campus_id ?? null,

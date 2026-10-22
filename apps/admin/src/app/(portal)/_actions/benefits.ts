@@ -27,9 +27,11 @@ import {
   benefitRowPermissions,
   benefitSecretValue,
   buildBenefitColumns,
+  type LegacyPartnerSnapshot,
   normalizeBenefitValues,
 } from "@/lib/benefits/benefit-columns";
 import { benefitDateFromIso } from "@/lib/benefits/benefit-dates";
+import { BENEFIT_ERRORS } from "@/lib/benefits/benefit-errors";
 import {
   benefitTranslationPermissions,
   buildBenefitTranslationChildren,
@@ -104,11 +106,9 @@ const BOARD_LIMIT = 500;
 const BENEFITS_TABLE = "campus_benefits";
 const CODES_TABLE = "benefit_codes";
 const PARTNERS_TABLE = "benefit_partners";
-const REORDER_OUT_OF_DATE = "Reorder list is out of date";
+const TRANSLATIONS_TABLE = "content_translations";
 const SAVE_FAILED = "Failed to save benefit";
 const REDEMPTION_TYPES = ["none", "code", "link", "onsite"] as const;
-const LEGACY_REDEMPTION_ERROR =
-  "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.";
 /** Matches no row: a caller without benefit access lists nothing. */
 const NO_MATCH_FILTER = Query.equal("$id", "__no_benefit_access__");
 
@@ -239,14 +239,15 @@ async function nextSortOrder(
 }
 
 /**
- * The single write path for create, update and status changes: the benefit
- * row (with its translation children), then its private code row.
+ * The single write path for create, update and publishing: the benefit row
+ * (with its translation children), then its private code row.
  */
 async function saveBenefitRow({
   ctx,
   db,
   existingTranslations,
   id,
+  legacyPartner = null,
   partner,
   sortOrder,
   values,
@@ -255,11 +256,17 @@ async function saveBenefitRow({
   db: AdminDb;
   existingTranslations: Map<string, ContentTranslations>;
   id: string;
+  legacyPartner?: LegacyPartnerSnapshot | null;
   partner: BenefitPartnerSnapshot | null;
   sortOrder: number;
   values: BenefitFormValues;
 }) {
-  const columns = buildBenefitColumns(values, partner, sortOrder);
+  const columns = buildBenefitColumns(
+    values,
+    partner,
+    sortOrder,
+    legacyPartner
+  );
   const saved = await db.upsertRow(
     "app",
     BENEFITS_TABLE,
@@ -311,7 +318,22 @@ async function lookupPartner(
   };
 }
 
-/** Maps a stored row back to form values so a status change re-saves it. */
+/**
+ * The free-text partner of a row saved before partners were linked. Kept
+ * while the save links no partner either, since the website still reads it.
+ */
+function legacyPartnerOf(
+  stored: CampusBenefits,
+  values: BenefitFormValues
+): LegacyPartnerSnapshot | null {
+  const name = stored.partner_name?.trim();
+  if (values.partner_id || stored.partner_id || !name) {
+    return null;
+  }
+  return { logo_url: stored.partner_logo_url ?? null, name };
+}
+
+/** Maps a stored row back to form values so publishing re-saves it. */
 function formValuesFromRow(
   row: CampusBenefits,
   code: string | null
@@ -470,7 +492,7 @@ export async function createBenefit(
 
     const lookup = await lookupPartner(db, data);
     if (!lookup.ok) {
-      return { error: "Partner not found" };
+      return { error: BENEFIT_ERRORS.partnerNotFound };
     }
     const saved = await saveBenefitRow({
       ctx,
@@ -520,7 +542,7 @@ export async function updateBenefit(
     const { db } = await createAdminClient();
     const stored = await loadBenefitRow(db, id);
     if (!stored) {
-      return { error: "Benefit not found" };
+      return { error: BENEFIT_ERRORS.benefitNotFound };
     }
     // Moving a benefit needs write access on both campuses.
     assertBenefitCampusWrite(ctx, stored.campus_id);
@@ -528,7 +550,7 @@ export async function updateBenefit(
 
     const lookup = await lookupPartner(db, data);
     if (!lookup.ok) {
-      return { error: "Partner not found" };
+      return { error: BENEFIT_ERRORS.partnerNotFound };
     }
     const keepsPlace =
       stored.campus_id === data.campus_id &&
@@ -538,6 +560,7 @@ export async function updateBenefit(
       db,
       existingTranslations: await loadBenefitTranslationsByLocale(db, id),
       id,
+      legacyPartner: legacyPartnerOf(stored, data),
       partner: lookup.partner,
       sortOrder: keepsPlace
         ? (stored.sort_order ?? 0)
@@ -576,7 +599,7 @@ export async function deleteBenefit(
     const { db } = await createAdminClient();
     const stored = await loadBenefitRow(db, id);
     if (!stored) {
-      return { error: "Benefit not found" };
+      return { error: BENEFIT_ERRORS.benefitNotFound };
     }
     assertBenefitCampusWrite(ctx, stored.campus_id);
 
@@ -610,7 +633,7 @@ export async function reorderBenefits(
   try {
     assertBenefitCampusWrite(ctx, campusId);
     if (!isBenefitSection(section)) {
-      return { error: REORDER_OUT_OF_DATE };
+      return { error: BENEFIT_ERRORS.reorderOutOfDate };
     }
     const { db } = await createAdminClient();
     const response = await db.listRows<CampusBenefits>("app", BENEFITS_TABLE, [
@@ -631,7 +654,7 @@ export async function reorderBenefits(
       orderedIds.length === current.size &&
       orderedIds.every((id) => current.has(id));
     if (!covers) {
-      return { error: REORDER_OUT_OF_DATE };
+      return { error: BENEFIT_ERRORS.reorderOutOfDate };
     }
 
     const changed = orderedIds.flatMap((id, index) =>
@@ -654,7 +677,56 @@ export async function reorderBenefits(
   }
 }
 
-/** Publish, hide or archive through the same write path as a save. */
+/**
+ * Takes a benefit off the website: only the status and the permissions of
+ * the row and its translation children change. Nothing is re-validated, so
+ * a row the form would refuse (an old redemption type, a partner now out of
+ * scope, longer text than the form allows) can always be hidden, and its
+ * code row stays exactly as it is.
+ */
+async function withdrawBenefit(
+  db: AdminDb,
+  ctx: UserAuthContext,
+  stored: CampusBenefits,
+  status: "archived" | "draft"
+): Promise<BenefitMutationResult> {
+  const id = stored.$id;
+  await db.updateRow(
+    "app",
+    BENEFITS_TABLE,
+    id,
+    { status },
+    benefitRowPermissions(status)
+  );
+  const translations = await loadBenefitTranslationsByLocale(db, id);
+  const translationPermissions = benefitTranslationPermissions(status);
+  await Promise.all(
+    [...translations.values()].map((translation) =>
+      db.updateRow(
+        "app",
+        TRANSLATIONS_TABLE,
+        translation.$id,
+        {},
+        translationPermissions
+      )
+    )
+  );
+
+  await logAuditEvent(ctx, "benefit_updated", {
+    payload: { section: stored.section ?? "member", status },
+    resourceId: id,
+    resourceType: "campus_benefit",
+  });
+  revalidatePath("/benefits");
+  revalidatePath(`/benefits/${id}`);
+  return { data: id };
+}
+
+/**
+ * Publishing goes through the same write path as a save, so the row is
+ * validated and its partner and code are checked. Hiding and moving back to
+ * draft change only the status and who can read it.
+ */
 export async function setBenefitStatus(
   id: string,
   status: "draft" | "published" | "archived"
@@ -665,10 +737,13 @@ export async function setBenefitStatus(
     const { db } = await createAdminClient();
     const stored = await loadBenefitRow(db, id);
     if (!stored) {
-      return { error: "Benefit not found" };
+      return { error: BENEFIT_ERRORS.benefitNotFound };
     }
     // Refuse before the code row is read.
     assertBenefitCampusWrite(ctx, stored.campus_id);
+    if (status !== "published") {
+      return await withdrawBenefit(db, ctx, stored, status);
+    }
     const code =
       (await readBenefitCode(db, id)) ?? stored.redemption_value ?? null;
     // Mapping a legacy type (e.g. "qr") to "none" would delete its value.
@@ -677,7 +752,7 @@ export async function setBenefitStatus(
       !isRedemptionType(stored.redemption_type) &&
       code?.trim()
     ) {
-      return { error: LEGACY_REDEMPTION_ERROR };
+      return { error: BENEFIT_ERRORS.legacyRedemption };
     }
     return await updateBenefit(id, {
       ...formValuesFromRow(stored, code),

@@ -18,6 +18,7 @@ import {
 } from "@repo/shared/utils/benefit-catalog";
 import { DOCUMENT_VERSION_PATTERN } from "@repo/shared/utils/document-version";
 import { z } from "zod";
+import { BENEFIT_FIELD_ERRORS } from "@/lib/benefits/benefit-errors";
 import { hasRichContent } from "@/lib/plate-content";
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -60,7 +61,7 @@ export const benefitSchema = z
     if (!(values.title_nb || values.title_en)) {
       context.addIssue({
         code: "custom",
-        message: "Add a title in Norwegian or English",
+        message: BENEFIT_FIELD_ERRORS.titleRequired,
         path: ["title_nb"],
       });
     }
@@ -70,7 +71,7 @@ export const benefitSchema = z
       if (values.redemption_type === "code" && !value) {
         context.addIssue({
           code: "custom",
-          message: "Add the code",
+          message: BENEFIT_FIELD_ERRORS.codeRequired,
           path: ["redemption_value"],
         });
       }
@@ -78,13 +79,13 @@ export const benefitSchema = z
         if (!value) {
           context.addIssue({
             code: "custom",
-            message: "Add the link",
+            message: BENEFIT_FIELD_ERRORS.linkRequired,
             path: ["redemption_value"],
           });
         } else if (!HTTPS_URL_REGEX.test(value)) {
           context.addIssue({
             code: "custom",
-            message: "The link must start with https://",
+            message: BENEFIT_FIELD_ERRORS.linkInvalid,
             path: ["redemption_value"],
           });
         }
@@ -98,7 +99,7 @@ export const benefitSchema = z
     ) {
       context.addIssue({
         code: "custom",
-        message: "The end date must be on or after the start date",
+        message: BENEFIT_FIELD_ERRORS.endBeforeStart,
         path: ["publish_end"],
       });
     }

@@ -19,14 +19,16 @@ const notFound = (): Error =>
 // row for them.
 let benefitRows: Row[] = [];
 let partnerRows: Row[] = [];
+let translationRows: Row[] = [];
 let codeRows = new Map<string, string>();
 
-const tableRows = (tableId: string): Row[] => {
-  if (tableId === "campus_benefits") {
-    return benefitRows;
-  }
-  return tableId === "benefit_partners" ? partnerRows : [];
+const TABLES: Record<string, () => Row[]> = {
+  benefit_partners: () => partnerRows,
+  campus_benefits: () => benefitRows,
+  content_translations: () => translationRows,
 };
+
+const tableRows = (tableId: string): Row[] => TABLES[tableId]?.() ?? [];
 
 const matchesQuery = (row: Row, query: ParsedQuery): boolean => {
   const value = row[query.attribute ?? ""];
@@ -162,6 +164,10 @@ function upsertCall(tableId: string): unknown[] | undefined {
   return db.upsertRow.mock.calls.find((call) => call[1] === tableId);
 }
 
+function updateCalls(tableId: string): unknown[][] {
+  return db.updateRow.mock.calls.filter((call) => call[1] === tableId);
+}
+
 function listQueries(tableId: string): string[] {
   const call = db.listRows.mock.calls.find((entry) => entry[1] === tableId);
   return (call?.[2] ?? []) as string[];
@@ -171,6 +177,7 @@ beforeEach(() => {
   currentCtx = campusAdminOf("2");
   benefitRows = [];
   partnerRows = [];
+  translationRows = [];
   codeRows = new Map();
   logAuditEvent.mockClear();
   for (const fn of Object.values(db)) {
@@ -412,6 +419,67 @@ describe("updateBenefit", () => {
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
+  test("keeps a legacy free-text partner the website still reads", async () => {
+    benefitRows = [
+      storedBenefit({
+        partner_id: null,
+        partner_logo_url: "https://cdn.example/rekom.png",
+        partner_name: "Rekom",
+      }),
+    ];
+
+    const result = await updateBenefit("benefit-1", memberValues);
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({
+        partner_id: null,
+        partner_logo_url: "https://cdn.example/rekom.png",
+        partner_name: "Rekom",
+      })
+    );
+  });
+
+  test("picking a real partner replaces the legacy free-text one", async () => {
+    benefitRows = [storedBenefit({ partner_id: null, partner_name: "Rekom" })];
+    partnerRows = [
+      {
+        $id: "partner-1",
+        campus_id: "2",
+        logo_url: null,
+        name: "Kaffebrenneriet",
+      },
+    ];
+
+    await updateBenefit("benefit-1", {
+      ...memberValues,
+      partner_id: "partner-1",
+    });
+
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({
+        partner_id: "partner-1",
+        partner_logo_url: null,
+        partner_name: "Kaffebrenneriet",
+      })
+    );
+  });
+
+  test("clearing a linked partner clears its snapshot", async () => {
+    benefitRows = [
+      storedBenefit({
+        partner_id: "partner-1",
+        partner_name: "Kaffebrenneriet",
+      }),
+    ];
+
+    await updateBenefit("benefit-1", memberValues);
+
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({ partner_id: null, partner_name: null })
+    );
+  });
+
   test("moving to another section puts the row at the end of it", async () => {
     currentCtx = benefitsEditorCtx;
     benefitRows = [
@@ -587,6 +655,139 @@ describe("setBenefitStatus", () => {
 
     expect(result).toEqual({ error: "Partner not found" });
     expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("publishing still validates the stored row", async () => {
+    benefitRows = [storedBenefit({ description_nb: "x".repeat(2001) })];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await setBenefitStatus("benefit-1", "published");
+
+    expect(result).toEqual({
+      error: expect.objectContaining({ description_nb: expect.any(Array) }),
+    });
+    expect(db.upsertRow).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("hiding writes only the status and private permissions", async () => {
+    benefitRows = [storedBenefit({ status: "published" })];
+    translationRows = [
+      {
+        $id: "tr-no",
+        content_id: "benefit-1",
+        content_type: "memberBenefit",
+        locale: "no",
+      },
+      {
+        $id: "tr-en",
+        content_id: "benefit-1",
+        content_type: "memberBenefit",
+        locale: "en",
+      },
+      {
+        $id: "tr-other",
+        content_id: "benefit-2",
+        content_type: "memberBenefit",
+        locale: "no",
+      },
+    ];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await setBenefitStatus("benefit-1", "archived");
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(updateCalls("campus_benefits")).toEqual([
+      ["app", "campus_benefits", "benefit-1", { status: "archived" }, []],
+    ]);
+    expect(
+      updateCalls("content_translations").map((call) => [call[2], call[4]])
+    ).toEqual([
+      ["tr-no", []],
+      ["tr-en", []],
+    ]);
+    expect(db.upsertRow).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(codeRows.get("benefit-1")).toBe("BISO20");
+    expect(logAuditEvent).toHaveBeenCalledWith(
+      currentCtx,
+      "benefit_updated",
+      expect.objectContaining({
+        payload: expect.objectContaining({ status: "archived" }),
+        resourceId: "benefit-1",
+      })
+    );
+  });
+
+  test("hiding works when the partner is now out of scope", async () => {
+    benefitRows = [
+      storedBenefit({ partner_id: "bergen", status: "published" }),
+    ];
+    partnerRows = [
+      { $id: "bergen", campus_id: "3", logo_url: null, name: "Bergen bar" },
+    ];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await setBenefitStatus("benefit-1", "archived");
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(updateCalls("campus_benefits")).toHaveLength(1);
+  });
+
+  test("hiding works with a stored description longer than the form allows", async () => {
+    benefitRows = [
+      storedBenefit({ description_nb: "x".repeat(2500), status: "published" }),
+    ];
+    codeRows.set("benefit-1", "BISO20");
+
+    const result = await setBenefitStatus("benefit-1", "archived");
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(updateCalls("campus_benefits")).toHaveLength(1);
+  });
+
+  test("hiding a legacy QR benefit leaves its code untouched", async () => {
+    benefitRows = [
+      storedBenefit({
+        redemption_type: "qr",
+        redemption_value: "QR-123",
+        status: "published",
+      }),
+    ];
+    codeRows.set("benefit-1", "QR-123");
+
+    const result = await setBenefitStatus("benefit-1", "archived");
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(updateCalls("campus_benefits")).toEqual([
+      ["app", "campus_benefits", "benefit-1", { status: "archived" }, []],
+    ]);
+    expect(db.upsertRow).not.toHaveBeenCalled();
+    expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(codeRows.get("benefit-1")).toBe("QR-123");
+  });
+
+  test("moving back to draft takes the same direct path", async () => {
+    benefitRows = [storedBenefit({ status: "published" })];
+
+    const result = await setBenefitStatus("benefit-1", "draft");
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(updateCalls("campus_benefits")).toEqual([
+      ["app", "campus_benefits", "benefit-1", { status: "draft" }, []],
+    ]);
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
+  test("a campus admin of 2 cannot hide a benefit on campus 3", async () => {
+    benefitRows = [storedBenefit({ campus_id: "3", status: "published" })];
+
+    const result = await setBenefitStatus("benefit-1", "archived");
+
+    expect(result).toEqual({
+      error: "Unauthorized: no write access to this campus",
+    });
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 
   test("asks for the editor when a legacy QR benefit still has a value", async () => {
