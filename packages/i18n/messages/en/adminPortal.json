@@ -810,6 +810,7 @@
       "showEnded": "Show ended",
       "newDeal": "+ New offer",
       "edit": "Edit",
+      "view": "View",
       "noDeals": "No offers yet",
       "ended": "Ended",
       "emptyDeals": "No partners here yet. Press “+ New partner” to add the first one.",
@@ -830,6 +831,7 @@
       "deleteAction": "Delete permanently",
       "deleteTitle": "Delete {name} permanently?",
       "deleteBody": "This also deletes these offers, and it cannot be undone:",
+      "deleteBodyNoDeals": "This cannot be undone.",
       "logosIntro": "Shown on the front page, “About us” and on pages where someone has added a partner block. Drag to change the order.",
       "logosNational": "All of BISO — this is how it looks on the front page",
       "logoAdd": "+ Add",
@@ -845,20 +847,6 @@
       "deletedToast": "Deleted",
       "failed": "Could not save. Try again.",
       "readOnly": "Only administrators can edit partners for all of BISO."
-    },
-    "partners": {
-      "title": "Partners",
-      "description": "Manage benefit partners and API access.",
-      "invite": "Invite Partner",
-      "empty": "No partners yet",
-      "fields": {
-        "name": "Partner Name",
-        "status": "Status",
-        "apiStatus": "API Status",
-        "benefitsLive": "Live Benefits",
-        "totalClaims": "Total Claims",
-        "lastSync": "Last Sync"
-      }
     },
     "board": {
       "title": "Member benefits",

@@ -810,6 +810,7 @@
       "showEnded": "Vis avsluttede",
       "newDeal": "+ Nytt tilbud",
       "edit": "Endre",
+      "view": "Vis",
       "noDeals": "Ingen tilbud ennå",
       "ended": "Avsluttet",
       "emptyDeals": "Ingen partnere her ennå. Trykk «+ Ny partner» for å legge til den første.",
@@ -830,6 +831,7 @@
       "deleteAction": "Slett for godt",
       "deleteTitle": "Slette {name} for godt?",
       "deleteBody": "Dette sletter også disse tilbudene, og det kan ikke angres:",
+      "deleteBodyNoDeals": "Dette kan ikke angres.",
       "logosIntro": "Vises på forsiden, «Om oss» og på sider der noen har lagt inn en partnerblokk. Dra for å endre rekkefølgen.",
       "logosNational": "Hele BISO — slik ser det ut på forsiden",
       "logoAdd": "+ Legg til",
@@ -845,20 +847,6 @@
       "deletedToast": "Slettet",
       "failed": "Kunne ikke lagre. Prøv igjen.",
       "readOnly": "Bare administratorer kan endre partnere for hele BISO."
-    },
-    "partners": {
-      "title": "Partnere",
-      "description": "Administrer fordelspartnere og API-tilgang.",
-      "invite": "Inviter partner",
-      "empty": "Ingen partnere ennå",
-      "fields": {
-        "name": "Partnernavn",
-        "status": "Status",
-        "apiStatus": "API-status",
-        "benefitsLive": "Aktive fordeler",
-        "totalClaims": "Totale innløsninger",
-        "lastSync": "Sist synkronisert"
-      }
     },
     "board": {
       "title": "Medlemsfordeler",

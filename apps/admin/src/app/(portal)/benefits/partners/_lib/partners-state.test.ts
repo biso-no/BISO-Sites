@@ -8,6 +8,7 @@ import {
   buildPartnerCards,
   moveLogo,
   publishedDealCount,
+  visibleDealCount,
 } from "./partners-state";
 
 const NOW = new Date("2026-06-01T00:00:00Z");
@@ -93,6 +94,21 @@ describe("publishedDealCount", () => {
       deals: [deal("1"), deal("2", { status: "draft" }), deal("3")],
     });
     expect(publishedDealCount(p)).toBe(2);
+  });
+});
+
+describe("visibleDealCount", () => {
+  it("counts only the deals students can see right now", () => {
+    const p = partner("a", {
+      deals: [
+        deal("live"),
+        deal("draft", { status: "draft" }),
+        deal("lapsed", { publish_end: "2026-05-01T00:00:00Z" }),
+        deal("later", { publish_start: "2026-07-01T00:00:00Z" }),
+      ],
+    });
+    const [card] = buildPartnerCards([p], all, NOW);
+    expect(card ? visibleDealCount(card) : -1).toBe(1);
   });
 });
 

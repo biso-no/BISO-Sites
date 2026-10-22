@@ -15,17 +15,26 @@ export interface PartnerCard {
   partner: PartnerWithDeals;
 }
 
+/** The campus chip that shows every partner. */
+export const ALL_CAMPUSES = "all";
+
+/** The cards on screen: one campus or `ALL_CAMPUSES`, ended ones or not. */
+export interface PartnerFilter {
+  campusId: string;
+  showEnded: boolean;
+}
+
 const COLLATION_LOCALE = "nb";
 
 export function buildPartnerCards(
   partners: PartnerWithDeals[],
-  filter: { campusId: string | "all"; showEnded: boolean },
+  filter: PartnerFilter,
   now: Date
 ): PartnerCard[] {
   return partners
     .filter(
       (p) =>
-        (filter.campusId === "all" || p.campus_id === filter.campusId) &&
+        (filter.campusId === ALL_CAMPUSES || p.campus_id === filter.campusId) &&
         (filter.showEnded || p.is_active !== false)
     )
     .sort((a, b) => a.name.localeCompare(b.name, COLLATION_LOCALE))
@@ -47,6 +56,11 @@ export function buildPartnerCards(
 
 export function publishedDealCount(partner: PartnerWithDeals): number {
   return partner.deals.filter((d) => d.status === "published").length;
+}
+
+/** The partner's offers students see right now: what ending it takes away. */
+export function visibleDealCount(card: PartnerCard): number {
+  return card.dealStates.filter(({ state }) => state === "visible").length;
 }
 
 export function moveLogo(

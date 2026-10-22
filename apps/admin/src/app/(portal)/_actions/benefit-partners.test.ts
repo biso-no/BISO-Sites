@@ -192,6 +192,20 @@ describe("createBenefitPartner", () => {
     });
     expect(logAuditEvent).toHaveBeenCalledTimes(1);
   });
+
+  test("saves the short descriptions, blank ones as empty", async () => {
+    await createBenefitPartner({
+      campus_id: "2",
+      description_en: "   ",
+      description_nb: " Kaffe og kaker ",
+      name: "Kaffebar",
+    });
+    const call = db.upsertRow.mock.calls[0] as unknown[];
+    expect(call[3]).toMatchObject({
+      description_en: null,
+      description_nb: "Kaffe og kaker",
+    });
+  });
 });
 
 const partnerRow = (id: string, campusId: string, extra: Row = {}): Row => ({

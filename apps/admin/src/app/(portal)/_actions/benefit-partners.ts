@@ -183,12 +183,9 @@ export async function listBenefitPartners(
   return result.rows.map(toBoardPartner);
 }
 
-export async function createBenefitPartner(input: {
-  campus_id: string;
-  logo_url?: string | null;
-  name: string;
-  website_url?: string | null;
-}): Promise<{ data: BoardPartner } | { error: string }> {
+export async function createBenefitPartner(
+  input: PartnerInput
+): Promise<{ data: BoardPartner } | { error: string }> {
   const ctx = await requireAuth();
   if (!canEditBenefitCampus(benefitAccessFor(ctx), input.campus_id)) {
     return { error: WRITE_REFUSED };
@@ -208,6 +205,8 @@ export async function createBenefitPartner(input: {
     id,
     {
       campus_id: input.campus_id,
+      description_en: blankToNull(input.description_en),
+      description_nb: blankToNull(input.description_nb),
       is_active: true,
       logo_url: logoUrl,
       name,

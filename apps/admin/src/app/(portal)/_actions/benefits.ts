@@ -1,13 +1,12 @@
 "use server";
 
 import { ID, Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import type {
   BenefitCodes,
   BenefitPartners,
   CampusBenefits,
   ContentTranslations,
-  Partners,
 } from "@repo/api/types/appwrite";
 import {
   isBenefitSection,
@@ -806,45 +805,6 @@ export async function listBenefits(
   return {
     // The list never needs codes; drop the compatibility copy.
     rows: response.rows.map((row) => ({ ...row, redemption_value: null })),
-    total: response.total,
-    page: params.page,
-    size: params.size,
-  };
-}
-
-export async function listPartners(
-  params: ListParams & { campusId?: string }
-): Promise<PaginatedResult<Partners>> {
-  const ctx = await requireAuth();
-  // Partner administration keeps its existing narrow, campus-scoped access.
-  const { db } = await createSessionClient();
-
-  const queries: string[] = [
-    Query.orderAsc("name"),
-    ...paginationQueries(params),
-  ];
-
-  // `partners` carries a fulltext index on name (idx_name).
-  if (params.q) {
-    queries.push(Query.contains("name", params.q));
-  }
-
-  if (params.campusId) {
-    queries.push(Query.equal("campus_id", params.campusId));
-  } else if (ctx.activeCampusId) {
-    // Global admin scoped to a campus via the switcher.
-    queries.push(Query.equal("campus_id", [ctx.activeCampusId]));
-  } else if (
-    ctx.managedCampusIds.length > 0 &&
-    !ctx.roles.includes("globaladmin")
-  ) {
-    queries.push(Query.equal("campus_id", ctx.managedCampusIds));
-  }
-
-  const response = await db.listRows<Partners>("app", "partners", queries);
-
-  return {
-    rows: response.rows,
     total: response.total,
     page: params.page,
     size: params.size,
