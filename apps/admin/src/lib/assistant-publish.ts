@@ -63,3 +63,14 @@ export function assistantRoleSummary(ctx: UserAuthContext): string {
   }
   return "Read-only (no write access)";
 }
+
+/**
+ * The assistant never sees a benefit's code, so its update never carries one.
+ * A model that sends "" or null after a refusal would otherwise clear the
+ * stored code; without the field, updateBenefit keeps the stored code.
+ */
+export function benefitUpdateFromAssistant(
+  payload: Record<string, unknown>
+): Record<string, unknown> {
+  return withoutBenefitCode(payload);
+}

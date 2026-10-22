@@ -88,6 +88,7 @@ import { requireApiAuth } from "@/lib/api-auth";
 import { buildAssistantOrderSearchQueries } from "@/lib/assistant-order-search";
 import {
   assistantRoleSummary,
+  benefitUpdateFromAssistant,
   canPublishContent,
   dropBenefitDepartment,
   publishBenefitContent,
@@ -554,7 +555,10 @@ function buildDeps(
         case "shop":
           return await updateProduct(id, payload as never);
         case "benefits":
-          return await updateBenefit(id, payload as never);
+          return await updateBenefit(
+            id,
+            benefitUpdateFromAssistant(payload) as never
+          );
         default:
           throw new Error(`Update not supported for domain: ${domain}`);
       }

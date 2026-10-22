@@ -12,6 +12,7 @@ const {
   canPublishContent,
   dropBenefitDepartment,
   publishBenefitContent,
+  benefitUpdateFromAssistant,
   withoutBenefitCode,
 } = await import("./assistant-publish");
 
@@ -111,5 +112,18 @@ describe("assistantRoleSummary", () => {
         })
       )
     ).toContain("Campus admin");
+  });
+});
+
+describe("benefitUpdateFromAssistant", () => {
+  test("never carries a code, so an empty one cannot clear the stored code", () => {
+    for (const empty of ["", null]) {
+      const update = benefitUpdateFromAssistant({
+        redemption_value: empty,
+        status: "draft",
+      });
+      expect(update).toEqual({ status: "draft" });
+      expect(update).not.toHaveProperty("redemption_value");
+    }
   });
 });

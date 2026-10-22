@@ -69,7 +69,7 @@ Do these top to bottom. Each step assumes the ones before it are done. Steps 5 t
      grep -oE '"redemption_value":"[^"]+"' guest-benefits.json
      ```
 
-     The first `grep` must print one line, `"status":"published"`, with the number of published benefits in front. A `draft` or `archived` line means hidden benefits are public. If it prints nothing, open the file: an error or an empty `rows` list means visitors can't read the published benefits, so the website shows none either. The second `grep` must print nothing; any line it prints is a code anyone can read. Delete `guest-benefits.json` afterwards.
+     The first `grep` must print one line, `"status":"published"`, with the number of published benefits in front. A `draft` or `archived` line means hidden benefits are public. If it prints nothing, open the file: an error or an empty `rows` list means visitors can't read the published benefits, so the website shows none either. The second `grep` must print nothing; any line it prints is a code anyone can read. Also compare the number of rows the `curl` returned (the `total` in `guest-benefits.json`) with the number of published benefits in the Console (filter `status = published`). If the guest sees fewer, some published row is missing `read("any")`: republish it from the new admin by opening it and pressing "Publiser". Delete `guest-benefits.json` afterwards.
    - A draft can't be read by its ID. In the Console, copy the ID of a benefit with status `draft`. If there is none, save one in admin with "Lagre utkast" and delete it when you're done. Then, in the same terminal:
 
      ```sh

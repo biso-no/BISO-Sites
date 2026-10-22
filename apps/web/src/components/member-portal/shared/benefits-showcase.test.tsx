@@ -70,4 +70,12 @@ describe("BenefitsShowcase", () => {
 
     expect(html).toMatch(PARTNER_HEADING);
   });
+
+  it("shows no partner count while there are no benefits", () => {
+    expect(render([])).not.toContain("showcase.stats.partners");
+  });
+
+  it("shows the partner count when there are benefits", () => {
+    expect(render([benefit()])).toContain("showcase.stats.partners");
+  });
 });
