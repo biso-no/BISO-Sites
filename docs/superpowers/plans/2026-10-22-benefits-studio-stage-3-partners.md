@@ -97,6 +97,7 @@ Behaviour:
 **Files:**
 - Create: `apps/admin/src/app/(portal)/_actions/site-logos.ts`, `apps/admin/src/app/(portal)/_actions/site-logos.test.ts`
 - Modify: `apps/admin/src/app/(portal)/_actions/benefits.ts` (remove the old `listPartners` once Task 5 no longer uses it; update its pagination test)
+- Modify: `packages/api/appwrite.config.json` and `packages/api/benefits-schema.test.ts`. On the `partners` table, add the key index `idx_level_campus_sort` on `["level","campus_id","sort_order"]`, ASC. Appwrite needs an index to filter and order by these columns. Edit the config textually, keeping 4-space indentation, and pin the index in the schema test. The owner pushes it.
 
 **Interfaces:**
 - Produces:
