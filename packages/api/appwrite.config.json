@@ -1967,6 +1967,15 @@
                     "size": 2,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "sort_order",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9999
                 }
             ],
             "indexes": [
@@ -1989,6 +1998,21 @@
                         "name"
                     ],
                     "orders": []
+                },
+                {
+                    "key": "idx_level_campus_sort",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "level",
+                        "campus_id",
+                        "sort_order"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC",
+                        "ASC"
+                    ]
                 }
             ]
         },
@@ -2087,15 +2111,6 @@
                 },
                 {
                     "key": "resume_file_id",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 100,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "cover_letter_file_id",
                     "type": "string",
                     "required": false,
                     "array": false,
@@ -2214,6 +2229,15 @@
                     "twoWayKey": "application",
                     "onDelete": "cascade",
                     "side": "child"
+                },
+                {
+                    "key": "cover_letter_file_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 100,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -2641,7 +2665,7 @@
                 {
                     "key": "kind",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "default": null,
                     "format": "enum",
@@ -2654,9 +2678,9 @@
                 {
                     "key": "redemption_type",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
-                    "default": null,
+                    "default": "none",
                     "format": "enum",
                     "elements": [
                         "none",
@@ -2669,7 +2693,7 @@
                 {
                     "key": "category",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "size": 50,
                     "default": null,
@@ -2714,7 +2738,7 @@
                 {
                     "key": "description_nb",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "size": 2000,
                     "default": null,
@@ -2723,7 +2747,7 @@
                 {
                     "key": "description_en",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "size": 2000,
                     "default": null,
@@ -2872,6 +2896,21 @@
                     "twoWayKey": "benefits",
                     "onDelete": "setNull",
                     "side": "parent"
+                },
+                {
+                    "key": "section",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "member",
+                    "format": "enum",
+                    "elements": [
+                        "member",
+                        "career",
+                        "social",
+                        "safety",
+                        "business"
+                    ]
                 }
             ],
             "indexes": [
@@ -2909,6 +2948,21 @@
                     ],
                     "orders": [
                         "DESC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_campus_section_status",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "campus_id",
+                        "section",
+                        "status"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC",
                         "ASC"
                     ]
                 }
@@ -3347,62 +3401,6 @@
             "indexes": []
         },
         {
-            "$id": "app_versions",
-            "$permissions": [
-                "create(\"team:sg-app-dept-operationsunit\")",
-                "read(\"team:sg-app-dept-operationsunit\")",
-                "update(\"team:sg-app-dept-operationsunit\")",
-                "delete(\"team:sg-app-dept-operationsunit\")"
-            ],
-            "databaseId": "app",
-            "name": "App versions",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "platform",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "format": "enum",
-                    "elements": [
-                        "ios",
-                        "android"
-                    ]
-                },
-                {
-                    "key": "minimum_version",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 32,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "recommended_version",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 32,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": [
-                {
-                    "key": "platform_unique",
-                    "type": "unique",
-                    "columns": [
-                        "platform"
-                    ],
-                    "orders": [
-                        "ASC"
-                    ]
-                }
-            ]
-        },
-        {
             "$id": "notices",
             "$permissions": [
                 "read(\"guests\")",
@@ -3779,132 +3777,6 @@
                 {
                     "key": "idx_content",
                     "type": "key",
-                    "status": "available",
-                    "columns": [
-                        "content_type",
-                        "content_id"
-                    ],
-                    "orders": [
-                        "ASC",
-                        "ASC"
-                    ]
-                }
-            ]
-        },
-        {
-            "$id": "content_notifications",
-            "$permissions": [],
-            "databaseId": "app",
-            "name": "Content Notifications",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "content_type",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "format": "enum",
-                    "elements": [
-                        "event",
-                        "news",
-                        "job"
-                    ]
-                },
-                {
-                    "key": "content_id",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 36,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "campus_id",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 50,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "channel",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 50,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "status",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "default": "pending",
-                    "format": "enum",
-                    "elements": [
-                        "pending",
-                        "sent",
-                        "skipped",
-                        "cancelled"
-                    ]
-                },
-                {
-                    "key": "reason",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 200,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "due_at",
-                    "type": "datetime",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "format": ""
-                },
-                {
-                    "key": "sent_at",
-                    "type": "datetime",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "format": ""
-                },
-                {
-                    "key": "announcement_id",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 36,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": [
-                {
-                    "key": "idx_status_due",
-                    "type": "key",
-                    "status": "available",
-                    "columns": [
-                        "status",
-                        "due_at"
-                    ],
-                    "orders": [
-                        "ASC",
-                        "ASC"
-                    ]
-                },
-                {
-                    "key": "uniq_content",
-                    "type": "unique",
                     "status": "available",
                     "columns": [
                         "content_type",
@@ -11973,60 +11845,6 @@
             ]
         },
         {
-            "$id": "departments",
-            "$permissions": [],
-            "databaseId": "24so",
-            "name": "Departments",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "Id",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "Name",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "Campus",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": []
-        },
-        {
-            "$id": "auth_tokens",
-            "$permissions": [],
-            "databaseId": "24so",
-            "name": "Auth Tokens",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "token",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": []
-        },
-        {
             "$id": "member_roster",
             "$permissions": [],
             "databaseId": "app",
@@ -12255,6 +12073,383 @@
                     "orders": []
                 }
             ]
+        },
+        {
+            "$id": "content_notifications",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Content Notifications",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "content_type",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "event",
+                        "news",
+                        "job"
+                    ]
+                },
+                {
+                    "key": "content_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "campus_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "channel",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "pending",
+                    "format": "enum",
+                    "elements": [
+                        "pending",
+                        "sent",
+                        "skipped",
+                        "cancelled"
+                    ]
+                },
+                {
+                    "key": "reason",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "due_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "sent_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "announcement_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_status_due",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status",
+                        "due_at"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "uniq_content",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "content_type",
+                        "content_id"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "benefit_codes",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Benefit Codes",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "benefit_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "value",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "updated_by",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_benefit",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "benefit_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "membership_texts",
+            "$permissions": [
+                "read(\"any\")"
+            ],
+            "databaseId": "app",
+            "name": "Membership Texts",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "spot",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "home_join",
+                        "plan_card",
+                        "portal_locked",
+                        "onboarding",
+                        "shop_callout",
+                        "business",
+                        "business_hotspot"
+                    ]
+                },
+                {
+                    "key": "sort_order",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9999
+                },
+                {
+                    "key": "title_nb",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "title_en",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "body_nb",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "body_en",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_spot_order",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "spot",
+                        "sort_order"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "app_versions",
+            "$permissions": [
+                "create(\"team:sg-app-dept-operationsunit\")",
+                "read(\"team:sg-app-dept-operationsunit\")",
+                "update(\"team:sg-app-dept-operationsunit\")",
+                "delete(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "App versions",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "platform",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "ios",
+                        "android"
+                    ]
+                },
+                {
+                    "key": "minimum_version",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "recommended_version",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 32,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "platform_unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "platform"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "departments",
+            "$permissions": [],
+            "databaseId": "24so",
+            "name": "Departments",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "Id",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "Name",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "Campus",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "auth_tokens",
+            "$permissions": [],
+            "databaseId": "24so",
+            "name": "Auth Tokens",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "token",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": []
         }
     ],
     "buckets": [
