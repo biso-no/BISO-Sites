@@ -889,7 +889,8 @@
         "dropped": "«{title}» ble lagt på plass {position} av {total}.",
         "cancelled": "Flyttingen ble avbrutt. «{title}» ligger der den lå.",
         "roleDescription": "flyttbar"
-      }
+      },
+      "texts": "Tekster"
     },
     "states": {
       "visible": "Synlig",
@@ -979,6 +980,38 @@
       "partnerDeleteFailed": "Kunne ikke slette partneren. Prøv igjen.",
       "partnerHasOffersOnOtherCampus": "Partneren har tilbud på en annen campus.",
       "partnerLogoInvalid": "Logoen må være en https-adresse."
+    },
+    "texts": {
+      "eyebrow": "Fordeler",
+      "title": "Tekster om medlemskap",
+      "description": "Punktlistene som forteller hva medlemskapet gir, rundt om på nettsiden.",
+      "seenOn": "Vises på {path}",
+      "viewOnSite": "Se på nettsiden",
+      "notSaved": "Ikke lagret ennå – viser nettsidens standardtekst",
+      "addLine": "+ Legg til linje",
+      "remove": "Fjern",
+      "english": "Engelsk",
+      "save": "Lagre",
+      "saving": "Lagrer …",
+      "reset": "Tilbakestill til standard",
+      "cancel": "Avbryt",
+      "resetTitle": "Tilbakestille «{label}»?",
+      "resetBody": "Nettsiden går tilbake til standardteksten. Endringene dine slettes.",
+      "saved": "Lagret",
+      "resetDone": "Tilbakestilt",
+      "failed": "Kunne ikke lagre. Prøv igjen.",
+      "tooMany": "Maks 12 punkter.",
+      "list": "Punkter for {label}",
+      "itemTitle": "Punkt {n}: tittel",
+      "itemBody": "Punkt {n}: tekst",
+      "itemTitleEn": "Punkt {n}: tittel på engelsk",
+      "itemBodyEn": "Punkt {n}: tekst på engelsk",
+      "removeItem": "Fjern punkt {n}",
+      "englishHint": "La stå tomt, så oversettes den norske teksten automatisk når du lagrer.",
+      "titleMissing": "Skriv en tittel.",
+      "titleTooLong": "Maks 200 tegn.",
+      "bodyTooLong": "Maks 500 tegn.",
+      "noItems": "Legg til minst ett punkt."
     }
   },
   "departments": {

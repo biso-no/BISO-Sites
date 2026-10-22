@@ -7,7 +7,11 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
-import { benefitAccessFor, canEditBenefitCampus } from "@/lib/benefit-access";
+import {
+  benefitAccessFor,
+  canEditBenefitCampus,
+  canManageMembershipTexts,
+} from "@/lib/benefit-access";
 import {
   BENEFIT_BOARD_CAMPUS_COOKIE,
   orderBoardCampuses,
@@ -132,6 +136,11 @@ export async function BenefitBoardPage({
         >
           {t("partners")}
         </StudioLinkButton>
+        {canManageMembershipTexts(ctx) ? (
+          <StudioLinkButton className={BOARD_FOCUS_RING} href="/benefits/texts">
+            {t("texts")}
+          </StudioLinkButton>
+        ) : null}
         {data.editable ? (
           <StudioLinkButton
             className={BOARD_FOCUS_RING}

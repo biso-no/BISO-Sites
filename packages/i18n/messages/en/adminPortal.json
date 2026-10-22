@@ -889,7 +889,8 @@
         "dropped": "“{title}” was placed in position {position} of {total}.",
         "cancelled": "Moving was cancelled. “{title}” stays where it was.",
         "roleDescription": "movable"
-      }
+      },
+      "texts": "Texts"
     },
     "states": {
       "visible": "Visible",
@@ -979,6 +980,38 @@
       "partnerDeleteFailed": "Couldn't delete the partner. Try again.",
       "partnerHasOffersOnOtherCampus": "This partner has offers on another campus.",
       "partnerLogoInvalid": "The logo must be an https address."
+    },
+    "texts": {
+      "eyebrow": "Benefits",
+      "title": "Membership texts",
+      "description": "The bullet lists that say what membership gives, around the website.",
+      "seenOn": "Shown on {path}",
+      "viewOnSite": "View on the website",
+      "notSaved": "Not saved yet – showing the website's default text",
+      "addLine": "+ Add line",
+      "remove": "Remove",
+      "english": "English",
+      "save": "Save",
+      "saving": "Saving …",
+      "reset": "Reset to default",
+      "cancel": "Cancel",
+      "resetTitle": "Reset “{label}”?",
+      "resetBody": "The website goes back to the default text. Your changes are deleted.",
+      "saved": "Saved",
+      "resetDone": "Reset",
+      "failed": "Could not save. Try again.",
+      "tooMany": "At most 12 items.",
+      "list": "Items for {label}",
+      "itemTitle": "Item {n}: title",
+      "itemBody": "Item {n}: text",
+      "itemTitleEn": "Item {n}: title in English",
+      "itemBodyEn": "Item {n}: text in English",
+      "removeItem": "Remove item {n}",
+      "englishHint": "Leave empty and the Norwegian text is translated automatically when you save.",
+      "titleMissing": "Write a title.",
+      "titleTooLong": "At most 200 characters.",
+      "bodyTooLong": "At most 500 characters.",
+      "noItems": "Add at least one item."
     }
   },
   "departments": {
