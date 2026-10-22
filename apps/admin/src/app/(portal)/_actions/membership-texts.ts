@@ -129,10 +129,25 @@ export async function loadMembershipTexts(): Promise<MembershipSpotData[]> {
   });
 }
 
-const validate = (
-  items: MembershipSpotInputItem[],
-  hasBody: boolean
-): string | null => {
+const isOptionalString = (value: unknown): boolean =>
+  value === undefined || value === null || typeof value === "string";
+
+const isValidShape = (items: unknown): items is MembershipSpotInputItem[] =>
+  Array.isArray(items) &&
+  items.every(
+    (item) =>
+      typeof item === "object" &&
+      item !== null &&
+      typeof (item as Record<string, unknown>).title_nb === "string" &&
+      isOptionalString((item as Record<string, unknown>).title_en) &&
+      isOptionalString((item as Record<string, unknown>).body_nb) &&
+      isOptionalString((item as Record<string, unknown>).body_en)
+  );
+
+const validate = (items: unknown, hasBody: boolean): string | null => {
+  if (!isValidShape(items)) {
+    return TEXT_ERRORS.titleMissing;
+  }
   if (items.length === 0) {
     return TEXT_ERRORS.noItems;
   }
@@ -210,8 +225,14 @@ const fillEnglish = async (
     if (!draft) {
       continue;
     }
-    const value = trimmed(translated[field.key]) || field.value;
-    if (field.key.startsWith("title_")) {
+    const isTitle = field.key.startsWith("title_");
+    const limit = isTitle
+      ? MEMBERSHIP_TEXT_TITLE_MAX
+      : MEMBERSHIP_TEXT_BODY_MAX;
+    const candidate = trimmed(translated[field.key]);
+    const value =
+      candidate && candidate.length <= limit ? candidate : field.value;
+    if (isTitle) {
       draft.title_en = value;
     } else {
       draft.body_en = value;
@@ -249,12 +270,14 @@ export async function saveMembershipSpot(
   }));
   await fillEnglish(drafts, hasBody);
 
+  let wrote = false;
   try {
     const { db } = await createAdminClient();
     const keep = new Set<string>();
     for (const [index, draft] of drafts.entries()) {
       const id = membershipTextRowId(spot, index);
       keep.add(id);
+      wrote = true;
       await db.upsertRow("app", TABLE, id, {
         body_en: hasBody && draft.body_en ? draft.body_en : null,
         body_nb: hasBody && draft.body_nb ? draft.body_nb : null,
@@ -271,6 +294,9 @@ export async function saveMembershipSpot(
       }
     }
   } catch {
+    if (wrote) {
+      await afterWrite();
+    }
     return { error: TEXT_ERRORS.saveFailed };
   }
 
@@ -293,13 +319,18 @@ export async function resetMembershipSpot(
   if (!isSpot(spot)) {
     return { error: TEXT_ERRORS.unknownSpot };
   }
+  let wrote = false;
   try {
     const { db } = await createAdminClient();
     const existing = await listSpotRows(db, spot);
     for (const row of existing) {
+      wrote = true;
       await db.deleteRow("app", TABLE, row.$id);
     }
   } catch {
+    if (wrote) {
+      await afterWrite();
+    }
     return { error: TEXT_ERRORS.resetFailed };
   }
   await logAuditEvent(ctx, "membership_texts_reset", {

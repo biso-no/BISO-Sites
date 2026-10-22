@@ -108,6 +108,8 @@ describe("access", () => {
     await expect(loadMembershipTexts()).rejects.toThrow("Unauthorized");
     expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(db.listRows).not.toHaveBeenCalled();
+    expect(translateContentFields).not.toHaveBeenCalled();
   });
 });
 
@@ -123,6 +125,7 @@ describe("loadMembershipTexts", () => {
     expect(join?.items[0]?.title_nb).not.toBe(join?.items[0]?.title_en);
     const business = spots.find((s) => s.spot === "business");
     expect(business?.items[0]?.body_nb.length).toBeGreaterThan(0);
+    expect(business?.items[0]?.body_en.length).toBeGreaterThan(0);
   });
 
   test("returns stored rows in order for a spot that has them", async () => {
@@ -268,6 +271,79 @@ describe("saveMembershipSpot", () => {
     expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.deleteRow).not.toHaveBeenCalled();
     expect(notifyWebsite).not.toHaveBeenCalled();
+  });
+});
+
+describe("sturdier saves", () => {
+  test("notifies the website when a delete fails after an upsert", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "home-join-3", spot: "home_join", title_nb: "x" }],
+      total: 1,
+    });
+    db.deleteRow.mockRejectedValue(new Error("boom"));
+    const result = await saveMembershipSpot("home_join", [
+      { title_en: "a", title_nb: "a" },
+    ]);
+    expect(result).toMatchObject({ error: expect.any(String) });
+    expect(notifyWebsite).toHaveBeenCalledTimes(1);
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  test("notifies when a reset fails midway", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [
+        { $id: "onboarding-0", spot: "onboarding" },
+        { $id: "onboarding-1", spot: "onboarding" },
+      ],
+      total: 2,
+    });
+    db.deleteRow
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("x"));
+    expect(await resetMembershipSpot("onboarding")).toMatchObject({
+      error: expect.any(String),
+    });
+    expect(notifyWebsite).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses the Norwegian when a translation is over the limit", async () => {
+    translateContentFields.mockImplementation(async ({ fields }) =>
+      Object.fromEntries(
+        fields.map((f) => [
+          f.key,
+          f.key.startsWith("title") ? "t".repeat(201) : "b".repeat(501),
+        ])
+      )
+    );
+    await saveMembershipSpot("business", [
+      { body_nb: "Tekst", title_nb: "Tittel" },
+    ]);
+    expect(db.upsertRow.mock.calls[0]?.[3]).toMatchObject({
+      body_en: "Tekst",
+      title_en: "Tittel",
+    });
+  });
+
+  test("returns a plain error for malformed input instead of throwing", async () => {
+    const bad = [
+      null,
+      "x",
+      [null],
+      [{ title_nb: 5 }],
+      [{ title_nb: "a", body_nb: 3 }],
+    ];
+    for (const items of bad) {
+      expect(
+        await saveMembershipSpot("home_join", items as never)
+      ).toMatchObject({ error: expect.any(String) });
+    }
+    expect(
+      await saveMembershipSpot("nope" as never, [{ title_nb: "a" }])
+    ).toMatchObject({ error: expect.any(String) });
+    expect(await resetMembershipSpot("nope" as never)).toMatchObject({
+      error: expect.any(String),
+    });
+    expect(db.upsertRow).not.toHaveBeenCalled();
   });
 });
 
