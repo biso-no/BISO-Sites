@@ -11,6 +11,7 @@ vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: { listRows } })),
 }));
 
+import { clearPublicBenefitsCache } from "@/lib/benefits/public-benefits";
 import { GET, OPTIONS } from "./route";
 
 function row(
@@ -49,6 +50,7 @@ function request(query = "", headers: Record<string, string> = {}) {
 describe("GET /api/benefits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearPublicBenefitsCache();
     mockTables([row("nat", "5"), row("bergen", "2")]);
   });
 
