@@ -67,13 +67,47 @@ describe("resolveMemberPassForRequest", () => {
     );
   });
 
-  it("reports unauthenticated when the JWT is invalid", async () => {
-    account.get.mockRejectedValueOnce(new Error("bad jwt"));
+  it("reports unauthenticated when Appwrite rejects the JWT (401)", async () => {
+    account.get.mockRejectedValueOnce(
+      Object.assign(new Error("bad jwt"), { code: 401 })
+    );
 
     const resolved = await resolveMemberPassForRequest(request());
 
     expect(resolved).toEqual({ state: "unauthenticated" });
     expect(getRow).not.toHaveBeenCalled();
+  });
+
+  it("reports unavailable, not signed out, when Appwrite can't be reached", async () => {
+    // A fetch failure carries no HTTP status.
+    account.get.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+    const resolved = await resolveMemberPassForRequest(request());
+
+    expect(resolved).toEqual({ state: "unavailable" });
+    expect(getRow).not.toHaveBeenCalled();
+  });
+
+  it("reports unavailable when Appwrite answers 503 to the account check", async () => {
+    account.get.mockRejectedValueOnce(
+      Object.assign(new Error("service unavailable: jwt eyJ.secret"), {
+        code: 503,
+        type: "general_service_disabled",
+      })
+    );
+    const spy = vi.mocked(console.error);
+
+    const resolved = await resolveMemberPassForRequest(request());
+
+    expect(resolved).toEqual({ state: "unavailable" });
+    const logged = JSON.stringify(
+      spy.mock.calls.map((args) =>
+        args.map((a) => (a instanceof Error ? { message: a.message } : a))
+      )
+    );
+    expect(logged).toContain("code=503");
+    expect(logged).toContain("type=general_service_disabled");
+    expect(logged).not.toContain("eyJ.secret");
   });
 
   it("reports unauthenticated with no Authorization header, without falling back to a session cookie", async () => {
