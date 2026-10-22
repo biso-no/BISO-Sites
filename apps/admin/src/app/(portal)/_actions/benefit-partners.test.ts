@@ -53,6 +53,8 @@ mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
 mock.module("./audit-log", () => ({ logAuditEvent }));
+const notifyWebsite = mock(async (_tags: string[]) => undefined);
+mock.module("@/lib/web-revalidate", () => ({ notifyWebsite }));
 
 const {
   createBenefitPartner,
@@ -69,6 +71,7 @@ const editorCtx = (): UserAuthContext => makeCtx({ roles: ["benefitseditor"] });
 beforeEach(() => {
   currentCtx = campusAdminOf("2");
   logAuditEvent.mockClear();
+  notifyWebsite.mockClear();
   db.listRows.mockReset();
   db.upsertRow.mockReset();
   db.getRow.mockReset();
@@ -191,6 +194,7 @@ describe("createBenefitPartner", () => {
       },
     });
     expect(logAuditEvent).toHaveBeenCalledTimes(1);
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
   });
 
   test("saves the short descriptions, blank ones as empty", async () => {
@@ -301,6 +305,7 @@ describe("updateBenefitPartner", () => {
       name: "Nytt navn",
     });
     expect(result).toMatchObject({ data: { id: "p2", name: "Nytt navn" } });
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
   });
 
   test("returns not found for a missing partner", async () => {
@@ -389,6 +394,7 @@ describe("endBenefitPartner", () => {
       error: "Unauthorized: no write access to this campus",
     });
     expect(db.updateRow).not.toHaveBeenCalled();
+    expect(notifyWebsite).not.toHaveBeenCalled();
   });
 
   test("deactivates the partner without touching deals", async () => {
@@ -404,6 +410,7 @@ describe("endBenefitPartner", () => {
     expect(db.updateRow.mock.calls[0]?.[3]).toEqual({ is_active: false });
     expect(tablesOf(db.updateRow)).not.toContain("campus_benefits");
     expect(logAuditEvent).toHaveBeenCalledTimes(1);
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
   });
 });
 
@@ -412,6 +419,7 @@ describe("restartBenefitPartner", () => {
     seed([partnerRow("p2", "2", { is_active: false })], [dealRow("d1", "2")]);
     expect(await restartBenefitPartner("p2")).toEqual({ data: true });
     expect(db.updateRow.mock.calls[0]?.[3]).toEqual({ is_active: true });
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
     expect(tablesOf(db.updateRow)).not.toContain("campus_benefits");
   });
 });
@@ -423,6 +431,7 @@ describe("deleteBenefitPartner", () => {
       error: "Unauthorized: no write access to this campus",
     });
     expect(db.deleteRow).not.toHaveBeenCalled();
+    expect(notifyWebsite).not.toHaveBeenCalled();
   });
 
   test("deletes codes, then deals, then the partner", async () => {
@@ -443,6 +452,7 @@ describe("deleteBenefitPartner", () => {
       ["benefit_partners", "p2"],
     ]);
     expect(logAuditEvent).toHaveBeenCalledTimes(1);
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
     expect(logAuditEvent.mock.calls[0]).toEqual([
       expect.anything(),
       "benefit_partner_deleted",
@@ -477,5 +487,7 @@ describe("deleteBenefitPartner", () => {
     expect(logAuditEvent.mock.calls[0]?.[2]).toMatchObject({
       payload: { deletedDeals: 1, partnerId: "p2" },
     });
+    // The deal deleted before the failure is already off the website.
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
   });
 });

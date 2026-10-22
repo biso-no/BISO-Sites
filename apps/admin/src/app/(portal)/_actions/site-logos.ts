@@ -15,6 +15,7 @@ import {
   BENEFIT_FIELD_ERRORS,
 } from "@/lib/benefits/benefit-errors";
 import { isRowNotFound } from "@/lib/shop/sales-type";
+import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
 
 const PARTNERS_TABLE = "partners";
@@ -192,6 +193,7 @@ export async function saveSiteLogo(input: {
     resourceType: RESOURCE_TYPE,
   });
   revalidatePath(PARTNERS_PATH);
+  await notifyWebsite(["partners"]);
   return { data: toSiteLogo(saved) };
 }
 
@@ -214,6 +216,7 @@ export async function deleteSiteLogo(
     resourceType: RESOURCE_TYPE,
   });
   revalidatePath(PARTNERS_PATH);
+  await notifyWebsite(["partners"]);
   return { data: true };
 }
 
@@ -247,5 +250,6 @@ export async function reorderSiteLogos(
     resourceType: RESOURCE_TYPE,
   });
   revalidatePath(PARTNERS_PATH);
+  await notifyWebsite(["partners"]);
   return { data: true };
 }

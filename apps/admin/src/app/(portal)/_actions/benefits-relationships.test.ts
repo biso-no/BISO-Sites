@@ -71,6 +71,9 @@ mock.module("@/lib/authorization", () => ({
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
+mock.module("@/lib/web-revalidate", () => ({
+  notifyWebsite: mock(async () => undefined),
+}));
 mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));

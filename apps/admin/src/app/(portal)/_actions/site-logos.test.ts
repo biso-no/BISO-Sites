@@ -53,6 +53,8 @@ mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
 mock.module("./audit-log", () => ({ logAuditEvent }));
+const notifyWebsite = mock(async (_tags: string[]) => undefined);
+mock.module("@/lib/web-revalidate", () => ({ notifyWebsite }));
 
 const { deleteSiteLogo, loadSiteLogos, reorderSiteLogos, saveSiteLogo } =
   await import("./site-logos");
@@ -81,6 +83,7 @@ const rowNotFound = () =>
 beforeEach(() => {
   currentCtx = campusAdminOf("2");
   logAuditEvent.mockClear();
+  notifyWebsite.mockClear();
   for (const fn of Object.values(db)) {
     fn.mockReset();
   }
@@ -146,6 +149,7 @@ describe("saveSiteLogo create", () => {
     });
     expect(db.upsertRow.mock.calls[0]).toHaveLength(4);
     expect(logAuditEvent).toHaveBeenCalledTimes(1);
+    expect(notifyWebsite.mock.calls).toEqual([[["partners"]]]);
   });
 
   test("a Hele BISO logo gets level national", async () => {
@@ -256,6 +260,7 @@ describe("deleteSiteLogo", () => {
     expect(await deleteSiteLogo("a")).toEqual({ data: true });
     expect(db.deleteRow).toHaveBeenCalledTimes(1);
     expect(logAuditEvent.mock.calls[0]?.[1]).toBe("site_logo_deleted");
+    expect(notifyWebsite.mock.calls).toEqual([[["partners"]]]);
   });
 
   test("a logo removed meanwhile is not found", async () => {
@@ -288,6 +293,7 @@ describe("reorderSiteLogos", () => {
       ["c", 1],
       ["b", 2],
     ]);
+    expect(notifyWebsite.mock.calls).toEqual([[["partners"]]]);
   });
 
   test("refuses a stale list", async () => {
@@ -302,5 +308,6 @@ describe("reorderSiteLogos", () => {
     expect(await reorderSiteLogos("5", [])).toEqual({
       error: "Unauthorized: no write access to this campus",
     });
+    expect(notifyWebsite).not.toHaveBeenCalled();
   });
 });

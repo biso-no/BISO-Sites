@@ -103,6 +103,8 @@ mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
 }));
 mock.module("./audit-log", () => ({ logAuditEvent }));
+const notifyWebsite = mock(async (_tags: string[]) => undefined);
+mock.module("@/lib/web-revalidate", () => ({ notifyWebsite }));
 
 const {
   createBenefit,
@@ -180,6 +182,7 @@ beforeEach(() => {
   translationRows = [];
   codeRows = new Map();
   logAuditEvent.mockClear();
+  notifyWebsite.mockClear();
   for (const fn of Object.values(db)) {
     fn.mockReset();
   }
@@ -253,6 +256,7 @@ describe("createBenefit", () => {
       value: "BISO20",
     });
     expect(codeCall?.[4]).toEqual([]);
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
   });
 
   test("a campus admin cannot create on Hele BISO", async () => {
@@ -367,6 +371,19 @@ describe("updateBenefit", () => {
     expect(upsertCall("campus_benefits")?.[3]).toEqual(
       expect.objectContaining({ sort_order: 2 })
     );
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
+  });
+
+  test("a refused update does not notify the website", async () => {
+    benefitRows = [storedBenefit({ campus_id: "3" })];
+
+    const result = await updateBenefit("benefit-1", {
+      ...memberValues,
+      campus_id: "3",
+    });
+
+    expect("error" in result).toBe(true);
+    expect(notifyWebsite).not.toHaveBeenCalled();
   });
 
   test("switching to no redemption deletes the code row and ignores a 404", async () => {
@@ -512,12 +529,14 @@ describe("deleteBenefit", () => {
       "benefit_deleted",
       expect.objectContaining({ resourceId: "benefit-1" })
     );
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
   });
 
   test("refuses a benefit on another campus", async () => {
     benefitRows = [storedBenefit({ campus_id: "3" })];
 
     const result = await deleteBenefit("benefit-1");
+    expect(notifyWebsite).not.toHaveBeenCalled();
 
     expect(result).toEqual({
       error: "Unauthorized: no write access to this campus",
@@ -549,6 +568,7 @@ describe("reorderBenefits", () => {
       "benefits_reordered",
       expect.anything()
     );
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
   });
 
   test("refuses an id from another section", async () => {
@@ -788,6 +808,33 @@ describe("setBenefitStatus", () => {
       error: "Unauthorized: no write access to this campus",
     });
     expect(db.updateRow).not.toHaveBeenCalled();
+    expect(notifyWebsite).not.toHaveBeenCalled();
+  });
+
+  test("hiding a benefit notifies the website once", async () => {
+    benefitRows = [storedBenefit({ status: "published" })];
+
+    await setBenefitStatus("benefit-1", "archived");
+
+    expect(notifyWebsite.mock.calls).toEqual([[["benefits"]]]);
+  });
+
+  test("an unknown status is refused before any read or write", async () => {
+    benefitRows = [storedBenefit({ status: "published" })];
+
+    const result = await setBenefitStatus(
+      "benefit-1",
+      "deleted" as unknown as "draft"
+    );
+
+    expect(result).toEqual({
+      error: "That status is not allowed for a benefit",
+    });
+    expect(db.listRows).not.toHaveBeenCalled();
+    expect(db.getRow).not.toHaveBeenCalled();
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+    expect(notifyWebsite).not.toHaveBeenCalled();
   });
 
   test("asks for the editor when a legacy QR benefit still has a value", async () => {

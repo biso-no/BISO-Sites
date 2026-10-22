@@ -49,6 +49,7 @@ import {
 import type { ListParams, PaginatedResult } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
 import { isRowNotFound } from "@/lib/shop/sales-type";
+import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
 import { type BenefitFormValues, benefitSchema } from "./schemas";
 
@@ -514,6 +515,7 @@ export async function createBenefit(
       options: translationOptions,
       values: data,
     });
+    await notifyWebsite(["benefits"]);
     revalidatePath("/benefits");
     return {
       data: saved.id,
@@ -580,6 +582,7 @@ export async function updateBenefit(
     });
     revalidatePath("/benefits");
     revalidatePath(`/benefits/${id}`);
+    await notifyWebsite(["benefits"]);
     return {
       data: id,
       ...(translationQueued ? { translationQueued: true as const } : {}),
@@ -611,6 +614,7 @@ export async function deleteBenefit(
       resourceId: id,
       resourceType: "campus_benefit",
     });
+    await notifyWebsite(["benefits"]);
     revalidatePath("/benefits");
     return { data: id };
   } catch (error) {
@@ -669,6 +673,7 @@ export async function reorderBenefits(
       payload: { campusId, ids: orderedIds, section },
       resourceType: "campus_benefit",
     });
+    await notifyWebsite(["benefits"]);
     revalidatePath("/benefits");
     return { data: true };
   } catch (error) {
@@ -718,6 +723,7 @@ async function withdrawBenefit(
   });
   revalidatePath("/benefits");
   revalidatePath(`/benefits/${id}`);
+  await notifyWebsite(["benefits"]);
   return { data: id };
 }
 
@@ -731,6 +737,11 @@ export async function setBenefitStatus(
   status: "draft" | "published" | "archived"
 ): Promise<BenefitMutationResult> {
   const ctx = await requireAuth();
+  // The type is only a compile-time promise; a client can send anything.
+  const target: string = status;
+  if (target !== "published" && target !== "archived" && target !== "draft") {
+    return { error: BENEFIT_ERRORS.invalidStatus };
+  }
 
   try {
     const { db } = await createAdminClient();
@@ -740,7 +751,7 @@ export async function setBenefitStatus(
     }
     // Refuse before the code row is read.
     assertBenefitCampusWrite(ctx, stored.campus_id);
-    if (status !== "published") {
+    if (status === "archived" || status === "draft") {
       return await withdrawBenefit(db, ctx, stored, status);
     }
     const code =

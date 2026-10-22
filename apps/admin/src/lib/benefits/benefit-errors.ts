@@ -7,6 +7,7 @@
 export const BENEFIT_ERRORS = {
   benefitNotFound: "Benefit not found",
   companyNameRequired: "Add the company's name",
+  invalidStatus: "That status is not allowed for a benefit",
   legacyRedemption:
     "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.",
   logoNotFound: "Logo not found",

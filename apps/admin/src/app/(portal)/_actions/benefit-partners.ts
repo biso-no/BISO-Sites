@@ -10,6 +10,7 @@ import { requireAuth } from "@/lib/authorization";
 import { benefitAccessFor, canEditBenefitCampus } from "@/lib/benefit-access";
 import { BENEFIT_ERRORS } from "@/lib/benefits/benefit-errors";
 import { isRowNotFound } from "@/lib/shop/sales-type";
+import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
 import type { BoardPartner } from "./benefits";
 
@@ -160,9 +161,10 @@ const toPartnerDeal = (row: CampusBenefits): PartnerDeal => ({
   title_nb: row.title_nb ?? "",
 });
 
-function revalidatePartnerPaths() {
+async function revalidatePartnerPaths() {
   revalidatePath(BENEFITS_PATH);
   revalidatePath(PARTNERS_PATH);
+  await notifyWebsite(["benefits"]);
 }
 
 /** Partners of a campus tab: the campus's own plus Hele BISO, active or not. */
@@ -219,7 +221,7 @@ export async function createBenefitPartner(
     resourceId: id,
     resourceType: "benefit_partner",
   });
-  revalidatePartnerPaths();
+  await revalidatePartnerPaths();
   return { data: toBoardPartner(saved) };
 }
 
@@ -324,7 +326,7 @@ export async function updateBenefitPartner(
     resourceId: id,
     resourceType: "benefit_partner",
   });
-  revalidatePartnerPaths();
+  await revalidatePartnerPaths();
   return { data: toBoardPartner(saved) };
 }
 
@@ -348,7 +350,7 @@ async function setPartnerActive(
     isActive ? "benefit_partner_restarted" : "benefit_partner_ended",
     { resourceId: id, resourceType: "benefit_partner" }
   );
-  revalidatePartnerPaths();
+  await revalidatePartnerPaths();
   return {
     data: {
       hiddenDeals: deals.filter((deal) => deal.status === PUBLISHED_STATUS)
@@ -413,7 +415,10 @@ export async function deleteBenefitPartner(
       resourceId: id,
       resourceType: "benefit_partner",
     });
-    revalidatePartnerPaths();
+    // Deals removed before the failure are already gone from the website.
+    if (deletedIds.length > 0) {
+      await revalidatePartnerPaths();
+    }
     return { error: BENEFIT_ERRORS.partnerDeleteFailed };
   }
   await logAuditEvent(ctx, "benefit_partner_deleted", {
@@ -426,6 +431,6 @@ export async function deleteBenefitPartner(
     resourceId: id,
     resourceType: "benefit_partner",
   });
-  revalidatePartnerPaths();
+  await revalidatePartnerPaths();
   return { data: { deletedDeals: deals.length } };
 }
