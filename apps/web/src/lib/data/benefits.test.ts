@@ -7,6 +7,14 @@ vi.mock("@repo/api/server", () => ({
   createPublicClient: vi.fn(async () => ({ db: publicDb })),
 }));
 vi.mock("next/cache", () => cache);
+const order = vi.hoisted(() => [] as string[]);
+vi.mock("next/server", async (orig) => ({
+  ...(await orig<typeof import("next/server")>()),
+  connection: vi.fn(() => {
+    order.push("connection");
+    return Promise.resolve();
+  }),
+}));
 
 import {
   cachedBenefitRows,
@@ -31,7 +39,34 @@ describe("benefit readers", () => {
     expect(q).toContain("published");
     expect(q).not.toContain("redemption_value");
     expect(q).toContain("$createdAt");
+    expect(q).toContain('"method":"orderDesc","attribute":"$createdAt"');
     expect(cache.cacheTag).toHaveBeenCalledWith("benefits");
+  });
+
+  it("awaits connection() before reading the clock", async () => {
+    order.length = 0;
+    publicDb.listRows.mockResolvedValue({ rows: [] });
+    const clock = vi.spyOn(Date, "now");
+    const RealDate = Date;
+    vi.stubGlobal(
+      "Date",
+      class extends RealDate {
+        constructor(...args: unknown[]) {
+          if (args.length === 0) {
+            order.push("clock");
+          }
+          super(...(args as [number]));
+        }
+      }
+    );
+    try {
+      await getPublicBenefits();
+    } finally {
+      vi.unstubAllGlobals();
+      clock.mockRestore();
+    }
+    expect(order[0]).toBe("connection");
+    expect(order).toContain("clock");
   });
 
   it("drops a benefit whose partner is inactive", async () => {
@@ -81,6 +116,9 @@ describe("benefit readers", () => {
       },
     ]);
     const q = queriesOf(0);
+    expect(q).toContain("image_url");
+    expect(q).toContain('"method":"select"');
+    expect(q.indexOf("orderAsc")).toBeGreaterThan(-1);
     expect(q.indexOf("campus_id")).toBeLessThan(q.indexOf("sort_order"));
     expect(cache.cacheTag).toHaveBeenCalledWith("partners");
   });
