@@ -3,8 +3,6 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { isProd } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Cache-refresh endpoint called server-to-server by the admin app after an
  * editor saves benefits, partners or site logos. Same auth rules as
