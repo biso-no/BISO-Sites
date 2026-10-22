@@ -920,6 +920,8 @@
       "partnerNotFound": "Fant ikke partneren. Velg partneren på nytt.",
       "legacyRedemption": "Velg hvordan studentene får rabatten, og lagre på nytt.",
       "benefitNotFound": "Fant ikke fordelen. Den kan være slettet.",
+      "companyNameRequired": "Skriv inn navnet på bedriften.",
+      "logoRequired": "Last opp en logo.",
       "partnerNameRequired": "Skriv inn navnet på partneren.",
       "partnerWebsiteInvalid": "Nettsiden må starte med https://",
       "partnerDeleteFailed": "Kunne ikke slette partneren. Prøv igjen.",

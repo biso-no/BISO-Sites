@@ -164,6 +164,14 @@ describe("benefits studio schema", () => {
     });
   });
 
+  test("partners have a level/campus/sort index", () => {
+    expect(index("partners", "idx_level_campus_sort")).toMatchObject({
+      type: "key",
+      columns: ["level", "campus_id", "sort_order"],
+      orders: ["ASC", "ASC", "ASC"],
+    });
+  });
+
   test("partners can be ordered", () => {
     expect(column("partners", "sort_order")).toMatchObject({
       type: "integer",

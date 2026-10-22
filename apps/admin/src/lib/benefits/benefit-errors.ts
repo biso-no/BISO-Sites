@@ -6,8 +6,10 @@
  */
 export const BENEFIT_ERRORS = {
   benefitNotFound: "Benefit not found",
+  companyNameRequired: "Add the company's name",
   legacyRedemption:
     "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.",
+  logoRequired: "Upload a logo",
   noCampusAccess: "Unauthorized: no write access to this campus",
   partnerDeleteFailed: "Could not delete the partner",
   partnerHasOffersOnOtherCampus: "This partner has offers on another campus",

@@ -1998,6 +1998,21 @@
                         "name"
                     ],
                     "orders": []
+                },
+                {
+                    "key": "idx_level_campus_sort",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "level",
+                        "campus_id",
+                        "sort_order"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC",
+                        "ASC"
+                    ]
                 }
             ]
         },

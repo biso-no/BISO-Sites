@@ -920,6 +920,8 @@
       "partnerNotFound": "We couldn't find that partner. Choose the partner again.",
       "legacyRedemption": "Choose how students redeem it, then save again.",
       "benefitNotFound": "We couldn't find this benefit. It may have been deleted.",
+      "companyNameRequired": "Enter the company's name.",
+      "logoRequired": "Upload a logo.",
       "partnerNameRequired": "Enter the partner's name.",
       "partnerWebsiteInvalid": "The website must start with https://",
       "partnerDeleteFailed": "Couldn't delete the partner. Try again.",
