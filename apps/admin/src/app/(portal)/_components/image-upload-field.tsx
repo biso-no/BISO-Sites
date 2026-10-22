@@ -8,17 +8,23 @@ import { uploadMediaFile } from "@/lib/upload-client";
 import { STUDIO } from "./studio";
 
 interface ImageUploadFieldProps {
+  /** `contain` shows the whole image, as a logo needs; `cover` fills. */
+  fit?: "contain" | "cover";
   inputId?: string;
   label?: string;
   onChange: (url: string | null) => void;
+  /** For images that may live outside `images.remotePatterns`. */
+  unoptimized?: boolean;
   value: string | null;
 }
 
 export function ImageUploadField({
+  fit = "cover",
   inputId,
   label,
   value,
   onChange,
+  unoptimized,
 }: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -77,18 +83,26 @@ export function ImageUploadField({
 
       {/* Preview or drop zone */}
       {value ? (
+        // The frame sets the height: a `fill` image takes its size from it.
         <div
-          className="group relative overflow-hidden rounded-xl"
-          style={{ border: `0.5px solid ${STUDIO.rule2}` }}
+          className="group relative h-40 overflow-hidden rounded-xl"
+          style={{
+            background: fit === "contain" ? "#fff" : undefined,
+            border: `0.5px solid ${STUDIO.rule2}`,
+          }}
         >
           <Image
             alt="Cover"
-            className="h-40 w-full object-cover"
+            className={
+              fit === "contain" ? "object-contain p-4" : "object-cover"
+            }
             fill
             src={value}
+            unoptimized={unoptimized}
           />
+          {/* Shown on hover, and while a button in it has keyboard focus. */}
           <div
-            className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity group-hover:opacity-100"
+            className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
             style={{ background: "rgba(0,0,0,0.55)" }}
           >
             <button

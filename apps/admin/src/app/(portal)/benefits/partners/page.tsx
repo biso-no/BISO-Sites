@@ -8,8 +8,10 @@ import {
 } from "@/lib/benefits/board-campus";
 import { loadPartnersPage } from "../../_actions/benefit-partners";
 import { listCampuses } from "../../_actions/lookups";
+import { loadSiteLogos } from "../../_actions/site-logos";
 import type { AdminLocale } from "../_lib/board-display";
-import { PartnersPage, type PartnersTab } from "./_components/partners-page";
+import { PartnersPage } from "./_components/partners-page";
+import type { PartnersTab } from "./_components/partners-page-header";
 import { parsePartnerFilter } from "./_lib/partners-state";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -17,28 +19,16 @@ type SearchParams = Record<string, string | string[] | undefined>;
 const single = (value: string | string[] | undefined): string | undefined =>
   typeof value === "string" ? value : undefined;
 
-/**
- * Fordeler → Partnere. `?tab=deals|logos` picks the tab (deals first);
- * `?campus=` and `?ended=1` set the deal partners' filter.
- */
-export default async function BenefitPartnersPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  await requireNavAccess("portal.benefitsPartners");
-  const [query, data, campuses, t, uiLocale] = await Promise.all([
-    searchParams,
-    loadPartnersPage(),
+/** Every campus's name, Hele BISO included. */
+async function loadCampusLabels(): Promise<Record<string, string>> {
+  const [campuses, t] = await Promise.all([
     // Only the campus names come from here; without them the page falls
     // back to the built-in names rather than going down.
     listCampuses().catch(() => []),
     getTranslations("adminPortal.benefits.board"),
-    getLocale(),
   ]);
-  const locale: AdminLocale = uiLocale === "en" ? "en" : "no";
   const names = new Map(campuses.map((row) => [row.$id, row.name]));
-  const campusLabels = Object.fromEntries(
+  return Object.fromEntries(
     BOARD_CAMPUS_ORDER.map((id) => [
       id,
       id === NATIONAL_CAMPUS_ID
@@ -46,12 +36,41 @@ export default async function BenefitPartnersPage({
         : (names.get(id) ?? campusIdToLabel(id) ?? ""),
     ])
   );
+}
+
+/**
+ * Fordeler → Partnere. `?tab=deals|logos` picks the tab (deals first), and
+ * only that tab's data is loaded; `?campus=` and `?ended=1` set the deal
+ * partners' filter.
+ */
+export default async function BenefitPartnersPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  await requireNavAccess("portal.benefitsPartners");
+  const query = await searchParams;
+  const tab: PartnersTab = single(query.tab) === "logos" ? "logos" : "deals";
+
+  if (tab === "logos") {
+    const [campusLabels, groups] = await Promise.all([
+      loadCampusLabels(),
+      loadSiteLogos(),
+    ]);
+    return <PartnersPage logos={{ campusLabels, groups }} tab="logos" />;
+  }
+
+  const [data, campusLabels, uiLocale] = await Promise.all([
+    loadPartnersPage(),
+    loadCampusLabels(),
+    getLocale(),
+  ]);
+  const locale: AdminLocale = uiLocale === "en" ? "en" : "no";
   const visibleCampusIds = orderBoardCampuses(data.visibleCampusIds);
   const filter = parsePartnerFilter(
     { campus: single(query.campus), ended: single(query.ended) },
     visibleCampusIds
   );
-  const tab: PartnersTab = single(query.tab) === "logos" ? "logos" : "deals";
 
   return (
     <PartnersPage
@@ -66,7 +85,7 @@ export default async function BenefitPartnersPage({
         partners: data.partners,
         visibleCampusIds,
       }}
-      tab={tab}
+      tab="deals"
     />
   );
 }

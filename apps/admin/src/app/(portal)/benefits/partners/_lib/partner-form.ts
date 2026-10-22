@@ -60,7 +60,7 @@ export function normalizeWebsite(value: string): string {
   return `${HTTPS}${trimmed}`;
 }
 
-function isHttpsUrl(value: string): boolean {
+export function isHttpsUrl(value: string): boolean {
   try {
     return new URL(value).protocol === "https:";
   } catch {

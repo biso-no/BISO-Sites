@@ -1,22 +1,14 @@
 "use client";
 
-import { ArrowLeft, Plus } from "lucide-react";
-import Link from "next/link";
+import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { PartnerWithDeals } from "../../../_actions/benefit-partners";
-import {
-  STUDIO,
-  StudioButton,
-  StudioPageHeader,
-} from "../../../_components/studio";
+import { STUDIO, StudioButton } from "../../../_components/studio";
 import { Pill } from "../../../communications/_components/composer/ui";
 import type { AdminLocale } from "../../_lib/board-display";
-import {
-  BOARD_FOCUS_RING,
-  BOARD_FOCUS_RING_INSET,
-} from "../../_lib/board-styles";
+import { BOARD_FOCUS_RING } from "../../_lib/board-styles";
 import {
   ALL_CAMPUSES,
   buildPartnerCards,
@@ -26,17 +18,10 @@ import {
   type PartnerFilter,
   parsePartnerFilter,
 } from "../_lib/partners-state";
+import { LogoWall, type LogoWallProps } from "./logo-wall";
 import { PartnerCardView } from "./partner-card";
 import { PartnerSheet } from "./partner-sheet";
-
-export type PartnersTab = "deals" | "logos";
-
-const PARTNERS_PATH = "/benefits/partners";
-
-const TAB_HREF: Record<PartnersTab, string> = {
-  deals: PARTNERS_PATH,
-  logos: `${PARTNERS_PATH}?tab=logos`,
-};
+import { PARTNERS_PATH, PartnersPageHeader } from "./partners-page-header";
 
 export interface DealPartnersProps {
   /** Every campus's name, Hele BISO included. */
@@ -53,76 +38,17 @@ export interface DealPartnersProps {
   visibleCampusIds: string[];
 }
 
-export interface PartnersPageProps {
-  deals: DealPartnersProps;
-  tab: PartnersTab;
-}
+/** Each tab loads only what it shows. */
+export type PartnersPageProps =
+  | { deals: DealPartnersProps; tab: "deals" }
+  | { logos: LogoWallProps; tab: "logos" };
 
 /** `/benefits/partners`: the companies behind student deals, and the logos. */
-export function PartnersPage({ deals }: PartnersPageProps) {
-  // The website logos tab is not built yet, so every tab shows the deal
-  // partners; its link is already in the header.
-  return <DealPartners {...deals} />;
-}
-
-/** Eyebrow, title, the tab's main action and the two tabs. */
-export function PartnersPageHeader({
-  action,
-  tab,
-}: {
-  action?: ReactNode;
-  tab: PartnersTab;
-}) {
-  const t = useTranslations("adminPortal.benefits.partnersPage");
-  const tabs: { id: PartnersTab; label: string }[] = [
-    { id: "deals", label: t("tabDeals") },
-    { id: "logos", label: t("tabLogos") },
-  ];
-  return (
-    <>
-      <StudioPageHeader
-        eyebrow={
-          <Link
-            className={`-mx-1 inline-flex items-center gap-1.5 rounded-sm px-1 hover:underline ${BOARD_FOCUS_RING}`}
-            href="/benefits"
-          >
-            <ArrowLeft aria-hidden size={12} />
-            {t("eyebrow")}
-          </Link>
-        }
-        title={t("title")}
-      >
-        {action}
-      </StudioPageHeader>
-      <nav
-        aria-label={t("title")}
-        className="mb-6 border-b"
-        style={{ borderColor: STUDIO.rule }}
-      >
-        <ul className="-mb-px flex gap-1 overflow-x-auto">
-          {tabs.map((item) => {
-            const active = item.id === tab;
-            return (
-              <li className="shrink-0" key={item.id}>
-                <Link
-                  aria-current={active ? "page" : undefined}
-                  className={`inline-flex rounded-t-md border-b-2 px-4 py-2.5 text-[15px] transition-colors ${
-                    active
-                      ? "font-semibold text-[#1a1814]"
-                      : "border-transparent text-[#6b6357] hover:border-[#d8cdb6] hover:text-[#1a1814]"
-                  } ${BOARD_FOCUS_RING_INSET}`}
-                  href={TAB_HREF[item.id]}
-                  style={active ? { borderColor: STUDIO.gold } : undefined}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </>
-  );
+export function PartnersPage(props: PartnersPageProps) {
+  if (props.tab === "logos") {
+    return <LogoWall {...props.logos} />;
+  }
+  return <DealPartners {...props.deals} />;
 }
 
 /**
