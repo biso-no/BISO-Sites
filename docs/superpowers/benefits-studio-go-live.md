@@ -85,6 +85,7 @@ Do these top to bottom. Each step assumes the ones before it are done. Steps 5 t
    - In admin, save a small change to a published benefit. It should show on the website on the next reload. If the website runs on more than one instance, only the instance that received admin's call refreshes straight away. The others catch up within a minute or two, because their cache refreshes every minute. A second view that lags like that is expected, not a bug.
    - Open `/campus`, then "For bedrifter". The campus's partner logos should show.
    - The admin smoke test in stage 2, item 4.
+   - Membership texts (stage 6). In admin, open Fordeler, then "Tekster". Change one line in "Forsiden – «Bli med»" and save. Reload the website's home page: the changed line shows. Press "Tilbakestill til standard": the original text is back on the website. Sign in as a campus admin who is neither a global admin nor a benefits editor: "Tekster" must not show.
    - The app (after step 11 is released). As a member, open the member pass, then "Dine fordeler", then a deal with a code. "Vis kode" must show the code.
    - As a non-member, "Dine fordeler" still lists the deals. Tap a deal with a code or a link: the sheet says "Koden vises bare for medlemmer." with a "Bli medlem" button, and no code or link shows.
    - Open the campus screen. The five benefit sections show, in Norwegian.
@@ -153,3 +154,14 @@ Stage 4 makes the website read benefits from the new table and hands out codes o
 3. Clearing the old codes (runbook step 7). The migration copies codes to `benefit_codes` but leaves them in the public `campus_benefits.redemption_value` column too. The clear script empties that column, after copying any code `benefit_codes` doesn't have yet (it never overwrites one that's there). It only prints counts, never a code, and it's safe to re-run.
 4. Second schema push (runbook step 8). After it, `campus_benefits` rows can only be read through their own permissions. The new admin gives published rows `read("any")`, and drafts and hidden rows none.
 5. Old text lists are gone. The old `campus_data` text arrays are no longer shown anywhere on the website. Benefits come only from the new table.
+
+## Stage 6: membership texts
+
+The page "Tekster om medlemskap" (`/benefits/texts`, link "Tekster" in the header of the benefits board) lets global admins and benefits editors edit seven bullet lists about membership: home "Bli med", the membership cards in the member portal, the portal's locked-content list, onboarding, the shop's member box, `/business` and Business Hotspot.
+
+1. Nothing to migrate. The `membership_texts` table came with the first schema push (runbook step 3).
+2. It works once the deploy (runbook step 6) is done. The website reads the texts from `membership_texts` and refreshes them when someone saves.
+3. Every spot shows today's built-in text until someone saves it. A spot that was never saved, or a failed read, also shows the built-in text.
+4. English is translated automatically when the English line is left blank. "Tilbakestill til standard" brings back the built-in text.
+5. Prices in the shop and portal copy can't be edited here. That is on purpose.
+6. The check is in runbook step 9.
