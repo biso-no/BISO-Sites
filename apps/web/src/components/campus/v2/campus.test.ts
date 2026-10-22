@@ -35,6 +35,7 @@ describe("PLACEHOLDER-009 — campus editorial content does not exist", () => {
       "highlights",
       "focusAreas",
       "benefitGroups",
+      "memberGroups",
       "businessBenefits",
       "leadership",
     ]) {

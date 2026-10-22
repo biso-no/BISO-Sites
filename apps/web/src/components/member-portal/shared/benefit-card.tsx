@@ -1,7 +1,6 @@
 "use client";
 
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
-import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { Clock, IdCard, Store } from "lucide-react";
 import Image from "next/image";
 import {
@@ -12,8 +11,8 @@ import {
 } from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
+import { BenefitRichText } from "@/components/benefits/v2/benefit-rich-text";
 import { Pill } from "@/components/ui/pill";
-import { Prose } from "@/components/ui/prose";
 import {
   benefitCategoryLabel,
   localizedPublicBenefitText,
@@ -73,9 +72,9 @@ const isRichDescription = (description: string) => {
 function Description({ value }: { value: string }) {
   if (isRichDescription(value)) {
     return (
-      <Prose className="type-body-sm [&_p]:type-body-sm mt-4 text-ink-muted [&_p]:mb-2">
-        <PlateContentRenderer value={value} />
-      </Prose>
+      <div className="mt-2">
+        <BenefitRichText value={value} />
+      </div>
     );
   }
   // Optional, so no empty spacer when it's blank.

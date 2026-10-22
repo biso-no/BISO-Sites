@@ -44,7 +44,10 @@ describe("prices and benefits come from the tables", () => {
     // One helper resolves title, description and terms field by field across
     // both languages, for this page and the member portal alike. Its
     // behaviour is pinned in `lib/benefit-text.test.ts`.
-    expect(page).toContain("localizedPublicBenefitText(benefit, locale)");
+    expect(page).toContain("<BenefitSummaryCard");
+    expect(
+      code("src/components/benefits/v2/benefit-summary-card.tsx")
+    ).toContain("localizedPublicBenefitText(benefit, locale)");
     expect(code("src/lib/benefit-text.ts")).toContain("benefit.title.nb");
     expect(code("src/lib/benefit-text.ts")).toContain("benefit.description.en");
   });

@@ -11,6 +11,7 @@ import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { BenefitSummaryCard } from "@/components/benefits/v2/benefit-summary-card";
 import { MembersOnlyBadge } from "@/components/events/members-only";
 import { CardGrid } from "@/components/ui/card-grid";
 import { DateBlock } from "@/components/ui/date-block";
@@ -42,6 +43,12 @@ import { getEventHref } from "@/lib/types/event";
 /** Main's card budget: enough to scan, short of a wall of text. */
 const BENEFIT_ITEMS_PER_CARD = 4;
 
+/** One row of member deal cards; the rest are a click away on `/membership`. */
+const MEMBER_DEALS = 3;
+
+/** The one-line studio sections, listed after the member deals. */
+const LINE_SECTIONS = BENEFIT_SECTIONS.filter((key) => key !== "member");
+
 const ROW =
   "flex items-start gap-4 rounded-biso-md border border-edge p-4 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
@@ -51,12 +58,12 @@ const CARD_LINK =
 const intlLocaleOf = (locale: Locale) => (locale === "en" ? "en-GB" : "nb-NO");
 
 /**
- * Benefits for the campus plus the national ones, one card per benefits
- * studio section that has entries, the campus's own rows first so national
- * deals never push them out of the four slots. Omitted entirely while there
- * are none: an empty section would only promise content that has not been
- * written (PLACEHOLDER-009). The full list lives on `/membership`, which the
- * heading links to.
+ * Benefits for the campus plus the national ones, the campus's own rows
+ * first so national deals never push them out of the slots: a row of member
+ * deals, each with its partner and description, then one card per one-line
+ * studio section. Omitted entirely while there are none: an empty section
+ * would only promise content that has not been written (PLACEHOLDER-009). The
+ * full list lives on `/membership`, which the heading links to.
  */
 export async function BenefitsSection({
   benefits,
@@ -71,7 +78,11 @@ export async function BenefitsSection({
   campusLabel: string;
   locale: Locale;
 }) {
-  const cards = BENEFIT_SECTIONS.map((key) => ({
+  const deals = benefitsForCampus(benefits, campusId, ["member"]).slice(
+    0,
+    MEMBER_DEALS
+  );
+  const cards = LINE_SECTIONS.map((key) => ({
     key,
     items: benefitsForCampus(benefits, campusId, [key])
       .slice(0, BENEFIT_ITEMS_PER_CARD)
@@ -81,10 +92,13 @@ export async function BenefitsSection({
       })),
   })).filter((card) => card.items.length > 0);
 
-  if (cards.length === 0) {
+  if (deals.length === 0 && cards.length === 0) {
     return null;
   }
-  const t = await getTranslations("students");
+  const [t, tBenefits] = await Promise.all([
+    getTranslations("students"),
+    getTranslations("common.benefits"),
+  ]);
 
   return (
     <Section className="border-edge border-t" id="benefits" tone="paper">
@@ -98,31 +112,50 @@ export async function BenefitsSection({
       <p className="type-body-sm mb-6 max-w-(--measure) text-ink-muted">
         {t("benefits.subtitle", { campus: campusLabel })}
       </p>
-      <CardGrid>
-        {cards.map((card) => (
-          <li
-            className="min-w-0 rounded-biso-md border border-edge p-6"
-            key={card.key}
-          >
-            <Pill tone="accent" uppercase>
-              {t(`benefits.badges.${card.key}`)}
-            </Pill>
-            <h3 className="type-heading-card mt-3 break-words text-ink">
-              {t(`benefits.labels.${card.key}`)}
-            </h3>
-            <ul className="mt-4 space-y-2">
-              {card.items.map((item) => (
-                <li
-                  className="type-body-sm border-ink-accent border-l-2 pl-3 text-ink"
-                  key={item.id}
-                >
-                  {item.title}
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </CardGrid>
+      {deals.length > 0 ? (
+        <div className="mb-8 last:mb-0">
+          <h3 className="type-label mb-3 text-ink-accent">
+            {t("benefits.labels.member")}
+          </h3>
+          <CardGrid>
+            {deals.map((benefit) => (
+              <BenefitSummaryCard
+                benefit={benefit}
+                formatValidUntil={(date) => tBenefits("validUntil", { date })}
+                key={benefit.id}
+                locale={locale}
+              />
+            ))}
+          </CardGrid>
+        </div>
+      ) : null}
+      {cards.length > 0 ? (
+        <CardGrid>
+          {cards.map((card) => (
+            <li
+              className="min-w-0 rounded-biso-md border border-edge p-6"
+              key={card.key}
+            >
+              <Pill tone="accent" uppercase>
+                {t(`benefits.badges.${card.key}`)}
+              </Pill>
+              <h3 className="type-heading-card mt-3 break-words text-ink">
+                {t(`benefits.labels.${card.key}`)}
+              </h3>
+              <ul className="mt-4 space-y-2">
+                {card.items.map((item) => (
+                  <li
+                    className="type-body-sm border-ink-accent border-l-2 pl-3 text-ink"
+                    key={item.id}
+                  >
+                    {item.title}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </CardGrid>
+      ) : null}
     </Section>
   );
 }

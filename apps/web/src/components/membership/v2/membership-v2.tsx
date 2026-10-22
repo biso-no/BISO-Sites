@@ -2,14 +2,12 @@ import type { BenefitSection } from "@repo/shared/utils/benefit-catalog";
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
 import { membershipPriceFormatter } from "@repo/shared/utils/membership-plans";
-import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { BenefitSummaryCard } from "@/components/benefits/v2/benefit-summary-card";
 import { CardGrid } from "@/components/ui/card-grid";
 import { PageHeader } from "@/components/ui/page-header";
-import { Pill } from "@/components/ui/pill";
-import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
@@ -74,54 +72,8 @@ const LINE_SECTIONS: {
 /** A member benefit without a category is filed under the studio's "other". */
 const UNCATEGORISED = "other";
 
-/** Stored HTML or Plate JSON starts with "<" or "["; anything else is text. */
-const isRichDescription = (description: string) => {
-  const start = description.trimStart().charAt(0);
-  return start === "<" || start === "[";
-};
-
 const textLinkClass =
   "type-label inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
-
-function BenefitCard({
-  benefit,
-  locale,
-  offerLabel,
-}: {
-  benefit: PublicBenefit;
-  locale: "en" | "no";
-  offerLabel: string;
-}) {
-  // Title and description follow the reader's language and fall back to the
-  // other one field by field, so a half-translated row still reads.
-  const { title, description } = localizedPublicBenefitText(benefit, locale);
-  return (
-    <li className="flex h-full flex-col rounded-biso-md border border-edge p-5">
-      {/* Only a partner's deal names a partner; a standing perk has none. */}
-      {benefit.partner ? (
-        <span className="flex flex-wrap items-center gap-2">
-          <Pill tone="success" uppercase>
-            {offerLabel}
-          </Pill>
-          <Pill tone="neutral">{benefit.partner.name}</Pill>
-        </span>
-      ) : null}
-
-      {/* `h4`: each card sits under its category's `h3`. */}
-      <h4 className="type-heading-card mt-3 text-ink">{title}</h4>
-
-      {description ? (
-        <Prose className="type-body-sm [&_p]:type-body-sm mt-2 text-ink-muted [&_p]:mb-2">
-          {isRichDescription(description) ? (
-            <PlateContentRenderer value={description} />
-          ) : (
-            <p className="whitespace-pre-line">{description}</p>
-          )}
-        </Prose>
-      ) : null}
-    </li>
-  );
-}
 
 export async function MembershipV2({
   benefits,
@@ -129,16 +81,19 @@ export async function MembershipV2({
   locale,
   plans,
 }: MembershipV2Props) {
-  const [t, tCommon, tNav] = await Promise.all([
+  const [t, tCommon, tNav, tBenefits] = await Promise.all([
     getTranslations("membership"),
     getTranslations("common"),
     getTranslations("common.navigation"),
+    getTranslations("common.benefits"),
   ]);
 
   const memberBenefits = benefits.filter((b) => b.section === "member");
   const categoryOf = (b: PublicBenefit) => b.category || UNCATEGORISED;
   // Grouped by the `category` column rather than by five hardcoded blurbs.
   const categories = [...new Set(memberBenefits.map(categoryOf))];
+  // One category ("Annet" for every migrated row) is no grouping at all.
+  const groupsByCategory = categories.length > 1;
   const lineSections = LINE_SECTIONS.map((config) => ({
     ...config,
     items: benefits
@@ -227,16 +182,23 @@ export async function MembershipV2({
             );
             return (
               <div className="mb-12 last:mb-0" key={category}>
-                <SectionHeading as="h3">
-                  {benefitCategoryLabel(category, locale)}
-                </SectionHeading>
+                {groupsByCategory ? (
+                  <SectionHeading as="h3">
+                    {benefitCategoryLabel(category, locale)}
+                  </SectionHeading>
+                ) : null}
                 <CardGrid>
                   {inCategory.map((benefit) => (
-                    <BenefitCard
+                    <BenefitSummaryCard
                       benefit={benefit}
+                      formatValidUntil={(date) =>
+                        tBenefits("validUntil", { date })
+                      }
+                      // Each card sits under its category's `h3`, if any.
+                      headingLevel={groupsByCategory ? "h4" : "h3"}
                       key={benefit.id}
                       locale={locale}
-                      offerLabel={t("plans.offer")}
+                      variant="full"
                     />
                   ))}
                 </CardGrid>

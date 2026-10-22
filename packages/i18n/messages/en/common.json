@@ -323,5 +323,10 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System"
+  },
+  "benefits": {
+    "validUntil": "Valid until {date}",
+    "onCampus": "At {campus}",
+    "everyMember": "For every BISO member"
   }
 }

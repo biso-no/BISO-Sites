@@ -323,5 +323,10 @@
     "light": "Lyst",
     "dark": "Mørkt",
     "system": "System"
+  },
+  "benefits": {
+    "validUntil": "Gjelder til {date}",
+    "onCampus": "På {campus}",
+    "everyMember": "For alle BISO-medlemmer"
   }
 }

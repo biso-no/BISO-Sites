@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Pill } from "@/components/ui/pill";
 import {
   benefitCategoryLabel,
+  benefitDescriptionText,
   localizedPublicBenefitText,
 } from "@/lib/benefit-text";
 
@@ -14,12 +15,14 @@ import {
  * code itself behind membership. The padlock is said in words too.
  *
  * Headed by the partner when there is one, else by the benefit's own title —
- * never by a made-up "Partner".
+ * never by a made-up "Partner". The description is public; only the code is
+ * not, so a short excerpt says what the deal is.
  */
 export function BenefitPreviewCard({ benefit }: { benefit: PublicBenefit }) {
   const t = useTranslations("memberPortal.preview");
   const locale = useLocale();
-  const { title } = localizedPublicBenefitText(benefit, locale);
+  const { description, title } = localizedPublicBenefitText(benefit, locale);
+  const excerpt = benefitDescriptionText(description);
   const categoryLabel = benefitCategoryLabel(benefit.category, locale);
   const heading = benefit.partner?.name.trim() || title;
 
@@ -38,6 +41,11 @@ export function BenefitPreviewCard({ benefit }: { benefit: PublicBenefit }) {
           {title}
         </p>
       )}
+      {excerpt ? (
+        <p className="type-body-sm mt-2 line-clamp-3 whitespace-pre-line text-ink-muted">
+          {excerpt}
+        </p>
+      ) : null}
     </div>
   );
 }

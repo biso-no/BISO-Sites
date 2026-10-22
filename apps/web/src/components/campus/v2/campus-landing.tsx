@@ -9,6 +9,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { BenefitSummaryCard } from "@/components/benefits/v2/benefit-summary-card";
 import { PartnerLink } from "@/components/home/v2/partner-link";
 import { CardGrid } from "@/components/ui/card-grid";
 import { ChevronFrame } from "@/components/ui/chevron-frame";
@@ -89,15 +90,14 @@ const UNITS_PREVIEW = 8;
 /** Campuses with a photograph in `public/images/campus`. */
 const CAMPUS_PHOTOS = new Set(["oslo", "bergen", "trondheim", "stavanger"]);
 
-type BenefitGroup =
-  | "studentBenefits"
-  | "careerAdvantages"
-  | "socialNetwork"
-  | "safety";
+type BenefitGroup = "careerAdvantages" | "socialNetwork" | "safety";
 
-/** Each "For students" card and the benefits studio section it lists. */
+/**
+ * The one-line "For students" cards and the benefits studio section each
+ * lists. Member benefits are not among them: they carry a partner and a
+ * description, so they get cards of their own (`MemberBenefits`).
+ */
 const BENEFIT_GROUPS: { key: BenefitGroup; section: BenefitSection }[] = [
-  { key: "studentBenefits", section: "member" },
   { key: "careerAdvantages", section: "career" },
   { key: "socialNetwork", section: "social" },
   { key: "safety", section: "safety" },
@@ -158,6 +158,14 @@ export async function CampusLanding({
     items: sectionTitles(benefits, section, locale),
   })).filter((group) => group.items.length > 0);
   const businessBenefits = sectionTitles(benefits, "business", locale);
+  // `benefits` arrives campus rows first; national ones follow. On the
+  // national page every row is national, so there is one group.
+  const memberRows = benefits.filter((benefit) => benefit.section === "member");
+  const memberBenefits = {
+    local: memberRows.filter((benefit) => benefit.campusId === id),
+    national: memberRows.filter((benefit) => benefit.campusId !== id),
+  };
+  const hasMemberBenefits = memberRows.length > 0;
 
   return (
     <>
@@ -209,9 +217,12 @@ export async function CampusLanding({
         />
       ) : null}
 
-      {benefitGroups.length > 0 || units.length > 0 ? (
+      {hasMemberBenefits || benefitGroups.length > 0 || units.length > 0 ? (
         <ForStudentsSection
           benefitGroups={benefitGroups}
+          campusName={name}
+          locale={locale}
+          memberBenefits={memberBenefits}
           slug={slug}
           units={units}
         />
@@ -513,6 +524,9 @@ async function LeadershipSection({
 /** The old "For students" tab: the campus's benefits, then its units. */
 async function ForStudentsSection({
   benefitGroups,
+  campusName,
+  locale,
+  memberBenefits,
   slug,
   units,
 }: {
@@ -520,16 +534,32 @@ async function ForStudentsSection({
     items: { id: string; title: string }[];
     key: BenefitGroup;
   }[];
+  campusName: string;
+  locale: "en" | "no";
+  memberBenefits: { local: PublicBenefit[]; national: PublicBenefit[] };
   slug: string;
   units: PublicUnit[];
 }) {
-  const [t, tUnits, tCategory] = await Promise.all([
+  const [t, tUnits, tCategory, tBenefits] = await Promise.all([
     getTranslations("campus"),
     getTranslations("units"),
     // Unit categories are named once, in the jobs filter bundle.
     getTranslations("jobs"),
+    getTranslations("common.benefits"),
   ]);
   const unitPreview = units.slice(0, UNITS_PREVIEW);
+  const memberGroups = [
+    {
+      key: "local",
+      label: tBenefits("onCampus", { campus: campusName }),
+      rows: memberBenefits.local,
+    },
+    {
+      key: "national",
+      label: tBenefits("everyMember"),
+      rows: memberBenefits.national,
+    },
+  ].filter((group) => group.rows.length > 0);
 
   return (
     <Section className="border-edge border-t" id="students" tone="paper">
@@ -538,8 +568,45 @@ async function ForStudentsSection({
         {t("forStudents.lede")}
       </p>
 
+      {memberGroups.length > 0 ? (
+        <div className="mb-12 last:mb-0">
+          {/* Codes and member links live in the portal, members only. */}
+          <SectionHeading
+            as="h3"
+            className="mb-2"
+            seeAllHref="/member"
+            seeAllLabel={t("forStudents.memberPortalLink")}
+          >
+            {t("forStudents.groups.studentBenefits.title")}
+          </SectionHeading>
+          <p className="type-body-sm mb-6 max-w-(--measure) text-ink-muted">
+            {t("forStudents.groups.studentBenefits.description")}
+          </p>
+          {memberGroups.map((group) => (
+            <div className="mb-8 last:mb-0" key={group.key}>
+              {/* Only worth saying when both kinds are on the page. */}
+              {memberGroups.length > 1 ? (
+                <p className="type-label mb-3 text-ink-accent">{group.label}</p>
+              ) : null}
+              <CardGrid>
+                {group.rows.map((benefit) => (
+                  <BenefitSummaryCard
+                    benefit={benefit}
+                    formatValidUntil={(date) =>
+                      tBenefits("validUntil", { date })
+                    }
+                    key={benefit.id}
+                    locale={locale}
+                  />
+                ))}
+              </CardGrid>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {benefitGroups.length > 0 ? (
-        <ul className="mb-12 grid gap-4 last:mb-0 sm:grid-cols-2">
+        <ul className="mb-12 grid gap-4 last:mb-0 sm:grid-cols-2 lg:grid-cols-3">
           {benefitGroups.map((group) => (
             <li
               className="rounded-biso-md border border-edge p-6"
@@ -561,15 +628,6 @@ async function ForStudentsSection({
                   </li>
                 ))}
               </ul>
-              {/* Codes and member links live in the portal, members only. */}
-              {group.key === "studentBenefits" ? (
-                <Link
-                  className="type-label mt-4 inline-flex text-ink-accent underline-offset-4 hover:underline"
-                  href="/member"
-                >
-                  {t("forStudents.memberPortalLink")}
-                </Link>
-              ) : null}
             </li>
           ))}
         </ul>

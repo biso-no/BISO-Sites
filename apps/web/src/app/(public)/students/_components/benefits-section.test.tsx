@@ -44,7 +44,7 @@ const render = async (benefits: PublicBenefit[], campusId: string | null) =>
   );
 
 describe("/students BenefitsSection", () => {
-  it("shows four member titles with the selected campus's first", async () => {
+  it("shows three member deals with the selected campus's first", async () => {
     const html = await render(
       [
         member("nat1", "5", 0),
@@ -57,8 +57,35 @@ describe("/students BenefitsSection", () => {
     );
     const shown = html.match(BENEFIT_TITLE) ?? [];
 
-    expect(shown).toHaveLength(4);
-    expect(shown[0]).toBe("T-bergen1");
+    expect(shown).toEqual(["T-bergen1", "T-nat1", "T-nat2"]);
+  });
+
+  it("shows each deal's description", async () => {
+    const html = await render(
+      [
+        {
+          ...member("bergen1", BERGEN, 0),
+          description: { en: null, nb: "<p>Vis medlemskortet i kassa.</p>" },
+        },
+      ],
+      BERGEN
+    );
+
+    expect(html).toContain("Vis medlemskortet i kassa.");
+    expect(html).not.toContain("&lt;p&gt;");
+  });
+
+  it("lists the one-line sections after the deals", async () => {
+    const html = await render(
+      [
+        member("bergen1", BERGEN, 0),
+        { ...member("career1", BERGEN, 0), section: "career" },
+      ],
+      BERGEN
+    );
+
+    expect(html.indexOf("T-bergen1")).toBeLessThan(html.indexOf("T-career1"));
+    expect(html).toContain("benefits.labels.career");
   });
 
   it("shows only national rows for every campus", async () => {

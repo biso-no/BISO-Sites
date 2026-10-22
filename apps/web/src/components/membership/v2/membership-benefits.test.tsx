@@ -49,11 +49,35 @@ describe("/membership benefits", () => {
   });
 
   it("counts the member benefits and groups them by category label", async () => {
-    const html = await render([benefit("a"), benefit("b")]);
+    const html = await render([
+      benefit("a"),
+      benefit("b", { category: "travel" }),
+    ]);
 
     expect(html).toContain(`${BENEFIT_COUNT}:2`);
     expect(html).toContain("Mat og drikke");
+    expect(html).toContain("Reise");
     expect(html).toContain("Tilbud a");
+  });
+
+  it("adds no category heading when every benefit shares one", async () => {
+    const html = await render([
+      benefit("a", { category: "other" }),
+      benefit("b", { category: null }),
+    ]);
+
+    expect(html).not.toContain("Annet");
+    expect(html).toContain("<h3");
+  });
+
+  it("shows each benefit's description in full", async () => {
+    const html = await render([
+      benefit("a", {
+        description: { en: null, nb: "<p>Gjelder <em>hele</em> året.</p>" },
+      }),
+    ]);
+
+    expect(html).toContain("<em>hele</em>");
   });
 
   it("lists the one-line sections without counting them as member benefits", async () => {
