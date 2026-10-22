@@ -1,7 +1,9 @@
 import { Building2 } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { getLocale } from "@/app/actions/locale";
 import { AboutHero } from "@/components/about/about-hero";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import { BusinessHotspotClient } from "./business-hotspot-client";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,6 +16,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function BusinessHotspotPage() {
   const t = await getTranslations("businessHotspot");
+  const items = await getMembershipTextItems(
+    "business_hotspot",
+    await getLocale()
+  );
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
@@ -30,7 +36,7 @@ export default async function BusinessHotspotPage() {
       />
 
       {/* Client component for animations */}
-      <BusinessHotspotClient />
+      <BusinessHotspotClient items={items} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { getActiveCampus } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
 import { AboutHero } from "@/components/about/about-hero";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { careerDaysHrefs } from "@/lib/project-unit-links";
 import { BusinessPageClient } from "./business-page-client";
@@ -26,7 +27,10 @@ export default async function PartnerPage() {
   ]);
   // A unit-directory outage must not take the page down: with no units every
   // card falls back to the Karrieredagene project page.
-  const units = await cachedPublicUnits(locale as Locale).catch(() => []);
+  const [units, items] = await Promise.all([
+    cachedPublicUnits(locale as Locale).catch(() => []),
+    getMembershipTextItems("business", locale),
+  ]);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-section to-background">
@@ -42,6 +46,7 @@ export default async function PartnerPage() {
       <BusinessPageClient
         activeCampus={activeCampus}
         careerDaysLinks={careerDaysHrefs(units)}
+        items={items}
       />
     </div>
   );

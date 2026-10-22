@@ -1,5 +1,6 @@
 "use client";
 
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Users } from "lucide-react";
@@ -7,9 +8,22 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-export function MemberCalloutClient() {
+interface MemberCalloutClientProps {
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
+}
+
+export function MemberCalloutClient({ items }: MemberCalloutClientProps) {
   const router = useRouter();
   const t = useTranslations("shop");
+  const lines = items?.length
+    ? items.map((item) => item.title)
+    : [
+        t("member.benefitDiscounts"),
+        t("member.benefitEvents"),
+        t("member.benefitPriority"),
+        t("member.benefitPartner"),
+      ];
 
   return (
     <motion.div
@@ -28,10 +42,9 @@ export function MemberCalloutClient() {
               {t("member.joinIntro")}
             </p>
             <ul className="space-y-1 text-muted-foreground text-sm">
-              <li>✓ {t("member.benefitDiscounts")}</li>
-              <li>✓ {t("member.benefitEvents")}</li>
-              <li>✓ {t("member.benefitPriority")}</li>
-              <li>✓ {t("member.benefitPartner")}</li>
+              {lines.map((line) => (
+                <li key={line}>✓ {line}</li>
+              ))}
             </ul>
             <p className="mt-2 mb-3 text-muted-foreground text-xs">
               💡 {t("member.bestValue")}

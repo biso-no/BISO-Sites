@@ -11,6 +11,8 @@ import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { ArrowLeft, MapPin, Tag, Users } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { getLocale } from "@/app/actions/locale";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 import {
   type ProductCustomFieldRow,
@@ -48,6 +50,11 @@ export async function ProductDetailsServer({
   availableStock = null,
 }: ProductDetailsServerProps) {
   const t = await getTranslations("shop");
+  // Only the non-member callout shows these lines.
+  const calloutItems =
+    isMember || product.category === "Membership"
+      ? null
+      : await getMembershipTextItems("shop_callout", await getLocale());
   const productRef = product;
   const translation = Array.isArray(product.translation_refs)
     ? product.translation_refs.find(
@@ -221,7 +228,7 @@ export async function ProductDetailsServer({
 
               {/* Member Benefits (Client Component) */}
               {!isMember && productRef.category !== "Membership" && (
-                <MemberCalloutClient />
+                <MemberCalloutClient items={calloutItems} />
               )}
             </div>
           </div>

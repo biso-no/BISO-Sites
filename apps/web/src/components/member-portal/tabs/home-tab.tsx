@@ -1,6 +1,7 @@
 "use client";
 
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -35,6 +36,8 @@ interface HomeTabProps {
   isMember: boolean;
   membershipType: string;
   onTabChange: (tab: string) => void;
+  /** Saved plan card lines; null or missing keeps the i18n text. */
+  planCardItems?: MembershipTextItem[] | null;
   startDate: string;
   termDays: number;
 }
@@ -320,7 +323,13 @@ function MemberOverview({
   );
 }
 
-function NonMemberOverview({ benefits }: { benefits: PublicBenefit[] }) {
+function NonMemberOverview({
+  benefits,
+  planCardItems,
+}: {
+  benefits: PublicBenefit[];
+  planCardItems?: MembershipTextItem[] | null;
+}) {
   const t = useTranslations("memberPortal.overview");
   return (
     <>
@@ -350,7 +359,7 @@ function NonMemberOverview({ benefits }: { benefits: PublicBenefit[] }) {
       <BenefitsShowcase benefits={benefits} />
 
       {/* CTA Section */}
-      <MembershipCtaSection />
+      <MembershipCtaSection items={planCardItems} />
     </>
   );
 }
@@ -367,6 +376,7 @@ export function HomeTab({
   isMember,
   hasBIIdentity: _hasBIIdentity,
   onTabChange,
+  planCardItems,
   termDays,
 }: HomeTabProps) {
   return (
@@ -390,7 +400,7 @@ export function HomeTab({
           />
         </>
       ) : (
-        <NonMemberOverview benefits={benefits} />
+        <NonMemberOverview benefits={benefits} planCardItems={planCardItems} />
       )}
     </TabsContent>
   );

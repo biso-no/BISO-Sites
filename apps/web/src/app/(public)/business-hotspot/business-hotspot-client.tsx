@@ -1,5 +1,6 @@
 "use client";
 
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -22,7 +23,21 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { BRAND_BADGE, BRAND_CARD } from "@/lib/brand-card";
 
-export function BusinessHotspotClient() {
+const BENEFIT_ICONS = [
+  Users,
+  Target,
+  Calendar,
+  MessageSquare,
+  Handshake,
+  Sparkles,
+];
+
+interface BusinessHotspotClientProps {
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
+}
+
+export function BusinessHotspotClient({ items }: BusinessHotspotClientProps) {
   const t = useTranslations("businessHotspot");
 
   const features = [
@@ -46,32 +61,21 @@ export function BusinessHotspotClient() {
     },
   ];
 
-  const benefits = [
-    {
-      icon: Users,
-      text: t("benefits.access"),
-    },
-    {
-      icon: Target,
-      text: t("benefits.recruitment"),
-    },
-    {
-      icon: Calendar,
-      text: t("benefits.booking"),
-    },
-    {
-      icon: MessageSquare,
-      text: t("benefits.engage"),
-    },
-    {
-      icon: Handshake,
-      text: t("benefits.partnership"),
-    },
-    {
-      icon: Sparkles,
-      text: t("benefits.visibility"),
-    },
+  const defaultBenefitTexts = [
+    t("benefits.access"),
+    t("benefits.recruitment"),
+    t("benefits.booking"),
+    t("benefits.engage"),
+    t("benefits.partnership"),
+    t("benefits.visibility"),
   ];
+  const benefitTexts = items?.length
+    ? items.map((item) => item.title)
+    : defaultBenefitTexts;
+  const benefits = benefitTexts.map((text, index) => ({
+    icon: BENEFIT_ICONS[index % BENEFIT_ICONS.length],
+    text,
+  }));
 
   return (
     <>

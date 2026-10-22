@@ -4,6 +4,7 @@ import {
   membershipPriceFormatter,
   POPULAR_MEMBERSHIP_DURATION,
 } from "@repo/shared/utils/membership-plans";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -23,6 +24,8 @@ interface MembershipTabProps {
   current: CurrentMembershipView | null;
   hasBIIdentity: boolean;
   isMember: boolean;
+  /** Saved portal lock lines; null or missing keeps the i18n text. */
+  lockedItems?: MembershipTextItem[] | null;
   plans: PlanView[];
 }
 
@@ -60,6 +63,7 @@ export function MembershipTab({
   current,
   hasBIIdentity,
   isMember,
+  lockedItems,
   plans,
 }: MembershipTabProps) {
   const t = useTranslations("memberPortal.membership");
@@ -151,7 +155,7 @@ export function MembershipTab({
       {isMember ? (
         content
       ) : (
-        <LockedContentOverlay hasBIIdentity={hasBIIdentity}>
+        <LockedContentOverlay hasBIIdentity={hasBIIdentity} items={lockedItems}>
           {content}
         </LockedContentOverlay>
       )}

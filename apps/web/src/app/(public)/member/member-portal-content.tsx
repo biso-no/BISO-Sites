@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { cookies } from "next/headers";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { getActiveCampus } from "@/app/actions/campus";
+import { getLocale } from "@/app/actions/locale";
 import {
   getFeaturedBenefits,
   getMemberPortalBenefits,
@@ -15,6 +16,7 @@ import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs"
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
 import type { MembershipStatus } from "@/lib/actions/membership";
 import { CAMPUS_COOKIE } from "@/lib/cookie-prefs";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import {
   heldThrough,
   toCurrentMembershipView,
@@ -60,11 +62,15 @@ export async function MemberPortalContent({
       (profile?.campus_id || user?.profile?.campus_id || NATIONAL_CAMPUS_ID));
 
   // Benefits carry no codes; a member gets one only through revealBenefit.
-  const [benefits, featuredBenefits, plans] = await Promise.all([
-    getMemberPortalBenefits(campusId),
-    getFeaturedBenefits(campusId),
-    getMembershipOfferCandidates().catch(() => []),
-  ]);
+  const textLocale = await getLocale();
+  const [benefits, featuredBenefits, plans, planCardItems, lockedItems] =
+    await Promise.all([
+      getMemberPortalBenefits(campusId),
+      getFeaturedBenefits(campusId),
+      getMembershipOfferCandidates().catch(() => []),
+      getMembershipTextItems("plan_card", textLocale),
+      getMembershipTextItems("portal_locked", textLocale),
+    ]);
 
   const current = membership ? toCurrentMembershipView(membership) : null;
   const isMember = current !== null;
@@ -138,7 +144,9 @@ export async function MemberPortalContent({
           hasBIIdentity={hasBIIdentity}
           isGuest={!user}
           isMember={isMember}
+          lockedItems={lockedItems}
           membershipType={membershipType}
+          planCardItems={planCardItems}
           plans={offeredPlans}
           profile={profile || user?.profile || null}
           profileAccount={

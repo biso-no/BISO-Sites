@@ -1,5 +1,6 @@
 "use client";
 
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -28,6 +29,8 @@ import { switchToBiSignIn } from "@/lib/server";
 interface LockedContentOverlayProps {
   children: React.ReactNode;
   hasBIIdentity: boolean;
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
 }
 
 const MEMBERSHIP_OPTIONS: {
@@ -44,13 +47,14 @@ const QUICK_BENEFIT_KEYS = ["discounts", "card", "priority", "career"] as const;
 
 export function LockedContentOverlay({
   hasBIIdentity,
+  items,
   children,
 }: LockedContentOverlayProps) {
   const t = useTranslations("memberPortal");
   const router = useRouter();
-  const quickBenefits = QUICK_BENEFIT_KEYS.map((key) =>
-    t(`locked.quickBenefits.${key}`)
-  );
+  const quickBenefits = items?.length
+    ? items.map((item) => item.title)
+    : QUICK_BENEFIT_KEYS.map((key) => t(`locked.quickBenefits.${key}`));
   const [isPending, startTransition] = useTransition();
   const [isLinking, startLinkTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");

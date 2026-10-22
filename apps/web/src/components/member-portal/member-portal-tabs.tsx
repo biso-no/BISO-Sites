@@ -2,6 +2,7 @@
 
 import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import type {
   CurrentMembershipView,
   PlanView,
@@ -27,7 +28,11 @@ interface MemberPortalTabsProps {
   hasBIIdentity: boolean;
   isGuest: boolean;
   isMember: boolean;
+  /** Saved portal lock lines; null or missing keeps the i18n text. */
+  lockedItems?: MembershipTextItem[] | null;
   membershipType: string;
+  /** Saved plan card lines; null or missing keeps the i18n text. */
+  planCardItems?: MembershipTextItem[] | null;
   plans: PlanView[];
   profile: Users | null;
   profileAccount: { name: string; email: string } | null;
@@ -48,6 +53,8 @@ export function MemberPortalTabs({
   isGuest,
   isMember,
   hasBIIdentity,
+  lockedItems,
+  planCardItems,
   profile,
   profileAccount,
   publicProfile,
@@ -82,6 +89,7 @@ export function MemberPortalTabs({
         isMember={isMember}
         membershipType={membershipType}
         onTabChange={handleTabChange}
+        planCardItems={planCardItems}
         startDate={startDate}
         termDays={termDays}
       />
@@ -91,6 +99,7 @@ export function MemberPortalTabs({
         featuredBenefits={featuredBenefits}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
+        planCardItems={planCardItems}
       />
 
       <CampusTab />
@@ -101,6 +110,7 @@ export function MemberPortalTabs({
         current={current}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
+        lockedItems={lockedItems}
         plans={plans}
       />
 

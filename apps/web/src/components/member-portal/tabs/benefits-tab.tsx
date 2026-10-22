@@ -1,6 +1,7 @@
 "use client";
 
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
@@ -24,6 +25,8 @@ interface BenefitsTabProps {
   featuredBenefits?: PublicBenefit[];
   hasBIIdentity: boolean;
   isMember: boolean;
+  /** Saved plan card lines; null or missing keeps the i18n text. */
+  planCardItems?: MembershipTextItem[] | null;
 }
 
 const NON_MEMBER_CHIP_LIMIT = 4;
@@ -192,7 +195,13 @@ function MemberBenefitsView({ benefits }: { benefits: PublicBenefit[] }) {
   );
 }
 
-function NonMemberBenefitsView({ benefits }: { benefits: PublicBenefit[] }) {
+function NonMemberBenefitsView({
+  benefits,
+  planCardItems,
+}: {
+  benefits: PublicBenefit[];
+  planCardItems?: MembershipTextItem[] | null;
+}) {
   const t = useTranslations("memberPortal.benefits");
   const locale = useLocale();
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -278,7 +287,7 @@ function NonMemberBenefitsView({ benefits }: { benefits: PublicBenefit[] }) {
       </div>
 
       {/* CTA Section */}
-      <MembershipCtaSection />
+      <MembershipCtaSection items={planCardItems} />
     </>
   );
 }
@@ -288,13 +297,17 @@ export function BenefitsTab({
   featuredBenefits: _featuredBenefits = [],
   isMember,
   hasBIIdentity: _hasBIIdentity,
+  planCardItems,
 }: BenefitsTabProps) {
   return (
     <TabsContent className="space-y-8" value="benefits">
       {isMember ? (
         <MemberBenefitsView benefits={benefits} />
       ) : (
-        <NonMemberBenefitsView benefits={benefits} />
+        <NonMemberBenefitsView
+          benefits={benefits}
+          planCardItems={planCardItems}
+        />
       )}
     </TabsContent>
   );
