@@ -48,4 +48,6 @@ Follow the order. Each stage's steps assume the previous ones are done.
    - Campus admins (the `Ledelsen <campus>` groups) manage their own campus and see the national benefits read-only.
    - Global admins and the listed editors manage every campus and the national benefits.
    - **Department members no longer see Fordeler.**
-4. **Codes stay in the public columns until stage 4.** Codes and partner names are still also written to the old public columns, the same as today, because the website still reads them there. Ship stage 4 soon after.
+4. **Smoke test after deploying.** In the new admin, hide a test benefit ("Skjul fra nettsiden"). In the Console, check that the benefit and its translation rows have empty permissions. Publish it again and check that they get `read("any")`.
+5. **Old free-text partner names stay for now.** A benefit whose partner was only typed as text (from before the migration) keeps that name on today's website, and the panel can't remove it until stage 4.
+6. **Codes stay in the public columns until stage 4.** Codes and partner names are still also written to the old public columns, the same as today, because the website still reads them there. Ship stage 4 soon after.
