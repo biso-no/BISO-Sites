@@ -3,12 +3,15 @@ import {
   isVersionString,
 } from "@repo/shared/utils/app-versions";
 
-/** True when a valid typed minimum is higher than the version live in the store. */
+/**
+ * True when a valid typed version (minimum or recommended) is higher than the
+ * version live in the store.
+ */
 export function shouldWarnAboveStore(
-  minimum: string,
+  typed: string,
   storeVersion: string | null
 ): boolean {
-  const trimmed = minimum.trim();
+  const trimmed = typed.trim();
   if (storeVersion === null || !isVersionString(trimmed)) {
     return false;
   }

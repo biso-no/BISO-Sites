@@ -109,6 +109,9 @@ describe("findActivePath", () => {
     expect(findActivePath("/settings/feature-flags")).toBe(
       "/settings/feature-flags"
     );
+    expect(findActivePath("/settings/app-versions")).toBe(
+      "/settings/app-versions"
+    );
     expect(findActivePath("/settings")).toBe("/settings");
     expect(findActivePath("/settings/payments/foo")).toBe("/settings/payments");
   });

@@ -5,6 +5,7 @@ import {
   type AppPlatform,
   type AppVersionError,
   type AppVersionPolicy,
+  validateAppVersionPolicy,
 } from "@repo/shared/utils/app-versions";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ interface AppVersionsLabels {
   saved: string;
   saveError: string;
   warnAboveStore: string;
+  warnRecommendedAboveStore: string;
 }
 
 interface Draft {
@@ -62,6 +64,7 @@ function VersionField({
   label,
   onChange,
   value,
+  warning,
 }: {
   disabled: boolean;
   help: string;
@@ -70,6 +73,7 @@ function VersionField({
   label: string;
   onChange: (value: string) => void;
   value: string;
+  warning: string | null;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -81,13 +85,14 @@ function VersionField({
         {label}
       </label>
       <input
-        aria-describedby={`${id}-help`}
+        aria-describedby={
+          warning === null ? `${id}-help` : `${id}-help ${id}-warning`
+        }
         aria-invalid={invalid}
         autoComplete="off"
         className="w-full rounded-lg px-3 py-2 text-sm sm:w-48"
         disabled={disabled}
         id={id}
-        inputMode="decimal"
         onChange={(event) => onChange(event.target.value)}
         placeholder="1.2.3"
         style={{
@@ -105,6 +110,16 @@ function VersionField({
       >
         {help}
       </span>
+      {warning !== null && (
+        <span
+          className="max-w-xs text-xs"
+          id={`${id}-warning`}
+          role="status"
+          style={{ color: STUDIO.claret }}
+        >
+          {warning}
+        </span>
+      )}
     </div>
   );
 }
@@ -129,7 +144,10 @@ function PlatformCard({
   platform: AppPlatform;
 }) {
   const isIos = platform === "ios";
-  const warn = isIos && shouldWarnAboveStore(draft.minimum, appStoreVersion);
+  const warnMinimum =
+    isIos && shouldWarnAboveStore(draft.minimum, appStoreVersion);
+  const warnRecommended =
+    isIos && shouldWarnAboveStore(draft.recommended, appStoreVersion);
 
   return (
     <div className="rounded-2xl p-6" style={studioSurface}>
@@ -153,6 +171,7 @@ function PlatformCard({
           label={labels.minimum}
           onChange={(minimum) => onChange({ ...draft, minimum })}
           value={draft.minimum}
+          warning={warnMinimum ? labels.warnAboveStore : null}
         />
         <VersionField
           disabled={pending}
@@ -165,6 +184,7 @@ function PlatformCard({
           label={labels.recommended}
           onChange={(recommended) => onChange({ ...draft, recommended })}
           value={draft.recommended}
+          warning={warnRecommended ? labels.warnRecommendedAboveStore : null}
         />
       </div>
 
@@ -175,15 +195,6 @@ function PlatformCard({
           style={{ color: STUDIO.claret }}
         >
           {labels.errors[errorKey]}
-        </p>
-      )}
-      {warn && (
-        <p
-          className="mt-4 text-xs"
-          role="status"
-          style={{ color: STUDIO.claret }}
-        >
-          {labels.warnAboveStore}
         </p>
       )}
       {!isIos && (
@@ -232,6 +243,12 @@ export function AppVersionsClient({
   const [, startTransition] = useTransition();
 
   function handleSave(platform: AppPlatform) {
+    // The same check the server runs, so a typo never needs a round trip.
+    const validated = validateAppVersionPolicy(drafts[platform]);
+    if ("error" in validated) {
+      setErrors((current) => ({ ...current, [platform]: validated.error }));
+      return;
+    }
     setPendingPlatform(platform);
     startTransition(async () => {
       const result = await saveAppVersionPolicy(platform, drafts[platform]);

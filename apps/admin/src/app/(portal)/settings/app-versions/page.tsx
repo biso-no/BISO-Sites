@@ -36,6 +36,7 @@ export default async function AppVersionsPage() {
           saved: t("saved"),
           saveError: t("saveError"),
           warnAboveStore: t("warnAboveStore"),
+          warnRecommendedAboveStore: t("warnRecommendedAboveStore"),
         }}
       />
     </div>
