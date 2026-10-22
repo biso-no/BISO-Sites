@@ -32,10 +32,12 @@ function row(
   };
 }
 
-function mockTables(rows: unknown[]) {
-  listRows.mockImplementation(async (_db: string, table: string) => ({
-    rows: table === "campus_benefits" ? rows : [],
-  }));
+function mockTables(rows: unknown[], partners: unknown[] = []) {
+  listRows.mockImplementation((_db: string, table: string) =>
+    Promise.resolve({
+      rows: table === "campus_benefits" ? rows : partners,
+    })
+  );
 }
 
 function request(query = "", headers: Record<string, string> = {}) {
@@ -63,12 +65,47 @@ describe("GET /api/benefits", () => {
     ]);
   });
 
-  it("never selects the code column", async () => {
+  it("pins the list query: published only, public columns, never the code", async () => {
     await GET(request("?campus=2"));
-    const queries = listRows.mock.calls
-      .flatMap((call) => call[2] as string[])
-      .join(" ");
+    const benefitCall = listRows.mock.calls.find(
+      (call) => call[1] === "campus_benefits"
+    );
+    const queries = (benefitCall?.[2] as string[]).join(" ");
+    expect(queries).toContain("published");
+    expect(queries).toContain("equal");
+    expect(queries).toContain("select");
+    expect(queries).toContain("title_nb");
     expect(queries).not.toContain("redemption_value");
+  });
+
+  it("hides drafts, expired rows and rows of ended partners, using the request-time clock", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-22T12:00:00.000Z"));
+    try {
+      mockTables(
+        [
+          row("ok", "5"),
+          row("ok-until", "5", { publish_end: "2026-12-01T00:00:00.000Z" }),
+          row("draft", "5", { status: "draft" }),
+          row("expired", "5", { publish_end: "2026-06-01T00:00:00.000Z" }),
+          row("inactive", "5", { partner_id: "p1" }),
+          row("missing-partner", "5", { partner_id: "p2" }),
+          row("with-partner", "5", { partner_id: "p3" }),
+        ],
+        [
+          { $id: "p1", is_active: false, name: "Gone" },
+          { $id: "p3", is_active: true, name: "Here" },
+        ]
+      );
+      const { benefits } = await (await GET(request())).json();
+      expect(benefits.map((b: { id: string }) => b.id).sort()).toEqual([
+        "ok",
+        "ok-until",
+        "with-partner",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns national only for an invalid or missing campus", async () => {
@@ -100,6 +137,7 @@ describe("GET /api/benefits", () => {
     const response = await GET(request("?campus=2"));
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "unavailable" });
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("boom");
     spy.mockRestore();
   });
 });

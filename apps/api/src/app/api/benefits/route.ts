@@ -28,11 +28,8 @@ export async function GET(req: NextRequest) {
 }
 
 function errorSummary(error: unknown): string {
-  const { code, message } = (error ?? {}) as {
-    code?: unknown;
-    message?: unknown;
-  };
-  return `${String(code ?? "")} ${String(message ?? "")}`.trim();
+  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
+  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
 }
 
 export function OPTIONS(req: NextRequest) {
