@@ -9,10 +9,12 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
 import { campusScopeIds } from "@/lib/campus-scope";
+import type { CampusLogo } from "@/lib/data/benefits";
 import type { PublicUnit } from "@/lib/data/units";
 import { CampusHero } from "./campus-hero";
 import { CampusTabs } from "./campus-tabs";
@@ -21,7 +23,9 @@ import { StudentsTab } from "./students/students-tab";
 import { TeamTab } from "./team/team-tab";
 
 interface CampusPageClientProps {
+  benefits: PublicBenefit[];
   campusData: CampusData[];
+  campusLogos: CampusLogo[];
   campusMetadata: Record<string, CampusMetadata>;
   events: Events[];
   jobs: Array<Jobs | RecruitmentVacancy>;
@@ -36,6 +40,8 @@ interface CampusPageClientProps {
 }
 
 export function CampusPageClient({
+  benefits,
+  campusLogos,
   events,
   jobs,
   units,
@@ -175,13 +181,19 @@ export function CampusPageClient({
           content={{
             students: (
               <div className="py-12">
-                <StudentsTab campusData={activeCampusData} locale={locale} />
+                <StudentsTab
+                  benefits={benefits}
+                  campusId={activeCampusId}
+                  locale={locale}
+                />
               </div>
             ),
             partners: (
               <div className="py-12">
                 <PartnersTab
-                  campusData={activeCampusData}
+                  benefits={benefits}
+                  campusId={activeCampusId}
+                  campusLogos={campusLogos}
                   campusName={activeCampus?.name || null}
                   locale={locale}
                 />

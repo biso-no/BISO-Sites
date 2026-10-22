@@ -199,7 +199,7 @@
   "cta": {
     "badge": "Join BISO Today",
     "title": "Unlock All Member Benefits",
-    "description": "Get instant access to 50+ exclusive discounts, member-only events, and career resources",
+    "description": "Get instant access to exclusive discounts, member-only events, and career resources",
     "plans": {
       "semester": "Semester",
       "year": "One Year",
@@ -212,7 +212,7 @@
     "processing": "Processing...",
     "socialProof": "Join 10,000+ BI students already saving",
     "benefits": {
-      "discounts": "Exclusive discounts at 50+ partners",
+      "discounts": "Exclusive discounts at our partners",
       "events": "Member-only events access",
       "career": "Career resources and networking",
       "card": "Digital membership card",

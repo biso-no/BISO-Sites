@@ -2,6 +2,12 @@
 
 import type { Locale } from "@repo/i18n/config";
 import { trackEvent } from "@repo/shared/utils/analytics";
+import type { BenefitSection as BenefitSectionKey } from "@repo/shared/utils/benefit-catalog";
+import {
+  benefitsForCampus,
+  countVisibleMemberBenefits,
+  type PublicBenefit,
+} from "@repo/shared/utils/benefit-public";
 import { ImageWithFallback } from "@repo/ui/components/image";
 import {
   Accordion,
@@ -37,22 +43,14 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useCampus } from "@/components/context/campus";
+import { localizedPublicBenefitText } from "@/lib/benefit-text";
 import { BRAND_CARD } from "@/lib/brand-card";
 import type { CampusData } from "@/lib/types/campus-data";
-
-type BenefitKey = keyof Pick<
-  CampusData,
-  | "studentBenefits"
-  | "careerAdvantages"
-  | "socialNetwork"
-  | "safety"
-  | "businessBenefits"
->;
 
 interface BenefitConfig {
   globalDescription: string;
   icon: LucideIcon;
-  key: BenefitKey;
+  key: BenefitSectionKey;
   localDescription: string;
   title: string;
 }
@@ -61,64 +59,32 @@ interface BenefitSection {
   description: string;
   icon: LucideIcon;
   items: string[];
-  key: BenefitKey;
+  key: BenefitSectionKey;
   title: string;
 }
 
-type BenefitLocaleSuffix = "nb" | "en";
-type LocalizedBenefitKey = `${BenefitKey}_${BenefitLocaleSuffix}`;
-
 interface MembershipPageClientProps {
+  benefits: PublicBenefit[];
   campusData: CampusData[];
-  globalBenefits: CampusData | null;
   locale: Locale;
-}
-
-function selectBenefitItems(
-  data: CampusData | null | undefined,
-  key: BenefitKey,
-  locale: Locale
-): string[] {
-  if (!data) {
-    return [];
-  }
-  const suffix: BenefitLocaleSuffix = locale === "en" ? "en" : "nb";
-  const localizedKey = `${key}_${suffix}` as LocalizedBenefitKey;
-  const localized = data[localizedKey as keyof CampusData] as unknown;
-  const fallback = data[key] as unknown;
-
-  let raw: string[] = [];
-  if (Array.isArray(localized)) {
-    raw = localized as string[];
-  } else if (Array.isArray(fallback)) {
-    raw = fallback as string[];
-  }
-
-  return raw
-    .map((item) => item?.trim())
-    .filter((item): item is string => Boolean(item));
 }
 
 function buildBenefitSections(
   configs: BenefitConfig[],
-  data: CampusData | null | undefined,
+  benefits: PublicBenefit[],
   locale: Locale,
   descriptionSelector: (config: BenefitConfig) => string
 ): BenefitSection[] {
-  if (!data) {
-    return [];
-  }
   return configs
-    .map((config) => {
-      const items = selectBenefitItems(data, config.key, locale);
-      return {
-        key: config.key,
-        title: config.title,
-        description: descriptionSelector(config),
-        icon: config.icon,
-        items,
-      };
-    })
+    .map((config) => ({
+      key: config.key,
+      title: config.title,
+      description: descriptionSelector(config),
+      icon: config.icon,
+      items: benefits
+        .filter((benefit) => benefit.section === config.key)
+        .map((benefit) => localizedPublicBenefitText(benefit, locale).title),
+    }))
     .filter((section) => section.items.length > 0);
 }
 
@@ -190,8 +156,8 @@ function StatPill({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
 }
 
 export function MembershipPageClient({
+  benefits,
   campusData,
-  globalBenefits,
   locale,
 }: MembershipPageClientProps) {
   const t = useTranslations("membership");
@@ -200,21 +166,21 @@ export function MembershipPageClient({
   const benefitConfigs = useMemo<BenefitConfig[]>(
     () => [
       {
-        key: "studentBenefits",
+        key: "member",
         title: t("benefits.categories.student.title"),
         globalDescription: t("benefits.categories.student.global"),
         localDescription: t("benefits.categories.student.local"),
         icon: GraduationCap,
       },
       {
-        key: "careerAdvantages",
+        key: "career",
         title: t("benefits.categories.career.title"),
         globalDescription: t("benefits.categories.career.global"),
         localDescription: t("benefits.categories.career.local"),
         icon: TrendingUp,
       },
       {
-        key: "socialNetwork",
+        key: "social",
         title: t("benefits.categories.social.title"),
         globalDescription: t("benefits.categories.social.global"),
         localDescription: t("benefits.categories.social.local"),
@@ -228,7 +194,7 @@ export function MembershipPageClient({
         icon: Shield,
       },
       {
-        key: "businessBenefits",
+        key: "business",
         title: t("benefits.categories.business.title"),
         globalDescription: t("benefits.categories.business.global"),
         localDescription: t("benefits.categories.business.local"),
@@ -354,28 +320,38 @@ export function MembershipPageClient({
     return null;
   }, [activeCampusId, campusDataById, activeCampus, campusDataByName]);
 
+  // National benefits only (`null` scopes to campus "5").
   const globalSections = useMemo(
     () =>
       buildBenefitSections(
         benefitConfigs,
-        globalBenefits,
+        benefitsForCampus(benefits, null),
         locale,
         (config) => config.globalDescription
       ),
-    [benefitConfigs, globalBenefits, locale]
+    [benefitConfigs, benefits, locale]
   );
 
+  // The campus's own rows only: the national ones already show above.
   const campusSections = useMemo(() => {
-    if (!activeCampusData || activeCampusData.$id === "5") {
+    const campusId = activeCampusData?.$id ?? activeCampusId;
+    if (!campusId || campusId === "5") {
       return [];
     }
     return buildBenefitSections(
       benefitConfigs,
-      activeCampusData,
+      benefitsForCampus(benefits, campusId).filter(
+        (benefit) => benefit.campusId === campusId
+      ),
       locale,
       (config) => config.localDescription
     );
-  }, [activeCampusData, benefitConfigs, locale]);
+  }, [activeCampusData, activeCampusId, benefitConfigs, benefits, locale]);
+
+  const memberBenefitCount = countVisibleMemberBenefits(
+    benefits,
+    activeCampusData?.$id ?? activeCampusId
+  );
 
   const campusDescription =
     locale === "en"
@@ -489,7 +465,9 @@ export function MembershipPageClient({
                   <StatPill icon={Users} label={t("hero.stats.members")} />
                   <StatPill
                     icon={BriefcaseBusiness}
-                    label={t("hero.stats.partners")}
+                    label={t("hero.stats.partners", {
+                      count: memberBenefitCount,
+                    })}
                   />
                 </div>
               </motion.div>
@@ -541,7 +519,7 @@ export function MembershipPageClient({
       {/* Main content container */}
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {/* Global Benefits Section */}
-        <section className="mb-20">
+        <section className="mb-20" id="fordeler">
           <motion.div
             animate={{ opacity: 1, y: 0 }}
             className="mb-10"

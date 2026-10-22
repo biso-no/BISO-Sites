@@ -16,7 +16,7 @@
     "stats": {
       "card": "Digital membership card in the app",
       "members": "Over 9,000 members",
-      "partners": "150+ partners"
+      "partners": "{count} member benefits"
     }
   },
   "benefits": {

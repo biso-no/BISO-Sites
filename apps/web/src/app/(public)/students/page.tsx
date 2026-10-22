@@ -2,7 +2,6 @@ import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { getCampusData } from "@/app/actions/campus";
 
 export const metadata: Metadata = {
   title: "For Students | BISO",
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
-import { getGlobalMembershipBenefits } from "@/app/actions/membership";
+import { getPublicBenefits } from "@/lib/data/benefits";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { StudentsPageClient } from "./students-page-client";
 
@@ -38,28 +37,26 @@ export default async function StudentsPage() {
 
   const locale = (await getLocale()) as Locale;
 
-  const [eventsResult, jobs, units, campusData, globalBenefits] =
-    await Promise.all([
-      listEvents({
-        pageSize: STUDENTS_PAGE_SIZE,
-        status: "published",
-        locale,
-        upcomingOnly: true,
-      }),
-      listJobs({ locale, pageSize: STUDENTS_PAGE_SIZE }),
-      // Same cached unit directory /units and /campus read. Campus slicing
-      // happens in the client below, so this deliberately fetches all campuses.
-      cachedPublicUnits(locale).catch(() => []),
-      getCampusData(),
-      getGlobalMembershipBenefits(),
-    ]);
+  const [eventsResult, jobs, units, benefits] = await Promise.all([
+    listEvents({
+      pageSize: STUDENTS_PAGE_SIZE,
+      status: "published",
+      locale,
+      upcomingOnly: true,
+    }),
+    listJobs({ locale, pageSize: STUDENTS_PAGE_SIZE }),
+    // Same cached unit directory /units and /campus read. Campus slicing
+    // happens in the client below, so this deliberately fetches all campuses.
+    cachedPublicUnits(locale).catch(() => []),
+    // Throws on a backend failure; the fallback lives at the call site.
+    getPublicBenefits().catch(() => []),
+  ]);
   const events = eventsResult.rows;
 
   return (
     <StudentsPageClient
-      campusData={campusData}
+      benefits={benefits}
       events={events}
-      globalBenefits={globalBenefits}
       jobs={jobs.rows as RecruitmentVacancy[]}
       locale={locale}
       units={units}

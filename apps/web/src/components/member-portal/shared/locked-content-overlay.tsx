@@ -41,7 +41,7 @@ const MEMBERSHIP_OPTIONS: {
 ];
 
 const QUICK_BENEFITS = [
-  "50+ exclusive discounts",
+  "Exclusive partner discounts",
   "Digital membership card",
   "Priority event access",
   "Career resources",

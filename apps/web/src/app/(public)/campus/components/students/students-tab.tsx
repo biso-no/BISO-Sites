@@ -1,11 +1,17 @@
-import type { CampusData } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import {
+  benefitsForCampus,
+  type PublicBenefit,
+} from "@repo/shared/utils/benefit-public";
 import { Heart, Shield, TrendingUp, Users } from "lucide-react";
 import { motion } from "motion/react";
+import { localizedPublicBenefitText } from "@/lib/benefit-text";
 import { BenefitsSection } from "./benefits-section";
 
 interface StudentsTabProps {
-  campusData: CampusData | null;
+  benefits: PublicBenefit[];
+  /** Selected campus; `null` shows the national benefits only. */
+  campusId: string | null;
   locale: Locale;
 }
 
@@ -15,6 +21,7 @@ const copy = {
     description:
       "Unlock exclusive opportunities and support throughout your student journey",
     empty: "No benefits information available for this campus yet.",
+    memberPortalLink: "See all offers and codes in the member portal",
     membership: {
       title: "Membership Benefits",
       description: "Exclusive perks and discounts for BISO members",
@@ -38,6 +45,7 @@ const copy = {
     description:
       "Lås opp eksklusive muligheter og støtte gjennom hele studietiden",
     empty: "Ingen fordelsinformasjon tilgjengelig for denne campusen ennå.",
+    memberPortalLink: "Se alle tilbud og koder i medlemsportalen",
     membership: {
       title: "Medlemsfordeler",
       description: "Eksklusive fordeler og rabatter for BISO-medlemmer",
@@ -57,56 +65,39 @@ const copy = {
   },
 };
 
-const pickCampusList = (
-  campusData: CampusData | null,
-  locale: Locale,
-  enKey: keyof CampusData,
-  nbKey: keyof CampusData
-) => {
-  if (!campusData) {
-    return [];
-  }
-  const primary = locale === "en" ? campusData[enKey] : campusData[nbKey];
-  const secondary = locale === "en" ? campusData[nbKey] : campusData[enKey];
-  return (
-    (primary as string[] | undefined) ||
-    (secondary as string[] | undefined) ||
-    []
-  );
-};
+const SECTIONS = [
+  {
+    colorScheme: "blue",
+    copyKey: "membership",
+    icon: Users,
+    section: "member",
+  },
+  {
+    colorScheme: "green",
+    copyKey: "career",
+    icon: TrendingUp,
+    section: "career",
+  },
+  { colorScheme: "pink", copyKey: "social", icon: Heart, section: "social" },
+  {
+    colorScheme: "purple",
+    copyKey: "safety",
+    icon: Shield,
+    section: "safety",
+  },
+] as const;
 
-export function StudentsTab({ campusData, locale }: StudentsTabProps) {
+export function StudentsTab({ benefits, campusId, locale }: StudentsTabProps) {
   const localeCopy = locale === "en" ? copy.en : copy.no;
-  const studentBenefits = pickCampusList(
-    campusData,
-    locale,
-    "studentBenefits_en",
-    "studentBenefits_nb"
-  );
 
-  const careerAdvantages = pickCampusList(
-    campusData,
-    locale,
-    "careerAdvantages_en",
-    "careerAdvantages_nb"
-  );
+  const cards = SECTIONS.map((config) => ({
+    ...config,
+    items: benefitsForCampus(benefits, campusId, [config.section]).map(
+      (benefit) => localizedPublicBenefitText(benefit, locale).title
+    ),
+  })).filter((card) => card.items.length > 0);
 
-  const socialNetwork = pickCampusList(
-    campusData,
-    locale,
-    "socialNetwork_en",
-    "socialNetwork_nb"
-  );
-
-  const safety = pickCampusList(campusData, locale, "safety_en", "safety_nb");
-
-  const hasBenefits =
-    studentBenefits.length > 0 ||
-    careerAdvantages.length > 0 ||
-    socialNetwork.length > 0 ||
-    safety.length > 0;
-
-  if (!hasBenefits) {
+  if (cards.length === 0) {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground">{localeCopy.empty}</p>
@@ -130,45 +121,21 @@ export function StudentsTab({ campusData, locale }: StudentsTabProps) {
       </motion.div>
 
       <div className="space-y-8">
-        {studentBenefits.length > 0 && (
+        {cards.map((card) => (
           <BenefitsSection
-            colorScheme="blue"
-            description={localeCopy.membership.description}
-            icon={Users}
-            items={studentBenefits}
-            title={localeCopy.membership.title}
+            colorScheme={card.colorScheme}
+            description={localeCopy[card.copyKey].description}
+            footerLink={
+              card.section === "member"
+                ? { href: "/member", label: localeCopy.memberPortalLink }
+                : undefined
+            }
+            icon={card.icon}
+            items={card.items}
+            key={card.section}
+            title={localeCopy[card.copyKey].title}
           />
-        )}
-
-        {careerAdvantages.length > 0 && (
-          <BenefitsSection
-            colorScheme="green"
-            description={localeCopy.career.description}
-            icon={TrendingUp}
-            items={careerAdvantages}
-            title={localeCopy.career.title}
-          />
-        )}
-
-        {socialNetwork.length > 0 && (
-          <BenefitsSection
-            colorScheme="pink"
-            description={localeCopy.social.description}
-            icon={Heart}
-            items={socialNetwork}
-            title={localeCopy.social.title}
-          />
-        )}
-
-        {safety.length > 0 && (
-          <BenefitsSection
-            colorScheme="purple"
-            description={localeCopy.safety.description}
-            icon={Shield}
-            items={safety}
-            title={localeCopy.safety.title}
-          />
-        )}
+        ))}
       </div>
     </>
   );

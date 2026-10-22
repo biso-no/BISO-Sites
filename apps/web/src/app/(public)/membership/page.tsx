@@ -9,24 +9,29 @@ export const metadata: Metadata = {
     "Become a BISO member and unlock benefits, discounts, and access to events across BI Norwegian Business School.",
 };
 
-import { getGlobalMembershipBenefits } from "@/app/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { getPublicBenefits } from "@/lib/data/benefits";
 import type { CampusData } from "@/lib/types/campus-data";
 import { MembershipPageClient } from "./membership-page-client";
+
+// `getPublicBenefits` waits for the request (`connection()`), so this page must
+// be allowed to block, like `/students` and `/campus`.
+export const instant = false;
 
 export default async function MembershipPage() {
   const prefs = await getUserPreferences();
 
-  const [campusData, globalBenefits, locale] = await Promise.all([
+  const [campusData, benefits, locale] = await Promise.all([
     getCampusData(prefs?.campusId),
-    getGlobalMembershipBenefits(),
+    // Throws on a backend failure; the fallback lives at the call site.
+    getPublicBenefits().catch(() => []),
     getLocale(),
   ]);
 
   return (
     <MembershipPageClient
+      benefits={benefits}
       campusData={Array.isArray(campusData) ? (campusData as CampusData[]) : []}
-      globalBenefits={globalBenefits}
       locale={(locale as Locale) ?? "no"}
     />
   );
