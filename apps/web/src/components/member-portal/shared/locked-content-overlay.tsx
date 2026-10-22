@@ -40,12 +40,7 @@ const MEMBERSHIP_OPTIONS: {
   { type: "three-year", price: 1400, popular: false },
 ];
 
-const QUICK_BENEFITS = [
-  "Exclusive partner discounts",
-  "Digital membership card",
-  "Priority event access",
-  "Career resources",
-];
+const QUICK_BENEFIT_KEYS = ["discounts", "card", "priority", "career"] as const;
 
 export function LockedContentOverlay({
   hasBIIdentity,
@@ -53,6 +48,9 @@ export function LockedContentOverlay({
 }: LockedContentOverlayProps) {
   const t = useTranslations("memberPortal");
   const router = useRouter();
+  const quickBenefits = QUICK_BENEFIT_KEYS.map((key) =>
+    t(`locked.quickBenefits.${key}`)
+  );
   const [isPending, startTransition] = useTransition();
   const [isLinking, startLinkTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
@@ -125,7 +123,7 @@ export function LockedContentOverlay({
 
                   {/* Quick benefits */}
                   <div className="mb-8 grid gap-2 sm:grid-cols-2">
-                    {QUICK_BENEFITS.map((benefit, index) => (
+                    {quickBenefits.map((benefit, index) => (
                       <div
                         className="flex items-center gap-2 text-muted-foreground text-sm dark:text-muted-foreground"
                         key={index}
@@ -206,7 +204,7 @@ export function LockedContentOverlay({
                       </span>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {QUICK_BENEFITS.map((benefit, index) => (
+                      {quickBenefits.map((benefit, index) => (
                         <div
                           className="flex items-center gap-2 text-muted-foreground text-sm dark:text-muted-foreground"
                           key={index}

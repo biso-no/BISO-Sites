@@ -212,7 +212,7 @@
     "processing": "Behandler...",
     "socialProof": "Bli med 10 000+ BI-studenter som allerede sparer",
     "benefits": {
-      "discounts": "Eksklusive rabatter hos våre partnere",
+      "discounts": "Eksklusive rabatter hos BISOs partnere",
       "events": "Tilgang til medlemsarrangementer",
       "career": "Karriereressurser og nettverksbygging",
       "card": "Digitalt medlemskort",
@@ -223,7 +223,13 @@
     "description": "Lås opp dette innholdet og alle medlemsfordeler",
     "whatYoullGet": "Det du vil låse opp:",
     "processing": "Behandler...",
-    "securePayment": "Sikker betaling via Vipps"
+    "securePayment": "Sikker betaling via Vipps",
+    "quickBenefits": {
+      "discounts": "Eksklusive rabatter hos BISOs partnere",
+      "card": "Digitalt medlemskort",
+      "priority": "Prioritert tilgang til arrangementer",
+      "career": "Karriereressurser"
+    }
   },
   "common": {
     "campus": "Campus",
