@@ -9,9 +9,6 @@ export interface BenefitPartnerSnapshot {
   name: string;
 }
 
-/** A partner typed as free text on rows saved before partners were linked. */
-export type LegacyPartnerSnapshot = Omit<BenefitPartnerSnapshot, "id">;
-
 const blankToNull = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -51,20 +48,17 @@ export function benefitRowPermissions(status: string): string[] {
 }
 
 /**
- * The row's columns. `legacyPartner` is the free-text partner a stored row
- * carries without a link: until the website reads linked partners, a save
- * that links none keeps it rather than wiping the name students see.
+ * The row's columns. The website reads partners by `partner_id` and codes
+ * from `benefit_codes`, so the old name, logo and code copies are written
+ * as null.
  */
 export function buildBenefitColumns(
   values: BenefitFormValues,
   partner: BenefitPartnerSnapshot | null,
-  sortOrder: number,
-  legacyPartner: LegacyPartnerSnapshot | null = null
+  sortOrder: number
 ): Record<string, unknown> {
   const v = normalizeBenefitValues(values);
-  const isMember = v.section === "member";
-  const snapshot = isMember ? partner : null;
-  const shownPartner = snapshot ?? (isMember ? legacyPartner : null);
+  const snapshot = v.section === "member" ? partner : null;
   const titleNb = v.title_nb.trim();
   const titleEn = v.title_en.trim();
   return {
@@ -77,12 +71,12 @@ export function buildBenefitColumns(
     image_url: blankToNull(v.image_url),
     is_featured: v.is_featured,
     partner_id: snapshot?.id ?? null,
-    partner_logo_url: shownPartner?.logo_url ?? null,
-    partner_name: shownPartner?.name ?? null,
+    partner_logo_url: null,
+    partner_name: null,
     publish_end: benefitEndIso(v.publish_end),
     publish_start: benefitStartIso(v.publish_start),
     redemption_type: v.redemption_type,
-    redemption_value: benefitSecretValue(v),
+    redemption_value: null,
     section: v.section,
     sort_order: sortOrder,
     status: v.status,

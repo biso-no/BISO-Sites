@@ -241,8 +241,9 @@ describe("createBenefit", () => {
       expect.objectContaining({
         campus_id: "2",
         department: null,
-        // Compatibility copy until every reader uses benefit_codes.
-        redemption_value: "BISO20",
+        partner_logo_url: null,
+        partner_name: null,
+        redemption_value: null,
         section: "member",
       })
     );
@@ -326,7 +327,7 @@ describe("createBenefit", () => {
     });
     expect(national).toEqual({ data: expect.any(String) });
     expect(upsertCall("campus_benefits")?.[3]).toEqual(
-      expect.objectContaining({ partner_id: "rekom", partner_name: "Rekom" })
+      expect.objectContaining({ partner_id: "rekom", partner_name: null })
     );
   });
 
@@ -345,8 +346,8 @@ describe("createBenefit", () => {
     expect(upsertCall("campus_benefits")?.[3]).toEqual(
       expect.objectContaining({
         partner_id: "partner-1",
-        partner_logo_url: "https://cdn.example/logo.png",
-        partner_name: "Kaffebrenneriet",
+        partner_logo_url: null,
+        partner_name: null,
       })
     );
 
@@ -436,7 +437,7 @@ describe("updateBenefit", () => {
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
-  test("keeps a legacy free-text partner the website still reads", async () => {
+  test("a save drops the legacy free-text partner copy", async () => {
     benefitRows = [
       storedBenefit({
         partner_id: null,
@@ -451,34 +452,41 @@ describe("updateBenefit", () => {
     expect(upsertCall("campus_benefits")?.[3]).toEqual(
       expect.objectContaining({
         partner_id: null,
-        partner_logo_url: "https://cdn.example/rekom.png",
-        partner_name: "Rekom",
+        partner_logo_url: null,
+        partner_name: null,
       })
     );
   });
 
-  test("picking a real partner replaces the legacy free-text one", async () => {
-    benefitRows = [storedBenefit({ partner_id: null, partner_name: "Rekom" })];
-    partnerRows = [
-      {
-        $id: "partner-1",
-        campus_id: "2",
-        logo_url: null,
-        name: "Kaffebrenneriet",
-      },
-    ];
+  test("saving a legacy row moves its inline code into benefit_codes", async () => {
+    benefitRows = [storedBenefit({ redemption_value: "OLD" })];
+    const edit = await getBenefitForEdit("benefit-1");
 
-    await updateBenefit("benefit-1", {
+    const result = await updateBenefit("benefit-1", {
       ...memberValues,
-      partner_id: "partner-1",
+      redemption_value: edit?.redemption_value ?? null,
     });
 
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("benefit_codes")?.[3]).toEqual(
+      expect.objectContaining({ benefit_id: "benefit-1", value: "OLD" })
+    );
     expect(upsertCall("campus_benefits")?.[3]).toEqual(
-      expect.objectContaining({
-        partner_id: "partner-1",
-        partner_logo_url: null,
-        partner_name: "Kaffebrenneriet",
-      })
+      expect.objectContaining({ redemption_value: null })
+    );
+  });
+
+  test("publishing a legacy row moves its inline code into benefit_codes", async () => {
+    benefitRows = [storedBenefit({ redemption_value: "OLD" })];
+
+    const result = await setBenefitStatus("benefit-1", "published");
+
+    expect(result).toEqual({ data: "benefit-1" });
+    expect(upsertCall("benefit_codes")?.[3]).toEqual(
+      expect.objectContaining({ benefit_id: "benefit-1", value: "OLD" })
+    );
+    expect(upsertCall("campus_benefits")?.[3]).toEqual(
+      expect.objectContaining({ redemption_value: null })
     );
   });
 

@@ -2,11 +2,7 @@
 import { ID, Permission, Query } from "@repo/api";
 import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type {
-  BenefitReveals,
-  PublicProfiles,
-  Users,
-} from "@repo/api/types/appwrite";
+import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
 import {
   benefitsForCampus,
   type PublicBenefit,
@@ -248,22 +244,6 @@ export async function revealBenefit(
   } catch (error) {
     console.error("Error revealing benefit:", error);
     return { success: false, reason: "unavailable" };
-  }
-}
-
-export async function getBenefitReveals(userId: string): Promise<Set<string>> {
-  try {
-    const { db } = await createSessionClient();
-    const response = await db.listRows<BenefitReveals>(
-      "app",
-      "benefit_reveals",
-      [Query.equal("user_id", userId), Query.limit(500)]
-    );
-
-    return new Set(response.rows?.map((r) => r.benefit_id) || []);
-  } catch (error) {
-    console.error("Error fetching benefit reveals:", error);
-    return new Set();
   }
 }
 

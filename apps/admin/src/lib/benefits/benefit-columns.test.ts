@@ -40,48 +40,25 @@ describe("buildBenefitColumns", () => {
     expect(buildBenefitColumns(base, null, 0).category).toBe("other");
   });
 
-  test("copies the partner snapshot", () => {
+  test("links the partner by id and writes no name or logo copy", () => {
     const columns = buildBenefitColumns(
       { ...base, partner_id: "p1" },
       partner,
       3
     );
     expect(columns.partner_id).toBe("p1");
-    expect(columns.partner_name).toBe("Kafe");
-    expect(columns.partner_logo_url).toBe("https://x.no/logo.png");
+    expect(columns.partner_name).toBeNull();
+    expect(columns.partner_logo_url).toBeNull();
     expect(columns.sort_order).toBe(3);
   });
 
-  test("keeps a legacy free-text partner when no partner is linked", () => {
-    const legacy = { logo_url: "https://x.no/rekom.png", name: "Rekom" };
-    const columns = buildBenefitColumns(base, null, 0, legacy);
-    expect(columns.partner_id).toBeNull();
-    expect(columns.partner_name).toBe("Rekom");
-    expect(columns.partner_logo_url).toBe("https://x.no/rekom.png");
-  });
-
-  test("a linked partner wins over the legacy one", () => {
+  test("never copies the code into the public row", () => {
     const columns = buildBenefitColumns(
-      { ...base, partner_id: "p1" },
-      partner,
-      0,
-      { logo_url: null, name: "Rekom" }
-    );
-    expect(columns.partner_id).toBe("p1");
-    expect(columns.partner_name).toBe("Kafe");
-  });
-
-  test("other sections never keep a legacy partner", () => {
-    const columns = buildBenefitColumns(
-      { ...base, section: "career" },
+      { ...base, redemption_type: "code", redemption_value: " ABC " },
       null,
-      0,
-      {
-        logo_url: null,
-        name: "Rekom",
-      }
+      0
     );
-    expect(columns.partner_name).toBeNull();
+    expect(columns.redemption_value).toBeNull();
   });
 
   test("falls back to the other language's title", () => {
@@ -105,7 +82,7 @@ describe("buildBenefitColumns", () => {
     expect(columns.campus).toBe("1");
     expect(columns.campus_id).toBe("1");
     expect(columns.department).toBeNull();
-    expect(columns.redemption_value).toBe("ABC");
+    expect(columns.redemption_value).toBeNull();
     expect(columns.publish_start).toBe("2026-08-09T22:00:00.000Z");
     expect(columns.publish_end).toBe("2026-10-24T21:59:59.000Z");
   });

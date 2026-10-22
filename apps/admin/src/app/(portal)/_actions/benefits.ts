@@ -26,7 +26,6 @@ import {
   benefitRowPermissions,
   benefitSecretValue,
   buildBenefitColumns,
-  type LegacyPartnerSnapshot,
   normalizeBenefitValues,
 } from "@/lib/benefits/benefit-columns";
 import { benefitDateFromIso } from "@/lib/benefits/benefit-dates";
@@ -247,7 +246,6 @@ async function saveBenefitRow({
   db,
   existingTranslations,
   id,
-  legacyPartner = null,
   partner,
   sortOrder,
   values,
@@ -256,17 +254,11 @@ async function saveBenefitRow({
   db: AdminDb;
   existingTranslations: Map<string, ContentTranslations>;
   id: string;
-  legacyPartner?: LegacyPartnerSnapshot | null;
   partner: BenefitPartnerSnapshot | null;
   sortOrder: number;
   values: BenefitFormValues;
 }) {
-  const columns = buildBenefitColumns(
-    values,
-    partner,
-    sortOrder,
-    legacyPartner
-  );
+  const columns = buildBenefitColumns(values, partner, sortOrder);
   const saved = await db.upsertRow(
     "app",
     BENEFITS_TABLE,
@@ -316,21 +308,6 @@ async function lookupPartner(
       name: partner.name,
     },
   };
-}
-
-/**
- * The free-text partner of a row saved before partners were linked. Kept
- * while the save links no partner either, since the website still reads it.
- */
-function legacyPartnerOf(
-  stored: CampusBenefits,
-  values: BenefitFormValues
-): LegacyPartnerSnapshot | null {
-  const name = stored.partner_name?.trim();
-  if (values.partner_id || stored.partner_id || !name) {
-    return null;
-  }
-  return { logo_url: stored.partner_logo_url ?? null, name };
 }
 
 /** Maps a stored row back to form values so publishing re-saves it. */
@@ -561,7 +538,6 @@ export async function updateBenefit(
       db,
       existingTranslations: await loadBenefitTranslationsByLocale(db, id),
       id,
-      legacyPartner: legacyPartnerOf(stored, data),
       partner: lookup.partner,
       sortOrder: keepsPlace
         ? (stored.sort_order ?? 0)

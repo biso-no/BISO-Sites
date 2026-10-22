@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@repo/ui/components/ui/button";
-import { Check, Copy, ExternalLink, QrCode, Sparkles } from "lucide-react";
+import { Check, Copy, ExternalLink, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 const CONFETTI_COUNT = 12;
@@ -80,23 +80,6 @@ export function CodeReveal({
             </>
           )}
         </Button>
-      </div>
-    </div>
-  );
-}
-
-interface QrRevealProps {
-  value: string;
-}
-
-/**
- * QR code display
- */
-export function QrReveal({ value: _value }: QrRevealProps) {
-  return (
-    <div className="flex justify-center rounded-xl bg-section p-6 dark:bg-inverted">
-      <div className="flex h-36 w-36 items-center justify-center rounded-xl border-2 border-border bg-background dark:border-border dark:bg-inverted">
-        <QrCode className="h-24 w-24 text-muted-foreground dark:text-muted-foreground" />
       </div>
     </div>
   );
