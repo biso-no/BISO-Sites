@@ -2,9 +2,10 @@
 
 import { ImageIcon, Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { uploadMediaFile } from "@/lib/upload-client";
+import { MAX_UPLOAD_BYTES, uploadMediaFile } from "@/lib/upload-client";
 import { STUDIO } from "./studio";
 
 interface ImageUploadFieldProps {
@@ -26,18 +27,27 @@ export function ImageUploadField({
   onChange,
   unoptimized,
 }: ImageUploadFieldProps) {
+  const t = useTranslations("adminPortal.common.imageUpload");
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleFile(file: File) {
+    // Caught here rather than by the upload, so the reason is given in the
+    // editor's language.
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast.error(t("uploadFailed"), { description: t("tooLarge") });
+      return;
+    }
     startTransition(async () => {
       const result = await uploadMediaFile(file);
       if (result.error) {
-        toast.error(result.error);
+        // The reason is English and for developers; it stays here.
+        console.warn("[upload] image upload failed:", result.error);
+        toast.error(t("uploadFailed"));
       } else {
         onChange(result.url ?? null);
-        toast.success("Image uploaded");
+        toast.success(t("uploaded"));
       }
     });
   }
@@ -73,7 +83,7 @@ export function ImageUploadField({
       {/* Hidden file input */}
       <input
         accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-        aria-label={label ?? "Upload image"}
+        aria-label={label ?? t("uploadLabel")}
         className="sr-only"
         id={inputId}
         onChange={handleInputChange}
@@ -92,7 +102,7 @@ export function ImageUploadField({
           }}
         >
           <Image
-            alt="Cover"
+            alt={t("alt")}
             className={
               fit === "contain" ? "object-contain p-4" : "object-cover"
             }
@@ -117,7 +127,7 @@ export function ImageUploadField({
               ) : (
                 <Upload size={13} />
               )}
-              Replace
+              {t("replace")}
             </button>
             <button
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-xs transition-all"
@@ -129,7 +139,7 @@ export function ImageUploadField({
               type="button"
             >
               <X size={13} />
-              Remove
+              {t("remove")}
             </button>
           </div>
         </div>
@@ -173,11 +183,10 @@ export function ImageUploadField({
                   className="font-medium text-xs"
                   style={{ color: STUDIO.ink3 }}
                 >
-                  Drop image or{" "}
-                  <span style={{ color: STUDIO.claret }}>browse</span>
+                  {t("dropOrBrowse")}
                 </p>
                 <p className="mt-0.5 text-xs" style={{ color: STUDIO.ink4 }}>
-                  JPG, PNG, GIF, WEBP, SVG · max 10 MB
+                  {t("formats")}
                 </p>
               </div>
             </>

@@ -269,6 +269,8 @@ const actualWarn = console.warn;
 const { PartnersPage } = await import("./partners-page");
 
 const installedDom = installReactDom();
+// `mount` gives the page an address; afterwards the window gets its own back.
+const actualLocation = Object.getOwnPropertyDescriptor(window, "location");
 let createRoot: typeof import("react-dom/client")["createRoot"];
 let root: Root | null = null;
 let container: TestElement;
@@ -295,6 +297,11 @@ afterEach(async () => {
 
 afterAll(() => {
   console.warn = actualWarn;
+  if (actualLocation) {
+    Object.defineProperty(window, "location", actualLocation);
+  } else {
+    Reflect.deleteProperty(window, "location");
+  }
   installedDom.restore();
 });
 
@@ -575,7 +582,7 @@ describe("PartnersPage, website logos", () => {
 
     const panel = sheet() as TestElement;
     expect(panel.textContent).toContain(
-      "Bare administratorer kan endre partnere for hele BISO."
+      "Bare administratorer kan endre logoene for hele BISO."
     );
     const title = findElements(panel, (element) => element.tagName === "H2")[0];
     expect(title?.textContent).toBe("DNB");
@@ -683,6 +690,23 @@ describe("PartnersPage, website logos", () => {
       },
     ]);
     expect(refreshes).toBe(0);
+    expect(sheet()).toBeDefined();
+  });
+
+  test("a logo someone else removed says so", async () => {
+    await mount();
+    await click("BKK");
+    serverError = BENEFIT_ERRORS.logoNotFound;
+
+    await click("Lagre");
+
+    expect(toasts).toEqual([
+      {
+        description: "Fant ikke logoen. Den kan være fjernet.",
+        kind: "error",
+        message: "Kunne ikke lagre. Prøv igjen.",
+      },
+    ]);
     expect(sheet()).toBeDefined();
   });
 

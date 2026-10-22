@@ -253,6 +253,13 @@ mock.module("./panel-actions", () => ({
 const actualWarn = console.warn;
 const warnings: unknown[][] = [];
 
+// The upload field posts to `/api/upload`; a test answers for it.
+const actualFetch = globalThis.fetch;
+function answerUploads(body: Record<string, string>): void {
+  globalThis.fetch = (() =>
+    Promise.resolve(Response.json(body))) as unknown as typeof fetch;
+}
+
 const { BenefitPanel } = await import("./benefit-panel");
 
 const installedDom = installReactDom();
@@ -278,6 +285,7 @@ afterEach(async () => {
   heldUpdate = null;
   serverError = null;
   warnings.length = 0;
+  globalThis.fetch = actualFetch;
   for (const list of Object.values(calls)) {
     list.length = 0;
   }
@@ -365,6 +373,15 @@ async function type(element: TestElement, text: string): Promise<void> {
   await act(() => {
     element.value = text;
     element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+/** Picks a file in an upload field, as the file dialog would. */
+async function chooseFile(input: TestElement, file: File): Promise<void> {
+  await act(async () => {
+    input.files = [file];
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
 
@@ -646,6 +663,28 @@ describe("BenefitPanel", () => {
       name: "Nytt Bakeri",
     });
     expect(selectedOption()?.textContent).toContain("Nytt Bakeri");
+  });
+
+  test("a new partner's uploaded logo shows whole, straight from storage", async () => {
+    // An SVG would not survive next/image's optimiser, and a logo must
+    // never be cropped.
+    const uploaded =
+      "https://appwrite.biso.no/v1/storage/buckets/media/files/f-1/view";
+    answerUploads({ fileId: "f-1", url: uploaded });
+    await mount();
+    await click("+ Ny partner");
+
+    await chooseFile(
+      labelled("Logo"),
+      new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" })
+    );
+
+    const logo = elements("IMG").find(
+      (image) => image.getAttribute("src") === uploaded
+    );
+    expect(logo).toBeDefined();
+    expect(logo?.getAttribute("class")).toContain("object-contain");
+    expect(toasts.at(-1)?.message).toBe("Bildet er lastet opp");
   });
 
   test("closing goes back to the board", async () => {

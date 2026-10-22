@@ -387,7 +387,7 @@ export function LogoSheet({
                 size={15}
                 style={{ color: STUDIO.ink3 }}
               />
-              {t("readOnly")}
+              {t("logosReadOnly")}
             </p>
           )}
           <LogoFields

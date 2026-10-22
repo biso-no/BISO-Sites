@@ -108,6 +108,17 @@
       "previous": "Previous page",
       "next": "Next page",
       "perPage": "Per page"
+    },
+    "imageUpload": {
+      "dropOrBrowse": "Drop an image here or choose a file",
+      "formats": "JPG, PNG, GIF, WEBP, SVG · max 10 MB",
+      "uploadLabel": "Upload image",
+      "replace": "Replace",
+      "remove": "Remove",
+      "uploaded": "Image uploaded",
+      "uploadFailed": "Couldn't upload the image",
+      "tooLarge": "The image is larger than 10 MB.",
+      "alt": "Image"
     }
   },
   "it": {
@@ -848,7 +859,9 @@
       "deletedToast": "Deleted",
       "failed": "Could not save. Try again.",
       "changeFailed": "Couldn't change the partnership. Try again.",
-      "readOnly": "Only administrators can edit partners for all of BISO."
+      "saveFirst": "Save or discard your changes first.",
+      "readOnly": "Only administrators can edit partners for all of BISO.",
+      "logosReadOnly": "Only administrators can change the logos for all of BISO."
     },
     "board": {
       "title": "Member benefits",
@@ -957,6 +970,7 @@
       "partnerNotFound": "We couldn't find that partner. Choose the partner again.",
       "legacyRedemption": "Choose how students redeem it, then save again.",
       "benefitNotFound": "We couldn't find this benefit. It may have been deleted.",
+      "logoNotFound": "We couldn't find this logo. It may have been removed.",
       "companyNameRequired": "Enter the company's name.",
       "logoRequired": "Upload a logo.",
       "partnerNameRequired": "Enter the partner's name.",

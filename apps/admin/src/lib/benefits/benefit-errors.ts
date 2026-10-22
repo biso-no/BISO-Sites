@@ -9,6 +9,7 @@ export const BENEFIT_ERRORS = {
   companyNameRequired: "Add the company's name",
   legacyRedemption:
     "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.",
+  logoNotFound: "Logo not found",
   logoRequired: "Upload a logo",
   noCampusAccess: "Unauthorized: no write access to this campus",
   partnerDeleteFailed: "Could not delete the partner",

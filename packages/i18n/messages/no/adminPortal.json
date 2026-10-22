@@ -108,6 +108,17 @@
       "previous": "Forrige side",
       "next": "Neste side",
       "perPage": "Per side"
+    },
+    "imageUpload": {
+      "dropOrBrowse": "Slipp et bilde her eller velg fil",
+      "formats": "JPG, PNG, GIF, WEBP, SVG · maks 10 MB",
+      "uploadLabel": "Last opp bilde",
+      "replace": "Bytt",
+      "remove": "Fjern",
+      "uploaded": "Bildet er lastet opp",
+      "uploadFailed": "Kunne ikke laste opp bildet",
+      "tooLarge": "Bildet er større enn 10 MB.",
+      "alt": "Bilde"
     }
   },
   "it": {
@@ -848,7 +859,9 @@
       "deletedToast": "Slettet",
       "failed": "Kunne ikke lagre. Prøv igjen.",
       "changeFailed": "Kunne ikke endre samarbeidet. Prøv igjen.",
-      "readOnly": "Bare administratorer kan endre partnere for hele BISO."
+      "saveFirst": "Lagre eller forkast endringene først.",
+      "readOnly": "Bare administratorer kan endre partnere for hele BISO.",
+      "logosReadOnly": "Bare administratorer kan endre logoene for hele BISO."
     },
     "board": {
       "title": "Medlemsfordeler",
@@ -957,6 +970,7 @@
       "partnerNotFound": "Fant ikke partneren. Velg partneren på nytt.",
       "legacyRedemption": "Velg hvordan studentene får rabatten, og lagre på nytt.",
       "benefitNotFound": "Fant ikke fordelen. Den kan være slettet.",
+      "logoNotFound": "Fant ikke logoen. Den kan være fjernet.",
       "companyNameRequired": "Skriv inn navnet på bedriften.",
       "logoRequired": "Last opp en logo.",
       "partnerNameRequired": "Skriv inn navnet på partneren.",

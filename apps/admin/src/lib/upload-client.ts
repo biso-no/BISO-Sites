@@ -4,7 +4,8 @@ export type UploadResult =
   | { error?: never; fileId: string; url: string }
   | { error: string; fileId?: never; url?: never };
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+/** The largest file `/api/upload` takes. */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /**
  * Browser-side upload through `/api/upload`. Never throws: network failures,

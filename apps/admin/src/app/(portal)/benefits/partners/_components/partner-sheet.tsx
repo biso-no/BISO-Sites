@@ -353,6 +353,7 @@ export function PartnerSheet({
           <PartnerSheetFooter
             card={card}
             confirming={confirming}
+            dirty={dirty}
             locale={locale}
             onChangePartnership={changePartnership}
             onConfirmingChange={(next) => {
@@ -467,9 +468,12 @@ function PartnerFields({
             {t("logo")}
           </PanelLabel>
           <ImageUploadField
+            fit="contain"
             inputId={`${id}-logo`}
             label={t("logo")}
             onChange={(url) => update("logoUrl", url)}
+            // Logos may live on any https host, as on the cards.
+            unoptimized
             value={values.logoUrl}
           />
         </div>
@@ -571,6 +575,8 @@ function PartnerFields({
 interface PartnerSheetFooterProps {
   card: PartnerCard | null;
   confirming: Confirmation | null;
+  /** Unsaved edits, which ending, restarting or deleting would drop. */
+  dirty: boolean;
   locale: AdminLocale;
   onChangePartnership: (action: Exclude<PendingAction, "save">) => void;
   onConfirmingChange: (confirming: Confirmation | null) => void;
@@ -580,11 +586,13 @@ interface PartnerSheetFooterProps {
 
 /**
  * "Lagre" stands out. An active partnership can end, an ended one start
- * again, and either can be deleted for good, set apart in red.
+ * again, and either can be deleted for good, set apart in red. Those three
+ * wait while there are unsaved edits, which they would otherwise drop.
  */
 function PartnerSheetFooter({
   card,
   confirming,
+  dirty,
   locale,
   onChangePartnership,
   onConfirmingChange,
@@ -593,7 +601,11 @@ function PartnerSheetFooter({
 }: PartnerSheetFooterProps) {
   const t = useTranslations("adminPortal.benefits.partnersPage");
   const tBoard = useTranslations("adminPortal.benefits.board");
+  const hintId = useId();
   const busy = pending !== null;
+  const waitsForSave = card !== null && dirty;
+  const partnershipLocked = busy || waitsForSave;
+  const hint = waitsForSave ? hintId : undefined;
   const spinner = (action: PendingAction) =>
     pending === action ? (
       <Loader2 aria-hidden className="animate-spin" size={14} />
@@ -622,8 +634,9 @@ function PartnerSheetFooter({
             pending={pending === "delete"}
           >
             <StudioButton
+              aria-describedby={hint}
               className={FOOTER_BUTTON}
-              disabled={busy}
+              disabled={partnershipLocked}
               onClick={() => onConfirmingChange("delete")}
               style={DELETE_OUTLINE}
             >
@@ -644,8 +657,9 @@ function PartnerSheetFooter({
               visibleDeals={visibleDealCount(card)}
             >
               <StudioButton
+                aria-describedby={hint}
                 className={FOOTER_BUTTON}
-                disabled={busy}
+                disabled={partnershipLocked}
                 onClick={() => onConfirmingChange("end")}
               >
                 {spinner("end")}
@@ -655,8 +669,9 @@ function PartnerSheetFooter({
           ) : null}
           {card?.ended ? (
             <StudioButton
+              aria-describedby={hint}
               className={FOOTER_BUTTON}
-              disabled={busy}
+              disabled={partnershipLocked}
               onClick={() => onChangePartnership("restart")}
             >
               {spinner("restart")}
@@ -674,6 +689,15 @@ function PartnerSheetFooter({
           </StudioButton>
         </div>
       </div>
+      {waitsForSave ? (
+        <p
+          className="mt-2 text-[12.5px] leading-5"
+          id={hintId}
+          style={{ color: STUDIO.ink3 }}
+        >
+          {t("saveFirst")}
+        </p>
+      ) : null}
     </footer>
   );
 }

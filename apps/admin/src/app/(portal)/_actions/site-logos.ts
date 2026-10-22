@@ -10,7 +10,10 @@ import {
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import { benefitAccessFor, canEditBenefitCampus } from "@/lib/benefit-access";
-import { BENEFIT_ERRORS } from "@/lib/benefits/benefit-errors";
+import {
+  BENEFIT_ERRORS,
+  BENEFIT_FIELD_ERRORS,
+} from "@/lib/benefits/benefit-errors";
 import { isRowNotFound } from "@/lib/shop/sales-type";
 import { logAuditEvent } from "./audit-log";
 
@@ -20,7 +23,6 @@ const NAME_MAX = 128;
 const PARTNERS_PATH = "/benefits/partners";
 const RESOURCE_TYPE = "site_logo";
 const GROUP_ORDER: readonly string[] = [NATIONAL_CAMPUS_ID, ...CAMPUS_IDS];
-const LINK_INVALID = "The link must start with https://";
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
@@ -102,7 +104,7 @@ function validateLogo(input: {
   }
   const url = input.url?.trim() || null;
   if (url !== null && !isHttpsUrl(url)) {
-    return { error: LINK_INVALID };
+    return { error: BENEFIT_FIELD_ERRORS.linkInvalid };
   }
   return { imageUrl, name, url };
 }
@@ -150,7 +152,7 @@ export async function saveSiteLogo(input: {
   if (input.id) {
     stored = await findLogoRow(db, input.id);
     if (!stored) {
-      return { error: BENEFIT_ERRORS.partnerNotFound };
+      return { error: BENEFIT_ERRORS.logoNotFound };
     }
     if (!canEditBenefitCampus(access, stored.campus_id)) {
       return { error: BENEFIT_ERRORS.noCampusAccess };
@@ -201,7 +203,7 @@ export async function deleteSiteLogo(
   const { db } = await createAdminClient();
   const stored = await findLogoRow(db, id);
   if (!stored) {
-    return { error: BENEFIT_ERRORS.partnerNotFound };
+    return { error: BENEFIT_ERRORS.logoNotFound };
   }
   if (!canEditBenefitCampus(access, stored.campus_id)) {
     return { error: BENEFIT_ERRORS.noCampusAccess };

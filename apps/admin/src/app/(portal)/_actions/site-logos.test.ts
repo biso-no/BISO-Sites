@@ -71,6 +71,13 @@ const logoRow = (id: string, campusId: string, sortOrder: number): Row => ({
 
 let rows: Row[] = [];
 
+/** What Appwrite throws for a row that is not there. */
+const rowNotFound = () =>
+  Object.assign(new Error("Row with the requested ID could not be found."), {
+    code: 404,
+    type: "row_not_found",
+  });
+
 beforeEach(() => {
   currentCtx = campusAdminOf("2");
   logAuditEvent.mockClear();
@@ -215,6 +222,20 @@ describe("saveSiteLogo update", () => {
     });
   });
 
+  test("a logo removed meanwhile is not found, and nothing is written", async () => {
+    db.getRow.mockImplementationOnce(() => Promise.reject(rowNotFound()));
+    expect(
+      await saveSiteLogo({
+        campus_id: "2",
+        id: "gone",
+        image_url: "https://cdn.example.com/a.png",
+        name: "A",
+      })
+    ).toEqual({ error: "Logo not found" });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+  });
+
   test("refuses a stored campus the caller cannot write", async () => {
     rows = [logoRow("a", "5", 0)];
     expect(
@@ -235,6 +256,12 @@ describe("deleteSiteLogo", () => {
     expect(await deleteSiteLogo("a")).toEqual({ data: true });
     expect(db.deleteRow).toHaveBeenCalledTimes(1);
     expect(logAuditEvent.mock.calls[0]?.[1]).toBe("site_logo_deleted");
+  });
+
+  test("a logo removed meanwhile is not found", async () => {
+    db.getRow.mockImplementationOnce(() => Promise.reject(rowNotFound()));
+    expect(await deleteSiteLogo("gone")).toEqual({ error: "Logo not found" });
+    expect(db.deleteRow).not.toHaveBeenCalled();
   });
 
   test("refuses a campus the caller cannot write", async () => {

@@ -35,6 +35,7 @@ describe("benefitErrorKeys", () => {
   const serverReasons: [string, BenefitErrorKey][] = [
     ["Unauthorized: no write access to this campus", "errors.noCampusAccess"],
     ["Partner not found", "errors.partnerNotFound"],
+    ["Logo not found", "errors.logoNotFound"],
     [LEGACY, "errors.legacyRedemption"],
     ["Benefit not found", "errors.benefitNotFound"],
     ["Reorder list is out of date", "board.reorderFailed"],
@@ -115,6 +116,9 @@ describe("describeBenefitSaveError", () => {
     expect(describeBenefitSaveError("Benefit not found", norwegian)).toBe(
       "Fant ikke fordelen. Den kan være slettet."
     );
+    expect(describeBenefitSaveError("Logo not found", norwegian)).toBe(
+      "Fant ikke logoen. Den kan være fjernet."
+    );
     expect(
       describeBenefitSaveError("Reorder list is out of date", norwegian)
     ).toBe("Kunne ikke lagre rekkefølgen. Prøv igjen.");
@@ -170,6 +174,7 @@ describe("describeBenefitSaveError", () => {
       "errors.legacyRedemption",
       "errors.linkInvalid",
       "errors.linkRequired",
+      "errors.logoNotFound",
       "errors.noCampusAccess",
       "errors.partnerLogoInvalid",
       "errors.partnerNameRequired",
@@ -186,6 +191,9 @@ describe("describeBenefitSaveError", () => {
     );
     expect(bundleText(en, "errors.imageInvalid")).toBe(
       "The image must be an https address."
+    );
+    expect(bundleText(en, "errors.logoNotFound")).toBe(
+      "We couldn't find this logo. It may have been removed."
     );
   });
 });

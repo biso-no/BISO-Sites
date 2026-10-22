@@ -264,9 +264,21 @@ mock.module("./partner-actions", () => ({
 // Failures are logged for developers in English; keep the run quiet.
 const actualWarn = console.warn;
 
+// The upload field posts to `/api/upload`; a test answers for it.
+const actualFetch = globalThis.fetch;
+let uploads = 0;
+function answerUploads(body: Record<string, string>, status = 200): void {
+  globalThis.fetch = (() => {
+    uploads += 1;
+    return Promise.resolve(Response.json(body, { status }));
+  }) as unknown as typeof fetch;
+}
+
 const { PartnersPage } = await import("./partners-page");
 
 const installedDom = installReactDom();
+// `mount` gives the page a history; afterwards the window gets its own back.
+const actualHistory = Object.getOwnPropertyDescriptor(window, "history");
 let createRoot: typeof import("react-dom/client")["createRoot"];
 let root: Root | null = null;
 let container: TestElement;
@@ -286,6 +298,8 @@ afterEach(async () => {
   addresses.length = 0;
   toasts.length = 0;
   serverError = null;
+  uploads = 0;
+  globalThis.fetch = actualFetch;
   for (const list of Object.values(calls)) {
     list.length = 0;
   }
@@ -294,6 +308,11 @@ afterEach(async () => {
 
 afterAll(() => {
   console.warn = actualWarn;
+  if (actualHistory) {
+    Object.defineProperty(window, "history", actualHistory);
+  } else {
+    Reflect.deleteProperty(window, "history");
+  }
   installedDom.restore();
 });
 
@@ -426,6 +445,15 @@ async function type(element: TestElement, text: string): Promise<void> {
   });
 }
 
+/** Picks a file in an upload field, as the file dialog would. */
+async function chooseFile(input: TestElement, file: File): Promise<void> {
+  await act(async () => {
+    input.files = [file];
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
 function cards(): TestElement[] {
   return findElements(page(), (element) => element.tagName === "ARTICLE");
 }
@@ -480,19 +508,24 @@ function closingSheet(): TestElement | undefined {
   )[0];
 }
 
-/** Whether the element, or anything around it in the page, is see-through. */
-function dimmed(element: TestElement): boolean {
+/** The opacity on the element or on anything around it in the page. */
+function opacityAround(element: TestElement): string | null {
   let node: TestNode | null = element;
   while (node && node !== page()) {
     if (node instanceof Object && "style" in node) {
       const opacity = (node as TestElement).style.opacity;
       if (typeof opacity === "string" && opacity !== "") {
-        return true;
+        return opacity;
       }
     }
     node = node.parentNode;
   }
-  return false;
+  return null;
+}
+
+/** Whether the element, or anything around it in the page, is see-through. */
+function dimmed(element: TestElement): boolean {
+  return opacityAround(element) !== null;
 }
 
 function alertDialog(): TestElement {
@@ -586,7 +619,7 @@ describe("PartnersPage, deal partners", () => {
     expect(ended.textContent).toContain("Avsluttet");
     // The card sits back, but its pills and buttons keep full contrast.
     const name = findElements(ended, (element) => element.tagName === "H2")[0];
-    expect(name && dimmed(name)).toBe(true);
+    expect(opacityAround(name as TestElement)).toBe("0.7");
     const pills = findElements(
       ended,
       (element) =>
@@ -762,6 +795,174 @@ describe("PartnersPage, deal partners", () => {
 
     expect(alertDialog().textContent).toContain("Forkaste endringene?");
     expect(sheet()).toBeDefined();
+  });
+
+  test("a logo on another host shows whole in the sheet, straight from there", async () => {
+    // Migrated partners keep logos on their own sites, outside the hosts
+    // next/image may optimise.
+    const logoUrl = "https://static.loftstudios.no/brand/logo.png";
+    await mount({ partners: [{ ...loft, logo_url: logoUrl }] });
+
+    await openCard("Løft studios");
+
+    const panel = sheet() as TestElement;
+    const images = findElements(panel, (element) => element.tagName === "IMG");
+    expect(images.map((image) => image.getAttribute("src"))).toEqual([logoUrl]);
+    expect(images[0]?.getAttribute("alt")).toBe("Bilde");
+    expect(images[0]?.getAttribute("class")).toContain("object-contain");
+    expect(findButton(panel, "Bytt")).toBeDefined();
+    expect(findButton(panel, "Fjern")).toBeDefined();
+  });
+
+  describe("uploading a logo", () => {
+    const LOGO_FILE = () =>
+      new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" });
+
+    test("the empty field asks in Norwegian", async () => {
+      await mount();
+      await click("+ Ny partner");
+
+      const text = sheet()?.textContent;
+      expect(text).toContain("Slipp et bilde her eller velg fil");
+      expect(text).toContain("JPG, PNG, GIF, WEBP, SVG · maks 10 MB");
+      expect(labelled("Logo").getAttribute("aria-label")).toBe("Logo");
+    });
+
+    test("an uploaded logo shows whole, with a Norwegian toast", async () => {
+      const uploaded =
+        "https://appwrite.biso.no/v1/storage/buckets/media/files/f-1/view";
+      answerUploads({ fileId: "f-1", url: uploaded });
+      await mount();
+      await click("+ Ny partner");
+
+      await chooseFile(labelled("Logo"), LOGO_FILE());
+
+      expect(toasts).toEqual([
+        {
+          description: undefined,
+          kind: "success",
+          message: "Bildet er lastet opp",
+        },
+      ]);
+      const images = findElements(
+        sheet() as TestElement,
+        (element) => element.tagName === "IMG"
+      );
+      expect(images.map((image) => image.getAttribute("src"))).toEqual([
+        uploaded,
+      ]);
+      expect(images[0]?.getAttribute("class")).toContain("object-contain");
+    });
+
+    test("a failed upload says so in Norwegian, not in the server's English", async () => {
+      answerUploads({ error: "Upload failed: bucket rejected file" }, 500);
+      await mount();
+      await click("+ Ny partner");
+
+      await chooseFile(labelled("Logo"), LOGO_FILE());
+
+      expect(toasts).toEqual([
+        {
+          description: undefined,
+          kind: "error",
+          message: "Kunne ikke laste opp bildet",
+        },
+      ]);
+      expect(sheet()?.textContent).toContain(
+        "Slipp et bilde her eller velg fil"
+      );
+    });
+
+    test("a picture over 10 MB is turned away before it is sent", async () => {
+      answerUploads({ fileId: "f-1", url: "https://appwrite.biso.no/f-1" });
+      await mount();
+      await click("+ Ny partner");
+      const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "big.png", {
+        type: "image/png",
+      });
+
+      await chooseFile(labelled("Logo"), big);
+
+      expect(uploads).toBe(0);
+      expect(toasts).toEqual([
+        {
+          description: "Bildet er større enn 10 MB.",
+          kind: "error",
+          message: "Kunne ikke laste opp bildet",
+        },
+      ]);
+    });
+  });
+
+  describe("with unsaved changes", () => {
+    const HINT = "Lagre eller forkast endringene først.";
+
+    test("ending and deleting wait until the changes are saved or discarded", async () => {
+      await mount();
+      await openCard("Løft studios");
+      const panel = () => sheet() as TestElement;
+      expect(
+        findButton(panel(), "Avslutt samarbeid").hasAttribute("disabled")
+      ).toBe(false);
+      expect(panel().textContent).not.toContain(HINT);
+
+      await type(labelled("Navn"), "Løft studio");
+
+      const end = findButton(panel(), "Avslutt samarbeid");
+      expect(end.hasAttribute("disabled")).toBe(true);
+      expect(
+        findButton(panel(), "Slett for godt").hasAttribute("disabled")
+      ).toBe(true);
+      expect(findButton(panel(), "Lagre").hasAttribute("disabled")).toBe(false);
+      // The hint says why, and the buttons point to it.
+      const hintId = end.getAttribute("aria-describedby");
+      const hint = findElements(
+        panel(),
+        (element) => Boolean(hintId) && element.getAttribute("id") === hintId
+      )[0];
+      expect(hint?.textContent).toBe(HINT);
+      await press(end);
+      await click("Slett for godt", panel());
+      expect(
+        findElements(
+          page(),
+          (element) => element.getAttribute("role") === "alertdialog"
+        )
+      ).toHaveLength(0);
+
+      // With the old name typed back there is nothing to lose.
+      await type(labelled("Navn"), "Løft studios");
+
+      expect(
+        findButton(panel(), "Avslutt samarbeid").hasAttribute("disabled")
+      ).toBe(false);
+      expect(panel().textContent).not.toContain(HINT);
+    });
+
+    test("an ended partner starts again only once its changes are saved", async () => {
+      await mount({ filter: { campusId: "all", showEnded: true } });
+      await openCard("Gamle Bakeriet");
+
+      await type(labelled("Kort beskrivelse"), "Brød og boller");
+      const restart = findButton(
+        sheet() as TestElement,
+        "Start samarbeidet igjen"
+      );
+      expect(restart.hasAttribute("disabled")).toBe(true);
+      await press(restart);
+
+      expect(calls.restart).toHaveLength(0);
+      expect(sheet()?.textContent).toContain(HINT);
+    });
+
+    test("a new partner has nothing to end, so no hint", async () => {
+      await mount();
+      await click("+ Ny partner");
+
+      await type(labelled("Navn"), "Kaffebar");
+
+      expect(sheet()?.textContent).not.toContain(HINT);
+    });
   });
 
   test("the chips follow the address when a link changes it", async () => {

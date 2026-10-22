@@ -14,7 +14,7 @@ import { BOARD_FOCUS_RING } from "../../_lib/board-styles";
 import { websiteHost } from "../_lib/partner-form";
 import type { PartnerCard } from "../_lib/partners-state";
 
-const ENDED_OPACITY = 0.55;
+const ENDED_OPACITY = 0.7;
 
 export interface PartnerCardViewProps {
   campusLabel: (campusId: string) => string;

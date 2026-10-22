@@ -16,6 +16,7 @@ export type BenefitErrorKey =
   | "errors.legacyRedemption"
   | "errors.linkInvalid"
   | "errors.linkRequired"
+  | "errors.logoNotFound"
   | "errors.logoRequired"
   | "errors.noCampusAccess"
   | "errors.partnerDeleteFailed"
@@ -31,6 +32,7 @@ const REASONS: ReadonlyMap<string, BenefitErrorKey> = new Map([
   [BENEFIT_ERRORS.companyNameRequired, "errors.companyNameRequired"],
   [BENEFIT_ERRORS.legacyRedemption, "errors.legacyRedemption"],
   [BENEFIT_FIELD_ERRORS.linkInvalid, "errors.linkInvalid"],
+  [BENEFIT_ERRORS.logoNotFound, "errors.logoNotFound"],
   [BENEFIT_ERRORS.logoRequired, "errors.logoRequired"],
   [BENEFIT_ERRORS.noCampusAccess, "errors.noCampusAccess"],
   [BENEFIT_ERRORS.partnerDeleteFailed, "errors.partnerDeleteFailed"],

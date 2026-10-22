@@ -331,9 +331,12 @@ function NewPartner({
             {t("partnerLogo")}
           </PanelLabel>
           <ImageUploadField
+            fit="contain"
             inputId={`${id}-logo`}
             label={t("partnerLogo")}
             onChange={setLogoUrl}
+            // Shown whole and as uploaded, SVGs too, as in the list above.
+            unoptimized
             value={logoUrl}
           />
         </div>
