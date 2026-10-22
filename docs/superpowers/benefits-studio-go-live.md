@@ -38,6 +38,7 @@ Do these top to bottom. Each step assumes the ones before it are done. Steps 5 t
 6. Deploy right after step 5. Deploy these together:
    - web
    - admin
+   - apps/api. The app reads benefits through it (`GET /api/benefits` and `POST /api/benefits/<id>/reveal`). It reads the new table, so it goes out after the migration (step 5), like the others.
 
    **Don't deploy admin alone, and don't deploy web before step 5.** Why: stage 4, item 2 and stage 1, item 3. If merging the branch into `main` deploys these by itself, that merge is this step, so don't merge before step 5. Later stages that join this release add their apps to this list.
 
@@ -84,8 +85,16 @@ Do these top to bottom. Each step assumes the ones before it are done. Steps 5 t
    - In admin, save a small change to a published benefit. It should show on the website on the next reload. If the website runs on more than one instance, only the instance that received admin's call refreshes straight away. The others catch up within a minute or two, because their cache refreshes every minute. A second view that lags like that is expected, not a bug.
    - Open `/campus`, then "For bedrifter". The campus's partner logos should show.
    - The admin smoke test in stage 2, item 4.
+   - The app (after step 11 is released). As a member, open the member pass, then "Dine fordeler", then a deal with a code. "Vis kode" must show the code.
+   - As a non-member, "Dine fordeler" shows "Bli medlem" and no code.
+   - Open the campus screen. The five benefit sections show, in Norwegian.
 
 10. Retire the old admin. From step 8 on, never use the old admin again, and don't roll admin back to an earlier deployment. It publishes benefits with only `read("team:biso-members")`, which the new website can't read, so such a benefit vanishes from the site.
+
+11. App release. After the deploy (step 6) and the checks (step 9), merge `feat/benefits-in-app` into BISO-Flutter `main` and ship a release as usual.
+   - It can ship any time after apps/api is deployed. Before that, the new sections simply stay hidden: the app hides them when `GET /api/benefits` answers 404.
+   - **Old app versions keep reading the old `campus_data` benefit texts on the campus screen** (they don't know the new table) and have no "Dine fordeler". So don't delete or blank the `campus_data` benefit columns until most users have updated. The repo has no minimum-version mechanism in `apps/api` to force it.
+   - The app checks are in step 9.
 
 ## Stage 1: schema and migration
 
