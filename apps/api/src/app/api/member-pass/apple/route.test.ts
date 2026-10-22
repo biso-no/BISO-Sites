@@ -73,6 +73,14 @@ describe("GET /api/member-pass/apple", () => {
     expect((await GET(request())).status).toBe(404);
   });
 
+  it("is 503 {error: unavailable} when the membership check is down, not 403", async () => {
+    resolveMemberPassForRequest.mockResolvedValue({ state: "unavailable" });
+    const res = await GET(request());
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "unavailable" });
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
   it("is 401 for a caller with no valid session and 403 for a non-member, with CORS headers applied", async () => {
     resolveMemberPassForRequest.mockResolvedValue({
       state: "unauthenticated",
