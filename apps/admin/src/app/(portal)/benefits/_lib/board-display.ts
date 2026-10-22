@@ -58,6 +58,10 @@ export function isDimmedState(state: BenefitDisplayState): boolean {
   return DIMMED_STATES.has(state);
 }
 
+export function boardHref(campusId: string): string {
+  return `/benefits?${new URLSearchParams({ campus: campusId })}`;
+}
+
 export function benefitHref(id: string, campusId: string): string {
   return `/benefits/${encodeURIComponent(id)}?${new URLSearchParams({ campus: campusId })}`;
 }

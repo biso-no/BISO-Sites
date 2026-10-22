@@ -14,7 +14,11 @@ interface AutoTranslateControlProps {
   checked: boolean;
   className?: string;
   compact?: boolean;
+  /** Replaces the default English explanation, e.g. with localised copy. */
+  description?: string;
   disabled?: boolean;
+  /** Replaces the default "Auto-translate" label. */
+  label?: string;
   onCheckedChange: (checked: boolean) => void;
   operation: TranslationOperation;
   sourceLocale: ContentLocale;
@@ -24,41 +28,47 @@ export const AutoTranslateControl = ({
   checked,
   className,
   compact = false,
+  description,
   disabled,
+  label = "Auto-translate",
   onCheckedChange,
   operation,
   sourceLocale,
-}: AutoTranslateControlProps) => (
-  <div
-    className={cn(
-      "flex cursor-pointer items-center gap-3 rounded-xl border border-border/70 bg-background/80 px-3 py-2",
-      compact && "rounded-none border-0 bg-transparent p-0",
-      disabled && "cursor-not-allowed opacity-60",
-      className
-    )}
-    title={getAutoTranslationDescription(sourceLocale, operation)}
-  >
-    <span className="min-w-0 text-left">
-      <span className="block font-medium text-foreground text-sm">
-        Auto-translate
+}: AutoTranslateControlProps) => {
+  const explanation =
+    description ?? getAutoTranslationDescription(sourceLocale, operation);
+  return (
+    <div
+      className={cn(
+        "flex cursor-pointer items-center gap-3 rounded-xl border border-border/70 bg-background/80 px-3 py-2",
+        compact && "rounded-none border-0 bg-transparent p-0",
+        disabled && "cursor-not-allowed opacity-60",
+        className
+      )}
+      title={explanation}
+    >
+      <span className="min-w-0 text-left">
+        <span className="block font-medium text-foreground text-sm">
+          {label}
+        </span>
+        <span
+          className={cn(
+            "block text-muted-foreground text-xs",
+            compact && "sr-only"
+          )}
+        >
+          {explanation}
+        </span>
       </span>
-      <span
-        className={cn(
-          "block text-muted-foreground text-xs",
-          compact && "sr-only"
-        )}
-      >
-        {getAutoTranslationDescription(sourceLocale, operation)}
-      </span>
-    </span>
-    <Switch
-      aria-label="Auto-translate"
-      checked={checked}
-      disabled={disabled}
-      onCheckedChange={onCheckedChange}
-    />
-  </div>
-);
+      <Switch
+        aria-label={label}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+      />
+    </div>
+  );
+};
 
 interface TranslationReviewCardProps {
   className?: string;

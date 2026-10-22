@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import type { BenefitEditData } from "../../_actions/benefits";
 import {
+  editableDescription,
   emptyPanelValues,
   panelFooterActions,
   panelValuesFromBenefit,
   toBenefitFormValues,
   validatePanel,
+  withPresetPartner,
 } from "./panel-state";
 
 function values(overrides: Partial<ReturnType<typeof emptyPanelValues>> = {}) {
@@ -181,5 +183,63 @@ describe("panelValuesFromBenefit", () => {
     });
     expect(out.redemptionType).toBe("none");
     expect(out.section).toBe("member");
+  });
+
+  it("maps a legacy category onto the shared list", () => {
+    expect(
+      panelValuesFromBenefit({ ...base, category: "health" }).category
+    ).toBe("health_fitness");
+    expect(
+      panelValuesFromBenefit({ ...base, category: "" }).category
+    ).toBeNull();
+  });
+
+  it("opens an old formatted description as plain text", () => {
+    const out = panelValuesFromBenefit({
+      ...base,
+      description_nb:
+        "<p>Rabatt p&aring; alt</p><p>Gjelder&nbsp;klipp &amp; kort</p>",
+    });
+    expect(out.descriptionNb).toBe("Rabatt på alt\n\nGjelder klipp & kort");
+  });
+});
+
+describe("editableDescription", () => {
+  it("keeps plain text as it is", () => {
+    expect(editableDescription("Rabatt <3 på alt")).toBe("Rabatt <3 på alt");
+    expect(editableDescription(null)).toBe("");
+  });
+
+  it("turns line breaks and list items into lines", () => {
+    expect(
+      editableDescription("<ul><li>Én</li><li>To</li></ul><p>Tre<br>fire</p>")
+    ).toBe("• Én\n• To\n\nTre\nfire");
+  });
+
+  it("treats markup with no words as empty", () => {
+    expect(editableDescription("<p>&nbsp;</p>")).toBe("");
+  });
+});
+
+describe("withPresetPartner", () => {
+  const partners = [{ id: "loft" }, { id: "dogtails" }];
+
+  it("picks a partner the panel can offer", () => {
+    expect(withPresetPartner(values(), "dogtails", partners).partnerId).toBe(
+      "dogtails"
+    );
+  });
+
+  it("ignores an unknown partner or a section without partners", () => {
+    expect(
+      withPresetPartner(values(), "elsewhere", partners).partnerId
+    ).toBeNull();
+    expect(
+      withPresetPartner(values(), undefined, partners).partnerId
+    ).toBeNull();
+    expect(
+      withPresetPartner({ ...values(), section: "career" }, "loft", partners)
+        .partnerId
+    ).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import {
   type BenefitSection,
   isBenefitCategory,
   isBenefitSection,
+  mapLegacyBenefitCategory,
 } from "@repo/shared/utils/benefit-catalog";
 import { benefitDateFromIso } from "@/lib/benefits/benefit-dates";
 import type { BenefitEditData } from "../../_actions/benefits";
@@ -79,14 +80,67 @@ function pick<T extends string>(
   return options.find((option) => option === value) ?? fallback;
 }
 
+const BLOCK_END = /<\/(p|div|h[1-6]|blockquote|ul|ol)>/gi;
+const LINE_BREAK = /<br\s*\/?>/gi;
+const LIST_ITEM_START = /<li[^>]*>/gi;
+const LIST_ITEM_END = /<\/li>/gi;
+const ANY_TAG = /<[^>]*>/g;
+const NBSP = /&nbsp;|\u00a0/g;
+const ENTITY =
+  /&(amp|lt|gt|quot|#0?39|aring|Aring|aelig|AElig|oslash|Oslash);/g;
+const ENTITY_TEXT: Record<string, string> = {
+  "#039": "'",
+  "#39": "'",
+  AElig: "Æ",
+  Aring: "Å",
+  Oslash: "Ø",
+  aelig: "æ",
+  amp: "&",
+  aring: "å",
+  gt: ">",
+  lt: "<",
+  oslash: "ø",
+  quot: '"',
+};
+const SPACES = /[ \t]+/g;
+const SPACE_AROUND_NEWLINE = / ?\n ?/g;
+const EXTRA_BLANK_LINES = /\n{3,}/g;
+
+/**
+ * The description as plain text for the panel's text box. Benefits saved by
+ * the old block editor hold HTML; showing tags to a committee member would be
+ * worse than losing bold text, so paragraphs and list items become lines.
+ */
+export function editableDescription(value: string | null): string {
+  const text = value ?? "";
+  if (!text.trimStart().startsWith("<")) {
+    return text;
+  }
+  return text
+    .replace(LIST_ITEM_START, "• ")
+    .replace(LIST_ITEM_END, "\n")
+    .replace(LINE_BREAK, "\n")
+    .replace(BLOCK_END, "\n\n")
+    .replace(ANY_TAG, "")
+    .replace(NBSP, " ")
+    .replace(ENTITY, (_, name: string) => ENTITY_TEXT[name] ?? "")
+    .replace(SPACES, " ")
+    .replace(SPACE_AROUND_NEWLINE, "\n")
+    .replace(EXTRA_BLANK_LINES, "\n\n")
+    .trim();
+}
+
 export function panelValuesFromBenefit(data: BenefitEditData): PanelValues {
   const startDate = benefitDateFromIso(data.publish_start) ?? "";
   const endDate = benefitDateFromIso(data.publish_end) ?? "";
   return {
     campusId: data.campus_id,
-    category: data.category,
-    descriptionEn: data.description_en ?? "",
-    descriptionNb: data.description_nb ?? "",
+    // Old rows may use a category name from before the shared list.
+    category: data.category?.trim()
+      ? mapLegacyBenefitCategory(data.category)
+      : null,
+    descriptionEn: editableDescription(data.description_en),
+    descriptionNb: editableDescription(data.description_nb),
     endDate,
     imageUrl: data.image_url ?? "",
     isFeatured: data.is_featured,
@@ -102,6 +156,22 @@ export function panelValuesFromBenefit(data: BenefitEditData): PanelValues {
     titleEn: data.title_en,
     titleNb: data.title_nb,
   };
+}
+
+/**
+ * A new member benefit started from a partner (`?partner=<id>`) opens with
+ * that partner picked, as long as the panel can offer it.
+ */
+export function withPresetPartner(
+  values: PanelValues,
+  partnerId: string | null | undefined,
+  partners: readonly { id: string }[]
+): PanelValues {
+  const offered =
+    values.section === "member" &&
+    Boolean(partnerId) &&
+    partners.some((partner) => partner.id === partnerId);
+  return offered ? { ...values, partnerId: partnerId ?? null } : values;
 }
 
 export function panelFooterActions(

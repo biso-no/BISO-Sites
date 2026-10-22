@@ -249,6 +249,7 @@ export function BenefitBoardSection({
           <Link
             className={`shrink-0 rounded-md px-2.5 py-1 font-semibold text-[#6b1e1e] text-sm transition-colors hover:bg-[rgba(107,30,30,0.07)] ${BOARD_FOCUS_RING}`}
             href={newBenefitHref(campusId, section.section)}
+            scroll={false}
           >
             {t("add")}
           </Link>

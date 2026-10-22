@@ -50,6 +50,7 @@ function LineRow({
       <Link
         className={`flex min-w-0 flex-1 items-center gap-4 rounded-xl py-3.5 pr-4 ${sortable ? "pl-2" : "pl-5"} ${BOARD_FOCUS_RING_INSET}`}
         href={benefitHref(item.benefit.$id, campusId)}
+        scroll={false}
       >
         <span
           className="min-w-0 flex-1 text-[15px] leading-snug"

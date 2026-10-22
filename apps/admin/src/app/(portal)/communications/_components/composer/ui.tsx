@@ -202,23 +202,30 @@ export const TYPE_ICONS: Record<ComposerTypeId, typeof Megaphone> = {
 export function Pill({
   active,
   children,
+  className,
+  disabled,
   onClick,
 }: {
   active: boolean;
   children: React.ReactNode;
+  className?: string;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       aria-pressed={active}
+      className={className}
+      disabled={disabled}
       onClick={onClick}
       style={{
         background: active ? BRAND.ink : "white",
         border: `1px solid ${active ? BRAND.ink : BRAND.rule2}`,
         borderRadius: 999,
         color: active ? "white" : BRAND.ink,
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
         fontSize: 12.5,
+        opacity: disabled && !active ? 0.6 : undefined,
         padding: "5px 11px",
         transition: "background .12s, border-color .12s",
       }}

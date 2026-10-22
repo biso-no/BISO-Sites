@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   benefitHref,
   benefitTitle,
+  boardHref,
   categoryLabel,
   isDimmedState,
   logoColor,
@@ -52,6 +53,10 @@ describe("isDimmedState", () => {
 describe("links", () => {
   it("opens an item on the tab it was clicked from", () => {
     expect(benefitHref("abc", "2")).toBe("/benefits/abc?campus=2");
+  });
+
+  it("goes back to the tab the panel was opened from", () => {
+    expect(boardHref("5")).toBe("/benefits?campus=5");
   });
 
   it("starts a new item in the chosen section", () => {

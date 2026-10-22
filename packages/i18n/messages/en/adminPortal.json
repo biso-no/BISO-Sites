@@ -799,10 +799,6 @@
   },
   "benefits": {
     "title": "Benefits",
-    "description": "Manage member benefits and partner offers.",
-    "create": "Create Benefit",
-    "empty": "No benefits yet",
-    "emptyDescription": "Add your first member benefit.",
     "partners": {
       "title": "Partners",
       "description": "Manage benefit partners and API access.",
@@ -817,49 +813,6 @@
         "lastSync": "Last Sync"
       }
     },
-    "fields": {
-      "titleNo": "Title (Norwegian)",
-      "titleEn": "Title (English)",
-      "descriptionNo": "Description (Norwegian)",
-      "descriptionEn": "Description (English)",
-      "kind": "Benefit Type",
-      "redemptionType": "Redemption Type",
-      "category": "Category",
-      "campus": "Campus",
-      "imageUrl": "Cover Image URL",
-      "status": "Status",
-      "partnerName": "Partner Name",
-      "redemptionValue": "Redemption Code / URL",
-      "isFeatured": "Featured",
-      "isMemberOnly": "Members only",
-      "publishStart": "Publish From",
-      "publishEnd": "Publish Until",
-      "claims": "Claims"
-    },
-    "kinds": {
-      "offer": "Offer",
-      "perk": "Perk",
-      "service": "Service"
-    },
-    "redemptionTypes": {
-      "none": "None",
-      "code": "Promo Code",
-      "link": "Link",
-      "qr": "QR Code",
-      "onsite": "On-site"
-    },
-    "actions": {
-      "edit": "Configure benefit",
-      "delete": "Delete benefit",
-      "viewPartners": "View Partners"
-    },
-    "preview": "Phone Preview",
-    "saveSuccess": "Benefit saved",
-    "saveError": "Failed to save benefit",
-    "deleteSuccess": "Benefit deleted",
-    "deleteError": "Failed to delete benefit",
-    "publishSuccess": "Benefit published",
-    "publishError": "Failed to publish benefit",
     "board": {
       "title": "Member benefits",
       "eyebrow": "Benefits",
@@ -930,6 +883,8 @@
       "featured": "Show first",
       "featuredHelp": "Shown at the top of the member portal and on the Membership page.",
       "english": "English text",
+      "autoTranslate": "Translate automatically",
+      "autoTranslateHelp": "Creates the English title and text from the Norwegian when you save.",
       "lineQuestion": "What do students get?",
       "lineQuestionBusiness": "What do businesses get?",
       "draftNote": "Saved as a draft until you publish",
@@ -946,7 +901,9 @@
       "published": "Published",
       "hidden": "Hidden from the website",
       "deleted": "Deleted",
-      "saveFailed": "Could not save. Try again."
+      "saveFailed": "Could not save. Try again.",
+      "deleteFailed": "Could not delete. Try again.",
+      "readOnly": "This applies to every campus. Only administrators can change it."
     },
     "errors": {
       "titleRequired": "Write what the offer is.",

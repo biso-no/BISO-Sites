@@ -799,10 +799,6 @@
   },
   "benefits": {
     "title": "Fordeler",
-    "description": "Administrer medlemsfordeler og partnerfordeler.",
-    "create": "Opprett fordel",
-    "empty": "Ingen fordeler ennå",
-    "emptyDescription": "Legg til din første medlemsfordel.",
     "partners": {
       "title": "Partnere",
       "description": "Administrer fordelspartnere og API-tilgang.",
@@ -817,49 +813,6 @@
         "lastSync": "Sist synkronisert"
       }
     },
-    "fields": {
-      "titleNo": "Tittel (norsk)",
-      "titleEn": "Tittel (engelsk)",
-      "descriptionNo": "Beskrivelse (norsk)",
-      "descriptionEn": "Beskrivelse (engelsk)",
-      "kind": "Fordeltype",
-      "redemptionType": "Innløsningstype",
-      "category": "Kategori",
-      "campus": "Campus",
-      "imageUrl": "Forsidebilde-URL",
-      "status": "Status",
-      "partnerName": "Partnernavn",
-      "redemptionValue": "Innløsningskode / URL",
-      "isFeatured": "Fremhevet",
-      "isMemberOnly": "Kun for medlemmer",
-      "publishStart": "Publiser fra",
-      "publishEnd": "Publiser til",
-      "claims": "Innløsninger"
-    },
-    "kinds": {
-      "offer": "Tilbud",
-      "perk": "Fordel",
-      "service": "Tjeneste"
-    },
-    "redemptionTypes": {
-      "none": "Ingen",
-      "code": "Rabattkode",
-      "link": "Lenke",
-      "qr": "QR-kode",
-      "onsite": "På stedet"
-    },
-    "actions": {
-      "edit": "Konfigurer fordel",
-      "delete": "Slett fordel",
-      "viewPartners": "Se partnere"
-    },
-    "preview": "Telefonforhåndsvisning",
-    "saveSuccess": "Fordel lagret",
-    "saveError": "Kunne ikke lagre fordel",
-    "deleteSuccess": "Fordel slettet",
-    "deleteError": "Kunne ikke slette fordel",
-    "publishSuccess": "Fordel publisert",
-    "publishError": "Kunne ikke publisere fordel",
     "board": {
       "title": "Medlemsfordeler",
       "eyebrow": "Fordeler",
@@ -930,6 +883,8 @@
       "featured": "Vis først",
       "featuredHelp": "Vises øverst i medlemsportalen og på Medlemskap-siden.",
       "english": "Engelsk tekst",
+      "autoTranslate": "Oversett automatisk",
+      "autoTranslateHelp": "Lager engelsk tittel og tekst fra den norske når du lagrer.",
       "lineQuestion": "Hva får studentene?",
       "lineQuestionBusiness": "Hva får bedriftene?",
       "draftNote": "Lagres som utkast til du publiserer",
@@ -946,7 +901,9 @@
       "published": "Publisert",
       "hidden": "Skjult fra nettsiden",
       "deleted": "Slettet",
-      "saveFailed": "Kunne ikke lagre. Prøv igjen."
+      "saveFailed": "Kunne ikke lagre. Prøv igjen.",
+      "deleteFailed": "Kunne ikke slette. Prøv igjen.",
+      "readOnly": "Denne gjelder alle campuser. Bare administratorer kan endre den."
     },
     "errors": {
       "titleRequired": "Skriv hva tilbudet er.",

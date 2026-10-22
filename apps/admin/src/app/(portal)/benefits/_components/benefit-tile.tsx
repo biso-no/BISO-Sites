@@ -56,6 +56,8 @@ function TileFrame({
       <Link
         className={`flex h-full min-h-[8.5rem] flex-col rounded-xl border border-[#e5dcca] bg-white p-4 transition-[border-color,box-shadow] hover:border-[#d8cdb6] hover:shadow-[0_6px_18px_rgba(26,24,20,0.07)] ${BOARD_FOCUS_RING}`}
         href={benefitHref(item.benefit.$id, campusId)}
+        // The panel opens over the board; keep the board where it was.
+        scroll={false}
         style={sortable?.isDragging ? { boxShadow: DRAG_SHADOW } : undefined}
       >
         <span className="flex items-start justify-between gap-3">
