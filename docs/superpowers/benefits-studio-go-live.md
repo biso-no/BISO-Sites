@@ -11,6 +11,7 @@ Follow the order. Each stage's steps assume the previous ones are done.
    - The change makes five columns of `campus_benefits` optional: `kind`, `redemption_type` (with default `none`), `category`, `description_nb` and `description_en`. It also adds `section` and an index, the tables `benefit_codes` and `membership_texts`, and `partners.sort_order`.
    - **If the CLI offers to recreate or delete any existing column, abort.** Recreating wipes that column on every row. Instead, change those five columns by hand in the Console (untick "required"; set the `redemption_type` default to `none`), then push again for the rest.
    - The change is additive. Today's admin and website keep working after it.
+   - **Keep the table-level read on `campus_benefits` for this push.** The repo file now has none, but today's website still depends on it. Before pushing, in `packages/api/appwrite.config.json` set `campus_benefits` `"$permissions"` to `["read(\"any\")"]`. Push, then restore the file with `git checkout -- packages/api/appwrite.config.json`. The stage 4 push removes it later.
 3. **Then merge and deploy the website.** The member portal now queries the `section` column. Deployed before the push, it would show an empty list.
 4. **Review the migration.**
    - Run `cd packages/shared && bun run migrate:benefits`. This is a dry run and only reads.
@@ -58,3 +59,27 @@ Follow the order. Each stage's steps assume the previous ones are done.
 2. **Deploy the admin** together with stage 2. The partners page replaces the old read-only list with the "API Beta" badge.
 3. **Expect logos to lag until stage 4.** Logos added or reordered here show on the home page, "Om oss" and in partner blocks only once stage 4 adds ordering and a faster refresh to the website. Until then the site shows logos in creation order, cached for up to an hour.
 4. **Ending vs deleting a partner.** Ending a partner hides its offers straight away. Restarting brings back exactly the offers that were live. "Slett for godt" deletes the partner, its offers and their codes, and that can't be undone.
+
+## Stage 4: the website switch
+
+Stage 4 makes the website read benefits from the new table and hands out codes only to active members. It also makes admin saves show up on the website quickly.
+
+Do these in order:
+
+1. **Check the secrets before changing anything.**
+   - `CRON_SECRET` must have the **same value in web, admin and apps/api**. Admin already uses it for calls to apps/api, so look at what it is today and copy that value into web. Don't invent a new one.
+   - Set `NEXT_PUBLIC_WEB_BASE_URL` in admin to the public website address (for example `https://biso.no`). A trailing slash is fine.
+   - If either is wrong or missing, saves in admin still work. The website just catches up within a few minutes instead of at the next page view. That's not a broken save.
+2. **Deploy web and admin together.** This is the stage 2, 3 and 4 code. **Don't deploy admin alone.** Today's website would lose codes and partner names on any benefit edited in the new admin, because the new admin no longer writes them to the old columns.
+3. **Make sure the stage 1 migration is applied** (stage 1 step 5) before the next step.
+4. **Clear the old codes from the public column.** Run it in a quiet moment, when nobody is editing benefits. It plans from a snapshot. From `packages/shared`:
+   - Dry run first: `bun run clear:legacy-benefit-codes`. It only reads and prints counts. Expect a small number (about 2), or 0 if the migration already copied them.
+   - Then write: `bun run clear:legacy-benefit-codes --apply`. It copies each remaining code into `benefit_codes` and empties `campus_benefits.redemption_value`.
+5. **Spot check before the second push.** In the Console, open one or two published benefits and check that each row itself has `read("any")` in its permissions. **After the next step a published row without it disappears from the website.**
+6. **Push the schema again.** From `packages/api`, run `appwrite push tables` with the file as it is in git (no `git checkout` tricks this time). It removes the table-level read on `campus_benefits`, so rows can only be read through their own permissions. It also adds the `partners` index from stage 3, if you haven't pushed it yet.
+7. **Check the website.**
+   - Log out. Open view-source for `/member`, `/campus`, `/students` and `/membership` and search for a code you know. It must not be there.
+   - Sign in with an account that has no active membership, open the member portal and press "Vis kode" on a benefit. It should say: "Du trenger et aktivt medlemskap for å se denne fordelen. Bli medlem i BISO for å låse den opp." If it says "Vi klarte ikke å sjekke medlemskapet ditt akkurat nå. Prøv igjen om litt." instead, that's an outage message, not the answer you're testing for. Try again later.
+   - In admin, save a small change to a published benefit. It should show on the website on the next reload.
+   - Open `/campus`, then "For bedrifter". The campus's partner logos should show.
+8. **Old text lists are gone.** The old `campus_data` text arrays are no longer shown anywhere on the website. Benefits come only from the new table.
