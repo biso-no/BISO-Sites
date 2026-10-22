@@ -31,8 +31,11 @@ import { PartnerPicker } from "./partner-picker";
 export type PanelErrorField = "titleNb" | "redemptionValue" | "endDate";
 export type PanelErrorMessages = Partial<Record<PanelErrorField, string>>;
 
+/** The server's limits (`benefitSchema`), so the box stops where it would. */
 const TITLE_MAX = 200;
 const TEXT_MAX = 2000;
+const TERMS_MAX = 1000;
+const VALUE_MAX = 500;
 
 export interface PanelFormProps {
   autoTranslate: boolean;
@@ -43,6 +46,8 @@ export interface PanelFormProps {
   locale: AdminLocale;
   onAutoTranslateChange: (enabled: boolean) => void;
   onPartnerCreated: (partner: BoardPartner) => void;
+  /** Whether the inline "+ Ny partner" form holds anything yet. */
+  onPartnerDraftChange: (hasDraft: boolean) => void;
   partners: BoardPartner[];
   update: <K extends keyof PanelValues>(key: K, value: PanelValues[K]) => void;
   values: PanelValues;
@@ -115,6 +120,7 @@ export function MemberQuestions(props: PanelFormProps) {
           labelledBy={`${id}-partner`}
           onChange={(partnerId) => update("partnerId", partnerId)}
           onCreated={props.onPartnerCreated}
+          onDraftChange={props.onPartnerDraftChange}
           partners={partners}
           value={values.partnerId}
         />
@@ -146,6 +152,7 @@ export function MemberQuestions(props: PanelFormProps) {
               className={PANEL_INPUT_CLASS}
               id={`${id}-value`}
               inputMode={values.redemptionType === "link" ? "url" : "text"}
+              maxLength={VALUE_MAX}
               onChange={(event) =>
                 update("redemptionValue", event.target.value)
               }
@@ -399,7 +406,7 @@ function MoreOptions(props: PanelFormProps) {
             className={PANEL_INPUT_CLASS}
             disabled={disabled}
             id={`${id}-terms`}
-            maxLength={TEXT_MAX}
+            maxLength={TERMS_MAX}
             onChange={(event) => update("termsNb", event.target.value)}
             rows={2}
             style={textareaStyle}
@@ -532,7 +539,7 @@ function EnglishText(props: PanelFormProps) {
           disabled={disabled}
           id={`${id}-terms`}
           lang="en"
-          maxLength={TEXT_MAX}
+          maxLength={TERMS_MAX}
           onChange={(event) => update("termsEn", event.target.value)}
           rows={2}
           style={textareaStyle}

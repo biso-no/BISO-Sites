@@ -5,6 +5,7 @@ import {
   type BoardPartner,
   createBenefit as createBenefitAction,
   deleteBenefit as deleteBenefitAction,
+  setBenefitStatus as setBenefitStatusAction,
   updateBenefit as updateBenefitAction,
 } from "../../_actions/benefits";
 import type { BenefitFormValues } from "../../_actions/schemas";
@@ -28,6 +29,14 @@ export function updateBenefit(
   autoTranslation?: AutoTranslationOptions
 ): Promise<BenefitMutationResult> {
   return updateBenefitAction(id, values, autoTranslation);
+}
+
+/** Changes only the status; everything else is rebuilt from the stored row. */
+export function setBenefitStatus(
+  id: string,
+  status: "archived" | "draft" | "published"
+): Promise<BenefitMutationResult> {
+  return setBenefitStatusAction(id, status);
 }
 
 export function deleteBenefit(

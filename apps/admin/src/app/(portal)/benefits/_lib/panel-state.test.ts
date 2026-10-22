@@ -3,6 +3,7 @@ import type { BenefitEditData } from "../../_actions/benefits";
 import {
   editableDescription,
   emptyPanelValues,
+  isPanelDirty,
   panelFooterActions,
   panelValuesFromBenefit,
   toBenefitFormValues,
@@ -143,31 +144,31 @@ describe("validatePanel", () => {
   });
 });
 
-describe("panelValuesFromBenefit", () => {
-  const base: BenefitEditData = {
-    $createdAt: "2026-01-01T00:00:00Z",
-    $id: "b1",
-    campus_id: "2",
-    category: null,
-    description_en: null,
-    description_nb: null,
-    editable: true,
-    image_url: null,
-    is_featured: false,
-    partner_id: null,
-    publish_end: "2026-11-10T22:59:59Z",
-    publish_start: null,
-    redemption_type: "code",
-    redemption_value: "ABC",
-    section: "member",
-    sort_order: 0,
-    status: "published",
-    terms_en: null,
-    terms_nb: null,
-    title_en: "",
-    title_nb: "Tittel",
-  };
+const base: BenefitEditData = {
+  $createdAt: "2026-01-01T00:00:00Z",
+  $id: "b1",
+  campus_id: "2",
+  category: null,
+  description_en: null,
+  description_nb: null,
+  editable: true,
+  image_url: null,
+  is_featured: false,
+  partner_id: null,
+  publish_end: "2026-11-10T22:59:59Z",
+  publish_start: null,
+  redemption_type: "code",
+  redemption_value: "ABC",
+  section: "member",
+  sort_order: 0,
+  status: "published",
+  terms_en: null,
+  terms_nb: null,
+  title_en: "",
+  title_nb: "Tittel",
+};
 
+describe("panelValuesFromBenefit", () => {
   it("maps a ranged row with the Oslo end date", () => {
     const out = panelValuesFromBenefit(base);
     expect(out.timing).toBe("range");
@@ -175,10 +176,11 @@ describe("panelValuesFromBenefit", () => {
     expect(out.redemptionValue).toBe("ABC");
   });
 
-  it("maps a legacy redemption type to none and null section to member", () => {
+  it("maps a legacy type without a value to none and null section to member", () => {
     const out = panelValuesFromBenefit({
       ...base,
       redemption_type: "qr",
+      redemption_value: null,
       section: null as unknown as string,
     });
     expect(out.redemptionType).toBe("none");
@@ -198,26 +200,98 @@ describe("panelValuesFromBenefit", () => {
     const out = panelValuesFromBenefit({
       ...base,
       description_nb:
-        "<p>Rabatt p&aring; alt</p><p>Gjelder&nbsp;klipp &amp; kort</p>",
+        "<p>Rabatt på alt</p><p>Gjelder&nbsp;klipp &amp; kort</p>",
     });
     expect(out.descriptionNb).toBe("Rabatt på alt\n\nGjelder klipp & kort");
   });
+
+  it("keeps a legacy redemption type's value as a code or a link", () => {
+    // Mapping it to "none" made the next save delete the stored value.
+    expect(
+      panelValuesFromBenefit({
+        ...base,
+        redemption_type: "qr",
+        redemption_value: "https://partner.no/biso",
+      }).redemptionType
+    ).toBe("link");
+    expect(
+      panelValuesFromBenefit({
+        ...base,
+        redemption_type: "qr",
+        redemption_value: "BISO-QR-123",
+      }).redemptionType
+    ).toBe("code");
+    expect(
+      panelValuesFromBenefit({
+        ...base,
+        redemption_type: "qr",
+        redemption_value: "  ",
+      }).redemptionType
+    ).toBe("none");
+  });
 });
+
+const STORED_HTML =
+  '<h3>Slik gjør du</h3><p>Vis medlemskortet i kassa.</p><ul><li>Hverdager</li><li>Helg</li></ul><figure data-media-kind="image" data-url="https://cdn.biso.no/a.png" data-caption="Lokalet"><img src="https://cdn.biso.no/a.png" alt="" /><figcaption>Lokalet</figcaption></figure><figure data-media-kind="image" data-url="https://cdn.biso.no/b.png"><img src="https://cdn.biso.no/b.png" alt="" /></figure>';
 
 describe("editableDescription", () => {
   it("keeps plain text as it is", () => {
-    expect(editableDescription("Rabatt <3 på alt")).toBe("Rabatt <3 på alt");
+    expect(editableDescription("Rabatt <3 på alt\nogså i helgen")).toBe(
+      "Rabatt <3 på alt\nogså i helgen"
+    );
+    expect(editableDescription("[Nyhet] 20 %")).toBe("[Nyhet] 20 %");
     expect(editableDescription(null)).toBe("");
   });
 
-  it("turns line breaks and list items into lines", () => {
+  it("reads headings, paragraphs, list items and captions as lines", () => {
+    expect(editableDescription(STORED_HTML)).toBe(
+      "Slik gjør du\n\nVis medlemskortet i kassa.\n\n• Hverdager\n• Helg\n\nLokalet"
+    );
+  });
+
+  it("reads the old Plate editor's JSON", () => {
     expect(
-      editableDescription("<ul><li>Én</li><li>To</li></ul><p>Tre<br>fire</p>")
-    ).toBe("• Én\n• To\n\nTre\nfire");
+      editableDescription(
+        JSON.stringify([
+          { children: [{ text: "Første" }], type: "p" },
+          { children: [{ text: "Andre" }], type: "p" },
+        ])
+      )
+    ).toBe("Første\n\nAndre");
   });
 
   it("treats markup with no words as empty", () => {
     expect(editableDescription("<p>&nbsp;</p>")).toBe("");
+  });
+});
+
+describe("toBenefitFormValues and stored descriptions", () => {
+  const opened = panelValuesFromBenefit({
+    ...base,
+    description_en: "<p>Show the card.</p>",
+    description_nb: STORED_HTML,
+  });
+
+  it("sends an untouched description back exactly as stored", () => {
+    const out = toBenefitFormValues(opened, "saveChanges");
+    expect(out.description_nb).toBe(STORED_HTML);
+    expect(out.description_en).toBe("<p>Show the card.</p>");
+  });
+
+  it("sends plain text for the language that was edited", () => {
+    const out = toBenefitFormValues(
+      { ...opened, descriptionNb: "Ny tekst\nlinje to" },
+      "saveChanges"
+    );
+    expect(out.description_nb).toBe("Ny tekst\nlinje to");
+    expect(out.description_en).toBe("<p>Show the card.</p>");
+  });
+
+  it("clears a description that was emptied", () => {
+    expect(
+      toBenefitFormValues({ ...opened, descriptionNb: "  " }, "saveChanges")
+        .description_nb
+    ).toBeNull();
   });
 });
 
@@ -241,5 +315,14 @@ describe("withPresetPartner", () => {
       withPresetPartner({ ...values(), section: "career" }, "loft", partners)
         .partnerId
     ).toBeNull();
+  });
+});
+
+describe("isPanelDirty", () => {
+  it("is clean until a value changes", () => {
+    const initial = values();
+    expect(isPanelDirty({ ...initial }, initial)).toBe(false);
+    expect(isPanelDirty({ ...initial, titleNb: "Ny" }, initial)).toBe(true);
+    expect(isPanelDirty({ ...initial, isFeatured: true }, initial)).toBe(true);
   });
 });

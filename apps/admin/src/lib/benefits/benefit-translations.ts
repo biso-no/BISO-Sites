@@ -15,6 +15,7 @@ import {
   translateContentFields,
 } from "@/lib/content-translation.server";
 import { buildContentTranslationPermissions } from "@/lib/utils";
+import { isFormattedDescription } from "./benefit-description";
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
@@ -57,7 +58,12 @@ export const translateBenefitSnapshot = async (
     contentType: "member benefit",
     fields: [
       { format: "plain", key: "title", value: source.title },
-      { format: "html", key: "description", value: source.description },
+      {
+        // The panel writes plain text; rows from the old editors hold HTML.
+        format: isFormattedDescription(source.description) ? "html" : "plain",
+        key: "description",
+        value: source.description,
+      },
     ],
     sourceLocale,
     targetLocale: getTargetLocale(sourceLocale),

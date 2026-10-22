@@ -1,7 +1,14 @@
 import { NATIONAL_CAMPUS_ID } from "@repo/shared/utils/benefit-catalog";
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, useId, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import type { BoardPartner } from "../../_actions/benefits";
 import { ImageUploadField } from "../../_components/image-upload-field";
@@ -38,6 +45,8 @@ export interface PartnerPickerProps {
   labelledBy: string;
   onChange: (partnerId: string | null) => void;
   onCreated: (partner: BoardPartner) => void;
+  /** Told whether the "+ Ny partner" form holds anything unsaved. */
+  onDraftChange?: (hasDraft: boolean) => void;
   partners: BoardPartner[];
   value: string | null;
 }
@@ -53,6 +62,7 @@ export function PartnerPicker({
   labelledBy,
   onChange,
   onCreated,
+  onDraftChange,
   partners,
   value,
 }: PartnerPickerProps) {
@@ -185,6 +195,7 @@ export function PartnerPicker({
             onCreated(partner);
             setAdding(false);
           }}
+          onDraftChange={onDraftChange}
         />
       )}
     </div>
@@ -196,11 +207,13 @@ function NewPartner({
   campusId,
   onAddingChange,
   onCreated,
+  onDraftChange,
 }: {
   adding: boolean;
   campusId: string;
   onAddingChange: (adding: boolean) => void;
   onCreated: (partner: BoardPartner) => void;
+  onDraftChange?: (hasDraft: boolean) => void;
 }) {
   const t = useTranslations("adminPortal.benefits.panel");
   const tErrors = useTranslations("adminPortal.benefits.errors");
@@ -210,6 +223,10 @@ function NewPartner({
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [websiteError, setWebsiteError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const hasDraft = adding && Boolean(name.trim() || website.trim() || logoUrl);
+  useEffect(() => {
+    onDraftChange?.(hasDraft);
+  }, [hasDraft, onDraftChange]);
 
   const reset = () => {
     setName("");

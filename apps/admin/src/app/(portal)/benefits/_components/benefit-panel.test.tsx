@@ -24,8 +24,12 @@ import {
   type TestElement,
   type TestNode,
 } from "@/test/react-dom-harness";
-import type { BoardPartner } from "../../_actions/benefits";
-import { emptyPanelValues, type PanelValues } from "../_lib/panel-state";
+import type { BenefitEditData, BoardPartner } from "../../_actions/benefits";
+import {
+  emptyPanelValues,
+  type PanelValues,
+  panelValuesFromBenefit,
+} from "../_lib/panel-state";
 
 // `mock.module` is process-wide, so every shared module keeps the exports it
 // already has and only what this panel needs is replaced. Translations read
@@ -107,11 +111,39 @@ mock.module("sonner", () => ({ ...actualSonner, toast }));
 // checked in the browser.
 type Slot = { children?: ReactNode } & Record<string, unknown>;
 const actualSheet = await import("@repo/ui/components/ui/sheet");
+// Like Radix, Esc inside the sheet runs `onEscapeKeyDown` and then closes
+// it through `onOpenChange(false)`, unless the handler prevented that.
+type OpenChange = (open: boolean) => void;
+const SheetOpenChange = createContext<OpenChange>(() => undefined);
 mock.module("@repo/ui/components/ui/sheet", () => ({
   ...actualSheet,
-  Sheet: ({ children, open }: Slot) => (open === false ? null : children),
-  SheetContent: ({ children }: Slot) =>
-    createElement("div", { role: "dialog" }, children),
+  Sheet: ({ children, onOpenChange, open }: Slot) =>
+    open === false
+      ? null
+      : createElement(
+          SheetOpenChange.Provider,
+          { value: onOpenChange as OpenChange },
+          children
+        ),
+  SheetContent({ children, onEscapeKeyDown }: Slot) {
+    const onOpenChange = useContext(SheetOpenChange);
+    return createElement(
+      "div",
+      {
+        onKeyDown: (event: { defaultPrevented: boolean; key: string }) => {
+          if (event.key !== "Escape") {
+            return;
+          }
+          (onEscapeKeyDown as ((event: unknown) => void) | undefined)?.(event);
+          if (!event.defaultPrevented) {
+            onOpenChange(false);
+          }
+        },
+        role: "dialog",
+      },
+      children
+    );
+  },
   SheetDescription: ({ children }: Slot) => createElement("p", {}, children),
   SheetTitle: ({ children }: Slot) => createElement("h2", {}, children),
 }));
@@ -123,19 +155,43 @@ const passThrough =
     createElement(tag, {}, children);
 // Just enough of Radix: the trigger always renders, the content only when
 // open. The panel opens the dialog through the trigger's own click handler.
-const DialogOpen = createContext(false);
+interface DialogState {
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}
+const DialogOpen = createContext<DialogState>({
+  onOpenChange: () => undefined,
+  open: false,
+});
 mock.module("@repo/ui/components/ui/alert-dialog", () => ({
   ...actualAlertDialog,
-  AlertDialog: ({ children, open }: Slot) =>
-    createElement(DialogOpen.Provider, { value: Boolean(open) }, children),
+  AlertDialog: ({ children, onOpenChange, open }: Slot) =>
+    createElement(
+      DialogOpen.Provider,
+      {
+        value: {
+          onOpenChange:
+            (onOpenChange as DialogState["onOpenChange"]) ?? (() => undefined),
+          open: Boolean(open),
+        },
+      },
+      children
+    ),
   AlertDialogAction: ({ children, disabled, onClick }: Slot) =>
     createElement("button", { disabled, onClick, type: "button" }, children),
-  AlertDialogCancel: ({ children, disabled }: Slot) =>
-    createElement("button", { disabled, type: "button" }, children),
-  AlertDialogContent: ({ children }: Slot) =>
-    useContext(DialogOpen)
+  AlertDialogCancel({ children, disabled }: Slot) {
+    const { onOpenChange } = useContext(DialogOpen);
+    return createElement(
+      "button",
+      { disabled, onClick: () => onOpenChange(false), type: "button" },
+      children
+    );
+  },
+  AlertDialogContent({ children }: Slot) {
+    return useContext(DialogOpen).open
       ? createElement("div", { role: "alertdialog" }, children)
-      : null,
+      : null;
+  },
   AlertDialogDescription: passThrough("p"),
   AlertDialogFooter: passThrough("div"),
   AlertDialogHeader: passThrough("div"),
@@ -149,8 +205,11 @@ const calls = {
   createBenefit: [] as unknown[][],
   createBenefitPartner: [] as unknown[][],
   deleteBenefit: [] as unknown[][],
+  setBenefitStatus: [] as unknown[][],
   updateBenefit: [] as unknown[][],
 };
+/** Set to hold the next `updateBenefit` open until the test settles it. */
+let heldUpdate: Promise<unknown> | null = null;
 mock.module("./panel-actions", () => ({
   createBenefit: (...args: unknown[]) => {
     calls.createBenefit.push(args);
@@ -173,9 +232,13 @@ mock.module("./panel-actions", () => ({
     calls.deleteBenefit.push(args);
     return Promise.resolve({ data: args[0] });
   },
+  setBenefitStatus: (...args: unknown[]) => {
+    calls.setBenefitStatus.push(args);
+    return Promise.resolve({ data: args[0] });
+  },
   updateBenefit: (...args: unknown[]) => {
     calls.updateBenefit.push(args);
-    return Promise.resolve({ data: args[0] });
+    return heldUpdate ?? Promise.resolve({ data: args[0] });
   },
 }));
 
@@ -198,6 +261,7 @@ afterEach(async () => {
   pushes.length = 0;
   refreshes = 0;
   toasts.length = 0;
+  heldUpdate = null;
   for (const list of Object.values(calls)) {
     list.length = 0;
   }
@@ -283,6 +347,32 @@ async function type(element: TestElement, text: string): Promise<void> {
     element.value = text;
     element.dispatchEvent(new Event("input", { bubbles: true }));
   });
+}
+
+/** Esc pressed inside the sheet, as Radix would see it. */
+async function pressEscape(): Promise<void> {
+  const sheet = findElements(
+    container as unknown as TestNode,
+    (element) => element.getAttribute("role") === "dialog"
+  )[0];
+  if (!sheet) {
+    throw new Error("The sheet is not open");
+  }
+  await act(async () => {
+    sheet.dispatchEvent(
+      Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), {
+        key: "Escape",
+      })
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+function alertDialog(): TestElement | undefined {
+  return findElements(
+    container as unknown as TestNode,
+    (element) => element.getAttribute("role") === "alertdialog"
+  )[0];
 }
 
 function elements(tagName: string): TestElement[] {
@@ -545,5 +635,168 @@ describe("BenefitPanel", () => {
     await press(findByAriaLabel(container as unknown as TestNode, "Lukk"));
 
     expect(pushes).toEqual([BOARD_HREF]);
+  });
+
+  describe("a description saved by the old editor", () => {
+    const STORED =
+      '<h3>Slik gjør du</h3><p>Vis kortet.</p><ul><li>Hverdager</li></ul><figure data-media-kind="image" data-url="https://cdn.biso.no/a.png"><img src="https://cdn.biso.no/a.png" alt="" /></figure>';
+    const stored: BenefitEditData = {
+      $createdAt: "2026-01-01T00:00:00Z",
+      $id: "b1",
+      campus_id: "2",
+      category: "health_fitness",
+      description_en: "<p>Show the card.</p>",
+      description_nb: STORED,
+      editable: true,
+      image_url: null,
+      is_featured: false,
+      partner_id: "partner-loft",
+      publish_end: null,
+      publish_start: null,
+      redemption_type: "code",
+      redemption_value: "LOFT20",
+      section: "member",
+      sort_order: 0,
+      status: "published",
+      terms_en: null,
+      terms_nb: null,
+      title_en: "",
+      title_nb: OFFER,
+    };
+
+    test("is saved back byte for byte when nobody touched it", async () => {
+      await mount({ benefitId: "b1", initial: panelValuesFromBenefit(stored) });
+      // The text box and the preview read the formatted text, not tags.
+      const preview = elements("SECTION").find((section) =>
+        section.textContent.includes("Slik ser studentene det")
+      );
+      expect(preview?.textContent).toContain(
+        "Slik gjør du\n\nVis kortet.\n\n• Hverdager"
+      );
+      expect(preview?.textContent).not.toContain("<");
+
+      await click("Lagre endringer");
+
+      const form = calls.updateBenefit[0]?.[1] as Record<string, unknown>;
+      expect(form.description_nb).toBe(STORED);
+      expect(form.description_en).toBe("<p>Show the card.</p>");
+    });
+
+    test("is saved as plain text once it is edited", async () => {
+      await mount({ benefitId: "b1", initial: panelValuesFromBenefit(stored) });
+
+      await type(
+        labelled("Fortell litt mer"),
+        "Vis kortet i kassa.\nHverdager."
+      );
+      await click("Lagre endringer");
+
+      const form = calls.updateBenefit[0]?.[1] as Record<string, unknown>;
+      expect(form.description_nb).toBe("Vis kortet i kassa.\nHverdager.");
+      expect(form.description_en).toBe("<p>Show the card.</p>");
+    });
+  });
+
+  test("hiding changes only the status, never the stored text", async () => {
+    await mount({ benefitId: "b1", initial: published });
+    await type(labelled("Hva er tilbudet?"), "Halvferdig tittel");
+
+    await click("Skjul fra nettsiden");
+
+    expect(calls.setBenefitStatus).toEqual([["b1", "archived"]]);
+    expect(calls.updateBenefit).toHaveLength(0);
+    expect(toasts.at(-1)?.message).toBe("Skjult fra nettsiden");
+    expect(pushes).toEqual([BOARD_HREF]);
+  });
+
+  test("Esc on an untouched panel closes it straight away", async () => {
+    await mount({ benefitId: "b1", initial: published });
+
+    await pressEscape();
+
+    expect(alertDialog()).toBeUndefined();
+    expect(pushes).toEqual([BOARD_HREF]);
+  });
+
+  test("Esc with unsaved changes asks before throwing them away", async () => {
+    await mount({ benefitId: "b1", initial: published });
+    await type(labelled("Hva er tilbudet?"), "Ny tittel");
+
+    await pressEscape();
+
+    expect(pushes).toHaveLength(0);
+    expect(alertDialog()?.textContent).toContain("Forkaste endringene?");
+    expect(alertDialog()?.textContent).toContain(
+      "Det du har skrevet blir ikke lagret."
+    );
+    expect(container.textContent).toContain("Endre fordel");
+
+    await click("Fortsett å redigere");
+    expect(alertDialog()).toBeUndefined();
+    expect(labelled("Hva er tilbudet?").value).toBe("Ny tittel");
+    expect(pushes).toHaveLength(0);
+  });
+
+  test("Forkast closes without saving", async () => {
+    await mount();
+    await type(labelled("Hva er tilbudet?"), "Ny tittel");
+
+    await press(findByAriaLabel(container as unknown as TestNode, "Lukk"));
+    expect(alertDialog()?.textContent).toContain("Forkaste endringene?");
+    await click("Forkast");
+
+    expect(pushes).toEqual([BOARD_HREF]);
+    expect(calls.createBenefit).toHaveLength(0);
+  });
+
+  test("a half-filled new partner counts as unsaved", async () => {
+    await mount();
+    await click("+ Ny partner");
+    await type(labelled("Navn"), "Nytt Bakeri");
+
+    await pressEscape();
+
+    expect(alertDialog()?.textContent).toContain("Forkaste endringene?");
+    expect(pushes).toHaveLength(0);
+  });
+
+  test("the panel stays open while a save is on its way", async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    heldUpdate = new Promise((resolve) => {
+      finish = resolve;
+    });
+    await mount({ benefitId: "b1", initial: published });
+
+    await click("Lagre endringer");
+    await pressEscape();
+    await press(findByAriaLabel(container as unknown as TestNode, "Lukk"));
+
+    expect(pushes).toHaveLength(0);
+    expect(alertDialog()).toBeUndefined();
+
+    await act(async () => {
+      finish({ data: "b1" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(pushes).toEqual([BOARD_HREF]);
+  });
+
+  test("a save that finishes after the panel is gone does not navigate", async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    heldUpdate = new Promise((resolve) => {
+      finish = resolve;
+    });
+    await mount({ benefitId: "b1", initial: published });
+    await click("Lagre endringer");
+
+    await act(async () => root?.unmount());
+    root = null;
+    await act(async () => {
+      finish({ data: "b1" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(pushes).toHaveLength(0);
+    expect(refreshes).toBe(0);
   });
 });

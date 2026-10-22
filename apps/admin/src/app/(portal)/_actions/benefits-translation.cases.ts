@@ -265,6 +265,43 @@ describe("benefit manual translation", () => {
   });
 });
 
+describe("benefit translation format", () => {
+  const descriptionFormat = () => {
+    const input = translateContentFields.mock.calls.at(-1)?.[0] as unknown as {
+      fields: { format: string; key: string }[];
+    };
+    return input.fields.find((field) => field.key === "description")?.format;
+  };
+
+  test("sends a plain-text description as plain text", async () => {
+    await generateBenefitTranslationDraft({
+      campusId: "2",
+      description: "Vis medlemskortet.\nGjelder hverdager.",
+      sourceLocale: "no",
+      title: "Norsk tittel",
+    });
+    expect(descriptionFormat()).toBe("plain");
+  });
+
+  test("keeps HTML and old Plate JSON as HTML", async () => {
+    await generateBenefitTranslationDraft({
+      campusId: "2",
+      description: "<p>Vis medlemskortet.</p>",
+      sourceLocale: "no",
+      title: "Norsk tittel",
+    });
+    expect(descriptionFormat()).toBe("html");
+
+    await generateBenefitTranslationDraft({
+      campusId: "2",
+      description: JSON.stringify([{ children: [{ text: "Hei" }], type: "p" }]),
+      sourceLocale: "no",
+      title: "Norsk tittel",
+    });
+    expect(descriptionFormat()).toBe("html");
+  });
+});
+
 describe("benefit automatic translation", () => {
   test("honors publish status when creating a benefit", async () => {
     await createBenefit(

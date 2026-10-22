@@ -5,8 +5,10 @@ import {
   mapLegacyBenefitCategory,
 } from "@repo/shared/utils/benefit-catalog";
 import { benefitDateFromIso } from "@/lib/benefits/benefit-dates";
+import { isFormattedDescription } from "@/lib/benefits/benefit-description";
 import type { BenefitEditData } from "../../_actions/benefits";
 import type { BenefitFormValues } from "../../_actions/schemas";
+import { htmlToDescriptionBlocks } from "../../_components/description-blocks";
 
 export type PanelAction =
   | "delete"
@@ -19,7 +21,11 @@ export interface PanelValues {
   campusId: string;
   category: string | null;
   descriptionEn: string;
+  /** The English description as stored, before it became plain text. */
+  descriptionEnStored: string | null;
   descriptionNb: string;
+  /** The Norwegian description as stored, before it became plain text. */
+  descriptionNbStored: string | null;
   endDate: string;
   imageUrl: string;
   isFeatured: boolean;
@@ -54,7 +60,9 @@ export function emptyPanelValues(
     campusId,
     category: null,
     descriptionEn: "",
+    descriptionEnStored: null,
     descriptionNb: "",
+    descriptionNbStored: null,
     endDate: "",
     imageUrl: "",
     isFeatured: false,
@@ -80,54 +88,60 @@ function pick<T extends string>(
   return options.find((option) => option === value) ?? fallback;
 }
 
-const BLOCK_END = /<\/(p|div|h[1-6]|blockquote|ul|ol)>/gi;
-const LINE_BREAK = /<br\s*\/?>/gi;
-const LIST_ITEM_START = /<li[^>]*>/gi;
-const LIST_ITEM_END = /<\/li>/gi;
-const ANY_TAG = /<[^>]*>/g;
-const NBSP = /&nbsp;|\u00a0/g;
-const ENTITY =
-  /&(amp|lt|gt|quot|#0?39|aring|Aring|aelig|AElig|oslash|Oslash);/g;
-const ENTITY_TEXT: Record<string, string> = {
-  "#039": "'",
-  "#39": "'",
-  AElig: "Æ",
-  Aring: "Å",
-  Oslash: "Ø",
-  aelig: "æ",
-  amp: "&",
-  aring: "å",
-  gt: ">",
-  lt: "<",
-  oslash: "ø",
-  quot: '"',
-};
-const SPACES = /[ \t]+/g;
-const SPACE_AROUND_NEWLINE = / ?\n ?/g;
-const EXTRA_BLANK_LINES = /\n{3,}/g;
-
 /**
  * The description as plain text for the panel's text box. Benefits saved by
- * the old block editor hold HTML; showing tags to a committee member would be
- * worse than losing bold text, so paragraphs and list items become lines.
+ * the old editors hold HTML or Plate JSON: headings and paragraphs become
+ * blank-line separated text, list items lines starting with "• ", and media
+ * only their caption. The stored original is kept in `description*Stored`,
+ * so an untouched description is saved back exactly as it was.
  */
 export function editableDescription(value: string | null): string {
   const text = value ?? "";
-  if (!text.trimStart().startsWith("<")) {
+  if (!isFormattedDescription(text)) {
     return text;
   }
-  return text
-    .replace(LIST_ITEM_START, "• ")
-    .replace(LIST_ITEM_END, "\n")
-    .replace(LINE_BREAK, "\n")
-    .replace(BLOCK_END, "\n\n")
-    .replace(ANY_TAG, "")
-    .replace(NBSP, " ")
-    .replace(ENTITY, (_, name: string) => ENTITY_TEXT[name] ?? "")
-    .replace(SPACES, " ")
-    .replace(SPACE_AROUND_NEWLINE, "\n")
-    .replace(EXTRA_BLANK_LINES, "\n\n")
-    .trim();
+  const parts: string[] = [];
+  let inList = false;
+  for (const block of htmlToDescriptionBlocks(text)) {
+    const line = (block.type === "media" ? block.caption : block.text).trim();
+    if (!line) {
+      continue;
+    }
+    if (block.type === "l" && inList) {
+      parts[parts.length - 1] += `\n• ${line}`;
+    } else {
+      parts.push(block.type === "l" ? `• ${line}` : line);
+    }
+    inList = block.type === "l";
+  }
+  return parts.join("\n\n");
+}
+
+const isHttpsUrl = (value: string): boolean => {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Old rows may carry a redemption type the panel no longer offers ("qr").
+ * Its value must survive: a URL reads as a link, anything else as a code.
+ */
+function redemptionTypeFrom(
+  type: string,
+  value: string | null
+): PanelValues["redemptionType"] {
+  const known = REDEMPTION_TYPES.find((option) => option === type);
+  if (known) {
+    return known;
+  }
+  const stored = value?.trim();
+  if (!stored) {
+    return "none";
+  }
+  return isHttpsUrl(stored) ? "link" : "code";
 }
 
 export function panelValuesFromBenefit(data: BenefitEditData): PanelValues {
@@ -140,12 +154,17 @@ export function panelValuesFromBenefit(data: BenefitEditData): PanelValues {
       ? mapLegacyBenefitCategory(data.category)
       : null,
     descriptionEn: editableDescription(data.description_en),
+    descriptionEnStored: data.description_en,
     descriptionNb: editableDescription(data.description_nb),
+    descriptionNbStored: data.description_nb,
     endDate,
     imageUrl: data.image_url ?? "",
     isFeatured: data.is_featured,
     partnerId: data.partner_id,
-    redemptionType: pick(REDEMPTION_TYPES, data.redemption_type, "none"),
+    redemptionType: redemptionTypeFrom(
+      data.redemption_type,
+      data.redemption_value
+    ),
     redemptionValue: data.redemption_value ?? "",
     section: isBenefitSection(data.section) ? data.section : "member",
     startDate,
@@ -172,6 +191,16 @@ export function withPresetPartner(
     Boolean(partnerId) &&
     partners.some((partner) => partner.id === partnerId);
   return offered ? { ...values, partnerId: partnerId ?? null } : values;
+}
+
+/** Whether closing now would lose something the editor changed. */
+export function isPanelDirty(
+  values: PanelValues,
+  initial: PanelValues
+): boolean {
+  return (Object.keys(initial) as (keyof PanelValues)[]).some(
+    (key) => values[key] !== initial[key]
+  );
 }
 
 export function panelFooterActions(
@@ -228,6 +257,18 @@ function blankToNull(value: string): string | null {
   return trimmed ? trimmed : null;
 }
 
+/**
+ * The stored description when the editor left that language alone, so HTML
+ * from the old editors (lists, headings, media) is never flattened by a
+ * save; plain text once it was changed.
+ */
+function descriptionToSave(text: string, stored: string | null): string | null {
+  if (stored?.trim() && editableDescription(stored) === text) {
+    return stored;
+  }
+  return blankToNull(text);
+}
+
 function statusForAction(
   action: Exclude<PanelAction, "delete">,
   current: PanelValues["status"]
@@ -257,8 +298,14 @@ export function toBenefitFormValues(
       values.category && isBenefitCategory(values.category)
         ? values.category
         : null,
-    description_en: blankToNull(values.descriptionEn),
-    description_nb: blankToNull(values.descriptionNb),
+    description_en: descriptionToSave(
+      values.descriptionEn,
+      values.descriptionEnStored
+    ),
+    description_nb: descriptionToSave(
+      values.descriptionNb,
+      values.descriptionNbStored
+    ),
     image_url: blankToNull(values.imageUrl),
     is_featured: values.isFeatured,
     partner_id: values.partnerId,

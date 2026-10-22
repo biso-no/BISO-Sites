@@ -9,7 +9,13 @@ import {
 import { Loader2, Lock, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactElement, type ReactNode, useRef, useState } from "react";
+import {
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import type {
   BenefitMutationResult,
@@ -27,6 +33,7 @@ import {
 } from "../_lib/board-display";
 import { BOARD_FOCUS_RING } from "../_lib/board-styles";
 import {
+  isPanelDirty,
   type PanelAction,
   type PanelValues,
   panelFooterActions,
@@ -34,6 +41,7 @@ import {
   validatePanel,
 } from "../_lib/panel-state";
 import { BenefitDeleteDialog } from "./benefit-delete-dialog";
+import { BenefitDiscardDialog } from "./benefit-discard-dialog";
 import {
   LineQuestions,
   MemberQuestions,
@@ -41,7 +49,12 @@ import {
   type PanelErrorMessages,
   type PanelFormProps,
 } from "./benefit-panel-form";
-import { createBenefit, deleteBenefit, updateBenefit } from "./panel-actions";
+import {
+  createBenefit,
+  deleteBenefit,
+  setBenefitStatus,
+  updateBenefit,
+} from "./panel-actions";
 import { PANEL_ERROR_COLOR } from "./panel-fields";
 
 type SaveAction = Exclude<PanelAction, "delete">;
@@ -121,7 +134,10 @@ export function BenefitPanel({
   >({});
   const [pending, setPending] = useState<PanelAction | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [partners, setPartners] = useState(initialPartners);
+  // A half-filled "+ Ny partner" form is unsaved work too.
+  const [partnerDraft, setPartnerDraft] = useState(false);
   // Translate on save while there is no English yet.
   const [autoTranslate, setAutoTranslate] = useState(
     () => !(initial.titleEn.trim() || initial.descriptionEn.trim())
@@ -129,6 +145,16 @@ export function BenefitPanel({
   const fields = useRef<Partial<Record<PanelErrorField, HTMLElement | null>>>(
     {}
   );
+  // False once the panel has closed or unmounted, so a save that finishes
+  // later does not navigate away from wherever the editor went.
+  const live = useRef(true);
+  const focusBeforeDiscard = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
 
   const isNew = benefitId === null;
   const readOnly = !editable;
@@ -137,12 +163,30 @@ export function BenefitPanel({
     locale
   );
 
+  const dirty = editable && (partnerDraft || isPanelDirty(values, initial));
+
   const backToBoard = (refresh: boolean) => {
+    live.current = false;
     setOpen(false);
     router.push(boardHref, { scroll: false });
     if (refresh) {
       router.refresh();
     }
+  };
+
+  /** ✕, Esc and the backdrop: never mid-save, and not past unsaved work. */
+  const requestClose = () => {
+    if (pending) {
+      return;
+    }
+    if (dirty) {
+      const active = document.activeElement;
+      focusBeforeDiscard.current =
+        active instanceof HTMLElement ? active : null;
+      setConfirmingDiscard(true);
+      return;
+    }
+    backToBoard(false);
   };
 
   const update: PanelFormProps["update"] = (key, value) => {
@@ -193,17 +237,9 @@ export function BenefitPanel({
     }
 
     setPending(action);
-    const form = toBenefitFormValues(values, action);
-    const translation = {
-      enabled: autoTranslate && action !== "hide",
-      sourceLocale: "no" as const,
-    };
     let result: BenefitMutationResult;
     try {
-      result =
-        benefitId === null
-          ? await createBenefit(form, translation)
-          : await updateBenefit(benefitId, form, translation);
+      result = await saveRequest(action);
     } catch {
       result = { error: "" };
     }
@@ -217,7 +253,24 @@ export function BenefitPanel({
       return;
     }
     toast.success(t(SAVED_MESSAGE[action]));
-    backToBoard(true);
+    if (live.current) {
+      backToBoard(true);
+    }
+  };
+
+  /**
+   * Hiding changes the status alone: the server rebuilds the row from what
+   * is stored, so formatted text survives and half-made edits are not saved.
+   */
+  const saveRequest = (action: SaveAction): Promise<BenefitMutationResult> => {
+    if (action === "hide" && benefitId !== null) {
+      return setBenefitStatus(benefitId, "archived");
+    }
+    const form = toBenefitFormValues(values, action);
+    const translation = { enabled: autoTranslate, sourceLocale: "no" as const };
+    return benefitId === null
+      ? createBenefit(form, translation)
+      : updateBenefit(benefitId, form, translation);
   };
 
   const remove = async () => {
@@ -241,7 +294,9 @@ export function BenefitPanel({
       return;
     }
     toast.success(t("deleted"));
-    backToBoard(true);
+    if (live.current) {
+      backToBoard(true);
+    }
   };
 
   const formProps: PanelFormProps = {
@@ -253,6 +308,7 @@ export function BenefitPanel({
     },
     locale,
     onAutoTranslateChange: setAutoTranslate,
+    onPartnerDraftChange: setPartnerDraft,
     onPartnerCreated: (partner) => {
       setPartners((current) => [...current, partner]);
       update("partnerId", partner.id);
@@ -266,13 +322,25 @@ export function BenefitPanel({
     <Sheet
       onOpenChange={(next) => {
         if (!next) {
-          backToBoard(false);
+          requestClose();
         }
       }}
       open={open}
     >
       <SheetContent
         className="flex w-full flex-col gap-0 border-[#e5dcca] bg-[#fffdf8] p-0 shadow-[-8px_0_24px_rgba(26,24,20,0.08)] sm:max-w-[560px]"
+        onEscapeKeyDown={(event) => {
+          if (pending || dirty) {
+            event.preventDefault();
+            requestClose();
+          }
+        }}
+        onInteractOutside={(event) => {
+          // A stray click beside the panel must not throw work away.
+          if (pending || dirty) {
+            event.preventDefault();
+          }
+        }}
         onOpenAutoFocus={(event) => {
           // A new benefit starts with its first question.
           if (isNew && editable) {
@@ -305,7 +373,7 @@ export function BenefitPanel({
           <button
             aria-label={t("close")}
             className={`-mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-[#f3eee5] ${BOARD_FOCUS_RING}`}
-            onClick={() => backToBoard(false)}
+            onClick={requestClose}
             style={{ color: STUDIO.ink3 }}
             type="button"
           >
@@ -368,6 +436,14 @@ export function BenefitPanel({
             )}
           />
         )}
+        {editable ? (
+          <BenefitDiscardDialog
+            onDiscard={() => backToBoard(false)}
+            onOpenChange={setConfirmingDiscard}
+            open={confirmingDiscard}
+            returnFocus={() => focusBeforeDiscard.current?.focus()}
+          />
+        ) : null}
       </SheetContent>
     </Sheet>
   );

@@ -20,6 +20,9 @@ vi.mock("@/app/actions/member-portal", () => ({ revealBenefit: vi.fn() }));
 
 import { BenefitCard } from "./benefit-card";
 
+const PRE_LINE_PARAGRAPH =
+  /<p class="[^"]*whitespace-pre-line[^"]*">Show your member pass.\nWeekdays only.<\/p>/;
+
 const benefit = (overrides: Partial<CampusBenefits>): CampusBenefits =>
   ({
     $id: "benefit-1",
@@ -65,6 +68,15 @@ describe("BenefitCard", () => {
     expect(html).toContain("<p>Show your member pass.</p>");
     expect(html).toContain("<li>Weekdays</li>");
     expect(html).not.toContain("&lt;p&gt;");
+  });
+
+  it("keeps the line breaks of a plain-text description", () => {
+    // The admin panel saves descriptions as plain text with line breaks.
+    const html = render({
+      description_en: "Show your member pass.\nWeekdays only.",
+    });
+
+    expect(html).toMatch(PRE_LINE_PARAGRAPH);
   });
 
   it("shows the Norwegian copy to a Norwegian visitor", () => {

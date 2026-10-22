@@ -63,14 +63,14 @@ export function BenefitDeleteDialog({
             {t("cancel")}
           </AlertDialogCancel>
           <AlertDialogAction
-            className={`gap-2 text-white hover:opacity-90 ${BOARD_FOCUS_RING}`}
+            className={`gap-2 hover:opacity-90 ${BOARD_FOCUS_RING}`}
             disabled={pending}
             onClick={(event) => {
               // Stay open until the delete has finished.
               event.preventDefault();
               onConfirm();
             }}
-            style={{ background: PANEL_ERROR_COLOR }}
+            style={{ background: PANEL_ERROR_COLOR, color: "#fff" }}
           >
             {pending ? (
               <Loader2 aria-hidden className="animate-spin" size={14} />

@@ -161,7 +161,7 @@ export function BenefitCard({
             />
           ) : (
             text.description && (
-              <p className="mb-5 text-muted-foreground dark:text-muted-foreground">
+              <p className="mb-5 whitespace-pre-line text-muted-foreground dark:text-muted-foreground">
                 {text.description}
               </p>
             )
