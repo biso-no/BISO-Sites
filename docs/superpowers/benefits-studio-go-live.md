@@ -51,3 +51,10 @@ Follow the order. Each stage's steps assume the previous ones are done.
 4. **Smoke test after deploying.** In the new admin, hide a test benefit ("Skjul fra nettsiden"). In the Console, check that the benefit and its translation rows have empty permissions. Publish it again and check that they get `read("any")`.
 5. **Old free-text partner names stay for now.** A benefit whose partner was only typed as text (from before the migration) keeps that name on today's website, and the panel can't remove it until stage 4.
 6. **Codes stay in the public columns until stage 4.** Codes and partner names are still also written to the old public columns, the same as today, because the website still reads them there. Ship stage 4 soon after.
+
+## Stage 3: partners page
+
+1. **Push the schema.** It adds a `partners` index (`idx_level_campus_sort`) so logos can be filtered and sorted. This can go in the same push as stage 1, or with stage 4.
+2. **Deploy the admin** together with stage 2. The partners page replaces the old read-only list with the "API Beta" badge.
+3. **Expect logos to lag until stage 4.** Logos added or reordered here show on the home page, "Om oss" and in partner blocks only once stage 4 adds ordering and a faster refresh to the website. Until then the site shows logos in creation order, cached for up to an hour.
+4. **Ending vs deleting a partner.** Ending a partner hides its offers straight away. Restarting brings back exactly the offers that were live. "Slett for godt" deletes the partner, its offers and their codes, and that can't be undone.
