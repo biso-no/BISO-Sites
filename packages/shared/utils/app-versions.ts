@@ -21,7 +21,10 @@ export interface AppVersionsRow {
   recommended_version: string | null;
 }
 
-const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+// At most nine digits a segment, well inside the integers the app (and
+// JavaScript) can read exactly, so the admin and the API never accept a
+// version the app would fail to parse.
+const VERSION_PATTERN = /^\d{1,9}\.\d{1,9}\.\d{1,9}$/;
 
 export function isVersionString(value: string): boolean {
   return VERSION_PATTERN.test(value);

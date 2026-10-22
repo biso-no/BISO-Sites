@@ -16,6 +16,12 @@ describe("isVersionString", () => {
       expect(isVersionString(v)).toBe(false);
     }
   });
+  it("caps each segment at nine digits, as far as the app can read", () => {
+    expect(isVersionString("999999999.0.0")).toBe(true);
+    expect(isVersionString("1234567890.0.0")).toBe(false);
+    expect(isVersionString("2.1234567890.0")).toBe(false);
+    expect(isVersionString("2.4.1234567890")).toBe(false);
+  });
 });
 
 describe("compareVersions", () => {
