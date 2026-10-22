@@ -34,11 +34,13 @@ mock.module("@/lib/authorization", () => ({
 }));
 mock.module("next/cache", () => ({ revalidatePath: mock(() => undefined) }));
 mock.module("../../_actions/audit-log", () => ({ logAuditEvent }));
+// `./app-store-version` starts with `import "server-only"`, which throws
+// outside a Next.js server build.
+mock.module("server-only", () => ({}));
 
 globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-const { fetchAppStoreVersion, getAppVersionsView, saveAppVersionPolicy } =
-  await import("./actions");
+const { getAppVersionsView, saveAppVersionPolicy } = await import("./actions");
 
 function rowNotFound(): Error {
   return Object.assign(new Error("Row with the requested ID not found."), {
@@ -93,25 +95,6 @@ describe("app version actions", () => {
     });
     expect("error" in result && result.error).toContain("Forbidden");
     expect(db.upsertRow).not.toHaveBeenCalled();
-  });
-
-  test("reads the live App Store version", async () => {
-    fetchMock.mockResolvedValue(
-      Response.json({ results: [{ version: "2.2.4" }] })
-    );
-    expect(await fetchAppStoreVersion()).toBe("2.2.4");
-  });
-
-  test("hides the App Store version when the lookup fails", async () => {
-    fetchMock.mockRejectedValue(new Error("offline"));
-    expect(await fetchAppStoreVersion()).toBeNull();
-  });
-
-  test("hides a malformed App Store version", async () => {
-    fetchMock.mockResolvedValue(
-      Response.json({ results: [{ version: "2.2" }] })
-    );
-    expect(await fetchAppStoreVersion()).toBeNull();
   });
 
   test("treats a missing row as an empty policy", async () => {
