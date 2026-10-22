@@ -1,10 +1,12 @@
 import {
+  type MembershipSpotData,
   type MembershipSpotInputItem,
   resetMembershipSpot,
   saveMembershipSpot,
 } from "../../../_actions/membership-texts";
 
 type Result = { data: true } | { error: string };
+type ResetResult = { data: MembershipSpotData } | { error: string };
 
 /**
  * The editor's server actions behind a module of its own. Component tests
@@ -20,6 +22,6 @@ export function saveSpot(
 
 export function resetSpot(
   spot: Parameters<typeof resetMembershipSpot>[0]
-): Promise<Result> {
+): Promise<ResetResult> {
   return resetMembershipSpot(spot);
 }

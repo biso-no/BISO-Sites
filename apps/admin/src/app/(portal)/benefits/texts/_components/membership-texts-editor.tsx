@@ -170,7 +170,13 @@ function SpotCard({ data, locale, webBaseUrl }: SpotCardProps) {
         return;
       }
       toast.success(t("resetDone"));
-      setHasRows(false);
+      // The default text, shown and treated as saved right away, so Lagre
+      // cannot put the old lines back before the refresh arrives.
+      const fresh = draftFromSpot(result.data);
+      setItems(fresh);
+      setBaseline(snapshot(fresh, hasBody));
+      setHasRows(result.data.hasRows);
+      setAttempted(false);
       router.refresh();
     } catch {
       toast.error(t("failed"));
@@ -220,7 +226,10 @@ function SpotCard({ data, locale, webBaseUrl }: SpotCardProps) {
         </a>
       </header>
 
-      <div className="px-5 py-5 sm:px-6">
+      <fieldset
+        className="m-0 min-w-0 border-0 px-5 py-5 sm:px-6"
+        disabled={pending !== null}
+      >
         <ItemList
           errors={errors.items}
           hasBody={hasBody}
@@ -256,7 +265,7 @@ function SpotCard({ data, locale, webBaseUrl }: SpotCardProps) {
             </p>
           ) : null}
         </div>
-      </div>
+      </fieldset>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 sm:px-6">
         <StudioButton

@@ -59,6 +59,7 @@ export interface MembershipSpotInputItem {
 }
 
 type ActionResult = { data: true } | { error: string };
+type ResetResult = { data: MembershipSpotData } | { error: string };
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 const isSpot = (value: unknown): value is MembershipTextSpot =>
@@ -81,6 +82,26 @@ const listSpotRows = async (
     Query.limit(ROW_LIMIT),
   ]);
   return result.rows;
+};
+
+/** A spot as the website shows it without saved rows: the i18n defaults. */
+const defaultSpotData = (
+  spot: MembershipTextSpot,
+  no: unknown,
+  en: unknown
+): MembershipSpotData => {
+  const nb = resolveDefaultItems(spot, no as Record<string, unknown>);
+  const english = resolveDefaultItems(spot, en as Record<string, unknown>);
+  return {
+    hasRows: false,
+    items: nb.map((item, index) => ({
+      body_en: english[index]?.body ?? "",
+      body_nb: item.body ?? "",
+      title_en: english[index]?.title ?? "",
+      title_nb: item.title,
+    })),
+    spot,
+  };
 };
 
 export async function loadMembershipTexts(): Promise<MembershipSpotData[]> {
@@ -114,18 +135,7 @@ export async function loadMembershipTexts(): Promise<MembershipSpotData[]> {
         spot,
       };
     }
-    const nb = resolveDefaultItems(spot, no as Record<string, unknown>);
-    const english = resolveDefaultItems(spot, en as Record<string, unknown>);
-    return {
-      hasRows: false,
-      items: nb.map((item, index) => ({
-        body_en: english[index]?.body ?? "",
-        body_nb: item.body ?? "",
-        title_en: english[index]?.title ?? "",
-        title_nb: item.title,
-      })),
-      spot,
-    };
+    return defaultSpotData(spot, no, en);
   });
 }
 
@@ -311,7 +321,7 @@ export async function saveMembershipSpot(
 
 export async function resetMembershipSpot(
   spot: MembershipTextSpot
-): Promise<ActionResult> {
+): Promise<ResetResult> {
   const ctx = await requireTextEditor();
   if (!ctx) {
     return { error: UNAUTHORIZED };
@@ -320,7 +330,14 @@ export async function resetMembershipSpot(
     return { error: TEXT_ERRORS.unknownSpot };
   }
   let wrote = false;
+  let fresh: MembershipSpotData;
   try {
+    // Read the defaults first: if that fails, nothing has been deleted yet.
+    const [no, en] = await Promise.all([
+      loadMessages("no"),
+      loadMessages("en"),
+    ]);
+    fresh = defaultSpotData(spot, no, en);
     const { db } = await createAdminClient();
     const existing = await listSpotRows(db, spot);
     for (const row of existing) {
@@ -338,5 +355,5 @@ export async function resetMembershipSpot(
     resourceType: "membership_texts",
   });
   await afterWrite();
-  return { data: true };
+  return { data: fresh };
 }

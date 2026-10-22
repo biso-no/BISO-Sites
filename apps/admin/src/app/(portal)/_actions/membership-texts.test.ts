@@ -356,7 +356,14 @@ describe("resetMembershipSpot", () => {
       })),
       total: 3,
     });
-    expect(await resetMembershipSpot("onboarding")).toEqual({ data: true });
+    const result = await resetMembershipSpot("onboarding");
+    expect(result).toMatchObject({
+      data: { hasRows: false, spot: "onboarding" },
+    });
+    const data = "data" in result ? result.data : null;
+    expect(data?.items).toHaveLength(3);
+    expect(data?.items[0]?.title_nb.length).toBeGreaterThan(0);
+    expect(data?.items[0]?.title_en).not.toBe(data?.items[0]?.title_nb);
     expect(idsOf(db.deleteRow, 2).sort()).toEqual([
       "onboarding-0",
       "onboarding-1",

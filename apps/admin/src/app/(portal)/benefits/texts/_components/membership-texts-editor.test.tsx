@@ -158,7 +158,15 @@ const answer = () =>
 mock.module("./membership-text-actions", () => ({
   resetSpot: (...args: unknown[]) => {
     calls.reset.push(args);
-    return answer();
+    return serverError === null
+      ? Promise.resolve({
+          data: {
+            hasRows: false,
+            items: [item("Standard A"), item("Standard B")],
+            spot: args[0],
+          },
+        })
+      : answer();
   },
   saveSpot: (...args: unknown[]) => {
     calls.save.push(args);
@@ -412,5 +420,25 @@ describe("MembershipTextsEditor", () => {
     expect(calls.reset).toEqual([["plan_card"]]);
     expect(toasts).toEqual([{ kind: "success", message: "Tilbakestilt" }]);
     expect(refreshes).toBe(1);
+  });
+
+  test("after a reset the default lines show and Lagre cannot undo it", async () => {
+    await mount(spots(["plan_card"]));
+    const plan = () => card("Medlemskapskortene");
+    await type(findByAriaLabel(plan(), "Punkt 1: tittel"), "Mine egne ord");
+    expect(findButton(plan(), "Lagre").hasAttribute("disabled")).toBe(false);
+
+    await press(findButton(plan(), "Tilbakestill til standard"));
+    const dialog = findElements(
+      plan(),
+      (element) => element.getAttribute("role") === "alertdialog"
+    )[0] as TestElement;
+    await press(findButton(dialog, "Tilbakestill til standard"));
+
+    expect(findByAriaLabel(plan(), "Punkt 1: tittel").value).toBe("Standard A");
+    expect(() => findByAriaLabel(plan(), "Punkt 3: tittel")).toThrow();
+    expect(findButton(plan(), "Lagre").hasAttribute("disabled")).toBe(true);
+    expect(plan().textContent).toContain("Ikke lagret ennå");
+    expect(calls.save).toHaveLength(0);
   });
 });
