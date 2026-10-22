@@ -18,12 +18,6 @@ import { CodeReveal, LinkReveal, RevealButton } from "./benefit-card-parts";
 
 interface BenefitCardProps {
   benefit: PublicBenefit;
-  /**
-   * Whether the member has revealed this benefit before. The value itself is
-   * never sent to the browser with the page, so a previously revealed benefit
-   * still fetches it (idempotently) through `revealBenefit`.
-   */
-  isRevealed: boolean;
 }
 
 type RevealFailure = Extract<

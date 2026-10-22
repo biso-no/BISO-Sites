@@ -1,22 +1,11 @@
 "use client";
 
-import type { BenefitCategoryKey } from "@repo/shared/utils/benefit-catalog";
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
-import {
-  Calendar,
-  Coffee,
-  Dumbbell,
-  Laptop,
-  Moon,
-  Plane,
-  Search,
-  ShoppingBag,
-  Sparkles,
-} from "lucide-react";
+import { type LucideIcon, Search, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -25,6 +14,7 @@ import {
   localizedPublicBenefitText,
 } from "@/lib/benefit-text";
 import { BenefitCard } from "../shared/benefit-card";
+import { BENEFIT_CATEGORY_ICONS } from "../shared/benefit-category-icons";
 import { BenefitPreviewCard } from "../shared/benefit-preview-card";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 import { filterBenefits, presentBenefitCategories } from "./benefit-search";
@@ -34,25 +24,13 @@ interface BenefitsTabProps {
   featuredBenefits?: PublicBenefit[];
   hasBIIdentity: boolean;
   isMember: boolean;
-  revealedBenefits: Set<string>;
 }
-
-const CATEGORY_ICONS: Record<BenefitCategoryKey, typeof Coffee> = {
-  events: Calendar,
-  food_drink: Coffee,
-  health_fitness: Dumbbell,
-  nightlife: Moon,
-  other: Sparkles,
-  shopping: ShoppingBag,
-  software: Laptop,
-  travel: Plane,
-};
 
 const NON_MEMBER_CHIP_LIMIT = 4;
 
 interface CategoryChip {
   count: number;
-  icon: typeof Coffee;
+  icon: LucideIcon;
   id: string;
   label: string;
 }
@@ -70,20 +48,14 @@ function useCategoryChips(benefits: PublicBenefit[]): CategoryChip[] {
     },
     ...presentBenefitCategories(benefits).map((key) => ({
       count: benefits.filter((b) => b.category === key).length,
-      icon: CATEGORY_ICONS[key],
+      icon: BENEFIT_CATEGORY_ICONS[key],
       id: key,
       label: benefitCategoryLabel(key, locale),
     })),
   ];
 }
 
-function MemberBenefitsView({
-  benefits,
-  revealedBenefits,
-}: {
-  benefits: PublicBenefit[];
-  revealedBenefits: Set<string>;
-}) {
+function MemberBenefitsView({ benefits }: { benefits: PublicBenefit[] }) {
   const t = useTranslations("memberPortal.benefits");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -182,10 +154,7 @@ function MemberBenefitsView({
               layout
               transition={{ duration: 0.2, delay: index * 0.05 }}
             >
-              <BenefitCard
-                benefit={benefit}
-                isRevealed={revealedBenefits.has(benefit.id)}
-              />
+              <BenefitCard benefit={benefit} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -317,17 +286,13 @@ function NonMemberBenefitsView({ benefits }: { benefits: PublicBenefit[] }) {
 export function BenefitsTab({
   benefits,
   featuredBenefits: _featuredBenefits = [],
-  revealedBenefits,
   isMember,
   hasBIIdentity: _hasBIIdentity,
 }: BenefitsTabProps) {
   return (
     <TabsContent className="space-y-8" value="benefits">
       {isMember ? (
-        <MemberBenefitsView
-          benefits={benefits}
-          revealedBenefits={revealedBenefits}
-        />
+        <MemberBenefitsView benefits={benefits} />
       ) : (
         <NonMemberBenefitsView benefits={benefits} />
       )}

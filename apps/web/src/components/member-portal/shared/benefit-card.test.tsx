@@ -45,9 +45,9 @@ const benefit = (overrides: Partial<PublicBenefit>): PublicBenefit => ({
   ...overrides,
 });
 
-const render = (overrides: Partial<PublicBenefit>, isRevealed = false) =>
+const render = (overrides: Partial<PublicBenefit>) =>
   renderToStaticMarkup(
-    createElement(BenefitCard, { benefit: benefit(overrides), isRevealed })
+    createElement(BenefitCard, { benefit: benefit(overrides) })
   );
 
 const flush = () => act(() => Promise.resolve());
@@ -57,12 +57,7 @@ async function mountAndReveal(overrides: Partial<PublicBenefit>) {
   document.body.append(container);
   const root = createRoot(container);
   await act(() => {
-    root.render(
-      createElement(BenefitCard, {
-        benefit: benefit(overrides),
-        isRevealed: false,
-      })
-    );
+    root.render(createElement(BenefitCard, { benefit: benefit(overrides) }));
   });
   const before = container.innerHTML;
   const button = container.querySelector("button");
@@ -190,8 +185,8 @@ describe("BenefitCard", () => {
     expect(html).not.toContain("<button");
   });
 
-  it("renders no code before reveal, even for a previously revealed benefit", () => {
-    const html = render({ redemptionType: "code" }, true);
+  it("renders no code before reveal", () => {
+    const html = render({ redemptionType: "code" });
 
     expect(html).toContain("reveal");
     expect(html).not.toContain("<code");

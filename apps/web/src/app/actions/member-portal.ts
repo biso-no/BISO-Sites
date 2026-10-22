@@ -1,5 +1,6 @@
 "use server";
 import { ID, Permission, Query } from "@repo/api";
+import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   BenefitReveals,
@@ -20,6 +21,7 @@ import { isAuthenticatedAccount } from "@/lib/auth-utils";
 import { getPublicBenefits } from "@/lib/data/benefits";
 
 const FEATURED_BENEFIT_LIMIT = 6;
+const UNAUTHORIZED = 401;
 const BENEFIT_DATABASE_ID = "app";
 
 async function createOrUpdatePublicProfile(
@@ -216,12 +218,24 @@ export async function revealBenefit(
       return { success: false, reason: "not_member" };
     }
     userId = user.$id;
-  } catch {
-    return { success: false, reason: "not_member" };
+  } catch (error) {
+    // Only "no usable session" (401) reads as not a member; an outage never does.
+    if (appwriteErrorStatus(error) === UNAUTHORIZED) {
+      return { success: false, reason: "not_member" };
+    }
+    console.error("Error checking session for benefit reveal:", error);
+    return { success: false, reason: "unavailable" };
   }
 
   try {
     const membership = await readMembership();
+    // A non-member never reaches the admin client; the helper gates again.
+    if (membership !== "active") {
+      return {
+        success: false,
+        reason: membership === "inactive" ? "not_member" : "unavailable",
+      };
+    }
     const result = await revealBenefitCode(await createRevealDb(), {
       benefitId,
       membership,

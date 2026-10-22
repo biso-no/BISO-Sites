@@ -14,21 +14,24 @@ const membership = vi.hoisted(() => ({
   getLiveMembershipStatus: vi.fn(),
 }));
 
-const publicBenefits = vi.hoisted(() => ({
-  getPublicBenefits: vi.fn(),
-}));
+const publicDb = vi.hoisted(() => ({ listRows: vi.fn() }));
 
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db: adminDb })),
+  createPublicClient: vi.fn(async () => ({ db: publicDb })),
   createSessionClient: vi.fn(async () => ({ account, db: adminDb })),
 }));
 vi.mock("@/lib/auth-utils", () => ({
-  isAuthenticatedAccount: vi.fn((user: unknown) => user !== null),
+  isAuthenticatedAccount: vi.fn(() => authState.authenticated),
 }));
 vi.mock("@/lib/actions/membership", () => membership);
-vi.mock("@/lib/data/benefits", () => publicBenefits);
+vi.mock("next/cache", () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
+vi.mock("next/server", async (orig) => ({
+  ...(await orig<typeof import("next/server")>()),
+  connection: vi.fn(() => Promise.resolve()),
+}));
+const authState = vi.hoisted(() => ({ authenticated: true }));
 
-import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import {
   getFeaturedBenefits,
   getMemberPortalBenefits,
@@ -36,24 +39,6 @@ import {
 } from "./member-portal";
 
 const SECRET_CODE = "SECRET-CODE-123";
-
-const benefit = (overrides: Partial<PublicBenefit>): PublicBenefit => ({
-  campusId: "5",
-  category: "food_drink",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  description: { en: null, nb: null },
-  id: "benefit-1",
-  imageUrl: null,
-  isFeatured: false,
-  partner: null,
-  publishEnd: null,
-  redemptionType: "code",
-  section: "member",
-  sortOrder: 0,
-  terms: { en: null, nb: null },
-  title: { en: "Free coffee", nb: "Gratis kaffe" },
-  ...overrides,
-});
 
 const rowsFor = (table: string) =>
   adminDb.listRows.mock.calls.filter((call) => call[0] === table);
@@ -69,6 +54,7 @@ describe("revealBenefit", () => {
     ]) {
       fn.mockReset();
     }
+    authState.authenticated = true;
     account.get.mockResolvedValue({ $id: "member-user-1" });
     membership.getLiveMembershipStatus.mockResolvedValue({ isMember: true });
     adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
@@ -146,8 +132,8 @@ describe("revealBenefit", () => {
     expect(adminDb.getRow).not.toHaveBeenCalled();
   });
 
-  it("refuses a visitor who is not signed in without any read", async () => {
-    account.get.mockRejectedValue(new Error("401"));
+  it("refuses a visitor with no session (401) without any read", async () => {
+    account.get.mockRejectedValue({ code: 401 });
 
     expect(await revealBenefit("benefit-1")).toEqual({
       success: false,
@@ -156,6 +142,41 @@ describe("revealBenefit", () => {
     expect(membership.getLiveMembershipStatus).not.toHaveBeenCalled();
     expect(adminDb.getRow).not.toHaveBeenCalled();
     expect(rowsFor("benefit_codes")).toHaveLength(0);
+  });
+
+  it.each([
+    ["a 503", { code: 503 }],
+    ["a network error", new Error("fetch failed")],
+  ])("reports %s on the session check as unavailable", async (_name, error) => {
+    account.get.mockRejectedValue(error);
+
+    expect(await revealBenefit("benefit-1")).toEqual({
+      success: false,
+      reason: "unavailable",
+    });
+    expect(membership.getLiveMembershipStatus).not.toHaveBeenCalled();
+    expect(adminDb.getRow).not.toHaveBeenCalled();
+  });
+
+  it("refuses an anonymous session without a membership call or code read", async () => {
+    authState.authenticated = false;
+
+    expect(await revealBenefit("benefit-1")).toEqual({
+      success: false,
+      reason: "not_member",
+    });
+    expect(membership.getLiveMembershipStatus).not.toHaveBeenCalled();
+    expect(adminDb.getRow).not.toHaveBeenCalled();
+  });
+
+  it("never touches the admin client for a non-member", async () => {
+    membership.getLiveMembershipStatus.mockResolvedValue({ isMember: false });
+    const { createAdminClient } = await import("@repo/api/server");
+    vi.mocked(createAdminClient).mockClear();
+
+    await revealBenefit("benefit-1");
+
+    expect(createAdminClient).not.toHaveBeenCalled();
   });
 
   it("passes a not_found result through", async () => {
@@ -197,13 +218,33 @@ function collectStrings(value: unknown, keys: string[], strings: string[]) {
 }
 
 describe("member portal benefit listing", () => {
+  const row = (id: string, overrides: Record<string, unknown> = {}) => ({
+    $createdAt: "2026-01-01T00:00:00.000Z",
+    $id: id,
+    campus_id: "5",
+    section: "member",
+    sort_order: 0,
+    status: "published",
+    title_en: `Title ${id}`,
+    title_nb: `Tittel ${id}`,
+    ...overrides,
+  });
+
+  const serve = (rows: Record<string, unknown>[]) =>
+    publicDb.listRows.mockImplementation((_db: string, table: string) =>
+      Promise.resolve({
+        rows: table === "campus_benefits" ? rows : [],
+        total: 0,
+      })
+    );
+
   beforeEach(() => {
-    publicBenefits.getPublicBenefits.mockReset();
-    publicBenefits.getPublicBenefits.mockResolvedValue([
-      benefit({ id: "national", campusId: "5" }),
-      benefit({ id: "oslo", campusId: "1", isFeatured: true }),
-      benefit({ id: "bergen", campusId: "2", isFeatured: true }),
-      benefit({ id: "career", campusId: "5", section: "career" }),
+    publicDb.listRows.mockReset();
+    serve([
+      row("national"),
+      row("oslo", { campus_id: "1", is_featured: true }),
+      row("bergen", { campus_id: "2", is_featured: true }),
+      row("career", { section: "career" }),
     ]);
   });
 
@@ -220,50 +261,43 @@ describe("member portal benefit listing", () => {
   });
 
   it("features only isFeatured member benefits, at most six", async () => {
-    publicBenefits.getPublicBenefits.mockResolvedValue(
-      Array.from({ length: 8 }, (_, i) =>
-        benefit({ id: `f${i}`, isFeatured: true })
-      )
+    serve(
+      Array.from({ length: 8 }, (_, i) => row(`f${i}`, { is_featured: true }))
     );
-
     expect(await getFeaturedBenefits("1")).toHaveLength(6);
 
-    publicBenefits.getPublicBenefits.mockResolvedValue([
-      benefit({ id: "plain" }),
-      benefit({ id: "star", isFeatured: true }),
-    ]);
+    serve([row("plain"), row("star", { is_featured: true })]);
     expect((await getFeaturedBenefits("1")).map((b) => b.id)).toEqual(["star"]);
   });
 
   it("falls back to an empty list when the benefit read fails", async () => {
-    publicBenefits.getPublicBenefits.mockRejectedValue(new Error("down"));
+    publicDb.listRows.mockRejectedValue(new Error("down"));
 
     expect(await getMemberPortalBenefits("1")).toEqual([]);
     expect(await getFeaturedBenefits("1")).toEqual([]);
   });
 
   it("carries no redemption value or code anywhere in the payload", async () => {
-    publicBenefits.getPublicBenefits.mockResolvedValue([
-      benefit({
-        description: { en: "Show your card", nb: null },
-        isFeatured: true,
-        partner: {
-          id: "p1",
-          logoUrl: null,
-          name: "Cafe",
-          websiteUrl: null,
-        },
+    serve([
+      row("coded", {
+        is_featured: true,
+        redemption_type: "code",
+        redemption_value: SECRET_CODE,
       }),
     ]);
 
+    const payload = [
+      ...(await getMemberPortalBenefits("1")),
+      ...(await getFeaturedBenefits("1")),
+    ];
     const keys: string[] = [];
     const strings: string[] = [];
-    collectStrings(await getMemberPortalBenefits("1"), keys, strings);
-    collectStrings(await getFeaturedBenefits("1"), keys, strings);
+    collectStrings(payload, keys, strings);
 
-    expect(keys.length).toBeGreaterThan(0);
+    expect(payload).toHaveLength(2);
     expect(keys).not.toContain("redemption_value");
     expect(keys).not.toContain("redemptionValue");
     expect(strings).not.toContain(SECRET_CODE);
+    expect(JSON.stringify(payload)).not.toContain(SECRET_CODE);
   });
 });

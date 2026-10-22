@@ -80,7 +80,7 @@
       "potential": "Save more by using benefits"
     },
     "discoverIntro": "As a BISO member, you unlock exclusive discounts and benefits from our partners. Browse what is available and join today!",
-    "discoverIntroCount": "As a BISO member, you unlock exclusive discounts and benefits from our {count} partners. Browse what is available and join today!"
+    "discoverIntroCount": "As a BISO member, you unlock {count, plural, one {# exclusive benefit} other {# exclusive benefits}} from our partners. Browse what is available and join today!"
   },
   "profile": {
     "title": "Personal Information",
@@ -191,7 +191,7 @@
     "title": "Exclusive Member Benefits",
     "description": "As a BISO member, you get access to our extensive network of partner discounts and exclusive deals",
     "stats": {
-      "partners": "Partner Companies",
+      "partners": "{count, plural, one {Member benefit} other {Member benefits}}",
       "savings": "Avg. Annual Savings",
       "members": "Active Members"
     }

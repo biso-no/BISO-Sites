@@ -1,22 +1,14 @@
 "use client";
 
+import { isBenefitCategory } from "@repo/shared/utils/benefit-catalog";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
-import {
-  Calendar,
-  Coffee,
-  Dumbbell,
-  Laptop,
-  Lock,
-  Moon,
-  Plane,
-  ShoppingBag,
-  Sparkles,
-} from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { useLocale } from "next-intl";
 import { benefitCategoryLabel } from "@/lib/benefit-text";
+import { BENEFIT_CATEGORY_ICONS } from "./benefit-category-icons";
 
 interface BenefitPreviewCardProps {
   category: string;
@@ -26,19 +18,8 @@ interface BenefitPreviewCardProps {
   partnerName: string;
 }
 
-const getCategoryIcon = (category: string) => {
-  const icons: Record<string, typeof Coffee> = {
-    food_drink: Coffee,
-    health_fitness: Dumbbell,
-    nightlife: Moon,
-    shopping: ShoppingBag,
-    travel: Plane,
-    software: Laptop,
-    events: Calendar,
-    other: Sparkles,
-  };
-  return icons[category] || Sparkles;
-};
+const getCategoryIcon = (category: string) =>
+  isBenefitCategory(category) ? BENEFIT_CATEGORY_ICONS[category] : Sparkles;
 
 const getCategoryGradient = (_category: string) => {
   return "from-brand-gradient-from to-brand-gradient-to";

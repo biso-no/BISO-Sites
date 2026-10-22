@@ -6,7 +6,6 @@ import { cookies } from "next/headers";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { getActiveCampus } from "@/app/actions/campus";
 import {
-  getBenefitReveals,
   getFeaturedBenefits,
   getMemberPortalBenefits,
   getPublicProfile,
@@ -60,17 +59,12 @@ export async function MemberPortalContent({
     : ((await getActiveCampus()) ??
       (profile?.campus_id || user?.profile?.campus_id || NATIONAL_CAMPUS_ID));
 
-  // Fetch benefits for the member portal (all users see published benefits;
-  // non-members see teasers, members see the redemption value after reveal)
-  const [benefits, featuredBenefits, revealedBenefits, plans] =
-    await Promise.all([
-      getMemberPortalBenefits(campusId),
-      getFeaturedBenefits(campusId),
-      user
-        ? getBenefitReveals(user.user.$id)
-        : Promise.resolve(new Set<string>()),
-      getMembershipOfferCandidates().catch(() => []),
-    ]);
+  // Benefits carry no codes; a member gets one only through revealBenefit.
+  const [benefits, featuredBenefits, plans] = await Promise.all([
+    getMemberPortalBenefits(campusId),
+    getFeaturedBenefits(campusId),
+    getMembershipOfferCandidates().catch(() => []),
+  ]);
 
   const current = membership ? toCurrentMembershipView(membership) : null;
   const isMember = current !== null;
@@ -156,7 +150,6 @@ export async function MemberPortalContent({
               : null
           }
           publicProfile={publicProfile}
-          revealedBenefits={revealedBenefits}
           startDate={startDate}
           termDays={termDays}
         />

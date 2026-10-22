@@ -32,7 +32,6 @@ interface MemberPortalTabsProps {
   profile: Users | null;
   profileAccount: { name: string; email: string } | null;
   publicProfile: PublicProfiles | null;
-  revealedBenefits: Set<string>;
   startDate: string;
   termDays: number;
 }
@@ -46,7 +45,6 @@ export function MemberPortalTabs({
   expiryDate,
   benefits,
   featuredBenefits = [],
-  revealedBenefits,
   isGuest,
   isMember,
   hasBIIdentity,
@@ -84,7 +82,6 @@ export function MemberPortalTabs({
         isMember={isMember}
         membershipType={membershipType}
         onTabChange={handleTabChange}
-        revealedBenefits={revealedBenefits}
         startDate={startDate}
         termDays={termDays}
       />
@@ -94,7 +91,6 @@ export function MemberPortalTabs({
         featuredBenefits={featuredBenefits}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
-        revealedBenefits={revealedBenefits}
       />
 
       <CampusTab />

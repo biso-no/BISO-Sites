@@ -35,7 +35,6 @@ interface HomeTabProps {
   isMember: boolean;
   membershipType: string;
   onTabChange: (tab: string) => void;
-  revealedBenefits: Set<string>;
   startDate: string;
   termDays: number;
 }
@@ -78,7 +77,6 @@ function MemberOverview({
   expiryDate,
   benefits,
   featuredBenefits: featuredFromServer = [],
-  revealedBenefits,
   onTabChange,
   termDays,
 }: Omit<HomeTabProps, "isMember" | "hasBIIdentity">) {
@@ -219,10 +217,7 @@ function MemberOverview({
               key={benefit.id}
               transition={{ delay: 0.1 * index }}
             >
-              <BenefitCard
-                benefit={benefit}
-                isRevealed={revealedBenefits.has(benefit.id)}
-              />
+              <BenefitCard benefit={benefit} />
             </motion.div>
           ))}
         </div>
@@ -369,7 +364,6 @@ export function HomeTab({
   expiryDate,
   benefits,
   featuredBenefits,
-  revealedBenefits,
   isMember,
   hasBIIdentity: _hasBIIdentity,
   onTabChange,
@@ -391,7 +385,6 @@ export function HomeTab({
             featuredBenefits={featuredBenefits}
             membershipType={membershipType}
             onTabChange={onTabChange}
-            revealedBenefits={revealedBenefits}
             startDate={startDate}
             termDays={termDays}
           />

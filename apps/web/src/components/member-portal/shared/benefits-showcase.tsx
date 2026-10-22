@@ -17,7 +17,7 @@ export function BenefitsShowcase({ benefits }: { benefits: PublicBenefit[] }) {
   const t = useTranslations("memberPortal");
   const locale = useLocale();
   // The server already scoped these to the visitor's campus plus national.
-  const partnerCount = benefits.length;
+  const benefitCount = benefits.length;
 
   return (
     <section className="py-12">
@@ -80,10 +80,10 @@ export function BenefitsShowcase({ benefits }: { benefits: PublicBenefit[] }) {
       >
         <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">
-            {partnerCount}
+            {benefitCount}
           </div>
           <div className="text-muted-foreground">
-            {t("showcase.stats.partners")}
+            {t("showcase.stats.partners", { count: benefitCount })}
           </div>
         </div>
         <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">

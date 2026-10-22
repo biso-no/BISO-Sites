@@ -80,7 +80,7 @@
       "potential": "Spar mer ved å bruke fordeler"
     },
     "discoverIntro": "Som BISO-medlem får du eksklusive rabatter og fordeler hos partnerne våre. Se hva som er tilgjengelig og bli medlem i dag!",
-    "discoverIntroCount": "Som BISO-medlem får du eksklusive rabatter og fordeler hos våre {count} partnere. Se hva som er tilgjengelig og bli medlem i dag!"
+    "discoverIntroCount": "Som BISO-medlem får du tilgang til {count, plural, one {# eksklusiv medlemsfordel} other {# eksklusive medlemsfordeler}} hos partnerne våre. Se hva som er tilgjengelig og bli medlem i dag!"
   },
   "profile": {
     "title": "Personlig informasjon",
@@ -191,7 +191,7 @@
     "title": "Eksklusive medlemsfordeler",
     "description": "Som BISO-medlem får du tilgang til vårt omfattende nettverk av partnerrabatter og eksklusive tilbud",
     "stats": {
-      "partners": "Partnerselskaper",
+      "partners": "{count, plural, one {Medlemsfordel} other {Medlemsfordeler}}",
       "savings": "Gj.snitt årlig besparelse",
       "members": "Aktive medlemmer"
     }

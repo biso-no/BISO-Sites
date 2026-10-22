@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const actions = vi.hoisted(() => ({
-  getBenefitReveals: vi.fn(),
   getFeaturedBenefits: vi.fn(),
   getMemberPortalBenefits: vi.fn(),
   getPublicProfile: vi.fn(),
@@ -54,7 +53,6 @@ describe("member portal campus resolution", () => {
     }
     actions.getMemberPortalBenefits.mockResolvedValue([]);
     actions.getFeaturedBenefits.mockResolvedValue([]);
-    actions.getBenefitReveals.mockResolvedValue(new Set());
     actions.getUserProfile.mockResolvedValue({ campus_id: "3" });
     actions.getPublicProfile.mockResolvedValue(null);
     campus.getActiveCampus.mockReset();

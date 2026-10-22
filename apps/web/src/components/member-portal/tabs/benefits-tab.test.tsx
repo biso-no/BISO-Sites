@@ -64,7 +64,6 @@ async function mount() {
         benefits,
         hasBIIdentity: true,
         isMember: true,
-        revealedBenefits: new Set<string>(),
       })
     );
   });
