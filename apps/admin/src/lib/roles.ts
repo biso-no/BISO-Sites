@@ -55,11 +55,8 @@ export const NAV_ACCESS = {
   settings: [ROLES.GLOBAL_ADMIN],
   settingsProfile: [ROLES.GLOBAL_ADMIN],
   settingsSecurity: [ROLES.GLOBAL_ADMIN],
-  // Membership & Benefits
+  // Membership. Benefits live under `portal.benefits*` below.
   membership: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  benefits: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  benefitsPartners: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
-  benefitsAnalytics: [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
   // New admin portal (/admin/*) nav keys.
   // General publishing surfaces (pages, news, events, shop products,
   // communications, documents) are open to department members; the data layer

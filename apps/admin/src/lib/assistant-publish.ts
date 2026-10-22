@@ -23,6 +23,17 @@ export function dropBenefitDepartment(
   return rest;
 }
 
+/**
+ * A benefit as the assistant may see it: never its code or member link,
+ * which only the panel shows to the benefit's own editors.
+ */
+export function withoutBenefitCode<T extends { redemption_value?: unknown }>(
+  benefit: T
+): Omit<T, "redemption_value"> {
+  const { redemption_value: _code, ...rest } = benefit;
+  return rest;
+}
+
 export function canPublishContent(
   ctx: UserAuthContext,
   domain: string,

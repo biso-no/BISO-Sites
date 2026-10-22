@@ -12,6 +12,7 @@ const {
   canPublishContent,
   dropBenefitDepartment,
   publishBenefitContent,
+  withoutBenefitCode,
 } = await import("./assistant-publish");
 
 const ctx = (overrides: Partial<UserAuthContext>): UserAuthContext => ({
@@ -56,6 +57,25 @@ describe("dropBenefitDepartment", () => {
         title: "t",
       })
     ).toEqual({ title: "t" });
+  });
+});
+
+describe("withoutBenefitCode", () => {
+  test("drops the code and keeps everything else", () => {
+    const view = withoutBenefitCode({
+      $id: "b1",
+      editable: true,
+      redemption_type: "code",
+      redemption_value: "BISO20",
+      title_nb: "Rabatt",
+    });
+    expect(view).toEqual({
+      $id: "b1",
+      editable: true,
+      redemption_type: "code",
+      title_nb: "Rabatt",
+    });
+    expect("redemption_value" in view).toBe(false);
   });
 });
 

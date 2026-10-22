@@ -91,6 +91,7 @@ import {
   canPublishContent,
   dropBenefitDepartment,
   publishBenefitContent,
+  withoutBenefitCode,
 } from "@/lib/assistant-publish";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
@@ -214,8 +215,8 @@ export async function POST(request: NextRequest) {
 // Helpers — extracted to keep buildDeps within complexity limits
 // ---------------------------------------------------------------------------
 
+// Benefits publish through `publishBenefitContent`, never a bare status write.
 const DOMAIN_PUBLISH_TABLE: Record<string, string> = {
-  benefits: "campus_benefits",
   documents: "documents",
   jobs: "jobs",
   news: "news",
@@ -506,8 +507,10 @@ function buildDeps(
           return await getPageById(id);
         case "shop":
           return await getProduct(id);
-        case "benefits":
-          return await getBenefitForEdit(id);
+        case "benefits": {
+          const benefit = await getBenefitForEdit(id);
+          return benefit ? withoutBenefitCode(benefit) : null;
+        }
         case "documents":
           return await getDocument(id);
         default:

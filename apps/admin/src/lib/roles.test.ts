@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { canManageAccounting, hasNavAccess, ROLES } from "./roles";
+import {
+  canManageAccounting,
+  hasNavAccess,
+  NAV_ACCESS,
+  type NavKey,
+  ROLES,
+} from "./roles";
 
 const GENERAL_PUBLISHING_KEYS = [
   "portal.pages",
@@ -30,6 +36,16 @@ describe("benefits navigation", () => {
 
   test("benefits editors reach benefits and partners", () => {
     for (const key of ["portal.benefits", "portal.benefitsPartners"] as const) {
+      expect(hasNavAccess(key, [ROLES.BENEFITS_EDITOR], false), key).toBe(true);
+    }
+  });
+
+  test("every benefits nav key admits benefits editors", () => {
+    const keys = (Object.keys(NAV_ACCESS) as NavKey[]).filter((key) =>
+      key.toLowerCase().includes("benefit")
+    );
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
       expect(hasNavAccess(key, [ROLES.BENEFITS_EDITOR], false), key).toBe(true);
     }
   });
