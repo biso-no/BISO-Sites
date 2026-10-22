@@ -8,11 +8,11 @@ import {
   PencilLine,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo } from "react";
 import type { BenefitAccess } from "@/lib/benefit-access";
 import type { BenefitBoardData } from "../../_actions/benefits";
 import { STUDIO, StudioKpi, StudioKpiStrip } from "../../_components/studio";
-import { buildBoardSections, summarizeBoard } from "../_lib/board";
+import { buildBoardSections, canMoveItem, summarizeBoard } from "../_lib/board";
 import type { AdminLocale } from "../_lib/board-display";
 import { BenefitBoardSection } from "./benefit-board-section";
 
@@ -20,6 +20,8 @@ export interface BenefitBoardProps {
   access: BenefitAccess;
   data: BenefitBoardData;
   locale: AdminLocale;
+  /** The page's clock (ISO), so states agree between server and browser. */
+  now: string;
   /** The side panel for the item being opened or created, if any. */
   open?: ReactNode;
 }
@@ -32,11 +34,12 @@ export function BenefitBoard({
   access,
   data,
   locale,
+  now: nowIso,
   open,
 }: BenefitBoardProps) {
   const t = useTranslations("adminPortal.benefits.board");
-  // One clock per mount, so states and the summary agree with each other.
-  const [now] = useState(() => new Date());
+  // One clock for the whole board, so states and the summary agree.
+  const now = useMemo(() => new Date(nowIso), [nowIso]);
   const editable =
     data.editable && access.editableCampusIds.includes(data.campusId);
 
@@ -46,7 +49,8 @@ export function BenefitBoard({
   );
   const summary = useMemo(() => summarizeBoard(sections, now), [sections, now]);
   const canReorderAny =
-    editable && sections.some((section) => section.own.length > 1);
+    editable &&
+    sections.some((section) => section.own.filter(canMoveItem).length > 1);
 
   return (
     <>

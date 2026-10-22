@@ -193,6 +193,32 @@ export function withPresetPartner(
   return offered ? { ...values, partnerId: partnerId ?? null } : values;
 }
 
+/** The `[id]` segment that opens an empty panel. */
+export const NEW_BENEFIT_ID = "new";
+
+/**
+ * Remounts the panel whenever the URL names another item. Every new-benefit
+ * URL is `new`, so its campus, section and preset partner are part of the
+ * key too: going back or forward between two of them starts a fresh form.
+ */
+export function panelKey({
+  campusId,
+  newPartnerId,
+  newSection,
+  openId,
+}: {
+  campusId: string;
+  newPartnerId?: string;
+  newSection?: string;
+  openId: string;
+}): string {
+  if (openId !== NEW_BENEFIT_ID) {
+    return openId;
+  }
+  const section = isBenefitSection(newSection) ? newSection : "member";
+  return [NEW_BENEFIT_ID, campusId, section, newPartnerId ?? ""].join(":");
+}
+
 /** Whether closing now would lose something the editor changed. */
 export function isPanelDirty(
   values: PanelValues,

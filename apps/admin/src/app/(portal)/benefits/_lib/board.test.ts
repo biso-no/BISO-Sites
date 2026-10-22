@@ -1,6 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import type { BoardBenefit, BoardPartner } from "../../_actions/benefits";
-import { buildBoardSections, reorderIds, summarizeBoard } from "./board";
+import {
+  type BoardItem,
+  buildBoardSections,
+  canMoveItem,
+  reorderIds,
+  reorderOwnItems,
+  summarizeBoard,
+} from "./board";
 
 const NOW = new Date("2026-10-22T10:00:00Z");
 
@@ -174,5 +181,44 @@ describe("reorderIds", () => {
     expect(reorderIds(ids, "x", "a")).toBe(ids);
     expect(reorderIds(ids, "a", "x")).toBe(ids);
     expect(reorderIds(ids, "a", "a")).toBe(ids);
+  });
+});
+
+describe("moving own items", () => {
+  const item = (id: string, state: BoardItem["state"]): BoardItem => ({
+    benefit: benefit({ $id: id }),
+    partner: null,
+    state,
+  });
+
+  it("only live, planned and draft items can move", () => {
+    expect(canMoveItem(item("a", "visible"))).toBe(true);
+    expect(canMoveItem(item("a", "scheduled"))).toBe(true);
+    expect(canMoveItem(item("a", "draft"))).toBe(true);
+    expect(canMoveItem(item("a", "expired"))).toBe(false);
+    expect(canMoveItem(item("a", "ended"))).toBe(false);
+    expect(canMoveItem(item("a", "hidden"))).toBe(false);
+  });
+
+  const own = [
+    item("live-1", "visible"),
+    item("live-2", "draft"),
+    item("old-1", "expired"),
+    item("old-2", "hidden"),
+  ];
+
+  it("keeps lapsed items at the end of the stored order", () => {
+    expect(reorderOwnItems(own, "live-2", "live-1")).toEqual([
+      "live-2",
+      "live-1",
+      "old-1",
+      "old-2",
+    ]);
+  });
+
+  it("changes nothing when a lapsed item is involved", () => {
+    expect(reorderOwnItems(own, "live-1", "old-1")).toBeNull();
+    expect(reorderOwnItems(own, "old-2", "live-1")).toBeNull();
+    expect(reorderOwnItems(own, "live-1", "live-1")).toBeNull();
   });
 });

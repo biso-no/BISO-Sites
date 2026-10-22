@@ -210,13 +210,20 @@ const calls = {
 };
 /** Set to hold the next `updateBenefit` open until the test settles it. */
 let heldUpdate: Promise<unknown> | null = null;
+/** Set to make the next server call fail with this reason. */
+let serverError: unknown = null;
+const failure = () => (serverError === null ? null : { error: serverError });
 mock.module("./panel-actions", () => ({
   createBenefit: (...args: unknown[]) => {
     calls.createBenefit.push(args);
-    return Promise.resolve({ data: "new-benefit" });
+    return Promise.resolve(failure() ?? { data: "new-benefit" });
   },
   createBenefitPartner: (...args: unknown[]) => {
     calls.createBenefitPartner.push(args);
+    const failed = failure();
+    if (failed) {
+      return Promise.resolve(failed);
+    }
     const [input] = args as [{ campus_id: string; name: string }];
     return Promise.resolve({
       data: {
@@ -230,17 +237,21 @@ mock.module("./panel-actions", () => ({
   },
   deleteBenefit: (...args: unknown[]) => {
     calls.deleteBenefit.push(args);
-    return Promise.resolve({ data: args[0] });
+    return Promise.resolve(failure() ?? { data: args[0] });
   },
   setBenefitStatus: (...args: unknown[]) => {
     calls.setBenefitStatus.push(args);
-    return Promise.resolve({ data: args[0] });
+    return Promise.resolve(failure() ?? { data: args[0] });
   },
   updateBenefit: (...args: unknown[]) => {
     calls.updateBenefit.push(args);
-    return heldUpdate ?? Promise.resolve({ data: args[0] });
+    return heldUpdate ?? Promise.resolve(failure() ?? { data: args[0] });
   },
 }));
+
+// Failures are logged for developers in English; keep the run quiet.
+const actualWarn = console.warn;
+const warnings: unknown[][] = [];
 
 const { BenefitPanel } = await import("./benefit-panel");
 
@@ -251,6 +262,9 @@ let container: TestElement;
 
 beforeAll(async () => {
   ({ createRoot } = await import("react-dom/client"));
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
 });
 
 afterEach(async () => {
@@ -262,13 +276,18 @@ afterEach(async () => {
   refreshes = 0;
   toasts.length = 0;
   heldUpdate = null;
+  serverError = null;
+  warnings.length = 0;
   for (const list of Object.values(calls)) {
     list.length = 0;
   }
   installedDom.document.body.textContent = "";
 });
 
-afterAll(() => installedDom.restore());
+afterAll(() => {
+  console.warn = actualWarn;
+  installedDom.restore();
+});
 
 const BOARD_HREF = "/benefits?campus=2";
 
@@ -779,6 +798,128 @@ describe("BenefitPanel", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(pushes).toEqual([BOARD_HREF]);
+  });
+
+  describe("a failed save says why in Norwegian", () => {
+    const cases: [string, unknown, string][] = [
+      [
+        "no campus access",
+        "Unauthorized: no write access to this campus",
+        "Du har ikke tilgang til å endre fordeler for denne campusen.",
+      ],
+      [
+        "a missing partner",
+        "Partner not found",
+        "Fant ikke partneren. Velg partneren på nytt.",
+      ],
+      [
+        "a missing benefit",
+        "Benefit not found",
+        "Fant ikke fordelen. Den kan være slettet.",
+      ],
+      [
+        "an invalid image",
+        { image_url: ["Invalid URL"] },
+        "Bildet må være en https-adresse.",
+      ],
+    ];
+    for (const [name, error, description] of cases) {
+      test(name, async () => {
+        serverError = error;
+        await mount({ benefitId: "b1", initial: published });
+
+        await click("Lagre endringer");
+
+        expect(toasts).toEqual([
+          {
+            description,
+            kind: "error",
+            message: "Kunne ikke lagre. Prøv igjen.",
+          },
+        ]);
+        expect(pushes).toHaveLength(0);
+        // The English reason stays in the console, for developers.
+        expect(warnings).toHaveLength(1);
+      });
+    }
+
+    test("an unknown reason shows only the plain message", async () => {
+      serverError =
+        "AppwriteException: Document with the requested ID could not be found";
+      await mount({ benefitId: "b1", initial: published });
+
+      await click("Lagre endringer");
+
+      expect(toasts).toEqual([
+        {
+          description: undefined,
+          kind: "error",
+          message: "Kunne ikke lagre. Prøv igjen.",
+        },
+      ]);
+    });
+
+    test("hiding a benefit someone deleted says so", async () => {
+      serverError = "Benefit not found";
+      await mount({ benefitId: "b1", initial: published });
+
+      await click("Skjul fra nettsiden");
+
+      expect(toasts.at(-1)).toEqual({
+        description: "Fant ikke fordelen. Den kan være slettet.",
+        kind: "error",
+        message: "Kunne ikke lagre. Prøv igjen.",
+      });
+    });
+
+    test("deleting without campus access says so", async () => {
+      serverError = "Unauthorized: no write access to this campus";
+      await mount({ benefitId: "b1", initial: published });
+
+      await click("Slett");
+      const dialog = alertDialog();
+      if (!dialog) {
+        throw new Error("No confirmation");
+      }
+      await press(findButton(dialog as unknown as TestNode, "Slett"));
+
+      expect(toasts.at(-1)).toEqual({
+        description:
+          "Du har ikke tilgang til å endre fordeler for denne campusen.",
+        kind: "error",
+        message: "Kunne ikke slette. Prøv igjen.",
+      });
+    });
+
+    test("a refused new partner says why", async () => {
+      serverError = "The logo must be an https:// address";
+      await mount();
+
+      await click("+ Ny partner");
+      await type(labelled("Navn"), "Nytt Bakeri");
+      await click("Lagre partner");
+
+      expect(toasts.at(-1)).toEqual({
+        description: "Logoen må være en https-adresse.",
+        kind: "error",
+        message: "Kunne ikke lagre. Prøv igjen.",
+      });
+    });
+
+    test("an unknown partner failure shows only the plain message", async () => {
+      serverError = "Failed to create partner";
+      await mount();
+
+      await click("+ Ny partner");
+      await type(labelled("Navn"), "Nytt Bakeri");
+      await click("Lagre partner");
+
+      expect(toasts.at(-1)).toEqual({
+        description: undefined,
+        kind: "error",
+        message: "Kunne ikke lagre. Prøv igjen.",
+      });
+    });
   });
 
   test("a save that finishes after the panel is gone does not navigate", async () => {

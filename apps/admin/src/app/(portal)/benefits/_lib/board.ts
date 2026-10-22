@@ -13,7 +13,8 @@ import type { BoardBenefit, BoardPartner } from "../../_actions/benefits";
 export const ENDING_SOON_DAYS = 30;
 const MS_PER_DAY = 86_400_000;
 const FALLBACK_SECTION: BenefitSection = "member";
-const LOWER_PRIORITY_STATES: ReadonlySet<BenefitDisplayState> = new Set([
+/** States students no longer see; these items sort after the live ones. */
+const LAPSED_STATES: ReadonlySet<BenefitDisplayState> = new Set([
   "expired",
   "ended",
   "hidden",
@@ -32,7 +33,15 @@ export interface BoardSection {
 }
 
 function groupRank(item: BoardItem): number {
-  return LOWER_PRIORITY_STATES.has(item.state) ? 1 : 0;
+  return LAPSED_STATES.has(item.state) ? 1 : 0;
+}
+
+/**
+ * Lapsed items always sort after live ones, so dragging one would only snap
+ * back. Live, planned and draft items are the ones that can move.
+ */
+export function canMoveItem(item: BoardItem): boolean {
+  return !LAPSED_STATES.has(item.state);
 }
 
 function compareItems(a: BoardItem, b: BoardItem): number {
@@ -134,4 +143,25 @@ export function reorderIds(
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved as string);
   return next;
+}
+
+/**
+ * The section's whole new order after moving one movable item onto another:
+ * the save needs every row, so lapsed items follow in their current order.
+ * Null when the move changes nothing.
+ */
+export function reorderOwnItems(
+  own: BoardItem[],
+  activeId: string,
+  overId: string
+): string[] | null {
+  const movable = own.filter(canMoveItem).map((item) => item.benefit.$id);
+  const next = reorderIds(movable, activeId, overId);
+  if (next === movable) {
+    return null;
+  }
+  const lapsed = own
+    .filter((item) => !canMoveItem(item))
+    .map((item) => item.benefit.$id);
+  return [...next, ...lapsed];
 }

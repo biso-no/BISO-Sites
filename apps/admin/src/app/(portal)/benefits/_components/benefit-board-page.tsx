@@ -30,16 +30,15 @@ import {
 import { BOARD_FOCUS_RING } from "../_lib/board-styles";
 import {
   emptyPanelValues,
+  NEW_BENEFIT_ID,
   type PanelValues,
+  panelKey,
   panelValuesFromBenefit,
   withPresetPartner,
 } from "../_lib/panel-state";
 import { BenefitBoard } from "./benefit-board";
 import { BenefitCampusTabs, type BoardCampusTab } from "./benefit-campus-tabs";
 import { BenefitPanel } from "./benefit-panel";
-
-/** The `[id]` segment that opens an empty panel. */
-const NEW_BENEFIT = "new";
 
 export interface BenefitBoardPageProps {
   /** The `campus` search param. */
@@ -64,7 +63,7 @@ export async function BenefitBoardPage({
 }: BenefitBoardPageProps) {
   const ctx = await requireNavAccess("portal.benefits");
   const access = benefitAccessFor(ctx);
-  const isNew = openId === NEW_BENEFIT;
+  const isNew = openId === NEW_BENEFIT_ID;
   const opened = openId && !isNew ? await getBenefitForEdit(openId) : null;
   if (openId && !(isNew || opened)) {
     notFound();
@@ -88,7 +87,9 @@ export async function BenefitBoardPage({
 
   const [data, campuses, t, uiLocale, panelPartners] = await Promise.all([
     loadBenefitBoard(campusId),
-    listCampuses(),
+    // Only the tab labels come from here; without them the labels fall back
+    // to the built-in campus names rather than taking the board down.
+    listCampuses().catch(() => []),
     getTranslations("adminPortal.benefits.board"),
     getLocale(),
     openId ? listBenefitPartners(panelCampusId) : Promise.resolve([]),
@@ -116,7 +117,7 @@ export async function BenefitBoardPage({
         opened,
         partners: panelPartners,
       })}
-      key={openId}
+      key={panelKey({ campusId, newPartnerId, newSection, openId })}
       locale={locale}
       partners={pickerPartners(panelPartners, data.partners, opened)}
     />
@@ -148,7 +149,15 @@ export async function BenefitBoardPage({
         tabs={tabs}
       />
 
-      <BenefitBoard access={access} data={data} locale={locale} open={panel} />
+      <BenefitBoard
+        access={access}
+        data={data}
+        locale={locale}
+        // One clock for the server render and the browser, so a benefit that
+        // starts or ends right now shows the same state on both.
+        now={new Date().toISOString()}
+        open={panel}
+      />
     </div>
   );
 }

@@ -126,6 +126,7 @@ export function BenefitPanel({
   const t = useTranslations("adminPortal.benefits.panel");
   const tErrors = useTranslations("adminPortal.benefits.errors");
   const tBoard = useTranslations("adminPortal.benefits.board");
+  const tBenefits = useTranslations("adminPortal.benefits");
   const router = useRouter();
   const [open, setOpen] = useState(true);
   const [values, setValues] = useState(initial);
@@ -200,22 +201,13 @@ export function BenefitPanel({
     }
   };
 
-  const errorDetails = (error: BenefitSaveError) =>
-    describeBenefitSaveError(error, {
-      category: t("category"),
-      description_en: `${t("english")}: ${t("more")}`,
-      description_nb: t("more"),
-      image_url: t("image"),
-      partner_id: t("partner"),
-      publish_end: t("to"),
-      publish_start: t("from"),
-      redemption_value:
-        values.redemptionType === "link" ? t("linkLabel") : t("codeLabel"),
-      terms_en: `${t("english")}: ${t("terms")}`,
-      terms_nb: t("terms"),
-      title_en: `${t("english")}: ${t("offer")}`,
-      title_nb: t("offer"),
-    });
+  /** The plain message, with the reason when it is one we can explain. */
+  const showFailure = (message: string, error: BenefitSaveError) => {
+    // The server's reason is English and for developers; it stays here.
+    console.warn("[benefits] request failed:", error);
+    const details = describeBenefitSaveError(error, (key) => tBenefits(key));
+    toast.error(message, details ? { description: details } : undefined);
+  };
 
   const save = async (action: SaveAction) => {
     if (pending) {
@@ -245,11 +237,7 @@ export function BenefitPanel({
     }
     if ("error" in result) {
       setPending(null);
-      const details = errorDetails(result.error);
-      toast.error(
-        t("saveFailed"),
-        details ? { description: details } : undefined
-      );
+      showFailure(t("saveFailed"), result.error);
       return;
     }
     toast.success(t(SAVED_MESSAGE[action]));
@@ -259,8 +247,8 @@ export function BenefitPanel({
   };
 
   /**
-   * Hiding changes the status alone: the server rebuilds the row from what
-   * is stored, so formatted text survives and half-made edits are not saved.
+   * Hiding changes the status alone: the stored text stays as it is, and
+   * half-made edits are not saved.
    */
   const saveRequest = (action: SaveAction): Promise<BenefitMutationResult> => {
     if (action === "hide" && benefitId !== null) {
@@ -287,10 +275,7 @@ export function BenefitPanel({
     setConfirmingDelete(false);
     if ("error" in result) {
       setPending(null);
-      toast.error(
-        t("deleteFailed"),
-        result.error ? { description: result.error } : undefined
-      );
+      showFailure(t("deleteFailed"), result.error);
       return;
     }
     toast.success(t("deleted"));

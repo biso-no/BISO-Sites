@@ -36,6 +36,7 @@ function TileFrame({
   sortable,
 }: BenefitItemProps & { sortable?: BoardSortable }) {
   const t = useTranslations("adminPortal.benefits.board");
+  const tStates = useTranslations("adminPortal.benefits.states");
   const title = benefitTitle(item.benefit, locale) || t("untitled");
   const meta = [
     item.partner?.name,
@@ -43,6 +44,8 @@ function TileFrame({
   ]
     .filter(Boolean)
     .join(" · ");
+  // The card shows the state pill first; a screen reader hears the title.
+  const name = [title, tStates(item.state), meta].filter(Boolean).join(", ");
 
   return (
     <li
@@ -54,6 +57,7 @@ function TileFrame({
       }}
     >
       <Link
+        aria-label={name}
         className={`flex h-full min-h-[8.5rem] flex-col rounded-xl border border-[#e5dcca] bg-white p-4 transition-[border-color,box-shadow] hover:border-[#d8cdb6] hover:shadow-[0_6px_18px_rgba(26,24,20,0.07)] ${BOARD_FOCUS_RING}`}
         href={benefitHref(item.benefit.$id, campusId)}
         // The panel opens over the board; keep the board where it was.

@@ -23,7 +23,12 @@ import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { SERIF_STACK, STUDIO } from "../../_components/studio";
-import { type BoardItem, type BoardSection, reorderIds } from "../_lib/board";
+import {
+  type BoardItem,
+  type BoardSection,
+  canMoveItem,
+  reorderOwnItems,
+} from "../_lib/board";
 import {
   type AdminLocale,
   benefitTitle,
@@ -45,6 +50,7 @@ interface ItemListProps {
   items: BoardItem[];
   layout: ItemLayout;
   locale: AdminLocale;
+  /** Live, planned and draft items get a drag handle; lapsed ones stay put. */
   sortable?: boolean;
 }
 
@@ -55,36 +61,45 @@ function ItemList({
   locale,
   sortable,
 }: ItemListProps) {
+  const movable = (item: BoardItem) => Boolean(sortable) && canMoveItem(item);
   if (layout === "tiles") {
-    const Tile = sortable ? SortableBenefitTile : BenefitTile;
     return (
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
-          <Tile
+        {items.map((item) => {
+          const Tile = movable(item) ? SortableBenefitTile : BenefitTile;
+          return (
+            <Tile
+              campusId={campusId}
+              item={item}
+              key={item.benefit.$id}
+              locale={locale}
+            />
+          );
+        })}
+      </ul>
+    );
+  }
+  return (
+    <ul className="rounded-xl border border-[#e5dcca] bg-white">
+      {items.map((item) => {
+        const Line = movable(item) ? SortableBenefitLine : BenefitLine;
+        return (
+          <Line
             campusId={campusId}
             item={item}
             key={item.benefit.$id}
             locale={locale}
           />
-        ))}
-      </ul>
-    );
-  }
-  const Line = sortable ? SortableBenefitLine : BenefitLine;
-  return (
-    <ul className="rounded-xl border border-[#e5dcca] bg-white">
-      {items.map((item) => (
-        <Line
-          campusId={campusId}
-          item={item}
-          key={item.benefit.$id}
-          locale={locale}
-        />
-      ))}
+        );
+      })}
     </ul>
   );
 }
 
+/**
+ * Own items that students can see, or soon will, can be dragged. Lapsed ones
+ * always sort last, so they keep their place and carry no handle.
+ */
 function SortableItemList({
   onReorder,
   ...props
@@ -99,7 +114,7 @@ function SortableItemList({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-  const ids = props.items.map((item) => item.benefit.$id);
+  const ids = props.items.filter(canMoveItem).map((item) => item.benefit.$id);
 
   const titleOf = (id: UniqueIdentifier): string => {
     const item = props.items.find((candidate) => candidate.benefit.$id === id);
@@ -135,8 +150,12 @@ function SortableItemList({
     if (!over) {
       return;
     }
-    const next = reorderIds(ids, String(active.id), String(over.id));
-    if (next !== ids) {
+    const next = reorderOwnItems(
+      props.items,
+      String(active.id),
+      String(over.id)
+    );
+    if (next) {
       onReorder(next);
     }
   };
@@ -209,7 +228,7 @@ export function BenefitBoardSection({
     pending?.base === section.own
       ? inOrder(section.own, pending.ids)
       : section.own;
-  const canReorder = editable && own.length > 1;
+  const canReorder = editable && own.filter(canMoveItem).length > 1;
 
   const reorder = async (ids: string[]) => {
     setPending({ base: section.own, ids });

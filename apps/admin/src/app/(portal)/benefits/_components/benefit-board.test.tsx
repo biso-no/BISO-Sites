@@ -77,7 +77,12 @@ mock.module("next/link", () => ({
   }: { children: ReactNode; href: string } & Record<string, unknown>) =>
     createElement(
       "a",
-      { className: props.className, href, style: props.style },
+      {
+        "aria-label": props["aria-label"],
+        className: props.className,
+        href,
+        style: props.style,
+      },
       children
     ),
 }));
@@ -151,6 +156,9 @@ const partner: BoardPartner = {
   logo_url: null,
   name: "Løft studios",
 };
+
+/** The server's clock, handed to the board so both render the same states. */
+const NOW = "2026-10-22T10:00:00.000Z";
 
 const OWN_TILE = "20 % hos Løft studios";
 const CAREER_LINE = "1-1-veiledning med Econa";
@@ -237,7 +245,12 @@ function itemLink(id: string): TestElement {
 describe("BenefitBoard", () => {
   test("shows the five sections in the website's order", async () => {
     await mount(
-      <BenefitBoard access={bergenEditor} data={bergenData} locale="no" />
+      <BenefitBoard
+        access={bergenEditor}
+        data={bergenData}
+        locale="no"
+        now={NOW}
+      />
     );
 
     const headings = findElements(
@@ -255,7 +268,12 @@ describe("BenefitBoard", () => {
 
   test("renders a member tile with its partner, category and state", async () => {
     await mount(
-      <BenefitBoard access={bergenEditor} data={bergenData} locale="no" />
+      <BenefitBoard
+        access={bergenEditor}
+        data={bergenData}
+        locale="no"
+        now={NOW}
+      />
     );
 
     const tile = itemLink("own-tile");
@@ -267,7 +285,12 @@ describe("BenefitBoard", () => {
 
   test("lists Hele BISO items after a quiet divider", async () => {
     await mount(
-      <BenefitBoard access={bergenEditor} data={bergenData} locale="no" />
+      <BenefitBoard
+        access={bergenEditor}
+        data={bergenData}
+        locale="no"
+        now={NOW}
+      />
     );
 
     const text = container.textContent;
@@ -279,7 +302,12 @@ describe("BenefitBoard", () => {
 
   test("offers an add link per section", async () => {
     await mount(
-      <BenefitBoard access={bergenEditor} data={bergenData} locale="no" />
+      <BenefitBoard
+        access={bergenEditor}
+        data={bergenData}
+        locale="no"
+        now={NOW}
+      />
     );
 
     const hrefs = addLinks().map((link) => link.getAttribute("href"));
@@ -294,6 +322,7 @@ describe("BenefitBoard", () => {
         access={bergenEditor}
         data={bergenWithTwoTiles}
         locale="no"
+        now={NOW}
       />
     );
 
@@ -307,9 +336,115 @@ describe("BenefitBoard", () => {
     expect(reorderCalls).toHaveLength(0);
   });
 
+  test("a card is named by its title first", async () => {
+    await mount(
+      <BenefitBoard
+        access={bergenEditor}
+        data={bergenData}
+        locale="no"
+        now={NOW}
+      />
+    );
+
+    expect(itemLink("own-tile").getAttribute("aria-label")).toBe(
+      `${OWN_TILE}, Synlig, Løft studios · Trening og helse`
+    );
+    expect(itemLink("national-tile").getAttribute("aria-label")).toBe(
+      `${NATIONAL_TILE}, Synlig, Arrangementer`
+    );
+  });
+
+  test("states follow the server's clock", async () => {
+    const data: BenefitBoardData = {
+      ...bergenData,
+      benefits: [
+        benefit({
+          $id: "starts-soon",
+          publish_start: "2026-10-23T00:00:00.000Z",
+          title_nb: "Starter snart",
+        }),
+      ],
+    };
+
+    await mount(
+      <BenefitBoard access={bergenEditor} data={data} locale="no" now={NOW} />
+    );
+    expect(itemLink("starts-soon").textContent).toContain("Planlagt");
+
+    await act(async () => root?.unmount());
+    await mount(
+      <BenefitBoard
+        access={bergenEditor}
+        data={data}
+        locale="no"
+        now="2026-10-24T10:00:00.000Z"
+      />
+    );
+    expect(itemLink("starts-soon").textContent).toContain("Synlig");
+  });
+
+  test("items students no longer see cannot be dragged", async () => {
+    const data: BenefitBoardData = {
+      ...bergenWithTwoTiles,
+      benefits: [
+        ...bergenWithTwoTiles.benefits,
+        benefit({
+          $id: "expired-tile",
+          publish_end: "2026-09-01T00:00:00.000Z",
+          sort_order: 2,
+          title_nb: "Gammel rabatt",
+        }),
+        benefit({
+          $id: "hidden-tile",
+          sort_order: 3,
+          status: "archived",
+          title_nb: "Skjult rabatt",
+        }),
+      ],
+    };
+
+    await mount(
+      <BenefitBoard access={bergenEditor} data={data} locale="no" now={NOW} />
+    );
+
+    expect(dragHandleLabels()).toEqual([
+      `Flytt «${OWN_TILE}»`,
+      `Flytt «${SECOND_TILE}»`,
+    ]);
+    expect(itemLink("expired-tile").textContent).toContain("Gammel rabatt");
+    expect(itemLink("hidden-tile").textContent).toContain("Skjult rabatt");
+  });
+
+  test("one live item beside lapsed ones has nothing to swap with", async () => {
+    const data: BenefitBoardData = {
+      ...bergenData,
+      benefits: [
+        benefit({ $id: "live", title_nb: "Levende" }),
+        benefit({
+          $id: "expired",
+          publish_end: "2026-09-01T00:00:00.000Z",
+          sort_order: 1,
+          title_nb: "Utløpt",
+        }),
+      ],
+    };
+
+    await mount(
+      <BenefitBoard access={bergenEditor} data={data} locale="no" now={NOW} />
+    );
+
+    expect(dragHandleLabels()).toEqual([]);
+    expect(container.textContent).not.toContain("Dra for å endre");
+  });
+
   test("never shows ids or raw values on the board", async () => {
     await mount(
-      <BenefitBoard access={bergenEditor} data={bergenData} locale="no" />
+      <BenefitBoard
+        access={bergenEditor}
+        data={bergenData}
+        locale="no"
+        now={NOW}
+      />
     );
 
     const text = container.textContent;
@@ -331,6 +466,7 @@ describe("BenefitBoard", () => {
         access={bergenViewer}
         data={{ ...bergenWithTwoTiles, editable: false }}
         locale="no"
+        now={NOW}
       />
     );
 

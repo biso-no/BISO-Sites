@@ -5,6 +5,7 @@ import {
   emptyPanelValues,
   isPanelDirty,
   panelFooterActions,
+  panelKey,
   panelValuesFromBenefit,
   toBenefitFormValues,
   validatePanel,
@@ -324,5 +325,38 @@ describe("isPanelDirty", () => {
     expect(isPanelDirty({ ...initial }, initial)).toBe(false);
     expect(isPanelDirty({ ...initial, titleNb: "Ny" }, initial)).toBe(true);
     expect(isPanelDirty({ ...initial, isFeatured: true }, initial)).toBe(true);
+  });
+});
+
+describe("panelKey", () => {
+  const fresh = { campusId: "2", openId: "new" };
+
+  it("keys an existing benefit by its id", () => {
+    expect(panelKey({ ...fresh, openId: "b1", newSection: "career" })).toBe(
+      "b1"
+    );
+  });
+
+  it("gives each new-benefit URL its own key", () => {
+    const keys = [
+      panelKey(fresh),
+      panelKey({ ...fresh, newSection: "career" }),
+      panelKey({ ...fresh, newPartnerId: "loft" }),
+      panelKey({ ...fresh, newPartnerId: "dogtails" }),
+      panelKey({ ...fresh, campusId: "3" }),
+    ];
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const key of keys) {
+      expect(key).not.toBe("new");
+    }
+  });
+
+  it("keeps the key for the same URL, reading an unknown section as member", () => {
+    expect(panelKey({ ...fresh, newSection: "career" })).toBe(
+      panelKey({ ...fresh, newSection: "career" })
+    );
+    expect(panelKey({ ...fresh, newSection: "nonsense" })).toBe(
+      panelKey({ ...fresh, newSection: "member" })
+    );
   });
 });

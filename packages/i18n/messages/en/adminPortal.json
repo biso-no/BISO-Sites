@@ -914,7 +914,15 @@
       "codeRequired": "Enter the discount code.",
       "linkRequired": "Enter the link.",
       "linkInvalid": "The link must start with https://",
-      "endBeforeStart": "The end date must be after the start date."
+      "endBeforeStart": "The end date must be after the start date.",
+      "imageInvalid": "The image must be an https address.",
+      "noCampusAccess": "You don't have access to change benefits for this campus.",
+      "partnerNotFound": "We couldn't find that partner. Choose the partner again.",
+      "legacyRedemption": "Choose how students redeem it, then save again.",
+      "benefitNotFound": "We couldn't find this benefit. It may have been deleted.",
+      "partnerNameRequired": "Enter the partner's name.",
+      "partnerWebsiteInvalid": "The website must start with https://",
+      "partnerLogoInvalid": "The logo must be an https address."
     }
   },
   "departments": {

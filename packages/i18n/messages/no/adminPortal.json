@@ -914,7 +914,15 @@
       "codeRequired": "Skriv inn rabattkoden.",
       "linkRequired": "Skriv inn lenken.",
       "linkInvalid": "Lenken må starte med https://",
-      "endBeforeStart": "Sluttdatoen må være etter startdatoen."
+      "endBeforeStart": "Sluttdatoen må være etter startdatoen.",
+      "imageInvalid": "Bildet må være en https-adresse.",
+      "noCampusAccess": "Du har ikke tilgang til å endre fordeler for denne campusen.",
+      "partnerNotFound": "Fant ikke partneren. Velg partneren på nytt.",
+      "legacyRedemption": "Velg hvordan studentene får rabatten, og lagre på nytt.",
+      "benefitNotFound": "Fant ikke fordelen. Den kan være slettet.",
+      "partnerNameRequired": "Skriv inn navnet på partneren.",
+      "partnerWebsiteInvalid": "Nettsiden må starte med https://",
+      "partnerLogoInvalid": "Logoen må være en https-adresse."
     }
   },
   "departments": {

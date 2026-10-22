@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import type { BoardPartner } from "../../_actions/benefits";
 import { ImageUploadField } from "../../_components/image-upload-field";
 import { STUDIO, StudioButton } from "../../_components/studio";
+import { describeBenefitSaveError } from "../_lib/benefit-save-error";
 import { BOARD_FOCUS_RING, BOARD_FOCUS_RING_INSET } from "../_lib/board-styles";
 import { BenefitStatePill } from "./benefit-state-pill";
 import { createBenefitPartner } from "./panel-actions";
@@ -217,6 +218,7 @@ function NewPartner({
 }) {
   const t = useTranslations("adminPortal.benefits.panel");
   const tErrors = useTranslations("adminPortal.benefits.errors");
+  const tBenefits = useTranslations("adminPortal.benefits");
   const id = useId();
   const [name, setName] = useState("");
   const [website, setWebsite] = useState("");
@@ -253,7 +255,15 @@ function NewPartner({
         website_url: websiteUrl || null,
       });
       if ("error" in result) {
-        toast.error(t("saveFailed"), { description: result.error });
+        // The server's reason is English and for developers; it stays here.
+        console.warn("[benefits] partner save failed:", result.error);
+        const details = describeBenefitSaveError(result.error, (key) =>
+          tBenefits(key)
+        );
+        toast.error(
+          t("saveFailed"),
+          details ? { description: details } : undefined
+        );
         return;
       }
       reset();
