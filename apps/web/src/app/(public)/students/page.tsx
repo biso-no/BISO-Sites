@@ -1,16 +1,14 @@
-import type { CampusData } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
-import { getCampusData } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
-import { getGlobalMembershipBenefits } from "@/app/actions/membership";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -20,6 +18,7 @@ import {
 } from "@/components/ui/status-panel";
 import { getUserPreferences } from "@/lib/auth-utils";
 import { campusIdToSlug, resolveRequestCampus } from "@/lib/campus-scope";
+import { getPublicBenefits } from "@/lib/data/benefits";
 import { cachedShellCampuses } from "@/lib/data/public-content";
 import { cachedPublicUnits } from "@/lib/data/units";
 import {
@@ -59,31 +58,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/** This campus's `campus_data` row, by id first and then by name. */
-function pickCampusData(
-  rows: CampusData[],
-  campusId: string | null,
-  campusName: string | null
-): CampusData | null {
-  if (campusId) {
-    const byId = rows.find((row) => row.$id === campusId);
-    if (byId) {
-      return byId;
-    }
-  }
-  if (campusName) {
-    const wanted = campusName.toLowerCase();
-    return (
-      rows.find(
-        (row) =>
-          row.name?.toLowerCase() === wanted ||
-          row.name_nb?.toLowerCase() === wanted
-      ) ?? null
-    );
-  }
-  return null;
-}
-
 /**
  * The student hub: what BISO offers a student on their campus, and where each
  * part of it lives.
@@ -116,7 +90,7 @@ export default async function StudentsPage({
 
   // The cached readers throw rather than cache a failure; their fallbacks live
   // here and last for this render only.
-  const [campuses, eventsResult, jobsResult, units, campusData, global] =
+  const [campuses, eventsResult, jobsResult, units, benefits] =
     await Promise.all([
       cachedShellCampuses(),
       listEvents({
@@ -127,8 +101,7 @@ export default async function StudentsPage({
       }),
       listJobs({ campus: campusId, locale, pageSize: STUDENTS_PREVIEW }),
       cachedPublicUnits(locale).catch(() => []),
-      getCampusData().catch((): CampusData[] => []),
-      getGlobalMembershipBenefits(),
+      getPublicBenefits().catch((): PublicBenefit[] => []),
     ]);
 
   const campusName = campusId
@@ -148,7 +121,8 @@ export default async function StudentsPage({
         unitsHref={scoped("/units")}
       />
       <StudentsBody
-        benefits={pickCampusData(campusData, campusId, campusName) ?? global}
+        benefits={benefits}
+        campusId={campusId}
         campusName={campusName}
         events={eventsResult.rows}
         jobs={jobsResult.rows}
@@ -210,6 +184,7 @@ async function StudentsHeader({
 
 async function StudentsBody({
   benefits,
+  campusId,
   campusName,
   events,
   jobs,
@@ -218,7 +193,9 @@ async function StudentsBody({
   showUnitCampus,
   units,
 }: {
-  benefits: CampusData | null;
+  benefits: PublicBenefit[];
+  /** The resolved campus; null is every campus, which shows national rows. */
+  campusId: string | null;
   campusName: string | null;
   events: Awaited<ReturnType<typeof listEvents>>["rows"];
   jobs: Awaited<ReturnType<typeof listJobs>>["rows"];
@@ -239,9 +216,10 @@ async function StudentsBody({
   return (
     <>
       <BenefitsSection
+        benefits={benefits}
         benefitsHref={BENEFITS_HREF}
+        campusId={campusId}
         campusLabel={campus}
-        data={benefits}
         locale={locale}
       />
       <UnitsAndFundingSection

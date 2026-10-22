@@ -23,10 +23,102 @@
   background: var(--paper);
 }
 
+/*
+ * Design-panel layout for the blocks styled by this file.
+ *
+ * `BlockView` frames each of them in `.pg-section`, which paints the resolved
+ * background with the same classes `BlockSection` uses. These rules turn the
+ * frame's spacing and width into the padding and column the block applies,
+ * and `tokens.css` re-derives the paper/ink ramp on the frame so a block's
+ * copy follows a brand or dark surface.
+ */
+.pg-section[data-spacing="none"] {
+  --pg-space: 0;
+}
+.pg-section[data-spacing="compact"] {
+  --pg-space: 0.5;
+}
+.pg-section[data-spacing="normal"] {
+  --pg-space: 1;
+}
+.pg-section[data-spacing="spacious"] {
+  --pg-space: 1.6;
+}
+
+/*
+ * The columns of `BlockSection`'s WIDTH: max-w-3xl, max-w-5xl, max-w-7xl, and
+ * like its padded inner box each column includes the gutter.
+ *
+ * The column is the block's own inline padding, not a capped wrapper. A block
+ * that paints its own panel (the full hero, contact) and every block's
+ * dividing rule therefore still run to the page edge, just as `BlockSection`
+ * paints edge to edge and caps only its content.
+ */
+.pg-section__inner > .pg-block {
+  padding-inline: max(
+    var(--pg-gutter),
+    calc((100% - var(--pg-column)) / 2 + var(--pg-gutter))
+  );
+}
+.pg-section[data-width="prose"] {
+  --pg-column: 48rem;
+}
+.pg-section[data-width="content"] {
+  --pg-column: 64rem;
+}
+.pg-section[data-width="wide"] {
+  --pg-column: 80rem;
+}
+/*
+ * With no gutter, sub-pixel grid rounding puts content past the viewport edge
+ * and the whole page scrolls sideways on a phone. `clip`, unlike `hidden`,
+ * leaves vertical overflow and sticky positioning alone.
+ */
+.pg-section[data-width="full"] {
+  --pg-column: 100%;
+  overflow-x: clip;
+}
+/* Full bleed drops the gutter as well, as `BlockSection` does with `px-0`. */
+.pg-section[data-width="full"] .pg-block {
+  --pg-gutter: 0px;
+}
+
+/*
+ * Cards sit on `--paper-2`, the tinted section colour. On every surface but
+ * the plain one that tint is the background itself, so cards take the card
+ * surface instead and stay visible.
+ */
+.pg-section:not([data-background="default"]) {
+  --paper-2: var(--card);
+}
+
+/*
+ * The brand surface is the brand blue, so blue copy and the page accent would
+ * vanish on it; inside it they take the theme-stable navy. This is set on the
+ * inner element because the frame's own `bg-brand` reads `--brand`.
+ */
+.pg-section[data-background="brand"] > .pg-section__inner {
+  --brand: var(--pg-navy);
+  --page-accent: var(--pg-navy);
+  --claret: var(--pg-navy);
+  --claret-2: var(--pg-navy);
+  --leaf: var(--pg-navy);
+  --sky: var(--pg-navy);
+}
+
+/*
+ * Two department accents (navy and slate) are too dark to read on the dark
+ * surface, so the accent there is the brand blue.
+ */
+.pg-section[data-background="inverted"] > .pg-section__inner {
+  --page-accent: var(--brand);
+}
+
 /* HERO — base */
 .pg-hero {
   position: relative;
-  padding: 48px var(--pg-gutter) 56px;
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter)
+    calc(56px * var(--pg-space, 1));
   border-bottom: 0.5px solid var(--rule);
 }
 .pg-hero__content {
@@ -169,7 +261,8 @@
 }
 
 .pg-hero--centered {
-  padding: 72px var(--pg-gutter) 80px;
+  padding: calc(72px * var(--pg-space, 1)) var(--pg-gutter)
+    calc(80px * var(--pg-space, 1));
   text-align: center;
 }
 .pg-hero--centered .pg-hero__content {
@@ -190,8 +283,16 @@
   display: flex;
   align-items: center;
   min-height: 480px;
-  padding: 80px var(--pg-gutter);
+  padding: calc(80px * var(--pg-space, 1)) var(--pg-gutter);
   overflow: hidden;
+}
+/*
+ * The full hero is a navy banner while the background is Auto, and always when
+ * it carries a photo: the photo covers the section, and its overlay is what
+ * keeps the white copy readable. Without a photo, an explicit Design-panel
+ * background replaces the banner and the copy follows that surface instead.
+ */
+:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg)) {
   /* The overlay is translucent (it is made to sit on a photo), so a solid
    * navy base keeps white copy readable when the board has set no image. */
   background:
@@ -203,16 +304,16 @@
     ),
     var(--pg-navy);
 }
-.pg-hero--full .pg-hero__eyebrow {
+:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg))
+  :is(.pg-hero__eyebrow, .pg-hero__sub) {
   color: rgb(255 255 255 / 0.8);
 }
-.pg-hero--full .pg-hero__h1 {
+:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg))
+  .pg-hero__h1 {
   color: #fff;
 }
-.pg-hero--full .pg-hero__sub {
-  color: rgb(255 255 255 / 0.8);
-}
-.pg-hero--full .pg-hero__cta {
+:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg))
+  .pg-hero__cta {
   color: var(--pg-navy);
   background: #fff;
 }
@@ -222,7 +323,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0;
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-bottom: 0.5px solid var(--rule);
 }
 .pg-stat {
@@ -252,8 +353,15 @@
 
 /* TEXT */
 .pg-text {
-  max-width: 880px;
-  padding: 48px var(--pg-gutter);
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
+}
+/*
+ * The reading measure sits on the copy, not the block: a capped root would
+ * swallow the Design panel's width option, which sizes the column the block
+ * sits in. 784px is the line length the old 880px root gave at the 48px gutter.
+ */
+.pg-text > * {
+  max-width: 784px;
 }
 .pg-text h2 {
   margin: 0 0 18px;
@@ -307,8 +415,7 @@
 /* QUOTE */
 .pg-quote {
   position: relative;
-  padding: 52px var(--pg-gutter);
-  background: linear-gradient(180deg, var(--paper-2), var(--paper));
+  padding: calc(52px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
   border-bottom: 0.5px solid var(--rule);
 }
@@ -361,7 +468,7 @@
 
 /* TEAM */
 .pg-team {
-  padding: 48px var(--pg-gutter);
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
 }
 .pg-team h2 {
   margin: 0 0 24px;
@@ -415,8 +522,7 @@
 
 /* EVENTS */
 .pg-events {
-  padding: 48px var(--pg-gutter);
-  background: var(--paper-2);
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-events-hd {
@@ -519,7 +625,7 @@
 
 /* CALLOUT */
 .pg-callout-wrap {
-  padding: 24px var(--pg-gutter);
+  padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
 }
 .pg-callout {
   display: flex;
@@ -575,7 +681,7 @@
 
 /* FAQ */
 .pg-faq {
-  padding: 48px var(--pg-gutter);
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-faq h2 {
@@ -640,9 +746,8 @@
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr 1fr;
   gap: 24px;
-  padding: 56px var(--pg-gutter);
-  color: var(--brand-foreground);
-  background: var(--pg-navy);
+  padding: calc(56px * var(--pg-space, 1)) var(--pg-gutter);
+  color: var(--ink);
   border-top: 0.5px solid var(--rule);
 }
 .pg-contact h2 {
@@ -651,7 +756,7 @@
   font-size: 36px;
   font-weight: 700;
   line-height: 1.05;
-  color: var(--brand-foreground);
+  color: var(--ink);
   letter-spacing: -0.012em;
 }
 .pg-contact__col {
@@ -660,13 +765,34 @@
 .pg-contact__col-label {
   margin-bottom: 6px;
   font-size: 11px;
-  color: rgb(255 255 255 / 0.7);
+  color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 .pg-contact__col-val {
   font-weight: 500;
+  color: var(--ink);
+}
+/*
+ * While the background is Auto the contact block is a navy panel, as it has
+ * always been. An explicit Design-panel background replaces the panel, and the
+ * copy above then follows that surface's ramp.
+ */
+.pg-section[data-auto] .pg-contact {
   color: var(--brand-foreground);
+  background: var(--pg-navy);
+}
+.pg-section[data-auto] .pg-contact :is(h2, .pg-contact__col-val) {
+  color: var(--brand-foreground);
+}
+.pg-section[data-auto] .pg-contact__col-label {
+  color: rgb(255 255 255 / 0.7);
+}
+.pg-contact__note {
+  color: var(--ink-3);
+}
+.pg-section[data-auto] .pg-contact__note {
+  color: var(--inverted-on-faint);
 }
 .pg-contact a {
   color: inherit;
@@ -733,11 +859,13 @@
   background: #fff;
 }
 
-/* MARQUEE */
+/* MARQUEE — a band that runs edge to edge, so it has no gutter of its own. */
+.pg-block.pg-marquee {
+  --pg-gutter: 0px;
+}
 .pg-marquee {
-  padding: 14px 0;
+  padding: calc(14px * var(--pg-space, 1)) 0;
   overflow: hidden;
-  background: var(--paper-2);
   border-bottom: 0.5px solid var(--rule);
 }
 .pg-marquee-track {
@@ -765,7 +893,7 @@
 
 /* IMAGE */
 .pg-image {
-  padding: 24px var(--pg-gutter);
+  padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
 }
 .pg-image__frame {
   display: grid;
@@ -801,7 +929,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  padding: 24px var(--pg-gutter);
+  padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
 }
 .pg-gallery__tile {
   position: relative;
@@ -850,7 +978,7 @@
 
 /* VIDEO */
 .pg-video {
-  padding: 24px var(--pg-gutter);
+  padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
 }
 .pg-video__frame {
   position: relative;
@@ -861,7 +989,9 @@
   font-family: var(--mono);
   font-size: 12px;
   color: var(--inverted-on-faint);
-  background: var(--ink);
+  /* Theme-stable, like the other dark panels: `--ink` turns light on the
+   * dark surface and in dark mode, under the placeholder's light copy. */
+  background: var(--pg-navy);
   border-radius: var(--pg-radius);
 }
 .pg-video__frame video {
@@ -890,7 +1020,7 @@
 .pg-twocol {
   display: grid;
   gap: 36px;
-  padding: 32px var(--pg-gutter);
+  padding: calc(32px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-twocol__col p {
@@ -911,7 +1041,7 @@
 
 /* SIGNUP */
 .pg-signup {
-  padding: 36px var(--pg-gutter);
+  padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-signup h2 {
@@ -950,7 +1080,7 @@
 
 /* TIMELINE */
 .pg-timeline {
-  padding: 36px var(--pg-gutter);
+  padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-timeline h2 {
@@ -984,7 +1114,7 @@
 /* JOBS / NEWS */
 .pg-jobs,
 .pg-news {
-  padding: 36px var(--pg-gutter);
+  padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-jobs h2,
@@ -1022,7 +1152,7 @@
 
 /* FEATURE GRID */
 .pg-featuregrid {
-  padding: 48px var(--pg-gutter);
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-featuregrid__h {
@@ -1090,7 +1220,7 @@
 
 /* PARTNERS */
 .pg-partners {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-partners__h {
@@ -1134,7 +1264,7 @@
 
 /* LINK TILE GRID */
 .pg-linktiles {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-linktiles__h {
@@ -1184,7 +1314,7 @@
 
 /* TABS */
 .pg-tabs {
-  padding: 36px var(--pg-gutter);
+  padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-tabs__nav {
@@ -1269,7 +1399,7 @@
 
 /* DEPARTMENT GRID */
 .pg-deptgrid {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-deptgrid__h {
@@ -1323,7 +1453,7 @@
 
 /* DOCUMENTS */
 .pg-documents {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-documents__h {
@@ -1377,7 +1507,7 @@
 
 /* FEATURED CARDS */
 .pg-featcards {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-featcards__h {
@@ -1428,7 +1558,7 @@
 
 /* CAMPUS SELECTOR */
 .pg-campusselect {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-campusselect__h {
@@ -1491,7 +1621,7 @@
 
 /* STEP GRID */
 .pg-stepgrid {
-  padding: 48px var(--pg-gutter);
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-stepgrid__h {
@@ -1533,7 +1663,7 @@
 
 /* SCROLL ROW */
 .pg-scrollrow {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-scrollrow__h {
@@ -1583,7 +1713,7 @@
 
 /* PRODUCT GRID */
 .pg-productgrid {
-  padding: 40px var(--pg-gutter);
+  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-productgrid__h {
@@ -1628,7 +1758,7 @@
 
 /* FILTER BAR */
 .pg-filterbar {
-  padding: 20px var(--pg-gutter);
+  padding: calc(20px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-filterbar__row {
@@ -1659,7 +1789,7 @@
 
 /* PROFILE HEADER */
 .pg-profileheader {
-  padding: 36px var(--pg-gutter);
+  padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
 .pg-profileheader__row {
@@ -1725,9 +1855,12 @@
 
 /* MULTI-STEP FORM */
 .pg-msform {
-  max-width: 640px;
-  padding: 48px var(--pg-gutter);
+  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
+}
+/* Measure on the form itself, for the same reason as `.pg-text > *`. */
+.pg-msform > * {
+  max-width: 544px;
 }
 .pg-msform__heading {
   margin: 0 0 24px;
@@ -1901,6 +2034,41 @@ textarea.pg-msform__input {
   }
 }
 
+/*
+ * A Narrow column is tablet-sized on any page, but the queries above measure
+ * the page, not the column: the column is the block's own padding, so that
+ * panels and rules still reach the page edge. Narrow blocks therefore repeat
+ * the tablet rules on every page wider than a phone, where the phone rules
+ * below take over again.
+ */
+@container pg (min-width: 641px) {
+  .pg-section[data-width="prose"] .pg-stats {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 28px;
+  }
+  .pg-section[data-width="prose"] .pg-stat:nth-child(2n + 1) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .pg-section[data-width="prose"] .pg-contact {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 28px;
+  }
+
+  .pg-section[data-width="prose"] .pg-team-grid,
+  .pg-section[data-width="prose"] .pg-events-grid,
+  .pg-section[data-width="prose"] .pg-gallery,
+  .pg-section[data-width="prose"] .pg-featuregrid__grid--cols3,
+  .pg-section[data-width="prose"] .pg-featuregrid__grid--cols4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pg-section[data-width="prose"] .pg-hero-art {
+    max-height: 420px;
+  }
+}
+
 @container pg (max-width: 640px) {
   /* Desktop's 48px gutter leaves too little measure on a phone. */
   .pg-block {
@@ -1919,10 +2087,11 @@ textarea.pg-msform__input {
   }
   .pg-hero--full {
     min-height: 340px;
-    padding: 48px var(--pg-gutter);
+    padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
   }
   .pg-hero--centered {
-    padding: 48px var(--pg-gutter) 56px;
+    padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter)
+      calc(56px * var(--pg-space, 1));
   }
 
   /* Every fixed multi-column grid collapses to a single column. */

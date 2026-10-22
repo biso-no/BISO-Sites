@@ -1,10 +1,10 @@
 import type { Models } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
+import { syncBiStudentIdentityAfterSignIn } from "@repo/shared/utils/bi-identity-sync";
 import { cookies } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { isAccountLinkError } from "@/lib/account-link-return";
-import { syncBiStudentIdentityAfterSignIn } from "@/lib/bi-identity-sync";
 import {
   BI_LOGIN_FAILED_PARAM,
   BI_LOGIN_FAILED_VALUE,

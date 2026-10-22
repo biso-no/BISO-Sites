@@ -1,5 +1,6 @@
 "use client";
 
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { cn } from "@repo/ui/lib/utils";
 import {
   ArrowRight,
@@ -241,9 +242,12 @@ function FormField({
 
 export function OnboardingFlow({
   initialName,
+  items,
   linkedBi,
 }: {
   initialName: string;
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
   required: boolean;
   linkedBi: boolean;
 }) {
@@ -493,12 +497,15 @@ export function OnboardingFlow({
           {t("student.benefits.title")}
         </p>
         <ul className="type-body-sm flex flex-col gap-2 text-ink-muted">
-          {[
-            t("student.benefits.membership"),
-            t("student.benefits.events"),
-            t("student.benefits.sso"),
-          ].map((benefit) => (
-            <li className="flex items-start gap-2" key={benefit}>
+          {(items?.length
+            ? items.map((item) => item.title)
+            : [
+                t("student.benefits.membership"),
+                t("student.benefits.events"),
+                t("student.benefits.sso"),
+              ]
+          ).map((benefit, index) => (
+            <li className="flex items-start gap-2" key={`${index}-${benefit}`}>
               <Check
                 aria-hidden="true"
                 className="mt-0.5 size-4 shrink-0 text-ink-accent"

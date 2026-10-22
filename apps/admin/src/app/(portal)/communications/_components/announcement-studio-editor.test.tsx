@@ -11,6 +11,7 @@ import {
 import type { Announcements } from "@repo/api/types/appwrite";
 import { act, createElement, type ReactNode } from "react";
 import type { Root } from "react-dom/client";
+import { parseAudiencePeople } from "@/lib/announcements/audience-people";
 import type { UserAuthContext } from "@/lib/authorization";
 import {
   findButton,
@@ -50,14 +51,21 @@ const globalAdminCtx: UserAuthContext = {
 };
 
 mock.module("@repo/api/server", () => ({
-  createAdminClient: mock(async () => ({ db, messaging: {}, users: {} })),
+  createAdminClient: mock(async () => ({
+    db,
+    // The Who step's live reach counts subscribers; none is fine here.
+    messaging: { listSubscribers: async () => ({ subscribers: [], total: 0 }) },
+    users: {},
+  })),
   createSessionClient: mock(async () => ({ db })),
 }));
 mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => globalAdminCtx),
 }));
+// `unstable_cache` is read at import by the composer lookups the What step uses.
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
+  unstable_cache: (fn: unknown) => fn,
 }));
 mock.module("../../_actions/audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
@@ -79,7 +87,7 @@ mock.module("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
 
-const { AnnouncementStudioEditor } = await import(
+const { AnnouncementStudioEditor, buildInitialValues } = await import(
   "./announcement-studio-editor"
 );
 
@@ -169,7 +177,8 @@ async function settle(): Promise<void> {
 }
 
 async function openInComposer(
-  row: Record<string, unknown>
+  row: Record<string, unknown>,
+  extraProps: Record<string, unknown> = {}
 ): Promise<TestElement> {
   storedRow = { ...row };
   const container = installedDom.document.createElement("div");
@@ -178,16 +187,18 @@ async function openInComposer(
   await act(() => {
     root?.render(
       createElement(AnnouncementStudioEditor, {
-        allowGlobalCampus: true,
         announcement: row as unknown as Announcements,
         campuses: [
           { id: "1", name: "Oslo" },
           { id: "2", name: "Bergen" },
         ],
         defaultCampusId: "1",
+        isGlobalAdmin: true,
         isNew: false,
         lockDepartment: false,
+        managedCampusIds: [],
         pinnedDepartmentId: null,
+        ...extraProps,
       })
     );
   });
@@ -218,11 +229,9 @@ function findButtonWhere(
 }
 
 function openDistributionStep(container: TestElement): Promise<void> {
-  // A step rail button reads as its number, then its name: "03Distribution".
+  // A step rail button reads as its number, then its name: "03Who".
   return click(
-    findButtonWhere(container, "Distribution step", (text) =>
-      text.endsWith("Distribution")
-    )
+    findButtonWhere(container, "Who step", (text) => text.endsWith("Who"))
   );
 }
 
@@ -239,19 +248,12 @@ async function chooseCampus(
   container: TestElement,
   campusId: string
 ): Promise<void> {
-  const campusSelect = findElements(
-    container,
-    (element) =>
-      element.tagName === "SELECT" &&
-      element.options.some((option) => option.textContent === "Bergen")
-  )[0];
-  if (!campusSelect) {
-    throw new Error("Campus select not found");
-  }
-  await act(() => {
-    campusSelect.value = campusId;
-    campusSelect.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  const names: Record<string, string> = {
+    "": "All campuses",
+    "1": "Oslo",
+    "2": "Bergen",
+  };
+  await click(findButton(container, names[campusId] ?? campusId));
   await settle();
 }
 
@@ -268,7 +270,7 @@ describe("a Topic audience stores the topic its select shows", () => {
     const composer = await openInComposer(draftBroadcastRow);
 
     await openDistributionStep(composer);
-    await chooseAudience(composer, "Topic");
+    await chooseAudience(composer, "Students who follow a topic");
     await saveDraft(composer);
 
     expect(storedRow).toMatchObject({
@@ -325,5 +327,155 @@ describe("re-saving a sent topic announcement from the composer", () => {
       campus_id: "2",
       status: "sent",
     });
+  });
+});
+
+describe("the check step asks before an Everyone announcement goes out", () => {
+  function openCheckStep(container: TestElement): Promise<void> {
+    return click(
+      findButtonWhere(container, "Check & send step", (text) =>
+        text.endsWith("Check & send")
+      )
+    );
+  }
+
+  function confirmationText(container: TestElement): string {
+    const dialog = findElements(
+      container,
+      (element) => element.getAttribute("role") === "alertdialog"
+    )[0];
+    if (!dialog) {
+      throw new Error("The Everyone confirmation is not open.");
+    }
+    return dialog.textContent;
+  }
+
+  test("a campus broadcast names the campus", async () => {
+    const composer = await openInComposer({
+      ...draftBroadcastRow,
+      campus_id: "2",
+    });
+
+    await openCheckStep(composer);
+    await click(findButton(composer, "Send"));
+
+    expect(confirmationText(composer)).toContain("Send to everyone at Bergen?");
+  });
+
+  test("an app-wide broadcast reaches every student", async () => {
+    const composer = await openInComposer(draftBroadcastRow);
+
+    await openDistributionStep(composer);
+    await chooseCampus(composer, "");
+    await openCheckStep(composer);
+    await click(findButton(composer, "Send"));
+
+    expect(confirmationText(composer)).toContain("Send to every student?");
+  });
+
+  test("cancelling the confirmation sends nothing", async () => {
+    const composer = await openInComposer(draftBroadcastRow);
+
+    await openCheckStep(composer);
+    await click(findButton(composer, "Send"));
+    await click(findButton(composer, "Cancel"));
+
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("a sent notification on Check & send", () => {
+  test("says it was sent, offers no Send, and still saves edits", async () => {
+    const composer = await openInComposer(sentTopicRow, { initialStep: 3 });
+
+    expect(composer.textContent).toContain(
+      "This notification has already been sent."
+    );
+    expect(
+      findElements(
+        composer,
+        (element) =>
+          element.tagName === "BUTTON" && element.textContent === "Send"
+      )
+    ).toHaveLength(0);
+    await saveDraft(composer);
+    expect(storedRow).toMatchObject({ status: "sent" });
+  });
+});
+
+describe("changing the campus drops a department from another campus", () => {
+  test("All campuses clears the department, so the save goes through", async () => {
+    const composer = await openInComposer({
+      ...draftBroadcastRow,
+      department: "dept-1",
+    });
+
+    await openDistributionStep(composer);
+    await chooseCampus(composer, "");
+    await saveDraft(composer);
+
+    expect(storedRow).toMatchObject({ campus_id: null, department: null });
+  });
+});
+
+describe("where the composer opens", () => {
+  test("it opens on What by default", async () => {
+    const composer = await openInComposer(draftBroadcastRow);
+
+    expect(composer.textContent).toContain("What is this about?");
+    expect(composer.textContent).not.toContain("Have a last look.");
+  });
+
+  test("Review & send from the list opens Check & send", async () => {
+    const composer = await openInComposer(draftBroadcastRow, {
+      initialStep: 3,
+    });
+
+    expect(composer.textContent).toContain("Have a last look.");
+    findButton(composer, "Send");
+  });
+});
+
+describe("buildInitialValues", () => {
+  test("a legacy event_id opens as an event link", () => {
+    const values = buildInitialValues(
+      { ...draftBroadcastRow, event_id: "ev-1" } as unknown as Announcements,
+      "1",
+      null
+    );
+
+    expect(values).toMatchObject({
+      content_id: "ev-1",
+      content_type: "event",
+    });
+  });
+
+  test("an explicit link wins over event_id", () => {
+    const values = buildInitialValues(
+      {
+        ...draftBroadcastRow,
+        content_id: "n-1",
+        content_type: "news",
+        event_id: "ev-1",
+      } as unknown as Announcements,
+      "1",
+      null
+    );
+
+    expect(values).toMatchObject({ content_id: "n-1", content_type: "news" });
+  });
+
+  test("a stored people list reopens as the same ids", () => {
+    const values = buildInitialValues(
+      {
+        ...draftBroadcastRow,
+        audience_type: "users",
+        audience_value: '["u1","u2"]',
+      } as unknown as Announcements,
+      "1",
+      null
+    );
+
+    expect(parseAudiencePeople(values.audience_value)).toEqual(["u1", "u2"]);
   });
 });

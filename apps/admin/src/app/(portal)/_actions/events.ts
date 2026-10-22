@@ -3,7 +3,6 @@
 import { fastModel } from "@repo/ai/models";
 import { ID, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import type { Announcements } from "@repo/api/types/appwrite";
 import {
   type ContentTranslations,
   type Events,
@@ -11,11 +10,9 @@ import {
   EventsCollectionPricing,
   type EventsStatus,
 } from "@repo/api/types/appwrite";
-import { topicIdFor } from "@repo/shared/utils/notification-topics";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { dispatchAnnouncement } from "@/lib/announcements/send";
 import { requireAuth } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
@@ -34,6 +31,7 @@ import {
   translateContentFields,
 } from "@/lib/content-translation.server";
 import { withNationalEventScope } from "@/lib/event-scope";
+import { resolveNotifyPush } from "@/lib/notify-push-guard";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -97,59 +95,6 @@ interface EventTranslationSnapshot {
   description: string;
   short_description: string;
   title: string;
-}
-
-/**
- * Send a published-event push through the unified announcement delivery path.
- * Creates a transient `announcement` row (category "event", topic audience on
- * the campus-scoped "events" topic, e.g. "events_oslo" or "events_national")
- * and dispatches it. Resilient by design: any failure is logged and never
- * blocks publishing.
- */
-async function sendEventAnnouncement(input: {
-  eventId: string;
-  titleEn: string;
-  titleNo: string | null;
-  bodyEn: string | null;
-  bodyNo: string | null;
-  campusId: string | null;
-}): Promise<void> {
-  try {
-    const { db, messaging, users } = await createAdminClient();
-    const deepLink = `biso://event?id=${input.eventId}`;
-    const announcement = await db.createRow(
-      "app",
-      "announcements",
-      ID.unique(),
-      {
-        status: "sent",
-        category: "event",
-        audience_type: "topic",
-        // Campus-scoped: a published event notifies students at its own campus,
-        // and `topicIdFor` resolves a null campus to the national topic, which
-        // every subscriber holds.
-        audience_value: topicIdFor("events", input.campusId),
-        title_en: input.titleEn,
-        title_no: input.titleNo,
-        body_en: input.bodyEn,
-        body_no: input.bodyNo,
-        event_id: input.eventId,
-        campus: input.campusId,
-        campus_id: input.campusId,
-        deep_link: deepLink,
-        push: true,
-        sent_at: new Date().toISOString(),
-      }
-    );
-
-    await dispatchAnnouncement(announcement as unknown as Announcements, {
-      db,
-      messaging,
-      users,
-    });
-  } catch (error) {
-    console.error("Failed to send event push notification:", error);
-  }
 }
 
 function serializeAdditionalFields(payload: {
@@ -465,7 +410,10 @@ async function buildEventPermissions(
   };
 }
 
-function buildEventColumns(values: EventFormValues): Record<string, unknown> {
+function buildEventColumns(
+  values: EventFormValues,
+  notifyPush: boolean
+): Record<string, unknown> {
   return {
     slug: values.slug,
     // Canonical ownership relationships; the scalar columns remain as
@@ -493,7 +441,7 @@ function buildEventColumns(values: EventFormValues): Record<string, unknown> {
     member_only: values.member_only,
     is_collection: values.is_collection,
     collection_pricing: EventsCollectionPricing.INDIVIDUAL,
-    notify_push: values.notify_push,
+    notify_push: notifyPush,
     publish_mode: values.publish_mode,
     scheduled_publish_at: values.scheduled_publish_at ?? null,
     contact_name: values.contact_name ?? null,
@@ -675,7 +623,16 @@ export async function createEvent(
       "events",
       eventId,
       {
-        ...buildEventColumns(validated.data),
+        ...buildEventColumns(
+          validated.data,
+          resolveNotifyPush({
+            campusId: validated.data.campus_id,
+            isGlobalAdmin: ctx.roles.includes("globaladmin"),
+            requested: validated.data.notify_push,
+            stored: null,
+            storedCampusId: null,
+          })
+        ),
         status: status as EventsStatus,
         translation_refs: buildEventTranslationChildren(
           eventId,
@@ -703,17 +660,6 @@ export async function createEvent(
         status,
       },
     });
-
-    if (status === "published" && validated.data.notify_push) {
-      await sendEventAnnouncement({
-        bodyEn: validated.data.short_description_en ?? null,
-        bodyNo: validated.data.short_description_no ?? null,
-        campusId: validated.data.campus_id ?? null,
-        eventId: event.$id,
-        titleEn: validated.data.title_en,
-        titleNo: validated.data.title_no || null,
-      });
-    }
 
     revalidatePath("/events");
     return {
@@ -776,7 +722,16 @@ export async function updateEvent(
       "events",
       id,
       {
-        ...buildEventColumns(validated.data),
+        ...buildEventColumns(
+          validated.data,
+          resolveNotifyPush({
+            campusId: validated.data.campus_id,
+            isGlobalAdmin: ctx.roles.includes("globaladmin"),
+            requested: validated.data.notify_push,
+            stored: event.notify_push,
+            storedCampusId: event.campus_id,
+          })
+        ),
         status: validated.data.status,
         translation_refs: buildEventTranslationChildren(
           id,
@@ -804,17 +759,6 @@ export async function updateEvent(
         status: validated.data.status,
       },
     });
-
-    if (validated.data.status === "published" && validated.data.notify_push) {
-      await sendEventAnnouncement({
-        eventId: id,
-        titleEn: validated.data.title_en,
-        titleNo: validated.data.title_no || null,
-        bodyEn: validated.data.short_description_en ?? null,
-        bodyNo: validated.data.short_description_no ?? null,
-        campusId: validated.data.campus_id ?? null,
-      });
-    }
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);
@@ -940,24 +884,6 @@ export async function publishEvent(id: string) {
       resourceType: "event",
       payload: { status: "published" },
     });
-
-    if (event.notify_push) {
-      const enTranslation = publishTranslations.rows.find(
-        (row) => row.locale === "en"
-      );
-      const noTranslation = publishTranslations.rows.find(
-        (row) => row.locale === "no"
-      );
-
-      await sendEventAnnouncement({
-        eventId: id,
-        titleEn: enTranslation?.title ?? event.slug ?? "New Event",
-        titleNo: noTranslation?.title ?? null,
-        bodyEn: enTranslation?.short_description ?? null,
-        bodyNo: noTranslation?.short_description ?? null,
-        campusId: ownership.campus,
-      });
-    }
 
     revalidatePath("/events");
     revalidatePath(`/events/${id}`);

@@ -65,6 +65,7 @@ import {
   planDescriptionMerge,
   serializeJobTranslationMemory,
 } from "@/lib/job-translation-memory";
+import { resolveNotifyPush } from "@/lib/notify-push-guard";
 import { normalizeApplicationDeadline } from "@/lib/oslo-date";
 import {
   assertRecruitmentApplicationReviewAccess,
@@ -812,6 +813,7 @@ async function buildJobUpsertPayload(
   jobId: string,
   data: RecruitmentVacancyWriteInput,
   translationPerms: string[],
+  notifyPush: boolean,
   existingMetadata?: RecruitmentVacancyMetadata
 ): Promise<Record<string, unknown>> {
   const metadata = serializeRecruitmentVacancyMetadata(
@@ -850,6 +852,7 @@ async function buildJobUpsertPayload(
       ? JSON.stringify(data.interview_template)
       : null,
     metadata,
+    notify_push: notifyPush,
     screening_rubric: data.screening_rubric
       ? JSON.stringify(data.screening_rubric)
       : null,
@@ -911,7 +914,14 @@ export async function createJob(
       sessionDb,
       jobId,
       vacancyData,
-      translationPerms
+      translationPerms,
+      resolveNotifyPush({
+        campusId: validated.data.campus_id,
+        isGlobalAdmin: ctx.roles.includes("globaladmin"),
+        requested: validated.data.notify_push,
+        stored: null,
+        storedCampusId: null,
+      })
     );
     payload.scheduled_publish_at = publication.scheduledPublishAt;
     stage = "write";
@@ -1057,6 +1067,13 @@ export async function updateJob(
       id,
       data,
       translationPerms,
+      resolveNotifyPush({
+        campusId: validated.data.campus_id,
+        isGlobalAdmin: ctx.roles.includes("globaladmin"),
+        requested: validated.data.notify_push,
+        stored: vacancy.notify_push,
+        storedCampusId: vacancy.campus_id,
+      }),
       vacancy.metadata
     );
     payload.scheduled_publish_at = publication.scheduledPublishAt;
@@ -1338,7 +1355,9 @@ export async function duplicateJob(
       sessionDb,
       jobId,
       data,
-      buildJobTranslationPermissions(audience, JobsStatus.DRAFT)
+      buildJobTranslationPermissions(audience, JobsStatus.DRAFT),
+      // A copy never announces itself; the editor opts in explicitly.
+      false
     );
     payload.scheduled_publish_at = null;
     await adminDb.upsertRow(

@@ -9,6 +9,7 @@ const TABS = [
   { exact: true, href: "/settings", labelKey: "general" },
   { exact: false, href: "/settings/operations", labelKey: "operations" },
   { exact: false, href: "/settings/feature-flags", labelKey: "featureFlags" },
+  { exact: false, href: "/settings/app-versions", labelKey: "appVersions" },
   { exact: false, href: "/settings/payments", labelKey: "payments" },
 ] as const;
 

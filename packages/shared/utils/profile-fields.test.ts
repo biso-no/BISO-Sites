@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountEmailField,
   buildProfileRowPermissions,
+  PROFILE_EMAIL_MAX_LENGTH,
   pickSelfServiceProfileFields,
   selfServiceProfileSchema,
 } from "./profile-fields";
@@ -39,9 +41,42 @@ describe("profile self-service fields", () => {
     );
   });
 
+  it("keeps the push language the app sends", () => {
+    for (const locale of ["en", "no"]) {
+      const parsed = selfServiceProfileSchema.safeParse({ locale });
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data).toEqual({ locale });
+    }
+  });
+
+  it("rejects a language pushes are not sent in", () => {
+    expect(selfServiceProfileSchema.safeParse({ locale: "de" }).success).toBe(
+      false
+    );
+  });
+
   it("makes a profile row readable by its owner only", () => {
     expect(buildProfileRowPermissions("user-1")).toEqual([
       'read("user:user-1")',
     ]);
+  });
+});
+
+describe("accountEmailField", () => {
+  it("stamps the address the account signs in with", () => {
+    expect(accountEmailField("  ada@bi.no ")).toEqual({ email: "ada@bi.no" });
+  });
+
+  it("writes nothing for an account without an email", () => {
+    expect(accountEmailField("")).toEqual({});
+    expect(accountEmailField("   ")).toEqual({});
+    expect(accountEmailField(null)).toEqual({});
+    expect(accountEmailField(undefined)).toEqual({});
+  });
+
+  it("writes nothing the email column cannot hold, so the rest of the write still lands", () => {
+    const longest = `${"a".repeat(PROFILE_EMAIL_MAX_LENGTH - 6)}@bi.no`;
+    expect(accountEmailField(longest)).toEqual({ email: longest });
+    expect(accountEmailField(`a${longest}`)).toEqual({});
   });
 });

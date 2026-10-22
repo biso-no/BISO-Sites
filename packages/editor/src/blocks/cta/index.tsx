@@ -25,6 +25,7 @@ registerBlock({
   ],
   aiHint: "A call-to-action section with a headline and a prominent button.",
   aiProps: ["title", "label", "url"],
+  appliesLayout: true,
   empty: () => emptyBlock("cta") as never,
   Render: CtaRender as never,
   Inspector: CtaInspector as never,

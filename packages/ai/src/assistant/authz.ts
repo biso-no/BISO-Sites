@@ -39,6 +39,7 @@ export function buildAssistantCapabilities(
 ): AssistantCapabilities {
   const isGlobalAdmin = input.roles.includes("globaladmin");
   const isCampusAdmin = input.roles.includes("campusadmin");
+  const isBenefitsEditor = input.roles.includes("benefitseditor");
 
   // Content domains: all require portal nav access to be useful
   // Department users have write (but not publish) on content domains
@@ -50,7 +51,8 @@ export function buildAssistantCapabilities(
     m365: isGlobalAdmin,
     settings: isGlobalAdmin,
     domains: {
-      benefits: contentAccess,
+      benefits:
+        isGlobalAdmin || isCampusAdmin || isBenefitsEditor ? "publish" : "none",
       documents: contentAccess,
       events: contentAccess,
       jobs: contentAccess,

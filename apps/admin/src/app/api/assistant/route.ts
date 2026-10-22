@@ -34,7 +34,7 @@ import {
 // Server actions — content domains
 import {
   createBenefit,
-  getBenefit,
+  getBenefitForEdit,
   listBenefits,
   updateBenefit,
 } from "@/app/(portal)/_actions/benefits";
@@ -86,6 +86,14 @@ import {
 import { getLocale } from "@/app/actions/locale";
 import { requireApiAuth } from "@/lib/api-auth";
 import { buildAssistantOrderSearchQueries } from "@/lib/assistant-order-search";
+import {
+  assistantRoleSummary,
+  benefitUpdateFromAssistant,
+  canPublishContent,
+  dropBenefitDepartment,
+  publishBenefitContent,
+  withoutBenefitCode,
+} from "@/lib/assistant-publish";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { checkIntegrationHealth } from "@/lib/integration-health";
@@ -151,16 +159,7 @@ export async function POST(request: NextRequest) {
   });
 
   // 5. Human-readable role + scope summaries for the system prompt
-  let roleSummary: string;
-  if (ctx.roles.includes("globaladmin")) {
-    roleSummary = "Global admin (full access to all campuses)";
-  } else if (ctx.roles.includes("campusadmin")) {
-    roleSummary = `Campus admin — manages: ${ctx.managedCampuses.join(", ")}`;
-  } else if (ctx.departmentTeamIds.length > 0) {
-    roleSummary = `Department member — departments: ${ctx.departmentNames.join(", ")}`;
-  } else {
-    roleSummary = "Read-only (no write access)";
-  }
+  const roleSummary = assistantRoleSummary(ctx);
 
   let scopeSummary: string;
   if (ctx.roles.includes("globaladmin")) {
@@ -217,8 +216,8 @@ export async function POST(request: NextRequest) {
 // Helpers — extracted to keep buildDeps within complexity limits
 // ---------------------------------------------------------------------------
 
+// Benefits publish through `publishBenefitContent`, never a bare status write.
 const DOMAIN_PUBLISH_TABLE: Record<string, string> = {
-  benefits: "campus_benefits",
   documents: "documents",
   jobs: "jobs",
   news: "news",
@@ -250,16 +249,6 @@ function getRecordValue(value: unknown): Record<string, unknown> {
 function resultDataId(result: unknown): string | null {
   const record = getRecordValue(result);
   return getStringValue(record.data);
-}
-
-function canPublishForCampus(
-  ctx: UserAuthContext,
-  campusId: string | null
-): boolean {
-  if (ctx.roles.includes("globaladmin")) {
-    return true;
-  }
-  return Boolean(campusId && ctx.managedCampusIds.includes(campusId));
 }
 
 function approvalRequiredResult(input: {
@@ -301,7 +290,8 @@ function toCreateContentContext(
     getStringValue(parsed.payload.campus_id) ??
     getStringValue(parsed.payload.campusId);
   const createDraftForApproval =
-    Boolean(parsed.publish) && !canPublishForCampus(ctx, payloadCampusId);
+    Boolean(parsed.publish) &&
+    !canPublishContent(ctx, parsed.domain, payloadCampusId);
 
   return {
     ...parsed,
@@ -353,6 +343,11 @@ async function publishCreatedContent(
     await publishBookableProduct(db, id);
     return;
   }
+  if (context.domain === "benefits") {
+    // Goes through setBenefitStatus so the row's permissions are rewritten
+    // (published -> read("any")); a bare status update leaves them stale.
+    return await publishBenefitContent(id);
+  }
   const table = DOMAIN_PUBLISH_TABLE[context.domain];
   if (!table) {
     return;
@@ -378,16 +373,24 @@ async function createAssistantContent(
       );
       break;
     case "events":
-      result = await createEvent({ ...context.payload } as never);
+      result = await createEvent({
+        ...context.payload,
+        notify_push: true,
+      } as never);
       break;
     case "news":
-      result = await createNews({ ...context.payload } as never);
+      result = await createNews({
+        ...context.payload,
+        notify_push: true,
+      } as never);
       break;
     case "shop":
       result = await createProduct({ ...context.payload } as never);
       break;
     case "benefits":
-      result = await createBenefit({ ...context.payload } as never);
+      result = await createBenefit(
+        dropBenefitDepartment(context.payload) as never
+      );
       break;
     default:
       throw new Error(`Create not supported for domain: ${context.domain}`);
@@ -397,7 +400,10 @@ async function createAssistantContent(
   if (approval) {
     return approval;
   }
-  await publishCreatedContent(context, result);
+  const published = await publishCreatedContent(context, result);
+  if (published && hasActionError(published)) {
+    return published;
+  }
   return result;
 }
 
@@ -426,6 +432,7 @@ async function createJobContent(
     department: departmentId ?? (payload.department as string) ?? null,
     application_deadline: (payload.application_deadline as string) ?? null,
     ...(payload.metadata ? { metadata: payload.metadata } : {}),
+    notify_push: true,
   } as never);
 }
 
@@ -501,8 +508,10 @@ function buildDeps(
           return await getPageById(id);
         case "shop":
           return await getProduct(id);
-        case "benefits":
-          return await getBenefit(id);
+        case "benefits": {
+          const benefit = await getBenefitForEdit(id);
+          return benefit ? withoutBenefitCode(benefit) : null;
+        }
         case "documents":
           return await getDocument(id);
         default:
@@ -546,7 +555,10 @@ function buildDeps(
         case "shop":
           return await updateProduct(id, payload as never);
         case "benefits":
-          return await updateBenefit(id, payload as never);
+          return await updateBenefit(
+            id,
+            benefitUpdateFromAssistant(payload) as never
+          );
         default:
           throw new Error(`Update not supported for domain: ${domain}`);
       }
@@ -559,6 +571,9 @@ function buildDeps(
       const { domain, id } = input as { domain: string; id: string };
       if (domain === "events") {
         return await publishEvent(id);
+      }
+      if (domain === "benefits") {
+        return await publishBenefitContent(id);
       }
       // All other domains: targeted status update via session client.
       // Appwrite row-level security enforces the user's write permissions.

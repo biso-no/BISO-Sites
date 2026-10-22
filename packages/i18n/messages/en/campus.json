@@ -41,6 +41,7 @@
   "forStudents": {
     "title": "For students",
     "lede": "Unlock exclusive opportunities and support throughout your student journey.",
+    "memberPortalLink": "See every offer and code in the member portal",
     "groups": {
       "studentBenefits": {
         "title": "Membership benefits",
@@ -64,6 +65,7 @@
     "title": "For businesses",
     "lede": "Connect with talented students and build your brand visibility at {campus}.",
     "benefitsTitle": "Partnership benefits",
+    "logosTitle": "Our campus partners",
     "ctaTitle": "Ready to partner?",
     "ctaBody": "Get in touch with our partnership team to explore collaboration opportunities and create meaningful connections with students.",
     "cta": "Contact the partnership team"

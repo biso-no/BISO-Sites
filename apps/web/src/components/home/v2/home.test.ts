@@ -107,7 +107,9 @@ describe("home (RD-018)", () => {
 
   it("asks only non-members to join, and never quotes a static price", () => {
     // The header's rule: the CTA is shown to someone who can act on it.
-    expect(home).toContain("isMember ? null : <MembershipBand />");
+    expect(home).toContain(
+      "isMember ? null : <MembershipBand items={joinItems} />"
+    );
     expect(hero).toContain('href="/member"');
     // `/membership` sells the plans in the `memberships` table; the bundle's
     // `durations` prices are not the live ones.

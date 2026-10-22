@@ -33,18 +33,20 @@ describe("prices and benefits come from the tables", () => {
   });
 
   it("reads campus_benefits, which only the signed-in portal used to see", () => {
-    expect(listPage).toContain("getMemberPortalBenefits");
-    expect(page).toContain("b.category === category");
-    expect(page).toContain("benefit.kind");
+    // The benefits studio's public reader: published, in their window, with an
+    // active partner, scoped to the campus plus national.
+    expect(listPage).toContain("getPublicBenefits");
+    expect(listPage).toContain("benefitsForCampus(benefits, campusId)");
+    expect(page).toContain("categoryOf(b) === category");
   });
 
   it("renders each benefit in the reader's locale with a fallback", () => {
-    // Merged from main (#87): one helper resolves title, teaser and
-    // description field by field across both languages, for this page and the
-    // member portal alike. Its behaviour is pinned in `lib/benefit-text.test.ts`.
-    expect(page).toContain("localizedBenefitText(benefit, locale)");
-    expect(code("src/lib/benefit-text.ts")).toContain("title_nb");
-    expect(code("src/lib/benefit-text.ts")).toContain("description_en");
+    // One helper resolves title, description and terms field by field across
+    // both languages, for this page and the member portal alike. Its
+    // behaviour is pinned in `lib/benefit-text.test.ts`.
+    expect(page).toContain("localizedPublicBenefitText(benefit, locale)");
+    expect(code("src/lib/benefit-text.ts")).toContain("benefit.title.nb");
+    expect(code("src/lib/benefit-text.ts")).toContain("benefit.description.en");
   });
 
   it("links the three highlight cards to their project hubs", () => {

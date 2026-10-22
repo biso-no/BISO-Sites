@@ -10,9 +10,7 @@ import type { DispatchClients } from "./send";
 // `src/lib/notifications/topic-subscribers.test.ts`).
 mock.module("server-only", () => ({}));
 
-const { dispatchAnnouncement, dispatchDueAnnouncements } = await import(
-  "./send"
-);
+const { buildPushData, dispatchDueAnnouncements } = await import("./send");
 
 /**
  * A minimal `Announcements` row. Cast through `unknown` rather than filling
@@ -33,6 +31,8 @@ function makeAnnouncement(
     body_en: "<p>Body</p>",
     body_no: null,
     event_id: null,
+    content_type: null,
+    content_id: null,
     campus_id: "1",
     deep_link: null,
     data: null,
@@ -63,71 +63,20 @@ function makeClients(): {
     updateRow: mock(async () => undefined),
   };
   const messaging = { createPush: mock(async () => undefined) };
-  const users = {};
   return {
-    clients: { db, messaging, users } as unknown as DispatchClients,
+    clients: { db, messaging } as unknown as DispatchClients,
     db,
     messaging,
   };
 }
 
-describe("dispatchAnnouncement", () => {
-  test("returns the resolved topic id for a TOPIC audience", async () => {
-    const { clients } = makeClients();
-
-    const result = await dispatchAnnouncement(
-      makeAnnouncement({
-        audience_type: "topic",
-        audience_value: "events",
-        campus_id: "1",
-      }),
-      clients
-    );
-
-    expect(result.topic).toBe("events_oslo");
-  });
-
-  test("does not include a topic for a BROADCAST audience", async () => {
-    const { clients } = makeClients();
-
-    const result = await dispatchAnnouncement(
-      makeAnnouncement({ audience_type: "broadcast", audience_value: null }),
-      clients
-    );
-
-    expect(result.topic).toBeUndefined();
-  });
-
-  test("does not include a topic for a USERS audience", async () => {
-    const { clients } = makeClients();
-
-    const result = await dispatchAnnouncement(
-      makeAnnouncement({
-        audience_type: "users",
-        audience_value: JSON.stringify(["user-1"]),
-      }),
-      clients
-    );
-
-    expect(result.topic).toBeUndefined();
-  });
-
-  test("does not include a topic for a SEGMENT audience", async () => {
-    const { clients } = makeClients();
-
-    const result = await dispatchAnnouncement(
-      makeAnnouncement({ audience_type: "segment", audience_value: "seg-1" }),
-      clients
-    );
-
-    expect(result.topic).toBeUndefined();
-  });
-});
-
 describe("dispatchDueAnnouncements", () => {
   function makeDueClients(dueRows: Announcements[]) {
     const { clients, db, messaging } = makeClients();
-    const listRows = mock(async () => ({ rows: dueRows, total: dueRows.length }));
+    const listRows = mock(async () => ({
+      rows: dueRows,
+      total: dueRows.length,
+    }));
     (clients.db as unknown as { listRows: typeof listRows }).listRows =
       listRows;
     return { clients, db, listRows, messaging };
@@ -178,12 +127,16 @@ describe("dispatchDueAnnouncements", () => {
     );
   });
 
-  test("does not add audience_value when marking a broadcast row sent", async () => {
+  test.each([
+    ["1", "general_oslo"],
+    [null, "general"],
+  ])("persists the resolved channel when marking a broadcast row sent (campus %p)", async (campusId, channel) => {
     const row = makeAnnouncement({
       $id: "row-3",
       status: "scheduled",
       audience_type: "broadcast",
       audience_value: null,
+      campus_id: campusId,
       data: null,
     });
     const { clients, db } = makeDueClients([row]);
@@ -192,6 +145,27 @@ describe("dispatchDueAnnouncements", () => {
 
     // `db.updateRow` is also called once for the row's read permissions;
     // find the call that actually flips status to "sent" and check that one.
+    const sentCall = db.updateRow.mock.calls.find(
+      (call) =>
+        (call[3] as Record<string, unknown> | undefined)?.status === "sent"
+    );
+    expect(sentCall?.[3]).toEqual(
+      expect.objectContaining({ audience_value: channel })
+    );
+  });
+
+  test("does not add audience_value when marking a users row sent", async () => {
+    const row = makeAnnouncement({
+      $id: "row-6",
+      status: "scheduled",
+      audience_type: "users",
+      audience_value: '["u1"]',
+      data: null,
+    });
+    const { clients, db } = makeDueClients([row]);
+
+    await dispatchDueAnnouncements(clients, new Date("2026-01-01T00:00:00Z"));
+
     const sentCall = db.updateRow.mock.calls.find(
       (call) =>
         (call[3] as Record<string, unknown> | undefined)?.status === "sent"
@@ -219,5 +193,29 @@ describe("dispatchDueAnnouncements", () => {
       "row-4",
       expect.objectContaining({ audience_value: "events_oslo" })
     );
+  });
+
+  test("stores the shared push payload as data", async () => {
+    const row = makeAnnouncement({
+      $id: "row-5",
+      status: "scheduled",
+      audience_type: "topic",
+      audience_value: "events",
+      campus_id: "1",
+      content_type: "event",
+      content_id: "e1",
+      data: null,
+    });
+    const { clients, db } = makeDueClients([row]);
+
+    await dispatchDueAnnouncements(clients, new Date("2026-01-01T00:00:00Z"));
+
+    const sentCall = db.updateRow.mock.calls.find(
+      (call) =>
+        (call[3] as Record<string, unknown> | undefined)?.status === "sent"
+    );
+    const stored = (sentCall?.[3] as { data: string }).data;
+    expect(stored).toBe(JSON.stringify(buildPushData(row)));
+    expect(JSON.parse(stored).deep_link).toBe("biso://event?id=e1");
   });
 });

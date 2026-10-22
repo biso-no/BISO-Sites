@@ -20,6 +20,13 @@ const jobBase = {
   status: "draft" as const,
 };
 
+const benefitBase = {
+  campus_id: "1",
+  status: "draft" as const,
+  title_en: "",
+  title_nb: "Norsk fordel",
+};
+
 describe("source-aware bilingual content schemas", () => {
   test("accepts a Norwegian-only or English-only event", () => {
     expect(
@@ -63,89 +70,77 @@ describe("source-aware bilingual content schemas", () => {
     ).toBeTrue();
   });
 
-  test("accepts one complete locale for benefits", () => {
-    const base = {
-      campus_id: "campus-oslo",
-      category: "discount",
-      kind: "offer" as const,
-      redemption_type: "none" as const,
-      status: "draft" as const,
-    };
-
-    expect(
-      benefitSchema.safeParse({
-        ...base,
-        description_en: "",
-        description_nb: "Norsk beskrivelse",
-        title_en: "",
-        title_nb: "Norsk fordel",
-      }).success
-    ).toBeTrue();
-    expect(
-      benefitSchema.safeParse({
-        ...base,
-        description_en: "English description",
-        description_nb: "",
-        title_en: "English benefit",
-        title_nb: "",
-      }).success
-    ).toBeTrue();
-  });
-
-  test("accepts a benefit with a title and no description", () => {
-    // Not every benefit needs explaining: "10% off at the campus café" is the
-    // whole offer, and editors were blocked from saving it.
-    expect(
-      benefitSchema.safeParse({
-        campus_id: "campus-oslo",
-        category: "discount",
-        description_en: "",
-        description_nb: "",
-        kind: "offer",
-        redemption_type: "none",
-        status: "draft",
-        title_en: "",
-        title_nb: "Norsk fordel",
-      }).success
-    ).toBeTrue();
+  test("accepts a member benefit with a title only", () => {
+    const parsed = benefitSchema.safeParse(benefitBase);
+    expect(parsed.success).toBeTrue();
+    expect(parsed.data?.redemption_type).toBe("none");
+    expect(parsed.data?.section).toBe("member");
   });
 
   test("rejects a benefit with no title in either language", () => {
+    const parsed = benefitSchema.safeParse({
+      ...benefitBase,
+      title_nb: "  ",
+    });
+    expect(parsed.success).toBeFalse();
+    expect(parsed.error?.issues[0]?.path).toEqual(["title_nb"]);
+  });
+
+  test("requires the code for a code benefit", () => {
+    const parsed = benefitSchema.safeParse({
+      ...benefitBase,
+      redemption_type: "code",
+      redemption_value: " ",
+    });
+    expect(parsed.success).toBeFalse();
+    expect(parsed.error?.issues[0]?.message).toBe("Add the code");
+  });
+
+  test("link benefits need an https link", () => {
+    const link = { ...benefitBase, redemption_type: "link" };
     expect(
-      benefitSchema.safeParse({
-        campus_id: "campus-oslo",
-        category: "discount",
-        description_en: "",
-        description_nb: "Norsk beskrivelse",
-        kind: "offer",
-        redemption_type: "none",
-        status: "draft",
-        title_en: "",
-        title_nb: "  ",
-      }).success
+      benefitSchema.safeParse({ ...link, redemption_value: "http://x.no" })
+        .success
+    ).toBeFalse();
+    expect(
+      benefitSchema.safeParse({ ...link, redemption_value: "https://x.no" })
+        .success
+    ).toBeTrue();
+    expect(
+      benefitSchema.safeParse({ ...link, redemption_value: "" }).error
+        ?.issues[0]?.message
+    ).toBe("Add the link");
+  });
+
+  test("rejects an end date before the start date", () => {
+    const parsed = benefitSchema.safeParse({
+      ...benefitBase,
+      publish_end: "2026-08-01",
+      publish_start: "2026-08-10",
+    });
+    expect(parsed.success).toBeFalse();
+    expect(parsed.error?.issues[0]?.path).toEqual(["publish_end"]);
+  });
+
+  test("rejects qr redemption and unknown campuses", () => {
+    expect(
+      benefitSchema.safeParse({ ...benefitBase, redemption_type: "qr" }).success
+    ).toBeFalse();
+    expect(
+      benefitSchema.safeParse({ ...benefitBase, campus_id: "6" }).success
     ).toBeFalse();
   });
 
-  test("benefits carry an optional department ownership id", () => {
-    const base = {
-      campus_id: "campus-oslo",
-      category: "discount",
-      description_en: "",
-      description_nb: "Norsk beskrivelse",
-      kind: "offer" as const,
-      redemption_type: "none" as const,
-      status: "draft" as const,
-      title_en: "",
-      title_nb: "Norsk fordel",
-    };
-
+  test("accepts a career line with only a Norwegian title", () => {
     expect(
-      benefitSchema.parse({ ...base, department_id: "dept-1" }).department_id
-    ).toBe("dept-1");
-    expect(benefitSchema.parse(base).department_id).toBeUndefined();
-    expect(
-      benefitSchema.parse({ ...base, department_id: null }).department_id
-    ).toBeNull();
+      benefitSchema.safeParse({
+        campus_id: "1",
+        section: "career",
+        status: "draft",
+        title_en: "",
+        title_nb: "Karrieredag",
+      }).success
+    ).toBeTrue();
   });
 
   test("documents carry an optional department ownership id", () => {

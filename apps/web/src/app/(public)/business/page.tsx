@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { careerDaysHrefs } from "@/lib/project-unit-links";
 
@@ -34,15 +35,28 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PartnerPage() {
   const locale = (await getLocale()) as Locale;
-  const [t, tCommon, tHotspot, units] = await Promise.all([
+  const [t, tCommon, tHotspot, units, items] = await Promise.all([
     getTranslations("partner"),
     getTranslations("common"),
     getTranslations("businessHotspot"),
     // A unit-directory outage must not take the page down: with no units every
     // career days card falls back to the Karrieredagene project page.
     cachedPublicUnits(locale).catch(() => []),
+    // The «For bedrifter» spot from admin; null keeps the bundle's three cards.
+    getMembershipTextItems("business", locale),
   ]);
   const careerDaysLinks = careerDaysHrefs(units);
+  const benefits = items?.length
+    ? items.map((item, index) => ({
+        body: item.body,
+        key: `${index}-${item.title}`,
+        title: item.title,
+      }))
+    : BENEFITS.map((key) => ({
+        body: t(`benefits.items.${key}.description`),
+        key,
+        title: t(`benefits.items.${key}.title`),
+      }));
 
   return (
     <>
@@ -59,17 +73,18 @@ export default async function PartnerPage() {
       <Section tone="paper">
         <SectionHeading>{t("benefits.subtitle")}</SectionHeading>
         <CardGrid columns={3}>
-          {BENEFITS.map((key) => (
+          {benefits.map((benefit) => (
             <li
               className="flex h-full flex-col rounded-biso-md border border-edge p-6"
-              key={key}
+              key={benefit.key}
             >
-              <h3 className="type-heading-card text-ink">
-                {t(`benefits.items.${key}.title`)}
-              </h3>
-              <p className="type-body-sm mt-3 text-ink-muted">
-                {t(`benefits.items.${key}.description`)}
-              </p>
+              <h3 className="type-heading-card text-ink">{benefit.title}</h3>
+              {/* A saved card may be a title alone. */}
+              {benefit.body ? (
+                <p className="type-body-sm mt-3 text-ink-muted">
+                  {benefit.body}
+                </p>
+              ) : null}
             </li>
           ))}
         </CardGrid>

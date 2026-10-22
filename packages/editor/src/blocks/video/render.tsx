@@ -58,7 +58,6 @@ export function VideoRender({ block, edit }: Props) {
       <span
         style={{
           fontSize: 13,
-          color: "rgba(255,255,255,.4)",
           fontFamily: "var(--mono)",
         }}
       >

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getLocale } from "@/app/actions/locale";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 
 export const metadata: Metadata = {
   description: "Set up your BISO profile to access events, benefits, and more.",
@@ -44,6 +46,8 @@ export default async function OnboardingPage({
     (identity) => identity.provider.toLowerCase() === "oidc"
   );
 
+  const items = await getMembershipTextItems("onboarding", await getLocale());
+
   return (
     // `pt-20` clears the fixed 80px nav. `<main>` adds no offset — every page
     // provides its own (that is what `<Section clearNav>` does) — and this one
@@ -55,6 +59,7 @@ export default async function OnboardingPage({
     <div className="min-h-screen bg-deep pt-20">
       <OnboardingFlow
         initialName={userData.user.name ?? ""}
+        items={items}
         linkedBi={params.linked === "1" || hasBiIdentity}
         required={params.required === "1"}
       />

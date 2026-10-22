@@ -1,10 +1,11 @@
+import { benefitsForCampus } from "@repo/shared/utils/benefit-public";
 import { getPurchasableMembershipPlans } from "@repo/shared/utils/membership-catalog";
 import { onePerDuration } from "@repo/shared/utils/membership-seasons";
 import type { Metadata } from "next";
 import { getLocale } from "@/app/actions/locale";
-import { getMemberPortalBenefits } from "@/app/actions/member-portal";
 import { MembershipV2 } from "@/components/membership/v2/membership-v2";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { getPublicBenefits } from "@/lib/data/benefits";
 import { cachedShellCampuses } from "@/lib/data/public-content";
 
 export const metadata: Metadata = {
@@ -12,6 +13,10 @@ export const metadata: Metadata = {
   description:
     "Become a BISO member and unlock benefits, discounts, and access to events across BI Norwegian Business School.",
 };
+
+// `getPublicBenefits` waits for the request (`connection()`), so this page must
+// be allowed to block, like `/students` and `/campus`.
+export const instant = false;
 
 /**
  * The redesigned page reads the two tables the old one ignored: the real
@@ -30,7 +35,8 @@ export default async function MembershipPage() {
     getPurchasableMembershipPlans()
       .then(onePerDuration)
       .catch(() => []),
-    getMemberPortalBenefits(campusId),
+    // Throws on a backend failure; the fallback lives at the call site.
+    getPublicBenefits().catch(() => []),
     getLocale(),
     // A cached reader throws on a transient failure; the fallback is here,
     // for this render only: the page titles itself without a campus.
@@ -39,7 +45,7 @@ export default async function MembershipPage() {
 
   return (
     <MembershipV2
-      benefits={benefits}
+      benefits={benefitsForCampus(benefits, campusId)}
       campusName={campuses.find((c) => c.$id === campusId)?.name ?? null}
       locale={locale}
       plans={plans}

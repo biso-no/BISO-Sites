@@ -1,3 +1,4 @@
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { getTranslations } from "next-intl/server";
 import { Section } from "@/components/ui/section";
 import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
@@ -16,16 +17,26 @@ import { JoinLink } from "./join-link";
  *
  * The page renders this for non-members only: the CTA is shown to someone who
  * can act on it, the same rule the header and the mobile drawer follow.
+ *
+ * The benefit lines are the «Bli med» spot editors manage in admin
+ * (`membership_texts`); without saved lines they fall back to the bundle.
  */
-export async function MembershipBand() {
+export async function MembershipBand({
+  items,
+}: {
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
+}) {
   const t = await getTranslations("membership");
-  const benefits = [
-    t("benefits.categories.social.global"),
-    t("benefits.categories.career.global"),
-    t("benefits.categories.student.global"),
-    t("benefits.categories.safety.global"),
-    t("benefits.categories.business.global"),
-  ];
+  const benefits = items?.length
+    ? items.map((item) => item.title)
+    : [
+        t("benefits.categories.social.global"),
+        t("benefits.categories.career.global"),
+        t("benefits.categories.student.global"),
+        t("benefits.categories.safety.global"),
+        t("benefits.categories.business.global"),
+      ];
 
   return (
     <Section className="border-edge border-t" id="join" tone="deep">

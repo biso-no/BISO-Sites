@@ -57,7 +57,7 @@ import {
   readPagePartnersFeed,
 } from "@repo/shared/utils/page-feeds";
 import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import type { Partner } from "@/app/actions/about";
 import { campusScopeIds } from "@/lib/campus-scope";
 import type { NavFeatured } from "@/lib/types/nav";
@@ -285,10 +285,13 @@ export async function cachedOpenJobs(
 
 export async function cachedPartners(): Promise<Partner[]> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("minutes");
+  cacheTag("partners");
   const { db } = await createPublicClient();
   const partners = await db.listRows<Partner>("app", "partners", [
     Query.equal("level", "national"),
+    Query.orderAsc("sort_order"),
+    Query.orderAsc("$createdAt"),
   ]);
   return partners.rows;
 }
@@ -480,7 +483,8 @@ export async function cachedPageJobsFeed(
 
 export async function cachedPagePartnersFeed(): Promise<PagePartnerItem[]> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("minutes");
+  cacheTag("partners");
   const { db } = await createPublicClient();
   return await readPagePartnersFeed(db);
 }

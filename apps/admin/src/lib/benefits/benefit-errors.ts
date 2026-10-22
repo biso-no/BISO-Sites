@@ -1,0 +1,34 @@
+/**
+ * The reasons the benefit and partner actions give, in English. They are
+ * the contract between server and panel: the panel turns each one into the
+ * committee member's language (`benefits/_lib/benefit-save-error.ts`), so
+ * rewording one here keeps both sides in step.
+ */
+export const BENEFIT_ERRORS = {
+  benefitNotFound: "Benefit not found",
+  companyNameRequired: "Add the company's name",
+  invalidStatus: "That status is not allowed for a benefit",
+  legacyRedemption:
+    "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.",
+  logoNotFound: "Logo not found",
+  logoRequired: "Upload a logo",
+  noCampusAccess: "Unauthorized: no write access to this campus",
+  partnerDeleteFailed: "Could not delete the partner",
+  partnerHasOffersOnOtherCampus: "This partner has offers on another campus",
+  partnerLogoInvalid: "The logo must be an https:// address",
+  partnerNameRequired: "Add the partner's name",
+  partnerNotFound: "Partner not found",
+  partnerWebsiteInvalid: "The website must start with https://",
+  redemptionChangeNeedsPanel:
+    "This benefit has a code or link. Change how students redeem it in the benefits panel.",
+  reorderOutOfDate: "Reorder list is out of date",
+} as const;
+
+/** Messages `benefitSchema` attaches to a field. */
+export const BENEFIT_FIELD_ERRORS = {
+  codeRequired: "Add the code",
+  endBeforeStart: "The end date must be on or after the start date",
+  linkInvalid: "The link must start with https://",
+  linkRequired: "Add the link",
+  titleRequired: "Add a title in Norwegian or English",
+} as const;

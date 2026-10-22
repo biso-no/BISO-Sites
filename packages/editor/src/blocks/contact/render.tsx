@@ -79,7 +79,8 @@ export function ContactRender({ block, edit, onPatch }: Props) {
           )}
         </div>
         <div
-          style={{ marginTop: 6, color: "rgba(250,247,242,.55)", fontSize: 12 }}
+          className="pg-contact__note"
+          style={{ marginTop: 6, fontSize: 12 }}
         >
           {edit ? (
             <E onBlur={(v) => onPatch("hours", v)}>{block.hours}</E>
@@ -95,11 +96,8 @@ export function ContactRender({ block, edit, onPatch }: Props) {
             <div className="pg-contact__col-val">{m.name}</div>
             {m.email && (
               <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 12,
-                  color: "rgba(250,247,242,.55)",
-                }}
+                className="pg-contact__note"
+                style={{ marginTop: 4, fontSize: 12 }}
               >
                 <a href={`mailto:${m.email}`} style={{ color: "inherit" }}>
                   {m.email}
@@ -108,11 +106,8 @@ export function ContactRender({ block, edit, onPatch }: Props) {
             )}
             {m.phone && (
               <div
-                style={{
-                  marginTop: 2,
-                  fontSize: 12,
-                  color: "rgba(250,247,242,.55)",
-                }}
+                className="pg-contact__note"
+                style={{ marginTop: 2, fontSize: 12 }}
               >
                 {m.phone}
               </div>

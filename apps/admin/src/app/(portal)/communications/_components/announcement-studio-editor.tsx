@@ -3,39 +3,21 @@
 import type { Announcements } from "@repo/api/types/appwrite";
 import { logicalTopicFor } from "@repo/shared/utils/notification-topics";
 import {
-  isoToOsloWallClock,
-  OSLO_TIME_ZONE,
-  osloWallClockToIso,
-} from "@repo/shared/utils/oslo-time";
-import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Bell,
-  Bus,
-  CalendarDays,
   Check,
   ChevronRight,
-  Globe,
-  Link2,
-  Megaphone,
+  type Megaphone,
   Save,
-  Send,
-  Sparkles,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  AutoTranslateControl,
-  TranslationReviewCard,
-} from "@/app/_components/content-translation-controls";
-import type {
-  AutoTranslationOptions,
-  ContentLocale,
-} from "@/lib/content-translation";
+import { AutoTranslateControl } from "@/app/_components/content-translation-controls";
+import type { TOPIC_OPTIONS } from "@/lib/announcements/audience-names";
+import type { AutoTranslationOptions } from "@/lib/content-translation";
 import {
   createAnnouncement,
   generateAnnouncementTranslationDraft,
@@ -46,38 +28,40 @@ import {
   type AnnouncementFormValues,
   announcementSchema,
 } from "../../_actions/schemas";
-import { DepartmentCombobox } from "../../_components/department-combobox";
 import { DescriptionBlockEditor } from "../../_components/description-block-editor";
+import { CheckStep } from "./composer/check-step";
+import {
+  COMPOSER_STEPS,
+  type ComposerGroup,
+  type ComposerStepIndex,
+  canContinue,
+  clearDepartmentOnCampusChange,
+  initialValuesForGroup,
+  TYPE_CARDS,
+} from "./composer/composer-state";
+import {
+  buildLinkState,
+  type LinkState,
+  storedLinkFrom,
+} from "./composer/link-state";
+import {
+  BRAND,
+  type LocaleCode,
+  LocaleTabs,
+  MONO,
+  StepIntro,
+  TYPE_ICONS,
+} from "./composer/ui";
+import { WhatStep } from "./composer/what-step";
+import { WhoStep } from "./composer/who-step";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
 /* -------------------------------------------------------------------------- */
 
-const BRAND = {
-  bisoBlue: "#1A77E9",
-  claret: "#6b1e1e",
-  gold: "#b08a3e",
-  green: "#2f5d3a",
-  ink: "#1a1814",
-  ink2: "#3a342a",
-  ink3: "#6b6357",
-  ink4: "#9c9385",
-  leaf: "#2f5d3a",
-  paper: "#faf7f2",
-  paper2: "#f3eee5",
-  paper3: "#ede6d8",
-  red: "#b91c1c",
-  rule: "#e5dcca",
-  rule2: "#d8cdb6",
-} as const;
+const STEPS = COMPOSER_STEPS;
 
-const SERIF = "'Instrument Serif', Georgia, serif";
-const MONO = "ui-monospace, Menlo, Monaco, monospace";
-
-const STEPS = ["Essentials", "Content", "Distribution", "Review"] as const;
-
-type StepIndex = 0 | 1 | 2 | 3;
-type LocaleCode = ContentLocale;
+type StepIndex = ComposerStepIndex;
 
 type CategoryId = AnnouncementFormValues["category"];
 type AudienceType = AnnouncementFormValues["audience_type"];
@@ -87,73 +71,12 @@ const CATEGORIES: Array<{
   label: string;
   description: string;
   icon: typeof Megaphone;
-}> = [
-  {
-    id: "general",
-    label: "General",
-    description: "Everyday updates and reminders.",
-    icon: Megaphone,
-  },
-  {
-    id: "trip",
-    label: "Trip",
-    description: "Travel, excursions and away events.",
-    icon: Bus,
-  },
-  {
-    id: "urgent",
-    label: "Urgent",
-    description: "Time-sensitive, high-priority alerts.",
-    icon: AlertTriangle,
-  },
-  {
-    id: "event",
-    label: "Event",
-    description: "Tied to a specific campus event.",
-    icon: CalendarDays,
-  },
-];
-
-const AUDIENCE_TYPES: Array<{
-  id: AudienceType;
-  label: string;
-  description: string;
-  icon: typeof Globe;
-  disabledNote?: string;
-}> = [
-  {
-    id: "broadcast",
-    label: "Everyone",
-    description: "Broadcast to every app user via the default topic.",
-    icon: Globe,
-  },
-  {
-    id: "topic",
-    label: "Topic",
-    description: "Only students subscribed to a topic channel.",
-    icon: Bell,
-  },
-  {
-    id: "users",
-    label: "Specific users",
-    description: "A hand-picked list of emails or user ids.",
-    icon: Users,
-  },
-  {
-    id: "segment",
-    label: "Segment",
-    description: "Dynamic audience segments.",
-    icon: Sparkles,
-    disabledNote: "Coming in Phase 2",
-  },
-];
-
-const TOPIC_OPTIONS = [
-  { value: "news", label: "News" },
-  { value: "events", label: "Events" },
-  { value: "jobs", label: "Jobs" },
-  { value: "shop", label: "Shop" },
-] as const;
+}> = TYPE_CARDS.map((card) => ({
+  description: card.description,
+  icon: TYPE_ICONS[card.id],
+  id: card.id,
+  label: card.label,
+}));
 
 const PUSH_PREVIEW_CHARS = 140;
 
@@ -163,13 +86,19 @@ interface CampusOption {
 }
 
 interface AnnouncementStudioEditorProps {
-  allowGlobalCampus: boolean;
   announcement: Announcements | null;
   campuses: CampusOption[];
   defaultCampusId: string;
+  /** The event group a new composer opens for (from the group's Message link). */
+  group?: ComposerGroup | null;
+  /** The step to open on; the history list's "Review & send" opens Check & send. */
+  initialStep?: StepIndex;
+  isGlobalAdmin: boolean;
   isNew: boolean;
   /** Single-department authors are pinned to their department. */
   lockDepartment: boolean;
+  /** Campuses a campus admin manages; empty for others. */
+  managedCampusIds: string[];
   pinnedDepartmentId: string | null;
 }
 
@@ -185,7 +114,8 @@ const WHITESPACE_PATTERN = /\s+/g;
 /**
  * Flatten the editor's HTML body to a single line of plain text for the push
  * previews and audience checks. Matches the dispatch-side flattening in
- * `lib/announcements/send.ts`.
+ * `@repo/shared/utils/push-dispatch` (`htmlToPlainText`), which this client
+ * component can't import because that module pulls in the server SDK.
  */
 function htmlToPlainText(html: string | null | undefined): string {
   if (!html) {
@@ -260,11 +190,17 @@ function categoryAccent(id: CategoryId): string {
   }
 }
 
+const AUDIENCE_KEYS = new Set<keyof AnnouncementFormValues>([
+  "audience_type",
+  "audience_value",
+  "campus_id",
+]);
+
 /**
  * The topic a topic announcement holds when it has none. The form stores it
  * rather than only displaying it: dispatch sends an empty topic to `general`,
- * which is every student, so a Topic select showing Events over an empty value
- * would message everyone.
+ * which is every student, so an Events pill shown over an empty value would
+ * message everyone.
  */
 const DEFAULT_TOPIC: (typeof TOPIC_OPTIONS)[number]["value"] = "events";
 
@@ -277,7 +213,37 @@ function withTopicDefault(
     : values;
 }
 
-function buildInitialValues(
+/**
+ * Every form change goes through here: a topic audience keeps a topic, and a
+ * campus change drops a department that belongs to the old campus.
+ */
+function nextValues(
+  previous: AnnouncementFormValues,
+  next: AnnouncementFormValues,
+  keepDepartment: boolean
+): AnnouncementFormValues {
+  return withTopicDefault(
+    clearDepartmentOnCampusChange(previous, next, { keepDepartment })
+  );
+}
+
+/** An explicit link wins; a legacy draft with only `event_id` is an event link. */
+function initialLink(
+  announcement: Announcements | null
+): Pick<AnnouncementFormValues, "content_id" | "content_type"> {
+  if (announcement?.content_type && announcement.content_id) {
+    return {
+      content_id: announcement.content_id,
+      content_type: announcement.content_type,
+    };
+  }
+  if (announcement?.event_id) {
+    return { content_id: announcement.event_id, content_type: "event" };
+  }
+  return { content_id: null, content_type: null };
+}
+
+export function buildInitialValues(
   announcement: Announcements | null,
   defaultCampusId: string,
   pinnedDepartmentId: string | null
@@ -294,12 +260,12 @@ function buildInitialValues(
     }
   } else if (announcement?.audience_type === "topic" && audienceValue) {
     // A sent row holds the campus-scoped id dispatch resolved (e.g.
-    // "events_oslo" — see `resolveAnnouncementTopicId`), but the <select> in
-    // AudienceDetail only offers the four logical topics. Editing the logical
-    // topic does two things: it keeps that select on a real option, and it
-    // makes a re-send target the campus chosen now. The resolver passes an
-    // already-scoped id through unchanged, so an "events_oslo" row moved to
-    // Bergen would otherwise still push to Oslo.
+    // "events_oslo" — see `resolveAnnouncementTopicId`), but the Who step's
+    // topic pills offer only the four logical topics. Editing the logical
+    // topic does two things: it keeps a pill selected, and it makes a re-send
+    // target the campus chosen now. The resolver passes an already-scoped id
+    // through unchanged, so an "events_oslo" row moved to Bergen would
+    // otherwise still push to Oslo.
     //
     // It is not what keeps a sent row scoped — saving writes the logical topic
     // back. `updateAnnouncement` does that on the server, resolving a sent
@@ -315,6 +281,7 @@ function buildInitialValues(
     category: (announcement?.category as CategoryId) ?? "general",
     audience_type: (announcement?.audience_type as AudienceType) ?? "broadcast",
     audience_value: audienceValue,
+    ...initialLink(announcement),
     event_id: announcement?.event_id ?? null,
     campus_id: announcement?.campus_id ?? defaultCampusId ?? null,
     department_id: announcementDepartmentId(announcement) ?? pinnedDepartmentId,
@@ -333,14 +300,6 @@ function announcementDepartmentId(
     return null;
   }
   return typeof department === "string" ? department : department.$id;
-}
-
-function isFutureSchedule(scheduledAt: string | null | undefined): boolean {
-  if (!scheduledAt) {
-    return false;
-  }
-  const time = new Date(scheduledAt).getTime();
-  return Number.isFinite(time) && time > Date.now();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -492,357 +451,6 @@ function StepRail({
   );
 }
 
-function LocaleTabs({
-  locale,
-  pendingNo,
-  setLocale,
-}: {
-  locale: LocaleCode;
-  pendingNo: boolean;
-  setLocale: (locale: LocaleCode) => void;
-}) {
-  return (
-    <div
-      style={{
-        background: BRAND.paper2,
-        border: `0.5px solid ${BRAND.rule2}`,
-        borderRadius: 8,
-        display: "inline-flex",
-        gap: 2,
-        marginBottom: 8,
-        padding: 3,
-      }}
-    >
-      {(["en", "no"] as const).map((item) => {
-        const on = locale === item;
-        return (
-          <button
-            key={item}
-            onClick={() => setLocale(item)}
-            style={{
-              alignItems: "center",
-              background: on ? "white" : "transparent",
-              border: 0,
-              borderRadius: 5,
-              boxShadow: on ? "0 1px 2px rgba(0,0,0,.05)" : "none",
-              color: on ? BRAND.ink : BRAND.ink3,
-              cursor: "pointer",
-              display: "flex",
-              fontSize: 11,
-              gap: 6,
-              padding: "4px 12px",
-            }}
-            type="button"
-          >
-            {item === "en" ? "English" : "Norsk"}
-            {item === "no" && pendingNo && (
-              <span
-                style={{
-                  background: BRAND.gold,
-                  borderRadius: "50%",
-                  height: 5,
-                  width: 5,
-                }}
-                title="Not yet filled"
-              />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function FieldLabel({
-  children,
-  help,
-  required,
-}: {
-  children: React.ReactNode;
-  help?: string;
-  required?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        color: BRAND.ink3,
-        display: "flex",
-        fontSize: 11.5,
-        fontWeight: 500,
-        gap: 8,
-        letterSpacing: ".04em",
-        textTransform: "uppercase",
-      }}
-    >
-      {children}
-      {required && (
-        <span style={{ color: BRAND.claret, fontSize: 10 }}>required</span>
-      )}
-      {help && (
-        <span
-          style={{
-            color: BRAND.ink4,
-            fontSize: 10.5,
-            fontWeight: 400,
-            letterSpacing: 0,
-            marginLeft: "auto",
-            textTransform: "none",
-          }}
-        >
-          {help}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function fieldInputStyle(extra?: React.CSSProperties): React.CSSProperties {
-  return {
-    appearance: "none",
-    background: "rgba(255,255,255,.6)",
-    border: `0.5px solid ${BRAND.rule2}`,
-    borderRadius: 8,
-    color: BRAND.ink,
-    fontSize: 14,
-    outline: 0,
-    padding: "10px 12px",
-    transition: "border-color .15s, background .15s",
-    width: "100%",
-    ...extra,
-  };
-}
-
-function SelectCard({
-  active,
-  description,
-  disabled,
-  disabledNote,
-  icon,
-  onClick,
-  title,
-}: {
-  active: boolean;
-  description?: string;
-  disabled?: boolean;
-  disabledNote?: string;
-  icon?: React.ReactNode;
-  onClick: () => void;
-  title: string;
-}) {
-  return (
-    <button
-      disabled={disabled}
-      onClick={disabled ? undefined : onClick}
-      style={{
-        background: active ? BRAND.ink : "rgba(255,255,255,.55)",
-        border: `0.5px solid ${active ? BRAND.ink : BRAND.rule2}`,
-        borderRadius: 12,
-        color: active ? BRAND.paper : BRAND.ink,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.7 : 1,
-        padding: "16px 18px",
-        position: "relative",
-        textAlign: "left",
-        transition: "background .12s, border-color .12s",
-      }}
-      type="button"
-    >
-      <div
-        style={{
-          alignItems: "center",
-          display: "flex",
-          fontSize: 14,
-          fontWeight: 500,
-          gap: 8,
-        }}
-      >
-        {icon && (
-          <span
-            style={{
-              alignItems: "center",
-              background: active ? "rgba(255,255,255,.12)" : BRAND.paper2,
-              borderRadius: 8,
-              color: active ? BRAND.paper : BRAND.ink2,
-              display: "grid",
-              height: 28,
-              placeItems: "center",
-              width: 28,
-            }}
-          >
-            {icon}
-          </span>
-        )}
-        {title}
-      </div>
-      {description && (
-        <p
-          style={{
-            color: active ? "rgba(250,247,242,.7)" : BRAND.ink3,
-            fontSize: 12.5,
-            lineHeight: 1.45,
-            margin: "8px 0 0",
-          }}
-        >
-          {description}
-        </p>
-      )}
-      {disabledNote && (
-        <span
-          style={{
-            background: active ? "rgba(255,255,255,.16)" : BRAND.paper2,
-            borderRadius: 999,
-            color: active ? BRAND.paper : BRAND.ink3,
-            display: "inline-block",
-            fontSize: 10,
-            marginTop: 8,
-            padding: "2px 8px",
-          }}
-        >
-          {disabledNote}
-        </span>
-      )}
-      <span
-        style={{
-          alignItems: "center",
-          background: active ? BRAND.leaf : "white",
-          border: `1px solid ${active ? BRAND.leaf : BRAND.rule2}`,
-          borderRadius: "50%",
-          color: "white",
-          display: "grid",
-          height: 18,
-          placeItems: "center",
-          position: "absolute",
-          right: 14,
-          top: 14,
-          width: 18,
-        }}
-      >
-        {active && <Check size={11} />}
-      </span>
-    </button>
-  );
-}
-
-function StepIntro({ eyebrow, title }: { eyebrow: string; title: string }) {
-  return (
-    <div style={{ padding: "8px 0 18px" }}>
-      <span
-        style={{
-          color: BRAND.ink4,
-          fontSize: 11,
-          letterSpacing: ".08em",
-          textTransform: "uppercase",
-        }}
-      >
-        {eyebrow}
-      </span>
-      <div
-        style={{
-          color: BRAND.ink,
-          fontFamily: SERIF,
-          fontSize: 40,
-          letterSpacing: "-0.015em",
-          lineHeight: 1.05,
-          marginTop: 4,
-        }}
-      >
-        {title}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                Essentials step                             */
-/* -------------------------------------------------------------------------- */
-
-function EssentialsStep({
-  locale,
-  set,
-  setLocale,
-  values,
-}: {
-  locale: LocaleCode;
-  set: <K extends keyof AnnouncementFormValues>(
-    key: K,
-    value: AnnouncementFormValues[K]
-  ) => void;
-  setLocale: (locale: LocaleCode) => void;
-  values: AnnouncementFormValues;
-}) {
-  const titleValue =
-    locale === "en" ? values.title_en : (values.title_no ?? "");
-  const titleKey = locale === "en" ? "title_en" : "title_no";
-
-  return (
-    <div>
-      <div style={{ padding: "8px 0 24px" }}>
-        <LocaleTabs
-          locale={locale}
-          pendingNo={!values.title_no?.trim()}
-          setLocale={setLocale}
-        />
-        <input
-          onChange={(event) =>
-            set(
-              titleKey,
-              locale === "en" ? event.target.value : event.target.value || null
-            )
-          }
-          placeholder={
-            locale === "en"
-              ? "A headline students can't miss…"
-              : "En overskrift studentene ikke kan overse…"
-          }
-          style={{
-            appearance: "none",
-            background: "transparent",
-            border: 0,
-            color: BRAND.ink,
-            fontFamily: SERIF,
-            fontSize: 52,
-            fontWeight: 400,
-            letterSpacing: "-0.018em",
-            lineHeight: 1.02,
-            outline: 0,
-            padding: 0,
-            width: "100%",
-          }}
-          value={titleValue}
-        />
-      </div>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <FieldLabel help="Sets the icon and accent" required>
-          <Megaphone size={12} /> Category
-        </FieldLabel>
-        <div
-          style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}
-        >
-          {CATEGORIES.map((category) => {
-            const Icon = category.icon;
-            return (
-              <SelectCard
-                active={values.category === category.id}
-                description={category.description}
-                icon={<Icon size={14} />}
-                key={category.id}
-                onClick={() => set("category", category.id)}
-                title={category.label}
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                 Content step                               */
-/* -------------------------------------------------------------------------- */
-
 function ContentStep({
   locale,
   set,
@@ -882,376 +490,6 @@ function ContentStep({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Distribution step                             */
-/* -------------------------------------------------------------------------- */
-
-function AudienceDetail({
-  set,
-  values,
-}: {
-  set: <K extends keyof AnnouncementFormValues>(
-    key: K,
-    value: AnnouncementFormValues[K]
-  ) => void;
-  values: AnnouncementFormValues;
-}) {
-  if (values.audience_type === "topic") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <FieldLabel>
-          <Bell size={12} /> Topic channel
-        </FieldLabel>
-        <select
-          onChange={(event) => set("audience_value", event.target.value)}
-          style={fieldInputStyle()}
-          value={values.audience_value ?? ""}
-        >
-          {TOPIC_OPTIONS.map((topic) => (
-            <option key={topic.value} value={topic.value}>
-              {topic.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-
-  if (values.audience_type === "users") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <FieldLabel help="Emails are resolved on save">
-          <Users size={12} /> Recipients
-        </FieldLabel>
-        <textarea
-          onChange={(event) => set("audience_value", event.target.value)}
-          placeholder="ada@bi.no, ola@biso.no, 64f0c1a2b3…"
-          style={fieldInputStyle({
-            minHeight: 76,
-            resize: "none",
-          })}
-          value={values.audience_value ?? ""}
-        />
-      </div>
-    );
-  }
-
-  if (values.audience_type === "segment") {
-    return (
-      <div
-        style={{
-          background: BRAND.paper2,
-          border: `0.5px solid ${BRAND.rule2}`,
-          borderRadius: 10,
-          color: BRAND.ink3,
-          fontSize: 12.5,
-          lineHeight: 1.5,
-          padding: "12px 14px",
-        }}
-      >
-        Dynamic segments arrive in Phase 2. For now this behaves like a
-        broadcast — pick another audience for precise targeting.
-      </div>
-    );
-  }
-
-  return (
-    <p style={{ color: BRAND.ink4, fontSize: 12.5, margin: 0 }}>
-      Broadcast reaches every app user via the default app topic.
-    </p>
-  );
-}
-
-function DistributionStep({
-  campusOptions,
-  lockDepartment,
-  set,
-  values,
-}: {
-  campusOptions: Array<{ value: string; label: string }>;
-  lockDepartment: boolean;
-  set: <K extends keyof AnnouncementFormValues>(
-    key: K,
-    value: AnnouncementFormValues[K]
-  ) => void;
-  values: AnnouncementFormValues;
-}) {
-  return (
-    <div>
-      <StepIntro eyebrow="Step 3" title="Who gets it, and when." />
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <FieldLabel required>
-          <Users size={12} /> Audience
-        </FieldLabel>
-        <div
-          style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}
-        >
-          {AUDIENCE_TYPES.map((audience) => {
-            const Icon = audience.icon;
-            return (
-              <SelectCard
-                active={values.audience_type === audience.id}
-                description={audience.description}
-                disabled={audience.id === "segment"}
-                disabledNote={audience.disabledNote}
-                icon={<Icon size={14} />}
-                key={audience.id}
-                onClick={() => set("audience_type", audience.id)}
-                title={audience.label}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 18 }}>
-        <AudienceDetail set={set} values={values} />
-      </div>
-
-      <div style={{ display: "grid", gap: 22, marginTop: 24 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel>
-            <Globe size={12} /> Campus
-          </FieldLabel>
-          <select
-            onChange={(event) => set("campus_id", event.target.value || null)}
-            style={fieldInputStyle()}
-            value={values.campus_id ?? ""}
-          >
-            {campusOptions.map((campus) => (
-              <option key={campus.value || "all"} value={campus.value}>
-                {campus.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel help="Owning department; leave empty for campus-wide">
-            <Globe size={12} /> Department
-          </FieldLabel>
-          <DepartmentCombobox
-            campusId={values.campus_id ?? null}
-            disabled={lockDepartment}
-            initialDepartments={[]}
-            onChange={(id) => set("department_id", id)}
-            placeholder="Campus-wide (no department)"
-            value={values.department_id ?? null}
-          />
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel help="Deep-links the push to an event">
-            <Link2 size={12} /> Event id
-          </FieldLabel>
-          <input
-            onChange={(event) => set("event_id", event.target.value || null)}
-            placeholder="e.g. 64f0c1a2b3…"
-            style={fieldInputStyle({ fontFamily: MONO, fontSize: 13 })}
-            value={values.event_id ?? ""}
-          />
-        </div>
-
-        <SelectCard
-          active={values.push}
-          description={
-            values.push
-              ? "Fires a device push and adds the message to the in-app inbox."
-              : "Inbox-only — appears in the app without a device push."
-          }
-          icon={<Bell size={14} />}
-          onClick={() => set("push", !values.push)}
-          title={values.push ? "Send device push" : "Inbox only"}
-        />
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <FieldLabel help="Leave empty to send immediately">
-            <CalendarDays size={12} /> Schedule
-          </FieldLabel>
-          <input
-            onChange={(event) =>
-              set("scheduled_at", osloWallClockToIso(event.target.value))
-            }
-            style={fieldInputStyle()}
-            type="datetime-local"
-            value={isoToOsloWallClock(values.scheduled_at)}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                Review step                                 */
-/* -------------------------------------------------------------------------- */
-
-function buildReviewRows(
-  values: AnnouncementFormValues,
-  campusOptions: Array<{ value: string; label: string }>
-): Array<{ label: string; value: string | null; step: StepIndex }> {
-  const category = categoryById(values.category);
-  const audience = AUDIENCE_TYPES.find((a) => a.id === values.audience_type);
-  const campusLabel =
-    campusOptions.find((c) => c.value === (values.campus_id ?? ""))?.label ??
-    "—";
-  let audienceDetail = "";
-  if (values.audience_type === "topic") {
-    audienceDetail = ` · ${values.audience_value ?? ""}`;
-  } else if (values.audience_type === "users") {
-    const count = (values.audience_value ?? "")
-      .split(",")
-      .map((token) => token.trim())
-      .filter(Boolean).length;
-    audienceDetail = ` · ${count} recipient${count === 1 ? "" : "s"}`;
-  }
-
-  let scheduleValue = "Send immediately";
-  if (values.scheduled_at) {
-    scheduleValue = isFutureSchedule(values.scheduled_at)
-      ? `Scheduled · ${new Date(values.scheduled_at).toLocaleString("en-GB", { timeZone: OSLO_TIME_ZONE })}`
-      : `Send immediately (past date ${new Date(values.scheduled_at).toLocaleString("en-GB", { timeZone: OSLO_TIME_ZONE })})`;
-  }
-
-  return [
-    { label: "Title (EN)", value: values.title_en || null, step: 0 },
-    { label: "Title (NO)", value: values.title_no || null, step: 0 },
-    { label: "Category", value: category.label, step: 0 },
-    {
-      label: "Body (EN)",
-      value: htmlToPlainText(values.body_en) || null,
-      step: 1,
-    },
-    {
-      label: "Body (NO)",
-      value: htmlToPlainText(values.body_no) || null,
-      step: 1,
-    },
-    {
-      label: "Audience",
-      value: `${audience?.label ?? "—"}${audienceDetail}`,
-      step: 2,
-    },
-    { label: "Campus", value: campusLabel, step: 2 },
-    { label: "Event id", value: values.event_id || null, step: 2 },
-    {
-      label: "Push",
-      value: values.push ? "Device push + inbox" : "Inbox only",
-      step: 2,
-    },
-    { label: "Schedule", value: scheduleValue, step: 2 },
-  ];
-}
-
-function ReviewStep({
-  campusOptions,
-  confirmTranslationOverwrite,
-  locale,
-  onTranslate,
-  setStep,
-  translating,
-  values,
-}: {
-  campusOptions: Array<{ value: string; label: string }>;
-  confirmTranslationOverwrite: boolean;
-  locale: LocaleCode;
-  onTranslate: () => void;
-  setStep: (step: StepIndex) => void;
-  translating: boolean;
-  values: AnnouncementFormValues;
-}) {
-  const rows = buildReviewRows(values, campusOptions);
-
-  return (
-    <div>
-      <StepIntro eyebrow="Step 4" title="One last look." />
-      <p
-        style={{
-          color: BRAND.ink3,
-          fontSize: 13.5,
-          margin: "0 0 18px",
-          maxWidth: "50ch",
-        }}
-      >
-        Click any row to jump back and edit. The previews on the right show
-        exactly how this lands on a phone and in the in-app inbox.
-      </p>
-
-      <TranslationReviewCard
-        className="mb-5"
-        isTranslating={translating}
-        onTranslate={onTranslate}
-        sourceLocale={locale}
-      />
-      {confirmTranslationOverwrite && (
-        <p
-          style={{ color: BRAND.gold, fontSize: 12.5, margin: "-10px 0 18px" }}
-        >
-          The destination already has content. Click Generate again to replace
-          it.
-        </p>
-      )}
-
-      <div
-        style={{
-          background: "rgba(255,255,255,.5)",
-          border: `0.5px solid ${BRAND.rule}`,
-          borderRadius: 14,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {rows.map((row, index) => (
-          <button
-            key={row.label}
-            onClick={() => setStep(row.step)}
-            style={{
-              alignItems: "center",
-              background: "transparent",
-              border: 0,
-              borderTop: index > 0 ? `0.5px solid ${BRAND.rule}` : 0,
-              cursor: "pointer",
-              display: "grid",
-              gap: 14,
-              gridTemplateColumns: "140px 1fr auto",
-              padding: "14px 18px",
-              textAlign: "left",
-              width: "100%",
-            }}
-            type="button"
-          >
-            <span
-              style={{
-                color: BRAND.ink3,
-                fontSize: 11.5,
-                letterSpacing: ".04em",
-                textTransform: "uppercase",
-              }}
-            >
-              {row.label}
-            </span>
-            <span
-              style={{
-                color: row.value ? BRAND.ink : BRAND.ink4,
-                fontSize: 14,
-                fontStyle: row.value ? "normal" : "italic",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {row.value ?? "Not set"}
-            </span>
-            <ChevronRight size={14} style={{ color: BRAND.ink4 }} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /*                                 Action bar                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -1261,8 +499,6 @@ function ActionBar({
   locale,
   onAutoTranslateChange,
   onSaveDraft,
-  onSend,
-  scheduledFuture,
   sending,
   setStep,
   step,
@@ -1274,8 +510,6 @@ function ActionBar({
   locale: LocaleCode;
   onAutoTranslateChange: (checked: boolean) => void;
   onSaveDraft: () => void;
-  onSend: () => void;
-  scheduledFuture: boolean;
   sending: boolean;
   setStep: (step: StepIndex) => void;
   step: StepIndex;
@@ -1293,11 +527,7 @@ function ActionBar({
     (filled.filter(Boolean).length / filled.length) * 100
   );
   const nextStepName = step < STEPS.length - 1 ? STEPS[step + 1] : null;
-
-  let sendLabel = scheduledFuture ? "Schedule" : "Send now";
-  if (sending) {
-    sendLabel = "Sending…";
-  }
+  const gate = canContinue(step, values);
 
   return (
     <div
@@ -1361,7 +591,7 @@ function ActionBar({
         sourceLocale={locale}
       />
       <button
-        disabled={submitting}
+        disabled={submitting || sending}
         onClick={onSaveDraft}
         style={actionBtnStyle()}
         type="button"
@@ -1380,35 +610,22 @@ function ActionBar({
       )}
       {step < STEPS.length - 1 ? (
         <button
+          disabled={!gate.ok}
           onClick={() => setStep((step + 1) as StepIndex)}
           style={{
             ...actionBtnStyle(),
             background: BRAND.ink,
             border: `0.5px solid ${BRAND.ink}`,
             color: BRAND.paper,
+            opacity: gate.ok ? 1 : 0.5,
             padding: "9px 18px",
           }}
+          title={gate.reason}
           type="button"
         >
           Continue · {nextStepName} <ArrowRight size={14} />
         </button>
-      ) : (
-        <button
-          disabled={sending}
-          onClick={onSend}
-          style={{
-            ...actionBtnStyle(),
-            background: BRAND.bisoBlue,
-            border: `0.5px solid ${BRAND.bisoBlue}`,
-            color: "white",
-            padding: "9px 18px",
-          }}
-          type="button"
-        >
-          <Send size={13} />
-          {sendLabel}
-        </button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1881,22 +1098,51 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function AnnouncementStudioEditor({
-  allowGlobalCampus,
   announcement,
   campuses,
   defaultCampusId,
+  group = null,
+  initialStep = 0,
+  isGlobalAdmin,
   isNew,
   lockDepartment,
+  managedCampusIds,
   pinnedDepartmentId,
 }: AnnouncementStudioEditorProps) {
   const router = useRouter();
-  const [step, setStep] = useState<StepIndex>(0);
-  const [locale, setLocale] = useState<LocaleCode>("en");
+  const [step, setStep] = useState<StepIndex>(initialStep);
+  const [locale, setLocale] = useState<LocaleCode>("no");
   const [previewLocale, setPreviewLocale] = useState<LocaleCode>("en");
-  const [values, setValues] = useState<AnnouncementFormValues>(() =>
-    buildInitialValues(announcement, defaultCampusId, pinnedDepartmentId)
-  );
+  const [values, setValues] = useState<AnnouncementFormValues>(() => {
+    const initial = buildInitialValues(
+      announcement,
+      defaultCampusId,
+      pinnedDepartmentId
+    );
+    return group && isNew
+      ? initialValuesForGroup(initial, group.groupId, group)
+      : initial;
+  });
   const [dirty, setDirty] = useState(false);
+  const [link, setLink] = useState<LinkState>(buildLinkState);
+  const storedLink = useMemo(
+    () =>
+      storedLinkFrom(
+        announcement?.items ?? null,
+        initialLink(announcement).content_id ?? null
+      ),
+    [announcement]
+  );
+  // The audience counts as touched when the admin changes it here, or when a
+  // saved draft already carries a non-default one.
+  const [audienceTouched, setAudienceTouched] = useState(
+    () =>
+      Boolean(group && isNew) ||
+      (announcement !== null &&
+        (announcement.audience_type !== "broadcast" ||
+          Boolean(announcement.audience_value) ||
+          (announcement.campus_id ?? "") !== defaultCampusId))
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -1904,10 +1150,14 @@ export function AnnouncementStudioEditor({
   const [confirmTranslationOverwrite, setConfirmTranslationOverwrite] =
     useState(false);
 
+  // Mirrors the server's audience rules (`isAudienceAllowed`).
+  const audienceContext = {
+    managedCampusIds,
+    roles: isGlobalAdmin ? ["globaladmin"] : ["campusadmin"],
+  };
+
   const campusOptions = [
-    ...(allowGlobalCampus
-      ? [{ value: "", label: "All campuses (app-wide)" }]
-      : []),
+    ...(isGlobalAdmin ? [{ value: "", label: "All campuses (app-wide)" }] : []),
     ...campuses.map((campus) => ({ value: campus.id, label: campus.name })),
   ];
 
@@ -1916,8 +1166,35 @@ export function AnnouncementStudioEditor({
     value: AnnouncementFormValues[K]
   ) {
     // Switching the audience to Topic with no topic set picks the default, so
-    // the Topic select shows what will be stored and sent.
-    setValues((prev) => withTopicDefault({ ...prev, [key]: value }));
+    // the topic pills show what will be stored and sent.
+    setValues((prev) =>
+      nextValues(prev, { ...prev, [key]: value }, lockDepartment)
+    );
+    setDirty(true);
+    if (AUDIENCE_KEYS.has(key)) {
+      setAudienceTouched(true);
+    }
+  }
+
+  function setAudience(
+    patch: Partial<
+      Pick<
+        AnnouncementFormValues,
+        "audience_type" | "audience_value" | "campus_id"
+      >
+    >
+  ) {
+    setValues((prev) =>
+      nextValues(prev, { ...prev, ...patch }, lockDepartment)
+    );
+    setDirty(true);
+    setAudienceTouched(true);
+  }
+
+  function update(
+    change: (previous: AnnouncementFormValues) => AnnouncementFormValues
+  ) {
+    setValues((prev) => nextValues(prev, change(prev), lockDepartment));
     setDirty(true);
   }
 
@@ -2060,7 +1337,6 @@ export function AnnouncementStudioEditor({
   }
 
   const status = isNew ? "draft" : (announcement?.status ?? "draft");
-  const scheduledFuture = isFutureSchedule(values.scheduled_at);
 
   return (
     <div
@@ -2169,10 +1445,16 @@ export function AnnouncementStudioEditor({
             }}
           >
             {step === 0 && (
-              <EssentialsStep
+              <WhatStep
+                audienceContext={audienceContext}
+                audienceTouched={audienceTouched}
+                link={link}
                 locale={locale}
                 set={set}
+                setLink={setLink}
                 setLocale={setLocale}
+                storedLink={storedLink}
+                update={update}
                 values={values}
               />
             )}
@@ -2185,20 +1467,32 @@ export function AnnouncementStudioEditor({
               />
             )}
             {step === 2 && (
-              <DistributionStep
-                campusOptions={campusOptions}
+              <WhoStep
+                audienceContext={audienceContext}
                 lockDepartment={lockDepartment}
                 set={set}
+                setAudience={setAudience}
+                tappingOpens={
+                  values.content_id && link.display
+                    ? (link.display.label ?? link.display.title)
+                    : null
+                }
                 values={values}
               />
             )}
             {step === 3 && (
-              <ReviewStep
+              <CheckStep
+                alreadySent={status === "sent"}
                 campusOptions={campusOptions}
                 confirmTranslationOverwrite={confirmTranslationOverwrite}
+                link={values.content_id ? link.display : null}
                 locale={locale}
+                onEdit={setStep}
+                onSend={handleSend}
                 onTranslate={handleTranslate}
-                setStep={setStep}
+                saving={isSaving}
+                sending={isSending}
+                set={set}
                 translating={translating}
                 values={values}
               />
@@ -2210,8 +1504,6 @@ export function AnnouncementStudioEditor({
             locale={locale}
             onAutoTranslateChange={setAutoTranslate}
             onSaveDraft={handleSaveDraft}
-            onSend={handleSend}
-            scheduledFuture={scheduledFuture}
             sending={isSending}
             setStep={setStep}
             step={step}

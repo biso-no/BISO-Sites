@@ -15,18 +15,18 @@
     "subtitle": "Highlights from {campus} and national initiatives.",
     "cta": "View all benefits",
     "badges": {
-      "studentBenefits": "Membership",
-      "careerAdvantages": "Career",
-      "socialNetwork": "Community",
+      "member": "Membership",
+      "career": "Career",
+      "social": "Community",
       "safety": "Support",
-      "businessBenefits": "Partnerships"
+      "business": "Partnerships"
     },
     "labels": {
-      "studentBenefits": "Membership & offers",
-      "careerAdvantages": "Career and development",
-      "socialNetwork": "Student life and community",
+      "member": "Membership & offers",
+      "career": "Career and development",
+      "social": "Student life and community",
       "safety": "Safety and support",
-      "businessBenefits": "For partners"
+      "business": "For partners"
     },
     "empty": "Member benefits for {campus} will be published soon."
   },

@@ -4,6 +4,7 @@ import {
   type MembershipPlan,
   POPULAR_MEMBERSHIP_DURATION,
 } from "@repo/shared/utils/membership-plans";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -43,7 +44,12 @@ function fetchMembershipPlans() {
  * duration, priced from the catalog, and one way in — the join flow, which
  * owns the season choice, the campus and the payment.
  */
-export function MembershipCtaSection() {
+interface MembershipCtaSectionProps {
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
+}
+
+export function MembershipCtaSection({ items }: MembershipCtaSectionProps) {
   const t = useTranslations("memberPortal.cta");
   const [plans, setPlans] = useState<MembershipPlan[] | null>(null);
 
@@ -74,7 +80,9 @@ export function MembershipCtaSection() {
     return null;
   }
 
-  const benefits = BENEFIT_KEYS.map((key) => t(`benefits.${key}`));
+  const benefits = items?.length
+    ? items.map((item) => item.title)
+    : BENEFIT_KEYS.map((key) => t(`benefits.${key}`));
 
   return (
     <section className="rounded-biso-lg border border-edge p-6 sm:p-10">

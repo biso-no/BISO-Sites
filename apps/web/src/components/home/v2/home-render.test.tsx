@@ -101,6 +101,7 @@ const EMPTY: HomeV2Props = {
   focusAreas: [],
   isMember: false,
   jobs: [],
+  joinItems: null,
   leadership: { campusId: "5", teamHref: null },
   locale: "en",
   news: [],

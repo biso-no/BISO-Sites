@@ -1,5 +1,7 @@
-import type { CampusData, Events, News } from "@repo/api/types/appwrite";
+import type { Events, News } from "@repo/api/types/appwrite";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import type { BenefitSection } from "@repo/shared/utils/benefit-catalog";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import { UNIT_CATEGORY_MESSAGE_KEYS } from "@repo/shared/utils/unit-categories";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import { Mail } from "lucide-react";
@@ -7,7 +9,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { PartnerLink } from "@/components/home/v2/partner-link";
 import { CardGrid } from "@/components/ui/card-grid";
+import { ChevronFrame } from "@/components/ui/chevron-frame";
 import { DateBlock } from "@/components/ui/date-block";
 import { OptionalLink } from "@/components/ui/optional-link";
 import { PageHeader } from "@/components/ui/page-header";
@@ -22,8 +26,10 @@ import {
   statusPanelSecondaryAction,
 } from "@/components/ui/status-panel";
 import { UnitCard } from "@/components/units/v2/unit-card";
+import { localizedPublicBenefitText } from "@/lib/benefit-text";
 import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 import { getPrimaryTranslation } from "@/lib/content-translation";
+import type { CampusLogo } from "@/lib/data/benefits";
 import type { BoardSection } from "@/lib/data/campus-leadership";
 import type { PublicUnit } from "@/lib/data/units";
 import { formatArticleDate } from "@/lib/news-article";
@@ -35,7 +41,8 @@ import { formatArticleDate } from "@/lib/news-article";
  * `CampusMetadata` (tagline, description, highlights, focus areas) and
  * `CampusData` (benefits, partnership offer), describing them as content that
  * "already exists and is barely used". Both tables were **empty** when the
- * page was built. None of that is invented here: every editorial block is
+ * page was built; benefits and the partnership offer now come from the
+ * benefits studio instead. None of that is invented here: every editorial block is
  * rendered only when it arrives, so the page fills in by itself the day the
  * rows are written; until then it is built from what is real — who to
  * contact, what is on, who runs the campus and which units are here.
@@ -51,8 +58,10 @@ import { formatArticleDate } from "@/lib/news-article";
  * — there is no campus picker on the page.
  */
 export interface CampusLandingProps {
-  /** This campus's `campus_data` row, when one exists. */
-  campusData: CampusData | null;
+  /** Visible benefits for this campus plus national, campus rows first. */
+  benefits: PublicBenefit[];
+  /** This campus's sponsor logos. */
+  campusLogos: CampusLogo[];
   description: string | null;
   email: string | null;
   /** Campus-wide upcoming total, not `events.length`; null when unknown. */
@@ -86,35 +95,34 @@ type BenefitGroup =
   | "socialNetwork"
   | "safety";
 
-const BENEFIT_GROUPS: BenefitGroup[] = [
-  "studentBenefits",
-  "careerAdvantages",
-  "socialNetwork",
-  "safety",
+/** Each "For students" card and the benefits studio section it lists. */
+const BENEFIT_GROUPS: { key: BenefitGroup; section: BenefitSection }[] = [
+  { key: "studentBenefits", section: "member" },
+  { key: "careerAdvantages", section: "career" },
+  { key: "socialNetwork", section: "social" },
+  { key: "safety", section: "safety" },
 ];
 
 const ROW_CLASS =
   "flex items-start gap-4 rounded-biso-md border border-edge p-4 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
-/** A `campus_data` list in the visitor's language, the other as fallback. */
-function localizedList(
-  data: CampusData | null,
-  key: BenefitGroup | "businessBenefits",
+/** A section's benefit titles in the visitor's language, in board order. */
+function sectionTitles(
+  benefits: PublicBenefit[],
+  section: BenefitSection,
   locale: "en" | "no"
-): string[] {
-  if (!data) {
-    return [];
-  }
-  const english = data[`${key}_en`];
-  const norwegian = data[`${key}_nb`];
-  const preferred = locale === "en" ? english : norwegian;
-  const secondary = locale === "en" ? norwegian : english;
-  const list = preferred?.length ? preferred : (secondary ?? []);
-  return list.map((item) => item.trim()).filter(Boolean);
+): { id: string; title: string }[] {
+  return benefits
+    .filter((benefit) => benefit.section === section)
+    .map((benefit) => ({
+      id: benefit.id,
+      title: localizedPublicBenefitText(benefit, locale).title,
+    }));
 }
 
 export async function CampusLanding({
-  campusData,
+  benefits,
+  campusLogos,
   description,
   email,
   eventCount,
@@ -145,15 +153,11 @@ export async function CampusLanding({
     .filter((stat) => stat.count > 0)
     .map((stat) => ({ label: stat.label, value: String(stat.count) }));
 
-  const benefitGroups = BENEFIT_GROUPS.map((key) => ({
+  const benefitGroups = BENEFIT_GROUPS.map(({ key, section }) => ({
     key,
-    items: localizedList(campusData, key, locale),
+    items: sectionTitles(benefits, section, locale),
   })).filter((group) => group.items.length > 0);
-  const businessBenefits = localizedList(
-    campusData,
-    "businessBenefits",
-    locale
-  );
+  const businessBenefits = sectionTitles(benefits, "business", locale);
 
   return (
     <>
@@ -213,8 +217,12 @@ export async function CampusLanding({
         />
       ) : null}
 
-      {businessBenefits.length > 0 ? (
-        <ForBusinessesSection benefits={businessBenefits} campusName={name} />
+      {businessBenefits.length > 0 || campusLogos.length > 0 ? (
+        <ForBusinessesSection
+          benefits={businessBenefits}
+          campusName={name}
+          logos={campusLogos}
+        />
       ) : null}
     </>
   );
@@ -508,7 +516,10 @@ async function ForStudentsSection({
   slug,
   units,
 }: {
-  benefitGroups: { items: string[]; key: BenefitGroup }[];
+  benefitGroups: {
+    items: { id: string; title: string }[];
+    key: BenefitGroup;
+  }[];
   slug: string;
   units: PublicUnit[];
 }) {
@@ -544,12 +555,21 @@ async function ForStudentsSection({
                 {group.items.map((item) => (
                   <li
                     className="type-body-sm border-ink-accent border-l-2 pl-3 text-ink"
-                    key={item}
+                    key={item.id}
                   >
-                    {item}
+                    {item.title}
                   </li>
                 ))}
               </ul>
+              {/* Codes and member links live in the portal, members only. */}
+              {group.key === "studentBenefits" ? (
+                <Link
+                  className="type-label mt-4 inline-flex text-ink-accent underline-offset-4 hover:underline"
+                  href="/member"
+                >
+                  {t("forStudents.memberPortalLink")}
+                </Link>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -593,13 +613,18 @@ async function ForStudentsSection({
   );
 }
 
-/** The old "For businesses" tab: the campus's partnership offer. */
+/**
+ * The old "For businesses" tab: the campus's partnership offer and the
+ * sponsors already on board.
+ */
 async function ForBusinessesSection({
   benefits,
   campusName,
+  logos,
 }: {
-  benefits: string[];
+  benefits: { id: string; title: string }[];
   campusName: string;
+  logos: CampusLogo[];
 }) {
   const t = await getTranslations("campus");
 
@@ -613,19 +638,23 @@ async function ForBusinessesSection({
       </p>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="min-w-0">
-          <h3 className="type-heading-card mb-4 text-ink">
-            {t("forBusinesses.benefitsTitle")}
-          </h3>
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {benefits.map((benefit) => (
-              <li
-                className="type-body-sm border-ink-accent border-l-2 pl-3 text-ink"
-                key={benefit}
-              >
-                {benefit}
-              </li>
-            ))}
-          </ul>
+          {benefits.length > 0 ? (
+            <>
+              <h3 className="type-heading-card mb-4 text-ink">
+                {t("forBusinesses.benefitsTitle")}
+              </h3>
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {benefits.map((benefit) => (
+                  <li
+                    className="type-body-sm border-ink-accent border-l-2 pl-3 text-ink"
+                    key={benefit.id}
+                  >
+                    {benefit.title}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </div>
         <div className="self-start rounded-biso-md border border-edge p-6">
           <h3 className="type-heading-card text-ink">
@@ -642,6 +671,45 @@ async function ForBusinessesSection({
           </Link>
         </div>
       </div>
+
+      {logos.length > 0 ? (
+        <div className="mt-12">
+          <h3 className="type-heading-card mb-4 text-ink">
+            {t("forBusinesses.logosTitle")}
+          </h3>
+          <CardGrid columns={4}>
+            {logos.map((logo) => {
+              const image = (
+                <ChevronFrame
+                  className="border border-edge bg-surface-raised"
+                  ratio="16/9"
+                >
+                  <Image
+                    alt={logo.name}
+                    className="object-contain p-4"
+                    height={120}
+                    sizes="(max-width: 640px) 50vw, 220px"
+                    src={logo.imageUrl}
+                    unoptimized
+                    width={220}
+                  />
+                </ChevronFrame>
+              );
+              return (
+                <li key={logo.id}>
+                  {logo.url ? (
+                    <PartnerLink name={logo.name} url={logo.url}>
+                      {image}
+                    </PartnerLink>
+                  ) : (
+                    image
+                  )}
+                </li>
+              );
+            })}
+          </CardGrid>
+        </div>
+      ) : null}
     </Section>
   );
 }

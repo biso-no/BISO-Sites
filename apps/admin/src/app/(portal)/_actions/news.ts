@@ -25,6 +25,7 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { resolveNotifyPush } from "@/lib/notify-push-guard";
 import { loadRecruitmentLookups } from "@/lib/recruitment";
 import {
   buildContentRowPermissions,
@@ -462,6 +463,13 @@ export async function createNews(
         department_id: validated.data.department_id ?? null,
         image: validated.data.image || null,
         sticky: validated.data.sticky ?? false,
+        notify_push: resolveNotifyPush({
+          campusId: validated.data.campus_id,
+          isGlobalAdmin: ctx.roles.includes("globaladmin"),
+          requested: validated.data.notify_push,
+          stored: null,
+          storedCampusId: null,
+        }),
         author: validated.data.author ?? null,
         translation_refs: buildNestedTranslations(
           articleId,
@@ -582,6 +590,13 @@ export async function updateNews(
         department_id: validated.data.department_id ?? null,
         image: validated.data.image || null,
         sticky: validated.data.sticky ?? false,
+        notify_push: resolveNotifyPush({
+          campusId: validated.data.campus_id,
+          isGlobalAdmin: ctx.roles.includes("globaladmin"),
+          requested: validated.data.notify_push,
+          stored: article.notify_push,
+          storedCampusId: article.campus_id,
+        }),
         author: validated.data.author ?? null,
         translation_refs: buildNestedTranslations(
           id,

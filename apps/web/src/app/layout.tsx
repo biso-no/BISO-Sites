@@ -7,6 +7,8 @@ import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { BiSignInNotice } from "@/components/bi-sign-in-notice";
+import { UmamiBeforeSend } from "@/components/umami-before-send";
+import { UMAMI_BEFORE_SEND } from "@/lib/analytics-privacy";
 import { museoSans, museoSlab } from "./fonts";
 import Providers from "./providers";
 export const metadata: Metadata = {
@@ -69,7 +71,11 @@ export default async function RootLayout({
               <BiSignInNotice />
             </Suspense>
             {children}
+            {/* Drops the query string from `/auth/` page URLs before Umami
+                records them: `/auth/verify` carries a live sign-in secret. */}
+            <UmamiBeforeSend />
             <Script
+              data-before-send={UMAMI_BEFORE_SEND}
               data-domains="biso.no,www.biso.no"
               data-performance="true"
               data-website-id="ada2c233-ee4f-4064-87c0-feaeb52c56ce"

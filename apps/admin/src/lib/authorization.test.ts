@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const account = {
   get: mock(),
+  listIdentities: mock(),
 };
 const db = {
   listRows: mock(),
@@ -28,10 +29,27 @@ mock.module("next/headers", () => ({
   headers: mock(async () => new Headers()),
 }));
 
+const actualNavigation = await import("next/navigation");
+
+mock.module("next/navigation", () => ({
+  ...actualNavigation,
+  notFound: mock(() => {
+    throw new Error("NEXT_NOT_FOUND");
+  }),
+  redirect: mock((to: string) => {
+    throw new Error(`NEXT_REDIRECT:${to}`);
+  }),
+  unauthorized: mock(() => {
+    throw new Error("NEXT_UNAUTHORIZED");
+  }),
+}));
+
 const { parseTeamMemberships } = await import(
   "./authorization-team-memberships"
 );
-const { getUserRolesForClient } = await import("./authorization");
+const { getUserRolesForClient, requireAdminAccess } = await import(
+  "./authorization"
+);
 const { hasNavAccess } = await import("./roles");
 
 describe("admin authorization team parsing", () => {
@@ -93,5 +111,86 @@ describe("admin authorization team parsing", () => {
       { $id: "legacy-guid", name: "SG-App-Dept-OperationsUnit" },
     ]);
     expect(opsUnit.roles).not.toContain("hr");
+  });
+});
+
+describe("benefits editor role", () => {
+  const originalEditorEmails = process.env.BENEFITS_EDITOR_EMAILS;
+  const editorEmail = "pr@biso.no";
+
+  afterAll(() => {
+    if (originalEditorEmails === undefined) {
+      Reflect.deleteProperty(process.env, "BENEFITS_EDITOR_EMAILS");
+    } else {
+      process.env.BENEFITS_EDITOR_EMAILS = originalEditorEmails;
+    }
+  });
+  const microsoft = [{ provider: "microsoft", providerEmail: "PR@biso.no" }];
+
+  beforeEach(() => {
+    process.env.BENEFITS_EDITOR_EMAILS = editorEmail;
+    account.get.mockReset();
+    account.listIdentities.mockReset();
+    teams.list.mockReset();
+    db.listRows.mockReset();
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
+    teams.list.mockResolvedValue({ teams: [] });
+    account.get.mockResolvedValue({
+      $id: "user-2",
+      email: editorEmail,
+      name: "PR",
+    });
+    account.listIdentities.mockResolvedValue({ identities: microsoft });
+  });
+
+  test("granted once for a listed email with a microsoft identity", async () => {
+    const { roles } = await getUserRolesForClient();
+    expect(roles.filter((r) => r === "benefitseditor")).toHaveLength(1);
+  });
+
+  test("absent when the env is unset or empty", async () => {
+    process.env.BENEFITS_EDITOR_EMAILS = "";
+    expect((await getUserRolesForClient()).roles).not.toContain(
+      "benefitseditor"
+    );
+    Reflect.deleteProperty(process.env, "BENEFITS_EDITOR_EMAILS");
+    expect((await getUserRolesForClient()).roles).not.toContain(
+      "benefitseditor"
+    );
+  });
+
+  test("absent when the account has no microsoft identity", async () => {
+    account.listIdentities.mockResolvedValue({ identities: [] });
+    expect((await getUserRolesForClient()).roles).not.toContain(
+      "benefitseditor"
+    );
+  });
+
+  test("fails closed when listIdentities throws", async () => {
+    account.listIdentities.mockRejectedValue(new Error("boom"));
+    teams.list.mockResolvedValue({
+      teams: [{ $id: "sg-app-dept-hr", name: "HR" }],
+    });
+    const result = await getUserRolesForClient();
+    expect(result.roles).not.toContain("benefitseditor");
+    expect(result.roles).toContain("hr");
+    expect(result.hasDepartmentMembership).toBe(true);
+    expect(result.departmentNames).toEqual(["HR"]);
+    const ctx = await requireAdminAccess();
+    expect(ctx.departmentTeamIds).toEqual(["sg-app-dept-hr"]);
+  });
+
+  test("requireAdminAccess admits a teamless editor", async () => {
+    const ctx = await requireAdminAccess();
+    expect(ctx.roles).toContain("benefitseditor");
+  });
+
+  test("requireAdminAccess rejects a teamless non-editor", async () => {
+    account.get.mockResolvedValue({
+      $id: "user-3",
+      email: "other@biso.no",
+      name: "Other",
+    });
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
   });
 });

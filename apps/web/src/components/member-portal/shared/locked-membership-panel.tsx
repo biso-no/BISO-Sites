@@ -1,6 +1,7 @@
 "use client";
 
 import { POPULAR_MEMBERSHIP_DURATION } from "@repo/shared/utils/membership-plans";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { ArrowRight, Check, Lock, LogIn } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -26,12 +27,18 @@ const QUICK_BENEFIT_KEYS = ["discounts", "card", "priority", "career"] as const;
  * Without a BI identity there is nothing to buy yet: membership follows the
  * student number, so the step is "Sign in with BI". There is no linking — the
  * visitor signs out of this account and in with BI, and lands back here.
+ *
+ * The benefit lines are the "Låst innhold i medlemsportalen" spot editors
+ * manage in admin; without saved lines they fall back to the i18n text.
  */
 export function LockedMembershipPanel({
   hasBIIdentity,
+  items,
   plans,
 }: {
   hasBIIdentity: boolean;
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
   plans: PlanView[];
 }) {
   const t = useTranslations("memberPortal");
@@ -51,7 +58,9 @@ export function LockedMembershipPanel({
     });
   };
 
-  const benefits = QUICK_BENEFIT_KEYS.map((key) => t(`cta.benefits.${key}`));
+  const benefits = items?.length
+    ? items.map((item) => item.title)
+    : QUICK_BENEFIT_KEYS.map((key) => t(`locked.quickBenefits.${key}`));
   const benefitList = (
     <ul className="grid gap-2 sm:grid-cols-2">
       {benefits.map((benefit) => (

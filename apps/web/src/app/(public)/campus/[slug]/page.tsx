@@ -1,8 +1,8 @@
-import type { CampusData } from "@repo/api/types/appwrite";
+import { benefitsForCampus } from "@repo/shared/utils/benefit-public";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { getCampusData, getCampusMetadata } from "@/app/actions/campus";
+import { getCampusMetadata } from "@/app/actions/campus";
 import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
@@ -10,6 +10,7 @@ import { listNews } from "@/app/actions/news";
 import { CampusLanding } from "@/components/campus/v2/campus-landing";
 import { localizedFocusAreas } from "@/lib/campus-leadership";
 import { CAMPUS_SLUGS, campusSlugToId } from "@/lib/campus-scope";
+import { cachedCampusLogos, getPublicBenefits } from "@/lib/data/benefits";
 import { campusLeadership } from "@/lib/data/campus-leadership";
 import {
   cachedHomeCounts,
@@ -27,10 +28,11 @@ import { cachedPublicUnits } from "@/lib/data/units";
  *
  * RD-016 gave the campus a URL; RD-023 gave it a page; the merge with main
  * moved the old `/campus` tabs onto it — the management board, the campus's
- * student benefits and units, and its partnership offer. Every editorial field
- * renders only when it has data (PLACEHOLDER-009): `campus_metadata` and
- * `campus_data` were empty when the page was built, and the page fills itself
- * in as those rows are written.
+ * student benefits and units, and its partnership offer. Benefits come from
+ * the benefits studio (`campus_benefits`, this campus plus national) and the
+ * sponsor logos from `partners`. Every editorial field renders only when it
+ * has data (PLACEHOLDER-009): `campus_metadata` was empty when the page was
+ * built, and the page fills itself in as those rows are written.
  */
 // No `dynamicParams = false` — it is incompatible with `cacheComponents`.
 // An unknown slug still 404s: `loadCampus` returns null and the page calls
@@ -105,23 +107,6 @@ async function loadCampus(slug: string) {
   };
 }
 
-/** This campus's `campus_data` row, by id or by name. */
-function campusDataFor(
-  rows: CampusData[],
-  id: string,
-  name: string
-): CampusData | null {
-  const wanted = name.toLowerCase();
-  return (
-    rows.find(
-      (row) =>
-        row.$id === id ||
-        row.name?.toLowerCase() === wanted ||
-        row.name_nb?.toLowerCase() === wanted
-    ) ?? null
-  );
-}
-
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const campus = await loadCampus(slug);
@@ -161,7 +146,8 @@ export default async function CampusPage({ params }: Params) {
     units,
     counts,
     leadership,
-    campusDataRows,
+    benefits,
+    campusLogos,
   ] = await Promise.all([
     listEvents({
       locale: campus.locale,
@@ -182,12 +168,14 @@ export default async function CampusPage({ params }: Params) {
     cachedPublicUnits(campus.locale).catch(() => null),
     cachedHomeCounts(campus.id, campus.locale).catch(() => null),
     campusLeadership(campus.id).catch(() => []),
-    getCampusData().catch((): CampusData[] => []),
+    getPublicBenefits().catch(() => []),
+    cachedCampusLogos().catch(() => []),
   ]);
 
   return (
     <CampusLanding
-      campusData={campusDataFor(campusDataRows, campus.id, campus.name)}
+      benefits={benefitsForCampus(benefits, campus.id)}
+      campusLogos={campusLogos.filter((logo) => logo.campusId === campus.id)}
       description={campus.description ?? campus.tagline}
       email={campus.email}
       eventCount={counts?.eventCount ?? null}

@@ -10,6 +10,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Fragment, useCallback } from "react";
 import type { ResolvedBackground } from "@/blocks/_primitives/layout-types";
 import { resolveBackgrounds } from "@/blocks/_primitives/resolve-layout";
+import { BlockView } from "@/blocks/block-view";
 import { getBlock } from "@/blocks/registry";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
@@ -366,9 +367,9 @@ function SortableBlock({
         </>
       )}
 
-      <def.Render
+      <BlockView
         background={background}
-        block={block as never}
+        block={block}
         edit={mode === "edit"}
         onPatch={onPatch}
       />

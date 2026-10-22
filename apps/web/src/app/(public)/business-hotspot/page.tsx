@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { getLocale } from "@/app/actions/locale";
 import { CardGrid } from "@/components/ui/card-grid";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 
 const OSLO_BUSINESS_EMAIL = "business.oslo@biso.no";
 
@@ -31,11 +33,18 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function BusinessHotspotPage() {
-  const [t, tCommon, tPartner] = await Promise.all([
+  const [t, tCommon, tPartner, items] = await Promise.all([
     getTranslations("businessHotspot"),
     getTranslations("common"),
     getTranslations("partner"),
+    // The Business Hotspot spot from admin; null keeps the bundle's lines.
+    getLocale().then((locale) =>
+      getMembershipTextItems("business_hotspot", locale)
+    ),
   ]);
+  const benefits = items?.length
+    ? items.map((item) => item.title)
+    : BENEFITS.map((key) => t(`benefits.${key}`));
 
   return (
     <>
@@ -65,14 +74,15 @@ export default async function BusinessHotspotPage() {
           {t("whatIs.description")}
         </p>
         <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-          {BENEFITS.map((key) => (
-            <li className="type-body flex gap-3 text-ink" key={key}>
+          {benefits.map((benefit, index) => (
+            <li
+              className="type-body flex gap-3 text-ink"
+              key={`${index}-${benefit}`}
+            >
               <span aria-hidden="true" className="text-ink-accent">
                 —
               </span>
-              <span className="min-w-0 break-words">
-                {t(`benefits.${key}`)}
-              </span>
+              <span className="min-w-0 break-words">{benefit}</span>
             </li>
           ))}
         </ul>

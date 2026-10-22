@@ -1,6 +1,11 @@
-import type { CampusData, Events } from "@repo/api/types/appwrite";
+import type { Events } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import { BENEFIT_SECTIONS } from "@repo/shared/utils/benefit-catalog";
+import {
+  benefitsForCampus,
+  type PublicBenefit,
+} from "@repo/shared/utils/benefit-public";
 import { UNIT_CATEGORY_MESSAGE_KEYS } from "@repo/shared/utils/unit-categories";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import { ArrowRight } from "lucide-react";
@@ -16,6 +21,7 @@ import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
 import { UnitCard } from "@/components/units/v2/unit-card";
+import { localizedPublicBenefitText } from "@/lib/benefit-text";
 import { toPlainText } from "@/lib/content-text";
 import { getPrimaryTranslation } from "@/lib/content-translation";
 import type { PublicUnit } from "@/lib/data/units";
@@ -33,47 +39,8 @@ import { getEventHref } from "@/lib/types/event";
  * browser.
  */
 
-export type BenefitKey =
-  | "studentBenefits"
-  | "careerAdvantages"
-  | "socialNetwork"
-  | "safety"
-  | "businessBenefits";
-
-const BENEFIT_KEYS: BenefitKey[] = [
-  "studentBenefits",
-  "careerAdvantages",
-  "socialNetwork",
-  "safety",
-  "businessBenefits",
-];
-
 /** Main's card budget: enough to scan, short of a wall of text. */
 const BENEFIT_ITEMS_PER_CARD = 4;
-
-/**
- * A benefit list in the visitor's language — `<key>_en` / `<key>_nb` — or the
- * row's unsuffixed list when the localized one is absent. Main's selection
- * rule, unchanged.
- */
-export function selectBenefitItems(
-  data: CampusData | null | undefined,
-  key: BenefitKey,
-  locale: Locale
-): string[] {
-  if (!data) {
-    return [];
-  }
-  const localized = data[`${key}${locale === "en" ? "_en" : "_nb"}`];
-  const fallback = data[key];
-  let list: unknown[] = [];
-  if (Array.isArray(localized)) {
-    list = localized;
-  } else if (Array.isArray(fallback)) {
-    list = fallback;
-  }
-  return list.map((item) => (item ? String(item).trim() : "")).filter(Boolean);
-}
 
 const ROW =
   "flex items-start gap-4 rounded-biso-md border border-edge p-4 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
@@ -84,29 +51,34 @@ const CARD_LINK =
 const intlLocaleOf = (locale: Locale) => (locale === "en" ? "en-GB" : "nb-NO");
 
 /**
- * Member benefits for the campus (falling back to the national row), one card
- * per category that has entries. Omitted entirely while there are none: the
- * benefits are `campus_data` rows, and an empty section would only promise
- * content that has not been written (PLACEHOLDER-009). The full list lives on
- * `/membership`, which the heading links to.
+ * Benefits for the campus plus the national ones, one card per benefits
+ * studio section that has entries, the campus's own rows first so national
+ * deals never push them out of the four slots. Omitted entirely while there
+ * are none: an empty section would only promise content that has not been
+ * written (PLACEHOLDER-009). The full list lives on `/membership`, which the
+ * heading links to.
  */
 export async function BenefitsSection({
+  benefits,
   benefitsHref,
+  campusId,
   campusLabel,
-  data,
   locale,
 }: {
+  benefits: PublicBenefit[];
   benefitsHref: string;
+  campusId: string | null;
   campusLabel: string;
-  data: CampusData | null;
   locale: Locale;
 }) {
-  const cards = BENEFIT_KEYS.map((key) => ({
+  const cards = BENEFIT_SECTIONS.map((key) => ({
     key,
-    items: selectBenefitItems(data, key, locale).slice(
-      0,
-      BENEFIT_ITEMS_PER_CARD
-    ),
+    items: benefitsForCampus(benefits, campusId, [key])
+      .slice(0, BENEFIT_ITEMS_PER_CARD)
+      .map((benefit) => ({
+        id: benefit.id,
+        title: localizedPublicBenefitText(benefit, locale).title,
+      })),
   })).filter((card) => card.items.length > 0);
 
   if (cards.length === 0) {
@@ -142,9 +114,9 @@ export async function BenefitsSection({
               {card.items.map((item) => (
                 <li
                   className="type-body-sm border-ink-accent border-l-2 pl-3 text-ink"
-                  key={item}
+                  key={item.id}
                 >
-                  {item}
+                  {item.title}
                 </li>
               ))}
             </ul>

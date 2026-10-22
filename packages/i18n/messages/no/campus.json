@@ -41,6 +41,7 @@
   "forStudents": {
     "title": "For studenter",
     "lede": "Lås opp eksklusive muligheter og støtte gjennom hele studietiden.",
+    "memberPortalLink": "Se alle tilbud og koder i medlemsportalen",
     "groups": {
       "studentBenefits": {
         "title": "Medlemsfordeler",
@@ -64,6 +65,7 @@
     "title": "For bedrifter",
     "lede": "Få kontakt med talentfulle studenter og bygg merkevaren deres på {campus}.",
     "benefitsTitle": "Partnerskapsfordeler",
+    "logosTitle": "Våre campuspartnere",
     "ctaTitle": "Klar til å samarbeide?",
     "ctaBody": "Ta kontakt med partnerskapsteamet vårt for å utforske samarbeidsmuligheter og skape meningsfulle forbindelser med studenter.",
     "cta": "Kontakt partnerskapsteamet"

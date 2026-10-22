@@ -30,44 +30,33 @@ function makeCtx(overrides: Partial<UserAuthContext> = {}): UserAuthContext {
   };
 }
 
-const departmentCtx = makeCtx({
-  campusNames: ["Oslo"],
-  departmentNames: ["Sosialutvalget"],
-  departmentTeamIds: ["sg-app-dept-sosialutvalget"],
-  resolvedCampusIds: ["campus-oslo"],
-  resolvedDepartmentIds: ["dept-1"],
-});
 const campusAdminCtx = makeCtx({
   campusNames: ["Oslo"],
-  campusTeamIds: ["sg-app-campus-oslo"],
   managedCampuses: ["Oslo"],
-  managedCampusIds: ["campus-oslo"],
-  resolvedCampusIds: ["campus-oslo"],
+  managedCampusIds: ["2"],
+  resolvedCampusIds: ["2"],
   roles: ["campusadmin"],
 });
 const globalAdminCtx = makeCtx({ roles: ["globaladmin"] });
 
-let currentCtx: UserAuthContext = departmentCtx;
+let currentCtx: UserAuthContext = campusAdminCtx;
 
-const departmentValues: BenefitFormValues = {
-  campus_id: "campus-oslo",
-  category: "Career",
-  department_id: "dept-1",
+const campusValues: BenefitFormValues = {
+  campus_id: "2",
+  category: "food_drink",
   description_en: "",
   description_nb: "<p>Norsk beskrivelse</p>",
   image_url: null,
   is_featured: false,
-  is_member_only: true,
-  kind: "offer",
-  partner_name: null,
+  partner_id: null,
   publish_end: null,
   publish_start: null,
   redemption_type: "none",
   redemption_value: null,
-  sort_order: 0,
+  section: "member",
   status: "draft",
-  teaser_en: null,
-  teaser_nb: "Norsk ingress",
+  terms_en: null,
+  terms_nb: null,
   title_en: "",
   title_nb: "Norsk tittel",
 };
@@ -79,22 +68,19 @@ mock.module("@repo/api/server", () => ({
 mock.module("@/lib/authorization", () => ({
   requireAuth: mock(async () => currentCtx),
 }));
-mock.module("@/lib/recruitment", () => ({
-  loadRecruitmentLookups: mock(async () => ({
-    campusIdsByName: new Map([["Oslo", "campus-oslo"]]),
-    campusNamesById: new Map([["campus-oslo", "Oslo"]]),
-    departmentIdsByName: new Map([["Sosialutvalget", "dept-1"]]),
-    departmentNamesById: new Map([["dept-1", "Sosialutvalget"]]),
-  })),
-}));
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
+}));
+mock.module("@/lib/web-revalidate", () => ({
+  notifyWebsite: mock(async () => undefined),
 }));
 mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { createBenefit, getBenefit, updateBenefit } = await import("./benefits");
+const { createBenefit, getBenefitForEdit, updateBenefit } = await import(
+  "./benefits"
+);
 
 function mockBenefitRow(benefit: Record<string, unknown> | null): void {
   db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
@@ -106,7 +92,7 @@ function mockBenefitRow(benefit: Record<string, unknown> | null): void {
 }
 
 beforeEach(() => {
-  currentCtx = departmentCtx;
+  currentCtx = campusAdminCtx;
   db.createRow.mockReset();
   db.deleteRow.mockReset();
   db.getRow.mockReset();
@@ -114,13 +100,11 @@ beforeEach(() => {
   db.updateRow.mockReset();
   db.upsertRow.mockReset();
 
-  db.getRow.mockImplementation(
-    (_databaseId: string, tableId: string, rowId: string) => {
-      if (tableId === "departments") {
-        return { $id: rowId, campus: { $id: "campus-oslo" } };
-      }
-      throw new Error(`Unexpected getRow for ${tableId}`);
-    }
+  db.getRow.mockRejectedValue(
+    Object.assign(new Error("Row not found"), { code: 404 })
+  );
+  db.deleteRow.mockRejectedValue(
+    Object.assign(new Error("Row not found"), { code: 404 })
   );
   db.upsertRow.mockImplementation(
     async (
@@ -133,9 +117,9 @@ beforeEach(() => {
   db.listRows.mockResolvedValue({ rows: [], total: 0 });
 });
 
-describe("benefit relationship persistence", () => {
-  test("createBenefit persists ownership and the linked locale child", async () => {
-    const result = await createBenefit(departmentValues);
+describe("benefit campus ownership", () => {
+  test("createBenefit persists the campus, no department and the linked locale child", async () => {
+    const result = await createBenefit(campusValues);
 
     expect(result).toEqual({ data: expect.any(String) });
     expect(db.upsertRow).toHaveBeenCalledWith(
@@ -143,62 +127,42 @@ describe("benefit relationship persistence", () => {
       "campus_benefits",
       expect.any(String),
       expect.objectContaining({
-        campus: "campus-oslo",
-        campus_id: "campus-oslo",
+        campus: "2",
+        campus_id: "2",
         // Inline bilingual columns remain the compatibility read path.
         description_nb: "<p>Norsk beskrivelse</p>",
-        department: "dept-1",
+        department: null,
         contentTranslations: [
-          expect.objectContaining({
-            $permissions: expect.any(Array),
+          {
+            $permissions: [],
+            additional_fields: null,
+            content_id: expect.any(String),
             content_type: "memberBenefit",
+            description: "<p>Norsk beskrivelse</p>",
             locale: "no",
-            short_description: "Norsk ingress",
             title: "Norsk tittel",
-          }),
+          },
         ],
       }),
-      expect.any(Array)
+      []
     );
   });
 
-  test("department author cannot clear their department", async () => {
-    const result = await createBenefit({
-      ...departmentValues,
-      department_id: null,
-    });
+  test("published locale children are public", async () => {
+    await createBenefit({ ...campusValues, status: "published" });
 
-    expect(result).toEqual({
-      error: "Unauthorized: no write access to this department",
-    });
-    expect(db.upsertRow).not.toHaveBeenCalled();
-  });
-
-  test("campus admin may keep a benefit campus-wide", async () => {
-    currentCtx = campusAdminCtx;
-
-    const result = await createBenefit({
-      ...departmentValues,
-      department_id: null,
-    });
-
-    expect(result).toEqual({ data: expect.any(String) });
-    expect(db.upsertRow).toHaveBeenCalledWith(
-      "app",
-      "campus_benefits",
-      expect.any(String),
-      expect.objectContaining({ campus: "campus-oslo", department: null }),
-      expect.any(Array)
-    );
+    const data = db.upsertRow.mock.calls[0]?.[3] as {
+      contentTranslations: { $permissions: string[] }[];
+    };
+    expect(data.contentTranslations[0]?.$permissions).toEqual(['read("any")']);
   });
 
   test("no author may clear the campus", async () => {
     currentCtx = globalAdminCtx;
 
     const result = await createBenefit({
-      ...departmentValues,
-      campus_id: "",
-      department_id: null,
+      ...campusValues,
+      campus_id: "" as BenefitFormValues["campus_id"],
     });
 
     expect(result).toEqual({
@@ -207,17 +171,20 @@ describe("benefit relationship persistence", () => {
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
-  test("updateBenefit authorizes the persisted relationship scope", async () => {
+  test("updateBenefit authorizes the stored campus", async () => {
     mockBenefitRow({
       $id: "benefit-1",
-      campus: { $id: "campus-bergen" },
-      department: { $id: "dept-9" },
+      campus_id: "3",
+      section: "member",
+      sort_order: 0,
       status: "draft",
     });
 
-    const result = await updateBenefit("benefit-1", departmentValues);
+    const result = await updateBenefit("benefit-1", campusValues);
 
-    expect(result).toEqual({ error: "Unauthorized: no access to this campus" });
+    expect(result).toEqual({
+      error: "Unauthorized: no write access to this campus",
+    });
     expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
@@ -228,8 +195,9 @@ describe("benefit relationship persistence", () => {
           rows: [
             {
               $id: "benefit-1",
-              campus: { $id: "campus-oslo" },
-              department: { $id: "dept-1" },
+              campus_id: "2",
+              section: "member",
+              sort_order: 0,
               status: "draft",
             },
           ],
@@ -249,7 +217,7 @@ describe("benefit relationship persistence", () => {
       };
     });
 
-    await updateBenefit("benefit-1", departmentValues);
+    await updateBenefit("benefit-1", campusValues);
 
     expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
@@ -268,14 +236,14 @@ describe("benefit relationship persistence", () => {
     );
   });
 
-  test("getBenefit hides rows outside the relationship scope", async () => {
+  test("getBenefitForEdit hides rows outside the caller's campuses", async () => {
     mockBenefitRow({
       $id: "benefit-1",
-      campus: { $id: "campus-bergen" },
-      department: { $id: "dept-9" },
+      campus_id: "3",
+      section: "member",
       status: "published",
     });
 
-    await expect(getBenefit("benefit-1")).resolves.toBeNull();
+    await expect(getBenefitForEdit("benefit-1")).resolves.toBeNull();
   });
 });

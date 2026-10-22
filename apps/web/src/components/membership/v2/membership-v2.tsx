@@ -1,4 +1,5 @@
-import type { CampusBenefits } from "@repo/api/types/appwrite";
+import type { BenefitSection } from "@repo/shared/utils/benefit-catalog";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import type { MembershipPlan } from "@repo/shared/utils/membership-plans";
 import { membershipPriceFormatter } from "@repo/shared/utils/membership-plans";
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
@@ -12,7 +13,10 @@ import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
-import { localizedBenefitText } from "@/lib/benefit-text";
+import {
+  benefitCategoryLabel,
+  localizedPublicBenefitText,
+} from "@/lib/benefit-text";
 import { MembershipJoinLink } from "./membership-join-link";
 
 /**
@@ -32,13 +36,16 @@ import { MembershipJoinLink } from "./membership-join-link";
  *    five hardcoded category blurbs in the bundle, while `campus_benefits`
  *    holds published rows, fully bilingual, categorised and campus-scoped,
  *    which only the signed-in member portal ever read. They are the reason to
- *    join, so they are on the page you join from.
+ *    join, so they are on the page you join from. Since the benefits studio,
+ *    the same table also carries the one-line career, social, safety and
+ *    business lists, which follow the member benefits here.
  *
  * The purchase flow is untouched: this page links to `/membership/join`, which
  * owns the gate and the wizard.
  */
 export interface MembershipV2Props {
-  benefits: CampusBenefits[];
+  /** Visible benefits for the campus plus national, campus rows first. */
+  benefits: PublicBenefit[];
   campusName: string | null;
   locale: "en" | "no";
   plans: MembershipPlan[];
@@ -53,6 +60,26 @@ const HIGHLIGHTS = [
 
 const FAQ_KEYS = ["cost", "discounts", "switchCampus", "engagement"] as const;
 
+/** The one-line studio sections, with the bundle copy that introduces each. */
+const LINE_SECTIONS: {
+  copyKey: string;
+  section: Exclude<BenefitSection, "member">;
+}[] = [
+  { copyKey: "career", section: "career" },
+  { copyKey: "social", section: "social" },
+  { copyKey: "safety", section: "safety" },
+  { copyKey: "business", section: "business" },
+];
+
+/** A member benefit without a category is filed under the studio's "other". */
+const UNCATEGORISED = "other";
+
+/** Stored HTML or Plate JSON starts with "<" or "["; anything else is text. */
+const isRichDescription = (description: string) => {
+  const start = description.trimStart().charAt(0);
+  return start === "<" || start === "[";
+};
+
 const textLinkClass =
   "type-label inline-flex items-center gap-2 text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
@@ -61,39 +88,34 @@ function BenefitCard({
   locale,
   offerLabel,
 }: {
-  benefit: CampusBenefits;
+  benefit: PublicBenefit;
   locale: "en" | "no";
   offerLabel: string;
 }) {
   // Title and description follow the reader's language and fall back to the
   // other one field by field, so a half-translated row still reads.
-  const { title, description } = localizedBenefitText(benefit, locale);
-  // The admin editor stores HTML; older rows may hold plain text.
-  const isHtml = description.trimStart().startsWith("<");
+  const { title, description } = localizedPublicBenefitText(benefit, locale);
   return (
     <li className="flex h-full flex-col rounded-biso-md border border-edge p-5">
-      <span className="flex flex-wrap items-center gap-2">
-        {/* `kind` separates a standing perk from a partner offer, and only the
-            offers carry a partner name. Both are real columns. */}
-        {benefit.kind === "offer" ? (
+      {/* Only a partner's deal names a partner; a standing perk has none. */}
+      {benefit.partner ? (
+        <span className="flex flex-wrap items-center gap-2">
           <Pill tone="success" uppercase>
             {offerLabel}
           </Pill>
-        ) : null}
-        {benefit.partner_name ? (
-          <Pill tone="neutral">{benefit.partner_name}</Pill>
-        ) : null}
-      </span>
+          <Pill tone="neutral">{benefit.partner.name}</Pill>
+        </span>
+      ) : null}
 
       {/* `h4`: each card sits under its category's `h3`. */}
       <h4 className="type-heading-card mt-3 text-ink">{title}</h4>
 
       {description ? (
         <Prose className="type-body-sm [&_p]:type-body-sm mt-2 text-ink-muted [&_p]:mb-2">
-          {isHtml ? (
+          {isRichDescription(description) ? (
             <PlateContentRenderer value={description} />
           ) : (
-            <p>{description}</p>
+            <p className="whitespace-pre-line">{description}</p>
           )}
         </Prose>
       ) : null}
@@ -113,10 +135,19 @@ export async function MembershipV2({
     getTranslations("common.navigation"),
   ]);
 
+  const memberBenefits = benefits.filter((b) => b.section === "member");
+  const categoryOf = (b: PublicBenefit) => b.category || UNCATEGORISED;
   // Grouped by the `category` column rather than by five hardcoded blurbs.
-  const categories = [...new Set(benefits.map((b) => b.category))].filter(
-    Boolean
-  ) as string[];
+  const categories = [...new Set(memberBenefits.map(categoryOf))];
+  const lineSections = LINE_SECTIONS.map((config) => ({
+    ...config,
+    items: benefits
+      .filter((b) => b.section === config.section)
+      .map((b) => ({
+        id: b.id,
+        title: localizedPublicBenefitText(b, locale).title,
+      })),
+  })).filter((config) => config.items.length > 0);
 
   return (
     <>
@@ -173,7 +204,7 @@ export async function MembershipV2({
         </Section>
       ) : null}
 
-      {benefits.length > 0 ? (
+      {memberBenefits.length > 0 || lineSections.length > 0 ? (
         // `#fordeler` is what the "Member benefits" nav item points at
         // (`nav-config.ts`). **No element carried that id anywhere in the app**,
         // so the link has been scrolling nowhere. It anchors here.
@@ -183,20 +214,27 @@ export async function MembershipV2({
               ? t("local.title", { campus: campusName })
               : t("global.title")}
           </SectionHeading>
-          <p className="type-body-sm mb-8 max-w-(--measure) text-ink-muted">
-            {t("plans.benefitsLede", { count: benefits.length })}
-          </p>
+          {/* No count beats "0 member benefits" while benefits fail to load. */}
+          {memberBenefits.length > 0 ? (
+            <p className="type-body-sm mb-8 max-w-(--measure) text-ink-muted">
+              {t("plans.benefitsLede", { count: memberBenefits.length })}
+            </p>
+          ) : null}
 
           {categories.map((category) => {
-            const inCategory = benefits.filter((b) => b.category === category);
+            const inCategory = memberBenefits.filter(
+              (b) => categoryOf(b) === category
+            );
             return (
               <div className="mb-12 last:mb-0" key={category}>
-                <SectionHeading as="h3">{category}</SectionHeading>
+                <SectionHeading as="h3">
+                  {benefitCategoryLabel(category, locale)}
+                </SectionHeading>
                 <CardGrid>
                   {inCategory.map((benefit) => (
                     <BenefitCard
                       benefit={benefit}
-                      key={benefit.$id}
+                      key={benefit.id}
                       locale={locale}
                       offerLabel={t("plans.offer")}
                     />
@@ -205,6 +243,34 @@ export async function MembershipV2({
               </div>
             );
           })}
+
+          {lineSections.length > 0 ? (
+            <CardGrid>
+              {lineSections.map((config) => (
+                <li
+                  className="min-w-0 rounded-biso-md border border-edge p-6"
+                  key={config.section}
+                >
+                  <h3 className="type-heading-card break-words text-ink">
+                    {t(`benefits.categories.${config.copyKey}.title`)}
+                  </h3>
+                  <p className="type-body-sm mt-1 text-ink-muted">
+                    {t(`benefits.categories.${config.copyKey}.global`)}
+                  </p>
+                  <ul className="mt-4 space-y-2">
+                    {config.items.map((item) => (
+                      <li
+                        className="type-body-sm border-ink-accent border-l-2 pl-3 text-ink"
+                        key={item.id}
+                      >
+                        {item.title}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </CardGrid>
+          ) : null}
         </Section>
       ) : null}
 

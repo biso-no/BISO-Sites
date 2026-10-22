@@ -2,7 +2,6 @@
 
 import { cn } from "@repo/ui/lib/utils";
 import { Check, Copy, ExternalLink, Loader2, Sparkles } from "lucide-react";
-import { QrCode } from "@/components/member-pass/qr-code";
 import {
   statusPanelPrimaryAction,
   statusPanelSecondaryAction,
@@ -41,18 +40,6 @@ export function CodeReveal({
         )}
         <span aria-live="polite">{copiedCode ? copiedLabel : copyLabel}</span>
       </button>
-    </div>
-  );
-}
-
-/**
- * The benefit's own QR code. This used to draw a generic QR *icon* in place of
- * the code, so a QR benefit could be revealed and never shown.
- */
-export function QrReveal({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-center rounded-biso-md border border-edge bg-surface-sunken p-6">
-      <QrCode className="size-40" label={label} value={value} />
     </div>
   );
 }

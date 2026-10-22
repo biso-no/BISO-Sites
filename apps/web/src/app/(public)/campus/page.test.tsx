@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 const listEvents = vi.hoisted(() => vi.fn());
 const connection = vi.hoisted(() => vi.fn(async () => undefined));
+const getPublicBenefits = vi.hoisted(() => vi.fn());
+const cachedCampusLogos = vi.hoisted(() => vi.fn());
 
 vi.mock("next/server", () => ({ connection }));
 vi.mock("next/navigation", () => ({
@@ -48,6 +50,10 @@ vi.mock("@/lib/data/units", () => ({
 vi.mock("@/lib/data/campus-leadership", () => ({
   campusLeadership: vi.fn(async () => []),
 }));
+vi.mock("@/lib/data/benefits", () => ({
+  cachedCampusLogos,
+  getPublicBenefits,
+}));
 vi.mock("@/components/campus/v2/campus-landing", () => ({
   CampusLanding: () => null,
 }));
@@ -62,6 +68,10 @@ describe("CampusLandingPage", () => {
     listEvents.mockReset();
     listEvents.mockResolvedValue({ rows: [] });
     connection.mockClear();
+    getPublicBenefits.mockReset();
+    getPublicBenefits.mockResolvedValue([]);
+    cachedCampusLogos.mockReset();
+    cachedCampusLogos.mockResolvedValue([]);
   });
 
   it("opts into request-time rendering before the date filter reads the clock", async () => {
@@ -90,5 +100,42 @@ describe("CampusLandingPage", () => {
   it("answers an unknown campus with a 404 before fetching anything", async () => {
     await expect(render("osloo")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(listEvents).not.toHaveBeenCalled();
+  });
+
+  it("hands the landing this campus's benefits and logos, not another's", async () => {
+    const benefit = (id: string, campusId: string) => ({
+      campusId,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      id,
+      section: "member",
+      sortOrder: 0,
+    });
+    getPublicBenefits.mockResolvedValue([
+      benefit("oslo", "1"),
+      benefit("bergen", "2"),
+      benefit("national", "5"),
+    ]);
+    cachedCampusLogos.mockResolvedValue([
+      { campusId: "1", id: "l1" },
+      { campusId: "2", id: "l2" },
+    ]);
+
+    const element = await render();
+
+    expect(element.props.benefits.map((b: { id: string }) => b.id)).toEqual([
+      "oslo",
+      "national",
+    ]);
+    expect(element.props.campusLogos).toEqual([{ campusId: "1", id: "l1" }]);
+  });
+
+  it("still renders when the benefit or logo reads fail", async () => {
+    getPublicBenefits.mockRejectedValue(new Error("down"));
+    cachedCampusLogos.mockRejectedValue(new Error("down"));
+
+    const element = await render();
+
+    expect(element.props.benefits).toEqual([]);
+    expect(element.props.campusLogos).toEqual([]);
   });
 });

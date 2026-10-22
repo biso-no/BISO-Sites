@@ -1,6 +1,7 @@
 "use client";
 
-import type { CampusBenefits } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { ArrowRight, Check, Gift, Zap } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -17,21 +18,23 @@ import { BenefitsShowcase } from "../shared/benefits-showcase";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 
 interface HomeTabProps {
-  benefits: CampusBenefits[];
+  benefits: PublicBenefit[];
   benefitsCount: number;
   daysRemaining: number;
   estimatedSavings: number | null;
   expiryDate: string;
+  featuredBenefits?: PublicBenefit[];
   hasBIIdentity: boolean;
   isMember: boolean;
   membershipType: string;
   onTabChange: (tab: string) => void;
-  revealedBenefits: Set<string>;
+  /** Saved plan card lines; null or missing keeps the i18n text. */
+  planCardItems?: MembershipTextItem[] | null;
   startDate: string;
   termDays: number;
 }
 
-const FEATURED_COUNT = 3;
+const FALLBACK_HIGHLIGHT_COUNT = 3;
 const PERCENT = 100;
 
 /** Time left in the term, as a native progress bar with a label. */
@@ -120,12 +123,16 @@ function MemberOverview({
   startDate,
   expiryDate,
   benefits,
-  revealedBenefits,
+  featuredBenefits: featuredFromServer = [],
   onTabChange,
   termDays,
-}: Omit<HomeTabProps, "isMember" | "hasBIIdentity">) {
+}: Omit<HomeTabProps, "isMember" | "hasBIIdentity" | "planCardItems">) {
   const t = useTranslations("memberPortal.overview");
-  const featuredBenefits = benefits.slice(0, FEATURED_COUNT);
+  // Featured benefits drive the highlights; the newest stand in without any.
+  const featuredBenefits =
+    featuredFromServer.length > 0
+      ? featuredFromServer
+      : benefits.slice(0, FALLBACK_HIGHLIGHT_COUNT);
 
   const stats: Stat[] = [
     { label: t("stats.membershipType"), value: membershipType },
@@ -180,11 +187,8 @@ function MemberOverview({
 
           <ul className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {featuredBenefits.map((benefit) => (
-              <li key={benefit.$id}>
-                <BenefitCard
-                  benefit={benefit}
-                  isRevealed={revealedBenefits.has(benefit.$id)}
-                />
+              <li key={benefit.id}>
+                <BenefitCard benefit={benefit} />
               </li>
             ))}
           </ul>
@@ -223,7 +227,13 @@ function MemberOverview({
   );
 }
 
-function NonMemberOverview({ benefits }: { benefits: CampusBenefits[] }) {
+function NonMemberOverview({
+  benefits,
+  planCardItems,
+}: {
+  benefits: PublicBenefit[];
+  planCardItems?: MembershipTextItem[] | null;
+}) {
   const t = useTranslations("memberPortal.overview");
   return (
     <>
@@ -233,13 +243,15 @@ function NonMemberOverview({ benefits }: { benefits: CampusBenefits[] }) {
           {t("discoverTitle")}
         </h2>
         <p className="type-body mt-3 max-w-(--measure) text-ink-muted">
-          {t("discoverDescription")}
+          {benefits.length > 0
+            ? t("discoverIntroCount", { count: benefits.length })
+            : t("discoverIntro")}
         </p>
       </section>
 
       <BenefitsShowcase benefits={benefits} />
 
-      <MembershipCtaSection />
+      <MembershipCtaSection items={planCardItems} />
     </>
   );
 }
@@ -252,10 +264,11 @@ export function HomeTab({
   startDate,
   expiryDate,
   benefits,
-  revealedBenefits,
+  featuredBenefits,
   isMember,
   hasBIIdentity: _hasBIIdentity,
   onTabChange,
+  planCardItems,
   termDays,
 }: HomeTabProps) {
   return (
@@ -267,14 +280,14 @@ export function HomeTab({
           daysRemaining={daysRemaining}
           estimatedSavings={estimatedSavings}
           expiryDate={expiryDate}
+          featuredBenefits={featuredBenefits}
           membershipType={membershipType}
           onTabChange={onTabChange}
-          revealedBenefits={revealedBenefits}
           startDate={startDate}
           termDays={termDays}
         />
       ) : (
-        <NonMemberOverview benefits={benefits} />
+        <NonMemberOverview benefits={benefits} planCardItems={planCardItems} />
       )}
     </TabsContent>
   );

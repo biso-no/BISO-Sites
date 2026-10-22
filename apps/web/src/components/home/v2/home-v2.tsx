@@ -1,6 +1,7 @@
 import type { Events, News } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import type { Partner } from "@/app/actions/about";
@@ -58,6 +59,8 @@ export interface HomeV2Props {
   focusAreas: string[];
   isMember: boolean;
   jobs: RecruitmentVacancy[];
+  /** Saved "Bli med" lines from admin; null keeps the i18n text. */
+  joinItems: MembershipTextItem[] | null;
   /** Whose board to show, and the management unit's page for the rest. */
   leadership: { campusId: string; teamHref: string | null };
   locale: Locale;
@@ -83,6 +86,7 @@ export async function HomeV2({
   focusAreas,
   isMember,
   jobs,
+  joinItems,
   leadership,
   locale,
   news,
@@ -254,7 +258,7 @@ export async function HomeV2({
         units={units}
       />
 
-      {isMember ? null : <MembershipBand />}
+      {isMember ? null : <MembershipBand items={joinItems} />}
 
       {partners.length > 0 && (
         <PartnerGrid

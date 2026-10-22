@@ -1,5 +1,6 @@
 import { ExpensesStatus } from "@repo/api/types/appwrite";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sessionDb = vi.hoisted(() => ({
   createRow: vi.fn(),
@@ -53,6 +54,7 @@ vi.mock("@repo/api/file", () => ({
   },
 }));
 
+import { createApprovalChain } from "@/lib/expense-approval";
 import { POST } from "./route";
 
 function submitRequest(body: Record<string, unknown>) {
@@ -107,6 +109,11 @@ describe("expense submit route", () => {
     storage.createFile.mockResolvedValue({ $id: "pdf-1" });
     messaging.createEmail.mockResolvedValue({});
     sessionDb.updateRow.mockResolvedValue({});
+    vi.stubEnv("INVOICE_USER_ID", "invoice-user");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("creates submitted expense rows through the admin client with submitter permissions", async () => {
@@ -200,6 +207,59 @@ describe("expense submit route", () => {
       { status: ExpensesStatus.PENDING }
     );
     expect(sessionDb.updateRow).not.toHaveBeenCalled();
+    expect(messaging.createEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ html: true, users: ["submitter-1"] })
+    );
+    expect(messaging.createEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: ["expenses:pdf-1"],
+        html: true,
+        users: ["invoice-user"],
+      })
+    );
+  });
+
+  it("fails before emailing anyone when INVOICE_USER_ID is unset", async () => {
+    vi.stubEnv("INVOICE_USER_ID", "");
+
+    const response = await POST(
+      submitRequest({
+        bank_account: "1234.56.78901",
+        campus: "1",
+        department: "dept-1",
+        total: 100,
+      })
+    );
+
+    expect(response.status).toBe(500);
+    expect(storage.createFile).not.toHaveBeenCalled();
+    expect(messaging.createEmail).not.toHaveBeenCalled();
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 when a concurrent submit already created the approval chain", async () => {
+    vi.mocked(isFeatureEnabled)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+    vi.mocked(createApprovalChain).mockRejectedValueOnce(
+      Object.assign(new Error("Row already exists"), { code: 409 })
+    );
+
+    const response = await POST(
+      submitRequest({
+        bank_account: "1234.56.78901",
+        campus: "1",
+        department: "dept-1",
+        total: 100,
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "This expense is already being submitted.",
+    });
+    expect(messaging.createEmail).not.toHaveBeenCalled();
   });
 
   it("answers 401 when the session is rejected by Appwrite", async () => {
@@ -298,5 +358,6 @@ describe("expense submit route", () => {
       success: false,
       missingFields: "phone",
     });
+    expect(adminDb.createRow).not.toHaveBeenCalled();
   });
 });

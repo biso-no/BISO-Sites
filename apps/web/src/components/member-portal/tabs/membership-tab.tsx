@@ -1,6 +1,7 @@
 "use client";
 
 import { POPULAR_MEMBERSHIP_DURATION } from "@repo/shared/utils/membership-plans";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
@@ -18,6 +19,8 @@ interface MembershipTabProps {
   current: CurrentMembershipView | null;
   hasBIIdentity: boolean;
   isMember: boolean;
+  /** Saved portal lock lines; null or missing keeps the i18n text. */
+  lockedItems?: MembershipTextItem[] | null;
   plans: PlanView[];
 }
 
@@ -65,6 +68,7 @@ export function MembershipTab({
   current,
   hasBIIdentity,
   isMember,
+  lockedItems,
   plans,
 }: MembershipTabProps) {
   const t = useTranslations("memberPortal.membership");
@@ -74,7 +78,11 @@ export function MembershipTab({
   if (!isMember) {
     return (
       <TabsContent value="membership">
-        <LockedMembershipPanel hasBIIdentity={hasBIIdentity} plans={plans} />
+        <LockedMembershipPanel
+          hasBIIdentity={hasBIIdentity}
+          items={lockedItems}
+          plans={plans}
+        />
       </TabsContent>
     );
   }

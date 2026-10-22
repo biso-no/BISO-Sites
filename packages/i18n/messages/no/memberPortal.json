@@ -82,7 +82,8 @@
     },
     "discoverEyebrow": "Oppdag BISO-fordelene",
     "discoverTitle": "Se hva du går glipp av",
-    "discoverDescription": "Som BISO-medlem får du eksklusive rabatter og fordeler hos partnerne våre. Se hva som er tilgjengelig, og bli medlem i dag!"
+    "discoverIntro": "Som BISO-medlem får du eksklusive rabatter og fordeler hos partnerne våre. Se hva som er tilgjengelig og bli medlem i dag!",
+    "discoverIntroCount": "Som BISO-medlem får du tilgang til {count, plural, one {# eksklusiv medlemsfordel} other {# eksklusive medlemsfordeler}} hos partnerne våre. Se hva som er tilgjengelig og bli medlem i dag!"
   },
   "profile": {
     "title": "Personlig informasjon",
@@ -154,9 +155,15 @@
       "travel": "Reise",
       "education": "Utdanning"
     },
-    "all": "Alle",
     "categoriesLabel": "Kategorier for fordeler",
-    "qrLabel": "QR-kode for denne fordelen"
+    "allCategories": "Alle",
+    "onsite": "Vis medlemskortet i appen",
+    "revealErrors": {
+      "notMember": "Du trenger et aktivt medlemskap for å se denne fordelen. Bli medlem i BISO for å låse den opp.",
+      "unavailable": "Vi klarte ikke å sjekke medlemskapet ditt akkurat nå. Prøv igjen om litt.",
+      "noCode": "Denne fordelen har ingen kode akkurat nå. Prøv igjen senere.",
+      "generic": "Noe gikk galt. Prøv igjen om litt."
+    }
   },
   "settings": {
     "notificationPreferences": "Varslingsinnstillinger",
@@ -215,7 +222,13 @@
     "description": "Lås opp dette innholdet og alle medlemsfordeler",
     "whatYoullGet": "Det du vil låse opp:",
     "processing": "Behandler...",
-    "securePayment": "Sikker betaling via Vipps"
+    "securePayment": "Sikker betaling via Vipps",
+    "quickBenefits": {
+      "discounts": "Eksklusive rabatter hos BISOs partnere",
+      "card": "Digitalt medlemskort",
+      "priority": "Prioritert tilgang til arrangementer",
+      "career": "Karriereressurser"
+    }
   },
   "common": {
     "campus": "Campus",

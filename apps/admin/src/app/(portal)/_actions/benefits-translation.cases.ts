@@ -37,7 +37,6 @@ const translateContentFields = mock(
       targetLocale === "en"
         ? "<p>English description</p>"
         : "<p>Norsk beskrivelse</p>",
-    teaser: targetLocale === "en" ? "English teaser" : "Norsk ingress",
     title: targetLocale === "en" ? "English title" : "Norsk tittel",
   })
 );
@@ -50,26 +49,23 @@ const campusAdminContext: UserAuthContext = {
   departmentTeamIds: [],
   email: "admin@example.com",
   managedCampuses: ["Oslo"],
-  managedCampusIds: ["campus-oslo"],
+  managedCampusIds: ["2"],
   name: "Oslo Admin",
-  resolvedCampusIds: ["campus-oslo"],
+  resolvedCampusIds: ["2"],
   resolvedDepartmentIds: [],
   roles: ["campusadmin"],
   userId: "user-1",
 };
 
-/** Pure department author: no managed campus, one resolved department. */
+/** Department membership alone grants no benefit access. */
 const departmentAuthorContext: UserAuthContext = {
-  activeCampusId: undefined,
-  campusNames: ["Oslo"],
-  campusTeamIds: ["sg-app-campus-oslo"],
+  ...campusAdminContext,
   departmentNames: ["Marketing"],
   departmentTeamIds: ["sg-app-dept-marketing"],
   email: "author@example.com",
   managedCampuses: [],
   managedCampusIds: [],
   name: "Marketing Author",
-  resolvedCampusIds: ["campus-oslo"],
   resolvedDepartmentIds: ["dept-marketing"],
   roles: ["department"],
   userId: "user-2",
@@ -83,15 +79,6 @@ mock.module("@repo/api/server", () => ({
 }));
 
 mock.module("@/lib/authorization", () => ({ requireAuth }));
-
-mock.module("@/lib/recruitment", () => ({
-  loadRecruitmentLookups: mock(async () => ({
-    campusIdsByName: new Map([["Oslo", "campus-oslo"]]),
-    campusNamesById: new Map([["campus-oslo", "Oslo"]]),
-    departmentIdsByName: new Map(),
-    departmentNamesById: new Map(),
-  })),
-}));
 
 mock.module("@/lib/content-translation.server", () => ({
   contentLocaleSchema: {
@@ -116,23 +103,21 @@ const { createBenefit, generateBenefitTranslationDraft, updateBenefit } =
   await import("./benefits");
 
 const norwegianValues: BenefitFormValues = {
-  campus_id: "campus-oslo",
-  category: "Career",
+  campus_id: "2",
+  category: "food_drink",
   description_en: "",
   description_nb: "<p>Norsk beskrivelse</p>",
   image_url: null,
   is_featured: false,
-  is_member_only: true,
-  kind: "offer",
-  partner_name: null,
+  partner_id: null,
   publish_end: null,
   publish_start: null,
   redemption_type: "none",
   redemption_value: null,
-  sort_order: 0,
+  section: "member",
   status: "draft",
-  teaser_en: null,
-  teaser_nb: "Norsk ingress",
+  terms_en: null,
+  terms_nb: null,
   title_en: "",
   title_nb: "Norsk tittel",
 };
@@ -158,16 +143,17 @@ beforeEach(() => {
   adminDb.updateRow.mockReset();
   adminDb.upsertRow.mockReset();
 
+  // The row as a save of `norwegianValues` leaves it: an empty English
+  // title falls back to the Norwegian one until the translation lands.
   benefitRow = {
     $id: "benefit-1",
-    campus_id: "campus-oslo",
-    description_en: "",
+    campus_id: "2",
+    description_en: null,
     description_nb: "<p>Norsk beskrivelse</p>",
-    is_member_only: true,
+    section: "member",
+    sort_order: 0,
     status: "draft",
-    teaser_en: null,
-    teaser_nb: "Norsk ingress",
-    title_en: "",
+    title_en: "Norsk tittel",
     title_nb: "Norsk tittel",
   };
   adminDb.upsertRow.mockImplementation(
@@ -201,10 +187,9 @@ beforeEach(() => {
 describe("benefit manual translation", () => {
   test("denies manual translation outside the editor's benefit scope", async () => {
     const result = await generateBenefitTranslationDraft({
-      campusId: "campus-other",
+      campusId: "3",
       description: "<p>Source</p>",
       sourceLocale: "en",
-      teaser: "Source teaser",
       title: "Source",
     });
 
@@ -214,72 +199,59 @@ describe("benefit manual translation", () => {
     expect(translateContentFields).not.toHaveBeenCalled();
   });
 
-  test("allows a department author to translate their own department's benefit", async () => {
-    requireAuth.mockImplementationOnce(async () => departmentAuthorContext);
-
+  test("denies Hele BISO to a campus admin", async () => {
     const result = await generateBenefitTranslationDraft({
-      campusId: "campus-oslo",
-      departmentId: "dept-marketing",
+      campusId: "5",
       description: "<p>Norsk beskrivelse</p>",
       sourceLocale: "no",
-      teaser: "Norsk ingress",
       title: "Norsk tittel",
     });
 
     expect(result).toEqual({
-      data: {
-        description: "<p>English description</p>",
-        teaser: "English teaser",
-        title: "English title",
-      },
+      error: "Unauthorized: no write access to this campus",
     });
+    expect(translateContentFields).not.toHaveBeenCalled();
   });
 
-  test("denies a department author outside their department", async () => {
+  test("denies a department member without benefit access", async () => {
     requireAuth.mockImplementationOnce(async () => departmentAuthorContext);
 
     const result = await generateBenefitTranslationDraft({
-      campusId: "campus-oslo",
-      departmentId: "dept-other",
+      campusId: "2",
       description: "<p>Norsk beskrivelse</p>",
       sourceLocale: "no",
-      teaser: "Norsk ingress",
       title: "Norsk tittel",
     });
 
     expect(result).toEqual({
-      error: "Unauthorized: no write access to this department",
+      error: "Unauthorized: no write access to this campus",
     });
     expect(translateContentFields).not.toHaveBeenCalled();
   });
 
   test("maps Norwegian and English drafts in both directions", async () => {
     const english = await generateBenefitTranslationDraft({
-      campusId: "campus-oslo",
+      campusId: "2",
       description: "<p>Norsk beskrivelse</p>",
       sourceLocale: "no",
-      teaser: "Norsk ingress",
       title: "Norsk tittel",
     });
     const norwegian = await generateBenefitTranslationDraft({
-      campusId: "campus-oslo",
+      campusId: "2",
       description: "<p>English description</p>",
       sourceLocale: "en",
-      teaser: "English teaser",
       title: "English title",
     });
 
     expect(english).toEqual({
       data: {
         description: "<p>English description</p>",
-        teaser: "English teaser",
         title: "English title",
       },
     });
     expect(norwegian).toEqual({
       data: {
         description: "<p>Norsk beskrivelse</p>",
-        teaser: "Norsk ingress",
         title: "Norsk tittel",
       },
     });
@@ -290,6 +262,43 @@ describe("benefit manual translation", () => {
       expect.objectContaining({ sourceLocale: "en", targetLocale: "no" })
     );
     expect(requireAuth).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("benefit translation format", () => {
+  const descriptionFormat = () => {
+    const input = translateContentFields.mock.calls.at(-1)?.[0] as unknown as {
+      fields: { format: string; key: string }[];
+    };
+    return input.fields.find((field) => field.key === "description")?.format;
+  };
+
+  test("sends a plain-text description as plain text", async () => {
+    await generateBenefitTranslationDraft({
+      campusId: "2",
+      description: "Vis medlemskortet.\nGjelder hverdager.",
+      sourceLocale: "no",
+      title: "Norsk tittel",
+    });
+    expect(descriptionFormat()).toBe("plain");
+  });
+
+  test("keeps HTML and old Plate JSON as HTML", async () => {
+    await generateBenefitTranslationDraft({
+      campusId: "2",
+      description: "<p>Vis medlemskortet.</p>",
+      sourceLocale: "no",
+      title: "Norsk tittel",
+    });
+    expect(descriptionFormat()).toBe("html");
+
+    await generateBenefitTranslationDraft({
+      campusId: "2",
+      description: JSON.stringify([{ children: [{ text: "Hei" }], type: "p" }]),
+      sourceLocale: "no",
+      title: "Norsk tittel",
+    });
+    expect(descriptionFormat()).toBe("html");
   });
 });
 
@@ -327,7 +336,6 @@ describe("benefit automatic translation", () => {
       "benefit-1",
       {
         description_en: "<p>English description</p>",
-        teaser_en: "English teaser",
         title_en: "English title",
       }
     );
@@ -341,11 +349,15 @@ describe("benefit automatic translation", () => {
         content_type: "memberBenefit",
         locale: "en",
         memberBenefit: "benefit-1",
-        short_description: "English teaser",
         title: "English title",
       }),
-      expect.any(Array)
+      []
     );
+    const mirrored = adminDb.createRow.mock.calls[0]?.[3] as Record<
+      string,
+      unknown
+    >;
+    expect("short_description" in mirrored).toBe(false);
   });
 
   test("does not schedule when automatic translation is disabled", async () => {

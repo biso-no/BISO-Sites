@@ -71,9 +71,12 @@ next-intl messages), `not-found.tsx`, `unauthorized.tsx`, `robots.ts`,
   `getLoggedInUser()` both classify a session as authenticated only if
   `hasEmail || (hasRealName && emailVerification)` — apply the same rule when
   gating features, do not just check for `account.get()` succeeding.
-- OAuth providers (Microsoft/Google/Facebook/Apple) and magic link are wired in
-  `src/lib/server.ts`; OAuth callback handler is
-  `src/app/(auth)/auth/callback/route.ts`.
+- Sign-in is BI (Appwrite's `oidc` provider) and magic link only; the Google,
+  Facebook and Apple buttons are gone. Both are wired in `src/lib/server.ts`.
+  The BI OAuth return is `src/app/(auth)/auth/oauth/route.ts` (`/auth/oauth`);
+  the magic-link return is `src/app/(auth)/auth/callback/route.ts`
+  (`/auth/callback`). The BI student sync both the web and `apps/api` run lives
+  in `@repo/shared/utils/bi-identity-sync`.
 
 ## Appwrite access
 

@@ -1,49 +1,77 @@
 "use client";
 
-import type { CampusBenefits } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
-import { Clock, Store } from "lucide-react";
+import { Clock, IdCard, Store } from "lucide-react";
 import Image from "next/image";
-import { useLocale, useTranslations } from "next-intl";
+import {
+  createFormatter,
+  useLocale,
+  useTimeZone,
+  useTranslations,
+} from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
 import { Pill } from "@/components/ui/pill";
 import { Prose } from "@/components/ui/prose";
-import { localizedBenefitText } from "@/lib/benefit-text";
 import {
-  CodeReveal,
-  LinkReveal,
-  QrReveal,
-  RevealButton,
-} from "./benefit-card-parts";
+  benefitCategoryLabel,
+  localizedPublicBenefitText,
+} from "@/lib/benefit-text";
+import { CodeReveal, LinkReveal, RevealButton } from "./benefit-card-parts";
 
 interface BenefitCardProps {
-  benefit: CampusBenefits;
-  isRevealed: boolean;
+  benefit: PublicBenefit;
 }
+
+type RevealFailure = Extract<
+  Awaited<ReturnType<typeof revealBenefit>>,
+  { success: false }
+>["reason"];
+
+const REVEAL_ERROR_KEYS: Record<RevealFailure, string> = {
+  no_code: "revealErrors.noCode",
+  not_found: "revealErrors.generic",
+  not_member: "revealErrors.notMember",
+  unavailable: "revealErrors.unavailable",
+};
 
 const COPIED_FEEDBACK_MS = 2000;
 
-/** Terms follow the same language rule as the rest of the card. */
-function localizedTerms(benefit: CampusBenefits, locale: string) {
-  return locale === "en"
-    ? benefit.terms_en?.trim() || benefit.terms_nb?.trim()
-    : benefit.terms_nb?.trim() || benefit.terms_en?.trim();
+const DATE_LOCALES: Record<string, string> = { en: "en-GB", no: "nb-NO" };
+const END_DATE_FORMAT = {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+} as const;
+
+/**
+ * "24. des. 2026" / "24 Dec 2026". Formatted by next-intl in the time zone
+ * the server hands the provider, so the server render and the browser agree.
+ */
+function formatEndDate(
+  iso: string,
+  locale: string,
+  timeZone: string | undefined
+): string {
+  return createFormatter({
+    locale: DATE_LOCALES[locale] ?? DATE_LOCALES.en,
+    timeZone,
+  }).dateTime(new Date(iso), END_DATE_FORMAT);
 }
 
-function expiryLabel(benefit: CampusBenefits, locale: string) {
-  if (!benefit.publish_end) {
-    return null;
-  }
-  return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "nb-NO", {
-    dateStyle: "medium",
-    timeZone: "Europe/Oslo",
-  }).format(new Date(benefit.publish_end));
-}
+/** Stored HTML or Plate JSON starts with "<" or "["; anything else is text. */
+const isRichDescription = (description: string) => {
+  const start = description.trimStart().charAt(0);
+  return start === "<" || start === "[";
+};
 
-/** The admin editor stores HTML; older rows may hold plain text. */
+/**
+ * Older benefits still hold HTML or Plate JSON; newer ones are plain text
+ * with line breaks.
+ */
 function Description({ value }: { value: string }) {
-  if (value.trimStart().startsWith("<")) {
+  if (isRichDescription(value)) {
     return (
       <Prose className="type-body-sm [&_p]:type-body-sm mt-4 text-ink-muted [&_p]:mb-2">
         <PlateContentRenderer value={value} />
@@ -52,42 +80,37 @@ function Description({ value }: { value: string }) {
   }
   // Optional, so no empty spacer when it's blank.
   return value ? (
-    <p className="type-body-sm mt-4 text-ink-muted">{value}</p>
+    <p className="type-body-sm mt-4 whitespace-pre-line text-ink-muted">
+      {value}
+    </p>
   ) : null;
 }
 
-/** The code, QR or link — behind a reveal the server records. */
-function Redemption({
-  benefit,
-  initiallyRevealed,
-}: {
-  benefit: CampusBenefits;
-  initiallyRevealed: boolean;
-}) {
+/** The code or link, behind a reveal the server checks and records. */
+function Redemption({ benefit }: { benefit: PublicBenefit }) {
   const t = useTranslations("memberPortal.benefits");
-  const [value, setValue] = useState<string | null>(
-    benefit.redemption_value || null
-  );
+  const [value, setValue] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
-  const [revealed, setRevealed] = useState(initiallyRevealed);
 
   const handleReveal = async () => {
-    if (revealed || isRevealing) {
+    if (value !== null || isRevealing) {
       return;
     }
 
     setIsRevealing(true);
+    setErrorKey(null);
     try {
-      const result = await revealBenefit(benefit.$id);
-      if (result?.success) {
-        setRevealed(true);
-        if (result.value) {
-          setValue(result.value);
-        }
+      const result = await revealBenefit(benefit.id);
+      if (result.success) {
+        setValue(result.value);
+      } else {
+        setErrorKey(REVEAL_ERROR_KEYS[result.reason]);
       }
     } catch (error) {
       console.error("Failed to reveal benefit:", error);
+      setErrorKey(REVEAL_ERROR_KEYS.not_found);
     } finally {
       setIsRevealing(false);
     }
@@ -101,17 +124,24 @@ function Redemption({
     }
   };
 
-  if (!(revealed && value)) {
-    return revealed ? null : (
-      <RevealButton
-        isRevealing={isRevealing}
-        onReveal={handleReveal}
-        revealingLabel={t("revealing")}
-        revealLabel={t("reveal")}
-      />
+  if (value === null) {
+    return (
+      <>
+        <RevealButton
+          isRevealing={isRevealing}
+          onReveal={handleReveal}
+          revealingLabel={t("revealing")}
+          revealLabel={t("reveal")}
+        />
+        {errorKey ? (
+          <p className="type-body-sm mt-2 text-danger" role="alert">
+            {t(errorKey)}
+          </p>
+        ) : null}
+      </>
     );
   }
-  if (benefit.redemption_type === "code") {
+  if (benefit.redemptionType === "code") {
     return (
       <CodeReveal
         copiedCode={copiedCode}
@@ -122,73 +152,91 @@ function Redemption({
       />
     );
   }
-  if (benefit.redemption_type === "qr") {
-    return <QrReveal label={t("qrLabel")} value={value} />;
-  }
-  if (benefit.redemption_type === "link") {
-    return <LinkReveal label={t("activateBenefit")} value={value} />;
-  }
-  return null;
+  return <LinkReveal label={t("activateBenefit")} value={value} />;
 }
 
 /**
- * One member benefit, with its code, QR or link behind a reveal.
+ * One member benefit. A code or link sits behind a reveal: the card never
+ * receives a value the server has not handed this member.
  *
- * Title, teaser and description follow the visitor's language and fall back
- * to the other one field by field (`localizedBenefitText`); the description is
- * the admin editor's HTML and renders as such.
+ * Title, description and terms follow the visitor's language and fall back
+ * to the other one field by field (`localizedPublicBenefitText`).
  */
-export function BenefitCard({ benefit, isRevealed }: BenefitCardProps) {
+export function BenefitCard({ benefit }: BenefitCardProps) {
   const t = useTranslations("memberPortal.benefits");
   const locale = useLocale();
-  const text = localizedBenefitText(benefit, locale);
-  const terms = localizedTerms(benefit, locale);
-  const expires = expiryLabel(benefit, locale);
-  const hasRedemption =
-    benefit.redemption_type !== "none" && benefit.redemption_type !== "onsite";
+  const timeZone = useTimeZone();
+  const text = localizedPublicBenefitText(benefit, locale);
+  const categoryLabel = benefitCategoryLabel(benefit.category, locale);
+  const expires = benefit.publishEnd
+    ? formatEndDate(benefit.publishEnd, locale, timeZone)
+    : null;
+  const hasReveal =
+    benefit.redemptionType === "code" || benefit.redemptionType === "link";
 
   return (
     <div className="flex h-full flex-col rounded-biso-md border border-edge p-6">
       <div className="flex items-start gap-4">
-        {benefit.partner_logo_url ? (
+        {benefit.partner?.logoUrl ? (
           <div className="relative size-14 shrink-0 overflow-hidden rounded-biso-sm border border-edge bg-surface">
             <Image
-              alt={benefit.partner_name || ""}
+              alt={benefit.partner.name}
               className="object-contain"
               fill
               sizes="56px"
-              src={benefit.partner_logo_url}
+              src={benefit.partner.logoUrl}
+              unoptimized
             />
           </div>
         ) : null}
         <div className="min-w-0 flex-1">
-          {benefit.category ? <Pill>{benefit.category}</Pill> : null}
+          {categoryLabel ? <Pill>{categoryLabel}</Pill> : null}
           <h3 className="type-heading-card mt-2 break-words text-ink">
             {text.title}
           </h3>
-          {benefit.partner_name ? (
+          {benefit.partner ? (
             <p className="type-body-sm mt-1 flex items-center gap-1.5 text-ink-muted">
               <Store aria-hidden="true" className="size-3.5 shrink-0" />
-              {benefit.partner_name}
+              {benefit.partner.name}
             </p>
           ) : null}
         </div>
       </div>
 
-      <Description value={text.description} />
-
-      {hasRedemption ? (
-        <div className="mt-5">
-          <Redemption benefit={benefit} initiallyRevealed={isRevealed} />
+      {benefit.imageUrl ? (
+        <div className="relative mt-4 h-36 w-full overflow-hidden rounded-biso-sm">
+          <Image
+            alt=""
+            className="object-cover"
+            fill
+            sizes="(min-width: 768px) 50vw, 100vw"
+            src={benefit.imageUrl}
+            unoptimized
+          />
         </div>
       ) : null}
 
-      {terms || expires ? (
+      <Description value={text.description} />
+
+      {benefit.redemptionType === "onsite" ? (
+        <p className="type-body-sm mt-5 flex items-center gap-2 rounded-biso-sm bg-surface-sunken p-3 text-ink">
+          <IdCard aria-hidden="true" className="size-4 shrink-0" />
+          {t("onsite")}
+        </p>
+      ) : null}
+
+      {hasReveal ? (
+        <div className="mt-5">
+          <Redemption benefit={benefit} />
+        </div>
+      ) : null}
+
+      {text.terms || expires ? (
         <div className="mt-auto flex flex-col gap-2 pt-5">
-          {terms ? (
+          {text.terms ? (
             <p className="type-body-sm rounded-biso-sm bg-surface-sunken p-3 text-ink-muted">
               <strong className="font-semibold text-ink">{t("terms")}</strong>{" "}
-              {terms}
+              {text.terms}
             </p>
           ) : null}
           {expires ? (

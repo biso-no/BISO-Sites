@@ -16,6 +16,7 @@ import { Prose } from "@/components/ui/prose";
 import { Section } from "@/components/ui/section";
 import { toPlainText } from "@/lib/content-text";
 import { getPrimaryTranslation } from "@/lib/content-translation";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 import {
   type ProductCustomFieldRow,
@@ -63,10 +64,15 @@ export async function ProductDetailV2({
   product,
   userId,
 }: ProductDetailV2Props) {
-  const [t, tCommon, tNav] = await Promise.all([
+  const showsMemberCallout = !isMember && product.category !== "Membership";
+  const [t, tCommon, tNav, calloutItems] = await Promise.all([
     getTranslations("shop"),
     getTranslations("common"),
     getTranslations("common.navigation"),
+    // Only the non-member callout shows these lines.
+    showsMemberCallout
+      ? getMembershipTextItems("shop_callout", locale)
+      : Promise.resolve(null),
   ]);
 
   const translation = getPrimaryTranslation(product, locale);
@@ -153,9 +159,9 @@ export async function ProductDetailV2({
                 />
               </ProductCustomFieldsProvider>
 
-              {isMember || product.category === "Membership" ? null : (
-                <MemberCalloutClient />
-              )}
+              {showsMemberCallout ? (
+                <MemberCalloutClient items={calloutItems} />
+              ) : null}
             </div>
           </aside>
 

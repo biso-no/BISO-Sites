@@ -56,6 +56,7 @@ const departmentValues: NewsFormValues = {
   description_en: "",
   description_no: "<p>Norsk brødtekst</p>",
   image: "",
+  notify_push: false,
   slug: "student-news",
   status: "draft",
   sticky: false,

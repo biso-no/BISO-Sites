@@ -1,5 +1,6 @@
 import { createAdminClient } from "@repo/api/server";
 import {
+  accountEmailField,
   buildProfileRowPermissions,
   selfServiceProfileSchema,
 } from "@repo/shared/utils/profile-fields";
@@ -52,7 +53,7 @@ export async function PUT(req: NextRequest) {
       400
     );
   }
-  const fields = parsed.data;
+  const fields = { ...parsed.data, ...accountEmailField(user.email) };
 
   try {
     const { db, users } = await createAdminClient();
@@ -71,7 +72,7 @@ export async function PUT(req: NextRequest) {
           "app",
           "user",
           user.$id,
-          { ...fields, email: user.email },
+          fields,
           buildProfileRowPermissions(user.$id)
         );
 

@@ -35,6 +35,7 @@ const publishedValues: NewsFormValues = {
   description_en: "English body",
   description_no: "Norsk brødtekst",
   image: "",
+  notify_push: false,
   slug: "student-news",
   status: "published",
   sticky: true,
@@ -47,8 +48,10 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ db })),
 }));
 
+let currentCtx: UserAuthContext = campusAdminCtx;
+
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => campusAdminCtx),
+  requireAuth: mock(async () => currentCtx),
 }));
 
 mock.module("@/lib/recruitment", () => ({
@@ -103,6 +106,7 @@ function nestedTranslations(
 }
 
 beforeEach(() => {
+  currentCtx = campusAdminCtx;
   db.createRow.mockReset();
   db.deleteRow.mockReset();
   db.getRow.mockReset();
@@ -224,5 +228,125 @@ describe("news persistence", () => {
       ])
     );
     expect(db.deleteRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("news notify_push", () => {
+  function newsWriteData(): Record<string, unknown> | undefined {
+    return db.upsertRow.mock.calls.find((call) => call[1] === "news")?.[3];
+  }
+
+  test("createNews writes the requested notify_push column", async () => {
+    await createNews({ ...publishedValues, notify_push: true });
+
+    expect(newsWriteData()).toEqual(
+      expect.objectContaining({ notify_push: true })
+    );
+  });
+
+  test("a campus admin saving National news keeps the stored value", async () => {
+    currentCtx = {
+      ...campusAdminCtx,
+      managedCampusIds: ["5"],
+      resolvedCampusIds: ["5"],
+    };
+    db.listRows.mockImplementation(
+      async (_databaseId: string, tableId: string) => ({
+        rows:
+          tableId === "news"
+            ? [
+                {
+                  $id: "news-1",
+                  campus_id: "5",
+                  department_id: null,
+                  notify_push: false,
+                  status: "draft",
+                },
+              ]
+            : [],
+        total: tableId === "news" ? 1 : 0,
+      })
+    );
+
+    await updateNews("news-1", {
+      ...publishedValues,
+      campus_id: "5",
+      notify_push: true,
+    });
+
+    expect(newsWriteData()).toEqual(
+      expect.objectContaining({ notify_push: false })
+    );
+  });
+
+  test("a global admin saving National news gets the requested value", async () => {
+    currentCtx = {
+      ...campusAdminCtx,
+      managedCampusIds: ["5"],
+      resolvedCampusIds: ["5"],
+      roles: ["globaladmin"],
+    };
+    db.listRows.mockImplementation(
+      async (_databaseId: string, tableId: string) => ({
+        rows:
+          tableId === "news"
+            ? [
+                {
+                  $id: "news-1",
+                  campus_id: "5",
+                  department_id: null,
+                  notify_push: false,
+                  status: "draft",
+                },
+              ]
+            : [],
+        total: tableId === "news" ? 1 : 0,
+      })
+    );
+
+    await updateNews("news-1", {
+      ...publishedValues,
+      campus_id: "5",
+      notify_push: true,
+    });
+
+    expect(newsWriteData()).toEqual(
+      expect.objectContaining({ notify_push: true })
+    );
+  });
+
+  test("moving a notify-on campus article to National does not carry the flag", async () => {
+    currentCtx = {
+      ...campusAdminCtx,
+      managedCampusIds: ["campus-oslo", "5"],
+      resolvedCampusIds: ["campus-oslo", "5"],
+    };
+    db.listRows.mockImplementation(
+      async (_databaseId: string, tableId: string) => ({
+        rows:
+          tableId === "news"
+            ? [
+                {
+                  $id: "news-1",
+                  campus_id: "campus-oslo",
+                  department_id: null,
+                  notify_push: true,
+                  status: "draft",
+                },
+              ]
+            : [],
+        total: tableId === "news" ? 1 : 0,
+      })
+    );
+
+    await updateNews("news-1", {
+      ...publishedValues,
+      campus_id: "5",
+      notify_push: true,
+    });
+
+    expect(newsWriteData()).toEqual(
+      expect.objectContaining({ notify_push: false })
+    );
   });
 });

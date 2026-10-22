@@ -10,6 +10,10 @@ const globalAdmin = { hasDepartmentMembership: true, roles: ["globaladmin"] };
 const campusAdmin = { hasDepartmentMembership: true, roles: ["campusadmin"] };
 const departmentUser = { hasDepartmentMembership: true, roles: [] };
 const hrUser = { hasDepartmentMembership: true, roles: ["hr"] };
+const benefitsEditor = {
+  hasDepartmentMembership: false,
+  roles: ["benefitseditor"],
+};
 const noAccess = { hasDepartmentMembership: false, roles: [] };
 
 function labels(nodes: ReturnType<typeof filterNavTree>) {
@@ -61,9 +65,13 @@ describe("filterNavTree", () => {
       "pages",
       "news",
       "events",
-      "communications",
-      "benefits",
     ]);
+  });
+
+  test("benefits editor sees benefits and lands on it", () => {
+    const nodes = filterNavTree(benefitsEditor);
+    expect(flattenNavTree(nodes).map((l) => l.labelKey)).toEqual(["benefits"]);
+    expect(getDefaultNavPath(benefitsEditor)).toBe("/benefits");
   });
 
   test("HR user additionally sees jobs", () => {
@@ -109,6 +117,9 @@ describe("findActivePath", () => {
   test("longest prefix wins for settings children", () => {
     expect(findActivePath("/settings/feature-flags")).toBe(
       "/settings/feature-flags"
+    );
+    expect(findActivePath("/settings/app-versions")).toBe(
+      "/settings/app-versions"
     );
     expect(findActivePath("/settings")).toBe("/settings");
     expect(findActivePath("/settings/payments/foo")).toBe("/settings/payments");

@@ -14,6 +14,7 @@ import {
 } from "@/lib/campus-leadership";
 import { NATIONAL_CAMPUS_ID, resolveRequestCampus } from "@/lib/campus-scope";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import {
   cachedCampusMetadata,
   cachedHomeCounts,
@@ -139,6 +140,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     jobs,
     units,
     membership,
+    joinItems,
   ] = await Promise.all([
     homeEvents(hasSession, locale, campusKey, HOME_EVENTS_LIMIT),
     homeNews(hasSession, locale, campusKey, HOME_NEWS_LIMIT),
@@ -153,6 +155,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     cachedOpenJobs(campusKey, locale, HOME_JOBS_LIMIT).catch(() => []),
     cachedPublicUnits(locale).catch(() => []),
     getMembershipStatus(),
+    getMembershipTextItems("home_join", locale),
   ]);
 
   // National is a scope, not a place: its copy is the no-campus copy.
@@ -181,6 +184,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       )}
       isMember={membership.isMember}
       jobs={jobs}
+      joinItems={joinItems}
       leadership={{ campusId: boardCampusId, teamHref }}
       locale={locale}
       news={news}

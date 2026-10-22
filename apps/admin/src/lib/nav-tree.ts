@@ -21,6 +21,7 @@ import {
   Settings,
   ShieldAlert,
   ShoppingCart,
+  Smartphone,
   Users,
 } from "lucide-react";
 import { hasNavAccess, type NavKey } from "@/lib/roles";
@@ -104,6 +105,12 @@ export const NAV_TREE: NavNode[] = [
       leaf("varsling", "varsling", "/varsling", ShieldAlert),
       leaf("operations", "portal.settings", "/settings/operations", Gauge),
       leaf("featureFlags", "portal.settings", "/settings/feature-flags", Flag),
+      leaf(
+        "appVersions",
+        "portal.settings",
+        "/settings/app-versions",
+        Smartphone
+      ),
       leaf("payments", "portal.settings", "/settings/payments", CreditCard),
       leaf("settings", "portal.settings", "/settings", Settings),
     ],

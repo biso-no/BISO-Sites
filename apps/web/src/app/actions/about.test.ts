@@ -28,4 +28,11 @@ describe("about actions", () => {
       expect.any(Error)
     );
   });
+
+  it("orders partners by sort_order", async () => {
+    sessionDb.listRows.mockResolvedValue({ rows: [] });
+    await getPartners();
+    const queries = sessionDb.listRows.mock.calls[0][2].join("|");
+    expect(queries).toContain('"method":"orderAsc","attribute":"sort_order"');
+  });
 });

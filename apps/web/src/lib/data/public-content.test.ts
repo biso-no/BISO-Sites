@@ -6,9 +6,11 @@ vi.mock("@repo/api/server", () => ({
   createPublicClient: vi.fn(async () => ({ db: publicDb })),
 }));
 
-vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
+const cache = vi.hoisted(() => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
 
-import { cachedPublishedEvents } from "./public-content";
+vi.mock("next/cache", () => cache);
+
+import { cachedPartners, cachedPublishedEvents } from "./public-content";
 
 const queriesOf = (call: number): string[] =>
   publicDb.listRows.mock.calls[call][2].map(String);
@@ -40,5 +42,18 @@ describe("cachedPublishedEvents", () => {
     expect(queriesOf(0).join("|")).toContain(
       '"method":"orderAsc","attribute":"start_date"'
     );
+  });
+});
+
+describe("cachedPartners", () => {
+  it("orders by sort_order and tags partners", async () => {
+    publicDb.listRows.mockReset();
+    publicDb.listRows.mockResolvedValue({ rows: [], total: 0 });
+    await cachedPartners();
+    const serialized = queriesOf(0).join("|");
+    expect(serialized).toContain(
+      '"method":"orderAsc","attribute":"sort_order"'
+    );
+    expect(cache.cacheTag).toHaveBeenCalledWith("partners");
   });
 });

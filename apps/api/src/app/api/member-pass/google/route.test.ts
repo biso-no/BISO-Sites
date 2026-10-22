@@ -83,6 +83,14 @@ describe("GET /api/member-pass/google", () => {
     );
   });
 
+  it("is 503 {error: unavailable} when the membership check is down, not 403", async () => {
+    resolveMemberPassForRequest.mockResolvedValue({ state: "unavailable" });
+    const res = await GET(request());
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "unavailable" });
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
   it("is 403 for a non-member", async () => {
     resolveMemberPassForRequest.mockResolvedValue({ state: "expired" });
     expect((await GET(request())).status).toBe(403);

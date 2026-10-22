@@ -1,38 +1,32 @@
 "use client";
 
-import type { CampusBenefits } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { cn } from "@repo/ui/lib/utils";
 import { Search } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { Pill } from "@/components/ui/pill";
 import { statusPanelSecondaryAction } from "@/components/ui/status-panel";
+import { benefitCategoryLabel } from "@/lib/benefit-text";
 import { BenefitCard } from "../shared/benefit-card";
 import { BenefitPreviewCard } from "../shared/benefit-preview-card";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
+import { filterBenefits, presentBenefitCategories } from "./benefit-search";
 
 interface BenefitsTabProps {
-  benefits: CampusBenefits[];
-  featuredBenefits?: CampusBenefits[];
+  benefits: PublicBenefit[];
+  featuredBenefits?: PublicBenefit[];
   hasBIIdentity: boolean;
   isMember: boolean;
-  revealedBenefits: Set<string>;
+  /** Saved plan card lines; null or missing keeps the i18n text. */
+  planCardItems?: MembershipTextItem[] | null;
 }
 
 const ALL = "all";
 const PREVIEW_LIMIT = 8;
 const PREVIEW_CATEGORY_LIMIT = 4;
-
-/**
- * The categories the benefits actually carry, in the order they first appear.
- * The chips used to come from a hardcoded English list ("Food & Drink",
- * "Health", …) compared against the `category` column, so any category not on
- * that list could never be filtered to, and one on it with no rows showed 0.
- */
-function categoriesOf(benefits: CampusBenefits[]): string[] {
-  return [...new Set(benefits.map((b) => b.category).filter(Boolean))];
-}
 
 function CategoryChips({
   active,
@@ -49,6 +43,7 @@ function CategoryChips({
   label: string;
   onSelect: (category: string) => void;
 }) {
+  const locale = useLocale();
   if (categories.length < 2) {
     return null;
   }
@@ -70,7 +65,9 @@ function CategoryChips({
               onClick={() => onSelect(category)}
               type="button"
             >
-              {category === ALL ? allLabel : category}
+              {category === ALL
+                ? allLabel
+                : benefitCategoryLabel(category, locale)}
               {counts ? (
                 <span className="type-data opacity-70">{counts[category]}</span>
               ) : null}
@@ -82,31 +79,18 @@ function CategoryChips({
   );
 }
 
-function MemberBenefitsView({
-  benefits,
-  revealedBenefits,
-}: {
-  benefits: CampusBenefits[];
-  revealedBenefits: Set<string>;
-}) {
+function MemberBenefitsView({ benefits }: { benefits: PublicBenefit[] }) {
   const t = useTranslations("memberPortal.benefits");
   const searchId = useId();
   const [selectedCategory, setSelectedCategory] = useState(ALL);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const categories = categoriesOf(benefits);
-  const query = searchQuery.toLowerCase();
-  const filteredBenefits = benefits.filter((benefit) => {
-    const matchesCategory =
-      selectedCategory === ALL || benefit.category === selectedCategory;
-    const matchesSearch =
-      benefit.title_en.toLowerCase().includes(query) ||
-      benefit.title_nb.toLowerCase().includes(query) ||
-      (benefit.partner_name ?? "").toLowerCase().includes(query) ||
-      benefit.description_en.toLowerCase().includes(query) ||
-      benefit.description_nb.toLowerCase().includes(query);
-    return matchesCategory && matchesSearch;
-  });
+  const categories = presentBenefitCategories(benefits);
+  const filteredBenefits = filterBenefits(
+    benefits,
+    selectedCategory,
+    searchQuery
+  );
 
   const counts: Record<string, number> = { [ALL]: benefits.length };
   for (const category of categories) {
@@ -145,7 +129,7 @@ function MemberBenefitsView({
 
         <CategoryChips
           active={selectedCategory}
-          allLabel={t("all")}
+          allLabel={t("allCategories")}
           categories={categories}
           counts={counts}
           label={t("categoriesLabel")}
@@ -156,11 +140,8 @@ function MemberBenefitsView({
       {filteredBenefits.length > 0 ? (
         <ul className="grid gap-5 md:grid-cols-2">
           {filteredBenefits.map((benefit) => (
-            <li key={benefit.$id}>
-              <BenefitCard
-                benefit={benefit}
-                isRevealed={revealedBenefits.has(benefit.$id)}
-              />
+            <li key={benefit.id}>
+              <BenefitCard benefit={benefit} />
             </li>
           ))}
         </ul>
@@ -186,16 +167,24 @@ function MemberBenefitsView({
   );
 }
 
-function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
+function NonMemberBenefitsView({
+  benefits,
+  planCardItems,
+}: {
+  benefits: PublicBenefit[];
+  planCardItems?: MembershipTextItem[] | null;
+}) {
   const t = useTranslations("memberPortal.benefits");
   const [selectedCategory, setSelectedCategory] = useState(ALL);
 
-  const categories = categoriesOf(benefits).slice(0, PREVIEW_CATEGORY_LIMIT);
-  const filteredBenefits = (
-    selectedCategory === ALL
-      ? benefits
-      : benefits.filter((b) => b.category === selectedCategory)
-  ).slice(0, PREVIEW_LIMIT);
+  const categories = presentBenefitCategories(benefits).slice(
+    0,
+    PREVIEW_CATEGORY_LIMIT
+  );
+  const filteredBenefits = filterBenefits(benefits, selectedCategory, "").slice(
+    0,
+    PREVIEW_LIMIT
+  );
 
   return (
     <>
@@ -211,7 +200,7 @@ function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
 
       <CategoryChips
         active={selectedCategory}
-        allLabel={t("all")}
+        allLabel={t("allCategories")}
         categories={categories}
         label={t("categoriesLabel")}
         onSelect={setSelectedCategory}
@@ -220,14 +209,14 @@ function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
       {filteredBenefits.length > 0 ? (
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredBenefits.map((benefit) => (
-            <li key={benefit.$id}>
+            <li key={benefit.id}>
               <BenefitPreviewCard benefit={benefit} />
             </li>
           ))}
         </ul>
       ) : null}
 
-      <MembershipCtaSection />
+      <MembershipCtaSection items={planCardItems} />
     </>
   );
 }
@@ -235,19 +224,19 @@ function NonMemberBenefitsView({ benefits }: { benefits: CampusBenefits[] }) {
 export function BenefitsTab({
   benefits,
   featuredBenefits: _featuredBenefits = [],
-  revealedBenefits,
   isMember,
   hasBIIdentity: _hasBIIdentity,
+  planCardItems,
 }: BenefitsTabProps) {
   return (
     <TabsContent className="flex flex-col gap-10" value="benefits">
       {isMember ? (
-        <MemberBenefitsView
-          benefits={benefits}
-          revealedBenefits={revealedBenefits}
-        />
+        <MemberBenefitsView benefits={benefits} />
       ) : (
-        <NonMemberBenefitsView benefits={benefits} />
+        <NonMemberBenefitsView
+          benefits={benefits}
+          planCardItems={planCardItems}
+        />
       )}
     </TabsContent>
   );

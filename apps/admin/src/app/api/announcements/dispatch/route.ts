@@ -45,8 +45,8 @@ async function handleDispatch(request: NextRequest) {
   }
 
   try {
-    const { db, messaging, users } = await createAdminClient();
-    const result = await dispatchDueAnnouncements({ db, messaging, users });
+    const { db, messaging } = await createAdminClient();
+    const result = await dispatchDueAnnouncements({ db, messaging });
     // Surface send failures to the scheduler, which classifies target health by
     // response status — a 200 would log a failed dispatch as a successful ping.
     const ok = result.failed === 0;

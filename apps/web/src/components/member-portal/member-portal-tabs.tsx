@@ -1,10 +1,8 @@
 "use client";
 
-import type {
-  CampusBenefits,
-  PublicProfiles,
-  Users,
-} from "@repo/api/types/appwrite";
+import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import type {
   CurrentMembershipView,
   PlanView,
@@ -19,23 +17,26 @@ import { ProfileTab } from "./tabs/profile-tab";
 
 interface MemberPortalTabsProps {
   bankAccount?: string;
-  benefits: CampusBenefits[];
+  benefits: PublicBenefit[];
   benefitsCount: number;
   biEmail: string;
   current: CurrentMembershipView | null;
   daysRemaining: number;
   estimatedSavings: number | null;
   expiryDate: string;
-  featuredBenefits?: CampusBenefits[];
+  featuredBenefits?: PublicBenefit[];
   hasBIIdentity: boolean;
   isGuest: boolean;
   isMember: boolean;
+  /** Saved portal lock lines; null or missing keeps the i18n text. */
+  lockedItems?: MembershipTextItem[] | null;
   membershipType: string;
+  /** Saved plan card lines; null or missing keeps the i18n text. */
+  planCardItems?: MembershipTextItem[] | null;
   plans: PlanView[];
   profile: Users | null;
   profileAccount: { name: string; email: string } | null;
   publicProfile: PublicProfiles | null;
-  revealedBenefits: Set<string>;
   startDate: string;
   termDays: number;
 }
@@ -49,10 +50,11 @@ export function MemberPortalTabs({
   expiryDate,
   benefits,
   featuredBenefits = [],
-  revealedBenefits,
   isGuest,
   isMember,
   hasBIIdentity,
+  lockedItems,
+  planCardItems,
   profile,
   profileAccount,
   publicProfile,
@@ -82,11 +84,12 @@ export function MemberPortalTabs({
         daysRemaining={daysRemaining}
         estimatedSavings={estimatedSavings}
         expiryDate={expiryDate}
+        featuredBenefits={featuredBenefits}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
         membershipType={membershipType}
         onTabChange={handleTabChange}
-        revealedBenefits={revealedBenefits}
+        planCardItems={planCardItems}
         startDate={startDate}
         termDays={termDays}
       />
@@ -96,7 +99,7 @@ export function MemberPortalTabs({
         featuredBenefits={featuredBenefits}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
-        revealedBenefits={revealedBenefits}
+        planCardItems={planCardItems}
       />
 
       <CampusTab />
@@ -107,6 +110,7 @@ export function MemberPortalTabs({
         current={current}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
+        lockedItems={lockedItems}
         plans={plans}
       />
 

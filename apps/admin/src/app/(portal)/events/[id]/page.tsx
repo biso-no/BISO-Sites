@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { withNationalEventScope } from "@/lib/event-scope";
 import { getEventTopicSubscriberCounts } from "@/lib/notifications/topic-subscribers";
+import { getContentNotificationState } from "../../_actions/content-notifications";
 import { getEvent } from "../../_actions/events";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
 import { EventStudioEditor } from "./_components/event-studio-editor";
@@ -32,6 +33,9 @@ export default async function EventEditorPage({
 
   const isGlobalAdmin = ctx.roles.includes("globaladmin");
   const isCampusAdmin = ctx.roles.includes("campusadmin");
+  const notificationState = isNew
+    ? ({ kind: "none" } as const)
+    : await getContentNotificationState("event", id);
 
   const effectiveCampusId = (() => {
     if (!ctx) {
@@ -84,6 +88,7 @@ export default async function EventEditorPage({
       allowedDepartmentIds={allowedDepartmentIds}
       campuses={filteredCampuses}
       canChangeCampus={canChangeCampus}
+      canNotifyNational={isGlobalAdmin}
       defaultCampusId={effectiveCampusId}
       event={event as unknown as EventRecord | null}
       initialDepartments={initialDepartments}
@@ -96,6 +101,7 @@ export default async function EventEditorPage({
         saveError: t("saveError"),
         saveSuccess: t("saveSuccess"),
       }}
+      notificationState={notificationState}
       pushSubscribers={pushSubscribers}
     />
   );

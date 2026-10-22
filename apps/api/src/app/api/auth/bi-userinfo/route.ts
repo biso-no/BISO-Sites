@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { GRAPH_USERINFO_ENDPOINT, vouchForBiEmail } from "@/lib/bi-userinfo";
+import { biUserinfoClaims, GRAPH_USERINFO_ENDPOINT } from "@/lib/bi-userinfo";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +55,10 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE, status: 502 }
     );
   }
-  return NextResponse.json(vouchForBiEmail(claims as Record<string, unknown>), {
-    headers: NO_STORE,
-  });
+  return NextResponse.json(
+    biUserinfoClaims(claims as Record<string, unknown>),
+    {
+      headers: NO_STORE,
+    }
+  );
 }

@@ -5,6 +5,7 @@ import {
   adminDb,
   afterSpy,
   assertRecruitmentVacancyWriteAccessSpy,
+  authState,
   createAdminClientSpy,
   deferredTask,
   resetTranslationHarness,
@@ -43,6 +44,7 @@ const jobValues: RecruitmentVacancyUpsertInput = {
   interview_template: { rounds: [] },
   location: null,
   newsletter: false,
+  notify_push: false,
   paid: false,
   publication_mode: "now",
   push_to_inboxes: false,
@@ -606,5 +608,82 @@ describe("job writes", () => {
     );
 
     expect(savedSlug()).toBe(`student-role-renamed-${year}`);
+  });
+});
+
+describe("job notify_push", () => {
+  const options = { enabled: false, sourceLocale: "en" } as const;
+  const savedPayload = () =>
+    adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<string, unknown>;
+  const stubVacancy = (campusId: string, notifyPush: boolean) => {
+    sessionDb.getRow.mockImplementation(async () => ({
+      $createdAt: "2026-09-01T00:00:00.000Z",
+      $id: "job-1",
+      $updatedAt: "2026-09-01T00:00:00.000Z",
+      application_deadline: null,
+      auto_screen: true,
+      campus_id: campusId,
+      custom_questions: "[]",
+      department_id: null,
+      interview_template: null,
+      metadata: JSON.stringify({ audience: "public" }),
+      notify_push: notifyPush,
+      screening_rubric: null,
+      slug: "student-role",
+      status: "draft",
+      translations: [],
+    }));
+  };
+
+  test("createJob writes the notify_push column, not metadata", async () => {
+    await createJob({ ...jobValues, notify_push: true }, options);
+
+    const payload = savedPayload();
+    expect(payload.notify_push).toBe(true);
+    expect(JSON.parse(payload.metadata as string)).not.toHaveProperty(
+      "notify_push"
+    );
+  });
+
+  test("a campus admin saving National keeps the stored value", async () => {
+    authState.ctx = { managedCampusIds: ["5"], roles: ["campusadmin"] };
+    stubVacancy("5", false);
+
+    await updateJob(
+      "job-1",
+      { ...jobValues, campus_id: "5", notify_push: true },
+      options
+    );
+
+    expect(savedPayload().notify_push).toBe(false);
+  });
+
+  test("a global admin saving National gets the requested value", async () => {
+    authState.ctx = { managedCampusIds: [], roles: ["globaladmin"] };
+    stubVacancy("5", false);
+
+    await updateJob(
+      "job-1",
+      { ...jobValues, campus_id: "5", notify_push: true },
+      options
+    );
+
+    expect(savedPayload().notify_push).toBe(true);
+  });
+
+  test("moving a notify-on campus vacancy to National does not carry the flag", async () => {
+    authState.ctx = {
+      managedCampusIds: ["campus-oslo", "5"],
+      roles: ["campusadmin"],
+    };
+    stubVacancy("campus-oslo", true);
+
+    await updateJob(
+      "job-1",
+      { ...jobValues, campus_id: "5", notify_push: true },
+      options
+    );
+
+    expect(savedPayload().notify_push).toBe(false);
   });
 });

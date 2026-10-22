@@ -1,0 +1,142 @@
+import "server-only";
+
+import { Query } from "@repo/api";
+import {
+  type NotifyItem,
+  toNotifyItem,
+  toSnapshotItem,
+} from "@repo/shared/utils/content-notification-compose";
+
+export type LinkedContentType = "event" | "news" | "job";
+
+export interface LinkedColumns {
+  content_id: string | null;
+  content_type: LinkedContentType | null;
+  deep_link: string | null;
+  event_id: string | null;
+  image: string | null;
+  items: string | null;
+}
+
+export type LinkedContentResult =
+  | { ok: true; columns: LinkedColumns }
+  | { ok: false; error: string };
+
+export const NOT_PUBLISHED_MESSAGE = "Only published content can be linked.";
+export const CONTENT_MISSING_MESSAGE = "That content no longer exists.";
+
+interface LinkDb {
+  listRows: <T>(
+    databaseId: string,
+    tableId: string,
+    queries: string[]
+  ) => Promise<{ rows: T[] }>;
+}
+
+const TABLES: Record<LinkedContentType, string> = {
+  event: "events",
+  news: "news",
+  job: "jobs",
+};
+
+const EMPTY_COLUMNS: LinkedColumns = {
+  content_id: null,
+  content_type: null,
+  deep_link: null,
+  event_id: null,
+  image: null,
+  items: null,
+};
+
+interface LinkValues {
+  content_id?: string | null;
+  content_type?: LinkedContentType | null;
+  event_id?: string | null;
+}
+
+export const INCOMPLETE_LINK_MESSAGE = "Pick the content to link.";
+
+export type LinkSelection = { type: LinkedContentType; id: string } | null;
+
+/**
+ * Reads the link from the form values. A legacy `event_id` links an event
+ * only when `content_type` and `content_id` are both absent (undefined); an
+ * explicit null clears the link. A half-filled pair is an error.
+ */
+export function normalizeLink(
+  values: LinkValues
+): { ok: true; link: LinkSelection } | { ok: false; error: string } {
+  const { content_type: type, content_id: id } = values;
+  if (type && id) {
+    return { ok: true, link: { type, id } };
+  }
+  if (type || id) {
+    return { ok: false, error: INCOMPLETE_LINK_MESSAGE };
+  }
+  if (type === undefined && id === undefined && values.event_id) {
+    return { ok: true, link: { type: "event", id: values.event_id } };
+  }
+  return { ok: true, link: null };
+}
+
+/** The link a stored announcement row carries (legacy `event_id` counts). */
+export function storedLink(row: {
+  content_id?: string | null;
+  content_type?: string | null;
+  event_id?: string | null;
+}): LinkSelection {
+  if (row.content_type && row.content_id) {
+    return { type: row.content_type as LinkedContentType, id: row.content_id };
+  }
+  if (!row.content_type && row.event_id) {
+    return { type: "event", id: row.event_id };
+  }
+  return null;
+}
+
+export function sameLink(a: LinkSelection, b: LinkSelection): boolean {
+  return a?.type === b?.type && a?.id === b?.id;
+}
+
+export async function resolveLinkedContent(
+  db: LinkDb,
+  link: LinkSelection
+): Promise<LinkedContentResult> {
+  if (!link) {
+    return { ok: true, columns: { ...EMPTY_COLUMNS } };
+  }
+  const found = await db.listRows<Record<string, unknown>>(
+    "app",
+    TABLES[link.type],
+    [Query.equal("$id", link.id), Query.limit(1)]
+  );
+  const row = found.rows[0];
+  if (!row) {
+    return { ok: false, error: CONTENT_MISSING_MESSAGE };
+  }
+  if (row.status !== "published") {
+    return { ok: false, error: NOT_PUBLISHED_MESSAGE };
+  }
+  const translations = await db.listRows<{
+    description?: string | null;
+    locale: string;
+    short_description?: string | null;
+    title?: string | null;
+  }>("app", "content_translations", [
+    Query.equal("content_type", link.type),
+    Query.equal("content_id", link.id),
+    Query.limit(10),
+  ]);
+  const item: NotifyItem = toNotifyItem(link.type, row, translations.rows);
+  return {
+    ok: true,
+    columns: {
+      content_type: link.type,
+      content_id: link.id,
+      event_id: link.type === "event" ? link.id : null,
+      deep_link: `biso://${link.type}?id=${link.id}`,
+      image: item.image,
+      items: JSON.stringify([toSnapshotItem(item)]),
+    },
+  };
+}

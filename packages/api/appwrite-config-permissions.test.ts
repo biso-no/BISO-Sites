@@ -108,3 +108,18 @@ describe("profile table permissions", () => {
     expect(table?.$permissions).not.toContain('create("users")');
   });
 });
+
+describe("app versions table", () => {
+  test("app_versions is Operations Unit only, like payment_settings", () => {
+    const config = loadAppwriteConfig();
+    const table = config.tables.find((t) => t.$id === "app_versions");
+    const payments = config.tables.find((t) => t.$id === "payment_settings");
+
+    expect(table?.databaseId).toBe("app");
+    expect(table?.rowSecurity).toBe(false);
+    expect([...(table?.$permissions ?? [])].sort()).toEqual(
+      [...(payments?.$permissions ?? [])].sort()
+    );
+    expect(table?.$permissions.join(" ")).not.toContain('read("any")');
+  });
+});

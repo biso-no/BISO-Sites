@@ -16,7 +16,7 @@
     "stats": {
       "card": "Digitalt medlemskort i appen",
       "members": "Over 9 000 medlemmer",
-      "partners": "150+ partnere"
+      "partners": "{count} medlemsfordeler"
     }
   },
   "benefits": {
