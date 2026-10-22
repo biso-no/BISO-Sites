@@ -25,17 +25,9 @@
  *   bun run migrate:benefits --apply --plan <path to plan.json>
  * (`bun run migrate:benefits -- --apply --plan <path>` works too.)
  *
- * Go-live order:
- *   1. Push the schema (`appwrite push tables` from packages/api), then run
- *      `bun run types:generate` in packages/api and commit types/appwrite.ts.
- *   2. Deploy web before any apply.
- *   3. Review review.md, edit plan.json where needed, and re-run the dry run
- *      if the data changed.
- *   4. Apply, now or at Stage 2 go-live. If applied now, nobody should edit
- *      benefits in the old admin until Stage 2 ships: the old editor can't
- *      handle one-line rows and only writes codes to the old column.
- *   5. Not in this stage: removing table-level read("any") from
- *      campus_benefits and clearing the old redemption_value column (Stage 4).
+ * Go-live order: follow the release runbook in
+ * docs/superpowers/benefits-studio-go-live.md, the only order to use. Re-run
+ * the dry run if the benefits changed since the last one.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
