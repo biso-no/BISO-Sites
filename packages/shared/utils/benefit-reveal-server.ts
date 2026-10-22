@@ -1,5 +1,4 @@
 import { ID, Permission, Query, Role } from "@repo/api";
-import { isBenefitSection } from "./benefit-catalog";
 import { isBenefitVisible } from "./benefit-visibility";
 
 export interface RevealDb {
@@ -38,6 +37,19 @@ interface PartnerRow {
 const NOT_FOUND_TYPES = new Set(["row_not_found", "document_not_found"]);
 
 /** Shared modules can't import app helpers, so this mirrors the apps' check. */
+const CONFLICT_TYPES = new Set([
+  "row_already_exists",
+  "document_already_exists",
+]);
+
+function isRowConflict(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, type } = error as { code?: unknown; type?: unknown };
+  return code === 409 || (typeof type === "string" && CONFLICT_TYPES.has(type));
+}
+
 function isRowNotFound(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
@@ -74,16 +86,26 @@ async function recordReveal(
     Query.limit(1),
   ]);
   if (existing.rows.length === 0) {
-    await db.createRow(
-      "benefit_reveals",
-      ID.unique(),
-      {
-        benefit_id: benefitId,
-        revealed_at: now.toISOString(),
-        user_id: userId,
-      },
-      [Permission.read(Role.user(userId)), Permission.update(Role.user(userId))]
-    );
+    try {
+      await db.createRow(
+        "benefit_reveals",
+        ID.unique(),
+        {
+          benefit_id: benefitId,
+          revealed_at: now.toISOString(),
+          user_id: userId,
+        },
+        [
+          Permission.read(Role.user(userId)),
+          Permission.update(Role.user(userId)),
+        ]
+      );
+    } catch (error) {
+      // A concurrent reveal won the unique index: already revealed.
+      if (!isRowConflict(error)) {
+        throw error;
+      }
+    }
   }
   try {
     await db.createRow(
@@ -129,7 +151,7 @@ export async function revealBenefitCode(
     return { ok: false, reason: "not_found" };
   }
   const section = benefit.section ?? "member";
-  if (!isBenefitSection(section) || section !== "member") {
+  if (section !== "member") {
     return { ok: false, reason: "not_found" };
   }
   const partner = benefit.partner_id
@@ -151,8 +173,10 @@ export async function revealBenefitCode(
     "benefit_codes",
     benefitId
   );
-  const value = (codeRow ? codeRow.value : benefit.redemption_value) ?? "";
-  if (value.trim() === "") {
+  const value = (
+    (codeRow ? codeRow.value : benefit.redemption_value) ?? ""
+  ).trim();
+  if (value === "") {
     return { ok: false, reason: "no_code" };
   }
 

@@ -21,6 +21,9 @@ function makeDb(
   opts: {
     benefit?: Record<string, unknown> | null;
     code?: string | null;
+    codeError?: Error;
+    partnerMissing?: boolean;
+    revealCreateError?: unknown;
     existingReveal?: boolean;
     failInteraction?: boolean;
     partner?: Record<string, unknown>;
@@ -28,6 +31,7 @@ function makeDb(
 ) {
   const calls: string[] = [];
   const created: Created[] = [];
+  const listQueries: string[][] = [];
   const benefit =
     opts.benefit === undefined
       ? {
@@ -43,6 +47,9 @@ function makeDb(
   const db: RevealDb = {
     createRow(table, id, data, permissions) {
       calls.push(`create:${table}`);
+      if (table === "benefit_reveals" && opts.revealCreateError) {
+        return Promise.reject(opts.revealCreateError);
+      }
       if (table === "benefit_interactions" && opts.failInteraction) {
         return Promise.reject(new Error("boom"));
       }
@@ -57,22 +64,29 @@ function makeDb(
           : Promise.reject(notFound());
       }
       if (table === "benefit_partners") {
+        if (opts.partnerMissing) {
+          return Promise.reject(notFound());
+        }
         return Promise.resolve((opts.partner ?? { is_active: true }) as T);
       }
       if (table === "benefit_codes") {
+        if (opts.codeError) {
+          return Promise.reject(opts.codeError);
+        }
         return opts.code == null
           ? Promise.reject(notFound())
           : Promise.resolve({ value: opts.code } as T);
       }
       return Promise.reject(notFound());
     },
-    listRows<T>(table: string) {
+    listRows<T>(table: string, queries: string[]) {
       calls.push(`list:${table}`);
+      listQueries.push(queries);
       const rows = opts.existingReveal ? [{ $id: "r" }] : [];
       return Promise.resolve({ rows: rows as T[] });
     },
   };
-  return { calls, created, db };
+  return { calls, created, db, listQueries };
 }
 
 const input = {
@@ -236,6 +250,80 @@ describe("revealBenefitCode", () => {
     expect(await revealBenefitCode(db, input)).toEqual({
       ok: true,
       value: "S",
+    });
+  });
+
+  it("treats a 409 on the reveal row as already revealed", async () => {
+    const { created, db } = makeDb({
+      code: "S",
+      revealCreateError: Object.assign(new Error("dup"), { code: 409 }),
+    });
+    expect(await revealBenefitCode(db, input)).toEqual({
+      ok: true,
+      value: "S",
+    });
+    expect(created.map((c) => c.table)).toEqual(["benefit_interactions"]);
+  });
+
+  it("rethrows other reveal row errors", async () => {
+    const { db } = makeDb({
+      code: "S",
+      revealCreateError: Object.assign(new Error("down"), { code: 500 }),
+    });
+    await expect(revealBenefitCode(db, input)).rejects.toThrow("down");
+  });
+
+  it("returns not_found for an inactive or missing partner", async () => {
+    const inactive = makeDb({ code: "S", partner: { is_active: false } });
+    expect(await revealBenefitCode(inactive.db, input)).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+    const missing = makeDb({ code: "S", partnerMissing: true });
+    expect(await revealBenefitCode(missing.db, input)).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+  });
+
+  it("filters the reveal-existence check on user and benefit", async () => {
+    const { db, listQueries } = makeDb({ code: "S" });
+    await revealBenefitCode(db, input);
+    const joined = (listQueries[0] ?? []).join(" ");
+    expect(joined).toContain("user_id");
+    expect(joined).toContain("u1");
+    expect(joined).toContain("benefit_id");
+    expect(joined).toContain("b1");
+  });
+
+  it("propagates non-404 errors from the code read", async () => {
+    const { db } = makeDb({
+      codeError: Object.assign(new Error("db down"), { code: 500 }),
+    });
+    await expect(revealBenefitCode(db, input)).rejects.toThrow("db down");
+  });
+
+  it("writes nothing on not_found or no_code", async () => {
+    const draft = makeDb({
+      benefit: {
+        campus_id: "1",
+        redemption_type: "code",
+        section: "member",
+        status: "draft",
+      },
+    });
+    await revealBenefitCode(draft.db, input);
+    const blank = makeDb({ code: " " });
+    await revealBenefitCode(blank.db, input);
+    expect(draft.created).toEqual([]);
+    expect(blank.created).toEqual([]);
+  });
+
+  it("returns the trimmed value", async () => {
+    const { db } = makeDb({ code: "  ABC \n" });
+    expect(await revealBenefitCode(db, input)).toEqual({
+      ok: true,
+      value: "ABC",
     });
   });
 });
