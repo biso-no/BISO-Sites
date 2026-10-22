@@ -2620,9 +2620,7 @@
         },
         {
             "$id": "campus_benefits",
-            "$permissions": [
-                "read(\"any\")"
-            ],
+            "$permissions": [],
             "databaseId": "app",
             "name": "Campus Benefits",
             "enabled": true,

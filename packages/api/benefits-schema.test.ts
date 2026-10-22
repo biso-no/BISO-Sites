@@ -88,8 +88,8 @@ describe("benefits studio schema", () => {
     );
   });
 
-  test("campus_benefits keeps its table-level read until stage 4", () => {
-    expect(table("campus_benefits").$permissions).toEqual(['read("any")']);
+  test("campus_benefits rows are readable only through row permissions", () => {
+    expect(table("campus_benefits").$permissions).toEqual([]);
   });
 
   test("benefit_codes is service-only", () => {
