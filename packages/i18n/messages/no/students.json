@@ -15,18 +15,18 @@
     "subtitle": "Høydepunkter fra {campus} og nasjonale initiativer.",
     "cta": "Se alle fordeler",
     "badges": {
-      "studentBenefits": "Medlemskap",
-      "careerAdvantages": "Karriere",
-      "socialNetwork": "Fellesskap",
+      "member": "Medlemskap",
+      "career": "Karriere",
+      "social": "Fellesskap",
       "safety": "Støtte",
-      "businessBenefits": "Partnerskap"
+      "business": "Partnerskap"
     },
     "labels": {
-      "studentBenefits": "Medlemskap og tilbud",
-      "careerAdvantages": "Karriere og utvikling",
-      "socialNetwork": "Studentliv og fellesskap",
+      "member": "Medlemskap og tilbud",
+      "career": "Karriere og utvikling",
+      "social": "Studentliv og fellesskap",
       "safety": "Trygghet og støtte",
-      "businessBenefits": "For partnere"
+      "business": "For partnere"
     },
     "empty": "Medlemsfordeler for {campus} publiseres snart."
   },

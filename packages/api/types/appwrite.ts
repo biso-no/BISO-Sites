@@ -85,6 +85,14 @@ export enum CampusBenefitsRedemptionType {
   ONSITE = "onsite",
 }
 
+export enum CampusBenefitsSection {
+  MEMBER = "member",
+  CAREER = "career",
+  SOCIAL = "social",
+  SAFETY = "safety",
+  BUSINESS = "business",
+}
+
 export enum ExpenseApprovalsApproverRole {
   FINANCE = "finance",
   MANAGER = "manager",
@@ -493,6 +501,16 @@ export enum MemberPassScansCodeKind {
   APPLE = "apple",
 }
 
+export enum MembershipTextsSpot {
+  HOME_JOIN = "home_join",
+  PLAN_CARD = "plan_card",
+  PORTAL_LOCKED = "portal_locked",
+  ONBOARDING = "onboarding",
+  SHOP_CALLOUT = "shop_callout",
+  BUSINESS = "business",
+  BUSINESS_HOTSPOT = "business_hotspot",
+}
+
 export type News = Models.Row & {
   slug: string | null;
   status: NewsStatus;
@@ -695,6 +713,7 @@ export type Partners = Models.Row & {
   campus: Campus;
   image_url: string;
   campus_id: string;
+  sort_order: number;
 };
 
 export type JobApplications = Models.Row & {
@@ -758,15 +777,16 @@ export type CampusBenefits = Models.Row & {
   contentTranslations: ContentTranslations[];
   campus_id: string;
   status: CampusBenefitsStatus;
-  kind: CampusBenefitsKind;
+  kind: CampusBenefitsKind | null;
   redemption_type: CampusBenefitsRedemptionType;
-  category: string;
+  category: string | null;
+  section: CampusBenefitsSection;
   partner_name: string | null;
   partner_logo_url: string | null;
   title_nb: string;
   title_en: string;
-  description_nb: string;
-  description_en: string;
+  description_nb: string | null;
+  description_en: string | null;
   teaser_nb: string | null;
   teaser_en: string | null;
   terms_en: string | null;
@@ -1709,6 +1729,12 @@ export type MemberPassScanners = Models.Row & {
   invited_at: string | null;
 };
 
+export type TwentyFourSevenOfficeDepartments = Models.Row & {
+  Id: string;
+  Name: string;
+  Campus: string | null;
+};
+
 export type AuthTokens = Models.Row & {
   token: string;
 };
@@ -1734,4 +1760,19 @@ export type DocumentVersions = Models.Row & {
   file_name: string;
   file_size: number | null;
   uploaded_by: string | null;
+};
+
+export type BenefitCodes = Models.Row & {
+  benefit_id: string;
+  value: string;
+  updated_by: string | null;
+};
+
+export type MembershipTexts = Models.Row & {
+  spot: MembershipTextsSpot;
+  sort_order: number;
+  title_nb: string;
+  title_en: string | null;
+  body_nb: string | null;
+  body_en: string | null;
 };

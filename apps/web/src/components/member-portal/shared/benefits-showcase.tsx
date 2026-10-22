@@ -1,6 +1,6 @@
 "use client";
 
-import type { CampusBenefits } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import {
   Carousel,
   CarouselContent,
@@ -10,12 +10,14 @@ import {
 } from "@repo/ui/components/ui/carousel";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { benefitHeadline } from "@/lib/benefit-text";
+import { localizedPublicBenefitText } from "@/lib/benefit-text";
 import { BenefitPreviewCard } from "./benefit-preview-card";
 
-export function BenefitsShowcase({ benefits }: { benefits: CampusBenefits[] }) {
+export function BenefitsShowcase({ benefits }: { benefits: PublicBenefit[] }) {
   const t = useTranslations("memberPortal");
   const locale = useLocale();
+  // The server already scoped these to the visitor's campus plus national.
+  const benefitCount = benefits.length;
 
   return (
     <section className="py-12">
@@ -46,13 +48,16 @@ export function BenefitsShowcase({ benefits }: { benefits: CampusBenefits[] }) {
             {benefits.slice(0, 10).map((benefit, index) => (
               <CarouselItem
                 className="basis-full pl-4 sm:basis-1/2 lg:basis-1/3"
-                key={benefit.$id || index}
+                key={benefit.id}
               >
                 <BenefitPreviewCard
-                  category={benefit.category}
-                  discountText={benefitHeadline(benefit, locale)}
+                  category={benefit.category ?? ""}
+                  discountText={
+                    localizedPublicBenefitText(benefit, locale).title
+                  }
                   index={index}
-                  partnerName={benefit.partner_name || "Partner"}
+                  partnerLogo={benefit.partner?.logoUrl}
+                  partnerName={benefit.partner?.name ?? null}
                 />
               </CarouselItem>
             ))}
@@ -73,12 +78,17 @@ export function BenefitsShowcase({ benefits }: { benefits: CampusBenefits[] }) {
         initial={{ opacity: 0 }}
         transition={{ delay: 0.5 }}
       >
-        <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
-          <div className="mb-2 font-bold text-3xl text-brand">50+</div>
-          <div className="text-muted-foreground">
-            {t("showcase.stats.partners")}
+        {/* No count beats "0 partnere" while benefits fail to load. */}
+        {benefitCount > 0 ? (
+          <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
+            <div className="mb-2 font-bold text-3xl text-brand">
+              {benefitCount}
+            </div>
+            <div className="text-muted-foreground">
+              {t("showcase.stats.partners", { count: benefitCount })}
+            </div>
           </div>
-        </div>
+        ) : null}
         <div className="rounded-xl bg-linear-to-br from-brand-muted to-brand-muted-strong p-6">
           <div className="mb-2 font-bold text-3xl text-brand">10,000+</div>
           <div className="text-muted-foreground">

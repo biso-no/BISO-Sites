@@ -1,5 +1,6 @@
 "use client";
 import { trackEvent } from "@repo/shared/utils/analytics";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
 import { Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
@@ -7,24 +8,30 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-export function JoinUs() {
+interface JoinUsProps {
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
+}
+
+const BENEFIT_ICONS = [Sparkles, Gift, Crown, Zap, Check];
+
+export function JoinUs({ items }: JoinUsProps) {
   const t = useTranslations("membership");
   const router = useRouter();
-  const benefits = [
-    { icon: Sparkles, text: t("benefits.categories.social.global") },
-    { icon: Gift, text: t("benefits.categories.career.global") },
-    { icon: Crown, text: t("benefits.categories.student.global") },
-    { icon: Zap, text: t("benefits.categories.safety.global") },
-    { icon: Check, text: t("benefits.categories.business.global") },
-  ];
-
-  const memberFeatures = [
-    t("benefits.categories.social.global"),
-    t("benefits.categories.career.global"),
-    t("benefits.categories.student.global"),
-    t("benefits.categories.safety.global"),
-    t("benefits.categories.business.global"),
-  ];
+  const lines = items?.length
+    ? items.map((item) => item.title)
+    : [
+        t("benefits.categories.social.global"),
+        t("benefits.categories.career.global"),
+        t("benefits.categories.student.global"),
+        t("benefits.categories.safety.global"),
+        t("benefits.categories.business.global"),
+      ];
+  const benefits = lines.map((text, index) => ({
+    icon: BENEFIT_ICONS[index % BENEFIT_ICONS.length],
+    text,
+  }));
+  const memberFeatures = lines;
 
   const membershipDurations = [
     {

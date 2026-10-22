@@ -1,40 +1,26 @@
 "use client";
 
+import { isBenefitCategory } from "@repo/shared/utils/benefit-catalog";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
-import {
-  Briefcase,
-  Coffee,
-  Dumbbell,
-  Film,
-  GraduationCap,
-  Laptop,
-  Lock,
-  Plane,
-  Sparkles,
-} from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
+import Image from "next/image";
+import { useLocale } from "next-intl";
+import { benefitCategoryLabel } from "@/lib/benefit-text";
+import { BENEFIT_CATEGORY_ICONS } from "./benefit-category-icons";
 
 interface BenefitPreviewCardProps {
   category: string;
   discountText: string;
   index?: number;
   partnerLogo?: string | null;
-  partnerName: string;
+  /** Null for a benefit without a partner: the card leaves the line out. */
+  partnerName: string | null;
 }
 
-const getCategoryIcon = (category: string) => {
-  const icons: Record<string, typeof Coffee> = {
-    "Food & Drink": Coffee,
-    Entertainment: Film,
-    Career: Briefcase,
-    "Health & Fitness": Dumbbell,
-    Software: Laptop,
-    Travel: Plane,
-    Education: GraduationCap,
-  };
-  return icons[category] || Sparkles;
-};
+const getCategoryIcon = (category: string) =>
+  isBenefitCategory(category) ? BENEFIT_CATEGORY_ICONS[category] : Sparkles;
 
 const getCategoryGradient = (_category: string) => {
   return "from-brand-gradient-from to-brand-gradient-to";
@@ -43,11 +29,13 @@ const getCategoryGradient = (_category: string) => {
 export function BenefitPreviewCard({
   category,
   partnerName,
+  partnerLogo,
   discountText,
   index = 0,
 }: BenefitPreviewCardProps) {
   const Icon = getCategoryIcon(category);
   const gradient = getCategoryGradient(category);
+  const categoryLabel = benefitCategoryLabel(category, useLocale());
 
   return (
     <motion.div
@@ -72,9 +60,22 @@ export function BenefitPreviewCard({
 
           {/* Category icon */}
           <div className="relative flex h-full items-center justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-              <Icon className="h-6 w-6 text-white" />
-            </div>
+            {partnerLogo ? (
+              <div className="relative h-12 w-12 overflow-hidden rounded-full bg-white/20 backdrop-blur-sm">
+                <Image
+                  alt={partnerName ?? ""}
+                  className="object-cover"
+                  fill
+                  sizes="48px"
+                  src={partnerLogo}
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                <Icon className="h-6 w-6 text-white" />
+              </div>
+            )}
           </div>
 
           {/* Lock overlay */}
@@ -88,16 +89,20 @@ export function BenefitPreviewCard({
         {/* Content */}
         <div className="p-5">
           {/* Category badge */}
-          <Badge
-            className={`mb-3 bg-linear-to-r ${gradient} border-0 text-white`}
-          >
-            {category}
-          </Badge>
+          {categoryLabel && (
+            <Badge
+              className={`mb-3 bg-linear-to-r ${gradient} border-0 text-white`}
+            >
+              {categoryLabel}
+            </Badge>
+          )}
 
           {/* Partner name (partial blur effect) */}
-          <h3 className="mb-1 font-semibold text-foreground text-lg dark:text-foreground">
-            {partnerName}
-          </h3>
+          {partnerName ? (
+            <h3 className="mb-1 font-semibold text-foreground text-lg dark:text-foreground">
+              {partnerName}
+            </h3>
+          ) : null}
 
           {/* Discount text */}
           <div>

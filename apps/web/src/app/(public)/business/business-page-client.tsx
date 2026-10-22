@@ -1,5 +1,6 @@
 "use client";
 
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -30,15 +31,19 @@ interface BusinessPageClientProps {
   activeCampus: string | null;
   /** Where each campus's career days card leads. */
   careerDaysLinks: Record<CareerDaysCampus, string>;
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
 }
 
 export function BusinessPageClient({
   activeCampus,
   careerDaysLinks,
+  items,
 }: BusinessPageClientProps) {
   const t = useTranslations("partner");
 
-  const benefits = [
+  const benefitIcons = [Users, Heart, Target];
+  const defaultBenefits = [
     {
       key: "colleagues",
       icon: Users,
@@ -58,6 +63,19 @@ export function BusinessPageClient({
       description: t("benefits.items.match.description"),
     },
   ];
+  const benefits: {
+    description: string | null;
+    icon: (typeof benefitIcons)[number];
+    key: string;
+    title: string;
+  }[] = items?.length
+    ? items.map((item, index) => ({
+        description: item.body,
+        icon: benefitIcons[index % benefitIcons.length],
+        key: `${index}-${item.title}`,
+        title: item.title,
+      }))
+    : defaultBenefits;
 
   const careerDays: {
     action: string;
@@ -223,9 +241,11 @@ export function BusinessPageClient({
                     <h3 className="mb-2 font-semibold text-foreground text-lg">
                       {benefit.title}
                     </h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {benefit.description}
-                    </p>
+                    {benefit.description ? (
+                      <p className="text-muted-foreground text-sm leading-relaxed">
+                        {benefit.description}
+                      </p>
+                    ) : null}
                   </Card>
                 </motion.div>
               );

@@ -1,5 +1,6 @@
 "use client";
 
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -210,9 +211,12 @@ function FormField({
 
 export function OnboardingFlow({
   initialName,
+  items,
   linkedBi,
 }: {
   initialName: string;
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
   required: boolean;
   linkedBi: boolean;
 }) {
@@ -458,14 +462,15 @@ export function OnboardingFlow({
           </p>
         </div>
         <ul className="space-y-2 text-muted-foreground text-sm">
-          {(
-            [
-              t("student.benefits.membership"),
-              t("student.benefits.events"),
-              t("student.benefits.sso"),
-            ] as string[]
-          ).map((benefit) => (
-            <li className="flex items-start gap-2" key={benefit}>
+          {(items?.length
+            ? items.map((item) => item.title)
+            : ([
+                t("student.benefits.membership"),
+                t("student.benefits.events"),
+                t("student.benefits.sso"),
+              ] as string[])
+          ).map((benefit, index) => (
+            <li className="flex items-start gap-2" key={`${index}-${benefit}`}>
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
               {benefit}
             </li>

@@ -31,8 +31,10 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ db })),
 }));
 
+let currentCtx: UserAuthContext = campusAdminCtx;
+
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => campusAdminCtx),
+  requireAuth: mock(async () => currentCtx),
 }));
 
 mock.module("@/lib/recruitment", () => ({
@@ -81,6 +83,7 @@ function mockExistingRows(rowsByTable: Record<string, unknown[]>): void {
 
 describe("admin content update scoping", () => {
   beforeEach(() => {
+    currentCtx = campusAdminCtx;
     db.createRow.mockReset();
     db.deleteRow.mockReset();
     db.getRow.mockReset();
@@ -191,40 +194,43 @@ describe("admin content update scoping", () => {
   });
 
   test("benefit drafts cannot be moved to a campus the admin cannot write", async () => {
+    // Benefits use the numeric campus ids "1"–"5".
+    currentCtx = { ...campusAdminCtx, managedCampusIds: ["2"] };
     mockExistingRows({
       campus_benefits: [
         {
           $id: "benefit-1",
-          campus_id: "campus-oslo",
+          campus_id: "2",
+          section: "member",
+          sort_order: 0,
           status: "draft",
         },
       ],
     });
 
     const result = await updateBenefit("benefit-1", {
-      campus_id: "campus-bergen",
-      category: "Food",
+      campus_id: "3",
+      category: "food_drink",
       description_en: "Description",
       description_nb: "Beskrivelse",
       image_url: "",
       is_featured: false,
-      is_member_only: true,
-      kind: "offer",
-      partner_name: null,
+      partner_id: null,
       publish_end: null,
       publish_start: null,
       redemption_type: "none",
       redemption_value: null,
-      sort_order: 0,
+      section: "member",
       status: "draft",
-      teaser_en: null,
-      teaser_nb: null,
+      terms_en: null,
+      terms_nb: null,
       title_en: "Benefit",
       title_nb: "Fordel",
     });
 
     expect(result).toEqual({ error: unauthorizedCampusError });
     expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
   });
 
   test("document drafts cannot be moved to a campus the admin cannot write", async () => {

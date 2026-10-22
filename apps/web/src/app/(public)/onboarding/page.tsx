@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getLocale } from "@/app/actions/locale";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { getLoggedInUser, listIdentities } from "@/lib/actions/user";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 
 export const metadata: Metadata = {
   description: "Set up your BISO profile to access events, benefits, and more.",
@@ -44,6 +46,8 @@ export default async function OnboardingPage({
     (identity) => identity.provider.toLowerCase() === "oidc"
   );
 
+  const items = await getMembershipTextItems("onboarding", await getLocale());
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-brand-dark">
       {/* Radial brand-blue glow centred behind the card */}
@@ -55,6 +59,7 @@ export default async function OnboardingPage({
       </div>
       <OnboardingFlow
         initialName={userData.user.name ?? ""}
+        items={items}
         linkedBi={params.linked === "1" || hasBiIdentity}
         required={params.required === "1"}
       />

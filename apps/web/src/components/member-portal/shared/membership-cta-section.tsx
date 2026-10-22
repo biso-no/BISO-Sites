@@ -4,6 +4,7 @@ import {
   type MembershipPlan,
   POPULAR_MEMBERSHIP_DURATION,
 } from "@repo/shared/utils/membership-plans";
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Button } from "@repo/ui/components/ui/button";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { CreditCard, Sparkles, Users } from "lucide-react";
@@ -40,7 +41,12 @@ function fetchMembershipPlans() {
   return plansRequest;
 }
 
-export function MembershipCtaSection() {
+interface MembershipCtaSectionProps {
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
+}
+
+export function MembershipCtaSection({ items }: MembershipCtaSectionProps) {
   const t = useTranslations("memberPortal");
   const [plans, setPlans] = useState<MembershipPlan[] | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | undefined>();
@@ -77,7 +83,9 @@ export function MembershipCtaSection() {
     return null;
   }
 
-  const benefits = BENEFIT_KEYS.map((key) => t(`cta.benefits.${key}`));
+  const benefits = items?.length
+    ? items.map((item) => item.title)
+    : BENEFIT_KEYS.map((key) => t(`cta.benefits.${key}`));
 
   return (
     <section className="relative overflow-hidden py-16">

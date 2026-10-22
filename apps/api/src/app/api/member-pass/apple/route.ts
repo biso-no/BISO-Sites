@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
   if (resolved.state === "unauthenticated") {
     return error(401, "not_authenticated", origin);
   }
+  if (resolved.state === "unavailable") {
+    return error(503, "unavailable", origin);
+  }
   if (resolved.state !== "active") {
     return error(403, resolved.state, origin);
   }

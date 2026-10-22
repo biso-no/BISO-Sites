@@ -7,6 +7,14 @@ import type {
 } from "@repo/api/types/appwrite";
 import type { Locale } from "@repo/i18n/config";
 import type { RecruitmentVacancy } from "@repo/shared/types/recruitment";
+import {
+  BENEFIT_SECTIONS,
+  type BenefitSection,
+} from "@repo/shared/utils/benefit-catalog";
+import {
+  benefitsForCampus,
+  type PublicBenefit,
+} from "@repo/shared/utils/benefit-public";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -31,21 +39,13 @@ import { useMemo } from "react";
 import { AboutHero } from "@/components/about/about-hero";
 import { useCampus } from "@/components/context/campus";
 import { MembersOnlyBadge } from "@/components/events/members-only";
+import { localizedPublicBenefitText } from "@/lib/benefit-text";
 import type { PublicUnit } from "@/lib/data/units";
-import type { CampusData } from "@/lib/types/campus-data";
 import { getEventHref } from "@/lib/types/event";
 
-type BenefitKey =
-  | "studentBenefits"
-  | "careerAdvantages"
-  | "socialNetwork"
-  | "safety"
-  | "businessBenefits";
-
 interface StudentsPageClientProps {
-  campusData: CampusData[];
+  benefits: PublicBenefit[];
   events: Events[];
-  globalBenefits: CampusData | null;
   jobs: Array<Jobs | RecruitmentVacancy>;
   locale: Locale;
   units: PublicUnit[];
@@ -74,70 +74,18 @@ const WHITESPACE_RUN = /\s+/g;
 const stripHtml = (value?: string | null) =>
   value ? value.replace(HTML_TAG, " ").replace(WHITESPACE_RUN, " ").trim() : "";
 
-const benefitKeys: BenefitKey[] = [
-  "studentBenefits",
-  "careerAdvantages",
-  "socialNetwork",
-  "safety",
-  "businessBenefits",
-];
-
 const benefitIconMap: Record<
-  BenefitKey,
+  BenefitSection,
   React.ComponentType<{ className?: string }>
 > = {
-  studentBenefits: GraduationCap,
-  careerAdvantages: Star,
-  socialNetwork: Users,
+  member: GraduationCap,
+  career: Star,
+  social: Users,
   safety: ShieldAlert,
-  businessBenefits: Handshake,
+  business: Handshake,
 };
 
-const selectBenefitItems = (
-  data: CampusData | null | undefined,
-  key: BenefitKey,
-  locale: Locale
-) => {
-  if (!data) {
-    return [];
-  }
-  const suffix = locale === "en" ? "_en" : "_nb";
-  const localizedKey = `${key}${suffix}` as keyof CampusData;
-  const localized = data[localizedKey];
-  const fallback = data[key];
-  let list: unknown[] = [];
-  if (Array.isArray(localized)) {
-    list = localized;
-  } else if (Array.isArray(fallback)) {
-    list = fallback;
-  }
-  return list.map((item) => (item ? String(item).trim() : "")).filter(Boolean);
-};
-
-const pickCampusData = (
-  dataset: CampusData[],
-  campusId?: string | null,
-  campusName?: string
-) => {
-  if (!dataset.length) {
-    return null;
-  }
-  if (campusId) {
-    const matchById = dataset.find((item) => item.$id === campusId);
-    if (matchById) {
-      return matchById;
-    }
-  }
-  if (campusName) {
-    const normalized = campusName.toLowerCase();
-    return dataset.find(
-      (item) =>
-        item.name?.toLowerCase() === normalized ||
-        item.name_nb?.toLowerCase() === normalized
-    );
-  }
-  return null;
-};
+const BENEFITS_PER_CARD = 4;
 
 const SECTION_SHELL = "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8";
 const FADE_UP = {
@@ -244,24 +192,29 @@ function CampusCtaBand({
   );
 }
 
-function BenefitsSection({
-  benefitsData,
+export function BenefitsSection({
+  benefits,
+  campusId,
   campusLabel,
   locale,
 }: {
-  benefitsData: CampusData | null;
+  benefits: PublicBenefit[];
+  campusId: string | null;
   campusLabel: string;
   locale: Locale;
 }) {
   const t = useTranslations("students");
 
-  const cards = benefitKeys
-    .map((key) => ({
-      icon: benefitIconMap[key],
-      items: selectBenefitItems(benefitsData, key, locale).slice(0, 4),
-      key,
-    }))
-    .filter((card) => card.items.length > 0);
+  const cards = BENEFIT_SECTIONS.map((key) => ({
+    icon: benefitIconMap[key],
+    items: benefitsForCampus(benefits, campusId, [key])
+      .slice(0, BENEFITS_PER_CARD)
+      .map((benefit) => ({
+        id: benefit.id,
+        title: localizedPublicBenefitText(benefit, locale).title,
+      })),
+    key,
+  })).filter((card) => card.items.length > 0);
 
   return (
     <section className="bg-section/50 py-16">
@@ -301,10 +254,10 @@ function BenefitsSection({
                   </div>
                   <ul className="mt-5 space-y-2.5">
                     {card.items.map((item) => (
-                      <li className="flex items-start gap-2.5" key={item}>
+                      <li className="flex items-start gap-2.5" key={item.id}>
                         <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
                         <span className="text-muted-foreground text-sm leading-relaxed">
-                          {item}
+                          {item.title}
                         </span>
                       </li>
                     ))}
@@ -626,17 +579,11 @@ export const StudentsPageClient = ({
   events,
   jobs,
   units,
-  campusData,
-  globalBenefits,
+  benefits,
   locale,
 }: StudentsPageClientProps) => {
   const t = useTranslations("students");
   const { activeCampus, activeCampusId } = useCampus();
-
-  const currentCampusData = useMemo(
-    () => pickCampusData(campusData, activeCampusId, activeCampus?.name),
-    [campusData, activeCampusId, activeCampus]
-  );
 
   const filteredEvents = useMemo(() => {
     if (!activeCampusId) {
@@ -683,7 +630,8 @@ export const StudentsPageClient = ({
         unitsQuery={unitsQuery}
       />
       <BenefitsSection
-        benefitsData={currentCampusData ?? globalBenefits}
+        benefits={benefits}
+        campusId={activeCampusId}
         campusLabel={campusLabel}
         locale={locale}
       />

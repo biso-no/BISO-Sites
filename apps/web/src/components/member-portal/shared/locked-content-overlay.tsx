@@ -1,5 +1,6 @@
 "use client";
 
+import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -28,6 +29,8 @@ import { switchToBiSignIn } from "@/lib/server";
 interface LockedContentOverlayProps {
   children: React.ReactNode;
   hasBIIdentity: boolean;
+  /** Saved text from admin; null or missing keeps the built-in i18n text. */
+  items?: MembershipTextItem[] | null;
 }
 
 const MEMBERSHIP_OPTIONS: {
@@ -40,19 +43,18 @@ const MEMBERSHIP_OPTIONS: {
   { type: "three-year", price: 1400, popular: false },
 ];
 
-const QUICK_BENEFITS = [
-  "50+ exclusive discounts",
-  "Digital membership card",
-  "Priority event access",
-  "Career resources",
-];
+const QUICK_BENEFIT_KEYS = ["discounts", "card", "priority", "career"] as const;
 
 export function LockedContentOverlay({
   hasBIIdentity,
+  items,
   children,
 }: LockedContentOverlayProps) {
   const t = useTranslations("memberPortal");
   const router = useRouter();
+  const quickBenefits = items?.length
+    ? items.map((item) => item.title)
+    : QUICK_BENEFIT_KEYS.map((key) => t(`locked.quickBenefits.${key}`));
   const [isPending, startTransition] = useTransition();
   const [isLinking, startLinkTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<MembershipDuration>("year");
@@ -125,7 +127,7 @@ export function LockedContentOverlay({
 
                   {/* Quick benefits */}
                   <div className="mb-8 grid gap-2 sm:grid-cols-2">
-                    {QUICK_BENEFITS.map((benefit, index) => (
+                    {quickBenefits.map((benefit, index) => (
                       <div
                         className="flex items-center gap-2 text-muted-foreground text-sm dark:text-muted-foreground"
                         key={index}
@@ -206,7 +208,7 @@ export function LockedContentOverlay({
                       </span>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {QUICK_BENEFITS.map((benefit, index) => (
+                      {quickBenefits.map((benefit, index) => (
                         <div
                           className="flex items-center gap-2 text-muted-foreground text-sm dark:text-muted-foreground"
                           key={index}

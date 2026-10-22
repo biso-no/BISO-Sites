@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { readPageDepartmentsFeed } from "./page-feeds";
+import { readPageDepartmentsFeed, readPagePartnersFeed } from "./page-feeds";
 
 function departmentRow(id: number) {
   return {
@@ -87,5 +87,18 @@ describe("readPageDepartmentsFeed", () => {
       "campus_id",
       "type",
     ]);
+  });
+});
+
+describe("readPagePartnersFeed", () => {
+  it("selects sort_order and orders by it", async () => {
+    const db = fakeDb({ rows: [], total: 0 });
+    await readPagePartnersFeed(db as never);
+    const queries = (
+      (db as unknown as { listRows: ReturnType<typeof vi.fn> }).listRows.mock
+        .calls[0][2] as string[]
+    ).join("|");
+    expect(queries).toContain("sort_order");
+    expect(queries).toContain('"method":"orderAsc","attribute":"sort_order"');
   });
 });

@@ -8,7 +8,7 @@ import {
   getPageEditorLocales,
 } from "@/app/(portal)/_actions/pages";
 import { getLocale } from "@/app/actions/locale";
-import { getUserAuthContext } from "@/lib/authorization";
+import { getUserAuthContext, requireNavAccess } from "@/lib/authorization";
 import { PageEditorClient } from "./_components/page-editor-client";
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export default async function PageEditorPage({ params }: Props) {
+  await requireNavAccess("portal.pages");
   const { id } = await params;
 
   const isNew = id === "new";

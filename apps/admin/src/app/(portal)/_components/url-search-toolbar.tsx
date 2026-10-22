@@ -11,7 +11,7 @@ interface UrlSearchToolbarProps {
 /**
  * Search box bound to the `?q=` URL param via `useUrlSearch`. Shared by every
  * list surface that just needs a debounced text search with no extra filter
- * chips — `benefits`, `benefits/partners`, and `departments` today.
+ * chips — `departments` today.
  */
 export function UrlSearchToolbar({ placeholder }: UrlSearchToolbarProps) {
   const tc = useTranslations("adminPortal.common");

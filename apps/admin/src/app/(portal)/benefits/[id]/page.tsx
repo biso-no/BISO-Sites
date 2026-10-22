@@ -1,74 +1,29 @@
-import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
-import { requireNavAccess } from "@/lib/authorization";
-import { getContentOwnership } from "@/lib/content-authorization";
-import { getBenefit } from "../../_actions/benefits";
-import { listCampuses } from "../../_actions/lookups";
-import { BenefitEditorClient } from "./_components/benefit-editor-client";
+import { BenefitBoardPage } from "../_components/benefit-board-page";
 
-interface Props {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+const single = (value: string | string[] | undefined): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+/**
+ * `/benefits/<id>` and `/benefits/new` show the board with the benefit open
+ * in the side panel, so links from the assistant, approvals and old
+ * bookmarks land on the same screen as a click on the board.
+ */
+export default async function BenefitPage({
+  params,
+  searchParams,
+}: {
   params: Promise<{ id: string }>;
-}
-
-export default async function BenefitEditorPage({ params }: Props) {
-  const ctx = await requireNavAccess("portal.benefits");
-  const { id } = await params;
-  const t = await getTranslations("adminPortal.benefits");
-
-  const isNew = id === "new";
-  const [benefit, campuses] = await Promise.all([
-    isNew ? null : getBenefit(id),
-    listCampuses(),
-  ]);
-
-  if (!(isNew || benefit)) {
-    notFound();
-  }
-
-  // Department authors are pinned to their own department; campus/global
-  // admins may pick any department in the campus or keep it campus-wide.
-  const isAdmin =
-    ctx.roles.includes("globaladmin") || ctx.managedCampusIds.length > 0;
-  const pinnedDepartmentId =
-    !isAdmin && ctx.resolvedDepartmentIds.length === 1
-      ? ctx.resolvedDepartmentIds[0]
-      : null;
-  const persistedDepartmentId = benefit
-    ? getContentOwnership(benefit, { legacyFallback: true }).department
-    : null;
-
+  searchParams: Promise<SearchParams>;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   return (
-    <BenefitEditorClient
-      benefit={benefit}
-      campuses={campuses}
-      initialDepartmentId={persistedDepartmentId ?? pinnedDepartmentId}
-      initialDepartments={[]}
-      isNew={isNew}
-      labels={{
-        back: t("title"),
-        titleNo: t("fields.titleNo"),
-        titleEn: t("fields.titleEn"),
-        descriptionNo: t("fields.descriptionNo"),
-        descriptionEn: t("fields.descriptionEn"),
-        kind: t("fields.kind"),
-        redemptionType: t("fields.redemptionType"),
-        redemptionValue: t("fields.redemptionValue"),
-        category: t("fields.category"),
-        campus: "Campus",
-        imageUrl: t("fields.imageUrl"),
-        status: t("fields.status"),
-        partnerName: t("fields.partnerName"),
-        isFeatured: t("fields.isFeatured"),
-        isMemberOnly: t("fields.isMemberOnly"),
-        discard: "Discard",
-        saveDraft: "Save Draft",
-        publish: "Publish",
-        preview: t("preview"),
-        saveSuccess: t("saveSuccess"),
-        saveError: t("saveError"),
-        publishSuccess: t("publishSuccess"),
-      }}
-      lockDepartment={Boolean(pinnedDepartmentId)}
+    <BenefitBoardPage
+      campus={single(query.campus)}
+      newPartnerId={single(query.partner)}
+      newSection={single(query.section)}
+      openId={id}
     />
   );
 }

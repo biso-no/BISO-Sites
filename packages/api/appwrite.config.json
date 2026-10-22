@@ -1967,6 +1967,15 @@
                     "size": 2,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "sort_order",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9999
                 }
             ],
             "indexes": [
@@ -1989,6 +1998,21 @@
                         "name"
                     ],
                     "orders": []
+                },
+                {
+                    "key": "idx_level_campus_sort",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "level",
+                        "campus_id",
+                        "sort_order"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC",
+                        "ASC"
+                    ]
                 }
             ]
         },
@@ -2596,9 +2620,7 @@
         },
         {
             "$id": "campus_benefits",
-            "$permissions": [
-                "read(\"any\")"
-            ],
+            "$permissions": [],
             "databaseId": "app",
             "name": "Campus Benefits",
             "enabled": true,
@@ -2641,7 +2663,7 @@
                 {
                     "key": "kind",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "default": null,
                     "format": "enum",
@@ -2654,9 +2676,9 @@
                 {
                     "key": "redemption_type",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
-                    "default": null,
+                    "default": "none",
                     "format": "enum",
                     "elements": [
                         "none",
@@ -2669,11 +2691,26 @@
                 {
                     "key": "category",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "size": 50,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "section",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "member",
+                    "format": "enum",
+                    "elements": [
+                        "member",
+                        "career",
+                        "social",
+                        "safety",
+                        "business"
+                    ]
                 },
                 {
                     "key": "partner_name",
@@ -2714,7 +2751,7 @@
                 {
                     "key": "description_nb",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "size": 2000,
                     "default": null,
@@ -2723,7 +2760,7 @@
                 {
                     "key": "description_en",
                     "type": "string",
-                    "required": true,
+                    "required": false,
                     "array": false,
                     "size": 2000,
                     "default": null,
@@ -2884,6 +2921,21 @@
                         "status"
                     ],
                     "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_campus_section_status",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "campus_id",
+                        "section",
+                        "status"
+                    ],
+                    "orders": [
+                        "ASC",
                         "ASC",
                         "ASC"
                     ]
@@ -12197,6 +12249,145 @@
                         "version_minor"
                     ],
                     "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "benefit_codes",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Benefit Codes",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "benefit_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "value",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "updated_by",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_benefit",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "benefit_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "membership_texts",
+            "$permissions": [
+                "read(\"any\")"
+            ],
+            "databaseId": "app",
+            "name": "Membership Texts",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "spot",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "home_join",
+                        "plan_card",
+                        "portal_locked",
+                        "onboarding",
+                        "shop_callout",
+                        "business",
+                        "business_hotspot"
+                    ]
+                },
+                {
+                    "key": "sort_order",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 0,
+                    "min": 0,
+                    "max": 9999
+                },
+                {
+                    "key": "title_nb",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "title_en",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "body_nb",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "body_en",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_spot_order",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "spot",
+                        "sort_order"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
                 }
             ]
         }

@@ -1,4 +1,4 @@
-const NATIONAL_CAMPUS_ID = "5";
+import { NATIONAL_CAMPUS_ID } from "./benefit-catalog";
 
 export function resolveBenefitCampusIds(campusId?: string | null): string[] {
   if (!campusId || campusId === NATIONAL_CAMPUS_ID) {

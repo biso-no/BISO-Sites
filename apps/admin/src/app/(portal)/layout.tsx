@@ -1,6 +1,7 @@
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { getTranslations } from "next-intl/server";
 import { getUserRolesForClient, requireAdminAccess } from "@/lib/authorization";
+import { ROLES } from "@/lib/roles";
 import { getInboxCounts } from "./_actions/inbox";
 import { AdminShell } from "./_components/admin-shell";
 import { ListParamsProvider } from "./_components/use-list-params";
@@ -18,6 +19,9 @@ async function getRoleLabel(
   }
   if (roles.isCampusAdmin) {
     return `${t("campusAdmin")} · ${ctx.managedCampuses[0] ?? ""}`;
+  }
+  if (ctx.roles.includes(ROLES.BENEFITS_EDITOR)) {
+    return t("benefitsEditor");
   }
   return ctx.departmentNames[0] ?? t("member");
 }

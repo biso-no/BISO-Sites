@@ -7,8 +7,9 @@ export type Partner = Models.Row & {
   name: string;
   url?: string;
   level: string;
-  campusId: string;
+  campus_id: string;
   image_url: string;
+  sort_order: number;
 };
 
 export async function getPartners() {
@@ -16,6 +17,8 @@ export async function getPartners() {
     const { db } = await createSessionClient();
     const partners = await db.listRows<Partner>("app", "partners", [
       Query.equal("level", "national"),
+      Query.orderAsc("sort_order"),
+      Query.orderAsc("$createdAt"),
     ]);
 
     return partners.rows;

@@ -6,6 +6,7 @@ import { listEvents } from "@/app/actions/events";
 import { listJobs } from "@/app/actions/jobs";
 import { getLocale } from "@/app/actions/locale";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { cachedCampusLogos, getPublicBenefits } from "@/lib/data/benefits";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { CampusPageClient } from "./components/campus-page-client";
 
@@ -46,23 +47,36 @@ export default async function CampusPage({ searchParams }: CampusPageProps) {
   // Scoping happens server-side: the list actions run `campusScopeIds`
   // internally, so the selected campus plus National content is fetched (and
   // the limits apply *after* scoping instead of truncating before it).
-  const [eventsResult, jobs, units, campusData, campusMetadata] =
-    await Promise.all([
-      listEvents({ campus, status: "published", locale, upcomingOnly: true }),
-      listJobs({ campus, locale }),
-      // The unit directory is the same cached read /units and /students use —
-      // `departments` filtered by the public visibility rule, never
-      // `content_translations`. An outage here must not take the campus page
-      // down with it; the grid hides itself on an empty list.
-      cachedPublicUnits(locale).catch(() => []),
-      getCampusData(),
-      getCampusMetadata(),
-    ]);
+  const [
+    eventsResult,
+    jobs,
+    units,
+    campusData,
+    campusMetadata,
+    benefits,
+    campusLogos,
+  ] = await Promise.all([
+    listEvents({ campus, status: "published", locale, upcomingOnly: true }),
+    listJobs({ campus, locale }),
+    // The unit directory is the same cached read /units and /students use —
+    // `departments` filtered by the public visibility rule, never
+    // `content_translations`. An outage here must not take the campus page
+    // down with it; the grid hides itself on an empty list.
+    cachedPublicUnits(locale).catch(() => []),
+    getCampusData(),
+    getCampusMetadata(),
+    // The benefit table and sponsor logos are cached readers that throw on a
+    // backend failure; the fallback lives here so it only outlasts this render.
+    getPublicBenefits().catch(() => []),
+    cachedCampusLogos().catch(() => []),
+  ]);
   const events = eventsResult.rows.slice(0, 10);
 
   return (
     <CampusPageClient
+      benefits={benefits}
       campusData={campusData}
+      campusLogos={campusLogos}
       campusMetadata={campusMetadata}
       events={events}
       jobs={jobs.rows}

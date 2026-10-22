@@ -1,10 +1,13 @@
 import { Card } from "@repo/ui/components/ui/card";
 import { CheckCircle, type LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 
 interface BenefitsSectionProps {
   colorScheme: "blue" | "green" | "pink" | "purple" | "orange";
   description: string;
+  /** Optional link rendered under the list. */
+  footerLink?: { href: string; label: string };
   icon: LucideIcon;
   items: string[];
   title: string;
@@ -41,6 +44,7 @@ const colorSchemes = {
 export function BenefitsSection({
   title,
   description,
+  footerLink,
   icon: Icon,
   items,
   colorScheme,
@@ -69,7 +73,7 @@ export function BenefitsSection({
               animate={{ opacity: 1, x: 0 }}
               className="flex items-start gap-3 rounded-lg bg-background p-4"
               initial={{ opacity: 0, x: -20 }}
-              key={index}
+              key={`${index}-${item}`}
               transition={{ delay: index * 0.05 }}
             >
               <CheckCircle
@@ -79,6 +83,14 @@ export function BenefitsSection({
             </motion.div>
           ))}
         </div>
+        {footerLink && (
+          <Link
+            className={`mt-6 inline-block font-medium text-sm hover:underline ${colors.checkColor}`}
+            href={footerLink.href}
+          >
+            {footerLink.label} →
+          </Link>
+        )}
       </Card>
     </section>
   );

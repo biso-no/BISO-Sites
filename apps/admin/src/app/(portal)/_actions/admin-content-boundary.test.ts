@@ -49,6 +49,12 @@ const campusAdminCtx = makeCtx({
   roles: ["campusadmin"],
 });
 
+/** Reaches the studio through the email allow-list alone: no teams at all. */
+const teamlessBenefitsEditorCtx = makeCtx({
+  email: "pr@biso.no",
+  roles: ["benefitseditor"],
+});
+
 let currentCtx: UserAuthContext = departmentCtx;
 
 mock.module("@repo/api/server", () => ({
@@ -68,6 +74,7 @@ mock.module("./audit-log", () => ({
 const { listDrafts } = await import("./drafts");
 const { searchEverything } = await import("./palette-search");
 const { listDepartmentsForCampus } = await import("./lookups");
+const { getInboxCounts } = await import("./inbox");
 
 beforeEach(() => {
   currentCtx = departmentCtx;
@@ -206,5 +213,33 @@ describe("department lookup boundary", () => {
     const rows = await listDepartmentsForCampus("campus-oslo");
 
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("teamless benefits editor in the portal shell", () => {
+  test("the inbox badge is zero and reads nothing", async () => {
+    currentCtx = teamlessBenefitsEditorCtx;
+
+    await expect(getInboxCounts()).resolves.toEqual({
+      approvals: 0,
+      submissions: 0,
+      total: 0,
+    });
+    expect(sessionDb.listRows).not.toHaveBeenCalled();
+    expect(adminDb.listRows).not.toHaveBeenCalled();
+  });
+
+  test("palette search finds nothing outside benefits", async () => {
+    currentCtx = teamlessBenefitsEditorCtx;
+
+    await expect(searchEverything("student")).resolves.toEqual([]);
+
+    const searchedTables = adminDb.listRows.mock.calls.map((call) => call[1]);
+    // No jobs, departments, products or orders surface for this role.
+    expect(searchedTables.sort()).toEqual(["events", "news", "pages"]);
+    // With no campus or department scope, every content search fails closed.
+    for (const call of adminDb.listRows.mock.calls) {
+      expect(call[2]).toContain(Query.equal("$id", "__no_scope_resolved__"));
+    }
   });
 });

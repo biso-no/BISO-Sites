@@ -49,6 +49,7 @@
     "@types/react-dom": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
+    "happy-dom": "catalog:",
     "vitest": "catalog:"
   },
   "overrides": {

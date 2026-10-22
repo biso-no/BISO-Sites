@@ -132,10 +132,18 @@ export function StudioCard({
   );
 }
 
-export function StudioKpiStrip({ children }: { children: ReactNode }) {
+export function StudioKpiStrip({
+  children,
+  columns = 4,
+}: {
+  children: ReactNode;
+  columns?: 3 | 4;
+}) {
   return (
     <section
-      className="grid overflow-hidden rounded-2xl md:grid-cols-4"
+      className={`grid overflow-hidden rounded-2xl ${
+        columns === 3 ? "md:grid-cols-3" : "md:grid-cols-4"
+      }`}
       style={studioSurface}
     >
       {children}
@@ -295,6 +303,14 @@ export function StudioStatusPill({
   );
 }
 
+/** `accent` is the claret call to action, as on the benefits board. */
+export type StudioButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "accent";
+
 export function StudioButton({
   children,
   className = "",
@@ -302,7 +318,7 @@ export function StudioButton({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: StudioButtonVariant;
 }) {
   return (
     <button
@@ -325,7 +341,7 @@ export function StudioLinkButton({
   children: ReactNode;
   className?: string;
   href: string;
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: StudioButtonVariant;
 }) {
   return (
     <Link
@@ -338,9 +354,15 @@ export function StudioLinkButton({
   );
 }
 
-export function buttonStyle(
-  variant: "primary" | "secondary" | "ghost" | "danger"
-): CSSProperties {
+export function buttonStyle(variant: StudioButtonVariant): CSSProperties {
+  if (variant === "accent") {
+    return {
+      background: STUDIO.claret,
+      border: `0.5px solid ${STUDIO.claret}`,
+      boxShadow: "0 6px 22px rgba(107,30,30,0.2)",
+      color: STUDIO.white,
+    };
+  }
   if (variant === "primary") {
     return {
       background: STUDIO.ink,

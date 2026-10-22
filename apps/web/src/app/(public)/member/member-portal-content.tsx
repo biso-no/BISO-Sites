@@ -1,9 +1,12 @@
 import type { Users } from "@repo/api/types/appwrite";
+import { NATIONAL_CAMPUS_ID } from "@repo/shared/utils/benefit-catalog";
 import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
 import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import { cookies } from "next/headers";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { getActiveCampus } from "@/app/actions/campus";
+import { getLocale } from "@/app/actions/locale";
 import {
-  getBenefitReveals,
   getFeaturedBenefits,
   getMemberPortalBenefits,
   getPublicProfile,
@@ -12,6 +15,8 @@ import {
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
 import type { MembershipStatus } from "@/lib/actions/membership";
+import { CAMPUS_COOKIE } from "@/lib/cookie-prefs";
+import { getMembershipTextItems } from "@/lib/data/membership-texts";
 import {
   heldThrough,
   toCurrentMembershipView,
@@ -47,20 +52,24 @@ export async function MemberPortalContent({
     ? await Promise.all([getUserProfile(), getPublicProfile(user.user.$id)])
     : [null, null];
 
-  // Resolve the user's campus id from their profile for campus-scoped benefits
-  const campusId: string | null =
-    profile?.campus_id || user?.profile?.campus_id || null;
+  // An explicit "all campuses" choice in the switcher means national only.
+  // Otherwise: the switcher's campus, then the profile's, then national.
+  const chosenAllCampuses =
+    (await cookies()).get(CAMPUS_COOKIE)?.value === "all";
+  const campusId: string = chosenAllCampuses
+    ? NATIONAL_CAMPUS_ID
+    : ((await getActiveCampus()) ??
+      (profile?.campus_id || user?.profile?.campus_id || NATIONAL_CAMPUS_ID));
 
-  // Fetch benefits for the member portal (all users see published benefits;
-  // non-members see teasers, members see the redemption value after reveal)
-  const [benefits, featuredBenefits, revealedBenefits, plans] =
+  // Benefits carry no codes; a member gets one only through revealBenefit.
+  const textLocale = await getLocale();
+  const [benefits, featuredBenefits, plans, planCardItems, lockedItems] =
     await Promise.all([
       getMemberPortalBenefits(campusId),
       getFeaturedBenefits(campusId),
-      user
-        ? getBenefitReveals(user.user.$id)
-        : Promise.resolve(new Set<string>()),
       getMembershipOfferCandidates().catch(() => []),
+      getMembershipTextItems("plan_card", textLocale),
+      getMembershipTextItems("portal_locked", textLocale),
     ]);
 
   const current = membership ? toCurrentMembershipView(membership) : null;
@@ -135,7 +144,9 @@ export async function MemberPortalContent({
           hasBIIdentity={hasBIIdentity}
           isGuest={!user}
           isMember={isMember}
+          lockedItems={lockedItems}
           membershipType={membershipType}
+          planCardItems={planCardItems}
           plans={offeredPlans}
           profile={profile || user?.profile || null}
           profileAccount={
@@ -147,7 +158,6 @@ export async function MemberPortalContent({
               : null
           }
           publicProfile={publicProfile}
-          revealedBenefits={revealedBenefits}
           startDate={startDate}
           termDays={termDays}
         />

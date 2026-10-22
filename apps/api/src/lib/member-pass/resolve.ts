@@ -1,4 +1,5 @@
 import "server-only";
+import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
 import {
@@ -19,8 +20,16 @@ export type ResolvedMemberPass =
   | { state: Exclude<MemberPassState, "active"> }
   | { holder: MemberPassHolder; state: "active"; userId: string };
 
+const UNAUTHORIZED = 401;
+
 function isRowNotFound(error: unknown): boolean {
   return (error as { code?: number } | null)?.code === 404;
+}
+
+/** Only the error's status code and type: a message could carry the JWT. */
+function errorSummary(error: unknown): string {
+  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
+  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
 }
 
 /**
@@ -49,8 +58,14 @@ export async function resolveMemberPassForRequest(
     const user = await account.get();
     userId = user.$id;
     accountName = user.name?.trim() ?? "";
-  } catch {
-    return { state: "unauthenticated" };
+  } catch (error) {
+    // Only Appwrite refusing the JWT means signed out. A network failure or
+    // a 5xx is an outage, and must not tell a member to sign in again.
+    if (appwriteErrorStatus(error) === UNAUTHORIZED) {
+      return { state: "unauthenticated" };
+    }
+    console.error("[Member Pass] Account check failed:", errorSummary(error));
+    return { state: "unavailable" };
   }
 
   let profile: Users | null;
