@@ -78,7 +78,9 @@
       "daysUntilRenewal": "Until Renewal",
       "estimatedSavings": "Estimated Savings",
       "potential": "Save more by using benefits"
-    }
+    },
+    "discoverIntro": "As a BISO member, you unlock exclusive discounts and benefits from our partners. Browse what is available and join today!",
+    "discoverIntroCount": "As a BISO member, you unlock exclusive discounts and benefits from our {count} partners. Browse what is available and join today!"
   },
   "profile": {
     "title": "Personal Information",
@@ -148,6 +150,14 @@
       "software": "Software",
       "travel": "Travel",
       "education": "Education"
+    },
+    "allCategories": "All",
+    "onsite": "Show your member card in the app",
+    "revealErrors": {
+      "notMember": "You need an active membership to see this benefit. Join BISO to unlock it.",
+      "unavailable": "We could not check your membership right now. Please try again in a moment.",
+      "noCode": "This benefit does not have a code at the moment. Please check back later.",
+      "generic": "Something went wrong. Please try again in a moment."
     }
   },
   "settings": {

@@ -1,51 +1,82 @@
-import type { CampusBenefits } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import { describe, expect, it } from "vitest";
-import { matchesBenefitSearch } from "./benefit-search";
+import {
+  filterBenefits,
+  matchesBenefitSearch,
+  presentBenefitCategories,
+} from "./benefit-search";
 
-/** A migrated member row: titles only, no description, partner or teaser. */
-const migrated = {
-  $id: "mb-1",
+const benefit = (overrides: Partial<PublicBenefit>): PublicBenefit => ({
+  campusId: "5",
   category: "other",
-  description_en: null,
-  description_nb: null,
-  partner_name: null,
-  teaser_en: null,
-  teaser_nb: null,
-  title_en: "25% off at Peppes Pizza",
-  title_nb: "25 % rabatt hos Peppes Pizza",
-} as unknown as CampusBenefits;
+  createdAt: "2026-01-01T00:00:00.000Z",
+  description: { en: null, nb: null },
+  id: "mb-1",
+  imageUrl: null,
+  isFeatured: false,
+  partner: null,
+  publishEnd: null,
+  redemptionType: "none",
+  section: "member",
+  sortOrder: 0,
+  terms: { en: null, nb: null },
+  title: {
+    en: "25% off at Peppes Pizza",
+    nb: "25 % rabatt hos Peppes Pizza",
+  },
+  ...overrides,
+});
 
 describe("matchesBenefitSearch", () => {
   it("searches a row with no description or partner without throwing", () => {
-    expect(matchesBenefitSearch(migrated, "pizza")).toBe(true);
-    expect(matchesBenefitSearch(migrated, "rabatt")).toBe(true);
-    expect(matchesBenefitSearch(migrated, "sushi")).toBe(false);
+    expect(matchesBenefitSearch(benefit({}), "pizza")).toBe(true);
+    expect(matchesBenefitSearch(benefit({}), "rabatt")).toBe(true);
+    expect(matchesBenefitSearch(benefit({}), "sushi")).toBe(false);
   });
 
   it("matches every row on an empty query", () => {
-    expect(matchesBenefitSearch(migrated, "")).toBe(true);
+    expect(matchesBenefitSearch(benefit({}), "")).toBe(true);
   });
 
   it("matches partner and description text, ignoring case", () => {
-    const full = {
-      ...migrated,
-      description_en: "<p>Show your member pass</p>",
-      description_nb: "<p>Vis medlemskortet</p>",
-      partner_name: "Peppes",
-    } as CampusBenefits;
+    const full = benefit({
+      description: {
+        en: "<p>Show your member pass</p>",
+        nb: "<p>Vis medlemskortet</p>",
+      },
+      partner: { id: "p", logoUrl: null, name: "Peppes", websiteUrl: null },
+    });
 
     expect(matchesBenefitSearch(full, "PEPPES")).toBe(true);
     expect(matchesBenefitSearch(full, "member pass")).toBe(true);
     expect(matchesBenefitSearch(full, "medlemskortet")).toBe(true);
   });
+});
 
-  it("survives a row missing its titles", () => {
-    const untitled = {
-      ...migrated,
-      title_en: null,
-      title_nb: null,
-    } as unknown as CampusBenefits;
+describe("category chips", () => {
+  const benefits = [
+    benefit({ category: "food_drink", id: "a" }),
+    benefit({ category: "travel", id: "b" }),
+    benefit({ category: "Lifestyle", id: "c" }),
+    benefit({ category: null, id: "d" }),
+  ];
 
-    expect(matchesBenefitSearch(untitled, "pizza")).toBe(false);
+  it("lists only the studio categories that are present, in catalog order", () => {
+    expect(presentBenefitCategories(benefits)).toEqual([
+      "food_drink",
+      "travel",
+    ]);
+  });
+
+  it("filters on the category key", () => {
+    expect(filterBenefits(benefits, "food_drink", "").map((b) => b.id)).toEqual(
+      ["a"]
+    );
+    expect(filterBenefits(benefits, "all", "").map((b) => b.id)).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+    ]);
   });
 });

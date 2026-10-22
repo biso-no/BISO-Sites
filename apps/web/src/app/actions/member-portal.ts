@@ -2,18 +2,25 @@
 import { ID, Permission, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
-  BenefitInteractions,
   BenefitReveals,
-  CampusBenefits,
   PublicProfiles,
   Users,
 } from "@repo/api/types/appwrite";
 import {
-  BenefitInteractionsAction,
-  CampusBenefitsStatus,
-} from "@repo/api/types/appwrite";
-import { resolveBenefitCampusIds } from "@repo/shared/utils/benefit-scope";
+  benefitsForCampus,
+  type PublicBenefit,
+} from "@repo/shared/utils/benefit-public";
+import {
+  type RevealDb,
+  revealBenefitCode,
+} from "@repo/shared/utils/benefit-reveal-server";
+import { isTransientMembershipReason } from "@repo/shared/utils/membership-gate";
+import { getLiveMembershipStatus } from "@/lib/actions/membership";
 import { isAuthenticatedAccount } from "@/lib/auth-utils";
+import { getPublicBenefits } from "@/lib/data/benefits";
+
+const FEATURED_BENEFIT_LIMIT = 6;
+const BENEFIT_DATABASE_ID = "app";
 
 async function createOrUpdatePublicProfile(
   profile: Partial<PublicProfiles>,
@@ -55,32 +62,18 @@ async function createOrUpdatePublicProfile(
 }
 
 /**
- * Fetch published benefits for the member portal, campus-scoped.
- * Uses the new campus_benefits table (replaces the old member_benefit stub).
+ * The member-section benefits a visitor can see on the portal: their campus
+ * first, then national. Carries no redemption value; codes only leave the
+ * server through `revealBenefit`.
  *
- * @param campusId - The currently selected campus_id (or null for National only)
+ * @param campusId - The selected campus id (null or "5" for national only)
  */
 export async function getMemberPortalBenefits(
   campusId?: string | null
-): Promise<CampusBenefits[]> {
+): Promise<PublicBenefit[]> {
   try {
-    const campusIds = resolveBenefitCampusIds(campusId);
-    // Use session client so Appwrite row-level permissions gate which
-    // benefits the caller can see; published rows carry Permission.read("any").
-    const { db } = await createSessionClient();
-    const response = await db.listRows<CampusBenefits>(
-      "app",
-      "campus_benefits",
-      [
-        Query.equal("campus_id", campusIds),
-        Query.equal("status", CampusBenefitsStatus.PUBLISHED),
-        Query.or([Query.equal("section", "member"), Query.isNull("section")]),
-        Query.orderAsc("sort_order"),
-        Query.orderDesc("is_featured"),
-        Query.limit(100),
-      ]
-    );
-    return response.rows ?? [];
+    const benefits = await getPublicBenefits();
+    return benefitsForCampus(benefits, campusId, ["member"]);
   } catch (error) {
     console.error("Error fetching member portal benefits:", error);
     return [];
@@ -88,38 +81,15 @@ export async function getMemberPortalBenefits(
 }
 
 /**
- * Fetch featured benefits for the home tab hero section.
+ * Featured member benefits for the home tab hero section.
  */
 export async function getFeaturedBenefits(
   campusId?: string | null
-): Promise<CampusBenefits[]> {
-  try {
-    const campusIds = resolveBenefitCampusIds(campusId);
-    const { db } = await createSessionClient();
-    const response = await db.listRows<CampusBenefits>(
-      "app",
-      "campus_benefits",
-      [
-        Query.equal("campus_id", campusIds),
-        Query.equal("status", CampusBenefitsStatus.PUBLISHED),
-        Query.or([Query.equal("section", "member"), Query.isNull("section")]),
-        Query.equal("is_featured", true),
-        Query.orderAsc("sort_order"),
-        Query.limit(6),
-      ]
-    );
-    return response.rows ?? [];
-  } catch (error) {
-    console.error("Error fetching featured benefits:", error);
-    return [];
-  }
-}
-
-/**
- * @deprecated Use getMemberPortalBenefits instead. Kept for backward compat.
- */
-async function _getMemberBenefits(): Promise<CampusBenefits[]> {
-  return await getMemberPortalBenefits();
+): Promise<PublicBenefit[]> {
+  const benefits = await getMemberPortalBenefits(campusId);
+  return benefits
+    .filter((benefit) => benefit.isFeatured)
+    .slice(0, FEATURED_BENEFIT_LIMIT);
 }
 
 export async function getUserProfile(): Promise<Users | null> {
@@ -191,73 +161,79 @@ export async function updatePublicProfile(
   }
 }
 
+export type RevealBenefitResult =
+  | { success: true; value: string }
+  | {
+      success: false;
+      reason: "no_code" | "not_found" | "not_member" | "unavailable";
+    };
+
+/** The reveal helper's database, bound to the "app" database with admin rights. */
+async function createRevealDb(): Promise<RevealDb> {
+  const { db } = await createAdminClient();
+  return {
+    createRow: (table, id, data, permissions) =>
+      db.createRow(BENEFIT_DATABASE_ID, table, id, data, permissions),
+    getRow: <T>(table: string, id: string) =>
+      db.getRow(BENEFIT_DATABASE_ID, table, id) as unknown as Promise<T>,
+    listRows: <T>(table: string, queries: string[]) =>
+      db.listRows(BENEFIT_DATABASE_ID, table, queries) as unknown as Promise<{
+        rows: T[];
+      }>,
+  };
+}
+
+async function readMembership(): Promise<
+  "active" | "inactive" | "unavailable"
+> {
+  try {
+    const status = await getLiveMembershipStatus();
+    if (status.isMember) {
+      return "active";
+    }
+    // An outage must never read as "not a member".
+    return isTransientMembershipReason(status.reason)
+      ? "unavailable"
+      : "inactive";
+  } catch (error) {
+    console.error("Error checking membership for benefit reveal:", error);
+    return "unavailable";
+  }
+}
+
+/**
+ * Reveal a benefit's code or link. The only path by which a code reaches the
+ * browser, and only for an active member.
+ */
 export async function revealBenefit(
   benefitId: string
-): Promise<{ success: boolean; value?: string } | null> {
+): Promise<RevealBenefitResult> {
+  let userId: string;
   try {
-    const { account, db } = await createSessionClient();
+    const { account } = await createSessionClient();
     const user = await account.get();
-
-    // Check if already revealed (idempotent)
-    const existing = await db.listRows("app", "benefit_reveals", [
-      Query.equal("user_id", user.$id),
-      Query.equal("benefit_id", benefitId),
-      Query.limit(1),
-    ]);
-
-    // Published campus_benefits rows carry Permission.read("any"), so the
-    // session client suffices — no need to escalate to the admin client.
-    const benefit = await db.getRow<CampusBenefits>(
-      "app",
-      "campus_benefits",
-      benefitId
-    );
-
-    if (existing.rows && existing.rows.length > 0) {
-      // Already revealed — return idempotently
-      return { success: true, value: benefit.redemption_value ?? undefined };
+    if (!isAuthenticatedAccount(user)) {
+      return { success: false, reason: "not_member" };
     }
+    userId = user.$id;
+  } catch {
+    return { success: false, reason: "not_member" };
+  }
 
-    // Create reveal record
-    const { db: adminDb } = await createAdminClient();
-    await adminDb.createRow(
-      "app",
-      "benefit_reveals",
-      ID.unique(),
-      {
-        user_id: user.$id,
-        benefit_id: benefitId,
-        revealed_at: new Date().toISOString(),
-      },
-      [
-        Permission.read(`user:${user.$id}`),
-        Permission.update(`user:${user.$id}`),
-      ]
-    );
-
-    // Record interaction event (fire and forget, don't block response)
-    adminDb
-      .createRow<BenefitInteractions>(
-        "app",
-        "benefit_interactions",
-        ID.unique(),
-        {
-          user_id: user.$id,
-          benefit_id: benefitId,
-          action: BenefitInteractionsAction.REVEAL,
-          campus_id: benefit.campus_id ?? null,
-          metadata: null,
-        },
-        [Permission.read(`user:${user.$id}`)]
-      )
-      .catch(() => {
-        /* non-critical */
-      });
-
-    return { success: true, value: benefit.redemption_value ?? undefined };
+  try {
+    const membership = await readMembership();
+    const result = await revealBenefitCode(await createRevealDb(), {
+      benefitId,
+      membership,
+      now: new Date(),
+      userId,
+    });
+    return result.ok
+      ? { success: true, value: result.value }
+      : { success: false, reason: result.reason };
   } catch (error) {
     console.error("Error revealing benefit:", error);
-    return null;
+    return { success: false, reason: "unavailable" };
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CampusBenefits } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card } from "@repo/ui/components/ui/card";
@@ -25,11 +25,12 @@ import { BenefitsShowcase } from "../shared/benefits-showcase";
 import { MembershipCtaSection } from "../shared/membership-cta-section";
 
 interface HomeTabProps {
-  benefits: CampusBenefits[];
+  benefits: PublicBenefit[];
   benefitsCount: number;
   daysRemaining: number;
   estimatedSavings: number | null;
   expiryDate: string;
+  featuredBenefits?: PublicBenefit[];
   hasBIIdentity: boolean;
   isMember: boolean;
   membershipType: string;
@@ -38,6 +39,8 @@ interface HomeTabProps {
   startDate: string;
   termDays: number;
 }
+
+const FALLBACK_HIGHLIGHT_COUNT = 3;
 
 interface AnimatedCounterProps {
   prefix?: string;
@@ -74,6 +77,7 @@ function MemberOverview({
   startDate,
   expiryDate,
   benefits,
+  featuredBenefits: featuredFromServer = [],
   revealedBenefits,
   onTabChange,
   termDays,
@@ -82,7 +86,10 @@ function MemberOverview({
   const tCommon = useTranslations("memberPortal.common");
   const format = useFormatter();
 
-  const featuredBenefits = benefits.slice(0, 3);
+  const featuredBenefits =
+    featuredFromServer.length > 0
+      ? featuredFromServer
+      : benefits.slice(0, FALLBACK_HIGHLIGHT_COUNT);
   const progressPercentage = Math.min(100, (daysRemaining / termDays) * 100);
   const formatDate = (date: string) =>
     format.dateTime(new Date(`${date}T12:00:00Z`), {
@@ -209,12 +216,12 @@ function MemberOverview({
             <motion.div
               animate={{ opacity: 1, y: 0 }}
               initial={{ opacity: 0, y: 20 }}
-              key={benefit.$id}
+              key={benefit.id}
               transition={{ delay: 0.1 * index }}
             >
               <BenefitCard
                 benefit={benefit}
-                isRevealed={revealedBenefits.has(benefit.$id)}
+                isRevealed={revealedBenefits.has(benefit.id)}
               />
             </motion.div>
           ))}
@@ -318,7 +325,8 @@ function MemberOverview({
   );
 }
 
-function NonMemberOverview({ benefits }: { benefits: CampusBenefits[] }) {
+function NonMemberOverview({ benefits }: { benefits: PublicBenefit[] }) {
+  const t = useTranslations("memberPortal.overview");
   return (
     <>
       {/* Welcome section for non-members */}
@@ -337,8 +345,9 @@ function NonMemberOverview({ benefits }: { benefits: CampusBenefits[] }) {
           See What You&apos;re Missing
         </h2>
         <p className="mx-auto max-w-2xl text-muted-foreground dark:text-muted-foreground">
-          As a BISO member, you unlock exclusive discounts and benefits from our
-          50+ partner companies. Browse what&apos;s available and join today!
+          {benefits.length > 0
+            ? t("discoverIntroCount", { count: benefits.length })
+            : t("discoverIntro")}
         </p>
       </motion.div>
 
@@ -359,6 +368,7 @@ export function HomeTab({
   startDate,
   expiryDate,
   benefits,
+  featuredBenefits,
   revealedBenefits,
   isMember,
   hasBIIdentity: _hasBIIdentity,
@@ -378,6 +388,7 @@ export function HomeTab({
             daysRemaining={daysRemaining}
             estimatedSavings={estimatedSavings}
             expiryDate={expiryDate}
+            featuredBenefits={featuredBenefits}
             membershipType={membershipType}
             onTabChange={onTabChange}
             revealedBenefits={revealedBenefits}

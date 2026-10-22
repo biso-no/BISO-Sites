@@ -78,7 +78,9 @@
       "daysUntilRenewal": "Til fornyelse",
       "estimatedSavings": "Estimert besparelse",
       "potential": "Spar mer ved å bruke fordeler"
-    }
+    },
+    "discoverIntro": "Som BISO-medlem får du eksklusive rabatter og fordeler hos partnerne våre. Se hva som er tilgjengelig og bli medlem i dag!",
+    "discoverIntroCount": "Som BISO-medlem får du eksklusive rabatter og fordeler hos våre {count} partnere. Se hva som er tilgjengelig og bli medlem i dag!"
   },
   "profile": {
     "title": "Personlig informasjon",
@@ -148,6 +150,14 @@
       "software": "Programvare",
       "travel": "Reise",
       "education": "Utdanning"
+    },
+    "allCategories": "Alle",
+    "onsite": "Vis medlemskortet i appen",
+    "revealErrors": {
+      "notMember": "Du trenger et aktivt medlemskap for å se denne fordelen. Bli medlem i BISO for å låse den opp.",
+      "unavailable": "Vi klarte ikke å sjekke medlemskapet ditt akkurat nå. Prøv igjen om litt.",
+      "noCode": "Denne fordelen har ingen kode akkurat nå. Prøv igjen senere.",
+      "generic": "Noe gikk galt. Prøv igjen om litt."
     }
   },
   "settings": {

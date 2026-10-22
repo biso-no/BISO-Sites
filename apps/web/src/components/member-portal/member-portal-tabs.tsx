@@ -1,10 +1,7 @@
 "use client";
 
-import type {
-  CampusBenefits,
-  PublicProfiles,
-  Users,
-} from "@repo/api/types/appwrite";
+import type { PublicProfiles, Users } from "@repo/api/types/appwrite";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import type {
   CurrentMembershipView,
   PlanView,
@@ -19,14 +16,14 @@ import { ProfileTab } from "./tabs/profile-tab";
 
 interface MemberPortalTabsProps {
   bankAccount?: string;
-  benefits: CampusBenefits[];
+  benefits: PublicBenefit[];
   benefitsCount: number;
   biEmail: string;
   current: CurrentMembershipView | null;
   daysRemaining: number;
   estimatedSavings: number | null;
   expiryDate: string;
-  featuredBenefits?: CampusBenefits[];
+  featuredBenefits?: PublicBenefit[];
   hasBIIdentity: boolean;
   isGuest: boolean;
   isMember: boolean;
@@ -82,6 +79,7 @@ export function MemberPortalTabs({
         daysRemaining={daysRemaining}
         estimatedSavings={estimatedSavings}
         expiryDate={expiryDate}
+        featuredBenefits={featuredBenefits}
         hasBIIdentity={hasBIIdentity}
         isMember={isMember}
         membershipType={membershipType}

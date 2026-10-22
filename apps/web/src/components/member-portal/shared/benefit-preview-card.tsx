@@ -3,17 +3,18 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Card } from "@repo/ui/components/ui/card";
 import {
-  Briefcase,
+  Calendar,
   Coffee,
   Dumbbell,
-  Film,
-  GraduationCap,
   Laptop,
   Lock,
+  Moon,
   Plane,
+  ShoppingBag,
   Sparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
+import Image from "next/image";
 import { useLocale } from "next-intl";
 import { benefitCategoryLabel } from "@/lib/benefit-text";
 
@@ -27,13 +28,14 @@ interface BenefitPreviewCardProps {
 
 const getCategoryIcon = (category: string) => {
   const icons: Record<string, typeof Coffee> = {
-    "Food & Drink": Coffee,
-    Entertainment: Film,
-    Career: Briefcase,
-    "Health & Fitness": Dumbbell,
-    Software: Laptop,
-    Travel: Plane,
-    Education: GraduationCap,
+    food_drink: Coffee,
+    health_fitness: Dumbbell,
+    nightlife: Moon,
+    shopping: ShoppingBag,
+    travel: Plane,
+    software: Laptop,
+    events: Calendar,
+    other: Sparkles,
   };
   return icons[category] || Sparkles;
 };
@@ -45,6 +47,7 @@ const getCategoryGradient = (_category: string) => {
 export function BenefitPreviewCard({
   category,
   partnerName,
+  partnerLogo,
   discountText,
   index = 0,
 }: BenefitPreviewCardProps) {
@@ -75,9 +78,22 @@ export function BenefitPreviewCard({
 
           {/* Category icon */}
           <div className="relative flex h-full items-center justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-              <Icon className="h-6 w-6 text-white" />
-            </div>
+            {partnerLogo ? (
+              <div className="relative h-12 w-12 overflow-hidden rounded-full bg-white/20 backdrop-blur-sm">
+                <Image
+                  alt={partnerName}
+                  className="object-cover"
+                  fill
+                  sizes="48px"
+                  src={partnerLogo}
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                <Icon className="h-6 w-6 text-white" />
+              </div>
+            )}
           </div>
 
           {/* Lock overlay */}
