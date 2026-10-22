@@ -12,17 +12,22 @@ import { notifyWebsite } from "./web-revalidate";
 const originalFetch = globalThis.fetch;
 
 describe("notifyWebsite", () => {
+  let warn: ReturnType<typeof spyOn<Console, "warn">>;
+  let error: ReturnType<typeof spyOn<Console, "error">>;
+
   beforeEach(() => {
     process.env.NEXT_PUBLIC_WEB_BASE_URL = "https://biso.no/";
     process.env.CRON_SECRET = "s3cret";
-    spyOn(console, "warn").mockImplementation(() => undefined);
-    spyOn(console, "error").mockImplementation(() => undefined);
+    warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    error = spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     Reflect.deleteProperty(process.env, "NEXT_PUBLIC_WEB_BASE_URL");
     Reflect.deleteProperty(process.env, "CRON_SECRET");
+    warn.mockRestore();
+    error.mockRestore();
   });
 
   it("posts the tags to the website with the secret header", async () => {
@@ -50,6 +55,7 @@ describe("notifyWebsite", () => {
       Promise.reject(new Error("down"))
     ) as unknown as typeof fetch;
     await expect(notifyWebsite(["partners"])).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalled();
   });
 
   it("does nothing without configuration", async () => {
@@ -63,5 +69,6 @@ describe("notifyWebsite", () => {
     await notifyWebsite(["benefits"]);
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 });

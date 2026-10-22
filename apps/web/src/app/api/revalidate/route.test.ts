@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const revalidateTag = vi.hoisted(() => vi.fn());
 const env = vi.hoisted(() => ({ isProd: false }));
@@ -24,6 +24,10 @@ describe("revalidate route", () => {
     revalidateTag.mockReset();
     env.isProd = false;
     vi.stubEnv("CRON_SECRET", "s3cret");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("answers 401 for a wrong secret", async () => {
