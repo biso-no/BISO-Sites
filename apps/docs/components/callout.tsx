@@ -6,7 +6,8 @@ type CalloutType = "info" | "warning" | "danger" | "success" | "note" | "tip";
 interface CalloutProps {
   children: ReactNode;
   title?: string;
-  type?: CalloutType;
+  // "warn" is Fumadocs' built-in name for the warning callout
+  type?: CalloutType | "warn";
 }
 
 const calloutStyles: Record<
@@ -60,7 +61,8 @@ const calloutIcons: Record<CalloutType, string> = {
 };
 
 export function Callout({ type = "info", title, children }: CalloutProps) {
-  const styles = calloutStyles[type];
+  const calloutType = type === "warn" ? "warning" : type;
+  const styles = calloutStyles[calloutType];
 
   return (
     <div className={cn("my-6 rounded-lg border-l-4 p-4", styles.container)}>
@@ -71,7 +73,7 @@ export function Callout({ type = "info", title, children }: CalloutProps) {
             styles.iconBg
           )}
         >
-          <span className={styles.icon}>{calloutIcons[type]}</span>
+          <span className={styles.icon}>{calloutIcons[calloutType]}</span>
         </div>
         <div className="min-w-0 flex-1">
           {title && (

@@ -60,7 +60,7 @@ The BISO app signs in with the same OIDC provider, through Appwrite's mobile OAu
 
 Earlier versions let a student "link" their BI account to an account created with a private email, through a browser-side Appwrite session and an OAuth link. That is gone: the link helpers, `/api/auth/bi-link`, `/membership/link` and the onboarding link step were removed in October 2026. Wherever the site finds a signed-in account without a BI identity (the onboarding student step, the membership gate, the member portal), it offers **Sign in with BI** instead, which signs that account out and starts the BI sign-in (`switchToBiSignIn`). Membership follows the student number in Finago, so it is on the BI account automatically; orders and tickets stay on the old account, which still opens with a login link.
 
-<Callout type="warn">
+<Callout type="warning">
 The Appwrite console's OIDC provider has no field for the userinfo endpoint; it only takes a **Well-known URL** and discovers the endpoints from it. Set that URL to `https://<api host>/api/auth/bi-oidc/openid-configuration`, with `BI_OIDC_WELL_KNOWN_URL` on the API app pointing at BI's tenant-specific Microsoft document. With Microsoft's own well-known URL configured instead, every student whose bi.no address already belongs to an account is refused with `general_bad_request`, and the login page asks them to use a login link and report it.
 </Callout>
 

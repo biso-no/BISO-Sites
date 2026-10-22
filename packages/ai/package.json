@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "catalog:",
+    "@ai-sdk/anthropic": "catalog:",
     "@repo/shared": "workspace:*",
     "ai": "catalog:",
     "pdfjs-dist": "catalog:",
