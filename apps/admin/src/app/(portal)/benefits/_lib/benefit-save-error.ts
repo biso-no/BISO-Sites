@@ -16,6 +16,7 @@ export type BenefitErrorKey =
   | "errors.linkInvalid"
   | "errors.linkRequired"
   | "errors.noCampusAccess"
+  | "errors.partnerDeleteFailed"
   | "errors.partnerHasOffersOnOtherCampus"
   | "errors.partnerLogoInvalid"
   | "errors.partnerNameRequired"
@@ -27,6 +28,7 @@ const REASONS: ReadonlyMap<string, BenefitErrorKey> = new Map([
   [BENEFIT_ERRORS.benefitNotFound, "errors.benefitNotFound"],
   [BENEFIT_ERRORS.legacyRedemption, "errors.legacyRedemption"],
   [BENEFIT_ERRORS.noCampusAccess, "errors.noCampusAccess"],
+  [BENEFIT_ERRORS.partnerDeleteFailed, "errors.partnerDeleteFailed"],
   [
     BENEFIT_ERRORS.partnerHasOffersOnOtherCampus,
     "errors.partnerHasOffersOnOtherCampus",

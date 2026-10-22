@@ -16,6 +16,7 @@ import type { BoardPartner } from "./benefits";
 const PARTNERS_TABLE = "benefit_partners";
 const BENEFITS_TABLE = "campus_benefits";
 const CODES_TABLE = "benefit_codes";
+const DEAL_QUERY_CHUNK = 25;
 const PUBLISHED_STATUS = "published";
 const PARTNER_LIMIT = 500;
 const NAME_MAX = 200;
@@ -128,11 +129,23 @@ async function listDeals(
   if (partnerIds.length === 0) {
     return [];
   }
-  const result = await db.listRows<CampusBenefits>("app", BENEFITS_TABLE, [
-    Query.equal("partner_id", partnerIds),
-    Query.limit(PARTNER_LIMIT),
-  ]);
-  return result.rows;
+  const deals: CampusBenefits[] = [];
+  for (let i = 0; i < partnerIds.length; i += DEAL_QUERY_CHUNK) {
+    const result = await db.listRows<CampusBenefits>("app", BENEFITS_TABLE, [
+      Query.equal("partner_id", partnerIds.slice(i, i + DEAL_QUERY_CHUNK)),
+      Query.limit(PARTNER_LIMIT),
+    ]);
+    deals.push(...result.rows);
+  }
+  return deals;
+}
+
+/** `undefined` keeps the stored value; null or blank clears it. */
+function optionalField(value: string | null | undefined): {
+  provided: boolean;
+  value: string | null;
+} {
+  return { provided: value !== undefined, value: blankToNull(value) };
 }
 
 const toPartnerDeal = (row: CampusBenefits): PartnerDeal => ({
@@ -281,14 +294,33 @@ export async function updateBenefitPartner(
     }
   }
 
-  const saved = await db.updateRow<BenefitPartners>("app", PARTNERS_TABLE, id, {
+  const patch: Record<string, string | null> = {
     campus_id: input.campus_id,
-    description_en: blankToNull(input.description_en),
-    description_nb: blankToNull(input.description_nb),
-    logo_url: checked.logoUrl,
     name: checked.name,
-    website_url: checked.websiteUrl,
-  });
+  };
+  const optionals = {
+    description_en: optionalField(input.description_en),
+    description_nb: optionalField(input.description_nb),
+    logo_url: {
+      provided: input.logo_url !== undefined,
+      value: checked.logoUrl,
+    },
+    website_url: {
+      provided: input.website_url !== undefined,
+      value: checked.websiteUrl,
+    },
+  };
+  for (const [key, field] of Object.entries(optionals)) {
+    if (field.provided) {
+      patch[key] = field.value;
+    }
+  }
+  const saved = await db.updateRow<BenefitPartners>(
+    "app",
+    PARTNERS_TABLE,
+    id,
+    patch
+  );
   await logAuditEvent(ctx, "benefit_partner_updated", {
     resourceId: id,
     resourceType: "benefit_partner",
@@ -369,12 +401,29 @@ export async function deleteBenefitPartner(
   if (!allowed) {
     return { error: WRITE_REFUSED };
   }
-  for (const deal of deals) {
-    await deleteDealWithCode(db, deal.$id);
+  const deletedIds: string[] = [];
+  try {
+    for (const deal of deals) {
+      await deleteDealWithCode(db, deal.$id);
+      deletedIds.push(deal.$id);
+    }
+    await db.deleteRow("app", PARTNERS_TABLE, id);
+  } catch {
+    await logAuditEvent(ctx, "benefit_partner_delete_failed", {
+      payload: { deletedDeals: deletedIds.length, partnerId: id },
+      resourceId: id,
+      resourceType: "benefit_partner",
+    });
+    revalidatePartnerPaths();
+    return { error: BENEFIT_ERRORS.partnerDeleteFailed };
   }
-  await db.deleteRow("app", PARTNERS_TABLE, id);
   await logAuditEvent(ctx, "benefit_partner_deleted", {
-    payload: { deletedDeals: deals.length },
+    payload: {
+      campusId: stored.campus_id,
+      dealIds: deletedIds,
+      deletedDeals: deletedIds.length,
+      name: stored.name,
+    },
     resourceId: id,
     resourceType: "benefit_partner",
   });

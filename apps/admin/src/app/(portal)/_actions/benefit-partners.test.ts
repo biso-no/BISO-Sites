@@ -38,7 +38,9 @@ const campusAdminOf = (campusId: string): UserAuthContext =>
   });
 
 let currentCtx: UserAuthContext = campusAdminOf("2");
-const logAuditEvent = mock(async () => undefined);
+const logAuditEvent = mock(
+  async (..._args: unknown[]): Promise<undefined> => undefined
+);
 
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
@@ -259,6 +261,20 @@ describe("loadPartnersPage", () => {
   });
 });
 
+describe("loadPartnersPage chunking", () => {
+  test("queries deals in chunks of 25 partner ids", async () => {
+    const partners = Array.from({ length: 30 }, (_, i) =>
+      partnerRow(`p${i}`, "2")
+    );
+    seed(partners, []);
+    await loadPartnersPage();
+    const dealCalls = db.listRows.mock.calls.filter(
+      (call) => call[1] === "campus_benefits"
+    );
+    expect(dealCalls).toHaveLength(2);
+  });
+});
+
 describe("updateBenefitPartner", () => {
   test("lets a campus admin rename a partner on their campus", async () => {
     seed([partnerRow("p2", "2")], []);
@@ -305,6 +321,39 @@ describe("updateBenefitPartner", () => {
       name: "X",
     });
     expect(result).toMatchObject({ data: { campus_id: "5" } });
+  });
+
+  test("keeps stored optional fields when a rename omits them", async () => {
+    seed(
+      [
+        partnerRow("p2", "2", {
+          description_en: "En",
+          description_nb: "Nb",
+          logo_url: "https://x/logo.png",
+          website_url: "https://x",
+        }),
+      ],
+      []
+    );
+    await updateBenefitPartner("p2", { campus_id: "2", name: "Nytt" });
+    const data = db.updateRow.mock.calls[0]?.[3] as Row;
+    expect(data).toEqual({ campus_id: "2", name: "Nytt" });
+  });
+
+  test("clears a field passed as an empty string or null", async () => {
+    seed([partnerRow("p2", "2", { website_url: "https://x" })], []);
+    await updateBenefitPartner("p2", {
+      campus_id: "2",
+      description_nb: null,
+      name: "Nytt",
+      website_url: "",
+    });
+    expect(db.updateRow.mock.calls[0]?.[3]).toEqual({
+      campus_id: "2",
+      description_nb: null,
+      name: "Nytt",
+      website_url: null,
+    });
   });
 
   test("validates the website", async () => {
@@ -380,5 +429,39 @@ describe("deleteBenefitPartner", () => {
       ["benefit_partners", "p2"],
     ]);
     expect(logAuditEvent).toHaveBeenCalledTimes(1);
+    expect(logAuditEvent.mock.calls[0]).toEqual([
+      expect.anything(),
+      "benefit_partner_deleted",
+      {
+        payload: {
+          campusId: "2",
+          dealIds: ["d1", "d2"],
+          deletedDeals: 2,
+          name: "Partner p2",
+        },
+        resourceId: "p2",
+        resourceType: "benefit_partner",
+      },
+    ]);
+  });
+
+  test("stops and logs on a mid-loop failure", async () => {
+    currentCtx = editorCtx();
+    seed([partnerRow("p2", "2")], [dealRow("d1", "2"), dealRow("d2", "2")]);
+    db.deleteRow.mockImplementation((_d: string, table: string, id: string) =>
+      table === "campus_benefits" && id === "d2"
+        ? Promise.reject(new Error("boom"))
+        : Promise.resolve()
+    );
+    expect(await deleteBenefitPartner("p2")).toEqual({
+      error: "Could not delete the partner",
+    });
+    expect(tablesOf(db.deleteRow)).not.toContain("benefit_partners");
+    expect(logAuditEvent.mock.calls[0]?.[1]).toBe(
+      "benefit_partner_delete_failed"
+    );
+    expect(logAuditEvent.mock.calls[0]?.[2]).toMatchObject({
+      payload: { deletedDeals: 1, partnerId: "p2" },
+    });
   });
 });
