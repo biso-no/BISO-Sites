@@ -57,7 +57,7 @@ export function BenefitsShowcase({ benefits }: { benefits: PublicBenefit[] }) {
                   }
                   index={index}
                   partnerLogo={benefit.partner?.logoUrl}
-                  partnerName={benefit.partner?.name ?? "Partner"}
+                  partnerName={benefit.partner?.name ?? null}
                 />
               </CarouselItem>
             ))}

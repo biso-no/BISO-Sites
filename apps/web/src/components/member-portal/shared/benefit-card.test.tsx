@@ -6,10 +6,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const locale = vi.hoisted(() => ({ current: "en" }));
+const timeZone = vi.hoisted(() => ({ current: "Europe/Oslo" }));
 const revealBenefit = vi.hoisted(() => vi.fn());
 
-vi.mock("next-intl", () => ({
+vi.mock("next-intl", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next-intl")>()),
   useLocale: () => locale.current,
+  useTimeZone: () => timeZone.current,
   useTranslations: () => (key: string, values?: { date?: string }) =>
     values?.date ? `${key} ${values.date}` : key,
 }));
@@ -71,6 +74,7 @@ async function mountAndReveal(overrides: Partial<PublicBenefit>) {
 describe("BenefitCard", () => {
   beforeEach(() => {
     locale.current = "en";
+    timeZone.current = "Europe/Oslo";
     revealBenefit.mockReset();
     (
       globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -162,6 +166,22 @@ describe("BenefitCard", () => {
     const html = render({ publishEnd: "2026-12-24T12:00:00.000Z" });
 
     expect(html).toContain("24. des. 2026");
+  });
+
+  it("keeps the British day-month order for an English visitor", () => {
+    const html = render({ publishEnd: "2026-12-24T12:00:00.000Z" });
+
+    expect(html).toContain("24 Dec 2026");
+  });
+
+  it("formats the end date in next-intl's time zone, not the runtime's", () => {
+    // 12:00 UTC is already the next day at UTC+14, whatever the machine's
+    // own zone, so the server render and the browser get the same date.
+    locale.current = "no";
+    timeZone.current = "Pacific/Kiritimati";
+    const html = render({ publishEnd: "2026-12-24T12:00:00.000Z" });
+
+    expect(html).toContain("25. des. 2026");
   });
 
   it("shows the partner name and logo from the partner", () => {

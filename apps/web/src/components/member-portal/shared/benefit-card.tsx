@@ -7,7 +7,12 @@ import { Card } from "@repo/ui/components/ui/card";
 import { Clock, Copy, ExternalLink, IdCard, Store, Ticket } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { useLocale, useTranslations } from "next-intl";
+import {
+  createFormatter,
+  useLocale,
+  useTimeZone,
+  useTranslations,
+} from "next-intl";
 import { useState } from "react";
 import { revealBenefit } from "@/app/actions/member-portal";
 import {
@@ -33,6 +38,26 @@ const REVEAL_ERROR_KEYS: Record<RevealFailure, string> = {
 };
 
 const DATE_LOCALES: Record<string, string> = { en: "en-GB", no: "nb-NO" };
+const END_DATE_FORMAT = {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+} as const;
+
+/**
+ * "24. des. 2026" / "24 Dec 2026". Formatted by next-intl in the time zone
+ * the server hands the provider, so the server render and the browser agree.
+ */
+function formatEndDate(
+  iso: string,
+  locale: string,
+  timeZone: string | undefined
+): string {
+  return createFormatter({
+    locale: DATE_LOCALES[locale] ?? DATE_LOCALES.en,
+    timeZone,
+  }).dateTime(new Date(iso), END_DATE_FORMAT);
+}
 
 /** Stored HTML or Plate JSON starts with "<" or "["; anything else is text. */
 const isRichDescription = (description: string) => {
@@ -61,6 +86,7 @@ const getBenefitIcon = (type: string) => BENEFIT_ICONS[type] || Ticket;
 export function BenefitCard({ benefit }: BenefitCardProps) {
   const t = useTranslations("memberPortal.benefits");
   const locale = useLocale();
+  const timeZone = useTimeZone();
   const text = localizedPublicBenefitText(benefit, locale);
   const categoryLabel = benefitCategoryLabel(benefit.category, locale);
   const [value, setValue] = useState<string | null>(null);
@@ -261,14 +287,7 @@ export function BenefitCard({ benefit }: BenefitCardProps) {
               <div className="flex items-center gap-2 text-orange-600 text-xs dark:text-orange-400">
                 <Clock className="h-3.5 w-3.5" />
                 {t("expires", {
-                  date: new Date(benefit.publishEnd).toLocaleDateString(
-                    DATE_LOCALES[locale] ?? DATE_LOCALES.en,
-                    {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    }
-                  ),
+                  date: formatEndDate(benefit.publishEnd, locale, timeZone),
                 })}
               </div>
             )}

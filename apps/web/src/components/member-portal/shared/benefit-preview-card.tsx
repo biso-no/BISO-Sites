@@ -15,7 +15,8 @@ interface BenefitPreviewCardProps {
   discountText: string;
   index?: number;
   partnerLogo?: string | null;
-  partnerName: string;
+  /** Null for a benefit without a partner: the card leaves the line out. */
+  partnerName: string | null;
 }
 
 const getCategoryIcon = (category: string) =>
@@ -62,7 +63,7 @@ export function BenefitPreviewCard({
             {partnerLogo ? (
               <div className="relative h-12 w-12 overflow-hidden rounded-full bg-white/20 backdrop-blur-sm">
                 <Image
-                  alt={partnerName}
+                  alt={partnerName ?? ""}
                   className="object-cover"
                   fill
                   sizes="48px"
@@ -97,9 +98,11 @@ export function BenefitPreviewCard({
           )}
 
           {/* Partner name (partial blur effect) */}
-          <h3 className="mb-1 font-semibold text-foreground text-lg dark:text-foreground">
-            {partnerName}
-          </h3>
+          {partnerName ? (
+            <h3 className="mb-1 font-semibold text-foreground text-lg dark:text-foreground">
+              {partnerName}
+            </h3>
+          ) : null}
 
           {/* Discount text */}
           <div>

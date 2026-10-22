@@ -270,7 +270,7 @@ function NonMemberBenefitsView({ benefits }: { benefits: PublicBenefit[] }) {
                 discountText={localizedPublicBenefitText(benefit, locale).title}
                 index={index}
                 partnerLogo={benefit.partner?.logoUrl}
-                partnerName={benefit.partner?.name ?? "Partner"}
+                partnerName={benefit.partner?.name ?? null}
               />
             </motion.div>
           ))}

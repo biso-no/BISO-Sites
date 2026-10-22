@@ -6,8 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const locale = vi.hoisted(() => ({ current: "no" }));
 
-vi.mock("next-intl", () => ({
+vi.mock("next-intl", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next-intl")>()),
   useLocale: () => locale.current,
+  useTimeZone: () => "Europe/Oslo",
   useTranslations: () => (key: string) => key,
 }));
 vi.mock("motion/react", () => {
@@ -55,15 +57,21 @@ const benefits = [
   benefit("b", "travel", "Train deal"),
 ];
 
-async function mount() {
+async function mount({
+  isMember = true,
+  shown = benefits,
+}: {
+  isMember?: boolean;
+  shown?: PublicBenefit[];
+} = {}) {
   const container = document.createElement("div");
   document.body.append(container);
   await act(() => {
     createRoot(container).render(
       createElement(BenefitsTab, {
-        benefits,
+        benefits: shown,
         hasBIIdentity: true,
-        isMember: true,
+        isMember,
       })
     );
   });
@@ -103,5 +111,41 @@ describe("member benefits category chips", () => {
 
     expect(container.textContent).toContain("Pizza deal");
     expect(container.textContent).not.toContain("Train deal");
+  });
+});
+
+describe("non-member benefit previews", () => {
+  beforeEach(() => {
+    locale.current = "no";
+    (
+      globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+  });
+
+  it("leaves out the partner line when a benefit has no partner", async () => {
+    const container = await mount({ isMember: false });
+
+    expect(container.textContent).toContain("Pizza deal");
+    expect(container.textContent).not.toContain("Partner");
+    expect(container.querySelector("h3")).toBeNull();
+  });
+
+  it("names the partner when there is one", async () => {
+    const container = await mount({
+      isMember: false,
+      shown: [
+        {
+          ...benefit("a", "food_drink", "Pizza deal"),
+          partner: {
+            id: "p1",
+            logoUrl: null,
+            name: "Peppes",
+            websiteUrl: null,
+          },
+        },
+      ],
+    });
+
+    expect(container.querySelector("h3")?.textContent).toBe("Peppes");
   });
 });

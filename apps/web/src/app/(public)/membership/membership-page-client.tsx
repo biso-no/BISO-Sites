@@ -463,12 +463,15 @@ export function MembershipPageClient({
                 <div className="flex flex-wrap gap-3">
                   <StatPill icon={Ticket} label={t("hero.stats.card")} />
                   <StatPill icon={Users} label={t("hero.stats.members")} />
-                  <StatPill
-                    icon={BriefcaseBusiness}
-                    label={t("hero.stats.partners", {
-                      count: memberBenefitCount,
-                    })}
-                  />
+                  {/* No count beats "0 medlemsfordeler" while benefits fail to load. */}
+                  {memberBenefitCount > 0 ? (
+                    <StatPill
+                      icon={BriefcaseBusiness}
+                      label={t("hero.stats.partners", {
+                        count: memberBenefitCount,
+                      })}
+                    />
+                  ) : null}
                 </div>
               </motion.div>
 
