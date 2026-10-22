@@ -143,7 +143,7 @@ Grouped by auth requirement.
 | Method + path | Purpose |
 |---|---|
 | `GET /health` | Liveness probe. |
-| `GET /config` | Non-sensitive runtime config (locales, feature flags). |
+| `GET /config` | Non-sensitive runtime config (locales, feature flags, app version rules). |
 | `POST /events` | Event proxy (typically a public list query, POST is used for body-based filters). |
 | `GET /wc-products` | WooCommerce merch product list. |
 | `GET /payment/providers` | Which payment providers a client may offer right now. |
@@ -154,6 +154,33 @@ switch) and whether that provider's credentials are configured for the active
 mode. A provider is `available` only when both say yes. The website reads the
 flags directly in a server component; the native app cannot read
 `payment_settings` at all, which is what this endpoint is for.
+
+`GET /config` also carries `versions`, the minimum and recommended app
+versions the student app uses to block or nudge outdated installs. Admins set
+them under **Settings → App versions**, stored one row per platform in the
+`app_versions` table:
+
+```json
+{
+  "versions": {
+    "ios": { "minimum": "2.4.0", "recommended": null },
+    "android": { "minimum": "2.4.0", "recommended": "2.4.1" }
+  }
+}
+```
+
+- Both platforms are always present. Each value is a `major.minor.patch`
+  string or `null`, and `null` means that check is off.
+- It fails open: a missing table, a missing row, a failed read or a read
+  slower than 2 seconds answers `null` for the affected values, and the
+  endpoint still answers 200 with `features`. Failures are not cached, so the
+  next request tries again.
+- A successful read is cached for 15 seconds in each API process, on top of
+  the response's `Cache-Control: public, max-age=0, s-maxage=15`, so a
+  change in the admin shows up here within about 30 seconds. The app picks
+  it up the next time it fetches the config: at launch, on returning to the
+  app an hour or more after its last answer (on any return while it is
+  blocked), or when the connection comes back after an offline launch.
 
 ### JWT-authenticated (user-scope)
 

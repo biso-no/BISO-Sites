@@ -16,6 +16,7 @@
     "settings": "Innstillinger",
     "general": "Generelt",
     "featureFlags": "Funksjonsbrytere",
+    "appVersions": "Appversjoner",
     "operations": "Driftshelse",
     "payments": "Betaling",
     "activity": "Aktivitet",
@@ -1311,6 +1312,30 @@
     },
     "toggleError": "Kunne ikke oppdatere bryter",
     "toggleSuccess": "Bryter oppdatert"
+  },
+  "appVersions": {
+    "title": "Appversjoner",
+    "description": "Styr hvilke versjoner av BISO-appen som kan brukes. Sett en minimumsversjon for å stenge ute eldre versjoner, eller en anbefalt versjon for å oppfordre til oppdatering. La feltet stå tomt for å slå det av.",
+    "platforms": {
+      "ios": "iPhone (iOS)",
+      "android": "Android"
+    },
+    "minimum": "Minimumsversjon",
+    "minimumHelp": "Eldre versjoner blir stengt ute til de oppdaterer.",
+    "recommended": "Anbefalt versjon",
+    "recommendedHelp": "Eldre versjoner blir bedt om å oppdatere, men kan hoppe over det.",
+    "liveInStore": "Tilgjengelig i App Store: {version}",
+    "warnAboveStore": "Denne versjonen er ikke i App Store ennå. iPhone-brukere ville blitt stengt ute uten noe å oppdatere til.",
+    "warnRecommendedAboveStore": "Denne versjonen er ikke i App Store ennå. iPhone-brukere ville blitt bedt om å oppdatere uten noe å oppdatere til.",
+    "androidNote": "Sett minimumsversjonen først når utgivelsen er tilgjengelig for alle på Google Play (100 % utrulling).",
+    "save": "Lagre",
+    "saved": "Regler for appversjon lagret",
+    "saveError": "Kunne ikke lagre regler for appversjon",
+    "errors": {
+      "invalidMinimum": "Minimumsversjonen må se ut som 2.4.0 (tre tall atskilt med punktum).",
+      "invalidRecommended": "Anbefalt versjon må se ut som 2.4.0 (tre tall atskilt med punktum).",
+      "recommendedBelowMinimum": "Anbefalt versjon kan ikke være lavere enn minimumsversjonen."
+    }
   },
   "paymentSettings": {
     "title": "Betalingsleverandører",

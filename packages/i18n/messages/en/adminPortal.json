@@ -16,6 +16,7 @@
     "settings": "Settings",
     "general": "General",
     "featureFlags": "Feature flags",
+    "appVersions": "App versions",
     "operations": "Operations health",
     "payments": "Payments",
     "activity": "Activity",
@@ -1311,6 +1312,30 @@
     },
     "toggleError": "Failed to update flag",
     "toggleSuccess": "Flag updated"
+  },
+  "appVersions": {
+    "title": "App versions",
+    "description": "Control which versions of the BISO app can be used. Set a minimum to block older versions, or a recommended version to nudge people to update. Leave a field empty to turn it off.",
+    "platforms": {
+      "ios": "iPhone (iOS)",
+      "android": "Android"
+    },
+    "minimum": "Minimum version",
+    "minimumHelp": "Older versions are blocked until they update.",
+    "recommended": "Recommended version",
+    "recommendedHelp": "Older versions are asked to update but can skip it.",
+    "liveInStore": "Live in the App Store: {version}",
+    "warnAboveStore": "This version isn't in the App Store yet. iPhone users would be blocked with nothing to update to.",
+    "warnRecommendedAboveStore": "This version isn't in the App Store yet. iPhone users would be asked to update with nothing to update to.",
+    "androidNote": "Set the minimum only after the release is live for everyone on Google Play (100% rollout).",
+    "save": "Save",
+    "saved": "App version rules saved",
+    "saveError": "Could not save app version rules",
+    "errors": {
+      "invalidMinimum": "The minimum version must look like 2.4.0 (three numbers separated by dots).",
+      "invalidRecommended": "The recommended version must look like 2.4.0 (three numbers separated by dots).",
+      "recommendedBelowMinimum": "The recommended version can't be lower than the minimum version."
+    }
   },
   "paymentSettings": {
     "title": "Payment providers",

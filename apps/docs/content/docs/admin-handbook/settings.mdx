@@ -50,6 +50,22 @@ Platform-level security settings: session length, who can reach the IT screens, 
 
 The teams that exist inside Appwrite and are used to grant access to specific queues — for example which team can approve campus-board changes, or which team can read a given submissions topic. From here you can create a team, rename it, and add or remove members. Changing a team membership takes effect immediately on the next page load for that user.
 
+### App versions
+
+Decides which versions of the BISO app students can keep using. iPhone and Android each have their own two fields, because a release usually reaches Google Play before Apple has approved it.
+
+- **Minimum version** — anyone on an older version is blocked with a "Time to update" screen until they update. Use it when an old version must stop working, for example after a change that breaks it.
+- **Recommended version** — anyone on an older version gets a popup asking them to update. They can tap "Not now", and the popup stays away for three days for that version.
+
+Versions are written as three numbers separated by dots, like `2.4.0`. Leave a field empty to turn that check off. The recommended version can't be lower than the minimum.
+
+A few things to know before you save:
+
+- **Set the Android minimum only after a 100% rollout on Google Play.** During a staged rollout some students can't get the new version yet, and a minimum above what they can download blocks them with nothing to update to.
+- **On iPhone, the page shows the version live in the App Store** and warns you if you type a higher one. Wait until Apple has released the version before you set it.
+- **Only app builds that include this feature can be prompted.** Versions released before it never see the screen or the popup, whatever you set here.
+- Students only see a change when the app next checks, usually the next time they open it.
+
 ## Changes are audited
 
 Every change you make in Settings is written to the [Activity](/docs/admin-handbook/activity) log so other global admins can see when something changed and who changed it. If a colleague is confused why the platform behaves differently to last week, Activity is the first place to look.
