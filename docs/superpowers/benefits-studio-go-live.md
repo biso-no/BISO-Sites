@@ -37,4 +37,15 @@ Follow the order. Each stage's steps assume the previous ones are done.
 
 ## Stage 2: admin board and panel
 
-_(Added when stage 2 is done.)_
+1. **Run stage 1 first.** The schema push and the migration apply must both happen before you deploy this admin. The new admin relies on the `section` column. Until the migration has linked each benefit to its partner, the new admin can't show or keep the free-text partner names on today's website correctly.
+2. **Give the Branding Committee leader access.**
+   - Ask the leader to sign in to admin once with Microsoft, so their account exists.
+   - In the Appwrite Console (Auth → that user → Identities), copy the Microsoft identity's **provider email**. It's usually the person's Microsoft sign-in name. An alias such as `pr@biso.no` only works if it *is* that sign-in name.
+   - Set `BENEFITS_EDITOR_EMAILS=<that address>` in the admin app's environment and redeploy. Several addresses can be listed, separated by commas.
+   - The account's own email must match too. That's normally automatic.
+   - Check that the Microsoft sign-in provider in Appwrite is limited to the BISO tenant. Only BISO accounts should be able to sign in this way.
+3. **Expect these access changes when you deploy:**
+   - Campus admins (the `Ledelsen <campus>` groups) manage their own campus and see the national benefits read-only.
+   - Global admins and the listed editors manage every campus and the national benefits.
+   - **Department members no longer see Fordeler.**
+4. **Codes stay in the public columns until stage 4.** Codes and partner names are still also written to the old public columns, the same as today, because the website still reads them there. Ship stage 4 soon after.
