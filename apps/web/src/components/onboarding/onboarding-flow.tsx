@@ -469,8 +469,8 @@ export function OnboardingFlow({
                 t("student.benefits.events"),
                 t("student.benefits.sso"),
               ] as string[])
-          ).map((benefit) => (
-            <li className="flex items-start gap-2" key={benefit}>
+          ).map((benefit, index) => (
+            <li className="flex items-start gap-2" key={`${index}-${benefit}`}>
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
               {benefit}
             </li>

@@ -1011,7 +1011,9 @@
       "titleMissing": "Skriv en tittel.",
       "titleTooLong": "Maks 200 tegn.",
       "bodyTooLong": "Maks 500 tegn.",
-      "noItems": "Legg til minst ett punkt."
+      "noItems": "Legg til minst ett punkt.",
+      "englishAuto": "Engelsk – oversettes automatisk",
+      "englishOwn": "Engelsk – egen tekst"
     }
   },
   "departments": {

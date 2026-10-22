@@ -37,7 +37,7 @@ import { Textarea } from "@repo/ui/components/ui/textarea";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { MembershipSpotData } from "../../../_actions/membership-texts";
 import {
@@ -54,6 +54,7 @@ import {
   draftFromSpot,
   emptyItem,
   hasErrors,
+  patchItem,
   snapshot,
   toInput,
   validateDraft,
@@ -77,15 +78,38 @@ export function MembershipTextsEditor({
   spots,
   webBaseUrl,
 }: MembershipTextsEditorProps) {
+  const [dirty, setDirty] = useState<Record<string, boolean>>({});
+  const anyDirty = Object.values(dirty).some(Boolean);
+  const reportDirty = useCallback(
+    (spot: string, value: boolean) =>
+      setDirty((current) =>
+        current[spot] === value ? current : { ...current, [spot]: value }
+      ),
+    []
+  );
+
+  // Leaving the page with unsaved edits asks first.
+  useEffect(() => {
+    if (!anyDirty) {
+      return;
+    }
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [anyDirty]);
+
   return (
     <div className="space-y-6">
       {spots.map((data) => (
-        // A fresh server copy of this card replaces it; other cards keep
-        // whatever their editors are in the middle of.
+        // One card per spot for good: fresh server data re-seeds a card
+        // only while it has no unsaved edits.
         <SpotCard
           data={data}
-          key={`${data.spot}:${JSON.stringify(data)}`}
+          key={data.spot}
           locale={locale}
+          onDirtyChange={reportDirty}
           webBaseUrl={webBaseUrl}
         />
       ))}
@@ -96,10 +120,11 @@ export function MembershipTextsEditor({
 interface SpotCardProps {
   data: MembershipSpotData;
   locale: "en" | "no";
+  onDirtyChange: (spot: string, dirty: boolean) => void;
   webBaseUrl: string;
 }
 
-function SpotCard({ data, locale, webBaseUrl }: SpotCardProps) {
+function SpotCard({ data, locale, onDirtyChange, webBaseUrl }: SpotCardProps) {
   const t = useTranslations("adminPortal.benefits.texts");
   const router = useRouter();
   const { spot } = data;
@@ -120,11 +145,31 @@ function SpotCard({ data, locale, webBaseUrl }: SpotCardProps) {
   const errors = validateDraft(items, hasBody);
   const changed = snapshot(items, hasBody) !== baseline;
   const full = items.length >= MEMBERSHIP_TEXT_MAX_ITEMS;
+
+  useEffect(() => {
+    onDirtyChange(spot, changed);
+    return () => onDirtyChange(spot, false);
+  }, [changed, onDirtyChange, spot]);
+
+  // Fresh server data (after a refresh) replaces the card's lines only when
+  // there is nothing unsaved to lose.
+  const seed = JSON.stringify(data);
+  const [seen, setSeen] = useState(seed);
+  if (seen !== seed) {
+    setSeen(seed);
+    if (!changed) {
+      const fresh = draftFromSpot(data);
+      setItems(fresh);
+      setBaseline(snapshot(fresh, hasBody));
+      setHasRows(data.hasRows);
+      setAttempted(false);
+    }
+  }
   const headingId = useId();
 
   const update = (key: string, patch: Partial<DraftItem>) =>
     setItems((current) =>
-      current.map((item) => (item.key === key ? { ...item, ...patch } : item))
+      current.map((item) => (item.key === key ? patchItem(item, patch) : item))
     );
 
   const save = async () => {
@@ -541,7 +586,7 @@ function ItemRow({
             className={`cursor-pointer rounded-sm ${BOARD_FOCUS_RING}`}
             style={{ color: STUDIO.ink3 }}
           >
-            {t("english")}
+            {item.title_en.trim() ? t("englishOwn") : t("englishAuto")}
           </summary>
           <div className="mt-2 space-y-2">
             <Input

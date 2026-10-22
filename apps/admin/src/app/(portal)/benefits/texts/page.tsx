@@ -7,7 +7,7 @@ import { StudioPageHeader } from "../../_components/studio";
 import { BOARD_FOCUS_RING } from "../_lib/board-styles";
 import { MembershipTextsEditor } from "./_components/membership-texts-editor";
 
-const DEFAULT_WEB_BASE_URL = "https://app.biso.no";
+const DEFAULT_WEB_BASE_URL = "https://biso.no";
 const TRAILING_SLASHES = /\/+$/;
 
 /** Fordeler → Tekster: the membership bullet lists around the website. */

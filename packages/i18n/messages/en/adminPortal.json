@@ -1011,7 +1011,9 @@
       "titleMissing": "Write a title.",
       "titleTooLong": "At most 200 characters.",
       "bodyTooLong": "At most 500 characters.",
-      "noItems": "Add at least one item."
+      "noItems": "Add at least one item.",
+      "englishAuto": "English – translated automatically",
+      "englishOwn": "English – own text"
     }
   },
   "departments": {

@@ -12,6 +12,8 @@ import type {
 export interface DraftItem {
   body_en: string;
   body_nb: string;
+  /** English typed by hand this session: a Norwegian edit leaves it alone. */
+  enTouched: boolean;
   key: string;
   title_en: string;
   title_nb: string;
@@ -36,6 +38,7 @@ export function emptyItem(): DraftItem {
   return {
     body_en: "",
     body_nb: "",
+    enTouched: false,
     key: newKey(),
     title_en: "",
     title_nb: "",
@@ -43,7 +46,11 @@ export function emptyItem(): DraftItem {
 }
 
 export function draftFromSpot(data: MembershipSpotData): DraftItem[] {
-  return data.items.map((item) => ({ ...item, key: newKey() }));
+  return data.items.map((item) => ({
+    ...item,
+    enTouched: false,
+    key: newKey(),
+  }));
 }
 
 /** What the server is sent: the lines in display order, nothing else. */
@@ -96,4 +103,27 @@ export function validateDraft(
 
 export function hasErrors(errors: DraftErrors): boolean {
   return errors.card !== null || Object.keys(errors.items).length > 0;
+}
+
+/**
+ * A line after an edit. Changing the Norwegian of a line whose English was
+ * not typed by hand blanks that English, so the save translates it afresh.
+ */
+export function patchItem(
+  item: DraftItem,
+  patch: Partial<DraftItem>
+): DraftItem {
+  const next = { ...item, ...patch };
+  if ("title_en" in patch || "body_en" in patch) {
+    next.enTouched = true;
+  }
+  if (!item.enTouched) {
+    if ("title_nb" in patch) {
+      next.title_en = "";
+    }
+    if ("body_nb" in patch) {
+      next.body_en = "";
+    }
+  }
+  return next;
 }

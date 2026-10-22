@@ -42,8 +42,8 @@ export function MemberCalloutClient({ items }: MemberCalloutClientProps) {
               {t("member.joinIntro")}
             </p>
             <ul className="space-y-1 text-muted-foreground text-sm">
-              {lines.map((line) => (
-                <li key={line}>✓ {line}</li>
+              {lines.map((line, index) => (
+                <li key={`${index}-${line}`}>✓ {line}</li>
               ))}
             </ul>
             <p className="mt-2 mb-3 text-muted-foreground text-xs">

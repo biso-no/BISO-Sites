@@ -181,8 +181,23 @@ let createRoot: typeof import("react-dom/client")["createRoot"];
 let root: Root | null = null;
 let container: TestElement;
 
+// The harness window has no event API; record `beforeunload` guards.
+const unloadGuards = new Set<unknown>();
+const windowApi = window as unknown as Record<string, unknown>;
+const hadListeners = "addEventListener" in windowApi;
+
 beforeAll(async () => {
   ({ createRoot } = await import("react-dom/client"));
+  windowApi.addEventListener = (type: string, fn: unknown) => {
+    if (type === "beforeunload") {
+      unloadGuards.add(fn);
+    }
+  };
+  windowApi.removeEventListener = (type: string, fn: unknown) => {
+    if (type === "beforeunload") {
+      unloadGuards.delete(fn);
+    }
+  };
 });
 
 afterEach(async () => {
@@ -200,6 +215,10 @@ afterEach(async () => {
 });
 
 afterAll(() => {
+  if (!hadListeners) {
+    Reflect.deleteProperty(windowApi, "addEventListener");
+    Reflect.deleteProperty(windowApi, "removeEventListener");
+  }
   installedDom.restore();
 });
 
@@ -218,18 +237,27 @@ function spots(saved: string[] = []): MembershipSpotData[] {
   }));
 }
 
+const editorFor = (data: MembershipSpotData[]) => (
+  <MembershipTextsEditor
+    locale="no"
+    spots={data}
+    webBaseUrl="https://app.biso.no"
+  />
+);
+
 async function mount(data: MembershipSpotData[] = spots()) {
   container = installedDom.document.createElement("div");
   installedDom.document.body.appendChild(container);
   root = createRoot(container as unknown as Element);
   await act(() => {
-    root?.render(
-      <MembershipTextsEditor
-        locale="no"
-        spots={data}
-        webBaseUrl="https://app.biso.no"
-      />
-    );
+    root?.render(editorFor(data));
+  });
+}
+
+/** What a router refresh does: the same editor gets new server data. */
+async function refreshWith(data: MembershipSpotData[]) {
+  await act(() => {
+    root?.render(editorFor(data));
   });
 }
 
@@ -440,5 +468,71 @@ describe("MembershipTextsEditor", () => {
     expect(findButton(plan(), "Lagre").hasAttribute("disabled")).toBe(true);
     expect(plan().textContent).toContain("Ikke lagret ennå");
     expect(calls.save).toHaveLength(0);
+  });
+
+  test("editing a Norwegian line blanks its English; other lines keep theirs", async () => {
+    await mount();
+    const onboarding = () => card("Velkomstflyten");
+    await type(findByAriaLabel(onboarding(), "Punkt 1: tittel"), "Ny norsk");
+    expect(onboarding().textContent).toContain(
+      "Engelsk – oversettes automatisk"
+    );
+    await press(findButton(onboarding(), "Lagre"));
+    expect(calls.save[0]?.[1]).toEqual([
+      { title_en: "", title_nb: "Ny norsk" },
+      { title_en: "onboarding to (en)", title_nb: "onboarding to" },
+      { title_en: "onboarding tre (en)", title_nb: "onboarding tre" },
+    ]);
+  });
+
+  test("English typed by hand survives a later Norwegian edit", async () => {
+    await mount();
+    const onboarding = () => card("Velkomstflyten");
+    await type(
+      findByAriaLabel(onboarding(), "Punkt 1: tittel på engelsk"),
+      "My own"
+    );
+    await type(
+      findByAriaLabel(onboarding(), "Punkt 1: tittel"),
+      "Endret norsk"
+    );
+    expect(onboarding().textContent).toContain("Engelsk – egen tekst");
+    await press(findButton(onboarding(), "Lagre"));
+    expect(calls.save[0]?.[1]).toMatchObject([
+      { title_en: "My own", title_nb: "Endret norsk" },
+      {},
+      {},
+    ]);
+  });
+
+  test("a refresh keeps a dirty card and updates a clean one", async () => {
+    await mount();
+    await type(
+      findByAriaLabel(card("Velkomstflyten"), "Punkt 1: tittel"),
+      "Halvferdig"
+    );
+    const changed = spots().map((entry) => ({
+      ...entry,
+      items: [item(`${entry.spot} NY`)],
+    }));
+    await refreshWith(changed);
+    expect(
+      findByAriaLabel(card("Velkomstflyten"), "Punkt 1: tittel").value
+    ).toBe("Halvferdig");
+    expect(
+      findByAriaLabel(card("Medlemskapskortene"), "Punkt 1: tittel").value
+    ).toBe("plan_card NY");
+  });
+
+  test("warns before leaving only while something is unsaved", async () => {
+    await mount();
+    expect(unloadGuards.size).toBe(0);
+    await type(
+      findByAriaLabel(card("Velkomstflyten"), "Punkt 1: tittel"),
+      "Endret"
+    );
+    expect(unloadGuards.size).toBe(1);
+    await press(findButton(card("Velkomstflyten"), "Lagre"));
+    expect(unloadGuards.size).toBe(0);
   });
 });
