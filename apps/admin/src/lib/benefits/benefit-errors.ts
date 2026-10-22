@@ -9,6 +9,7 @@ export const BENEFIT_ERRORS = {
   legacyRedemption:
     "This benefit uses an old redemption type. Open it in the editor and choose how students redeem it.",
   noCampusAccess: "Unauthorized: no write access to this campus",
+  partnerHasOffersOnOtherCampus: "This partner has offers on another campus",
   partnerLogoInvalid: "The logo must be an https:// address",
   partnerNameRequired: "Add the partner's name",
   partnerNotFound: "Partner not found",

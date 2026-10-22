@@ -922,6 +922,7 @@
       "benefitNotFound": "Fant ikke fordelen. Den kan være slettet.",
       "partnerNameRequired": "Skriv inn navnet på partneren.",
       "partnerWebsiteInvalid": "Nettsiden må starte med https://",
+      "partnerHasOffersOnOtherCampus": "Partneren har tilbud på en annen campus.",
       "partnerLogoInvalid": "Logoen må være en https-adresse."
     }
   },

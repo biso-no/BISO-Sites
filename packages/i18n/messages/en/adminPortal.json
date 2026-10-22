@@ -922,6 +922,7 @@
       "benefitNotFound": "We couldn't find this benefit. It may have been deleted.",
       "partnerNameRequired": "Enter the partner's name.",
       "partnerWebsiteInvalid": "The website must start with https://",
+      "partnerHasOffersOnOtherCampus": "This partner has offers on another campus.",
       "partnerLogoInvalid": "The logo must be an https address."
     }
   },
