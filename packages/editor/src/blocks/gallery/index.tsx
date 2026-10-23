@@ -49,6 +49,7 @@ registerBlock({
   label: "Gallery",
   description: "A grid of photos",
   category: "Media",
+  group: "media",
   aiHint: "A photo gallery grid.",
   aiProps: ["images", "layout"],
   empty: () => emptyBlock("gallery") as never,

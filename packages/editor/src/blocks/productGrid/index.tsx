@@ -9,6 +9,7 @@ registerBlock({
   label: "Products",
   description: "Shop product grid",
   category: "Data",
+  group: "live",
   aiHint: "A grid of products from the shop, optionally filtered by tag.",
   aiProps: ["heading", "tag"],
   empty: () => emptyBlock("productGrid") as never,

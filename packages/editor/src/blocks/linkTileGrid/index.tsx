@@ -9,6 +9,7 @@ registerBlock({
   label: "Link tiles",
   description: "Navigation tile grid",
   category: "Layout",
+  group: "structure",
   aiHint: "A grid of icon tiles that link to sub-pages.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("linkTileGrid") as never,

@@ -29,6 +29,7 @@ registerBlock({
   label: "Signup form",
   description: "Collect emails or interest",
   category: "Engage",
+  group: "actions",
   aiHint: "An email signup form with a heading and placeholder text.",
   aiProps: ["heading", "placeholder"],
   empty: () => emptyBlock("signup") as never,

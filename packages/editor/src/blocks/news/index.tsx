@@ -31,6 +31,7 @@ registerBlock({
   label: "News feed",
   description: "Latest posts from the department",
   category: "Pull from BISO",
+  group: "live",
   aiHint: "A live news feed from the department.",
   aiProps: ["heading", "source"],
   empty: () => emptyBlock("news") as never,

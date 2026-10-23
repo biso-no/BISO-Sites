@@ -9,6 +9,7 @@ registerBlock({
   label: "Tabs",
   description: "Tabbed content panels",
   category: "Layout",
+  group: "structure",
   variants: [
     { id: "pills", label: "Pills", kind: "pills" },
     { id: "underline", label: "Underline", kind: "underline" },

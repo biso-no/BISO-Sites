@@ -40,7 +40,13 @@ export function BlockView({
   );
 
   if (def.v2) {
-    return rendered;
+    // `data-block` names the type for the gallery page's tests and for anyone
+    // inspecting the DOM. `display: contents` keeps it out of the layout.
+    return (
+      <div data-block={block.type} style={{ display: "contents" }}>
+        {rendered}
+      </div>
+    );
   }
 
   return <LayoutFrame background={background}>{rendered}</LayoutFrame>;

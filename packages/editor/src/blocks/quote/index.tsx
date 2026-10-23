@@ -29,6 +29,7 @@ registerBlock({
   label: "Pull quote",
   description: "A line worth standing on its own",
   category: "Tell a story",
+  group: "text",
   aiHint: "A featured pull quote with attribution.",
   aiProps: ["text", "author", "role"],
   empty: () => emptyBlock("quote") as never,

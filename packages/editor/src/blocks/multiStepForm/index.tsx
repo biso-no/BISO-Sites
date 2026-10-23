@@ -9,6 +9,7 @@ registerBlock({
   label: "Multi-step form",
   description: "Step-by-step form builder",
   category: "Engage",
+  group: "actions",
   aiHint:
     "A configurable multi-step form that submits to an Appwrite collection.",
   aiProps: ["heading", "steps", "submitTarget"],

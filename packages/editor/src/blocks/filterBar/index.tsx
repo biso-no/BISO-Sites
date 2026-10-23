@@ -9,6 +9,8 @@ registerBlock({
   label: "Filter bar",
   description: "Search/filter for feeds",
   category: "Layout",
+  group: "structure",
+  hidden: true,
   aiHint:
     "A search bar that filters the news, jobs, or units feed on the same page.",
   aiProps: ["target"],

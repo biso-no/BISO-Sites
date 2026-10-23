@@ -29,6 +29,7 @@ registerBlock({
   label: "Callout",
   description: "An info box with an icon",
   category: "Tell a story",
+  group: "text",
   aiHint: "A highlighted info or warning box.",
   aiProps: ["title", "body"],
   empty: () => emptyBlock("callout") as never,

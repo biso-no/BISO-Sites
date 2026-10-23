@@ -9,6 +9,8 @@ registerBlock({
   label: "Profile header",
   description: "Auth-aware account header",
   category: "Data",
+  group: "structure",
+  hidden: true,
   aiHint:
     "A personalised header showing the signed-in user's name, avatar, and activity stats.",
   aiProps: ["heading", "showAvatar", "showStats"],

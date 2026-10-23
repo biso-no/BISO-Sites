@@ -9,6 +9,7 @@ registerBlock({
   label: "Feature grid",
   description: "Icon cards in a grid",
   category: "Layout",
+  group: "structure",
   variants: [
     { id: "bordered", label: "Bordered", kind: "bordered" },
     { id: "cards", label: "Cards", kind: "cards" },

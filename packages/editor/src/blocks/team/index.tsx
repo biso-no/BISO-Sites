@@ -37,6 +37,7 @@ registerBlock({
   label: "Team grid",
   description: "Officers, board, members",
   category: "Show people & numbers",
+  group: "people",
   aiHint: "A grid of team members with avatars, names, and roles.",
   aiProps: ["heading", "members"],
   empty: () => emptyBlock("team") as never,

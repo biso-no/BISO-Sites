@@ -40,6 +40,8 @@ registerBlock({
   label: "Two columns",
   description: "Side-by-side text blocks",
   category: "Tell a story",
+  group: "structure",
+  hidden: true,
   variants: [
     { id: "equal", label: "50 / 50", kind: "equal" },
     { id: "leftWide", label: "66 / 33", kind: "leftWide" },

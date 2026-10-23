@@ -29,6 +29,7 @@ registerBlock({
   label: "Events feed",
   description: "Auto-updates from your dept",
   category: "Pull from BISO",
+  group: "live",
   aiHint:
     "A grid of upcoming events. Set source to an Appwrite collection ID to bind live data.",
   aiProps: ["heading", "source", "items"],

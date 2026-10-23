@@ -9,6 +9,7 @@ registerBlock({
   label: "Partners",
   description: "Logo grid from Appwrite",
   category: "Data",
+  group: "live",
   aiHint: "A grid of partner/sponsor logos.",
   aiProps: ["heading"],
   empty: () => emptyBlock("partners") as never,

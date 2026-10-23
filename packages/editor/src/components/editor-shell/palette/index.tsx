@@ -1,12 +1,15 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { useState } from "react";
-import { BLOCK_LIBRARY, getBlock } from "@/blocks/registry";
+import { useMemo, useState } from "react";
+import { getBlock, paletteGroups } from "@/blocks/registry";
 import { useInsertTarget } from "@/editor/hooks";
 import { useEditorStore } from "@/editor/store";
 import { findColumn } from "@/editor/tree";
 import type { BlockType } from "@/editor/types";
+
+const PAGE_HEADER_LABEL = "Page header";
+const PAGE_HEADER_DESC = "The band at the top: title, intro and buttons";
 
 export function PalettePane() {
   const [query, setQuery] = useState("");
@@ -19,16 +22,22 @@ export function PalettePane() {
     ? findColumn(doc, insertTarget.columnId)
     : null;
 
+  const groups = useMemo(() => paletteGroups(), []);
+  const needle = query.toLowerCase();
   const filtered = query
-    ? BLOCK_LIBRARY.map((cat) => ({
-        ...cat,
-        items: cat.items.filter(
-          (it) =>
-            it.label.toLowerCase().includes(query.toLowerCase()) ||
-            it.desc.toLowerCase().includes(query.toLowerCase())
-        ),
-      })).filter((cat) => cat.items.length > 0)
-    : BLOCK_LIBRARY;
+    ? groups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter(
+            (it) =>
+              it.label.toLowerCase().includes(needle) ||
+              it.desc.toLowerCase().includes(needle)
+          ),
+        }))
+        .filter((group) => group.items.length > 0)
+    : groups;
+  const showHeaderItem =
+    !query || PAGE_HEADER_LABEL.toLowerCase().includes(needle);
 
   return (
     <aside className="pe-palette">
@@ -85,9 +94,10 @@ export function PalettePane() {
       </div>
 
       <div className="scroll pe-palette-list">
+        {showHeaderItem && <PageOpeningGroup />}
         {filtered.map((cat) => (
-          <div key={cat.category}>
-            <div className="pe-palette-cat">{cat.category}</div>
+          <div key={cat.group}>
+            <div className="pe-palette-cat">{cat.label}</div>
             {cat.items.map((item) => (
               <PaletteItem
                 desc={item.desc}
@@ -98,7 +108,7 @@ export function PalettePane() {
             ))}
           </div>
         ))}
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !showHeaderItem && (
           <p
             style={{
               padding: "12px 16px",
@@ -130,6 +140,61 @@ export function PalettePane() {
         </button>
       </div>
     </aside>
+  );
+}
+
+/**
+ * The header is not a block: one per page, no dragging. Clicking it gives the
+ * page an empty header (or selects the existing one).
+ */
+function PageOpeningGroup() {
+  const addHeader = useEditorStore((s) => s.addHeader);
+  return (
+    <div>
+      <div className="pe-palette-cat">Page opening</div>
+      <button
+        className="pe-palette-item"
+        onClick={() => addHeader()}
+        title={PAGE_HEADER_DESC}
+        type="button"
+      >
+        <div className="pe-palette-item__thumb">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 38 30">
+            <rect
+              fill="var(--ink-3)"
+              height="10"
+              opacity=".3"
+              rx="2"
+              width="32"
+              x="3"
+              y="3"
+            />
+            <rect
+              fill="var(--ink-3)"
+              height="2"
+              opacity=".15"
+              rx="1"
+              width="20"
+              x="3"
+              y="17"
+            />
+            <rect
+              fill="var(--ink-3)"
+              height="2"
+              opacity=".15"
+              rx="1"
+              width="14"
+              x="3"
+              y="22"
+            />
+          </svg>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div className="pe-palette-item__name">{PAGE_HEADER_LABEL}</div>
+          <div className="pe-palette-item__desc">{PAGE_HEADER_DESC}</div>
+        </div>
+      </button>
+    </div>
   );
 }
 

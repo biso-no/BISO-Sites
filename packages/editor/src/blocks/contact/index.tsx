@@ -42,6 +42,7 @@ registerBlock({
   label: "Contact",
   description: "Email, address, socials",
   category: "Engage",
+  group: "people",
   variants: [
     { id: "single", label: "Single", kind: "single" },
     { id: "directory", label: "Directory", kind: "directory" },

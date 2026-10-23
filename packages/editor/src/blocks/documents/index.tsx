@@ -9,6 +9,7 @@ registerBlock({
   label: "Documents",
   description: "File download list",
   category: "Data",
+  group: "actions",
   aiHint: "A list of downloadable files with titles.",
   aiProps: ["heading"],
   empty: () => emptyBlock("documents") as never,

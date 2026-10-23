@@ -1,4 +1,4 @@
-export { allBlocks, BLOCK_LIBRARY, getBlock } from "./blocks/index";
+export { allBlocks, getBlock, paletteGroups } from "./blocks/index";
 export { EditorShell } from "./components/editor-shell";
 export type { EditorCallbacks } from "./editor/callbacks";
 export { EditorCallbacksContext, useEditorCallbacks } from "./editor/callbacks";

@@ -27,6 +27,7 @@ registerBlock({
   label: "Call to action",
   description: "A headline with up to two buttons",
   category: "Engage",
+  group: "actions",
   aiHint:
     "A call-to-action band: eyebrow, headline, short text and up to two buttons.",
   aiProps: ["eyebrow", "title", "text", "buttons"],

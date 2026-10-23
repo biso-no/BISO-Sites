@@ -22,6 +22,7 @@ registerBlock({
   label: "Highlights",
   description: "Short points with an accent rule",
   category: "Show people & numbers",
+  group: "text",
   aiHint: "A short list of highlighted points, each with an accent rule.",
   aiProps: ["items"],
   empty: () => emptyBlock("highlights") as never,

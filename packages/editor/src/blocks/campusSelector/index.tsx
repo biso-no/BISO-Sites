@@ -9,6 +9,8 @@ registerBlock({
   label: "Campus selector",
   description: "Campus switcher or cards",
   category: "Data",
+  group: "structure",
+  hidden: true,
   variants: [
     { id: "switcher", label: "Switcher", kind: "switcher" },
     { id: "cards", label: "Cards", kind: "cards" },

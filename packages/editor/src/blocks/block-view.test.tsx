@@ -94,7 +94,7 @@ describe("BlockView frame", () => {
 });
 
 describe("v2 blocks", () => {
-  test("a v2 definition renders bare, without the legacy frame", () => {
+  test("a v2 definition renders without the legacy frame, tagged with its type", () => {
     const block = emptyOf("marquee");
     const original = allBlocks().find((d) => d.type === "marquee");
     if (!original) {
@@ -107,6 +107,8 @@ describe("v2 blocks", () => {
     } finally {
       registerBlock(original);
     }
-    expect(html).toBe("<p>bare</p>");
+    expect(html).toBe(
+      '<div data-block="marquee" style="display:contents"><p>bare</p></div>'
+    );
   });
 });

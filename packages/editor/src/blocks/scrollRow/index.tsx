@@ -9,6 +9,7 @@ registerBlock({
   label: "Scroll row",
   description: "Horizontal scrollable cards",
   category: "Layout",
+  group: "structure",
   aiHint: "A horizontally scrollable row of benefit or feature cards.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("scrollRow") as never,

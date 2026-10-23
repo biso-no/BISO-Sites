@@ -1,5 +1,5 @@
 import type { Block, BlockType } from "@/editor/types";
-import type { BlockDefinition } from "./types";
+import type { BlockDefinition, PaletteGroup } from "./types";
 
 // Blocks register themselves here via registerBlock().
 const registry = new Map<BlockType, BlockDefinition>();
@@ -16,154 +16,44 @@ export function allBlocks(): BlockDefinition[] {
   return [...registry.values()];
 }
 
-// Block library structure (mirrors the mockup's BLOCK_LIBRARY)
-export const BLOCK_LIBRARY: {
-  category: string;
-  items: { type: BlockType; label: string; desc: string }[];
-}[] = [
-  {
-    category: "Top of page",
-    items: [
-      { type: "marquee", label: "Marquee", desc: "Scrolling text strip" },
-    ],
-  },
-  {
-    category: "Tell a story",
-    items: [
-      {
-        type: "text",
-        label: "Rich text",
-        desc: "Headings, paragraphs, bullets",
-      },
-      {
-        type: "heading",
-        label: "Heading",
-        desc: "A section title with an optional link",
-      },
-      {
-        type: "quote",
-        label: "Pull quote",
-        desc: "A line worth standing on its own",
-      },
-      { type: "callout", label: "Callout", desc: "An info box with an icon" },
-      { type: "twoCol", label: "Two columns", desc: "Side-by-side blocks" },
-    ],
-  },
-  {
-    category: "Show people & numbers",
-    items: [
-      { type: "team", label: "Team grid", desc: "Officers, board, members" },
-      {
-        type: "stats",
-        label: "Big numbers",
-        desc: "Three or four metrics in a row",
-      },
-      { type: "timeline", label: "Timeline", desc: "Year-by-year milestones" },
-      {
-        type: "highlights",
-        label: "Highlights",
-        desc: "Short points with an accent rule",
-      },
-      { type: "facts", label: "Facts", desc: "Label and value rows" },
-      { type: "divider", label: "Divider", desc: "A line between sections" },
-    ],
-  },
-  {
-    category: "Media",
-    items: [
-      { type: "image", label: "Image", desc: "A single photo with caption" },
-      { type: "gallery", label: "Gallery", desc: "A grid of photos" },
-      { type: "video", label: "Video", desc: "Embed YouTube or Vimeo" },
-    ],
-  },
-  {
-    category: "Pull from BISO",
-    items: [
-      {
-        type: "events",
-        label: "Events feed",
-        desc: "Auto-updates from your dept",
-      },
-      { type: "jobs", label: "Open roles", desc: "Your unit's job board" },
-      { type: "news", label: "News feed", desc: "Latest posts" },
-    ],
-  },
-  {
-    category: "Engage",
-    items: [
-      {
-        type: "ctaBand",
-        label: "Call to action",
-        desc: "A headline with up to two buttons",
-      },
-      { type: "buttons", label: "Buttons", desc: "A row of up to three links" },
-      { type: "faq", label: "FAQ", desc: "Expandable questions" },
-      { type: "contact", label: "Contact", desc: "Email, address, socials" },
-      {
-        type: "signup",
-        label: "Signup form",
-        desc: "Collect emails or interest",
-      },
-      {
-        type: "multiStepForm",
-        label: "Multi-step form",
-        desc: "Step-by-step form builder",
-      },
-    ],
-  },
-  {
-    category: "Layout",
-    items: [
-      {
-        type: "featureGrid",
-        label: "Feature grid",
-        desc: "Icon cards in a grid",
-      },
-      {
-        type: "linkTileGrid",
-        label: "Link tiles",
-        desc: "Navigation tile grid",
-      },
-      { type: "tabs", label: "Tabs", desc: "Tabbed content panels" },
-      {
-        type: "scrollRow",
-        label: "Scroll row",
-        desc: "Horizontal scrollable cards",
-      },
-      {
-        type: "featuredCards",
-        label: "Featured cards",
-        desc: "Accent-stripe feature cards",
-      },
-      { type: "stepGrid", label: "Steps", desc: "Numbered how-it-works cards" },
-      {
-        type: "filterBar",
-        label: "Filter bar",
-        desc: "Search/filter for feeds",
-      },
-    ],
-  },
-  {
-    category: "Data",
-    items: [
-      { type: "partners", label: "Partners", desc: "Logo grid from Appwrite" },
-      {
-        type: "departmentGrid",
-        label: "Departments",
-        desc: "Dept cards from Appwrite",
-      },
-      { type: "documents", label: "Documents", desc: "File download list" },
-      { type: "productGrid", label: "Products", desc: "Shop product grid" },
-      {
-        type: "campusSelector",
-        label: "Campus selector",
-        desc: "Campus switcher or cards",
-      },
-      {
-        type: "profileHeader",
-        label: "Profile header",
-        desc: "Auth-aware account header",
-      },
-    ],
-  },
+const GROUP_ORDER: { group: PaletteGroup; label: string }[] = [
+  { group: "text", label: "Text and story" },
+  { group: "media", label: "Media" },
+  { group: "structure", label: "Structure" },
+  { group: "people", label: "People" },
+  { group: "live", label: "Live from BISO" },
+  { group: "actions", label: "Actions" },
+  { group: "extras", label: "Small extras" },
 ];
+
+export interface PaletteItemData {
+  desc: string;
+  label: string;
+  type: BlockType;
+}
+
+export interface PaletteGroupData {
+  group: PaletteGroup;
+  items: PaletteItemData[];
+  label: string;
+}
+
+/**
+ * The palette's block groups, derived from the registry so the palette and the
+ * definitions cannot drift: items in registration order, hidden blocks left
+ * out, empty groups dropped.
+ */
+export function paletteGroups(): PaletteGroupData[] {
+  const offered = allBlocks().filter((def) => !def.hidden);
+  return GROUP_ORDER.map(({ group, label }) => ({
+    group,
+    label,
+    items: offered
+      .filter((def) => def.group === group)
+      .map((def) => ({
+        type: def.type,
+        label: def.label,
+        desc: def.description,
+      })),
+  })).filter((g) => g.items.length > 0);
+}

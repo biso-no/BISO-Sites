@@ -9,6 +9,7 @@ registerBlock({
   label: "Featured cards",
   description: "Accent-stripe feature cards",
   category: "Layout",
+  group: "structure",
   aiHint: "Cards with a colored accent stripe, title, and body text.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("featuredCards") as never,

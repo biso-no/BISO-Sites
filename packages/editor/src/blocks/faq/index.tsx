@@ -38,6 +38,7 @@ registerBlock({
   label: "FAQ",
   description: "Expandable questions",
   category: "Engage",
+  group: "structure",
   variants: [
     { id: "list", label: "List", kind: "list" },
     { id: "accordion-themed", label: "Themed", kind: "accordion-themed" },

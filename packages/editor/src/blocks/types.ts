@@ -14,6 +14,15 @@ export interface PropSchema {
   type: "text" | "textarea" | "url" | "color" | "select" | "number";
 }
 
+export type PaletteGroup =
+  | "text"
+  | "media"
+  | "structure"
+  | "people"
+  | "live"
+  | "actions"
+  | "extras";
+
 /** Everything the editor needs to know about a block type. */
 export interface BlockDefinition<B extends Block = Block> {
   /** Hint for the AI about what this block is for. */
@@ -23,6 +32,13 @@ export interface BlockDefinition<B extends Block = Block> {
   category: string;
   description: string;
   empty: () => B;
+  /** Palette group the block is offered under. */
+  group: PaletteGroup;
+  /**
+   * Registered so existing documents still render, but not offered in the
+   * palette or to the AI.
+   */
+  hidden?: true;
   Inspector: React.ComponentType<{ block: B; doc: PageDoc; onPatch: PatchFn }>;
   label: string;
   PaletteThumb: React.ComponentType;

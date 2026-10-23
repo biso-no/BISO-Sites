@@ -9,6 +9,7 @@ registerBlock({
   label: "Departments",
   description: "Dept cards from Appwrite",
   category: "Data",
+  group: "live",
   variants: [
     { id: "grid", label: "Grid", kind: "grid" },
     { id: "list", label: "List", kind: "list" },

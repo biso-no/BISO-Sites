@@ -23,6 +23,7 @@ registerBlock({
   label: "Divider",
   description: "A line between sections",
   category: "Show people & numbers",
+  group: "extras",
   aiHint: "A horizontal rule with small, medium or large spacing.",
   aiProps: ["spacing"],
   empty: () => emptyBlock("divider") as never,

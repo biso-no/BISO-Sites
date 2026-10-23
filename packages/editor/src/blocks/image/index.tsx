@@ -27,6 +27,7 @@ registerBlock({
   label: "Image",
   description: "A single photo with caption",
   category: "Media",
+  group: "media",
   aiHint: "A full-width image with an optional caption.",
   aiProps: ["alt", "caption", "ratio", "frame"],
   empty: () => emptyBlock("image") as never,

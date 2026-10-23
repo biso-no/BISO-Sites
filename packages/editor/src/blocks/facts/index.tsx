@@ -23,6 +23,7 @@ registerBlock({
   label: "Facts",
   description: "Label and value rows",
   category: "Show people & numbers",
+  group: "text",
   aiHint: "A list of label and value rows, like when, where and price.",
   aiProps: ["items"],
   empty: () => emptyBlock("facts") as never,

@@ -28,6 +28,7 @@ registerBlock({
   label: "Big numbers",
   description: "Three or four metrics in a row",
   category: "Show people & numbers",
+  group: "structure",
   aiHint: "A row of large numeric statistics with labels underneath.",
   aiProps: ["items"],
   empty: () => emptyBlock("stats") as never,

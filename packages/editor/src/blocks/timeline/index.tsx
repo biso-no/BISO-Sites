@@ -31,6 +31,7 @@ registerBlock({
   label: "Timeline",
   description: "Year-by-year milestones",
   category: "Show people & numbers",
+  group: "structure",
   aiHint: "A chronological list of milestones with year and description.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("timeline") as never,

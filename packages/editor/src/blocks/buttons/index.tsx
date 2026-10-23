@@ -18,6 +18,7 @@ registerBlock({
   label: "Buttons",
   description: "A row of up to three links",
   category: "Engage",
+  group: "actions",
   aiHint: "A row of up to three link buttons, primary or secondary.",
   aiProps: ["items", "align"],
   empty: () => emptyBlock("buttons") as never,
