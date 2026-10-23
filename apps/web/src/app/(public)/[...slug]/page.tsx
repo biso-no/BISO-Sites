@@ -8,12 +8,15 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getLocale } from "@/app/actions/locale";
+import { PageThemeStyle } from "@/components/page-theme-style";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import { resolvePageFeeds } from "@/lib/data/page-feeds";
 import {
+  cachedDepartmentTheme,
   cachedPublishedPage,
   isPublishedPage,
 } from "@/lib/data/public-content";
+import { resolvePageTheme } from "@/lib/page-theme";
 import { RenderedPage } from "./_components/rendered-page";
 
 interface Props {
@@ -110,15 +113,32 @@ export default async function DynamicPage({ params }: Props) {
   // Appwrite round-trip per visitor. See `@/lib/data/page-feeds`.
   const feeds = await resolvePageFeeds(doc, locale);
 
+  // A page bound to a department wears the department's theme; otherwise its
+  // own. A failed department read renders BISO rather than a stale doc theme.
+  const departmentId = result.row?.department_id;
+  const departmentTheme = departmentId
+    ? await cachedDepartmentTheme(departmentId).catch(() => ({
+        theme_accent: null,
+        theme_dark: null,
+      }))
+    : null;
+  const theme = resolvePageTheme({
+    departmentTheme,
+    docTheme: doc.meta?.theme,
+  });
+
   // Blocks whose feed came back empty leave no empty band: drop them (and the
   // sections they leave bare) before the renderer picks the nav-clearing first
   // section.
   return (
-    <RenderedPage
-      doc={pruneEmptyFeedBlocks(doc, feeds, locale)}
-      feeds={feeds}
-      locale={locale}
-      slug={slug}
-    />
+    <>
+      <PageThemeStyle theme={theme} />
+      <RenderedPage
+        doc={pruneEmptyFeedBlocks(doc, feeds, locale)}
+        feeds={feeds}
+        locale={locale}
+        slug={slug}
+      />
+    </>
   );
 }

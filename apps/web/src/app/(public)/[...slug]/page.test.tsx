@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // the Appwrite readers and the client renderer are stubbed.
 const cachedPublishedPage = vi.hoisted(() => vi.fn());
 const cachedPageEventsFeed = vi.hoisted(() => vi.fn());
+const cachedDepartmentTheme = vi.hoisted(() => vi.fn());
 
 // `@repo/editor/sanitize` opens with `import "server-only"`, which throws
 // outside a react-server build.
@@ -27,6 +28,7 @@ vi.mock("@/lib/data/public-content", () => ({
   cachedPageJobsFeed: vi.fn(async () => []),
   cachedPageNewsFeed: vi.fn(async () => []),
   cachedPagePartnersFeed: vi.fn(async () => []),
+  cachedDepartmentTheme,
   cachedPublishedPage,
   isPublishedPage: () => true,
 }));
@@ -34,6 +36,7 @@ vi.mock("@/lib/data/public-content", () => ({
 // these tests read.
 vi.mock("./_components/rendered-page", () => ({ RenderedPage: () => null }));
 
+import { PageThemeStyle } from "@/components/page-theme-style";
 import DynamicPage, { generateMetadata } from "./page";
 
 const META = {
@@ -55,16 +58,24 @@ type Rendered = ReactElement<{
   doc: { sections: { columns: { blocks: unknown[] }[] }[]; version: number };
   feeds: Record<string, unknown[]>;
 }>;
+type Tree = ReactElement<{
+  children: [ReactElement<{ theme: unknown }>, Rendered];
+}>;
 
-const render = async (slug: string) =>
+const renderTree = async (slug: string) =>
   (await DynamicPage({
     params: Promise.resolve({ slug: [slug] }),
-  })) as Rendered;
+  })) as Tree;
+
+// <><PageThemeStyle/><RenderedPage/></>: the style comes first.
+const render = async (slug: string) =>
+  (await renderTree(slug)).props.children[1];
 
 describe("block page route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cachedPageEventsFeed.mockResolvedValue([{ title: "Kickoff" }]);
+    cachedDepartmentTheme.mockResolvedValue(null);
   });
 
   it("renders an old flat document as an empty page instead of a 500", async () => {
@@ -231,5 +242,75 @@ describe("block page route: rich text", () => {
       "hei",
       '<a href="/om-oss">lenke</a>',
     ]);
+  });
+});
+
+describe("block page route: page theme", () => {
+  const DEPT_THEME = { theme_dark: "#3b1c6b", theme_accent: "#c8a2f0" };
+  const DOC_THEME = { dark: "#0b3d2e", accent: "#8fe3b5" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cachedDepartmentTheme.mockResolvedValue(null);
+  });
+
+  it("a page bound to a department wears that department's theme, first in the tree", async () => {
+    cachedDepartmentTheme.mockResolvedValue(DEPT_THEME);
+    cachedPublishedPage.mockResolvedValue({
+      ...published({
+        meta: { ...META, theme: DOC_THEME },
+        sections: [],
+        version: 2,
+      }),
+      row: { department_id: "d-1", status: "published" },
+    });
+
+    const tree = await renderTree("old-page");
+    const [style, body] = tree.props.children;
+
+    expect(cachedDepartmentTheme).toHaveBeenCalledWith("d-1");
+    expect(style.type).toBe(PageThemeStyle);
+    expect(style.props.theme).toEqual({ dark: "#3b1c6b", accent: "#c8a2f0" });
+    expect(body.props.doc).toBeDefined();
+  });
+
+  it("a page without a department uses its own meta theme", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({
+        meta: { ...META, theme: DOC_THEME },
+        sections: [],
+        version: 2,
+      })
+    );
+
+    const [style] = (await renderTree("old-page")).props.children;
+
+    expect(cachedDepartmentTheme).not.toHaveBeenCalled();
+    expect(style.props.theme).toEqual(DOC_THEME);
+  });
+
+  it("a page with neither renders no theme", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [], version: 2 })
+    );
+
+    const [style] = (await renderTree("old-page")).props.children;
+
+    expect(style.type).toBe(PageThemeStyle);
+    expect(style.props.theme).toBeNull();
+  });
+
+  it("a failing stored theme renders BISO", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({
+        meta: { ...META, theme: { dark: "#9b5de5", accent: "#c8a2f0" } },
+        sections: [],
+        version: 2,
+      })
+    );
+
+    const [style] = (await renderTree("old-page")).props.children;
+
+    expect(style.props.theme).toBeNull();
   });
 });

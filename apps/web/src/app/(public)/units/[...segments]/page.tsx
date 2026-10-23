@@ -7,9 +7,11 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 import { getLocale } from "@/app/actions/locale";
+import { PageThemeStyle } from "@/components/page-theme-style";
 import { resolvePageFeeds } from "@/lib/data/page-feeds";
 import { cachedPublishedPage } from "@/lib/data/public-content";
 import { cachedUnitDetail } from "@/lib/data/units";
+import { resolvePageTheme } from "@/lib/page-theme";
 import { publishedUnitPage } from "@/lib/unit-page";
 import { RenderedPage } from "../../[...slug]/_components/rendered-page";
 import { CampusChooser } from "./_components/campus-chooser";
@@ -88,17 +90,31 @@ export default async function UnitPage({ params }: Props) {
     : null;
   const pageResult = publishedUnitPage(rawPageResult, department.$id);
 
+  // The department's theme covers its custom page and its coded default view
+  // alike. Rendered first, before any Suspense boundary, so it ships in the
+  // first flush with the nav.
+  const theme = resolvePageTheme({
+    departmentTheme: {
+      theme_accent: department.theme_accent ?? null,
+      theme_dark: department.theme_dark ?? null,
+    },
+    docTheme: null,
+  });
+
   if (pageResult) {
     return (
-      <div className="min-h-screen bg-surface">
-        <Suspense fallback={<DepartmentLoading />}>
-          <PublishedUnit
-            doc={sanitizePageDocHtml(pageResult.doc)}
-            locale={locale}
-            slug={canonical?.slice(1) ?? ""}
-          />
-        </Suspense>
-      </div>
+      <>
+        <PageThemeStyle theme={theme} />
+        <div className="min-h-screen bg-surface">
+          <Suspense fallback={<DepartmentLoading />}>
+            <PublishedUnit
+              doc={sanitizePageDocHtml(pageResult.doc)}
+              locale={locale}
+              slug={canonical?.slice(1) ?? ""}
+            />
+          </Suspense>
+        </div>
+      </>
     );
   }
 
@@ -117,9 +133,12 @@ export default async function UnitPage({ params }: Props) {
   }
 
   return (
-    <Suspense fallback={<DepartmentLoading />}>
-      <UnitView locale={locale} unit={unit} />
-    </Suspense>
+    <>
+      <PageThemeStyle theme={theme} />
+      <Suspense fallback={<DepartmentLoading />}>
+        <UnitView locale={locale} unit={unit} />
+      </Suspense>
+    </>
   );
 }
 

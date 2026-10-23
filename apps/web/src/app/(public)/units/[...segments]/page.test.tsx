@@ -1,11 +1,21 @@
 import type { ReactElement } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The editor's normalizer and the feed resolver (`@/lib/data/page-feeds`) are
 // real; only the Appwrite readers and the rendering leaves are stubbed.
 const cachedPublishedPage = vi.hoisted(() => vi.fn());
 const cachedPageEventsFeed = vi.hoisted(() => vi.fn());
 const cachedUnitDetail = vi.hoisted(() => vi.fn());
+const resolveUnit = vi.hoisted(() =>
+  vi.fn(async () => ({
+    canonical: "/units/oslo/fadderullan",
+    department: { $id: "d-1", Name: "OSL Fadderullan" } as Record<
+      string,
+      unknown
+    >,
+    kind: "department",
+  }))
+);
 const stubs = vi.hoisted(() => ({
   RenderedPage: () => null,
   UnitView: () => null,
@@ -23,13 +33,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("@/app/actions/locale", () => ({ getLocale: async () => "no" }));
-vi.mock("./resolve", () => ({
-  resolveUnit: async () => ({
-    canonical: "/units/oslo/fadderullan",
-    department: { $id: "d-1", Name: "OSL Fadderullan" },
-    kind: "department",
-  }),
-}));
+vi.mock("./resolve", () => ({ resolveUnit }));
 vi.mock("@/lib/data/public-content", () => ({
   cachedPageDepartmentsFeed: vi.fn(async () => ({ departments: [] })),
   cachedPageEventsFeed,
@@ -46,6 +50,7 @@ vi.mock("./_components/unit-view", () => ({ UnitView: stubs.UnitView }));
 vi.mock("./_components/campus-chooser", () => ({ CampusChooser: () => null }));
 vi.mock("./loading", () => ({ default: () => null }));
 
+import { PageThemeStyle } from "@/components/page-theme-style";
 import UnitPage, { generateMetadata } from "./page";
 
 const META = {
@@ -71,6 +76,17 @@ function ownPage(doc: unknown) {
 
 type Element = ReactElement<{ children?: unknown; [key: string]: unknown }>;
 const child = (el: Element) => el.props.children as Element;
+// The page returns <><PageThemeStyle/>{body}</>; `renderBody` is the body.
+const renderBody = async () =>
+  (
+    (await UnitPage({ params })) as Element & {
+      props: { children: Element[] };
+    }
+  ).props.children[1] as Element;
+const themeOf = (el: Element) =>
+  (el.props.children as Element[])[0] as Element & {
+    props: { theme: unknown };
+  };
 const params = Promise.resolve({ segments: ["oslo", "fadderullan"] });
 
 describe("unit route", () => {
@@ -88,7 +104,7 @@ describe("unit route", () => {
       })
     );
 
-    const page = (await UnitPage({ params })) as Element;
+    const page = await renderBody();
 
     expect(child(page).type).toBe(stubs.UnitView);
     expect(cachedPageEventsFeed).not.toHaveBeenCalled();
@@ -115,7 +131,7 @@ describe("unit route", () => {
       })
     );
 
-    const page = (await UnitPage({ params })) as Element;
+    const page = await renderBody();
     // <div><Suspense><PublishedUnit/></Suspense></div>
     const publishedUnit = child(child(page));
     const render = publishedUnit.type as (props: unknown) => Promise<Element>;
@@ -149,7 +165,7 @@ describe("unit route", () => {
       })
     );
 
-    const page = (await UnitPage({ params })) as Element;
+    const page = await renderBody();
     const publishedUnit = child(child(page));
     const render = publishedUnit.type as (props: unknown) => Promise<Element>;
     const rendered = await render(publishedUnit.props);
@@ -170,7 +186,7 @@ describe("unit route", () => {
       })
     );
 
-    const page = (await UnitPage({ params })) as Element;
+    const page = await renderBody();
     expect(child(page).type).not.toBe(stubs.UnitView);
     const publishedUnit = child(child(page));
     const render = publishedUnit.type as (props: unknown) => Promise<Element>;
@@ -191,7 +207,7 @@ describe("unit route", () => {
       ownPage({ meta: META, sections: [], version: 2 })
     );
 
-    const page = (await UnitPage({ params })) as Element;
+    const page = await renderBody();
     expect(child(page).type).toBe(stubs.UnitView);
     expect((await generateMetadata({ params })).title).toBe(
       "Fadderullan | BISO"
@@ -233,7 +249,7 @@ describe("unit route: rich text", () => {
       })
     );
 
-    const page = (await UnitPage({ params })) as Element;
+    const page = await renderBody();
     const publishedUnit = child(child(page));
     const render = publishedUnit.type as (props: unknown) => Promise<Element>;
     const rendered = await render(publishedUnit.props);
@@ -243,5 +259,72 @@ describe("unit route: rich text", () => {
 
     expect(rendered.type).toBe(stubs.RenderedPage);
     expect(doc.sections[0].columns[0].blocks[0].body[0].text).toBe("Velkommen");
+  });
+});
+
+describe("unit route: department theme", () => {
+  const THEMED = {
+    $id: "d-1",
+    Name: "OSL Fadderullan",
+    theme_accent: "#c8a2f0",
+    theme_dark: "#3b1c6b",
+  };
+  const EXPECTED = { dark: "#3b1c6b", accent: "#c8a2f0" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cachedUnitDetail.mockResolvedValue(UNIT);
+    resolveUnit.mockResolvedValue({
+      canonical: "/units/oslo/fadderullan",
+      department: THEMED,
+      kind: "department",
+    });
+  });
+
+  afterEach(() => {
+    resolveUnit.mockResolvedValue({
+      canonical: "/units/oslo/fadderullan",
+      department: { $id: "d-1", Name: "OSL Fadderullan" },
+      kind: "department",
+    });
+  });
+
+  it("the coded default view wears the department's theme, first in the tree", async () => {
+    cachedPublishedPage.mockResolvedValue(null);
+
+    const page = (await UnitPage({ params })) as Element;
+
+    expect(themeOf(page).type).toBe(PageThemeStyle);
+    expect(themeOf(page).props.theme).toEqual(EXPECTED);
+    expect(child(page).type).not.toBe(PageThemeStyle);
+  });
+
+  it("the custom page wears the same theme, outside the Suspense boundary", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      ownPage({
+        header: { title: "Fadderullan", variant: "plain" },
+        meta: META,
+        sections: [],
+        version: 2,
+      })
+    );
+
+    const page = (await UnitPage({ params })) as Element;
+
+    expect(themeOf(page).type).toBe(PageThemeStyle);
+    expect(themeOf(page).props.theme).toEqual(EXPECTED);
+  });
+
+  it("a department with no theme renders BISO", async () => {
+    resolveUnit.mockResolvedValue({
+      canonical: "/units/oslo/fadderullan",
+      department: { $id: "d-1", Name: "OSL Fadderullan" },
+      kind: "department",
+    });
+    cachedPublishedPage.mockResolvedValue(null);
+
+    const page = (await UnitPage({ params })) as Element;
+
+    expect(themeOf(page).props.theme).toBeNull();
   });
 });

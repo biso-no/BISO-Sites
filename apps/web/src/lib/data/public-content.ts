@@ -350,7 +350,31 @@ const DEPARTMENT_SELECT = [
   "slug",
   "active",
   "type",
+  "theme_dark",
+  "theme_accent",
 ] as const;
+
+/**
+ * A department's page-theme colours, for pages bound to it by `department_id`.
+ * Null when the row is missing. The values are raw: `resolvePageTheme`
+ * validates them.
+ */
+export async function cachedDepartmentTheme(
+  id: string
+): Promise<Pick<Departments, "theme_accent" | "theme_dark"> | null> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Departments>("app", "departments", [
+    Query.equal("$id", id),
+    Query.select(["$id", "theme_dark", "theme_accent"]),
+    Query.limit(1),
+  ]);
+  const row = res.rows[0];
+  return row
+    ? { theme_accent: row.theme_accent, theme_dark: row.theme_dark }
+    : null;
+}
 
 /*
  * The three readers below all apply `isPublicUnit` on top of `active`.
