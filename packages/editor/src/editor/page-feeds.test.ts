@@ -4,11 +4,16 @@ import {
   pageFeedKey,
   resolveFeedDepartment,
 } from "./page-feeds";
+import { sectionOf } from "./sections";
+import {
+  block as fixtureBlock,
+  doc as fixtureDoc,
+  section,
+} from "./test-fixtures";
 import type { Block, PageDoc } from "./types";
 
 function doc(blocks: Block[], department = "25"): PageDoc {
   return {
-    blocks,
     meta: {
       accentColor: "#3DA9E0",
       department,
@@ -16,6 +21,8 @@ function doc(blocks: Block[], department = "25"): PageDoc {
       status: "published",
       title: "A page",
     },
+    sections: blocks.map((b) => sectionOf(b)),
+    version: 2,
   };
 }
 
@@ -144,6 +151,21 @@ describe("pageFeedKey", () => {
     );
     expect(pageFeedKey("events", "25", "no")).not.toBe(
       pageFeedKey("news", "25", "no")
+    );
+  });
+});
+
+describe("collectPageFeedRequests in columns", () => {
+  test("feeds are collected from blocks inside columns", () => {
+    const events = fixtureBlock("b-9", "events");
+    const d = fixtureDoc(
+      section("s-1", "1", [["b-1"]]),
+      section("s-2", "1-1", [["b-2"], []])
+    );
+    d.sections[1].columns[1].blocks.push(events);
+    d.meta.department = "dept-1";
+    expect(collectPageFeedRequests(d, "no").map((r) => r.key)).toContain(
+      "events|dept-1|no"
     );
   });
 });

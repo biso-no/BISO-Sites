@@ -14,6 +14,7 @@
  * no React and no data access, and both sides import it.
  */
 
+import { walkBlocks } from "./tree";
 import type { Block, EditorLocale, PageDoc } from "./types";
 
 /** The backend feeds an auto-source block can pull from. */
@@ -132,7 +133,7 @@ export function collectPageFeedRequests(
 ): PageFeedRequest[] {
   const byKey = new Map<string, PageFeedRequest>();
 
-  for (const block of doc.blocks) {
+  for (const block of walkBlocks(doc)) {
     const request = requestForBlock(block, doc.meta.department, locale);
     if (request && !byKey.has(request.key)) {
       byKey.set(request.key, request);

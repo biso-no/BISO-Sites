@@ -7,6 +7,7 @@ import type { PageEditorToolName } from "@/ai/tools";
 import { useSelection } from "@/editor/hooks";
 import { serializePageForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
+import { targetAfterBlock } from "@/editor/tree";
 
 type ToolArgs = Record<string, unknown>;
 
@@ -14,7 +15,13 @@ function applyToolCall(toolName: string, args: ToolArgs) {
   const store = useEditorStore.getState();
   switch (toolName as PageEditorToolName) {
     case "insert_block":
-      store.insertBlock(args.type as never, args.afterId as string | undefined);
+      store.insertBlock(
+        args.type as never,
+        typeof args.afterId === "string"
+          ? (targetAfterBlock(useEditorStore.getState().doc, args.afterId) ??
+              undefined)
+          : undefined
+      );
       break;
     case "remove_block":
       store.removeBlock(args.id as string);

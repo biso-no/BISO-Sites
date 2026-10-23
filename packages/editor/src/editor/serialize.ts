@@ -1,9 +1,12 @@
 import { DEFAULT_SECTION_LAYOUT, resizeColumns } from "./sections";
 import { walkBlocks } from "./tree";
-import type { Block, PageDoc, Section } from "./types";
+import type { Block, Column, PageDoc, Section } from "./types";
 import { PAGE_DOC_VERSION } from "./types";
 
 const MAX_TEXT_LEN = 120;
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
 
 /** Upgrade persisted page documents at every editor/render host boundary. */
 export const normalizePageDoc = (doc: PageDoc): PageDoc => {
@@ -11,15 +14,33 @@ export const normalizePageDoc = (doc: PageDoc): PageDoc => {
   if (raw.version !== PAGE_DOC_VERSION || !Array.isArray(raw.sections)) {
     return { meta: doc.meta, sections: [], version: PAGE_DOC_VERSION };
   }
-  const sections = doc.sections.map((section) => {
+  const sections: Section[] = [];
+  for (const raw of doc.sections as unknown[]) {
+    if (!isRecord(raw)) {
+      continue;
+    }
+    const rawColumns = Array.isArray(raw.columns) ? raw.columns : [];
+    const columns: Column[] = [];
+    for (const col of rawColumns as unknown[]) {
+      if (!isRecord(col)) {
+        continue;
+      }
+      columns.push({
+        ...(col as unknown as Column),
+        blocks: Array.isArray(col.blocks) ? [...(col.blocks as Block[])] : [],
+      });
+    }
     const next: Section = {
-      ...section,
-      columns: section.columns.map((c) => ({ ...c, blocks: [...c.blocks] })),
-      layout: { ...DEFAULT_SECTION_LAYOUT, ...section.layout },
+      ...(raw as unknown as Section),
+      columns,
+      layout: {
+        ...DEFAULT_SECTION_LAYOUT,
+        ...(raw.layout as Section["layout"] | undefined),
+      },
     };
     resizeColumns(next, next.layout.columns);
-    return next;
-  });
+    sections.push(next);
+  }
   return { ...doc, sections };
 };
 
@@ -86,14 +107,25 @@ export function serializePageForAI(
     `department: ${meta.department}`,
     `accent: ${meta.accentColor}`,
     `status: ${meta.status}`,
+    `sections: ${doc.sections.length}`,
     `blocks: ${blocks.length}`,
     "",
     "== BLOCKS ==",
-    ...blocks.map((b, i) => {
-      const sel = b.id === selection ? " ← SELECTED" : "";
-      return `${i + 1}. ${blockSummary(b)}${sel}`;
-    }),
   ];
+  let n = 0;
+  for (const [i, s] of doc.sections.entries()) {
+    lines.push(
+      `Section ${i + 1} [${s.id}] columns=${s.layout.columns} background=${s.layout.background}`
+    );
+    for (const [j, c] of s.columns.entries()) {
+      lines.push(`  Column ${j + 1} [${c.id}]`);
+      for (const b of c.blocks) {
+        n += 1;
+        const sel = b.id === selection ? " ← SELECTED" : "";
+        lines.push(`    ${n}. ${blockSummary(b)}${sel}`);
+      }
+    }
+  }
 
   if (selection) {
     const b = blocks.find((b) => b.id === selection);

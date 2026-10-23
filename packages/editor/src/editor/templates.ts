@@ -1,13 +1,14 @@
 // Starting layouts for pages the admin app creates on a unit's behalf. Pure:
 // no React, no store — safe to import from a server action.
 //
-// A template is a list of ordinary blocks, so the board edits or removes
+// A template is a list of single-column sections of ordinary blocks, so the board edits or removes
 // anything it does not want. The point is that a new page is never a blank
 // canvas: a project board opening its page for the first time sees where the
 // programme, the gallery and the company pitch go.
 
 import { emptyBlock } from "./operations";
-import type { Block, EditorLocale } from "./types";
+import { sectionOf } from "./sections";
+import type { Block, EditorLocale, Section } from "./types";
 
 export type UnitPageKind = "project" | "unit";
 
@@ -106,21 +107,22 @@ function contact(input: UnitPageTemplateInput, copy: TemplateCopy): Block {
   return block;
 }
 
-/** The blocks a freshly created unit page starts with. */
-export function unitPageTemplate(input: UnitPageTemplateInput): Block[] {
+/** The sections a freshly created unit page starts with, one block each. */
+export function unitPageTemplate(input: UnitPageTemplateInput): Section[] {
   const copy = COPY[input.locale];
   const about = text(copy.about(input.name), copy.aboutBody);
 
-  if (input.kind === "unit") {
-    return [hero(input, copy), about, events(copy), contact(input, copy)];
-  }
+  const blocks: Block[] =
+    input.kind === "unit"
+      ? [hero(input, copy), about, events(copy), contact(input, copy)]
+      : [
+          hero(input, copy),
+          about,
+          events(copy),
+          emptyBlock("gallery"),
+          text(copy.companies, copy.companiesBody),
+          contact(input, copy),
+        ];
 
-  return [
-    hero(input, copy),
-    about,
-    events(copy),
-    emptyBlock("gallery"),
-    text(copy.companies, copy.companiesBody),
-    contact(input, copy),
-  ];
+  return blocks.map((b) => sectionOf(b));
 }

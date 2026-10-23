@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { unitPageTemplate } from "./templates";
-import type { Block } from "./types";
+import type { Block, Section } from "./types";
 
-const types = (blocks: Block[]) => blocks.map((block) => block.type);
+const flat = (sections: Section[]): Block[] =>
+  sections.flatMap((s) => s.columns.flatMap((c) => c.blocks));
+const types = (sections: Section[]) => flat(sections).map((b) => b.type);
 
 describe("unitPageTemplate", () => {
   test("a project unit gets the full project layout", () => {
@@ -33,12 +35,14 @@ describe("unitPageTemplate", () => {
   });
 
   test("the hero carries the unit's name and campus", () => {
-    const [hero] = unitPageTemplate({
-      campusLabel: "Trondheim",
-      kind: "project",
-      locale: "en",
-      name: "Fadderullan",
-    });
+    const [hero] = flat(
+      unitPageTemplate({
+        campusLabel: "Trondheim",
+        kind: "project",
+        locale: "en",
+        name: "Fadderullan",
+      })
+    );
     expect(hero).toMatchObject({
       eyebrow: "BISO Trondheim",
       title: "Fadderullan",
@@ -53,7 +57,7 @@ describe("unitPageTemplate", () => {
       locale: "no",
       name: "Wintergames",
     });
-    const events = blocks.find((block) => block.type === "events");
+    const events = flat(blocks).find((block) => block.type === "events");
     expect(events).toMatchObject({ items: [], source: "auto" });
   });
 
@@ -70,8 +74,8 @@ describe("unitPageTemplate", () => {
       locale: "en",
       name: "Fadderullan",
     });
-    const heading = (blocks: Block[], index: number) => {
-      const block = blocks[index];
+    const heading = (sections: Section[], index: number) => {
+      const block = flat(sections)[index];
       return block?.type === "text" ? block.body[0]?.text : undefined;
     };
     expect(heading(norwegian, 1)).toBe("Om Fadderullan");
@@ -87,7 +91,33 @@ describe("unitPageTemplate", () => {
       locale: "no",
       name: "Fadderullan",
     });
-    const ids = new Set(blocks.map((block) => block.id));
-    expect(ids.size).toBe(blocks.length);
+    const all = [
+      ...blocks.map((s) => s.id),
+      ...blocks.flatMap((s) => s.columns.map((c) => c.id)),
+      ...flat(blocks).map((b) => b.id),
+    ];
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  test("a project unit template is one single-column section per block", () => {
+    const sections = unitPageTemplate({
+      campusLabel: "Oslo",
+      kind: "project",
+      locale: "no",
+      name: "Fadderullan",
+    });
+    expect(
+      sections.every(
+        (s) => s.columns.length === 1 && s.columns[0].blocks.length === 1
+      )
+    ).toBe(true);
+    expect(sections.map((s) => s.columns[0].blocks[0].type)).toEqual([
+      "hero",
+      "text",
+      "events",
+      "gallery",
+      "text",
+      "contact",
+    ]);
   });
 });
