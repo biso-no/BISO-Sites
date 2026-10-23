@@ -149,6 +149,7 @@ export function HeaderPanel({ header, onPatch, onRemove }: HeaderPanelProps) {
 
       <InspSection label="Media">
         <MediaPicker
+          kind={media?.kind}
           onClear={() => onPatch("media", undefined)}
           onPicked={(fileId, src, mime) =>
             onPatch(

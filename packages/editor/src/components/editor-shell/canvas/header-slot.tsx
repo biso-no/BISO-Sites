@@ -20,6 +20,7 @@ export function HeaderSlot() {
   const removeHeader = useEditorStore((s) => s.removeHeader);
   const selectHeader = useEditorStore((s) => s.selectHeader);
   const setHeaderProp = useEditorStore((s) => s.setHeaderProp);
+  const pageTitle = useEditorStore((s) => s.doc.meta.title);
   // Where the press that led to a click started; see clickSelectsSection.
   const pressTarget = useRef<EventTarget | null>(null);
 
@@ -79,7 +80,12 @@ export function HeaderSlot() {
           </div>
         </div>
       )}
-      <PageHeaderView edit={edit} header={header} onPatch={setHeaderProp} />
+      <PageHeaderView
+        edit={edit}
+        fallbackTitle={pageTitle}
+        header={header}
+        onPatch={setHeaderProp}
+      />
     </div>
   );
 }

@@ -225,3 +225,10 @@ test("Remove page header calls onRemove", () => {
   buttonsLabelled(tree, "Remove page header")[0]?.props.onClick();
   expect(removed()).toBe(1);
 });
+
+test("the media picker previews by the media's own kind", () => {
+  const [picker] = walk(
+    setup(header({ media: { kind: "video", src: "https://x.no/v" } })).tree
+  ).filter((el) => el.type === MediaPicker);
+  expect(picker?.props.kind).toBe("video");
+});

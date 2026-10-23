@@ -17,10 +17,11 @@ const header = (patch: Partial<PageHeader> = {}): PageHeader => ({
   ...patch,
 });
 
-const render = (h: PageHeader, edit = false) =>
+const render = (h: PageHeader, edit = false, fallbackTitle?: string) =>
   renderToStaticMarkup(
     <PageHeaderView
       edit={edit}
+      fallbackTitle={fallbackTitle}
       header={h}
       onPatch={() => {
         /* noop */
@@ -186,5 +187,46 @@ describe("PageHeaderView", () => {
       )
     );
     expect(full.querySelector("video")?.getAttribute("poster")).toBe(view);
+  });
+
+  test("an empty title on the site falls back to the page title", () => {
+    const root = parseHtml(render(header({ title: "  " }), false, "Om oss"));
+    expect(root.querySelectorAll("h1")).toHaveLength(1);
+    expect(root.querySelector("h1")?.textContent).toBe("Om oss");
+  });
+
+  test("with no title and no page title the site renders no empty h1", () => {
+    const root = parseHtml(render(header({ title: "" }), false, " "));
+    expect(root.querySelectorAll("h1")).toHaveLength(0);
+  });
+
+  test("the editor keeps an empty title editable rather than borrowing one", () => {
+    const root = parseHtml(render(header({ title: "" }), true, "Om oss"));
+    const h1 = root.querySelector("h1");
+    expect(h1?.textContent).toBe("");
+    expect(h1?.getAttribute("contenteditable")).toBe("true");
+  });
+
+  test("whitespace-only eyebrow and lede are left out on the site", () => {
+    const root = parseHtml(render(header({ eyebrow: " ", lede: "\n " })));
+    expect(root.querySelectorAll("p")).toHaveLength(0);
+  });
+
+  test("full is tall only when it has media to show", () => {
+    const withMedia = parseHtml(
+      render(
+        header({
+          media: { kind: "image", src: "https://x.no/a.jpg" },
+          variant: "full",
+        })
+      )
+    );
+    expect(withMedia.querySelector("header")?.hasAttribute("data-media")).toBe(
+      true
+    );
+    const without = parseHtml(render(header({ variant: "full" })));
+    expect(without.querySelector("header")?.hasAttribute("data-media")).toBe(
+      false
+    );
   });
 });

@@ -104,7 +104,9 @@
     clamp(1rem, 4cqi, 2rem) var(--pg-header-pad-y);
   overflow: hidden;
 }
-.pg-header[data-variant="full"] {
+/* Full: a tall band with the text at its foot, when there is media behind
+   it. Without media it is as tall as its text, like Plain. */
+.pg-header[data-variant="full"][data-media] {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;

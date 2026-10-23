@@ -23,9 +23,18 @@ const CRUMB_LINK =
 
 interface PageHeaderViewProps {
   edit: boolean;
+  /**
+   * The page's own title (`meta.title`). The site shows it when the header's
+   * title is empty, so the page still has its `<h1>`.
+   */
+  fallbackTitle?: string;
   header: PageHeader;
   onPatch: PatchFn;
 }
+
+/** Text worth showing on the site: not empty, not only whitespace. */
+const hasText = (value: unknown): value is string =>
+  typeof value === "string" && value.trim() !== "";
 
 /**
  * The page header, the editor's take on the site's `PageHeader`: a navy band
@@ -37,20 +46,32 @@ interface PageHeaderViewProps {
  * Without media the site shows text only. The editor shows where the media
  * goes instead, so choosing Split or Full visibly changes something.
  */
-export function PageHeaderView({ edit, header, onPatch }: PageHeaderViewProps) {
+export function PageHeaderView({
+  edit,
+  fallbackTitle,
+  header,
+  onPatch,
+}: PageHeaderViewProps) {
   const { media, variant } = header;
   const showAside = variant === "split" && (Boolean(media?.src) || edit);
 
   return (
     <header
       className="pg-header border-edge border-b bg-surface text-ink"
+      // Full is a tall band only when there is media to fill it.
+      data-media={media?.src ? "" : undefined}
       data-surface="deep"
       data-variant={variant}
     >
       {variant === "full" ? <FullMedia edit={edit} media={media} /> : null}
 
       <div className={showAside ? GRID_SPLIT : GRID}>
-        <HeaderText edit={edit} header={header} onPatch={onPatch} />
+        <HeaderText
+          edit={edit}
+          fallbackTitle={fallbackTitle}
+          header={header}
+          onPatch={onPatch}
+        />
 
         {showAside ? (
           <div className="w-full @3xl:max-w-none max-w-md">
@@ -76,7 +97,12 @@ export function PageHeaderView({ edit, header, onPatch }: PageHeaderViewProps) {
 }
 
 /** Breadcrumb, eyebrow, title, lede and buttons. Empty ones stay off the site. */
-function HeaderText({ edit, header, onPatch }: PageHeaderViewProps) {
+function HeaderText({
+  edit,
+  fallbackTitle,
+  header,
+  onPatch,
+}: PageHeaderViewProps) {
   const crumbs = edit
     ? header.crumbs
     : header.crumbs.filter((crumb) => crumb.label.trim());
@@ -86,7 +112,7 @@ function HeaderText({ edit, header, onPatch }: PageHeaderViewProps) {
     <div className="min-w-0">
       {crumbs.length > 0 ? <Crumbs crumbs={crumbs} edit={edit} /> : null}
 
-      {edit || header.eyebrow ? (
+      {edit || hasText(header.eyebrow) ? (
         <EditableText
           className="type-label mb-3 text-ink-accent"
           data-placeholder={edit ? "Eyebrow" : undefined}
@@ -97,16 +123,14 @@ function HeaderText({ edit, header, onPatch }: PageHeaderViewProps) {
         />
       ) : null}
 
-      <EditableText
-        className={header.variant === "full" ? TITLE_FULL : TITLE}
-        data-placeholder={edit ? "Page title" : undefined}
+      <HeaderTitle
         edit={edit}
-        onChange={(value) => onPatch("title", value)}
-        tag="h1"
-        value={header.title}
+        fallbackTitle={fallbackTitle}
+        header={header}
+        onPatch={onPatch}
       />
 
-      {edit || header.lede ? (
+      {edit || hasText(header.lede) ? (
         <EditableText
           className="type-body mt-5 max-w-(--measure) text-ink-muted"
           data-placeholder={
@@ -132,6 +156,38 @@ function HeaderText({ edit, header, onPatch }: PageHeaderViewProps) {
       ) : null}
     </div>
   );
+}
+
+/**
+ * The page's only `<h1>`. The editor edits the header's own title, empty or
+ * not; the site falls back to the page title, and renders no empty `<h1>`.
+ */
+function HeaderTitle({
+  edit,
+  fallbackTitle,
+  header,
+  onPatch,
+}: PageHeaderViewProps) {
+  const className = header.variant === "full" ? TITLE_FULL : TITLE;
+  if (edit) {
+    return (
+      <EditableText
+        className={className}
+        data-placeholder="Page title"
+        edit
+        onChange={(value) => onPatch("title", value)}
+        tag="h1"
+        value={header.title}
+      />
+    );
+  }
+  let title = "";
+  if (hasText(header.title)) {
+    title = header.title;
+  } else if (hasText(fallbackTitle)) {
+    title = fallbackTitle;
+  }
+  return title ? <h1 className={className}>{title}</h1> : null;
 }
 
 /** Full: the media behind the text; on the canvas, a prompt where it goes. */

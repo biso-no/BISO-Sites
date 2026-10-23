@@ -78,7 +78,12 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
     >
       <div className="biso-surface pg-page" style={accentStyle}>
         {header ? (
-          <PageHeaderView edit={false} header={header} onPatch={noopPatch} />
+          <PageHeaderView
+            edit={false}
+            fallbackTitle={normalizedDoc.meta.title}
+            header={header}
+            onPatch={noopPatch}
+          />
         ) : null}
         {normalizedDoc.sections.map((section, index) => (
           <SectionView

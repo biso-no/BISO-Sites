@@ -269,3 +269,15 @@ test("without a header the first section still clears the nav", () => {
   expect(html).not.toContain("pg-header");
   expect(sectionTags(html)[0]).toContain('data-first=""');
 });
+
+test("a header with no title of its own shows the page title as the h1", () => {
+  const doc = {
+    ...docOf([section("s-1", "white", [["first"]])]),
+    header: { ...HEADER, title: "" },
+  } as unknown as PageDoc;
+  const html = renderToStaticMarkup(
+    createElement(RenderedPage, { doc, locale: "no" })
+  );
+  expect(html.match(H1_OPEN)).toHaveLength(1);
+  expect(html).toContain(">Brand surface</h1>");
+});

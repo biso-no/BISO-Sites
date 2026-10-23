@@ -227,3 +227,12 @@ test("on phones, a hidden first section hands the nav clearance to the first one
   expect(strip?.body).toMatch(NAV_OFFSET_HEIGHT);
   expect(strip?.body).toContain("background: var(--biso-deep);");
 });
+
+test("a full header is tall only when it has media behind it", () => {
+  expect(
+    declares('.pg-header[data-variant="full"][data-media]', "min-height:")
+  ).toBe(true);
+  for (const rule of rulesFor('.pg-header[data-variant="full"]')) {
+    expect(rule.body).not.toContain("min-height");
+  }
+});
