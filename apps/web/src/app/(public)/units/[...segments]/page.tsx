@@ -59,9 +59,10 @@ interface PublishedUnitPage {
  * while the body correctly fell back to the default department view.
  *
  * The document is normalized here, inside the shared predicate, for the same
- * reason. An old flat (v1) document normalizes to zero sections, and a page
- * with no sections is treated as no page: the coded default renders and the
- * metadata describes it (D2).
+ * reason. An old flat (v1) document normalizes to zero sections and no
+ * header, and a page with neither is treated as no page: the coded default
+ * renders and the metadata describes it (D2). A page header alone is content
+ * (the catch-all route renders it too), so a header-only page counts.
  */
 function publishedUnitPage(
   pageResult: PageLookupResult,
@@ -77,7 +78,7 @@ function publishedUnitPage(
     return null;
   }
   const doc = normalizePageDoc(pageResult.doc as PageDoc);
-  return doc.sections.length > 0
+  return doc.sections.length > 0 || doc.header !== undefined
     ? { doc, translation: pageResult.translation }
     : null;
 }

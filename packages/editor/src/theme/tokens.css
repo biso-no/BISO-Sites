@@ -52,7 +52,7 @@
     --page-accent: #3da9e0;
 
     /*
-     * Inverted panels — the dark chips, CTAs and full-bleed heroes that carry
+     * Inverted panels — the dark chips, CTAs and contact banners that carry
      * light text. These must flip *together* with the ink/paper ramp, so the
      * gradient's second stop and the softened text tints get their own tokens
      * rather than hardcoded hex/rgba. A block that pairs `--inverted-surface`

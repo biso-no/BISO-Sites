@@ -116,3 +116,17 @@ export function buildInitialDocuments(
 
   return docs;
 }
+
+/**
+ * Whether a locale's document holds anything a translation would overwrite:
+ * sections, a page header or a title. Translating into such a locale asks
+ * for confirmation first.
+ */
+export function hasExistingContent(doc: PageDoc | undefined): boolean {
+  return Boolean(
+    doc &&
+      (doc.sections.length > 0 ||
+        doc.header !== undefined ||
+        doc.meta.title.trim())
+  );
+}

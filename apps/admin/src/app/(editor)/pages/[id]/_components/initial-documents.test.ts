@@ -4,7 +4,11 @@ import type {
   PageTranslationEditorEntry,
 } from "@repo/api/page-builder";
 import type { PageDoc } from "@repo/editor/types";
-import { blankPageDoc, buildInitialDocuments } from "./initial-documents";
+import {
+  blankPageDoc,
+  buildInitialDocuments,
+  hasExistingContent,
+} from "./initial-documents";
 
 const EDITOR_CAMPUS = "campus-editor";
 
@@ -159,5 +163,66 @@ describe("buildInitialDocuments", () => {
       EDITOR_CAMPUS
     );
     expect(docs.no?.meta.campus).toBe("");
+  });
+});
+
+describe("hasExistingContent", () => {
+  const empty = (): PageDoc => ({
+    meta: {
+      accentColor: "#3DA9E0",
+      department: "",
+      slug: "x",
+      status: "draft",
+      title: "",
+    },
+    sections: [],
+    version: 2,
+  });
+
+  test("a missing or blank document has nothing to overwrite", () => {
+    expect(hasExistingContent(undefined)).toBe(false);
+    expect(hasExistingContent(empty())).toBe(false);
+  });
+
+  test("a page header alone is content a translation would overwrite", () => {
+    expect(
+      hasExistingContent({
+        ...empty(),
+        header: {
+          buttons: [],
+          crumbs: [],
+          eyebrow: "",
+          lede: "",
+          title: "",
+          variant: "plain",
+        },
+      })
+    ).toBe(true);
+  });
+
+  test("sections or a title are content too", () => {
+    const withTitle = empty();
+    withTitle.meta.title = "Om oss";
+    expect(hasExistingContent(withTitle)).toBe(true);
+    expect(
+      hasExistingContent({
+        ...empty(),
+        sections: [
+          {
+            columns: [],
+            id: "s-1",
+            layout: {
+              align: "top",
+              background: "white",
+              columns: "1",
+              hideOnPhone: false,
+              phoneReverse: false,
+              spacing: "normal",
+              tablet: "row",
+            },
+          },
+        ],
+      })
+    ).toBe(true);
   });
 });

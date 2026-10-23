@@ -91,13 +91,17 @@
 
 /*
  * The page header (`PageHeaderView`): a navy band that clears the nav itself,
- * so a page with one passes no section `data-first`. Its gutter is the
- * sections', so its text lines up with theirs.
+ * so a page with one passes no section `data-first`. Its rhythm and gutter
+ * are the sections', so its text lines up with theirs. Container units, not
+ * the site's vw-based `--section-y`: on the site the page spans the viewport,
+ * so the two agree, and the canvas's phone and tablet frames get the
+ * spacing the site will have at that width.
  */
 .pg-header {
+  --pg-header-pad-y: clamp(3rem, 6cqi, 5rem);
   position: relative;
-  padding: calc(var(--pg-nav-offset, 0px) + var(--section-y))
-    clamp(1rem, 4cqi, 2rem) var(--section-y);
+  padding: calc(var(--pg-nav-offset, 0px) + var(--pg-header-pad-y))
+    clamp(1rem, 4cqi, 2rem) var(--pg-header-pad-y);
   overflow: hidden;
 }
 .pg-header[data-variant="full"] {

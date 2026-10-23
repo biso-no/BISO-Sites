@@ -7,6 +7,8 @@ interface ChevronMediaProps {
   alt?: string;
   kind?: "image" | "video";
   lean?: "left" | "right";
+  /** "eager" for media above the fold (a page header's); lazy otherwise. */
+  loading?: "lazy" | "eager";
   loop?: boolean;
   /** Editor-only prompt for an empty `src`; blocks pass it only in edit mode. */
   placeholder?: string;
@@ -22,6 +24,7 @@ export function ChevronMedia({
   alt = "",
   kind = "image",
   lean = "left",
+  loading = "lazy",
   loop = false,
   placeholder,
   poster,
@@ -52,7 +55,7 @@ export function ChevronMedia({
             alt={alt}
             className="pg-reduced-motion-poster"
             decoding="async"
-            loading="lazy"
+            loading={loading}
             src={posterSrc}
           />
         ) : null}
@@ -70,7 +73,7 @@ export function ChevronMedia({
       <img
         alt={alt}
         decoding="async"
-        loading="lazy"
+        loading={loading}
         src={sizedImageSrc(src, width)}
       />
     );

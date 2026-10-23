@@ -43,3 +43,24 @@ test("a looping video is muted, inline and has a reduced-motion poster", () => {
   expect(html.toLowerCase()).toContain("playsinline");
   expect(html).toContain("pg-reduced-motion-poster");
 });
+
+test("media above the fold can load eagerly, poster included", () => {
+  const image = renderToStaticMarkup(
+    <ChevronMedia loading="eager" ratio="4/3" src="https://example.com/a.jpg" />
+  );
+  expect(image).toContain('loading="eager"');
+  expect(image).not.toContain('loading="lazy"');
+
+  const video = renderToStaticMarkup(
+    <ChevronMedia
+      kind="video"
+      loading="eager"
+      loop
+      poster="https://example.com/p.jpg"
+      ratio="4/3"
+      src="https://example.com/v.mp4"
+    />
+  );
+  expect(video).toContain('loading="eager"');
+  expect(video).not.toContain('loading="lazy"');
+});

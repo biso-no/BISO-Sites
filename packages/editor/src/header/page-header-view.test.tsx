@@ -43,6 +43,17 @@ describe("PageHeaderView", () => {
     expect(html).toContain('alt="Studenter"');
   });
 
+  test("header media is above the fold, so it loads eagerly", () => {
+    const html = render(
+      header({
+        media: { kind: "image", src: "https://x.no/a.jpg" },
+        variant: "split",
+      })
+    );
+    expect(html).toContain('loading="eager"');
+    expect(html).not.toContain('loading="lazy"');
+  });
+
   test("without media there is no image; the editor shows a prompt, the site shows text only", () => {
     const site = render(header({ variant: "split" }));
     expect(site).not.toContain("<img");

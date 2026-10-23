@@ -61,6 +61,8 @@ export function PageHeaderView({ edit, header, onPatch }: PageHeaderViewProps) {
             <ChevronMedia
               alt={media?.alt ?? ""}
               kind={media?.kind}
+              // Above the fold, and likely the page's largest paint.
+              loading="eager"
               loop={media?.kind === "video"}
               placeholder={edit ? MEDIA_PROMPT : undefined}
               poster={media?.poster}

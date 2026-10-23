@@ -161,3 +161,18 @@ test("two white sections in a row get a hairline, on the site and on the canvas"
     expect(found[0].match(WHITE)).toHaveLength(2);
   }
 });
+
+const HEADER_PADDING =
+  /padding:\s*calc\(\s*var\(--pg-nav-offset(?:,\s*0px)?\)\s*\+\s*var\(--pg-header-pad-y\)\s*\)\s*clamp\(1rem, 4cqi, 2rem\)\s*var\(--pg-header-pad-y\);/;
+
+test("the page header clears the nav and keeps the sections' container-relative rhythm", () => {
+  expect(
+    declares(".pg-header", "--pg-header-pad-y: clamp(3rem, 6cqi, 5rem);")
+  ).toBe(true);
+  expect(declares(".pg-header", HEADER_PADDING)).toBe(true);
+  // `--section-y` is vw-based: the canvas's phone frame would follow the
+  // admin window instead of its own width.
+  for (const rule of rulesFor(".pg-header")) {
+    expect(rule.body).not.toContain("--section-y");
+  }
+});

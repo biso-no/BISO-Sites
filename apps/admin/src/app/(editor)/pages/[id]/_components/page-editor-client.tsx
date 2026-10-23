@@ -23,6 +23,7 @@ import { uploadMediaFile } from "@/lib/upload-client";
 import {
   blankPageDoc,
   buildInitialDocuments,
+  hasExistingContent,
   type LocaleDocuments,
 } from "./initial-documents";
 
@@ -180,13 +181,7 @@ export function PageEditorClient({
   }
 
   async function handleTranslateLocale(targetLocale: EditorLocale) {
-    const targetDoc = documents[targetLocale];
-    const hasExistingContent = Boolean(
-      targetDoc &&
-        (targetDoc.sections.length > 0 || targetDoc.meta.title.trim())
-    );
-
-    if (hasExistingContent) {
+    if (hasExistingContent(documents[targetLocale])) {
       setPendingTranslateLocale(targetLocale);
       return;
     }

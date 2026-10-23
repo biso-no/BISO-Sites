@@ -87,7 +87,9 @@ export const pageEditorTools = {
       id: z.string().describe("Block ID"),
       variant: z
         .string()
-        .describe("Variant name, e.g. 'split', 'centered', 'full'"),
+        .describe(
+          "One of the block's own variant names, e.g. 'list' or 'accordion-themed' for an faq block"
+        ),
     }),
     execute: ({ id, variant }) => ({
       status: "applied",
@@ -129,7 +131,7 @@ export const pageEditorTools = {
     inputSchema: z.object({
       context: z
         .string()
-        .describe("What the copy is for (e.g. 'hero title for ESN Oslo')"),
+        .describe("What the copy is for (e.g. 'intro paragraph for ESN Oslo')"),
       tone: z
         .enum(["formal", "friendly", "direct"])
         .optional()

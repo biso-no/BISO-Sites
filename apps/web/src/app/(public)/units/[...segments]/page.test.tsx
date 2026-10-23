@@ -129,4 +129,42 @@ describe("unit route", () => {
       "events|d-1|no": [{ title: "Kickoff" }],
     });
   });
+
+  it("a published page with only a page header is the unit's page, not the default", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      ownPage({
+        header: { title: "Fadderullan", variant: "plain" },
+        meta: META,
+        sections: [],
+        version: 2,
+      })
+    );
+
+    const page = (await UnitPage({ params })) as Element;
+    expect(child(page).type).not.toBe(stubs.UnitView);
+    const publishedUnit = child(child(page));
+    const render = publishedUnit.type as (props: unknown) => Promise<Element>;
+    const rendered = await render(publishedUnit.props);
+
+    expect(rendered.type).toBe(stubs.RenderedPage);
+    expect(
+      (rendered.props.doc as { header?: { title: string } }).header?.title
+    ).toBe("Fadderullan");
+    // The metadata follows the same predicate: it describes the stored page.
+    expect((await generateMetadata({ params })).title).toBe(
+      "Stored page | BISO"
+    );
+  });
+
+  it("a published page with neither sections nor a header falls back to the default", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      ownPage({ meta: META, sections: [], version: 2 })
+    );
+
+    const page = (await UnitPage({ params })) as Element;
+    expect(child(page).type).toBe(stubs.UnitView);
+    expect((await generateMetadata({ params })).title).toBe(
+      "Fadderullan | BISO"
+    );
+  });
 });
