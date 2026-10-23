@@ -211,6 +211,11 @@ export interface VideoBlock {
   caption: string;
   fileId?: string; // Appwrite "media" bucket file ID
   id: string;
+  label?: string;
+  poster?: string;
+  posterFileId?: string;
+  ratio: "16/9" | "21/9";
+  style: "featured" | "inline" | "loop";
   type: "video";
   url?: string; // external URL or public view URL
 }

@@ -8,6 +8,8 @@ const VIDEO_FILE_RE = /\.(mp4|mov|webm|ogg)(\?|$)/i;
 
 interface MediaPickerProps {
   accept?: string;
+  /** Preview hint for URLs without a file extension. */
+  kind?: "image" | "video";
   label?: string;
   onClear?: () => void;
   /** `mime` is the uploaded file's type, e.g. to tell a video by. */
@@ -17,9 +19,81 @@ interface MediaPickerProps {
   src?: string;
 }
 
+export function kindFromMime(mime: string | undefined): "image" | "video" {
+  return mime?.startsWith("video/") ? "video" : "image";
+}
+
+/**
+ * The inspector thumbnail. An uploaded Appwrite `/view` URL has no extension,
+ * so `kind` (a hint from the block, or the picked file's type) decides
+ * between `<video>` and `<img>` before the extension is consulted.
+ */
+export function MediaPreview({
+  kind,
+  src,
+}: {
+  kind?: "image" | "video";
+  src: string;
+}) {
+  if (EMBED_URL_RE.test(src)) {
+    return (
+      <div
+        style={{
+          padding: "16px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          minHeight: 60,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>▶</span>
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--ink-2)",
+            wordBreak: "break-all",
+          }}
+        >
+          {src}
+        </span>
+      </div>
+    );
+  }
+  if (kind === "video" || (kind !== "image" && VIDEO_FILE_RE.test(src))) {
+    return (
+      <video
+        muted
+        src={src}
+        style={{
+          width: "100%",
+          display: "block",
+          maxHeight: 160,
+          objectFit: "cover",
+        }}
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      alt=""
+      height={160}
+      src={src}
+      style={{
+        width: "100%",
+        display: "block",
+        maxHeight: 160,
+        objectFit: "cover",
+      }}
+      width={320}
+    />
+  );
+}
+
 export function MediaPicker({
   src,
   accept = "image/*,video/*",
+  kind,
   onPicked,
   onUrl,
   onClear,
@@ -30,6 +104,10 @@ export function MediaPicker({
   const [urlDraft, setUrlDraft] = useState(src ?? "");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<{
+    kind: "image" | "video";
+    url: string;
+  } | null>(null);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -42,6 +120,7 @@ export function MediaPicker({
     startTransition(async () => {
       try {
         const { fileId, url } = await uploadFile(fd);
+        setPicked({ kind: kindFromMime(file.type), url });
         onPicked(fileId, url, file.type);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed");
@@ -49,65 +128,11 @@ export function MediaPicker({
     });
   }
 
-  const isVideo = src && VIDEO_FILE_RE.test(src);
-  const isEmbed = src && EMBED_URL_RE.test(src);
-  let preview: React.ReactNode = null;
-
-  if (src) {
-    if (isEmbed) {
-      preview = (
-        <div
-          style={{
-            padding: "16px 12px",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            minHeight: 60,
-          }}
-        >
-          <span style={{ fontSize: 18 }}>▶</span>
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--ink-2)",
-              wordBreak: "break-all",
-            }}
-          >
-            {src}
-          </span>
-        </div>
-      );
-    } else if (isVideo) {
-      preview = (
-        <video
-          muted
-          src={src}
-          style={{
-            width: "100%",
-            display: "block",
-            maxHeight: 160,
-            objectFit: "cover",
-          }}
-        />
-      );
-    } else {
-      preview = (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt=""
-          height={160}
-          src={src}
-          style={{
-            width: "100%",
-            display: "block",
-            maxHeight: 160,
-            objectFit: "cover",
-          }}
-          width={320}
-        />
-      );
-    }
-  }
+  // A remembered kind only applies to the URL it was picked for.
+  const rememberedKind = picked && picked.url === src ? picked.kind : undefined;
+  const preview = src ? (
+    <MediaPreview kind={kind ?? rememberedKind} src={src} />
+  ) : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

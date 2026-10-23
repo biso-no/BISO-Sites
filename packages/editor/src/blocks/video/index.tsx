@@ -29,9 +29,10 @@ registerBlock({
   description: "Embed YouTube, Vimeo, or upload",
   category: "Media",
   aiHint: "A video embed (YouTube, Vimeo, or native upload).",
-  aiProps: ["url", "caption"],
+  aiProps: ["url", "caption", "label", "style", "ratio"],
   empty: () => emptyBlock("video") as never,
   Render: VideoRender as never,
   Inspector: VideoInspector as never,
   PaletteThumb: VideoThumb,
+  v2: true,
 });

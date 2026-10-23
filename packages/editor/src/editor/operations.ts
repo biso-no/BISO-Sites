@@ -131,7 +131,7 @@ export function emptyBlock(type: BlockType): Block {
     case "gallery":
       return { id, type, images: [], layout: "collage" };
     case "video":
-      return { id, type, caption: "" };
+      return { id, type, caption: "", ratio: "16/9", style: "featured" };
     case "buttons":
       return {
         id,
