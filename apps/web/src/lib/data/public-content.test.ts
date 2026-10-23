@@ -18,6 +18,7 @@ import {
   cachedPartners,
   cachedPublishedEvents,
   cachedPublishedPage,
+  sitemapEntries,
 } from "./public-content";
 
 const queriesOf = (call: number): string[] =>
@@ -90,5 +91,10 @@ describe("publish-refresh cache tags (C5)", () => {
       await read();
       expect(cache.cacheTag).toHaveBeenCalledWith("departments");
     }
+  });
+
+  it("tags the sitemap's page listing with pages", async () => {
+    await sitemapEntries();
+    expect(cache.cacheTag).toHaveBeenCalledWith("pages");
   });
 });

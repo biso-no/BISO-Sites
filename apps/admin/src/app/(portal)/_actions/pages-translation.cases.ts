@@ -140,6 +140,10 @@ mock.module("@/lib/content-translation.server", () => ({
   parseAutoTranslationOptions: (value: unknown) => value,
   scheduleContentTranslation: scheduleContentTranslationSpy,
 }));
+const notifyWebsiteSpy = mock(async (_tags: string[]) => undefined);
+mock.module("@/lib/web-revalidate", () => ({
+  notifyWebsite: notifyWebsiteSpy,
+}));
 mock.module("next/cache", () => ({ revalidatePath: mock(() => undefined) }));
 mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
@@ -155,6 +159,7 @@ beforeEach(() => {
   getPageEditorByIdSpy.mockClear();
   translatePageDocumentSpy.mockClear();
   scheduleContentTranslationSpy.mockClear();
+  notifyWebsiteSpy.mockClear();
   db.getRow.mockClear();
   db.updateRow.mockClear();
   clearPageThemeSpy.mockReset();
@@ -276,6 +281,8 @@ describe("page auto-translation", () => {
       updateParentStatus: false,
     });
     expect(operations).toEqual(["publish:no", "save:en", "publish:en"]);
+    // One for the source publish, one for the auto-translated locale.
+    expect(notifyWebsiteSpy.mock.calls).toEqual([[["pages"]], [["pages"]]]);
   });
 
   test("does not republish when the source publish is no longer current", async () => {

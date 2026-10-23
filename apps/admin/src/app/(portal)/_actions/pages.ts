@@ -696,6 +696,7 @@ async function translatePublishedPage({
     updateParentStatus: false,
   });
   revalidatePath("/pages");
+  await notifyWebsite(["pages"]);
 }
 
 export async function unpublishPageAction(

@@ -672,6 +672,7 @@ async function cachedSitemapProjects(): Promise<SitemapRow[]> {
 async function cachedSitemapPages(): Promise<SitemapRow[]> {
   "use cache";
   cacheLife("hours");
+  cacheTag("pages");
   const { db } = await createPublicClient();
   const res = await db.listRows<Pages>("app", "pages", [
     Query.select([...SITEMAP_SELECT]),
