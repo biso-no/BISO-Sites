@@ -106,3 +106,28 @@ test("a heading links somewhere, so the marker under its title shows", () => {
   );
   expect(linked.length).toBeGreaterThan(0);
 });
+
+test("every button on the gallery page links to an anchor on the page", () => {
+  // Sample content: a real-looking sign-up URL would send a visitor to the
+  // live events page as if this fair existed.
+  const anchors = new Set(
+    PAGE_BLOCKS_FIXTURE.sections.flatMap((s) => (s.anchor ? [s.anchor] : []))
+  );
+  const hrefs = [
+    ...(PAGE_BLOCKS_FIXTURE.header?.buttons ?? []),
+    ...walkBlocks(PAGE_BLOCKS_FIXTURE).flatMap((block) => {
+      if (block.type === "buttons") {
+        return block.items;
+      }
+      if (block.type === "ctaBand") {
+        return block.buttons;
+      }
+      return [];
+    }),
+  ].map((button) => button.href);
+  expect(hrefs.length).toBeGreaterThan(5);
+  for (const href of hrefs) {
+    expect(href.startsWith("#"), href).toBe(true);
+    expect(anchors.has(href.slice(1)), href).toBe(true);
+  }
+});

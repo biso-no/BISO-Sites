@@ -16,6 +16,22 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * The fixture is a made-up career fair. A strip that sticks under the fixed
+ * nav (h-20) says so on every screen, in the marker's notice colours; navy
+ * ink (`text-deep`) rather than `text-ink`, which turns paper-white on the
+ * sun in the dark theme.
+ */
 export default function PageBlocksPage() {
-  return <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />;
+  return (
+    <>
+      <p
+        className="type-label sticky top-20 z-40 m-0 bg-marker px-4 py-2 text-center text-deep"
+        role="note"
+      >
+        Eksempelinnhold — ikke et ekte arrangement
+      </p>
+      <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />
+    </>
+  );
 }

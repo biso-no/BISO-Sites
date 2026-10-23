@@ -11,6 +11,9 @@ import type { Block, PageDoc, Section } from "@repo/editor/types";
  * campus buildings, a handshake at a fair stand, a sketch of a lounge), and
  * every alt text describes its image. The collage has five images so its big
  * tile, which has its own cut rule, is exercised.
+ *
+ * The fair is made up, so every button links to an anchor on this page, never
+ * to a real sign-up or terms page, and the page says it is sample content.
  */
 const OSLO = "/images/campus/oslo.png";
 const BERGEN = "/images/campus/bergen.png";
@@ -68,7 +71,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
     title: "Karrieredagene i Nydalen",
     lede: "To dager med bedriftsstander, foredrag og intervjuer på stedet. Alle studenter fra BI er velkomne, uansett campus og studieretning.",
     buttons: [
-      { label: "Meld deg på", href: "/events", style: "primary" },
+      { label: "Meld deg på", href: "#pamelding", style: "primary" },
       { label: "Se programmet", href: "#program", style: "secondary" },
     ],
     media: {
@@ -211,46 +214,52 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             type: "ctaBand",
             eyebrow: "Bli med",
             title: "Sikre deg plass på Karrieredagene",
-            text: "Påmeldingen er gratis og gir deg tilgang til stands, foredrag og intervjuer. Programmet og praktisk informasjon finner du lenger opp på siden.",
+            text: "Påmeldingen er gratis og gir deg tilgang til stands, foredrag og intervjuer. Programmet står lenger opp på siden, og praktisk informasjon følger rett under.",
             buttons: [
-              { label: "Meld deg på", href: "/events", style: "primary" },
-              { label: "Spør oss", href: "/contact", style: "secondary" },
+              { label: "Meld deg på", href: "#praktisk", style: "primary" },
+              { label: "Spør oss", href: "#program", style: "secondary" },
             ],
           },
         ],
-      ]
+      ],
+      "pamelding"
     ),
 
     // Tinted, three columns: one callout per tone.
-    section("s-tones", { background: "tinted", columns: "1-1-1" }, [
+    section(
+      "s-tones",
+      { background: "tinted", columns: "1-1-1" },
       [
-        {
-          id: "b-tone-info",
-          type: "callout",
-          tone: "info",
-          title: "Reise",
-          body: "Bor du utenfor Oslo, dekker vi flybilletten. Søk innen 10. januar.",
-        },
+        [
+          {
+            id: "b-tone-info",
+            type: "callout",
+            tone: "info",
+            title: "Reise",
+            body: "Bor du utenfor Oslo, dekker vi flybilletten. Søk innen 10. januar.",
+          },
+        ],
+        [
+          {
+            id: "b-tone-tip",
+            type: "callout",
+            tone: "tip",
+            title: "Ta med",
+            body: "CV på papir og noen spørsmål du vil stille bedriftene.",
+          },
+        ],
+        [
+          {
+            id: "b-tone-warn",
+            type: "callout",
+            tone: "warn",
+            title: "Husk",
+            body: "Du må være medlem i BISO for å melde deg på intervjuer.",
+          },
+        ],
       ],
-      [
-        {
-          id: "b-tone-tip",
-          type: "callout",
-          tone: "tip",
-          title: "Ta med",
-          body: "CV på papir og noen spørsmål du vil stille bedriftene.",
-        },
-      ],
-      [
-        {
-          id: "b-tone-warn",
-          type: "callout",
-          tone: "warn",
-          title: "Husk",
-          body: "Du må være medlem i BISO for å melde deg på intervjuer.",
-        },
-      ],
-    ]),
+      "praktisk"
+    ),
 
     // White, 1-2: heading and highlights beside a collage.
     section("s-gallery", { background: "white", columns: "1-2" }, [
@@ -335,8 +344,8 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           type: "buttons",
           align: "center",
           items: [
-            { label: "Meld deg på", href: "/events", style: "primary" },
-            { label: "Les vilkårene", href: "/terms", style: "secondary" },
+            { label: "Meld deg på", href: "#pamelding", style: "primary" },
+            { label: "Les vilkårene", href: "#praktisk", style: "secondary" },
           ],
         },
       ],
@@ -388,7 +397,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           type: "buttons",
           align: "start",
           items: [
-            { label: "Påmelding", href: "/events", style: "primary" },
+            { label: "Påmelding", href: "#pamelding", style: "primary" },
             { label: "Program", href: "#program", style: "secondary" },
           ],
         },
