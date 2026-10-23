@@ -281,3 +281,31 @@
     var(--cut-len, var(--cut)) 100%
   );
 }
+
+/* Marquee: the strip scrolls on the site only. Each track is one half of the
+   loop, so shifting the run by -50% lands exactly where it started. */
+.pg-marquee--live .pg-marquee__run {
+  animation: pg-marquee-scroll 40s linear infinite;
+}
+@keyframes pg-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-marquee--live .pg-marquee__run {
+    flex-wrap: wrap;
+    width: auto;
+    animation: none;
+  }
+  .pg-marquee--live .pg-marquee__track[aria-hidden="true"] {
+    display: none;
+  }
+  .pg-marquee--live .pg-marquee__track {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+}

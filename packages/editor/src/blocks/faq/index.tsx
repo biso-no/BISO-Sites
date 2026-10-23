@@ -39,14 +39,11 @@ registerBlock({
   description: "Expandable questions",
   category: "Engage",
   group: "structure",
-  variants: [
-    { id: "list", label: "List", kind: "list" },
-    { id: "accordion-themed", label: "Themed", kind: "accordion-themed" },
-  ],
   aiHint: "Frequently asked questions with answers.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("faq") as never,
   Render: FaqRender as never,
   Inspector: FaqInspector as never,
   PaletteThumb: FaqThumb,
+  v2: true,
 });

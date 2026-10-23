@@ -214,7 +214,6 @@ export function emptyBlock(type: BlockType): Block {
       return {
         id,
         type,
-        variant: "underline",
         tabs: [
           { label: "Overview", body: "Overview content goes here." },
           { label: "Details", body: "Detailed content goes here." },

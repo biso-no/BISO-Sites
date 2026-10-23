@@ -621,6 +621,48 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             { title: "Møt opp", body: "Ta med CV og gode spørsmål." },
           ],
         },
+        {
+          id: "b-faq",
+          type: "faq",
+          heading: "Vanlige spørsmål",
+          items: [
+            {
+              q: "Koster det noe å delta?",
+              a: "Nei, alle arrangementene under Winter Games er gratis for BI-studenter.",
+            },
+            {
+              q: "Må jeg melde meg på på forhånd?",
+              a: "Påmelding til intervjuene er nødvendig. Standrunden er åpen for alle.",
+            },
+            {
+              q: "Kan jeg ta med en venn fra et annet studiested?",
+              a: "Ja, ta kontakt med oss så ordner vi adgangskort.",
+            },
+          ],
+        },
+        {
+          id: "b-tabs",
+          type: "tabs",
+          tabs: [
+            {
+              label: "Torsdag",
+              body: "Åpning i auditoriet klokken 10:00, deretter standrunde og lunsj.",
+            },
+            {
+              label: "Fredag",
+              body: "Intervjuer og karrierekafé gjennom hele dagen. Avslutning klokken 16:00.",
+            },
+            {
+              label: "Praktisk",
+              body: "Ta med CV, studentbevis og gode spørsmål til bedriftene.",
+            },
+          ],
+        },
+        {
+          id: "b-marquee",
+          type: "marquee",
+          text: "Winter Games · Karrieredager · Gløgg · Nettverk · Gratis inngang",
+        },
       ],
     ]),
 

@@ -278,11 +278,10 @@ export interface FaqItem {
   q: string;
 }
 export interface FaqBlock {
-  heading: string;
+  heading?: string;
   id: string;
   items: FaqItem[];
   type: "faq";
-  variant?: "list" | "accordion-themed";
 }
 
 export interface ContactBlock {
@@ -347,7 +346,6 @@ export interface TabsBlock {
   id: string;
   tabs: TabItem[];
   type: "tabs";
-  variant?: "pills" | "underline" | "cards";
 }
 
 export interface DepartmentGridBlock {

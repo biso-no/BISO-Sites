@@ -119,10 +119,10 @@ describe("a block that throws", () => {
   });
 
   test("a legacy block is caught too, frame and all", () => {
-    withFragile("marquee", false, () => {
-      const block = { ...bad, type: "marquee" } as unknown as Block;
+    withFragile("signup", false, () => {
+      const block = { ...bad, type: "signup" } as unknown as Block;
       expect(mount(block, false).host.textContent).toBe("");
-      expect(mount(block, true).host.textContent).toContain("marquee");
+      expect(mount(block, true).host.textContent).toContain("signup");
     });
   });
 

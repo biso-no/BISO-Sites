@@ -10,15 +10,11 @@ registerBlock({
   description: "Tabbed content panels",
   category: "Layout",
   group: "structure",
-  variants: [
-    { id: "pills", label: "Pills", kind: "pills" },
-    { id: "underline", label: "Underline", kind: "underline" },
-    { id: "cards", label: "Cards", kind: "cards" },
-  ],
   aiHint: "Tabbed content with multiple panels.",
   aiProps: ["tabs"],
   empty: () => emptyBlock("tabs") as never,
   Render: TabsRender as never,
   Inspector: TabsInspector as never,
   PaletteThumb: TabsThumb,
+  v2: true,
 });

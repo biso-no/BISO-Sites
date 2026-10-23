@@ -58,6 +58,9 @@ test("the copilot knows the props and item shapes of the v2 blocks", () => {
     "ctaBand: eyebrow, title, text, buttons [{label, href, style}], at most 2",
     "image: src, alt, ratio (21/9|16/9|3/2|4/3|1/1|4/5|3/4), frame (chevron|plain), lean (left|right), caption",
     "gallery: images [{src, alt}], layout (collage|grid|row)",
+    "faq: heading?, items [{q, a}]",
+    "tabs: tabs [{label, body}]",
+    "marquee: text (items separated by ·",
     "video: url, poster, style (featured|inline|loop), ratio (16/9|21/9), label, caption",
   ]) {
     expect(prompt).toContain(shape);

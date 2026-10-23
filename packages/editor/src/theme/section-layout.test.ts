@@ -82,8 +82,8 @@ const targetsRoot = (selector: string) =>
 describe("Design panel rules for blocks styled by blocks.css", () => {
   test("the root scan finds the blocks it guards", () => {
     expect(rootClasses.has("signup")).toBe(true);
-    expect(rootClasses.has("faq")).toBe(true);
-    expect(rootClasses.size).toBeGreaterThan(8);
+    expect(rootClasses.has("documents")).toBe(true);
+    expect(rootClasses.size).toBeGreaterThan(5);
   });
 
   test("every spacing option sets a scale", () => {
