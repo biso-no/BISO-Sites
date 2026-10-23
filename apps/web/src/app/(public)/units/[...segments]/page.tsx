@@ -52,12 +52,11 @@ interface PublishedUnitPage {
  * `page_translations` are `rowSecurity: false` with table-level `read("any")`
  * (packages/api/appwrite.config.json), so the per-row permissions the publish
  * flow computes are NOT enforced — a guest client can read an unpublished
- * draft row. `getPage` (via `cachedPublishedPage`) falls back to
- * `draft_doc` when there is no published document, so checking
- * ownership alone (as generateMetadata used to) let a department whose `en`
- * locale has only an unpublished draft leak that draft's title/description
- * into `<head>` while the body correctly fell back to the default department
- * view.
+ * draft row. `getPage` (via `cachedPublishedPage`) returns the translation
+ * row even when it has no published document, so checking ownership alone
+ * (as generateMetadata used to) let a department whose `en` locale has only
+ * an unpublished draft leak that draft's title/description into `<head>`
+ * while the body correctly fell back to the default department view.
  *
  * The document is normalized here, inside the shared predicate, for the same
  * reason. An old flat (v1) document normalizes to zero sections, and a page

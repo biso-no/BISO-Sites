@@ -262,6 +262,10 @@ async function resolveUniquePageSlug(
   throw new Error(`Could not find an available slug for "${baseSlug}"`);
 }
 
+/**
+ * Public read of a page by slug: the row, the locale's translation and its
+ * published document. `doc` is null when that locale has nothing published.
+ */
 export async function getPage(
   slug: string,
   locale: PageEditorLocale = "no",
@@ -297,9 +301,13 @@ export async function getPage(
 
   const translation =
     row.translation_refs?.find((item) => item.locale === locale) ?? null;
+  // The published document only, never the draft. Legacy translations are
+  // `is_published` with no `published_doc`; once opened in the editor they
+  // gain a `draft_doc`, and falling back to it would put unpublished edits on
+  // the public site.
   const doc = translation
     ? normalizeDoc({
-        doc: jsonToPageDoc(translation.published_doc ?? translation.draft_doc),
+        doc: jsonToPageDoc(translation.published_doc),
         row,
         translation,
       })

@@ -14,6 +14,7 @@ vi.mock("./server", () => ({
 }));
 
 import {
+  getPage,
   getPageEditorById,
   type PageDoc,
   publishPage,
@@ -102,6 +103,52 @@ describe("page builder", () => {
     expect(result?.translations.no?.draftDocument?.meta.slug).toBe(
       "shared-slug"
     );
+  });
+
+  it("the public read serves the published document, never the draft", async () => {
+    // Legacy translations are is_published with no published_doc. Once
+    // opened in the editor they gain a draft_doc, which must stay private.
+    const translation = {
+      $id: "tr-no",
+      locale: "no",
+      title: "Hei",
+      description: null,
+      draft_doc: JSON.stringify(doc),
+      published_doc: null,
+      is_published: true,
+    };
+    const row = {
+      $id: "page-1",
+      slug: "shared-slug",
+      status: "published",
+      department_id: "dept-1",
+      translation_refs: [translation],
+    };
+    db.listRows.mockResolvedValueOnce({ rows: [row] });
+
+    const draftOnly = await getPage("shared-slug", "no");
+
+    expect(draftOnly?.translation?.$id).toBe("tr-no");
+    expect(draftOnly?.doc).toBeNull();
+
+    const published = {
+      ...doc,
+      meta: { ...doc.meta, title: "Publisert" },
+    };
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        {
+          ...row,
+          translation_refs: [
+            { ...translation, published_doc: JSON.stringify(published) },
+          ],
+        },
+      ],
+    });
+
+    const result = await getPage("shared-slug", "no");
+
+    expect(result?.doc?.sections).toEqual(published.sections);
   });
 
   it("creates a page and active locale translation without invalid attributes", async () => {
