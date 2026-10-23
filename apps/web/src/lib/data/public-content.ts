@@ -453,32 +453,35 @@ export type {
 
 export async function cachedPageEventsFeed(
   departmentId: string,
-  locale: PublicLocale
+  locale: PublicLocale,
+  limit?: number
 ): Promise<PageEventItem[]> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await readPageEventsFeed(db, departmentId, locale);
+  return await readPageEventsFeed(db, departmentId, locale, limit);
 }
 
 export async function cachedPageNewsFeed(
   departmentId: string,
-  locale: PublicLocale
+  locale: PublicLocale,
+  limit?: number
 ): Promise<PageNewsItem[]> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await readPageNewsFeed(db, departmentId, locale);
+  return await readPageNewsFeed(db, departmentId, locale, limit);
 }
 
 export async function cachedPageJobsFeed(
   departmentId: string,
-  locale: PublicLocale
+  locale: PublicLocale,
+  limit?: number
 ): Promise<PageJobItem[]> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await readPageJobsFeed(db, departmentId, locale);
+  return await readPageJobsFeed(db, departmentId, locale, limit);
 }
 
 export async function cachedPagePartnersFeed(): Promise<PagePartnerItem[]> {

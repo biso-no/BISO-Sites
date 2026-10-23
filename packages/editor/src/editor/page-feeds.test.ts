@@ -46,7 +46,14 @@ describe("collectPageFeedRequests", () => {
   test("collects one request per auto-source block", () => {
     const requests = collectPageFeedRequests(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
         { id: "b", type: "news", heading: "", source: "auto" },
         { id: "c", type: "jobs", heading: "", source: "auto" },
       ] as Block[]),
@@ -68,9 +75,30 @@ describe("collectPageFeedRequests", () => {
     // Repeating a block must not multiply the page's backend round-trips.
     const requests = collectPageFeedRequests(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
-        { id: "b", type: "events", heading: "", items: [], source: "25" },
-        { id: "c", type: "events", heading: "", items: [], source: "41" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "25",
+        },
+        {
+          id: "c",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "41",
+        },
       ] as Block[]),
       "no"
     );
@@ -80,12 +108,19 @@ describe("collectPageFeedRequests", () => {
   });
 
   test("a block with no department resolves to no request", () => {
-    // Those blocks render the inspector's authored placeholder items, which is
+    // Those blocks render nothing on the site, which is
     // a documented feature — there is nothing to fetch on their behalf.
     const requests = collectPageFeedRequests(
       doc(
         [
-          { id: "a", type: "events", heading: "", items: [], source: "auto" },
+          {
+            id: "a",
+            type: "events",
+            heading: "",
+            limit: 3,
+            seeAll: true,
+            source: "auto",
+          },
         ] as Block[],
         ""
       ),
@@ -165,7 +200,55 @@ describe("collectPageFeedRequests in columns", () => {
     d.sections[1].columns[1].blocks.push(events);
     d.meta.department = "dept-1";
     expect(collectPageFeedRequests(d, "no").map((r) => r.key)).toContain(
-      "events|dept-1|no"
+      "events|dept-1|no|3"
     );
+  });
+});
+
+describe("feed limit", () => {
+  test("is part of the key and the request", () => {
+    expect(pageFeedKey("events", "25", "no", 6)).toBe("events|25|no|6");
+    expect(pageFeedKey("partners")).toBe("partners||");
+    const [request] = collectPageFeedRequests(
+      doc([
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 6,
+          seeAll: true,
+          source: "auto",
+        },
+      ] as Block[]),
+      "no"
+    );
+    expect(request?.limit).toBe(6);
+    expect(request?.key).toBe("events|25|no|6");
+  });
+
+  test("different limits are different requests; a missing one means 3", () => {
+    const requests = collectPageFeedRequests(
+      doc([
+        {
+          id: "a",
+          type: "news",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "news",
+          heading: "",
+          limit: 6,
+          seeAll: true,
+          source: "auto",
+        },
+        { id: "c", type: "news", heading: "", source: "auto" },
+      ] as Block[]),
+      "no"
+    );
+    expect(requests.map((r) => r.limit).sort()).toEqual([3, 6]);
   });
 });

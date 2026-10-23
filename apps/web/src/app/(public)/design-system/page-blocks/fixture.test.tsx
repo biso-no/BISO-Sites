@@ -2,7 +2,7 @@ import { allBlocks, normalizePageDoc, walkBlocks } from "@repo/editor/render";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import { RenderedPage } from "../../[...slug]/_components/rendered-page";
-import { PAGE_BLOCKS_FIXTURE } from "./fixture";
+import { PAGE_BLOCKS_FEEDS, PAGE_BLOCKS_FIXTURE } from "./fixture";
 
 const H1_OPEN = /<h1[\s>]/g;
 const SECTION_BACKGROUND =
@@ -35,7 +35,11 @@ test("the fixture uses every v2 block type", () => {
 
 test("the real page renders the header and every v2 block", () => {
   const html = renderToStaticMarkup(
-    <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />
+    <RenderedPage
+      doc={PAGE_BLOCKS_FIXTURE}
+      feeds={PAGE_BLOCKS_FEEDS}
+      locale="no"
+    />
   );
   expect(html).toContain("pg-header");
   expect(html.match(H1_OPEN)?.length).toBe(1);
@@ -48,7 +52,11 @@ test("the real page renders the header and every v2 block", () => {
 
 test("the fixture covers every background and column layout", () => {
   const html = renderToStaticMarkup(
-    <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />
+    <RenderedPage
+      doc={PAGE_BLOCKS_FIXTURE}
+      feeds={PAGE_BLOCKS_FEEDS}
+      locale="no"
+    />
   );
   expect(new Set(matches(html, SECTION_BACKGROUND))).toEqual(
     new Set(["white", "tinted", "dark", "photo"])
@@ -61,7 +69,11 @@ test("the fixture covers every background and column layout", () => {
 test("the collage is big enough to render its big tile", () => {
   // The big tile (and its exact-cut rule) appears only at five images.
   const html = renderToStaticMarkup(
-    <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />
+    <RenderedPage
+      doc={PAGE_BLOCKS_FIXTURE}
+      feeds={PAGE_BLOCKS_FEEDS}
+      locale="no"
+    />
   );
   expect(html).toMatch(GALLERY_BIG_TILE);
 });
@@ -130,4 +142,17 @@ test("every button on the gallery page links to an anchor on the page", () => {
     expect(href.startsWith("#"), href).toBe(true);
     expect(anchors.has(href.slice(1)), href).toBe(true);
   }
+});
+
+test("the live blocks render their fixture feed rows", () => {
+  const html = renderToStaticMarkup(
+    <RenderedPage
+      doc={PAGE_BLOCKS_FIXTURE}
+      feeds={PAGE_BLOCKS_FEEDS}
+      locale="no"
+    />
+  );
+  expect(html).toContain("Karrieredagene: åpning og standrunde");
+  expect(html).toContain("Programmet for Karrieredagene er klart");
+  expect(html).toContain("Standvert");
 });

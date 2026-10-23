@@ -81,7 +81,7 @@ describe("unitPageTemplate", () => {
       name: "Wintergames",
     });
     const events = flat(sections).find((block) => block.type === "events");
-    expect(events).toMatchObject({ items: [], source: "auto" });
+    expect(events).toMatchObject({ source: "auto" });
   });
 
   test("placeholder copy follows the locale", () => {

@@ -58,15 +58,22 @@ describe("resolvePageFeeds", () => {
     // with no error anywhere.
     const feeds = await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
       ]),
       "no"
     );
 
     expect(feeds).toEqual({
-      [pageFeedKey("events", "25", "no")]: [EVENT_ROW],
+      [pageFeedKey("events", "25", "no", 3)]: [EVENT_ROW],
     });
-    expect(cachedPageEventsFeed).toHaveBeenCalledWith("25", "no");
+    expect(cachedPageEventsFeed).toHaveBeenCalledWith("25", "no", 3);
   });
 
   test("reads the cached readers directly, never the HTTP routes", async () => {
@@ -77,7 +84,14 @@ describe("resolvePageFeeds", () => {
 
     await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
       ]),
       "no"
     );
@@ -103,9 +117,30 @@ describe("resolvePageFeeds", () => {
     // same feed block in three times.
     await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
-        { id: "b", type: "events", heading: "", items: [], source: "auto" },
-        { id: "c", type: "events", heading: "", items: [], source: "25" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "c",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "25",
+        },
       ]),
       "no"
     );
@@ -114,8 +149,8 @@ describe("resolvePageFeeds", () => {
   });
 
   test("a block with no department resolves nothing", async () => {
-    // Those blocks render the authored placeholder items instead, which is a
-    // documented feature of the events inspector.
+    // Those blocks render nothing on the site, which is a
+    // documented behaviour.
     const feeds = await resolvePageFeeds(
       doc(
         [
@@ -123,7 +158,8 @@ describe("resolvePageFeeds", () => {
             id: "a",
             type: "events",
             heading: "",
-            items: [],
+            limit: 3,
+            seeAll: true,
             source: "auto",
           },
         ],
@@ -144,15 +180,22 @@ describe("resolvePageFeeds", () => {
 
     const feeds = await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
         { id: "b", type: "news", heading: "", source: "auto" },
       ]),
       "no"
     );
 
-    expect(feeds).not.toHaveProperty(pageFeedKey("events", "25", "no"));
+    expect(feeds).not.toHaveProperty(pageFeedKey("events", "25", "no", 3));
     // The healthy feed on the same page still resolves.
-    expect(feeds).toHaveProperty(pageFeedKey("news", "25", "no"), []);
+    expect(feeds).toHaveProperty(pageFeedKey("news", "25", "no", 3), []);
   });
 
   test("global feeds resolve without a department", async () => {
@@ -194,13 +237,28 @@ describe("resolvePageFeeds", () => {
   test("locale reaches the department-scoped readers", async () => {
     await resolvePageFeeds(
       doc([
-        { id: "a", type: "news", heading: "", source: "auto" },
-        { id: "b", type: "jobs", heading: "", source: "auto" },
+        {
+          id: "a",
+          type: "news",
+          heading: "",
+          limit: 6,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "jobs",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
       ]),
       "en"
     );
 
-    expect(cachedPageNewsFeed).toHaveBeenCalledWith("25", "en");
-    expect(cachedPageJobsFeed).toHaveBeenCalledWith("25", "en");
+    // The block's limit rides along so the reader fetches enough rows.
+    expect(cachedPageNewsFeed).toHaveBeenCalledWith("25", "en", 6);
+    expect(cachedPageJobsFeed).toHaveBeenCalledWith("25", "en", 3);
   });
 });

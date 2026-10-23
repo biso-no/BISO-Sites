@@ -88,10 +88,9 @@ export function emptyBlock(type: BlockType): Block {
         id,
         type,
         heading: "Coming up",
+        limit: 3,
+        seeAll: true,
         source: "auto",
-        items: [
-          { date: "Soon", title: "Event title", where: "Where", going: 0 },
-        ],
       };
     case "faq":
       return {
@@ -176,9 +175,23 @@ export function emptyBlock(type: BlockType): Block {
         placeholder: "you@bi.no",
       };
     case "news":
-      return { id, type, heading: "Latest news" };
+      return {
+        id,
+        type,
+        heading: "Latest news",
+        limit: 3,
+        seeAll: true,
+        source: "auto",
+      };
     case "jobs":
-      return { id, type, heading: "Open roles" };
+      return {
+        id,
+        type,
+        heading: "Open roles",
+        limit: 3,
+        seeAll: true,
+        source: "auto",
+      };
     case "featureGrid":
       return {
         id,

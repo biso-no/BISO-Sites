@@ -40,6 +40,8 @@ export interface PageFeedRequest {
   department: string;
   key: string;
   kind: PageFeedKind;
+  /** How many rows the block shows; set for events, news and jobs only. */
+  limit?: number;
   locale: EditorLocale;
 }
 
@@ -52,9 +54,18 @@ export interface PageFeedRequest {
 export function pageFeedKey(
   kind: PageFeedKind,
   department = "",
-  locale = ""
+  locale = "",
+  limit?: number
 ): string {
-  return `${kind}|${department}|${locale}`;
+  const base = `${kind}|${department}|${locale}`;
+  // Two blocks that want different row counts need different fetches, so the
+  // count is part of the identity. Unlimited feeds keep the three-part key.
+  return limit ? `${base}|${limit}` : base;
+}
+
+/** How many rows a live block shows: 3 or 6, whatever the stored value is. */
+export function feedBlockLimit(value: unknown): 3 | 6 {
+  return value === 6 ? 6 : 3;
 }
 
 /**
@@ -105,15 +116,17 @@ function requestForBlock(
     block.type === "news"
   ) {
     const department = resolveFeedDepartment(block.source, pageDepartment);
-    // No department means the block falls back to its authored placeholder
-    // items, which is a documented feature — there is nothing to fetch.
+    // No department means the block renders nothing on the site, so there is
+    // nothing to fetch.
     if (!department) {
       return null;
     }
+    const limit = feedBlockLimit(block.limit);
     return {
       department,
-      key: pageFeedKey(block.type, department, locale),
+      key: pageFeedKey(block.type, department, locale, limit),
       kind: block.type,
+      limit,
       locale,
     };
   }
@@ -122,9 +135,9 @@ function requestForBlock(
 }
 
 /**
- * Every feed a page needs, deduplicated by `(kind, department, locale)`.
+ * Every feed a page needs, deduplicated by `(kind, department, locale, limit)`.
  *
- * Two events blocks pinned to the same department produce one request, so a
+ * Two events blocks pinned to the same department and row count produce one request, so a
  * page cannot multiply its backend round-trips by repeating a block.
  */
 export function collectPageFeedRequests(

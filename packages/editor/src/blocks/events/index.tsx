@@ -31,10 +31,11 @@ registerBlock({
   category: "Pull from BISO",
   group: "live",
   aiHint:
-    "A grid of upcoming events. Set source to an Appwrite collection ID to bind live data.",
-  aiProps: ["heading", "source", "items"],
+    "A grid of upcoming events. Set source to auto (the page department) or a department id; limit is 3 or 6.",
+  aiProps: ["heading", "source", "limit", "seeAll"],
   empty: () => emptyBlock("events") as never,
   Render: EventsRender as never,
   Inspector: EventsInspector as never,
   PaletteThumb: EventsThumb,
+  v2: true,
 });

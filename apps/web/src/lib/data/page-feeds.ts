@@ -43,11 +43,11 @@ function readFeed(request: PageFeedRequest): Promise<unknown[]> {
       // that page, and the block never reads it.
       return cachedPageDepartmentsFeed().then((feed) => feed.departments);
     case "events":
-      return cachedPageEventsFeed(request.department, locale);
+      return cachedPageEventsFeed(request.department, locale, request.limit);
     case "jobs":
-      return cachedPageJobsFeed(request.department, locale);
+      return cachedPageJobsFeed(request.department, locale, request.limit);
     case "news":
-      return cachedPageNewsFeed(request.department, locale);
+      return cachedPageNewsFeed(request.department, locale, request.limit);
     case "partners":
       return cachedPagePartnersFeed();
     default: {

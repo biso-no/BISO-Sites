@@ -1,16 +1,72 @@
 "use client";
 
+import { FeedCardShell, FeedSection } from "@/blocks/_v2/feed-section";
+import { Pill } from "@/blocks/_v2/pill";
+import { useBlockFeed } from "@/blocks/_v2/use-block-feed";
 import type { PatchFn } from "@/blocks/types";
-import { usePageFeedSource } from "@/editor/page-feed-context";
-import { pageFeedKey, resolveFeedDepartment } from "@/editor/page-feeds";
-import type { JobsBlock } from "@/editor/types";
-import { useAutoFeed } from "@/editor/use-auto-feed";
+import type { EditorLocale, JobsBlock } from "@/editor/types";
 
-interface JobItem {
-  commitment: string;
-  deadline: string;
-  department: string;
-  title: string;
+interface FeedJob {
+  commitment?: string;
+  deadline?: string;
+  deadlineIso?: string;
+  department?: string;
+  employmentType?: string;
+  href?: string;
+  id?: string;
+  paid?: boolean;
+  title?: string;
+}
+
+const LABELS: Record<EditorLocale, { deadline: string; paid: string }> = {
+  en: { deadline: "Apply by", paid: "Paid" },
+  no: { deadline: "Søknadsfrist", paid: "Betalt" },
+};
+
+const CARD =
+  "group flex h-full flex-col rounded-biso-md border border-edge p-5 transition-colors hover:border-ink-accent";
+
+function JobCard({
+  edit,
+  job,
+  locale,
+}: {
+  edit: boolean;
+  job: FeedJob;
+  locale: EditorLocale;
+}) {
+  const labels = LABELS[locale] ?? LABELS.no;
+  const kind = job.employmentType || job.commitment;
+  return (
+    <FeedCardShell className={CARD} edit={edit} href={job.href}>
+      {kind || job.paid ? (
+        <span className="mb-3 flex flex-wrap gap-2">
+          {kind ? (
+            <Pill tone="accent" uppercase>
+              {kind}
+            </Pill>
+          ) : null}
+          {job.paid ? <Pill tone="success">{labels.paid}</Pill> : null}
+        </span>
+      ) : null}
+      <span className="type-heading-card text-ink group-hover:text-ink-accent">
+        {job.title}
+      </span>
+      {job.department ? (
+        <span className="type-body-sm mt-2 text-ink-muted">
+          {job.department}
+        </span>
+      ) : null}
+      {job.deadline ? (
+        <time
+          className="type-data mt-auto pt-4 text-ink-muted"
+          dateTime={job.deadlineIso}
+        >
+          {labels.deadline} {job.deadline}
+        </time>
+      ) : null}
+    </FeedCardShell>
+  );
 }
 
 interface Props {
@@ -20,90 +76,26 @@ interface Props {
 }
 
 export function JobsRender({ block, edit, onPatch }: Props) {
-  const { department, locale } = usePageFeedSource();
-  const dept = resolveFeedDepartment(block.source, department);
-  const isLive = !!dept;
-
-  const { items: liveItems, loading } = useAutoFeed<JobItem>({
-    enabled: isLive,
-    key: pageFeedKey("jobs", dept, locale),
-    url: `/api/pages/jobs?dept=${encodeURIComponent(dept)}&locale=${locale}`,
-  });
-
-  const items = liveItems ?? [];
-  let emptyMessage = "Set a department to load live roles.";
-  if (loading) {
-    emptyMessage = "Loading…";
-  } else if (isLive) {
-    emptyMessage = "No open roles right now.";
-  }
-
+  const { dept, items, locale } = useBlockFeed<FeedJob>(
+    "jobs",
+    block.source,
+    block.limit
+  );
   return (
-    <div className="pg-jobs pg-block">
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          marginBottom: 16,
-        }}
-      >
-        {edit ? (
-          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-          <h2
-            contentEditable
-            data-edit="1"
-            onBlur={(e) =>
-              onPatch("heading", e.currentTarget.textContent ?? "")
-            }
-            style={{ margin: 0 }}
-            suppressContentEditableWarning
-          >
-            {block.heading}
-          </h2>
-        ) : (
-          <h2 style={{ margin: 0 }}>{block.heading}</h2>
-        )}
-        {isLive && (
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--leaf)",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontWeight: 500,
-            }}
-          >
-            <span
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: "var(--leaf)",
-                display: "inline-block",
-              }}
-            />
-            {loading ? "Loading…" : "Live"}
-          </div>
-        )}
-      </div>
-      <div className="pg-jobs__list">
-        {items.length > 0 ? (
-          items.map((job, i) => (
-            <div className="pg-jobs__item" key={i}>
-              <div className="pg-jobs__item-title">{job.title}</div>
-              <div className="pg-jobs__item-meta">
-                {[job.commitment, job.deadline && `Deadline: ${job.deadline}`]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
-            </div>
-          ))
-        ) : (
-          <p style={{ fontSize: 13, color: "var(--ink-3)" }}>{emptyMessage}</p>
-        )}
-      </div>
-    </div>
+    <FeedSection
+      dept={dept}
+      edit={edit}
+      heading={block.heading}
+      items={items}
+      locale={locale}
+      noun="open roles"
+      onPatch={onPatch}
+      seeAll={block.seeAll !== false}
+      seeAllHref="/jobs"
+    >
+      {(items ?? []).map((job, i) => (
+        <JobCard edit={edit} job={job} key={job.id ?? i} locale={locale} />
+      ))}
+    </FeedSection>
   );
 }

@@ -1,6 +1,7 @@
 import { readPageEventsFeed } from "@repo/shared/utils/page-feeds";
 import {
   feedClient,
+  feedLimitParam,
   feedLocale,
   feedResponse,
   requireDepartment,
@@ -25,7 +26,8 @@ export async function GET(request: Request) {
       await readPageEventsFeed(
         await feedClient(),
         department,
-        feedLocale(searchParams)
+        feedLocale(searchParams),
+        feedLimitParam(searchParams)
       )
     );
   } catch {

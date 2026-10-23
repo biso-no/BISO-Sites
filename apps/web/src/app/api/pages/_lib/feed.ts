@@ -49,3 +49,12 @@ export function requireDepartment(params: URLSearchParams): string | null {
 export function feedLocale(params: URLSearchParams): PublicLocale {
   return params.get("locale") === "en" ? "en" : "no";
 }
+
+/**
+ * Row count the block asked for, or undefined to take the reader's default.
+ * The readers clamp it, so this only has to reject junk.
+ */
+export function feedLimitParam(params: URLSearchParams): number | undefined {
+  const value = Number.parseInt(params.get("limit") ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}

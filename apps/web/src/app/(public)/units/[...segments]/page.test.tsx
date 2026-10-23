@@ -129,7 +129,7 @@ describe("unit route", () => {
     expect(doc.sections[0].layout.columns).toBe("1");
     expect(typeof doc.sections[0].columns[0].id).toBe("string");
     expect(rendered.props.feeds).toEqual({
-      "events|d-1|no": [{ title: "Kickoff" }],
+      "events|d-1|no|3": [{ title: "Kickoff" }],
     });
   });
 

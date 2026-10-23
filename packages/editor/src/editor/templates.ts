@@ -99,7 +99,6 @@ function events(copy: TemplateCopy): Block {
     // "auto" binds the feed to the page's department, so the block shows the
     // unit's own published events without the board setting anything up.
     block.source = "auto";
-    block.items = [];
   }
   return block;
 }

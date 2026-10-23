@@ -111,7 +111,7 @@ describe("block page route", () => {
       page.props.doc.sections.map((s) => s.columns.map((c) => c.blocks.length))
     ).toEqual([[0], [1]]);
     expect(page.props.feeds).toEqual({
-      "events|25|no": [{ title: "Kickoff" }],
+      "events|25|no|3": [{ title: "Kickoff" }],
     });
   });
 

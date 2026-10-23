@@ -1,3 +1,4 @@
+import { type PageFeedSnapshot, pageFeedKey } from "@repo/editor/page-feeds";
 import type { Block, PageDoc, Section } from "@repo/editor/types";
 
 /**
@@ -49,6 +50,117 @@ function section(
     })),
   };
 }
+
+/** The made-up department the live blocks below read from. */
+const FAIR_DEPARTMENT = "karrieredagene";
+
+/**
+ * Feed rows for the events, news and jobs blocks, keyed the way the blocks
+ * read them. Every link is an anchor on this page, never a real route.
+ */
+export const PAGE_BLOCKS_FEEDS: PageFeedSnapshot = {
+  [pageFeedKey("events", FAIR_DEPARTMENT, "no", 3)]: [
+    {
+      category: "career",
+      date: "10. nov.",
+      going: 0,
+      href: "#program",
+      id: "fx-event-1",
+      image: FAIR_PHOTO,
+      startsAt: "2026-11-10T08:00:00.000Z",
+      ticketUrl: "https://example.com/pamelding",
+      title: "Karrieredagene: åpning og standrunde",
+      where: "BI Nydalen, Oslo",
+    },
+    {
+      category: "workshop",
+      date: "11. nov.",
+      going: 0,
+      href: "#program",
+      id: "fx-event-2",
+      image: OSLO,
+      memberOnly: true,
+      startsAt: "2026-11-11T09:30:00.000Z",
+      title: "CV-verksted med bedriftene",
+      where: "BI Nydalen, Oslo",
+    },
+    {
+      date: "12. nov.",
+      going: 0,
+      href: "#program",
+      id: "fx-event-3",
+      startsAt: "2026-11-12T16:00:00.000Z",
+      title: "Etterfest for utstillerne",
+      where: "Studentpuben",
+    },
+  ],
+  [pageFeedKey("news", FAIR_DEPARTMENT, "no", 3)]: [
+    {
+      department: "Karrieredagene",
+      href: "#program",
+      id: "fx-news-1",
+      image: LOUNGE_SKETCH,
+      publishedAt: "3. nov. 2026",
+      publishedAtIso: "2026-11-03T09:00:00.000Z",
+      summary:
+        "Programmet er klart, og 64 bedrifter står på standlisten. Her er det du bør vite før du kommer.",
+      title: "Programmet for Karrieredagene er klart",
+    },
+    {
+      department: "Karrieredagene",
+      href: "#program",
+      id: "fx-news-2",
+      image: BERGEN,
+      publishedAt: "28. okt. 2026",
+      publishedAtIso: "2026-10-28T09:00:00.000Z",
+      summary:
+        "Studenter fra Bergen, Stavanger og Trondheim får reisen dekket.",
+      title: "Gratis reise for alle campus",
+    },
+    {
+      department: "Karrieredagene",
+      href: "#program",
+      id: "fx-news-3",
+      image: HERO,
+      publishedAt: "20. okt. 2026",
+      publishedAtIso: "2026-10-20T09:00:00.000Z",
+      summary: "",
+      title: "Slik forbereder du deg til standrunden",
+    },
+  ],
+  [pageFeedKey("jobs", FAIR_DEPARTMENT, "no", 3)]: [
+    {
+      commitment: "",
+      deadline: "1. des. 2026",
+      deadlineIso: "2026-12-01T10:00:00.000Z",
+      department: "Karrieredagene",
+      employmentType: "Frivillig",
+      href: "#program",
+      id: "fx-job-1",
+      paid: false,
+      title: "Standvert",
+    },
+    {
+      commitment: "",
+      deadline: "1. des. 2026",
+      deadlineIso: "2026-12-01T10:00:00.000Z",
+      department: "Karrieredagene",
+      employmentType: "Deltid",
+      href: "#program",
+      id: "fx-job-2",
+      paid: true,
+      title: "Prosjektleder for Karrieredagene 2027",
+    },
+    {
+      commitment: "",
+      deadline: "",
+      department: "Karrieredagene",
+      href: "#program",
+      id: "fx-job-3",
+      title: "Medlem av programkomiteen",
+    },
+  ],
+};
 
 export const PAGE_BLOCKS_FIXTURE: PageDoc = {
   version: 2,
@@ -347,6 +459,36 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             { label: "Meld deg på", href: "#pamelding", style: "primary" },
             { label: "Les vilkårene", href: "#praktisk", style: "secondary" },
           ],
+        },
+      ],
+    ]),
+
+    // Tinted, one column: the three live feed blocks, with the rows above.
+    section("s-live", { background: "tinted", columns: "1" }, [
+      [
+        {
+          id: "b-live-events",
+          type: "events",
+          heading: "På programmet",
+          limit: 3,
+          seeAll: true,
+          source: FAIR_DEPARTMENT,
+        },
+        {
+          id: "b-live-news",
+          type: "news",
+          heading: "Siste nytt",
+          limit: 3,
+          seeAll: true,
+          source: FAIR_DEPARTMENT,
+        },
+        {
+          id: "b-live-jobs",
+          type: "jobs",
+          heading: "Bli med i komiteen",
+          limit: 3,
+          seeAll: true,
+          source: FAIR_DEPARTMENT,
         },
       ],
     ]),

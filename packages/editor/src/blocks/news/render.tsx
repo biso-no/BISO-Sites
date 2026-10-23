@@ -1,16 +1,61 @@
 "use client";
 
+import { ChevronMedia } from "@/blocks/_v2/chevron-media";
+import { FeedCardShell, FeedSection } from "@/blocks/_v2/feed-section";
+import { useBlockFeed } from "@/blocks/_v2/use-block-feed";
 import type { PatchFn } from "@/blocks/types";
-import { usePageFeedSource } from "@/editor/page-feed-context";
-import { pageFeedKey, resolveFeedDepartment } from "@/editor/page-feeds";
 import type { NewsBlock } from "@/editor/types";
-import { useAutoFeed } from "@/editor/use-auto-feed";
 
-interface NewsItem {
-  department: string;
-  publishedAt: string;
-  summary: string;
-  title: string;
+interface FeedArticle {
+  department?: string;
+  href?: string;
+  id?: string;
+  image?: string;
+  publishedAt?: string;
+  publishedAtIso?: string;
+  summary?: string;
+  title?: string;
+}
+
+const CARD = "group flex h-full flex-col rounded-biso-sm";
+
+function ArticleCard({
+  article,
+  edit,
+  showMedia,
+}: {
+  article: FeedArticle;
+  edit: boolean;
+  showMedia: boolean;
+}) {
+  const meta = [article.publishedAt, article.department]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <FeedCardShell className={CARD} edit={edit} href={article.href}>
+      {/* Drawn for every card once any card has an image, so a picture-less
+          article does not float its headline above its neighbours'. */}
+      {showMedia ? (
+        <ChevronMedia ratio="16/9" src={article.image ?? ""} width={640} />
+      ) : null}
+      {meta ? (
+        <time
+          className="type-data mt-4 block text-ink-muted"
+          dateTime={article.publishedAtIso}
+        >
+          {meta}
+        </time>
+      ) : null}
+      <span className="type-heading-card mt-2 block text-ink group-hover:text-ink-accent">
+        {article.title}
+      </span>
+      {article.summary ? (
+        <span className="type-body-sm mt-2 line-clamp-3 text-ink-muted">
+          {article.summary}
+        </span>
+      ) : null}
+    </FeedCardShell>
+  );
 }
 
 interface Props {
@@ -20,88 +65,32 @@ interface Props {
 }
 
 export function NewsRender({ block, edit, onPatch }: Props) {
-  const { department, locale } = usePageFeedSource();
-  const dept = resolveFeedDepartment(block.source, department);
-  const isLive = !!dept;
-
-  const { items: liveItems, loading } = useAutoFeed<NewsItem>({
-    enabled: isLive,
-    key: pageFeedKey("news", dept, locale),
-    url: `/api/pages/news?dept=${encodeURIComponent(dept)}&locale=${locale}`,
-  });
-
-  const items = liveItems ?? [];
-  let emptyMessage = "Set a department to load live news.";
-  if (loading) {
-    emptyMessage = "Loading…";
-  } else if (isLive) {
-    emptyMessage = "No news yet.";
-  }
-
+  const { dept, items, locale } = useBlockFeed<FeedArticle>(
+    "news",
+    block.source,
+    block.limit
+  );
+  const showMedia = (items ?? []).some((article) => Boolean(article.image));
   return (
-    <div className="pg-news pg-block">
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          marginBottom: 16,
-        }}
-      >
-        {edit ? (
-          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-          <h2
-            contentEditable
-            data-edit="1"
-            onBlur={(e) =>
-              onPatch("heading", e.currentTarget.textContent ?? "")
-            }
-            style={{ margin: 0 }}
-            suppressContentEditableWarning
-          >
-            {block.heading}
-          </h2>
-        ) : (
-          <h2 style={{ margin: 0 }}>{block.heading}</h2>
-        )}
-        {isLive && (
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--leaf)",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontWeight: 500,
-            }}
-          >
-            <span
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: "var(--leaf)",
-                display: "inline-block",
-              }}
-            />
-            {loading ? "Loading…" : "Live"}
-          </div>
-        )}
-      </div>
-      <div className="pg-news__list">
-        {items.length > 0 ? (
-          items.map((post, i) => (
-            <div className="pg-news__item" key={i}>
-              <div className="pg-news__item-title">{post.title}</div>
-              <div className="pg-news__item-meta">
-                {[post.publishedAt, post.summary].filter(Boolean).join(" · ")}
-              </div>
-            </div>
-          ))
-        ) : (
-          <p style={{ fontSize: 13, color: "var(--ink-3)" }}>{emptyMessage}</p>
-        )}
-      </div>
-    </div>
+    <FeedSection
+      dept={dept}
+      edit={edit}
+      heading={block.heading}
+      items={items}
+      locale={locale}
+      noun="news"
+      onPatch={onPatch}
+      seeAll={block.seeAll !== false}
+      seeAllHref="/news"
+    >
+      {(items ?? []).map((article, i) => (
+        <ArticleCard
+          article={article}
+          edit={edit}
+          key={article.id ?? i}
+          showMedia={showMedia}
+        />
+      ))}
+    </FeedSection>
   );
 }

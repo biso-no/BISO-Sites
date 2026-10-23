@@ -1,6 +1,7 @@
 import { cachedPageJobsFeed } from "@/lib/data/public-content";
 import {
   feedFailure,
+  feedLimitParam,
   feedLocale,
   feedResponse,
   requireDepartment,
@@ -21,7 +22,11 @@ export async function GET(request: Request) {
   }
   try {
     return feedResponse(
-      await cachedPageJobsFeed(department, feedLocale(searchParams))
+      await cachedPageJobsFeed(
+        department,
+        feedLocale(searchParams),
+        feedLimitParam(searchParams)
+      )
     );
   } catch {
     return feedFailure();

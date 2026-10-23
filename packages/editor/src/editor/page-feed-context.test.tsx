@@ -6,28 +6,34 @@ import { PageFeedProvider } from "./page-feed-context";
 import { type PageFeedSnapshot, pageFeedKey } from "./page-feeds";
 import { useEditorStore } from "./store";
 
-const PLACEHOLDER_TITLE = "Placeholder event title";
 const LIVE_TITLE = "Kickoff at Nydalen";
+const LIVE_ITEM = {
+  href: "/events/kickoff",
+  id: "e1",
+  startsAt: "2026-11-01T18:00:00.000Z",
+  title: LIVE_TITLE,
+  where: "Nydalen",
+};
+const KEY = pageFeedKey("events", "25", "no", 3);
 
 function eventsBlock(): EventsBlock {
   return {
     id: "b-events",
     type: "events",
     heading: "Coming up",
+    limit: 3,
+    seeAll: true,
     source: "auto",
-    items: [
-      { date: "Soon", title: PLACEHOLDER_TITLE, where: "Where", going: 0 },
-    ],
   };
 }
 
-function render(department: string | null, feeds?: PageFeedSnapshot) {
+function render(
+  department: string | null,
+  feeds?: PageFeedSnapshot,
+  edit = false
+) {
   const block = (
-    <EventsRender
-      block={eventsBlock()}
-      edit={false}
-      onPatch={() => undefined}
-    />
+    <EventsRender block={eventsBlock()} edit={edit} onPatch={() => undefined} />
   );
   return renderToStaticMarkup(
     department === null ? (
@@ -42,19 +48,15 @@ function render(department: string | null, feeds?: PageFeedSnapshot) {
 
 describe("auto-source feed state during server rendering", () => {
   test("a provided department reaches the block's server render", () => {
-    const html = render("25");
-
-    // With a live department the block must not emit the inspector's
-    // placeholder items — those are documented as "shown when no department is
-    // set", so serving them is how demo content reached visitors and crawlers.
-    expect(html).not.toContain(PLACEHOLDER_TITLE);
-    expect(html).toContain("Loading…");
+    // Unresolved: the site renders nothing (no invented rows, no "Loading…"
+    // for crawlers); the editor says it is loading, for that department.
+    expect(render("25")).toBe("");
+    expect(render("25", undefined, true)).toContain("Loading…");
   });
 
-  test("no department still renders the authored placeholders", () => {
-    const html = render("");
-
-    expect(html).toContain(PLACEHOLDER_TITLE);
+  test("no department renders nothing on the site", () => {
+    expect(render("")).toBe("");
+    expect(render("", undefined, true)).toContain("Choose a department");
   });
 
   test("seeding the store is NOT visible to server rendering", () => {
@@ -69,72 +71,50 @@ describe("auto-source feed state during server rendering", () => {
       },
     });
 
-    const html = render(null);
+    const html = render(null, undefined, true);
 
     expect(useEditorStore.getState().doc.meta.department).toBe("25");
-    expect(html).toContain(PLACEHOLDER_TITLE);
+    expect(html).toContain("Choose a department");
   });
 });
 
 describe("host-resolved feeds during server rendering", () => {
   test("a resolved feed puts real rows in the server HTML", () => {
-    // This is the whole point of the feature: the first HTML a crawler or a
-    // JavaScript-less visitor receives carries the feed, not "Loading…".
-    const html = render("25", {
-      [pageFeedKey("events", "25", "no")]: [
-        { date: "12 Sep", going: 0, title: LIVE_TITLE, where: "Nydalen" },
-      ],
-    });
+    const html = render("25", { [KEY]: [LIVE_ITEM] });
 
     expect(html).toContain(LIVE_TITLE);
     expect(html).toContain("Nydalen");
     expect(html).not.toContain("Loading…");
-    expect(html).not.toContain(PLACEHOLDER_TITLE);
-    // A resolved feed is a live feed, so the block keeps its live badge.
-    expect(html).toContain("Live feed");
   });
 
-  test("a feed resolved to zero rows renders empty, not loading", () => {
-    // A department with nothing coming up is *done*, not pending. Rendering
-    // "Loading…" for it would leave a permanent spinner on a published page.
-    const html = render("25", { [pageFeedKey("events", "25", "no")]: [] });
-
-    expect(html).toContain("No upcoming events.");
+  test("a feed resolved to zero rows is done, not loading", () => {
+    expect(render("25", { [KEY]: [] })).toBe("");
+    const html = render("25", { [KEY]: [] }, true);
+    expect(html).toContain("No upcoming events for 25");
     expect(html).not.toContain("Loading…");
-    expect(html).not.toContain(PLACEHOLDER_TITLE);
   });
 
-  test("a feed keyed for another department or locale is not used", () => {
+  test("a feed keyed for another department, locale or limit is not used", () => {
     // The host and the block derive the key independently. If they ever drift
     // apart the block must fall back to fetching rather than render another
-    // department's events, so this guards the key contract in both directions.
-    const wrongDepartment = render("25", {
-      [pageFeedKey("events", "41", "no")]: [
-        { date: "12 Sep", going: 0, title: LIVE_TITLE, where: "Nydalen" },
-      ],
-    });
-    const wrongLocale = render("25", {
-      [pageFeedKey("events", "25", "en")]: [
-        { date: "12 Sep", going: 0, title: LIVE_TITLE, where: "Nydalen" },
-      ],
-    });
-
-    for (const html of [wrongDepartment, wrongLocale]) {
+    // feed's events, so this guards the key contract in every direction.
+    const wrong = [
+      pageFeedKey("events", "41", "no", 3),
+      pageFeedKey("events", "25", "en", 3),
+      pageFeedKey("events", "25", "no", 6),
+      pageFeedKey("events", "25", "no"),
+    ];
+    for (const key of wrong) {
+      const html = render("25", { [key]: [LIVE_ITEM] }, true);
       expect(html).not.toContain(LIVE_TITLE);
       expect(html).toContain("Loading…");
     }
   });
 
-  test("resolved feeds never override the authored placeholders", () => {
-    // A page with no department renders `block.items` regardless of what the
-    // host resolved — the two must not be able to fight.
+  test("resolved feeds for another department never render without one", () => {
     const html = render("", {
-      [pageFeedKey("events", "", "no")]: [
-        { date: "12 Sep", going: 0, title: LIVE_TITLE, where: "Nydalen" },
-      ],
+      [pageFeedKey("events", "", "no", 3)]: [LIVE_ITEM],
     });
-
-    expect(html).toContain(PLACEHOLDER_TITLE);
-    expect(html).not.toContain(LIVE_TITLE);
+    expect(html).toBe("");
   });
 });

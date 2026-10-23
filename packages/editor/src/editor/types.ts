@@ -230,33 +230,27 @@ export interface VideoBlock {
   url?: string; // external URL or public view URL
 }
 
-export interface EventItem {
-  date: string;
-  going: number;
-  title: string;
-  where: string;
-}
-
-export interface EventsBlock {
+/** Shared by the three live feed blocks. */
+interface LiveFeedBlock {
   heading: string;
   id: string;
-  items: EventItem[];
-  /** "auto:<dept>:upcoming" or an Appwrite collection binding */
+  /** How many cards to show, and how many rows the feed request asks for. */
+  limit: 3 | 6;
+  /** Adds a "see all" link to the section's listing page. */
+  seeAll: boolean;
+  /** `auto` follows the page's department; anything else is a department id. */
   source: string;
+}
+
+export interface EventsBlock extends LiveFeedBlock {
   type: "events";
 }
 
-export interface JobsBlock {
-  heading: string;
-  id: string;
-  source?: string;
+export interface JobsBlock extends LiveFeedBlock {
   type: "jobs";
 }
 
-export interface NewsBlock {
-  heading: string;
-  id: string;
-  source?: string;
+export interface NewsBlock extends LiveFeedBlock {
   type: "news";
 }
 

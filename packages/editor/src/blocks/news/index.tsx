@@ -33,9 +33,10 @@ registerBlock({
   category: "Pull from BISO",
   group: "live",
   aiHint: "A live news feed from the department.",
-  aiProps: ["heading", "source"],
+  aiProps: ["heading", "source", "limit", "seeAll"],
   empty: () => emptyBlock("news") as never,
   Render: NewsRender as never,
   Inspector: NewsInspector as never,
   PaletteThumb: NewsThumb,
+  v2: true,
 });

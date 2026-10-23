@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { RenderedPage } from "../../[...slug]/_components/rendered-page";
-import { PAGE_BLOCKS_FIXTURE } from "./fixture";
+import { PAGE_BLOCKS_FEEDS, PAGE_BLOCKS_FIXTURE } from "./fixture";
 
 /**
  * Gallery of every page-editor block, rendered through the same `RenderedPage`
@@ -36,7 +36,11 @@ export default function PageBlocksPage() {
           Eksempelinnhold — ikke et ekte arrangement
         </span>
       </p>
-      <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />
+      <RenderedPage
+        doc={PAGE_BLOCKS_FIXTURE}
+        feeds={PAGE_BLOCKS_FEEDS}
+        locale="no"
+      />
     </>
   );
 }
