@@ -124,13 +124,21 @@ export function emptyBlock(type: BlockType): Block {
       return { id, type, images: [] };
     case "video":
       return { id, type, caption: "" };
-    case "cta":
+    case "buttons":
       return {
         id,
         type,
+        align: "start",
+        items: [{ href: "", label: "Button", style: "primary" }],
+      };
+    case "ctaBand":
+      return {
+        id,
+        type,
+        eyebrow: "Get involved",
         title: "Ready to jump in?",
-        label: "Join the unit",
-        url: "#",
+        text: "",
+        buttons: [{ href: "", label: "Join the unit", style: "primary" }],
       };
     case "marquee":
       return {

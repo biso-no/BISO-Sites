@@ -91,7 +91,12 @@ export const BLOCK_LIBRARY: {
   {
     category: "Engage",
     items: [
-      { type: "cta", label: "Big button", desc: "One headline, one action" },
+      {
+        type: "ctaBand",
+        label: "Call to action",
+        desc: "A headline with up to two buttons",
+      },
+      { type: "buttons", label: "Buttons", desc: "A row of up to three links" },
       { type: "faq", label: "FAQ", desc: "Expandable questions" },
       { type: "contact", label: "Contact", desc: "Email, address, socials" },
       {

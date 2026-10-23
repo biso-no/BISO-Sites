@@ -16,8 +16,7 @@ interface BlockViewProps {
 /**
  * Renders one block identically in the admin canvas and on the public site.
  *
- * Blocks rebuilt on `BlockSection` apply the surface themselves; every other
- * block is framed here. `block.layout` is ignored: the section owns spacing
+ * v2 blocks render bare; every legacy block is framed here. `block.layout` is ignored: the section owns spacing
  * and width.
  */
 export function BlockView({
@@ -40,7 +39,7 @@ export function BlockView({
     />
   );
 
-  if (def.appliesLayout || def.v2) {
+  if (def.v2) {
     return rendered;
   }
 

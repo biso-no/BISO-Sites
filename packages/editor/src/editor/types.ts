@@ -23,7 +23,8 @@ export type BlockType =
   | "events"
   | "jobs"
   | "news"
-  | "cta"
+  | "buttons"
+  | "ctaBand"
   | "faq"
   | "contact"
   | "signup"
@@ -237,13 +238,20 @@ export interface NewsBlock {
   type: "news";
 }
 
-export interface CtaBlock {
+export interface ButtonsBlock {
+  align: "start" | "center";
   id: string;
-  label: string;
+  items: LinkButton[];
+  type: "buttons";
+}
+
+export interface CtaBandBlock {
+  buttons: LinkButton[];
+  eyebrow: string;
+  id: string;
+  text: string;
   title: string;
-  type: "cta";
-  url: string;
-  variant?: "card" | "banner" | "gradient";
+  type: "ctaBand";
 }
 
 export interface FaqItem {
@@ -491,7 +499,8 @@ export type Block = (
   | EventsBlock
   | JobsBlock
   | NewsBlock
-  | CtaBlock
+  | ButtonsBlock
+  | CtaBandBlock
   | FaqBlock
   | ContactBlock
   | SignupBlock

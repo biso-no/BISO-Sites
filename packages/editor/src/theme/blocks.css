@@ -419,70 +419,6 @@
   text-decoration: none;
 }
 
-/* CTA */
-.pg-cta {
-  padding: var(--pg-gutter);
-  text-align: center;
-  border-top: 0.5px solid var(--rule);
-}
-.pg-cta h2 {
-  margin: 0 0 24px;
-  font-family: var(--serif);
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--pg-ink);
-  letter-spacing: -0.018em;
-  text-wrap: balance;
-}
-.pg-cta__btn {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  padding: 12px 24px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--brand-foreground);
-  text-decoration: none;
-  cursor: pointer;
-  background: linear-gradient(
-    90deg,
-    var(--brand-gradient-from),
-    var(--brand-gradient-to)
-  );
-  border: 0;
-  border-radius: var(--pg-radius-sm);
-  box-shadow: var(--pg-shadow);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
-}
-.pg-cta__btn:hover {
-  box-shadow: var(--pg-shadow-lg);
-  transform: translateY(-2px);
-}
-
-/* CTA variants */
-.pg-cta--banner {
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule);
-}
-.pg-cta--gradient {
-  background: linear-gradient(
-    135deg,
-    var(--brand-gradient-from),
-    var(--brand-gradient-to)
-  );
-  border-color: transparent;
-}
-.pg-cta--gradient h2 {
-  color: var(--brand-foreground);
-}
-.pg-cta--gradient .pg-cta__btn {
-  color: var(--pg-navy);
-  background: #fff;
-}
-
 /* MARQUEE — a band that runs edge to edge, so it has no gutter of its own. */
 .pg-block.pg-marquee {
   --pg-gutter: 0px;
@@ -1672,9 +1608,6 @@ textarea.pg-msform__input {
     grid-template-columns: 64px 1fr;
   }
 
-  .pg-cta h2 {
-    font-size: 34px;
-  }
   .pg-contact h2 {
     font-size: 26px;
   }

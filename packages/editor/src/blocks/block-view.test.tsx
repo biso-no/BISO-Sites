@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Block } from "@/editor/types";
-import { SURFACE } from "./_primitives/block-section";
 import type {
   BlockLayout,
   ResolvedBackground,
@@ -40,7 +39,7 @@ const emptyOf = (type: Block["type"]): Block => {
 
 /*
  * Sections own spacing and width now, so a block is only ever framed compact
- * and full-width; blocks rebuilt on BlockSection apply the same via classes.
+ * and full-width.
  */
 describe("every block sits in the section's frame", () => {
   // v2 blocks render bare: the section owns the surface and spacing.
@@ -48,16 +47,11 @@ describe("every block sits in the section's frame", () => {
     test(`${def.type} takes the section's surface at compact spacing and full width`, () => {
       const html = render(def.empty(), "inverted");
 
-      const framed =
-        html.includes('data-background="inverted"') &&
-        html.includes('data-spacing="compact"') &&
-        html.includes('data-width="full"');
-      const sectioned = html.includes(SURFACE.inverted);
-      expect(framed || sectioned).toBe(true);
-      if (framed) {
-        // The section paints the surface; the frame only marks it.
-        expect(frameClass(html)).toBe(FRAME_CLASS);
-      }
+      expect(html).toContain('data-background="inverted"');
+      expect(html).toContain('data-spacing="compact"');
+      expect(html).toContain('data-width="full"');
+      // The section paints the surface; the frame only marks it.
+      expect(frameClass(html)).toBe(FRAME_CLASS);
     });
   }
 });
@@ -87,16 +81,6 @@ describe("BlockView frame", () => {
     expect(html).toContain('data-spacing="compact"');
     expect(html).toContain('data-width="full"');
     expect(frameClass(html)).toBe(FRAME_CLASS);
-  });
-
-  test("a block that composes BlockSection is not framed twice", () => {
-    const html = render(
-      withLayout(emptyOf("cta"), { background: "inverted" }),
-      "inverted"
-    );
-
-    expect(html).not.toContain("pg-section");
-    expect(html).toContain("bg-inverted");
   });
 
   test("an unknown block type renders nothing", () => {

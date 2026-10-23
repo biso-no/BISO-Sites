@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { SPACING, WIDTH } from "@/blocks/_primitives/block-section";
 
+const SPACING = ["none", "compact", "normal", "spacious"] as const;
+const WIDTH = ["prose", "content", "wide", "full"] as const;
 const BLOCKS_DIR = join(import.meta.dir, "..", "blocks");
 const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
@@ -68,7 +69,7 @@ const blockBody = (css: string, opening: string): string => {
   return "";
 };
 
-/** True when a selector targets a block root itself, e.g. `.pg-cta--banner`. */
+/** True when a selector targets a block root itself, e.g. `.pg-timeline--wide`. */
 const targetsRoot = (selector: string) =>
   selector
     .split(",")
@@ -86,13 +87,13 @@ describe("Design panel rules for blocks styled by blocks.css", () => {
   });
 
   test("every spacing option sets a scale", () => {
-    for (const spacing of Object.keys(SPACING)) {
+    for (const spacing of SPACING) {
       expect(blocksCss).toContain(`.pg-section[data-spacing="${spacing}"]`);
     }
   });
 
   test("every width option sets a measure", () => {
-    for (const width of Object.keys(WIDTH)) {
+    for (const width of WIDTH) {
       expect(blocksCss).toContain(`.pg-section[data-width="${width}"]`);
     }
   });
