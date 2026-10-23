@@ -20,7 +20,10 @@ const TILE_WIDTH = 800;
 /**
  * Tiles are 4/3 everywhere so --ar always matches the rendered box. In the
  * 5-image collage the big tile spans two rows and is sized by the grid
- * (`fill`), whose real ratio is about 0.75 plus a sliver for the gap.
+ * (`fill`), whose real ratio is about 0.75 plus a sliver for the gap. That
+ * tile is a size container (its cut reads `100cqh`), so the frame inside it
+ * queries the column by name (`@2xl/pg:`): an unnamed `@2xl:` would ask the
+ * narrow tile and never match.
  */
 const TILE_RATIO = "4/3";
 
@@ -119,7 +122,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
                   alt={image.alt ?? ""}
                   className={
                     isBig && bigCollage
-                      ? "pg-chevron-fill @2xl:aspect-auto @2xl:h-full @2xl:[&>img]:absolute @2xl:[&>img]:inset-0"
+                      ? "pg-chevron-fill @2xl/pg:aspect-auto @2xl/pg:h-full @2xl/pg:[&>img]:absolute @2xl/pg:[&>img]:inset-0"
                       : undefined
                   }
                   lean={i % 2 === 0 ? "left" : "right"}

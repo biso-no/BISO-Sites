@@ -29,6 +29,7 @@ const html = (b: GalleryBlock, edit = false) =>
   );
 
 const count = (s: string, needle: string) => s.split(needle).length - 1;
+const FILL_FRAME_CLASS = /class="(chevron-frame[^"]*pg-chevron-fill[^"]*)"/;
 
 describe("GalleryRender", () => {
   test("collage with 5 images renders 5 chevron frames and the 3-column grid", () => {
@@ -50,6 +51,26 @@ describe("GalleryRender", () => {
     );
     expect(css).toContain(".pg-chevron-fill");
     expect(css).toContain("var(--cut-len, var(--cut))");
+  });
+
+  test("the big tile's frame fills it by the column's width, not the tile's", () => {
+    // The tile is itself a size container, so an unnamed `@2xl:` on the frame
+    // would query the narrow tile and never match: the frame would keep its
+    // 4/3 box, end short of the second row and miss the 13° cut.
+    const out = html(block(5, "collage"));
+    const frameClass = (out.match(FILL_FRAME_CLASS)?.[1] ?? "")
+      .replaceAll("&amp;", "&")
+      .replaceAll("&gt;", ">");
+    expect(frameClass).toContain("pg-chevron-fill");
+    for (const cls of [
+      "@2xl/pg:aspect-auto",
+      "@2xl/pg:h-full",
+      "@2xl/pg:[&>img]:absolute",
+      "@2xl/pg:[&>img]:inset-0",
+    ]) {
+      expect(frameClass.split(" ")).toContain(cls);
+    }
+    expect(frameClass).not.toContain("@2xl:");
   });
 
   test("a gallery without an images array does not throw", () => {
