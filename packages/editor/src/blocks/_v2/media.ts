@@ -61,6 +61,15 @@ export function sizedImageSrc(
   return `${match[1]}/preview${query}width=${width}&output=webp&quality=80`;
 }
 
+/**
+ * An Appwrite storage `…/<id>/view?…` URL as its `…/<id>/download?…` twin
+ * (the same file, served as an attachment), or null for any other URL.
+ */
+export function appwriteDownloadSrc(src: string): string | null {
+  const match = APPWRITE_VIEW_RE.exec(src);
+  return match ? `${match[1]}/download${match[2] ?? ""}` : null;
+}
+
 const DEFAULT_RATIO: FrameRatio = "16/9";
 const RATIO_VALUES: Record<FrameRatio, number> = {
   "21/9": 9 / 21,

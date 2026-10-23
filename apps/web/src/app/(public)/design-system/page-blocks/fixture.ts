@@ -663,6 +663,34 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           type: "marquee",
           text: "Winter Games · Karrieredager · Gløgg · Nettverk · Gratis inngang",
         },
+        {
+          id: "b-documents",
+          type: "documents",
+          heading: "Dokumenter",
+          items: [
+            {
+              fileId: "6700a1b2c3d4e5f60718",
+              mime: "application/pdf",
+              size: 1_240_000,
+              src: "https://appwrite.biso.no/v1/storage/buckets/media/files/6700a1b2c3d4e5f60718/view?project=biso",
+              title: "Vedtekter",
+            },
+            {
+              fileId: "6700a1b2c3d4e5f60719",
+              mime: "application/pdf",
+              size: 3_860_000,
+              src: "https://appwrite.biso.no/v1/storage/buckets/media/files/6700a1b2c3d4e5f60719/view?project=biso",
+              title: "Årsberetning 2025",
+            },
+            {
+              fileId: "6700a1b2c3d4e5f6071a",
+              mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              size: 48_200,
+              src: "https://appwrite.biso.no/v1/storage/buckets/media/files/6700a1b2c3d4e5f6071a/view?project=biso",
+              title: "Budsjett",
+            },
+          ],
+        },
       ],
     ]),
 

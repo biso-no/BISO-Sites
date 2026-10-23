@@ -1,11 +1,18 @@
 import { MEDIA_BUCKET_ID } from "@repo/api/storage";
+import {
+  DEFAULT_UPLOAD_BUCKET,
+  IMAGE_MAX_BYTES,
+  maxBytesForMime,
+  mimeFromFilename,
+  resolveUploadBucket,
+} from "./upload-buckets";
 
 export type UploadResult =
   | { error?: never; fileId: string; url: string }
   | { error: string; fileId?: never; url?: never };
 
-/** The largest file `/api/upload` takes. */
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+/** The largest image `/api/upload` takes; documents may be larger. */
+export const MAX_UPLOAD_BYTES = IMAGE_MAX_BYTES;
 
 /**
  * Browser-side upload through `/api/upload`. Never throws: network failures,
@@ -16,8 +23,14 @@ export async function uploadFile(
   file: File,
   options: { bucket?: string } = {}
 ): Promise<UploadResult> {
-  if (file.size > MAX_UPLOAD_BYTES) {
-    return { error: "File too large (max 10 MB)" };
+  // Some browsers leave a document's type empty; the route needs one.
+  const mimeType = file.type || mimeFromFilename(file.name) || "";
+  // The same per-type limit the route enforces. An unknown bucket or type is
+  // left to the route to refuse with its own message.
+  const bucket = resolveUploadBucket(options.bucket ?? DEFAULT_UPLOAD_BUCKET);
+  const limit = bucket ? maxBytesForMime(bucket, mimeType) : null;
+  if (limit !== null && file.size > limit) {
+    return { error: `File too large (max ${limit / 1024 / 1024} MB)` };
   }
 
   const url = options.bucket
@@ -28,7 +41,7 @@ export async function uploadFile(
     const response = await fetch(url, {
       body: file,
       headers: {
-        "Content-Type": file.type || "application/octet-stream",
+        "Content-Type": mimeType || "application/octet-stream",
         // Header values must be Latin-1; the route decodes this.
         "x-filename": encodeURIComponent(file.name),
       },

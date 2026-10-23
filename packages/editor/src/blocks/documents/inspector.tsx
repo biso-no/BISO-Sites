@@ -1,11 +1,15 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
   InspSection,
 } from "@/components/editor-shell/inspector/insp-parts";
+import { ItemList } from "@/components/editor-shell/inspector/item-list";
+import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
 import type { DocumentItem, DocumentsBlock, PageDoc } from "@/editor/types";
+import { metaLine, mimeFromFilename, titleFromFilename } from "./format";
 
 interface Props {
   block: DocumentsBlock;
@@ -13,16 +17,12 @@ interface Props {
   onPatch: PatchFn;
 }
 
+/** What `/api/upload` takes for documents (see apps/admin upload-buckets). */
+const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt";
+
+const text = (v: unknown): string => (typeof v === "string" ? v : "");
+
 export function DocumentsInspector({ block, onPatch }: Props) {
-  const items = block.items ?? [];
-
-  function patchItem(i: number, patch: Partial<DocumentItem>) {
-    onPatch(
-      "items",
-      items.map((x, j) => (j === i ? { ...x, ...patch } : x))
-    );
-  }
-
   return (
     <>
       <InspSection label="Content">
@@ -30,98 +30,57 @@ export function DocumentsInspector({ block, onPatch }: Props) {
           <input
             onChange={(e) => onPatch("heading", e.target.value)}
             placeholder="Documents"
-            value={block.heading ?? ""}
+            value={text(block.heading)}
           />
         </InspRow>
       </InspSection>
-      <InspSection label={`Files (${items.length})`}>
-        {items.map((item, i) => (
-          <div
-            key={i}
-            style={{
-              padding: "8px 0",
-              borderBottom: "0.5px solid var(--rule)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 4,
-              }}
-            >
-              <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                {item.title}
-              </span>
-              <button
-                aria-label="Remove"
-                onClick={() =>
-                  onPatch(
-                    "items",
-                    items.filter((_, j) => j !== i)
-                  )
-                }
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: 0,
-                  background: "var(--rule-2)",
-                  cursor: "pointer",
-                  fontSize: 9,
-                  display: "grid",
-                  placeItems: "center",
-                }}
-                type="button"
-              >
-                ✕
-              </button>
-            </div>
-            <InspRow label="Title">
-              <input
-                onChange={(e) => patchItem(i, { title: e.target.value })}
-                value={item.title}
-              />
-            </InspRow>
-            <InspRow label="File ID">
-              <input
-                onChange={(e) => patchItem(i, { fileId: e.target.value })}
-                placeholder="Appwrite file ID"
-                value={item.fileId}
-              />
-            </InspRow>
-            <InspRow label="Size">
-              <input
-                onChange={(e) =>
-                  patchItem(i, { size: e.target.value || undefined })
-                }
-                placeholder="e.g. 2.4 MB"
-                value={item.size ?? ""}
-              />
-            </InspRow>
-          </div>
-        ))}
-        <button
-          onClick={() =>
-            onPatch("items", [
-              ...items,
-              { title: "Document title", fileId: "" },
-            ])
-          }
-          style={{
-            fontSize: 12,
-            marginTop: 8,
-            padding: "4px 8px",
-            border: "0.5px solid var(--rule-2)",
-            borderRadius: 6,
-            background: "var(--paper-2)",
-            cursor: "pointer",
-          }}
-          type="button"
-        >
-          + Add document
-        </button>
+      <InspSection label="Files">
+        <ItemList
+          addLabel="+ Add document"
+          items={listOf<DocumentItem>(block.items)}
+          newItem={(): DocumentItem => ({ src: "", title: "" })}
+          onChange={(items) => onPatch("items", items)}
+          renderItem={(item, update) => (
+            <>
+              <InspRow label="Title">
+                <input
+                  onChange={(e) => update({ ...item, title: e.target.value })}
+                  placeholder="Title"
+                  value={text(item.title)}
+                />
+              </InspRow>
+              <InspRow label="File">
+                <MediaPicker
+                  accept={ACCEPT}
+                  kind="file"
+                  onClear={() => update({ src: "", title: text(item.title) })}
+                  onPicked={(fileId, url, mime, file) =>
+                    update({
+                      fileId,
+                      mime:
+                        mime ||
+                        (file ? mimeFromFilename(file.name) : undefined),
+                      size: file?.size,
+                      src: url,
+                      // The file's name stands in until the editor writes one.
+                      title: text(item.title).trim()
+                        ? item.title
+                        : titleFromFilename(file?.name ?? ""),
+                    })
+                  }
+                  onUrl={(url) => update({ src: url, title: text(item.title) })}
+                  src={text(item.src) || undefined}
+                />
+              </InspRow>
+              {text(item.src) ? (
+                <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                  {metaLine(item)}
+                </div>
+              ) : null}
+            </>
+          )}
+          title={(item, i) => text(item.title) || `Document ${i + 1}`}
+        />
       </InspSection>
     </>
   );

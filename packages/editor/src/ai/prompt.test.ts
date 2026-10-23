@@ -61,6 +61,7 @@ test("the copilot knows the props and item shapes of the v2 blocks", () => {
     "faq: heading?, items [{q, a}]",
     "tabs: tabs [{label, body}]",
     "marquee: text (items separated by ·",
+    "documents: heading?, items [{title, src, mime?, size?}]",
     "video: url, poster, style (featured|inline|loop), ratio (16/9|21/9), label, caption",
   ]) {
     expect(prompt).toContain(shape);

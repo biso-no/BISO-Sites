@@ -10,6 +10,7 @@ export { Crest } from "./crest";
 export { DateBlock } from "./date-block";
 export { externalLinkProps, safeHref } from "./links";
 export {
+  appwriteDownloadSrc,
   embedSrc,
   isEmbedUrl,
   ratioValue,

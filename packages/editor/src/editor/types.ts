@@ -361,8 +361,14 @@ export interface DepartmentGridBlock {
 }
 
 export interface DocumentItem {
-  fileId: string;
-  size?: string;
+  /** Appwrite file id of an uploaded file. */
+  fileId?: string;
+  /** The uploaded file's type; names it ("PDF") and tells the label. */
+  mime?: string;
+  /** Bytes, from the upload. */
+  size?: number;
+  /** The file's link: an uploaded file's `/view` URL or any https URL. */
+  src: string;
   title: string;
 }
 export interface DocumentsBlock {

@@ -58,7 +58,7 @@ describe("every block sits in the section's frame", () => {
 
 describe("BlockView frame", () => {
   test("a block styled by blocks.css gets one compact, full-width frame", () => {
-    const html = render(emptyOf("documents"), "brand");
+    const html = render(emptyOf("profileHeader"), "brand");
 
     expect(html.match(/class="pg-section\b/g)).toHaveLength(1);
     expect(html).toContain('data-background="brand"');
@@ -69,7 +69,7 @@ describe("BlockView frame", () => {
 
   test("block.layout is ignored: the section owns spacing and width", () => {
     const html = render(
-      withLayout(emptyOf("documents"), {
+      withLayout(emptyOf("profileHeader"), {
         background: "brand",
         spacing: "spacious",
         width: "content",

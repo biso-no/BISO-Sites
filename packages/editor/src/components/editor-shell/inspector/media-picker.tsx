@@ -9,11 +9,19 @@ const VIDEO_FILE_RE = /\.(mp4|mov|webm|ogg)(\?|$)/i;
 interface MediaPickerProps {
   accept?: string;
   /** Preview hint for URLs without a file extension. */
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "file";
   label?: string;
   onClear?: () => void;
-  /** `mime` is the uploaded file's type, e.g. to tell a video by. */
-  onPicked: (fileId: string, url: string, mime: string) => void;
+  /**
+   * `mime` is the uploaded file's type, e.g. to tell a video by; `file` is its
+   * name and size in bytes.
+   */
+  onPicked: (
+    fileId: string,
+    url: string,
+    mime: string,
+    file?: { name: string; size: number }
+  ) => void;
   onUrl: (url: string) => void;
   /** Current URL to display (either from Appwrite or external) */
   src?: string;
@@ -32,9 +40,24 @@ export function MediaPreview({
   kind,
   src,
 }: {
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "file";
   src: string;
 }) {
+  if (kind === "file") {
+    // A document has nothing to show: name where it lives instead.
+    return (
+      <div
+        style={{
+          padding: "10px 12px",
+          fontSize: 12,
+          color: "var(--ink-2)",
+          wordBreak: "break-all",
+        }}
+      >
+        {src}
+      </div>
+    );
+  }
   if (EMBED_URL_RE.test(src)) {
     return (
       <div
@@ -121,7 +144,7 @@ export function MediaPicker({
       try {
         const { fileId, url } = await uploadFile(fd);
         setPicked({ kind: kindFromMime(file.type), url });
-        onPicked(fileId, url, file.type);
+        onPicked(fileId, url, file.type, { name: file.name, size: file.size });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed");
       }

@@ -53,7 +53,7 @@ GUIDELINES:
   intro), image and gallery (chevron-framed photos), video (featured, inline or
   looping), highlights, facts, stats, cards (grid or scrolling row), timeline,
   steps (stepGrid), callout, quote, buttons and ctaBand
-  (headline with up to two buttons), faq, tabs and marquee, plus divider. There is no hero or cta
+  (headline with up to two buttons), faq, tabs, marquee and documents, plus divider. There is no hero or cta
   block; the page header opens the page and ctaBand closes it.
 - insert_block adds a block with placeholder content; set_prop then fills it.
   Paths follow these shapes (lists are arrays of objects, never a string;
@@ -76,6 +76,7 @@ GUIDELINES:
     faq: heading?, items [{q, a}] (native expanding questions)
     tabs: tabs [{label, body}] (plain text per tab)
     marquee: text (items separated by ·; scrolls on the site)
+    documents: heading?, items [{title, src, mime?, size?}] (src is a link to the file; size in bytes; files are uploaded in the editor, never invented)
     video: url, poster, style (featured|inline|loop), ratio (16/9|21/9), label, caption
   A link (href) is a /path, a #anchor, https://, mailto: or tel:. A button
   without one is not shown on the site. Loop needs an uploaded video file.
