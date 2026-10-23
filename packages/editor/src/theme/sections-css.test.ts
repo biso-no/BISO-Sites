@@ -236,3 +236,56 @@ test("a full header is tall only when it has media behind it", () => {
     expect(rule.body).not.toContain("min-height");
   }
 });
+
+// ── Hairlines on Tinted ─────────────────────────────────────────────────────
+
+const TINTED = '.pg-sec:where([data-background="tinted"])';
+const EDGE_MIX =
+  /--edge:\s*color-mix\(in srgb,\s*var\(--surface-sunken\),\s*var\(--ink\)\s*(\d+)%\);/;
+const surfaceCss = readFileSync(
+  join(import.meta.dir, "../../../ui/styles/biso-surface.css"),
+  "utf8"
+);
+const token = (name: string, from = 0): string => {
+  const at = surfaceCss.indexOf(`${name}:`, from);
+  const hex = surfaceCss.slice(at).match(/#[0-9a-f]{6}/i)?.[0];
+  if (at < 0 || !hex) {
+    throw new Error(`${name} not found`);
+  }
+  return hex;
+};
+const rgb = (hex: string) =>
+  [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+const luminance = (c: number[]) => {
+  const [r, g, b] = c.map((v) => {
+    const s = v / 255;
+    return s <= 0.040_45 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a: number[], b: number[]) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+const mix = (a: number[], b: number[], share: number) =>
+  a.map((v, i) => v * (1 - share) + b[i] * share);
+
+test("hairlines on a Tinted section are darker, so they show on its fill", () => {
+  // The page's --edge (#e8ecf0) on --surface-sunken (#eef1f5) is ~1.05:1.
+  const rule = rulesFor(TINTED).find((r) => EDGE_MIX.test(r.body));
+  const share = Number(rule?.body.match(EDGE_MIX)?.[1]) / 100;
+  expect(share).toBeGreaterThan(0);
+
+  const sunken = rgb(token("--surface-sunken"));
+  const ink = rgb(token("--biso-deep"));
+  expect(contrast(rgb(token("--biso-line")), sunken)).toBeLessThan(1.1);
+  expect(contrast(mix(sunken, ink, share), sunken)).toBeGreaterThanOrEqual(1.3);
+
+  // In the dark theme the same rule mixes toward paper, and stays a line.
+  const darkFrom = surfaceCss.indexOf(".dark .biso-surface-v2");
+  const darkSunken = rgb(token("--surface-sunken", darkFrom));
+  const paper = rgb(token("--biso-paper"));
+  expect(
+    contrast(mix(darkSunken, paper, share), darkSunken)
+  ).toBeGreaterThanOrEqual(1.3);
+});

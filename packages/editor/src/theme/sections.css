@@ -26,6 +26,11 @@
 /* Dark and Photo need no rule of their own: `data-surface="deep"` makes
    `--surface` navy. */
 .pg-sec:where([data-background="tinted"]) {
+  /* The page's hairline (--edge, #e8ecf0) is ~1.05:1 on the tinted fill
+     (#eef1f5), so dividers and borders vanish there. A step toward the ink
+     instead: #cad1d8, 1.36:1, in the light theme; toward paper, still a
+     line, in the dark one. Computed from the tokens, so it follows both. */
+  --edge: color-mix(in srgb, var(--surface-sunken), var(--ink) 15%);
   background: var(--surface-sunken);
 }
 
