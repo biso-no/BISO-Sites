@@ -1,0 +1,163 @@
+import { describe, expect, test } from "bun:test";
+import type {
+  PageEditorLoadResult,
+  PageTranslationEditorEntry,
+} from "@repo/api/page-builder";
+import type { PageDoc } from "@repo/editor/types";
+import { blankPageDoc, buildInitialDocuments } from "./initial-documents";
+
+const EDITOR_CAMPUS = "campus-editor";
+
+function translation(
+  locale: "no" | "en",
+  patch: Partial<PageTranslationEditorEntry> = {}
+): PageTranslationEditorEntry {
+  return {
+    description: "Om fadderuka",
+    draftDocument: null,
+    isPublished: true,
+    locale,
+    publishedAt: null,
+    publishedDocument: null,
+    title: "Fadderullan",
+    ...patch,
+  };
+}
+
+function existingPage(
+  patch: Partial<PageEditorLoadResult["page"]> = {},
+  translations: PageEditorLoadResult["translations"] = {
+    no: translation("no"),
+  }
+): PageEditorLoadResult {
+  return {
+    availableLocales: ["no", "en"],
+    page: {
+      campusId: "campus-page",
+      departmentId: "dept-1",
+      id: "page-1",
+      slug: "fadderullan",
+      status: "published",
+      visibility: "public",
+      ...patch,
+    },
+    translations,
+  } as PageEditorLoadResult;
+}
+
+describe("blankPageDoc", () => {
+  test("an existing page without a document keeps its live title, description and scope", () => {
+    // The editor saves this document on the first edit; placeholders here
+    // would overwrite the live title, description and campus.
+    const doc = blankPageDoc({
+      defaultCampusId: EDITOR_CAMPUS,
+      locale: "no",
+      page: existingPage().page,
+      translation: translation("no"),
+    });
+
+    expect(doc.meta).toEqual({
+      accentColor: "#3DA9E0",
+      campus: "campus-page",
+      department: "dept-1",
+      description: "Om fadderuka",
+      slug: "fadderullan",
+      status: "published",
+      title: "Fadderullan",
+    });
+    expect(doc.sections).toEqual([]);
+  });
+
+  test("a national page stays national, whatever the editor's campus", () => {
+    const doc = blankPageDoc({
+      defaultCampusId: EDITOR_CAMPUS,
+      locale: "no",
+      page: existingPage({ campusId: null }).page,
+      translation: translation("no"),
+    });
+    expect(doc.meta.campus).toBe("");
+  });
+
+  test("a new page gets the placeholder title and the editor's campus", () => {
+    expect(
+      blankPageDoc({ defaultCampusId: EDITOR_CAMPUS, locale: "no" }).meta
+    ).toMatchObject({
+      campus: EDITOR_CAMPUS,
+      department: "",
+      description: "",
+      slug: "uten-navn",
+      status: "draft",
+      title: "Uten navn",
+    });
+    expect(
+      blankPageDoc({ defaultCampusId: EDITOR_CAMPUS, locale: "en" }).meta.title
+    ).toBe("Untitled page");
+  });
+
+  test("another locale shares the open document's meta and keeps its own title", () => {
+    const source: PageDoc = {
+      meta: {
+        accentColor: "#123456",
+        campus: "campus-chosen",
+        department: "dept-2",
+        slug: "renamed",
+        status: "draft",
+        title: "Fadderullan",
+      },
+      sections: [],
+      version: 2,
+    };
+    const doc = blankPageDoc({
+      defaultCampusId: EDITOR_CAMPUS,
+      locale: "en",
+      page: existingPage().page,
+      source,
+      translation: translation("en", {
+        description: "About freshers' week",
+        title: "Buddy week",
+      }),
+    });
+    expect(doc.meta).toEqual({
+      accentColor: "#123456",
+      campus: "campus-chosen",
+      department: "dept-2",
+      description: "About freshers' week",
+      slug: "renamed",
+      status: "draft",
+      title: "Buddy week",
+    });
+  });
+});
+
+describe("buildInitialDocuments", () => {
+  test("opening a page whose translation has no document seeds it from the translation", () => {
+    const docs = buildInitialDocuments(existingPage(), "no", EDITOR_CAMPUS);
+    expect(docs.no?.meta.title).toBe("Fadderullan");
+    expect(docs.no?.meta.description).toBe("Om fadderuka");
+    expect(docs.no?.meta.campus).toBe("campus-page");
+    expect(docs.en).toBeUndefined();
+  });
+
+  test("a stored document without a campus gets the page's own campus", () => {
+    const stored: PageDoc = {
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "dept-1",
+        slug: "fadderullan",
+        status: "published",
+        title: "Fadderullan",
+      },
+      sections: [],
+      version: 2,
+    };
+    const docs = buildInitialDocuments(
+      existingPage(
+        { campusId: null },
+        { no: translation("no", { draftDocument: stored }) }
+      ),
+      "no",
+      EDITOR_CAMPUS
+    );
+    expect(docs.no?.meta.campus).toBe("");
+  });
+});

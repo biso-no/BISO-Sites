@@ -12,3 +12,22 @@ export function autosaveSignature(doc: PageDoc): string {
     sections: doc.sections,
   });
 }
+
+/**
+ * Whether the shell should autosave the document now (C11). Nothing saves
+ * until the locale is hydrated (`hydratedSignature` undefined), and the
+ * hydrated document itself is never written back: opening a page would
+ * otherwise overwrite what is stored, and `/pages/new` would create a row
+ * before anyone typed. After the first real change (`changedSinceHydration`)
+ * every change saves, including an undo back to the hydrated state.
+ */
+export function shouldAutosave(
+  hydratedSignature: string | undefined,
+  currentSignature: string,
+  changedSinceHydration: boolean
+): boolean {
+  if (hydratedSignature === undefined) {
+    return false;
+  }
+  return changedSinceHydration || currentSignature !== hydratedSignature;
+}

@@ -26,7 +26,7 @@ import type {
   EditorLocaleOption,
   PageDoc,
 } from "@/editor/types";
-import { autosaveSignature } from "./autosave-signature";
+import { autosaveSignature, shouldAutosave } from "./autosave-signature";
 import { CanvasPane } from "./canvas";
 import {
   acceptsDrop,
@@ -195,6 +195,26 @@ export function EditorShell({
   }, [activeLocale, setLocale]);
 
   const hydratedLocaleRef = useRef<EditorLocale | null>(null);
+  // The document as the current locale was hydrated, and whether it has
+  // changed since. Autosave waits for a real change (C11), so opening a page
+  // or a locale writes nothing back, and `/pages/new` creates no row until
+  // the first edit.
+  const hydratedRef = useRef<{
+    changed: boolean;
+    locale: EditorLocale;
+    signature: string;
+  } | null>(null);
+
+  // Debounced save to Appwrite
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pendingSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const localeRef = useRef(activeLocale);
+  const savePageRef = useRef(savePage);
+  const onDocChangeRef = useRef(onDocChange);
+  const _docSignature = autosaveSignature(doc);
+  localeRef.current = activeLocale;
+  savePageRef.current = savePage;
+  onDocChangeRef.current = onDocChange;
 
   // Hydrate store when the editor enters a locale. Subsequent parent mirrors of
   // the same locale document must not rehydrate the store or autosave loops.
@@ -203,40 +223,60 @@ export function EditorShell({
       return;
     }
 
+    // Save the last locale's pending edits now: the hydration below changes
+    // the document, which would otherwise cancel that save.
+    clearTimeout(saveTimer.current);
+    const pendingSave = pendingSaveRef.current;
+    pendingSaveRef.current = null;
+    pendingSave?.();
+
     hydratedLocaleRef.current = activeLocale;
     setDoc(initial);
+    hydratedRef.current = {
+      changed: false,
+      locale: activeLocale,
+      signature: autosaveSignature(useEditorStore.getState().doc),
+    };
   }, [activeLocale, initial, setDoc]);
-
-  // Debounced save to Appwrite
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const docRef = useRef(doc);
-  const localeRef = useRef(activeLocale);
-  const savePageRef = useRef(savePage);
-  const onDocChangeRef = useRef(onDocChange);
-  const _docSignature = autosaveSignature(doc);
-  docRef.current = doc;
-  localeRef.current = activeLocale;
-  savePageRef.current = savePage;
-  onDocChangeRef.current = onDocChange;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: autosave is keyed by serialized document changes; refs keep the current locale/callbacks without firing a save for locale-only renders.
   useEffect(() => {
     clearTimeout(saveTimer.current);
-    const docSnapshot = docRef.current;
+    pendingSaveRef.current = null;
     const localeSnapshot = localeRef.current;
+    const hydrated = hydratedRef.current;
+    if (hydrated?.locale !== localeSnapshot) {
+      // The store still holds whatever was there before this locale loaded.
+      return;
+    }
+    const docSnapshot = useEditorStore.getState().doc;
     const savePageSnapshot = savePageRef.current;
-    const onDocChangeSnapshot = onDocChangeRef.current;
 
-    onDocChangeSnapshot?.(docSnapshot, localeSnapshot);
-    setSaving("pending");
-    saveTimer.current = setTimeout(async () => {
+    onDocChangeRef.current?.(docSnapshot, localeSnapshot);
+    if (
+      !shouldAutosave(
+        hydrated.signature,
+        autosaveSignature(docSnapshot),
+        hydrated.changed
+      )
+    ) {
+      return;
+    }
+    hydrated.changed = true;
+
+    const save = async () => {
+      pendingSaveRef.current = null;
       try {
         const result = await savePageSnapshot(docSnapshot, localeSnapshot);
-        if (result?.slug && result.slug !== docSnapshot.meta.slug) {
-          setDoc({
-            ...docSnapshot,
-            meta: { ...docSnapshot.meta, slug: result.slug },
-          });
+        // Only into the locale it was saved for: a save flushed by a locale
+        // switch resolves while the store holds the other locale.
+        if (
+          result?.slug &&
+          result.slug !== docSnapshot.meta.slug &&
+          localeRef.current === localeSnapshot
+        ) {
+          const current = useEditorStore.getState().doc;
+          setDoc({ ...current, meta: { ...current.meta, slug: result.slug } });
         }
         setSaving("saved");
         setTimeout(() => setSaving("idle"), 2000);
@@ -244,7 +284,10 @@ export function EditorShell({
         console.error("[EditorShell autosave]", error);
         setSaving("error");
       }
-    }, DEBOUNCE_MS);
+    };
+    pendingSaveRef.current = save;
+    setSaving("pending");
+    saveTimer.current = setTimeout(save, DEBOUNCE_MS);
     return () => clearTimeout(saveTimer.current);
   }, [_docSignature, setSaving]);
 

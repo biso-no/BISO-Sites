@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  PageEditorLoadResult,
-  PageTranslationEditorEntry,
-} from "@repo/api/page-builder";
+import type { PageEditorLoadResult } from "@repo/api/page-builder";
 import type {
   EditorCampus,
   EditorDepartment,
@@ -11,9 +8,8 @@ import type {
   EditorLocaleOption,
   PageDoc,
 } from "@repo/editor";
-import { EditorShell, normalizePageDoc } from "@repo/editor";
+import { EditorShell } from "@repo/editor";
 import "@repo/editor/theme/styles.css";
-import { generateSlug } from "@repo/shared/utils/content-slug";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +20,11 @@ import {
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
 import { uploadMediaFile } from "@/lib/upload-client";
+import {
+  blankPageDoc,
+  buildInitialDocuments,
+  type LocaleDocuments,
+} from "./initial-documents";
 
 interface PageEditorClientProps {
   availableLocales: EditorLocale[];
@@ -36,8 +37,6 @@ interface PageEditorClientProps {
   pageId: string | null;
 }
 
-type LocaleDocuments = Partial<Record<EditorLocale, PageDoc>>;
-
 const LOCALE_LABELS: Record<EditorLocale, string> = {
   no: "Norwegian",
   en: "English",
@@ -45,79 +44,6 @@ const LOCALE_LABELS: Record<EditorLocale, string> = {
 
 function cloneDoc(doc: PageDoc): PageDoc {
   return structuredClone(doc);
-}
-
-function emptyDoc({
-  locale,
-  slug,
-  campus,
-  department,
-  status,
-  source,
-}: {
-  locale: EditorLocale;
-  slug?: string | null;
-  campus?: string | null;
-  department?: string | null;
-  status?: PageDoc["meta"]["status"];
-  source?: PageDoc | null;
-}): PageDoc {
-  const title = locale === "no" ? "Uten navn" : "Untitled page";
-  return {
-    meta: {
-      title,
-      slug: slug || generateSlug(title) || "untitled",
-      campus: campus ?? "",
-      department: department ?? "",
-      accentColor: source?.meta.accentColor ?? "#3DA9E0",
-      description: "",
-      status: status ?? "draft",
-    },
-    sections: [],
-    version: 2,
-  };
-}
-
-function getTranslationDoc(
-  entry: PageTranslationEditorEntry | undefined
-): PageDoc | null {
-  const doc = (entry?.draftDocument ??
-    entry?.publishedDocument ??
-    null) as PageDoc | null;
-  return doc ? normalizePageDoc(doc) : null;
-}
-
-function buildInitialDocuments(
-  initialPage: PageEditorLoadResult | null,
-  initialLocale: EditorLocale,
-  defaultCampusId: string
-): LocaleDocuments {
-  const docs: LocaleDocuments = {};
-
-  if (initialPage) {
-    for (const locale of initialPage.availableLocales) {
-      const doc = getTranslationDoc(initialPage.translations[locale]);
-      if (doc) {
-        // Documents saved before campus lived on them get the page's campus.
-        docs[locale] = cloneDoc({
-          ...doc,
-          meta: { ...doc.meta, campus: doc.meta.campus ?? defaultCampusId },
-        });
-      }
-    }
-  }
-
-  if (!docs[initialLocale]) {
-    docs[initialLocale] = emptyDoc({
-      locale: initialLocale,
-      slug: initialPage?.page.slug,
-      campus: defaultCampusId,
-      department: initialPage?.page.departmentId,
-      status: initialPage?.page.status === "published" ? "published" : "draft",
-    });
-  }
-
-  return docs;
 }
 
 function syncSharedMeta(
@@ -177,10 +103,11 @@ export function PageEditorClient({
 
   const activeDoc =
     documents[activeLocale] ??
-    emptyDoc({
+    blankPageDoc({
+      defaultCampusId,
       locale: activeLocale,
-      slug: initialPage?.page.slug,
-      department: initialPage?.page.departmentId,
+      page: initialPage?.page,
+      translation: initialPage?.translations[activeLocale],
     });
 
   const localeOptions = useMemo<EditorLocaleOption[]>(
@@ -232,12 +159,12 @@ export function PageEditorClient({
       }
       return {
         ...current,
-        [locale]: emptyDoc({
+        [locale]: blankPageDoc({
+          defaultCampusId,
           locale,
-          slug: activeDoc.meta.slug,
-          department: activeDoc.meta.department,
-          status: activeDoc.meta.status,
+          page: initialPage?.page,
           source: activeDoc,
+          translation: initialPage?.translations[locale],
         }),
       };
     });
@@ -297,6 +224,9 @@ export function PageEditorClient({
         )
       );
       setActiveLocale(targetLocale);
+      // The editor autosaves only real edits, and a generated draft opens as
+      // the locale's loaded document, so it is stored here.
+      await handleSave(translatedDocument, targetLocale);
       toast.success(
         `Translated ${LOCALE_LABELS[activeLocale]} to ${LOCALE_LABELS[targetLocale]}`
       );
