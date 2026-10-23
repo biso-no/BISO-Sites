@@ -326,10 +326,36 @@ describe("POST /api/form/submit: project pages", () => {
     expect(mocks.sendEmail).not.toHaveBeenCalled();
   });
 
+  function publishProject(row: Record<string, unknown>) {
+    mocks.department.mockResolvedValue({ $id: "d-nat" });
+    mocks.page.mockResolvedValue({
+      row: { $id: "page-1", campus_id: "5", ...row },
+      translation: { is_published: true },
+      doc: {
+        version: 2,
+        meta: {},
+        sections: [
+          { id: "s", layout: {}, columns: [{ id: "c", blocks: [block()] }] },
+        ],
+      },
+    });
+  }
+
   it("accepts the page of a known project", async () => {
-    publish(block());
+    publishProject({ department_id: "d-nat", slug: "projects/winter-games" });
     mocks.sendEmail.mockResolvedValue(undefined);
     const res = await post({ ...base, slug: "projects/winter-games" });
     expect(res.status).toBe(200);
+  });
+
+  it("refuses a row at a project address with the wrong department", async () => {
+    publishProject({ department_id: null, slug: "projects/winter-games" });
+    expect(
+      (await post({ ...base, slug: "projects/winter-games" })).status
+    ).toBe(404);
+    publishProject({ department_id: "d-nat", slug: "projécts/winter-games" });
+    expect(
+      (await post({ ...base, slug: "projects/winter-games" })).status
+    ).toBe(404);
   });
 });

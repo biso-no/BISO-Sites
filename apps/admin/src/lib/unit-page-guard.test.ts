@@ -179,7 +179,7 @@ describe("assertProjectPageNamespace", () => {
   });
 
   test("refuses renaming an ordinary page into the namespace", () => {
-    expect(assertProjectPageNamespace("about", "projects/x")).toBeNull();
+    expect(assertProjectPageNamespace("about", "projects/x")).not.toBeNull();
     expect(
       assertProjectPageNamespace("about", "projects/winter-games")
     ).not.toBeNull();
@@ -204,6 +204,11 @@ describe("assertProjectPageNamespace", () => {
     expect(
       assertProjectPageNamespace("about", "PROJECTS/Fadderullan")
     ).not.toBeNull();
+  });
+
+  test("reserves unknown projects too", () => {
+    expect(assertProjectPageNamespace(null, "projects/charity")).not.toBeNull();
+    expect(assertProjectPageNamespace(null, "Projects/a/b")).not.toBeNull();
   });
 
   test("leaves ordinary slugs alone", () => {

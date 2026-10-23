@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { Query } from "@repo/api";
 import type { UserAuthContext } from "@/lib/authorization";
 
 const NATIONAL = /national/i;
+const HUB_ERROR = /global admin/i;
 
 function makeCtx(overrides: Partial<UserAuthContext> = {}): UserAuthContext {
   return {
@@ -65,8 +67,14 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { savePageEditorDoc } = await import("./pages");
-const { createProjectHubPage, createUnitPage } = await import("./departments");
+const {
+  deletePageAction,
+  publishPageAction,
+  savePageEditorDoc,
+  unpublishPageAction,
+} = await import("./pages");
+const { createProjectHubPage, createUnitPage, getDepartmentWithPage } =
+  await import("./departments");
 
 const docAt = (slug: string, department = "") => ({
   meta: {
@@ -91,7 +99,12 @@ beforeEach(() => {
   adminDb.getRow.mockReset();
   adminDb.listRows.mockReset();
   adminDb.listRows.mockImplementation((_db: string, table: string) => {
-    const rows = table === "pages" ? pagesTable.rows : departmentsTable.rows;
+    let rows: Record<string, unknown>[] = [];
+    if (table === "pages") {
+      rows = pagesTable.rows;
+    } else if (table === "departments") {
+      rows = departmentsTable.rows;
+    }
     return Promise.resolve({ rows, total: rows.length });
   });
 });
@@ -103,6 +116,17 @@ describe("savePageEditorDoc and the projects/ namespace", () => {
       "Projects/winter-games",
       " projects/winter-games",
     ]) {
+      const result = await savePageEditorDoc({
+        doc: docAt(slug) as never,
+        id: null,
+      });
+      expect(result).toHaveProperty("error");
+    }
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+
+  test("reserves the whole projects/ prefix, known project or not", async () => {
+    for (const slug of ["projects/charity", "projects/a/b", "PROJECTS/x"]) {
       const result = await savePageEditorDoc({
         doc: docAt(slug) as never,
         id: null,
@@ -255,6 +279,74 @@ describe("createUnitPage for project units", () => {
     pagesTable.rows = [{ $id: "squatter", department_id: null }];
     expect(await createUnitPage("dept-1")).toHaveProperty("error");
     expect(savePageDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe("national unit address and the card", () => {
+  test("a national unit named like a hub project keeps units/national/", async () => {
+    departmentsTable.rows = [
+      unit({ Name: "Fadderullan", slug: "fadderullan" }),
+    ];
+    await createUnitPage("dept-1");
+    expect(savePageDraft.mock.calls[0]?.[0].doc.meta.slug).toBe(
+      "units/national/fadderullan"
+    );
+  });
+
+  test("a hub squatting a national project's address is named as a hub", async () => {
+    departmentsTable.rows = [unit({})];
+    pagesTable.rows = [{ $id: "hub", department_id: null }];
+    const result = await createUnitPage("dept-1");
+    expect((result as { error: string }).error).toBe(
+      "A project hub page already uses this address"
+    );
+  });
+
+  test("the national Wintergames card looks up projects/winter-games", async () => {
+    departmentsTable.rows = [unit({})];
+    pagesTable.rows = [{ $id: "pw", department_id: "dept-1" }];
+    const result = await getDepartmentWithPage("dept-1");
+    expect(result?.page?.$id).toBe("pw");
+    const pageQueries = adminDb.listRows.mock.calls
+      .filter((call) => call[1] === "pages")
+      .flatMap((call) => call[2] as string[]);
+    expect(pageQueries).toContain(Query.equal("slug", "projects/winter-games"));
+  });
+});
+
+describe("hub pages: publish, unpublish, archive, campus", () => {
+  const hubRow = {
+    $id: "hub",
+    campus: "1",
+    campus_id: "1",
+    department: null,
+    department_id: null,
+    slug: "projects/fadderullan",
+  };
+  const campusAdmin = () =>
+    makeCtx({
+      managedCampusIds: ["1"],
+      resolvedCampusIds: ["1"],
+      roles: ["campusadmin"],
+    });
+
+  test("a campus admin cannot publish, unpublish or archive a hub", async () => {
+    currentCtx = campusAdmin();
+    adminDb.getRow.mockResolvedValue(hubRow);
+    await expect(publishPageAction("hub", "no")).rejects.toThrow(HUB_ERROR);
+    await expect(unpublishPageAction("hub", "no")).rejects.toThrow(HUB_ERROR);
+    await expect(deletePageAction("hub")).rejects.toThrow(HUB_ERROR);
+  });
+
+  test("saving a hub with meta.campus stores a null campus", async () => {
+    adminDb.getRow.mockResolvedValue(hubRow);
+    const hubDoc = docAt("projects/fadderullan");
+    const result = await savePageEditorDoc({
+      doc: { ...hubDoc, meta: { ...hubDoc.meta, campus: "1" } } as never,
+      id: "hub",
+    });
+    expect(result).not.toHaveProperty("error");
+    expect(savePageDraft.mock.calls[0]?.[0].campusId).toBeNull();
   });
 });
 

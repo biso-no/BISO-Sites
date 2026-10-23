@@ -7,6 +7,7 @@ const NOT_FOUND = "NEXT_NOT_FOUND";
 const getLargeEventBySlug = vi.hoisted(() => vi.fn());
 const cachedPublishedPage = vi.hoisted(() => vi.fn());
 const cachedDepartmentTheme = vi.hoisted(() => vi.fn());
+const cachedDepartmentBySlugAndCampus = vi.hoisted(() => vi.fn());
 const renderPublishedEditorPage = vi.hoisted(() =>
   vi.fn(async () => "EDITOR_PAGE")
 );
@@ -29,6 +30,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/data/public-content", () => ({
+  cachedDepartmentBySlugAndCampus,
   cachedDepartmentTheme,
   cachedPageEventsFeed: vi.fn(async () => []),
   cachedPublishedPage,
@@ -65,6 +67,8 @@ describe("ProjectDetailPage", () => {
     cachedPublishedPage.mockReset();
     cachedPublishedPage.mockResolvedValue(null);
     cachedDepartmentTheme.mockReset();
+    cachedDepartmentBySlugAndCampus.mockReset();
+    cachedDepartmentBySlugAndCampus.mockResolvedValue({ $id: "d-nat" });
     renderPublishedEditorPage.mockClear();
   });
 
@@ -81,7 +85,7 @@ describe("ProjectDetailPage", () => {
   describe("editor page", () => {
     const page = {
       doc: { meta: {}, sections: [], version: 2 },
-      row: { department_id: "d-nat" },
+      row: { department_id: "d-nat", slug: "projects/winter-games" },
       translation: {
         description: "Stored description",
         is_published: true,
@@ -114,7 +118,7 @@ describe("ProjectDetailPage", () => {
     it("an unbound hub page passes no department theme", async () => {
       cachedPublishedPage.mockResolvedValue({
         ...page,
-        row: { department_id: null },
+        row: { department_id: null, slug: "projects/fadderullan" },
       });
 
       await render("fadderullan");
@@ -123,6 +127,51 @@ describe("ProjectDetailPage", () => {
       expect(renderPublishedEditorPage).toHaveBeenCalledWith(
         expect.objectContaining({ departmentTheme: null })
       );
+    });
+
+    it("ignores a page whose department is not the national unit", async () => {
+      cachedPublishedPage.mockResolvedValue({
+        ...page,
+        row: { department_id: "d-other", slug: "projects/winter-games" },
+      });
+      await render("winter-games");
+      expect(renderPublishedEditorPage).not.toHaveBeenCalled();
+    });
+
+    it("ignores a department-less page at a national project's address", async () => {
+      cachedPublishedPage.mockResolvedValue({
+        ...page,
+        row: { department_id: null, slug: "projects/winter-games" },
+      });
+      await render("winter-games");
+      expect(renderPublishedEditorPage).not.toHaveBeenCalled();
+    });
+
+    it("ignores a hub page that carries a department", async () => {
+      cachedPublishedPage.mockResolvedValue({
+        ...page,
+        row: { department_id: "d-x", slug: "projects/fadderullan" },
+      });
+      await render("fadderullan");
+      expect(renderPublishedEditorPage).not.toHaveBeenCalled();
+    });
+
+    it("ignores a row whose stored slug only matches by collation", async () => {
+      cachedPublishedPage.mockResolvedValue({
+        ...page,
+        row: { department_id: "d-nat", slug: "projécts/winter-games" },
+      });
+      await render("winter-games");
+      expect(renderPublishedEditorPage).not.toHaveBeenCalled();
+    });
+
+    it("accepts a case-variant stored slug, which is the same address", async () => {
+      cachedDepartmentTheme.mockResolvedValue(null);
+      cachedPublishedPage.mockResolvedValue({
+        ...page,
+        row: { department_id: "d-nat", slug: "Projects/winter-games" },
+      });
+      await expect(render("winter-games")).resolves.toBe("EDITOR_PAGE");
     });
 
     it("renders the coded hub when no page is published", async () => {

@@ -18,6 +18,8 @@ export function resolvePageSaveCampusId(params: {
   authorCampusId: string | null;
   /** A unit page: its URL encodes the campus, so it cannot move. */
   campusLocked?: boolean;
+  /** A project hub page is national: its campus is null whatever is posted. */
+  hub?: boolean;
   /** The campus chosen in the editor; undefined when the document has none. */
   chosenCampusId?: string | null;
   isUpdate: boolean;
@@ -27,9 +29,13 @@ export function resolvePageSaveCampusId(params: {
     authorCampusId,
     campusLocked,
     chosenCampusId,
+    hub,
     isUpdate,
     persistedCampusId,
   } = params;
+  if (hub) {
+    return null;
+  }
   if (isUpdate && persistedCampusId && campusLocked) {
     return persistedCampusId;
   }

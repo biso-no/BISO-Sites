@@ -60,6 +60,36 @@ export function projectPageSlug(project: ProjectSlug): string {
 }
 
 /**
+ * Whether a slug is anywhere under the reserved `projects/` prefix, known
+ * project or not. Shaped like `isUnitPageSlug` (trim, lowercase, prefix): the
+ * whole namespace is the admin's, so a page saved at `projects/charity`
+ * today cannot be served when `charity` becomes a project tomorrow.
+ */
+export function isProjectNamespaceSlug(
+  slug: string | null | undefined
+): boolean {
+  return (
+    typeof slug === "string" &&
+    slug.trim().toLowerCase().startsWith(PROJECT_PAGE_PREFIX)
+  );
+}
+
+/**
+ * The projects that run in several campuses and so have a department-less
+ * hub page. The other projects (Winter Games) are national only: their page
+ * belongs to their national unit. The one source for both admin and web.
+ */
+export const HUB_PROJECTS: readonly { name: string; slug: ProjectSlug }[] = [
+  { name: "Fadderullan", slug: "fadderullan" },
+  { name: "Karrieredagene", slug: "karrieredagene" },
+  { name: "Bergensbaneløpet", slug: "bergensbanelopet" },
+];
+
+export function isHubProject(project: ProjectSlug): boolean {
+  return HUB_PROJECTS.some((entry) => entry.slug === project);
+}
+
+/**
  * Whether a stored page slug is exactly `projects/<known project>`.
  *
  * Trims and lowercases, like `isUnitPageSlug`: Appwrite matches slugs

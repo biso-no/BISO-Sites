@@ -1,4 +1,4 @@
-import { isProjectPageSlug } from "@repo/shared/utils/project-units";
+import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 
 /**
@@ -86,7 +86,7 @@ export function assertProjectPageNamespace(
   persistedSlug: string | null | undefined,
   nextSlug: string
 ): string | null {
-  if (!isProjectPageSlug(nextSlug)) {
+  if (!isProjectNamespaceSlug(nextSlug)) {
     return null;
   }
   if (persistedSlug === nextSlug) {
@@ -106,13 +106,38 @@ export function assertProjectHubWriteAccess(
   persisted: { department_id?: string | null; slug?: string | null },
   isGlobalAdmin: boolean
 ): string | null {
-  if (!isProjectPageSlug(persisted.slug)) {
-    return null;
-  }
-  if (persisted.department_id || isGlobalAdmin) {
+  if (!isProjectHubPage(persisted) || isGlobalAdmin) {
     return null;
   }
   return "Only a global admin can edit a project hub page";
+}
+
+/**
+ * A hub page: anywhere in the `projects/` namespace with no department. The
+ * whole namespace counts, not just known projects, so a legacy
+ * `projects/<anything>` row nobody owns is global-admin territory too.
+ */
+export function isProjectHubPage(
+  persisted: { department_id?: string | null; slug?: string | null } | null
+): boolean {
+  return isProjectNamespaceSlug(persisted?.slug) && !persisted?.department_id;
+}
+
+/**
+ * Throwing form of `assertProjectHubWriteAccess` for the actions that throw
+ * (publish, unpublish, archive). Runs after the caller's own access check.
+ */
+export function requireProjectHubAccess(
+  persisted: { department_id?: string | null; slug?: string | null },
+  roles: readonly string[]
+): void {
+  const error = assertProjectHubWriteAccess(
+    persisted,
+    roles.includes("globaladmin")
+  );
+  if (error) {
+    throw new Error(error);
+  }
 }
 
 /**
@@ -144,5 +169,5 @@ export function assertProjectPageSave({
 
 /** A page whose address is owned by the admin (`units/…` or `projects/<project>`). */
 export function isAdminOwnedPageSlug(slug: string | null | undefined): boolean {
-  return isUnitPageSlug(slug) || isProjectPageSlug(slug);
+  return isUnitPageSlug(slug) || isProjectNamespaceSlug(slug);
 }

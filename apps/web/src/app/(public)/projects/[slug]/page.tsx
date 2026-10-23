@@ -33,6 +33,7 @@ import {
   renderPublishedEditorPage,
 } from "@/lib/published-editor-page";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
+import { projectPageIsGenuine } from "@/lib/unit-page";
 
 /**
  * The project's published editor page, or null: only a known project may have
@@ -46,7 +47,10 @@ const publishedProjectPage = cache(async (slug: string, locale: Locale) => {
   const result = await cachedPublishedPage(projectPageSlug(slug), locale).catch(
     () => null
   );
-  return isRenderablePage(result) ? result : null;
+  if (!isRenderablePage(result)) {
+    return null;
+  }
+  return (await projectPageIsGenuine(result, slug)) ? result : null;
 });
 
 export async function generateMetadata({

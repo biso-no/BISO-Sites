@@ -1,12 +1,12 @@
 "use client";
 
+import { HUB_PROJECTS } from "@repo/shared/utils/project-units";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createProjectHubPage } from "@/app/(portal)/_actions/departments";
 import { StudioButton } from "@/app/(portal)/_components/studio";
-import { HUB_PROJECTS } from "@/lib/project-hub";
 
 /**
  * Global admins only (the page hides it from everyone else, and the action

@@ -11,6 +11,9 @@ import type {
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { unitPageTemplate } from "@repo/editor/templates";
 import {
+  HUB_PROJECTS,
+  isHubProject,
+  isProjectPageSlug,
   isProjectSlug,
   isProjectUnit,
   projectPageSlug,
@@ -35,7 +38,6 @@ import {
   type PaginatedResult,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
-import { HUB_PROJECTS } from "@/lib/project-hub";
 import { buildContentTranslationPermissions } from "@/lib/utils";
 import { logAuditEvent } from "./audit-log";
 
@@ -613,10 +615,7 @@ export async function getDepartmentWithPage(id: string): Promise<{
   const { db: adminDb } = await createAdminClient();
   const translations = await loadDepartmentTranslations(adminDb, id);
 
-  const slug = unitPageSlug({
-    campusId: department.campus_id,
-    slug: department.slug,
-  });
+  const slug = unitPageAddress(department);
   if (!slug) {
     return { department, page: null, slugConflict: false, translations };
   }
@@ -680,13 +679,24 @@ function unitPageAddress(department: {
     department.campus_id === NATIONAL_CAMPUS_ID
       ? projectSlugForUnit(department.slug)
       : null;
-  if (project) {
+  // A hub project's page is the department-less hub, never a unit's.
+  if (project && !isHubProject(project)) {
     return projectPageSlug(project);
   }
   return unitPageSlug({
     campusId: department.campus_id,
     slug: department.slug,
   });
+}
+
+function addressTakenError(
+  row: { department_id?: string | null },
+  slug: string
+): string {
+  if (!row.department_id && isProjectPageSlug(slug)) {
+    return "A project hub page already uses this address";
+  }
+  return "Another department already owns a page at this address. Contact BISO IT to sort it out.";
 }
 
 export async function createUnitPage(
@@ -750,10 +760,7 @@ export async function createUnitPage(
       // returning it would drop this board straight into another
       // department's editor.
       if (already.department_id !== department.$id) {
-        return {
-          error:
-            "Another department already owns a page at this address. Contact BISO IT to sort it out.",
-        };
+        return { error: addressTakenError(already, slug) };
       }
       return { pageId: already.$id };
     }
@@ -837,10 +844,7 @@ export async function createUnitPage(
         throw writeError;
       }
       if (raceWinner.department_id !== department.$id) {
-        return {
-          error:
-            "Another department already owns a page at this address. Contact BISO IT to sort it out.",
-        };
+        return { error: addressTakenError(raceWinner, slug) };
       }
       pageId = raceWinner.$id;
     }
@@ -877,8 +881,11 @@ export async function createProjectHubPage(
     if (!ctx.roles.includes("globaladmin")) {
       return { error: "Only a global admin can create a project hub page" };
     }
-    if (!isProjectSlug(project)) {
-      return { error: "Unknown project" };
+    if (!(isProjectSlug(project) && isHubProject(project))) {
+      return {
+        error:
+          "Only a multi-campus project has a hub page. A national project's page is created from its unit under Departments.",
+      };
     }
     const slug = projectPageSlug(project);
     const { db } = await createAdminClient();

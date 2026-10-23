@@ -35,6 +35,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/actions/locale", () => ({ getLocale: async () => "no" }));
 vi.mock("./resolve", () => ({ resolveUnit }));
 vi.mock("@/lib/data/public-content", () => ({
+  cachedDepartmentBySlugAndCampus: vi.fn(async () => ({ $id: "d-nat" })),
   cachedPageDepartmentsFeed: vi.fn(async () => ({ departments: [] })),
   cachedPageEventsFeed,
   cachedPageJobsFeed: vi.fn(async () => []),
@@ -345,7 +346,11 @@ describe("unit route: national project redirect (C3)", () => {
       sections: [{ columns: [{ blocks: [], id: "c" }], id: "s" }],
       version: 2,
     },
-    row: { department_id: null, status: "published" },
+    row: {
+      department_id: "d-nat",
+      slug: "projects/winter-games",
+      status: "published",
+    },
     translation: { is_published: true, title: "Winter Games" },
   };
 
@@ -375,6 +380,19 @@ describe("unit route: national project redirect (C3)", () => {
     await expect(UnitPage({ params: nationalParams })).rejects.toThrow(
       "NEXT_REDIRECT /projects/winter-games"
     );
+  });
+
+  it("does not redirect to a squatter row at the project address", async () => {
+    for (const row of [
+      { ...projectPage.row, department_id: null },
+      { ...projectPage.row, department_id: "d-other" },
+      { ...projectPage.row, slug: "projécts/winter-games" },
+    ]) {
+      cachedPublishedPage.mockImplementation(async (slug: string) =>
+        slug === "projects/winter-games" ? { ...projectPage, row } : null
+      );
+      await expect(UnitPage({ params: nationalParams })).resolves.toBeDefined();
+    }
   });
 
   it("stays as today while no page exists there", async () => {

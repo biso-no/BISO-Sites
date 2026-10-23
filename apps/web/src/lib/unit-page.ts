@@ -2,6 +2,12 @@ import type { Departments } from "@repo/api/types/appwrite";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc } from "@repo/editor/types";
 import {
+  isHubProject,
+  PROJECT_UNIT_SLUGS,
+  type ProjectSlug,
+  projectPageSlug,
+} from "@repo/shared/utils/project-units";
+import {
   campusSegmentToId,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
@@ -91,4 +97,37 @@ export async function findCanonicalUnit(
   }
   const canonical = unitCanonicalPath({ campusId, slug: department.slug });
   return canonical ? { canonical, department } : null;
+}
+
+const NATIONAL_CAMPUS_ID = "5";
+
+/**
+ * Whether a page found at `projects/<project>` is genuinely that project's:
+ * its stored slug, trimmed and lowercased, is EXACTLY the project address
+ * (Appwrite's collation also folds accents, so `projécts/…` can match the
+ * lookup), and its department fits. A hub project's page has no department; a
+ * national project's page is bound to that project's national unit (campus "5",
+ * slug from PROJECT_UNIT_SLUGS). The admin refuses to write anything else
+ * there, but a stray or legacy row must not be served on trust. Mirrors
+ * `publishedUnitPage`'s ownership rule.
+ */
+export async function projectPageIsGenuine(
+  pageResult: PageLookupResult,
+  project: ProjectSlug
+): Promise<boolean> {
+  const row = pageResult?.row;
+  if (!row || row.slug?.trim().toLowerCase() !== projectPageSlug(project)) {
+    return false;
+  }
+  if (isHubProject(project)) {
+    return row.department_id == null;
+  }
+  if (row.department_id == null) {
+    return false;
+  }
+  const unit = await cachedDepartmentBySlugAndCampus(
+    PROJECT_UNIT_SLUGS[project],
+    NATIONAL_CAMPUS_ID
+  ).catch(() => null);
+  return unit?.$id === row.department_id;
 }

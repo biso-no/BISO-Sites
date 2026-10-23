@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  HUB_PROJECTS,
+  isHubProject,
+  isProjectNamespaceSlug,
   isProjectPageSlug,
   isProjectUnit,
   PROJECT_UNIT_SLUGS,
@@ -101,5 +104,27 @@ describe("project page slugs", () => {
     expect(isProjectPageSlug(" projects/winter-games")).toBe(true);
     expect(isProjectPageSlug("PROJECTS/Winter-Games ")).toBe(true);
     expect(isProjectPageSlug("Projects/not-a-project")).toBe(false);
+  });
+});
+
+describe("isProjectNamespaceSlug", () => {
+  it("covers the whole prefix, trimmed and case-insensitive", () => {
+    expect(isProjectNamespaceSlug("projects/charity")).toBe(true);
+    expect(isProjectNamespaceSlug(" Projects/x/y")).toBe(true);
+    expect(isProjectNamespaceSlug("projects")).toBe(false);
+    expect(isProjectNamespaceSlug("project/x")).toBe(false);
+    expect(isProjectNamespaceSlug(null)).toBe(false);
+  });
+});
+
+describe("HUB_PROJECTS", () => {
+  it("lists the multi-campus projects, not Winter Games", () => {
+    expect(HUB_PROJECTS.map((p) => p.slug)).toEqual([
+      "fadderullan",
+      "karrieredagene",
+      "bergensbanelopet",
+    ]);
+    expect(isHubProject("fadderullan")).toBe(true);
+    expect(isHubProject("winter-games")).toBe(false);
   });
 });

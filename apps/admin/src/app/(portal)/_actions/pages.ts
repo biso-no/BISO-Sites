@@ -57,6 +57,8 @@ import {
   assertUnitPageBindingUnchanged,
   assertUnitPageNamespace,
   isAdminOwnedPageSlug,
+  isProjectHubPage,
+  requireProjectHubAccess,
 } from "@/lib/unit-page-guard";
 import {
   applyScopeQueries,
@@ -371,6 +373,7 @@ export async function savePageEditorDoc({
     const campusId = resolvePageSaveCampusId({
       authorCampusId: resolvePageCampusId(ctx),
       campusLocked: isAdminOwnedPageSlug(existing?.slug),
+      hub: isProjectHubPage(existing),
       chosenCampusId,
       isUpdate: Boolean(existing),
       persistedCampusId: persisted?.campus ?? null,
@@ -434,6 +437,7 @@ export async function publishPageAction(
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
     assertPublishAccess(ctx, ownership.campus, ownership.department);
+    requireProjectHubAccess(page, ctx.roles);
 
     if (
       translationOptions?.enabled &&
@@ -703,6 +707,7 @@ export async function unpublishPageAction(
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
     assertPublishAccess(ctx, ownership.campus, ownership.department);
+    requireProjectHubAccess(page, ctx.roles);
 
     await pbUnpublishPage({ id, locale });
     await logAuditEvent(ctx, "page_unpublished", {
@@ -729,6 +734,7 @@ export async function deletePageAction(id: string) {
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
     assertWriteAccess(ctx, ownership.campus, ownership.department);
+    requireProjectHubAccess(page, ctx.roles);
 
     await db.updateRow("app", "pages", id, { status: "archived" });
     await logAuditEvent(ctx, "page_deleted", {

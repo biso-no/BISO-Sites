@@ -15,7 +15,7 @@ import {
   isRenderablePage,
   renderPublishedEditorPage,
 } from "@/lib/published-editor-page";
-import { publishedUnitPage } from "@/lib/unit-page";
+import { projectPageIsGenuine, publishedUnitPage } from "@/lib/unit-page";
 import { CampusChooser } from "./_components/campus-chooser";
 import { UnitView } from "./_components/unit-view";
 import DepartmentLoading from "./loading";
@@ -78,7 +78,10 @@ export default async function UnitPage({ params }: Props) {
       projectPageSlug(project),
       locale
     ).catch(() => null);
-    if (isRenderablePage(projectPage)) {
+    if (
+      isRenderablePage(projectPage) &&
+      (await projectPageIsGenuine(projectPage, project))
+    ) {
       permanentRedirect(`/projects/${project}`);
     }
   }

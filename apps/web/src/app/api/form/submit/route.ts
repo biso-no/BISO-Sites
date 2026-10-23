@@ -4,13 +4,20 @@ import { sendEmail } from "@repo/connectors/email";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import { isBisoRecipient } from "@repo/editor/submit-rules";
 import type { PageDoc } from "@repo/editor/types";
-import { isProjectPageSlug } from "@repo/shared/utils/project-units";
+import {
+  isProjectNamespaceSlug,
+  isProjectSlug,
+} from "@repo/shared/utils/project-units";
 import { NextResponse } from "next/server";
 import { cachedPublishedPage } from "@/lib/data/public-content";
 import { type ResolvedSubmission, resolveSubmission } from "@/lib/form-submit";
 import { clampString, escapeHtml } from "@/lib/html-escape";
 import { clientKeyFromHeaders, createRateLimiter } from "@/lib/rate-limit";
-import { findCanonicalUnit, publishedUnitPage } from "@/lib/unit-page";
+import {
+  findCanonicalUnit,
+  projectPageIsGenuine,
+  publishedUnitPage,
+} from "@/lib/unit-page";
 
 const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
 /** The `page_translations`/`pages` slug column size. */
@@ -211,8 +218,14 @@ async function loadDoc(slug: string, locale: FormLocale) {
   }
 
   // Reserved like `units/`: only the page of a known project is served there.
-  if (slug.startsWith("projects/") && !isProjectPageSlug(slug)) {
-    return null;
+  if (isProjectNamespaceSlug(slug)) {
+    const project = slug.trim().toLowerCase().slice("projects/".length);
+    if (!isProjectSlug(project)) {
+      return null;
+    }
+    if (!(await projectPageIsGenuine(page, project))) {
+      return null;
+    }
   }
 
   return { ...base, doc: normalizePageDoc(page.doc as PageDoc) };
