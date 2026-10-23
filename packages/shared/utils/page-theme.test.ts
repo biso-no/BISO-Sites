@@ -327,30 +327,43 @@ const HEX_CHANNELS = 0xff_ff_ff;
  * panel suggests, so the sweep is dense right at the thresholds, where a
  * derived surface is most likely to break a guarantee.
  */
-function sweepThemes(): { accent: string; dark: string }[] {
+interface SweepTheme {
+  /** The accent is the panel's "Use #…" suggestion. */
+  accentSuggested: boolean;
+  theme: { accent: string; dark: string };
+}
+
+function sweepThemes(): SweepTheme[] {
   const random = seededRandom(SWEEP_SEED);
   const hex = () =>
     `#${Math.floor(random() * (HEX_CHANNELS + 1))
       .toString(16)
       .padStart(6, "0")}`;
-  const themes: { accent: string; dark: string }[] = [];
+  const themes: SweepTheme[] = [];
   for (let i = 0; i < SWEEP_ATTEMPTS && themes.length < SWEEP_THEMES; i++) {
     let theme = { dark: hex(), accent: hex() };
     const check = checkTheme(theme);
+    const suggested = check.accent.suggestion;
     if (!check.ok) {
       const dark = check.dark.suggestion ?? theme.dark;
-      const accent = check.accent.suggestion ?? theme.accent;
-      theme = { dark, accent };
+      theme = { dark, accent: suggested ?? theme.accent };
     }
     if (checkTheme(theme).ok) {
-      themes.push(theme);
+      themes.push({ accentSuggested: suggested !== null, theme });
     }
   }
   return themes;
 }
 
+/** Relative lightness, for "is this surface lighter than that one". */
+const lightness = (hex: string) => contrastRatio(hex, "#000000");
+
 describe("themeTokens on a seeded sweep of passing themes", () => {
-  const themes = [{ dark: "#261f1f", accent: "#e65c2e" }, ...sweepThemes()];
+  const sweep = sweepThemes();
+  const themes = [
+    { dark: "#261f1f", accent: "#e65c2e" },
+    ...sweep.map((entry) => entry.theme),
+  ];
 
   it("sweeps at least 1000 passing themes", () => {
     expect(themes.length).toBeGreaterThanOrEqual(1000);
@@ -390,6 +403,18 @@ describe("themeTokens on a seeded sweep of passing themes", () => {
     }
   });
 
+  it("a suggested accent never forces raised below the dark", () => {
+    const suggested = sweep.filter((entry) => entry.accentSuggested);
+    expect(suggested.length).toBeGreaterThan(100);
+    for (const { theme } of suggested) {
+      const raised = themeTokens(theme)["--biso-deep-raised"];
+      expect({
+        theme,
+        lifted: lightness(raised) > lightness(theme.dark),
+      }).toEqual({ theme, lifted: true });
+    }
+  });
+
   it("lifts #261f1f just enough to keep #e65c2e at 4.5 : 1", () => {
     const t = themeTokens({ dark: "#261f1f", accent: "#e65c2e" });
     const raised = t["--biso-deep-raised"];
@@ -398,5 +423,34 @@ describe("themeTokens on a seeded sweep of passing themes", () => {
     expect(
       contrastRatio(t["--biso-deep-ink-muted"], raised)
     ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("accent suggestions leave room for raised cards", () => {
+  const dark = "#261f1f";
+  // White passes everywhere, so it shows the raised surface at the full step.
+  const fullStep = themeTokens({ dark, accent: "#ffffff" })[
+    "--biso-deep-raised"
+  ];
+
+  it("using the suggestion keeps raised a full step above the dark", () => {
+    const check = checkTheme({ dark, accent: "#a04020" });
+    expect(check.accent.ok).toBe(false);
+    const suggestion = check.accent.suggestion as string;
+    expect(suggestion).toMatch(HEX);
+    expect(hueDelta(suggestion, "#a04020")).toBeLessThanOrEqual(2);
+
+    const theme = { dark, accent: suggestion };
+    expect(checkTheme(theme).ok).toBe(true);
+    expect(fullStep).toBe("#342a2a");
+    expect(themeTokens(theme)["--biso-deep-raised"]).toBe(fullStep);
+  });
+
+  it("the pass rule is still accent on dark at 4.5 : 1", () => {
+    // #e65c2e passes on the dark (4.57) though it would not on a full-step
+    // raised; it is not flagged, and gets no suggestion.
+    const check = checkTheme({ dark, accent: "#e65c2e" });
+    expect(check.accent.ok).toBe(true);
+    expect(check.accent.suggestion).toBeNull();
   });
 });

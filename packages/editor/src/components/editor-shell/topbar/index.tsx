@@ -17,6 +17,9 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
 
   const isPublished = meta.status === "published";
   const themeBlocked = themeBlocksSave(meta);
+  // Leaving now would drop every edit since the colours started failing:
+  // held like the locale switch until they pass.
+  const exitBlocked = saving === "blocked";
   let publishTitle = "Publish to biso.no";
   if (themeBlocked) {
     publishTitle = THEME_BLOCKS_PUBLISH;
@@ -54,8 +57,13 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
           <button
             aria-label="Back to pages"
             className="pe-topbar__exit"
+            disabled={exitBlocked}
             onClick={onExit}
-            title="Back to pages"
+            title={
+              exitBlocked
+                ? "Fix the theme colours before leaving"
+                : "Back to pages"
+            }
             type="button"
           >
             ←

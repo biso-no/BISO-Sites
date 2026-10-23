@@ -276,6 +276,26 @@ export interface ThemeCheck {
 
 const INVALID: ColourCheck = { ok: false, ratio: 0, suggestion: null };
 
+/**
+ * The accent the panel offers in place of a failing one. It is aimed at the
+ * dark's raised surface at the full step rather than at the dark itself, so
+ * using it leaves room above the dark: `themeTokens` shrinks raised only for
+ * an accent that just scrapes past 4.5 : 1, and raised cards would then look
+ * like the background. Falls back to the shade just past the dark when no
+ * shade of the hue passes on raised. Passing is still judged on the dark.
+ */
+function suggestAccent(accent: string, dark: string): string | null {
+  const roomy = nearestPassingShade(
+    accent,
+    shiftLightness(dark, RAISED_STEP),
+    MIN_ACCENT_ON_DARK
+  );
+  if (roomy && contrastRatio(roomy, dark) >= MIN_ACCENT_ON_DARK) {
+    return roomy;
+  }
+  return nearestPassingShade(accent, dark, MIN_ACCENT_ON_DARK);
+}
+
 export function checkTheme(theme: PageTheme): ThemeCheck {
   const dark = normalizeHex(theme.dark);
   const accent = normalizeHex(theme.accent);
@@ -297,9 +317,7 @@ export function checkTheme(theme: PageTheme): ThemeCheck {
   if (accent && dark && darkForAccent) {
     const ratio = contrastRatio(accent, dark);
     const ok = ratio >= MIN_ACCENT_ON_DARK;
-    const suggestion = ok
-      ? null
-      : nearestPassingShade(accent, darkForAccent, MIN_ACCENT_ON_DARK);
+    const suggestion = ok ? null : suggestAccent(accent, darkForAccent);
     accentCheck = { ok, ratio, suggestion };
   }
 
@@ -387,7 +405,12 @@ const RAISED_STEPS = Math.round(RAISED_STEP / ROUND_NUDGE);
 function deriveRaised(dark: string, accent: string): string {
   const readable = (surface: string) =>
     contrastRatio(accent, surface) >= MIN_ACCENT_ON_DARK;
-  for (let step = RAISED_STEPS; step > 0; step--) {
+  // The full step exactly as `suggestAccent` aims at it.
+  const full = shiftLightness(dark, RAISED_STEP);
+  if (readable(full)) {
+    return full;
+  }
+  for (let step = RAISED_STEPS - 1; step > 0; step--) {
     const raised = shiftLightness(dark, step * ROUND_NUDGE);
     if (raised === dark) {
       break;
@@ -405,7 +428,7 @@ function deriveRaised(dark: string, accent: string): string {
       break;
     }
   }
-  return readable(dark) ? dark : shiftLightness(dark, RAISED_STEP);
+  return readable(dark) ? dark : full;
 }
 
 function mixWithWhite(dark: string, whiteShare: number): string {

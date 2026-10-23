@@ -55,3 +55,47 @@ test("a passing theme or none leaves Publish as it was", () => {
     expect(button.getAttribute("title")).toBe("Publish to biso.no");
   }
 });
+
+const renderExit = (saving: "blocked" | "idle" | "pending") => {
+  Object.assign(useEditorStore.getInitialState(), {
+    doc: {
+      meta: { department: "", slug: "a", status: "draft", title: "A" },
+      sections: [],
+      version: 2,
+    } satisfies PageDoc,
+    saving,
+  });
+  const html = renderToStaticMarkup(
+    <EditorCallbacksContext.Provider
+      value={{
+        activeLocale: "no",
+        campuses: [],
+        departments: [],
+        locales: [],
+        onExit: () => undefined,
+        onLocaleChange: () => undefined,
+        savePage: () => Promise.resolve(undefined),
+        uploadFile: () => Promise.resolve({ fileId: "", url: "" }),
+      }}
+    >
+      <Topbar />
+    </EditorCallbacksContext.Provider>
+  );
+  return parseHtml(html).querySelector(".pe-topbar__exit") as Element;
+};
+
+test("Exit is held while the theme blocks saving, like the locale switch", () => {
+  const exit = renderExit("blocked");
+  expect(exit.hasAttribute("disabled")).toBe(true);
+  expect(exit.getAttribute("title")).toBe(
+    "Fix the theme colours before leaving"
+  );
+});
+
+test("Exit works whenever saving is not blocked", () => {
+  for (const saving of ["idle", "pending"] as const) {
+    const exit = renderExit(saving);
+    expect(exit.hasAttribute("disabled")).toBe(false);
+    expect(exit.getAttribute("title")).toBe("Back to pages");
+  }
+});

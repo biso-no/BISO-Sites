@@ -276,3 +276,41 @@ test("a publish that copied the theme to the department drops it, with no save o
   await wait(SAVE_WAIT_MS);
   expect(saves.length).toBe(1);
 });
+
+test("Exit does nothing while blocked and leaves once the colours pass", async () => {
+  let exits = 0;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted = { host, root };
+  act(() => {
+    root.render(
+      createElement(EditorShell, {
+        activeLocale: "no" as EditorLocale,
+        departments: [],
+        initial: doc(section("s-1", "1", [["b-1"]])),
+        locales: [{ hasDraft: true, label: "Norwegian", locale: "no" }],
+        onExit: () => {
+          exits += 1;
+        },
+        onLocaleChange: () => undefined,
+        savePage: () => Promise.resolve(undefined),
+        uploadFile: () => Promise.resolve({ fileId: "", url: "" }),
+      })
+    );
+  });
+  const exit = () =>
+    host.querySelector(".pe-topbar__exit") as HTMLButtonElement;
+
+  act(() => useEditorStore.getState().setTheme(BAD));
+  await wait(SAVE_WAIT_MS);
+  expect(exit().disabled).toBe(true);
+  act(() => exit().click());
+  expect(exits).toBe(0);
+
+  act(() => useEditorStore.getState().setTheme(GOOD));
+  await wait(SAVE_WAIT_MS);
+  expect(exit().disabled).toBe(false);
+  act(() => exit().click());
+  expect(exits).toBe(1);
+});
