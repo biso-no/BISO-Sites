@@ -1,10 +1,15 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
+import { linkNote } from "@/components/editor-shell/inspector/button-fields";
 import {
   InspRow,
   InspSection,
+  Segmented,
 } from "@/components/editor-shell/inspector/insp-parts";
+import { ItemList } from "@/components/editor-shell/inspector/item-list";
+import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
 import type { PageDoc, PartnerItem, PartnersBlock } from "@/editor/types";
 
 interface Props {
@@ -13,136 +18,91 @@ interface Props {
   onPatch: PatchFn;
 }
 
+const SOURCES = [
+  { label: "Auto", value: "auto" },
+  { label: "Manual", value: "manual" },
+] as const;
+
 export function PartnersInspector({ block, onPatch }: Props) {
-  const items = block.items ?? [];
-
-  function patchItem(i: number, patch: Partial<PartnerItem>) {
-    onPatch(
-      "items",
-      items.map((x, j) => (j === i ? { ...x, ...patch } : x))
-    );
-  }
-
+  const source = block.source === "manual" ? "manual" : "auto";
   return (
     <>
-      <InspSection label="Source">
-        <div className="pe-variant-grid">
-          {(["auto", "manual"] as const).map((v) => (
-            <button
-              className={`pe-variant ${block.source === v ? "on" : ""}`}
-              key={v}
-              onClick={() => onPatch("source", v)}
-              type="button"
-            >
-              <span className="v-name">{v === "auto" ? "Auto" : "Manual"}</span>
-            </button>
-          ))}
-        </div>
-        {block.source === "auto" && (
-          <p style={{ fontSize: 11, color: "var(--leaf)", marginTop: 6 }}>
-            ● Fetching from Appwrite partners collection
-          </p>
-        )}
-      </InspSection>
-      <InspSection label="Content">
+      <InspSection label="Partners">
         <InspRow label="Heading">
           <input
             onChange={(e) => onPatch("heading", e.target.value)}
-            placeholder="Our partners"
             value={block.heading ?? ""}
           />
         </InspRow>
+        <InspRow label="Source">
+          <Segmented
+            choices={[...SOURCES]}
+            onPick={(v) => onPatch("source", v)}
+            value={source}
+          />
+        </InspRow>
+        {source === "auto" ? (
+          <p className="pe-insp-note">
+            Shows BISO's national partners from the partner list.
+          </p>
+        ) : null}
       </InspSection>
-      {block.source === "manual" && (
-        <InspSection label={`Partners (${items.length})`}>
-          {items.map((p, i) => (
-            <div
-              key={i}
-              style={{
-                padding: "6px 0",
-                borderBottom: "0.5px solid var(--rule)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 4,
-                }}
-              >
-                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                  {p.name}
-                </span>
-                <button
-                  aria-label="Remove"
-                  onClick={() =>
-                    onPatch(
-                      "items",
-                      items.filter((_, j) => j !== i)
-                    )
+      {source === "manual" ? (
+        <InspSection label="Logos">
+          <ItemList<PartnerItem>
+            addLabel="+ Add partner"
+            items={listOf<PartnerItem>(block.items)}
+            newItem={() => ({ name: "Partner name" })}
+            onChange={(items) => onPatch("items", items)}
+            renderItem={(item, update) => (
+              <>
+                <InspRow label="Name">
+                  <input
+                    onChange={(e) => update({ ...item, name: e.target.value })}
+                    value={item.name ?? ""}
+                  />
+                </InspRow>
+                <MediaPicker
+                  accept="image/*"
+                  onClear={() =>
+                    update({ ...item, logo: undefined, logoSrc: undefined })
                   }
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    border: 0,
-                    background: "var(--rule-2)",
-                    cursor: "pointer",
-                    fontSize: 9,
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                  type="button"
-                >
-                  ✕
-                </button>
-              </div>
-              <InspRow label="Name">
-                <input
-                  onChange={(e) => patchItem(i, { name: e.target.value })}
-                  value={p.name}
-                />
-              </InspRow>
-              <InspRow label="Logo URL">
-                <input
-                  onChange={(e) =>
-                    patchItem(i, { logoSrc: e.target.value || undefined })
+                  onPicked={(fileId, url, mime) =>
+                    update({
+                      ...item,
+                      logo: { fileId, mime: mime || undefined, src: url },
+                      logoSrc: undefined,
+                    })
                   }
-                  placeholder="https://…"
-                  value={p.logoSrc ?? ""}
-                />
-              </InspRow>
-              <InspRow label="Link">
-                <input
-                  onChange={(e) =>
-                    patchItem(i, { href: e.target.value || undefined })
+                  onUrl={(url) =>
+                    update({
+                      ...item,
+                      logo: url ? { src: url } : undefined,
+                      logoSrc: undefined,
+                    })
                   }
-                  placeholder="https://…"
-                  value={p.href ?? ""}
+                  src={item.logo?.src ?? item.logoSrc}
                 />
-              </InspRow>
-            </div>
-          ))}
-          <button
-            onClick={() =>
-              onPatch("items", [...items, { name: "Partner name" }])
-            }
-            style={{
-              fontSize: 12,
-              marginTop: 8,
-              padding: "4px 8px",
-              border: "0.5px solid var(--rule-2)",
-              borderRadius: 6,
-              background: "var(--paper-2)",
-              cursor: "pointer",
-            }}
-            type="button"
-          >
-            + Add partner
-          </button>
+                <InspRow label="Link">
+                  <input
+                    onChange={(e) =>
+                      update({ ...item, href: e.target.value || undefined })
+                    }
+                    placeholder="https://…"
+                    value={item.href ?? ""}
+                  />
+                </InspRow>
+                {linkNote(item.href ?? "") ? (
+                  <p className="pe-insp-note" role="status">
+                    {linkNote(item.href ?? "")}
+                  </p>
+                ) : null}
+              </>
+            )}
+            title={(item) => item.name || "Partner"}
+          />
         </InspSection>
-      )}
+      ) : null}
     </>
   );
 }

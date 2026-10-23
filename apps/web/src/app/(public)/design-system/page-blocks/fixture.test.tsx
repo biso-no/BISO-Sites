@@ -156,3 +156,17 @@ test("the live blocks render their fixture feed rows", () => {
   expect(html).toContain("Programmet for Karrieredagene er klart");
   expect(html).toContain("Standvert");
 });
+
+test("partners, units and shop render their fixture feed rows", () => {
+  const html = renderToStaticMarkup(
+    <RenderedPage
+      doc={PAGE_BLOCKS_FIXTURE}
+      feeds={PAGE_BLOCKS_FEEDS}
+      locale="no"
+    />
+  );
+  expect(html).toContain("Fiktiv Bank");
+  expect(html).toContain("Finansforeningen");
+  expect(html).toContain("Karrieredagene-lue");
+  expect(html).toContain("Utsolgt");
+});

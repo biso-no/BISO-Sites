@@ -5,7 +5,7 @@ import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import type { EditorLocale } from "@/editor/types";
-import { cardGridClass } from "./card-grid";
+import { cardGridClass, type GridColumns } from "./card-grid";
 import { externalLinkProps, safeHref } from "./links";
 import { LINK_CLASS, MARKER_CLASS } from "./section-title";
 
@@ -19,6 +19,8 @@ const CARD_FOCUS =
 
 interface SectionProps {
   children: ReactNode;
+  /** Card columns at the widest container; defaults to 3. */
+  columns?: GridColumns;
   /** Department id the feed reads from; empty when none is chosen. */
   dept: string;
   edit: boolean;
@@ -29,6 +31,8 @@ interface SectionProps {
   /** "No <noun> for <dept>" in the editor when the feed is empty. */
   noun: string;
   onPatch: PatchFn;
+  /** False for feeds that are not read from a department (partners, units). */
+  requireDept?: boolean;
   seeAll: boolean;
   seeAllHref: string;
 }
@@ -38,15 +42,16 @@ function placeholderText(
   dept: string,
   items: unknown[] | null,
   noun: string,
-  deptName: string
+  deptName: string,
+  requireDept: boolean
 ): string {
-  if (!dept) {
+  if (requireDept && !dept) {
     return "Choose a department";
   }
   if (items === null) {
     return "Loading…";
   }
-  return `No ${noun} for ${deptName}`;
+  return requireDept ? `No ${noun} for ${deptName}` : `No ${noun}`;
 }
 
 /**
@@ -56,6 +61,7 @@ function placeholderText(
  */
 export function FeedSection({
   children,
+  columns = 3,
   dept,
   edit,
   heading,
@@ -63,11 +69,12 @@ export function FeedSection({
   locale,
   noun,
   onPatch,
+  requireDept = true,
   seeAll,
   seeAllHref,
 }: SectionProps) {
   const { departments } = useEditorCallbacks();
-  const hasCards = (items?.length ?? 0) > 0 && !!dept;
+  const hasCards = (items?.length ?? 0) > 0 && (!requireDept || !!dept);
   if (!(hasCards || edit)) {
     return null;
   }
@@ -110,10 +117,12 @@ export function FeedSection({
         ) : null}
       </div>
       {hasCards ? (
-        <ul className={`${cardGridClass(3)} m-0 list-none p-0`}>{children}</ul>
+        <ul className={`${cardGridClass(columns)} m-0 list-none p-0`}>
+          {children}
+        </ul>
       ) : (
         <p className="type-body-sm rounded-biso-md border border-edge border-dashed p-4 text-center text-ink-muted">
-          {placeholderText(dept, items, noun, deptName)}
+          {placeholderText(dept, items, noun, deptName, requireDept)}
         </p>
       )}
     </div>

@@ -25,9 +25,16 @@ import type {
   Jobs,
   News,
   Partners,
+  WebshopProducts,
 } from "@repo/api/types/appwrite";
-import { JobsStatus, NewsStatus } from "@repo/api/types/appwrite";
+import {
+  JobsStatus,
+  NewsStatus,
+  WebshopProductsStatus,
+} from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "../types/recruitment";
+import { listedProductsOnly } from "./product-visibility";
+import { isUnitCategory } from "./unit-categories";
 import { unitDisplayName } from "./unit-names";
 import { campusIdToLabel, unitCanonicalPath } from "./unit-urls";
 import { isPublicUnit } from "./unit-visibility";
@@ -398,6 +405,71 @@ export async function readPagePartnersFeed(
   }));
 }
 
+export interface PageProductItem {
+  /** `/shop/<slug>`, or the id for a product with no slug (as the web shop resolves both). */
+  href: string;
+  id: string;
+  image?: string;
+  /** Purchase is gated to members; the product is still listed. */
+  memberOnly: boolean;
+  memberPrice?: number;
+  price: number;
+  /** `stock === 0`; null stock means untracked, not sold out. */
+  soldOut: boolean;
+  title: string;
+}
+
+/**
+ * Published, listed products of one department, newest first. Mirrors the
+ * web's `cachedUnitProducts`: link-only (`unlisted`) products never appear.
+ */
+export async function readPageProductsFeed(
+  db: FeedDb,
+  departmentId: string,
+  locale: PageFeedLocale,
+  limit?: number
+): Promise<PageProductItem[]> {
+  const products = await db.listRows<WebshopProducts>(
+    "app",
+    "webshop_products",
+    [
+      Query.select([
+        "$id",
+        "$createdAt",
+        "slug",
+        "image",
+        "regular_price",
+        "member_price",
+        "member_only",
+        "stock",
+        "translation_refs.locale",
+        "translation_refs.title",
+      ]),
+      // The column is camelCase, unlike `department_id` on the other tables.
+      Query.equal("departmentId", departmentId),
+      Query.equal("status", WebshopProductsStatus.PUBLISHED),
+      listedProductsOnly(),
+      Query.equal("translation_refs.locale", locale),
+      Query.orderDesc("$createdAt"),
+      Query.limit(feedLimit(limit)),
+    ]
+  );
+
+  return products.rows.map((product) => ({
+    href: `/shop/${encodeURIComponent(product.slug || product.$id)}`,
+    id: product.$id,
+    image: resolveStorageFileUrl(product.image) ?? undefined,
+    memberOnly: product.member_only === true,
+    memberPrice: product.member_price ?? undefined,
+    price: product.regular_price,
+    soldOut: product.stock === 0,
+    title:
+      pickTranslation(product.translation_refs, locale)?.title ??
+      product.slug ??
+      "",
+  }));
+}
+
 export interface PageDepartmentItem {
   campusId: string | null;
   campusLabel?: string;
@@ -488,5 +560,22 @@ export async function readPageDepartmentsFeed(
       type: department.type,
     })),
     total: departments.total,
+  };
+}
+
+/**
+ * The departments feed's `campus_id` and `type` query parameters, narrowed to
+ * known campuses and unit categories. They become part of a cache key, so an
+ * unknown value must collapse to "no filter" instead of minting entries.
+ */
+export function departmentsFeedFilters(params: URLSearchParams): {
+  campusId: string | null;
+  type: string | null;
+} {
+  const campus = params.get("campus_id");
+  const type = params.get("type");
+  return {
+    campusId: campusIdToLabel(campus) ? campus : null,
+    type: isUnitCategory(type) ? type : null,
   };
 }

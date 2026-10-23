@@ -6,6 +6,8 @@ import { useEditorStore } from "./store";
 import type { EditorLocale } from "./types";
 
 export interface PageFeedSource {
+  /** The page's campus id; "" for a national page. */
+  campus?: string;
   /** Department id the auto-source blocks resolve their feed from. */
   department: string;
   /** Language those feeds are requested in. */
@@ -51,13 +53,14 @@ const NO_FEEDS: PageFeedSnapshot = {};
  */
 export function PageFeedProvider({
   children,
+  campus,
   department,
   feeds,
   locale,
 }: PageFeedSource & { children: ReactNode; feeds?: PageFeedSnapshot }) {
   const value = useMemo(
-    () => ({ department, feeds: feeds ?? NO_FEEDS, locale }),
-    [department, feeds, locale]
+    () => ({ campus, department, feeds: feeds ?? NO_FEEDS, locale }),
+    [campus, department, feeds, locale]
   );
   return (
     <PageFeedContext.Provider value={value}>
@@ -75,7 +78,14 @@ export function usePageFeedSource(): PageFeedSource {
   const provided = useContext(PageFeedContext);
   const storeDepartment = useEditorStore((s) => s.doc.meta.department);
   const storeLocale = useEditorStore((s) => s.locale);
-  return provided ?? { department: storeDepartment, locale: storeLocale };
+  const storeCampus = useEditorStore((s) => s.doc.meta.campus);
+  return (
+    provided ?? {
+      campus: storeCampus,
+      department: storeDepartment,
+      locale: storeLocale,
+    }
+  );
 }
 
 /**

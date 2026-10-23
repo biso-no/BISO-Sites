@@ -1,7 +1,7 @@
 /**
  * Feed identity for the auto-source blocks.
  *
- * Five blocks (events/news/jobs/partners/departmentGrid) render content that
+ * Six blocks (events/news/jobs/partners/departmentGrid/productGrid) render content that
  * lives in Appwrite rather than in the page document. A rendering host can
  * resolve those feeds up front and hand them to the blocks, which is how the
  * public site gets real rows into its server-rendered HTML instead of a
@@ -23,7 +23,8 @@ export type PageFeedKind =
   | "events"
   | "jobs"
   | "news"
-  | "partners";
+  | "partners"
+  | "products";
 
 /**
  * Feeds a host has already resolved, keyed by `pageFeedKey`.
@@ -36,6 +37,10 @@ export type PageFeedSnapshot = Record<string, unknown[]>;
 
 /** One feed a page needs, ready to be resolved by a host. */
 export interface PageFeedRequest {
+  /** Campus id a departments feed is narrowed to; empty for all campuses. */
+  campus?: string;
+  /** Unit category a departments feed is narrowed to; empty for all. */
+  category?: string;
   /** Department id to scope by; empty for feeds that are not scoped. */
   department: string;
   key: string;
@@ -64,17 +69,85 @@ export function pageFeedKey(
 }
 
 /**
+ * A limit narrowed to the values a block can ask for. It becomes part of a
+ * cache key, so anything else (999, "abc", "6", missing) must collapse to the
+ * allowed set instead of minting new entries. Strings are parsed, because the
+ * same function clamps a `?limit=` query parameter.
+ */
+export function clampFeedLimit<T extends number>(
+  raw: unknown,
+  allowed: readonly T[],
+  fallback: NoInfer<T>
+): T {
+  const value = typeof raw === "string" ? Number(raw) : raw;
+  return allowed.find((candidate) => candidate === value) ?? fallback;
+}
+
+const FEED_LIMITS = [3, 6] as const;
+const SHOP_LIMITS = [4, 8] as const;
+const UNIT_LIMITS = [3, 6, 9, 12] as const;
+
+/**
  * The `?limit=` of a feed request, narrowed to the values a block can ask for.
- * It becomes part of a cache key, so anything else (999, "abc", missing) must
- * collapse to the allowed set instead of minting new entries.
  */
 export function feedLimitFromParam(raw: string | null | undefined): 3 | 6 {
-  return feedBlockLimit(Number(raw));
+  return feedBlockLimit(raw);
 }
 
 /** How many rows a live block shows: 3 or 6, whatever the stored value is. */
 export function feedBlockLimit(value: unknown): 3 | 6 {
-  return value === 6 ? 6 : 3;
+  return clampFeedLimit(value, FEED_LIMITS, 3);
+}
+
+/** How many products the shop block shows: 4 or 8. */
+export function shopBlockLimit(value: unknown): 4 | 8 {
+  return clampFeedLimit(value, SHOP_LIMITS, 4);
+}
+
+/** The shop feed's `?limit=`, narrowed like `shopBlockLimit`. */
+export function shopLimitFromParam(raw: string | null | undefined): 4 | 8 {
+  return shopBlockLimit(raw);
+}
+
+/** How many unit cards the units block shows. */
+export function unitsBlockLimit(value: unknown): 3 | 6 | 9 | 12 {
+  return clampFeedLimit(value, UNIT_LIMITS, 6);
+}
+
+/**
+ * The campus a units block is narrowed to: the page's own for scope `campus`,
+ * none otherwise. A national page has no campus, so `campus` scope there shows
+ * every unit rather than nothing.
+ */
+export function unitsFeedCampus(scope: unknown, pageCampus: unknown): string {
+  return scope === "campus" && typeof pageCampus === "string" ? pageCampus : "";
+}
+
+/**
+ * Unit categories a units block can filter by. A copy of
+ * `UNIT_CATEGORIES` in `@repo/shared` (this package does not depend on it);
+ * `unit-categories.test.ts` in the web app keeps the two equal.
+ */
+export const UNIT_CATEGORY_IDS = [
+  "society",
+  "academic_association",
+  "project",
+  "staff_function",
+  "national",
+  "other",
+] as const;
+
+/** The block's category if it is a known one, else "" (all categories). */
+export function unitsFeedCategory(raw: unknown): string {
+  return typeof raw === "string" &&
+    (UNIT_CATEGORY_IDS as readonly string[]).includes(raw)
+    ? raw
+    : "";
+}
+
+/** The units feed's identity: it is scoped by campus and category only. */
+export function departmentsFeedKey(campus = "", category = ""): string {
+  return pageFeedKey("departments", campus, category);
 }
 
 /**
@@ -95,13 +168,33 @@ export function resolveFeedDepartment(
 function requestForBlock(
   block: Block,
   pageDepartment: string,
+  pageCampus: string,
   locale: EditorLocale
 ): PageFeedRequest | null {
   if (block.type === "departmentGrid") {
+    const campus = unitsFeedCampus(block.scope, pageCampus);
+    const category = unitsFeedCategory(block.category);
     return {
+      campus,
+      category,
       department: "",
-      key: pageFeedKey("departments"),
+      key: departmentsFeedKey(campus, category),
       kind: "departments",
+      locale,
+    };
+  }
+
+  if (block.type === "productGrid") {
+    const department = resolveFeedDepartment(block.source, pageDepartment);
+    if (!department) {
+      return null;
+    }
+    const limit = shopBlockLimit(block.limit);
+    return {
+      department,
+      key: pageFeedKey("products", department, locale, limit),
+      kind: "products",
+      limit,
       locale,
     };
   }
@@ -156,7 +249,12 @@ export function collectPageFeedRequests(
   const byKey = new Map<string, PageFeedRequest>();
 
   for (const block of walkBlocks(doc)) {
-    const request = requestForBlock(block, doc.meta.department, locale);
+    const request = requestForBlock(
+      block,
+      doc.meta.department,
+      doc.meta.campus ?? "",
+      locale
+    );
     if (request && !byKey.has(request.key)) {
       byKey.set(request.key, request);
     }

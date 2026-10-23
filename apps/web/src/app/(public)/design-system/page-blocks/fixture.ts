@@ -1,4 +1,8 @@
-import { type PageFeedSnapshot, pageFeedKey } from "@repo/editor/page-feeds";
+import {
+  departmentsFeedKey,
+  type PageFeedSnapshot,
+  pageFeedKey,
+} from "@repo/editor/page-feeds";
 import type { Block, PageDoc, Section } from "@repo/editor/types";
 
 /**
@@ -158,6 +162,65 @@ export const PAGE_BLOCKS_FEEDS: PageFeedSnapshot = {
       href: "#program",
       id: "fx-job-3",
       title: "Medlem av programkomiteen",
+    },
+  ],
+  [pageFeedKey("partners")]: [
+    {
+      href: "#program",
+      logoSrc: "/images/logo-home.png",
+      name: "Eksempel Revisjon",
+    },
+    { name: "Fiktiv Bank" },
+    { href: "#program", name: "Testbyrået" },
+    { name: "Nordlys Konsult" },
+  ],
+  [departmentsFeedKey("", "")]: [
+    {
+      campusLabel: "Oslo",
+      href: "#program",
+      id: "fx-unit-1",
+      name: "Finansforeningen",
+    },
+    {
+      campusLabel: "Bergen",
+      href: "#program",
+      id: "fx-unit-2",
+      name: "Karriereklubben",
+    },
+    {
+      campusLabel: "Trondheim",
+      href: "#program",
+      id: "fx-unit-3",
+      name: "Studentpuben",
+    },
+  ],
+  [pageFeedKey("products", FAIR_DEPARTMENT, "no", 4)]: [
+    {
+      href: "#program",
+      id: "fx-product-1",
+      image: LOUNGE_SKETCH,
+      memberOnly: true,
+      memberPrice: 199,
+      price: 249,
+      soldOut: false,
+      title: "Standkort til Karrieredagene",
+    },
+    {
+      href: "#program",
+      id: "fx-product-2",
+      memberOnly: false,
+      price: 120,
+      soldOut: true,
+      title: "Karrieredagene-lue",
+    },
+    {
+      href: "#program",
+      id: "fx-product-3",
+      image: HERO,
+      memberOnly: false,
+      price: 80,
+      soldOut: false,
+      title: "Etterfest-billett",
     },
   ],
 };
@@ -463,7 +526,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
       ],
     ]),
 
-    // Tinted, one column: the three live feed blocks, with the rows above.
+    // Tinted, one column: the live feed blocks, with the rows above.
     section("s-live", { background: "tinted", columns: "1" }, [
       [
         {
@@ -489,6 +552,26 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           limit: 3,
           seeAll: true,
           source: FAIR_DEPARTMENT,
+        },
+        {
+          id: "b-live-shop",
+          type: "productGrid",
+          heading: "Butikken",
+          limit: 4,
+          source: FAIR_DEPARTMENT,
+        },
+        {
+          id: "b-live-units",
+          type: "departmentGrid",
+          heading: "Enhetene bak arrangementet",
+          limit: 3,
+          scope: "all",
+        },
+        {
+          id: "b-live-partners",
+          type: "partners",
+          heading: "Støttet av",
+          source: "auto",
         },
       ],
     ]),

@@ -6,18 +6,16 @@ import { DepartmentGridThumb } from "./thumb";
 
 registerBlock({
   type: "departmentGrid",
-  label: "Departments",
-  description: "Dept cards from Appwrite",
-  category: "Data",
+  label: "Units",
+  description: "Unit cards, for a campus or all",
+  category: "Pull from BISO",
   group: "live",
-  variants: [
-    { id: "grid", label: "Grid", kind: "grid" },
-    { id: "list", label: "List", kind: "list" },
-  ],
-  aiHint: "A grid of department cards fetched live from Appwrite.",
-  aiProps: ["heading"],
+  aiHint:
+    "Cards for BISO's units. scope is campus (the page's campus) or all; optional category (society, academic_association, project, staff_function, national, other); limit is 3, 6, 9 or 12.",
+  aiProps: ["heading", "scope", "category", "limit"],
   empty: () => emptyBlock("departmentGrid") as never,
   Render: DepartmentGridRender as never,
   Inspector: DepartmentGridInspector as never,
   PaletteThumb: DepartmentGridThumb,
+  v2: true,
 });

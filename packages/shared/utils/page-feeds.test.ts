@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  departmentsFeedFilters,
   readPageDepartmentsFeed,
   readPageEventsFeed,
   readPageJobsFeed,
   readPageNewsFeed,
   readPagePartnersFeed,
+  readPageProductsFeed,
 } from "./page-feeds";
 
 function departmentRow(id: number) {
@@ -225,6 +227,99 @@ describe("readPageJobsFeed", () => {
       href: "/jobs/editor",
       id: "j-1",
       paid: true,
+    });
+  });
+});
+
+describe("readPageProductsFeed", () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    $id: "p1",
+    image: null,
+    member_only: false,
+    member_price: null,
+    regular_price: 250,
+    slug: "lue",
+    stock: 5,
+    translation_refs: [
+      { locale: "en", title: "Beanie" },
+      { locale: "no", title: "Lue" },
+    ],
+    ...over,
+  });
+
+  it("maps price, member price, members-only and sold-out", async () => {
+    const db = fakeDb({
+      rows: [
+        row(),
+        row({
+          $id: "p2",
+          member_only: true,
+          member_price: 199,
+          slug: "",
+          stock: 0,
+        }),
+      ],
+      total: 2,
+    });
+    const items = await readPageProductsFeed(db, "dept-1", "no", 4);
+    expect(items[0]).toEqual({
+      href: "/shop/lue",
+      id: "p1",
+      image: undefined,
+      memberOnly: false,
+      memberPrice: undefined,
+      price: 250,
+      soldOut: false,
+      title: "Lue",
+    });
+    expect(items[1]).toMatchObject({
+      href: "/shop/p2",
+      memberOnly: true,
+      memberPrice: 199,
+      soldOut: true,
+    });
+  });
+
+  it("filters to the department, published and listed rows", async () => {
+    const db = fakeDb({ rows: [], total: 0 });
+    await readPageProductsFeed(db, "dept-1", "en", 8);
+    const [, table, queries] = (
+      db.listRows as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls[0];
+    const parsed = (queries as string[]).map(
+      (q) =>
+        JSON.parse(q) as {
+          attribute?: string;
+          method: string;
+          values?: unknown[];
+        }
+    );
+    expect(table).toBe("webshop_products");
+    expect(parsed.find((q) => q.attribute === "departmentId")?.values).toEqual([
+      "dept-1",
+    ]);
+    expect(parsed.find((q) => q.attribute === "status")?.values).toEqual([
+      "published",
+    ]);
+    expect(parsed.some((q) => q.method === "or")).toBe(true);
+    expect(parsed.find((q) => q.method === "limit")?.values).toEqual([8]);
+  });
+});
+
+describe("departmentsFeedFilters", () => {
+  it("keeps a known campus and category", () => {
+    expect(
+      departmentsFeedFilters(new URLSearchParams("campus_id=2&type=society"))
+    ).toEqual({ campusId: "2", type: "society" });
+  });
+
+  it("collapses anything unknown to no filter", () => {
+    expect(
+      departmentsFeedFilters(new URLSearchParams("campus_id=99&type=zzz"))
+    ).toEqual({ campusId: null, type: null });
+    expect(departmentsFeedFilters(new URLSearchParams())).toEqual({
+      campusId: null,
+      type: null,
     });
   });
 });

@@ -1,4 +1,4 @@
-import { pageFeedKey } from "@repo/editor/page-feeds";
+import { departmentsFeedKey, pageFeedKey } from "@repo/editor/page-feeds";
 import type { PageDoc } from "@repo/editor/types";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -7,6 +7,7 @@ const cachedPageEventsFeed = vi.fn();
 const cachedPageJobsFeed = vi.fn();
 const cachedPageNewsFeed = vi.fn();
 const cachedPagePartnersFeed = vi.fn();
+const cachedPageProductsFeed = vi.fn();
 
 vi.mock("./public-content", () => ({
   cachedPageDepartmentsFeed: (...args: unknown[]) =>
@@ -16,6 +17,8 @@ vi.mock("./public-content", () => ({
   cachedPageNewsFeed: (...args: unknown[]) => cachedPageNewsFeed(...args),
   cachedPagePartnersFeed: (...args: unknown[]) =>
     cachedPagePartnersFeed(...args),
+  cachedPageProductsFeed: (...args: unknown[]) =>
+    cachedPageProductsFeed(...args),
 }));
 
 const { resolvePageFeeds } = await import("./page-feeds");
@@ -210,7 +213,7 @@ describe("resolvePageFeeds", () => {
     const feeds = await resolvePageFeeds(
       doc([
         { id: "a", type: "partners", source: "auto" },
-        { id: "b", type: "departmentGrid", showFilters: false },
+        { id: "b", type: "departmentGrid", limit: 6, scope: "all" },
       ]),
       "no"
     );
@@ -222,6 +225,36 @@ describe("resolvePageFeeds", () => {
     expect(feeds[pageFeedKey("departments")]).toEqual([
       { id: "1", name: "Dept" },
     ]);
+  });
+
+  test("a shop block resolves its clamped products feed", async () => {
+    cachedPageProductsFeed.mockResolvedValue([{ id: "p" }]);
+    const feeds = await resolvePageFeeds(
+      doc([
+        { id: "a", type: "productGrid", heading: "", limit: 8, source: "auto" },
+      ]),
+      "no"
+    );
+    expect(feeds[pageFeedKey("products", "25", "no", 8)]).toEqual([
+      { id: "p" },
+    ]);
+    expect(cachedPageProductsFeed).toHaveBeenCalledWith("25", "no", 8);
+  });
+
+  test("a campus-scoped units block passes the page campus and category", async () => {
+    const withCampus = doc([
+      {
+        id: "a",
+        type: "departmentGrid",
+        category: "society",
+        limit: 6,
+        scope: "campus",
+      },
+    ]);
+    withCampus.meta.campus = "2";
+    const feeds = await resolvePageFeeds(withCampus, "no");
+    expect(cachedPageDepartmentsFeed).toHaveBeenCalledWith("2", "society");
+    expect(Object.keys(feeds)).toEqual([departmentsFeedKey("2", "society")]);
   });
 
   test("a manual partners block resolves nothing", async () => {

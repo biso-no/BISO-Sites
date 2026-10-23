@@ -7,6 +7,8 @@ interface ChevronMediaProps {
   alt?: string;
   /** Extra classes on the frame, e.g. to let a grid size it. */
   className?: string;
+  /** Extra classes on the image, e.g. `object-contain` for a logo. */
+  imageClassName?: string;
   kind?: "image" | "video";
   lean?: "left" | "right";
   /** "eager" for media above the fold (a page header's); lazy otherwise. */
@@ -29,6 +31,7 @@ const DEFAULT_WIDTH = 1200;
 export function ChevronMedia({
   alt = "",
   className,
+  imageClassName,
   kind = "image",
   lean = "left",
   loading = "lazy",
@@ -83,6 +86,7 @@ export function ChevronMedia({
       // biome-ignore lint/correctness/useImageSize: fills the chevron frame.
       <img
         alt={alt}
+        className={imageClassName}
         decoding="async"
         loading={loading}
         src={sizedImageSrc(src, width, mime)}

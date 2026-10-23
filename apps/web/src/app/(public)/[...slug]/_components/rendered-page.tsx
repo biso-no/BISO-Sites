@@ -72,6 +72,7 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
 
   return (
     <PageFeedProvider
+      campus={normalizedDoc.meta.campus ?? ""}
       department={normalizedDoc.meta.department}
       feeds={feeds}
       locale={locale}

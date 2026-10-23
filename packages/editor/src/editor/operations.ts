@@ -259,9 +259,9 @@ export function emptyBlock(type: BlockType): Block {
       return {
         id,
         type,
-        heading: "Departments",
-        showFilters: true,
-        variant: "grid",
+        heading: "Units",
+        limit: 6,
+        scope: "campus",
       };
     case "documents":
       return { id, type, heading: "Documents", items: [] };
@@ -322,7 +322,7 @@ export function emptyBlock(type: BlockType): Block {
         ],
       };
     case "productGrid":
-      return { id, type, heading: "Shop", source: "auto" };
+      return { id, type, heading: "Shop", limit: 4, source: "auto" };
     case "filterBar":
       return { id, type, target: "news" };
     case "profileHeader":

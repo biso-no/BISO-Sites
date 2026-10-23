@@ -332,7 +332,8 @@ export interface FeatureGridBlock {
 
 export interface PartnerItem {
   href?: string;
-  logoFileId?: string;
+  logo?: { fileId?: string; mime?: string; src: string };
+  /** Legacy flat logo URL: older documents and the auto feed carry this. */
   logoSrc?: string;
   name: string;
 }
@@ -369,11 +370,14 @@ export interface TabsBlock {
 }
 
 export interface DepartmentGridBlock {
+  /** A `UnitCategory`; empty or absent shows every category. */
+  category?: string;
   heading?: string;
   id: string;
-  showFilters: boolean;
+  limit: number;
+  /** `campus` narrows to the page's own campus. */
+  scope: "campus" | "all";
   type: "departmentGrid";
-  variant?: "grid" | "list";
 }
 
 export interface DocumentItem {
@@ -437,8 +441,9 @@ export interface ScrollRowBlock {
 export interface ProductGridBlock {
   heading?: string;
   id: string;
-  source: "auto";
-  tag?: string;
+  limit: 4 | 8;
+  /** `auto` follows the page's department; otherwise a department id. */
+  source: string;
   type: "productGrid";
 }
 

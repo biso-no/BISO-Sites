@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  clampFeedLimit,
   collectPageFeedRequests,
   feedLimitFromParam,
   pageFeedKey,
   resolveFeedDepartment,
+  shopLimitFromParam,
 } from "./page-feeds";
 import { sectionOf } from "./sections";
 import {
@@ -149,12 +151,16 @@ describe("collectPageFeedRequests", () => {
     // Both feeds are global, so a page carrying them in two locales must not
     // fetch twice and must key identically on every page.
     const nb = collectPageFeedRequests(
-      doc([{ id: "a", type: "departmentGrid", showFilters: false }] as Block[]),
+      doc([
+        { id: "a", type: "departmentGrid", limit: 6, scope: "all" },
+      ] as Block[]),
       "no"
     );
     const en = collectPageFeedRequests(
       doc(
-        [{ id: "a", type: "departmentGrid", showFilters: false }] as Block[],
+        [
+          { id: "a", type: "departmentGrid", limit: 6, scope: "all" },
+        ] as Block[],
         "41"
       ),
       "en"
@@ -263,5 +269,59 @@ describe("feedLimitFromParam", () => {
     expect(feedLimitFromParam("-5")).toBe(3);
     expect(feedLimitFromParam("")).toBe(3);
     expect(feedLimitFromParam(null)).toBe(3);
+  });
+});
+
+describe("clampFeedLimit", () => {
+  test("keeps an allowed value, else the fallback", () => {
+    expect(clampFeedLimit(8, [4, 8], 4)).toBe(8);
+    expect(clampFeedLimit("8", [4, 8], 4)).toBe(8);
+    expect(clampFeedLimit(999, [4, 8], 4)).toBe(4);
+    expect(clampFeedLimit("abc", [4, 8], 4)).toBe(4);
+    expect(clampFeedLimit(undefined, [4, 8], 4)).toBe(4);
+  });
+
+  test("the 3|6 and 4|8 helpers wrap it", () => {
+    expect(feedLimitFromParam("6")).toBe(6);
+    expect(feedLimitFromParam("7")).toBe(3);
+    expect(shopLimitFromParam("8")).toBe(8);
+    expect(shopLimitFromParam("6")).toBe(4);
+  });
+});
+
+describe("shop requests", () => {
+  test("a productGrid asks for products by department, locale and limit", () => {
+    const requests = collectPageFeedRequests(
+      doc([
+        { id: "a", type: "productGrid", heading: "", limit: 8, source: "auto" },
+        { id: "b", type: "productGrid", heading: "", limit: 9, source: "41" },
+      ] as Block[]),
+      "no"
+    );
+    expect(requests.map((r) => r.key)).toEqual([
+      pageFeedKey("products", "25", "no", 8),
+      pageFeedKey("products", "41", "no", 4),
+    ]);
+    expect(requests.every((r) => r.kind === "products")).toBe(true);
+  });
+
+  test("no department means no request", () => {
+    expect(
+      collectPageFeedRequests(
+        doc(
+          [
+            {
+              id: "a",
+              type: "productGrid",
+              heading: "",
+              limit: 4,
+              source: "auto",
+            },
+          ] as Block[],
+          ""
+        ),
+        "no"
+      )
+    ).toEqual([]);
   });
 });

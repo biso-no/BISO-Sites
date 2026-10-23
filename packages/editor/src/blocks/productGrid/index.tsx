@@ -6,14 +6,16 @@ import { ProductGridThumb } from "./thumb";
 
 registerBlock({
   type: "productGrid",
-  label: "Products",
-  description: "Shop product grid",
-  category: "Data",
+  label: "Shop",
+  description: "A department's products",
+  category: "Pull from BISO",
   group: "live",
-  aiHint: "A grid of products from the shop, optionally filtered by tag.",
-  aiProps: ["heading", "tag"],
+  aiHint:
+    "A grid of a department's shop products. Set source to auto (the page department) or a department id; limit is 4 or 8.",
+  aiProps: ["heading", "source", "limit"],
   empty: () => emptyBlock("productGrid") as never,
   Render: ProductGridRender as never,
   Inspector: ProductGridInspector as never,
   PaletteThumb: ProductGridThumb,
+  v2: true,
 });

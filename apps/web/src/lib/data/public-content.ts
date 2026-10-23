@@ -48,6 +48,7 @@ import type {
   PageJobItem,
   PageNewsItem,
   PagePartnerItem,
+  PageProductItem,
 } from "@repo/shared/utils/page-feeds";
 import {
   readPageDepartmentsFeed,
@@ -55,6 +56,7 @@ import {
   readPageJobsFeed,
   readPageNewsFeed,
   readPagePartnersFeed,
+  readPageProductsFeed,
 } from "@repo/shared/utils/page-feeds";
 import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import { cacheLife, cacheTag } from "next/cache";
@@ -449,6 +451,7 @@ export type {
   PageJobItem,
   PageNewsItem,
   PagePartnerItem,
+  PageProductItem,
 } from "@repo/shared/utils/page-feeds";
 
 export async function cachedPageEventsFeed(
@@ -482,6 +485,17 @@ export async function cachedPageJobsFeed(
   cacheLife("minutes");
   const { db } = await createPublicClient();
   return await readPageJobsFeed(db, departmentId, locale, limit);
+}
+
+export async function cachedPageProductsFeed(
+  departmentId: string,
+  locale: PublicLocale,
+  limit?: number
+): Promise<PageProductItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  return await readPageProductsFeed(db, departmentId, locale, limit);
 }
 
 export async function cachedPagePartnersFeed(): Promise<PagePartnerItem[]> {

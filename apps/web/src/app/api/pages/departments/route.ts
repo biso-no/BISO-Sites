@@ -1,3 +1,4 @@
+import { departmentsFeedFilters } from "@repo/shared/utils/page-feeds";
 import { cachedPageDepartmentsFeed } from "@/lib/data/public-content";
 import { feedFailure, feedResponse } from "../_lib/feed";
 
@@ -14,8 +15,8 @@ import { feedFailure, feedResponse } from "../_lib/feed";
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const campusId = searchParams.get("campus_id");
-  const type = searchParams.get("type");
+  // Narrowed before the cached reader: both become part of its cache key.
+  const { campusId, type } = departmentsFeedFilters(searchParams);
 
   try {
     // Passed through unchanged. `total` is Appwrite's count of every matching

@@ -1,7 +1,7 @@
 /**
  * Server-side resolution of a block page's auto-source feeds.
  *
- * The five auto-source blocks (events/news/jobs/partners/departmentGrid) are
+ * The six auto-source blocks (events/news/jobs/partners/departmentGrid/productGrid) are
  * Client Components — they have to be, because `BlockRenderer` hands every
  * block an `onPatch` function and the same component serves the admin canvas.
  * Left to themselves they fetch `/api/pages/*` from a `useEffect`, so the HTML
@@ -32,6 +32,7 @@ import {
   cachedPageJobsFeed,
   cachedPageNewsFeed,
   cachedPagePartnersFeed,
+  cachedPageProductsFeed,
 } from "./public-content";
 import type { PublicLocale } from "./queries";
 
@@ -41,7 +42,10 @@ function readFeed(request: PageFeedRequest): Promise<unknown[]> {
     case "departments":
       // The snapshot carries rows; the endpoint's `total` is for consumers
       // that page, and the block never reads it.
-      return cachedPageDepartmentsFeed().then((feed) => feed.departments);
+      return cachedPageDepartmentsFeed(
+        request.campus || null,
+        request.category || null
+      ).then((feed) => feed.departments);
     case "events":
       return cachedPageEventsFeed(request.department, locale, request.limit);
     case "jobs":
@@ -50,6 +54,8 @@ function readFeed(request: PageFeedRequest): Promise<unknown[]> {
       return cachedPageNewsFeed(request.department, locale, request.limit);
     case "partners":
       return cachedPagePartnersFeed();
+    case "products":
+      return cachedPageProductsFeed(request.department, locale, request.limit);
     default: {
       // Exhaustive: a new feed kind added in `@repo/editor` fails to compile
       // here rather than silently rendering "Loading…" forever.
