@@ -132,7 +132,7 @@ describe("PageHeaderView", () => {
         ],
       })
     );
-    expect(html).toContain('<nav aria-label="Breadcrumb"');
+    expect(html).toContain('<nav aria-label="Brødsmulesti"');
     expect(html).toContain('href="/units"');
     expect(html).toContain('aria-current="page"');
   });

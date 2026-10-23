@@ -14,6 +14,9 @@ interface Props {
 
 export function FactsRender({ block, edit, onPatch }: Props) {
   const items = listOf<FactItem>(block.items);
+  if (!edit && items.length === 0) {
+    return null;
+  }
   const update = (i: number, key: "label" | "text", value: string) =>
     onPatch(
       "items",

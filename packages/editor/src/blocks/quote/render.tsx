@@ -1,5 +1,6 @@
 "use client";
 
+import { isBlank } from "@/blocks/_v2/blank";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { QuoteBlock } from "@/editor/types";
@@ -11,6 +12,14 @@ interface Props {
 }
 
 export function QuoteRender({ block, edit, onPatch }: Props) {
+  if (
+    !edit &&
+    isBlank(block.text) &&
+    isBlank(block.author) &&
+    isBlank(block.role)
+  ) {
+    return null;
+  }
   const showCaption = Boolean(block.author || block.role) || edit;
   return (
     <figure className="m-0 flex max-w-(--measure) flex-col gap-4 break-words border-action border-l-4 pl-6">

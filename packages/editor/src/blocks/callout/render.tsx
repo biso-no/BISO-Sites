@@ -1,5 +1,6 @@
 "use client";
 
+import { isBlank } from "@/blocks/_v2/blank";
 import { knownKey } from "@/blocks/_v2/known-key";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -26,6 +27,9 @@ interface Props {
 export function CalloutRender({ block, edit, onPatch }: Props) {
   const { locale } = usePageFeedSource();
   const tone = knownKey(TONE_CLASS, block.tone, "info");
+  if (!edit && isBlank(block.title) && isBlank(block.body)) {
+    return null;
+  }
   const labels = locale === "en" ? LABELS.en : LABELS.no;
   return (
     <aside className="flex flex-col gap-2 break-words rounded-biso-md border border-edge bg-surface-raised p-5 text-ink">

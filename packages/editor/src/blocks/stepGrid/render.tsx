@@ -17,6 +17,9 @@ const text = (v: unknown): string => (typeof v === "string" ? v : "");
 export function StepGridRender({ block, edit, onPatch }: Props) {
   const items = listOf<StepGridItem>(block.items);
   const heading = text(block.heading);
+  if (!edit && items.length === 0) {
+    return null;
+  }
   const update = (i: number, key: "body" | "title", v: string) =>
     onPatch(
       "items",

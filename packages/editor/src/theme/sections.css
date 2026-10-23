@@ -334,20 +334,17 @@
 @media (prefers-reduced-motion: reduce) {
   .pg-marquee--live .pg-marquee__run {
     flex-wrap: wrap;
-    width: auto;
+    width: 100%;
     animation: none;
   }
   .pg-marquee--live .pg-marquee__track[aria-hidden="true"] {
     display: none;
   }
   .pg-marquee--live .pg-marquee__track {
-    flex-wrap: wrap;
-    white-space: normal;
     flex-shrink: 1;
+    flex-wrap: wrap;
+    width: 100%;
     min-width: 0;
-    width: 100%;
-  }
-  .pg-marquee--live .pg-marquee__run {
-    width: 100%;
+    white-space: normal;
   }
 }

@@ -4,6 +4,7 @@ import { type KeyboardEvent, useRef, useState } from "react";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import { usePageFeedSource } from "@/editor/page-feed-context";
 import type { TabItem, TabsBlock } from "@/editor/types";
 
 interface Props {
@@ -14,10 +15,13 @@ interface Props {
 
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
 
+const TABS_LABEL = { en: "Tabs", no: "Faner" } as const;
+
 const TAB_CLASS =
   "type-label -mb-px shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-4 py-3 focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
 
 export function TabsRender({ block, edit, onPatch }: Props) {
+  const { locale } = usePageFeedSource();
   const tabs = listOf<TabItem>(block.tabs);
   const [chosen, setChosen] = useState(0);
   const list = useRef<HTMLDivElement>(null);
@@ -59,10 +63,14 @@ export function TabsRender({ block, edit, onPatch }: Props) {
       tabs.map((x, j) => (j === i ? { ...x, body } : x))
     );
 
+  if (!edit && tabs.length === 0) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-6 break-words">
       <div
-        aria-label="Tabs"
+        aria-label={TABS_LABEL[locale] ?? TABS_LABEL.no}
         className="flex overflow-x-auto border-edge border-b"
         onKeyDown={onKeyDown}
         ref={list}

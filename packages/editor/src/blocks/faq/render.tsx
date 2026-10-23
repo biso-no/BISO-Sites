@@ -43,6 +43,9 @@ function Summary({ children, edit }: { children: ReactNode; edit: boolean }) {
 export function FaqRender({ block, edit, onPatch }: Props) {
   const items = listOf<FaqItem>(block.items);
   const heading = text(block.heading);
+  if (!edit && items.length === 0) {
+    return null;
+  }
   const update = (i: number, key: "a" | "q", value: string) =>
     onPatch(
       "items",

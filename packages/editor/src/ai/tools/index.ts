@@ -88,23 +88,6 @@ export const pageEditorTools = {
     }),
   }),
 
-  set_variant: tool({
-    description:
-      "Change the layout variant of a block (e.g. grid/row for a gallery block).",
-    inputSchema: z.object({
-      id: z.string().describe("Block ID"),
-      variant: z
-        .string()
-        .describe(
-          "One of the block's own variant names, e.g. 'grid' or 'row' for a gallery block"
-        ),
-    }),
-    execute: ({ id, variant }) => ({
-      status: "applied",
-      message: `Set variant of ${id} to ${variant}`,
-    }),
-  }),
-
   apply_accent: tool({
     description:
       "Change the page accent colour (used for headings, highlights, and the block selection outline). " +

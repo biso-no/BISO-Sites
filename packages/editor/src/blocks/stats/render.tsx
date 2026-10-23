@@ -13,6 +13,9 @@ interface Props {
 
 export function StatsRender({ block, edit, onPatch }: Props) {
   const items = listOf<StatItem>(block.items);
+  if (!edit && items.length === 0) {
+    return null;
+  }
   const update = (i: number, key: "label" | "num", value: string) =>
     onPatch(
       "items",

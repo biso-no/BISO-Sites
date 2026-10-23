@@ -19,6 +19,9 @@ export function ButtonsRender({ block, edit }: Props) {
   const shown = listOf<LinkButton>(block.items)
     .slice(0, MAX_BUTTONS)
     .filter((button) => edit || isLiveButton(button));
+  if (!edit && shown.length === 0) {
+    return null;
+  }
   return (
     <div
       className={

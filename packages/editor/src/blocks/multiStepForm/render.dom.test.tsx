@@ -117,14 +117,14 @@ afterEach(() => {
   }
 });
 
-function mountNode(node: ReactNode) {
+function mountNode(node: ReactNode, slug = "kontakt") {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push({ host, root });
   act(() => {
     root.render(
-      <PageFeedProvider department="" locale="no" slug="kontakt">
+      <PageFeedProvider department="" locale="no" slug={slug}>
         {node}
       </PageFeedProvider>
     );
@@ -323,6 +323,50 @@ describe("signup", () => {
     await submit(host);
     expect(posts).toHaveLength(0);
     expect(host.querySelector('[role="alert"]')).not.toBeNull();
+  });
+});
+
+describe("form without a page slug (admin preview, gallery)", () => {
+  test("a form shows a neutral notice and never posts", async () => {
+    const host = mountNode(
+      createElement(MultiStepFormRender, {
+        block: { ...form, steps: [form.steps[1]] },
+        edit: false,
+        onPatch: () => undefined,
+      }),
+      ""
+    );
+    await submit(host);
+    expect(posts).toHaveLength(0);
+    expect(host.querySelector('[role="status"]')?.textContent).toContain(
+      "Forhåndsvisning"
+    );
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  test("signup shows the same notice and never posts", async () => {
+    const host = mountNode(
+      createElement(SignupRender, {
+        block: {
+          heading: "Meld deg på",
+          id: "s1",
+          placeholder: "",
+          submitMode: "database",
+          topic: "signup",
+          type: "signup",
+        },
+        edit: false,
+        onPatch: () => undefined,
+      }),
+      ""
+    );
+    type(host.querySelector("input") as Element, "ada@bi.no");
+    await submit(host);
+    expect(posts).toHaveLength(0);
+    expect(host.querySelector('[role="status"]')?.textContent).toContain(
+      "Forhåndsvisning"
+    );
+    expect(host.querySelector('[role="alert"]')).toBeNull();
   });
 });
 

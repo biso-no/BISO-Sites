@@ -18,6 +18,9 @@ const text = (v: unknown): string => (typeof v === "string" ? v : "");
 export function TimelineRender({ block, edit, onPatch }: Props) {
   const items = listOf<Entry>(block.items);
   const heading = text(block.heading);
+  if (!edit && items.length === 0) {
+    return null;
+  }
   const update = (i: number, key: "label" | "text" | "title", v: string) =>
     onPatch(
       "items",

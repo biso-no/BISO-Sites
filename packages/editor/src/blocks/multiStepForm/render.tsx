@@ -27,7 +27,7 @@ interface Props {
   onPatch: PatchFn;
 }
 
-type Status = "idle" | "pending" | "done" | "error";
+type Status = "idle" | "pending" | "done" | "error" | "preview";
 type Answers = Record<string, AnswerValue>;
 type Copy = ReturnType<typeof formCopy>;
 
@@ -263,6 +263,11 @@ export function MultiStepFormRender({ block, edit, onPatch }: Props) {
     if (edit) {
       return;
     }
+    // No page slug (the admin preview, the gallery): there is no form to post to.
+    if (!slug) {
+      setStatus("preview");
+      return;
+    }
     setStatus("pending");
     const names = new Set(steps.flatMap((s) => fieldsOf(s).map((f) => f.name)));
     const data: Answers = {};
@@ -397,6 +402,11 @@ export function MultiStepFormRender({ block, edit, onPatch }: Props) {
             </div>
           );
         })}
+        {status === "preview" ? (
+          <p className="type-body-sm m-0 text-ink-muted" role="status">
+            {copy.preview}
+          </p>
+        ) : null}
         {status === "error" ? (
           <p className="type-body-sm m-0 text-danger" role="alert">
             {copy.failed}

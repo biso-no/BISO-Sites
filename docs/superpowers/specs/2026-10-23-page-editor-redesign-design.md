@@ -745,9 +745,10 @@ Branch `feat/page-editor-redesign`, plan
   `RATE_LIMIT_CLIENT_IP_HEADER` or `RATE_LIMIT_TRUSTED_PROXY_HOPS` is set, as
   for varsling.
 - Cards dropped D9's `icon` (the redesign bans decorative icon tiles).
-- On a page without a header, if a live feed missing from the server snapshot
-  comes back empty in the first section, the next section can sit under the
-  fixed nav.
+- On a page without a header, if the first section ends up empty on the site,
+  for any reason (a live feed that comes back empty, an empty block, or a
+  removed or unknown block type), the next section can sit under the fixed
+  nav.
 - Option values are re-derived when a label is edited; a visitor on a cached
   page can send an old value, which is dropped.
 - The media bucket serves `/view` with the client-declared MIME and has

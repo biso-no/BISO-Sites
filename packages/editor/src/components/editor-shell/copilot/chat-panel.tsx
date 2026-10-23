@@ -38,9 +38,6 @@ export function applyToolCall(toolName: string, args: ToolArgs) {
     case "set_prop":
       store.setProp(args.id as string, args.path as string, args.value);
       break;
-    case "set_variant":
-      store.setVariant(args.id as string, args.variant as string);
-      break;
     case "apply_accent":
       store.applyAccent(args.hex as string);
       break;

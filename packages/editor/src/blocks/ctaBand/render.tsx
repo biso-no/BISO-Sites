@@ -1,6 +1,7 @@
 "use client";
 
 import { ButtonLink, isLiveButton } from "@/blocks/_v2";
+import { isBlank } from "@/blocks/_v2/blank";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -19,6 +20,15 @@ export function CtaBandRender({ block, edit, onPatch }: Props) {
   const buttons = listOf<LinkButton>(block.buttons)
     .slice(0, MAX_BUTTONS)
     .filter((button) => edit || isLiveButton(button));
+  if (
+    !edit &&
+    buttons.length === 0 &&
+    isBlank(block.eyebrow) &&
+    isBlank(block.title) &&
+    isBlank(block.text)
+  ) {
+    return null;
+  }
   return (
     <div className="grid @2xl:grid-cols-[1fr_auto] @2xl:items-end gap-6">
       <div className="flex min-w-0 flex-col gap-3 break-words">

@@ -559,18 +559,6 @@ export function setHeaderProp(
   }
 }
 
-/** Set the layout variant on a block. */
-export function setVariant(
-  doc: PageDoc,
-  blockId: string,
-  variant: string
-): void {
-  const found = findBlock(doc, blockId);
-  if (found) {
-    (found.block as unknown as Record<string, unknown>).variant = variant;
-  }
-}
-
 /** Bind a data-fetch block to an Appwrite source string. */
 export function bindCollection(
   doc: PageDoc,

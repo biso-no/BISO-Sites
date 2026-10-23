@@ -97,7 +97,7 @@ function docOf(sections: unknown[], meta = META): PageDoc {
   return { meta, sections, version: 2 } as unknown as PageDoc;
 }
 
-test("mounts the public brand surface without dropping the page accent", () => {
+test("mounts the public brand surface", () => {
   const doc = docOf([
     section("s-1", "white", [["first"]]),
     section("s-2", "tinted", [["second"]]),
@@ -108,10 +108,22 @@ test("mounts the public brand surface without dropping the page accent", () => {
   );
 
   expect(html).toMatch(BISO_SURFACE_CLASS);
-  expect(html).toContain("--page-accent:#3DA9E0");
   // Each section carries its own background; blocks paint none.
   expect(html).toContain('data-background="white"');
   expect(html).toContain('data-background="tinted"');
+});
+
+test("a hostile accentColor never reaches the HTML", () => {
+  const doc = docOf([section("s-1", "white", [["first"]])], {
+    ...META,
+    accentColor:
+      "red;position:fixed;inset:0;z-index:99999;background:url(https://evil.example/x)",
+  });
+  const html = renderToStaticMarkup(
+    createElement(RenderedPage, { doc, locale: "no" })
+  );
+  expect(html).not.toContain("position:fixed");
+  expect(html).not.toContain("evil.example");
 });
 
 test("renders a two-column section", () => {

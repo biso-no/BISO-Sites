@@ -61,9 +61,6 @@ export function RenderedPage({ doc, feeds, locale, slug }: Props) {
     useEditorStore.setState({ doc: normalizedDoc, locale });
   }, [normalizedDoc, locale]);
 
-  const accentStyle = {
-    "--page-accent": normalizedDoc.meta.accentColor,
-  } as React.CSSProperties;
   const { header } = normalizedDoc;
   // Whatever renders first clears the fixed nav: the page header when there
   // is one, which does so itself, else the first section that renders. An
@@ -82,7 +79,7 @@ export function RenderedPage({ doc, feeds, locale, slug }: Props) {
       locale={locale}
       slug={slug}
     >
-      <div className="biso-surface pg-page" style={accentStyle}>
+      <div className="biso-surface pg-page">
         {header ? (
           <PageHeaderView
             edit={false}

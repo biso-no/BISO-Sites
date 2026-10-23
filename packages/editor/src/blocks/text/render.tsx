@@ -1,6 +1,7 @@
 "use client";
 
 import { createElement, type ReactNode, useMemo } from "react";
+import { isBlankHtml } from "@/blocks/_v2/blank";
 import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
@@ -27,6 +28,9 @@ interface Props {
 
 export function TextRender({ block, edit, onPatch }: Props) {
   const items = listOf<TextBodyItem>(block.body);
+  if (!edit && items.every((item) => isBlankHtml(item.text))) {
+    return null;
+  }
   const change = (index: number) => (html: string) => {
     const body = [...items];
     body[index] = { ...body[index], text: html };

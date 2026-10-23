@@ -1,18 +1,5 @@
 import type { Block, BlockType, PageDoc } from "@/editor/types";
 
-export interface BlockVariant {
-  id: string;
-  kind: string;
-  label: string;
-}
-
-export interface PropSchema {
-  key: string;
-  label: string;
-  options?: string[];
-  type: "text" | "textarea" | "url" | "color" | "select" | "number";
-}
-
 export type PaletteGroup =
   | "text"
   | "media"
@@ -41,10 +28,7 @@ export interface BlockDefinition<B extends Block = Block> {
     edit: boolean;
     onPatch: PatchFn;
   }>;
-  /** Inspector prop schema — rendered as form rows. */
-  schema?: PropSchema[];
   type: BlockType;
-  variants?: BlockVariant[];
 }
 
 export type PatchFn = (path: string, value: unknown) => void;

@@ -24,7 +24,6 @@ import {
   setProp as opSetProp,
   setSectionAnchor as opSetSectionAnchor,
   setSectionLayout as opSetSectionLayout,
-  setVariant as opSetVariant,
 } from "./operations";
 import {
   defaultInsertTarget,
@@ -131,7 +130,6 @@ interface EditorState {
   setSectionLayout: (id: string, patch: Partial<SectionLayout>) => void;
   /** Mirror a publish/unpublish. Not an edit, so it never enters history. */
   setStatus: (status: PageMeta["status"]) => void;
-  setVariant: (id: string, variant: string) => void;
   setViewport: (viewport: EditorViewport) => void;
 
   // History
@@ -383,12 +381,6 @@ export const useEditorStore = create<EditorState>()(
         set((s) => {
           pushHistory(s);
           opSetProp(s.doc, id, path, value);
-        }),
-
-      setVariant: (id, variant) =>
-        set((s) => {
-          pushHistory(s);
-          opSetVariant(s.doc, id, variant);
         }),
 
       bindCollection: (id, source) =>

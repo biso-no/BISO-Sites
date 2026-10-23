@@ -20,7 +20,7 @@ interface Props {
   onPatch: PatchFn;
 }
 
-type State = "idle" | "invalid" | "pending" | "done" | "error";
+type State = "idle" | "invalid" | "pending" | "done" | "error" | "preview";
 
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
 
@@ -39,6 +39,11 @@ export function SignupRender({ block, edit, onPatch }: Props) {
     }
     if (!looksLikeEmail(email)) {
       setState("invalid");
+      return;
+    }
+    // No page slug (the admin preview, the gallery): there is no form to post to.
+    if (!slug) {
+      setState("preview");
       return;
     }
     setState("pending");
@@ -106,6 +111,11 @@ export function SignupRender({ block, edit, onPatch }: Props) {
           {state === "pending" ? copy.sending : copy.signupButton}
         </button>
       </form>
+      {state === "preview" ? (
+        <p className="type-body-sm m-0 text-ink-muted" role="status">
+          {copy.preview}
+        </p>
+      ) : null}
       {message ? (
         <p
           className="type-body-sm m-0 text-danger"

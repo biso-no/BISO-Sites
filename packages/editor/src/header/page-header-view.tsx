@@ -6,6 +6,7 @@ import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
 import { sizedImageSrc } from "@/blocks/_v2/media";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import { usePageFeedSource } from "@/editor/page-feed-context";
 import type { HeaderCrumb, MediaRef, PageHeader } from "@/editor/types";
 
 /** Editor-only prompt where the header's media would go. */
@@ -205,9 +206,12 @@ function FullMedia({ edit, media }: { edit: boolean; media?: MediaRef }) {
   );
 }
 
+const CRUMBS_LABEL = { en: "Breadcrumb", no: "Brødsmulesti" } as const;
+
 function Crumbs({ crumbs, edit }: { crumbs: HeaderCrumb[]; edit: boolean }) {
+  const { locale } = usePageFeedSource();
   return (
-    <nav aria-label="Breadcrumb" className="mb-4">
+    <nav aria-label={CRUMBS_LABEL[locale] ?? CRUMBS_LABEL.no} className="mb-4">
       <ol className="type-body-sm flex flex-wrap items-center gap-x-2 gap-y-1 text-ink-muted">
         {crumbs.map((crumb, i) => {
           const last = i === crumbs.length - 1;
