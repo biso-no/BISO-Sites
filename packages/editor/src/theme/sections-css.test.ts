@@ -194,3 +194,36 @@ test("v2 blocks stacked in a column are spaced, and an empty one takes no room",
     )
   ).toBe(true);
 });
+
+const FIRST_HIDDEN = ".pg-sec:where([data-first][data-hide-phone])";
+const FIRST_SHOWN = ".pg-sec:not([data-hide-phone]) ~ *";
+
+test("on phones, a hidden first section hands the nav clearance to the first one shown", () => {
+  const phone = sectionsCss.slice(
+    sectionsCss.indexOf("@container pg-page (max-width: 639px)")
+  );
+  const inPhone = rules.filter((rule) =>
+    rule.selectors.some((part) =>
+      phone.replace(WHITESPACE_RUN, " ").includes(part)
+    )
+  );
+  const clearance = inPhone.find((rule) =>
+    rule.selectors.some(
+      (part) =>
+        part.startsWith(FIRST_HIDDEN) &&
+        part.includes(FIRST_SHOWN) &&
+        !part.endsWith("::before")
+    )
+  );
+  expect(clearance?.body).toMatch(NAV_OFFSET_PADDING);
+  const strip = inPhone.find((rule) =>
+    rule.selectors.some(
+      (part) =>
+        part.startsWith(FIRST_HIDDEN) &&
+        part.includes(':not([data-surface="deep"])') &&
+        part.endsWith("::before")
+    )
+  );
+  expect(strip?.body).toMatch(NAV_OFFSET_HEIGHT);
+  expect(strip?.body).toContain("background: var(--biso-deep);");
+});

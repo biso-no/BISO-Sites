@@ -211,6 +211,24 @@
   .pg-col__item[data-hide-phone] {
     display: none;
   }
+  /* The first section is hidden here, so the first one still shown clears
+     the nav instead (on the canvas the offset is 0px, so nothing changes). */
+  .pg-sec:where([data-first][data-hide-phone])
+  ~ .pg-sec:where(:not([data-hide-phone])):not(
+    .pg-sec:not([data-hide-phone]) ~ *
+  ) {
+    padding-top: calc(var(--pg-nav-offset, 0px) + var(--pg-sec-pad-y));
+  }
+  .pg-sec:where([data-first][data-hide-phone])
+    ~ .pg-sec:where(:not([data-hide-phone])):where(
+      :not([data-surface="deep"])
+    ):not(.pg-sec:not([data-hide-phone]) ~ *)::before {
+    position: absolute;
+    inset: 0 0 auto;
+    height: var(--pg-nav-offset, 0px);
+    content: "";
+    background: var(--biso-deep);
+  }
   .pe-frame[data-editing] .pg-sec[data-hide-phone],
   .pe-frame[data-editing] .pg-col__item[data-hide-phone] {
     display: block;
