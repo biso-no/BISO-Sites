@@ -618,12 +618,13 @@ export async function getDepartmentWithPage(id: string): Promise<{
   // session-scoped read would not see a department's own draft.
   //
   // Select only what UnitPageCard reads — page_translations rows carry
-  // published_doc/draft_doc (string(50000) each), so `translation_refs.*`
-  // would ship up to ~200KB of draft JSON into the RSC payload for a card that
-  // never renders it. The two named relationship columns are what the card's
-  // per-locale row needs: publishing is per-locale, and pages.status flips to
-  // "published" as soon as ANY locale is, so the page-level flag alone would
-  // tell a board that published only Norwegian that both locales are live.
+  // published_doc/draft_doc (mediumtext each, up to ~4.2M characters), so
+  // `translation_refs.*` would ship whole page documents into the RSC payload
+  // for a card that never renders them. The two named relationship columns
+  // are what the card's per-locale row needs: publishing is per-locale, and
+  // pages.status flips to "published" as soon as ANY locale is, so the
+  // page-level flag alone would tell a board that published only Norwegian
+  // that both locales are live.
   const pages = await adminDb.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),
     Query.select([
