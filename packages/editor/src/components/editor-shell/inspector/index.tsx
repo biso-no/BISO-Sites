@@ -4,24 +4,33 @@ import { useCallback } from "react";
 import { getBlock } from "@/blocks/registry";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
-import { useInspectorTab, useSelection } from "@/editor/hooks";
+import {
+  useInspectorTab,
+  useSelectedSectionId,
+  useSelection,
+} from "@/editor/hooks";
 import {
   departmentsForCampus,
   metaAfterCampusChange,
 } from "@/editor/page-scope";
 import { useEditorStore } from "@/editor/store";
-import type { EditorCampus, EditorDepartment } from "@/editor/types";
+import { findBlock, findSection } from "@/editor/tree";
+import type { EditorCampus, EditorDepartment, Section } from "@/editor/types";
 import type { AccentHue } from "@/theme/presets";
 import { HUE_COLORS } from "@/theme/presets";
-import { DesignPanel } from "./design-panel";
+import { BlockVisibility } from "./block-visibility";
+import { SectionPanel } from "./section-panel";
 
 export function InspectorPane() {
   const selection = useSelection();
   const tab = useInspectorTab();
   const setTab = useEditorStore((s) => s.setInspectorTab);
   const doc = useEditorStore((s) => s.doc);
-  const block = selection ? doc.blocks.find((b) => b.id === selection) : null;
-  const def = block ? getBlock(block.type) : null;
+  const selectedSectionId = useSelectedSectionId();
+  const found = selection ? findBlock(doc, selection) : null;
+  const selectedSection = selectedSectionId
+    ? findSection(doc, selectedSectionId)?.section
+    : undefined;
   const setProp = useEditorStore((s) => s.setProp);
   const applyAccent = useEditorStore((s) => s.applyAccent);
 
@@ -50,48 +59,90 @@ export function InspectorPane() {
       </div>
 
       <div className="scroll pe-inspector-body">
-        {tab === "block" &&
-          (block && def ? (
-            <>
-              <div className="pe-insp-hd">
-                <div className="pe-insp-hd__ic">
-                  <def.PaletteThumb />
-                </div>
-                <div>
-                  <div className="pe-insp-hd__ti">{def.label}</div>
-                  <div className="pe-insp-hd__sub">{block.id}</div>
-                </div>
-              </div>
-              <def.Inspector
-                block={block as never}
-                doc={doc}
-                onPatch={onPatch}
-              />
-              <DesignPanel layout={block.layout} onPatch={onPatch} />
-            </>
-          ) : (
-            <p
-              style={{
-                fontSize: 12,
-                color: "var(--ink-3)",
-                padding: "8px 0",
-              }}
-            >
-              Select a block on the canvas to edit its properties.
-            </p>
-          ))}
+        {tab === "block" && (
+          <BlockTab
+            doc={doc}
+            found={found}
+            onPatch={onPatch}
+            section={selectedSection}
+          />
+        )}
 
         {tab === "page" && <PageTab applyAccent={applyAccent} doc={doc} />}
 
         {tab === "outline" && (
           <OutlineTab
-            blocks={doc.blocks}
-            onSelect={(id) => useEditorStore.getState().select(id)}
+            doc={doc}
+            onSelectBlock={(id) => useEditorStore.getState().select(id)}
+            onSelectSection={(id) =>
+              useEditorStore.getState().selectSection(id)
+            }
+            selectedSectionId={selectedSectionId}
             selection={selection}
           />
         )}
       </div>
     </aside>
+  );
+}
+
+type EditorDoc = ReturnType<typeof useEditorStore.getState>["doc"];
+
+function BlockTab({
+  doc,
+  found,
+  onPatch,
+  section,
+}: {
+  doc: EditorDoc;
+  found: ReturnType<typeof findBlock>;
+  onPatch: PatchFn;
+  section: Section | undefined;
+}) {
+  const def = found ? getBlock(found.block.type) : null;
+  if (found && def) {
+    const { block } = found;
+    return (
+      <>
+        <div className="pe-insp-hd">
+          <div className="pe-insp-hd__ic">
+            <def.PaletteThumb />
+          </div>
+          <div>
+            <div className="pe-insp-hd__ti">{def.label}</div>
+            <div className="pe-insp-hd__sub">{block.id}</div>
+          </div>
+        </div>
+        <def.Inspector block={block as never} doc={doc} onPatch={onPatch} />
+        <BlockVisibility block={block} onPatch={onPatch} />
+        <button
+          className="pe-insp-link"
+          onClick={() =>
+            useEditorStore.getState().selectSection(found.section.id)
+          }
+          type="button"
+        >
+          Section settings
+        </button>
+      </>
+    );
+  }
+  if (section) {
+    const store = useEditorStore.getState();
+    return (
+      <SectionPanel
+        onAnchor={(anchor) => store.setSectionAnchor(section.id, anchor)}
+        onDelete={() => store.removeSection(section.id)}
+        onDuplicate={() => store.duplicateSection(section.id)}
+        onLayout={(patch) => store.setSectionLayout(section.id, patch)}
+        section={section}
+      />
+    );
+  }
+  return (
+    <p style={{ fontSize: 12, color: "var(--ink-3)", padding: "8px 0" }}>
+      Select a block or section on the canvas to edit its properties.
+    </p>
   );
 }
 
@@ -324,35 +375,60 @@ function DepartmentField({
 }
 
 function OutlineTab({
-  blocks,
+  doc,
   selection,
-  onSelect,
+  selectedSectionId,
+  onSelectBlock,
+  onSelectSection,
 }: {
-  blocks: { id: string; type: string }[];
+  doc: ReturnType<typeof useEditorStore.getState>["doc"];
   selection: string | null;
-  onSelect: (id: string) => void;
+  selectedSectionId: string | null;
+  onSelectBlock: (id: string) => void;
+  onSelectSection: (id: string) => void;
 }) {
+  if (doc.sections.length === 0) {
+    return (
+      <p style={{ fontSize: 12, color: "var(--ink-3)" }}>
+        No sections on this page yet.
+      </p>
+    );
+  }
   return (
     <div className="pe-outline-list">
-      {blocks.map((b, i) => (
-        <button
-          className={`pe-outline-item ${selection === b.id ? "on" : ""}`}
-          key={b.id}
-          onClick={() => onSelect(b.id)}
-          type="button"
-        >
-          <span className="pe-outline-item__num">
-            {String(i + 1).padStart(2, "0")}
-          </span>
-          <span>{b.type}</span>
-          <span className="pe-outline-item__meta">{b.id}</span>
-        </button>
+      {doc.sections.map((section, i) => (
+        <div key={section.id}>
+          <button
+            className={`pe-outline-item ${selectedSectionId === section.id && !selection ? "on" : ""}`}
+            onClick={() => onSelectSection(section.id)}
+            type="button"
+          >
+            <span className="pe-outline-item__num">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span>Section</span>
+            <span className="pe-outline-item__meta">
+              {section.anchor ? `#${section.anchor}` : section.layout.columns}
+            </span>
+          </button>
+          <div className="pe-outline-children">
+            {section.columns.flatMap((column) =>
+              column.blocks.map((b) => (
+                <button
+                  className={`pe-outline-item ${selection === b.id ? "on" : ""}`}
+                  key={b.id}
+                  onClick={() => onSelectBlock(b.id)}
+                  type="button"
+                >
+                  <span className="pe-outline-item__num">·</span>
+                  <span>{b.type}</span>
+                  <span className="pe-outline-item__meta">{b.id}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       ))}
-      {blocks.length === 0 && (
-        <p style={{ fontSize: 12, color: "var(--ink-3)" }}>
-          No blocks on this page yet.
-        </p>
-      )}
     </div>
   );
 }

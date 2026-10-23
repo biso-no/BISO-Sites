@@ -3,13 +3,21 @@
 import { useDraggable } from "@dnd-kit/core";
 import { useState } from "react";
 import { BLOCK_LIBRARY, getBlock } from "@/blocks/registry";
+import { useInsertTarget } from "@/editor/hooks";
 import { useEditorStore } from "@/editor/store";
+import { findColumn } from "@/editor/tree";
 import type { BlockType } from "@/editor/types";
 
 export function PalettePane() {
   const [query, setQuery] = useState("");
   const [_showCopilotPrompt, _setShowCopilotPrompt] = useState(false);
   const setCopilotOpen = useEditorStore((s) => s.setCopilotOpen);
+  const insertTarget = useInsertTarget();
+  const setInsertTarget = useEditorStore((s) => s.setInsertTarget);
+  const doc = useEditorStore((s) => s.doc);
+  const targetFound = insertTarget
+    ? findColumn(doc, insertTarget.columnId)
+    : null;
 
   const filtered = query
     ? BLOCK_LIBRARY.map((cat) => ({
@@ -32,6 +40,18 @@ export function PalettePane() {
           </div>
         </div>
       </div>
+
+      {insertTarget && targetFound && (
+        <div className="pe-palette-target">
+          <span>
+            Adding to section {doc.sections.indexOf(targetFound.section) + 1},
+            column {targetFound.section.columns.indexOf(targetFound.column) + 1}
+          </span>
+          <button onClick={() => setInsertTarget(null)} type="button">
+            Cancel
+          </button>
+        </div>
+      )}
 
       <div className="pe-palette-hd pe-palette-hd--search">
         <svg

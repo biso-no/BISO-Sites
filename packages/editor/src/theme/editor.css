@@ -1527,3 +1527,84 @@
   margin: 0 -2px;
   transition: background 0.12s;
 }
+
+/* === Inspector segmented choice (section settings) ======================= */
+.pe-seg {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  padding: 2px;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+}
+.pe-seg button {
+  flex: 1;
+  padding: 3px 4px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+.pe-seg button.on {
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.pe-insp-note {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+.pe-insp-actions {
+  display: flex;
+  gap: 6px;
+}
+.pe-insp-actions button,
+.pe-insp-link {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+}
+.pe-insp-actions button:hover,
+.pe-insp-link:hover {
+  background: white;
+}
+.pe-outline-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 14px;
+}
+.pe-palette-target {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  background: var(--paper-2);
+}
+.pe-palette-target button {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  text-decoration: underline;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
