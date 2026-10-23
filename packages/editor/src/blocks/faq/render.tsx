@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef } from "react";
+import { withoutBlankItems } from "@/blocks/_v2/blank";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -41,7 +42,11 @@ function Summary({ children, edit }: { children: ReactNode; edit: boolean }) {
 }
 
 export function FaqRender({ block, edit, onPatch }: Props) {
-  const items = listOf<FaqItem>(block.items);
+  const items = withoutBlankItems(
+    listOf<FaqItem>(block.items),
+    (x) => [x.q, x.a],
+    edit
+  );
   const heading = text(block.heading);
   if (!edit && items.length === 0) {
     return null;

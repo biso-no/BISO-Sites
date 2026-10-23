@@ -1,5 +1,6 @@
 "use client";
 
+import { withoutBlankItems } from "@/blocks/_v2/blank";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -16,7 +17,11 @@ type Entry = TimelineItem & { year?: string };
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
 
 export function TimelineRender({ block, edit, onPatch }: Props) {
-  const items = listOf<Entry>(block.items);
+  const items = withoutBlankItems(
+    listOf<Entry>(block.items),
+    (x) => [x.label, x.year, x.title, x.text],
+    edit
+  );
   const heading = text(block.heading);
   if (!edit && items.length === 0) {
     return null;

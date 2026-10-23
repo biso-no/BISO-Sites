@@ -1,5 +1,6 @@
 "use client";
 
+import { withoutBlankItems } from "@/blocks/_v2/blank";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -12,7 +13,11 @@ interface Props {
 }
 
 export function StatsRender({ block, edit, onPatch }: Props) {
-  const items = listOf<StatItem>(block.items);
+  const items = withoutBlankItems(
+    listOf<StatItem>(block.items),
+    (x) => [x.label, x.num],
+    edit
+  );
   if (!edit && items.length === 0) {
     return null;
   }

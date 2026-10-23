@@ -1,6 +1,7 @@
 "use client";
 
 import { type KeyboardEvent, useRef, useState } from "react";
+import { withoutBlankItems } from "@/blocks/_v2/blank";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -22,7 +23,11 @@ const TAB_CLASS =
 
 export function TabsRender({ block, edit, onPatch }: Props) {
   const { locale } = usePageFeedSource();
-  const tabs = listOf<TabItem>(block.tabs);
+  const tabs = withoutBlankItems(
+    listOf<TabItem>(block.tabs),
+    (x) => [x.label, x.body],
+    edit
+  );
   const [chosen, setChosen] = useState(0);
   const list = useRef<HTMLDivElement>(null);
   // Ids come from the block id, so server and client markup match.

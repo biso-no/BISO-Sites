@@ -1,5 +1,6 @@
 "use client";
 
+import { withoutBlankItems } from "@/blocks/_v2/blank";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -12,7 +13,11 @@ interface Props {
 }
 
 export function HighlightsRender({ block, edit, onPatch }: Props) {
-  const items = listOf<HighlightsBlock["items"][number]>(block.items);
+  const items = withoutBlankItems(
+    listOf<HighlightsBlock["items"][number]>(block.items),
+    (x) => [x.text],
+    edit
+  );
   if (!edit && items.length === 0) {
     return null;
   }

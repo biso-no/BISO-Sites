@@ -13,3 +13,15 @@ export function isBlankHtml(value: unknown): boolean {
     value.replace(TAG, "").replace(NBSP, " ").trim() === ""
   );
 }
+
+/**
+ * On the site, drops items whose listed text fields are all blank. The editor
+ * keeps every item so its placeholders stay editable.
+ */
+export function withoutBlankItems<T>(
+  items: T[],
+  fields: (item: T) => unknown[],
+  edit: boolean
+): T[] {
+  return edit ? items : items.filter((item) => !fields(item).every(isBlank));
+}

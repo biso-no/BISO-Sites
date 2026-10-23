@@ -1,5 +1,6 @@
 "use client";
 
+import { withoutBlankItems } from "@/blocks/_v2/blank";
 import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
@@ -13,7 +14,11 @@ interface Props {
 }
 
 export function FactsRender({ block, edit, onPatch }: Props) {
-  const items = listOf<FactItem>(block.items);
+  const items = withoutBlankItems(
+    listOf<FactItem>(block.items),
+    (x) => [x.label, x.text],
+    edit
+  );
   if (!edit && items.length === 0) {
     return null;
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { withoutBlankItems } from "@/blocks/_v2/blank";
 import { cardGridClass } from "@/blocks/_v2/card-grid";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
@@ -15,7 +16,11 @@ interface Props {
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
 
 export function StepGridRender({ block, edit, onPatch }: Props) {
-  const items = listOf<StepGridItem>(block.items);
+  const items = withoutBlankItems(
+    listOf<StepGridItem>(block.items),
+    (x) => [x.title, x.body],
+    edit
+  );
   const heading = text(block.heading);
   if (!edit && items.length === 0) {
     return null;

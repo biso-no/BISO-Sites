@@ -12,12 +12,8 @@ interface Props {
 }
 
 export function QuoteRender({ block, edit, onPatch }: Props) {
-  if (
-    !edit &&
-    isBlank(block.text) &&
-    isBlank(block.author) &&
-    isBlank(block.role)
-  ) {
+  // No quote, no figure: a name or role alone is not worth showing.
+  if (!edit && isBlank(block.text)) {
     return null;
   }
   const showCaption = Boolean(block.author || block.role) || edit;
