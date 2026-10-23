@@ -395,6 +395,27 @@ describe("unit route: national project redirect (C3)", () => {
     }
   });
 
+  it("a national unit of a hub project does not redirect", async () => {
+    resolveUnit.mockResolvedValue({
+      canonical: "/units/national/fadderullan",
+      department: { ...NATIONAL, slug: "fadderullan" },
+      kind: "department",
+    });
+    cachedPublishedPage.mockResolvedValue({
+      ...projectPage,
+      row: {
+        ...projectPage.row,
+        department_id: null,
+        slug: "projects/fadderullan",
+      },
+    });
+    await expect(
+      UnitPage({
+        params: Promise.resolve({ segments: ["national", "fadderullan"] }),
+      })
+    ).resolves.toBeDefined();
+  });
+
   it("stays as today while no page exists there", async () => {
     cachedPublishedPage.mockResolvedValue(null);
 

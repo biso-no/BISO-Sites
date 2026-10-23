@@ -1,4 +1,5 @@
 import {
+  isHubProject,
   projectPageSlug,
   projectSlugForUnit,
 } from "@repo/shared/utils/project-units";
@@ -73,7 +74,7 @@ export default async function UnitPage({ params }: Props) {
     department.campus_id === NATIONAL_CAMPUS_ID
       ? projectSlugForUnit(department.slug)
       : null;
-  if (project) {
+  if (project && !isHubProject(project)) {
     const projectPage = await cachedPublishedPage(
       projectPageSlug(project),
       locale

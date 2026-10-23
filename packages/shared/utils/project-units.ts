@@ -50,6 +50,7 @@ export function isProjectSlug(value: string): value is ProjectSlug {
 }
 
 const PROJECT_PAGE_PREFIX = "projects/";
+const COMBINING_MARKS = /\p{M}/gu;
 
 /**
  * Where a project's editor page is stored: `projects/<project>`. Reserved like
@@ -68,10 +69,17 @@ export function projectPageSlug(project: ProjectSlug): string {
 export function isProjectNamespaceSlug(
   slug: string | null | undefined
 ): boolean {
-  return (
-    typeof slug === "string" &&
-    slug.trim().toLowerCase().startsWith(PROJECT_PAGE_PREFIX)
-  );
+  if (typeof slug !== "string") {
+    return false;
+  }
+  // Accents fold too: Appwrite's collation matches `projécts/x` to the
+  // `projects/x` lookup.
+  const folded = slug
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(COMBINING_MARKS, "");
+  return folded.startsWith(PROJECT_PAGE_PREFIX);
 }
 
 /**

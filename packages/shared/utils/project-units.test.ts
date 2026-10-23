@@ -111,6 +111,7 @@ describe("isProjectNamespaceSlug", () => {
   it("covers the whole prefix, trimmed and case-insensitive", () => {
     expect(isProjectNamespaceSlug("projects/charity")).toBe(true);
     expect(isProjectNamespaceSlug(" Projects/x/y")).toBe(true);
+    expect(isProjectNamespaceSlug("projécts/x")).toBe(true);
     expect(isProjectNamespaceSlug("projects")).toBe(false);
     expect(isProjectNamespaceSlug("project/x")).toBe(false);
     expect(isProjectNamespaceSlug(null)).toBe(false);
