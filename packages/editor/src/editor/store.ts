@@ -22,7 +22,12 @@ import {
   setSectionLayout as opSetSectionLayout,
   setVariant as opSetVariant,
 } from "./operations";
-import { defaultInsertTarget, findSection } from "./tree";
+import {
+  defaultInsertTarget,
+  findBlock,
+  findColumn,
+  findSection,
+} from "./tree";
 import type {
   BlockType,
   EditorLocale,
@@ -139,6 +144,34 @@ function snap(doc: PageDoc): HistorySnap {
     meta: current(doc.meta) as PageMeta,
     sections: current(doc.sections) as Section[],
   };
+}
+
+/** Clear selection state that points at ids missing from the current doc. */
+function reconcileSelection(state: {
+  doc: PageDoc;
+  insertTarget: InsertTarget | null;
+  selectedSectionId: string | null;
+  selection: string | null;
+}) {
+  if (state.selection && !findBlock(state.doc, state.selection)) {
+    state.selection = null;
+  }
+  if (
+    state.selectedSectionId &&
+    !findSection(state.doc, state.selectedSectionId)
+  ) {
+    state.selectedSectionId = null;
+  }
+  const target = state.insertTarget;
+  if (target) {
+    const column = findColumn(state.doc, target.columnId);
+    const beforeMissing =
+      target.beforeBlockId &&
+      !column?.column.blocks.some((b) => b.id === target.beforeBlockId);
+    if (!column || beforeMissing) {
+      state.insertTarget = null;
+    }
+  }
 }
 
 export const useEditorStore = create<EditorState>()(
@@ -317,9 +350,7 @@ export const useEditorStore = create<EditorState>()(
           s.doc = structuredClone(doc);
           s.past = [];
           s.future = [];
-          s.selection = null;
-          s.selectedSectionId = null;
-          s.insertTarget = null;
+          reconcileSelection(s);
         }),
 
       select: (id) =>
@@ -375,6 +406,7 @@ export const useEditorStore = create<EditorState>()(
           s.future.push(snap(s.doc));
           s.doc.sections = entry.sections;
           s.doc.meta = entry.meta;
+          reconcileSelection(s);
         }),
 
       redo: () =>
@@ -386,6 +418,7 @@ export const useEditorStore = create<EditorState>()(
           s.past.push(snap(s.doc));
           s.doc.sections = entry.sections;
           s.doc.meta = entry.meta;
+          reconcileSelection(s);
         }),
     };
   })

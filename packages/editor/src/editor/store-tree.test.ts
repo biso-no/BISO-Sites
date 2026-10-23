@@ -77,4 +77,20 @@ describe("store on the section tree", () => {
     useEditorStore.getState().removeSection("s-1");
     expect(useEditorStore.getState().selectedSectionId).toBeNull();
   });
+
+  test("setDoc keeps a selection that still exists", () => {
+    useEditorStore.getState().select("b-2");
+    useEditorStore
+      .getState()
+      .setDoc(doc(section("s-1", "1-1", [["b-1"], ["b-2"]])));
+    expect(useEditorStore.getState().selection).toBe("b-2");
+  });
+
+  test("setDoc clears a selection the new doc lacks", () => {
+    useEditorStore.getState().select("b-2");
+    useEditorStore.getState().setInsertTarget({ columnId: "s-1-c1" });
+    useEditorStore.getState().setDoc(doc(section("s-9", "1", [["b-9"]])));
+    expect(useEditorStore.getState().selection).toBeNull();
+    expect(useEditorStore.getState().insertTarget).toBeNull();
+  });
 });
