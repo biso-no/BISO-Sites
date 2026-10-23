@@ -1,5 +1,6 @@
 "use client";
 
+import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { HeadingBlock } from "@/editor/types";
@@ -23,7 +24,11 @@ interface Props {
 }
 
 export function HeadingRender({ block, edit, onPatch }: Props) {
-  const link = block.link?.href && block.link.label ? block.link : undefined;
+  const linkHref = safeHref(block.link?.href);
+  const link =
+    linkHref && block.link?.label
+      ? { href: linkHref, label: block.link.label }
+      : undefined;
   const size = block.size ?? "medium";
   return (
     <div className="flex flex-col gap-3">
@@ -58,6 +63,7 @@ export function HeadingRender({ block, edit, onPatch }: Props) {
           <a
             className="type-body-sm text-ink-accent underline-offset-4 hover:underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             href={link.href}
+            {...externalLinkProps(link.href)}
           >
             {link.label} →
           </a>

@@ -1,5 +1,6 @@
 "use client";
 
+import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { FactItem, FactsBlock } from "@/editor/types";
@@ -26,27 +27,34 @@ export function FactsRender({ block, edit, onPatch }: Props) {
   );
   return (
     <dl className="m-0 divide-y divide-edge border-edge border-y">
-      {block.items.map((item, i) => (
-        <div className="py-3" key={i}>
-          <dt className="type-label text-ink-muted">
-            <EditableText
-              edit={edit}
-              onChange={(v) => update(i, "label", v)}
-              tag="span"
-              value={item.label}
-            />
-          </dt>
-          <dd className="type-heading-card m-0 text-ink">
-            {item.href && !edit ? (
-              <a className="underline" href={item.href}>
-                {value(item, i)}
-              </a>
-            ) : (
-              value(item, i)
-            )}
-          </dd>
-        </div>
-      ))}
+      {block.items.map((item, i) => {
+        const href = safeHref(item.href);
+        return (
+          <div className="py-3" key={i}>
+            <dt className="type-label text-ink-muted">
+              <EditableText
+                edit={edit}
+                onChange={(v) => update(i, "label", v)}
+                tag="span"
+                value={item.label}
+              />
+            </dt>
+            <dd className="type-heading-card m-0 text-ink">
+              {href && !edit ? (
+                <a
+                  className="underline"
+                  href={href}
+                  {...externalLinkProps(href)}
+                >
+                  {value(item, i)}
+                </a>
+              ) : (
+                value(item, i)
+              )}
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }

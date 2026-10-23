@@ -42,4 +42,24 @@ describe("FactsRender", () => {
     expect(html).toContain("<a");
     expect(html).toContain('href="https://example.com"');
   });
+
+  test("a javascript: href renders plain text, no link", () => {
+    const html = render({
+      id: "f1",
+      items: [{ href: "javascript:alert(1)", label: "Web", text: "Site" }],
+      type: "facts",
+    });
+    expect(html).not.toContain("<a");
+    expect(html).toContain("Site");
+  });
+
+  test("an external link opens safely in a new tab", () => {
+    const html = render({
+      id: "f1",
+      items: [{ href: "https://example.com", label: "Web", text: "Site" }],
+      type: "facts",
+    });
+    expect(html).toContain('rel="noopener"');
+    expect(html).toContain('target="_blank"');
+  });
 });

@@ -2,6 +2,7 @@
 
 import { BUTTON_CLASS, ButtonLink } from "@/blocks/_v2/button-link";
 import { ChevronMedia } from "@/blocks/_v2/chevron-media";
+import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
 import { sizedImageSrc } from "@/blocks/_v2/media";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
@@ -159,6 +160,7 @@ function Crumbs({ crumbs, edit }: { crumbs: HeaderCrumb[]; edit: boolean }) {
       <ol className="type-body-sm flex flex-wrap items-center gap-x-2 gap-y-1 text-ink-muted">
         {crumbs.map((crumb, i) => {
           const last = i === crumbs.length - 1;
+          const crumbHref = safeHref(crumb.href);
           return (
             <li className="flex items-center gap-2" key={`${i}-${crumb.label}`}>
               {i > 0 ? (
@@ -166,8 +168,12 @@ function Crumbs({ crumbs, edit }: { crumbs: HeaderCrumb[]; edit: boolean }) {
                   /
                 </span>
               ) : null}
-              {crumb.href && !last && !edit ? (
-                <a className={CRUMB_LINK} href={crumb.href}>
+              {crumbHref && !last && !edit ? (
+                <a
+                  className={CRUMB_LINK}
+                  href={crumbHref}
+                  {...externalLinkProps(crumbHref)}
+                >
                   {crumb.label}
                 </a>
               ) : (
