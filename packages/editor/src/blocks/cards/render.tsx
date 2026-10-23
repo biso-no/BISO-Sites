@@ -7,6 +7,7 @@ import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import { usePageFeedSource } from "@/editor/page-feed-context";
 import type { CardItem, CardsBlock } from "@/editor/types";
 
 interface Props {
@@ -22,9 +23,13 @@ const STYLES = { bordered: "", plain: "" } as const;
 const BORDERED =
   "rounded-biso-md border border-edge p-5 hover:border-ink-accent";
 const CARD_BASE = "flex h-full min-w-0 flex-col gap-3 break-words text-ink";
+const ROW_LABEL = { en: "Cards", no: "Kort" } as const;
+const ROW_SCROLLER =
+  "overflow-x-auto pb-2 focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
 const ROW_CARD = "w-64 shrink-0 snap-start @md:w-72";
 
 export function CardsRender({ block, edit, onPatch }: Props) {
+  const { locale } = usePageFeedSource();
   const items = listOf<CardItem>(block.items);
   const columns = COLUMNS[knownKey(COLUMNS, String(block.columns), "3")];
   const layout = knownKey(LAYOUTS, block.layout, "grid");
@@ -37,7 +42,7 @@ export function CardsRender({ block, edit, onPatch }: Props) {
 
   const listClass =
     layout === "row"
-      ? "m-0 flex list-none snap-x snap-mandatory gap-5 overflow-x-auto p-0 pb-2"
+      ? "m-0 flex list-none snap-x snap-mandatory gap-5 p-0"
       : `${cardGridClass(columns)} m-0 list-none p-0`;
   const cardClass = `${CARD_BASE} ${style === "bordered" ? BORDERED : ""}`;
 
@@ -45,7 +50,7 @@ export function CardsRender({ block, edit, onPatch }: Props) {
     return null;
   }
 
-  return (
+  const list = (
     <ul className={listClass}>
       {items.map((item, i) => (
         <FeedCardShell
@@ -53,6 +58,8 @@ export function CardsRender({ block, edit, onPatch }: Props) {
           edit={edit}
           href={item.href}
           itemClassName={layout === "row" ? ROW_CARD : "min-w-0"}
+          // Items carry no id and their text is editable, so the index is the
+          // only stable identity.
           key={i}
         >
           {item.image?.src ? (
@@ -90,5 +97,20 @@ export function CardsRender({ block, edit, onPatch }: Props) {
         </FeedCardShell>
       ))}
     </ul>
+  );
+
+  if (layout !== "row") {
+    return list;
+  }
+  // A scroller must be reachable and announced for keyboard users.
+  return (
+    <div
+      aria-label={ROW_LABEL[locale] ?? ROW_LABEL.no}
+      className={ROW_SCROLLER}
+      role="region"
+      tabIndex={0}
+    >
+      {list}
+    </div>
   );
 }

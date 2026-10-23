@@ -148,22 +148,11 @@ describe("Design panel rules for blocks styled by blocks.css", () => {
     expect(column?.[2]).toContain("var(--pg-column)");
   });
 
-  test("a Narrow column repeats every tablet rule", () => {
-    const tablet = blockBody(blocksCss, TABLET_QUERY);
-    // Every block with a tablet rule has been rebuilt on container-query
-    // utilities; the guard stays for any legacy block that adds one again.
-    if (tablet === "") {
-      return;
-    }
-    const selectors = [...tablet.matchAll(CSS_RULE)].flatMap(([, selector]) =>
-      selector.split(",").map((part) => part.trim())
-    );
-    expect(selectors.length).toBeGreaterThan(0);
-    for (const selector of selectors) {
-      expect(blocksCss).toContain(
-        `.pg-section[data-width="prose"] ${selector}`
-      );
-    }
+  test("no legacy tablet query is left for a Narrow column to repeat", () => {
+    // Every block that had a 900px tablet rule was rebuilt on container-query
+    // utilities. A new one would need a matching `data-width="prose"` rule;
+    // Task 10 removes the remaining legacy CSS.
+    expect(blocksCss).not.toContain(TABLET_QUERY);
   });
 });
 

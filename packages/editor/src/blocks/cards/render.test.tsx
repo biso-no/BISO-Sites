@@ -75,12 +75,23 @@ describe("CardsRender", () => {
     }
   });
 
-  test("renders no icon glyph", () => {
+  test("renders no icon, glyph or icon container", () => {
     const out = html({
       ...base,
       items: [{ body: "b", icon: "★", title: "t" } as never],
     });
     expect(out).not.toMatch(GLYPHS);
+    expect(out).not.toContain("<svg");
+    expect(out).not.toContain("<img");
+    expect(out.toLowerCase()).not.toContain("icon");
+  });
+
+  test("the row scroller is a labelled, focusable region", () => {
+    const out = html({ ...base, layout: "row" });
+    expect(out).toContain('role="region"');
+    expect(out).toContain('aria-label="Kort"');
+    expect(out).toContain('tabindex="0"');
+    expect(classTokens(out).has("focus-visible:ring-focus-ring")).toBe(true);
   });
 
   test("an image renders through the chevron frame", () => {

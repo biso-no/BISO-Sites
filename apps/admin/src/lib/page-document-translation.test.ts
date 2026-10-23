@@ -349,4 +349,73 @@ describe("page document translation", () => {
       tablet: "row",
     });
   });
+
+  test("translates a card image's alt text but not its src, fileId or mime", async () => {
+    const document = {
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "",
+        slug: "x",
+        status: "draft",
+        title: "Om oss",
+      },
+      sections: [
+        {
+          columns: [
+            {
+              blocks: [
+                {
+                  columns: 3,
+                  id: "b-1",
+                  items: [
+                    {
+                      body: "Tekst",
+                      image: {
+                        alt: "En bygning ved sjøen",
+                        fileId: "file-9",
+                        mime: "image/png",
+                        src: "https://example.com/bygg.png",
+                      },
+                      title: "Oslo",
+                    },
+                  ],
+                  layout: "grid",
+                  style: "bordered",
+                  type: "cards",
+                },
+              ],
+              id: "c-1",
+            },
+          ],
+          id: "s-1",
+          layout: {},
+        },
+      ],
+      version: 2,
+    } as unknown as PageDoc;
+
+    const source = getPageTranslationSource(document);
+    expect(source).toEqual({
+      "meta.title": "Om oss",
+      "sections[0].columns[0].blocks[0].items[0].body": "Tekst",
+      "sections[0].columns[0].blocks[0].items[0].image.alt":
+        "En bygning ved sjøen",
+      "sections[0].columns[0].blocks[0].items[0].title": "Oslo",
+    });
+
+    const translated = await translatePageDocument(
+      { document, sourceLocale: "no", targetLocale: "en" },
+      async ({ fields }) =>
+        Object.fromEntries(fields.map((f) => [f.key, `EN:${f.value}`]))
+    );
+    const [section] = translated.sections as unknown as {
+      columns: { blocks: { items: { image: unknown }[] }[] }[];
+    }[];
+    expect(section.columns[0]?.blocks[0]?.items[0]?.image).toEqual({
+      alt: "EN:En bygning ved sjøen",
+      fileId: "file-9",
+      mime: "image/png",
+      src: "https://example.com/bygg.png",
+    });
+  });
 });

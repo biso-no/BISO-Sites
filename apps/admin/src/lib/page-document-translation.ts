@@ -113,6 +113,24 @@ const collectLayoutAlt = (
   }
 };
 
+/**
+ * An item's `image` is a media reference: `src`, `fileId` and `mime` stay as
+ * they are, but its `alt` is read by visitors, so it is translated.
+ */
+const collectImageAlt = (
+  image: unknown,
+  path: string,
+  entries: { path: string; value: string }[]
+): void => {
+  if (!(image && typeof image === "object")) {
+    return;
+  }
+  const alt = (image as { alt?: unknown }).alt;
+  if (typeof alt === "string" && isTranslatableString(alt)) {
+    entries.push({ path: `${path}.alt`, value: alt.trim() });
+  }
+};
+
 const collectTranslatableValues = (
   value: unknown,
   path: string,
@@ -132,6 +150,10 @@ const collectTranslatableValues = (
     const childPath = path ? `${path}.${key}` : key;
     if (key === "layout") {
       collectLayoutAlt(child, childPath, entries);
+      continue;
+    }
+    if (key === "image") {
+      collectImageAlt(child, childPath, entries);
       continue;
     }
     if (SKIP_FIELDS.has(key)) {
