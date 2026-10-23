@@ -28,10 +28,13 @@ export default function PageBlocksPage() {
   return (
     <>
       <p
-        className="type-label fixed inset-x-0 top-20 z-40 m-0 bg-marker px-4 py-2 text-center text-deep"
+        className="type-label fixed inset-x-0 top-20 z-40 m-0 truncate whitespace-nowrap bg-marker px-4 py-2 text-center text-deep"
         role="note"
       >
-        Eksempelinnhold — ikke et ekte arrangement
+        <span className="sm:hidden">Eksempelinnhold</span>
+        <span className="hidden sm:inline">
+          Eksempelinnhold — ikke et ekte arrangement
+        </span>
       </p>
       <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />
     </>

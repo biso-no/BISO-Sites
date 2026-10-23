@@ -44,6 +44,8 @@ describe("QuoteRender", () => {
     expect(html).toContain("<figure");
     expect(html).toContain("border-l-4");
     expect(html).toContain("<blockquote");
-    expect(html).toContain("type-display-sm m-0 text-ink");
+    expect(html).toContain(
+      "type-display-sm m-0 hyphens-auto break-words text-ink"
+    );
   });
 });

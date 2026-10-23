@@ -14,8 +14,8 @@ const HTML_PROP = "dangerouslySetInnerHTML";
 export const ITEM_CLASS: Record<TextBodyItem["type"], string> = {
   h: "type-display-sm break-words hyphens-auto text-ink [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
   h3: "type-heading-card break-words hyphens-auto text-ink [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
-  li: "type-body hyphens-auto text-ink [overflow-wrap:anywhere] [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
-  p: "type-body hyphens-auto text-ink [overflow-wrap:anywhere] [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
+  li: "type-body text-ink [overflow-wrap:anywhere] [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
+  p: "type-body text-ink [overflow-wrap:anywhere] [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
 };
 
 interface Props {

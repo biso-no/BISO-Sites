@@ -232,7 +232,10 @@ function VideoBody({
   }
   if (style === "inline") {
     return (
-      <div className="relative aspect-video overflow-hidden rounded-biso-md bg-deep">
+      <div
+        className={PLAYER_BOX}
+        style={{ aspectRatio: `1 / ${ratioValue(ratio)}` } as CSSProperties}
+      >
         <Player autoPlay={false} poster={poster} title={title} url={url} />
       </div>
     );

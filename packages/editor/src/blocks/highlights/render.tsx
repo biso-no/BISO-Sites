@@ -14,7 +14,7 @@ interface Props {
 export function HighlightsRender({ block, edit, onPatch }: Props) {
   const items = listOf<HighlightsBlock["items"][number]>(block.items);
   return (
-    <ul className="m-0 grid list-none gap-4 hyphens-auto break-words p-0">
+    <ul className="m-0 grid list-none gap-4 break-words p-0">
       {items.map((item, i) => (
         <li
           className="type-body min-w-0 border-ink-accent border-l-2 pl-4"

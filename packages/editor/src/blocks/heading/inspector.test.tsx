@@ -39,6 +39,14 @@ describe("HeadingInspector link note", () => {
     ]);
   });
 
+  test("a working link without a label says the link won't show", () => {
+    for (const label of ["", "   "]) {
+      expect(notes({ href: "/om-oss", label })).toEqual([
+        "No label yet, so the link and its underline won't show.",
+      ]);
+    }
+  });
+
   test("an unsafe link says it isn't allowed", () => {
     expect(notes({ href: "javascript:x", label: "Les mer" })).toEqual([
       "This link isn't allowed, so the link and its underline won't show.",

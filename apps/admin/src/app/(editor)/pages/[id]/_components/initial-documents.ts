@@ -60,7 +60,9 @@ export function blankPageDoc({
     source?.meta.status ??
     (page?.status === "published" ? "published" : "draft");
   return {
-    header: emptyHeader(title),
+    // The placeholder title stays out of the header: the site falls back to
+    // meta.title, and the editor shows it greyed until the page is named.
+    header: emptyHeader(translation?.title ? title : ""),
     meta: {
       accentColor: source?.meta.accentColor ?? DEFAULT_ACCENT,
       campus: source?.meta.campus ?? pageCampus(page, defaultCampusId),

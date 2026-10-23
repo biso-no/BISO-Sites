@@ -32,6 +32,8 @@ const html = (b: VideoBlock, edit = false) =>
     )
   );
 
+const ASPECT_21_9 = /aspect-ratio:\s*1 \/ 0\.428/;
+
 describe("VideoRender", () => {
   test("featured with a poster is a facade: poster, labelled button, no player", () => {
     const out = html(block({ poster: "https://x.test/poster.jpg" }));
@@ -125,6 +127,14 @@ describe("VideoRender", () => {
       html(block({ style: "inline", url: YOUTUBE }))
     ).querySelector("iframe");
     expect(iframe?.getAttribute("loading")).toBe("lazy");
+  });
+
+  test("inline uses the chosen ratio, not a fixed 16:9 box", () => {
+    const box = parseHtml(
+      html(block({ ratio: "21/9", style: "inline", url: YOUTUBE }))
+    ).querySelector("iframe")?.parentElement;
+    expect(classesOf(box)).not.toContain("aspect-video");
+    expect(box?.getAttribute("style")).toMatch(ASPECT_21_9);
   });
 
   test("an inline file player letterboxes instead of cropping", () => {

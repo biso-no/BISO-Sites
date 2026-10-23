@@ -1,4 +1,5 @@
 import type { FrameRatio } from "@/editor/types";
+import { knownKey } from "./known-key";
 
 const VIMEO_RE = /vimeo\.com\/(\d+)/;
 const YOUTUBE_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/;
@@ -76,6 +77,5 @@ const RATIO_VALUES: Record<FrameRatio, number> = {
  * data, copilot output) falls back to 16/9 rather than crashing the page.
  */
 export function ratioValue(ratio: FrameRatio | undefined): number {
-  const known = ratio && RATIO_VALUES[ratio];
-  return known || RATIO_VALUES[DEFAULT_RATIO];
+  return RATIO_VALUES[knownKey(RATIO_VALUES, ratio, DEFAULT_RATIO)];
 }

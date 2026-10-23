@@ -135,16 +135,18 @@ describe("blankPageDoc", () => {
 });
 
 describe("a blank document starts with a page header", () => {
-  test("a new page opens with a plain header carrying its title", () => {
-    // The header is the page's only h1; without it a new page had none.
+  test("a new page's header title stays empty while the page title is the placeholder", () => {
+    // The site falls back to meta.title for the h1, so the placeholder is not
+    // copied in: renaming the page later would otherwise leave "Uten navn".
     const doc = blankPageDoc({ defaultCampusId: EDITOR_CAMPUS, locale: "no" });
-    expect(doc.header).toEqual(emptyHeader("Uten navn"));
+    expect(doc.header).toEqual(emptyHeader(""));
+    expect(doc.meta.title).toBe("Uten navn");
     expect(doc.sections).toEqual([]);
   });
 
   test("/pages/new seeds its opening document with the header", () => {
     const docs = buildInitialDocuments(null, "en", EDITOR_CAMPUS);
-    expect(docs.en?.header).toEqual(emptyHeader("Untitled page"));
+    expect(docs.en?.header).toEqual(emptyHeader(""));
   });
 
   test("a blank locale of an existing page gets a header with its own title", () => {

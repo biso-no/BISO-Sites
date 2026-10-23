@@ -25,6 +25,9 @@ const HEADING_LINK_NOTES: LinkNotes = {
   unsafe: "This link isn't allowed, so the link and its underline won't show.",
 };
 
+const HEADING_LABEL_NOTE =
+  "No label yet, so the link and its underline won't show.";
+
 /** The note for a link someone has started on; none for no link at all. */
 function headingLinkNote(link: HeadingBlock["link"]): string | null {
   const href = typeof link?.href === "string" ? link.href : "";
@@ -32,7 +35,10 @@ function headingLinkNote(link: HeadingBlock["link"]): string | null {
   if (!(href.trim() || label.trim())) {
     return null;
   }
-  return linkNote(href, HEADING_LINK_NOTES);
+  return (
+    linkNote(href, HEADING_LINK_NOTES) ??
+    (label.trim() ? null : HEADING_LABEL_NOTE)
+  );
 }
 
 interface Props {

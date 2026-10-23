@@ -11,6 +11,9 @@ describe("safeHref", () => {
     expect(safeHref("")).toBeNull();
     expect(safeHref("   ")).toBeNull();
     expect(safeHref(undefined)).toBeNull();
+    // Stored props are untrusted: a number or object is not a link.
+    expect(safeHref(42 as never)).toBeNull();
+    expect(safeHref({ href: "/x" } as never)).toBeNull();
   });
 
   test("keeps relative, http(s), mailto and tel hrefs", () => {

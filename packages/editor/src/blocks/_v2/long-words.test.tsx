@@ -13,7 +13,7 @@ import { getBlock } from "../index";
  */
 const WORD = "Samarbeidspartnere";
 const EMAIL = "communication.wintergames@biso.no";
-const WRAP = ["break-words", "hyphens-auto"];
+const HYPHENS = "hyphens-auto";
 const ANYWHERE = "[overflow-wrap:anywhere]";
 
 const render = (block: Block): Element => {
@@ -40,10 +40,16 @@ const render = (block: Block): Element => {
 /** The block's own root: the first element inside the wrapping section. */
 const root = (el: Element) => el.querySelector("section > *");
 
+/** Wraps a long word, without hyphenating it: body copy. */
 const expectWraps = (element: Element | null | undefined) => {
-  for (const cls of WRAP) {
-    expect(classesOf(element)).toContain(cls);
-  }
+  expect(classesOf(element)).toContain("break-words");
+  expect(classesOf(element)).not.toContain(HYPHENS);
+};
+
+/** A display title: wraps and hyphenates, as the coded site's display roles. */
+const expectTitleWraps = (element: Element | null | undefined) => {
+  expect(classesOf(element)).toContain("break-words");
+  expect(classesOf(element)).toContain(HYPHENS);
 };
 
 describe("long words wrap inside a narrow column", () => {
@@ -58,12 +64,12 @@ describe("long words wrap inside a narrow column", () => {
       id: "t",
       type: "text",
     });
-    expectWraps(el.querySelector("h2"));
-    expectWraps(el.querySelector("h3"));
+    expectTitleWraps(el.querySelector("h2"));
+    expectTitleWraps(el.querySelector("h3"));
     for (const tag of ["p", "li"]) {
       const classes = classesOf(el.querySelector(tag));
       expect(classes).toContain(ANYWHERE);
-      expect(classes).toContain("hyphens-auto");
+      expect(classes).not.toContain(HYPHENS);
       // One overflow-wrap per element, or the stylesheet order decides.
       expect(classes).not.toContain("break-words");
     }
@@ -79,7 +85,7 @@ describe("long words wrap inside a narrow column", () => {
       type: "heading",
     });
     expectWraps(root(el));
-    expectWraps(el.querySelector("h2"));
+    expectTitleWraps(el.querySelector("h2"));
     expect(classesOf(el.querySelector("h2"))).toContain("min-w-0");
   });
 
@@ -92,6 +98,8 @@ describe("long words wrap inside a narrow column", () => {
       type: "quote",
     });
     expectWraps(root(el));
+    expectTitleWraps(el.querySelector("blockquote"));
+    expect(classesOf(el.querySelector("figcaption"))).not.toContain(HYPHENS);
   });
 
   test("facts: values break anywhere, so an email fits", () => {
@@ -146,6 +154,8 @@ describe("long words wrap inside a narrow column", () => {
     });
     const column = root(el)?.firstElementChild;
     expectWraps(column);
+    expectTitleWraps(el.querySelector("h2"));
+    expect(classesOf(el.querySelector("h2 ~ p"))).not.toContain(HYPHENS);
     expect(classesOf(column)).toContain("min-w-0");
   });
 });

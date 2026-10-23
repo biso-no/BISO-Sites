@@ -28,7 +28,7 @@ export function FactsRender({ block, edit, onPatch }: Props) {
     />
   );
   return (
-    <dl className="m-0 divide-y divide-edge hyphens-auto break-words border-edge border-y">
+    <dl className="m-0 divide-y divide-edge break-words border-edge border-y">
       {items.map((item, i) => {
         const href = safeHref(item.href);
         return (

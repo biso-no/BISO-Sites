@@ -29,6 +29,19 @@ const render = (h: PageHeader, edit = false, fallbackTitle?: string) =>
     />
   );
 
+describe("PageHeaderView title placeholder", () => {
+  test("an empty title shows the page title as the editor's placeholder", () => {
+    const html = render(header({ title: "" }), true, "Fadderullan");
+    expect(html).toContain('data-placeholder="Fadderullan"');
+  });
+
+  test("with no page title either, the placeholder asks for one", () => {
+    expect(render(header({ title: "" }), true)).toContain(
+      'data-placeholder="Page title"'
+    );
+  });
+});
+
 describe("PageHeaderView", () => {
   test("a split header with an image is a navy band with the title as h1 and a chevron frame", () => {
     const html = render(

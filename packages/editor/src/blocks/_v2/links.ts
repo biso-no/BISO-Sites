@@ -10,8 +10,9 @@ const SAFE_SCHEME_RE = /^(?:https?|mailto|tel):/i;
  * The href when it is a relative path or an http(s), mailto or tel link,
  * otherwise null (javascript:, data:, blank, anything else).
  */
-export function safeHref(href: string | undefined): string | null {
-  if (!href) {
+export function safeHref(href: unknown): string | null {
+  // Stored props are untrusted: a number or object is not a link.
+  if (typeof href !== "string" || !href) {
     return null;
   }
   const trimmed = href.trim();

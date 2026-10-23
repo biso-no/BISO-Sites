@@ -35,7 +35,7 @@ export function HeadingRender({ block, edit, onPatch }: Props) {
       : undefined;
   const size = knownKey(TITLE_CLASS, block.size, "medium");
   return (
-    <div className="flex flex-col gap-3 hyphens-auto break-words">
+    <div className="flex flex-col gap-3 break-words">
       {(block.eyebrow || edit) && (
         <EditableText
           className="type-label text-ink-accent"

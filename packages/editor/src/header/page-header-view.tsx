@@ -173,7 +173,7 @@ function HeaderTitle({
     return (
       <EditableText
         className={className}
-        data-placeholder="Page title"
+        data-placeholder={fallbackTitle?.trim() || "Page title"}
         edit
         onChange={(value) => onPatch("title", value)}
         tag="h1"
