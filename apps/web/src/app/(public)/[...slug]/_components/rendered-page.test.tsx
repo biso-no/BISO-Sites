@@ -7,17 +7,22 @@ import { RenderedPage } from "./rendered-page";
 const BISO_SURFACE_CLASS = /class="[^"]*\bbiso-surface\b[^"]*"/;
 
 // The real render barrel pulls in every block (and the editor's `@/` alias,
-// which this app's vitest does not resolve), so it is replaced. SectionView is
-// the real one, imported by path: it is what these tests are about.
+// which this app's vitest does not resolve), so it is replaced. SectionView,
+// the normalizer and the background map are the real ones, imported by path:
+// they are what these tests are about. Only the blocks, the store and the feed
+// provider are stand-ins.
 vi.mock("@repo/editor/render", async () => ({
   SectionView: (
     await import(
       "../../../../../../../packages/editor/src/sections/section-view"
     )
   ).SectionView,
-  legacyBackground: (background: string) => background,
-  normalizePageDoc: (doc: { sections?: unknown }) =>
-    doc.sections ? doc : { ...doc, sections: [], version: 2 },
+  legacyBackground: (
+    await import("../../../../../../../packages/editor/src/editor/sections")
+  ).legacyBackground,
+  normalizePageDoc: (
+    await import("../../../../../../../packages/editor/src/editor/serialize")
+  ).normalizePageDoc,
   BlockView: ({
     background,
     block,
@@ -66,14 +71,16 @@ const META = {
 };
 
 const LAYOUT = {
-  align: "start",
-  background: "default",
+  align: "top",
+  background: "white",
   columns: "1",
   hideOnPhone: false,
   phoneReverse: false,
   spacing: "normal",
-  tablet: "keep",
+  tablet: "row",
 };
+
+const LAYOUT_1_1 = { ...LAYOUT, columns: "1-1" };
 
 function section(id: string, background: string, columns: string[][]) {
   return {
@@ -96,8 +103,8 @@ function docOf(sections: unknown[], meta = META): PageDoc {
 
 test("mounts the public brand surface without dropping the page accent", () => {
   const doc = docOf([
-    section("s-1", "default", [["first"]]),
-    section("s-2", "muted", [["second"]]),
+    section("s-1", "white", [["first"]]),
+    section("s-2", "tinted", [["second"]]),
   ]);
 
   const html = renderToStaticMarkup(
@@ -106,12 +113,15 @@ test("mounts the public brand surface without dropping the page accent", () => {
 
   expect(html).toMatch(BISO_SURFACE_CLASS);
   expect(html).toContain("--page-accent:#3DA9E0");
+  // Section backgrounds map onto the blocks' surfaces.
   expect(html).toContain('data-background="default"');
   expect(html).toContain('data-background="muted"');
 });
 
 test("renders a two-column section", () => {
-  const doc = docOf([section("s-1", "default", [["b-1"], ["b-2"]])]);
+  const doc = docOf([
+    { ...section("s-1", "white", [["b-1"], ["b-2"]]), layout: LAYOUT_1_1 },
+  ]);
   const html = renderToStaticMarkup(
     createElement(RenderedPage, { doc, locale: "no" })
   );

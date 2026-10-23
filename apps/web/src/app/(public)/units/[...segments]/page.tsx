@@ -1,4 +1,5 @@
-import type { PageDoc } from "@repo/editor";
+import { normalizePageDoc } from "@repo/editor/serialize";
+import type { PageDoc } from "@repo/editor/types";
 import type { Locale } from "@repo/i18n/config";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import type { Metadata } from "next";
@@ -35,6 +36,12 @@ function pageBelongsToDepartment(
 
 type PageLookupResult = Awaited<ReturnType<typeof cachedPublishedPage>>;
 
+/** A lookup that passed `publishedUnitPage`, its document normalized. */
+interface PublishedUnitPage {
+  doc: PageDoc;
+  translation: NonNullable<PageLookupResult>["translation"];
+}
+
 /**
  * The single predicate for "this lookup is genuinely this department's
  * PUBLISHED custom page" — a published translation, a document to render,
@@ -51,19 +58,29 @@ type PageLookupResult = Awaited<ReturnType<typeof cachedPublishedPage>>;
  * locale has only an unpublished draft leak that draft's title/description
  * into `<head>` while the body correctly fell back to the default department
  * view.
+ *
+ * The document is normalized here, inside the shared predicate, for the same
+ * reason. An old flat (v1) document normalizes to zero sections, and a page
+ * with no sections is treated as no page: the coded default renders and the
+ * metadata describes it (D2).
  */
 function publishedUnitPage(
   pageResult: PageLookupResult,
   departmentId: string
-): PageLookupResult {
+): PublishedUnitPage | null {
   if (
-    pageResult?.translation?.is_published &&
-    pageResult.doc &&
-    pageBelongsToDepartment(pageResult.row.department_id, departmentId)
+    !(
+      pageResult?.translation?.is_published &&
+      pageResult.doc &&
+      pageBelongsToDepartment(pageResult.row.department_id, departmentId)
+    )
   ) {
-    return pageResult;
+    return null;
   }
-  return null;
+  const doc = normalizePageDoc(pageResult.doc as PageDoc);
+  return doc.sections.length > 0
+    ? { doc, translation: pageResult.translation }
+    : null;
 }
 
 /**
@@ -125,11 +142,10 @@ export default async function UnitPage({ params }: Props) {
   const pageResult = publishedUnitPage(rawPageResult, department.$id);
 
   if (pageResult) {
-    const doc = pageResult.doc as PageDoc;
     return (
       <div className="min-h-screen bg-surface">
         <Suspense fallback={<DepartmentLoading />}>
-          <PublishedUnit doc={doc} locale={locale} />
+          <PublishedUnit doc={pageResult.doc} locale={locale} />
         </Suspense>
       </div>
     );
