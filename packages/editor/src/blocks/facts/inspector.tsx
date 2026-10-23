@@ -1,5 +1,6 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
@@ -19,7 +20,7 @@ export function FactsInspector({ block, onPatch }: Props) {
     <InspSection label="Facts">
       <ItemList<FactItem>
         addLabel="+ Add fact"
-        items={block.items}
+        items={listOf<FactItem>(block.items)}
         newItem={() => ({ label: "Label", text: "Value" })}
         onChange={(items) => onPatch("items", items)}
         renderItem={(item, update) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { ButtonFields } from "@/components/editor-shell/inspector/button-fields";
 import {
@@ -31,7 +32,7 @@ export function ButtonsInspector({ block, onPatch }: Props) {
       <InspSection label="Buttons">
         <ItemList
           addLabel="+ Add button"
-          items={block.items}
+          items={listOf<LinkButton>(block.items)}
           max={3}
           newItem={(): LinkButton => ({
             href: "",

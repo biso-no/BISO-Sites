@@ -1,12 +1,13 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
   InspSection,
 } from "@/components/editor-shell/inspector/insp-parts";
 import { ItemList } from "@/components/editor-shell/inspector/item-list";
-import type { PageDoc, StatsBlock } from "@/editor/types";
+import type { PageDoc, StatItem, StatsBlock } from "@/editor/types";
 
 interface Props {
   block: StatsBlock;
@@ -19,7 +20,7 @@ export function StatsInspector({ block, onPatch }: Props) {
     <InspSection label="Stats">
       <ItemList
         addLabel="+ Add stat"
-        items={block.items}
+        items={listOf<StatItem>(block.items)}
         newItem={() => ({ num: "0", label: "New stat" })}
         onChange={(items) => onPatch("items", items)}
         renderItem={(item, update) => (

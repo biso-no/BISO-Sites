@@ -1,6 +1,7 @@
 "use client";
 
 import { createElement, type ReactNode, useMemo } from "react";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import type { TextBlock, TextBodyItem } from "@/editor/types";
 import { sanitizeRichText } from "@/lib/sanitize";
@@ -23,8 +24,9 @@ interface Props {
 }
 
 export function TextRender({ block, edit, onPatch }: Props) {
+  const items = listOf<TextBodyItem>(block.body);
   const change = (index: number) => (html: string) => {
-    const body = [...block.body];
+    const body = [...items];
     body[index] = { ...body[index], text: html };
     onPatch("body", body);
   };
@@ -47,7 +49,7 @@ export function TextRender({ block, edit, onPatch }: Props) {
     run = [];
   };
 
-  block.body.forEach((item, i) => {
+  items.forEach((item, i) => {
     const node = (
       <BodyItem edit={edit} item={item} key={i} onChange={change(i)} />
     );
@@ -58,7 +60,7 @@ export function TextRender({ block, edit, onPatch }: Props) {
     flush(i);
     nodes.push(node);
   });
-  flush(block.body.length);
+  flush(items.length);
 
   return (
     <div className="flex max-w-(--measure) flex-col gap-4 text-ink">

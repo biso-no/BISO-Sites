@@ -1,6 +1,7 @@
 "use client";
 
 import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { FactItem, FactsBlock } from "@/editor/types";
@@ -12,10 +13,11 @@ interface Props {
 }
 
 export function FactsRender({ block, edit, onPatch }: Props) {
+  const items = listOf<FactItem>(block.items);
   const update = (i: number, key: "label" | "text", value: string) =>
     onPatch(
       "items",
-      block.items.map((x, j) => (j === i ? { ...x, [key]: value } : x))
+      items.map((x, j) => (j === i ? { ...x, [key]: value } : x))
     );
   const value = (item: FactItem, i: number) => (
     <EditableText
@@ -27,7 +29,7 @@ export function FactsRender({ block, edit, onPatch }: Props) {
   );
   return (
     <dl className="m-0 divide-y divide-edge hyphens-auto break-words border-edge border-y">
-      {block.items.map((item, i) => {
+      {items.map((item, i) => {
         const href = safeHref(item.href);
         return (
           <div className="py-3" key={i}>

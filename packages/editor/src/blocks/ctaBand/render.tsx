@@ -1,9 +1,10 @@
 "use client";
 
 import { ButtonLink, isLiveButton } from "@/blocks/_v2";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
-import type { CtaBandBlock } from "@/editor/types";
+import type { CtaBandBlock, LinkButton } from "@/editor/types";
 
 const MAX_BUTTONS = 2;
 
@@ -15,7 +16,7 @@ interface Props {
 
 export function CtaBandRender({ block, edit, onPatch }: Props) {
   // The site shows only buttons that can be clicked; the editor shows them all.
-  const buttons = block.buttons
+  const buttons = listOf<LinkButton>(block.buttons)
     .slice(0, MAX_BUTTONS)
     .filter((button) => edit || isLiveButton(button));
   return (

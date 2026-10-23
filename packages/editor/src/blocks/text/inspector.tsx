@@ -1,5 +1,6 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
@@ -32,7 +33,7 @@ export function TextInspector({ block, onPatch }: Props) {
     <InspSection label="Content blocks">
       <ItemList<TextBodyItem>
         addLabel="+ Add paragraph"
-        items={block.body}
+        items={listOf<TextBodyItem>(block.body)}
         newItem={() => ({ text: "New paragraph", type: "p" })}
         onChange={(body) => onPatch("body", body)}
         renderItem={(item, update) => (

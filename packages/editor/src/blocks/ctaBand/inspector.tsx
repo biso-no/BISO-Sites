@@ -1,5 +1,6 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { ButtonFields } from "@/components/editor-shell/inspector/button-fields";
 import {
@@ -42,7 +43,7 @@ export function CtaBandInspector({ block, onPatch }: Props) {
       <InspSection label="Buttons">
         <ItemList
           addLabel="+ Add button"
-          items={block.buttons}
+          items={listOf<LinkButton>(block.buttons)}
           max={2}
           newItem={(): LinkButton => ({
             href: "",

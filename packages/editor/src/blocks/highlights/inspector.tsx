@@ -1,5 +1,6 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
@@ -19,7 +20,7 @@ export function HighlightsInspector({ block, onPatch }: Props) {
     <InspSection label="Highlights">
       <ItemList
         addLabel="+ Add highlight"
-        items={block.items}
+        items={listOf<HighlightsBlock["items"][number]>(block.items)}
         newItem={() => ({ text: "New highlight" })}
         onChange={(items) => onPatch("items", items)}
         renderItem={(item, update) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { HighlightsBlock } from "@/editor/types";
@@ -11,9 +12,10 @@ interface Props {
 }
 
 export function HighlightsRender({ block, edit, onPatch }: Props) {
+  const items = listOf<HighlightsBlock["items"][number]>(block.items);
   return (
     <ul className="m-0 grid list-none gap-4 hyphens-auto break-words p-0">
-      {block.items.map((item, i) => (
+      {items.map((item, i) => (
         <li
           className="type-body min-w-0 border-ink-accent border-l-2 pl-4"
           key={i}
@@ -23,7 +25,7 @@ export function HighlightsRender({ block, edit, onPatch }: Props) {
             onChange={(v) =>
               onPatch(
                 "items",
-                block.items.map((x, j) => (j === i ? { text: v } : x))
+                items.map((x, j) => (j === i ? { text: v } : x))
               )
             }
             tag="span"

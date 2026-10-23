@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { ChevronMedia, MediaPlaceholder } from "@/blocks/_v2";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import type { GalleryBlock, GalleryImage } from "@/editor/types";
@@ -51,7 +52,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
   const [isPending, startTransition] = useTransition();
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const all = block.images ?? [];
+  const all = listOf<GalleryImage>(block.images);
   const tiles: Tile[] = all
     .map((image, index) => ({ image, index }))
     .filter((t) => t.image.src);
