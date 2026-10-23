@@ -26,6 +26,10 @@ const RATIOS: FrameRatio[] = [
 ];
 
 export function ImageInspector({ block, onPatch }: Props) {
+  // What the block renders as: unknown values (copilot output) are defaults.
+  const frame = block.frame === "plain" ? "plain" : "chevron";
+  const lean = block.lean === "right" ? "right" : "left";
+  const ratio = RATIOS.includes(block.ratio) ? block.ratio : "16/9";
   const needsAlt =
     !(block.decorative || (block.alt ?? "").trim()) && !!block.src;
   return (
@@ -80,7 +84,7 @@ export function ImageInspector({ block, onPatch }: Props) {
             { label: "Plain", value: "plain" },
           ]}
           onPick={(frame) => onPatch("frame", frame)}
-          value={block.frame ?? "chevron"}
+          value={frame}
         />
       </InspSection>
       <InspSection label="Ratio">
@@ -90,10 +94,10 @@ export function ImageInspector({ block, onPatch }: Props) {
             value: r,
           }))}
           onPick={(ratio) => onPatch("ratio", ratio)}
-          value={block.ratio ?? "16/9"}
+          value={ratio}
         />
       </InspSection>
-      {(block.frame ?? "chevron") === "chevron" ? (
+      {frame === "chevron" ? (
         <InspSection label="Lean">
           <Segmented
             choices={[
@@ -101,7 +105,7 @@ export function ImageInspector({ block, onPatch }: Props) {
               { label: "Right", value: "right" },
             ]}
             onPick={(lean) => onPatch("lean", lean)}
-            value={block.lean ?? "left"}
+            value={lean}
           />
         </InspSection>
       ) : null}

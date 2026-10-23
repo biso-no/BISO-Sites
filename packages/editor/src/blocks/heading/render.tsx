@@ -1,11 +1,12 @@
 "use client";
 
+import { knownKey } from "@/blocks/_v2/known-key";
 import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { HeadingBlock } from "@/editor/types";
 
-const TITLE_CLASS: Record<HeadingBlock["size"], string> = {
+export const TITLE_CLASS: Record<HeadingBlock["size"], string> = {
   large: "type-display-lg",
   medium: "type-display-sm",
   small: "type-heading-section",
@@ -32,7 +33,7 @@ export function HeadingRender({ block, edit, onPatch }: Props) {
     linkHref && block.link?.label
       ? { href: linkHref, label: block.link.label }
       : undefined;
-  const size = block.size ?? "medium";
+  const size = knownKey(TITLE_CLASS, block.size, "medium");
   return (
     <div className="flex flex-col gap-3 hyphens-auto break-words">
       {(block.eyebrow || edit) && (

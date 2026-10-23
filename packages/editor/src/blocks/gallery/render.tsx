@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { ChevronMedia, MediaPlaceholder } from "@/blocks/_v2";
+import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
@@ -15,6 +16,11 @@ interface Props {
 }
 
 const COLLAGE_MAX = 5;
+export const LAYOUTS: Record<GalleryBlock["layout"], true> = {
+  collage: true,
+  grid: true,
+  row: true,
+};
 const BIG_WIDTH = 1600;
 const TILE_WIDTH = 800;
 
@@ -78,7 +84,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
     return null;
   }
 
-  const layout = block.layout ?? "collage";
+  const layout = knownKey(LAYOUTS, block.layout, "collage");
   const bigCollage = layout === "collage" && tiles.length >= COLLAGE_MAX;
   const shown = layout === "collage" ? tiles.slice(0, COLLAGE_MAX) : tiles;
 

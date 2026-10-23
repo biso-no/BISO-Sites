@@ -1,5 +1,6 @@
 "use client";
 
+import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
@@ -41,7 +42,7 @@ export function TextInspector({ block, onPatch }: Props) {
             <Segmented
               choices={CHOICES}
               onPick={(type) => update({ ...item, type })}
-              value={item.type}
+              value={knownKey(TYPE_LABELS, item.type, "p")}
             />
             <InspRow label="Text">
               <textarea
@@ -52,7 +53,9 @@ export function TextInspector({ block, onPatch }: Props) {
             </InspRow>
           </>
         )}
-        title={(item, i) => `${i + 1}. ${TYPE_LABELS[item.type]}`}
+        title={(item, i) =>
+          `${i + 1}. ${TYPE_LABELS[knownKey(TYPE_LABELS, item.type, "p")]}`
+        }
       />
     </InspSection>
   );

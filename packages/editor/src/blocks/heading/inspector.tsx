@@ -1,5 +1,6 @@
 "use client";
 
+import { knownKey } from "@/blocks/_v2/known-key";
 import type { PatchFn } from "@/blocks/types";
 import {
   type LinkNotes,
@@ -11,6 +12,7 @@ import {
   Segmented,
 } from "@/components/editor-shell/inspector/insp-parts";
 import type { HeadingBlock, PageDoc } from "@/editor/types";
+import { TITLE_CLASS } from "./render";
 
 const SIZES = [
   { label: "Small", value: "small" },
@@ -67,7 +69,7 @@ export function HeadingInspector({ block, onPatch }: Props) {
           <Segmented
             choices={[...SIZES]}
             onPick={(size) => onPatch("size", size)}
-            value={block.size ?? "medium"}
+            value={knownKey(TITLE_CLASS, block.size, "medium")}
           />
         </InspRow>
       </InspSection>

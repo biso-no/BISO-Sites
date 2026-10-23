@@ -1,11 +1,13 @@
 "use client";
 
+import { knownKey } from "@/blocks/_v2/known-key";
 import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
   InspSection,
 } from "@/components/editor-shell/inspector/insp-parts";
 import type { CalloutBlock, PageDoc } from "@/editor/types";
+import { TONE_CLASS } from "./render";
 
 interface Props {
   block: CalloutBlock;
@@ -14,7 +16,7 @@ interface Props {
 }
 
 export function CalloutInspector({ block, onPatch }: Props) {
-  const tone = block.tone ?? "info";
+  const tone = knownKey(TONE_CLASS, block.tone, "info");
   return (
     <>
       <InspSection label="Tone">

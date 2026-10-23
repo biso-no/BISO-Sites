@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
@@ -12,6 +13,7 @@ import { ItemList } from "@/components/editor-shell/inspector/item-list";
 import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import type { GalleryBlock, GalleryImage, PageDoc } from "@/editor/types";
+import { LAYOUTS } from "./render";
 import { uploadGalleryFiles } from "./upload";
 
 interface Props {
@@ -74,6 +76,7 @@ export function GalleryInspector({ block, onPatch }: Props) {
   const [isPending, startTransition] = useTransition();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const images = listOf<GalleryImage>(block.images);
+  const layout = knownKey(LAYOUTS, block.layout, "collage");
 
   function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -101,9 +104,9 @@ export function GalleryInspector({ block, onPatch }: Props) {
             { label: "Row", value: "row" },
           ]}
           onPick={(layout) => onPatch("layout", layout)}
-          value={block.layout ?? "collage"}
+          value={layout}
         />
-        {(block.layout ?? "collage") === "collage" ? (
+        {layout === "collage" ? (
           <p className="pe-insp-note">
             The collage shows up to 5 images; 5 gives the big first tile.
           </p>

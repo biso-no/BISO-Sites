@@ -1,5 +1,6 @@
 "use client";
 
+import { knownKey } from "@/blocks/_v2/known-key";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import { usePageFeedSource } from "@/editor/page-feed-context";
@@ -10,7 +11,7 @@ const LABELS = {
   no: { info: "Info", tip: "Tips", warn: "Viktig" },
 } as const;
 
-const TONE_CLASS: Record<CalloutBlock["tone"], string> = {
+export const TONE_CLASS: Record<CalloutBlock["tone"], string> = {
   info: "text-ink-accent",
   tip: "text-success",
   warn: "text-warning",
@@ -24,7 +25,7 @@ interface Props {
 
 export function CalloutRender({ block, edit, onPatch }: Props) {
   const { locale } = usePageFeedSource();
-  const tone = block.tone ?? "info";
+  const tone = knownKey(TONE_CLASS, block.tone, "info");
   const labels = locale === "en" ? LABELS.en : LABELS.no;
   return (
     <aside className="flex flex-col gap-2 hyphens-auto break-words rounded-biso-md border border-edge bg-surface-raised p-5 text-ink">
