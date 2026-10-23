@@ -1,8 +1,14 @@
+import { collectPageFeedRequests } from "@repo/editor/page-feeds";
 import { allBlocks, normalizePageDoc, walkBlocks } from "@repo/editor/render";
+import { pruneEmptyFeedBlocks } from "@repo/editor/serialize";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import { RenderedPage } from "../../[...slug]/_components/rendered-page";
-import { PAGE_BLOCKS_FEEDS, PAGE_BLOCKS_FIXTURE } from "./fixture";
+import {
+  EMPTY_FEED_HEADING,
+  PAGE_BLOCKS_FEEDS,
+  PAGE_BLOCKS_FIXTURE,
+} from "./fixture";
 
 const H1_OPEN = /<h1[\s>]/g;
 const SECTION_BACKGROUND =
@@ -167,4 +173,50 @@ test("partners, units and shop render their fixture feed rows", () => {
   expect(html).toContain("Finansforeningen");
   expect(html).toContain("Karrieredagene-lue");
   expect(html).toContain("Utsolgt");
+});
+
+test("every live block in the fixture has a feed entry", () => {
+  const requests = collectPageFeedRequests(PAGE_BLOCKS_FIXTURE, "no");
+  const kinds = new Set(requests.map((r) => r.kind));
+  for (const kind of [
+    "events",
+    "news",
+    "jobs",
+    "partners",
+    "departments",
+    "products",
+    "board",
+  ]) {
+    expect(kinds.has(kind as never), `no ${kind} request`).toBe(true);
+  }
+  for (const request of requests) {
+    expect(PAGE_BLOCKS_FEEDS, request.key).toHaveProperty([request.key]);
+  }
+});
+
+test("the empty feed collapses once pruned, and only that block", () => {
+  const raw = renderToStaticMarkup(
+    <RenderedPage
+      doc={PAGE_BLOCKS_FIXTURE}
+      feeds={PAGE_BLOCKS_FEEDS}
+      locale="no"
+    />
+  );
+  const pruned = renderToStaticMarkup(
+    <RenderedPage
+      doc={pruneEmptyFeedBlocks(PAGE_BLOCKS_FIXTURE, PAGE_BLOCKS_FEEDS, "no")}
+      feeds={PAGE_BLOCKS_FEEDS}
+      locale="no"
+    />
+  );
+  // The live block renders nothing for an empty feed; pruning also drops it.
+  expect(raw).not.toContain(EMPTY_FEED_HEADING);
+  expect(pruned).not.toContain(EMPTY_FEED_HEADING);
+  expect(pruned).toContain("Siste nytt");
+});
+
+test("sample people use example.org emails and have no phone numbers", () => {
+  const json =
+    JSON.stringify(PAGE_BLOCKS_FIXTURE) + JSON.stringify(PAGE_BLOCKS_FEEDS);
+  expect(json).not.toContain('"phone":"+');
 });

@@ -1,3 +1,4 @@
+import { pruneEmptyFeedBlocks } from "@repo/editor/serialize";
 import type { Metadata } from "next";
 import { RenderedPage } from "../../[...slug]/_components/rendered-page";
 import { PAGE_BLOCKS_FEEDS, PAGE_BLOCKS_FIXTURE } from "./fixture";
@@ -6,6 +7,9 @@ import { PAGE_BLOCKS_FEEDS, PAGE_BLOCKS_FIXTURE } from "./fixture";
  * Gallery of every page-editor block, rendered through the same `RenderedPage`
  * the public site uses. It is the verification surface for the page editor's
  * visual language.
+ *
+ * It is pruned like the real routes are, so the empty news feed in the
+ * fixture collapses instead of leaving a heading over nothing.
  *
  * Internal: `/design-system` is disallowed in robots.ts and, like the rest of
  * that tree, is not listed in sitemap.ts.
@@ -37,7 +41,7 @@ export default function PageBlocksPage() {
         </span>
       </p>
       <RenderedPage
-        doc={PAGE_BLOCKS_FIXTURE}
+        doc={pruneEmptyFeedBlocks(PAGE_BLOCKS_FIXTURE, PAGE_BLOCKS_FEEDS, "no")}
         feeds={PAGE_BLOCKS_FEEDS}
         locale="no"
       />

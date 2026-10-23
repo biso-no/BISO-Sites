@@ -58,6 +58,12 @@ function section(
 /** The made-up department the live blocks below read from. */
 const FAIR_DEPARTMENT = "karrieredagene";
 
+/** A department whose news feed is empty on purpose (see EMPTY_FEED_HEADING). */
+const EMPTY_DEPARTMENT = "tom-avdeling";
+
+/** Heading of the news block whose feed is empty; it must never render. */
+export const EMPTY_FEED_HEADING = "Tom feed: skal skjules";
+
 /**
  * Feed rows for the events, news and jobs blocks, keyed the way the blocks
  * read them. Every link is an anchor on this page, never a real route.
@@ -178,7 +184,6 @@ export const PAGE_BLOCKS_FEEDS: PageFeedSnapshot = {
     {
       email: "leder@example.org",
       name: "Fiona Fiktiv",
-      phone: "+47 000 00 003",
       role: "Leder",
     },
     {
@@ -189,6 +194,8 @@ export const PAGE_BLOCKS_FEEDS: PageFeedSnapshot = {
     { name: "Hedda Hypotese", role: "Medlem" },
     { email: "pr@example.org", name: "Ivar Illustrasjon", role: "PR" },
   ],
+  // Deliberately empty: the news block that reads it must collapse.
+  [pageFeedKey("news", EMPTY_DEPARTMENT, "no", 3)]: [],
   [departmentsFeedKey("", "")]: [
     {
       campusLabel: "Oslo",
@@ -714,6 +721,14 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           source: FAIR_DEPARTMENT,
         },
         {
+          id: "b-live-news-empty",
+          type: "news",
+          heading: EMPTY_FEED_HEADING,
+          limit: 3,
+          seeAll: false,
+          source: EMPTY_DEPARTMENT,
+        },
+        {
           id: "b-live-jobs",
           type: "jobs",
           heading: "Bli med i komiteen",
@@ -757,7 +772,6 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             {
               email: "program@example.org",
               name: "Jonas Johannesen",
-              phone: "+47 000 00 004",
               photo: { src: "/images/bedrift.png" },
               role: "Programansvarlig",
             },
@@ -774,7 +788,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           email: "kontakt@example.org",
           hours: "Mandag til fredag, 10:00 til 15:00",
           instagram: "@bisowintergames",
-          phone: "+47 000 00 005",
+          phone: "",
         },
       ],
     ]),
