@@ -19,7 +19,7 @@ import { canvasThemeStyle, effectiveTheme } from "@/editor/effective-theme";
 import { useEditorStore } from "@/editor/store";
 import type { EditorDepartment, PageDoc } from "@/editor/types";
 import { autosaveSignature } from "../autosave-signature";
-import { click, fire, installDom, typeInto } from "./dom-helpers";
+import { click, fire, installDom, typeInto } from "./test-events";
 import { ThemePanel } from "./theme-panel";
 
 const USE_BUTTON = /^Use #/;
@@ -242,5 +242,20 @@ describe("keyboard and dragging", () => {
     expect(useEditorStore.getState().past).toHaveLength(1);
     expect(useEditorStore.getState().themePreview).toBeNull();
     expect(theme()?.accent).toBe(dragged?.accent as string);
+  });
+});
+
+describe("unmount", () => {
+  test("a preview mid-drag is cleared when the panel goes away", () => {
+    seed({ theme: BISO_THEME });
+    const host = mount();
+    const el = area(host, "Accent");
+    el.getBoundingClientRect = () =>
+      ({ height: 100, left: 0, top: 0, width: 100 }) as DOMRect;
+    fire(el, "onPointerDown", { clientX: 5, clientY: 5, pointerId: 1 });
+    expect(useEditorStore.getState().themePreview).not.toBeNull();
+    const { root } = mounted.pop() as { root: Root };
+    act(() => root.unmount());
+    expect(useEditorStore.getState().themePreview).toBeNull();
   });
 });

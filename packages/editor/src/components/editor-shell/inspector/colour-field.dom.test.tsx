@@ -9,7 +9,7 @@ import {
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ColourField } from "./colour-field";
-import { click, fire, installDom, typeInto } from "./dom-helpers";
+import { click, fire, installDom, typeInto } from "./test-events";
 
 let restore: () => void = () => undefined;
 beforeAll(() => {
@@ -88,6 +88,45 @@ describe("saturation/value area", () => {
   });
 });
 
+describe("cancelled drags", () => {
+  test("pointercancel commits once, and a later lost capture adds nothing", () => {
+    const { area, calls } = mount("#336699");
+    fire(area, "onPointerDown", { clientX: 10, clientY: 10, pointerId: 1 });
+    fire(area, "onPointerMove", { clientX: 50, clientY: 20, pointerId: 1 });
+    fire(area, "onPointerCancel", { pointerId: 1 });
+    fire(area, "onLostPointerCapture", { pointerId: 1 });
+    expect(calls.commit).toEqual([calls.change.at(-1) as string]);
+  });
+
+  test("lost capture after pointerup does not commit twice", () => {
+    const { area, calls } = mount("#336699");
+    fire(area, "onPointerDown", { clientX: 10, clientY: 10, pointerId: 1 });
+    fire(area, "onPointerMove", { clientX: 50, clientY: 20, pointerId: 1 });
+    fire(area, "onPointerUp", { pointerId: 1 });
+    fire(area, "onLostPointerCapture", { pointerId: 1 });
+    expect(calls.commit).toHaveLength(1);
+  });
+
+  test("the hue slider commits once per drag however it ends", () => {
+    const { calls, host } = mount("#ff0000");
+    const hue = host.querySelector('input[type="range"]') as HTMLInputElement;
+    fire(hue, "onPointerDown");
+    typeInto(hue, "60");
+    fire(hue, "onPointerCancel");
+    fire(hue, "onLostPointerCapture");
+    expect(calls.commit).toHaveLength(1);
+  });
+
+  test("hue keyup commits only for keys that change the value", () => {
+    const { calls, host } = mount("#ff0000");
+    const hue = host.querySelector('input[type="range"]') as HTMLInputElement;
+    fire(hue, "onKeyUp", { key: "Tab" });
+    expect(calls.commit).toHaveLength(0);
+    fire(hue, "onKeyUp", { key: "ArrowRight" });
+    expect(calls.commit).toHaveLength(1);
+  });
+});
+
 describe("hue slider", () => {
   test("is a native range 0-359; input is live, release commits", () => {
     const { calls, host } = mount("#ff0000");
@@ -97,6 +136,7 @@ describe("hue slider", () => {
     typeInto(hue, "120");
     expect(calls.change.at(-1)).toBe("#00ff00");
     expect(calls.commit).toHaveLength(0);
+    fire(hue, "onPointerDown");
     fire(hue, "onPointerUp");
     expect(calls.commit).toEqual(["#00ff00"]);
   });

@@ -26,6 +26,16 @@ interface Hsv {
 const KEY_STEP = 0.01;
 const KEY_STEP_SHIFT = 0.1;
 const MAX_HUE = 359;
+const HUE_KEYS = new Set([
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "End",
+  "Home",
+  "PageDown",
+  "PageUp",
+]);
 
 const ARROWS: Record<string, [number, number]> = {
   ArrowDown: [0, -1],
@@ -67,6 +77,7 @@ export function ColourField({ label, onChange, onCommit, value }: Props) {
   const [invalid, setInvalid] = useState(false);
   const live = useRef(hsv);
   const dragging = useRef(false);
+  const hueActive = useRef(false);
 
   // The parent's value changed (a commit, an undo, a reset): follow it.
   if (value !== seen) {
@@ -111,13 +122,27 @@ export function ColourField({ label, onChange, onCommit, value }: Props) {
       fromPointer(e);
     }
   };
-  const onPointerUp = (e: PointerEvent<HTMLElement>) => {
+  // Release, cancel and lost capture all end a drag. Capture is released on
+  // pointerup and then fires lostpointercapture, so only the first commits.
+  const endDrag = (e: PointerEvent<HTMLElement>) => {
     if (!dragging.current) {
       return;
     }
     dragging.current = false;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
     onCommit(hexOf(live.current));
+  };
+  const endHue = () => {
+    if (!hueActive.current) {
+      return;
+    }
+    hueActive.current = false;
+    onCommit(hexOf(live.current));
+  };
+  const onHueKeyUp = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (HUE_KEYS.has(e.key)) {
+      onCommit(hexOf(live.current));
+    }
   };
 
   const onAreaKey = (e: KeyboardEvent<HTMLElement>) => {
@@ -176,9 +201,11 @@ export function ColourField({ label, onChange, onCommit, value }: Props) {
         aria-valuetext={current}
         className="pe-colour__area"
         onKeyDown={onAreaKey}
+        onLostPointerCapture={endDrag}
+        onPointerCancel={endDrag}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
+        onPointerUp={endDrag}
         role="slider"
         style={{ backgroundColor: hueColour }}
         tabIndex={0}
@@ -198,8 +225,13 @@ export function ColourField({ label, onChange, onCommit, value }: Props) {
         max={MAX_HUE}
         min={0}
         onChange={(e) => onHue(e.currentTarget.value)}
-        onKeyUp={() => onCommit(hexOf(live.current))}
-        onPointerUp={() => onCommit(hexOf(live.current))}
+        onKeyUp={onHueKeyUp}
+        onLostPointerCapture={endHue}
+        onPointerCancel={endHue}
+        onPointerDown={() => {
+          hueActive.current = true;
+        }}
+        onPointerUp={endHue}
         step={1}
         type="range"
         value={Math.round(hsv.h)}

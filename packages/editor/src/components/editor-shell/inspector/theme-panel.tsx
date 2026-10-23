@@ -6,6 +6,7 @@ import {
   checkTheme,
   type PageTheme,
 } from "@repo/shared/utils/page-theme";
+import { useEffect } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { effectiveTheme } from "@/editor/effective-theme";
 import { useMeta } from "@/editor/hooks";
@@ -74,6 +75,9 @@ export function ThemePanel() {
   const preview = useEditorStore((s) => s.themePreview);
   const setTheme = useEditorStore((s) => s.setTheme);
   const setPreview = useEditorStore((s) => s.setThemePreview);
+
+  // A drag the panel never saw end (unmount mid-drag) must not leave colours.
+  useEffect(() => () => useEditorStore.getState().setThemePreview(null), []);
 
   const base = effectiveTheme(meta, departments) ?? BISO_THEME;
   const shown = preview ?? base;

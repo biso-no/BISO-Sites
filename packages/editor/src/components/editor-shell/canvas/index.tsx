@@ -106,6 +106,17 @@ function getViewportWidth(viewport: "desk" | "tab" | "mob") {
   return "390";
 }
 
+function localeTitle(
+  option: { hasDraft: boolean; label: string },
+  blocked: boolean,
+  hint: string
+): string {
+  if (blocked) {
+    return hint;
+  }
+  return option.hasDraft ? option.label : `${option.label} (empty)`;
+}
+
 export function CanvasPane({ drag }: CanvasPaneProps) {
   const mode = useMode();
   const viewport = useViewport();
@@ -198,13 +209,7 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
               disabled={switchBlocked}
               key={option.locale}
               onClick={() => onLocaleChange(option.locale)}
-              title={
-                switchBlocked
-                  ? switchHint
-                  : option.hasDraft
-                    ? option.label
-                    : `${option.label} (empty)`
-              }
+              title={localeTitle(option, switchBlocked, switchHint)}
               type="button"
             >
               {option.locale.toUpperCase()}

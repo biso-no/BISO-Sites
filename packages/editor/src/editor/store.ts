@@ -428,6 +428,7 @@ export const useEditorStore = create<EditorState>()(
           s.doc = structuredClone(doc);
           s.past = [];
           s.future = [];
+          s.themePreview = null;
           reconcileSelection(s);
         }),
 
@@ -472,6 +473,7 @@ export const useEditorStore = create<EditorState>()(
       setLocale: (locale) =>
         set((s) => {
           s.locale = locale;
+          s.themePreview = null;
         }),
 
       setInspectorTab: (tab) =>
@@ -485,6 +487,7 @@ export const useEditorStore = create<EditorState>()(
 
       undo: () =>
         set((s) => {
+          s.themePreview = null;
           const entry = s.past.pop();
           if (!entry) {
             return;
@@ -496,6 +499,7 @@ export const useEditorStore = create<EditorState>()(
 
       redo: () =>
         set((s) => {
+          s.themePreview = null;
           const entry = s.future.pop();
           if (!entry) {
             return;
