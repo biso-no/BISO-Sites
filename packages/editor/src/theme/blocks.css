@@ -298,157 +298,6 @@
   border-radius: 999px;
 }
 
-/* TIMELINE */
-.pg-timeline {
-  padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-.pg-timeline h2 {
-  margin: 0 0 18px;
-  font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 700;
-}
-.pg-timeline-list {
-  display: flex;
-  flex-direction: column;
-}
-.pg-timeline-item {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 18px;
-  padding: 12px 0;
-  border-top: 0.5px solid var(--rule);
-}
-.pg-timeline-item__year {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--ink-3);
-}
-.pg-timeline-item__text {
-  font-size: 14.5px;
-  line-height: 1.45;
-  color: var(--ink-2);
-}
-
-/* FEATURE GRID */
-.pg-featuregrid {
-  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-.pg-featuregrid__h {
-  margin: 0 0 8px;
-  font-family: var(--serif);
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--pg-ink);
-}
-.pg-featuregrid__intro {
-  max-width: 56ch;
-  margin: 0 0 28px;
-  font-size: 15px;
-  color: var(--ink-2);
-}
-.pg-featuregrid__grid {
-  display: grid;
-  gap: 20px;
-}
-.pg-featuregrid__grid--cols2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-.pg-featuregrid__grid--cols3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-.pg-featuregrid__grid--cols4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-.pg-featuregrid__card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 24px;
-  border-radius: var(--pg-radius);
-}
-.pg-featuregrid__icon {
-  font-size: 24px;
-  line-height: 1;
-}
-.pg-featuregrid__title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--pg-ink);
-}
-.pg-featuregrid__body {
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-/* variants */
-.pg-featuregrid--cards .pg-featuregrid__card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: var(--pg-shadow);
-}
-.pg-featuregrid--bordered .pg-featuregrid__card {
-  background: transparent;
-  border: 0.5px solid var(--rule);
-}
-.pg-featuregrid--minimal .pg-featuregrid__card {
-  padding: 16px 0;
-  border-top: 0.5px solid var(--rule);
-  border-radius: 0;
-}
-
-/* LINK TILE GRID */
-.pg-linktiles {
-  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-.pg-linktiles__h {
-  margin: 0 0 20px;
-  font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--pg-ink);
-}
-.pg-linktiles__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-}
-.pg-linktiles__tile {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 20px;
-  color: inherit;
-  text-decoration: none;
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule);
-  border-radius: var(--pg-radius);
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
-}
-.pg-linktiles__tile:hover {
-  border-color: var(--page-accent);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-.pg-linktiles__tile-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-.pg-linktiles__tile-title {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--pg-ink);
-}
-.pg-linktiles__tile-desc {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--ink-3);
-}
-
 /* TABS */
 .pg-tabs {
   padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
@@ -588,57 +437,6 @@
   color: var(--ink-3);
 }
 
-/* FEATURED CARDS */
-.pg-featcards {
-  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-.pg-featcards__h {
-  margin: 0 0 20px;
-  font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--pg-ink);
-}
-.pg-featcards__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-.pg-featcards__card {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule);
-  border-radius: var(--pg-radius);
-}
-.pg-featcards__stripe {
-  flex-shrink: 0;
-  height: 5px;
-}
-.pg-featcards__body {
-  padding: 20px;
-}
-.pg-featcards__eyebrow {
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-.pg-featcards__title {
-  margin-bottom: 6px;
-  font-size: 15.5px;
-  font-weight: 600;
-  color: var(--pg-ink);
-}
-.pg-featcards__desc {
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-
 /* CAMPUS SELECTOR */
 .pg-campusselect {
   padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
@@ -700,98 +498,6 @@
   color: var(--paper);
   background: var(--pg-ink);
   border-color: var(--pg-ink);
-}
-
-/* STEP GRID */
-.pg-stepgrid {
-  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-.pg-stepgrid__h {
-  margin: 0 0 24px;
-  font-family: var(--serif);
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--pg-ink);
-}
-.pg-stepgrid__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-}
-.pg-stepgrid__card {
-  padding: 24px;
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule);
-  border-radius: var(--pg-radius);
-}
-.pg-stepgrid__num {
-  margin-bottom: 10px;
-  font-family: var(--serif);
-  font-size: 40px;
-  line-height: 1;
-  color: var(--page-accent, var(--claret));
-}
-.pg-stepgrid__title {
-  margin-bottom: 6px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--pg-ink);
-}
-.pg-stepgrid__body {
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--ink-2);
-}
-
-/* SCROLL ROW */
-.pg-scrollrow {
-  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-.pg-scrollrow__h {
-  margin: 0 0 18px;
-  font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--pg-ink);
-}
-.pg-scrollrow__track {
-  display: flex;
-  gap: 14px;
-  padding-bottom: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.pg-scrollrow__track::-webkit-scrollbar {
-  display: none;
-}
-.pg-scrollrow__card {
-  display: flex;
-  flex-shrink: 0;
-  flex-direction: column;
-  gap: 6px;
-  width: 220px;
-  padding: 20px;
-  color: inherit;
-  text-decoration: none;
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule);
-  border-radius: var(--pg-radius);
-}
-.pg-scrollrow__icon {
-  font-size: 22px;
-  line-height: 1;
-}
-.pg-scrollrow__title {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--pg-ink);
-}
-.pg-scrollrow__body {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-2);
 }
 
 /* FILTER BAR */
@@ -1026,27 +732,6 @@ textarea.pg-msform__input {
    its desktop grid and its art column collapsed to a 12px sliver.
    ========================================================================== */
 
-@container pg (max-width: 900px) {
-  .pg-featuregrid__grid--cols3,
-  .pg-featuregrid__grid--cols4 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/*
- * A Narrow column is tablet-sized on any page, but the queries above measure
- * the page, not the column: the column is the block's own padding, so that
- * panels and rules still reach the page edge. Narrow blocks therefore repeat
- * the tablet rules on every page wider than a phone, where the phone rules
- * below take over again.
- */
-@container pg (min-width: 641px) {
-  .pg-section[data-width="prose"] .pg-featuregrid__grid--cols3,
-  .pg-section[data-width="prose"] .pg-featuregrid__grid--cols4 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @container pg (max-width: 640px) {
   /* Desktop's 48px gutter leaves too little measure on a phone. */
   .pg-block {
@@ -1056,28 +741,16 @@ textarea.pg-msform__input {
   /* Every fixed multi-column grid collapses to a single column. */
   .pg-twocol--equal,
   .pg-twocol--leftWide,
-  .pg-twocol--rightWide,
-  .pg-featuregrid__grid--cols2,
-  .pg-featuregrid__grid--cols3,
-  .pg-featuregrid__grid--cols4 {
+  .pg-twocol--rightWide {
     grid-template-columns: 1fr;
-  }
-  .pg-timeline-item {
-    grid-template-columns: 64px 1fr;
   }
 
   .pg-faq h2,
-  .pg-featuregrid__h,
-  .pg-stepgrid__h,
   .pg-profileheader__stat-num,
   .pg-msform__heading,
   .pg-signup h2,
-  .pg-timeline h2,
-  .pg-linktiles__h,
   .pg-documents__h,
-  .pg-featcards__h,
   .pg-campusselect__h,
-  .pg-scrollrow__h,
   .pg-profileheader__name {
     font-size: 22px;
   }

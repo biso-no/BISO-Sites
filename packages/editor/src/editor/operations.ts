@@ -161,7 +161,20 @@ export function emptyBlock(type: BlockType): Block {
         id,
         type,
         heading: "Our story",
-        items: [{ year: "2024", text: "Founded." }],
+        items: [{ label: "2024", text: "Founded." }],
+      };
+    case "cards":
+      return {
+        id,
+        type,
+        columns: 3,
+        layout: "grid",
+        style: "bordered",
+        items: [
+          { title: "Card one", body: "Describe this in one sentence." },
+          { title: "Card two", body: "Describe this in one sentence." },
+          { title: "Card three", body: "Describe this in one sentence." },
+        ],
       };
     case "twoCol":
       return {
@@ -195,59 +208,8 @@ export function emptyBlock(type: BlockType): Block {
         seeAll: true,
         source: "auto",
       };
-    case "featureGrid":
-      return {
-        id,
-        type,
-        heading: "What we offer",
-        columns: 3,
-        variant: "cards",
-        items: [
-          {
-            icon: "★",
-            title: "Feature one",
-            body: "Describe this benefit in one sentence.",
-          },
-          {
-            icon: "◆",
-            title: "Feature two",
-            body: "Describe this benefit in one sentence.",
-          },
-          {
-            icon: "●",
-            title: "Feature three",
-            body: "Describe this benefit in one sentence.",
-          },
-        ],
-      };
     case "partners":
       return { id, type, heading: "Our partners", source: "auto" };
-    case "linkTileGrid":
-      return {
-        id,
-        type,
-        heading: "Explore",
-        items: [
-          {
-            icon: "→",
-            title: "Page one",
-            description: "Short description.",
-            href: "#",
-          },
-          {
-            icon: "→",
-            title: "Page two",
-            description: "Short description.",
-            href: "#",
-          },
-          {
-            icon: "→",
-            title: "Page three",
-            description: "Short description.",
-            href: "#",
-          },
-        ],
-      };
     case "tabs":
       return {
         id,
@@ -268,25 +230,6 @@ export function emptyBlock(type: BlockType): Block {
       };
     case "documents":
       return { id, type, heading: "Documents", items: [] };
-    case "featuredCards":
-      return {
-        id,
-        type,
-        heading: "Featured",
-        items: [
-          {
-            title: "Project one",
-            body: "Short description.",
-            stripeAccent: "#3DA9E0",
-            eyebrow: "Featured",
-          },
-          {
-            title: "Project two",
-            body: "Short description.",
-            stripeAccent: "#33566F",
-          },
-        ],
-      };
     case "campusSelector":
       return { id, type, mode: "cards", heading: "Choose your campus" };
     case "stepGrid":
@@ -296,32 +239,17 @@ export function emptyBlock(type: BlockType): Block {
         heading: "How it works",
         items: [
           {
-            number: "01",
             title: "First step",
             body: "Describe the first step.",
           },
           {
-            number: "02",
             title: "Second step",
             body: "Describe the second step.",
           },
           {
-            number: "03",
             title: "Third step",
             body: "Describe the third step.",
           },
-        ],
-      };
-    case "scrollRow":
-      return {
-        id,
-        type,
-        heading: "Benefits",
-        items: [
-          { icon: "★", title: "Benefit one", body: "Short description." },
-          { icon: "◆", title: "Benefit two", body: "Short description." },
-          { icon: "●", title: "Benefit three", body: "Short description." },
-          { icon: "▲", title: "Benefit four", body: "Short description." },
         ],
       };
     case "productGrid":

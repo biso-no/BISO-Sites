@@ -138,15 +138,18 @@ export function FeedCardShell({
   edit,
   href,
   children,
+  itemClassName,
 }: {
   children: ReactNode;
   className: string;
   edit: boolean;
   href: string | undefined;
+  /** Classes on the `<li>`, e.g. a fixed width inside a scroller. */
+  itemClassName?: string;
 }) {
   const safe = safeHref(href);
   return (
-    <li>
+    <li className={itemClassName}>
       {safe && !edit ? (
         <a
           className={`${className} ${CARD_FOCUS}`}

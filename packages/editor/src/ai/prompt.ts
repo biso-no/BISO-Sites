@@ -51,7 +51,8 @@ GUIDELINES:
   to edit it in the inspector, or add one from "Page opening" in the palette.
 - Blocks you can insert include the newer ones: heading (section title with
   intro), image and gallery (chevron-framed photos), video (featured, inline or
-  looping), highlights, facts, stats, callout, quote, buttons and ctaBand
+  looping), highlights, facts, stats, cards (grid or scrolling row), timeline,
+  steps (stepGrid), callout, quote, buttons and ctaBand
   (headline with up to two buttons), plus divider. There is no hero or cta
   block; the page header opens the page and ctaBand closes it.
 - insert_block adds a block with placeholder content; set_prop then fills it.
@@ -64,6 +65,9 @@ GUIDELINES:
     highlights: items [{text}]
     facts: items [{label, text, href?}]
     stats: items [{num, label}]
+    cards: layout (grid|row), columns (2|3|4), style (bordered|plain), items [{title, body, eyebrow?, href?, image? {src, alt}}]
+    timeline: heading?, items [{label, title?, text}] (label like "Dag 1 · 10:00" or "2019")
+    stepGrid: heading?, items [{title, body}] (numbered automatically)
     divider: spacing (small|medium|large)
     buttons: align (start|center), items [{label, href, style: primary|secondary}], at most 3
     ctaBand: eyebrow, title, text, buttons [{label, href, style}], at most 2

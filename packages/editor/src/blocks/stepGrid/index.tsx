@@ -16,4 +16,5 @@ registerBlock({
   Render: StepGridRender as never,
   Inspector: StepGridInspector as never,
   PaletteThumb: StepGridThumb,
+  v2: true,
 });

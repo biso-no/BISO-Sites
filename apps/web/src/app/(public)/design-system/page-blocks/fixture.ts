@@ -541,6 +541,89 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
       ],
     ]),
 
+    // White, one column: cards as a grid and as a row, a programme timeline
+    // and numbered steps.
+    section("s-cards", { background: "white", columns: "1" }, [
+      [
+        {
+          id: "b-cards-grid",
+          type: "cards",
+          columns: 3,
+          layout: "grid",
+          style: "bordered",
+          items: [
+            {
+              eyebrow: "Torsdag",
+              title: "Standrunde",
+              body: "Bedriftene står på stand hele dagen.",
+              href: "#program",
+              image: {
+                src: FAIR_PHOTO,
+                alt: "En student håndhilser på en representant ved en stand",
+              },
+            },
+            {
+              eyebrow: "Fredag",
+              title: "Intervjuer",
+              body: "Korte samtaler med bedriftene du har pratet med.",
+              href: "#pamelding",
+            },
+            {
+              title: "Mingling",
+              body: "Dagen avsluttes med mat og drikke i Studentpuben.",
+            },
+          ],
+        },
+        {
+          id: "b-cards-row",
+          type: "cards",
+          columns: 3,
+          layout: "row",
+          style: "plain",
+          items: [
+            { title: "Oslo", body: "BI Nydalen er vertskap for messen." },
+            { title: "Bergen", body: "Reisen dekkes for studenter." },
+            { title: "Stavanger", body: "Reisen dekkes for studenter." },
+            { title: "Trondheim", body: "Reisen dekkes for studenter." },
+          ],
+        },
+        {
+          id: "b-timeline",
+          type: "timeline",
+          heading: "Programmet",
+          items: [
+            {
+              label: "Dag 1 · 10:00",
+              title: "Åpning",
+              text: "Velkommen i auditoriet, deretter standrunde.",
+            },
+            {
+              label: "Dag 1 · 12:00",
+              text: "Lunsj og foredrag fra utstillerne.",
+            },
+            {
+              label: "Dag 2 · 09:00",
+              title: "Intervjuer",
+              text: "Intervjutidene fordeles på forhånd.",
+            },
+          ],
+        },
+        {
+          id: "b-steps",
+          type: "stepGrid",
+          heading: "Slik er du med",
+          items: [
+            { title: "Meld deg på", body: "Påmeldingen er gratis." },
+            {
+              title: "Velg intervjutid",
+              body: "Plassene fordeles i rekkefølge.",
+            },
+            { title: "Møt opp", body: "Ta med CV og gode spørsmål." },
+          ],
+        },
+      ],
+    ]),
+
     // Tinted, one column: the live feed blocks, with the rows above.
     section("s-live", { background: "tinted", columns: "1" }, [
       [

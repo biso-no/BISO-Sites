@@ -16,6 +16,7 @@ export type BlockType =
   | "facts"
   | "divider"
   | "timeline"
+  | "cards"
   | "image"
   | "gallery"
   | "video"
@@ -27,16 +28,12 @@ export type BlockType =
   | "faq"
   | "contact"
   | "signup"
-  | "featureGrid"
   | "partners"
-  | "linkTileGrid"
   | "tabs"
   | "departmentGrid"
   | "documents"
-  | "featuredCards"
   | "campusSelector"
   | "stepGrid"
-  | "scrollRow"
   | "productGrid"
   | "filterBar"
   | "profileHeader"
@@ -179,11 +176,13 @@ export interface DividerBlock {
 }
 
 export interface TimelineItem {
+  /** "Dag 1 · 10:00", "2019": the entry's time or date. */
+  label: string;
   text: string;
-  year: string;
+  title?: string;
 }
 export interface TimelineBlock {
-  heading: string;
+  heading?: string;
   id: string;
   items: TimelineItem[];
   type: "timeline";
@@ -309,22 +308,6 @@ export interface SignupBlock {
 
 // ── New block shapes (Phase C) ────────────────────────────────────────────────
 
-export interface FeatureGridItem {
-  body: string;
-  href?: string;
-  icon: string;
-  title: string;
-}
-export interface FeatureGridBlock {
-  columns: 2 | 3 | 4;
-  heading?: string;
-  id: string;
-  intro?: string;
-  items: FeatureGridItem[];
-  type: "featureGrid";
-  variant?: "bordered" | "cards" | "minimal";
-}
-
 export interface PartnerItem {
   href?: string;
   logo?: { fileId?: string; mime?: string; src: string };
@@ -340,17 +323,20 @@ export interface PartnersBlock {
   type: "partners";
 }
 
-export interface LinkTileItem {
-  description?: string;
-  href: string;
-  icon: string;
+export interface CardItem {
+  body: string;
+  eyebrow?: string;
+  href?: string;
+  image?: { alt?: string; fileId?: string; mime?: string; src: string };
   title: string;
 }
-export interface LinkTileGridBlock {
-  heading?: string;
+export interface CardsBlock {
+  columns: 2 | 3 | 4;
   id: string;
-  items: LinkTileItem[];
-  type: "linkTileGrid";
+  items: CardItem[];
+  layout: "grid" | "row";
+  style: "bordered" | "plain";
+  type: "cards";
 }
 
 export interface TabItem {
@@ -387,20 +373,6 @@ export interface DocumentsBlock {
   type: "documents";
 }
 
-export interface FeaturedCardItem {
-  body: string;
-  eyebrow?: string;
-  href?: string;
-  stripeAccent: string;
-  title: string;
-}
-export interface FeaturedCardsBlock {
-  heading?: string;
-  id: string;
-  items: FeaturedCardItem[];
-  type: "featuredCards";
-}
-
 export interface CampusSelectorBlock {
   heading?: string;
   id: string;
@@ -410,7 +382,6 @@ export interface CampusSelectorBlock {
 
 export interface StepGridItem {
   body: string;
-  number: string;
   title: string;
 }
 export interface StepGridBlock {
@@ -418,19 +389,6 @@ export interface StepGridBlock {
   id: string;
   items: StepGridItem[];
   type: "stepGrid";
-}
-
-export interface ScrollRowItem {
-  body: string;
-  href?: string;
-  icon?: string;
-  title: string;
-}
-export interface ScrollRowBlock {
-  heading?: string;
-  id: string;
-  items: ScrollRowItem[];
-  type: "scrollRow";
 }
 
 export interface ProductGridBlock {
@@ -509,6 +467,7 @@ export type Block = (
   | FactsBlock
   | DividerBlock
   | TimelineBlock
+  | CardsBlock
   | ImageBlock
   | GalleryBlock
   | VideoBlock
@@ -520,16 +479,12 @@ export type Block = (
   | FaqBlock
   | ContactBlock
   | SignupBlock
-  | FeatureGridBlock
   | PartnersBlock
-  | LinkTileGridBlock
   | TabsBlock
   | DepartmentGridBlock
   | DocumentsBlock
-  | FeaturedCardsBlock
   | CampusSelectorBlock
   | StepGridBlock
-  | ScrollRowBlock
   | ProductGridBlock
   | FilterBarBlock
   | ProfileHeaderBlock
