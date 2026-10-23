@@ -1,17 +1,17 @@
 import { newId } from "./ids";
-import {
-  COLUMN_COUNT,
-  DEFAULT_SECTION_LAYOUT,
-  resizeColumns,
-} from "./sections";
+import { DEFAULT_SECTION_LAYOUT, resizeColumns } from "./sections";
 import { walkBlocks } from "./tree";
 import type {
   Block,
   Column,
   PageDoc,
   Section,
+  SectionAlign,
+  SectionBackground,
   SectionColumns,
   SectionLayout,
+  SectionSpacing,
+  SectionTablet,
 } from "./types";
 import { PAGE_DOC_VERSION } from "./types";
 
@@ -23,15 +23,30 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 const isString = (v: unknown): v is string => typeof v === "string";
 
 /** The values each layout field may hold; anything else takes the default. */
-const LAYOUT_VALUES: { [K in keyof SectionLayout]: readonly unknown[] } = {
-  align: ["top", "middle", "bottom"],
-  background: ["white", "tinted", "dark"],
-  columns: Object.keys(COLUMN_COUNT),
+export const LAYOUT_VALUES = {
+  align: ["top", "middle", "bottom"] as const satisfies readonly SectionAlign[],
+  background: [
+    "white",
+    "tinted",
+    "dark",
+  ] as const satisfies readonly SectionBackground[],
+  columns: [
+    "1",
+    "1-1",
+    "2-1",
+    "1-2",
+    "1-1-1",
+    "1-1-1-1",
+  ] as const satisfies readonly SectionColumns[],
   hideOnPhone: [true, false],
   phoneReverse: [true, false],
-  spacing: ["tight", "normal", "roomy"],
-  tablet: ["row", "stack"],
-};
+  spacing: [
+    "tight",
+    "normal",
+    "roomy",
+  ] as const satisfies readonly SectionSpacing[],
+  tablet: ["row", "stack"] as const satisfies readonly SectionTablet[],
+} satisfies { [K in keyof SectionLayout]: readonly unknown[] };
 
 /** The equal-width preset for a stored column count. */
 const PRESET_FOR_COUNT: Partial<Record<number, SectionColumns>> = {
@@ -77,12 +92,14 @@ function normalizeColumns(raw: unknown): Column[] {
 function normalizeLayout(raw: unknown, storedColumns: number): SectionLayout {
   const stored = isRecord(raw) ? raw : {};
   const layout: Record<string, unknown> = { ...DEFAULT_SECTION_LAYOUT };
-  for (const [key, allowed] of Object.entries(LAYOUT_VALUES)) {
+  for (const [key, values] of Object.entries(LAYOUT_VALUES)) {
+    const allowed: readonly unknown[] = values;
     if (allowed.includes(stored[key])) {
       layout[key] = stored[key];
     }
   }
-  if (!LAYOUT_VALUES.columns.includes(stored.columns)) {
+  const columnPresets: readonly unknown[] = LAYOUT_VALUES.columns;
+  if (!columnPresets.includes(stored.columns)) {
     layout.columns = PRESET_FOR_COUNT[storedColumns] ?? "1";
   }
   return layout as unknown as SectionLayout;

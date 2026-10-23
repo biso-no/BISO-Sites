@@ -31,7 +31,7 @@ vi.mock("@/lib/data/public-content", () => ({
 // these tests read.
 vi.mock("./_components/rendered-page", () => ({ RenderedPage: () => null }));
 
-import DynamicPage from "./page";
+import DynamicPage, { generateMetadata } from "./page";
 
 const META = {
   accentColor: "#3DA9E0",
@@ -110,5 +110,45 @@ describe("block page route", () => {
     expect(page.props.feeds).toEqual({
       "events|25|no": [{ title: "Kickoff" }],
     });
+  });
+
+  it("returns no metadata title when the translation is published but has no document", async () => {
+    cachedPublishedPage.mockResolvedValue({
+      doc: null,
+      row: { status: "published" },
+      translation: { is_published: true, title: "Old page" },
+    });
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: ["old-page"] }),
+    });
+
+    expect(metadata).toEqual({});
+  });
+
+  it("returns no metadata title for an unpublished translation", async () => {
+    cachedPublishedPage.mockResolvedValue({
+      doc: { meta: META, sections: [], version: 2 },
+      row: { status: "published" },
+      translation: { is_published: false, title: "Old page" },
+    });
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: ["old-page"] }),
+    });
+
+    expect(metadata).toEqual({});
+  });
+
+  it("titles the metadata of a published page with a document", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [], version: 2 })
+    );
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: ["old-page"] }),
+    });
+
+    expect(metadata.title).toBe("Old page | BISO");
   });
 });

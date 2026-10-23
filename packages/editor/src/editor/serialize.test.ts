@@ -1,8 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SECTION_LAYOUT } from "./sections";
-import { fromJSON, normalizePageDoc, serializePageForAI } from "./serialize";
+import {
+  fromJSON,
+  LAYOUT_VALUES,
+  normalizePageDoc,
+  serializePageForAI,
+} from "./serialize";
 import { block, doc, section } from "./test-fixtures";
-import type { PageDoc, SectionLayout } from "./types";
+import type {
+  PageDoc,
+  SectionAlign,
+  SectionBackground,
+  SectionColumns,
+  SectionLayout,
+  SectionSpacing,
+  SectionTablet,
+} from "./types";
 
 const SELECTED_TEXT_BLOCK = /\[b-2\] type=text.*← SELECTED/;
 const SECTION_ID = /^s-/;
@@ -245,5 +258,34 @@ describe("serializePageForAI", () => {
     expect(out).toContain("Section 1 [s-1] columns=1-1 background=white");
     expect(out).toContain("  Column 2 [s-1-c1]");
     expect(out).toMatch(SELECTED_TEXT_BLOCK);
+  });
+});
+
+describe("LAYOUT_VALUES", () => {
+  test("covers every union member (compile-time) ", () => {
+    const background: readonly SectionBackground[] = LAYOUT_VALUES.background;
+    const columns: readonly SectionColumns[] = LAYOUT_VALUES.columns;
+    const spacing: readonly SectionSpacing[] = LAYOUT_VALUES.spacing;
+    const align: readonly SectionAlign[] = LAYOUT_VALUES.align;
+    const tablet: readonly SectionTablet[] = LAYOUT_VALUES.tablet;
+    expect(background).toEqual(["white", "tinted", "dark"]);
+    expect(columns).toHaveLength(6);
+    expect(spacing).toHaveLength(3);
+    expect(align).toHaveLength(3);
+    expect(tablet).toHaveLength(2);
+  });
+
+  test("normalizing a section keeps a dark background", () => {
+    const result = normalizePageDoc({
+      ...doc(),
+      sections: [
+        {
+          columns: [],
+          id: "s-1",
+          layout: { ...DEFAULT_SECTION_LAYOUT, background: "dark" },
+        },
+      ],
+    });
+    expect(result.sections[0]?.layout.background).toBe("dark");
   });
 });

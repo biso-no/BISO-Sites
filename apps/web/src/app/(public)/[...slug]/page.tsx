@@ -63,8 +63,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = segments.join("/");
   const locale = await getLocale();
   const result = await resolvePage(slug, locale);
-  const title = result?.translation?.title;
-  const description = result?.translation?.description ?? undefined;
+  // Same guard as the page body: a page that 404s carries no title.
+  if (!(result?.translation?.is_published && result.doc)) {
+    return {};
+  }
+  const title = result.translation.title;
+  const description = result.translation.description ?? undefined;
   if (!title) {
     return {};
   }

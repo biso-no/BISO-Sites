@@ -11,7 +11,7 @@ import type {
 import { EditorShell } from "@repo/editor";
 import "@repo/editor/theme/styles.css";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AutoTranslateControl } from "@/app/_components/content-translation-controls";
 import {
@@ -91,6 +91,9 @@ export function PageEditorClient({
 }: PageEditorClientProps) {
   const router = useRouter();
   const [currentPageId, setCurrentPageId] = useState<string | null>(pageId);
+  // The latest id, readable from closures captured before the first create
+  // resolved (autosave, the explicit translate save).
+  const pageIdRef = useRef<string | null>(pageId);
   const [activeLocale, setActiveLocale] = useState<EditorLocale>(initialLocale);
   const [documents, setDocuments] = useState<LocaleDocuments>(() =>
     buildInitialDocuments(initialPage, initialLocale, defaultCampusId)
@@ -121,7 +124,11 @@ export function PageEditorClient({
   );
 
   async function handleSave(doc: PageDoc, locale: EditorLocale) {
-    const result = await savePageEditorDoc({ id: currentPageId, doc, locale });
+    const result = await savePageEditorDoc({
+      id: pageIdRef.current,
+      doc,
+      locale,
+    });
     if ("error" in result) {
       throw new Error(result.error);
     }
@@ -138,9 +145,12 @@ export function PageEditorClient({
         )
       );
     }
-    if (!currentPageId && "pageId" in result) {
+    if (!pageIdRef.current && "pageId" in result) {
+      pageIdRef.current = result.pageId;
       setCurrentPageId(result.pageId);
-      router.replace(`/pages/${result.pageId}`);
+      // Not router.replace: that remounts the editor and re-hydrates from the
+      // server copy, dropping edits made during the save round-trip.
+      window.history.replaceState(null, "", `/pages/${result.pageId}`);
     }
     return { slug: result.slug };
   }
