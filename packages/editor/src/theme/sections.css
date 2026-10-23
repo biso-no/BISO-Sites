@@ -210,10 +210,11 @@
 /* A section whose every item renders nothing leaves only its padding. The
    server drops empty feed blocks up front (`pruneEmptyFeedBlocks`); this
    covers feeds the client resolves after hydration. An item is empty when its
-   `[data-block]` wrapper has no children (BlockView wraps every block, so
-   plain `:empty` on the item never matches). Site only: the canvas keeps
+   `[data-block]` wrapper has no children (BlockView wraps every block, so plain
+   `:empty` on the item never matches). `:has()` cannot nest, so the rule asks
+   for a non-empty item instead. Site only: the canvas keeps
    showing empty sections so they can be edited. */
-.pg-page .pg-sec:not(:has(.pg-col__item:not(:has(> [data-block]:empty)))) {
+.pg-page .pg-sec:not(:has(.pg-col__item > [data-block]:not(:empty))) {
   display: none;
 }
 .pg-col__item:has([data-block])
@@ -249,7 +250,7 @@
      items are empty must not leave a band on phones. */
   .pg-page
   .pg-sec:not(
-    :has(.pg-col__item:not([data-hide-phone]):not(:has(> [data-block]:empty)))
+    :has(.pg-col__item:not([data-hide-phone]) > [data-block]:not(:empty))
   ) {
     display: none;
   }

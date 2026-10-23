@@ -221,9 +221,7 @@ test("an empty first section, which renders nothing, hands the nav clearance on"
 });
 
 test("a section pruned for an empty feed hands the nav clearance on", async () => {
-  const { pruneEmptyFeedBlocks } = await import(
-    "../../../../../../../packages/editor/src/editor/prune-feeds"
-  );
+  const { pruneEmptyFeedBlocks } = await import("@repo/editor/serialize");
   const events = section("s-0", "white", [[]]);
   (events as { columns: { blocks: unknown[] }[] }).columns[0].blocks = [
     { id: "ev", source: "auto", type: "events" },

@@ -6,6 +6,10 @@ import type { Block, EditorLocale, PageDoc } from "./types";
  * A live block with no feed request is one of two things: a block that never
  * had a feed (manual team, manual partners), or a department-scoped live block
  * whose department cannot be resolved. Only the second renders nothing.
+ *
+ * Mirrors `requestForBlock`: these are exactly the types it returns null for
+ * when `resolveFeedDepartment` finds no department (events/jobs/news/products),
+ * or a board team has no page department. Change them together.
  */
 function isUnresolvableLiveBlock(block: Block): boolean {
   switch (block.type) {

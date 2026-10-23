@@ -9,6 +9,7 @@ const WHERE_CLAUSE = /:where\([^)]*\)/g;
 const CLASS_OR_ATTRIBUTE = /\.[\w-]+|\[[^\]]+\]/g;
 const PHONE_REVERSE_STRETCH = /column-reverse;\s*align-items:\s*stretch/;
 
+const WHITESPACE = /\s+/g;
 const DISPLAY_NONE = /display:\s*none/;
 
 const read = (name: string) =>
@@ -305,4 +306,45 @@ test("a site section with only empty or hidden items is hidden, never on the can
     );
   expect(rule).toBeDefined();
   expect(rule?.selector).not.toContain(".pe-frame");
+});
+
+// `:has()` cannot nest inside `:has()`: browsers drop the whole rule.
+function hasNestedHas(css: string): boolean {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  let from = text.indexOf(":has(");
+  while (from !== -1) {
+    let depth = 1;
+    let i = from + ":has(".length;
+    const start = i;
+    while (i < text.length && depth > 0) {
+      if (text[i] === "(") {
+        depth += 1;
+      } else if (text[i] === ")") {
+        depth -= 1;
+      }
+      i += 1;
+    }
+    if (text.slice(start, i - 1).includes(":has(")) {
+      return true;
+    }
+    from = text.indexOf(":has(", from + 1);
+  }
+  return false;
+}
+
+test("no :has() is nested inside another :has()", () => {
+  expect(hasNestedHas(sectionsCss)).toBe(false);
+  expect(hasNestedHas("a:not(:has(b:not(:has(c))))")).toBe(true);
+});
+
+test("the empty-band rules use the flat selectors", () => {
+  expect(sectionsCss).toContain(
+    ".pg-page .pg-sec:not(:has(.pg-col__item > [data-block]:not(:empty)))"
+  );
+  expect(sectionsCss.replace(WHITESPACE, "")).toContain(
+    ".pg-page .pg-sec:not(:has(.pg-col__item:not([data-hide-phone]) > [data-block]:not(:empty)))".replace(
+      WHITESPACE,
+      ""
+    )
+  );
 });
