@@ -5,6 +5,8 @@ import { block, doc, section } from "./test-fixtures";
 import type { PageDoc, SectionLayout } from "./types";
 
 const SELECTED_TEXT_BLOCK = /\[b-2\] type=text.*← SELECTED/;
+const SECTION_ID = /^s-/;
+const COLUMN_ID = /^c-/;
 
 describe("normalizePageDoc", () => {
   test("an old flat document becomes an empty v2 page with its meta", () => {
@@ -48,8 +50,153 @@ describe("normalizePageDoc", () => {
   });
 
   test("fromJSON normalizes", () => {
+    const legacy = { blocks: [block("b-9")], meta: doc().meta };
+    expect(fromJSON(JSON.stringify(legacy))).toEqual({
+      meta: doc().meta,
+      sections: [],
+      version: 2,
+    });
+    const s = section("s-1", "1", [["b-1"]]);
+    const padded = fromJSON(
+      JSON.stringify(doc({ ...s, layout: { ...s.layout, columns: "1-1" } }))
+    );
+    expect(padded.sections[0].columns.map((c) => c.blocks.length)).toEqual([
+      1, 0,
+    ]);
+  });
+
+  test("null, non-object and id- or type-less blocks are dropped", () => {
     const d = doc(section("s-1", "1", [["b-1"]]));
-    expect(fromJSON(JSON.stringify(d))).toEqual(d);
+    const kept = d.sections[0].columns[0].blocks[0];
+    const n = normalizePageDoc({
+      ...d,
+      sections: [
+        {
+          ...d.sections[0],
+          columns: [
+            {
+              blocks: [
+                null,
+                "text",
+                7,
+                { type: "text" },
+                { id: "b-2" },
+                { id: 3, type: "text" },
+                kept,
+              ],
+              id: "s-1-c0",
+            },
+          ],
+        },
+      ],
+    } as unknown as PageDoc);
+    expect(n.sections[0].columns[0].blocks).toEqual([kept]);
+  });
+
+  test("sections and columns without a string id get a fresh one", () => {
+    const d = doc(section("s-1", "1-1", [["b-1"], ["b-2"]]));
+    const s = d.sections[0];
+    const n = normalizePageDoc({
+      ...d,
+      sections: [
+        {
+          ...s,
+          columns: [
+            { blocks: s.columns[0].blocks },
+            { ...s.columns[1], id: 4 },
+          ],
+          id: undefined,
+        },
+      ],
+    } as unknown as PageDoc);
+    const [only] = n.sections;
+    expect(only.id).toMatch(SECTION_ID);
+    expect(only.columns.map((c) => c.id)).toEqual([
+      expect.stringMatching(COLUMN_ID),
+      expect.stringMatching(COLUMN_ID),
+    ]);
+    expect(only.columns[0].id).not.toBe(only.columns[1].id);
+    expect(only.columns.map((c) => c.blocks.map((b) => b.id))).toEqual([
+      ["b-1"],
+      ["b-2"],
+    ]);
+  });
+
+  test("a non-object layout takes the defaults", () => {
+    const d = doc(section("s-1", "1", [["b-1"]]));
+    const n = normalizePageDoc({
+      ...d,
+      sections: [{ ...d.sections[0], layout: "wide" }],
+    } as unknown as PageDoc);
+    expect(n.sections[0].layout).toEqual(DEFAULT_SECTION_LAYOUT);
+  });
+
+  test("an unknown column preset follows the stored column count", () => {
+    const three = section("s-1", "1-1-1", [["b-1"], ["b-2"], ["b-3"]]);
+    const n = normalizePageDoc(
+      doc({ ...three, layout: { ...three.layout, columns: "5" as never } })
+    );
+    expect(n.sections[0].layout.columns).toBe("1-1-1");
+    expect(n.sections[0].columns.map((c) => c.blocks.map((b) => b.id))).toEqual(
+      [["b-1"], ["b-2"], ["b-3"]]
+    );
+
+    const five = section("s-2", "1", [["b-1"], ["b-2"], [], [], ["b-5"]]);
+    const m = normalizePageDoc(
+      doc({ ...five, layout: { ...five.layout, columns: "5" as never } })
+    );
+    expect(m.sections[0].layout.columns).toBe("1");
+    expect(m.sections[0].columns[0].blocks.map((b) => b.id)).toEqual([
+      "b-1",
+      "b-2",
+      "b-5",
+    ]);
+  });
+
+  test("a missing layout keeps the stored columns instead of collapsing them", () => {
+    const s = section("s-1", "1-1", [["b-1"], ["b-2"]]);
+    const n = normalizePageDoc(
+      doc({ ...s, layout: undefined as unknown as SectionLayout })
+    );
+    expect(n.sections[0].layout).toEqual({
+      ...DEFAULT_SECTION_LAYOUT,
+      columns: "1-1",
+    });
+    expect(n.sections[0].columns.map((c) => c.blocks.map((b) => b.id))).toEqual(
+      [["b-1"], ["b-2"]]
+    );
+  });
+
+  test("unknown layout values fall back to the defaults", () => {
+    const s = section("s-1", "1", [["b-1"]]);
+    const n = normalizePageDoc(
+      doc({
+        ...s,
+        layout: {
+          ...s.layout,
+          align: "start",
+          background: "default",
+          hideOnPhone: "yes",
+          spacing: "roomy",
+          tablet: "keep",
+        } as unknown as SectionLayout,
+      })
+    );
+    expect(n.sections[0].layout).toEqual({
+      ...DEFAULT_SECTION_LAYOUT,
+      spacing: "roomy",
+    });
+  });
+
+  test("the input document is not mutated", () => {
+    const s = section("s-1", "1-1", [["b-1"], ["b-2"]]);
+    const input = doc(
+      { ...s, layout: { ...s.layout, columns: "1" } },
+      { ...section("s-2", "1", [["b-3"]]), layout: undefined as never }
+    );
+    const before = structuredClone(input);
+    normalizePageDoc(input);
+    expect(input).toEqual(before);
   });
 
   test("a section without a columns array renders as empty columns", () => {

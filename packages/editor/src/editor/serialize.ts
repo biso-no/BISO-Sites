@@ -1,6 +1,18 @@
-import { DEFAULT_SECTION_LAYOUT, resizeColumns } from "./sections";
+import { newId } from "./ids";
+import {
+  COLUMN_COUNT,
+  DEFAULT_SECTION_LAYOUT,
+  resizeColumns,
+} from "./sections";
 import { walkBlocks } from "./tree";
-import type { Block, Column, PageDoc, Section } from "./types";
+import type {
+  Block,
+  Column,
+  PageDoc,
+  Section,
+  SectionColumns,
+  SectionLayout,
+} from "./types";
 import { PAGE_DOC_VERSION } from "./types";
 
 const MAX_TEXT_LEN = 120;
@@ -8,35 +20,96 @@ const MAX_TEXT_LEN = 120;
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
-/** Upgrade persisted page documents at every editor/render host boundary. */
+const isString = (v: unknown): v is string => typeof v === "string";
+
+/** The values each layout field may hold; anything else takes the default. */
+const LAYOUT_VALUES: { [K in keyof SectionLayout]: readonly unknown[] } = {
+  align: ["top", "middle", "bottom"],
+  background: ["white", "tinted", "dark"],
+  columns: Object.keys(COLUMN_COUNT),
+  hideOnPhone: [true, false],
+  phoneReverse: [true, false],
+  spacing: ["tight", "normal", "roomy"],
+  tablet: ["row", "stack"],
+};
+
+/** The equal-width preset for a stored column count. */
+const PRESET_FOR_COUNT: Partial<Record<number, SectionColumns>> = {
+  1: "1",
+  2: "1-1",
+  3: "1-1-1",
+  4: "1-1-1-1",
+};
+
+function normalizeBlocks(raw: unknown): Block[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter(
+    (block): block is Block =>
+      isRecord(block) && isString(block.id) && isString(block.type)
+  );
+}
+
+function normalizeColumns(raw: unknown): Column[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const columns: Column[] = [];
+  for (const col of raw) {
+    if (!isRecord(col)) {
+      continue;
+    }
+    columns.push({
+      ...(col as unknown as Column),
+      blocks: normalizeBlocks(col.blocks),
+      id: isString(col.id) ? col.id : newId("c"),
+    });
+  }
+  return columns;
+}
+
+/**
+ * Known layout values are kept and the rest take the defaults. A missing or
+ * unknown column preset follows the columns actually stored, so a section
+ * saved without its layout keeps its columns instead of collapsing into one.
+ */
+function normalizeLayout(raw: unknown, storedColumns: number): SectionLayout {
+  const stored = isRecord(raw) ? raw : {};
+  const layout: Record<string, unknown> = { ...DEFAULT_SECTION_LAYOUT };
+  for (const [key, allowed] of Object.entries(LAYOUT_VALUES)) {
+    if (allowed.includes(stored[key])) {
+      layout[key] = stored[key];
+    }
+  }
+  if (!LAYOUT_VALUES.columns.includes(stored.columns)) {
+    layout.columns = PRESET_FOR_COUNT[storedColumns] ?? "1";
+  }
+  return layout as unknown as SectionLayout;
+}
+
+/**
+ * Upgrade persisted page documents at every editor/render host boundary.
+ * Never mutates its input. Old flat documents become an empty page (D2);
+ * malformed sections, columns and blocks are repaired or dropped, so the
+ * renderer and `walkBlocks` can trust the shape.
+ */
 export const normalizePageDoc = (doc: PageDoc): PageDoc => {
   const raw = doc as unknown as { sections?: unknown; version?: unknown };
   if (raw.version !== PAGE_DOC_VERSION || !Array.isArray(raw.sections)) {
     return { meta: doc.meta, sections: [], version: PAGE_DOC_VERSION };
   }
   const sections: Section[] = [];
-  for (const raw of doc.sections as unknown[]) {
-    if (!isRecord(raw)) {
+  for (const rawSection of raw.sections) {
+    if (!isRecord(rawSection)) {
       continue;
     }
-    const rawColumns = Array.isArray(raw.columns) ? raw.columns : [];
-    const columns: Column[] = [];
-    for (const col of rawColumns as unknown[]) {
-      if (!isRecord(col)) {
-        continue;
-      }
-      columns.push({
-        ...(col as unknown as Column),
-        blocks: Array.isArray(col.blocks) ? [...(col.blocks as Block[])] : [],
-      });
-    }
+    const columns = normalizeColumns(rawSection.columns);
     const next: Section = {
-      ...(raw as unknown as Section),
+      ...(rawSection as unknown as Section),
       columns,
-      layout: {
-        ...DEFAULT_SECTION_LAYOUT,
-        ...(raw.layout as Section["layout"] | undefined),
-      },
+      id: isString(rawSection.id) ? rawSection.id : newId("s"),
+      layout: normalizeLayout(rawSection.layout, columns.length),
     };
     resizeColumns(next, next.layout.columns);
     sections.push(next);
