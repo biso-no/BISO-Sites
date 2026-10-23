@@ -194,6 +194,8 @@
 - **First create:** saves are serialised in the host. A second save while the first create is in flight waits, then uses the new page id. It never creates a second row. This is the stage 1 carried item, "two saves racing on a page's first create".
 - **Publishing an untouched locale:** if that locale has no translation row, the host saves the current document for that locale first, then publishes. If saving isn't allowed, it shows "Save this language before publishing" instead of "No translation found".
 - **Link-name field:** Enter commits the value and keeps focus in the field.
+- **Shared-meta sync race** (carried from the stage 4 final review). `syncSharedDraftMeta` in `packages/api/page-builder.ts` (~602–615) reads and rewrites the other locale's whole `draft_doc`. Re-read the row before writing. If its `$updatedAt` changed since the read, merge the shared meta into the fresh doc and retry once. Never write back older content.
+- **Stale-tab theme** (carried from the stage 4 final review). On save of a department-bound page, drop an incoming `meta.theme` that equals the department's current theme. This stops a stale second tab from re-attaching a theme that Publish already moved to the department.
 
 - [ ] **Step 1: Write the failing tests.**
   - An edit, then Publish within 800 ms → the save happens before the publish, and the published doc contains the edit.
@@ -201,6 +203,8 @@
   - Two rapid saves on `/pages/new` → exactly one create call, and the second save is an update with the new id.
   - Publishing the empty `en` locale → no "No translation found"; it's either saved and published, or a clear message is shown.
   - Enter in the link-name field → value committed and `document.activeElement` unchanged.
+  - Sync race: the other locale's row changes between the read and the write → its newer content is kept, and the shared meta is merged in.
+  - Stale tab: saving a department page with `theme` equal to the department's theme stores no theme.
 - [ ] **Steps 2–4: Watch them fail, implement, and run the full editor and admin suites plus `check-types`.**
 - [ ] **Step 5: Commit** with message `fix(editor): publish and leaving the page save pending edits first`.
 
