@@ -22,10 +22,15 @@ export function SectionView({
   section,
 }: SectionViewProps) {
   const { layout } = section;
-  const empty = section.columns.every((column) => column.blocks.length === 0);
-  if (empty && !edit) {
+  const blocks = section.columns.flatMap((column) => column.blocks);
+  if (blocks.length === 0 && !edit) {
     return null;
   }
+  // A section whose every block is hidden on phones hides there too, or the
+  // phone shows an empty band of section padding.
+  const hideOnPhone =
+    layout.hideOnPhone ||
+    (blocks.length > 0 && blocks.every((block) => block.hideOnPhone === true));
 
   return (
     <section
@@ -33,7 +38,7 @@ export function SectionView({
       data-align={layout.align}
       data-background={layout.background}
       data-columns={layout.columns}
-      data-hide-phone={flag(layout.hideOnPhone)}
+      data-hide-phone={flag(hideOnPhone)}
       data-phone-reverse={flag(layout.phoneReverse)}
       data-spacing={layout.spacing}
       data-tablet={layout.tablet}

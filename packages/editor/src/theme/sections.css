@@ -89,4 +89,9 @@
     display: block;
     opacity: 0.45;
   }
+  /* Dimmed once: a hidden block inside a hidden section does not dim again. */
+  .pe-frame[data-editing] .pg-sec[data-hide-phone]
+    .pg-col__item[data-hide-phone] {
+    opacity: 1;
+  }
 }
