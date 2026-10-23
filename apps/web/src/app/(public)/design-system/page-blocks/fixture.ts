@@ -221,6 +221,37 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
       ]
     ),
 
+    // Tinted, three columns: one callout per tone.
+    section("s-tones", { background: "tinted", columns: "1-1-1" }, [
+      [
+        {
+          id: "b-tone-info",
+          type: "callout",
+          tone: "info",
+          title: "Reise",
+          body: "Bor du utenfor Oslo, dekker vi flybilletten. Søk innen 10. januar.",
+        },
+      ],
+      [
+        {
+          id: "b-tone-tip",
+          type: "callout",
+          tone: "tip",
+          title: "Ta med",
+          body: "CV på papir og noen spørsmål du vil stille bedriftene.",
+        },
+      ],
+      [
+        {
+          id: "b-tone-warn",
+          type: "callout",
+          tone: "warn",
+          title: "Husk",
+          body: "Du må være medlem i BISO for å melde deg på intervjuer.",
+        },
+      ],
+    ]),
+
     // White, 1-2: heading and highlights beside a collage.
     section("s-gallery", { background: "white", columns: "1-2" }, [
       [
@@ -274,45 +305,15 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
       ],
     ]),
 
-    // Tinted, three columns: one callout per tone.
-    section("s-tones", { background: "tinted", columns: "1-1-1" }, [
-      [
-        {
-          id: "b-tone-info",
-          type: "callout",
-          tone: "info",
-          title: "Reise",
-          body: "Bor du utenfor Oslo, dekker vi flybilletten. Søk innen 10. januar.",
-        },
-      ],
-      [
-        {
-          id: "b-tone-tip",
-          type: "callout",
-          tone: "tip",
-          title: "Ta med",
-          body: "CV på papir og noen spørsmål du vil stille bedriftene.",
-        },
-      ],
-      [
-        {
-          id: "b-tone-warn",
-          type: "callout",
-          tone: "warn",
-          title: "Husk",
-          body: "Du må være medlem i BISO for å melde deg på intervjuer.",
-        },
-      ],
-    ]),
-
-    // White, one column: video in two styles, then a button row.
+    // White right after white, so the hairline between them shows. One
+    // column: video in two styles, then a button row.
     section("s-video", { background: "white", columns: "1" }, [
       [
         {
           id: "b-video-featured",
           type: "video",
           style: "featured",
-          ratio: "16/9",
+          ratio: "21/9",
           url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
           poster: FAIR_PHOTO,
           label: "Film fra Karrieredagene 2026",
@@ -322,7 +323,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           id: "b-video-inline",
           type: "video",
           style: "inline",
-          ratio: "21/9",
+          ratio: "16/9",
           url: "https://vimeo.com/76979871",
           poster: OSLO,
           caption: "Velkommen fra komiteen.",

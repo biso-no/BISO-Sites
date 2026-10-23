@@ -80,3 +80,13 @@ test("every content image has alt text", () => {
     expect(alt.trim().length).toBeGreaterThan(0);
   }
 });
+
+test("two white sections meet, so the hairline between them shows", () => {
+  const backgrounds = PAGE_BLOCKS_FIXTURE.sections.map(
+    (s) => s.layout.background
+  );
+  const whitePair = backgrounds.some(
+    (bg, i) => bg === "white" && backgrounds[i + 1] === "white"
+  );
+  expect(whitePair).toBe(true);
+});
