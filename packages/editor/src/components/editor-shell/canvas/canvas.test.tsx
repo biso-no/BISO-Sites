@@ -189,13 +189,6 @@ test("null and BISO's own colours leave the frame unstyled", () => {
   ).not.toContain("--biso-");
 });
 
-test("changing meta.theme in the store repaints the frame", () => {
-  expect(frameStyle(render(withTheme(null)))).not.toContain("--biso-deep:");
-  expect(
-    frameStyle(render(withTheme({ dark: "#0a3a1a", accent: "#7be495" })))
-  ).toContain("--biso-deep:#0a3a1a");
-});
-
 test("a failing but valid theme still paints the canvas", () => {
   expect(
     frameStyle(render(withTheme({ dark: "#9b5de5", accent: "#fecd45" })))

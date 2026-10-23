@@ -123,6 +123,10 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
     departments,
   } = useEditorCallbacks();
   const meta = useMeta();
+  // Edits made while the theme blocks saving exist only in the store, and a
+  // locale switch rehydrates over them. Hold the switch until they can save.
+  const switchBlocked = useEditorStore((s) => s.saving) === "blocked";
+  const switchHint = "Fix the theme colours before switching language";
   // On the frame itself: `.biso-surface-v2` re-declares these tokens there,
   // so a value set on an ancestor would be shadowed.
   const themeStyle = useMemo(
@@ -190,9 +194,16 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
           {locales.map((option) => (
             <button
               className={activeLocale === option.locale ? "on" : ""}
+              disabled={switchBlocked}
               key={option.locale}
               onClick={() => onLocaleChange(option.locale)}
-              title={option.hasDraft ? option.label : `${option.label} (empty)`}
+              title={
+                switchBlocked
+                  ? switchHint
+                  : option.hasDraft
+                    ? option.label
+                    : `${option.label} (empty)`
+              }
               type="button"
             >
               {option.locale.toUpperCase()}
@@ -205,9 +216,11 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
           <button
             className="pe-translate"
             disabled={
-              translatingLocale !== null && translatingLocale !== undefined
+              switchBlocked ||
+              (translatingLocale !== null && translatingLocale !== undefined)
             }
             onClick={() => onTranslateLocale(translateTarget.locale)}
+            title={switchBlocked ? switchHint : undefined}
             type="button"
           >
             {translatingLocale === translateTarget.locale

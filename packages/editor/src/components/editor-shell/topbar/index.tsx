@@ -94,6 +94,12 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
               Error
             </>
           )}
+          {saving === "blocked" && (
+            <>
+              <i aria-hidden="true" className="error pe-save__dot" />
+              Not saved: theme colours fail the contrast check
+            </>
+          )}
           {saving === "idle" && null}
         </span>
         {actions}

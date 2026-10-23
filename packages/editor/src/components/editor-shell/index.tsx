@@ -149,12 +149,15 @@ export function EditorShell({
     () =>
       withPublishStatusSync(
         {
-          onPublish: guardPublish(onPublish, () => doc.meta),
+          onPublish: guardPublish(
+            onPublish,
+            () => useEditorStore.getState().doc.meta
+          ),
           onUnpublish,
         },
         setStatus
       ),
-    [onPublish, onUnpublish, setStatus, doc]
+    [onPublish, onUnpublish, setStatus]
   );
   const setSaving = useEditorStore((s) => s.setSaving);
   const undo = useEditorStore((s) => s.undo);
@@ -275,12 +278,20 @@ export function EditorShell({
     const savePageSnapshot = savePageRef.current;
 
     onDocChangeRef.current?.(docSnapshot, localeSnapshot);
+    if (themeBlocksSave(docSnapshot.meta)) {
+      // Nothing saves while the colours fail; say so instead of "Saving…".
+      setSaving("blocked");
+      return;
+    }
+    if (useEditorStore.getState().saving === "blocked") {
+      setSaving("idle");
+    }
     if (
       !shouldAutosave(
         hydrated.signature,
         autosaveSignature(docSnapshot),
         hydrated.changed,
-        themeBlocksSave(docSnapshot.meta)
+        false
       )
     ) {
       return;

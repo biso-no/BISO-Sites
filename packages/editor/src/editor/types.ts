@@ -565,7 +565,7 @@ export interface InsertTarget {
 
 export type EditorMode = "edit" | "preview";
 export type EditorViewport = "desk" | "tab" | "mob";
-export type SavingState = "idle" | "pending" | "saved" | "error";
+export type SavingState = "idle" | "pending" | "saved" | "error" | "blocked";
 
 // ── Host-provided data types ─────────────────────────────────────────────────
 
