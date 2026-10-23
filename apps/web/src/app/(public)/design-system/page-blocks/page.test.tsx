@@ -8,9 +8,9 @@ const NOTICE =
 test("the gallery says up front that it is sample content", () => {
   const html = renderToStaticMarkup(<PageBlocksPage />);
   const classes = NOTICE.exec(html)?.[1]?.split(" ") ?? [];
-  // A sticky strip under the fixed nav, in the marker's notice colours.
+  // A strip fixed under the fixed nav, in the marker's notice colours.
   for (const cls of [
-    "sticky",
+    "fixed",
     "top-20",
     "bg-marker",
     "text-deep",

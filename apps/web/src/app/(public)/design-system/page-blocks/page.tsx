@@ -17,16 +17,18 @@ export const metadata: Metadata = {
 };
 
 /**
- * The fixture is a made-up career fair. A strip that sticks under the fixed
+ * The fixture is a made-up career fair. A strip fixed under the site's fixed
  * nav (h-20) says so on every screen, in the marker's notice colours; navy
  * ink (`text-deep`) rather than `text-ink`, which turns paper-white on the
- * sun in the dark theme.
+ * sun in the dark theme. Fixed, not sticky: it takes no room in the flow, so
+ * the header's navy still runs up behind the transparent nav, and it covers
+ * only the header's top padding, never its text.
  */
 export default function PageBlocksPage() {
   return (
     <>
       <p
-        className="type-label sticky top-20 z-40 m-0 bg-marker px-4 py-2 text-center text-deep"
+        className="type-label fixed inset-x-0 top-20 z-40 m-0 bg-marker px-4 py-2 text-center text-deep"
         role="note"
       >
         Eksempelinnhold — ikke et ekte arrangement
