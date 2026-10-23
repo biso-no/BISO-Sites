@@ -18,7 +18,7 @@ import { type Crumb, PageHeader } from "@/components/ui/page-header";
 import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
 import { cachedPageEventsFeed } from "@/lib/data/public-content";
 import { cachedPublicUnits } from "@/lib/data/units";
-import { buildProjectHub } from "@/lib/project-hub";
+import { buildProjectHub, HUB_EVENT_LIMIT } from "@/lib/project-hub";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
 
 export async function generateMetadata({
@@ -184,7 +184,7 @@ export default async function ProjectDetailPage({
 
   const campuses = isProjectSlug(slug)
     ? await buildProjectHub(units, slug, (unitId) =>
-        cachedPageEventsFeed(unitId, locale)
+        cachedPageEventsFeed(unitId, locale, HUB_EVENT_LIMIT)
       )
     : [];
 

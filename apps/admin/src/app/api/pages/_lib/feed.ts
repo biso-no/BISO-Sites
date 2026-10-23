@@ -9,8 +9,8 @@ import { requireApiAuth } from "@/lib/api-auth";
  * `@repo/editor`'s events/news/jobs/partners/departmentGrid blocks fetch
  * `/api/pages/*` with a RELATIVE url. Only `apps/web` ever implemented those
  * routes, so in the canvas on :3001 all five hit a 404, `r.json()` threw, and
- * every block silently fell back to its placeholder items — the editor preview
- * has never shown live feed data. These routes close that gap; the alternative,
+ * every block silently came up empty — the editor preview has never shown live
+ * feed data. These routes close that gap; the alternative,
  * pointing the blocks at an absolute web URL, would make the CMS depend on the
  * public site being reachable and need CORS on top.
  *
@@ -35,8 +35,8 @@ export async function requireFeedAuth(): Promise<NextResponse | null> {
 }
 
 /**
- * Blocks call `r.json()` and swallow failures into placeholder items, so an
- * error status would put demo content in the canvas with no visible reason.
+ * Blocks call `r.json()` and swallow failures into an empty feed, so an
+ * error status would leave the canvas blank with no visible reason.
  * Answer 200 with an empty payload instead, and keep it uncacheable.
  */
 export function feedResponse(payload: unknown) {
@@ -53,13 +53,4 @@ export function requireDepartment(params: URLSearchParams): string | null {
 
 export function feedLocale(params: URLSearchParams): PageFeedLocale {
   return params.get("locale") === "en" ? "en" : "no";
-}
-
-/**
- * Row count the block asked for, or undefined to take the reader's default.
- * The readers clamp it, so this only has to reject junk.
- */
-export function feedLimitParam(params: URLSearchParams): number | undefined {
-  const value = Number.parseInt(params.get("limit") ?? "", 10);
-  return Number.isFinite(value) && value > 0 ? value : undefined;
 }

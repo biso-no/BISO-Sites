@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   collectPageFeedRequests,
+  feedLimitFromParam,
   pageFeedKey,
   resolveFeedDepartment,
 } from "./page-feeds";
@@ -71,7 +72,7 @@ describe("collectPageFeedRequests", () => {
     }
   });
 
-  test("deduplicates by (kind, department, locale)", () => {
+  test("deduplicates by (kind, department, locale, limit)", () => {
     // Repeating a block must not multiply the page's backend round-trips.
     const requests = collectPageFeedRequests(
       doc([
@@ -250,5 +251,17 @@ describe("feed limit", () => {
       "no"
     );
     expect(requests.map((r) => r.limit).sort()).toEqual([3, 6]);
+  });
+});
+
+describe("feedLimitFromParam", () => {
+  test("only the allowed row counts get through", () => {
+    expect(feedLimitFromParam("6")).toBe(6);
+    expect(feedLimitFromParam("3")).toBe(3);
+    expect(feedLimitFromParam("999")).toBe(3);
+    expect(feedLimitFromParam("abc")).toBe(3);
+    expect(feedLimitFromParam("-5")).toBe(3);
+    expect(feedLimitFromParam("")).toBe(3);
+    expect(feedLimitFromParam(null)).toBe(3);
   });
 });

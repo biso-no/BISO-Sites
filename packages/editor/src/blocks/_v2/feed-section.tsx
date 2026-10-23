@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { LINK_CLASS, MARKER_CLASS } from "@/blocks/heading/render";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import type { EditorLocale } from "@/editor/types";
 import { cardGridClass } from "./card-grid";
 import { externalLinkProps, safeHref } from "./links";
+import { LINK_CLASS, MARKER_CLASS } from "./section-title";
 
 const SEE_ALL: Record<EditorLocale, string> = {
   en: "See all →",
@@ -74,24 +74,29 @@ export function FeedSection({
   const deptName = departments.find((d) => d.id === dept)?.name ?? dept;
   const href = safeHref(seeAllHref);
   const showLink = seeAll && !!href;
+  // A blank heading is not an empty <h2> on the site; the editor keeps it so
+  // there is something to click into.
+  const showTitle = edit || heading.trim() !== "";
 
   return (
     <div className="flex flex-col gap-6 break-words">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <h2 className="type-heading-section isolate min-w-0 hyphens-auto break-words text-ink">
-          <span className={showLink ? MARKER_CLASS : undefined}>
-            {edit ? (
-              <EditableText
-                edit
-                onChange={(v) => onPatch("heading", v)}
-                tag="span"
-                value={heading}
-              />
-            ) : (
-              heading
-            )}
-          </span>
-        </h2>
+        {showTitle ? (
+          <h2 className="type-heading-section isolate min-w-0 hyphens-auto break-words text-ink">
+            <span className={showLink ? MARKER_CLASS : undefined}>
+              {edit ? (
+                <EditableText
+                  edit
+                  onChange={(v) => onPatch("heading", v)}
+                  tag="span"
+                  value={heading}
+                />
+              ) : (
+                heading
+              )}
+            </span>
+          </h2>
+        ) : null}
         {showLink && !edit ? (
           <a className={LINK_CLASS} href={href} {...externalLinkProps(href)}>
             {SEE_ALL[locale] ?? SEE_ALL.no}

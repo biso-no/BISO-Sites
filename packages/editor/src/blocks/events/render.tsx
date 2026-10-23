@@ -28,6 +28,30 @@ const LABELS: Record<
   no: { info: "Kun info", members: "Kun for medlemmer", register: "Påmelding" },
 };
 
+/** Same words as the web events filters (`events.filters.*`). */
+const CATEGORIES: Record<EditorLocale, Record<string, string>> = {
+  en: {
+    academic: "Academic",
+    career: "Career",
+    party: "Party",
+    social: "Social",
+    sport: "Sport",
+    talk: "Talk",
+    trip: "Trip",
+    workshop: "Workshop",
+  },
+  no: {
+    academic: "Faglig",
+    career: "Karriere",
+    party: "Fest",
+    social: "Sosialt",
+    sport: "Idrett",
+    talk: "Foredrag",
+    trip: "Tur",
+    workshop: "Workshop",
+  },
+};
+
 const CARD = "group flex h-full flex-col rounded-biso-sm";
 
 function EventCard({
@@ -40,10 +64,11 @@ function EventCard({
   locale: EditorLocale;
 }) {
   const labels = LABELS[locale] ?? LABELS.no;
+  // An unknown category shows no pill rather than a raw enum value.
   const category =
     typeof event.category === "string"
-      ? event.category.replaceAll("_", " ")
-      : "";
+      ? (CATEGORIES[locale] ?? CATEGORIES.no)[event.category]
+      : undefined;
   return (
     <FeedCardShell className={CARD} edit={edit} href={event.href}>
       {event.image ? (

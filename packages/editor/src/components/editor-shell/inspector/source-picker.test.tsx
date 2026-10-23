@@ -9,9 +9,13 @@ import { SourcePicker } from "./source-picker";
 
 const CALLBACKS: EditorCallbacks = {
   activeLocale: "no",
-  campuses: [],
+  campuses: [
+    { id: "oslo", name: "Oslo" },
+    { id: "bergen", name: "Bergen" },
+  ],
   departments: [
     { campusId: "oslo", id: "d1", name: "Marketing" },
+    { campusId: "bergen", id: "d3", name: "Bergen Events" },
     { campusId: null, id: "d2", name: "Events" },
   ],
   locales: [],
@@ -23,12 +27,16 @@ const CALLBACKS: EditorCallbacks = {
 const SELECTED_D2 =
   /<option[^>]*value="d2"[^>]*selected|<option[^>]*selected[^>]*value="d2"/;
 
-const render = (value: string) =>
+const render = (value: string, pageCampus?: string) =>
   renderToStaticMarkup(
     createElement(
       EditorCallbacksContext.Provider,
       { value: CALLBACKS },
-      createElement(SourcePicker, { onChange: () => undefined, value })
+      createElement(SourcePicker, {
+        onChange: () => undefined,
+        pageCampus,
+        value,
+      })
     )
   );
 
@@ -49,5 +57,17 @@ describe("SourcePicker", () => {
 
   test("keeps a department that is no longer listed", () => {
     expect(render("gone")).toContain('value="gone"');
+  });
+});
+
+describe("SourcePicker grouping", () => {
+  test("groups by campus and puts the page's campus first", () => {
+    const out = render("auto", "bergen");
+    expect(out).toContain('<optgroup label="Bergen">');
+    expect(out).toContain('<optgroup label="Oslo">');
+    expect(out).toContain('<optgroup label="Other">');
+    expect(out.indexOf('label="Bergen"')).toBeLessThan(
+      out.indexOf('label="Oslo"')
+    );
   });
 });

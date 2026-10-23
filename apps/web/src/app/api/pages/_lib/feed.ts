@@ -4,11 +4,10 @@ import type { PublicLocale } from "@/lib/data/queries";
 /**
  * Shared plumbing for the page-builder's auto-source feeds.
  *
- * Every block in `@repo/editor` fetches these endpoints, calls `r.json()`, and
- * swallows failures into its own placeholder items. A 404 or a 500 therefore
- * shows the editor's demo content ("Event title / Where / 0 going") to the
- * public with no visible error, so these routes always answer 200 with an
- * empty payload rather than an error status when there is nothing to show.
+ * Every block in `@repo/editor` fetches these endpoints and calls `r.json()`;
+ * a failure becomes an empty feed. These routes therefore always answer 200
+ * with an empty payload rather than an error status when there is nothing to
+ * show.
  *
  * Four of the five feeds answer a bare array; `departments` answers
  * `{ departments, total }`, which is why the payload here is not narrowed to
@@ -48,13 +47,4 @@ export function requireDepartment(params: URLSearchParams): string | null {
 
 export function feedLocale(params: URLSearchParams): PublicLocale {
   return params.get("locale") === "en" ? "en" : "no";
-}
-
-/**
- * Row count the block asked for, or undefined to take the reader's default.
- * The readers clamp it, so this only has to reject junk.
- */
-export function feedLimitParam(params: URLSearchParams): number | undefined {
-  const value = Number.parseInt(params.get("limit") ?? "", 10);
-  return Number.isFinite(value) && value > 0 ? value : undefined;
 }

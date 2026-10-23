@@ -63,6 +63,15 @@ export function pageFeedKey(
   return limit ? `${base}|${limit}` : base;
 }
 
+/**
+ * The `?limit=` of a feed request, narrowed to the values a block can ask for.
+ * It becomes part of a cache key, so anything else (999, "abc", missing) must
+ * collapse to the allowed set instead of minting new entries.
+ */
+export function feedLimitFromParam(raw: string | null | undefined): 3 | 6 {
+  return feedBlockLimit(Number(raw));
+}
+
 /** How many rows a live block shows: 3 or 6, whatever the stored value is. */
 export function feedBlockLimit(value: unknown): 3 | 6 {
   return value === 6 ? 6 : 3;

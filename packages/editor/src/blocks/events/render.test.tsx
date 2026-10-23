@@ -85,6 +85,26 @@ describe("EventsRender", () => {
     expect(out).toContain("after:bg-marker");
   });
 
+  test("the category pill is a localized label, never the raw enum", () => {
+    const out = html({}, feeds());
+    expect(out).toContain("Sosialt");
+    expect(out).not.toContain(">social<");
+    const junk = html(
+      {},
+      {
+        [pageFeedKey("events", "25", "no", 3)]: [
+          { ...ITEMS[0], category: "nonsense" },
+        ],
+      }
+    );
+    expect(junk).not.toContain("nonsense");
+  });
+
+  test("a blank heading renders no h2 on the site", () => {
+    expect(html({ heading: "  " }, feeds())).not.toContain("<h2");
+    expect(html({ heading: "" }, feeds(), { edit: true })).toContain("<h2");
+  });
+
   test("seeAll off drops the link", () => {
     const out = html({ seeAll: false }, feeds());
     expect(out).not.toContain("Se alle");
