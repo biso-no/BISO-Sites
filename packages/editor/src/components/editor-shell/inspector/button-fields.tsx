@@ -9,15 +9,31 @@ const BUTTON_STYLES: Choice<LinkButton["style"]>[] = [
   { label: "Secondary", value: "secondary" },
 ];
 
-const NO_LINK = "No link yet. This button can't be clicked.";
-const BAD_LINK = "This link isn't allowed, so the button can't be clicked.";
+/** What the inspector says about a link that does not work, by case. */
+export interface LinkNotes {
+  /** The link is empty or only whitespace. */
+  missing: string;
+  /** The link is not one the site allows (javascript:, data:, …). */
+  unsafe: string;
+}
 
-/** The note under the Link input, or null when the link works. */
-export function linkNote(href: string): string | null {
+const BUTTON_NOTES: LinkNotes = {
+  missing: "No link yet. This button can't be clicked.",
+  unsafe: "This link isn't allowed, so the button can't be clicked.",
+};
+
+/**
+ * The note under a Link input, or null when the link works. Every link field
+ * shares it; `notes` says what a broken link means for that field.
+ */
+export function linkNote(
+  href: string,
+  notes: LinkNotes = BUTTON_NOTES
+): string | null {
   if (safeHref(href) !== null) {
     return null;
   }
-  return href.trim() === "" ? NO_LINK : BAD_LINK;
+  return href.trim() === "" ? notes.missing : notes.unsafe;
 }
 
 /** Label, Link and Style for one button, shared by every button inspector. */

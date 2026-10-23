@@ -2,6 +2,10 @@
 
 import type { PatchFn } from "@/blocks/types";
 import {
+  type LinkNotes,
+  linkNote,
+} from "@/components/editor-shell/inspector/button-fields";
+import {
   InspRow,
   InspSection,
   Segmented,
@@ -14,6 +18,21 @@ const SIZES = [
   { label: "Large", value: "large" },
 ] as const;
 
+const HEADING_LINK_NOTES: LinkNotes = {
+  missing: "No link yet, so the link and its underline won't show.",
+  unsafe: "This link isn't allowed, so the link and its underline won't show.",
+};
+
+/** The note for a link someone has started on; none for no link at all. */
+function headingLinkNote(link: HeadingBlock["link"]): string | null {
+  const href = typeof link?.href === "string" ? link.href : "";
+  const label = typeof link?.label === "string" ? link.label : "";
+  if (!(href.trim() || label.trim())) {
+    return null;
+  }
+  return linkNote(href, HEADING_LINK_NOTES);
+}
+
 interface Props {
   block: HeadingBlock;
   doc: PageDoc;
@@ -21,6 +40,7 @@ interface Props {
 }
 
 export function HeadingInspector({ block, onPatch }: Props) {
+  const note = headingLinkNote(block.link);
   return (
     <>
       <InspSection label="Heading">
@@ -74,6 +94,11 @@ export function HeadingInspector({ block, onPatch }: Props) {
             value={block.link?.href ?? ""}
           />
         </InspRow>
+        {note ? (
+          <p className="pe-insp-note" role="status">
+            {note}
+          </p>
+        ) : null}
       </InspSection>
     </>
   );
