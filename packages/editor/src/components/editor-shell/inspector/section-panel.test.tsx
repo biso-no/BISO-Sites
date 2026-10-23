@@ -111,3 +111,68 @@ test("four columns can switch to one", () => {
   buttonLabelled(tree, "One column")?.props.onClick();
   expect(patches).toEqual([{ columns: "1" }]);
 });
+
+type LinkNameInput = ReactElement<{
+  defaultValue?: string;
+  onBlur?: (e: { currentTarget: { value: string } }) => void;
+  onChange?: unknown;
+  onKeyDown?: (e: { currentTarget: { value: string }; key: string }) => void;
+  value?: string;
+}>;
+
+const linkNameInput = (tree: ReactNode) =>
+  walk(tree).find(
+    (el) => el.type === "input" && el.props["aria-label"] === "Link name"
+  ) as LinkNameInput | undefined;
+
+test("the link name commits on blur, not on every keystroke", () => {
+  // Storing the slug per keystroke trimmed the trailing dash, so a space
+  // could never be typed ("Se aftermovien" became "seaftermovien"), and each
+  // keystroke was its own undo step.
+  const anchors: string[] = [];
+  const input = linkNameInput(
+    SectionPanel({
+      ...props(section("s", "1", [[]])),
+      onAnchor: (a) => anchors.push(a),
+    })
+  );
+  expect(input?.props.onChange).toBeUndefined();
+  expect(input?.props.value).toBeUndefined();
+  expect(input?.props.defaultValue).toBe("");
+
+  const field = { value: "Se aftermovien" };
+  input?.props.onBlur?.({ currentTarget: field });
+  expect(anchors).toEqual(["Se aftermovien"]);
+  // The field shows the stored form.
+  expect(field.value).toBe("se-aftermovien");
+});
+
+test("Enter commits the link name; other keys do not", () => {
+  const anchors: string[] = [];
+  const input = linkNameInput(
+    SectionPanel({
+      ...props(section("s", "1", [[]])),
+      onAnchor: (a) => anchors.push(a),
+    })
+  );
+  input?.props.onKeyDown?.({ currentTarget: { value: "Se a" }, key: "a" });
+  expect(anchors).toEqual([]);
+  input?.props.onKeyDown?.({
+    currentTarget: { value: "Café møte" },
+    key: "Enter",
+  });
+  expect(anchors).toEqual(["Café møte"]);
+});
+
+test("an unchanged link name commits nothing", () => {
+  const anchors: string[] = [];
+  const input = linkNameInput(
+    SectionPanel({
+      ...props({ ...section("s", "1", [[]]), anchor: "intro" }),
+      onAnchor: (a) => anchors.push(a),
+    })
+  );
+  expect(input?.props.defaultValue).toBe("intro");
+  input?.props.onBlur?.({ currentTarget: { value: "Intro" } });
+  expect(anchors).toEqual([]);
+});

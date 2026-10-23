@@ -1,5 +1,6 @@
 "use client";
 
+import { slugifyAnchor } from "@/editor/operations";
 import { COLUMN_COUNT } from "@/editor/sections";
 import type { Section, SectionLayout } from "@/editor/types";
 import { SECTION_LAYOUTS } from "../canvas/add-section";
@@ -76,6 +77,17 @@ export function SectionPanel({
   } else if (count > 2) {
     reverseLabel = "Reverse order on phone";
   }
+  // The link name field keeps what is typed and commits on blur or Enter.
+  // Slugifying every keystroke trimmed the trailing dash, so no space could
+  // be typed, and made each keystroke its own undo step.
+  const anchor = section.anchor ?? "";
+  const commitAnchor = (field: { value: string }) => {
+    const typed = field.value;
+    field.value = slugifyAnchor(typed);
+    if (field.value !== anchor) {
+      onAnchor(typed);
+    }
+  };
 
   return (
     <>
@@ -162,8 +174,15 @@ export function SectionPanel({
         <div className="pe-row">
           <input
             aria-label="Link name"
-            onChange={(e) => onAnchor(e.target.value)}
-            value={section.anchor ?? ""}
+            defaultValue={anchor}
+            // A new section, or an undo, shows the stored name afresh.
+            key={`${section.id}:${anchor}`}
+            onBlur={(e) => commitAnchor(e.currentTarget)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                commitAnchor(e.currentTarget);
+              }
+            }}
           />
         </div>
         <p className="pe-insp-note">Buttons can link to #name</p>

@@ -128,4 +128,11 @@ describe("operations", () => {
     expect(d.sections[0].anchor).toBe("se-aftermovien");
     expect(slugifyAnchor("Påmelding & billetter")).toBe("pamelding-billetter");
   });
+  test("anchors keep accented letters as their plain form", () => {
+    expect(slugifyAnchor("Café møte")).toBe("cafe-mote");
+    expect(slugifyAnchor("Ærlig Økt på Ålesund")).toBe("aerlig-okt-pa-alesund");
+    expect(slugifyAnchor("Señor Zürich")).toBe("senor-zurich");
+    expect(slugifyAnchor("  --Se aftermovien--  ")).toBe("se-aftermovien");
+    expect(slugifyAnchor("!!!")).toBe("");
+  });
 });

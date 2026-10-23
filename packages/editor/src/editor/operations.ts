@@ -507,13 +507,21 @@ export function setSectionLayout(
 
 const NON_SLUG_RUN = /[^a-z0-9]+/g;
 const EDGE_DASHES = /^-+|-+$/g;
+const COMBINING_MARKS = /\p{M}+/gu;
 
+/**
+ * A section anchor from free text. Norwegian letters get their usual
+ * spelling (æ → ae, ø → o, å → a) and any other accented letter loses its
+ * accent ("Café møte" → "cafe-mote") rather than being dropped.
+ */
 export function slugifyAnchor(input: string): string {
   return input
     .toLowerCase()
     .replaceAll("æ", "ae")
     .replaceAll("ø", "o")
     .replaceAll("å", "a")
+    .normalize("NFD")
+    .replace(COMBINING_MARKS, "")
     .replace(NON_SLUG_RUN, "-")
     .replace(EDGE_DASHES, "");
 }
