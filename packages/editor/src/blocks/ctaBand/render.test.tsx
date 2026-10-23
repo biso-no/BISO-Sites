@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CtaBandBlock } from "@/editor/types";
+import { parseHtml } from "@/lib/test-dom";
 import { CtaBandRender } from "./render";
 
 const BG_CLASS = /\bbg-/;
@@ -16,14 +17,14 @@ const block = (patch: Partial<CtaBandBlock> = {}): CtaBandBlock => ({
   ...patch,
 });
 
-const html = (b: CtaBandBlock) =>
+const html = (b: CtaBandBlock, edit = false) =>
   renderToStaticMarkup(
     createElement(
       "section",
       { "data-surface": "deep" },
       createElement(CtaBandRender, {
         block: b,
-        edit: false,
+        edit,
         onPatch: () => undefined,
       })
     )
@@ -52,5 +53,28 @@ describe("CtaBandRender", () => {
 
   test("paints no background of its own", () => {
     expect(html(block({ buttons: [] }))).not.toMatch(BG_CLASS);
+  });
+
+  test("in the editor its buttons are not links", () => {
+    const root = parseHtml(html(block(), true));
+    expect(root.querySelectorAll("a")).toHaveLength(0);
+    expect(root.querySelector("span.rounded-biso-pill")?.textContent).toBe(
+      "Join"
+    );
+  });
+
+  test("the site drops buttons with an empty or unsafe link", () => {
+    const root = parseHtml(
+      html(
+        block({
+          buttons: [
+            { href: " ", label: "Blank", style: "primary" },
+            { href: "data:text/html,x", label: "Bad", style: "secondary" },
+          ],
+        })
+      )
+    );
+    expect(root.querySelectorAll("a")).toHaveLength(0);
+    expect(root.querySelectorAll(".rounded-biso-pill")).toHaveLength(0);
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { HeadingBlock } from "@/editor/types";
+import { parseHtml } from "@/lib/test-dom";
 import { HeadingRender } from "./render";
 
 const base: HeadingBlock = {
@@ -13,14 +14,14 @@ const base: HeadingBlock = {
   type: "heading",
 };
 
-const render = (block: HeadingBlock) =>
+const render = (block: HeadingBlock, edit = false) =>
   renderToStaticMarkup(
     createElement(
       "section",
       { "data-surface": "deep" },
       createElement(HeadingRender, {
         block,
-        edit: false,
+        edit,
         onPatch: () => undefined,
       })
     )
@@ -42,6 +43,14 @@ describe("HeadingRender", () => {
     expect(html).toContain("<a");
     expect(html).toContain("Read more");
     expect(html).toContain('href="/about"');
+  });
+
+  test("in the editor the link is shown but is not a link", () => {
+    const root = parseHtml(
+      render({ ...base, link: { href: "/about", label: "Read more" } }, true)
+    );
+    expect(root.querySelectorAll("a")).toHaveLength(0);
+    expect(root.textContent).toContain("Read more →");
   });
 
   test("a link without a label draws nothing", () => {

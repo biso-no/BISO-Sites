@@ -1,6 +1,6 @@
 "use client";
 
-import { ButtonLink } from "@/blocks/_v2";
+import { ButtonLink, isLiveButton } from "@/blocks/_v2";
 import type { PatchFn } from "@/blocks/types";
 import type { ButtonsBlock } from "@/editor/types";
 
@@ -10,7 +10,14 @@ interface Props {
   onPatch: PatchFn;
 }
 
-export function ButtonsRender({ block }: Props) {
+const MAX_BUTTONS = 3;
+
+export function ButtonsRender({ block, edit }: Props) {
+  // The site shows only buttons that can be clicked; the editor shows them
+  // all, so an editor can see the one still missing its link.
+  const shown = block.items
+    .slice(0, MAX_BUTTONS)
+    .filter((button) => edit || isLiveButton(button));
   return (
     <div
       className={
@@ -19,8 +26,8 @@ export function ButtonsRender({ block }: Props) {
           : "flex flex-wrap gap-3"
       }
     >
-      {block.items.slice(0, 3).map((button, i) => (
-        <ButtonLink button={button} key={i} />
+      {shown.map((button, i) => (
+        <ButtonLink button={button} edit={edit} key={i} />
       ))}
     </div>
   );

@@ -17,6 +17,9 @@ const TITLE_CLASS: Record<HeadingBlock["size"], string> = {
 const MARKER_CLASS =
   "relative pb-1 after:absolute after:inset-x-0 after:bottom-0 after:-z-10 after:h-[3px] after:bg-marker after:content-['']";
 
+const LINK_CLASS =
+  "type-body-sm text-ink-accent underline-offset-4 hover:underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
+
 interface Props {
   block: HeadingBlock;
   edit: boolean;
@@ -59,15 +62,19 @@ export function HeadingRender({ block, edit, onPatch }: Props) {
             )}
           </span>
         </h2>
-        {link && (
+        {link && !edit ? (
           <a
-            className="type-body-sm text-ink-accent underline-offset-4 hover:underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className={LINK_CLASS}
             href={link.href}
             {...externalLinkProps(link.href)}
           >
             {link.label} →
           </a>
-        )}
+        ) : null}
+        {/* On the canvas a click must not navigate away from unsaved edits. */}
+        {link && edit ? (
+          <span className="type-body-sm text-ink-accent">{link.label} →</span>
+        ) : null}
       </div>
       {(block.intro || edit) && (
         <EditableText

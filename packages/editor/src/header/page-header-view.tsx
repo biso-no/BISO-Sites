@@ -1,17 +1,12 @@
 "use client";
 
-import { BUTTON_CLASS, ButtonLink } from "@/blocks/_v2/button-link";
+import { ButtonLink, isLiveButton } from "@/blocks/_v2/button-link";
 import { ChevronMedia } from "@/blocks/_v2/chevron-media";
 import { externalLinkProps, safeHref } from "@/blocks/_v2/links";
 import { sizedImageSrc } from "@/blocks/_v2/media";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
-import type {
-  HeaderCrumb,
-  LinkButton,
-  MediaRef,
-  PageHeader,
-} from "@/editor/types";
+import type { HeaderCrumb, MediaRef, PageHeader } from "@/editor/types";
 
 /** Editor-only prompt where the header's media would go. */
 const MEDIA_PROMPT = "Add a photo or video in the inspector";
@@ -83,9 +78,7 @@ function HeaderText({ edit, header, onPatch }: PageHeaderViewProps) {
   const crumbs = edit
     ? header.crumbs
     : header.crumbs.filter((crumb) => crumb.label.trim());
-  const buttons = edit
-    ? header.buttons
-    : header.buttons.filter((b) => b.label.trim() && b.href.trim());
+  const buttons = edit ? header.buttons : header.buttons.filter(isLiveButton);
 
   return (
     <div className="min-w-0">
@@ -127,7 +120,7 @@ function HeaderText({ edit, header, onPatch }: PageHeaderViewProps) {
       {buttons.length > 0 ? (
         <div className="mt-7 flex flex-wrap gap-3">
           {buttons.map((button, i) => (
-            <HeaderButton
+            <ButtonLink
               button={button}
               edit={edit}
               key={`${i}-${button.label}`}
@@ -186,18 +179,6 @@ function Crumbs({ crumbs, edit }: { crumbs: HeaderCrumb[]; edit: boolean }) {
         })}
       </ol>
     </nav>
-  );
-}
-
-/** A link on the site; inert on the canvas, where a click must not navigate. */
-function HeaderButton({ button, edit }: { button: LinkButton; edit: boolean }) {
-  if (!edit) {
-    return <ButtonLink button={button} />;
-  }
-  return (
-    <span className={BUTTON_CLASS[button.style]}>
-      {button.label || "Button"}
-    </span>
   );
 }
 

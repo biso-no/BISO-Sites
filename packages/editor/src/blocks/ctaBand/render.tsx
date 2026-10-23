@@ -1,9 +1,11 @@
 "use client";
 
-import { ButtonLink } from "@/blocks/_v2";
+import { ButtonLink, isLiveButton } from "@/blocks/_v2";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { CtaBandBlock } from "@/editor/types";
+
+const MAX_BUTTONS = 2;
 
 interface Props {
   block: CtaBandBlock;
@@ -12,7 +14,10 @@ interface Props {
 }
 
 export function CtaBandRender({ block, edit, onPatch }: Props) {
-  const buttons = block.buttons.slice(0, 2);
+  // The site shows only buttons that can be clicked; the editor shows them all.
+  const buttons = block.buttons
+    .slice(0, MAX_BUTTONS)
+    .filter((button) => edit || isLiveButton(button));
   return (
     <div className="grid @2xl:grid-cols-[1fr_auto] @2xl:items-end gap-6">
       <div className="flex flex-col gap-3">
@@ -45,7 +50,7 @@ export function CtaBandRender({ block, edit, onPatch }: Props) {
       {buttons.length > 0 ? (
         <div className="flex flex-wrap gap-3">
           {buttons.map((button, i) => (
-            <ButtonLink button={button} key={i} />
+            <ButtonLink button={button} edit={edit} key={i} />
           ))}
         </div>
       ) : null}

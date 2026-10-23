@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ButtonsBlock } from "@/editor/types";
+import { parseHtml } from "@/lib/test-dom";
 import { allBlocks } from "../index";
 import { ButtonsRender } from "./render";
 
@@ -17,14 +18,14 @@ const block = (patch: Partial<ButtonsBlock> = {}): ButtonsBlock => ({
   ...patch,
 });
 
-const html = (b: ButtonsBlock) =>
+const html = (b: ButtonsBlock, edit = false) =>
   renderToStaticMarkup(
     createElement(
       "section",
       { "data-surface": "deep" },
       createElement(ButtonsRender, {
         block: b,
-        edit: false,
+        edit,
         onPatch: () => undefined,
       })
     )
@@ -49,6 +50,39 @@ describe("ButtonsRender", () => {
       })
     );
     expect(out).not.toContain("<a ");
+  });
+
+  test("in the editor no button is a link, so a click cannot leave the editor", () => {
+    const root = parseHtml(html(block(), true));
+    expect(root.querySelectorAll("a")).toHaveLength(0);
+    expect(root.querySelectorAll("span")).toHaveLength(3);
+  });
+
+  test("the site drops buttons with an empty or unsafe link", () => {
+    const root = parseHtml(
+      html(
+        block({
+          items: [
+            { href: "", label: "Empty", style: "primary" },
+            { href: "javascript:alert(1)", label: "Bad", style: "secondary" },
+            { href: "/ok", label: "Ok", style: "secondary" },
+          ],
+        })
+      )
+    );
+    expect(root.querySelectorAll("a")).toHaveLength(1);
+    expect(root.querySelectorAll("span")).toHaveLength(0);
+    expect(root.textContent).toBe("Ok");
+  });
+
+  test("the editor still shows a button whose link is missing", () => {
+    const root = parseHtml(
+      html(
+        block({ items: [{ href: "", label: "Empty", style: "primary" }] }),
+        true
+      )
+    );
+    expect(root.querySelector("span")?.textContent).toBe("Empty");
   });
 });
 
