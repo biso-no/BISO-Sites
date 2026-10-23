@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { TimelineBlock } from "@/editor/types";
 import { TimelineRender } from "./render";
 
+const WHITESPACE = /\s+/;
+
 const block: TimelineBlock = {
   heading: "Programmet",
   id: "t1",
@@ -34,7 +36,7 @@ describe("TimelineRender", () => {
     }
     const tokens = new Set(
       [...html.matchAll(/class="([^"]*)"/g)].flatMap(([, c]) =>
-        (c ?? "").split(/\s+/)
+        (c ?? "").split(WHITESPACE)
       )
     );
     expect(tokens.has("border-ink-accent")).toBe(true);
