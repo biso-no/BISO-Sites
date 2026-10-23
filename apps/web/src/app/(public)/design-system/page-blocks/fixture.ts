@@ -263,6 +263,8 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           intro:
             "Messen holdes i Oslo, og studenter fra Bergen, Stavanger og Trondheim får reisen dekket.",
           size: "medium",
+          // A link draws the marker under the title.
+          link: { href: "#program", label: "Se programmet" },
         },
         {
           id: "b-gallery-highlights",

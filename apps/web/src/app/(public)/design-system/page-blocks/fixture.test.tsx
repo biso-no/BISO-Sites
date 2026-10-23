@@ -99,3 +99,10 @@ test("the four-column section carries a long word and an email address", () => {
   expect(json).toContain("Samarbeidspartnere");
   expect(json).toContain("communication.wintergames@biso.no");
 });
+
+test("a heading links somewhere, so the marker under its title shows", () => {
+  const linked = walkBlocks(PAGE_BLOCKS_FIXTURE).filter(
+    (block) => block.type === "heading" && block.link?.label && block.link.href
+  );
+  expect(linked.length).toBeGreaterThan(0);
+});

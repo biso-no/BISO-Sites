@@ -45,9 +45,10 @@ export function HeadingRender({ block, edit, onPatch }: Props) {
         />
       )}
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        {/* `isolate`: the marker's -z-10 stroke stays inside the title
+            instead of dropping behind the section's background. */}
         <h2
-          className={`${TITLE_CLASS[size]} min-w-0 hyphens-auto break-words text-ink`}
-          data-marker={link ? "true" : undefined}
+          className={`${TITLE_CLASS[size]} isolate min-w-0 hyphens-auto break-words text-ink`}
         >
           <span className={link ? MARKER_CLASS : undefined}>
             {edit ? (
