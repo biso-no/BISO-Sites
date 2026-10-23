@@ -809,6 +809,7 @@ export type UserNotifications = Models.Row & {
   user_id: string;
   announcement_id: string;
   read: boolean;
+  cleared: boolean;
 };
 
 export type ExpenseApprovals = Models.Row & {
