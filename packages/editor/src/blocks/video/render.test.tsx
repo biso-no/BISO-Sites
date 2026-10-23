@@ -67,6 +67,14 @@ describe("VideoRender", () => {
     expect(out).toContain("title=");
   });
 
+  test("an embed grants fullscreen once, through allow", () => {
+    // Both allow="…fullscreen…" and allowfullscreen make Chrome warn that
+    // allow takes precedence.
+    const out = html(block({ style: "inline", url: YOUTUBE }));
+    expect(out).toContain('allow="autoplay; fullscreen; picture-in-picture"');
+    expect(out.toLowerCase()).not.toContain("allowfullscreen");
+  });
+
   test("inline with an uploaded file renders controls and metadata preload", () => {
     const out = html(
       block({ style: "inline", poster: "https://x.test/p.jpg" })

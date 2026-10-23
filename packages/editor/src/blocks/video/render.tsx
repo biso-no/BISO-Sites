@@ -58,13 +58,7 @@ function Player({
   const embed = embedSrc(url, { autoplay: autoPlay });
   if (embed) {
     return (
-      <iframe
-        allow={PLAYER_ALLOW}
-        allowFullScreen
-        className={FILL}
-        src={embed}
-        title={title}
-      />
+      <iframe allow={PLAYER_ALLOW} className={FILL} src={embed} title={title} />
     );
   }
   if (autoPlay) {
