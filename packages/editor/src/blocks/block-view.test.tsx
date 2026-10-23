@@ -43,7 +43,8 @@ const emptyOf = (type: Block["type"]): Block => {
  * and full-width; blocks rebuilt on BlockSection apply the same via classes.
  */
 describe("every block sits in the section's frame", () => {
-  for (const def of allBlocks()) {
+  // v2 blocks render bare: the section owns the surface and spacing.
+  for (const def of allBlocks().filter((candidate) => !candidate.v2)) {
     test(`${def.type} takes the section's surface at compact spacing and full width`, () => {
       const html = render(def.empty(), "inverted");
 
@@ -63,7 +64,7 @@ describe("every block sits in the section's frame", () => {
 
 describe("BlockView frame", () => {
   test("a block styled by blocks.css gets one compact, full-width frame", () => {
-    const html = render(emptyOf("text"), "brand");
+    const html = render(emptyOf("stats"), "brand");
 
     expect(html.match(/class="pg-section\b/g)).toHaveLength(1);
     expect(html).toContain('data-background="brand"');
@@ -74,7 +75,7 @@ describe("BlockView frame", () => {
 
   test("block.layout is ignored: the section owns spacing and width", () => {
     const html = render(
-      withLayout(emptyOf("text"), {
+      withLayout(emptyOf("stats"), {
         background: "brand",
         spacing: "spacious",
         width: "content",

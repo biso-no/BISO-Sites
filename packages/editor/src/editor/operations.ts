@@ -39,6 +39,15 @@ export function emptyBlock(type: BlockType): Block {
           { type: "p", text: "Tell the story like you'd tell a friend." },
         ],
       };
+    case "heading":
+      return {
+        id,
+        type,
+        eyebrow: "",
+        title: "A heading that names the section",
+        intro: "",
+        size: "medium",
+      };
     case "quote":
       return {
         id,

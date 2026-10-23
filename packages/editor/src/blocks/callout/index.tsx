@@ -18,7 +18,7 @@ function CalloutThumb() {
         x="3"
         y="9"
       />
-      <circle cx="8" cy="15" fill="var(--gold)" r="2" />
+      <circle cx="8" cy="15" fill="var(--ink-3)" r="2" />
       <rect fill={s} height="1.5" width="14" x="13" y="14" />
     </svg>
   );
@@ -35,4 +35,5 @@ registerBlock({
   Render: CalloutRender as never,
   Inspector: CalloutInspector as never,
   PaletteThumb: CalloutThumb,
+  v2: true,
 });

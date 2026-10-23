@@ -27,4 +27,5 @@ registerBlock({
   Render: TextRender as never,
   Inspector: TextInspector as never,
   PaletteThumb: TextThumb,
+  v2: true,
 });

@@ -36,6 +36,11 @@ export const BLOCK_LIBRARY: {
         desc: "Headings, paragraphs, bullets",
       },
       {
+        type: "heading",
+        label: "Heading",
+        desc: "A section title with an optional link",
+      },
+      {
         type: "quote",
         label: "Pull quote",
         desc: "A line worth standing on its own",

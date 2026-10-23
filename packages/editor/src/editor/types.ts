@@ -7,6 +7,7 @@ import type { AccentHue } from "@/theme/presets";
 export type BlockType =
   | "marquee"
   | "text"
+  | "heading"
   | "quote"
   | "callout"
   | "twoCol"
@@ -81,6 +82,16 @@ export interface TextBlock {
   body: TextBodyItem[];
   id: string;
   type: "text";
+}
+
+export interface HeadingBlock {
+  eyebrow: string;
+  id: string;
+  intro: string;
+  link?: { href: string; label: string };
+  size: "small" | "medium" | "large";
+  title: string;
+  type: "heading";
 }
 
 export interface QuoteBlock {
@@ -437,6 +448,7 @@ export interface MultiStepFormBlock {
 export type Block = (
   | MarqueeBlock
   | TextBlock
+  | HeadingBlock
   | QuoteBlock
   | CalloutBlock
   | TwoColBlock

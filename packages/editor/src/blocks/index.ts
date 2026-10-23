@@ -2,6 +2,7 @@
 // Keep this list in sync with the block directories.
 import "./marquee/index";
 import "./text/index";
+import "./heading/index";
 import "./quote/index";
 import "./callout/index";
 import "./twoCol/index";

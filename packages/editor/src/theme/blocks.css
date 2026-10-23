@@ -175,121 +175,6 @@
   color: var(--ink-3);
 }
 
-/* TEXT */
-.pg-text {
-  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
-}
-/*
- * The reading measure sits on the copy, not the block: a capped root would
- * swallow the Design panel's width option, which sizes the column the block
- * sits in. 784px is the line length the old 880px root gave at the 48px gutter.
- */
-.pg-text > * {
-  max-width: 784px;
-}
-.pg-text h2 {
-  margin: 0 0 18px;
-  font-family: var(--serif);
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--pg-ink);
-  letter-spacing: -0.012em;
-  text-wrap: balance;
-}
-.pg-text h3 {
-  margin: 22px 0 8px;
-  font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--pg-ink);
-}
-.pg-text p {
-  max-width: 60ch;
-  margin: 0 0 14px;
-  font-size: 15.5px;
-  line-height: 1.6;
-  color: var(--ink-2);
-}
-.pg-text ul {
-  padding: 0;
-  margin: 0 0 14px;
-  list-style: none;
-}
-.pg-text ul li {
-  position: relative;
-  padding-left: 20px;
-  margin-bottom: 6px;
-  font-size: 15.5px;
-  line-height: 1.55;
-  color: var(--ink-2);
-}
-.pg-text ul li::before {
-  position: absolute;
-  top: 10px;
-  left: 0;
-  width: 6px;
-  height: 6px;
-  content: "";
-  background: var(--page-accent, var(--brand));
-  border-radius: 50%;
-}
-
-/* QUOTE */
-.pg-quote {
-  position: relative;
-  padding: calc(52px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-  border-bottom: 0.5px solid var(--rule);
-}
-.pg-quote__mark {
-  position: absolute;
-  top: 20px;
-  left: 36px;
-  font-family: var(--serif);
-  font-size: 88px;
-  line-height: 1;
-  color: var(--page-accent, var(--claret));
-  opacity: 0.18;
-}
-.pg-quote__body {
-  max-width: 760px;
-  margin: 0 auto;
-  font-family: var(--serif);
-  font-size: 30px;
-  font-style: italic;
-  font-weight: 500;
-  line-height: 1.25;
-  color: var(--pg-ink);
-  letter-spacing: -0.012em;
-  text-wrap: balance;
-}
-.pg-quote__attrib {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  max-width: 760px;
-  margin: 18px auto 0;
-  font-size: 13px;
-  color: var(--ink-3);
-}
-.pg-quote__av {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: white;
-  background: linear-gradient(
-    135deg,
-    var(--brand-gradient-from),
-    var(--brand-gradient-to)
-  );
-  border-radius: 50%;
-}
-
 /* TEAM */
 .pg-team {
   padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
@@ -445,62 +330,6 @@
   font-family: var(--mono);
   font-weight: 500;
   color: var(--pg-ink);
-}
-
-/* CALLOUT */
-.pg-callout-wrap {
-  padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
-}
-.pg-callout {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 16px 18px;
-  border-radius: var(--pg-radius);
-}
-.pg-callout__ic {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  font-size: 13px;
-  color: white;
-  border-radius: var(--pg-radius-sm);
-}
-.pg-callout__body b {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.pg-callout__body p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-/* tone variants */
-.pg-callout--info,
-.pg-callout--tip {
-  background: var(--brand-muted);
-  border: 1px solid var(--brand-border);
-}
-.pg-callout--info .pg-callout__ic,
-.pg-callout--tip .pg-callout__ic {
-  background: linear-gradient(
-    135deg,
-    var(--brand-gradient-from),
-    var(--brand-gradient-to)
-  );
-}
-.pg-callout--warn {
-  background: var(--brand-accent-muted);
-  border: 1px solid color-mix(in oklab, var(--brand-accent) 50%, transparent);
-}
-.pg-callout--warn .pg-callout__ic {
-  color: var(--pg-navy);
-  background: var(--brand-accent);
 }
 
 /* FAQ */
@@ -1686,7 +1515,7 @@
   padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
   border-top: 0.5px solid var(--rule);
 }
-/* Measure on the form itself, for the same reason as `.pg-text > *`. */
+/* Measure on the form itself, so it does not swallow the Design panel width. */
 .pg-msform > * {
   max-width: 544px;
 }
@@ -1903,13 +1732,6 @@ textarea.pg-msform__input {
   .pg-stat__num {
     font-size: 34px;
   }
-  .pg-quote__mark {
-    font-size: 56px;
-  }
-  .pg-quote__body {
-    font-size: 22px;
-  }
-  .pg-text h2,
   .pg-contact h2 {
     font-size: 26px;
   }

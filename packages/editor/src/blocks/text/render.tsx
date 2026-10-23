@@ -1,11 +1,18 @@
 "use client";
 
-import { createElement, useMemo } from "react";
+import { createElement, type ReactNode, useMemo } from "react";
 import type { PatchFn } from "@/blocks/types";
 import type { TextBlock, TextBodyItem } from "@/editor/types";
 import { sanitizeRichText } from "@/lib/sanitize";
 
 const HTML_PROP = "dangerouslySetInnerHTML";
+
+const ITEM_CLASS: Record<TextBodyItem["type"], string> = {
+  h: "type-display-sm text-ink [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
+  h3: "type-heading-card text-ink [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
+  li: "type-body text-ink [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
+  p: "type-body text-ink [&_a]:text-ink-accent [&_a]:underline [&_a]:underline-offset-4",
+};
 
 interface Props {
   block: TextBlock;
@@ -14,20 +21,46 @@ interface Props {
 }
 
 export function TextRender({ block, edit, onPatch }: Props) {
+  const change = (index: number) => (html: string) => {
+    const body = [...block.body];
+    body[index] = { ...body[index], text: html };
+    onPatch("body", body);
+  };
+
+  // Consecutive list items share one <ul>; every other item stands alone.
+  const nodes: ReactNode[] = [];
+  let run: ReactNode[] = [];
+  const flush = (key: number) => {
+    if (run.length === 0) {
+      return;
+    }
+    nodes.push(
+      <ul
+        className="list-disc space-y-2 pl-5 marker:text-ink-accent"
+        key={String(key)}
+      >
+        {run}
+      </ul>
+    );
+    run = [];
+  };
+
+  block.body.forEach((item, i) => {
+    const node = (
+      <BodyItem edit={edit} item={item} key={i} onChange={change(i)} />
+    );
+    if (item.type === "li") {
+      run.push(node);
+      return;
+    }
+    flush(i);
+    nodes.push(node);
+  });
+  flush(block.body.length);
+
   return (
-    <div className="pg-text pg-block">
-      {block.body.map((item, i) => (
-        <BodyItem
-          edit={edit}
-          item={item}
-          key={i}
-          onChange={(html) => {
-            const body = [...block.body];
-            body[i] = { ...body[i], text: html };
-            onPatch("body", body);
-          }}
-        />
-      ))}
+    <div className="flex max-w-(--measure) flex-col gap-4 text-ink">
+      {nodes}
     </div>
   );
 }
@@ -71,7 +104,11 @@ function BodyItem({
     }),
     [edit, item.text]
   );
-  const props = { ...editProps, [HTML_PROP]: html };
+  const props = {
+    ...editProps,
+    className: ITEM_CLASS[item.type],
+    [HTML_PROP]: html,
+  };
 
   if (item.type === "h") {
     return createElement("h2", props);
@@ -80,7 +117,7 @@ function BodyItem({
     return createElement("h3", props);
   }
   if (item.type === "li") {
-    return <ul>{createElement("li", props)}</ul>;
+    return createElement("li", props);
   }
   return createElement("p", props);
 }

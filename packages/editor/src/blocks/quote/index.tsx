@@ -35,4 +35,5 @@ registerBlock({
   Render: QuoteRender as never,
   Inspector: QuoteInspector as never,
   PaletteThumb: QuoteThumb,
+  v2: true,
 });
