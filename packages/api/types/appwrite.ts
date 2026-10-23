@@ -769,6 +769,8 @@ export type Departments = Models.Row & {
   announcements: Announcements[];
   documents: Documents[];
   slug: string | null;
+  theme_dark: string | null;
+  theme_accent: string | null;
 };
 
 export type StopPlaces = Models.Row & {
@@ -938,6 +940,8 @@ export type PageTranslations = Models.Row & {
   title: string;
   description: string | null;
   page: Pages;
+  draft_doc: string | null;
+  published_doc: string | null;
 };
 
 export type FeatureFlags = Models.Row & {
@@ -1776,12 +1780,6 @@ export type AppVersions = Models.Row & {
   platform: AppVersionsPlatform;
   minimum_version: string | null;
   recommended_version: string | null;
-};
-
-export type TwentyFourSevenOfficeDepartments = Models.Row & {
-  Id: string;
-  Name: string;
-  Campus: string | null;
 };
 
 export type AuthTokens = Models.Row & {
