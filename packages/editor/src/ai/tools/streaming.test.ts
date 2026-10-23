@@ -86,7 +86,7 @@ async function runCopilotTurn() {
     tools: pageEditorTools,
   });
 
-  let final: { parts: Array<Record<string, unknown>> } | undefined;
+  let final: { parts: Record<string, unknown>[] } | undefined;
   for await (const message of readUIMessageStream({ stream })) {
     final = message as typeof final;
   }

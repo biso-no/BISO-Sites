@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { EventsRender } from "@/blocks/events/render";
 import type { EventsBlock } from "@/editor/types";
@@ -23,20 +22,21 @@ function eventsBlock(): EventsBlock {
 }
 
 function render(department: string | null, feeds?: PageFeedSnapshot) {
-  const block = createElement(EventsRender, {
-    block: eventsBlock(),
-    edit: false,
-    onPatch: () => undefined,
-  });
+  const block = (
+    <EventsRender
+      block={eventsBlock()}
+      edit={false}
+      onPatch={() => undefined}
+    />
+  );
   return renderToStaticMarkup(
-    department === null
-      ? block
-      : createElement(PageFeedProvider, {
-          children: block,
-          department,
-          feeds,
-          locale: "no" as const,
-        })
+    department === null ? (
+      block
+    ) : (
+      <PageFeedProvider department={department} feeds={feeds} locale="no">
+        {block}
+      </PageFeedProvider>
+    )
   );
 }
 
