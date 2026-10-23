@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { produce } from "immer";
 import {
+  duplicateBlock,
   duplicateSection,
   insertBlock,
   moveBlock,
@@ -69,6 +71,37 @@ describe("operations", () => {
     const copyId = duplicateSection(d, "s-1");
     expect(d.sections.map((s) => s.id)).toEqual(["s-1", copyId ?? "", "s-2"]);
     const copied = walkBlocks({ ...d, sections: [d.sections[1]] });
+    expect(copied.map((b) => b.type)).toEqual(["text", "text", "text"]);
+    expect(copied.some((b) => ["b-1", "b-2", "b-3"].includes(b.id))).toBe(
+      false
+    );
+  });
+  test("duplicateSection does not copy the anchor", () => {
+    setSectionAnchor(d, "s-1", "intro");
+    duplicateSection(d, "s-1");
+    expect(d.sections[1].anchor).toBeUndefined();
+    expect(d.sections[0].anchor).toBe("intro");
+  });
+  test("duplicateBlock works on an immer draft", () => {
+    let copyId: string | null = null;
+    const next = produce(d, (draft) => {
+      copyId = duplicateBlock(draft, "b-1");
+    });
+    expect(ids(next, "s-1-c0")).toEqual(["b-1", copyId ?? "", "b-2"]);
+    expect(copyId).not.toBe("b-1");
+    expect(findBlock(next, copyId ?? "")?.block.type).toBe("text");
+  });
+  test("duplicateSection works on an immer draft", () => {
+    let copyId: string | null = null;
+    const next = produce(d, (draft) => {
+      copyId = duplicateSection(draft, "s-1");
+    });
+    expect(next.sections.map((s) => s.id)).toEqual([
+      "s-1",
+      copyId ?? "",
+      "s-2",
+    ]);
+    const copied = walkBlocks({ ...next, sections: [next.sections[1]] });
     expect(copied.map((b) => b.type)).toEqual(["text", "text", "text"]);
     expect(copied.some((b) => ["b-1", "b-2", "b-3"].includes(b.id))).toBe(
       false

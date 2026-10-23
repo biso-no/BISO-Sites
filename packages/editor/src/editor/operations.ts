@@ -1,6 +1,7 @@
 // Pure document mutations. Every UI action and AI tool call goes through here.
 // Takes an immer draft of PageDoc (or a WritableDraft via zustand/immer).
 
+import { current, type Draft, isDraft } from "immer";
 import { newId } from "./ids";
 import { emptySection, resizeColumns } from "./sections";
 import { findBlock, findColumn, findSection } from "./tree";
@@ -324,6 +325,13 @@ export function emptyBlock(type: BlockType): Block {
   }
 }
 
+/** Deep copy that also works on immer drafts (structuredClone throws on proxies). */
+function cloneValue<T>(value: T): T {
+  return structuredClone(
+    isDraft(value) ? (current(value as Draft<T>) as T) : value
+  );
+}
+
 function insertAt(column: Column, block: Block, beforeBlockId?: string): void {
   const index = beforeBlockId
     ? column.blocks.findIndex((b) => b.id === beforeBlockId)
@@ -377,7 +385,7 @@ export function duplicateBlock(doc: PageDoc, blockId: string): string | null {
   if (!found) {
     return null;
   }
-  const copy = structuredClone(found.block);
+  const copy = cloneValue(found.block);
   copy.id = newId("b");
   found.column.blocks.splice(found.blockIndex + 1, 0, copy);
   return copy.id;
@@ -445,8 +453,9 @@ export function duplicateSection(
   if (!found) {
     return null;
   }
-  const copy = structuredClone(found.section);
+  const copy = cloneValue(found.section);
   copy.id = newId("s");
+  copy.anchor = undefined;
   for (const column of copy.columns) {
     column.id = newId("c");
     for (const block of column.blocks) {
