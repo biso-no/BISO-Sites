@@ -105,13 +105,14 @@ interface UseNavOverflowOptions {
   /**
    * Keys of the collapsible row items, ordered by drop priority — index 0 is
    * surrendered to the overflow menu first. Must contain only keys that are
-   * actually rendered this pass (e.g. drop `memberPortal` for guests).
+   * actually rendered this pass.
    */
   dropOrder: readonly string[];
   /**
    * Changes whenever the rendered item *set* or their labels change — auth
-   * state, locale. The row's own width does not change when an item's label
-   * does, so a width observer alone would keep serving a stale decision.
+   * state, membership, locale. The row's own width does not change when an
+   * item's label does, so a width observer alone would keep serving a stale
+   * decision.
    */
   signature: string;
 }
@@ -129,15 +130,15 @@ interface NavOverflowResult {
  * Decides which desktop nav items fit the row and which spill into the "…"
  * menu, by measuring rather than by guessing at breakpoints.
  *
- * Why measured and not `2xl:inline`: the row's free width is
- * `viewport − logo − everything that never collapses`, and that last term moves
- * with things a media query cannot see — whether the visitor is signed in (the
- * account avatar and the member-portal button are wider than a "Log in"
- * button), whether they are already a member (no "Become a member" CTA), which
- * locale they read (Norwegian labels are longer), and which campus they picked
- * ("Bergen" vs "Trondheim"). Hand-tuned breakpoints were wrong for at least one
- * of those combinations, and the row silently overlapped the utility cluster
- * instead of degrading.
+ * Why measured and not a breakpoint: the row's free width is
+ * `bar − logo − utility group − the panel triggers`, and the utility group
+ * moves with things a media query cannot see — whether the visitor is signed in
+ * (the account avatar is narrower than the "Log in" link), whether they are
+ * already a member (no "Become a member" CTA), which locale they read
+ * (Norwegian labels are longer), and which campus they picked ("Bergen" vs
+ * "Trondheim"). Hand-tuned breakpoints were wrong for at least one of those
+ * combinations, and the row silently overlapped the utility group instead of
+ * degrading.
  *
  * Measurement works off a hidden, inert copy of the collapsible items — the
  * "ghost" — because an item that is currently in the overflow menu is not in
@@ -228,11 +229,11 @@ export function useNavOverflow({
     };
     observeItems();
 
-    // Items come and go — with the viewport, and with the visitor (the
-    // member-portal entry only exists once signed in) — so pick new ones up as
-    // they mount instead of measuring against the set that existed at
-    // subscription time. `measure` is idempotent, so the re-measure this
-    // triggers after its own DOM change settles on the second pass.
+    // Items come and go — with the viewport, and with each decision this
+    // hook makes — so pick new ones up as they mount instead of measuring
+    // against the set that existed at subscription time. `measure` is
+    // idempotent, so the re-measure this triggers after its own DOM change
+    // settles on the second pass.
     const mutationObserver = new MutationObserver(() => {
       observeItems();
       schedule();

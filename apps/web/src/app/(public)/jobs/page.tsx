@@ -1,14 +1,26 @@
-import type { ListSearchParams } from "@repo/shared/utils/list-params";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import {
+  firstParam,
+  type ListSearchParams,
+} from "@repo/shared/utils/list-params";
+import {
+  parseUnitCategory,
+  type UnitCategory,
+} from "@repo/shared/utils/unit-categories";
+import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { type JobSort, listJobFacets, listJobs } from "@/app/actions/jobs";
-import { JobsHero } from "@/components/jobs/jobs-hero";
-import { JobsListClient } from "@/components/jobs/jobs-list-client";
+import { getLocale } from "@/app/actions/locale";
+import { JobsV2 } from "@/components/jobs/v2/jobs-v2";
+import { FeedSkeleton } from "@/components/ui/loading-shell";
 import { getUserPreferences } from "@/lib/auth-utils";
+import { resolveRequestCampus } from "@/lib/campus-scope";
 import { parseWebListParams } from "@/lib/list-params";
 
 export const metadata = {
+  // A campus-scoped feed is a filtered view of the same collection, so it
+  // points its canonical at the unscoped URL rather than competing with it.
+  alternates: { canonical: "/jobs" },
   title: "Join Our Team | BISO",
   description: "Discover open positions at BISO and apply today.",
 };
@@ -20,9 +32,6 @@ interface JobsPageProps {
 const asSort = (value: string | undefined): JobSort =>
   value === "deadline" ? "deadline" : "newest";
 
-const first = (value: string | string[] | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value;
-
 async function JobsList({
   campus,
   category,
@@ -30,14 +39,16 @@ async function JobsList({
   locale,
   page,
   search,
+  searchParams,
   sort,
 }: {
   campus: string | null;
-  category: string | null;
+  category: UnitCategory | null;
   department: string | null;
   locale: string;
   page: number;
   search: string;
+  searchParams: ListSearchParams;
   sort: JobSort;
 }) {
   // `openVacancyQueries` builds its deadline filter from `new Date()`, which the
@@ -47,80 +58,72 @@ async function JobsList({
   // streams and the route itself stays non-blocking.
   await connection();
 
-  const [result, facets] = await Promise.all([
-    listJobs({ campus, category, department, locale, page, search, sort }),
+  const filters = { campus, category, department, locale, search, sort };
+  const [requested, facets] = await Promise.all([
+    listJobs({ ...filters, page }),
     listJobFacets({ campus }),
   ]);
+  // A page past the last one (a stale or hand-edited `?page=`) renders the
+  // first page instead of an empty grid — the same clamp `parseWebListParams`
+  // applies to junk in the address bar. Judged by the rows, not `total`,
+  // which Appwrite can report for the whole table.
+  const result =
+    requested.rows.length === 0 && page > 1
+      ? await listJobs({ ...filters, page: 1 })
+      : requested;
 
   return (
-    <>
-      <JobsHero
-        departmentCount={facets.departments.length}
-        totalPositions={result.total}
-      />
-      <JobsListClient
-        capped={result.capped}
-        categories={facets.categories}
-        departments={facets.departments}
-        initialJobs={result.rows}
-        initialSearch={search}
-        // Remounts on any filter change so the load-more list resets to the
-        // new page 1 instead of appending onto the previous filter's rows.
-        key={`${campus}|${category}|${department}|${search}|${sort}`}
-        locale={locale}
-        selectedCategory={category}
-        selectedDepartment={department}
-        sort={sort}
-        total={result.total}
-      />
-    </>
-  );
-}
-
-function JobsListSkeleton() {
-  return (
-    <>
-      <div className="relative h-[60vh]">
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="grid gap-8 md:grid-cols-2">
-          {[...new Array(6)].map((_, i) => (
-            <div className="space-y-4" key={i}>
-              <Skeleton className="h-48 w-full" />
-              <Skeleton className="h-6 w-3/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
+    <JobsV2
+      campusId={campus}
+      category={category}
+      department={department}
+      facets={facets}
+      locale={locale}
+      result={result}
+      search={search}
+      searchParams={searchParams}
+      sort={sort}
+    />
   );
 }
 
 export default async function JobsPage({ searchParams }: JobsPageProps) {
-  const [sp, prefs] = await Promise.all([searchParams, getUserPreferences()]);
+  const [sp, prefs, locale] = await Promise.all([
+    searchParams,
+    getUserPreferences(),
+    getLocale(),
+  ]);
+
+  // Locale comes from `getLocale()`, not from user preferences.
+  // `getUserPreferences()` returns no locale when the visitor has never set
+  // one, and the `?? "en"` fallback beneath it disagreed with `DEFAULT_LOCALE`,
+  // which is `"no"` — so a first visit rendered Norwegian chrome over English
+  // content. The chrome reads `getLocale()`; the data must read the same thing.
+  // URL beats cookie beats "all". This route already accepted `?campus=1`;
+  // `resolveRequestCampus` keeps that working and adds slugs (`?campus=oslo`),
+  // and now 404s an unrecognised value instead of passing it to the query,
+  // where it silently matched nothing.
+  const campus = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campus === undefined) {
+    notFound();
+  }
+
   const { page, q } = parseWebListParams(sp);
 
-  // URL param wins, then user prefs, then "all"
-  const campus = first(sp.campus) ?? prefs?.campusId ?? null;
-  const locale = prefs?.locale ?? "en";
-
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <Suspense fallback={<JobsListSkeleton />} key={`${campus}|${q}|${page}`}>
-        <JobsList
-          campus={campus}
-          category={first(sp.category) ?? null}
-          department={first(sp.department) ?? null}
-          locale={locale}
-          page={page}
-          search={q}
-          sort={asSort(first(sp.sort))}
-        />
-      </Suspense>
-    </div>
+    <Suspense fallback={<FeedSkeleton />}>
+      <JobsList
+        campus={campus}
+        // Normalised onto a canonical category (`department.type` values), so
+        // an unknown value is no filter rather than an empty list.
+        category={parseUnitCategory(firstParam(sp, "category"))}
+        department={firstParam(sp, "department") || null}
+        locale={locale}
+        page={page}
+        search={q}
+        searchParams={sp}
+        sort={asSort(firstParam(sp, "sort"))}
+      />
+    </Suspense>
   );
 }

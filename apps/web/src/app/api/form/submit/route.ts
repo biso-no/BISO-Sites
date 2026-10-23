@@ -128,7 +128,7 @@ export async function POST(request: Request) {
         .join("");
 
       const html = `
-        <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <div style="font-family:'Museo Sans',system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
           <h2 style="margin:0 0 4px;font-size:20px;">${heading}</h2>
           <p style="margin:0 0 20px;color:#888;font-size:13px;">New form submission</p>
           <table style="width:100%;border-collapse:collapse;background:#f9f9f9;border-radius:8px;overflow:hidden;">

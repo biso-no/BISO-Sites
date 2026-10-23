@@ -1,11 +1,16 @@
 import type { Departments } from "@repo/api/types/appwrite";
+import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import {
   campusIdToLabel,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
-import { Button } from "@repo/ui/components/ui/button";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { setActiveCampus } from "@/app/actions/campus";
+import {
+  StatusPanel,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 
 /**
  * Shown when /units/<slug> cannot resolve to one department: either the slug
@@ -21,7 +26,7 @@ import { setActiveCampus } from "@/app/actions/campus";
  * `"use cache"` entry tagged for this path, a visitor-triggerable cache purge
  * in a codebase whose primary constraint is Appwrite fan-out.
  */
-export function CampusChooser({
+export async function CampusChooser({
   matches,
   slug,
   unavailableAt,
@@ -30,8 +35,10 @@ export function CampusChooser({
   slug: string;
   unavailableAt: string | null;
 }) {
-  const title = matches[0]?.Name ?? slug;
-  const campusWord = matches.length === 1 ? "campus" : "campuses";
+  const t = await getTranslations("units");
+  // The display name, never the campus-prefixed accounting `Name`.
+  const firstName = matches[0]?.Name;
+  const title = firstName ? unitDisplayName(firstName) : slug;
 
   // "Not at Oslo. Available at: National" with a single button is not a choice
   // between campuses — it is a single destination. Making that button write the
@@ -62,20 +69,12 @@ export function CampusChooser({
   }
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-2xl flex-col justify-center px-4 py-16">
-      <h1 className="font-semibold text-3xl tracking-tight">{title}</h1>
-      <p className="mt-3 text-muted-foreground">
-        {unavailableAt
-          ? `Not at ${unavailableAt}. Available at:`
-          : `This unit exists at ${matches.length} ${campusWord}. Which is yours?`}
-      </p>
-      <div className="mt-8 flex flex-wrap gap-3">
-        {singleDestination && onlyMatch ? (
-          <Button asChild size="lg" variant="outline">
-            <Link href={singleDestination}>
-              {campusIdToLabel(onlyMatch.campus_id) ?? onlyMatch.campus_id}
-            </Link>
-          </Button>
+    <StatusPanel
+      actions={
+        singleDestination && onlyMatch ? (
+          <Link className={statusPanelSecondaryAction} href={singleDestination}>
+            {campusIdToLabel(onlyMatch.campus_id) ?? onlyMatch.campus_id}
+          </Link>
         ) : (
           matches.map((department) => (
             <form action={choose} key={department.$id}>
@@ -84,13 +83,19 @@ export function CampusChooser({
                 type="hidden"
                 value={department.campus_id}
               />
-              <Button size="lg" type="submit" variant="outline">
+              <button className={statusPanelSecondaryAction} type="submit">
                 {campusIdToLabel(department.campus_id) ?? department.campus_id}
-              </Button>
+              </button>
             </form>
           ))
-        )}
-      </div>
-    </div>
+        )
+      }
+      body={
+        unavailableAt
+          ? t("chooser.unavailable", { campus: unavailableAt })
+          : t("chooser.ambiguous", { count: matches.length })
+      }
+      title={title}
+    />
   );
 }

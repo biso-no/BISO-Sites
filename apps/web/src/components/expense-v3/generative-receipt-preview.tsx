@@ -1,11 +1,11 @@
+"use client";
+
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
 import {
   DEFAULT_EXPENSE_COST_TYPES,
   defaultCostTypeSlugForCategory,
 } from "@repo/shared/utils/expense-cost-types";
-import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,27 +14,29 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { motion } from "framer-motion";
-import {
-  AlertTriangle,
-  Calendar,
-  Check,
-  DollarSign,
-  Globe,
-  Loader2,
-  type LucideIcon,
-  Sparkles,
-  Store,
-  Tag,
-  Upload,
-} from "lucide-react";
+import { cn } from "@repo/ui/lib/utils";
+import { AlertTriangle, Check, Loader2, Sparkles, Upload } from "lucide-react";
+import { motion } from "motion/react";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
+import { Pill } from "@/components/ui/pill";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
+import {
+  fieldClass,
+  fieldLabelClass,
+  focusRingClass,
+  secondaryActionClass,
+  selectContentClass,
+  selectItemClass,
+  selectTriggerClass,
+} from "./form-styles";
 import type { Receipt } from "./store";
+
+type CostTypeSlug = (typeof DEFAULT_EXPENSE_COST_TYPES)[number]["slug"];
 
 interface GenerativeReceiptPreviewProps {
   onInsert?: (afterId: string, receipt: Receipt) => void;
@@ -46,6 +48,8 @@ type UploadPhase = "uploading" | "analyzing" | null;
 
 interface BankStatementUploadParams {
   file: File;
+  /** Toast copy, translated by the caller. */
+  messages: { uploadFailed: string; uploaded: string };
   onInsert?: (afterId: string, receipt: Receipt) => void;
   onUpdate: (updates: Partial<Receipt>) => void;
   receipt: Receipt;
@@ -66,6 +70,7 @@ async function analyzeBankStatement(file: File) {
 
 async function uploadBankStatement({
   file,
+  messages,
   onUpdate,
   setUploadPhase,
   receipt,
@@ -76,7 +81,7 @@ async function uploadBankStatement({
 
   const result = await uploadExpenseAttachment(formData);
   if (!(result.success && result.file)) {
-    toast.error("Upload failed");
+    toast.error(messages.uploadFailed);
     return;
   }
 
@@ -125,7 +130,7 @@ async function uploadBankStatement({
     onInsert(receipt.id, statementReceipt);
   }
 
-  toast.success("Bank statement uploaded");
+  toast.success(messages.uploaded);
 }
 
 export function GenerativeReceiptPreview({
@@ -133,6 +138,7 @@ export function GenerativeReceiptPreview({
   onUpdate,
   onInsert,
 }: GenerativeReceiptPreviewProps) {
+  const t = useTranslations("expenses");
   // If we are in "analyzing" or "processing" state, show the generative UI
   const isProcessing =
     receipt.status === "processing" || receipt.status === "analyzing";
@@ -153,13 +159,17 @@ export function GenerativeReceiptPreview({
     try {
       await uploadBankStatement({
         file,
+        messages: {
+          uploadFailed: t("composer.toast.uploadFailed"),
+          uploaded: t("composer.toast.statementUploaded"),
+        },
         onInsert,
         onUpdate,
         receipt,
         setUploadPhase,
       });
     } catch (_error) {
-      toast.error("Upload failed");
+      toast.error(t("composer.toast.uploadFailed"));
     } finally {
       setUploadPhase(null);
       if (fileInputRef.current) {
@@ -169,7 +179,7 @@ export function GenerativeReceiptPreview({
   };
 
   return (
-    <div className="h-full w-full p-8">
+    <div className="h-full w-full p-4 md:p-8">
       <input
         accept={RECEIPT_FILE_ACCEPT}
         className="hidden"
@@ -199,19 +209,18 @@ export function GenerativeReceiptPreview({
 
         <div className="space-y-6">
           <Field
-            delay={0.1}
-            icon={Store}
             isLoading={isProcessing}
-            label="Vendor"
+            label={t("composer.preview.vendor")}
             onChange={(v) => onUpdate({ vendor: v })}
-            value={receipt.vendor || (isProcessing ? "" : "Unknown Vendor")}
+            value={
+              receipt.vendor ||
+              (isProcessing ? "" : t("composer.preview.unknownVendor"))
+            }
           />
 
           <Field
-            delay={0.3}
-            icon={Calendar}
             isLoading={isProcessing}
-            label="Date"
+            label={t("detail.date")}
             onChange={(v) => onUpdate({ date: v })}
             type="date"
             value={receipt.date}
@@ -242,24 +251,23 @@ export function GenerativeReceiptPreview({
 }
 
 function Header({ isProcessing }: { isProcessing: boolean }) {
+  const t = useTranslations("expenses");
   return (
-    <div className="mb-8 flex items-center justify-between">
-      <h2 className="font-semibold text-2xl text-foreground tracking-tight dark:text-white">
-        Receipt Details
+    <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <h2 className="type-display-sm text-ink">
+        {t("composer.preview.title")}
       </h2>
-      <div className="flex items-center gap-2">
-        {isProcessing ? (
-          <div className="flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 font-medium text-sky-600 text-xs">
-            <Sparkles className="h-3 w-3 animate-pulse" />
-            Analyzing receipt...
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 font-medium text-emerald-600 text-xs">
-            <Sparkles className="h-3 w-3" />
-            AI Extracted
-          </div>
-        )}
-      </div>
+      {isProcessing ? (
+        <Pill tone="accent">
+          <Sparkles aria-hidden="true" className="size-3 animate-pulse" />
+          {t("composer.preview.analyzing")}
+        </Pill>
+      ) : (
+        <Pill tone="success">
+          <Sparkles aria-hidden="true" className="size-3" />
+          {t("composer.preview.extracted")}
+        </Pill>
+      )}
     </div>
   );
 }
@@ -271,11 +279,12 @@ function ReceiptPreview({
   receipt: Receipt;
   isProcessing: boolean;
 }) {
+  const t = useTranslations("expenses");
   return (
-    <div className="relative aspect-3/4 overflow-hidden rounded-xl border border-border bg-muted dark:bg-inverted">
+    <div className="relative aspect-3/4 overflow-hidden rounded-biso-md border border-edge bg-surface-sunken">
       {receipt.fileType.startsWith("image/") ? (
         <Image
-          alt="Receipt Preview"
+          alt={t("composer.preview.imageAlt")}
           className="h-full w-full object-contain"
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
@@ -283,15 +292,17 @@ function ReceiptPreview({
           unoptimized
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-          No preview available
+        <div className="type-body-sm flex h-full w-full items-center justify-center text-ink-muted">
+          {t("composer.preview.noPreview")}
         </div>
       )}
 
+      {/* The scanner line: a busy indicator, shown only while OCR runs. */}
       {isProcessing && (
         <motion.div
           animate={{ top: ["0%", "100%"] }}
-          className="absolute inset-x-0 h-1 bg-sky-500 shadow-[0_0_15px_rgba(14,165,233,0.5)]"
+          aria-hidden="true"
+          className="absolute inset-x-0 h-1 bg-action"
           transition={{
             repeat: Number.POSITIVE_INFINITY,
             duration: 2,
@@ -311,24 +322,14 @@ interface ForeignCurrencyWarningProps {
   uploadPhase: "uploading" | "analyzing" | null;
 }
 
-function getUploadLabel(uploadPhase: UploadPhase) {
-  if (uploadPhase === "analyzing") {
-    return "Analyzing statement…";
-  }
-  if (uploadPhase === "uploading") {
-    return "Uploading…";
-  }
-  return "Upload Bank Statement";
-}
-
 function UploadPhaseIcon({ uploadPhase }: { uploadPhase: UploadPhase }) {
   if (uploadPhase === "analyzing") {
-    return <Sparkles className="h-3 w-3 animate-spin" />;
+    return <Sparkles aria-hidden="true" className="size-3 animate-spin" />;
   }
   if (uploadPhase === "uploading") {
-    return <Loader2 className="h-3 w-3 animate-spin" />;
+    return <Loader2 aria-hidden="true" className="size-3 animate-spin" />;
   }
-  return <Upload className="h-3 w-3" />;
+  return <Upload aria-hidden="true" className="size-3" />;
 }
 
 function ForeignCurrencyWarning({
@@ -338,6 +339,7 @@ function ForeignCurrencyWarning({
   onUploadClick,
   onRemoveStatement,
 }: ForeignCurrencyWarningProps) {
+  const t = useTranslations("expenses");
   const shouldShow =
     !isProcessing && receipt.currency && receipt.currency !== "NOK";
   if (!shouldShow) {
@@ -345,49 +347,64 @@ function ForeignCurrencyWarning({
   }
 
   const hasStatement = Boolean(receipt.bankStatementId);
+  let uploadLabel = t("composer.preview.uploadStatement");
+  if (uploadPhase === "analyzing") {
+    uploadLabel = t("composer.preview.analyzingStatement");
+  } else if (uploadPhase === "uploading") {
+    uploadLabel = t("composer.preview.uploading");
+  }
 
   return (
     <motion.div
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-900/20"
-      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1 }}
+      className="rounded-biso-md border border-warning/30 bg-warning/10 p-4"
+      initial={{ opacity: 0 }}
     >
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <div className="space-y-2">
-          <p className="font-medium text-amber-900 text-sm dark:text-amber-200">
-            Foreign Currency Detected ({receipt.currency})
+        <AlertTriangle
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0 text-warning"
+        />
+        <div className="type-body-sm min-w-0 flex-1 space-y-2 text-ink">
+          <p className="font-semibold">
+            {t("composer.preview.foreignTitle", {
+              currency: receipt.currency,
+            })}
           </p>
-          <p className="text-amber-700 text-xs dark:text-amber-400">
-            The amount is estimated using historical rates (
-            {receipt.exchangeRate}). Please upload a bank statement for the
-            exact amount.
+          <p>
+            {t("composer.preview.foreignBody", {
+              rate: String(receipt.exchangeRate),
+            })}
           </p>
 
           {hasStatement ? (
-            <div className="flex items-center gap-2 font-medium text-emerald-600 text-sm">
-              <Check className="h-4 w-4" />
+            <div className="flex items-center gap-2 font-semibold text-success">
+              <Check aria-hidden="true" className="size-4 shrink-0" />
               <span className="truncate">
-                {receipt.bankStatementName || "Statement attached"}
+                {receipt.bankStatementName ||
+                  t("composer.preview.statementAttached")}
               </span>
-              <Button
-                className="ml-auto text-xs underline opacity-60 hover:opacity-100"
+              <button
+                className={cn(
+                  "ml-auto shrink-0 rounded-biso-sm font-normal text-ink-muted underline underline-offset-4 hover:text-ink hover:no-underline",
+                  focusRingClass
+                )}
                 onClick={onRemoveStatement}
+                type="button"
               >
-                Remove
-              </Button>
+                {t("composer.preview.removeStatement")}
+              </button>
             </div>
           ) : (
-            <Button
-              className="w-full gap-2 border-amber-200 bg-background text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
+            <button
+              className={cn(secondaryActionClass, "w-full bg-surface")}
               disabled={uploadPhase !== null}
               onClick={onUploadClick}
-              size="sm"
-              variant="outline"
+              type="button"
             >
               <UploadPhaseIcon uploadPhase={uploadPhase} />
-              {getUploadLabel(uploadPhase)}
-            </Button>
+              {uploadLabel}
+            </button>
           )}
         </div>
       </div>
@@ -408,13 +425,16 @@ function AmountFields({
   isForeign,
   onUpdate,
 }: AmountFieldsProps) {
+  const t = useTranslations("expenses");
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Field
-        delay={0.5}
-        icon={DollarSign}
         isLoading={isProcessing}
-        label={`Amount (${isForeign ? "NOK - Est." : "NOK"})`}
+        label={
+          isForeign
+            ? t("composer.preview.amountEstimated")
+            : t("composer.preview.amount")
+        }
         onChange={(v) => onUpdate({ amount: Number(v) })}
         type="number"
         value={receipt.amount || ""}
@@ -422,10 +442,10 @@ function AmountFields({
 
       {isForeign && (
         <Field
-          delay={0.6}
-          icon={Globe}
           isLoading={isProcessing}
-          label={`Original (${receipt.currency})`}
+          label={t("composer.preview.originalAmount", {
+            currency: receipt.currency,
+          })}
           onChange={(v) => {
             const original = Number(v);
             const updates: Partial<Receipt> = {
@@ -457,6 +477,14 @@ function CostTypeField({
   isProcessing,
   onUpdate,
 }: CostTypeFieldProps) {
+  const t = useTranslations("expenses");
+  const fieldId = useId();
+  const costTypeLabels: Record<CostTypeSlug, string> = {
+    travel: t("composer.costTypes.travel"),
+    social: t("composer.costTypes.social"),
+    academic: t("composer.costTypes.academic"),
+    other: t("composer.costTypes.other"),
+  };
   // Default from the AI category, but the user can override per receipt — this
   // decides which GL account the line is booked to when posted to the ledger.
   const value =
@@ -464,24 +492,29 @@ function CostTypeField({
 
   return (
     <div className="space-y-2">
-      <Label className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wider">
-        <Tag className="h-3 w-3" />
-        Cost type
-      </Label>
+      <label className={fieldLabelClass} htmlFor={fieldId}>
+        {t("composer.preview.costType")}
+      </label>
       {isProcessing ? (
-        <div className="h-10 w-full animate-pulse rounded-md bg-muted dark:bg-inverted" />
+        <div className="h-10 w-full animate-pulse rounded-biso-sm bg-surface-sunken" />
       ) : (
         <Select
           onValueChange={(costType) => onUpdate({ costType })}
           value={value}
         >
-          <SelectTrigger className="h-10 border-0 bg-muted dark:bg-inverted">
-            <SelectValue placeholder="Select cost type" />
+          <SelectTrigger className={selectTriggerClass} id={fieldId}>
+            <SelectValue
+              placeholder={t("composer.preview.costTypePlaceholder")}
+            />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className={selectContentClass}>
             {DEFAULT_EXPENSE_COST_TYPES.map((costType) => (
-              <SelectItem key={costType.slug} value={costType.slug}>
-                {costType.label}
+              <SelectItem
+                className={selectItemClass}
+                key={costType.slug}
+                value={costType.slug}
+              >
+                {costTypeLabels[costType.slug]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -502,19 +535,22 @@ function DescriptionField({
   isProcessing,
   onUpdate,
 }: DescriptionFieldProps) {
+  const t = useTranslations("expenses");
+  const fieldId = useId();
   return (
     <div className="space-y-2">
-      <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-        Description
-      </Label>
+      <label className={fieldLabelClass} htmlFor={fieldId}>
+        {t("composer.report.description")}
+      </label>
       {isProcessing ? (
         <div className="space-y-2">
-          <div className="h-4 w-3/4 animate-pulse rounded bg-muted-foreground/20 dark:bg-inverted" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-muted-foreground/20 dark:bg-inverted" />
+          <div className="h-4 w-3/4 animate-pulse rounded-biso-sm bg-surface-sunken" />
+          <div className="h-4 w-1/2 animate-pulse rounded-biso-sm bg-surface-sunken" />
         </div>
       ) : (
         <Textarea
-          className="resize-none border-0 bg-muted p-4 text-base focus-visible:ring-1 focus-visible:ring-sky-500 dark:bg-inverted"
+          className={cn(fieldClass, "type-body resize-none p-4")}
+          id={fieldId}
           onChange={(e) => onUpdate({ description: e.target.value })}
           rows={3}
           value={receipt.description}
@@ -525,51 +561,36 @@ function DescriptionField({
 }
 
 function Field({
-  icon: Icon,
   label,
   value,
   isLoading,
-  delay,
   onChange,
   type = "text",
 }: {
-  icon: LucideIcon;
   label: string;
   value: string | number;
   isLoading: boolean;
-  delay: number;
   onChange: (value: string) => void;
   type?: string;
 }) {
+  const fieldId = useId();
   return (
     <div className="space-y-2">
-      <Label className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wider">
-        <Icon className="h-3 w-3" />
+      <label className={fieldLabelClass} htmlFor={fieldId}>
         {label}
-      </Label>
+      </label>
 
       <div className="relative min-h-[40px]">
         {isLoading ? (
-          <motion.div
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            className="flex h-10 w-full items-center rounded-md bg-muted px-3 dark:bg-inverted"
-            initial={{ opacity: 0.5 }}
-            transition={{
-              duration: 1.5,
-              repeat: Number.POSITIVE_INFINITY,
-              delay,
-            }}
-          >
-            <div className="h-4 w-24 rounded bg-muted-foreground/30 dark:bg-muted" />
-          </motion.div>
+          <div className="flex h-10 w-full animate-pulse items-center rounded-biso-sm bg-surface-sunken px-3">
+            <div className="h-4 w-24 rounded-biso-sm bg-ink-muted/20" />
+          </div>
         ) : (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            initial={{ opacity: 0, y: 5 }}
-            transition={{ delay }}
-          >
+          // Skeleton to content: the one state change this field animates.
+          <motion.div animate={{ opacity: 1 }} initial={{ opacity: 0 }}>
             <Input
-              className="h-10 border-0 bg-muted px-3 font-medium text-lg focus-visible:ring-1 focus-visible:ring-sky-500 dark:bg-inverted"
+              className={cn(fieldClass, "h-10 px-3 font-semibold")}
+              id={fieldId}
               onChange={(e) => onChange(e.target.value)}
               type={type}
               value={value}

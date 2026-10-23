@@ -1,74 +1,46 @@
-"use client";
-
-import { Card } from "@repo/ui/components/ui/card";
-import {
-  ArrowRight,
-  FileText,
-  Gavel,
-  type LucideIcon,
-  Scale,
-  Shield,
-  ShieldAlert,
-  Wine,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
+import { CardGrid } from "@/components/ui/card-grid";
 import { AboutSection } from "./section-shell";
 
-interface DocumentLink {
-  href: string;
-  icon: LucideIcon;
-  key: string;
-}
-
 /** Where the governing documents and policies live. */
-const LINKS: DocumentLink[] = [
-  { href: "/documents?category=campus-bylaws", icon: Gavel, key: "bylaws" },
-  {
-    href: "/documents?category=national-statutes",
-    icon: Scale,
-    key: "statutes",
-  },
-  {
-    href: "/documents?category=code-of-conduct",
-    icon: Shield,
-    key: "conduct",
-  },
-  { href: "/about/drugs-policy", icon: Wine, key: "drugsPolicy" },
-  { href: "/safety", icon: ShieldAlert, key: "safety" },
-  { href: "/documents", icon: FileText, key: "all" },
-];
+const LINKS = [
+  { href: "/documents?category=campus-bylaws", key: "bylaws" },
+  { href: "/documents?category=national-statutes", key: "statutes" },
+  { href: "/documents?category=code-of-conduct", key: "conduct" },
+  { href: "/about/drugs-policy", key: "drugsPolicy" },
+  { href: "/safety", key: "safety" },
+  { href: "/documents", key: "all" },
+] as const;
 
-export function DocumentsSection() {
-  const t = useTranslations("about.documents");
+export async function DocumentsSection() {
+  const t = await getTranslations("about.documents");
   return (
-    <AboutSection
-      id="dokumenter"
-      intro={t("intro")}
-      muted
-      title={t("title")}
-      wide
-    >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <AboutSection id="dokumenter" intro={t("intro")} title={t("title")}>
+      <CardGrid className="xl:grid-cols-3" columns={2}>
         {LINKS.map((link) => (
-          <Link className="group block h-full" href={link.href} key={link.key}>
-            <Card className="flex h-full items-start gap-4 p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md">
-                <link.icon className="h-5 w-5 text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="flex items-center gap-2 font-semibold text-foreground">
+          <li key={link.key}>
+            <Link
+              className="group flex h-full flex-col rounded-biso-md border border-edge p-6 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              href={link.href}
+            >
+              <span className="type-heading-card flex items-start justify-between gap-3 text-ink group-hover:text-ink-accent">
+                <span className="min-w-0 break-words">
                   {t(`items.${link.key}.title`)}
-                  <ArrowRight className="h-4 w-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
-                </h3>
-                <p className="mt-1 text-muted-foreground text-sm">
-                  {t(`items.${link.key}.description`)}
-                </p>
-              </div>
-            </Card>
-          </Link>
+                </span>
+                <ArrowRight
+                  aria-hidden="true"
+                  className="mt-1 size-4 shrink-0 text-ink-muted group-hover:text-ink-accent"
+                />
+              </span>
+              <span className="type-body-sm mt-2 text-ink-muted">
+                {t(`items.${link.key}.description`)}
+              </span>
+            </Link>
+          </li>
         ))}
-      </div>
+      </CardGrid>
     </AboutSection>
   );
 }

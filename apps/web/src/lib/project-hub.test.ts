@@ -1,5 +1,41 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  isProjectSlug,
+  PROJECT_UNIT_SLUGS,
+} from "@repo/shared/utils/project-units";
 import { describe, expect, it, vi } from "vitest";
-import { buildProjectHub, type HubUnit } from "./project-hub";
+import {
+  buildProjectHub,
+  type HubUnit,
+  PROJECT_HUB_SLUGS,
+} from "./project-hub";
+
+const projectCopy = (locale: "en" | "no"): Record<string, unknown> =>
+  JSON.parse(
+    readFileSync(
+      join(
+        import.meta.dirname,
+        `../../../../packages/i18n/messages/${locale}/projectDetail.json`
+      ),
+      "utf8"
+    )
+  );
+
+describe("PROJECT_HUB_SLUGS", () => {
+  it("names exactly the projects whose hub renders from its own copy", () => {
+    // The page 404s a project slug with neither a `large_event` row nor
+    // `projectDetail` copy, and the sitemap lists these — so a hub that gains
+    // copy (Bergensbaneløpet) must be added, and none may be listed without it.
+    for (const locale of ["no", "en"] as const) {
+      const copy = projectCopy(locale);
+      const withCopy = Object.keys(PROJECT_UNIT_SLUGS).filter(
+        (slug) => isProjectSlug(slug) && typeof copy[slug] === "object"
+      );
+      expect([...PROJECT_HUB_SLUGS].sort(), locale).toEqual(withCopy.sort());
+    }
+  });
+});
 
 const unit = (
   id: string,

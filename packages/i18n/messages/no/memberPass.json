@@ -33,9 +33,10 @@
   "states": {
     "loading": "Sjekker medlemskapet ditt…",
     "noBiIdentity": {
-      "title": "Koble til BI Student-kontoen din",
-      "description": "Vi bekrefter medlemskapet ditt via BI-studentkontoen din.",
-      "action": "Koble til BI Student"
+      "title": "Logg inn med BI-studentkontoen din",
+      "description": "Medlemskortet følger studentnummeret ditt, så det trenger BI-kontoen din. Logg inn med BI, så dukker det opp her.",
+      "action": "Logg inn med BI",
+      "failed": "Vi fikk ikke startet BI-innloggingen. Prøv igjen."
     },
     "notMember": {
       "title": "Ingen aktivt medlemskap",

@@ -1,11 +1,10 @@
 "use client";
 
 import { ImageWithFallback } from "@repo/ui/components/image";
-import { Card } from "@repo/ui/components/ui/card";
-import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ChevronFrame } from "@/components/ui/chevron-frame";
 import type { NavFeaturedItem } from "@/lib/types/nav";
 
 interface FeaturedProjectCardProps {
@@ -13,6 +12,12 @@ interface FeaturedProjectCardProps {
   project: NavFeaturedItem;
 }
 
+/**
+ * The featured project, in the "Projects" panel. The chevron frame is the
+ * system's container for a project's identity, which is what this picture is.
+ * A project without a picture is shown without a frame rather than with a
+ * stock placeholder.
+ */
 export function FeaturedProjectCard({
   project,
   onNavigate,
@@ -20,31 +25,31 @@ export function FeaturedProjectCard({
   const t = useTranslations("common.navigation");
 
   return (
-    <Link href={`/projects/${project.slug}`} onClick={onNavigate}>
-      <Card className="group overflow-hidden border-brand-border bg-brand-muted/40 transition-colors hover:border-brand">
-        <div className="relative aspect-[16/9] w-full overflow-hidden">
+    <Link
+      className="group block rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-4 focus-visible:ring-offset-surface"
+      href={`/projects/${project.slug}`}
+      onClick={onNavigate}
+    >
+      {project.image ? (
+        <ChevronFrame className="mb-3 bg-surface-sunken" ratio="16/9">
+          {/* `alt=""`: the title below is the link's accessible name. */}
           <ImageWithFallback
-            alt={project.title}
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            fill
-            sizes="320px"
-            src={project.image || PLACEHOLDER_IMAGE}
+            alt=""
+            className="transition-transform duration-500 group-hover:scale-[1.03]"
+            height={360}
+            sizes="300px"
+            src={project.image}
+            width={640}
           />
-          <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
-        </div>
-        <div className="space-y-1 p-4">
-          <span className="font-semibold text-[11px] text-brand uppercase tracking-wide">
-            {t("featured.projectLabel")}
-          </span>
-          <h4 className="flex items-center gap-1.5 font-semibold text-sm text-white">
-            {project.title}
-            <ArrowRight
-              aria-hidden
-              className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
-            />
-          </h4>
-        </div>
-      </Card>
+        </ChevronFrame>
+      ) : null}
+      <span className="type-label block text-ink-accent">
+        {t("featured.projectLabel")}
+      </span>
+      <span className="type-heading-card mt-1 flex items-center gap-1.5 text-ink transition-colors group-hover:text-ink-accent">
+        {project.title}
+        <ArrowRight aria-hidden className="size-4 shrink-0" />
+      </span>
     </Link>
   );
 }

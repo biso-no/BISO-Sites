@@ -557,7 +557,7 @@
   height: 5px;
   background: var(--leaf);
   border-radius: 50%;
-  animation: pulse 1.6s infinite;
+  animation: pe-pulse 1.6s infinite;
 }
 .pg-events-grid {
   display: grid;

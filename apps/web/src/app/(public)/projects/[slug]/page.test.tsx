@@ -29,7 +29,8 @@ vi.mock("@/app/actions/campus", () => ({
 vi.mock("@/app/actions/locale", () => ({
   getLocale: vi.fn(async () => "no"),
 }));
-vi.mock("@/components/about/about-hero", () => ({ AboutHero: () => null }));
+// The merged page renders the redesign's `PageHeader` (a plain component,
+// rendered by nobody here); the body is the only part stubbed.
 vi.mock("@/components/projects/project-detail-body", () => ({
   ProjectDetailBody: () => null,
 }));

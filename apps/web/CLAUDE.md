@@ -232,6 +232,46 @@ All consumed server-side only:
   `packages/api/types/appwrite.ts` (regenerated, not hand-edited).
 - `public/pdf.worker.min.js`, `public/Voter_Template.xlsx`, font binaries.
 
+## Design system (the 2026 redesign)
+
+Every page is built from the redesign's primitives — do not reintroduce the
+pre-redesign look. Spec and rationale: `docs/redesign/01-design-spec.md`;
+history: `docs/redesign/STATUS.md`.
+
+- **Primitives** live in `src/components/ui/`: `PageHeader` (the navy band and
+  the page's only `<h1>`), `Section`, `Container`, `SectionHeading` (the sun
+  marker appears only when the heading links to a collection), `CardGrid`,
+  `ChevronFrame` (the 13° media frame — media only, never rounded), `Pill`,
+  `DateBlock`, `StatRow`, `PersonCard`, `Prose`, `StatusPanel` (and its
+  `statusPanelPrimaryAction` / `statusPanelSecondaryAction` CTA classes),
+  `FilterChips` (link-based filters), `FeedSearch`, `LoadMoreButton`,
+  `loading-shell` skeletons. Feature components live in `components/*/v2/`.
+- **Tokens:** `.biso-surface-v2` in `packages/ui/styles/biso-surface.css`, with
+  Tailwind utilities and the nine `type-*` roles in
+  `packages/ui/styles/globals.css`. Use `bg-surface`, `text-ink`,
+  `text-ink-muted`, `text-ink-accent`, `border-edge`, `bg-action` /
+  `text-action-ink`, `bg-deep`, `bg-marker` (never a text colour),
+  `ring-focus-ring`. A navy band is `<Section tone="deep">`, which flips every
+  alias — never hand-pick white text. The legacy `--brand*`, `--section`,
+  `--inverted` tokens still exist for `apps/admin`; don't use them here.
+- **Fonts:** Museo Sans 300/700 (body) and Museo Slab 700/900 (display) — the
+  Branding Committee's faces, and the **only** fonts the app loads: no Inter,
+  no Google Fonts, no `font-mono` (use `tabular-nums` for figures that must
+  align). `font-medium` resolves to the Light cut, so use `font-semibold` or
+  `font-bold` where emphasis must show.
+- **Not allowed:** brand gradients, `backdrop-blur`, decorative icon tiles,
+  scroll-triggered motion (`whileInView`, fade-up reveals), hover-lift on cards,
+  Tailwind palette colours on brand surfaces, invented placeholder copy (omit a
+  section with no data). `src/app/motion.test.ts` and `src/app/styles.test.ts`
+  enforce the motion budget and that every colour utility resolves to a
+  registered token.
+- **Feeds** (`/events`, `/jobs`, `/news`, `/shop`, …): page 1 is
+  server-rendered through the paged server action, filters are links
+  (`FilterChips`) and search is a GET form (`FeedSearch`), and "Load more"
+  appends pages client-side with `useLoadMore` + `LoadMoreButton`. Campus scope
+  is `?campus=<slug>` > cookie > all (`resolveRequestCampus` in
+  `src/lib/campus-scope.ts`); scoped feeds canonicalise to the unscoped URL.
+
 ## Commands (run from `apps/web/` or with `--filter=web` from root)
 
 ```bash

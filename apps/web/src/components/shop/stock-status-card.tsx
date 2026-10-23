@@ -1,6 +1,5 @@
-import { Card } from "@repo/ui/components/ui/card";
+import { cn } from "@repo/ui/lib/utils";
 import { Package } from "lucide-react";
-import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
 interface StockStatusCardProps {
@@ -9,84 +8,85 @@ interface StockStatusCardProps {
   totalStock: number | null;
 }
 
-// This component is wrapped by AddToCartClient to be part of the client bundle
+type StockStatus = "loading" | "outOfStock" | "lowStock" | "inStock";
+
+/** The state is in the words as well; the colour only repeats it. */
+const TONE: Record<StockStatus, string> = {
+  loading: "text-ink-muted",
+  outOfStock: "text-danger",
+  lowStock: "text-warning",
+  inStock: "text-success",
+};
+
+const LOW_STOCK_THRESHOLD = 10;
+
+function stockStatus(
+  isLoading: boolean,
+  availableStock: number | null
+): StockStatus {
+  if (isLoading) {
+    return "loading";
+  }
+  if (availableStock !== null && availableStock <= 0) {
+    return "outOfStock";
+  }
+  if (availableStock !== null && availableStock <= LOW_STOCK_THRESHOLD) {
+    return "lowStock";
+  }
+  return "inStock";
+}
+
+/**
+ * The live stock line inside the buy card: what is buyable right now, net of
+ * other shoppers' cart holds. A line rather than a card of its own — it
+ * qualifies the price above it, it is not a separate thing to read.
+ */
 export function StockStatusCard({
   isLoading,
   availableStock,
   totalStock,
 }: StockStatusCardProps) {
   const t = useTranslations("shop");
+  const status = stockStatus(isLoading, availableStock);
 
-  const getStockStatus = () => {
-    if (isLoading) {
-      return "loading";
-    }
-    if (availableStock !== null && availableStock <= 0) {
-      return "outOfStock";
-    }
-    if (availableStock !== null && availableStock <= 10) {
-      return "lowStock";
-    }
-    return "inStock";
-  };
-  const stockStatus = getStockStatus();
-
-  const stockConfig = {
-    loading: {
-      bg: "bg-section",
-      text: "text-muted-foreground",
-      label: t("card.checking"),
-    },
-    outOfStock: {
-      bg: "bg-red-50",
-      text: "text-red-600",
-      label: t("card.outOfStock"),
-    },
-    lowStock: {
-      bg: "bg-orange-50",
-      text: "text-orange-600",
-      label: t("card.onlyAvailable", { count: availableStock ?? 0 }),
-    },
-    inStock: {
-      bg: "bg-green-50",
-      text: "text-green-600",
-      label: t("card.inStock"),
-    },
+  const label: Record<StockStatus, string> = {
+    loading: t("card.checking"),
+    outOfStock: t("card.outOfStock"),
+    lowStock: t("card.onlyAvailable", { count: availableStock ?? 0 }),
+    inStock: t("card.inStock"),
   };
 
-  const currentStockConfig = stockConfig[stockStatus];
+  const reserved =
+    !isLoading &&
+    availableStock !== null &&
+    (totalStock ?? 0) > 0 &&
+    availableStock < (totalStock ?? 0)
+      ? (totalStock ?? 0) - availableStock
+      : 0;
 
   return (
-    <motion.div
-      animate={{ opacity: 1, x: 0 }}
-      initial={{ opacity: 0, x: 20 }}
-      transition={{ delay: 0.2 }}
-    >
-      <Card className={`border-0 p-6 shadow-lg ${currentStockConfig.bg}`}>
-        <div className="flex items-center gap-3">
-          <Package className={`h-5 w-5 ${currentStockConfig.text}`} />
-          <div className="flex-1">
-            <div className="font-semibold text-foreground">
-              {currentStockConfig.label}
-            </div>
-            {!isLoading && availableStock !== null && availableStock > 10 && (
-              <div className="text-muted-foreground text-sm">
-                {t("card.available", { count: availableStock })}
-              </div>
-            )}
-            {!isLoading &&
-              availableStock !== null &&
-              (totalStock ?? 0) > 0 &&
-              availableStock < (totalStock ?? 0) && (
-                <div className="mt-1 text-muted-foreground text-xs">
-                  {t("card.reserved", {
-                    count: (totalStock ?? 0) - availableStock,
-                  })}
-                </div>
-              )}
-          </div>
-        </div>
-      </Card>
-    </motion.div>
+    <div className="flex items-start gap-2">
+      <Package
+        aria-hidden="true"
+        className={cn("mt-0.5 size-4 shrink-0", TONE[status])}
+      />
+      <div className="min-w-0">
+        <p className={cn("type-body-sm font-semibold", TONE[status])}>
+          {label[status]}
+        </p>
+        {!isLoading &&
+        availableStock !== null &&
+        availableStock > LOW_STOCK_THRESHOLD ? (
+          <p className="type-body-sm text-ink-muted">
+            {t("card.available", { count: availableStock })}
+          </p>
+        ) : null}
+        {reserved > 0 ? (
+          <p className="type-body-sm text-ink-muted">
+            {t("card.reserved", { count: reserved })}
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 }

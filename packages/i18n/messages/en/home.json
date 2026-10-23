@@ -53,7 +53,8 @@
   },
   "overview": {
     "eyebrow": "About BISO",
-    "eyebrowCampus": "BISO {campusName}"
+    "eyebrowCampus": "BISO {campusName}",
+    "focusTitle": "What we focus on"
   },
   "leadership": {
     "title": "Leadership",
@@ -148,7 +149,8 @@
     "dontMissOut": "Don't miss out on",
     "amazingExperiences": "Amazing experiences",
     "pendingDate": "Date coming soon",
-    "description": "From networking events to unforgettable parties, we've got your semester covered with exciting activities and opportunities."
+    "description": "From networking events to unforgettable parties, we've got your semester covered with exciting activities and opportunities.",
+    "infoOnly": "Info only"
   },
   "news": {
     "cta": "All news",
@@ -169,6 +171,11 @@
     "empty": "No open positions right now.",
     "rolling": "Rolling applications",
     "title": "Open positions and jobs"
+  },
+  "units": {
+    "title": "Our units",
+    "description": "{count, plural, one {# student-run unit} other {# student-run units, societies and committees}}",
+    "cta": "See all units"
   },
   "quickLinks": {
     "benefits": {
@@ -252,5 +259,8 @@
       "contact": "Get in touch",
       "press": "Press resources"
     }
+  },
+  "partners": {
+    "title": "Our partners"
   }
 }

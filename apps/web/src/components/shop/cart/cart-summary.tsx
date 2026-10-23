@@ -1,12 +1,14 @@
 "use client";
 
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { Separator } from "@repo/ui/components/ui/separator";
-import { CreditCard, Package, Sparkles, Tag } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { cn } from "@repo/ui/lib/utils";
+import { CreditCard } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 import { useCart } from "@/lib/contexts/cart-context";
 
 interface CartSummaryProps {
@@ -14,8 +16,32 @@ interface CartSummaryProps {
   userId: string | null;
 }
 
+function SummaryRow({
+  className = "text-ink",
+  label,
+  value,
+}: {
+  className?: string;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-1.5">
+      <dt className="type-body-sm text-ink-muted">{label}</dt>
+      <dd className={`type-data ${className}`}>{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * The cart's sticky summary rail.
+ *
+ * Every number is the cart context's, unchanged. The actions are links now
+ * rather than `router.push` buttons, and "become a member" goes to
+ * `/membership` — it used to filter the shop to `?category=Membership`, which
+ * no product carries; memberships are bought through `/membership/join`.
+ */
 export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
-  const router = useRouter();
   const t = useTranslations("shop");
   const { items, getSubtotal, getRegularSubtotal, getTotalSavings } = useCart();
 
@@ -34,114 +60,91 @@ export function CartSummary({ isMember, userId: _userId }: CartSummaryProps) {
       }, 0);
 
   return (
-    <div className="space-y-6">
-      {/* Member Benefits Alert */}
-      {hasUnlockableDiscounts && potentialSavings > 0 && (
-        <div className="fade-in slide-in-from-bottom-2 animate-in duration-500">
-          <Alert className="border-brand bg-linear-to-br from-brand-muted to-cyan-50">
-            <Sparkles className="h-4 w-4 text-brand" />
-            <AlertDescription>
-              <p className="mb-2 text-foreground text-sm">
-                <strong>{t("cart.summary.unlockTitle")}</strong>
-              </p>
-              <p className="mb-3 text-muted-foreground text-sm">
-                {t("cart.summary.unlockDesc", { amount: potentialSavings })}
-              </p>
-              <Button
-                className="w-full bg-brand text-white hover:bg-brand/90"
-                onClick={() => router.push("/shop?category=Membership")}
-                size="sm"
-              >
-                {t("cart.summary.joinCta")}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-
-      {/* Order Summary Card */}
-      <div className="fade-in slide-in-from-bottom-2 animate-in delay-150 duration-500">
-        <Card className="sticky top-24 border-0 p-6 shadow-lg">
-          <h3 className="mb-4 font-bold text-foreground text-xl">
+    <aside className="min-w-0">
+      <div className="space-y-6 lg:sticky lg:top-24">
+        <section className="rounded-biso-md border border-edge bg-surface-raised p-6">
+          <h2 className="type-heading-section text-ink">
             {t("cart.summary.title")}
-          </h3>
+          </h2>
 
-          <div className="mb-4 space-y-3">
-            <div className="flex justify-between text-muted-foreground">
-              <span>
-                {t("cart.summary.subtotal", {
-                  count: items.reduce((sum, item) => sum + item.quantity, 0),
-                })}
-              </span>
-              <span className="font-medium">
-                {isMember ? subtotal : regularSubtotal} NOK
-              </span>
-            </div>
+          <dl className="mt-4">
+            <SummaryRow
+              label={t("cart.summary.subtotal", {
+                count: items.reduce((sum, item) => sum + item.quantity, 0),
+              })}
+              value={`${isMember ? subtotal : regularSubtotal} NOK`}
+            />
+            {isMember && totalSavings > 0 ? (
+              <SummaryRow
+                className="text-success"
+                label={t("cart.summary.memberDiscount")}
+                value={`-${totalSavings} NOK`}
+              />
+            ) : null}
+          </dl>
 
-            {isMember && totalSavings > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span className="flex items-center gap-1">
-                  <Tag className="h-4 w-4" />
-                  {t("cart.summary.memberDiscount")}
-                </span>
-                <span className="font-medium">-{totalSavings} NOK</span>
-              </div>
-            )}
+          <div className="mt-3 flex items-baseline justify-between gap-4 border-edge border-t pt-4">
+            <span className="type-heading-card text-ink">
+              {t("cart.summary.total")}
+            </span>
+            <span className="type-heading-section text-ink">
+              {subtotal} NOK
+            </span>
           </div>
 
-          <Separator className="my-4" />
+          {isMember && totalSavings > 0 ? (
+            <p className="type-body-sm mt-3 text-success">
+              {t("cart.summary.savingMsg", { amount: totalSavings })}
+            </p>
+          ) : null}
 
-          {/* Total — the one bold, yellow-accented moment */}
-          <div className="mb-6 overflow-hidden rounded-2xl bg-brand-dark text-white">
-            <div className="h-1 w-full bg-brand-accent" />
-            <div className="flex items-center justify-between p-4">
-              <span className="font-medium">{t("cart.summary.total")}</span>
-              <span className="font-bold text-2xl">{subtotal} NOK</span>
-            </div>
+          <div className="mt-6 flex flex-col gap-3">
+            <Link
+              className={cn(statusPanelPrimaryAction, "w-full justify-center")}
+              href="/shop/checkout"
+            >
+              <CreditCard aria-hidden="true" className="size-4" />
+              {t("cart.summary.checkout")}
+            </Link>
+            <Link
+              className={cn(
+                statusPanelSecondaryAction,
+                "w-full justify-center"
+              )}
+              href="/shop"
+            >
+              {t("cart.summary.continue")}
+            </Link>
           </div>
+        </section>
 
-          {isMember && totalSavings > 0 && (
-            <div className="mb-4 rounded-lg bg-green-50 p-3 text-center">
-              <p className="text-green-700 text-sm">
-                🎉 {t("cart.summary.savingMsg", { amount: totalSavings })}
-              </p>
-            </div>
-          )}
+        {hasUnlockableDiscounts && potentialSavings > 0 ? (
+          <section className="rounded-biso-md border border-edge p-5">
+            <h2 className="type-heading-card text-ink">
+              {t("cart.summary.unlockTitle")}
+            </h2>
+            <p className="type-body-sm mt-2 text-ink-muted">
+              {t("cart.summary.unlockDesc", { amount: potentialSavings })}
+            </p>
+            <Link
+              className={cn(
+                statusPanelSecondaryAction,
+                "mt-4 w-full justify-center"
+              )}
+              href="/membership"
+            >
+              {t("cart.summary.joinCta")}
+            </Link>
+          </section>
+        ) : null}
 
-          <Button
-            className="mb-3 w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90 disabled:opacity-70"
-            onClick={() => router.push("/shop/checkout")}
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            {t("cart.summary.checkout")}
-          </Button>
-
-          <Button
-            className="w-full border-brand-border text-brand-dark hover:bg-brand-muted"
-            onClick={() => router.push("/shop")}
-            variant="outline"
-          >
-            {t("cart.summary.continue")}
-          </Button>
-        </Card>
+        <section className="rounded-biso-md bg-surface-sunken p-5">
+          <h2 className="type-label text-ink">{t("pickup.cardTitle")}</h2>
+          <p className="type-body-sm mt-2 text-ink-muted">
+            {t("checkout.summary.pickupDesc")}
+          </p>
+        </section>
       </div>
-
-      {/* Pickup Information */}
-      <div className="fade-in slide-in-from-bottom-2 animate-in delay-300 duration-500">
-        <Card className="border border-brand-border bg-brand-muted p-6 shadow-sm">
-          <div className="flex items-start gap-3">
-            <Package className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-            <div>
-              <h4 className="mb-2 font-semibold text-foreground">
-                {t("pickup.cardTitle")}
-              </h4>
-              <p className="mb-2 text-muted-foreground text-sm">
-                {t("checkout.summary.pickupDesc")}
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
+    </aside>
   );
 }

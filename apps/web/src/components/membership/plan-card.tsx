@@ -1,7 +1,8 @@
 import { membershipPriceFormatter } from "@repo/shared/utils/membership-plans";
 import { cn } from "@repo/ui/lib/utils";
-import { Check, Zap } from "lucide-react";
+import { Check } from "lucide-react";
 import type { ReactNode } from "react";
+import { Pill } from "@/components/ui/pill";
 
 interface MembershipPlanCardProps {
   /** Bullet list of benefits, e.g. shown on the portal CTA but not the
@@ -26,6 +27,9 @@ interface MembershipPlanCardProps {
  * and the member portal's CTA section — the single source of truth for what
  * a membership plan looks like, fed by real `MembershipPlan` data in both
  * places instead of two independently hand-maintained visuals.
+ *
+ * Selection is a border in the action colour plus the radio the caller puts
+ * in `children`, never colour alone.
  */
 export function MembershipPlanCard({
   children,
@@ -39,49 +43,47 @@ export function MembershipPlanCard({
   selected = false,
 }: MembershipPlanCardProps) {
   return (
-    <div className={cn("relative h-full", className)}>
-      {popular && popularLabel ? (
-        <div className="absolute -top-3 left-1/2 z-10 -translate-x-1/2">
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to px-3 py-1 font-medium text-white text-xs shadow-md">
-            <Zap className="h-3 w-3" />
-            {popularLabel}
-          </span>
+    <div
+      className={cn(
+        "flex h-full flex-col gap-3 rounded-biso-md border-2 bg-surface p-5 transition-colors",
+        selected ? "border-action" : "border-edge hover:border-ink-muted",
+        className
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col items-start gap-2">
+          {popular && popularLabel ? (
+            <Pill tone="marker" uppercase>
+              {popularLabel}
+            </Pill>
+          ) : null}
+          <span className="type-heading-card text-ink">{name}</span>
         </div>
+        {children}
+      </div>
+
+      <span className="type-display-sm text-ink">
+        {membershipPriceFormatter.format(price)}
+      </span>
+
+      {benefits?.length ? (
+        <ul className="mt-1 flex flex-col gap-2">
+          {benefits.map((benefit) => (
+            <li
+              className="type-body-sm flex items-start gap-2.5 text-ink-muted"
+              key={benefit}
+            >
+              <Check
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0 text-ink-accent"
+              />
+              <span>{benefit}</span>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
-      <div
-        className={cn(
-          "flex h-full flex-col gap-3 rounded-2xl border-2 p-5 transition-all",
-          selected
-            ? "border-brand bg-brand-muted shadow-md"
-            : "border-border hover:border-brand-border-strong",
-          popular && "ring-1 ring-brand/30 ring-offset-2 ring-offset-background"
-        )}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <span className="font-medium text-foreground">{name}</span>
-          {children}
-        </div>
-
-        <span className="font-bold text-3xl text-foreground">
-          {membershipPriceFormatter.format(price)}
-        </span>
-
-        {benefits?.length ? (
-          <ul className="mt-1 space-y-2">
-            {benefits.map((benefit) => (
-              <li className="flex items-center gap-2.5 text-sm" key={benefit}>
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand-gradient-from to-brand-gradient-to">
-                  <Check className="h-3 w-3 text-white" />
-                </span>
-                <span className="text-muted-foreground">{benefit}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {footer}
-      </div>
+      {footer}
     </div>
   );
 }

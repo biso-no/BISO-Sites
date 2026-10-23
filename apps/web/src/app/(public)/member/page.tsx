@@ -32,14 +32,17 @@ export default async function MemberPortalPage() {
     }
   }
 
-  // Always show portal, pass null if not signed in
-  return (
-    <Suspense fallback={<MemberPortalSkeleton />}>
-      <MemberPortalContent
-        hasBIIdentity={hasBIIdentity}
-        membership={membershipStatus}
-        user={userData}
-      />
-    </Suspense>
+  const portal = (
+    <MemberPortalContent
+      hasBIIdentity={hasBIIdentity}
+      membership={membershipStatus}
+      user={userData}
+    />
   );
+
+  // Chrome only, and deliberately **without** a `PageHeader` here: the
+  // portal brings its own. `member-portal-header` is the page's navy band and
+  // its only `<h1>` ("Welcome back, …"), and the tabs sit in the paper
+  // section below it — a second band from this page would be a second `<h1>`.
+  return <Suspense fallback={<MemberPortalSkeleton />}>{portal}</Suspense>;
 }

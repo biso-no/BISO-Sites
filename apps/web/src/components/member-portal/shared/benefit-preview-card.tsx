@@ -1,118 +1,51 @@
 "use client";
 
-import { isBenefitCategory } from "@repo/shared/utils/benefit-catalog";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Card } from "@repo/ui/components/ui/card";
-import { Lock, Sparkles } from "lucide-react";
-import { motion } from "motion/react";
-import Image from "next/image";
-import { useLocale } from "next-intl";
-import { benefitCategoryLabel } from "@/lib/benefit-text";
-import { BENEFIT_CATEGORY_ICONS } from "./benefit-category-icons";
+import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import { Lock } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { Pill } from "@/components/ui/pill";
+import {
+  benefitCategoryLabel,
+  benefitDescriptionText,
+  localizedPublicBenefitText,
+} from "@/lib/benefit-text";
 
-interface BenefitPreviewCardProps {
-  category: string;
-  discountText: string;
-  index?: number;
-  partnerLogo?: string | null;
-  /** Null for a benefit without a partner: the card leaves the line out. */
-  partnerName: string | null;
-}
-
-const getCategoryIcon = (category: string) =>
-  isBenefitCategory(category) ? BENEFIT_CATEGORY_ICONS[category] : Sparkles;
-
-const getCategoryGradient = (_category: string) => {
-  return "from-brand-gradient-from to-brand-gradient-to";
-};
-
-export function BenefitPreviewCard({
-  category,
-  partnerName,
-  partnerLogo,
-  discountText,
-  index = 0,
-}: BenefitPreviewCardProps) {
-  const Icon = getCategoryIcon(category);
-  const gradient = getCategoryGradient(category);
-  const categoryLabel = benefitCategoryLabel(category, useLocale());
+/**
+ * A benefit as a non-member sees it: who offers it and what it is, with the
+ * code itself behind membership. The padlock is said in words too.
+ *
+ * Headed by the partner when there is one, else by the benefit's own title —
+ * never by a made-up "Partner". The description is public; only the code is
+ * not, so a short excerpt says what the deal is.
+ */
+export function BenefitPreviewCard({ benefit }: { benefit: PublicBenefit }) {
+  const t = useTranslations("memberPortal.preview");
+  const locale = useLocale();
+  const { description, title } = localizedPublicBenefitText(benefit, locale);
+  const excerpt = benefitDescriptionText(description);
+  const categoryLabel = benefitCategoryLabel(benefit.category, locale);
+  const heading = benefit.partner?.name.trim() || title;
 
   return (
-    <motion.div
-      animate={{ opacity: 1, y: 0 }}
-      className="group relative"
-      initial={{ opacity: 0, y: 20 }}
-      transition={{ delay: index * 0.1 }}
-    >
-      <Card className="relative overflow-hidden border-0 bg-background p-0 shadow-lg transition-all duration-300 hover:shadow-2xl dark:bg-inverted/50">
-        {/* Animated gradient border effect */}
-        <div className="absolute inset-0 rounded-xl bg-linear-to-r from-transparent via-brand/20 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-
-        {/* Category gradient header */}
-        <div
-          className={`bg-linear-to-r ${gradient} relative h-24 overflow-hidden p-4`}
-        >
-          {/* Background pattern */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute -top-4 -right-4 h-24 w-24 rounded-full bg-white/20" />
-            <div className="absolute -bottom-2 -left-2 h-16 w-16 rounded-full bg-white/10" />
-          </div>
-
-          {/* Category icon */}
-          <div className="relative flex h-full items-center justify-center">
-            {partnerLogo ? (
-              <div className="relative h-12 w-12 overflow-hidden rounded-full bg-white/20 backdrop-blur-sm">
-                <Image
-                  alt={partnerName ?? ""}
-                  className="object-cover"
-                  fill
-                  sizes="48px"
-                  src={partnerLogo}
-                  unoptimized
-                />
-              </div>
-            ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                <Icon className="h-6 w-6 text-white" />
-              </div>
-            )}
-          </div>
-
-          {/* Lock overlay */}
-          <div className="absolute top-2 right-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-              <Lock className="h-4 w-4 text-white" />
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-5">
-          {/* Category badge */}
-          {categoryLabel && (
-            <Badge
-              className={`mb-3 bg-linear-to-r ${gradient} border-0 text-white`}
-            >
-              {categoryLabel}
-            </Badge>
-          )}
-
-          {/* Partner name (partial blur effect) */}
-          {partnerName ? (
-            <h3 className="mb-1 font-semibold text-foreground text-lg dark:text-foreground">
-              {partnerName}
-            </h3>
-          ) : null}
-
-          {/* Discount text */}
-          <div>
-            <span className="font-bold text-brand text-xl">{discountText}</span>
-          </div>
-        </div>
-
-        {/* Hover glow effect */}
-        <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 shadow-[inset_0_0_40px_rgba(61,169,224,0.1)] transition-opacity duration-300 group-hover:opacity-100" />
-      </Card>
-    </motion.div>
+    <div className="flex h-full flex-col rounded-biso-md border border-edge p-5">
+      <div className="flex items-center justify-between gap-3">
+        {categoryLabel ? <Pill>{categoryLabel}</Pill> : <span />}
+        <span className="inline-flex items-center text-ink-muted">
+          <Lock aria-hidden="true" className="size-3.5 shrink-0" />
+          <span className="sr-only">{t("unlockDescription")}</span>
+        </span>
+      </div>
+      <h3 className="type-heading-card mt-3 break-words text-ink">{heading}</h3>
+      {heading === title ? null : (
+        <p className="type-body mt-1 break-words font-semibold text-ink-accent">
+          {title}
+        </p>
+      )}
+      {excerpt ? (
+        <p className="type-body-sm mt-2 line-clamp-3 whitespace-pre-line text-ink-muted">
+          {excerpt}
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export interface OverflowEntry {
   href: string;
@@ -17,8 +18,9 @@ export interface OverflowEntry {
   label: string;
 }
 
+/** Same box as the cart button beside it, so the row reads as one set. */
 const TRIGGER_CLASS =
-  "flex shrink-0 items-center rounded-lg p-2 text-white transition-colors hover:text-brand";
+  "flex shrink-0 items-center rounded-biso-md p-2 text-ink transition-colors hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 /**
  * Non-interactive twin of the trigger for the measurement ghost. The overflow
@@ -30,7 +32,7 @@ const TRIGGER_CLASS =
 export function NavOverflowTriggerGhost() {
   return (
     <span className={TRIGGER_CLASS}>
-      <MoreHorizontal aria-hidden className="h-5 w-5" />
+      <MoreHorizontal aria-hidden className="size-5" />
     </span>
   );
 }
@@ -47,19 +49,25 @@ interface NavOverflowMenuProps {
  * shows a "…" that opens an empty menu.
  */
 export function NavOverflowMenu({ entries, label }: NavOverflowMenuProps) {
+  const pathname = usePathname();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button aria-label={label} className={TRIGGER_CLASS} type="button">
-          <MoreHorizontal aria-hidden className="h-5 w-5" />
+          <MoreHorizontal aria-hidden className="size-5" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         {entries.map((entry) => (
           <DropdownMenuItem asChild key={entry.key}>
-            <Link href={entry.href}>
+            <Link
+              aria-current={pathname === entry.href ? "page" : undefined}
+              className="cursor-pointer gap-2"
+              href={entry.href}
+            >
               {entry.icon && (
-                <entry.icon aria-hidden className="mr-2 h-4 w-4 opacity-80" />
+                <entry.icon aria-hidden className="size-4 text-ink-muted" />
               )}
               {entry.label}
             </Link>

@@ -3,14 +3,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * "Om BISO" keeps to the BISO brand: blue and navy, via the `brand-*` tokens.
- * The section used to give every topic its own Tailwind palette colour
- * (purple, amber, emerald, pink …), which read as nine unrelated brands.
+ * "Om BISO" keeps to the BISO brand: blue and navy, through the redesign's
+ * surface tokens (`text-ink-accent`, `bg-action`, `bg-deep`, `border-edge` —
+ * `.biso-surface-v2`). The section used to give every topic its own Tailwind
+ * palette colour (purple, amber, emerald, pink …), which read as nine
+ * unrelated brands; the Branding Committee asked for one brand (#87).
  *
  * Covers the about pages, the other pages in the Om BISO menu and the
- * membership page. The
- * whistleblowing form (`components/safety`) is deliberately not listed: its
- * amber warning and green confirmation are status colours, not decoration.
+ * membership page. The whistleblowing form (`components/safety`) is
+ * deliberately not listed: its warning and confirmation are status colours,
+ * not decoration, and they use the `warning`/`success` state tokens.
  */
 const PUBLIC_ROUTES = join(import.meta.dirname, "../../app/(public)");
 const ABOUT_DIRECTORIES = [

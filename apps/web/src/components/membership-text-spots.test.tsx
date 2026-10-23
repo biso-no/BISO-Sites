@@ -1,15 +1,23 @@
 // @vitest-environment happy-dom
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, isValidElement, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const plans = vi.hoisted(() => [
   { duration: "semester", id: "p1", price: 350 },
 ]);
+const savedItems = vi.hoisted(() => ({
+  current: null as { body: string | null; title: string }[] | null,
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => `i18n:${key}`,
+  useFormatter: () => ({ dateTime: () => "" }),
 }));
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => `i18n:${key}`,
+}));
+// The welcome flow slides between steps; render each step straight away.
 const motionProxy = vi.hoisted(
   () =>
     new Proxy(
@@ -22,8 +30,7 @@ const motionProxy = vi.hoisted(
       }
     )
 );
-vi.mock("motion/react", () => ({ motion: motionProxy }));
-vi.mock("framer-motion", () => ({
+vi.mock("motion/react", () => ({
   AnimatePresence: ({ children }: { children?: ReactNode }) => children,
   motion: motionProxy,
 }));
@@ -36,9 +43,14 @@ vi.mock("@/lib/bi-sign-in-client", () => ({
 }));
 vi.mock("@/lib/server", () => ({ switchToBiSignIn: vi.fn() }));
 vi.mock("@/lib/actions/user", () => ({ updateProfile: vi.fn() }));
+vi.mock("@/app/actions/locale", () => ({ getLocale: async () => "no" }));
 vi.mock("@/app/actions/membership", () => ({
   getMembershipPlansForPurchase: vi.fn(async () => plans),
 }));
+vi.mock("@/lib/data/membership-texts", () => ({
+  getMembershipTextItems: async () => savedItems.current,
+}));
+vi.mock("@/lib/data/units", () => ({ cachedPublicUnits: async () => [] }));
 vi.mock("@/components/membership/plan-card", () => ({
   MembershipPlanCard: ({ benefits }: { benefits?: string[] }) =>
     createElement(
@@ -50,10 +62,10 @@ vi.mock("@/components/membership/plan-card", () => ({
     ),
 }));
 
-import { BusinessPageClient } from "@/app/(public)/business/business-page-client";
-import { BusinessHotspotClient } from "@/app/(public)/business-hotspot/business-hotspot-client";
-import { JoinUs } from "@/components/home/join-us";
-import { LockedContentOverlay } from "@/components/member-portal/shared/locked-content-overlay";
+import PartnerPage from "@/app/(public)/business/page";
+import BusinessHotspotPage from "@/app/(public)/business-hotspot/page";
+import { MembershipBand } from "@/components/home/v2/membership-band";
+import { LockedMembershipPanel } from "@/components/member-portal/shared/locked-membership-panel";
 import { MembershipCtaSection } from "@/components/member-portal/shared/membership-cta-section";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { MemberCalloutClient } from "@/components/shop/member-callout-client";
@@ -62,6 +74,25 @@ const items = [
   { body: null, title: "Saved line one" },
   { body: null, title: "Saved line two" },
 ];
+
+/**
+ * Every string in an element tree, without rendering it. The server pages
+ * build their lists in their own body, so the text is in the props they
+ * return; nested components (headers, sections) are never called.
+ */
+function textOf(node: unknown): string {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (Array.isArray(node)) {
+    return node.map(textOf).join(" ");
+  }
+  if (isValidElement(node)) {
+    const props = node.props as Record<string, unknown>;
+    return Object.values(props).map(textOf).join(" ");
+  }
+  return "";
+}
 
 async function mount(node: ReactNode) {
   const container = document.createElement("div");
@@ -75,6 +106,7 @@ async function mount(node: ReactNode) {
 
 beforeEach(() => {
   document.body.innerHTML = "";
+  savedItems.current = null;
   const store = new Map<string, string>();
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => store.get(key) ?? null,
@@ -85,16 +117,13 @@ beforeEach(() => {
 
 describe("membership text spots", () => {
   it("home_join: items replace the i18n lines, null keeps them", async () => {
-    const withItems = await mount(createElement(JoinUs, { items }));
-    expect(withItems.textContent).toContain("Saved line one");
-    expect(withItems.textContent).not.toContain(
-      "i18n:benefits.categories.social.global"
-    );
-    const fallback = await mount(createElement(JoinUs, { items: null }));
-    expect(fallback.textContent).toContain(
-      "i18n:benefits.categories.social.global"
-    );
-    expect(fallback.textContent).not.toContain("Saved line one");
+    const withItems = textOf(await MembershipBand({ items }));
+    expect(withItems).toContain("Saved line one");
+    expect(withItems).not.toContain("i18n:benefits.categories.social.global");
+
+    const fallback = textOf(await MembershipBand({ items: null }));
+    expect(fallback).toContain("i18n:benefits.categories.social.global");
+    expect(fallback).not.toContain("Saved line one");
   });
 
   it("plan_card: items replace the i18n lines, null keeps them", async () => {
@@ -102,28 +131,34 @@ describe("membership text spots", () => {
       createElement(MembershipCtaSection, { items })
     );
     expect(withItems.textContent).toContain("Saved line two");
-    expect(withItems.textContent).not.toContain("i18n:cta.benefits.discounts");
+    expect(withItems.textContent).not.toContain("i18n:benefits.discounts");
+
     const fallback = await mount(
       createElement(MembershipCtaSection, { items: null })
     );
-    expect(fallback.textContent).toContain("i18n:cta.benefits.discounts");
+    expect(fallback.textContent).toContain("i18n:benefits.discounts");
   });
 
   for (const hasBIIdentity of [true, false]) {
     it(`portal_locked: items replace the i18n lines (hasBIIdentity=${hasBIIdentity})`, async () => {
       const withItems = await mount(
-        <LockedContentOverlay hasBIIdentity={hasBIIdentity} items={items}>
-          child
-        </LockedContentOverlay>
+        <LockedMembershipPanel
+          hasBIIdentity={hasBIIdentity}
+          items={items}
+          plans={[]}
+        />
       );
       expect(withItems.textContent).toContain("Saved line one");
       expect(withItems.textContent).not.toContain(
         "i18n:locked.quickBenefits.discounts"
       );
+
       const fallback = await mount(
-        <LockedContentOverlay hasBIIdentity={hasBIIdentity} items={null}>
-          child
-        </LockedContentOverlay>
+        <LockedMembershipPanel
+          hasBIIdentity={hasBIIdentity}
+          items={null}
+          plans={[]}
+        />
       );
       expect(fallback.textContent).toContain(
         "i18n:locked.quickBenefits.discounts"
@@ -160,6 +195,7 @@ describe("membership text spots", () => {
     const withItems = await open(items);
     expect(withItems.textContent).toContain("Saved line one");
     expect(withItems.textContent).not.toContain("i18n:student.benefits.sso");
+
     const fallback = await open(null);
     expect(fallback.textContent).toContain("i18n:student.benefits.sso");
   });
@@ -170,6 +206,7 @@ describe("membership text spots", () => {
     );
     expect(withItems.textContent).toContain("Saved line one");
     expect(withItems.textContent).not.toContain("i18n:member.benefitDiscounts");
+
     const fallback = await mount(
       createElement(MemberCalloutClient, { items: null })
     );
@@ -177,45 +214,29 @@ describe("membership text spots", () => {
   });
 
   it("business: title + body cards, body optional, null keeps i18n", async () => {
-    const cards = [
+    savedItems.current = [
       { body: "Saved body", title: "Saved title" },
       { body: null, title: "Title only" },
     ];
-    const props = {
-      activeCampus: null,
-      careerDaysLinks: {
-        bergen: "/b",
-        oslo: "/o",
-        stavanger: "/s",
-        trondheim: "/t",
-      },
-    };
-    const withItems = await mount(
-      createElement(BusinessPageClient, { ...props, items: cards })
-    );
-    expect(withItems.textContent).toContain("Saved title");
-    expect(withItems.textContent).toContain("Saved body");
-    expect(withItems.textContent).toContain("Title only");
-    expect(withItems.textContent).not.toContain(
-      "i18n:benefits.items.colleagues.title"
-    );
-    const fallback = await mount(
-      createElement(BusinessPageClient, { ...props, items: null })
-    );
-    expect(fallback.textContent).toContain(
-      "i18n:benefits.items.colleagues.title"
-    );
+    const withItems = textOf(await PartnerPage());
+    expect(withItems).toContain("Saved title");
+    expect(withItems).toContain("Saved body");
+    expect(withItems).toContain("Title only");
+    expect(withItems).not.toContain("i18n:benefits.items.colleagues.title");
+
+    savedItems.current = null;
+    const fallback = textOf(await PartnerPage());
+    expect(fallback).toContain("i18n:benefits.items.colleagues.title");
   });
 
   it("business_hotspot: items replace the i18n lines, null keeps them", async () => {
-    const withItems = await mount(
-      createElement(BusinessHotspotClient, { items })
-    );
-    expect(withItems.textContent).toContain("Saved line one");
-    expect(withItems.textContent).not.toContain("i18n:benefits.access");
-    const fallback = await mount(
-      createElement(BusinessHotspotClient, { items: null })
-    );
-    expect(fallback.textContent).toContain("i18n:benefits.access");
+    savedItems.current = items;
+    const withItems = textOf(await BusinessHotspotPage());
+    expect(withItems).toContain("Saved line one");
+    expect(withItems).not.toContain("i18n:benefits.access");
+
+    savedItems.current = null;
+    const fallback = textOf(await BusinessHotspotPage());
+    expect(fallback).toContain("i18n:benefits.access");
   });
 });

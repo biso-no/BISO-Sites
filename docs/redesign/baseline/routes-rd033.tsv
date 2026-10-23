@@ -1,0 +1,65 @@
+# Route resolution — RD-033, 2026-09-02
+# Server: bun .next/standalone/apps/web/server.js (Next 16.3.0, output: standalone)
+# Build:  1Sif4ItObJ225AiPSyg09
+# Tree:   working tree at HEAD c82f70d3 + the full redesign (uncommitted)
+#
+# route<TAB>status<TAB>bytes<TAB>ttfb_s
+/	200	507161	0.009109
+/about	200	522303	0.004080
+/about/academics-contact	200	485319	0.003656
+/about/alumni	200	487493	0.003205
+/about/bylaws	200	488128	0.003238
+/about/history	200	499590	0.002905
+/about/operations	200	487900	0.003868
+/about/politics	200	509751	0.003059
+/about/saih	200	493090	0.003055
+/about/study-quality	200	525238	0.003086
+/about/what-is-biso	200	500671	0.003048
+/api/auth/check	200	64	0.002971
+/api/health	200	81	0.001013
+/api/health/ready	200	33	0.028311
+/api/membership	200	113	0.018607
+/api/pages/departments	200	14011	0.056320
+/api/pages/events	200	2	0.002241
+/api/pages/jobs	200	2	0.001919
+/api/pages/news	200	2	0.002217
+/api/pages/partners	200	2	0.030043
+/applications	200	431161	0.003311
+/auth/login	200	454886	0.002895
+/bi-fondet	200	480839	0.002844
+/business	200	538129	0.003029
+/business-hotspot	200	504400	0.002693
+/campus	200	494972	0.002853
+/campus/bergen	200	549489	0.005874
+/campus/oslo	200	589900	0.004374
+/campus/stavanger	200	503637	0.002934
+/campus/trondheim	200	529553	0.004111
+/contact	200	498534	0.003687
+/design-system	200	666488	0.003378
+/documents	200	488723	0.003216
+/events	200	517897	0.003411
+/fs	200	442936	0.005012
+/fs/new	200	445340	0.003638
+/jobs	200	500518	0.001521
+/member	200	569460	0.003669
+/membership	200	523467	0.003178
+/membership/join	200	481582	0.003202
+/news	200	508071	0.008680
+/onboarding	200	451576	0.004077
+/policies/drugs-policy	200	486722	0.003331
+/press	200	499975	0.003425
+/privacy	200	587095	0.002814
+/profile	200	431562	0.008422
+/projects	200	490602	0.003078
+/resources	200	527046	0.003310
+/robots.txt	200	280	0.005052
+/safety	200	550526	0.002951
+/shop	200	629178	0.002825
+/shop/cart	200	485735	0.003173
+/shop/checkout	200	483041	0.002887
+/shop/membership	308	0	0.002338
+/sitemap.xml	200	40146	0.002320
+/students	200	516701	0.002699
+/terms	200	503905	0.002724
+/units	200	804914	0.002996
+/varsling	308	0	0.002155

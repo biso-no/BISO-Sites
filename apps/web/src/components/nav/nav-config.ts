@@ -42,22 +42,23 @@ export interface NavColumnConfig {
   links: NavLinkConfig[];
 }
 
-/** Panel triggers rendered in the desktop trigger row, in display order. */
 /**
- * Routes that open on plain page content rather than a dark full-bleed hero.
- * The nav is transparent with white text until the page scrolls, which is
- * unreadable on a light background, so these routes get the solid nav from
- * the first paint. Each entry matches itself and everything nested below it.
- * Add a route here when its page does not start with a hero image.
+ * Routes whose page still opens on plain light content, so they get the solid
+ * header from the first paint. Each entry matches itself and everything nested
+ * below it.
+ *
+ * The header is transparent until the page scrolls, and its controls are drawn
+ * for the navy surface. Every redesigned page opens on a navy band — a
+ * `PageHeader`, a `deep` section, or a paper `Section clearNav`, which paints
+ * the header's own height in navy — so the list is only for pages that do none
+ * of those. Of the six routes it held before the merge, five open on a
+ * `PageHeader` now (`/about/academics-contact`, `/applications`, `/profile`,
+ * the approver's `/fs/approve`) or are a redirect (`/policies/drugs-policy`).
+ * The one left is the expense composer: its split view sizes both panes to
+ * the viewport under the header, so it has no band to open on, and without an
+ * entry here its header was white on white.
  */
-export const SOLID_NAV_ROUTES: readonly string[] = [
-  "/about/academics-contact",
-  "/applications",
-  "/fs/approve",
-  "/fs/new",
-  "/policies",
-  "/profile",
-];
+export const SOLID_NAV_ROUTES: readonly string[] = ["/fs/new"];
 
 export function hasSolidNavRoute(pathname: string): boolean {
   return SOLID_NAV_ROUTES.some(
@@ -65,16 +66,26 @@ export function hasSolidNavRoute(pathname: string): boolean {
   );
 }
 
+/** Panel triggers rendered in the desktop trigger row, in display order. */
 export const PANEL_TRIGGERS: { id: PanelId; labelKey: string }[] = [
   { id: "students", labelKey: "triggers.students" },
   { id: "projects", labelKey: "triggers.projects" },
   { id: "about", labelKey: "triggers.about" },
 ];
 
-/** Standalone (non-panel) links shown beside the triggers. */
+/**
+ * Standalone (non-panel) links shown beside the triggers, and listed in the
+ * mobile drawer.
+ *
+ * Business is one of them because the About panel no longer carries the
+ * business links: they left it when "Om BISO" was merged into one page, and
+ * keep a header entry of their own instead. Business Hotspot is reached from
+ * the business page.
+ */
 export const STANDALONE_LINKS: NavLinkConfig[] = [
   { id: "news", labelKey: "news", href: "/news", icon: Newspaper },
   { id: "shop", labelKey: "shop", href: "/shop", icon: ShoppingBag },
+  { id: "business", labelKey: "partner", href: "/business", icon: Building2 },
 ];
 
 /** Key of the overflow ("…") trigger in the measured desktop row. */
@@ -84,29 +95,20 @@ export const OVERFLOW_TRIGGER_KEY = "overflow";
  * The desktop row items that may be surrendered to the overflow menu when the
  * row runs out of room, **ordered by drop priority** — index 0 goes first.
  *
- * Everything absent from this list is load-bearing and never collapses: the
- * logo, the three mega-panel triggers, the campus/theme/locale/cart controls,
- * the membership CTA and the account menu. The row is only ever collapsed far
- * enough to fit, so on a wide viewport none of this applies.
+ * Only the standalone links collapse. Everything else is load-bearing: the
+ * logo, the three mega-panel triggers, and the utility group (campus, locale,
+ * theme, cart, the membership CTA and the account menu), which sits outside
+ * the measured row altogether. The row is only ever collapsed far enough to
+ * fit, so on a wide viewport none of this applies.
  *
- * `memberPortal` is dropped early on purpose — it is the one entry that stays
- * reachable after it goes, from the account menu (`account-member-portal`
- * below), so losing it from the row costs the least.
+ * Business goes first, as the "Partner" button did before it: it is the entry
+ * aimed least at students. News goes last.
  */
 export const NAV_OVERFLOW_DROP_ORDER: readonly string[] = [
-  "applyVerv",
-  "partner",
-  "memberPortal",
+  "business",
   "shop",
   "news",
 ];
-
-/**
- * Entries of {@link NAV_OVERFLOW_DROP_ORDER} that only exist for signed-in
- * visitors, and so must be dropped from the drop order for everyone else — an
- * item the row never renders must not be counted as one the row could give up.
- */
-export const AUTH_ONLY_OVERFLOW_KEYS: readonly string[] = ["memberPortal"];
 
 /** Static columns for the "For Studenter" panel (the Campus column is dynamic). */
 export const STUDENT_COLUMNS: NavColumnConfig[] = [

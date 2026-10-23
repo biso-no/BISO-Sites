@@ -1,0 +1,23 @@
+{
+  "title": "Mine søknader",
+  "lede": "Se status på alle BISO-vervene du har søkt på, og eventuelle intervjuer.",
+  "emptyTitle": "Ingen søknader ennå",
+  "emptyBody": "Når du søker på et BISO-verv dukker det opp her, så du kan følge det og se intervjutidspunkter.",
+  "browse": "Se ledige verv",
+  "vacancy": "Verv",
+  "viewVacancy": "Se vervet",
+  "applied": "Søkt {date}",
+  "reviewer": "Vurderes av {name}",
+  "interview": "Kommende intervju · {title}",
+  "joinMeeting": "Bli med i møtet",
+  "answers": "Svarene dine ({count})",
+  "storedUntil": "Lagres til {date}",
+  "tbd": "Ikke satt",
+  "status": {
+    "submitted": "Sendt inn",
+    "reviewed": "Vurdert",
+    "interview": "Intervju",
+    "accepted": "Tilbud",
+    "rejected": "Ikke valgt"
+  }
+}

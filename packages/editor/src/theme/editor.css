@@ -437,7 +437,7 @@
   height: 6px;
   background: var(--gold);
   border-radius: 50%;
-  animation: pulse 1.4s infinite;
+  animation: pe-pulse 1.4s infinite;
 }
 .pe-save {
   display: inline-flex;
@@ -456,7 +456,7 @@
 }
 .pe-save__dot.pending {
   background: var(--gold);
-  animation: pulse 1s infinite;
+  animation: pe-pulse 1s infinite;
 }
 .pe-save__dot.error {
   background: var(--claret);
@@ -1131,7 +1131,7 @@
   height: 6px;
   background: var(--ink-3);
   border-radius: 50%;
-  animation: bounce 0.9s infinite;
+  animation: pe-bounce 0.9s infinite;
 }
 .pe-copilot-panel__bubble--thinking span:nth-child(2) {
   animation-delay: 0.15s;
@@ -1139,7 +1139,7 @@
 .pe-copilot-panel__bubble--thinking span:nth-child(3) {
   animation-delay: 0.3s;
 }
-@keyframes bounce {
+@keyframes pe-bounce {
   0%,
   100% {
     transform: translateY(0);

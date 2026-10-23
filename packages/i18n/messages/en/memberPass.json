@@ -33,9 +33,10 @@
   "states": {
     "loading": "Checking your membership…",
     "noBiIdentity": {
-      "title": "Link your BI Student account",
-      "description": "We verify your membership through your BI student account.",
-      "action": "Link BI Student"
+      "title": "Sign in with your BI student account",
+      "description": "Your pass follows your student number, so it needs your BI account. Sign in with BI and it appears here.",
+      "action": "Sign in with BI",
+      "failed": "We couldn't start the BI sign-in. Please try again."
     },
     "notMember": {
       "title": "No active membership",

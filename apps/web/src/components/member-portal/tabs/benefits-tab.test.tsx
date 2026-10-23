@@ -127,7 +127,7 @@ describe("non-member benefit previews", () => {
 
     expect(container.textContent).toContain("Pizza deal");
     expect(container.textContent).not.toContain("Partner");
-    expect(container.querySelector("h3")).toBeNull();
+    expect(container.querySelector("h3")?.textContent).toBe("Pizza deal");
   });
 
   it("names the partner when there is one", async () => {

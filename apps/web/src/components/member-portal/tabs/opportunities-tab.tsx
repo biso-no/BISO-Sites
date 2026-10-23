@@ -1,56 +1,43 @@
 "use client";
 
-import { Card } from "@repo/ui/components/ui/card";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
 import { Award, Briefcase, Calendar } from "lucide-react";
-import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+
+const CARDS = [
+  { key: "careerPortal", icon: Briefcase },
+  { key: "socialEvents", icon: Calendar },
+  { key: "skillDevelopment", icon: Award },
+] as const;
 
 export function OpportunitiesTab() {
   const t = useTranslations("memberPortal.opportunities");
 
   return (
-    <TabsContent className="space-y-8" value="opportunities">
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-        initial={{ opacity: 0, y: 20 }}
-      >
-        <h2 className="mb-4 font-bold text-3xl text-foreground dark:text-foreground">
-          {t("title")}
-        </h2>
-        <p className="mx-auto max-w-2xl text-muted-foreground dark:text-muted-foreground">
+    <TabsContent className="flex flex-col gap-8" value="opportunities">
+      <div>
+        <h2 className="type-display-sm text-ink">{t("title")}</h2>
+        <p className="type-body mt-3 max-w-(--measure) text-ink-muted">
           {t("description")}
         </p>
-      </motion.div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
-          <Briefcase className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">{t("careerPortal.title")}</h3>
-          <p className="text-muted-foreground text-sm">
-            {t("careerPortal.description")}
-          </p>
-        </Card>
-
-        <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
-          <Calendar className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">{t("socialEvents.title")}</h3>
-          <p className="text-muted-foreground text-sm">
-            {t("socialEvents.description")}
-          </p>
-        </Card>
-
-        <Card className="border-0 bg-section p-6 shadow-lg dark:bg-inverted">
-          <Award className="mb-4 h-8 w-8 text-brand" />
-          <h3 className="mb-2 font-bold text-xl">
-            {t("skillDevelopment.title")}
-          </h3>
-          <p className="text-muted-foreground text-sm">
-            {t("skillDevelopment.description")}
-          </p>
-        </Card>
       </div>
+
+      <ul className="grid gap-5 md:grid-cols-3">
+        {CARDS.map(({ key, icon: Icon }) => (
+          <li className="rounded-biso-md border border-edge p-6" key={key}>
+            <h3 className="type-heading-card flex items-center gap-2 text-ink">
+              <Icon
+                aria-hidden="true"
+                className="size-4 shrink-0 text-ink-accent"
+              />
+              {t(`${key}.title`)}
+            </h3>
+            <p className="type-body-sm mt-2 text-ink-muted">
+              {t(`${key}.description`)}
+            </p>
+          </li>
+        ))}
+      </ul>
     </TabsContent>
   );
 }
