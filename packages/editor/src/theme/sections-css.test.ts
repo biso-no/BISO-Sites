@@ -1,17 +1,23 @@
 import { expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const sectionsCss = await Bun.file(
-  new URL("./sections.css", import.meta.url)
-).text();
-const blocksCss = await Bun.file(
-  new URL("./blocks.css", import.meta.url)
-).text();
+const COLUMN_CONTAINER = /\.pg-col\s*{[^}]*container:\s*pg\s*\/\s*inline-size/;
+const PAGE_CONTAINER = /container:\s*pg-page\s*\/\s*inline-size/;
+const GRID_RULE = /(\.pg-sec[^{,]*> \.pg-sec__grid)\s*{([^}]*)}/g;
+const WHERE_CLAUSE = /:where\([^)]*\)/g;
+const CLASS_OR_ATTRIBUTE = /\.[\w-]+|\[[^\]]+\]/g;
+const PHONE_REVERSE_STRETCH = /column-reverse;\s*align-items:\s*stretch/;
+
+const read = (name: string) =>
+  readFileSync(join(import.meta.dir, name), "utf8");
+
+const sectionsCss = read("sections.css");
+const blocksCss = read("blocks.css");
 
 test("columns are the block container and the page is pg-page", () => {
-  expect(sectionsCss).toMatch(
-    /\.pg-col\s*{[^}]*container:\s*pg\s*\/\s*inline-size/
-  );
-  expect(blocksCss).toMatch(/container:\s*pg-page\s*\/\s*inline-size/);
+  expect(sectionsCss).toMatch(COLUMN_CONTAINER);
+  expect(blocksCss).toMatch(PAGE_CONTAINER);
 });
 
 test("phones stack and tablets can", () => {
@@ -22,15 +28,13 @@ test("phones stack and tablets can", () => {
 
 // Cascade: all layout rules on the grid must tie on specificity, so source
 // order decides (templates, then tablet, then phone).
-const gridSelectors = [
-  ...sectionsCss.matchAll(/(\.pg-sec[^{,]*> \.pg-sec__grid)\s*{([^}]*)}/g),
-]
+const gridSelectors = [...sectionsCss.matchAll(GRID_RULE)]
   .filter((m) => m[2].includes("grid-template-columns"))
   .map((m) => ({ index: m.index ?? 0, selector: m[1].trim() }));
 
 const specificity = (selector: string): number => {
-  const bare = selector.replace(/:where\([^)]*\)/g, "");
-  return (bare.match(/\.[\w-]+|\[[^\]]+\]/g) ?? []).length;
+  const bare = selector.replace(WHERE_CLAUSE, "");
+  return (bare.match(CLASS_OR_ATTRIBUTE) ?? []).length;
 };
 
 test("grid template rules tie on specificity", () => {
@@ -50,5 +54,5 @@ test("templates, then tablet, then phone in source order", () => {
 });
 
 test("phone reverse resets alignment", () => {
-  expect(sectionsCss).toMatch(/column-reverse;\s*align-items:\s*stretch/);
+  expect(sectionsCss).toMatch(PHONE_REVERSE_STRETCH);
 });

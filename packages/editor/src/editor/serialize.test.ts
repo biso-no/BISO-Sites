@@ -4,6 +4,8 @@ import { fromJSON, normalizePageDoc, serializePageForAI } from "./serialize";
 import { block, doc, section } from "./test-fixtures";
 import type { PageDoc, SectionLayout } from "./types";
 
+const SELECTED_TEXT_BLOCK = /\[b-2\] type=text.*← SELECTED/;
+
 describe("normalizePageDoc", () => {
   test("an old flat document becomes an empty v2 page with its meta", () => {
     const d = doc();
@@ -95,6 +97,6 @@ describe("serializePageForAI", () => {
     expect(out).toContain("sections: 1");
     expect(out).toContain("Section 1 [s-1] columns=1-1 background=white");
     expect(out).toContain("  Column 2 [s-1-c1]");
-    expect(out).toMatch(/\[b-2\] type=text.*← SELECTED/);
+    expect(out).toMatch(SELECTED_TEXT_BLOCK);
   });
 });
