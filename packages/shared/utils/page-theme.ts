@@ -371,6 +371,43 @@ function deriveSunken(dark: string): string {
   return shiftLightness(dark, SUNKEN_STEP);
 }
 
+/** Lightness steps (in `ROUND_NUDGE` units) tried for the raised surface. */
+const RAISED_STEPS = Math.round(RAISED_STEP / ROUND_NUDGE);
+
+/**
+ * The dark lifted by `RAISED_STEP`, or by less where the accent would fall
+ * under 4.5 : 1 on it (info labels and hover titles sit on raised). The step
+ * shrinks towards the smallest one that still gives a different hex. A passing
+ * accent is always lighter than its dark, so if even that step fails, the
+ * smallest step down is used instead: a darker surface only adds contrast.
+ * Black has no step down, so a black dark whose accent only just passes gets
+ * raised equal to the dark: readable beats distinct. A failing theme (painted
+ * on the canvas while it is fixed) that no step rescues keeps the full step.
+ */
+function deriveRaised(dark: string, accent: string): string {
+  const readable = (surface: string) =>
+    contrastRatio(accent, surface) >= MIN_ACCENT_ON_DARK;
+  for (let step = RAISED_STEPS; step > 0; step--) {
+    const raised = shiftLightness(dark, step * ROUND_NUDGE);
+    if (raised === dark) {
+      break;
+    }
+    if (readable(raised)) {
+      return raised;
+    }
+  }
+  for (let step = 1; step <= RAISED_STEPS; step++) {
+    const below = shiftLightness(dark, -step * ROUND_NUDGE);
+    if (below !== dark) {
+      if (readable(below)) {
+        return below;
+      }
+      break;
+    }
+  }
+  return readable(dark) ? dark : shiftLightness(dark, RAISED_STEP);
+}
+
 function mixWithWhite(dark: string, whiteShare: number): string {
   const [r, g, b] = toRgb(dark) as Rgb;
   const mix = (c: number) => c + (255 - c) * whiteShare;
@@ -399,7 +436,7 @@ export function themeTokens(theme: PageTheme): Record<`--${string}`, string> {
   if (!(dark && accent)) {
     throw new Error("themeTokens: theme colours must be #rrggbb hex");
   }
-  const raised = shiftLightness(dark, RAISED_STEP);
+  const raised = deriveRaised(dark, accent);
   const sunken = deriveSunken(dark);
   const edge = shiftLightness(dark, EDGE_STEP);
 
@@ -415,6 +452,7 @@ export function themeTokens(theme: PageTheme): Record<`--${string}`, string> {
     "--biso-deep-raised": raised,
     "--biso-deep-sunken": sunken,
     "--biso-deep-edge": edge,
+    // Checked against the final raised, which may sit closer to the dark.
     "--biso-deep-ink-muted": deriveMutedInk([dark, raised, sunken], dark),
   };
 }

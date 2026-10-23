@@ -274,6 +274,39 @@ describe("block page route: page theme", () => {
     expect(body.props.doc).toBeDefined();
   });
 
+  it("a bound page whose department row is missing renders BISO, not its doc theme", async () => {
+    cachedDepartmentTheme.mockResolvedValue(null);
+    cachedPublishedPage.mockResolvedValue({
+      ...published({
+        meta: { ...META, theme: DOC_THEME },
+        sections: [],
+        version: 2,
+      }),
+      row: { department_id: "d-gone", status: "published" },
+    });
+
+    const [style] = (await renderTree("old-page")).props.children;
+
+    expect(cachedDepartmentTheme).toHaveBeenCalledWith("d-gone");
+    expect(style.props.theme).toBeNull();
+  });
+
+  it("a failed department read renders BISO, not the doc theme", async () => {
+    cachedDepartmentTheme.mockRejectedValue(new Error("appwrite down"));
+    cachedPublishedPage.mockResolvedValue({
+      ...published({
+        meta: { ...META, theme: DOC_THEME },
+        sections: [],
+        version: 2,
+      }),
+      row: { department_id: "d-1", status: "published" },
+    });
+
+    const [style] = (await renderTree("old-page")).props.children;
+
+    expect(style.props.theme).toBeNull();
+  });
+
   it("a page without a department uses its own meta theme", async () => {
     cachedPublishedPage.mockResolvedValue(
       published({

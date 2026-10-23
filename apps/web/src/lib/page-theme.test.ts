@@ -33,6 +33,33 @@ describe("resolvePageTheme", () => {
     ).toBeNull();
   });
 
+  it("a page bound to a department whose row is missing renders BISO", () => {
+    expect(
+      resolvePageTheme({
+        departmentId: "d-1",
+        departmentTheme: null,
+        docTheme: GREEN,
+      })
+    ).toBeNull();
+    expect(
+      resolvePageTheme({
+        departmentId: "d-1",
+        departmentTheme: undefined,
+        docTheme: GREEN,
+      })
+    ).toBeNull();
+  });
+
+  it("an unbound page still uses its doc theme", () => {
+    expect(
+      resolvePageTheme({
+        departmentId: "",
+        departmentTheme: null,
+        docTheme: GREEN,
+      })
+    ).toEqual(GREEN);
+  });
+
   it("a failing department pair gives null", () => {
     expect(
       resolvePageTheme({

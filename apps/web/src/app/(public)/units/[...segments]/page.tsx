@@ -94,6 +94,7 @@ export default async function UnitPage({ params }: Props) {
   // alike. Rendered first, before any Suspense boundary, so it ships in the
   // first flush with the nav.
   const theme = resolvePageTheme({
+    departmentId: department.$id,
     departmentTheme: {
       theme_accent: department.theme_accent ?? null,
       theme_dark: department.theme_dark ?? null,

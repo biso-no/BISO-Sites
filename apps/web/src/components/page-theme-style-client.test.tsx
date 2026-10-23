@@ -13,7 +13,7 @@ it("the sheet is off while its Activity is hidden and on when shown again", asyn
   document.body.append(container);
   const root = createRoot(container);
   const show = (mode: "visible" | "hidden") =>
-    act(async () => {
+    act(() => {
       root.render(
         <Activity mode={mode}>
           <PageThemeStyleClient css=":root{--biso-deep:#3b1c6b}" />

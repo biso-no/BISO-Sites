@@ -303,3 +303,100 @@ describe("follow-ups", () => {
     expect(isBisoTheme(undefined)).toBe(false);
   });
 });
+
+/** Park-Miller modulus and multiplier (a minimal standard LCG). */
+const LCG_MODULUS = 2_147_483_647;
+const LCG_MULTIPLIER = 48_271;
+
+/** Deterministic PRNG, so a sweep failure is reproducible. Returns [0, 1). */
+function seededRandom(seed: number): () => number {
+  let state = seed % LCG_MODULUS;
+  return () => {
+    state = (state * LCG_MULTIPLIER) % LCG_MODULUS;
+    return (state - 1) / (LCG_MODULUS - 1);
+  };
+}
+
+const SWEEP_SEED = 20_261_023;
+const SWEEP_THEMES = 1500;
+const SWEEP_ATTEMPTS = 200_000;
+const HEX_CHANNELS = 0xff_ff_ff;
+
+/**
+ * Passing themes from random pairs. A failing pair is moved to the shades the
+ * panel suggests, so the sweep is dense right at the thresholds, where a
+ * derived surface is most likely to break a guarantee.
+ */
+function sweepThemes(): { accent: string; dark: string }[] {
+  const random = seededRandom(SWEEP_SEED);
+  const hex = () =>
+    `#${Math.floor(random() * (HEX_CHANNELS + 1))
+      .toString(16)
+      .padStart(6, "0")}`;
+  const themes: { accent: string; dark: string }[] = [];
+  for (let i = 0; i < SWEEP_ATTEMPTS && themes.length < SWEEP_THEMES; i++) {
+    let theme = { dark: hex(), accent: hex() };
+    const check = checkTheme(theme);
+    if (!check.ok) {
+      const dark = check.dark.suggestion ?? theme.dark;
+      const accent = check.accent.suggestion ?? theme.accent;
+      theme = { dark, accent };
+    }
+    if (checkTheme(theme).ok) {
+      themes.push(theme);
+    }
+  }
+  return themes;
+}
+
+describe("themeTokens on a seeded sweep of passing themes", () => {
+  const themes = [{ dark: "#261f1f", accent: "#e65c2e" }, ...sweepThemes()];
+
+  it("sweeps at least 1000 passing themes", () => {
+    expect(themes.length).toBeGreaterThanOrEqual(1000);
+  });
+
+  it("keeps the accent readable on the raised surface", () => {
+    for (const theme of themes) {
+      const t = themeTokens(theme);
+      const ratio = contrastRatio(theme.accent, t["--biso-deep-raised"]);
+      expect({ theme, ok: ratio >= MIN_ACCENT_ON_DARK }).toEqual({
+        theme,
+        ok: true,
+      });
+    }
+  });
+
+  it("keeps muted ink readable on raised and on the dark", () => {
+    for (const theme of themes) {
+      const t = themeTokens(theme);
+      const muted = t["--biso-deep-ink-muted"];
+      const onRaised = contrastRatio(muted, t["--biso-deep-raised"]);
+      const onDark = contrastRatio(muted, t["--biso-deep"]);
+      expect({ theme, ok: onRaised >= 4.5 && onDark >= 4.5 }).toEqual({
+        theme,
+        ok: true,
+      });
+    }
+  });
+
+  it("keeps the raised surface distinct from the dark", () => {
+    for (const theme of themes) {
+      const t = themeTokens(theme);
+      expect({ theme, raised: t["--biso-deep-raised"] }).not.toEqual({
+        theme,
+        raised: t["--biso-deep"],
+      });
+    }
+  });
+
+  it("lifts #261f1f just enough to keep #e65c2e at 4.5 : 1", () => {
+    const t = themeTokens({ dark: "#261f1f", accent: "#e65c2e" });
+    const raised = t["--biso-deep-raised"];
+    expect(raised).not.toBe("#261f1f");
+    expect(contrastRatio("#e65c2e", raised)).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(t["--biso-deep-ink-muted"], raised)
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+});

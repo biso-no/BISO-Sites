@@ -114,15 +114,14 @@ export default async function DynamicPage({ params }: Props) {
   const feeds = await resolvePageFeeds(doc, locale);
 
   // A page bound to a department wears the department's theme; otherwise its
-  // own. A failed department read renders BISO rather than a stale doc theme.
+  // own. A missing department row or a failed read renders BISO, never the
+  // page's stale doc theme.
   const departmentId = result.row?.department_id;
   const departmentTheme = departmentId
-    ? await cachedDepartmentTheme(departmentId).catch(() => ({
-        theme_accent: null,
-        theme_dark: null,
-      }))
+    ? await cachedDepartmentTheme(departmentId).catch(() => null)
     : null;
   const theme = resolvePageTheme({
+    departmentId,
     departmentTheme,
     docTheme: doc.meta?.theme,
   });
