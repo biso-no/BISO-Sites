@@ -3,6 +3,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const TEST_FILE_RE = /\.test\.tsx$/;
+/** A hex in a class arbitrary value, a colour style value, or a bare quoted hex. */
+const HEX_COLOUR_RE =
+  /\[#[0-9a-fA-F]{3,8}\]|(?:color|background\w*|border\w*|fill|stroke)\s*:\s*["']?#[0-9a-fA-F]{3,8}\b|["'`]#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})["'`]/;
 const SRC = join(import.meta.dir, "..", "..");
 const BLOCKS = join(SRC, "blocks");
 
@@ -14,8 +17,11 @@ interface Rule {
 }
 
 const RULES: Rule[] = [
-  { name: "viewport variant", test: /(^|\s|")(sm|md|lg|xl|2xl):/ },
-  { name: "hex colour", test: /#[0-9a-fA-F]{3,8}\b/ },
+  {
+    name: "viewport variant",
+    test: /(?<![\w@-])(?:max-|min-)?(?:sm|md|lg|xl|2xl):(?=[\w[!-])/,
+  },
+  { name: "hex colour", test: HEX_COLOUR_RE },
   { name: "white/black text", test: /text-white|bg-white|text-black/ },
   {
     name: "palette colour",
@@ -90,7 +96,7 @@ describe("v2 design rules", () => {
 
   const PLANTED: Record<string, string> = {
     "viewport variant": '<div className="flex md:grid" />',
-    "hex colour": 'style={{ color: "#fff" }}',
+    "hex colour": '<p className="bg-[#1668ae]" />',
     "white/black text": '<p className="text-white" />',
     "palette colour": '<p className="bg-blue-500" />',
     "legacy token": '<p className="bg-brand" />',
@@ -116,6 +122,38 @@ describe("v2 design rules", () => {
       expect(violations(planted)).toContain(name);
     });
   }
+
+  test("more viewport variant shapes are detected", () => {
+    for (const planted of [
+      "cn(`md:flex`)",
+      "cn('md:flex')",
+      '"max-md:hidden"',
+      '"hover:md:underline"',
+    ]) {
+      expect(violations(planted)).toContain("viewport variant");
+    }
+  });
+
+  test("more hex colour shapes are detected", () => {
+    for (const planted of [
+      'style={{ color: "#fff" }}',
+      "const c = '#1668ae';",
+    ]) {
+      expect(violations(planted)).toContain("hex colour");
+    }
+  });
+
+  test("object keys, anchors and container queries are not flagged", () => {
+    for (const ok of [
+      '{ sm: "x" }',
+      "const w = { md: 12 };",
+      '<div className="@md:grid @2xl:flex" />',
+      '<a href="#add">x</a>',
+      "// see #face and #beef",
+    ]) {
+      expect(violations(ok)).toEqual([]);
+    }
+  });
 
   test("allowed v2 utilities pass", () => {
     const ok =

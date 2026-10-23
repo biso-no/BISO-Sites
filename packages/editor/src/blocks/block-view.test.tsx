@@ -116,8 +116,12 @@ describe("v2 blocks", () => {
       throw new Error("marquee is not registered");
     }
     registerBlock({ ...original, Render: () => <p>bare</p>, v2: true });
-    const html = render(block, "default");
-    registerBlock(original);
+    let html: string;
+    try {
+      html = render(block, "default");
+    } finally {
+      registerBlock(original);
+    }
     expect(html).toBe("<p>bare</p>");
   });
 });

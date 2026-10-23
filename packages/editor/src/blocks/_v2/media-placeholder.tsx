@@ -2,12 +2,15 @@ import type { CSSProperties } from "react";
 import type { FrameRatio } from "@/editor/types";
 import { ratioValue } from "./media";
 
-/** Shown in the editor and on the site, so the site never has a broken image. */
+/**
+ * Shown in the editor and on the site, so the site never has a broken image.
+ * Without a `label` it is a silent box: visitors never read editor prompts.
+ */
 export function MediaPlaceholder({
   label,
   ratio,
 }: {
-  label: string;
+  label?: string;
   ratio: FrameRatio;
 }) {
   return (

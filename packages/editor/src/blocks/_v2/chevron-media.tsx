@@ -8,6 +8,8 @@ interface ChevronMediaProps {
   kind?: "image" | "video";
   lean?: "left" | "right";
   loop?: boolean;
+  /** Editor-only prompt for an empty `src`; blocks pass it only in edit mode. */
+  placeholder?: string;
   poster?: string;
   ratio: FrameRatio;
   src: string;
@@ -21,15 +23,14 @@ export function ChevronMedia({
   kind = "image",
   lean = "left",
   loop = false,
+  placeholder,
   poster,
   ratio,
   src,
   width = DEFAULT_WIDTH,
 }: ChevronMediaProps) {
   if (!src) {
-    return (
-      <MediaPlaceholder label="Add media in the inspector" ratio={ratio} />
-    );
+    return <MediaPlaceholder label={placeholder} ratio={ratio} />;
   }
   const posterSrc = poster ? sizedImageSrc(poster, width) : undefined;
   let child: React.ReactNode;
