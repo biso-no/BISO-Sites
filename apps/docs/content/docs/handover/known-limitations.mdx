@@ -76,18 +76,27 @@ turns out to be a known issue.
   (`SG-App-Role-*`) before the move to campus+department combinations.
   See [history](/docs/handover/history).
 
-## Editor block maturity
+## Editor blocks
 
-The in-house editor at `@repo/editor` is solid for the common cases but
-several blocks are still maturing:
+The in-house editor at `@repo/editor` has 30 blocks; see the
+[blocks reference](/docs/admin-handbook/pages/blocks-reference). A few
+limits to know about:
 
-- **`filterBar`** — works but has edge cases around filter-state
-  persistence across navigations.
-- **`multiStepForm`** — conditional logic between steps is limited.
-- **`profileHeader`** — not yet fully wired into the live member data;
-  some fields are placeholders.
-
-If you're building on these blocks, expect to fill in gaps as you go.
+- **Forms** (`signup`, `multiStepForm`) only send to `@biso.no`
+  addresses, resolve the form from the *published* page, and are rate
+  limited to 5 submissions per minute per client, and only when rate
+  limiting is configured. Without that configuration there is no limit.
+- **`multiStepForm`** has no conditional logic between steps. Keep
+  flows linear.
+- **`documents`** accepts PDF, Office, CSV and TXT files up to 25 MB.
+- **Live blocks** (events, news, jobs, shop, units, partners, board)
+  hide themselves on the public site when their feed is empty. That is
+  intended, but it means a mis-set department looks like a missing block.
+- `profileHeader`, `filterBar`, `campusSelector` and `twoCol` were
+  removed. Old pages that still contain them need editing.
+- Production builds of the redesigned editor have not all been run yet
+  (type-checks and tests pass). Check a published page after the first
+  deploy.
 
 ## Search
 
