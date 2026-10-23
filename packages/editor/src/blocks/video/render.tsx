@@ -24,6 +24,8 @@ const POSTER_WIDTH = 1600;
 const PROMPT = "Select a video in the inspector";
 const PLAY_LABEL = { en: "Play video", no: "Spill av video" } as const;
 const PLAYER_ALLOW = "autoplay; fullscreen; picture-in-picture";
+const PLAY_BUTTON =
+  "absolute top-1/2 left-1/2 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-biso-pill bg-action text-action-ink focus-visible:ring-2 focus-visible:ring-focus-ring";
 const FILL = "absolute inset-0 size-full border-0 object-cover";
 
 type Ratio = VideoBlock["ratio"];
@@ -115,7 +117,7 @@ function Featured({
     <button
       aria-hidden={edit ? true : undefined}
       aria-label={playLabel}
-      className={`${edit ? "pointer-events-none" : ""}absolute top-1/2 left-1/2 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-biso-pill bg-action text-action-ink focus-visible:ring-2 focus-visible:ring-focus-ring`}
+      className={edit ? `pointer-events-none ${PLAY_BUTTON}` : PLAY_BUTTON}
       onClick={edit ? undefined : () => setPlaying(true)}
       tabIndex={edit ? -1 : undefined}
       type="button"

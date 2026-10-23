@@ -1,7 +1,14 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import { Window } from "happy-dom";
 import { act, createElement } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import type { VideoBlock } from "@/editor/types";
 import { VideoRender } from "./render";
 
@@ -40,10 +47,20 @@ const block: VideoBlock = {
   url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 };
 
+const mounted: { host: HTMLElement; root: Root }[] = [];
+
+afterEach(() => {
+  for (const { host, root } of mounted.splice(0)) {
+    act(() => root.unmount());
+    host.remove();
+  }
+});
+
 function mount(edit: boolean) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
+  mounted.push({ host, root });
   act(() => {
     root.render(
       createElement(VideoRender, { block, edit, onPatch: () => undefined })
@@ -77,7 +94,8 @@ describe("featured video click", () => {
     const button = host.querySelector("button") as Element;
     expect(button.getAttribute("tabindex")).toBe("-1");
     expect(button.getAttribute("aria-hidden")).toBe("true");
-    expect(button.className).toContain("pointer-events-none");
+    expect(button.classList.contains("pointer-events-none")).toBe(true);
+    expect(button.classList.contains("absolute")).toBe(true);
     click(button);
     expect(host.querySelector("iframe")).toBeNull();
     expect(host.querySelector("video")).toBeNull();
