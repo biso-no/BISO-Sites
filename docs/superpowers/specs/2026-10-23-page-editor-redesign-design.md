@@ -523,3 +523,61 @@ columns, editing real departments' themes) still needs Markus.
 
 - C9: whether the Winter Games team's mobile numbers go on the page (default:
   no).
+
+## Stage 1 done (2026-10-23)
+
+Branch `feat/page-editor-redesign`, plan
+`docs/superpowers/plans/2026-10-23-page-editor-stage-1-sections.md`.
+
+**What works**
+
+- Pages are stored as v2 documents (sections → one to four columns → blocks)
+  in `page_translations.draft_doc` / `published_doc`. Old flat documents still
+  load through `normalizePageDoc`.
+- The site renders sections through `SectionView`. The column grids respond to
+  the page's container width (tablet ≤ 1023px, phone ≤ 639px).
+- In the admin canvas you can add sections from a layout picker, drag sections,
+  and drag blocks within and between columns or into a new section. Palette
+  blocks can be added to a chosen column.
+- Section settings in the inspector: columns, background, spacing, column
+  alignment, tablet side-by-side or stacked, phone order, hide section on
+  phone, link name, duplicate and delete. Blocks can be hidden on phones.
+  There is also an outline tree.
+- Undo and redo work across columns. Feeds, AI context and templates read the
+  section tree.
+- Automated checks on `e6907942`: `check-types` 18/18; tests: editor 224,
+  admin 1771, web 1021 and api 114/115 pass (the one api failure predates the
+  branch, see below); `admin` and `web` builds compile.
+
+**Test rows:** none created, none deleted. The browser check (Task 10
+step 2) was skipped because admin sign-in is Microsoft OAuth only and could
+not be done from the automated browser. A read-only query found no
+`page_translations` rows titled "TEST stage 1…".
+
+**Deferred**
+
+- The browser check itself: build a two-column section, drag between columns,
+  switch to one column and back, toggle Tablet: Stacked and Phone: Show
+  column 2 first, look at the three previews, undo three times, then reload.
+  The look of the editor chrome (D10) has not been checked by eye.
+- Canvas UX from the Task 8 review, not checked in a browser:
+  1. A text selection that starts in a block and ends in a section's padding
+     selects the section. The section's `onClick` doesn't check for a
+     selection.
+  2. The 0px new-section drop zones may be hard to reach from the outer
+     columns of a 3- or 4-column section (`closestCenter`).
+  3. The add-section picker replaces its trigger while open, so focus isn't
+     returned to it when it closes. The picker also lacks a role and label.
+- Smaller items from the stage reviews: tighter `normalizePageDoc` guards,
+  no-op undo steps for missing ids, dnd-kit announcements that read raw ids,
+  an empty section left after moving its only block, and `apps/docs` still
+  documenting `draft_document` / `puck_document`.
+- Not from this branch: `packages/api/benefits-schema.test.ts` expects
+  `campus_benefits` to have no table permissions, but the config regenerated
+  on `main` (6ca92ac3) has `read("any")`. Running only
+  `src/app/api` and `src/app/(portal)/_actions` in admin gives 14 failures
+  from `mock.module` leaking between files, and the base branch fails the
+  same way. Repo-wide `bun x ultracite` stops at the nested biome config in
+  `.claude/worktrees/app-update-prompt`.
+- Removing the old `puck_document` / `draft_document` columns waits for
+  cutover.
