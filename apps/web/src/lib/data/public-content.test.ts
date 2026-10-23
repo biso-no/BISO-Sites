@@ -10,7 +10,15 @@ const cache = vi.hoisted(() => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
 
 vi.mock("next/cache", () => cache);
 
-import { cachedPartners, cachedPublishedEvents } from "./public-content";
+import {
+  cachedDepartmentById,
+  cachedDepartmentBySlugAndCampus,
+  cachedDepartmentsBySlug,
+  cachedDepartmentTheme,
+  cachedPartners,
+  cachedPublishedEvents,
+  cachedPublishedPage,
+} from "./public-content";
 
 const queriesOf = (call: number): string[] =>
   publicDb.listRows.mock.calls[call][2].map(String);
@@ -55,5 +63,32 @@ describe("cachedPartners", () => {
       '"method":"orderAsc","attribute":"sort_order"'
     );
     expect(cache.cacheTag).toHaveBeenCalledWith("partners");
+  });
+});
+
+describe("publish-refresh cache tags (C5)", () => {
+  beforeEach(() => {
+    publicDb.listRows.mockReset();
+    publicDb.listRows.mockResolvedValue({ rows: [], total: 0 });
+    cache.cacheTag.mockClear();
+  });
+
+  it("tags the published page reader with pages", async () => {
+    await cachedPublishedPage("about", "no").catch(() => null);
+    expect(cache.cacheTag).toHaveBeenCalledWith("pages");
+  });
+
+  it("tags every department reader that carries theme columns", async () => {
+    const readers = [
+      () => cachedDepartmentTheme("d1"),
+      () => cachedDepartmentsBySlug("s"),
+      () => cachedDepartmentBySlugAndCampus("s", "c"),
+      () => cachedDepartmentById("d1"),
+    ];
+    for (const read of readers) {
+      cache.cacheTag.mockClear();
+      await read();
+      expect(cache.cacheTag).toHaveBeenCalledWith("departments");
+    }
   });
 });

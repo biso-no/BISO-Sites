@@ -329,6 +329,7 @@ export async function cachedNavFeatured(
 export async function cachedPublishedPage(slug: string, locale: PublicLocale) {
   "use cache";
   cacheLife("minutes");
+  cacheTag("pages");
   const { db } = await createPublicClient();
   const result = await getPage(slug, locale, db);
   return isPublishedPage(result) ? result : null;
@@ -364,6 +365,7 @@ export async function cachedDepartmentTheme(
 ): Promise<Pick<Departments, "theme_accent" | "theme_dark"> | null> {
   "use cache";
   cacheLife("minutes");
+  cacheTag("departments");
   const { db } = await createPublicClient();
   const res = await db.listRows<Departments>("app", "departments", [
     Query.equal("$id", id),
@@ -401,6 +403,7 @@ export async function cachedDepartmentsBySlug(
 ): Promise<Departments[]> {
   "use cache";
   cacheLife("minutes");
+  cacheTag("departments");
   const { db } = await createPublicClient();
   const res = await db.listRows<Departments>("app", "departments", [
     Query.equal("slug", slug),
@@ -418,6 +421,7 @@ export async function cachedDepartmentBySlugAndCampus(
 ): Promise<Departments | null> {
   "use cache";
   cacheLife("minutes");
+  cacheTag("departments");
   const { db } = await createPublicClient();
   const res = await db.listRows<Departments>("app", "departments", [
     Query.equal("slug", slug),
@@ -436,6 +440,7 @@ export async function cachedDepartmentById(
 ): Promise<Departments | null> {
   "use cache";
   cacheLife("minutes");
+  cacheTag("departments");
   const { db } = await createPublicClient();
   const res = await db.listRows<Departments>("app", "departments", [
     Query.equal("$id", id),

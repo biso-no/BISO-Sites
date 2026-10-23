@@ -66,6 +66,7 @@ import {
   assertWriteAccess,
   hasRowAccess,
 } from "@/lib/utils/authorization";
+import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
@@ -462,6 +463,11 @@ export async function publishPageAction(
       pageId: id,
     });
     revalidatePath("/pages");
+    // The page, and the department when its theme was just written, are
+    // cached on the website by tag. Best-effort: never fails the publish.
+    await notifyWebsite(
+      themeCopy.status === "copied" ? ["pages", "departments"] : ["pages"]
+    );
     const publishedPageVersion = sourceDocument
       ? (await db.getRow<Pages>("app", "pages", id)).$updatedAt
       : null;
@@ -715,6 +721,7 @@ export async function unpublishPageAction(
       resourceType: "page",
     });
     revalidatePath("/pages");
+    await notifyWebsite(["pages"]);
   } catch (e) {
     console.error("[unpublishPageAction]", e);
     throw new Error(
@@ -742,6 +749,8 @@ export async function deletePageAction(id: string) {
       resourceType: "page",
     });
     revalidatePath("/pages");
+    // Archiving a published page takes it offline too.
+    await notifyWebsite(["pages"]);
   } catch (e) {
     console.error("[deletePageAction]", e);
     throw new Error(e instanceof Error ? e.message : "Failed to delete page");

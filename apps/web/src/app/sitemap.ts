@@ -1,3 +1,4 @@
+import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
 import {
   isUnitPageSlug,
   unitCanonicalPath,
@@ -126,10 +127,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...projectHubs,
     // A unit page's slug IS "units/<campus>/<slug>", so mapping it here would
     // emit the exact URL the units block below already emits, at a different
-    // priority. The units listing owns those URLs.
+    // priority. The units listing owns those URLs. A `projects/<slug>` page
+    // is the same: the projects entries already list /projects/<slug>.
     ...mapSlugRoutes(
       "",
-      entries.pages.filter((row) => !isUnitPageSlug(row.slug)),
+      entries.pages.filter(
+        (row) => !(isUnitPageSlug(row.slug) || isProjectNamespaceSlug(row.slug))
+      ),
       "weekly",
       0.5
     ),

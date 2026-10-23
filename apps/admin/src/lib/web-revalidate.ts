@@ -1,7 +1,12 @@
 const TRAILING_SLASH = /\/+$/;
 const NOTIFY_TIMEOUT_MS = 3000;
 
-type WebsiteTag = "benefits" | "membership-texts" | "partners";
+type WebsiteTag =
+  | "benefits"
+  | "departments"
+  | "membership-texts"
+  | "pages"
+  | "partners";
 
 /**
  * Tells the public website to drop its cached data for the given tags so an

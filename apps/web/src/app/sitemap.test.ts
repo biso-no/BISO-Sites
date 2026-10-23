@@ -72,4 +72,25 @@ describe("sitemap.xml", () => {
     const listed = await paths();
     expect(new Set(listed).size).toBe(listed.length);
   });
+
+  it("leaves projects/ page slugs to the projects listing", async () => {
+    entries.current = {
+      ...empty,
+      pages: [
+        {
+          $updatedAt: "2026-10-01T00:00:00.000Z",
+          slug: "projects/winter-games",
+        },
+        { $updatedAt: "2026-10-01T00:00:00.000Z", slug: "om-oss" },
+      ],
+      projects: [
+        { $updatedAt: "2026-10-01T00:00:00.000Z", slug: "winter-games" },
+      ],
+    };
+    const listed = await paths();
+    expect(listed).toContain("/om-oss");
+    expect(
+      listed.filter((path) => path === "/projects/winter-games")
+    ).toHaveLength(1);
+  });
 });
