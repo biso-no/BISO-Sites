@@ -1,13 +1,13 @@
 "use client";
 
 import type { PatchFn } from "@/blocks/types";
+import { ButtonFields } from "@/components/editor-shell/inspector/button-fields";
 import {
   InspRow,
   InspSection,
-  Segmented,
 } from "@/components/editor-shell/inspector/insp-parts";
 import { ItemList } from "@/components/editor-shell/inspector/item-list";
-import type { CtaBandBlock, PageDoc } from "@/editor/types";
+import type { CtaBandBlock, LinkButton, PageDoc } from "@/editor/types";
 
 interface Props {
   block: CtaBandBlock;
@@ -44,33 +44,14 @@ export function CtaBandInspector({ block, onPatch }: Props) {
           addLabel="+ Add button"
           items={block.buttons}
           max={2}
-          newItem={() => ({ href: "", label: "Button", style: "secondary" })}
+          newItem={(): LinkButton => ({
+            href: "",
+            label: "Button",
+            style: "secondary",
+          })}
           onChange={(buttons) => onPatch("buttons", buttons)}
           renderItem={(item, update) => (
-            <>
-              <InspRow label="Label">
-                <input
-                  onChange={(e) => update({ ...item, label: e.target.value })}
-                  value={item.label}
-                />
-              </InspRow>
-              <InspRow label="Link">
-                <input
-                  onChange={(e) => update({ ...item, href: e.target.value })}
-                  value={item.href}
-                />
-              </InspRow>
-              <InspRow label="Style">
-                <Segmented
-                  choices={[
-                    { label: "Primary", value: "primary" },
-                    { label: "Secondary", value: "secondary" },
-                  ]}
-                  onPick={(style) => update({ ...item, style })}
-                  value={item.style}
-                />
-              </InspRow>
-            </>
+            <ButtonFields button={item} onChange={update} />
           )}
           title={(item, i) => item.label || `Button ${i + 1}`}
         />

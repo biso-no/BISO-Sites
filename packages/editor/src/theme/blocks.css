@@ -48,12 +48,12 @@
 }
 
 /*
- * The columns of `BlockSection`'s WIDTH: max-w-3xl, max-w-5xl, max-w-7xl, and
+ * The columns of the section's width options: max-w-3xl, max-w-5xl, max-w-7xl, and
  * like its padded inner box each column includes the gutter.
  *
  * The column is the block's own inline padding, not a capped wrapper. A block
  * that paints its own panel (contact) and every block's
- * dividing rule therefore still run to the page edge, just as `BlockSection`
+ * dividing rule therefore still run to the page edge, just as the section does
  * paints edge to edge and caps only its content.
  */
 .pg-section__inner > .pg-block {
@@ -80,7 +80,7 @@
   --pg-column: 100%;
   overflow-x: clip;
 }
-/* Full bleed drops the gutter as well, as `BlockSection` does with `px-0`. */
+/* Full bleed drops the gutter as well, as the section does. */
 .pg-section[data-width="full"] .pg-block {
   --pg-gutter: 0px;
 }
@@ -88,7 +88,7 @@
 /*
  * The section paints the surface (sections.css), so the frame paints none.
  * On a dark or photo section it still rebinds the site tokens the legacy
- * blocks read, the same values `BlockSection`'s inverted surface sets, so
+ * blocks read, the same values the section's inverted surface sets, so
  * their copy, cards and rules stay light on navy.
  */
 .pg-section[data-background="inverted"] {

@@ -8,6 +8,7 @@ import type {
   MediaRef,
   PageHeader,
 } from "@/editor/types";
+import { ButtonFields } from "./button-fields";
 import { type Choice, InspRow, InspSection, Segmented } from "./insp-parts";
 import { ItemList } from "./item-list";
 import { MediaPicker } from "./media-picker";
@@ -16,10 +17,6 @@ const VARIANTS: Choice<HeaderVariant>[] = [
   { label: "Split", value: "split" },
   { label: "Full", value: "full" },
   { label: "Plain", value: "plain" },
-];
-const BUTTON_STYLES: Choice<LinkButton["style"]>[] = [
-  { label: "Primary", value: "primary" },
-  { label: "Secondary", value: "secondary" },
 ];
 const MAX_BUTTONS = 2;
 const VIDEO_FILE_RE = /\.(mp4|mov|webm|ogg)(\?|$)/i;
@@ -143,30 +140,7 @@ export function HeaderPanel({ header, onPatch, onRemove }: HeaderPanelProps) {
           })}
           onChange={(buttons) => onPatch("buttons", buttons)}
           renderItem={(button, update) => (
-            <>
-              <InspRow label="Label">
-                <input
-                  aria-label="Button label"
-                  onChange={(e) => update({ ...button, label: e.target.value })}
-                  value={button.label}
-                />
-              </InspRow>
-              <InspRow label="Link">
-                <input
-                  aria-label="Button link"
-                  onChange={(e) => update({ ...button, href: e.target.value })}
-                  placeholder="/join or #section"
-                  value={button.href}
-                />
-              </InspRow>
-              <InspRow label="Style">
-                <Segmented
-                  choices={BUTTON_STYLES}
-                  onPick={(style) => update({ ...button, style })}
-                  value={button.style}
-                />
-              </InspRow>
-            </>
+            <ButtonFields button={button} onChange={update} />
           )}
           title={(button, i) => button.label || `Button ${i + 1}`}
         />
