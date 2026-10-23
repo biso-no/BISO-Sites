@@ -84,12 +84,14 @@ function Player({
 }
 
 function Featured({
+  edit,
   label,
   poster,
   ratio,
   title,
   url,
 }: {
+  edit: boolean;
   label?: string;
   poster?: string;
   ratio: Ratio;
@@ -99,7 +101,7 @@ function Featured({
   const { locale } = usePageFeedSource();
   const [playing, setPlaying] = useState(false);
   const playLabel = locale === "en" ? PLAY_LABEL.en : PLAY_LABEL.no;
-  if (playing) {
+  if (playing && !edit) {
     return (
       <div
         className="chevron-frame bg-deep"
@@ -111,9 +113,11 @@ function Featured({
   }
   const button = (
     <button
+      aria-hidden={edit ? true : undefined}
       aria-label={playLabel}
-      className="absolute top-1/2 left-1/2 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-biso-pill bg-action text-action-ink focus-visible:ring-2 focus-visible:ring-focus-ring"
-      onClick={() => setPlaying(true)}
+      className={`${edit ? "pointer-events-none" : ""}absolute top-1/2 left-1/2 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-biso-pill bg-action text-action-ink focus-visible:ring-2 focus-visible:ring-focus-ring`}
+      onClick={edit ? undefined : () => setPlaying(true)}
+      tabIndex={edit ? -1 : undefined}
       type="button"
     >
       <PlayIcon />
@@ -146,10 +150,12 @@ function Featured({
 
 function VideoBody({
   block,
+  edit,
   poster,
   url,
 }: {
   block: VideoBlock;
+  edit: boolean;
   poster?: string;
   url: string;
 }) {
@@ -177,6 +183,7 @@ function VideoBody({
   }
   return (
     <Featured
+      edit={edit}
       label={block.label}
       poster={poster}
       ratio={ratio}
@@ -196,7 +203,12 @@ export function VideoRender({ block, edit, onPatch }: Props) {
   const rawPoster = safeHref(block.poster);
   return (
     <figure className="m-0">
-      <VideoBody block={block} poster={rawPoster ?? undefined} url={url} />
+      <VideoBody
+        block={block}
+        edit={edit}
+        poster={rawPoster ?? undefined}
+        url={url}
+      />
       {block.caption || edit ? (
         <figcaption>
           <EditableText

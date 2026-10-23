@@ -18,13 +18,16 @@ export function embedSrc(
   const vimeo = youtube ? null : url.match(VIMEO_RE);
   let base: string;
   if (youtube) {
-    base = `https://www.youtube.com/embed/${youtube[1]}`;
+    base = `https://www.youtube-nocookie.com/embed/${youtube[1]}`;
   } else if (vimeo) {
-    base = `https://player.vimeo.com/video/${vimeo[1]}`;
+    base = `https://player.vimeo.com/video/${vimeo[1]}?dnt=1`;
   } else {
     return null;
   }
-  return autoplay ? `${base}?autoplay=1&mute=1` : base;
+  if (!autoplay) {
+    return base;
+  }
+  return `${base}${base.includes("?") ? "&" : "?"}autoplay=1&mute=1`;
 }
 
 /**

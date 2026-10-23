@@ -63,7 +63,7 @@ describe("VideoRender", () => {
     const out = html(block({ style: "inline", url: YOUTUBE }));
     expect(out).toContain("<iframe");
     expect(out).toContain(embedSrc(YOUTUBE) as string);
-    expect(out).toContain("youtube.com/embed");
+    expect(out).toContain("youtube-nocookie.com/embed");
     expect(out).toContain("title=");
   });
 

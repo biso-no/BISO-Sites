@@ -32,10 +32,16 @@ test("embeds: YouTube and Vimeo, nothing else", () => {
   expect(isEmbedUrl("https://youtu.be/abcdefghijk")).toBe(true);
   expect(isEmbedUrl("https://example.com/a.mp4")).toBe(false);
   expect(embedSrc("https://youtu.be/abcdefghijk", {})).toBe(
-    "https://www.youtube.com/embed/abcdefghijk"
+    "https://www.youtube-nocookie.com/embed/abcdefghijk"
+  );
+  expect(embedSrc("https://vimeo.com/123", {})).toBe(
+    "https://player.vimeo.com/video/123?dnt=1"
   );
   expect(embedSrc("https://vimeo.com/123", { autoplay: true })).toBe(
-    "https://player.vimeo.com/video/123?autoplay=1&mute=1"
+    "https://player.vimeo.com/video/123?dnt=1&autoplay=1&mute=1"
+  );
+  expect(embedSrc("https://youtu.be/abcdefghijk", { autoplay: true })).toBe(
+    "https://www.youtube-nocookie.com/embed/abcdefghijk?autoplay=1&mute=1"
   );
   expect(embedSrc("https://example.com/a.mp4", {})).toBeNull();
 });
