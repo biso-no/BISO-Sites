@@ -581,3 +581,120 @@ not be done from the automated browser. A read-only query found no
   `.claude/worktrees/app-update-prompt`.
 - Removing the old `puck_document` / `draft_document` columns waits for
   cutover.
+
+## Stage 2 done (2026-10-23)
+
+Branch `feat/page-editor-redesign`, plan
+`docs/superpowers/plans/2026-10-23-page-editor-stage-2-look-a.md`, commits
+`73d91a72..` this note.
+
+**What works**
+
+- Sections paint the redesign's v2 surfaces: White, Tinted, Dark and Photo
+  (a full-bleed image under a flat navy scrim). Two white sections in a row
+  get a hairline. The first section clears the fixed nav with a navy strip
+  behind it, and on phones that clearance passes to the first section still
+  shown when the first one is hidden there.
+- A page header replaces the hero block. It has three variants, crumbs, an
+  eyebrow, the page's only `<h1>`, a lede, two buttons and chevron media.
+- Text, heading, quote, callout, highlights, facts, stats, divider, buttons,
+  CTA band, image, gallery and video are rebuilt in the site's visual
+  language: `type-*` roles, v2 tokens, the 13° chevron and no gradients,
+  shadows on content, or fade-ins. A guard test fails any v2 block file that
+  breaks those rules. Blocks stacked in one column get the site's 1.5rem
+  heading-to-content gap.
+- Every link in a v2 block goes through `safeHref`. YouTube embeds use
+  youtube-nocookie.com and Vimeo embeds add `dnt=1`.
+- The palette's groups and the AI's block list are both derived from the
+  registry. The AI list throws at load if no block is registered, and a test
+  keeps every `blocks/*/index.tsx` out of `"use client"`.
+- `/design-system/page-blocks` (noindex, not in the sitemap) renders every v2
+  block, every background and every column layout through the real
+  `RenderedPage`.
+- Visual check on that page at 1440, 820 and 390 (Task 11):
+  - No horizontal scroll at any width.
+  - The four-column section is 2×2 at 820 and stacked at 390. The 2-1, 1-1
+    and 1-2 sections sit side by side at 820 and stack at 390.
+  - All text on the header, Dark and Photo sections is light, at 6.3:1 or
+    better against navy. Buttons are visible.
+  - The header clears the 80px nav at every width.
+  - Every chevron measures 13.00°, including the collage's big tile, which
+    Task 11 had to fix (it was 13.7° and 17px short of the second row).
+  - The hairline shows between consecutive white sections.
+  - No gradients, rounded corners of 12px or more, shadows or `backdrop-blur`
+    inside v2 blocks. Display headings are uppercase Museo Slab, matching
+    `/about` and `/projects/fadderullan`.
+- Automated checks after Task 11:
+  - `check-types` passes 18/18.
+  - Tests: editor 427/427, admin 1783/1783, web 1041/1041 and api 115/116.
+    The api failure predates the branch (see stage 1).
+  - `bun x ultracite fix` on the stage's 167 touched files made no changes.
+
+**Screenshots** (in `.playwright-mcp/`)
+
+- Full page: `stage2-blocks-1440.png`, `stage2-blocks-820.png` and
+  `stage2-blocks-390.png`.
+- Details:
+  - the hairline: `stage2-1440-hairline.png`;
+  - the fixed collage: `stage2-1440-collage-fixed.png`;
+  - per-section crops: `stage2-{1440,820,390}-*.png`;
+  - a hidden first section on a phone, before and after the fix:
+    `stage2-390-edge-first-hidden.png` and
+    `stage2-390-edge-first-hidden-fixed.png`.
+
+**Builds not run.** Markus's `bun run dev` was serving this checkout on
+3000–3003. A `next build` replaces `.next` under a running dev server and
+stops it. `check-types` passes, so `bun run build --filter=admin
+--filter=web` is still to be run once the dev servers are stopped. Task 4
+also needs an admin build, because it touched a `"use server"` file.
+
+**Test rows:** none created, none deleted.
+
+**Deferred**
+
+- Not checked by eye: the editor canvas. Admin sign-in is Microsoft OAuth
+  only, so the automated browser can't get in. That leaves unchecked the
+  header's hover outline on navy, the zipper and drop line sitting in the new
+  block gap, and the stage 1 browser check.
+- Decisions for Markus:
+  - The heading block's "Large" size and the CTA band title use
+    `type-display-lg`, the same size as the page `<h1>`. The plan asks for
+    that, but coded pages never set an `<h2>` above `type-display-sm`.
+  - The Inline video style is always 16:9, as the plan says, but the
+    inspector still offers 16:9 / 21:9 for it. Either hide the control for
+    Inline or let Inline follow it.
+  - The outlined secondary button's border is faint on Tinted and navy. It
+    uses the same classes as the site's `statusPanelSecondaryAction`.
+- Edge cases:
+  - On phones, a hidden non-white section between two white ones leaves
+    them touching with no hairline.
+  - The canvas misses a hairline when an empty section sits between two
+    white ones.
+  - The block gap relies on `:has()`. Without it, v2 blocks touch, as they
+    did before Task 11.
+- Header (Task 4):
+  - An empty title renders an empty `<h1>`, and a new page has no `<h1>`
+    until a header is added.
+  - A full header without media keeps its minimum height.
+  - A lede of only whitespace still renders.
+  - Header inputs and the photo alt field push one undo step per keystroke.
+  - Header media has no "decorative" flag.
+- Media (Task 3):
+  - Under reduced motion, a looping video with no poster shows a blank frame,
+    and the hidden video still downloads.
+  - `MediaPlaceholder` is not clipped to the chevron.
+  - `ItemList` uses index keys.
+  - The design guard has edge cases.
+  - Some `_v2` helpers lack tests.
+- Callout (Task 5): the English labels are untested.
+- Facts (Task 6): the Link field gives no scheme hint, and `//host` links are
+  not treated as external.
+- Carried into stage 3:
+  - rich text sanitized on the server, at save and at render;
+  - the remaining legacy block hrefs routed through `safeHref`;
+  - every block tolerating missing or unknown enum values at render.
+- Carried into stage 5: two saves racing on a page's first create.
+- Docs: `apps/docs` still documents the `cta` block and `BLOCK_LIBRARY`.
+- The palette's search for the header matches its label only.
+- The fixture has no looping video, because `public/` holds no video file.
+- Stage 1's deferrals still stand.
