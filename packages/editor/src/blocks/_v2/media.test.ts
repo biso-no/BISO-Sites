@@ -23,6 +23,11 @@ test("ratioValue is height over width", () => {
   expect(ratioValue("1/1")).toBe(1);
 });
 
+test("ratioValue falls back to 16/9 for an unknown or missing ratio", () => {
+  expect(ratioValue("nonsense" as never)).toBe(0.5625);
+  expect(ratioValue(undefined)).toBe(0.5625);
+});
+
 test("embeds: YouTube and Vimeo, nothing else", () => {
   expect(isEmbedUrl("https://youtu.be/abcdefghijk")).toBe(true);
   expect(isEmbedUrl("https://example.com/a.mp4")).toBe(false);

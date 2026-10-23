@@ -15,12 +15,13 @@ const IMAGE_WIDTH = 1600;
 const PROMPT = "Select an image in the inspector";
 
 function ImageBody({ block, edit }: { block: ImageBlock; edit: boolean }) {
-  const alt = block.decorative ? "" : block.alt;
+  const alt = block.decorative ? "" : (block.alt ?? "");
+  const ratio = block.ratio ?? "16/9";
   const placeholder = edit ? PROMPT : undefined;
   if (!block.src) {
-    return <MediaPlaceholder label={placeholder} ratio={block.ratio} />;
+    return <MediaPlaceholder label={placeholder} ratio={ratio} />;
   }
-  if (block.frame === "plain") {
+  if ((block.frame ?? "chevron") === "plain") {
     return (
       <div className="overflow-hidden rounded-biso-md">
         {/* biome-ignore lint/correctness/useImageSize: sized by its container. */}
@@ -37,9 +38,9 @@ function ImageBody({ block, edit }: { block: ImageBlock; edit: boolean }) {
   return (
     <ChevronMedia
       alt={alt}
-      lean={block.lean}
+      lean={block.lean ?? "left"}
       placeholder={placeholder}
-      ratio={block.ratio}
+      ratio={ratio}
       src={block.src}
       width={IMAGE_WIDTH}
     />
@@ -58,7 +59,7 @@ export function ImageRender({ block, edit, onPatch }: Props) {
             edit={edit}
             onChange={(caption) => onPatch("caption", caption)}
             tag="p"
-            value={block.caption}
+            value={block.caption ?? ""}
           />
         </figcaption>
       ) : null}

@@ -26,7 +26,8 @@ const RATIOS: FrameRatio[] = [
 ];
 
 export function ImageInspector({ block, onPatch }: Props) {
-  const needsAlt = !(block.decorative || block.alt.trim()) && !!block.src;
+  const needsAlt =
+    !(block.decorative || (block.alt ?? "").trim()) && !!block.src;
   return (
     <>
       <InspSection label="Image">
@@ -51,7 +52,7 @@ export function ImageInspector({ block, onPatch }: Props) {
             disabled={block.decorative}
             onChange={(e) => onPatch("alt", e.target.value)}
             placeholder="Describe the image"
-            value={block.alt}
+            value={block.alt ?? ""}
           />
         </InspRow>
         <label className="pe-check">
@@ -76,7 +77,7 @@ export function ImageInspector({ block, onPatch }: Props) {
             { label: "Plain", value: "plain" },
           ]}
           onPick={(frame) => onPatch("frame", frame)}
-          value={block.frame}
+          value={block.frame ?? "chevron"}
         />
       </InspSection>
       <InspSection label="Ratio">
@@ -86,10 +87,10 @@ export function ImageInspector({ block, onPatch }: Props) {
             value: r,
           }))}
           onPick={(ratio) => onPatch("ratio", ratio)}
-          value={block.ratio}
+          value={block.ratio ?? "16/9"}
         />
       </InspSection>
-      {block.frame === "chevron" ? (
+      {(block.frame ?? "chevron") === "chevron" ? (
         <InspSection label="Lean">
           <Segmented
             choices={[
@@ -97,7 +98,7 @@ export function ImageInspector({ block, onPatch }: Props) {
               { label: "Right", value: "right" },
             ]}
             onPick={(lean) => onPatch("lean", lean)}
-            value={block.lean}
+            value={block.lean ?? "left"}
           />
         </InspSection>
       ) : null}
@@ -105,7 +106,7 @@ export function ImageInspector({ block, onPatch }: Props) {
         <input
           onChange={(e) => onPatch("caption", e.target.value)}
           placeholder="Caption…"
-          value={block.caption}
+          value={block.caption ?? ""}
         />
       </InspSection>
     </>

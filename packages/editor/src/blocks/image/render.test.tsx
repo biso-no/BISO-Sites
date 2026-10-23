@@ -69,4 +69,17 @@ describe("ImageRender", () => {
     );
     expect(html(block())).not.toContain("<figcaption");
   });
+
+  test("an old-shape block without ratio or frame renders at 16/9", () => {
+    const old = {
+      aspect: "16/9",
+      caption: "",
+      id: "i1",
+      src: "https://example.com/a.jpg",
+      type: "image",
+    } as unknown as ImageBlock;
+    const out = html(old, true);
+    expect(out).toContain("--ar:0.5625");
+    expect(out).toContain("chevron-frame");
+  });
 });

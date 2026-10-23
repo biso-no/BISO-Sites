@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { GalleryBlock } from "@/editor/types";
@@ -35,6 +37,24 @@ describe("GalleryRender", () => {
     expect(out).toContain("@2xl:grid-cols-[2fr_1fr_1fr]");
     expect(out).toContain("@2xl:grid-rows-2");
     expect(out).toContain("--ar:0.75");
+  });
+
+  test("the big tile derives its cut from its own height", () => {
+    const out = html(block(5, "collage"));
+    expect(out).toContain("pg-chevron-fill");
+    expect(out).toContain("100cqh");
+    expect(out).toContain("container-type:size");
+    const css = readFileSync(
+      join(import.meta.dir, "../../theme/sections.css"),
+      "utf8"
+    );
+    expect(css).toContain(".pg-chevron-fill");
+    expect(css).toContain("var(--cut-len, var(--cut))");
+  });
+
+  test("a gallery without an images array does not throw", () => {
+    const bare = { id: "g", type: "gallery" } as unknown as GalleryBlock;
+    expect(html(bare)).toBe('<section data-surface="deep"></section>');
   });
 
   test("collage shows at most 5 images", () => {

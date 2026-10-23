@@ -217,3 +217,24 @@
     display: none;
   }
 }
+
+/* A chevron frame sized by its parent (a collage tile spanning grid rows).
+   The wrapper is a size container and sets --cut-len from its real height
+   (100cqh), so the cut is exactly 13 degrees whatever the grid makes the box.
+   Without --cut-len (narrow layouts) the normal ratio-derived cut applies. */
+.pg-chevron-fill {
+  clip-path: polygon(
+    var(--cut-len, var(--cut)) 0,
+    100% 0,
+    calc(100% - var(--cut-len, var(--cut))) 100%,
+    0 100%
+  );
+}
+.pg-chevron-fill[data-lean="right"] {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut-len, var(--cut))) 0,
+    100% 100%,
+    var(--cut-len, var(--cut)) 100%
+  );
+}

@@ -94,7 +94,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
     }
     if (layout === "collage" && i === 0) {
       return bigCollage
-        ? "relative col-span-2 @2xl:col-span-1 @2xl:row-span-2 @2xl:min-h-0"
+        ? "relative col-span-2 @2xl:col-span-1 @2xl:row-span-2 @2xl:min-h-0 @2xl:[--cut-len:calc(var(--shear-run,0.2309)*100cqh)] @2xl:[container-type:size]"
         : "relative col-span-2";
     }
     return "relative";
@@ -111,12 +111,15 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
               ratio = "4/5";
             }
             return (
-              <div className={tileClass(i)} key={image.fileId ?? image.src}>
+              <div
+                className={tileClass(i)}
+                key={`${index}-${image.fileId ?? image.src}`}
+              >
                 <ChevronMedia
                   alt={image.alt ?? ""}
                   className={
                     isBig && bigCollage
-                      ? "@2xl:aspect-auto @2xl:h-full @2xl:[&>img]:absolute @2xl:[&>img]:inset-0"
+                      ? "pg-chevron-fill @2xl:aspect-auto @2xl:h-full @2xl:[&>img]:absolute @2xl:[&>img]:inset-0"
                       : undefined
                   }
                   lean={i % 2 === 0 ? "left" : "right"}

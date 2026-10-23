@@ -40,8 +40,22 @@ export function sizedImageSrc(src: string, width: number): string {
   return `${match[1]}/preview${query}width=${width}&output=webp&quality=80`;
 }
 
-/** Height over width, for `--ar`. */
-export function ratioValue(ratio: FrameRatio): number {
-  const [w, h] = ratio.split("/").map(Number);
-  return h / w;
+const DEFAULT_RATIO: FrameRatio = "16/9";
+const RATIO_VALUES: Record<FrameRatio, number> = {
+  "21/9": 9 / 21,
+  "16/9": 9 / 16,
+  "3/2": 2 / 3,
+  "4/3": 3 / 4,
+  "1/1": 1,
+  "4/5": 5 / 4,
+  "3/4": 4 / 3,
+};
+
+/**
+ * Height over width, for `--ar`. Anything that is not a known ratio (old page
+ * data, copilot output) falls back to 16/9 rather than crashing the page.
+ */
+export function ratioValue(ratio: FrameRatio | undefined): number {
+  const known = ratio && RATIO_VALUES[ratio];
+  return known || RATIO_VALUES[DEFAULT_RATIO];
 }
