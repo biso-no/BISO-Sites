@@ -95,6 +95,19 @@ describe("TeamRender", () => {
     );
   });
 
+  test("a board team renders no tel link, even if a feed item carries a phone", () => {
+    const out = html(
+      { source: "board" },
+      {
+        [BOARD_KEY]: [
+          { name: "Fiona", phone: "+47 000 00 009", role: "Leder" },
+        ],
+      }
+    );
+    expect(out).toContain("Fiona");
+    expect(out).not.toContain("tel:");
+  });
+
   test("showContact true renders mailto and tel links", () => {
     const out = html();
     expect(out).toContain('href="mailto:leder@example.org"');

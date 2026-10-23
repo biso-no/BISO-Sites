@@ -74,6 +74,16 @@ describe("ContactRender", () => {
     expect(out).not.toContain("tel:");
   });
 
+  test("an instagram.com URL links to its handle, other values are plain text", () => {
+    expect(
+      html({ instagram: "https://www.instagram.com/bisowintergames/?hl=no" })
+    ).toContain('href="https://www.instagram.com/bisowintergames/"');
+    const other = html({ instagram: "https://evil.example/x" });
+    expect(other).not.toContain('href="https://evil.example');
+    expect(other).toContain("https://evil.example/x");
+    expect(html({ instagram: "two words" })).not.toContain("instagram.com");
+  });
+
   test("a javascript: instagram value is not linked", () => {
     const out = html({ instagram: "javascript:alert(1)" });
     expect(out).not.toContain('href="javascript:');

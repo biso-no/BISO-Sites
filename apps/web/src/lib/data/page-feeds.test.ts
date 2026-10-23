@@ -327,11 +327,17 @@ describe("resolvePageFeeds", () => {
         {
           email: "leder@example.org",
           name: "Kari Eksempel",
-          phone: "+47 000 00 001",
           photo: { src: "data:image/png;base64,AAAA" },
           role: "Leder",
         },
       ]);
+    });
+
+    test("board items never carry a phone number", async () => {
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      for (const item of feeds[pageFeedKey("board", "25")] ?? []) {
+        expect(item).not.toHaveProperty("phone");
+      }
     });
 
     test("caps the board at 24 members", async () => {

@@ -1,49 +1,20 @@
 import { Query } from "@repo/api";
-import { createAdminClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
-import { BOARD_FEED_LIMIT } from "@repo/editor/page-feeds";
+import {
+  type BoardFeedMember,
+  boardFeedMembers,
+} from "@repo/editor/page-feeds";
+import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
+import { feedClient } from "./feed";
 
 const TRAILING_SLASH = /\/+$/;
 const BOARD_FETCH_TIMEOUT_MS = 15_000;
 
-/** One board member as the page editor's team block reads it. */
-export interface BoardFeedMember {
-  email?: string;
-  name: string;
-  phone?: string;
-  photo?: { src: string };
-  role: string;
-}
-
-const asString = (value: unknown): string | undefined =>
-  typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
-
-function toMember(entry: unknown): BoardFeedMember | null {
-  if (typeof entry !== "object" || entry === null) {
-    return null;
-  }
-  const row = entry as Record<string, unknown>;
-  const name = asString(row.name);
-  if (!name) {
-    return null;
-  }
-  const email = asString(row.email);
-  const phone = asString(row.phone);
-  const photo = asString(row.profilePhotoUrl);
-  return {
-    ...(email ? { email } : {}),
-    name,
-    ...(phone ? { phone } : {}),
-    ...(photo ? { photo: { src: photo } } : {}),
-    role: asString(row.role) ?? "",
-  };
-}
-
 /**
  * A department's board, read from `apps/api` (which holds the Azure
- * credentials). The campus comes from the department row, read with the admin
- * client: the caller has already been authorised by the route, and the id is
- * validated, so the row is looked up by `$id` only.
+ * credentials). The campus comes from the department row, read with the guest
+ * client like the other feeds; the id is validated, so the row is looked up by
+ * `$id` only.
  *
  * An unknown department is an empty board; any failure THROWS.
  */
@@ -55,16 +26,19 @@ export async function readBoardFeed(
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured");
   }
 
-  const { db } = await createAdminClient();
+  const db = await feedClient();
   const { rows } = await db.listRows<Departments>("app", "departments", [
     Query.equal("$id", departmentId),
-    Query.select(["$id", "campus_id"]),
+    Query.select(["$id", "Name", "campus_id", "active", "type"]),
     Query.limit(1),
   ]);
-  const campusId = rows[0]?.campus_id;
-  if (!campusId) {
+  const department = rows[0];
+  // The guest client and the public-unit rule, so the preview shows what the
+  // site will.
+  if (!(department?.campus_id && isPublicUnit(department))) {
     return [];
   }
+  const campusId = department.campus_id;
 
   const response = await fetch(
     `${baseUrl.replace(TRAILING_SLASH, "")}/api/campus/${encodeURIComponent(campusId)}/${encodeURIComponent(departmentId)}/board`,
@@ -84,8 +58,5 @@ export async function readBoardFeed(
   if (!Array.isArray(members)) {
     throw new Error(`Board response for ${departmentId} had no members`);
   }
-  return members
-    .map(toMember)
-    .filter((member): member is BoardFeedMember => member !== null)
-    .slice(0, BOARD_FEED_LIMIT);
+  return boardFeedMembers(members);
 }

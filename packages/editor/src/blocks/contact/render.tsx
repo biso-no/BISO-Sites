@@ -36,6 +36,8 @@ const LABELS: Record<EditorLocale, Record<Field, string>> = {
 const LEADING_AT = /^@+/;
 const WHITESPACE = /\s+/g;
 const HANDLE = /^[\w.]+$/;
+const INSTAGRAM_URL =
+  /^https?:\/\/(?:www\.)?instagram\.com\/([\w.]+)\/?(?:[?#].*)?$/i;
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -54,10 +56,11 @@ function hrefFor(field: Field, value: string): string | null {
     return safeHref(`tel:${trimmed.replace(WHITESPACE, "")}`);
   }
   if (field === "instagram") {
-    const handle = trimmed.replace(LEADING_AT, "");
-    return HANDLE.test(handle)
-      ? `https://www.instagram.com/${handle}/`
-      : safeHref(trimmed);
+    // Only a handle or an instagram.com profile link becomes a link; anything
+    // else is plain text.
+    const handle =
+      INSTAGRAM_URL.exec(trimmed)?.[1] ?? trimmed.replace(LEADING_AT, "");
+    return HANDLE.test(handle) ? `https://www.instagram.com/${handle}/` : null;
   }
   return null;
 }

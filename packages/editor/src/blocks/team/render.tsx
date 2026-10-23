@@ -65,7 +65,8 @@ export function TeamRender({ block, edit, onPatch }: Props) {
             email={showContact ? text(member.email) : null}
             imageSrc={photoOf(member)}
             name={text(member.name)}
-            phone={showContact ? text(member.phone) : null}
+            // Board numbers are never published, whatever a feed carries.
+            phone={showContact && !isBoard ? text(member.phone) : null}
             position={text(member.role)}
           />
         </li>

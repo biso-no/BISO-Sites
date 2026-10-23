@@ -139,6 +139,52 @@ export function teamSource(value: unknown): "manual" | "board" {
 /** The most members a board feed carries; both hosts cap at this. */
 export const BOARD_FEED_LIMIT = 24;
 
+/** One board member as the team block reads it. There is no phone: see below. */
+export interface BoardFeedMember {
+  email?: string;
+  name: string;
+  photo?: { src: string };
+  role: string;
+}
+
+const boardText = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+
+/**
+ * A raw board entry (the unit board reader's or `apps/api`'s shape) as a feed
+ * item, or null without a name.
+ *
+ * Phone numbers are dropped on purpose. The coded unit page shows board emails
+ * only, and a feed snapshot ships to the browser whatever `showContact` says,
+ * so a number kept here would be published.
+ */
+export function toBoardFeedMember(entry: unknown): BoardFeedMember | null {
+  if (typeof entry !== "object" || entry === null) {
+    return null;
+  }
+  const row = entry as Record<string, unknown>;
+  const name = boardText(row.name);
+  if (!name) {
+    return null;
+  }
+  const email = boardText(row.email);
+  const photo = boardText(row.imageUrl) ?? boardText(row.profilePhotoUrl);
+  return {
+    ...(email ? { email } : {}),
+    name,
+    ...(photo ? { photo: { src: photo } } : {}),
+    role: boardText(row.role) ?? "",
+  };
+}
+
+/** Raw board entries as feed items, capped at `BOARD_FEED_LIMIT`. */
+export function boardFeedMembers(entries: unknown[]): BoardFeedMember[] {
+  return entries
+    .map(toBoardFeedMember)
+    .filter((member): member is BoardFeedMember => member !== null)
+    .slice(0, BOARD_FEED_LIMIT);
+}
+
 /** A partners block's source; missing or unknown is the `emptyBlock` default. */
 export function partnersSource(value: unknown): "auto" | "manual" {
   return value === "manual" ? "manual" : "auto";

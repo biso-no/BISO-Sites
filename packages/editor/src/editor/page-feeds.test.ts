@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  BOARD_FEED_LIMIT,
+  boardFeedMembers,
   clampFeedLimit,
   collectPageFeedRequests,
   feedLimitFromParam,
@@ -349,5 +351,34 @@ describe("shop requests", () => {
         "no"
       )
     ).toEqual([]);
+  });
+});
+
+describe("boardFeedMembers", () => {
+  test("maps both host shapes, drops phones, nameless rows and the overflow", () => {
+    const items = boardFeedMembers([
+      {
+        email: "a@example.org",
+        imageUrl: "data:image/png;base64,AAAA",
+        name: " Kari ",
+        phone: "+47 000 00 001",
+        role: "Leder",
+      },
+      { name: "Ola", profilePhotoUrl: "data:image/png;base64,BBBB" },
+      { name: "" },
+      null,
+      ...Array.from({ length: 40 }, (_, i) => ({ name: `M${i}` })),
+    ]);
+    expect(items[0]).toEqual({
+      email: "a@example.org",
+      name: "Kari",
+      photo: { src: "data:image/png;base64,AAAA" },
+      role: "Leder",
+    });
+    expect(items[1]?.photo?.src).toBe("data:image/png;base64,BBBB");
+    expect(items).toHaveLength(BOARD_FEED_LIMIT);
+    for (const item of items) {
+      expect(item).not.toHaveProperty("phone");
+    }
   });
 });
