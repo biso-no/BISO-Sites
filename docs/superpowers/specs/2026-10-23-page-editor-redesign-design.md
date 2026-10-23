@@ -756,3 +756,65 @@ Branch `feat/page-editor-redesign`, plan
 - Pre-existing, unchanged: coded unit pages' `cachedUnitProducts` filters
   products by locale and empties the English shop; the api `campus_benefits`
   permission test fails on base.
+
+## Stage 4 done (2026-10-23)
+
+Branch `feat/page-editor-redesign`, plan
+`docs/superpowers/plans/2026-10-23-page-editor-stage-4-themes.md`, commits
+`b467c6eb..` this note.
+
+**What works**
+
+- A page or department can carry a two-colour theme (D7). `PageMeta.theme`
+  replaces the five-swatch `accentColor`, which is gone everywhere, including
+  the copilot's `apply_accent` tool. `theme` absent means "follow the
+  department", `null` means "reset to BISO", an object is a custom theme.
+- Colour maths live in `@repo/shared/utils/page-theme`: WCAG contrast, the C2b
+  checks (dark ≥ 7 : 1 on white, accent ≥ 4.5 : 1 on dark), the nearest passing
+  shade (same hue, lightness just past the threshold), and every derived token:
+  the on-white action shade (≥ 4.5 : 1 on white and on Tinted), raised,
+  sunken, edge and muted ink on the dark. Hostile or failing colours never
+  reach CSS; a theme equal to BISO's own colours applies no overrides, so BISO
+  pages stay byte-identical.
+- The site's navy-derived values are named tokens
+  (`--biso-deep-raised|sunken|edge|ink-muted`, `--biso-ink`), value-identical.
+  Body text on white stays navy under any theme.
+- On the website a themed page renders its theme as the first element of the
+  page (catch-all, unit custom page and the coded default unit view). The nav,
+  page header, Dark and Photo sections, forms band and footer turn the theme's
+  dark; buttons, links and stat numbers take the accent or its derived
+  on-white shade. Because Next keeps the previous page mounted in a hidden
+  Activity, the style is a small client component that switches its sheet off
+  when hidden and on when shown: navigating away gives navy, Back gives the
+  theme again (checked in Chrome).
+- Publish copies an explicit page theme to the department row (C2a), through
+  the admin client after the publish check, with an audit event. Absent
+  themes never touch the department; a failing stored theme never blocks the
+  publish. Save rejects a failing theme with a plain sentence.
+- The editor canvas wears the effective theme (page theme, else department,
+  else BISO) as inline variables on `.pe-frame`. While the theme fails, autosave
+  pauses with "Not saved: theme colours fail the contrast check", Publish and
+  the language switch are disabled with a reason, and timers can't clear that
+  state.
+- The Theme panel (D8) in page settings: a saturation/value area and hue
+  slider (pointer and keyboard), a hex field ("Not a colour" on bad input),
+  BISO quick picks, Reset, live contrast results with "Use #…" for the nearest
+  passing shade, and a scope line ("Applies to all <department> pages"). A
+  drag repaints the canvas live through a transient preview that is never
+  saved and adds exactly one undo step.
+- Visual check on `/design-system/page-blocks/themed` (deep purple `#3b1c6b`,
+  lilac `#c8a2f0`) at 1440, 820 and 390, and in dark mode: no horizontal scroll,
+  readable everywhere. `bun run build --filter=admin` passes.
+
+**Owed / known**
+
+- Unpublishing a page does not clear its department's theme.
+- Copilot theme support (C7) and revalidating department themes on publish (C5)
+  are stage 5.
+- The editor's Theme panel was checked by tests only (admin sign-in is
+  Microsoft OAuth); the canvas and panel still need a look in a real browser.
+- The admin build logs a stale Turbopack cache resolve error for the deleted
+  `blocks.css`; the built CSS is correct. Clearing `apps/admin/.next/cache`
+  removes the message.
+- Web `next build` and the standalone-server request (owed since stage 3) are
+  still to run, once no dev server uses `apps/web`.
