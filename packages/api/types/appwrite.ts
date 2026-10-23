@@ -142,19 +142,6 @@ export enum AnnouncementsContentType {
   JOB = "job",
 }
 
-export enum ContentNotificationsContentType {
-  EVENT = "event",
-  NEWS = "news",
-  JOB = "job",
-}
-
-export enum ContentNotificationsStatus {
-  PENDING = "pending",
-  SENT = "sent",
-  SKIPPED = "skipped",
-  CANCELLED = "cancelled",
-}
-
 export enum PageTranslationsLocale {
   NO = "no",
   EN = "en",
@@ -501,6 +488,19 @@ export enum MemberPassScansCodeKind {
   APPLE = "apple",
 }
 
+export enum ContentNotificationsContentType {
+  EVENT = "event",
+  NEWS = "news",
+  JOB = "job",
+}
+
+export enum ContentNotificationsStatus {
+  PENDING = "pending",
+  SENT = "sent",
+  SKIPPED = "skipped",
+  CANCELLED = "cancelled",
+}
+
 export enum MembershipTextsSpot {
   HOME_JOIN = "home_join",
   PLAN_CARD = "plan_card",
@@ -509,6 +509,11 @@ export enum MembershipTextsSpot {
   SHOP_CALLOUT = "shop_callout",
   BUSINESS = "business",
   BUSINESS_HOTSPOT = "business_hotspot",
+}
+
+export enum AppVersionsPlatform {
+  IOS = "ios",
+  ANDROID = "android",
 }
 
 export type News = Models.Row & {
@@ -727,7 +732,6 @@ export type JobApplications = Models.Row & {
   data_processing_purpose: string;
   data_retention_until: string;
   resume_file_id: string | null;
-  cover_letter_file_id: string | null;
   cover_letter: string | null;
   review_metadata: string | null;
   candidate_profile_id: string | null;
@@ -739,6 +743,7 @@ export type JobApplications = Models.Row & {
   candidate_profile: CandidateProfiles;
   answers: JobApplicationAnswers[];
   interviews: JobInterviews[];
+  cover_letter_file_id: string | null;
 };
 
 export type Departments = Models.Row & {
@@ -780,7 +785,6 @@ export type CampusBenefits = Models.Row & {
   kind: CampusBenefitsKind | null;
   redemption_type: CampusBenefitsRedemptionType;
   category: string | null;
-  section: CampusBenefitsSection;
   partner_name: string | null;
   partner_logo_url: string | null;
   title_nb: string;
@@ -803,6 +807,7 @@ export type CampusBenefits = Models.Row & {
   created_by: string | null;
   campus: Campus;
   department: Departments;
+  section: CampusBenefitsSection;
 };
 
 export type UserNotifications = Models.Row & {
@@ -887,18 +892,6 @@ export type Announcements = Models.Row & {
   content_ids: string[] | null;
   items: string | null;
   image: string | null;
-};
-
-export type ContentNotifications = Models.Row & {
-  content_type: ContentNotificationsContentType;
-  content_id: string;
-  campus_id: string | null;
-  channel: string;
-  status: ContentNotificationsStatus;
-  reason: string | null;
-  due_at: string | null;
-  sent_at: string | null;
-  announcement_id: string | null;
 };
 
 export type LedgerAccounts = Models.Row & {
@@ -1730,16 +1723,6 @@ export type MemberPassScanners = Models.Row & {
   invited_at: string | null;
 };
 
-export type TwentyFourSevenOfficeDepartments = Models.Row & {
-  Id: string;
-  Name: string;
-  Campus: string | null;
-};
-
-export type AuthTokens = Models.Row & {
-  token: string;
-};
-
 export type MemberRoster = Models.Row & {
   company_id: number;
   name: string;
@@ -1763,6 +1746,18 @@ export type DocumentVersions = Models.Row & {
   uploaded_by: string | null;
 };
 
+export type ContentNotifications = Models.Row & {
+  content_type: ContentNotificationsContentType;
+  content_id: string;
+  campus_id: string | null;
+  channel: string;
+  status: ContentNotificationsStatus;
+  reason: string | null;
+  due_at: string | null;
+  sent_at: string | null;
+  announcement_id: string | null;
+};
+
 export type BenefitCodes = Models.Row & {
   benefit_id: string;
   value: string;
@@ -1776,4 +1771,14 @@ export type MembershipTexts = Models.Row & {
   title_en: string | null;
   body_nb: string | null;
   body_en: string | null;
+};
+
+export type AppVersions = Models.Row & {
+  platform: AppVersionsPlatform;
+  minimum_version: string | null;
+  recommended_version: string | null;
+};
+
+export type AuthTokens = Models.Row & {
+  token: string;
 };
