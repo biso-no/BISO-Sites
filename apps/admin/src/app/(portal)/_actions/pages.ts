@@ -17,6 +17,8 @@ import {
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
+import { normalizePageDoc } from "@repo/editor/serialize";
+import type { PageDoc as EditorPageDoc } from "@repo/editor/types";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
@@ -43,6 +45,10 @@ import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
+import {
+  departmentThemeUpdate,
+  themeSaveError,
+} from "@/lib/page-theme-publish";
 import {
   assertUnitPageBindingUnchanged,
   assertUnitPageNamespace,
@@ -266,6 +272,12 @@ export async function savePageEditorDoc({
 }): Promise<{ pageId: string; slug: string } | { error: string }> {
   const ctx = await requireAuth();
   try {
+    // Before anything normalizes the document: normalizing silently drops a
+    // failing theme, and the editor should hear about it instead.
+    const themeError = themeSaveError(doc.meta);
+    if (themeError) {
+      return { error: themeError };
+    }
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
     // Normalize the incoming slug ONCE, before any guard inspects it, and
     // reuse that exact value everywhere — the guards and the persisted row.
@@ -408,6 +420,13 @@ export async function publishPageAction(
       resourceId: id,
       resourceType: "page",
     });
+    await copyThemeToDepartment({
+      ctx,
+      db,
+      departmentId: ownership.department,
+      locale: publishedLocale,
+      pageId: id,
+    });
     revalidatePath("/pages");
     const publishedPageVersion = sourceDocument
       ? (await db.getRow<Pages>("app", "pages", id)).$updatedAt
@@ -436,6 +455,58 @@ export async function publishPageAction(
   } catch (e) {
     console.error("[publishPageAction]", e);
     throw new Error(e instanceof Error ? e.message : "Failed to publish page");
+  }
+}
+
+/**
+ * After a publish, copy the published page's theme to its department. Never
+ * throws into the publish: the page is already live, and a theme problem only
+ * means the department keeps what it had.
+ */
+async function copyThemeToDepartment({
+  ctx,
+  db,
+  departmentId,
+  locale,
+  pageId,
+}: {
+  ctx: UserAuthContext;
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"];
+  departmentId: string | null;
+  locale: PageEditorLocale;
+  pageId: string;
+}): Promise<void> {
+  if (!departmentId) {
+    return;
+  }
+  try {
+    const editor = await pbGetPageEditorById(pageId, db);
+    const published = editor?.translations[locale]?.publishedDocument;
+    if (!published) {
+      return;
+    }
+    // Normalizing drops a failing theme to absent, so "invalid" is unreachable
+    // here; it is handled as a skip anyway.
+    const update = departmentThemeUpdate(
+      normalizePageDoc(published as EditorPageDoc).meta
+    );
+    if (update === "skip") {
+      return;
+    }
+    if (update === "invalid") {
+      console.warn(
+        `[publishPageAction] page ${pageId} carries an invalid theme; department ${departmentId} left unchanged`
+      );
+      return;
+    }
+    await db.updateRow("app", "departments", departmentId, update);
+    await logAuditEvent(ctx, "department_theme_updated", {
+      payload: { pageId, ...update },
+      resourceId: departmentId,
+      resourceType: "department",
+    });
+  } catch (e) {
+    console.error("[publishPageAction] department theme update failed", e);
   }
 }
 
