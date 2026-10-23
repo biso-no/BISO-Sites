@@ -7,7 +7,9 @@
 /*
  * Container context for the public render root and the editor canvas frame.
  *
- * Sections size themselves against this *frame* (`pg-page`), not the viewport; each column is the `pg` container the blocks answer to, so the admin's
+ * Sections size themselves against this *frame* (`pg-page`), not the
+ * viewport; each column is the `pg` container the blocks answer to. So the
+ * admin's
  * device preview (`.pe-frame.mob` is a 390px frame inside a wide window) hits
  * exactly the breakpoints the public site will. Plain `@media` queries would
  * never fire there.
