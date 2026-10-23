@@ -12,13 +12,16 @@ interface Props {
 }
 
 const IMAGE_WIDTH = 1600;
+
+const hasImage = (block: ImageBlock): block is ImageBlock & { src: string } =>
+  typeof block.src === "string" && block.src.trim() !== "";
 const PROMPT = "Select an image in the inspector";
 
 function ImageBody({ block, edit }: { block: ImageBlock; edit: boolean }) {
   const alt = block.decorative ? "" : (block.alt ?? "");
   const ratio = block.ratio ?? "16/9";
   const placeholder = edit ? PROMPT : undefined;
-  if (!block.src) {
+  if (!hasImage(block)) {
     return <MediaPlaceholder label={placeholder} ratio={ratio} />;
   }
   if ((block.frame ?? "chevron") === "plain") {
@@ -49,6 +52,11 @@ function ImageBody({ block, edit }: { block: ImageBlock; edit: boolean }) {
 }
 
 export function ImageRender({ block, edit, onPatch }: Props) {
+  // Like video and gallery: with no image the site shows nothing at all,
+  // while the editor keeps the placeholder that says where to add one.
+  if (!(hasImage(block) || edit)) {
+    return null;
+  }
   return (
     <figure className="m-0">
       <ImageBody block={block} edit={edit} />

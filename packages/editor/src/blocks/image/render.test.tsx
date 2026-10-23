@@ -50,15 +50,19 @@ describe("ImageRender", () => {
     expect(out).not.toContain("chevron-frame");
   });
 
-  test("a missing src renders the placeholder and no img", () => {
-    const out = html(block({ src: undefined }));
-    expect(out).not.toContain("<img");
-    expect(out).toContain("bg-surface-sunken");
+  test("in the editor a missing src shows the placeholder and its prompt", () => {
+    const root = parseHtml(html(block({ src: undefined }), true));
+    expect(root.querySelector("img")).toBeNull();
+    expect(root.textContent).toContain("inspector");
   });
 
-  test("the placeholder prompt shows in the editor only", () => {
-    expect(html(block({ src: undefined }), true)).toContain("inspector");
-    expect(html(block({ src: undefined }), false)).not.toContain("inspector");
+  test("on the site a missing src renders nothing, caption and all", () => {
+    // As video and gallery do: no grey box, no orphaned caption.
+    for (const src of [undefined, "", "  "]) {
+      expect(html(block({ caption: "Opening night", src }))).toBe(
+        '<section data-surface="deep"></section>'
+      );
+    }
   });
 
   test("the caption is a hint in the editor, never saved text", () => {
