@@ -219,7 +219,9 @@ describe("POST /api/form/submit", () => {
       { ...base, data: many },
       { ...base, data: ["a"] },
       { ...base, data: "x" },
-      { ...base, slug: "Has/Upper" },
+      { ...base, slug: "a b" },
+      { ...base, slug: "a\nb" },
+      { ...base, slug: "" },
       { ...base, slug: `${"a".repeat(129)}` },
       { ...base, slug: 4 },
     ]) {
@@ -296,6 +298,17 @@ describe("POST /api/form/submit", () => {
       mocks.department.mockResolvedValue(null);
       expect((await post({ ...base, slug: unitSlug })).status).toBe(404);
     });
+  });
+
+  it.each([
+    "Om-BISO",
+    "om_oss",
+    "info.2026",
+    "fadderuka-ø",
+  ])("accepts the stored slug %s and passes it to the reader as is", async (slug) => {
+    publish(block());
+    expect((await post({ ...base, slug })).status).toBe(200);
+    expect(mocks.page).toHaveBeenCalledWith(slug, "no");
   });
 
   it("answers 400 for a malformed body", async () => {

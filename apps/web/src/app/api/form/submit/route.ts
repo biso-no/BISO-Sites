@@ -14,8 +14,13 @@ import { findCanonicalUnit, publishedUnitPage } from "@/lib/unit-page";
 const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
 /** The `page_translations`/`pages` slug column size. */
 const MAX_SLUG_LENGTH = 128;
-/** Lowercase, digits, `-` and `/`, starting with a letter or digit. */
-const SLUG_SHAPE = /^[a-z0-9][a-z0-9/-]*$/;
+/**
+ * What a stored slug can hold: admin saves it trimmed and nothing more, so it
+ * may carry capitals and non-ASCII letters (`Om-BISO`, `fadderuka-ø`). Letters,
+ * digits and `/ . _ ~ -` only: no whitespace or control characters. Passed to
+ * the page reader exactly as received, never lowercased.
+ */
+const SLUG_SHAPE = /^[\p{L}\p{N}][\p{L}\p{N}/._~-]*$/u;
 /** Largest request body read: a full 16 KiB answer set plus JSON overhead. */
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_DATA_KEYS = 100;
