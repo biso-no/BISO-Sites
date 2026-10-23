@@ -28,9 +28,10 @@ registerBlock({
   description: "A single photo with caption",
   category: "Media",
   aiHint: "A full-width image with an optional caption.",
-  aiProps: ["caption", "aspect"],
+  aiProps: ["alt", "caption", "ratio", "frame"],
   empty: () => emptyBlock("image") as never,
   Render: ImageRender as never,
   Inspector: ImageInspector as never,
   PaletteThumb: ImageThumb,
+  v2: true,
 });

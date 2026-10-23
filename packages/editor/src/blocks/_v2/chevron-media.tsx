@@ -5,6 +5,8 @@ import { MediaPlaceholder } from "./media-placeholder";
 
 interface ChevronMediaProps {
   alt?: string;
+  /** Extra classes on the frame, e.g. to let a grid size it. */
+  className?: string;
   kind?: "image" | "video";
   lean?: "left" | "right";
   /** "eager" for media above the fold (a page header's); lazy otherwise. */
@@ -22,6 +24,7 @@ const DEFAULT_WIDTH = 1200;
 
 export function ChevronMedia({
   alt = "",
+  className,
   kind = "image",
   lean = "left",
   loading = "lazy",
@@ -80,7 +83,7 @@ export function ChevronMedia({
   }
   return (
     <div
-      className="chevron-frame"
+      className={className ? `chevron-frame ${className}` : "chevron-frame"}
       data-lean={lean === "right" ? "right" : undefined}
       style={{ "--ar": ratioValue(ratio) } as CSSProperties}
     >

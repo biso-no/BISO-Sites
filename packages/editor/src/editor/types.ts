@@ -182,21 +182,28 @@ export interface TimelineBlock {
 }
 
 export interface ImageBlock {
-  aspect: string;
+  alt: string;
   caption: string;
+  /** Marks the image as decoration: it then renders with an empty alt. */
+  decorative?: boolean;
   fileId?: string; // Appwrite "media" bucket file ID
+  frame: "chevron" | "plain";
   id: string;
+  lean: "left" | "right";
+  ratio: FrameRatio;
   src?: string; // public view URL (set on upload) or external URL
   type: "image";
 }
 
 export interface GalleryImage {
+  alt?: string;
   fileId?: string;
-  src?: string;
+  src: string;
 }
 export interface GalleryBlock {
   id: string;
   images: GalleryImage[];
+  layout: "collage" | "grid" | "row";
   type: "gallery";
 }
 

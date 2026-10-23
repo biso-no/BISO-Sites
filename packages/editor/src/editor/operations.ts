@@ -119,9 +119,17 @@ export function emptyBlock(type: BlockType): Block {
         body: "Something worth flagging.",
       };
     case "image":
-      return { id, type, caption: "", aspect: "16/9" };
+      return {
+        id,
+        type,
+        alt: "",
+        caption: "",
+        frame: "chevron",
+        lean: "left",
+        ratio: "16/9",
+      };
     case "gallery":
-      return { id, type, images: [] };
+      return { id, type, images: [], layout: "collage" };
     case "video":
       return { id, type, caption: "" };
     case "buttons":

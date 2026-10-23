@@ -451,91 +451,6 @@
   }
 }
 
-/* IMAGE */
-.pg-image {
-  padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
-}
-.pg-image__frame {
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink-3);
-  background: repeating-linear-gradient(
-    135deg,
-    var(--paper-2) 0 14px,
-    var(--paper-3) 14px 28px
-  );
-  border: 0.5px solid var(--rule-2);
-  border-radius: var(--pg-radius);
-}
-.pg-image__caption {
-  margin-top: 8px;
-  font-size: 12px;
-  font-style: italic;
-  color: var(--ink-3);
-  text-align: center;
-}
-
-/* Editor hint for an empty caption. A hint, not text: it is never saved. */
-.pg-image__caption[data-placeholder]:empty::before {
-  color: var(--ink-4);
-  content: attr(data-placeholder);
-}
-
-/* GALLERY */
-.pg-gallery {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
-}
-.pg-gallery__tile {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  cursor: pointer;
-  background: repeating-linear-gradient(
-    135deg,
-    var(--paper-2) 0 12px,
-    var(--paper-3) 12px 24px
-  );
-  border: 0.5px solid var(--rule-2);
-  border-radius: var(--pg-radius-sm);
-}
-.pg-gallery__tile.big {
-  grid-row: span 2;
-  aspect-ratio: 4 / 6;
-}
-.pg-gallery__tile img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.pg-gallery__add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 4 / 3;
-  font-size: 22px;
-  color: var(--ink-4);
-  cursor: pointer;
-  border: 1.5px dashed var(--rule-2);
-  border-radius: var(--pg-radius-sm);
-  transition:
-    border-color 0.12s,
-    color 0.12s;
-}
-.pg-gallery__add:hover {
-  color: var(--page-accent);
-  border-color: var(--page-accent);
-}
-
 /* VIDEO */
 .pg-video {
   padding: calc(24px * var(--pg-space, 1)) var(--pg-gutter);
@@ -1556,7 +1471,6 @@ textarea.pg-msform__input {
 
   .pg-team-grid,
   .pg-events-grid,
-  .pg-gallery,
   .pg-featuregrid__grid--cols3,
   .pg-featuregrid__grid--cols4 {
     grid-template-columns: repeat(2, 1fr);
@@ -1578,7 +1492,6 @@ textarea.pg-msform__input {
 
   .pg-section[data-width="prose"] .pg-team-grid,
   .pg-section[data-width="prose"] .pg-events-grid,
-  .pg-section[data-width="prose"] .pg-gallery,
   .pg-section[data-width="prose"] .pg-featuregrid__grid--cols3,
   .pg-section[data-width="prose"] .pg-featuregrid__grid--cols4 {
     grid-template-columns: repeat(2, 1fr);
@@ -1595,7 +1508,6 @@ textarea.pg-msform__input {
   .pg-contact,
   .pg-team-grid,
   .pg-events-grid,
-  .pg-gallery,
   .pg-twocol--equal,
   .pg-twocol--leftWide,
   .pg-twocol--rightWide,

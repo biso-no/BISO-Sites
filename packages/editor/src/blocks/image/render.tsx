@@ -1,6 +1,8 @@
 "use client";
 
+import { ChevronMedia, MediaPlaceholder, sizedImageSrc } from "@/blocks/_v2";
 import type { PatchFn } from "@/blocks/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { ImageBlock } from "@/editor/types";
 
 interface Props {
@@ -9,54 +11,57 @@ interface Props {
   onPatch: PatchFn;
 }
 
-export function ImageRender({ block, edit, onPatch }: Props) {
-  const src = block.src;
-  return (
-    <div className="pg-image pg-block">
-      <div
-        className="pg-image__frame"
-        style={{ aspectRatio: block.aspect || "16/9" }}
-      >
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            alt={block.caption}
-            height={675}
-            src={src}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            width={1200}
-          />
-        ) : (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--ink-4)",
-              fontFamily: "var(--mono)",
-            }}
-          >
-            {edit ? "Select an image in the inspector →" : "No image"}
-          </span>
-        )}
+const IMAGE_WIDTH = 1600;
+const PROMPT = "Select an image in the inspector";
+
+function ImageBody({ block, edit }: { block: ImageBlock; edit: boolean }) {
+  const alt = block.decorative ? "" : block.alt;
+  const placeholder = edit ? PROMPT : undefined;
+  if (!block.src) {
+    return <MediaPlaceholder label={placeholder} ratio={block.ratio} />;
+  }
+  if (block.frame === "plain") {
+    return (
+      <div className="overflow-hidden rounded-biso-md">
+        {/* biome-ignore lint/correctness/useImageSize: sized by its container. */}
+        <img
+          alt={alt}
+          className="block h-auto w-full"
+          decoding="async"
+          loading="lazy"
+          src={sizedImageSrc(block.src, IMAGE_WIDTH)}
+        />
       </div>
-      {(block.caption || edit) && (
-        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-        <p
-          className="pg-image__caption"
-          contentEditable={edit || undefined}
-          data-edit={edit ? "1" : undefined}
-          data-placeholder={edit ? "Caption…" : undefined}
-          onBlur={
-            edit
-              ? (e) => onPatch("caption", e.currentTarget.textContent ?? "")
-              : undefined
-          }
-          role={edit ? "textbox" : undefined}
-          suppressContentEditableWarning
-          tabIndex={edit ? 0 : undefined}
-        >
-          {block.caption}
-        </p>
-      )}
-    </div>
+    );
+  }
+  return (
+    <ChevronMedia
+      alt={alt}
+      lean={block.lean}
+      placeholder={placeholder}
+      ratio={block.ratio}
+      src={block.src}
+      width={IMAGE_WIDTH}
+    />
+  );
+}
+
+export function ImageRender({ block, edit, onPatch }: Props) {
+  return (
+    <figure className="m-0">
+      <ImageBody block={block} edit={edit} />
+      {block.caption || edit ? (
+        <figcaption>
+          <EditableText
+            className="type-body-sm mt-3 text-ink-muted empty:before:opacity-60 empty:before:content-[attr(data-placeholder)]"
+            data-placeholder={edit ? "Caption…" : undefined}
+            edit={edit}
+            onChange={(caption) => onPatch("caption", caption)}
+            tag="p"
+            value={block.caption}
+          />
+        </figcaption>
+      ) : null}
+    </figure>
   );
 }

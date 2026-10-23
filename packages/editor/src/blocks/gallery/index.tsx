@@ -50,9 +50,10 @@ registerBlock({
   description: "A grid of photos",
   category: "Media",
   aiHint: "A photo gallery grid.",
-  aiProps: ["images"],
+  aiProps: ["images", "layout"],
   empty: () => emptyBlock("gallery") as never,
   Render: GalleryRender as never,
   Inspector: GalleryInspector as never,
   PaletteThumb: GalleryThumb,
+  v2: true,
 });
