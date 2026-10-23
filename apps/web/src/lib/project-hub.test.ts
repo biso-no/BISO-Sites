@@ -59,6 +59,7 @@ const unit = (
 const event = (title: string) => ({
   date: "1. jan.",
   going: 0,
+  id: `event-${title}`,
   title,
   where: "",
 });

@@ -16,7 +16,7 @@
  * would never see.
  */
 
-import { Query } from "@repo/api";
+import { Query, resolveStorageFileUrl } from "@repo/api";
 import type { createPublicClient } from "@repo/api/server";
 import type {
   ContentTranslations,
@@ -29,6 +29,7 @@ import type {
 import { JobsStatus, NewsStatus } from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "../types/recruitment";
 import { unitDisplayName } from "./unit-names";
+import { campusIdToLabel, unitCanonicalPath } from "./unit-urls";
 import { isPublicUnit } from "./unit-visibility";
 
 /** Erased at runtime — this module never constructs a client. */
@@ -37,6 +38,33 @@ type FeedDb = Awaited<ReturnType<typeof createPublicClient>>["db"];
 export type PageFeedLocale = "en" | "no";
 
 const FEED_LIMIT = 6;
+const FEED_LIMIT_MAX = 12;
+
+/** The caller's `limit`, clamped to 1..12 and defaulting to `FEED_LIMIT`. */
+function feedLimit(limit: number | undefined): number {
+  if (typeof limit !== "number" || !Number.isFinite(limit)) {
+    return FEED_LIMIT;
+  }
+  return Math.min(FEED_LIMIT_MAX, Math.max(1, Math.floor(limit)));
+}
+
+/** ISO instant for a stored date, or undefined when absent or unparseable. */
+function toIso(value: string | null | undefined): string | undefined {
+  if (!value) {
+    return;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
+/** `${base}/${slug}`, or undefined for a row with no usable slug. */
+function detailHref(
+  base: string,
+  slug: string | null | undefined
+): string | undefined {
+  const trimmed = slug?.trim();
+  return trimmed ? `${base}/${encodeURIComponent(trimmed)}` : undefined;
+}
 /**
  * Headroom, not a page size. The `departmentGrid` block has no pagination, so
  * whatever this cuts off simply disappears from the page — and because the
@@ -108,8 +136,17 @@ export function toPlainSummary(html: string): string {
 }
 
 export interface PageEventItem {
+  category?: string;
   date: string;
   going: number;
+  /** Event detail route, as `getEventHref` builds it. Absent without a slug. */
+  href?: string;
+  id: string;
+  image?: string;
+  memberOnly?: boolean;
+  /** ISO instant of `start_date`. */
+  startsAt?: string;
+  ticketUrl?: string;
   title: string;
   where: string;
 }
@@ -127,11 +164,17 @@ export interface PageEventItem {
 export async function readPageEventsFeed(
   db: FeedDb,
   departmentId: string,
-  locale: PageFeedLocale
+  locale: PageFeedLocale,
+  limit?: number
 ): Promise<PageEventItem[]> {
   const events = await db.listRows<Events>("app", "events", [
     Query.select([
       "$id",
+      "slug",
+      "image",
+      "category",
+      "ticket_url",
+      "member_only",
       "start_date",
       "location",
       "translation_refs.locale",
@@ -141,12 +184,19 @@ export async function readPageEventsFeed(
     Query.equal("department_id", departmentId),
     Query.greaterThanEqual("start_date", new Date().toISOString()),
     Query.orderAsc("start_date"),
-    Query.limit(FEED_LIMIT),
+    Query.limit(feedLimit(limit)),
   ]);
 
   return events.rows.map((event) => ({
+    category: event.category ?? undefined,
     date: formatFeedDate(event.start_date, locale),
     going: 0,
+    href: detailHref("/events", event.slug),
+    id: event.$id,
+    image: resolveStorageFileUrl(event.image) ?? undefined,
+    memberOnly: event.member_only || undefined,
+    startsAt: toIso(event.start_date),
+    ticketUrl: event.ticket_url || undefined,
     title: pickTranslation(event.translation_refs, locale)?.title ?? "",
     where: event.location ?? "",
   }));
@@ -154,7 +204,12 @@ export async function readPageEventsFeed(
 
 export interface PageNewsItem {
   department: string;
+  /** Article route, as the coded news list builds it. Absent without a slug. */
+  href?: string;
+  id: string;
+  image?: string;
   publishedAt: string;
+  publishedAtIso?: string;
   summary: string;
   title: string;
 }
@@ -163,12 +218,15 @@ export interface PageNewsItem {
 export async function readPageNewsFeed(
   db: FeedDb,
   departmentId: string,
-  locale: PageFeedLocale
+  locale: PageFeedLocale,
+  limit?: number
 ): Promise<PageNewsItem[]> {
   const news = await db.listRows<News>("app", "news", [
     Query.select([
       "$id",
       "$createdAt",
+      "slug",
+      "image",
       "department.Name",
       "translation_refs.locale",
       "translation_refs.title",
@@ -178,14 +236,18 @@ export async function readPageNewsFeed(
     Query.equal("status", NewsStatus.PUBLISHED),
     Query.equal("department_id", departmentId),
     Query.orderDesc("$createdAt"),
-    Query.limit(FEED_LIMIT),
+    Query.limit(feedLimit(limit)),
   ]);
 
   return news.rows.map((row) => {
     const translation = pickTranslation(row.translation_refs, locale);
     return {
       department: departmentName(row.department),
+      href: detailHref("/news", row.slug),
+      id: row.$id,
+      image: resolveStorageFileUrl(row.image) ?? undefined,
       publishedAt: formatFeedDate(row.$createdAt, locale),
+      publishedAtIso: toIso(row.$createdAt),
       summary: toPlainSummary(
         translation?.short_description ?? translation?.description ?? ""
       ),
@@ -197,8 +259,41 @@ export async function readPageNewsFeed(
 export interface PageJobItem {
   commitment: string;
   deadline: string;
+  deadlineIso?: string;
   department: string;
+  employmentType?: string;
+  /** Vacancy route, as the sitemap and applications list build it. */
+  href?: string;
+  id: string;
+  paid?: boolean;
   title: string;
+}
+
+/** `paid` and `employment_type` from the `jobs.metadata` JSON blob. */
+export function jobExtras(metadata: string | null): {
+  employmentType?: string;
+  paid?: boolean;
+} {
+  if (!metadata) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(metadata) as {
+      employment_type?: unknown;
+      paid?: unknown;
+    };
+    const employmentType =
+      typeof parsed.employment_type === "string" &&
+      parsed.employment_type.trim()
+        ? parsed.employment_type
+        : undefined;
+    return {
+      employmentType,
+      paid: typeof parsed.paid === "boolean" ? parsed.paid : undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 /** `jobs.metadata` is a JSON blob; only `commitment` matters to this feed. */
@@ -238,11 +333,13 @@ export function jobCommitment(metadata: string | null): string {
 export async function readPageJobsFeed(
   db: FeedDb,
   departmentId: string,
-  locale: PageFeedLocale
+  locale: PageFeedLocale,
+  limit?: number
 ): Promise<PageJobItem[]> {
   const jobs = await db.listRows<Jobs>("app", "jobs", [
     Query.select([
       "$id",
+      "slug",
       "status",
       "metadata",
       "application_deadline",
@@ -257,7 +354,7 @@ export async function readPageJobsFeed(
       Query.greaterThanEqual("application_deadline", new Date().toISOString()),
     ]),
     Query.orderDesc("$createdAt"),
-    Query.limit(FEED_LIMIT),
+    Query.limit(feedLimit(limit)),
   ]);
 
   return jobs.rows
@@ -267,7 +364,11 @@ export async function readPageJobsFeed(
     .map((job) => ({
       commitment: jobCommitment(job.metadata),
       deadline: formatFeedDate(job.application_deadline, locale),
+      deadlineIso: toIso(job.application_deadline),
       department: departmentName(job.department),
+      href: detailHref("/jobs", job.slug),
+      id: job.$id,
+      ...jobExtras(job.metadata),
       title: pickTranslation(job.translations, locale)?.title ?? "",
     }));
 }
@@ -299,9 +400,14 @@ export async function readPagePartnersFeed(
 
 export interface PageDepartmentItem {
   campusId: string | null;
+  campusLabel?: string;
+  /** `unitCanonicalPath`; absent for a department with no slug or campus. */
+  href?: string;
   id: string;
   internalId: string | null;
   logo: string | null;
+  /** `logo` expanded from a bare file id into a renderable URL. */
+  logoUrl?: string;
   name: string;
   type: string | null;
 }
@@ -329,7 +435,16 @@ export async function readPageDepartmentsFeed(
   type: string | null = null
 ): Promise<PageDepartmentsFeed> {
   const queries: string[] = [
-    Query.select(["$id", "Id", "Name", "active", "campus_id", "type", "logo"]),
+    Query.select([
+      "$id",
+      "Id",
+      "Name",
+      "active",
+      "campus_id",
+      "type",
+      "logo",
+      "slug",
+    ]),
     Query.equal("active", true),
     Query.orderAsc("Name"),
     Query.limit(DEPARTMENT_LIMIT),
@@ -358,9 +473,16 @@ export async function readPageDepartmentsFeed(
   return {
     departments: visible.map((department) => ({
       campusId: department.campus_id,
+      campusLabel: campusIdToLabel(department.campus_id) ?? undefined,
+      href:
+        unitCanonicalPath({
+          campusId: department.campus_id,
+          slug: department.slug,
+        }) ?? undefined,
       id: department.$id,
       internalId: department.Id,
       logo: department.logo,
+      logoUrl: resolveStorageFileUrl(department.logo) ?? undefined,
       // The student-facing label, not the campus-prefixed accounting name.
       name: unitDisplayName(department.Name),
       type: department.type,

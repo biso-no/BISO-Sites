@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { readPageDepartmentsFeed, readPagePartnersFeed } from "./page-feeds";
+import {
+  readPageDepartmentsFeed,
+  readPageEventsFeed,
+  readPageJobsFeed,
+  readPageNewsFeed,
+  readPagePartnersFeed,
+} from "./page-feeds";
 
 function departmentRow(id: number) {
   return {
@@ -8,6 +14,7 @@ function departmentRow(id: number) {
     Name: `Department ${id}`,
     campus_id: "1",
     logo: null,
+    slug: `dept-${id}`,
     type: "unit",
   };
 }
@@ -59,6 +66,8 @@ describe("readPageDepartmentsFeed", () => {
 
     expect(feed.departments[0]).toEqual({
       campusId: "1",
+      campusLabel: "Oslo",
+      href: "/units/oslo/dept-7",
       id: "d-7",
       internalId: "7",
       logo: null,
@@ -100,5 +109,122 @@ describe("readPagePartnersFeed", () => {
     ).join("|");
     expect(queries).toContain("sort_order");
     expect(queries).toContain('"method":"orderAsc","attribute":"sort_order"');
+  });
+});
+
+function limitOf(db: ReturnType<typeof fakeDb>): number | undefined {
+  const [, , queries] = (db.listRows as unknown as ReturnType<typeof vi.fn>)
+    .mock.calls[0];
+  return (queries as string[])
+    .map((q) => JSON.parse(q) as { method: string; values?: number[] })
+    .find((q) => q.method === "limit")?.values?.[0];
+}
+
+describe("readPageEventsFeed", () => {
+  const row = {
+    $id: "e-1",
+    category: "SOCIAL",
+    image: "https://cdn.example/e.jpg",
+    location: "Campus",
+    member_only: true,
+    slug: "spring party",
+    start_date: "2027-02-11T09:00:00+01:00",
+    ticket_url: "https://tickets.example/1",
+    translation_refs: [{ locale: "no", title: "Vårfest" }],
+  };
+
+  it("maps slug, image and start_date onto href, image and startsAt", async () => {
+    const [item] = await readPageEventsFeed(
+      fakeDb({ rows: [row], total: 1 }),
+      "d-1",
+      "no"
+    );
+    expect(item).toMatchObject({
+      category: "SOCIAL",
+      href: "/events/spring%20party",
+      id: "e-1",
+      image: "https://cdn.example/e.jpg",
+      memberOnly: true,
+      startsAt: "2027-02-11T08:00:00.000Z",
+      ticketUrl: "https://tickets.example/1",
+      title: "Vårfest",
+      where: "Campus",
+    });
+    expect(item?.date).not.toBe("");
+  });
+
+  it("leaves href off a row without a slug", async () => {
+    const [item] = await readPageEventsFeed(
+      fakeDb({ rows: [{ ...row, slug: null }], total: 1 }),
+      "d-1",
+      "no"
+    );
+    expect(item?.href).toBeUndefined();
+  });
+
+  it("honours limit, clamped to 1..12, default 6", async () => {
+    const limits: (number | undefined)[] = [];
+    for (const requested of [3, 50, 0, undefined]) {
+      const db = fakeDb({ rows: [], total: 0 });
+      await readPageEventsFeed(db, "d-1", "no", requested);
+      limits.push(limitOf(db));
+    }
+    expect(limits).toEqual([3, 12, 1, 6]);
+  });
+});
+
+describe("readPageNewsFeed", () => {
+  it("adds id, href, publishedAtIso and image", async () => {
+    const db = fakeDb({
+      rows: [
+        {
+          $createdAt: "2027-01-05T10:00:00.000Z",
+          $id: "n-1",
+          image: null,
+          slug: "hello",
+          translation_refs: [{ locale: "no", title: "Hei" }],
+        },
+      ],
+      total: 1,
+    });
+    const [item] = await readPageNewsFeed(db, "d-1", "no", 2);
+    expect(item).toMatchObject({
+      href: "/news/hello",
+      id: "n-1",
+      publishedAtIso: "2027-01-05T10:00:00.000Z",
+      title: "Hei",
+    });
+    expect(item?.image).toBeUndefined();
+    expect(limitOf(db)).toBe(2);
+  });
+});
+
+describe("readPageJobsFeed", () => {
+  it("adds id, href, deadlineIso, paid and employmentType", async () => {
+    const db = fakeDb({
+      rows: [
+        {
+          $id: "j-1",
+          application_deadline: "2999-01-01T00:00:00.000Z",
+          metadata: JSON.stringify({
+            employment_type: "Part-time",
+            paid: true,
+          }),
+          slug: "editor",
+          status: "published",
+          translations: [{ locale: "no", title: "Redaktør" }],
+        },
+      ],
+      total: 1,
+    });
+    const [item] = await readPageJobsFeed(db, "d-1", "no");
+    expect(item).toMatchObject({
+      commitment: "Part-time",
+      deadlineIso: "2999-01-01T00:00:00.000Z",
+      employmentType: "Part-time",
+      href: "/jobs/editor",
+      id: "j-1",
+      paid: true,
+    });
   });
 });
