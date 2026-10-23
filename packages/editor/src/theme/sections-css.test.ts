@@ -176,3 +176,21 @@ test("the page header clears the nav and keeps the sections' container-relative 
     expect(rule.body).not.toContain("--section-y");
   }
 });
+
+const V2_PAIR =
+  ".pg-col__item:has([data-block]) + .pg-col__item:has([data-block])";
+
+test("v2 blocks stacked in a column are spaced, and an empty one takes no room", () => {
+  expect(declares(".pg-col", "--pg-stack: 1.5rem;")).toBe(true);
+  expect(declares(V2_PAIR, "margin-top: var(--pg-stack);")).toBe(true);
+  expect(
+    declares(".pg-col__item:has(> [data-block]:empty)", "display: none;")
+  ).toBe(true);
+  // The canvas's zipper and drop line sit in the middle of that gap.
+  expect(
+    declares(
+      `${V2_PAIR} > :is(.pe-zipper, .pe-drop-slot)`,
+      "top: calc(var(--pg-stack) / -2);"
+    )
+  ).toBe(true);
+});

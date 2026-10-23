@@ -166,8 +166,26 @@
 }
 
 .pg-col {
+  --pg-stack: 1.5rem;
   min-width: 0;
   container: pg / inline-size;
+}
+
+/* Blocks in a column stack with the site's heading-to-content gap
+   (`SectionHeading`'s mb-6). v2 blocks render bare (`[data-block]`), so the
+   column spaces them; a legacy block's frame brings its own padding. A v2
+   block that renders nothing on the site takes no room. In the canvas the
+   between-block zipper and drop line move up into the middle of the gap. */
+.pg-col__item:has([data-block]) + .pg-col__item:has([data-block]) {
+  margin-top: var(--pg-stack);
+}
+.pg-col__item:has(> [data-block]:empty) {
+  display: none;
+}
+.pg-col__item:has([data-block])
+  + .pg-col__item:has([data-block])
+  > :is(.pe-zipper, .pe-drop-slot) {
+  top: calc(var(--pg-stack) / -2);
 }
 
 @container pg-page (max-width: 1023px) {
