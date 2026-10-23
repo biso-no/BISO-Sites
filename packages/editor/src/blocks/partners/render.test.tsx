@@ -103,6 +103,17 @@ describe("PartnersRender", () => {
       { surface: true }
     );
     expect(out).toContain("text-ink");
-    expect(out).toContain("@md:grid-cols-2");
+    expect(out).toContain("grid-cols-2");
+  });
+
+  test("two columns on the narrowest page, four on wide containers", () => {
+    const out = html();
+    expect(out).toContain("grid grid-cols-2 gap-5 @3xl:grid-cols-4");
+    expect(out).not.toContain("grid-cols-1");
+  });
+
+  test("a name-only tile is a wide, short strip on phones", () => {
+    const out = html();
+    expect(out).toContain("flex @md:aspect-video aspect-[3/1] items-center");
   });
 });

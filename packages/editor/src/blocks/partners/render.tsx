@@ -16,6 +16,8 @@ interface Props {
 }
 
 const CARD = "block rounded-biso-sm";
+// Two columns from the narrowest page: name-only tiles stay compact.
+const GRID = "grid grid-cols-2 gap-5 @3xl:grid-cols-4";
 
 function logoOf(partner: PartnerItem): { mime?: string; src: string } | null {
   const src = partner.logo?.src || partner.logoSrc;
@@ -44,7 +46,7 @@ function PartnerCard({
           width={440}
         />
       ) : (
-        <span className="type-heading-card flex aspect-video items-center justify-center break-words border border-edge bg-surface-raised p-4 text-center text-ink">
+        <span className="type-heading-card flex @md:aspect-video aspect-[3/1] items-center justify-center break-words border border-edge bg-surface-raised p-4 text-center text-ink">
           {name}
         </span>
       )}
@@ -68,6 +70,7 @@ export function PartnersRender({ block, edit, onPatch }: Props) {
       columns={4}
       dept=""
       edit={edit}
+      gridClassName={GRID}
       heading={block.heading ?? ""}
       items={items}
       locale={locale}

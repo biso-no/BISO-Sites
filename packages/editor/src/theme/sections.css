@@ -343,5 +343,11 @@
   .pg-marquee--live .pg-marquee__track {
     flex-wrap: wrap;
     white-space: normal;
+    flex-shrink: 1;
+    min-width: 0;
+    width: 100%;
+  }
+  .pg-marquee--live .pg-marquee__run {
+    width: 100%;
   }
 }

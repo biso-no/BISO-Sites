@@ -1,6 +1,16 @@
 import { externalLinkProps, safeHref } from "./links";
 
 const WHITESPACE = /\s+/g;
+
+function initialsOf(name: string): string {
+  const words = (typeof name === "string" ? name : "")
+    .trim()
+    .split(WHITESPACE)
+    .filter(Boolean);
+  const first = words[0]?.charAt(0) ?? "";
+  const last = words.length > 1 ? (words.at(-1)?.charAt(0) ?? "") : "";
+  return `${first}${last}`.toUpperCase();
+}
 const LINK =
   "type-body-sm break-words text-ink-accent underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
 
@@ -28,8 +38,8 @@ export function PersonCard({
   const tel = phone ? safeHref(`tel:${phone.replace(WHITESPACE, "")}`) : null;
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-biso-md border border-edge p-5 text-center">
-      <span className="size-16 overflow-hidden rounded-biso-pill bg-surface-sunken">
+    <div className="flex flex-col items-center gap-3 rounded-biso-md border border-edge bg-surface-raised p-5 text-center">
+      <span className="type-heading-card flex size-16 items-center justify-center overflow-hidden rounded-biso-pill bg-surface-sunken text-ink-accent">
         {imageSrc ? (
           // biome-ignore lint/correctness/useImageSize: fills the avatar frame.
           <img
@@ -39,7 +49,11 @@ export function PersonCard({
             loading="lazy"
             src={imageSrc}
           />
-        ) : null}
+        ) : (
+          <span aria-hidden="true" data-monogram="">
+            {initialsOf(name)}
+          </span>
+        )}
       </span>
       <span className="min-w-0">
         <span className="type-heading-card block break-words text-ink">

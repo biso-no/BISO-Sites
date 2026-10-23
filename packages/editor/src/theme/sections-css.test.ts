@@ -9,6 +9,7 @@ const WHERE_CLAUSE = /:where\([^)]*\)/g;
 const CLASS_OR_ATTRIBUTE = /\.[\w-]+|\[[^\]]+\]/g;
 const PHONE_REVERSE_STRETCH = /column-reverse;\s*align-items:\s*stretch/;
 
+const MARQUEE_TRACK = /\.pg-marquee--live \.pg-marquee__track\s*{([^}]*)}/;
 const WHITESPACE = /\s+/g;
 const DISPLAY_NONE = /display:\s*none/;
 
@@ -347,4 +348,24 @@ test("the empty-band rules use the flat selectors", () => {
       ""
     )
   );
+});
+
+test("under reduced motion the marquee track shrinks and wraps", () => {
+  const block = sectionsCss.slice(
+    sectionsCss.indexOf(
+      "@media (prefers-reduced-motion: reduce)",
+      sectionsCss.indexOf("pg-marquee-scroll")
+    )
+  );
+  const track = block.match(MARQUEE_TRACK)?.[1];
+  const flat = (track ?? "").replace(WHITESPACE, " ");
+  for (const decl of [
+    "flex-shrink: 1;",
+    "min-width: 0;",
+    "width: 100%;",
+    "flex-wrap: wrap;",
+    "white-space: normal;",
+  ]) {
+    expect(flat).toContain(decl);
+  }
 });

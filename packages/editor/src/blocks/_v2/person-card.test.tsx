@@ -24,3 +24,27 @@ test("a phone becomes a tel link with spaces stripped", () => {
   );
   expect(html).toContain('href="tel:+4712345678"');
 });
+
+const MONOGRAM = /data-monogram="">([^<]*)</;
+
+test("without a photo the card shows decorative initials", () => {
+  const html = renderToStaticMarkup(<PersonCard name="Ada Lovelace" />);
+  expect(html).toContain('<span aria-hidden="true" data-monogram="">AL</span>');
+  expect(html).toContain("bg-surface-raised");
+});
+
+test("with a photo there is no monogram", () => {
+  const html = renderToStaticMarkup(
+    <PersonCard imageSrc="/a.jpg" name="Ada Lovelace" />
+  );
+  expect(html).not.toContain("data-monogram");
+});
+
+test("initials handle one name, no name, and Norwegian letters", () => {
+  const initials = (name: string) =>
+    renderToStaticMarkup(<PersonCard name={name} />).match(MONOGRAM)?.[1];
+  expect(initials("Ada")).toBe("A");
+  expect(initials("")).toBe("");
+  expect(initials("æsa østby åkre")).toBe("ÆÅ");
+  expect(initials("Øyvind Ås")).toBe("ØÅ");
+});

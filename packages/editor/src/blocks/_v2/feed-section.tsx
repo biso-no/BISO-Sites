@@ -17,6 +17,10 @@ const SEE_ALL: Record<EditorLocale, string> = {
 const CARD_FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-4 focus-visible:ring-offset-surface";
 
+function gridClassOf(custom: string | undefined, columns: GridColumns) {
+  return custom || cardGridClass(columns);
+}
+
 interface SectionProps {
   children: ReactNode;
   /** Card columns at the widest container; defaults to 3. */
@@ -24,6 +28,8 @@ interface SectionProps {
   /** Department id the feed reads from; empty when none is chosen. */
   dept: string;
   edit: boolean;
+  /** Replaces the shared card grid classes, e.g. for denser tiles. */
+  gridClassName?: string;
   heading: string;
   /** Rows to show, or null while the feed is unresolved. */
   items: unknown[] | null;
@@ -62,6 +68,7 @@ function placeholderText(
 export function FeedSection({
   children,
   columns = 3,
+  gridClassName,
   dept,
   edit,
   heading,
@@ -117,7 +124,9 @@ export function FeedSection({
         ) : null}
       </div>
       {hasCards ? (
-        <ul className={`${cardGridClass(columns)} m-0 list-none p-0`}>
+        <ul
+          className={`${gridClassOf(gridClassName, columns)} m-0 list-none p-0`}
+        >
           {children}
         </ul>
       ) : (
