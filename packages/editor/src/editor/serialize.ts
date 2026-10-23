@@ -257,33 +257,36 @@ function normalizeHeader(raw: unknown): PageHeader | undefined {
 }
 
 /**
+ * Rebuild meta from its known fields, so a legacy or unknown key is dropped.
+ * `theme` is kept only when it is `null` (reset to BISO) or passes
+ * `parsePageTheme` (valid hex and contrast); anything else becomes absent.
+ */
+const normalizeMeta = (meta: PageMeta): PageMeta => {
+  const { campus, department, description, slug, status, title, theme } = meta;
+  const parsed = theme ? parsePageTheme(theme) : null;
+  let kept: Pick<PageMeta, "theme"> = {};
+  if (theme === null) {
+    kept = { theme: null };
+  } else if (parsed) {
+    kept = { theme: parsed };
+  }
+  return {
+    ...(campus === undefined ? {} : { campus }),
+    department,
+    ...(description === undefined ? {} : { description }),
+    slug,
+    status,
+    title,
+    ...kept,
+  };
+};
+
+/**
  * Upgrade persisted page documents at every editor/render host boundary.
  * Never mutates its input. Old flat documents become an empty page (D2);
  * malformed sections, columns and blocks are repaired or dropped, so the
  * renderer and `walkBlocks` can trust the shape.
  */
-/**
- * Keep `theme` only when it is `null` (reset to BISO) or passes `parsePageTheme`
- * (valid hex and contrast); anything else becomes absent. Drops the legacy
- * accent-swatch key.
- */
-// Spelled in two parts so the repo-wide "no accent swatch" guard stays simple.
-const LEGACY_ACCENT_KEY = ["accent", "Color"].join("");
-
-const normalizeMeta = (meta: PageMeta): PageMeta => {
-  const {
-    [LEGACY_ACCENT_KEY]: _legacy,
-    theme,
-    ...rest
-  } = meta as PageMeta & Record<string, unknown>;
-  const base = rest as unknown as Omit<PageMeta, "theme">;
-  if (theme === null) {
-    return { ...base, theme: null };
-  }
-  const parsed = theme === undefined ? null : parsePageTheme(theme);
-  return parsed ? { ...base, theme: parsed } : base;
-};
-
 export const normalizePageDoc = (doc: PageDoc): PageDoc => {
   const raw = doc as unknown as {
     header?: unknown;

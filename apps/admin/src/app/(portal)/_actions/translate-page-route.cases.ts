@@ -72,6 +72,17 @@ describe("page translation route", () => {
     expect(response.status).toBe(200);
   });
 
+  test("rejects a theme that is not null or a colour pair", async () => {
+    const response = await POST(
+      request({
+        pageData: { ...pageData, meta: { ...pageData.meta, theme: 5 } },
+        sourceLocale: "no",
+        targetLocale: "en",
+      })
+    );
+    expect(response.status).toBe(400);
+  });
+
   test("requires page publishing access before invoking AI", async () => {
     authContext.roles = [];
 

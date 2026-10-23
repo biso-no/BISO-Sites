@@ -4,8 +4,6 @@ import { useEditorStore } from "./store";
 import { doc } from "./test-fixtures";
 import type { PageDoc } from "./types";
 
-// Spelled in two parts so the repo-wide guard stays simple.
-const LEGACY_KEY = ["accent", "Color"].join("");
 const PURPLE = { accent: "#c8a2f0", dark: "#3b1c6b" };
 
 const withTheme = (theme: unknown): PageDoc => {
@@ -36,14 +34,15 @@ describe("normalizePageDoc and the theme", () => {
     expect(normalizePageDoc(withTheme(null)).meta.theme).toBeNull();
   });
 
-  test("drops the legacy accent-swatch key without throwing", () => {
+  test("drops unknown meta keys (including a legacy accent key) without throwing", () => {
     const base = doc();
     const legacy = {
       ...base,
-      meta: { ...base.meta, [LEGACY_KEY]: "#3DA9E0" },
+      meta: { ...base.meta, foo: 1, accent: "#3DA9E0" },
     } as unknown as PageDoc;
     const out = normalizePageDoc(legacy);
-    expect(LEGACY_KEY in out.meta).toBe(false);
+    expect("foo" in out.meta).toBe(false);
+    expect("accent" in out.meta).toBe(false);
     expect(out.meta.theme).toBeUndefined();
   });
 });

@@ -14,6 +14,9 @@ const pageDocumentSchema = z
         description: z.string().optional(),
         slug: z.string(),
         status: z.enum(["draft", "published"]),
+        theme: z
+          .union([z.null(), z.object({ dark: z.string(), accent: z.string() })])
+          .optional(),
         title: z.string(),
       })
       .passthrough(),
