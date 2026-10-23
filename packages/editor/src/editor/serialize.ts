@@ -1,5 +1,9 @@
 import { newId } from "./ids";
-import { DEFAULT_SECTION_LAYOUT, resizeColumns } from "./sections";
+import {
+  COLUMN_COUNT,
+  DEFAULT_SECTION_LAYOUT,
+  resizeColumns,
+} from "./sections";
 import { walkBlocks } from "./tree";
 import type {
   Block,
@@ -30,14 +34,8 @@ export const LAYOUT_VALUES = {
     "tinted",
     "dark",
   ] as const satisfies readonly SectionBackground[],
-  columns: [
-    "1",
-    "1-1",
-    "2-1",
-    "1-2",
-    "1-1-1",
-    "1-1-1-1",
-  ] as const satisfies readonly SectionColumns[],
+  // COLUMN_COUNT is a Record<SectionColumns, number>, so its keys are exhaustive.
+  columns: Object.keys(COLUMN_COUNT) as SectionColumns[],
   hideOnPhone: [true, false],
   phoneReverse: [true, false],
   spacing: [
@@ -47,6 +45,18 @@ export const LAYOUT_VALUES = {
   ] as const satisfies readonly SectionSpacing[],
   tablet: ["row", "stack"] as const satisfies readonly SectionTablet[],
 } satisfies { [K in keyof SectionLayout]: readonly unknown[] };
+
+type AssertNever<T extends never> = T;
+// Each fails to compile when a union member is missing from LAYOUT_VALUES.
+export type MissingLayoutValues = [
+  AssertNever<Exclude<SectionAlign, (typeof LAYOUT_VALUES.align)[number]>>,
+  AssertNever<
+    Exclude<SectionBackground, (typeof LAYOUT_VALUES.background)[number]>
+  >,
+  AssertNever<Exclude<SectionColumns, (typeof LAYOUT_VALUES.columns)[number]>>,
+  AssertNever<Exclude<SectionSpacing, (typeof LAYOUT_VALUES.spacing)[number]>>,
+  AssertNever<Exclude<SectionTablet, (typeof LAYOUT_VALUES.tablet)[number]>>,
+];
 
 /** The equal-width preset for a stored column count. */
 const PRESET_FOR_COUNT: Partial<Record<number, SectionColumns>> = {

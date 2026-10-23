@@ -262,7 +262,7 @@ describe("serializePageForAI", () => {
 });
 
 describe("LAYOUT_VALUES", () => {
-  test("covers every union member (compile-time) ", () => {
+  test("only holds valid union members (exhaustiveness is asserted in serialize.ts)", () => {
     const background: readonly SectionBackground[] = LAYOUT_VALUES.background;
     const columns: readonly SectionColumns[] = LAYOUT_VALUES.columns;
     const spacing: readonly SectionSpacing[] = LAYOUT_VALUES.spacing;

@@ -90,7 +90,6 @@ export function PageEditorClient({
   lockedMeta,
 }: PageEditorClientProps) {
   const router = useRouter();
-  const [currentPageId, setCurrentPageId] = useState<string | null>(pageId);
   // The latest id, readable from closures captured before the first create
   // resolved (autosave, the explicit translate save).
   const pageIdRef = useRef<string | null>(pageId);
@@ -147,7 +146,6 @@ export function PageEditorClient({
     }
     if (!pageIdRef.current && "pageId" in result) {
       pageIdRef.current = result.pageId;
-      setCurrentPageId(result.pageId);
       // Not router.replace: that remounts the editor and re-hydrates from the
       // server copy, dropping edits made during the save round-trip.
       window.history.replaceState(null, "", `/pages/${result.pageId}`);
@@ -272,12 +270,13 @@ export function PageEditorClient({
   // publish/unpublish into its own status, so resolving after a failure
   // would mark a page published that is not.
   async function handlePublish(locale: EditorLocale) {
-    if (!currentPageId) {
+    const id = pageIdRef.current;
+    if (!id) {
       toast.error("Save the page first before publishing.");
       throw new Error("Page not saved yet");
     }
     try {
-      const result = await publishPageAction(currentPageId, locale, {
+      const result = await publishPageAction(id, locale, {
         enabled: autoTranslate,
         sourceLocale: locale,
       });
@@ -303,11 +302,12 @@ export function PageEditorClient({
   }
 
   async function handleUnpublish(locale: EditorLocale) {
-    if (!currentPageId) {
+    const id = pageIdRef.current;
+    if (!id) {
       throw new Error("Page not saved yet");
     }
     try {
-      await unpublishPageAction(currentPageId, locale);
+      await unpublishPageAction(id, locale);
       setDocuments((current) => {
         const doc = current[locale];
         if (!doc) {
