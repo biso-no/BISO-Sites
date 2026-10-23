@@ -11,10 +11,18 @@ registerBlock({
   category: "Engage",
   group: "actions",
   aiHint:
-    "A configurable multi-step form that submits to an Appwrite collection.",
-  aiProps: ["heading", "steps", "submitTarget"],
+    "A multi-step form. Steps hold fields (text, email, textarea, select, radio, checkbox with options). submitMode 'database' saves to the admin inbox; 'email' needs a recipientEmail ending in @biso.no.",
+  aiProps: [
+    "heading",
+    "steps",
+    "submitMode",
+    "topic",
+    "recipientEmail",
+    "accessTeamId",
+  ],
   empty: () => emptyBlock("multiStepForm") as never,
   Render: MultiStepFormRender as never,
   Inspector: MultiStepFormInspector as never,
   PaletteThumb: MultiStepFormThumb,
+  v2: true,
 });

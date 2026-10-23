@@ -165,45 +165,6 @@
   grid-template-columns: 1fr 2fr;
 }
 
-/* SIGNUP */
-.pg-signup {
-  padding: calc(36px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-.pg-signup h2 {
-  margin: 0 0 12px;
-  font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 700;
-}
-.pg-signup__form {
-  display: flex;
-  gap: 6px;
-  max-width: 460px;
-  padding: 4px;
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule-2);
-  border-radius: 999px;
-}
-.pg-signup__form input {
-  flex: 1;
-  padding: 8px 12px;
-  font: inherit;
-  color: var(--pg-ink);
-  outline: 0;
-  background: transparent;
-  border: 0;
-}
-.pg-signup__form button {
-  padding: 8px 16px;
-  font-weight: 500;
-  color: var(--paper);
-  cursor: pointer;
-  background: var(--pg-ink);
-  border: 0;
-  border-radius: 999px;
-}
-
 /* DOCUMENTS */
 .pg-documents {
   padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
@@ -418,131 +379,6 @@
   letter-spacing: 0.08em;
 }
 
-/* MULTI-STEP FORM */
-.pg-msform {
-  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
-  border-top: 0.5px solid var(--rule);
-}
-/* Measure on the form itself, so it does not swallow the Design panel width. */
-.pg-msform > * {
-  max-width: 544px;
-}
-.pg-msform__heading {
-  margin: 0 0 24px;
-  font-family: var(--serif);
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--pg-ink);
-}
-.pg-msform__stepper {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 28px;
-}
-.pg-msform__step-dot {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  font-size: 11px;
-  color: var(--ink-3);
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule-2);
-  border-radius: 50%;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-.pg-msform__step-dot--active {
-  color: var(--paper);
-  background: var(--pg-ink);
-  border-color: var(--pg-ink);
-}
-.pg-msform__step-dot--done {
-  color: var(--paper);
-  background: var(--leaf);
-  border-color: var(--leaf);
-}
-.pg-msform__panel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.pg-msform__step-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--pg-ink);
-}
-.pg-msform__field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.pg-msform__label {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--ink-2);
-}
-.pg-msform__input {
-  width: 100%;
-  padding: 9px 12px;
-  font: inherit;
-  font-size: 14px;
-  color: var(--pg-ink);
-  outline: 0;
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule-2);
-  border-radius: var(--pg-radius-sm);
-}
-.pg-msform__input:focus {
-  background: var(--paper);
-  border-color: var(--pg-ink);
-}
-textarea.pg-msform__input {
-  min-height: 96px;
-  resize: vertical;
-}
-.pg-msform__nav {
-  display: flex;
-  gap: 8px;
-}
-.pg-msform__btn {
-  padding: 10px 22px;
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 0;
-  border-radius: 999px;
-  transition: opacity 0.12s;
-}
-.pg-msform__btn--next {
-  color: var(--paper);
-  background: var(--pg-ink);
-}
-.pg-msform__btn--submit {
-  color: var(--paper);
-  background: var(--page-accent, var(--claret));
-}
-.pg-msform__btn--back {
-  color: var(--ink-2);
-  background: var(--paper-2);
-  border: 0.5px solid var(--rule);
-}
-.pg-msform__success {
-  padding: 40px 0;
-  color: var(--ink-2);
-  text-align: center;
-}
-.pg-msform__success span {
-  display: block;
-  margin-bottom: 12px;
-  font-size: 40px;
-  color: var(--leaf);
-}
-
 /* ==========================================================================
    RESPONSIVE
    --------------------------------------------------------------------------
@@ -567,8 +403,6 @@ textarea.pg-msform__input {
   }
 
   .pg-profileheader__stat-num,
-  .pg-msform__heading,
-  .pg-signup h2,
   .pg-documents__h,
   .pg-campusselect__h,
   .pg-profileheader__name {

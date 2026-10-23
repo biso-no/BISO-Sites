@@ -110,5 +110,5 @@ export default async function DynamicPage({ params }: Props) {
   // Appwrite round-trip per visitor. See `@/lib/data/page-feeds`.
   const feeds = await resolvePageFeeds(doc, locale);
 
-  return <RenderedPage doc={doc} feeds={feeds} locale={locale} />;
+  return <RenderedPage doc={doc} feeds={feeds} locale={locale} slug={slug} />;
 }

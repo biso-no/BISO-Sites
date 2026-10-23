@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
+import { buttonClass } from "@/blocks/_v2/button-link";
+import {
+  FIELD_CLASS,
+  formCopy,
+  looksLikeEmail,
+  postSubmission,
+} from "@/blocks/_v2/submit-form";
 import type { PatchFn } from "@/blocks/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import { usePageFeedSource } from "@/editor/page-feed-context";
 import type { SignupBlock } from "@/editor/types";
 
 interface Props {
@@ -10,82 +19,100 @@ interface Props {
   onPatch: PatchFn;
 }
 
-export function SignupRender({ block, edit, onPatch }: Props) {
-  const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "pending" | "done" | "error">(
-    "idle"
-  );
+type State = "idle" | "invalid" | "pending" | "done" | "error";
 
-  async function handleSubmit(e: React.FormEvent) {
+const text = (v: unknown): string => (typeof v === "string" ? v : "");
+
+export function SignupRender({ block, edit, onPatch }: Props) {
+  const { locale, slug } = usePageFeedSource();
+  const copy = formCopy(locale);
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<State>("idle");
+  const heading = text(block.heading);
+  const baseId = text(block.id) || "signup";
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!email || edit) {
+    if (edit || state === "pending") {
+      return;
+    }
+    if (!looksLikeEmail(email)) {
+      setState("invalid");
       return;
     }
     setState("pending");
-    try {
-      const res = await fetch("/api/form/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: block.submitMode ?? "database",
-          topic: block.topic ?? "signup",
-          formHeading: block.heading,
-          data: { email },
-          recipientEmail: block.recipientEmail,
-          source: "signup",
-        }),
-      });
-      setState(res.ok ? "done" : "error");
-    } catch {
-      setState("error");
-    }
+    const ok = await postSubmission({
+      blockId: text(block.id),
+      data: { email: email.trim() },
+      locale,
+      slug,
+    });
+    setState(ok ? "done" : "error");
   }
+
+  const heading_ =
+    edit || heading.trim() ? (
+      <EditableText
+        className="type-heading-section m-0 min-w-0 hyphens-auto break-words text-ink"
+        edit={edit}
+        onChange={(v) => onPatch("heading", v)}
+        tag="h2"
+        value={heading}
+      />
+    ) : null;
 
   if (state === "done") {
     return (
-      <div className="pg-signup pg-block">
-        <h2>{block.heading}</h2>
-        <p style={{ fontSize: 15, color: "var(--ink-2)", marginTop: 8 }}>
-          Thanks — we'll be in touch!
+      <div className="flex flex-col gap-4 break-words">
+        {heading_}
+        <p className="type-body m-0 text-ink" role="status">
+          {copy.signupDone}
         </p>
       </div>
     );
   }
 
+  const message =
+    state === "invalid" ? copy.emailInvalid : state === "error" && copy.failed;
+
   return (
-    <div className="pg-signup pg-block">
-      {edit ? (
-        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-        <h2
-          contentEditable
-          data-edit="1"
-          onBlur={(e) => onPatch("heading", e.currentTarget.textContent ?? "")}
-          suppressContentEditableWarning
-        >
-          {block.heading}
-        </h2>
-      ) : (
-        <h2>{block.heading}</h2>
-      )}
-      <form className="pg-signup__form" onSubmit={handleSubmit}>
+    <div className="flex flex-col gap-4 break-words">
+      {heading_}
+      <form
+        className="flex max-w-xl @sm:flex-row flex-col gap-3"
+        noValidate
+        onSubmit={handleSubmit}
+      >
         <input
-          aria-label="Email address"
+          aria-describedby={message ? `${baseId}-msg` : undefined}
+          aria-invalid={state === "invalid" || undefined}
+          aria-label={copy.emailLabel}
+          autoComplete="email"
+          className={`${FIELD_CLASS} @sm:flex-1`}
           disabled={state === "pending"}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder={block.placeholder || "you@bi.no"}
+          placeholder={text(block.placeholder) || "you@bi.no"}
           readOnly={edit}
           type="email"
           value={edit ? "" : email}
         />
-        <button disabled={state === "pending" || edit} type="submit">
-          {state === "pending" ? "…" : "Subscribe"}
+        <button
+          className={`${buttonClass("primary")} justify-center disabled:opacity-60`}
+          disabled={state === "pending"}
+          type="submit"
+        >
+          {state === "pending" ? copy.sending : copy.signupButton}
         </button>
       </form>
-      {state === "error" && (
-        <p style={{ fontSize: 12, color: "var(--claret)", marginTop: 6 }}>
-          Something went wrong. Please try again.
+      {message ? (
+        <p
+          className="type-body-sm m-0 text-danger"
+          id={`${baseId}-msg`}
+          role="alert"
+        >
+          {message}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

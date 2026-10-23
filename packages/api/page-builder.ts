@@ -291,6 +291,8 @@ export async function getPage(
       "slug",
       "status",
       "department_id",
+      // Form submissions inherit the page's campus.
+      "campus_id",
       "translation_refs.*",
     ]),
     Query.limit(1),

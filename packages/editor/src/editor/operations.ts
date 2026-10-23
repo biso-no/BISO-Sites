@@ -189,6 +189,8 @@ export function emptyBlock(type: BlockType): Block {
         type,
         heading: "Stay in the loop",
         placeholder: "you@bi.no",
+        submitMode: "database",
+        topic: "signup",
       };
     case "news":
       return {
@@ -268,7 +270,8 @@ export function emptyBlock(type: BlockType): Block {
         id,
         type,
         heading: "Get in touch",
-        submitTarget: { collection: "submissions" },
+        submitMode: "database",
+        topic: "contact",
         steps: [
           {
             title: "Your message",

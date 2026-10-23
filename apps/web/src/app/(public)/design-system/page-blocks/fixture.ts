@@ -751,6 +751,67 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
       ],
     ]),
 
+    // Dark, the two form blocks side by side. Nothing here is wired to a real
+    // inbox: the gallery has no storage slug, so a submit is refused.
+    section("s-forms", { background: "dark", columns: "1-1" }, [
+      [
+        {
+          id: "b-signup",
+          type: "signup",
+          heading: "Få nyhetsbrevet",
+          placeholder: "navn@eksempel.no",
+          submitMode: "database",
+          topic: "eksempel",
+        },
+      ],
+      [
+        {
+          id: "b-form",
+          type: "multiStepForm",
+          heading: "Meld interesse som standvert",
+          submitMode: "database",
+          topic: "eksempel",
+          steps: [
+            {
+              title: "Om deg",
+              fields: [
+                {
+                  name: "navn",
+                  label: "Navn",
+                  fieldType: "text",
+                  required: true,
+                },
+                { name: "epost", label: "E-post", fieldType: "email" },
+              ],
+            },
+            {
+              title: "Hva passer deg?",
+              fields: [
+                {
+                  name: "dag",
+                  label: "Hvilken dag kan du?",
+                  fieldType: "radio",
+                  options: [
+                    { label: "Onsdag", value: "onsdag" },
+                    { label: "Torsdag", value: "torsdag" },
+                  ],
+                },
+                {
+                  name: "oppgaver",
+                  label: "Oppgaver",
+                  fieldType: "checkbox",
+                  options: [
+                    { label: "Mottak", value: "mottak" },
+                    { label: "Stand", value: "stand" },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    ]),
+
     // Tinted, four columns of narrow blocks. A long compound and an email
     // address, neither with a break opportunity, check that narrow columns
     // wrap them instead of overflowing.

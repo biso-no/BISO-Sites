@@ -299,9 +299,10 @@ export interface SignupBlock {
   heading: string;
   id: string;
   placeholder: string;
+  /** Email mode only. The server sends to it only when it ends in `@biso.no`. */
   recipientEmail?: string;
-  submitMode?: "email" | "database";
-  topic?: string;
+  submitMode: "email" | "database";
+  topic: string;
   type: "signup";
 }
 
@@ -441,14 +442,15 @@ export interface FormStep {
 }
 
 export interface MultiStepFormBlock {
+  /** Database mode: the one extra Appwrite team that may read submissions. */
   accessTeamId?: string;
-  adminLabel?: string;
   heading?: string;
   id: string;
+  /** Email mode only. The server sends to it only when it ends in `@biso.no`. */
   recipientEmail?: string;
   steps: FormStep[];
-  submitMode?: "email" | "database";
-  submitTarget: { collection: string; topic?: string };
+  submitMode: "email" | "database";
+  topic: string;
   type: "multiStepForm";
 }
 

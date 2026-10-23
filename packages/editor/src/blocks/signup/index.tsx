@@ -30,10 +30,12 @@ registerBlock({
   description: "Collect emails or interest",
   category: "Engage",
   group: "actions",
-  aiHint: "An email signup form with a heading and placeholder text.",
-  aiProps: ["heading", "placeholder"],
+  aiHint:
+    "An email signup form. submitMode 'database' saves to the admin inbox; 'email' needs a recipientEmail ending in @biso.no.",
+  aiProps: ["heading", "placeholder", "submitMode", "topic", "recipientEmail"],
   empty: () => emptyBlock("signup") as never,
   Render: SignupRender as never,
   Inspector: SignupInspector as never,
   PaletteThumb: SignupThumb,
+  v2: true,
 });

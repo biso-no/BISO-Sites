@@ -12,6 +12,12 @@ export interface PageFeedSource {
   department: string;
   /** Language those feeds are requested in. */
   locale: EditorLocale;
+  /**
+   * The page's STORAGE slug (its path without the leading slash), which the
+   * form blocks send so the server can re-load the published page. Hosts that
+   * are not a stored page (the editor, the gallery) leave it out.
+   */
+  slug?: string;
 }
 
 interface PageFeedContextValue extends PageFeedSource {
@@ -57,10 +63,11 @@ export function PageFeedProvider({
   department,
   feeds,
   locale,
+  slug,
 }: PageFeedSource & { children: ReactNode; feeds?: PageFeedSnapshot }) {
   const value = useMemo(
-    () => ({ campus, department, feeds: feeds ?? NO_FEEDS, locale }),
-    [campus, department, feeds, locale]
+    () => ({ campus, department, feeds: feeds ?? NO_FEEDS, locale, slug }),
+    [campus, department, feeds, locale, slug]
   );
   return (
     <PageFeedContext.Provider value={value}>

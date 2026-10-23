@@ -38,9 +38,14 @@ interface Props {
    */
   feeds?: PageFeedSnapshot;
   locale: EditorLocale;
+  /**
+   * The page's storage slug (URL path without the leading slash), which the
+   * form blocks send so the server can find the published block itself.
+   */
+  slug?: string;
 }
 
-export function RenderedPage({ doc, feeds, locale }: Props) {
+export function RenderedPage({ doc, feeds, locale, slug }: Props) {
   const normalizedDoc = useMemo(() => normalizePageDoc(doc), [doc]);
   // Seed the shared editor store so anything still reading it (inspectors,
   // AI tooling) sees this page. The auto-source blocks do NOT rely on this —
@@ -76,6 +81,7 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
       department={normalizedDoc.meta.department}
       feeds={feeds}
       locale={locale}
+      slug={slug}
     >
       <div className="biso-surface pg-page" style={accentStyle}>
         {header ? (

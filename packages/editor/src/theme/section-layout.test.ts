@@ -69,7 +69,7 @@ const blockBody = (css: string, opening: string): string => {
   return "";
 };
 
-/** True when a selector targets a block root itself, e.g. `.pg-signup--wide`. */
+/** True when a selector targets a block root itself, e.g. `.pg-documents--wide`. */
 const targetsRoot = (selector: string) =>
   selector
     .split(",")
@@ -81,9 +81,8 @@ const targetsRoot = (selector: string) =>
 
 describe("Design panel rules for blocks styled by blocks.css", () => {
   test("the root scan finds the blocks it guards", () => {
-    expect(rootClasses.has("signup")).toBe(true);
     expect(rootClasses.has("documents")).toBe(true);
-    expect(rootClasses.size).toBeGreaterThan(5);
+    expect(rootClasses.size).toBeGreaterThan(3);
   });
 
   test("every spacing option sets a scale", () => {

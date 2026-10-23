@@ -103,12 +103,14 @@ export const instant = false;
 async function PublishedUnit({
   doc,
   locale,
+  slug,
 }: {
   doc: PageDoc;
   locale: Locale;
+  slug: string;
 }) {
   const feeds = await resolvePageFeeds(doc, locale);
-  return <RenderedPage doc={doc} feeds={feeds} locale={locale} />;
+  return <RenderedPage doc={doc} feeds={feeds} locale={locale} slug={slug} />;
 }
 
 export default async function UnitPage({ params }: Props) {
@@ -148,7 +150,11 @@ export default async function UnitPage({ params }: Props) {
     return (
       <div className="min-h-screen bg-surface">
         <Suspense fallback={<DepartmentLoading />}>
-          <PublishedUnit doc={pageResult.doc} locale={locale} />
+          <PublishedUnit
+            doc={pageResult.doc}
+            locale={locale}
+            slug={canonical?.slice(1) ?? ""}
+          />
         </Suspense>
       </div>
     );
