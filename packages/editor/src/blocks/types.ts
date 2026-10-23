@@ -41,6 +41,11 @@ export interface BlockDefinition<B extends Block = Block> {
   /** Inspector prop schema — rendered as form rows. */
   schema?: PropSchema[];
   type: BlockType;
+  /**
+   * True for blocks rebuilt in the redesign's visual language. `BlockView`
+   * renders them bare, without the legacy `LayoutFrame`.
+   */
+  v2?: true;
   variants?: BlockVariant[];
 }
 

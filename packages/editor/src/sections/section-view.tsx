@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { sizedImageSrc } from "@/blocks/_v2/media";
 import type { Block, Column, Section, SectionBackground } from "@/editor/types";
 
 interface SectionViewProps {
@@ -12,6 +13,8 @@ interface SectionViewProps {
   renderColumnEnd?: (column: Column, columnIndex: number) => ReactNode;
   section: Section;
 }
+
+const PHOTO_WIDTH = 2000;
 
 const flag = (on: boolean): "" | undefined => (on ? "" : undefined);
 
@@ -71,7 +74,9 @@ export function SectionView({
           <img
             alt={photo.alt ?? ""}
             className="pg-sec__photo"
-            src={photo.src}
+            decoding="async"
+            loading={first ? "eager" : "lazy"}
+            src={sizedImageSrc(photo.src, PHOTO_WIDTH)}
           />
           <div aria-hidden="true" className="pg-sec__scrim" />
         </>

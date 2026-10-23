@@ -40,7 +40,7 @@ export function BlockView({
     />
   );
 
-  if (def.appliesLayout) {
+  if (def.appliesLayout || def.v2) {
     return rendered;
   }
 

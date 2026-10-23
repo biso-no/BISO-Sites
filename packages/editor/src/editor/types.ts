@@ -39,6 +39,32 @@ export type BlockType =
   | "profileHeader"
   | "multiStepForm";
 
+// ── Shared v2 shapes ─────────────────────────────────────────────────────────
+
+export interface LinkButton {
+  href: string;
+  label: string;
+  style: "primary" | "secondary";
+}
+
+export type FrameRatio =
+  | "21/9"
+  | "16/9"
+  | "3/2"
+  | "4/3"
+  | "1/1"
+  | "4/5"
+  | "3/4";
+
+export interface MediaRef {
+  alt?: string;
+  fileId?: string;
+  kind: "image" | "video";
+  poster?: string;
+  posterFileId?: string;
+  src: string;
+}
+
 // ── Per-block shapes ─────────────────────────────────────────────────────────
 
 export interface HeroBlock {

@@ -8,6 +8,7 @@ import type {
 } from "./_primitives/layout-types";
 import { BlockView } from "./block-view";
 import { allBlocks } from "./index";
+import { registerBlock } from "./registry";
 
 const noopPatch = () => undefined;
 
@@ -104,5 +105,19 @@ describe("BlockView frame", () => {
     );
 
     expect(html).toBe("");
+  });
+});
+
+describe("v2 blocks", () => {
+  test("a v2 definition renders bare, without the legacy frame", () => {
+    const block = emptyOf("marquee");
+    const original = allBlocks().find((d) => d.type === "marquee");
+    if (!original) {
+      throw new Error("marquee is not registered");
+    }
+    registerBlock({ ...original, Render: () => <p>bare</p>, v2: true });
+    const html = render(block, "default");
+    registerBlock(original);
+    expect(html).toBe("<p>bare</p>");
   });
 });

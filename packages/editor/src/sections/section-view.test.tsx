@@ -130,3 +130,32 @@ test("the first section is marked so it can clear the fixed nav", () => {
   expect(first).toMatch(FIRST_SECTION);
   expect(html(s)).not.toContain("data-first");
 });
+
+const photoSection = (src: string): Section => ({
+  ...s,
+  layout: {
+    ...s.layout,
+    background: "photo",
+    backgroundImage: { alt: "", src },
+  },
+});
+const APPWRITE_VIEW =
+  "https://appwrite.biso.no/v1/storage/buckets/media/files/abc/view?project=biso";
+
+test("the section photo is sized, lazy and async", () => {
+  const out = html(photoSection(APPWRITE_VIEW));
+  expect(out).toContain("/files/abc/preview?project=biso&amp;width=2000");
+  expect(out).toContain('loading="lazy"');
+  expect(out).toContain('decoding="async"');
+});
+
+test("the first section's photo loads eagerly", () => {
+  const out = renderToStaticMarkup(
+    <SectionView
+      first
+      renderBlock={(b) => <p>{b.id}</p>}
+      section={photoSection(APPWRITE_VIEW)}
+    />
+  );
+  expect(out).toContain('loading="eager"');
+});

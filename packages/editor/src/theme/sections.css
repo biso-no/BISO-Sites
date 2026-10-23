@@ -160,3 +160,16 @@
     opacity: 1;
   }
 }
+
+/* Looping muted video: the poster stands in under reduced motion. */
+.pg-reduced-motion-poster {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-reduced-motion-poster {
+    display: block;
+  }
+  .pg-reduced-motion-video {
+    display: none;
+  }
+}

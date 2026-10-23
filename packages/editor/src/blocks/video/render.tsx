@@ -2,6 +2,7 @@
 
 import type { PatchFn } from "@/blocks/types";
 import type { VideoBlock } from "@/editor/types";
+import { embedSrc } from "../_v2/media";
 
 interface Props {
   block: VideoBlock;
@@ -9,23 +10,8 @@ interface Props {
   onPatch: PatchFn;
 }
 
-const VIMEO_RE = /vimeo\.com\/(\d+)/;
-const YOUTUBE_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/;
-
-function getEmbedUrl(url: string): string | null {
-  const ytMatch = url.match(YOUTUBE_RE);
-  if (ytMatch) {
-    return `https://www.youtube.com/embed/${ytMatch[1]}`;
-  }
-  const vimeoMatch = url.match(VIMEO_RE);
-  if (vimeoMatch) {
-    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-  }
-  return null;
-}
-
 export function VideoRender({ block, edit }: Props) {
-  const embedUrl = block.url ? getEmbedUrl(block.url) : null;
+  const embedUrl = block.url ? embedSrc(block.url) : null;
   const isNativeVideo = block.url && !embedUrl;
   let videoContent: React.ReactNode;
 
