@@ -33,6 +33,8 @@ export function InspRow({
 }
 
 export interface Choice<T extends string> {
+  /** Shown but not pickable, e.g. a style the current media cannot use. */
+  disabled?: boolean;
   label: string;
   value: T;
 }
@@ -52,6 +54,7 @@ export function Segmented<T extends string>({
       {choices.map((choice) => (
         <button
           className={choice.value === value ? "on" : ""}
+          disabled={choice.disabled}
           key={choice.value}
           onClick={() => onPick(choice.value)}
           type="button"

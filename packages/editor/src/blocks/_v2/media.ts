@@ -15,19 +15,17 @@ export function embedSrc(
   { autoplay = false }: { autoplay?: boolean } = {}
 ): string | null {
   const youtube = url.match(YOUTUBE_RE);
-  const vimeo = youtube ? null : url.match(VIMEO_RE);
-  let base: string;
   if (youtube) {
-    base = `https://www.youtube-nocookie.com/embed/${youtube[1]}`;
-  } else if (vimeo) {
-    base = `https://player.vimeo.com/video/${vimeo[1]}?dnt=1`;
-  } else {
-    return null;
+    const base = `https://www.youtube-nocookie.com/embed/${youtube[1]}`;
+    return autoplay ? `${base}?autoplay=1&mute=1` : base;
   }
-  if (!autoplay) {
-    return base;
+  const vimeo = url.match(VIMEO_RE);
+  if (vimeo) {
+    // Vimeo's player reads `muted`, YouTube's `mute`.
+    const base = `https://player.vimeo.com/video/${vimeo[1]}?dnt=1`;
+    return autoplay ? `${base}&autoplay=1&muted=1` : base;
   }
-  return `${base}${base.includes("?") ? "&" : "?"}autoplay=1&mute=1`;
+  return null;
 }
 
 /**

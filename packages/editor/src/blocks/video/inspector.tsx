@@ -8,6 +8,11 @@ import {
 } from "@/components/editor-shell/inspector/insp-parts";
 import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
 import type { VideoBlock } from "@/editor/types";
+import { isEmbedUrl } from "../_v2/media";
+import { videoStyleFor } from "./render";
+
+const LOOP_NOTE =
+  "Loop needs an uploaded video file. A YouTube or Vimeo link plays as Featured.";
 
 interface Props {
   block: VideoBlock;
@@ -15,6 +20,7 @@ interface Props {
 }
 
 export function VideoInspector({ block, onPatch }: Props) {
+  const embed = isEmbedUrl(block.url ?? "");
   return (
     <>
       <InspSection label="Video">
@@ -63,11 +69,12 @@ export function VideoInspector({ block, onPatch }: Props) {
           choices={[
             { label: "Featured", value: "featured" },
             { label: "Inline", value: "inline" },
-            { label: "Loop", value: "loop" },
+            { disabled: embed, label: "Loop", value: "loop" },
           ]}
           onPick={(style) => onPatch("style", style)}
-          value={block.style ?? "featured"}
+          value={videoStyleFor(block)}
         />
+        {embed ? <p className="pe-insp-note">{LOOP_NOTE}</p> : null}
       </InspSection>
       <InspSection label="Ratio">
         <Segmented

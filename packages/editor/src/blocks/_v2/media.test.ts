@@ -37,8 +37,9 @@ test("embeds: YouTube and Vimeo, nothing else", () => {
   expect(embedSrc("https://vimeo.com/123", {})).toBe(
     "https://player.vimeo.com/video/123?dnt=1"
   );
+  // Vimeo's player reads `muted`; YouTube's reads `mute`.
   expect(embedSrc("https://vimeo.com/123", { autoplay: true })).toBe(
-    "https://player.vimeo.com/video/123?dnt=1&autoplay=1&mute=1"
+    "https://player.vimeo.com/video/123?dnt=1&autoplay=1&muted=1"
   );
   expect(embedSrc("https://youtu.be/abcdefghijk", { autoplay: true })).toBe(
     "https://www.youtube-nocookie.com/embed/abcdefghijk?autoplay=1&mute=1"

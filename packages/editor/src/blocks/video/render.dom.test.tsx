@@ -56,14 +56,18 @@ afterEach(() => {
   }
 });
 
-function mount(edit: boolean) {
+function mount(edit: boolean, patch: Partial<VideoBlock> = {}) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push({ host, root });
   act(() => {
     root.render(
-      createElement(VideoRender, { block, edit, onPatch: () => undefined })
+      createElement(VideoRender, {
+        block: { ...block, ...patch },
+        edit,
+        onPatch: () => undefined,
+      })
     );
   });
   return host;
@@ -87,6 +91,32 @@ describe("featured video click", () => {
     );
     expect(iframe?.getAttribute("src")).toContain("youtube-nocookie.com");
     expect(host.querySelector("button")).toBeNull();
+  });
+
+  test("the playing embed sits in an unclipped box of the same ratio and takes focus", () => {
+    const host = mount(false, { ratio: "21/9" });
+    click(host.querySelector("button") as Element);
+    const iframe = host.querySelector("iframe") as Element;
+    const box = iframe.parentElement as Element;
+    // The chevron's clip-path would cut the corners off the control bar.
+    expect(box.classList.contains("chevron-frame")).toBe(false);
+    for (const cls of ["relative", "overflow-hidden", "rounded-biso-md"]) {
+      expect(box.classList.contains(cls)).toBe(true);
+    }
+    expect(box.getAttribute("style")).toContain("aspect-ratio: 1 / 0.42857");
+    expect(document.activeElement).toBe(iframe);
+  });
+
+  test("a playing file letterboxes inside its box instead of cropping", () => {
+    const host = mount(false, { url: "https://x.test/clip.mp4" });
+    click(host.querySelector("button") as Element);
+    const video = host.querySelector("video") as Element;
+    expect(video.classList.contains("object-contain")).toBe(true);
+    expect(video.classList.contains("object-cover")).toBe(false);
+    expect(video.parentElement?.classList.contains("chevron-frame")).toBe(
+      false
+    );
+    expect(document.activeElement).toBe(video);
   });
 
   test("in the editor the button is inert and a click loads no player", () => {

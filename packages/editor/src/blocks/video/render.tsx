@@ -1,14 +1,16 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ChevronMedia,
   embedSrc,
+  isEmbedUrl,
   MediaPlaceholder,
   ratioValue,
   safeHref,
 } from "@/blocks/_v2";
+import { knownKey } from "@/blocks/_v2/known-key";
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import { usePageFeedSource } from "@/editor/page-feed-context";
@@ -26,9 +28,30 @@ const PLAY_LABEL = { en: "Play video", no: "Spill av video" } as const;
 const PLAYER_ALLOW = "autoplay; fullscreen; picture-in-picture";
 const PLAY_BUTTON =
   "absolute top-1/2 left-1/2 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-biso-pill bg-action text-action-ink focus-visible:ring-2 focus-visible:ring-focus-ring";
-const FILL = "absolute inset-0 size-full border-0 object-cover";
+/** A player fills its box; a file letterboxes rather than crop its frame. */
+const EMBED_FILL = "absolute inset-0 size-full border-0";
+const VIDEO_FILL = "absolute inset-0 size-full object-contain";
+/** Unclipped: the chevron's cut would take the corners off the controls. */
+const PLAYER_BOX = "relative overflow-hidden rounded-biso-md bg-deep";
+const STYLES: Record<VideoBlock["style"], true> = {
+  featured: true,
+  inline: true,
+  loop: true,
+};
 
 type Ratio = VideoBlock["ratio"];
+
+/**
+ * The style the block plays as. A muted loop needs a file a `<video>` can
+ * play, so a YouTube or Vimeo link set to Loop plays as Featured; an unknown
+ * style (copilot output) does too.
+ */
+export function videoStyleFor(
+  block: Pick<VideoBlock, "style" | "url">
+): VideoBlock["style"] {
+  const style = knownKey(STYLES, block.style, "featured");
+  return style === "loop" && isEmbedUrl(block.url ?? "") ? "featured" : style;
+}
 
 function PlayIcon() {
   return (
@@ -58,24 +81,59 @@ function Player({
   const embed = embedSrc(url, { autoplay: autoPlay });
   if (embed) {
     return (
-      <iframe allow={PLAYER_ALLOW} className={FILL} src={embed} title={title} />
+      <iframe
+        allow={PLAYER_ALLOW}
+        className={EMBED_FILL}
+        // An inline player waits until it is near the viewport; a featured
+        // one is loaded by the visitor's click, so it is wanted now.
+        loading={autoPlay ? undefined : "lazy"}
+        src={embed}
+        title={title}
+      />
     );
   }
   if (autoPlay) {
     return (
       // biome-ignore lint/a11y/useMediaCaption: editor-supplied footage has no caption track.
-      <video autoPlay className={FILL} controls playsInline src={url} />
+      <video autoPlay className={VIDEO_FILL} controls playsInline src={url} />
     );
   }
   return (
     // biome-ignore lint/a11y/useMediaCaption: editor-supplied footage has no caption track.
     <video
-      className={FILL}
+      className={VIDEO_FILL}
       controls
       poster={poster}
       preload="metadata"
       src={url}
     />
+  );
+}
+
+/** The box a playing featured video sits in: its ratio, without the cut. */
+function PlayerBox({
+  ratio,
+  title,
+  url,
+}: {
+  ratio: Ratio;
+  title: string;
+  url: string;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  // The button that had focus is gone; keyboard and screen reader users
+  // continue in the player that replaced it.
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>("iframe, video")?.focus();
+  }, []);
+  return (
+    <div
+      className={PLAYER_BOX}
+      ref={box}
+      style={{ aspectRatio: `1 / ${ratioValue(ratio)}` } as CSSProperties}
+    >
+      <Player autoPlay title={title} url={url} />
+    </div>
   );
 }
 
@@ -98,14 +156,7 @@ function Featured({
   const [playing, setPlaying] = useState(false);
   const playLabel = locale === "en" ? PLAY_LABEL.en : PLAY_LABEL.no;
   if (playing && !edit) {
-    return (
-      <div
-        className="chevron-frame bg-deep"
-        style={{ "--ar": ratioValue(ratio) } as CSSProperties}
-      >
-        <Player autoPlay title={title} url={url} />
-      </div>
-    );
+    return <PlayerBox ratio={ratio} title={title} url={url} />;
   }
   const button = (
     <button
@@ -156,7 +207,7 @@ function VideoBody({
   url: string;
 }) {
   const ratio = block.ratio ?? "16/9";
-  const style = block.style ?? "featured";
+  const style = videoStyleFor({ style: block.style, url });
   const title = block.caption || block.label || "Video";
   if (style === "loop") {
     return (
