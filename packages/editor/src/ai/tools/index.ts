@@ -1,17 +1,36 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { paletteGroups } from "@/blocks/index";
+import type { PaletteGroupData } from "@/blocks/registry";
 import type { BlockType } from "@/editor/types";
 import { BRAND_ACCENT_VALUES } from "@/theme/presets";
 
 /**
- * Every block type the palette offers, derived from the registry so the AI can
- * never insert a hidden (cut) block or miss a new one. `z.enum` wants a
- * non-empty tuple; the registry always has blocks once `blocks/index` loads.
+ * The block types a set of palette groups offers, as the non-empty tuple
+ * `z.enum` needs. Throws when there are none: that means the registrations
+ * never ran here (for instance a `blocks/<name>/index.tsx` marked
+ * "use client", which a server route imports only as a client reference),
+ * and an empty enum would silently stop the AI from inserting any block.
  */
-export const BLOCK_TYPES = paletteGroups().flatMap((group) =>
-  group.items.map((item) => item.type)
-) as [BlockType, ...BlockType[]];
+export function blockTypesOf(
+  groups: PaletteGroupData[]
+): [BlockType, ...BlockType[]] {
+  const [first, ...rest] = groups.flatMap((group) =>
+    group.items.map((item) => item.type)
+  );
+  if (first === undefined) {
+    throw new Error(
+      'No block types are registered: import @/blocks/index before the AI tools, and keep every blocks/<name>/index.tsx free of "use client".'
+    );
+  }
+  return [first, ...rest];
+}
+
+/**
+ * Every block type the palette offers, derived from the registry so the AI can
+ * never insert a hidden (cut) block or miss a new one.
+ */
+export const BLOCK_TYPES = blockTypesOf(paletteGroups());
 
 /** Input schema for `apply_accent` — exported so the brand-swatch guard can be
  *  asserted directly (a tool's `inputSchema` is widened to `FlexibleSchema`). */
