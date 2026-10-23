@@ -6,6 +6,7 @@ import {
   hexToHsv,
   hsvToHex,
   hueOf,
+  isBisoTheme,
   MIN_ACCENT_ON_DARK,
   MIN_DARK_ON_WHITE,
   nearestPassingShade,
@@ -78,8 +79,7 @@ describe("normalizeHex", () => {
 describe("contrastRatio", () => {
   it("matches WCAG reference values", () => {
     expect(contrastRatio("#ffffff", "#000000")).toBeCloseTo(21, 2);
-    expect(contrastRatio("#001a35", WHITE)).toBeCloseTo(17.4, 0);
-    expect(Math.abs(contrastRatio("#001a35", WHITE) - 17.4)).toBeLessThan(0.15); // exact 17.51; brief says "about 17.4"
+    expect(contrastRatio("#001a35", WHITE)).toBeCloseTo(17.51, 1);
     expect(Math.abs(contrastRatio("#1668ae", WHITE) - 5.79)).toBeLessThan(0.05);
   });
   it("is symmetric", () => {
@@ -277,5 +277,29 @@ describe("themeCss", () => {
     expect(() =>
       themeCss({ dark: "#fff;}body{", accent: "#000000" })
     ).toThrow();
+  });
+});
+
+describe("follow-ups", () => {
+  it("parsePageTheme returns null for an object with a throwing getter", () => {
+    const hostile = {
+      get dark(): string {
+        throw new Error("x");
+      },
+      accent: "#c8a2f0",
+    };
+    expect(parsePageTheme(hostile)).toBeNull();
+  });
+  it("keeps sunken distinct from a black dark", () => {
+    const t = themeTokens({ dark: "#000000", accent: "#ffffff" });
+    expect(t["--biso-deep-sunken"]).not.toBe("#000000");
+    expect(t["--biso-deep-sunken"]).toMatch(HEX);
+  });
+  it("isBisoTheme compares normalised colours", () => {
+    expect(isBisoTheme({ dark: "#001A35", accent: "#3AA3E1" })).toBe(true);
+    expect(isBisoTheme({ dark: "#001a35", accent: "#fecd45" })).toBe(false);
+    expect(isBisoTheme({ dark: "nope", accent: "#3aa3e1" })).toBe(false);
+    expect(isBisoTheme(null)).toBe(false);
+    expect(isBisoTheme(undefined)).toBe(false);
   });
 });

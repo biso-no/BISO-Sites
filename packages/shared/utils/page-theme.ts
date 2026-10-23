@@ -89,7 +89,7 @@ function rgbToHex([r, g, b]: Rgb): string {
 
 function linearize(channel: number): number {
   const c = channel / 255;
-  return c <= 0.039_28 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  return c <= 0.040_45 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
 function luminance(rgb: Rgb): number {
@@ -310,11 +310,29 @@ export function checkTheme(theme: PageTheme): ThemeCheck {
   };
 }
 
+/** True when both colours, normalised, are BISO's own. Null/invalid give false. */
+export function isBisoTheme(theme: PageTheme | null | undefined): boolean {
+  if (!theme) {
+    return false;
+  }
+  return (
+    normalizeHex(theme.dark) === BISO_THEME.dark &&
+    normalizeHex(theme.accent) === BISO_THEME.accent
+  );
+}
+
 export function parsePageTheme(value: unknown): PageTheme | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const { dark, accent } = value as Record<string, unknown>;
+  let dark: unknown;
+  let accent: unknown;
+  try {
+    ({ dark, accent } = value as Record<string, unknown>);
+  } catch {
+    // A throwing getter on a stored or AI-supplied object is just invalid.
+    return null;
+  }
   if (typeof dark !== "string" || typeof accent !== "string") {
     return null;
   }
@@ -332,6 +350,25 @@ function shiftLightness(hex: string, delta: number): string {
   const rgb = toRgb(hex) as Rgb;
   const hsl = rgbToHsl(rgb);
   return hslToHex({ ...hsl, l: Math.min(1, Math.max(0, hsl.l + delta)) });
+}
+
+/**
+ * One step below the dark. When that floors to the dark itself (e.g. #000000)
+ * there is no room below, so nudge upwards by the smallest lightness step that
+ * produces a different hex, keeping sunken distinct.
+ */
+function deriveSunken(dark: string): string {
+  const below = shiftLightness(dark, -SUNKEN_STEP);
+  if (below !== dark) {
+    return below;
+  }
+  for (let delta = ROUND_NUDGE; delta <= SUNKEN_STEP; delta += ROUND_NUDGE) {
+    const above = shiftLightness(dark, delta);
+    if (above !== dark) {
+      return above;
+    }
+  }
+  return shiftLightness(dark, SUNKEN_STEP);
 }
 
 function mixWithWhite(dark: string, whiteShare: number): string {
@@ -363,7 +400,7 @@ export function themeTokens(theme: PageTheme): Record<`--${string}`, string> {
     throw new Error("themeTokens: theme colours must be #rrggbb hex");
   }
   const raised = shiftLightness(dark, RAISED_STEP);
-  const sunken = shiftLightness(dark, -SUNKEN_STEP);
+  const sunken = deriveSunken(dark);
   const edge = shiftLightness(dark, EDGE_STEP);
 
   // The tint is the darker of the two light surfaces, so it is the hard one.
