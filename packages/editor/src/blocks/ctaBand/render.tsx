@@ -20,7 +20,7 @@ export function CtaBandRender({ block, edit, onPatch }: Props) {
     .filter((button) => edit || isLiveButton(button));
   return (
     <div className="grid @2xl:grid-cols-[1fr_auto] @2xl:items-end gap-6">
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3 hyphens-auto break-words">
         {edit || block.eyebrow ? (
           <EditableText
             className="type-label text-ink-accent"

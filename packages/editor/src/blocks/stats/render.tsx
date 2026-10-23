@@ -17,9 +17,9 @@ export function StatsRender({ block, edit, onPatch }: Props) {
       block.items.map((x, j) => (j === i ? { ...x, [key]: value } : x))
     );
   return (
-    <dl className="m-0 grid @sm:grid-cols-2 @xl:grid-cols-3 gap-6 border-edge border-t pt-6">
+    <dl className="m-0 grid @sm:grid-cols-2 @xl:grid-cols-3 gap-6 hyphens-auto break-words border-edge border-t pt-6">
       {block.items.map((item, i) => (
-        <div className="flex flex-col-reverse gap-1" key={i}>
+        <div className="flex min-w-0 flex-col-reverse gap-1" key={i}>
           <dt className="type-body-sm text-ink-muted">
             <EditableText
               edit={edit}

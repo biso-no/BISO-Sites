@@ -26,7 +26,7 @@ export function FactsRender({ block, edit, onPatch }: Props) {
     />
   );
   return (
-    <dl className="m-0 divide-y divide-edge border-edge border-y">
+    <dl className="m-0 divide-y divide-edge hyphens-auto break-words border-edge border-y">
       {block.items.map((item, i) => {
         const href = safeHref(item.href);
         return (
@@ -39,7 +39,8 @@ export function FactsRender({ block, edit, onPatch }: Props) {
                 value={item.label}
               />
             </dt>
-            <dd className="type-heading-card m-0 text-ink">
+            {/* A value may be an email address or URL: no break opportunity. */}
+            <dd className="type-heading-card m-0 text-ink [overflow-wrap:anywhere]">
               {href && !edit ? (
                 <a
                   className="underline"

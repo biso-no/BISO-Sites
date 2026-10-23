@@ -12,9 +12,12 @@ interface Props {
 
 export function HighlightsRender({ block, edit, onPatch }: Props) {
   return (
-    <ul className="m-0 grid list-none gap-4 p-0">
+    <ul className="m-0 grid list-none gap-4 hyphens-auto break-words p-0">
       {block.items.map((item, i) => (
-        <li className="type-body border-ink-accent border-l-2 pl-4" key={i}>
+        <li
+          className="type-body min-w-0 border-ink-accent border-l-2 pl-4"
+          key={i}
+        >
           <EditableText
             edit={edit}
             onChange={(v) =>

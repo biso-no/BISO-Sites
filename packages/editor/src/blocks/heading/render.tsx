@@ -34,7 +34,7 @@ export function HeadingRender({ block, edit, onPatch }: Props) {
       : undefined;
   const size = block.size ?? "medium";
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 hyphens-auto break-words">
       {(block.eyebrow || edit) && (
         <EditableText
           className="type-label text-ink-accent"
@@ -46,7 +46,7 @@ export function HeadingRender({ block, edit, onPatch }: Props) {
       )}
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <h2
-          className={`${TITLE_CLASS[size]} min-w-0 break-words text-ink`}
+          className={`${TITLE_CLASS[size]} min-w-0 hyphens-auto break-words text-ink`}
           data-marker={link ? "true" : undefined}
         >
           <span className={link ? MARKER_CLASS : undefined}>

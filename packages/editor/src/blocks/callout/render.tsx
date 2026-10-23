@@ -27,7 +27,7 @@ export function CalloutRender({ block, edit, onPatch }: Props) {
   const tone = block.tone ?? "info";
   const labels = locale === "en" ? LABELS.en : LABELS.no;
   return (
-    <aside className="flex flex-col gap-2 rounded-biso-md border border-edge bg-surface-raised p-5 text-ink">
+    <aside className="flex flex-col gap-2 hyphens-auto break-words rounded-biso-md border border-edge bg-surface-raised p-5 text-ink">
       <span
         className={`type-label inline-flex w-fit rounded-biso-pill border border-current px-3 py-0.5 ${TONE_CLASS[tone]}`}
       >

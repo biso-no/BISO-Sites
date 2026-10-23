@@ -13,7 +13,7 @@ interface Props {
 export function QuoteRender({ block, edit, onPatch }: Props) {
   const showCaption = Boolean(block.author || block.role) || edit;
   return (
-    <figure className="m-0 flex max-w-(--measure) flex-col gap-4 border-action border-l-4 pl-6">
+    <figure className="m-0 flex max-w-(--measure) flex-col gap-4 hyphens-auto break-words border-action border-l-4 pl-6">
       <blockquote className="type-display-sm m-0 text-ink">
         <EditableText
           edit={edit}

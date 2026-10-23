@@ -340,15 +340,26 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
       ],
     ]),
 
-    // Tinted, four columns of narrow blocks.
+    // Tinted, four columns of narrow blocks. A long compound and an email
+    // address, neither with a break opportunity, check that narrow columns
+    // wrap them instead of overflowing.
     section("s-narrow", { background: "tinted", columns: "1-1-1-1" }, [
       [
+        {
+          id: "b-narrow-heading",
+          type: "heading",
+          eyebrow: "",
+          title: "Samarbeidspartnere",
+          intro: "",
+          size: "medium",
+        },
         {
           id: "b-narrow-facts",
           type: "facts",
           items: [
             { label: "Start", text: "Torsdag 10:00" },
             { label: "Slutt", text: "Fredag 16:00" },
+            { label: "E-post", text: "communication.wintergames@biso.no" },
           ],
         },
       ],

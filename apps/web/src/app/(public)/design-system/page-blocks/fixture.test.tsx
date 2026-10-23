@@ -90,3 +90,12 @@ test("two white sections meet, so the hairline between them shows", () => {
   );
   expect(whitePair).toBe(true);
 });
+
+test("the four-column section carries a long word and an email address", () => {
+  const narrow = PAGE_BLOCKS_FIXTURE.sections.find(
+    (s) => s.layout.columns === "1-1-1-1"
+  );
+  const json = JSON.stringify(narrow);
+  expect(json).toContain("Samarbeidspartnere");
+  expect(json).toContain("communication.wintergames@biso.no");
+});
