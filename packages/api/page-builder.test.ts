@@ -14,12 +14,14 @@ vi.mock("./server", () => ({
 }));
 
 import {
+  clearPageTheme,
   getPage,
   getPageEditorById,
   type PageDoc,
   publishPage,
   savePageDraft,
   savePageTranslationDraft,
+  syncSharedDraftMeta,
 } from "./page-builder";
 
 const ctx = {
@@ -439,5 +441,183 @@ describe("page builder", () => {
       }),
       expect.any(Array)
     );
+  });
+});
+
+const PURPLE = { accent: "#c8a2f0", dark: "#3b1c6b" };
+const GREEN = { accent: "#8fe3b5", dark: "#0b3d2e" };
+
+const withMeta = (meta: Partial<PageDoc["meta"]>): PageDoc => ({
+  ...doc,
+  meta: { ...doc.meta, ...meta },
+});
+
+describe("syncSharedDraftMeta", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("writes the shared meta into every other locale's existing draft, and nothing else", async () => {
+    const en = withMeta({ title: "Hello", theme: GREEN });
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        { $id: "tr-no", draft_doc: JSON.stringify(doc), locale: "no" },
+        { $id: "tr-en", draft_doc: JSON.stringify(en), locale: "en" },
+      ],
+    });
+
+    await syncSharedDraftMeta({
+      id: "page-1",
+      locale: "no",
+      meta: {
+        campus: "os",
+        department: "dept-1",
+        slug: "shared-slug",
+        status: "draft",
+        theme: PURPLE,
+      },
+    });
+
+    expect(db.updateRow).toHaveBeenCalledTimes(1);
+    const [, table, rowId, data, permissions] = db.updateRow.mock.calls[0];
+    expect(table).toBe("page_translations");
+    expect(rowId).toBe("tr-en");
+    // Permissions are left as they are.
+    expect(permissions).toBeUndefined();
+    expect(Object.keys(data)).toEqual(["draft_doc"]);
+    const written = JSON.parse(data.draft_doc) as PageDoc;
+    expect(written.meta.theme).toEqual(PURPLE);
+    expect(written.meta.title).toBe("Hello");
+    expect(written.meta.campus).toBe("os");
+    expect(written.sections).toEqual(en.sections);
+  });
+
+  it("removes a shared field that is undefined, keeps null", async () => {
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        {
+          $id: "tr-en",
+          draft_doc: JSON.stringify(withMeta({ theme: GREEN })),
+          locale: "en",
+        },
+      ],
+    });
+    await syncSharedDraftMeta({
+      id: "page-1",
+      locale: "no",
+      meta: { ...doc.meta, theme: undefined },
+    });
+    const absent = JSON.parse(db.updateRow.mock.calls[0][3].draft_doc);
+    expect("theme" in absent.meta).toBe(false);
+
+    db.updateRow.mockClear();
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        {
+          $id: "tr-en",
+          draft_doc: JSON.stringify(withMeta({ theme: GREEN })),
+          locale: "en",
+        },
+      ],
+    });
+    await syncSharedDraftMeta({
+      id: "page-1",
+      locale: "no",
+      meta: { ...doc.meta, theme: null },
+    });
+    expect(JSON.parse(db.updateRow.mock.calls[0][3].draft_doc).meta.theme).toBe(
+      null
+    );
+  });
+
+  it("creates no translation row and rewrites no draft that already matches", async () => {
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        { $id: "tr-no", draft_doc: JSON.stringify(doc), locale: "no" },
+        // A translation with no draft of its own is left alone.
+        { $id: "tr-en", draft_doc: null, locale: "en" },
+      ],
+    });
+    await syncSharedDraftMeta({ id: "page-1", locale: "no", meta: doc.meta });
+    expect(db.updateRow).not.toHaveBeenCalled();
+
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        { $id: "tr-en", draft_doc: JSON.stringify(withMeta({})), locale: "en" },
+      ],
+    });
+    await syncSharedDraftMeta({ id: "page-1", locale: "no", meta: doc.meta });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("clearPageTheme", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("strips meta.theme from every locale's draft and published doc, leaving the rest", async () => {
+    const themed = withMeta({ theme: PURPLE });
+    const reset = withMeta({ theme: null });
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        {
+          $id: "tr-no",
+          draft_doc: JSON.stringify(themed),
+          locale: "no",
+          published_doc: JSON.stringify(reset),
+        },
+        {
+          $id: "tr-en",
+          draft_doc: JSON.stringify(withMeta({ title: "Hello", theme: GREEN })),
+          locale: "en",
+          published_doc: null,
+        },
+      ],
+    });
+
+    await clearPageTheme("page-1");
+
+    expect(db.listRows).toHaveBeenCalledWith(
+      "app",
+      "page_translations",
+      expect.arrayContaining([expect.stringContaining("page_id")])
+    );
+    expect(db.updateRow).toHaveBeenCalledTimes(2);
+    const byRow = Object.fromEntries(
+      db.updateRow.mock.calls.map((call) => [call[2], call])
+    );
+    const no = byRow["tr-no"];
+    expect(no[4]).toBeUndefined();
+    expect(Object.keys(no[3]).sort()).toEqual(["draft_doc", "published_doc"]);
+    const noDraft = JSON.parse(no[3].draft_doc);
+    const noPublished = JSON.parse(no[3].published_doc);
+    expect("theme" in noDraft.meta).toBe(false);
+    expect("theme" in noPublished.meta).toBe(false);
+    expect(noDraft).toEqual(doc);
+    expect(noPublished).toEqual(doc);
+
+    const en = byRow["tr-en"];
+    expect(Object.keys(en[3])).toEqual(["draft_doc"]);
+    const enDraft = JSON.parse(en[3].draft_doc);
+    expect("theme" in enDraft.meta).toBe(false);
+    expect(enDraft.meta.title).toBe("Hello");
+  });
+
+  it("rewrites nothing when no document holds a theme", async () => {
+    db.listRows.mockResolvedValueOnce({
+      rows: [
+        {
+          $id: "tr-no",
+          draft_doc: JSON.stringify(doc),
+          locale: "no",
+          published_doc: JSON.stringify(doc),
+        },
+      ],
+    });
+    await clearPageTheme("page-1");
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 });

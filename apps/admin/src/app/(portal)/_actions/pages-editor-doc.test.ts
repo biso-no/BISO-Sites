@@ -94,12 +94,14 @@ const pbGetPageEditorByIdSpy = mock(async (): Promise<unknown> => null);
 mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
+  clearPageTheme: mock(async () => undefined),
   getPageById: mock(async () => null),
   getPageEditorById: pbGetPageEditorByIdSpy,
   publishPage: mock(async () => undefined),
   resolvePageCampusId: mock(resolvePageCampusIdMock),
   savePageDraft: savePageDraftSpy,
   savePageTranslationDraft: mock(async () => undefined),
+  syncSharedDraftMeta: mock(async () => undefined),
   unpublishPage: mock(async () => undefined),
 }));
 mock.module("@repo/api/server", () => ({

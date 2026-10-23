@@ -27,6 +27,8 @@ import type {
   EditorLocale,
   EditorLocaleOption,
   PageDoc,
+  PublishOutcome,
+  StoredMeta,
 } from "@/editor/types";
 import { autosaveSignature, shouldAutosave } from "./autosave-signature";
 import { CanvasPane } from "./canvas";
@@ -47,6 +49,7 @@ import { sectionLabel } from "./canvas/section-frame";
 import { InspectorPane } from "./inspector";
 import { PalettePane } from "./palette";
 import { Topbar } from "./topbar";
+import { useUnloadPrompt } from "./unload-prompt";
 
 // Import block registrations (side effects)
 import "@/blocks/index";
@@ -61,13 +64,14 @@ interface Props {
   onDocChange?: (doc: PageDoc, locale: EditorLocale) => void;
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
-  onPublish?: (locale: EditorLocale) => Promise<void>;
+  onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
   onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
   onUnpublish?: (locale: EditorLocale) => Promise<void>;
+  /** Resolves with what the server stored differently from `doc`, if anything. */
   savePage: (
     doc: PageDoc,
     locale: EditorLocale
-  ) => Promise<{ slug?: string } | undefined>;
+  ) => Promise<StoredMeta | undefined>;
   topbarActions?: ReactNode;
   translatingLocale?: EditorLocale | null;
   uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
@@ -143,23 +147,10 @@ export function EditorShell({
   const setDoc = useEditorStore((s) => s.setDoc);
   const setStatus = useEditorStore((s) => s.setStatus);
   const doc = useEditorStore((s) => s.doc);
-  // Mirror a publish/unpublish into the store, or the next autosave writes
-  // the stale status back and undoes it.
-  const publishCallbacks = useMemo(
-    () =>
-      withPublishStatusSync(
-        {
-          onPublish: guardPublish(
-            onPublish,
-            () => useEditorStore.getState().doc.meta
-          ),
-          onUnpublish,
-        },
-        setStatus
-      ),
-    [onPublish, onUnpublish, setStatus]
-  );
   const setSaving = useEditorStore((s) => s.setSaving);
+  // Nothing saves while the colours fail, so leaving would lose every edit.
+  const saveBlocked = useEditorStore((s) => s.saving === "blocked");
+  useUnloadPrompt(saveBlocked);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
 
@@ -241,6 +232,50 @@ export function EditorShell({
   savePageRef.current = savePage;
   onDocChangeRef.current = onDocChange;
 
+  /**
+   * After a server-side correction to the document (`apply`), treat the
+   * corrected document as what is stored when `storedBefore` says the store
+   * matched storage beforehand. The correction then fires no save: one would
+   * be redundant, and a save right after a publish bumps the page row and
+   * makes a queued auto-translation give up as stale.
+   */
+  function correctStoredDoc(apply: () => void, storedBefore: boolean) {
+    apply();
+    const hydrated = hydratedRef.current;
+    if (storedBefore && hydrated?.locale === localeRef.current) {
+      hydrated.signature = autosaveSignature(useEditorStore.getState().doc);
+      hydrated.changed = false;
+    }
+  }
+  const correctStoredDocRef = useRef(correctStoredDoc);
+  correctStoredDocRef.current = correctStoredDoc;
+
+  // Mirror a publish/unpublish into the store, or the next autosave writes
+  // the stale status back and undoes it. A theme the publish copied to the
+  // department leaves the page the same way: nothing unsaved means the store
+  // matched storage, which the server has just stripped of the theme too.
+  const publishCallbacks = useMemo(
+    () =>
+      withPublishStatusSync(
+        {
+          onPublish: guardPublish(
+            onPublish,
+            () => useEditorStore.getState().doc.meta
+          ),
+          onUnpublish,
+        },
+        setStatus,
+        () => {
+          const { saving } = useEditorStore.getState();
+          correctStoredDocRef.current(
+            () => useEditorStore.getState().dropPageTheme(),
+            saving === "idle" || saving === "saved"
+          );
+        }
+      ),
+    [onPublish, onUnpublish, setStatus]
+  );
+
   // Hydrate store when the editor enters a locale. Subsequent parent mirrors of
   // the same locale document must not rehydrate the store or autosave loops.
   useEffect(() => {
@@ -303,14 +338,18 @@ export function EditorShell({
       try {
         const result = await savePageSnapshot(docSnapshot, localeSnapshot);
         // Only into the locale it was saved for: a save flushed by a locale
-        // switch resolves while the store holds the other locale.
-        if (
-          result?.slug &&
-          result.slug !== docSnapshot.meta.slug &&
-          localeRef.current === localeSnapshot
-        ) {
-          const current = useEditorStore.getState().doc;
-          setDoc({ ...current, meta: { ...current.meta, slug: result.slug } });
+        // switch resolves while the store holds the other locale. The stored
+        // slug and department replace what was sent, with no undo step.
+        if (result && localeRef.current === localeSnapshot) {
+          const sent = {
+            department: docSnapshot.meta.department,
+            slug: docSnapshot.meta.slug,
+          };
+          correctStoredDocRef.current(
+            () => useEditorStore.getState().adoptStoredMeta(sent, result),
+            autosaveSignature(useEditorStore.getState().doc) ===
+              autosaveSignature(docSnapshot)
+          );
         }
         // A theme block that arrived meanwhile owns the status.
         if (useEditorStore.getState().saving !== "blocked") {

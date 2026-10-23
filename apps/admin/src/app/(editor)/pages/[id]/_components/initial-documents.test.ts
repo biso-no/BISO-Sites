@@ -5,11 +5,15 @@ import type {
 } from "@repo/api/page-builder";
 import { emptyHeader } from "@repo/editor/templates";
 import type { PageDoc } from "@repo/editor/types";
+import { SHARED_META_FIELDS } from "@/lib/page-shared-meta";
 import {
   blankPageDoc,
   buildInitialDocuments,
   hasExistingContent,
   syncSharedMeta,
+  withDepartmentTheme,
+  withoutPageTheme,
+  withStoredMeta,
 } from "./initial-documents";
 
 const EDITOR_CAMPUS = "campus-editor";
@@ -292,5 +296,114 @@ describe("syncSharedMeta and the theme", () => {
       source: docWith("Norsk", THEME),
     });
     expect(blank.meta.theme).toEqual(THEME);
+  });
+});
+
+describe("syncSharedMeta uses the one shared field list", () => {
+  test("copies exactly SHARED_META_FIELDS and keeps each locale's own text", () => {
+    const no: PageDoc = {
+      meta: {
+        campus: "campus-no",
+        department: "dept-no",
+        description: "Norsk",
+        slug: "slug-no",
+        status: "published",
+        theme: { accent: "#c8a2f0", dark: "#3b1c6b" },
+        title: "Norsk tittel",
+      },
+      sections: [],
+      version: 2,
+    };
+    const en: PageDoc = {
+      meta: {
+        campus: "campus-en",
+        department: "dept-en",
+        description: "English",
+        slug: "slug-en",
+        status: "draft",
+        title: "English title",
+      },
+      sections: [],
+      version: 2,
+    };
+    const synced = syncSharedMeta({ en, no }, "no", no).en?.meta;
+    for (const field of SHARED_META_FIELDS) {
+      expect(synced?.[field]).toEqual(no.meta[field]);
+    }
+    expect(synced?.title).toBe("English title");
+    expect(synced?.description).toBe("English");
+  });
+});
+
+describe("what the server stored reaches every locale (I3)", () => {
+  const docIn = (patch: Partial<PageDoc["meta"]>): PageDoc => ({
+    meta: {
+      department: "",
+      slug: "uten-navn",
+      status: "draft",
+      title: "T",
+      ...patch,
+    },
+    sections: [],
+    version: 2,
+  });
+
+  test("the bound department and stored slug replace what was sent, in every locale", () => {
+    const docs = withStoredMeta(
+      { en: docIn({ title: "E" }), no: docIn({ title: "N" }) },
+      { department: "", slug: "uten-navn" },
+      { department: "dept-1", slug: "uten-navn-2" }
+    );
+    for (const locale of ["no", "en"] as const) {
+      expect(docs[locale]?.meta.department).toBe("dept-1");
+      expect(docs[locale]?.meta.slug).toBe("uten-navn-2");
+    }
+    expect(docs.en?.meta.title).toBe("E");
+  });
+
+  test("a value changed since the save was sent is kept", () => {
+    const docs = withStoredMeta(
+      { no: docIn({ department: "dept-2" }) },
+      { department: "" },
+      { department: "dept-1" }
+    );
+    expect(docs.no?.meta.department).toBe("dept-2");
+  });
+
+  test("nothing stored differently leaves the documents as they are", () => {
+    const current = { no: docIn({}) };
+    expect(
+      withStoredMeta(current, { department: "" }, { department: "" })
+    ).toBe(current);
+  });
+});
+
+describe("after a publish copied the theme (I1)", () => {
+  test("every locale's document follows the department again", () => {
+    const theme = { accent: "#c8a2f0", dark: "#3b1c6b" };
+    const docOf = (title: string, t: PageDoc["meta"]["theme"]): PageDoc => ({
+      meta: { department: "d", slug: "s", status: "draft", theme: t, title },
+      sections: [],
+      version: 2,
+    });
+    const docs = withoutPageTheme({
+      en: docOf("E", null),
+      no: docOf("N", theme),
+    });
+    expect("theme" in (docs.no?.meta ?? {})).toBe(false);
+    expect("theme" in (docs.en?.meta ?? {})).toBe(false);
+    expect(docs.no?.meta.title).toBe("N");
+  });
+
+  test("the department list takes the theme the department now has", () => {
+    const theme = { accent: "#c8a2f0", dark: "#3b1c6b" };
+    const list = [
+      { campusId: "c", id: "d-1", name: "One", theme: null },
+      { campusId: "c", id: "d-2", name: "Two", theme: null },
+    ];
+    const next = withDepartmentTheme(list, { id: "d-1", theme });
+    expect(next[0]?.theme).toEqual(theme);
+    expect(next[1]).toBe(list[1]);
+    expect(withDepartmentTheme(list, null)).toBe(list);
   });
 });

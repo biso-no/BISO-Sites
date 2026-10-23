@@ -46,6 +46,7 @@ import type {
   Section,
   SectionColumns,
   SectionLayout,
+  StoredMeta,
 } from "./types";
 
 const HISTORY_LIMIT = 100;
@@ -59,9 +60,23 @@ interface HistorySnap {
 interface EditorState {
   /** Give the page an empty header titled after it, if it has none, and select it. */
   addHeader: () => void;
+  /**
+   * The server stored `stored` where the editor sent `sent` (a unique slug,
+   * the department a page was bound to). Not an edit: no undo step. The page
+   * and every undo step still holding the sent value take the stored one, so
+   * undo cannot send the old value again; a value typed since stays.
+   */
+  adoptStoredMeta: (sent: StoredMeta, stored: StoredMeta) => void;
   bindCollection: (id: string, source: string) => void;
   copilotOpen: boolean;
   doc: PageDoc;
+  /**
+   * The page's theme was copied to its department: remove it from the page
+   * and from every undo step, so the page follows its department and undo
+   * cannot bring back colours the department now owns. Not an edit: no undo
+   * step.
+   */
+  dropPageTheme: () => void;
   duplicateBlock: (id: string) => void;
   duplicateSection: (id: string) => void;
   future: HistorySnap[];
@@ -165,6 +180,17 @@ const EMPTY_DOC: PageDoc = {
   sections: [],
   version: 2,
 };
+
+/** Everything that holds a meta: the page and each undo and redo step. */
+function metaHolders(state: {
+  doc: PageDoc;
+  future: HistorySnap[];
+  past: HistorySnap[];
+}): { meta: PageMeta }[] {
+  return [state.doc, ...state.past, ...state.future];
+}
+
+const STORED_META_KEYS = ["department", "slug"] as const;
 
 function snap(doc: PageDoc): HistorySnap {
   return {
@@ -421,6 +447,32 @@ export const useEditorStore = create<EditorState>()(
       setStatus: (status) =>
         set((s) => {
           s.doc.meta.status = status;
+        }),
+
+      adoptStoredMeta: (sent, stored) =>
+        set((s) => {
+          for (const key of STORED_META_KEYS) {
+            const from = sent[key];
+            const to = stored[key];
+            if (from === undefined || to === undefined || from === to) {
+              continue;
+            }
+            for (const holder of metaHolders(s)) {
+              if (holder.meta[key] === from) {
+                holder.meta[key] = to;
+              }
+            }
+          }
+        }),
+
+      dropPageTheme: () =>
+        set((s) => {
+          // Absent, not undefined: absent is what "follows the department"
+          // looks like everywhere a document is read.
+          for (const holder of metaHolders(s)) {
+            const { theme: _copied, ...meta } = holder.meta;
+            holder.meta = meta;
+          }
         }),
 
       setDoc: (doc) =>

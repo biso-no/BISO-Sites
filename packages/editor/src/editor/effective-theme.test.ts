@@ -5,7 +5,10 @@ import {
   guardPublish,
   themeBlocksSave,
 } from "./effective-theme";
+import { withPublishStatusSync } from "./publish-status";
 import type { EditorDepartment, PageMeta } from "./types";
+
+const BLOCKED_PUBLISH = /contrast/;
 
 const purple = { dark: "#2a0a4a", accent: "#fecd45" };
 const green = { dark: "#0a3a1a", accent: "#7be495" };
@@ -75,17 +78,38 @@ describe("canvasThemeStyle", () => {
 });
 
 describe("guardPublish", () => {
-  test("does not call the handler while blocked, calls it otherwise", async () => {
+  test("rejects without calling the handler while blocked, calls it otherwise", async () => {
     let calls = 0;
     const publish = () => {
       calls += 1;
       return Promise.resolve();
     };
     const bad = meta({ theme: { dark: "#9b5de5", accent: "#fecd45" } });
-    await guardPublish(publish, () => bad)?.();
+    // Rejecting matters: the shell marks the page published when the
+    // publish resolves, so a resolved no-op would claim a publish that never
+    // happened.
+    await expect(guardPublish(publish, () => bad)?.()).rejects.toThrow(
+      BLOCKED_PUBLISH
+    );
     expect(calls).toBe(0);
     await guardPublish(publish, () => meta({}))?.();
     expect(calls).toBe(1);
     expect(guardPublish(undefined, () => bad)).toBeUndefined();
+  });
+
+  test("a blocked publish never reaches the published status", async () => {
+    const statuses: string[] = [];
+    const bad = meta({ theme: { dark: "#9b5de5", accent: "#fecd45" } });
+    const callbacks = withPublishStatusSync(
+      {
+        onPublish: guardPublish(
+          () => Promise.resolve(undefined),
+          () => bad
+        ),
+      },
+      (status) => statuses.push(status)
+    );
+    await expect(callbacks.onPublish?.("no")).rejects.toThrow();
+    expect(statuses).toEqual([]);
   });
 });

@@ -166,3 +166,113 @@ test("a save that resolves after the block leaves it blocked", async () => {
   await wait(SAVED_TIMER_WAIT_MS);
   blockedHeld(host);
 });
+
+/** Dispatch a cancelable `beforeunload` and report whether a prompt was asked for. */
+const unloadPrompted = () => {
+  const event = new window.Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(event);
+  return event.defaultPrevented;
+};
+
+test("closing the tab while blocked prompts; once the colours pass it does not", async () => {
+  const saves: unknown[] = [];
+  mount(saves);
+  expect(unloadPrompted()).toBe(false);
+
+  act(() => useEditorStore.getState().setTheme(BAD));
+  await wait(SAVE_WAIT_MS);
+  expect(useEditorStore.getState().saving).toBe("blocked");
+  expect(unloadPrompted()).toBe(true);
+
+  act(() => useEditorStore.getState().setTheme(GOOD));
+  await wait(SAVE_WAIT_MS);
+  expect(useEditorStore.getState().saving).not.toBe("blocked");
+  expect(unloadPrompted()).toBe(false);
+});
+
+test("unmounting while blocked removes the prompt", async () => {
+  mount([]);
+  act(() => useEditorStore.getState().setTheme(BAD));
+  await wait(SAVE_WAIT_MS);
+  expect(unloadPrompted()).toBe(true);
+  act(() => mounted?.root.unmount());
+  mounted?.host.remove();
+  mounted = null;
+  expect(unloadPrompted()).toBe(false);
+});
+
+function mountHost({
+  onPublish,
+  savePage,
+}: {
+  onPublish?: () => Promise<{ themeCopied?: boolean } | undefined>;
+  savePage: (d: unknown) => Promise<{ department?: string; slug?: string }>;
+}) {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted = { host, root };
+  act(() => {
+    root.render(
+      createElement(EditorShell, {
+        activeLocale: "no" as EditorLocale,
+        departments: [
+          { campusId: "c-1", id: "dept-1", name: "Fadderullan", theme: GOOD },
+        ],
+        initial: doc(section("s-1", "1", [["b-1"]])),
+        locales: [{ hasDraft: true, label: "Norwegian", locale: "no" }],
+        onLocaleChange: () => undefined,
+        onPublish,
+        savePage,
+        uploadFile: () => Promise.resolve({ fileId: "", url: "" }),
+      })
+    );
+  });
+  return host;
+}
+
+test("a save that bound the page to a department takes it in, with no extra save or undo step", async () => {
+  const saves: unknown[] = [];
+  mountHost({
+    savePage: (d) => {
+      saves.push(d);
+      return Promise.resolve({ department: "dept-1" });
+    },
+  });
+  act(() => useEditorStore.getState().setMeta("title", "Ny side"));
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
+  expect(useEditorStore.getState().doc.meta.department).toBe("dept-1");
+  expect(useEditorStore.getState().past.length).toBe(1);
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
+});
+
+test("a publish that copied the theme to the department drops it, with no save or undo step", async () => {
+  const saves: unknown[] = [];
+  const host = mountHost({
+    onPublish: () => Promise.resolve({ themeCopied: true }),
+    savePage: (d) => {
+      saves.push(d);
+      return Promise.resolve({});
+    },
+  });
+  act(() => useEditorStore.getState().setTheme({ ...GOOD, accent: "#ffffff" }));
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
+  const steps = useEditorStore.getState().past.length;
+
+  const publish = host.querySelector(".pe-publish") as HTMLButtonElement;
+  expect(publish.disabled).toBe(false);
+  await act(async () => {
+    publish.click();
+    await new Promise((r) => setTimeout(r, 20));
+  });
+
+  const state = useEditorStore.getState();
+  expect(state.doc.meta.status).toBe("published");
+  expect(state.doc.meta.theme).toBeUndefined();
+  expect(state.past.length).toBe(steps);
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
+});

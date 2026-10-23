@@ -7,6 +7,8 @@ import type {
   EditorLocale,
   EditorLocaleOption,
   PageDoc,
+  PublishOutcome,
+  StoredMeta,
 } from "./types";
 
 export interface EditorCallbacks {
@@ -23,13 +25,13 @@ export interface EditorCallbacks {
   lockedMeta?: { campus?: boolean; department?: boolean; slug?: boolean };
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
-  onPublish?: (locale: EditorLocale) => Promise<void>;
+  onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
   onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
   onUnpublish?: (locale: EditorLocale) => Promise<void>;
   savePage: (
     doc: PageDoc,
     locale: EditorLocale
-  ) => Promise<{ slug?: string } | undefined>;
+  ) => Promise<StoredMeta | undefined>;
   translatingLocale?: EditorLocale | null;
   uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
 }

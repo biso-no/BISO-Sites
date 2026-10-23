@@ -47,18 +47,26 @@ export function canvasThemeStyle(
   return themeTokens(theme);
 }
 
-/** Wraps a publish handler so it does nothing while the theme blocks saving. */
-export function guardPublish<T extends unknown[]>(
-  publish: ((...args: T) => Promise<void>) | undefined,
+/** Why Publish is unavailable while the theme blocks saving. */
+export const THEME_BLOCKS_PUBLISH =
+  "The page colours fail the contrast check. Fix them in Page settings to publish.";
+
+/**
+ * Wraps a publish handler so it rejects, without publishing, while the theme
+ * blocks saving. Rejecting keeps the host contract: the shell mirrors a
+ * resolved publish into the page's status.
+ */
+export function guardPublish<T extends unknown[], R>(
+  publish: ((...args: T) => Promise<R>) | undefined,
   getMeta: () => PageMeta
-): ((...args: T) => Promise<void>) | undefined {
+): ((...args: T) => Promise<R>) | undefined {
   if (!publish) {
     return;
   }
-  return async (...args: T) => {
+  return (...args: T) => {
     if (themeBlocksSave(getMeta())) {
-      return;
+      return Promise.reject(new Error(THEME_BLOCKS_PUBLISH));
     }
-    await publish(...args);
+    return publish(...args);
   };
 }

@@ -27,7 +27,7 @@ const render = (theme: PageDoc["meta"]["theme"]) => {
         departments: [],
         locales: [],
         onLocaleChange: () => undefined,
-        onPublish: () => Promise.resolve(),
+        onPublish: () => Promise.resolve(undefined),
         savePage: () => Promise.resolve(undefined),
         uploadFile: () => Promise.resolve({ fileId: "", url: "" }),
       }}

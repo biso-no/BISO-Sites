@@ -31,10 +31,12 @@ export type {
   PageDoc,
   PageHeader,
   PageMeta,
+  PublishOutcome,
   SavingState,
   Section,
   SectionColumns,
   SectionLayout,
+  StoredMeta,
 } from "./editor/types";
 
 // Side-effect: populate the block registry.

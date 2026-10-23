@@ -563,6 +563,103 @@ export async function savePageTranslationDraft({
   return { translationId: translation.$id };
 }
 
+/** A page has one translation row per locale; this covers them with room. */
+const TRANSLATION_ROWS_LIMIT = 25;
+
+async function listPageTranslations(
+  db: PageDatabase,
+  id: string
+): Promise<PageTranslations[]> {
+  const res = await db.listRows<PageTranslations>("app", "page_translations", [
+    Query.equal("page_id", id),
+    Query.limit(TRANSLATION_ROWS_LIMIT),
+  ]);
+  return res.rows;
+}
+
+/**
+ * Write the meta every locale shares into each OTHER locale's stored draft of
+ * a page, so a theme (or slug, department …) saved in one locale is what the
+ * other locale's Publish copies live. `meta` holds exactly the shared fields,
+ * chosen by the caller; one that is undefined is removed from the drafts, and
+ * `null` is kept. Only drafts that exist are touched: no translation row is
+ * created, and a draft that already holds these values is not rewritten.
+ *
+ * PRIVILEGED: writes through the service-key admin client. Callers MUST
+ * authorize the write to this page first.
+ */
+export async function syncSharedDraftMeta({
+  id,
+  locale,
+  meta,
+}: {
+  id: string;
+  /** The locale just saved; its draft is left alone. */
+  locale: PageEditorLocale;
+  meta: Partial<PageMeta>;
+}): Promise<void> {
+  const { db } = await createAdminClient();
+  for (const translation of await listPageTranslations(db, id)) {
+    if (translation.locale === locale) {
+      continue;
+    }
+    const draft = jsonToPageDoc(translation.draft_doc);
+    if (!(draft?.meta && typeof draft.meta === "object")) {
+      continue;
+    }
+    const current = pageDocToJson(draft);
+    const next = pageDocToJson(
+      normalizeDocForSave({ ...draft, meta: { ...draft.meta, ...meta } })
+    );
+    if (next !== current) {
+      await db.updateRow("app", "page_translations", translation.$id, {
+        draft_doc: next,
+      });
+    }
+  }
+}
+
+/** The document JSON without `meta.theme`, or null when it has none. */
+function withoutTheme(json: string | null | undefined): string | null {
+  const doc = jsonToPageDoc(json);
+  if (!(doc?.meta && typeof doc.meta === "object" && "theme" in doc.meta)) {
+    return null;
+  }
+  const { theme: _copied, ...meta } = doc.meta;
+  return pageDocToJson({ ...doc, meta });
+}
+
+/**
+ * Remove `meta.theme` from every stored document of a page: each locale's
+ * draft and published document. Called once a department page's theme has
+ * been copied to its department, so the page follows the department again and
+ * a later publish of it cannot copy the old theme back. A JSON round trip of
+ * the meta only; a document without a theme is not rewritten, and row
+ * permissions are left as they are.
+ *
+ * PRIVILEGED: writes through the service-key admin client. Callers MUST
+ * authorize the publish first.
+ */
+export async function clearPageTheme(id: string): Promise<void> {
+  const { db } = await createAdminClient();
+  for (const translation of await listPageTranslations(db, id)) {
+    const update: Partial<
+      Pick<PageTranslations, "draft_doc" | "published_doc">
+    > = {};
+    const draft = withoutTheme(translation.draft_doc);
+    if (draft !== null) {
+      update.draft_doc = draft;
+    }
+    const published = withoutTheme(translation.published_doc);
+    if (published !== null) {
+      update.published_doc = published;
+    }
+    if (Object.keys(update).length > 0) {
+      await db.updateRow("app", "page_translations", translation.$id, update);
+    }
+  }
+}
+
 /**
  * Publish a page's translation.
  *

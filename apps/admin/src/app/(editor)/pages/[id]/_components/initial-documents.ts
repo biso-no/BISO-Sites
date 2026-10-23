@@ -7,8 +7,15 @@ import type {
 } from "@repo/api/page-builder";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import { emptyHeader } from "@repo/editor/templates";
-import type { EditorLocale, PageDoc } from "@repo/editor/types";
+import type {
+  EditorDepartment,
+  EditorLocale,
+  PageDoc,
+  StoredMeta,
+} from "@repo/editor/types";
 import { generateSlug } from "@repo/shared/utils/content-slug";
+import type { PageTheme } from "@repo/shared/utils/page-theme";
+import { pickSharedMeta } from "@/lib/page-shared-meta";
 
 export type LocaleDocuments = Partial<Record<EditorLocale, PageDoc>>;
 
@@ -135,36 +142,92 @@ export function hasExistingContent(doc: PageDoc | undefined): boolean {
   );
 }
 
-/** Copy the meta every locale shares from the document just edited. */
+function localeEntries(docs: LocaleDocuments): [EditorLocale, PageDoc][] {
+  return (Object.entries(docs) as [EditorLocale, PageDoc | undefined][]).filter(
+    (entry): entry is [EditorLocale, PageDoc] => Boolean(entry[1])
+  );
+}
+
+/**
+ * Copy the meta every locale shares (`SHARED_META_FIELDS`, the same list the
+ * save action writes to the other stored drafts) from the document just
+ * edited.
+ */
 export function syncSharedMeta(
   docs: LocaleDocuments,
   sourceLocale: EditorLocale,
   sourceDoc: PageDoc
 ): LocaleDocuments {
+  const shared = pickSharedMeta(sourceDoc.meta);
   const next: LocaleDocuments = {};
-
-  for (const [locale, doc] of Object.entries(docs) as [
-    EditorLocale,
-    PageDoc | undefined,
-  ][]) {
-    if (!doc) {
-      continue;
-    }
+  for (const [locale, doc] of localeEntries(docs)) {
     next[locale] =
       locale === sourceLocale
         ? sourceDoc
-        : {
-            ...doc,
-            meta: {
-              ...doc.meta,
-              slug: sourceDoc.meta.slug,
-              campus: sourceDoc.meta.campus,
-              department: sourceDoc.meta.department,
-              status: sourceDoc.meta.status,
-              theme: sourceDoc.meta.theme,
-            },
-          };
+        : { ...doc, meta: { ...doc.meta, ...shared } };
   }
-
   return next;
+}
+
+const STORED_META_KEYS = ["department", "slug"] as const;
+
+/**
+ * Every locale's document with what the server stored (`stored`) where the
+ * editor sent `sent`: the unique slug, the department a page was bound to. A
+ * value changed since the save was sent is kept. Unchanged documents come
+ * back as the same object.
+ */
+export function withStoredMeta(
+  docs: LocaleDocuments,
+  sent: StoredMeta,
+  stored: StoredMeta
+): LocaleDocuments {
+  const changes = STORED_META_KEYS.filter(
+    (key) =>
+      sent[key] !== undefined &&
+      stored[key] !== undefined &&
+      sent[key] !== stored[key]
+  );
+  if (changes.length === 0) {
+    return docs;
+  }
+  const next: LocaleDocuments = {};
+  for (const [locale, doc] of localeEntries(docs)) {
+    const meta = { ...doc.meta };
+    for (const key of changes) {
+      if (meta[key] === sent[key]) {
+        meta[key] = stored[key] as string;
+      }
+    }
+    next[locale] = { ...doc, meta };
+  }
+  return next;
+}
+
+/**
+ * Every locale's document without a theme, after a publish copied it to the
+ * page's department: the page follows the department again.
+ */
+export function withoutPageTheme(docs: LocaleDocuments): LocaleDocuments {
+  const next: LocaleDocuments = {};
+  for (const [locale, doc] of localeEntries(docs)) {
+    const { theme: _copied, ...meta } = doc.meta;
+    next[locale] = { ...doc, meta };
+  }
+  return next;
+}
+
+/** The department list with one department's theme as it now is. */
+export function withDepartmentTheme(
+  departments: EditorDepartment[],
+  update: { id: string; theme: PageTheme | null } | null
+): EditorDepartment[] {
+  if (!update) {
+    return departments;
+  }
+  return departments.map((department) =>
+    department.id === update.id
+      ? { ...department, theme: update.theme }
+      : department
+  );
 }

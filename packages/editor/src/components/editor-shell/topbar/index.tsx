@@ -3,7 +3,10 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
-import { themeBlocksSave } from "@/editor/effective-theme";
+import {
+  THEME_BLOCKS_PUBLISH,
+  themeBlocksSave,
+} from "@/editor/effective-theme";
 import { useMeta, useSaving } from "@/editor/hooks";
 
 export function Topbar({ actions }: { actions?: ReactNode }) {
@@ -16,8 +19,7 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
   const themeBlocked = themeBlocksSave(meta);
   let publishTitle = "Publish to biso.no";
   if (themeBlocked) {
-    publishTitle =
-      "The page colours fail the contrast check. Fix them in Page settings to publish.";
+    publishTitle = THEME_BLOCKS_PUBLISH;
   } else if (isPublished) {
     publishTitle = "Publish the latest edits to biso.no";
   }
@@ -29,7 +31,9 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
     publishLabel = "Publish changes";
   }
 
-  async function run(action?: (locale: typeof activeLocale) => Promise<void>) {
+  async function run(
+    action?: (locale: typeof activeLocale) => Promise<unknown>
+  ) {
     if (!action) {
       return;
     }

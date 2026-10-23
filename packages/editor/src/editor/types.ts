@@ -567,6 +567,25 @@ export type EditorMode = "edit" | "preview";
 export type EditorViewport = "desk" | "tab" | "mob";
 export type SavingState = "idle" | "pending" | "saved" | "error" | "blocked";
 
+/**
+ * What the server stored differently from what the editor sent: the unique
+ * slug it settled on, and the department it bound the page to. Returned by
+ * the host's `savePage`.
+ */
+export interface StoredMeta {
+  department?: string;
+  slug?: string;
+}
+
+/** What a host's publish did beyond publishing. */
+export interface PublishOutcome {
+  /**
+   * The page's theme was copied to its department and removed from the
+   * page's stored documents: the page follows its department again.
+   */
+  themeCopied?: boolean;
+}
+
 // ── Host-provided data types ─────────────────────────────────────────────────
 
 export interface EditorDepartment {

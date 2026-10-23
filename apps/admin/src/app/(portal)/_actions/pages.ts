@@ -6,6 +6,7 @@ import {
   type PageDoc,
   type PageEditorLoadResult,
   type PageEditorLocale,
+  clearPageTheme as pbClearPageTheme,
   getPageById as pbGetPageById,
   getPageEditorById as pbGetPageEditorById,
   publishPage as pbPublishPage,
@@ -13,12 +14,14 @@ import {
   unpublishPage as pbUnpublishPage,
   resolvePageCampusId,
   savePageDraft,
+  syncSharedDraftMeta,
 } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc as EditorPageDoc } from "@repo/editor/types";
+import type { PageTheme } from "@repo/shared/utils/page-theme";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
@@ -45,6 +48,7 @@ import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
+import { pickSharedMeta } from "@/lib/page-shared-meta";
 import {
   departmentThemeUpdate,
   themeSaveError,
@@ -269,7 +273,15 @@ export async function savePageEditorDoc({
   id: string | null;
   doc: PageDoc;
   locale?: PageEditorLocale;
-}): Promise<{ pageId: string; slug: string } | { error: string }> {
+}): Promise<
+  | {
+      /** The department the page is stored under; "" for none. */
+      department: string;
+      pageId: string;
+      slug: string;
+    }
+  | { error: string }
+> {
   const ctx = await requireAuth();
   try {
     // Before anything normalizes the document: normalizing silently drops a
@@ -371,12 +383,23 @@ export async function savePageEditorDoc({
       ctx,
       campusId,
     });
+    // The theme, slug, department … are the page's, not the locale's: write
+    // them into every other stored locale draft too, so publishing any locale
+    // ships what the editor showed. (A new page has no other locale yet.)
+    await syncSharedDraftMeta({
+      id: pageId,
+      locale,
+      meta: pickSharedMeta({ ...normalizedDoc.meta, slug }),
+    });
     await logAuditEvent(ctx, "page_saved", {
       resourceId: pageId,
       resourceType: "page",
     });
     revalidatePath("/pages");
-    return { pageId, slug };
+    // The department is returned like the slug: a department user's page may
+    // have been bound to their department above, and the editor's scope line
+    // and canvas must show what Publish will do.
+    return { department: normalizedDoc.meta.department || "", pageId, slug };
   } catch (e) {
     console.error("[savePageEditorDoc]", e);
     return { error: e instanceof Error ? e.message : "Save failed" };
@@ -420,7 +443,7 @@ export async function publishPageAction(
       resourceId: id,
       resourceType: "page",
     });
-    await copyThemeToDepartment({
+    const themeCopy = await copyThemeToDepartment({
       ctx,
       db,
       departmentId: ownership.department,
@@ -451,17 +474,45 @@ export async function publishPageAction(
               }),
           })
         : false;
-    return { translationQueued };
+    return {
+      /** The department now has this theme (null: BISO's). */
+      departmentTheme:
+        themeCopy.status === "copied"
+          ? { id: themeCopy.departmentId, theme: themeCopy.theme }
+          : null,
+      /** The theme left the page's stored docs: it follows its department. */
+      themeCopied: themeCopy.status === "copied" && themeCopy.pageCleared,
+      /** Live, but the department's colours were not updated. */
+      themeCopyFailed: themeCopy.status === "failed",
+      translationQueued,
+    };
   } catch (e) {
     console.error("[publishPageAction]", e);
     throw new Error(e instanceof Error ? e.message : "Failed to publish page");
   }
 }
 
+type DepartmentThemeCopy =
+  | { status: "unchanged" }
+  | { status: "failed" }
+  | {
+      departmentId: string;
+      /** False when the strip failed: the page still holds the theme. */
+      pageCleared: boolean;
+      status: "copied";
+      theme: PageTheme | null;
+    };
+
 /**
- * After a publish, copy the published page's theme to its department. Never
- * throws into the publish: the page is already live, and a theme problem only
- * means the department keeps what it had.
+ * After a publish, copy the published page's theme to its department, then
+ * strip the theme from the page's stored docs (every locale's draft and
+ * published doc). A department page holds a theme only until it is copied:
+ * after that it follows its department, so republishing it later cannot put
+ * back colours another page has since replaced. Reset (`null`) is copied as
+ * nulls and stripped the same way.
+ *
+ * Never throws into the publish: the page is already live. A failed copy
+ * leaves the theme on the page, so the next publish retries it.
  */
 async function copyThemeToDepartment({
   ctx,
@@ -475,39 +526,59 @@ async function copyThemeToDepartment({
   departmentId: string | null;
   locale: PageEditorLocale;
   pageId: string;
-}): Promise<void> {
+}): Promise<DepartmentThemeCopy> {
   if (!departmentId) {
-    return;
+    return { status: "unchanged" };
   }
+  let update: Exclude<ReturnType<typeof departmentThemeUpdate>, "skip">;
   try {
     const editor = await pbGetPageEditorById(pageId, db);
     const published = editor?.translations[locale]?.publishedDocument;
     if (!published) {
-      return;
+      return { status: "unchanged" };
     }
     // Normalizing drops a failing theme to absent, so "invalid" is unreachable
     // here; it is handled as a skip anyway.
-    const update = departmentThemeUpdate(
+    const next = departmentThemeUpdate(
       normalizePageDoc(published as EditorPageDoc).meta
     );
-    if (update === "skip") {
-      return;
+    if (next === "skip") {
+      return { status: "unchanged" };
     }
-    if (update === "invalid") {
+    if (next === "invalid") {
       console.warn(
         `[publishPageAction] page ${pageId} carries an invalid theme; department ${departmentId} left unchanged`
       );
-      return;
+      return { status: "unchanged" };
     }
+    update = next;
     await db.updateRow("app", "departments", departmentId, update);
+  } catch (e) {
+    console.error("[publishPageAction] department theme update failed", e);
+    return { status: "failed" };
+  }
+  const theme =
+    update.theme_dark && update.theme_accent
+      ? { accent: update.theme_accent, dark: update.theme_dark }
+      : null;
+  try {
     await logAuditEvent(ctx, "department_theme_updated", {
       payload: { pageId, ...update },
       resourceId: departmentId,
       resourceType: "department",
     });
   } catch (e) {
-    console.error("[publishPageAction] department theme update failed", e);
+    console.error("[publishPageAction] department theme audit failed", e);
   }
+  try {
+    await pbClearPageTheme(pageId);
+  } catch (e) {
+    // The department has the colours; the page keeps them too, so the next
+    // publish copies them again and retries the strip.
+    console.error("[publishPageAction] page theme strip failed", e);
+    return { departmentId, pageCleared: false, status: "copied", theme };
+  }
+  return { departmentId, pageCleared: true, status: "copied", theme };
 }
 
 async function getPageSourceDocument(
@@ -577,10 +648,16 @@ async function translatePublishedPage({
   }
 
   await pbSavePageTranslationDraft({
-    // Model output: its text-block HTML is as untrusted as a client's.
+    // Model output: its text-block HTML is as untrusted as a client's. The
+    // shared meta comes from the source as stored now, not the snapshot: a
+    // theme the publish copied to the department has left the page since.
     doc: sanitizePageDocHtml({
       ...translatedDocument,
-      meta: { ...translatedDocument.meta, status: "published" },
+      meta: {
+        ...translatedDocument.meta,
+        ...pickSharedMeta(currentSource.meta),
+        status: "published",
+      },
     }),
     id,
     locale: targetLocale,

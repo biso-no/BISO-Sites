@@ -7,6 +7,8 @@ import type {
   EditorLocale,
   EditorLocaleOption,
   PageDoc,
+  PublishOutcome,
+  StoredMeta,
 } from "@repo/editor";
 import { EditorShell } from "@repo/editor";
 import "@repo/editor/theme/styles.css";
@@ -19,6 +21,7 @@ import {
   savePageEditorDoc,
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
+import { pickSharedMeta } from "@/lib/page-shared-meta";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
   blankPageDoc,
@@ -26,6 +29,9 @@ import {
   hasExistingContent,
   type LocaleDocuments,
   syncSharedMeta,
+  withDepartmentTheme,
+  withoutPageTheme,
+  withStoredMeta,
 } from "./initial-documents";
 
 interface PageEditorClientProps {
@@ -71,6 +77,10 @@ export function PageEditorClient({
   const [translatingLocale, setTranslatingLocale] =
     useState<EditorLocale | null>(null);
   const [autoTranslate, setAutoTranslate] = useState(false);
+  // The departments' themes as this session last saw them: a publish that
+  // copies the page's theme updates its department here, so the canvas shows
+  // the colours that are now live.
+  const [departmentList, setDepartmentList] = useState(departments);
 
   const activeDoc =
     documents[activeLocale] ??
@@ -91,7 +101,10 @@ export function PageEditorClient({
     [availableLocales, documents]
   );
 
-  async function handleSave(doc: PageDoc, locale: EditorLocale) {
+  async function handleSave(
+    doc: PageDoc,
+    locale: EditorLocale
+  ): Promise<StoredMeta> {
     const result = await savePageEditorDoc({
       id: pageIdRef.current,
       doc,
@@ -100,26 +113,25 @@ export function PageEditorClient({
     if ("error" in result) {
       throw new Error(result.error);
     }
-    if (result.slug && result.slug !== doc.meta.slug) {
-      const docWithResolvedSlug = {
-        ...doc,
-        meta: { ...doc.meta, slug: result.slug },
-      };
-      setDocuments((current) =>
-        syncSharedMeta(
-          { ...current, [locale]: docWithResolvedSlug },
-          locale,
-          docWithResolvedSlug
-        )
-      );
-    }
+    // The server may have stored another slug (made unique) or department
+    // (a department user's page is bound to their department). Every locale
+    // takes it, so the Theme panel's scope line and the canvas match what
+    // Publish will do.
+    const stored = { department: result.department, slug: result.slug };
+    setDocuments((current) =>
+      withStoredMeta(
+        current,
+        { department: doc.meta.department, slug: doc.meta.slug },
+        stored
+      )
+    );
     if (!pageIdRef.current && "pageId" in result) {
       pageIdRef.current = result.pageId;
       // Not router.replace: that remounts the editor and re-hydrates from the
       // server copy, dropping edits made during the save round-trip.
       window.history.replaceState(null, "", `/pages/${result.pageId}`);
     }
-    return { slug: result.slug };
+    return stored;
   }
 
   function handleDocChange(doc: PageDoc, locale: EditorLocale) {
@@ -180,10 +192,7 @@ export function PageEditorClient({
         ...result.translatedDocument,
         meta: {
           ...result.translatedDocument.meta,
-          slug: activeDoc.meta.slug,
-          department: activeDoc.meta.department,
-          status: activeDoc.meta.status,
-          theme: activeDoc.meta.theme,
+          ...pickSharedMeta(activeDoc.meta),
         },
       };
 
@@ -232,7 +241,7 @@ export function PageEditorClient({
   // Both handlers reject on failure: the editor shell mirrors a resolved
   // publish/unpublish into its own status, so resolving after a failure
   // would mark a page published that is not.
-  async function handlePublish(locale: EditorLocale) {
+  async function handlePublish(locale: EditorLocale): Promise<PublishOutcome> {
     const id = pageIdRef.current;
     if (!id) {
       toast.error("Save the page first before publishing.");
@@ -245,19 +254,30 @@ export function PageEditorClient({
       });
       setDocuments((current) => {
         const doc = current[locale];
-        if (!doc) {
-          return current;
-        }
-        return {
-          ...current,
-          [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
-        };
+        const next = doc
+          ? {
+              ...current,
+              [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
+            }
+          : current;
+        // The department owns the theme now; no locale may save it back.
+        return result.themeCopied ? withoutPageTheme(next) : next;
       });
-      toast.success(
-        result.translationQueued
-          ? "Page published. Translation queued."
-          : "Page published to biso.no"
+      setDepartmentList((current) =>
+        withDepartmentTheme(current, result.departmentTheme)
       );
+      if (result.themeCopyFailed) {
+        toast.warning(
+          "Published, but the department colours couldn't be updated. Try publishing again."
+        );
+      } else {
+        toast.success(
+          result.translationQueued
+            ? "Page published. Translation queued."
+            : "Page published to biso.no"
+        );
+      }
+      return { themeCopied: result.themeCopied };
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publish failed");
       throw err;
@@ -293,7 +313,7 @@ export function PageEditorClient({
       <EditorShell
         activeLocale={activeLocale}
         campuses={campuses}
-        departments={departments}
+        departments={departmentList}
         initial={activeDoc}
         locales={localeOptions}
         lockedMeta={lockedMeta}
