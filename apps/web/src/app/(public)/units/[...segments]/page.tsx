@@ -1,3 +1,4 @@
+import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc } from "@repo/editor/types";
 import type { Locale } from "@repo/i18n/config";
@@ -77,7 +78,9 @@ function publishedUnitPage(
   ) {
     return null;
   }
-  const doc = normalizePageDoc(pageResult.doc as PageDoc);
+  // Sanitized after normalizing, as on the catch-all: stored text-block HTML
+  // is untrusted.
+  const doc = sanitizePageDocHtml(normalizePageDoc(pageResult.doc as PageDoc));
   return doc.sections.length > 0 || doc.header !== undefined
     ? { doc, translation: pageResult.translation }
     : null;

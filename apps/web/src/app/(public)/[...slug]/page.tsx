@@ -1,4 +1,5 @@
 import { getPage } from "@repo/api/page-builder";
+import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc } from "@repo/editor/types";
 import type { Locale } from "@repo/i18n/config";
@@ -96,8 +97,10 @@ export default async function DynamicPage({ params }: Props) {
 
   // Normalized here, before anything walks it: an old flat (v1) document or
   // a malformed section would otherwise throw in the feed resolver and 500
-  // the page. Old documents render as an empty page (D2).
-  const doc = normalizePageDoc(result.doc as PageDoc);
+  // the page. Old documents render as an empty page (D2). Then its text-block
+  // HTML is sanitized: rows saved before the admin cleaned it, or written
+  // around the admin, hold whatever markup they were given.
+  const doc = sanitizePageDocHtml(normalizePageDoc(result.doc as PageDoc));
 
   // Resolve the page's auto-source feeds before rendering, so the HTML this
   // route emits carries real events/news/jobs rather than the blocks'

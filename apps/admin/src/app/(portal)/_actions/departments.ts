@@ -8,6 +8,7 @@ import type {
   Departments,
   Pages,
 } from "@repo/api/types/appwrite";
+import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { unitPageTemplate } from "@repo/editor/templates";
 import { isProjectUnit } from "@repo/shared/utils/project-units";
 import {
@@ -779,7 +780,9 @@ export async function createUnitPage(
     try {
       ({ pageId } = await savePageDraft({
         id: null,
-        doc,
+        // The template writes the department's name into a text block,
+        // whose body is rendered as HTML.
+        doc: sanitizePageDocHtml(doc),
         locale: "no",
         ctx,
         campusId: department.campus_id,

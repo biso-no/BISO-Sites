@@ -338,3 +338,46 @@ describe("savePageEditorDoc: campus chosen in the editor", () => {
     expect(savePageDraftSpy.mock.calls[0]?.[0].campusId).toBe("campus-oslo");
   });
 });
+
+describe("savePageEditorDoc: rich text", () => {
+  test("persists sanitized text-block HTML, not what the client sent", async () => {
+    currentCtx = globalAdminCtx;
+    const doc: PageDoc = {
+      ...makeDoc(),
+      sections: [
+        {
+          columns: [
+            {
+              blocks: [
+                {
+                  body: [
+                    { text: "<img src=x onerror=alert(1)>hei", type: "p" },
+                    {
+                      text: '<a href="javascript:alert(1)">x</a> <b>fet</b>',
+                      type: "p",
+                    },
+                  ],
+                  id: "b-1",
+                  type: "text",
+                },
+              ],
+              id: "c-1",
+            },
+          ],
+          id: "s-1",
+          layout: {},
+        },
+      ],
+    };
+
+    const result = await savePageEditorDoc({ doc, id: null });
+
+    expect(result).not.toHaveProperty("error");
+    const saved = savePageDraftSpy.mock.calls[0]?.[0].doc as unknown as {
+      sections: { columns: { blocks: { body: { text: string }[] }[] }[] }[];
+    };
+    expect(
+      saved.sections[0].columns[0].blocks[0].body.map((item) => item.text)
+    ).toEqual(["hei", "<a>x</a> <b>fet</b>"]);
+  });
+});

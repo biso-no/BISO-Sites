@@ -14,7 +14,8 @@
     "./theme": "./src/theme/index.ts",
     "./theme/styles.css": "./src/theme/styles.css",
     "./ai": "./src/ai/index.ts",
-    "./types": "./src/editor/types.ts"
+    "./types": "./src/editor/types.ts",
+    "./sanitize": "./src/editor/sanitize-doc.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",
@@ -31,6 +32,7 @@
     "ai": "catalog:",
     "immer": "catalog:",
     "motion": "catalog:",
+    "sanitize-html": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"
   },
@@ -41,6 +43,8 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@types/sanitize-html": "catalog:",
+    "happy-dom": "catalog:",
     "typescript": "catalog:"
   },
   "peerDependencies": {

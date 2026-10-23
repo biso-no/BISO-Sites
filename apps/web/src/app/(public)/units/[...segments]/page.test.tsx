@@ -168,3 +168,50 @@ describe("unit route", () => {
     );
   });
 });
+
+describe("unit route: rich text", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cachedUnitDetail.mockResolvedValue(UNIT);
+  });
+
+  it("a published page reaches RenderedPage with sanitized text-block HTML", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      ownPage({
+        meta: META,
+        sections: [
+          {
+            columns: [
+              {
+                blocks: [
+                  {
+                    body: [
+                      { text: "<script>alert(1)</script>Velkommen", type: "p" },
+                    ],
+                    id: "b-1",
+                    type: "text",
+                  },
+                ],
+                id: "c-1",
+              },
+            ],
+            id: "s-1",
+            layout: { columns: "1" },
+          },
+        ],
+        version: 2,
+      })
+    );
+
+    const page = (await UnitPage({ params })) as Element;
+    const publishedUnit = child(child(page));
+    const render = publishedUnit.type as (props: unknown) => Promise<Element>;
+    const rendered = await render(publishedUnit.props);
+    const doc = rendered.props.doc as {
+      sections: { columns: { blocks: { body: { text: string }[] }[] }[] }[];
+    };
+
+    expect(rendered.type).toBe(stubs.RenderedPage);
+    expect(doc.sections[0].columns[0].blocks[0].body[0].text).toBe("Velkommen");
+  });
+});

@@ -152,3 +152,47 @@ describe("block page route", () => {
     expect(metadata.title).toBe("Old page | BISO");
   });
 });
+
+describe("block page route: rich text", () => {
+  it("hands RenderedPage sanitized text-block HTML", async () => {
+    // Rows saved before the save path sanitized, or written around the admin,
+    // still hold whatever HTML they were given.
+    cachedPublishedPage.mockResolvedValue(
+      published({
+        meta: META,
+        sections: [
+          {
+            columns: [
+              {
+                blocks: [
+                  {
+                    body: [
+                      { text: "<img src=x onerror=alert(1)>hei", type: "p" },
+                      { text: '<a href="/om-oss">lenke</a>', type: "p" },
+                    ],
+                    id: "b-1",
+                    type: "text",
+                  },
+                ],
+                id: "c-1",
+              },
+            ],
+            id: "s-1",
+            layout: { columns: "1" },
+          },
+        ],
+        version: 2,
+      })
+    );
+
+    const page = await render("old-page");
+    const [textBlock] = page.props.doc.sections[0].columns[0].blocks as {
+      body: { text: string }[];
+    }[];
+
+    expect(textBlock.body.map((item) => item.text)).toEqual([
+      "hei",
+      '<a href="/om-oss">lenke</a>',
+    ]);
+  });
+});

@@ -306,3 +306,55 @@ describe("page auto-translation", () => {
     expect(operations).toEqual(["publish:no"]);
   });
 });
+
+describe("page auto-translation: rich text", () => {
+  test("saves the model's text-block HTML only after sanitizing it", async () => {
+    translatePageDocumentSpy.mockImplementationOnce(async () => ({
+      ...translatedDocument,
+      sections: [
+        {
+          columns: [
+            {
+              blocks: [
+                {
+                  body: [
+                    {
+                      text: '<b>Hi</b><img src=x onerror="alert(1)">',
+                      type: "p",
+                    },
+                  ],
+                  id: "b-1",
+                  type: "text",
+                },
+              ],
+              id: "c-1",
+            },
+          ],
+          id: "s-1",
+          layout: {},
+        },
+      ],
+    }));
+
+    await publishPageAction("page-1", "no", {
+      enabled: true,
+      sourceLocale: "no",
+    });
+    await deferredTask?.();
+
+    const [[saved]] = savePageTranslationDraftSpy.mock.calls as unknown as [
+      [
+        {
+          doc: {
+            sections: {
+              columns: { blocks: { body: { text: string }[] }[] }[];
+            }[];
+          };
+        },
+      ],
+    ];
+    expect(saved.doc.sections[0].columns[0].blocks[0].body[0].text).toBe(
+      "<b>Hi</b>"
+    );
+  });
+});

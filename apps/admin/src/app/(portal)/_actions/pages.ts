@@ -15,6 +15,7 @@ import {
 } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
+import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
@@ -323,7 +324,10 @@ export async function savePageEditorDoc({
     });
     const { pageId, slug } = await savePageDraft({
       id,
-      doc: normalizedDoc,
+      // Text blocks store HTML that the site renders as markup. The editor
+      // sanitizes on blur, but this action takes any document a client
+      // posts, so what is stored is cleaned here.
+      doc: sanitizePageDocHtml(normalizedDoc),
       locale,
       ctx,
       campusId,
@@ -475,10 +479,11 @@ async function translatePublishedPage({
   }
 
   await pbSavePageTranslationDraft({
-    doc: {
+    // Model output: its text-block HTML is as untrusted as a client's.
+    doc: sanitizePageDocHtml({
       ...translatedDocument,
       meta: { ...translatedDocument.meta, status: "published" },
-    },
+    }),
     id,
     locale: targetLocale,
   });

@@ -702,3 +702,40 @@ describe("listAllDepartments", () => {
     }
   });
 });
+
+describe("createUnitPage rich text", () => {
+  test("a department name is sanitized where the template writes it as HTML", async () => {
+    // The template interpolates the name into a text block, whose body is
+    // rendered as markup; department names come from the accounting system.
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
+    mockAdminRows({
+      departments: [
+        {
+          $id: "dept-3",
+          Name: "OSL Case & Co<img src=x onerror=alert(1)>",
+          active: true,
+          campus_id: "1",
+          slug: "case-co",
+          type: "society",
+        },
+      ],
+      pages: [],
+    });
+
+    await createUnitPage("dept-3");
+
+    const [[call]] = savePageDraftSpy.mock.calls as unknown as [
+      [
+        {
+          doc: {
+            sections: {
+              columns: { blocks: { body?: { text: string }[] }[] }[];
+            }[];
+          };
+        },
+      ],
+    ];
+    const about = call.doc.sections[0].columns[0].blocks[0].body ?? [];
+    expect(about[0]?.text).toBe("Om Case &amp; Co");
+  });
+});
