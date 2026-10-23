@@ -287,8 +287,8 @@ test("hairlines on a Tinted section are darker, so they show on its fill", () =>
   expect(contrast(mix(sunken, ink, share), sunken)).toBeGreaterThanOrEqual(1.3);
 
   // In the dark theme the same rule mixes toward paper, and stays a line.
-  const darkFrom = surfaceCss.indexOf(".dark .biso-surface-v2");
-  const darkSunken = rgb(token("--surface-sunken", darkFrom));
+  // `--surface-sunken` reads `var(--biso-deep-sunken)` there, so resolve it.
+  const darkSunken = rgb(token("--biso-deep-sunken"));
   const paper = rgb(token("--biso-paper"));
   expect(
     contrast(mix(darkSunken, paper, share), darkSunken)

@@ -22,6 +22,8 @@ const FONT_FAMILY_DECLARATION = /font-?family\s*:/gi;
 const MUSEO_FIRST = /^font-?family\s*:\s*["'`]?(var\(--font-museo|'?Museo)/i;
 const DECLARATION_PREVIEW = 80;
 const WHITESPACE_RUN = /\s+/g;
+const LIGHT_INK_DECLARATION = /^\s*--ink:\s*var\(--biso-ink\);/m;
+const NAVY = /#001a35|rgb\(\s*0,\s*26,\s*53\s*\)/i;
 
 const styles = readFileSync(join(import.meta.dirname, "styles.css"), "utf8");
 const adminStyles = readFileSync(
@@ -616,5 +618,78 @@ describe("legacy retirement (RD-030)", () => {
     );
     expect(shell).not.toContain("isShellV2Enabled");
     expect(shell).not.toContain("data-shell");
+  });
+});
+
+/**
+ * Stage 4 (themes): a page theme overrides `--biso-deep` and friends, so no
+ * navy-derived value may be a literal outside their one definition.
+ */
+describe("named navy tokens (page themes)", () => {
+  const v2Start = surface.indexOf(":where(.biso-surface-v2) {");
+  const v2Block = surface.slice(v2Start);
+  const definitionEnd = v2Block.indexOf("\n}\n");
+  const definitions = v2Block.slice(0, definitionEnd);
+  const derived = v2Block.slice(definitionEnd);
+  const NAMED_NAVY: Record<string, string> = {
+    "--biso-deep-raised": "#0b2747",
+    "--biso-deep-sunken": "#00142a",
+    "--biso-deep-edge": "#12314f",
+    "--biso-deep-ink-muted": "#93a7bb",
+    "--biso-ink": "#001a35",
+  };
+
+  it("defines each named token exactly once, with the literal it replaces", () => {
+    for (const [name, value] of Object.entries(NAMED_NAVY)) {
+      const declaration = new RegExp(`^\\s*${name}:\\s*${value};`, "gim");
+      expect(surface.match(declaration)?.length, name).toBe(1);
+      expect(definitions.match(declaration)?.length, name).toBe(1);
+    }
+  });
+
+  it("leaves no navy-derived literal in the deep or dark blocks", () => {
+    for (const literal of ["#0b2747", "#00142a", "#12314f", "#93a7bb"]) {
+      expect(codeOnly(derived).toLowerCase(), literal).not.toContain(literal);
+    }
+  });
+
+  it("reads the named tokens in the deep and both dark blocks", () => {
+    for (const name of [
+      "--biso-deep-raised",
+      "--biso-deep-sunken",
+      "--biso-deep-edge",
+      "--biso-deep-ink-muted",
+    ]) {
+      // deep, dark, deep-in-dark: raised and sunken are in all three.
+      const reads = derived.match(new RegExp(`var\\(${name}\\)`, "g")) ?? [];
+      const minimum =
+        name.endsWith("raised") || name.endsWith("sunken") ? 3 : 2;
+      expect(reads.length, name).toBeGreaterThanOrEqual(minimum);
+    }
+  });
+
+  it("keeps body text on light navy whatever the theme does to --biso-deep", () => {
+    expect(definitions).toMatch(LIGHT_INK_DECLARATION);
+  });
+
+  it("hard-codes no navy in the stage-touched surfaces", () => {
+    const root = join(import.meta.dirname, "../../../..");
+    const targets = [
+      "packages/editor/src/blocks",
+      "packages/editor/src/theme/sections.css",
+      "apps/web/src/components/nav",
+      "apps/web/src/components/layout",
+    ].map((path) => join(root, path));
+    const filesOf = (path: string): string[] =>
+      path.endsWith(".css")
+        ? [path]
+        : readdirSync(path, { recursive: true, withFileTypes: true })
+            .filter((entry) => entry.isFile())
+            .map((entry) => join(entry.parentPath, entry.name));
+    const offenders = targets
+      .flatMap(filesOf)
+      .filter((file) => NAVY.test(readFileSync(file, "utf8")))
+      .map((file) => file.slice(root.length + 1));
+    expect(offenders).toEqual([]);
   });
 });

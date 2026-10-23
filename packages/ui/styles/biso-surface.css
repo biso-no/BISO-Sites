@@ -175,12 +175,21 @@
   --font-mono: var(--font-biso-sans);
 
   /* --- the six named brand values ------------------------------------- */
-  --biso-deep: #001a35;   /* navy: dark surfaces, and the ink colour on light */
+  --biso-deep: #001a35;   /* navy: dark surfaces */
+  /* Body ink on light. Its own token so a page theme that retints
+     --biso-deep leaves typography BISO navy. */
+  --biso-ink: #001a35;
   --biso-blue: #1668ae;   /* action: buttons, links, focus. 5.79:1 both ways  */
   --biso-sky: #3aa3e1;    /* brand blue: display accent + chevron, ON NAVY    */
   --biso-sun: #fecd45;    /* marker: collection headings, notices. Never text */
   --biso-paper: #ffffff;
   --biso-line: #e8ecf0;
+
+  /* --- navy-derived values: named so a page theme can override them ---- */
+  --biso-deep-raised: #0b2747;     /* a card lifted off the navy       */
+  --biso-deep-sunken: #00142a;     /* a recess below the navy          */
+  --biso-deep-edge: #12314f;       /* hairline on navy                 */
+  --biso-deep-ink-muted: #93a7bb;  /* secondary text on navy           */
 
   /* The reference's own button blue (#217EC7) is 4.31:1 under white text and
      fails AA, and white on --biso-sky is 2.80:1. --biso-blue is the corrected
@@ -204,7 +213,7 @@
      at #e8ecf0; this sits just under it so a tinted panel and a rule drawn on
      paper never resolve to the same colour. */
   --surface-sunken: #eef1f5;
-  --ink: var(--biso-deep);
+  --ink: var(--biso-ink);
   --ink-muted: #526475;
   --ink-accent: var(--biso-blue);
   --edge: var(--biso-line);
@@ -220,14 +229,14 @@
 :where(.biso-surface-v2 [data-surface="deep"]),
 :where(.biso-surface-v2[data-surface="deep"]) {
   --surface: var(--biso-deep);
-  --surface-raised: #0b2747;
+  --surface-raised: var(--biso-deep-raised);
   /* On navy a recess goes *down*, not up — the raised card is #0b2747, so the
      sunken surface has to sit below #001a35 to read as the same gesture. */
-  --surface-sunken: #00142a;
+  --surface-sunken: var(--biso-deep-sunken);
   --ink: var(--biso-paper);
-  --ink-muted: #93a7bb;
+  --ink-muted: var(--biso-deep-ink-muted);
   --ink-accent: var(--biso-sky);
-  --edge: #12314f;
+  --edge: var(--biso-deep-edge);
   --action: var(--biso-sky);
   --action-ink: var(--biso-deep);
   --focus-ring: var(--biso-sky);
@@ -256,14 +265,14 @@
   --biso-danger: #ff6f61;
 
   --surface: var(--biso-deep);
-  --surface-raised: #0b2747;
+  --surface-raised: var(--biso-deep-raised);
   /* On navy a recess goes *down*, not up — the raised card is #0b2747, so the
      sunken surface has to sit below #001a35 to read as the same gesture. */
-  --surface-sunken: #00142a;
+  --surface-sunken: var(--biso-deep-sunken);
   --ink: var(--biso-paper);
-  --ink-muted: #93a7bb;
+  --ink-muted: var(--biso-deep-ink-muted);
   --ink-accent: var(--biso-sky);
-  --edge: #12314f;
+  --edge: var(--biso-deep-edge);
   --action: var(--biso-sky);
   --action-ink: var(--biso-deep);
   --focus-ring: var(--biso-sky);
@@ -274,8 +283,8 @@
 :where(.dark.biso-surface-v2 [data-surface="deep"]),
 :where(.dark .biso-surface-v2 [data-surface="deep"]) {
   --surface: var(--biso-deep);
-  --surface-raised: #0b2747;
-  --surface-sunken: #00142a;
+  --surface-raised: var(--biso-deep-raised);
+  --surface-sunken: var(--biso-deep-sunken);
 }
 
 /*
