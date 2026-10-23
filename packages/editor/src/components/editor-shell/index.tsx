@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type CollisionDetection,
   closestCenter,
   DndContext,
   type DragEndEvent,
@@ -13,12 +14,12 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { getBlock } from "@/blocks/registry";
 import { EditorCallbacksContext } from "@/editor/callbacks";
-import { useBlocks } from "@/editor/hooks";
 import { withPublishStatusSync } from "@/editor/publish-status";
 import { useEditorStore } from "@/editor/store";
+import { findBlock, findSection } from "@/editor/tree";
 import type {
-  BlockType,
   EditorCampus,
   EditorDepartment,
   EditorLocale,
@@ -27,6 +28,18 @@ import type {
 } from "@/editor/types";
 import { autosaveSignature } from "./autosave-signature";
 import { CanvasPane } from "./canvas";
+import {
+  acceptsDrop,
+  applyDrop,
+  type CanvasDrag,
+  type DragSource,
+  type DropTarget,
+  dragSourceOf,
+  dropIndicator,
+  dropTargetOf,
+  resolveDrop,
+} from "./canvas/drop";
+import { sectionLabel } from "./canvas/section-frame";
 import { InspectorPane } from "./inspector";
 import { PalettePane } from "./palette";
 import { ThemeScope } from "./theme-scope";
@@ -60,6 +73,40 @@ interface Props {
 const EMPTY_CAMPUSES: EditorCampus[] = [];
 const DEBOUNCE_MS = 800;
 
+/**
+ * Only the zones a drag can land in take part: sections see section and
+ * new-section zones, blocks and palette items see blocks, column ends and
+ * new-section zones. Then the closest centre wins, as before.
+ */
+const canvasCollisions: CollisionDetection = (args) => {
+  const source = dragSourceOf(args.active.data.current);
+  if (!source) {
+    return closestCenter(args);
+  }
+  return closestCenter({
+    ...args,
+    droppableContainers: args.droppableContainers.filter((container) => {
+      const target = dropTargetOf(container.data.current);
+      return target !== null && acceptsDrop(source.source, target.kind);
+    }),
+  });
+};
+
+/** What the drag overlay says while `source` is dragged. */
+function dragLabel(doc: PageDoc, source: DragSource): string | null {
+  if (source.source === "palette") {
+    return getBlock(source.type)?.label ?? source.type;
+  }
+  if (source.source === "block") {
+    const found = findBlock(doc, source.blockId);
+    return found
+      ? (getBlock(found.block.type)?.label ?? found.block.type)
+      : null;
+  }
+  const found = findSection(doc, source.sectionId);
+  return found ? sectionLabel(found.section) : null;
+}
+
 export function EditorShell({
   initial,
   savePage,
@@ -90,15 +137,23 @@ export function EditorShell({
   const setSaving = useEditorStore((s) => s.setSaving);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
-  const reorder = useEditorStore((s) => s.reorder);
-  const insertBlock = useEditorStore((s) => s.insertBlock);
-  const blocks = useBlocks();
 
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [activePaletteType, setActivePaletteType] = useState<BlockType | null>(
-    null
+  const [dragSource, setDragSource] = useState<DragSource | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const drag = useMemo<CanvasDrag | null>(
+    () =>
+      dragSource
+        ? {
+            indicator: dropIndicator(
+              doc,
+              resolveDrop(doc, dragSource, dropTarget)
+            ),
+            source: dragSource,
+          }
+        : null,
+    [doc, dragSource, dropTarget]
   );
-  const [overId, setOverId] = useState<string | null>(null);
+  const overlayLabel = dragSource ? dragLabel(doc, dragSource) : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -106,44 +161,29 @@ export function EditorShell({
   );
 
   function handleDragStart(event: DragStartEvent) {
-    const data = event.active.data.current;
-    if (data?.source === "palette") {
-      setActivePaletteType(data.type as BlockType);
-    } else {
-      setActiveDragId(event.active.id as string);
-    }
+    setDragSource(dragSourceOf(event.active.data.current));
+    setDropTarget(null);
   }
 
   function handleDragOver(event: DragOverEvent) {
-    setOverId(event.over ? String(event.over.id) : null);
+    setDropTarget(dropTargetOf(event.over?.data.current));
+  }
+
+  function resetDrag() {
+    setDragSource(null);
+    setDropTarget(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    const activeData = active.data.current;
-
-    if (activeData?.source === "palette" && over) {
-      if (over.id === "canvas-end") {
-        // Append after the last block
-        const afterId = blocks.length > 0 ? blocks.at(-1)?.id : undefined;
-        insertBlock(activeData.type as BlockType, afterId);
-      } else {
-        // Insert BEFORE the over block (= after the preceding block)
-        const overIdx = blocks.findIndex((b) => b.id === over.id);
-        const afterId = overIdx > 0 ? blocks[overIdx - 1].id : undefined;
-        insertBlock(activeData.type as BlockType, afterId);
-      }
-    } else if (activeDragId && over && active.id !== over.id) {
-      const fromIdx = blocks.findIndex((b) => b.id === active.id);
-      const toIdx = blocks.findIndex((b) => b.id === over.id);
-      if (fromIdx !== -1 && toIdx !== -1) {
-        reorder(fromIdx, toIdx);
-      }
+    const source = dragSourceOf(event.active.data.current);
+    if (source) {
+      const store = useEditorStore.getState();
+      applyDrop(
+        resolveDrop(store.doc, source, dropTargetOf(event.over?.data.current)),
+        store
+      );
     }
-
-    setActiveDragId(null);
-    setActivePaletteType(null);
-    setOverId(null);
+    resetDrag();
   }
 
   // Keep the store's locale aligned with the editor's, so the canvas preview
@@ -253,7 +293,8 @@ export function EditorShell({
     >
       <ThemeScope accent={initial?.meta.accentColor}>
         <DndContext
-          collisionDetection={closestCenter}
+          collisionDetection={canvasCollisions}
+          onDragCancel={resetDrag}
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
           onDragStart={handleDragStart}
@@ -272,33 +313,16 @@ export function EditorShell({
             <Topbar actions={topbarActions} />
             <div className="pe-shell">
               <PalettePane />
-              <CanvasPane
-                activeDragId={activeDragId}
-                activePaletteType={activePaletteType}
-                overId={overId}
-              />
+              <CanvasPane drag={drag} />
               <InspectorPane />
             </div>
           </div>
 
           <DragOverlay>
-            {activeDragId &&
-              (() => {
-                const block = blocks.find((b) => b.id === activeDragId);
-                if (!block) {
-                  return null;
-                }
-                return (
-                  <div className="pe-drag-ghost">
-                    <div aria-hidden="true" className="pe-drag-ghost__thumb" />
-                    {block.type}
-                  </div>
-                );
-              })()}
-            {activePaletteType && (
+            {overlayLabel && (
               <div className="pe-drag-ghost">
                 <div aria-hidden="true" className="pe-drag-ghost__thumb" />
-                {activePaletteType}
+                {overlayLabel}
               </div>
             )}
           </DragOverlay>

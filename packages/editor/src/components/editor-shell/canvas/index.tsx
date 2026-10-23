@@ -3,74 +3,78 @@
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Fragment, useCallback } from "react";
-import type { ResolvedBackground } from "@/blocks/_primitives/layout-types";
-import { resolveBackgrounds } from "@/blocks/_primitives/resolve-layout";
-import { BlockView } from "@/blocks/block-view";
-import { getBlock } from "@/blocks/registry";
-import type { PatchFn } from "@/blocks/types";
+import { Fragment, useMemo } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import {
-  useBlocks,
   useCopilotOpen,
-  useHoveredId,
   useMode,
-  useSelection,
+  useSections,
   useViewport,
 } from "@/editor/hooks";
 import { useEditorStore } from "@/editor/store";
-import type { Block, BlockType } from "@/editor/types";
 import { CopilotPanel } from "../copilot/chat-panel";
 import { CopilotButton } from "../copilot/floating-button";
-import { handleBlockWrapperKeyDown } from "./block-keys";
+import { AddSection, FirstSectionPicker } from "./add-section";
+import type { CanvasDrag } from "./drop";
+import { DropSlot } from "./drop-line";
 import { FormatBar } from "./format-bar";
+import { SectionFrame } from "./section-frame";
 
 interface CanvasPaneProps {
-  activeDragId: string | null;
-  activePaletteType: BlockType | null;
-  overId: string | null;
+  /** The drag in progress, or null. */
+  drag: CanvasDrag | null;
 }
 
-function DropLine({ active }: { active: boolean }) {
+const newSectionData = (index: number) =>
+  ({ kind: "new-section", index }) as const;
+
+/**
+ * The boundary before section `index` (or after the last one, `end`). While
+ * dragging it is the `new-section:<index>` drop zone; otherwise it holds
+ * "+ Add section".
+ */
+function SectionGap({
+  drag,
+  end = false,
+  index,
+}: {
+  drag: CanvasDrag | null;
+  end?: boolean;
+  index: number;
+}) {
+  const data = useMemo(() => newSectionData(index), [index]);
+  const { setNodeRef } = useDroppable({ id: `new-section:${index}`, data });
+  const active =
+    drag?.indicator?.kind === "new-section" && drag.indicator.index === index;
+
   return (
     <div
-      aria-hidden="true"
-      style={{
-        height: 2,
-        margin: "1px 0",
-        borderRadius: 999,
-        flexShrink: 0,
-        background: "var(--page-accent)",
-        boxShadow: active
-          ? "0 0 0 4px color-mix(in srgb, var(--page-accent) 18%, transparent)"
-          : "none",
-        opacity: active ? 1 : 0,
-        transition: "opacity .12s, box-shadow .12s",
-        pointerEvents: "none",
-      }}
-    />
+      className="pe-add-section"
+      data-end={end ? "" : undefined}
+      data-first={index === 0 && !end ? "" : undefined}
+      ref={setNodeRef}
+    >
+      {drag && <DropSlot active={active} />}
+      <AddSection index={index} placement={end ? "end" : "between"} />
+    </div>
   );
 }
 
-function CanvasEndZone({ active }: { active: boolean }) {
-  const { setNodeRef } = useDroppable({ id: "canvas-end" });
+/** The empty page: pick a first layout, or drop a block to start a section. */
+function EmptyCanvas({ drag }: { drag: CanvasDrag | null }) {
+  const data = useMemo(() => newSectionData(0), []);
+  const { setNodeRef } = useDroppable({ id: "new-section:0", data });
+  const over = drag?.indicator?.kind === "new-section";
+
   return (
     <div
+      className="pe-add-section pe-add-section--first"
+      data-over={over ? "" : undefined}
       ref={setNodeRef}
-      style={{
-        minHeight: 56,
-        display: "flex",
-        alignItems: "flex-start",
-        paddingTop: 1,
-      }}
     >
-      <div style={{ width: "100%" }}>
-        <DropLine active={active} />
-      </div>
+      <FirstSectionPicker />
     </div>
   );
 }
@@ -95,17 +99,12 @@ function getViewportWidth(viewport: "desk" | "tab" | "mob") {
   return "390";
 }
 
-export function CanvasPane({
-  activeDragId,
-  activePaletteType,
-  overId,
-}: CanvasPaneProps) {
+export function CanvasPane({ drag }: CanvasPaneProps) {
   const mode = useMode();
   const viewport = useViewport();
   const setMode = useEditorStore((s) => s.setMode);
   const setViewport = useEditorStore((s) => s.setViewport);
-  const blocks = useBlocks();
-  const insertBlock = useEditorStore((s) => s.insertBlock);
+  const sections = useSections();
   const copilotOpen = useCopilotOpen();
   const {
     activeLocale,
@@ -115,9 +114,16 @@ export function CanvasPane({
     translatingLocale,
   } = useEditorCallbacks();
 
-  const isDragging = activeDragId !== null || activePaletteType !== null;
+  const edit = mode === "edit";
   const frameClass = `biso-surface pe-frame ${viewport}`;
-  const backgrounds = resolveBackgrounds(blocks);
+  const sectionIds = useMemo(
+    () => sections.map((section) => `sec:${section.id}`),
+    [sections]
+  );
+  let dragging: "block" | "section" | undefined;
+  if (drag) {
+    dragging = drag.source.source === "section" ? "section" : "block";
+  }
   const missingLocales = locales.filter(
     (option) => option.locale !== activeLocale
   );
@@ -194,234 +200,36 @@ export function CanvasPane({
 
       {/* Canvas stage */}
       <div className="scroll pe-stage">
-        <SortableContext
-          items={blocks.map((b) => b.id)}
-          strategy={verticalListSortingStrategy}
+        <div
+          className={frameClass}
+          data-dragging={dragging}
+          data-editing={edit ? "" : undefined}
         >
-          <div className={frameClass}>
-            <span className="pe-frame__breakpoint-tag">
-              {getViewportWidth(viewport)}px
-            </span>
+          <span className="pe-frame__breakpoint-tag">
+            {getViewportWidth(viewport)}px
+          </span>
 
-            {blocks.length === 0 && !isDragging && (
-              <EmptyState onAdd={(type) => insertBlock(type)} />
-            )}
-
-            {blocks.map((block, idx) => (
-              <Fragment key={block.id}>
-                {/* Drop indicator — shown before this block when it's the drag target */}
-                {isDragging && <DropLine active={overId === block.id} />}
-
-                {/* Between-block zipper (hidden while dragging) */}
-                {!isDragging && idx > 0 && mode === "edit" && (
-                  <div className="pe-zipper">
-                    <button
-                      onClick={() => insertBlock("text", blocks[idx - 1].id)}
-                      title="Add block"
-                      type="button"
-                    >
-                      +
-                    </button>
-                  </div>
-                )}
-
-                <SortableBlock
-                  background={backgrounds[idx] ?? "default"}
-                  block={block}
-                />
-              </Fragment>
-            ))}
-
-            {/* End-of-canvas droppable: lets you append after the last block */}
-            {isDragging && <CanvasEndZone active={overId === "canvas-end"} />}
-          </div>
-        </SortableContext>
+          {sections.length === 0 ? (
+            <EmptyCanvas drag={drag} />
+          ) : (
+            <SortableContext
+              items={sectionIds}
+              strategy={verticalListSortingStrategy}
+            >
+              {sections.map((section, index) => (
+                <Fragment key={section.id}>
+                  {edit && <SectionGap drag={drag} index={index} />}
+                  <SectionFrame drag={drag} index={index} section={section} />
+                </Fragment>
+              ))}
+              {edit && <SectionGap drag={drag} end index={sections.length} />}
+            </SortableContext>
+          )}
+        </div>
 
         <FormatBar />
         <CopilotButton />
         {copilotOpen && <CopilotPanel />}
-      </div>
-    </div>
-  );
-}
-
-function SortableBlock({
-  background,
-  block,
-}: {
-  background: ResolvedBackground;
-  block: Block;
-}) {
-  const mode = useMode();
-  const selection = useSelection();
-  const hoveredId = useHoveredId();
-  const select = useEditorStore((s) => s.select);
-  const setHovered = useEditorStore((s) => s.setHovered);
-  const removeBlock = useEditorStore((s) => s.removeBlock);
-  const duplicateBlock = useEditorStore((s) => s.duplicateBlock);
-  const setProp = useEditorStore((s) => s.setProp);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: block.id,
-    disabled: mode !== "edit",
-  });
-
-  const def = getBlock(block.type);
-  const isSelected = selection === block.id;
-  const isHovered = hoveredId === block.id;
-
-  const onPatch = useCallback<PatchFn>(
-    (path, value) => setProp(block.id, path, value),
-    [block.id, setProp]
-  );
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.35 : 1,
-  };
-
-  const cls = [
-    "pe-block",
-    isSelected ? "selected" : "",
-    isHovered ? "hovered" : "",
-    isDragging ? "dragging" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  if (!def) {
-    return (
-      <div ref={setNodeRef} style={style}>
-        <p style={{ padding: 24, color: "var(--ink-3)" }}>
-          Unknown block: {block.type}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: the block wrapper contains nested editor controls, so it cannot be a native button.
-    <div
-      className={cls}
-      data-block-id={block.id}
-      onClick={(e) => {
-        e.stopPropagation();
-        select(block.id);
-      }}
-      onKeyDown={(e) => handleBlockWrapperKeyDown(e, () => select(block.id))}
-      onMouseEnter={() => setHovered(block.id)}
-      onMouseLeave={() => setHovered(null)}
-      ref={setNodeRef}
-      role="button"
-      style={style}
-      tabIndex={0}
-    >
-      {isSelected && mode === "edit" && (
-        <span className="pe-block__tag">{def.label}</span>
-      )}
-
-      {mode === "edit" && (
-        <>
-          <div className="pe-block__handle">
-            <button
-              className="pe-block__dragger"
-              title="Drag to reorder"
-              type="button"
-              {...listeners}
-              {...attributes}
-            >
-              ⠿
-            </button>
-          </div>
-          <div className="pe-block__row-actions">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                duplicateBlock(block.id);
-              }}
-              title="Duplicate"
-              type="button"
-            >
-              ⊕
-            </button>
-            <button
-              className="delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeBlock(block.id);
-              }}
-              title="Delete"
-              type="button"
-            >
-              ✕
-            </button>
-          </div>
-        </>
-      )}
-
-      <BlockView
-        background={background}
-        block={block}
-        edit={mode === "edit"}
-        onPatch={onPatch}
-      />
-    </div>
-  );
-}
-
-function EmptyState({ onAdd }: { onAdd: (type: BlockType) => void }) {
-  return (
-    <div
-      style={{
-        padding: "64px 48px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 16,
-        color: "var(--ink-3)",
-        textAlign: "center",
-      }}
-    >
-      <div style={{ fontSize: 32, opacity: 0.3 }}>⊕</div>
-      <p style={{ fontSize: 14, margin: 0 }}>
-        Start by dragging a block from the palette,
-        <br />
-        or click a block type below.
-      </p>
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          justifyContent: "center",
-        }}
-      >
-        {(["hero", "text", "stats", "events"] as BlockType[]).map((type) => (
-          <button
-            key={type}
-            onClick={() => onAdd(type)}
-            style={{
-              padding: "6px 12px",
-              border: "0.5px solid var(--rule-2)",
-              borderRadius: 8,
-              background: "rgba(255,255,255,.5)",
-              fontSize: 12,
-              cursor: "pointer",
-              color: "var(--ink)",
-            }}
-            type="button"
-          >
-            {type}
-          </button>
-        ))}
       </div>
     </div>
   );

@@ -627,7 +627,8 @@
 .pe-block.selected .pe-block__handle {
   opacity: 1;
 }
-.pe-block__handle button {
+.pe-block__handle button,
+.pe-section__dragger {
   display: grid;
   place-items: center;
   width: 26px;
@@ -640,7 +641,8 @@
   border-radius: 6px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.pe-block__handle button:hover {
+.pe-block__handle button:hover,
+.pe-section__dragger:hover {
   color: var(--ink);
   background: white;
 }
@@ -658,7 +660,8 @@
 .pe-block.selected .pe-block__row-actions {
   opacity: 1;
 }
-.pe-block__row-actions button {
+.pe-block__row-actions button,
+.pe-section__actions button {
   display: grid;
   place-items: center;
   width: 26px;
@@ -671,11 +674,13 @@
   border-radius: 6px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.pe-block__row-actions button:hover {
+.pe-block__row-actions button:hover,
+.pe-section__actions button:hover {
   color: var(--ink);
   background: white;
 }
-.pe-block__row-actions button.delete:hover {
+.pe-block__row-actions button.delete:hover,
+.pe-section__actions button.delete:hover {
   color: var(--claret);
 }
 .pe-zipper {
@@ -705,7 +710,8 @@
     color 0.12s,
     background 0.12s;
 }
-.pe-block:hover ~ .pe-zipper button,
+.pg-col__item:hover > .pe-zipper button,
+.pg-col__item:hover + .pg-col__item > .pe-zipper button,
 .pe-zipper:hover button {
   opacity: 1;
 }
@@ -738,6 +744,309 @@
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
   border-radius: 4px;
+}
+
+/* A drop line on a boundary that takes no room (see DropSlot). */
+.pe-drop-slot {
+  position: relative;
+  z-index: 8;
+  height: 0;
+}
+.pe-drop-slot > * {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  left: 0;
+}
+
+/* === Section & column chrome ============================================== */
+/* Same outlines, tag, handle and row actions as the block chrome above. */
+.pe-section {
+  position: relative;
+}
+.pe-section::before {
+  position: absolute;
+  inset: 4px;
+  z-index: 5;
+  pointer-events: none;
+  content: "";
+  border-radius: 8px;
+}
+.pe-frame[data-editing]:not([data-dragging])
+  .pe-section:hover:not(:has(.pe-block:hover))::before {
+  outline: 1px dashed rgba(107, 30, 30, 0.35);
+  outline-offset: -1px;
+}
+.pe-frame[data-editing] .pe-section.selected::before {
+  outline: 1.5px solid var(--page-accent, var(--claret));
+  outline-offset: -1px;
+  box-shadow: 0 0 0 4px rgba(107, 30, 30, 0.08);
+}
+.pe-section__bar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pe-section__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  background: var(--page-accent, var(--claret));
+  border-radius: 4px;
+}
+.pe-section__actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Columns: a dashed outline drawn over each `.pg-col` while it matters. */
+.pe-section .pg-col {
+  position: relative;
+}
+.pe-col {
+  position: absolute;
+  inset: -6px;
+  z-index: 4;
+  pointer-events: none;
+  outline: 1px dashed var(--rule-2);
+  outline-offset: -1px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.pe-frame:not([data-dragging]) .pe-section:hover .pe-col,
+.pe-section.selected .pe-col,
+.pe-frame[data-dragging="block"] .pe-col {
+  opacity: 1;
+}
+/* The column "+ Add block" points the palette at. */
+.pe-frame:not([data-dragging]) .pe-col[data-target] {
+  outline: 1.5px solid var(--page-accent, var(--claret));
+  box-shadow: 0 0 0 4px rgba(107, 30, 30, 0.08);
+  opacity: 1;
+}
+.pe-col__end {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding-top: 8px;
+}
+.pe-col__end[data-empty] {
+  justify-content: center;
+  min-height: 88px;
+  padding-top: 0;
+  /* currentColor, so the tint also reads on a dark section. */
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  border-radius: 8px;
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
+}
+.pe-col__end[data-empty][data-over] {
+  background: color-mix(
+    in srgb,
+    var(--page-accent, var(--claret)) 8%,
+    transparent
+  );
+  box-shadow: inset 0 0 0 1.5px var(--page-accent, var(--claret));
+}
+.pe-col__add {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-3);
+  white-space: nowrap;
+  appearance: none;
+  cursor: pointer;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  opacity: 0;
+  transition:
+    opacity 0.12s,
+    color 0.12s,
+    background 0.12s;
+}
+.pe-section:hover .pe-col__add,
+.pe-section.selected .pe-col__add,
+.pe-col__end[data-empty] .pe-col__add,
+.pe-col__add:focus-visible {
+  opacity: 1;
+}
+.pe-col__add:hover {
+  color: var(--ink);
+  background: white;
+}
+.pe-col__add[aria-pressed="true"] {
+  color: white;
+  background: var(--page-accent, var(--claret));
+  border-color: var(--page-accent, var(--claret));
+  opacity: 1;
+}
+.pe-frame[data-dragging] .pe-col__add {
+  visibility: hidden;
+}
+
+/* "+ Add section": on each section boundary, and after the last section. */
+.pe-add-section {
+  position: relative;
+  z-index: 8;
+}
+.pe-add-section__btn {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 22px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-3);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 999px;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 0.12s,
+    color 0.12s,
+    background 0.12s;
+}
+/* The top edge of the page would clip a centred button. */
+.pe-add-section[data-first] .pe-add-section__btn {
+  transform: translate(-50%, 8px);
+}
+.pe-add-section__btn:hover,
+.pe-add-section__btn:focus-visible,
+.pe-section:hover + .pe-add-section .pe-add-section__btn,
+.pe-add-section[data-first]:has(+ .pe-section:hover) .pe-add-section__btn {
+  opacity: 1;
+}
+.pe-add-section__btn:hover {
+  color: white;
+  background: var(--page-accent, var(--claret));
+  border-color: var(--page-accent, var(--claret));
+}
+.pe-add-section[data-end] {
+  padding: 16px;
+}
+.pe-add-section[data-end] .pe-add-section__btn {
+  position: static;
+  width: 100%;
+  height: 40px;
+  border: 1px dashed var(--rule-2);
+  border-radius: 8px;
+  opacity: 1;
+  transform: none;
+}
+.pe-add-section[data-end] .pe-add-section__btn:hover {
+  color: var(--ink);
+  background: white;
+  border-color: var(--ink-3);
+}
+.pe-frame[data-dragging] .pe-add-section__btn {
+  visibility: hidden;
+}
+.pe-add-section__panel {
+  position: relative;
+  max-width: 320px;
+  padding: 12px;
+  margin: 12px auto;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px -8px rgba(26, 24, 20, 0.3);
+}
+.pe-add-section__hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pe-add-section__hd button {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+.pe-add-section__hd button:hover {
+  color: var(--ink);
+  background: var(--paper-2);
+}
+.pe-add-section__cols {
+  display: flex;
+  gap: 3px;
+  width: 72%;
+  height: 22px;
+}
+.pe-add-section__cols > span {
+  flex-basis: 0;
+  background: var(--rule-2);
+  border-radius: 2px;
+  transition: background 0.12s;
+}
+.pe-variant:hover .pe-add-section__cols > span {
+  background: var(--page-accent, var(--claret));
+}
+/* The empty page. */
+.pe-add-section--first {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  padding: 64px 48px;
+  color: var(--ink-3);
+  text-align: center;
+  border-radius: 14px;
+  transition: box-shadow 0.12s;
+}
+.pe-add-section--first[data-over] {
+  box-shadow: inset 0 0 0 1.5px var(--page-accent, var(--claret));
+}
+.pe-add-section__icon {
+  font-size: 32px;
+  opacity: 0.3;
+}
+.pe-add-section__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.pe-add-section__hint {
+  margin: -8px 0 0;
+  font-size: 13px;
+}
+.pe-add-section--first .pe-add-section__grid {
+  width: 100%;
+  max-width: 320px;
 }
 
 /* === Inspector ============================================================ */
