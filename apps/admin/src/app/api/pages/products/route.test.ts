@@ -20,6 +20,7 @@ mock.module("@/lib/api-auth", () => ({
     ),
 }));
 mock.module("@repo/api/server", () => ({
+  createAdminClient: () => Promise.resolve({ db: {} }),
   createPublicClient: () => Promise.resolve({ db: {} }),
 }));
 

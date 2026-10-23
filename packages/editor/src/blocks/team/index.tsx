@@ -35,13 +35,15 @@ function TeamThumb() {
 registerBlock({
   type: "team",
   label: "Team grid",
-  description: "Officers, board, members",
+  description: "People with photos, typed in or from the board",
   category: "Show people & numbers",
   group: "people",
-  aiHint: "A grid of team members with avatars, names, and roles.",
-  aiProps: ["heading", "members"],
+  aiHint:
+    "A grid of people cards. source manual uses members [{ name, role, email?, phone?, photo?: { src } }]; source board shows the page department's live board. showContact controls email and phone links.",
+  aiProps: ["heading", "source", "showContact", "members"],
   empty: () => emptyBlock("team") as never,
   Render: TeamRender as never,
   Inspector: TeamInspector as never,
   PaletteThumb: TeamThumb,
+  v2: true,
 });

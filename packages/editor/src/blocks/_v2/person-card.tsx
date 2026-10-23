@@ -13,13 +13,13 @@ export function PersonCard({
   imageSrc,
   name,
   phone,
-  role,
+  position,
 }: {
   email?: string | null;
   imageSrc?: string | null;
   name: string;
   phone?: string | null;
-  role?: string | null;
+  position?: string | null;
 }) {
   const mail = email ? safeHref(`mailto:${email.trim()}`) : null;
   // `mailto:javascript:…` is a harmless mailto, but the address itself must
@@ -45,9 +45,9 @@ export function PersonCard({
         <span className="type-heading-card block break-words text-ink">
           {name}
         </span>
-        {role ? (
+        {position ? (
           <span className="type-body-sm block break-words text-ink-muted">
-            {role}
+            {position}
           </span>
         ) : null}
       </span>

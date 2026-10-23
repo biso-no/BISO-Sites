@@ -2,7 +2,6 @@
 // All mutations go through operations.ts; this file is pure types only.
 
 import type { BlockLayout } from "@/blocks/_primitives/layout-types";
-import type { AccentHue } from "@/theme/presets";
 
 export type BlockType =
   | "marquee"
@@ -127,16 +126,21 @@ export interface TwoColBlock {
 }
 
 export interface TeamMember {
-  hue: AccentHue;
-  initials: string;
+  email?: string;
   name: string;
+  phone?: string;
+  photo?: { fileId?: string; mime?: string; src: string };
   role: string;
 }
 
 export interface TeamBlock {
-  heading: string;
+  heading?: string;
   id: string;
   members: TeamMember[];
+  /** Show email and phone links on each card. */
+  showContact: boolean;
+  /** `board` reads the page department's board from the live feed. */
+  source: "manual" | "board";
   type: "team";
 }
 
@@ -282,14 +286,6 @@ export interface FaqBlock {
   variant?: "list" | "accordion-themed";
 }
 
-export interface ContactCard {
-  address?: string;
-  email?: string;
-  name: string;
-  phone?: string;
-  role: string;
-}
-
 export interface ContactBlock {
   address: string;
   email: string;
@@ -297,9 +293,8 @@ export interface ContactBlock {
   hours: string;
   id: string;
   instagram: string;
-  members?: ContactCard[];
+  phone: string;
   type: "contact";
-  variant?: "single" | "directory";
 }
 
 export interface SignupBlock {

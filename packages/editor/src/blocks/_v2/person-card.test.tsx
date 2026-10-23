@@ -4,8 +4,7 @@ import { PersonCard } from "./person-card";
 
 test("an email becomes a mailto link", () => {
   const html = renderToStaticMarkup(
-    // biome-ignore lint/a11y/useValidAriaRole: `role` is the job title here, not an ARIA role.
-    <PersonCard email="a@biso.no" name="Ada" role="Lead" />
+    <PersonCard email="a@biso.no" name="Ada" position="Lead" />
   );
   expect(html).toContain('href="mailto:a@biso.no"');
   expect(html).toContain("Lead");

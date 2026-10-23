@@ -147,6 +147,32 @@ describe("collectPageFeedRequests", () => {
     expect(manual).toEqual([]);
   });
 
+  test("only a board team block asks for the board feed, keyed by department", () => {
+    const board = collectPageFeedRequests(
+      doc([{ id: "a", type: "team", source: "board" }] as Block[]),
+      "en"
+    );
+    expect(board).toHaveLength(1);
+    expect(board[0]?.kind).toBe("board");
+    expect(board[0]?.department).toBe("25");
+    expect(board[0]?.key).toBe(pageFeedKey("board", "25"));
+    for (const source of ["manual", undefined, "weird"]) {
+      expect(
+        collectPageFeedRequests(
+          doc([{ id: "a", type: "team", source }] as Block[]),
+          "no"
+        )
+      ).toEqual([]);
+    }
+    // No page department means nothing to read.
+    expect(
+      collectPageFeedRequests(
+        doc([{ id: "a", type: "team", source: "board" }] as Block[], ""),
+        "no"
+      )
+    ).toEqual([]);
+  });
+
   test("departmentGrid and partners keys ignore department and locale", () => {
     // Both feeds are global, so a page carrying them in two locales must not
     // fetch twice and must key identically on every page.

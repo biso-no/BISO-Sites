@@ -1,7 +1,7 @@
 /**
  * Server-side resolution of a block page's auto-source feeds.
  *
- * The six auto-source blocks (events/news/jobs/partners/departmentGrid/productGrid) are
+ * The seven auto-source blocks (events/news/jobs/partners/departmentGrid/productGrid/team) are
  * Client Components — they have to be, because `BlockRenderer` hands every
  * block an `onPatch` function and the same component serves the admin canvas.
  * Left to themselves they fetch `/api/pages/*` from a `useEffect`, so the HTML
@@ -26,6 +26,7 @@ import type {
 } from "@repo/editor/page-feeds";
 import { collectPageFeedRequests } from "@repo/editor/page-feeds";
 import type { PageDoc } from "@repo/editor/types";
+import { readBoardFeed } from "./page-board";
 import {
   cachedPageDepartmentsFeed,
   cachedPageEventsFeed,
@@ -39,6 +40,8 @@ import type { PublicLocale } from "./queries";
 function readFeed(request: PageFeedRequest): Promise<unknown[]> {
   const locale = request.locale as PublicLocale;
   switch (request.kind) {
+    case "board":
+      return readBoardFeed(request.department);
     case "departments":
       // The snapshot carries rows; the endpoint's `total` is for consumers
       // that page, and the block never reads it.

@@ -82,17 +82,12 @@ describe("brand surface binding", () => {
     expect(blocks).not.toContain("border-radius: 12px;");
   });
 
-  test("dark panels keep a theme-stable navy", () => {
-    const blocks = read("blocks.css");
-    // The dark contact banner keeps its navy while the background is Auto.
-    expect(ruleBody(blocks, ".pg-section[data-auto] .pg-contact {")).toContain(
-      "background: var(--pg-navy);"
-    );
-  });
-
   test("the hero and cta blocks' rules are gone with them", () => {
     expect(read("blocks.css")).not.toContain(".pg-hero");
     expect(read("blocks.css")).not.toContain(".pg-cta");
+    expect(read("blocks.css")).not.toContain(".pg-team");
+    expect(read("blocks.css")).not.toContain(".pg-member");
+    expect(read("blocks.css")).not.toContain(".pg-contact");
   });
 });
 

@@ -8,8 +8,15 @@ const cachedPageJobsFeed = vi.fn();
 const cachedPageNewsFeed = vi.fn();
 const cachedPagePartnersFeed = vi.fn();
 const cachedPageProductsFeed = vi.fn();
+const cachedDepartmentById = vi.fn();
+const cachedUnitBoard = vi.fn();
+
+vi.mock("./unit-board", () => ({
+  cachedUnitBoard: (...args: unknown[]) => cachedUnitBoard(...args),
+}));
 
 vi.mock("./public-content", () => ({
+  cachedDepartmentById: (...args: unknown[]) => cachedDepartmentById(...args),
   cachedPageDepartmentsFeed: (...args: unknown[]) =>
     cachedPageDepartmentsFeed(...args),
   cachedPageEventsFeed: (...args: unknown[]) => cachedPageEventsFeed(...args),
@@ -293,5 +300,68 @@ describe("resolvePageFeeds", () => {
     // The block's limit rides along so the reader fetches enough rows.
     expect(cachedPageNewsFeed).toHaveBeenCalledWith("25", "en", 6);
     expect(cachedPageJobsFeed).toHaveBeenCalledWith("25", "en", 3);
+  });
+
+  describe("board team blocks", () => {
+    const teamDoc = () =>
+      doc([{ id: "a", type: "team", members: [], source: "board" }]);
+    const MEMBER = {
+      email: "leder@example.org",
+      imageUrl: "data:image/png;base64,AAAA",
+      name: "Kari Eksempel",
+      phone: "+47 000 00 001",
+      role: "Leder",
+    };
+
+    beforeEach(() => {
+      cachedDepartmentById.mockResolvedValue({ $id: "25", campus_id: "2" });
+      cachedUnitBoard.mockResolvedValue([MEMBER]);
+    });
+
+    test("reads the board for the department's campus, photo kept", async () => {
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+
+      expect(cachedDepartmentById).toHaveBeenCalledWith("25");
+      expect(cachedUnitBoard).toHaveBeenCalledWith("2", "25");
+      expect(feeds[pageFeedKey("board", "25")]).toEqual([
+        {
+          email: "leder@example.org",
+          name: "Kari Eksempel",
+          phone: "+47 000 00 001",
+          photo: { src: "data:image/png;base64,AAAA" },
+          role: "Leder",
+        },
+      ]);
+    });
+
+    test("caps the board at 24 members", async () => {
+      cachedUnitBoard.mockResolvedValue(
+        Array.from({ length: 40 }, (_, i) => ({ ...MEMBER, name: `M${i}` }))
+      );
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      expect(feeds[pageFeedKey("board", "25")]).toHaveLength(24);
+    });
+
+    test("a failing board is left out of the snapshot", async () => {
+      cachedUnitBoard.mockRejectedValue(new Error("api down"));
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      expect(feeds).not.toHaveProperty(pageFeedKey("board", "25"));
+    });
+
+    test("an unknown department resolves to an empty board without asking the API", async () => {
+      cachedDepartmentById.mockResolvedValue(null);
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      expect(feeds[pageFeedKey("board", "25")]).toEqual([]);
+      expect(cachedUnitBoard).not.toHaveBeenCalled();
+    });
+
+    test("a manual team block resolves nothing", async () => {
+      const feeds = await resolvePageFeeds(
+        doc([{ id: "a", type: "team", members: [], source: "manual" }]),
+        "no"
+      );
+      expect(feeds).toEqual({});
+      expect(cachedUnitBoard).not.toHaveBeenCalled();
+    });
   });
 });

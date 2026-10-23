@@ -81,7 +81,9 @@ export function emptyBlock(type: BlockType): Block {
         id,
         type,
         heading: "The team",
-        members: [{ name: "Name", role: "Role", initials: "NN", hue: "blue" }],
+        members: [{ name: "Name", role: "Role" }],
+        showContact: true,
+        source: "manual",
       };
     case "events":
       return {
@@ -106,6 +108,7 @@ export function emptyBlock(type: BlockType): Block {
         heading: "Find us",
         email: "team@biso.no",
         instagram: "@biso",
+        phone: "",
         address: "Campus",
         hours: "Mon–Fri",
       };

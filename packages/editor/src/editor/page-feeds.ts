@@ -1,7 +1,7 @@
 /**
  * Feed identity for the auto-source blocks.
  *
- * Six blocks (events/news/jobs/partners/departmentGrid/productGrid) render content that
+ * Seven blocks (events/news/jobs/partners/departmentGrid/productGrid/team) render content that
  * lives in Appwrite rather than in the page document. A rendering host can
  * resolve those feeds up front and hand them to the blocks, which is how the
  * public site gets real rows into its server-rendered HTML instead of a
@@ -19,6 +19,7 @@ import type { Block, EditorLocale, PageDoc } from "./types";
 
 /** The backend feeds an auto-source block can pull from. */
 export type PageFeedKind =
+  | "board"
   | "departments"
   | "events"
   | "jobs"
@@ -130,6 +131,14 @@ export function unitsScope(value: unknown): "campus" | "all" {
   return value === "all" ? "all" : "campus";
 }
 
+/** A team block's source; missing or unknown is the `emptyBlock` default. */
+export function teamSource(value: unknown): "manual" | "board" {
+  return value === "board" ? "board" : "manual";
+}
+
+/** The most members a board feed carries; both hosts cap at this. */
+export const BOARD_FEED_LIMIT = 24;
+
 /** A partners block's source; missing or unknown is the `emptyBlock` default. */
 export function partnersSource(value: unknown): "auto" | "manual" {
   return value === "manual" ? "manual" : "auto";
@@ -207,6 +216,20 @@ function requestForBlock(
       key: pageFeedKey("products", department, locale, limit),
       kind: "products",
       limit,
+      locale,
+    };
+  }
+
+  if (block.type === "team") {
+    // A manual team block renders the people the author typed in. A board one
+    // reads the page's own department, so a page with none has nothing to show.
+    if (teamSource(block.source) !== "board" || !pageDepartment) {
+      return null;
+    }
+    return {
+      department: pageDepartment,
+      key: pageFeedKey("board", pageDepartment),
+      kind: "board",
       locale,
     };
   }

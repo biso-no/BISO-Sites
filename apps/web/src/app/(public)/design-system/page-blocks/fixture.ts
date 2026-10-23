@@ -174,6 +174,21 @@ export const PAGE_BLOCKS_FEEDS: PageFeedSnapshot = {
     { href: "#program", name: "Testbyrået" },
     { name: "Nordlys Konsult" },
   ],
+  [pageFeedKey("board", FAIR_DEPARTMENT)]: [
+    {
+      email: "leder@example.org",
+      name: "Fiona Fiktiv",
+      phone: "+47 000 00 003",
+      role: "Leder",
+    },
+    {
+      email: "okonomi@example.org",
+      name: "Gunnar Gjenstand",
+      role: "Økonomiansvarlig",
+    },
+    { name: "Hedda Hypotese", role: "Medlem" },
+    { email: "pr@example.org", name: "Ivar Illustrasjon", role: "PR" },
+  ],
   [departmentsFeedKey("", "")]: [
     {
       campusLabel: "Oslo",
@@ -229,7 +244,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
   version: 2,
   meta: {
     accentColor: "#3DA9E0",
-    department: "",
+    department: FAIR_DEPARTMENT,
     description: "Alle blokkene i sidebyggeren, samlet på én side.",
     slug: "design-system/page-blocks",
     status: "draft",
@@ -572,6 +587,41 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           type: "partners",
           heading: "Støttet av",
           source: "auto",
+        },
+        {
+          id: "b-live-board",
+          type: "team",
+          heading: "Styret",
+          members: [],
+          showContact: true,
+          source: "board",
+        },
+        {
+          id: "b-team-manual",
+          type: "team",
+          heading: "Komiteen",
+          members: [
+            {
+              email: "program@example.org",
+              name: "Jonas Johannesen",
+              phone: "+47 000 00 004",
+              photo: { src: "/images/bedrift.png" },
+              role: "Programansvarlig",
+            },
+            { name: "Kine Kladdesen", role: "Frivillig" },
+          ],
+          showContact: false,
+          source: "manual",
+        },
+        {
+          id: "b-contact",
+          type: "contact",
+          heading: "Kontakt oss",
+          address: "Eksempelveien 1, 0000 Oslo",
+          email: "kontakt@example.org",
+          hours: "Mandag til fredag, 10:00 til 15:00",
+          instagram: "@bisowintergames",
+          phone: "+47 000 00 005",
         },
       ],
     ]),
