@@ -23,6 +23,7 @@ export default async function PageEditorPage({ params }: Props) {
 
   const isNew = id === "new";
 
+  const pagePromise = isNew ? null : getPageEditorById(id);
   const [
     ctx,
     pageResult,
@@ -32,8 +33,16 @@ export default async function PageEditorPage({ params }: Props) {
     availableLocales,
   ] = await Promise.all([
     getUserAuthContext(),
-    isNew ? null : getPageEditorById(id),
-    listAllDepartments(),
+    pagePromise,
+    // Only the departments this user can edit, plus the page's current one so
+    // its value still displays.
+    pagePromise
+      ? pagePromise.then((result) =>
+          listAllDepartments({
+            keepId: result?.page.departmentId || undefined,
+          })
+        )
+      : listAllDepartments(),
     listCampuses(),
     getLocale(),
     getPageEditorLocales(),

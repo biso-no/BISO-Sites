@@ -22,6 +22,7 @@ import {
   savePageDraft,
   savePageTranslationDraft,
   syncSharedDraftMeta,
+  unpublishPage,
 } from "./page-builder";
 
 const ctx = {
@@ -619,5 +620,69 @@ describe("clearPageTheme", () => {
     });
     await clearPageTheme("page-1");
     expect(db.updateRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("unpublishPage", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  function seed(
+    translations: { $id: string; locale: string; is_published: boolean }[]
+  ) {
+    db.listRows.mockImplementation(
+      (_db: string, table: string, queries: string[]) => {
+        if (table === "pages") {
+          return Promise.resolve({
+            rows: [{ $id: "page-1", visibility: "public" }],
+          });
+        }
+        const wantsLocale = queries.some((q) => q.includes('"locale"'));
+        const rows = wantsLocale
+          ? translations.filter((t) =>
+              queries.some((q) => q.includes(`"${t.locale}"`))
+            )
+          : translations;
+        return Promise.resolve({ rows });
+      }
+    );
+  }
+
+  it("keeps the page published while another locale is still live", async () => {
+    seed([
+      { $id: "tr-no", locale: "no", is_published: true },
+      { $id: "tr-en", locale: "en", is_published: true },
+    ]);
+
+    await unpublishPage({ id: "page-1", locale: "en" });
+
+    expect(db.updateRow).toHaveBeenCalledTimes(1);
+    expect(db.updateRow.mock.calls[0][1]).toBe("page_translations");
+    expect(db.updateRow.mock.calls[0][2]).toBe("tr-en");
+    expect(db.updateRow.mock.calls[0][3]).toEqual({ is_published: false });
+  });
+
+  it("makes the page a draft once the last published locale is unpublished", async () => {
+    seed([
+      { $id: "tr-no", locale: "no", is_published: false },
+      { $id: "tr-en", locale: "en", is_published: true },
+    ]);
+
+    await unpublishPage({ id: "page-1", locale: "en" });
+
+    const pageWrite = db.updateRow.mock.calls.find((c) => c[1] === "pages");
+    expect(pageWrite?.[3]).toEqual({ status: "draft" });
+    expect(pageWrite?.[4]).toBeDefined();
+  });
+
+  it("does not count the locale being unpublished as still live", async () => {
+    seed([{ $id: "tr-no", locale: "no", is_published: true }]);
+
+    await unpublishPage({ id: "page-1", locale: "no" });
+
+    expect(db.updateRow.mock.calls.find((c) => c[1] === "pages")?.[3]).toEqual({
+      status: "draft",
+    });
   });
 });

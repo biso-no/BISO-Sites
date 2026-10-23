@@ -728,7 +728,8 @@ export async function publishPage({
 }
 
 /**
- * Unpublish a page's translation (removes it from the public site).
+ * Unpublish a page's translation (removes it from the public site). The
+ * page row becomes a draft only when no other locale is still published.
  *
  * PRIVILEGED: same contract as {@link publishPage} — the row writes use the
  * service-key admin client because campus approvers are not on the page rows'
@@ -771,6 +772,15 @@ export async function unpublishPage({
       },
       draftPermissions
     );
+  }
+
+  // The page is one row shared by its locales: it stays published (with its
+  // published permissions) while any other locale is still live.
+  const stillLive = (await listPageTranslations(db, id)).some(
+    (other) => other.$id !== translation?.$id && other.is_published
+  );
+  if (stillLive) {
+    return;
   }
 
   await db.updateRow(

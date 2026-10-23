@@ -39,6 +39,7 @@ import {
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
 import { buildContentTranslationPermissions } from "@/lib/utils";
+import { hasRowAccess } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
 
 const NATIONAL_CAMPUS_ID = "5";
@@ -256,7 +257,14 @@ export async function listDepartments(
  * `(limit: number)` shape (see `listRecentActivity` in `activity.ts`) for
  * anything with more than one.
  */
-export async function listAllDepartments(): Promise<Departments[]> {
+export async function listAllDepartments(opts?: {
+  /**
+   * A department to keep in the list even when the user cannot edit it, so a
+   * page already bound to one shows its current value. Selecting it is still
+   * enforced by the server on save.
+   */
+  keepId?: string;
+}): Promise<Departments[]> {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
@@ -267,7 +275,24 @@ export async function listAllDepartments(): Promise<Departments[]> {
     ...(scope ?? []),
   ]);
 
-  return response.rows;
+  // The scope above is a read filter. The dropdown must offer exactly what
+  // savePageEditorDoc accepts, so apply its write predicate (hasRowAccess
+  // mirrors assertWriteAccess, which assertContentOwnership enforces).
+  const rows = response.rows.filter((department) =>
+    hasRowAccess(ctx, department.campus_id ?? null, department.$id)
+  );
+
+  const keepId = opts?.keepId;
+  if (keepId && !rows.some((department) => department.$id === keepId)) {
+    try {
+      const kept = await db.getRow<Departments>("app", "departments", keepId);
+      rows.push(kept);
+    } catch {
+      // A deleted department simply has nothing to show.
+    }
+  }
+
+  return rows;
 }
 
 /**

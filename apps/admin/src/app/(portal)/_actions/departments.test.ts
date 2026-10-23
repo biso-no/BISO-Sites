@@ -33,6 +33,7 @@ import type { UserAuthContext } from "@/lib/authorization";
  */
 
 const sessionDb = {
+  getRow: mock(),
   listRows: mock(),
 };
 const adminDb = {
@@ -688,6 +689,7 @@ describe("listAllDepartments", () => {
   });
 
   test("returns every active department for a picker, unbounded by PageSize", async () => {
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
     sessionDb.listRows.mockResolvedValueOnce({
       rows: [{ $id: "d1" }, { $id: "d2" }],
       total: 2,
@@ -705,6 +707,61 @@ describe("listAllDepartments", () => {
     for (const pageSize of [25, 50, 100]) {
       expect(queries).not.toContain(Query.limit(pageSize));
     }
+  });
+});
+
+describe("listAllDepartments editable-only", () => {
+  const rows = [
+    { $id: "d1", campus_id: "1" },
+    { $id: "d2", campus_id: "1" },
+    { $id: "d3", campus_id: "2" },
+  ];
+
+  beforeEach(() => {
+    sessionDb.listRows.mockReset();
+    sessionDb.listRows.mockResolvedValue({ rows, total: rows.length });
+    sessionDb.getRow.mockReset();
+  });
+
+  const ids = (list: { $id: string }[]) => list.map((d) => d.$id);
+
+  test("a department user sees only their own departments", async () => {
+    currentCtx = makeCtx({
+      resolvedCampusIds: ["1"],
+      resolvedDepartmentIds: ["d2"],
+    });
+    expect(ids(await listAllDepartments())).toEqual(["d2"]);
+  });
+
+  test("a campus admin sees their managed campuses' departments", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["1"],
+      roles: ["campusadmin"],
+    });
+    expect(ids(await listAllDepartments())).toEqual(["d1", "d2"]);
+  });
+
+  test("a global admin sees all", async () => {
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
+    expect(ids(await listAllDepartments())).toEqual(["d1", "d2", "d3"]);
+  });
+
+  test("keeps the page's current department even when it is not editable", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["1"],
+      roles: ["campusadmin"],
+    });
+    sessionDb.getRow.mockResolvedValue({ $id: "d3", campus_id: "2" });
+    expect(ids(await listAllDepartments({ keepId: "d3" }))).toEqual([
+      "d1",
+      "d2",
+      "d3",
+    ]);
+  });
+
+  test("a user with no editable departments sees none", async () => {
+    currentCtx = makeCtx();
+    expect(await listAllDepartments()).toEqual([]);
   });
 });
 
