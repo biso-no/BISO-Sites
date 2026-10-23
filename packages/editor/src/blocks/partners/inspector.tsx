@@ -10,6 +10,7 @@ import {
 } from "@/components/editor-shell/inspector/insp-parts";
 import { ItemList } from "@/components/editor-shell/inspector/item-list";
 import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
+import { partnersSource } from "@/editor/page-feeds";
 import type { PageDoc, PartnerItem, PartnersBlock } from "@/editor/types";
 
 interface Props {
@@ -24,7 +25,7 @@ const SOURCES = [
 ] as const;
 
 export function PartnersInspector({ block, onPatch }: Props) {
-  const source = block.source === "manual" ? "manual" : "auto";
+  const source = partnersSource(block.source);
   return (
     <>
       <InspSection label="Partners">

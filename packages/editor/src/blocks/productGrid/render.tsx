@@ -77,9 +77,11 @@ function ProductCard({
         {product.title}
       </span>
       <span className="mt-auto pt-4">
-        <span className="type-heading-card block text-ink">
-          {product.price} kr
-        </span>
+        {typeof product.price === "number" ? (
+          <span className="type-heading-card block text-ink">
+            {product.price} kr
+          </span>
+        ) : null}
         {hasMemberPrice ? (
           <span className="type-body-sm mt-1 block text-ink-muted">
             {labels.forMembers(`${product.memberPrice} kr`)}

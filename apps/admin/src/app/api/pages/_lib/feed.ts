@@ -1,5 +1,6 @@
 import { createPublicClient } from "@repo/api/server";
 import type { PageFeedLocale } from "@repo/shared/utils/page-feeds";
+import { feedDepartmentId } from "@repo/shared/utils/page-feeds";
 import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
 
@@ -45,10 +46,12 @@ export function feedResponse(payload: unknown) {
   });
 }
 
-/** Department id the feed is scoped to; blank means "nothing to show". */
+/**
+ * Department id the feed is scoped to; blank or malformed means "nothing to
+ * show". Validated here because it becomes part of a cache key.
+ */
 export function requireDepartment(params: URLSearchParams): string | null {
-  const dept = params.get("dept")?.trim();
-  return dept ? dept : null;
+  return feedDepartmentId(params.get("dept"));
 }
 
 export function feedLocale(params: URLSearchParams): PageFeedLocale {

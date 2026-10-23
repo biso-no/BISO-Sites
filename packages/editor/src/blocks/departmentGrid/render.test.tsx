@@ -5,6 +5,7 @@ import {
   collectPageFeedRequests,
   departmentsFeedKey,
   type PageFeedSnapshot,
+  unitsScope,
 } from "@/editor/page-feeds";
 import type { DepartmentGridBlock } from "@/editor/types";
 import { DepartmentGridRender } from "./render";
@@ -115,10 +116,21 @@ describe("DepartmentGridRender", () => {
     ).toContain("No units");
   });
 
-  test("tolerates unknown scope, missing limit and junk rows", () => {
+  test("an unknown or missing scope is the default, campus", () => {
+    for (const scope of ["weird", undefined] as never[]) {
+      const [req] = collectPageFeedRequests(
+        pageDoc({ ...block, scope }, "2"),
+        "no"
+      );
+      expect(req?.key).toBe(departmentsFeedKey("2", ""));
+    }
+    expect(unitsScope("weird")).toBe("campus");
+  });
+
+  test("tolerates a missing limit and junk rows", () => {
     const out = html(
-      { limit: undefined as never, scope: "weird" as never },
-      { [departmentsFeedKey("", "")]: [null, 3, ...ITEMS] }
+      { limit: undefined as never },
+      { [departmentsFeedKey("1", "")]: [null, 3, ...ITEMS] }
     );
     expect(out.match(/<li/g)?.length).toBe(2);
   });

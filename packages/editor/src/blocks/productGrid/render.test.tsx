@@ -74,6 +74,20 @@ describe("ProductGridRender", () => {
     expect(out.match(/kr for medlemmer/g)?.length).toBe(1);
   });
 
+  test("a product without a slug is not linked; no price shows no bare kr", () => {
+    const out = html(
+      {},
+      {
+        [pageFeedKey("products", "25", "no", 4)]: [
+          { id: "x", memberOnly: false, soldOut: false, title: "Mystery" },
+        ],
+      }
+    );
+    expect(out).toContain("Mystery");
+    expect(out).not.toContain("<a ");
+    expect(out).not.toContain("kr");
+  });
+
   test("limit 8 reads the 8 feed", () => {
     expect(html({ limit: 8 }, feeds(4))).toBe("");
     expect(html({ limit: 8 }, feeds(8)).match(/<li/g)?.length).toBe(2);

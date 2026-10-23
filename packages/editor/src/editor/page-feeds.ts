@@ -120,13 +120,25 @@ export function unitsBlockLimit(value: unknown): 3 | 6 | 9 | 12 {
  * every unit rather than nothing.
  */
 export function unitsFeedCampus(scope: unknown, pageCampus: unknown): string {
-  return scope === "campus" && typeof pageCampus === "string" ? pageCampus : "";
+  return unitsScope(scope) === "campus" && typeof pageCampus === "string"
+    ? pageCampus
+    : "";
+}
+
+/** A units block's scope; missing or unknown is the `emptyBlock` default. */
+export function unitsScope(value: unknown): "campus" | "all" {
+  return value === "all" ? "all" : "campus";
+}
+
+/** A partners block's source; missing or unknown is the `emptyBlock` default. */
+export function partnersSource(value: unknown): "auto" | "manual" {
+  return value === "manual" ? "manual" : "auto";
 }
 
 /**
  * Unit categories a units block can filter by. A copy of
  * `UNIT_CATEGORIES` in `@repo/shared` (this package does not depend on it);
- * `unit-categories.test.ts` in the web app keeps the two equal.
+ * `apps/web/src/lib/data/unit-category-ids.test.ts` keeps the two equal.
  */
 export const UNIT_CATEGORY_IDS = [
   "society",
@@ -202,7 +214,7 @@ function requestForBlock(
   if (block.type === "partners") {
     // A manual partners block renders the logos the author picked; there is
     // no feed behind it.
-    return block.source === "auto"
+    return partnersSource(block.source) === "auto"
       ? {
           department: "",
           key: pageFeedKey("partners"),

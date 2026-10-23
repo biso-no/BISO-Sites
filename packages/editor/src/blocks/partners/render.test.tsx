@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PageFeedProvider } from "@/editor/page-feed-context";
-import { type PageFeedSnapshot, pageFeedKey } from "@/editor/page-feeds";
+import {
+  type PageFeedSnapshot,
+  pageFeedKey,
+  partnersSource,
+} from "@/editor/page-feeds";
 import type { PartnersBlock } from "@/editor/types";
 import { PartnersRender } from "./render";
 
@@ -79,6 +83,17 @@ describe("PartnersRender", () => {
     expect(
       html({}, { [pageFeedKey("partners")]: [] }, { edit: true })
     ).toContain("No partners to show yet");
+  });
+
+  test("an unknown source is the default, auto", () => {
+    expect(partnersSource("weird")).toBe("auto");
+    expect(partnersSource(undefined)).toBe("auto");
+    const out = html({ source: "weird" as never });
+    expect(out).toContain("Acme");
+  });
+
+  test("a name-only tile wraps long names", () => {
+    expect(html()).toContain("break-words");
   });
 
   test("tolerates junk items and renders on a dark section", () => {

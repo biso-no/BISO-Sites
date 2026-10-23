@@ -34,7 +34,7 @@ import {
 } from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "../types/recruitment";
 import { listedProductsOnly } from "./product-visibility";
-import { isUnitCategory } from "./unit-categories";
+import { isUnitCategory, parseUnitCategory } from "./unit-categories";
 import { unitDisplayName } from "./unit-names";
 import { campusIdToLabel, unitCanonicalPath } from "./unit-urls";
 import { isPublicUnit } from "./unit-visibility";
@@ -406,8 +406,8 @@ export async function readPagePartnersFeed(
 }
 
 export interface PageProductItem {
-  /** `/shop/<slug>`, or the id for a product with no slug (as the web shop resolves both). */
-  href: string;
+  /** `/shop/<slug>`. Absent without a slug: the shop resolves by slug only. */
+  href?: string;
   id: string;
   image?: string;
   /** Purchase is gated to members; the product is still listed. */
@@ -449,20 +449,21 @@ export async function readPageProductsFeed(
       Query.equal("departmentId", departmentId),
       Query.equal("status", WebshopProductsStatus.PUBLISHED),
       listedProductsOnly(),
-      Query.equal("translation_refs.locale", locale),
       Query.orderDesc("$createdAt"),
       Query.limit(feedLimit(limit)),
     ]
   );
 
   return products.rows.map((product) => ({
-    href: `/shop/${encodeURIComponent(product.slug || product.$id)}`,
+    href: detailHref("/shop", product.slug),
     id: product.$id,
     image: resolveStorageFileUrl(product.image) ?? undefined,
     memberOnly: product.member_only === true,
     memberPrice: product.member_price ?? undefined,
     price: product.regular_price,
     soldOut: product.stock === 0,
+    // Every translation is fetched and `locale` preferred: most products
+    // have no English row, and a hard filter would empty the block on /en.
     title:
       pickTranslation(product.translation_refs, locale)?.title ??
       product.slug ??
@@ -524,9 +525,6 @@ export async function readPageDepartmentsFeed(
   if (campusId) {
     queries.push(Query.equal("campus_id", campusId));
   }
-  if (type) {
-    queries.push(Query.equal("type", type));
-  }
 
   const departments = await db.listRows<Departments>(
     "app",
@@ -540,7 +538,16 @@ export async function readPageDepartmentsFeed(
   // rendered block. `total` deliberately keeps reporting Appwrite's count for
   // the reason documented on the type; it is a query cardinality, not the size
   // of what was rendered.
-  const visible = departments.rows.filter(isPublicUnit);
+  // The category is matched through `parseUnitCategory` here, not by an
+  // equality query, so legacy values ("forening") land in their category.
+  // At most DEPARTMENT_LIMIT rows, so filtering in memory is cheap.
+  const wanted = type ? parseUnitCategory(type) : null;
+  const visible = departments.rows
+    .filter(isPublicUnit)
+    .filter(
+      (department) =>
+        !type || (wanted && parseUnitCategory(department.type) === wanted)
+    );
 
   return {
     departments: visible.map((department) => ({
@@ -578,4 +585,18 @@ export function departmentsFeedFilters(params: URLSearchParams): {
     campusId: campusIdToLabel(campus) ? campus : null,
     type: isUnitCategory(type) ? type : null,
   };
+}
+
+const FEED_DEPARTMENT_ID = /^[A-Za-z0-9._-]{1,36}$/;
+
+/**
+ * The `dept` query parameter of a feed route, or null when blank or not shaped
+ * like an Appwrite id. It becomes part of a cache key, so anything else must
+ * never reach a cached reader.
+ */
+export function feedDepartmentId(
+  raw: string | null | undefined
+): string | null {
+  const value = raw?.trim();
+  return value && FEED_DEPARTMENT_ID.test(value) ? value : null;
 }

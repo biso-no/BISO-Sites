@@ -10,6 +10,7 @@ import {
   UNIT_CATEGORY_IDS,
   unitsBlockLimit,
   unitsFeedCategory,
+  unitsScope,
 } from "@/editor/page-feeds";
 import type { DepartmentGridBlock, PageDoc } from "@/editor/types";
 
@@ -57,9 +58,14 @@ export function DepartmentGridInspector({ block, onPatch }: Props) {
         <Segmented
           choices={[...SCOPES]}
           onPick={(v) => onPatch("scope", v)}
-          value={block.scope === "all" ? "all" : "campus"}
+          value={unitsScope(block.scope)}
         />
       </InspRow>
+      {unitsScope(block.scope) === "campus" ? (
+        <p className="pe-insp-note">
+          On national pages this shows units from every campus.
+        </p>
+      ) : null}
       <InspRow label="Category">
         <select
           onChange={(e) => onPatch("category", e.target.value)}

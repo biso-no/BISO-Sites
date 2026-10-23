@@ -5,7 +5,7 @@ import { FeedCardShell, FeedSection } from "@/blocks/_v2/feed-section";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { usePageFeedSource } from "@/editor/page-feed-context";
-import { pageFeedKey } from "@/editor/page-feeds";
+import { pageFeedKey, partnersSource } from "@/editor/page-feeds";
 import type { PartnerItem, PartnersBlock } from "@/editor/types";
 import { useAutoFeed } from "@/editor/use-auto-feed";
 
@@ -44,7 +44,7 @@ function PartnerCard({
           width={440}
         />
       ) : (
-        <span className="type-heading-card flex aspect-video items-center justify-center border border-edge bg-surface-raised p-4 text-center text-ink">
+        <span className="type-heading-card flex aspect-video items-center justify-center break-words border border-edge bg-surface-raised p-4 text-center text-ink">
           {name}
         </span>
       )}
@@ -54,7 +54,7 @@ function PartnerCard({
 
 export function PartnersRender({ block, edit, onPatch }: Props) {
   const { locale } = usePageFeedSource();
-  const isAuto = block.source === "auto";
+  const isAuto = partnersSource(block.source) === "auto";
   const { items: live } = useAutoFeed<PartnerItem>({
     enabled: isAuto,
     key: pageFeedKey("partners"),

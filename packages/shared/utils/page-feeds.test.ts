@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   departmentsFeedFilters,
+  feedDepartmentId,
   readPageDepartmentsFeed,
   readPageEventsFeed,
   readPageJobsFeed,
@@ -78,7 +79,7 @@ describe("readPageDepartmentsFeed", () => {
     });
   });
 
-  it("filters by campus and type only when asked", async () => {
+  it("filters by campus in the query when asked", async () => {
     // Asserted on the `equal` filters, not on a substring of the whole query
     // list: `campus_id` also appears in the `select` projection either way.
     const equalFilters = async (campusId?: string, type?: string) => {
@@ -93,11 +94,8 @@ describe("readPageDepartmentsFeed", () => {
     };
 
     expect(await equalFilters()).toEqual(["active"]);
-    expect(await equalFilters("2", "unit")).toEqual([
-      "active",
-      "campus_id",
-      "type",
-    ]);
+    // The category is matched in memory (legacy aliases), not by a query.
+    expect(await equalFilters("2", "society")).toEqual(["active", "campus_id"]);
   });
 });
 
@@ -273,11 +271,32 @@ describe("readPageProductsFeed", () => {
       title: "Lue",
     });
     expect(items[1]).toMatchObject({
-      href: "/shop/p2",
+      href: undefined,
       memberOnly: true,
       memberPrice: 199,
       soldOut: true,
     });
+  });
+
+  it("keeps a product that has only a Norwegian translation on an en request", async () => {
+    const db = fakeDb({
+      rows: [row({ translation_refs: [{ locale: "no", title: "Lue" }] })],
+      total: 1,
+    });
+    const items = await readPageProductsFeed(db, "dept-1", "en", 4);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.title).toBe("Lue");
+    const [, , queries] = (db.listRows as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0];
+    expect((queries as string[]).join("|")).not.toContain(
+      'translation_refs.locale","method":"equal'
+    );
+  });
+
+  it("gives a product without a slug no href", async () => {
+    const db = fakeDb({ rows: [row({ slug: "" })], total: 1 });
+    const [item] = await readPageProductsFeed(db, "dept-1", "no", 4);
+    expect(item?.href).toBeUndefined();
   });
 
   it("filters to the department, published and listed rows", async () => {
@@ -301,7 +320,14 @@ describe("readPageProductsFeed", () => {
     expect(parsed.find((q) => q.attribute === "status")?.values).toEqual([
       "published",
     ]);
-    expect(parsed.some((q) => q.method === "or")).toBe(true);
+    const or = parsed.find((q) => q.method === "or");
+    expect(or?.values).toEqual([
+      { attribute: "unlisted", method: "equal", values: [false] },
+      { attribute: "unlisted", method: "isNull" },
+    ]);
+    expect(parsed.some((q) => q.attribute === "translation_refs.locale")).toBe(
+      false
+    );
     expect(parsed.find((q) => q.method === "limit")?.values).toEqual([8]);
   });
 });
@@ -321,5 +347,34 @@ describe("departmentsFeedFilters", () => {
       campusId: null,
       type: null,
     });
+  });
+});
+
+describe("feedDepartmentId", () => {
+  it("accepts an Appwrite-shaped id and rejects the rest", () => {
+    expect(feedDepartmentId(" 6501abc_x-9 ")).toBe("6501abc_x-9");
+    expect(feedDepartmentId("")).toBeNull();
+    expect(feedDepartmentId(null)).toBeNull();
+    expect(feedDepartmentId("a b")).toBeNull();
+    expect(feedDepartmentId("../x")).toBeNull();
+    expect(feedDepartmentId("x".repeat(37))).toBeNull();
+  });
+});
+
+describe("readPageDepartmentsFeed category", () => {
+  it("matches legacy type values through parseUnitCategory", async () => {
+    const db = fakeDb({
+      rows: [
+        { ...departmentRow(1), type: "forening" },
+        { ...departmentRow(2), type: "society" },
+        { ...departmentRow(3), type: "project" },
+      ],
+      total: 3,
+    });
+    const feed = await readPageDepartmentsFeed(db, null, "society");
+    expect(feed.departments.map((d) => d.id)).toEqual(["d-1", "d-2"]);
+    const [, , queries] = (db.listRows as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0];
+    expect((queries as string[]).join("|")).not.toContain('"attribute":"type"');
   });
 });
