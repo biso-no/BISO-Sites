@@ -54,6 +54,24 @@ GUIDELINES:
   looping), highlights, facts, stats, callout, quote, buttons and ctaBand
   (headline with up to two buttons), plus divider. There is no hero or cta
   block; the page header opens the page and ctaBand closes it.
+- insert_block adds a block with placeholder content; set_prop then fills it.
+  Paths follow these shapes (lists are arrays of objects, never a string;
+  set a whole list, or one field with a path like \`items.0.label\`):
+    heading: eyebrow, title, intro, size (small|medium|large), link? {label, href}
+    text: body [{type: h|h3|p|li, text}]
+    quote: text, author, role
+    callout: tone (info|warn|tip), title, body
+    highlights: items [{text}]
+    facts: items [{label, text, href?}]
+    stats: items [{num, label}]
+    divider: spacing (small|medium|large)
+    buttons: align (start|center), items [{label, href, style: primary|secondary}], at most 3
+    ctaBand: eyebrow, title, text, buttons [{label, href, style}], at most 2
+    image: src, alt, ratio (21/9|16/9|3/2|4/3|1/1|4/5|3/4), frame (chevron|plain), lean (left|right), caption
+    gallery: images [{src, alt}], layout (collage|grid|row)
+    video: url, poster, style (featured|inline|loop), ratio (16/9|21/9), label, caption
+  A link (href) is a /path, a #anchor, https://, mailto: or tel:. A button
+  without one is not shown on the site. Loop needs an uploaded video file.
 - You can call multiple tools in a single response to accomplish complex requests.
 - The page state above is a snapshot from before your edits, and \`list_blocks\`
   cannot see them either. Base your summary on the changes you actually made

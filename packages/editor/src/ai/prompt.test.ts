@@ -39,3 +39,25 @@ test("the page context is interpolated into the prompt", () => {
 
   expect(prompt).toContain("1. hero (blk_abc)");
 });
+
+test("the copilot knows the props and item shapes of the v2 blocks", () => {
+  const prompt = buildSystemPrompt("empty page");
+
+  // set_prop writes these paths; a wrong shape (a string where a list
+  // belongs, a value under the wrong key) renders as an empty block.
+  for (const shape of [
+    "heading: eyebrow, title, intro, size (small|medium|large), link? {label, href}",
+    "text: body [{type: h|h3|p|li, text}]",
+    "highlights: items [{text}]",
+    "facts: items [{label, text, href?}]",
+    "stats: items [{num, label}]",
+    "buttons: align (start|center), items [{label, href, style: primary|secondary}], at most 3",
+    "ctaBand: eyebrow, title, text, buttons [{label, href, style}], at most 2",
+    "image: src, alt, ratio (21/9|16/9|3/2|4/3|1/1|4/5|3/4), frame (chevron|plain), lean (left|right), caption",
+    "gallery: images [{src, alt}], layout (collage|grid|row)",
+    "video: url, poster, style (featured|inline|loop), ratio (16/9|21/9), label, caption",
+  ]) {
+    expect(prompt).toContain(shape);
+  }
+  expect(prompt).toContain("items.0.label");
+});
