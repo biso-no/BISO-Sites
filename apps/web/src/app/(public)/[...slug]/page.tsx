@@ -63,13 +63,18 @@ const resolvePage = cache(async (slug: string, locale: Locale) => {
  */
 const RESERVED_PREFIX = "projects/";
 
+/** Case-insensitive and trimmed: the page lookup matches slugs that way. */
+function isReservedSlug(slug: string): boolean {
+  return slug.trim().toLowerCase().startsWith(RESERVED_PREFIX);
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug: segments } = await params;
   if (!segments || segments.length === 0) {
     return {};
   }
   const slug = segments.join("/");
-  if (slug.startsWith(RESERVED_PREFIX)) {
+  if (isReservedSlug(slug)) {
     return {};
   }
   const locale = await getLocale();
@@ -98,7 +103,7 @@ export default async function DynamicPage({ params }: Props) {
   }
 
   const slug = segments.join("/");
-  if (slug.startsWith(RESERVED_PREFIX)) {
+  if (isReservedSlug(slug)) {
     notFound();
   }
   const locale = await getLocale();

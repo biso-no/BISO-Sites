@@ -366,4 +366,22 @@ describe("block page route: reserved project slugs", () => {
     ).toEqual({});
     expect(cachedPublishedPage).not.toHaveBeenCalled();
   });
+
+  it("404s a case variant of the reserved prefix", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [], version: 2 })
+    );
+
+    await expect(
+      DynamicPage({
+        params: Promise.resolve({ slug: ["Projects", "winter-games"] }),
+      })
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(
+      await generateMetadata({
+        params: Promise.resolve({ slug: ["PROJECTS", "winter-games"] }),
+      })
+    ).toEqual({});
+    expect(cachedPublishedPage).not.toHaveBeenCalled();
+  });
 });

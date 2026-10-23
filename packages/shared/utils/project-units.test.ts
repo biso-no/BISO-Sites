@@ -95,4 +95,11 @@ describe("project page slugs", () => {
     expect(isProjectPageSlug(null)).toBe(false);
     expect(isProjectPageSlug(undefined)).toBe(false);
   });
+
+  it("matches case-insensitively and ignores padding, like the lookup", () => {
+    expect(isProjectPageSlug("Projects/winter-games")).toBe(true);
+    expect(isProjectPageSlug(" projects/winter-games")).toBe(true);
+    expect(isProjectPageSlug("PROJECTS/Winter-Games ")).toBe(true);
+    expect(isProjectPageSlug("Projects/not-a-project")).toBe(false);
+  });
 });

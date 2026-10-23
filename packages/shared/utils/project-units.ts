@@ -59,12 +59,23 @@ export function projectPageSlug(project: ProjectSlug): string {
   return `${PROJECT_PAGE_PREFIX}${project}`;
 }
 
-/** Whether a stored page slug is exactly `projects/<known project>`. */
+/**
+ * Whether a stored page slug is exactly `projects/<known project>`.
+ *
+ * Trims and lowercases, like `isUnitPageSlug`: Appwrite matches slugs
+ * case-insensitively and storage trims them, so `Projects/winter-games` and
+ * ` projects/winter-games` are served at the reserved address and must be
+ * treated as it.
+ */
 export function isProjectPageSlug(slug: string | null | undefined): boolean {
-  if (!slug?.startsWith(PROJECT_PAGE_PREFIX)) {
+  if (typeof slug !== "string") {
     return false;
   }
-  return isProjectSlug(slug.slice(PROJECT_PAGE_PREFIX.length));
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized.startsWith(PROJECT_PAGE_PREFIX)) {
+    return false;
+  }
+  return isProjectSlug(normalized.slice(PROJECT_PAGE_PREFIX.length));
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertProjectPageNamespace,
   assertUnitPageBindingUnchanged,
   assertUnitPageNamespace,
 } from "./unit-page-guard";
@@ -167,5 +168,46 @@ describe("assertUnitPageNamespace", () => {
         { department: "308", slug: "about/history" }
       )
     ).toBe("A unit page's slug is managed by its department and cannot change");
+  });
+});
+
+describe("assertProjectPageNamespace", () => {
+  test("refuses a new page at a project address", () => {
+    expect(assertProjectPageNamespace(null, "projects/winter-games")).toContain(
+      "projects/"
+    );
+  });
+
+  test("refuses renaming an ordinary page into the namespace", () => {
+    expect(assertProjectPageNamespace("about", "projects/x")).toBeNull();
+    expect(
+      assertProjectPageNamespace("about", "projects/winter-games")
+    ).not.toBeNull();
+  });
+
+  test("lets a page already at the address save itself", () => {
+    expect(
+      assertProjectPageNamespace(
+        "projects/winter-games",
+        "projects/winter-games"
+      )
+    ).toBeNull();
+  });
+
+  test("catches case variants and padding", () => {
+    expect(
+      assertProjectPageNamespace(null, "Projects/winter-games")
+    ).not.toBeNull();
+    expect(
+      assertProjectPageNamespace(null, " projects/winter-games")
+    ).not.toBeNull();
+    expect(
+      assertProjectPageNamespace("about", "PROJECTS/Fadderullan")
+    ).not.toBeNull();
+  });
+
+  test("leaves ordinary slugs alone", () => {
+    expect(assertProjectPageNamespace(null, "about")).toBeNull();
+    expect(assertProjectPageNamespace(null, "projects-overview")).toBeNull();
   });
 });

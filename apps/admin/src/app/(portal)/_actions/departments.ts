@@ -10,7 +10,12 @@ import type {
 } from "@repo/api/types/appwrite";
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { unitPageTemplate } from "@repo/editor/templates";
-import { isProjectUnit } from "@repo/shared/utils/project-units";
+import {
+  isProjectSlug,
+  isProjectUnit,
+  projectPageSlug,
+  projectSlugForUnit,
+} from "@repo/shared/utils/project-units";
 import {
   assertStorableUnitCategory,
   isUnitCategory,
@@ -30,8 +35,11 @@ import {
   type PaginatedResult,
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
+import { HUB_PROJECTS } from "@/lib/project-hub";
 import { buildContentTranslationPermissions } from "@/lib/utils";
 import { logAuditEvent } from "./audit-log";
+
+const NATIONAL_CAMPUS_ID = "5";
 
 interface DepartmentScope {
   campusId?: string;
@@ -656,6 +664,31 @@ export async function getDepartmentWithPage(id: string): Promise<{
   };
 }
 
+/**
+ * The page address of a unit. The national unit of a flagship project (campus
+ * "5", e.g. Winter Games) is the project: its page lives at
+ * `projects/<project>`, which the public `/projects/<slug>` route serves and
+ * the unit URL redirects to. A campus unit of the same project keeps its own
+ * `units/<campus>/<slug>` page; the multi-campus hub is a separate,
+ * department-less page.
+ */
+function unitPageAddress(department: {
+  campus_id: string;
+  slug?: string | null;
+}): string | null {
+  const project =
+    department.campus_id === NATIONAL_CAMPUS_ID
+      ? projectSlugForUnit(department.slug)
+      : null;
+  if (project) {
+    return projectPageSlug(project);
+  }
+  return unitPageSlug({
+    campusId: department.campus_id,
+    slug: department.slug,
+  });
+}
+
 export async function createUnitPage(
   id: string
 ): Promise<{ pageId: string } | { error: string }> {
@@ -692,10 +725,7 @@ export async function createUnitPage(
       };
     }
 
-    const slug = unitPageSlug({
-      campusId: department.campus_id,
-      slug: department.slug,
-    });
+    const slug = unitPageAddress(department);
     if (!slug) {
       return {
         error:
@@ -824,6 +854,112 @@ export async function createUnitPage(
     return { pageId };
   } catch (e) {
     console.error("[createUnitPage]", e);
+    return { error: e instanceof Error ? e.message : "Could not create page" };
+  }
+}
+
+/**
+ * Create the hub page of a multi-campus project (`projects/<project>`, no
+ * department). Global admin only: a hub belongs to no unit, so there is nobody
+ * else it could be scoped to, and `savePageEditorDoc` keeps saves global-admin
+ * only too.
+ *
+ * Idempotent like `createUnitPage`, and for the same reason (a second create
+ * must not mint an unreachable `-2` slug). A page at the slug that DOES carry a
+ * department is a national project unit's page, not a hub, so it is reported
+ * rather than returned.
+ */
+export async function createProjectHubPage(
+  project: string
+): Promise<{ pageId: string } | { error: string }> {
+  const ctx = await requireAuth();
+  try {
+    if (!ctx.roles.includes("globaladmin")) {
+      return { error: "Only a global admin can create a project hub page" };
+    }
+    if (!isProjectSlug(project)) {
+      return { error: "Unknown project" };
+    }
+    const slug = projectPageSlug(project);
+    const { db } = await createAdminClient();
+
+    const findAtSlug = async () => {
+      const found = await db.listRows<Pages>("app", "pages", [
+        Query.equal("slug", slug),
+        Query.select(["$id", "department_id"]),
+        Query.limit(1),
+      ]);
+      return found.rows[0];
+    };
+    const existingOutcome = (
+      row: Pages
+    ): { pageId: string } | { error: string } =>
+      row.department_id
+        ? {
+            error:
+              "This address already holds the national unit's page, not a hub page. Edit it from the unit under Departments.",
+          }
+        : { pageId: row.$id };
+
+    const already = await findAtSlug();
+    if (already) {
+      return existingOutcome(already);
+    }
+
+    const name =
+      HUB_PROJECTS.find((entry) => entry.slug === project)?.name ?? project;
+    const { header, sections } = unitPageTemplate({
+      campusLabel: null,
+      kind: "project",
+      locale: "no",
+      name,
+    });
+    const doc: PageDoc = {
+      header,
+      sections,
+      meta: {
+        department: "",
+        description: "",
+        slug,
+        status: "draft",
+        title: name,
+      },
+      version: 2,
+    };
+
+    let pageId: string;
+    try {
+      // campusId null: a hub is national, not the author's campus. "fail" so a
+      // race hits the unique slug index instead of minting "<slug>-2".
+      ({ pageId } = await savePageDraft({
+        id: null,
+        doc: sanitizePageDocHtml(doc),
+        locale: "no",
+        ctx,
+        campusId: null,
+        slugConflict: "fail",
+      }));
+    } catch (writeError) {
+      if (
+        !(writeError instanceof AppwriteException && writeError.code === 409)
+      ) {
+        throw writeError;
+      }
+      const winner = await findAtSlug();
+      if (!winner) {
+        throw writeError;
+      }
+      return existingOutcome(winner);
+    }
+
+    await logAuditEvent(ctx, "unit_page_created", {
+      resourceId: pageId,
+      resourceType: "page",
+    });
+    revalidatePath("/pages");
+    return { pageId };
+  } catch (e) {
+    console.error("[createProjectHubPage]", e);
     return { error: e instanceof Error ? e.message : "Could not create page" };
   }
 }

@@ -22,7 +22,6 @@ import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc as EditorPageDoc } from "@repo/editor/types";
 import type { PageTheme } from "@repo/shared/utils/page-theme";
-import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
@@ -54,8 +53,10 @@ import {
   themeSaveError,
 } from "@/lib/page-theme-publish";
 import {
+  assertProjectPageSave,
   assertUnitPageBindingUnchanged,
   assertUnitPageNamespace,
+  isAdminOwnedPageSlug,
 } from "@/lib/unit-page-guard";
 import {
   applyScopeQueries,
@@ -328,10 +329,16 @@ export async function savePageEditorDoc({
     }
     // Every save, create or update: a create-only check is stepped around by
     // saving an ordinary slug first and renaming into `units/` afterwards.
-    const namespaceError = assertUnitPageNamespace(
-      existing?.slug ?? null,
-      normalizedDoc.meta.slug
-    );
+    const namespaceError =
+      assertUnitPageNamespace(
+        existing?.slug ?? null,
+        normalizedDoc.meta.slug
+      ) ??
+      assertProjectPageSave({
+        isGlobalAdmin: ctx.roles.includes("globaladmin"),
+        nextSlug: normalizedDoc.meta.slug,
+        persisted: existing,
+      });
     if (namespaceError) {
       return { error: namespaceError };
     }
@@ -363,7 +370,7 @@ export async function savePageEditorDoc({
         : undefined;
     const campusId = resolvePageSaveCampusId({
       authorCampusId: resolvePageCampusId(ctx),
-      campusLocked: isUnitPageSlug(existing?.slug ?? null),
+      campusLocked: isAdminOwnedPageSlug(existing?.slug),
       chosenCampusId,
       isUpdate: Boolean(existing),
       persistedCampusId: persisted?.campus ?? null,

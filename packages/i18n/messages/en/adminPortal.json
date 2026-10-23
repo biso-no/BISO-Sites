@@ -1107,6 +1107,8 @@
     "title": "Pages",
     "description": "Manage site pages and their content.",
     "create": "Create Page",
+    "createProject": "Create project page",
+    "createProjectLabel": "Project",
     "empty": "No pages yet",
     "emptyDescription": "Create your first page to get started.",
     "fields": {

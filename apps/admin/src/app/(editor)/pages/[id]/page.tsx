@@ -1,5 +1,6 @@
 import { resolvePageCampusId } from "@repo/api/page-builder";
 import { parsePageTheme } from "@repo/shared/utils/page-theme";
+import { isProjectPageSlug } from "@repo/shared/utils/project-units";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { listAllDepartments } from "@/app/(portal)/_actions/departments";
@@ -56,7 +57,10 @@ export default async function PageEditorPage({ params }: Props) {
   let locked:
     | { campus?: boolean; department?: boolean; slug?: boolean }
     | undefined;
-  if (isUnitPageSlug(pageResult?.page.slug)) {
+  if (
+    isUnitPageSlug(pageResult?.page.slug) ||
+    isProjectPageSlug(pageResult?.page.slug)
+  ) {
     locked = { campus: true, department: true, slug: true };
   } else if (campusLocked) {
     locked = { campus: true };
