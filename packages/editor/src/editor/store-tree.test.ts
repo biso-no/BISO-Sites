@@ -42,6 +42,46 @@ describe("store on the section tree", () => {
     ).toEqual(["b-1", id]);
   });
 
+  test("with a section selected, insertBlock fills its first empty column", () => {
+    // Add section -> the picker selects the new section -> a palette click
+    // must land in it, not in another new section at the end of the page.
+    const s = useEditorStore.getState();
+    const sectionId = s.insertSection("1-1", 0);
+    s.selectSection(sectionId);
+    const id = useEditorStore.getState().insertBlock("stats");
+    const { sections } = useEditorStore.getState().doc;
+    expect(sections).toHaveLength(2);
+    expect(sections[0].id).toBe(sectionId);
+    expect(sections[0].columns.map((c) => c.blocks.map((b) => b.id))).toEqual([
+      [id],
+      [],
+    ]);
+    expect(useEditorStore.getState().selection).toBe(id);
+  });
+
+  test("with a full section selected, insertBlock appends to its last column", () => {
+    useEditorStore.getState().selectSection("s-1");
+    const id = useEditorStore.getState().insertBlock("stats");
+    const { sections } = useEditorStore.getState().doc;
+    expect(sections).toHaveLength(1);
+    expect(sections[0].columns.map((c) => c.blocks.map((b) => b.id))).toEqual([
+      ["b-1"],
+      ["b-2", id],
+    ]);
+  });
+
+  test("a pending insert target still wins over the selected section", () => {
+    const s = useEditorStore.getState();
+    s.selectSection("s-1");
+    s.setInsertTarget({ beforeBlockId: "b-1", columnId: "s-1-c0" });
+    const id = useEditorStore.getState().insertBlock("stats");
+    expect(
+      useEditorStore
+        .getState()
+        .doc.sections[0].columns[0].blocks.map((b) => b.id)
+    ).toEqual([id, "b-1"]);
+  });
+
   test("insertBlock with a stale target falls back to a new section", () => {
     const id = useEditorStore.getState().insertBlock("stats", {
       columnId: "gone",

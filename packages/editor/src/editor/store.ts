@@ -27,6 +27,7 @@ import {
   findBlock,
   findColumn,
   findSection,
+  targetInSection,
 } from "./tree";
 import type {
   BlockType,
@@ -61,8 +62,10 @@ interface EditorState {
 
   // Document mutations
   /**
-   * Insert into `target`, else the pending `insertTarget`, else after the
-   * selected block, else a new one-column section at the end. Returns the id.
+   * Insert into `target`, else the pending `insertTarget`, else the selected
+   * section (its first empty column, else the end of its last), else after
+   * the selected block, else a new one-column section at the end. Returns
+   * the id.
    */
   insertBlock: (type: BlockType, target?: InsertTarget) => string;
   insertBlockInNewSection: (type: BlockType, sectionIndex: number) => string;
@@ -208,8 +211,15 @@ export const useEditorStore = create<EditorState>()(
         let newId = "";
         set((s) => {
           pushHistory(s);
+          const sectionTarget =
+            !s.selection && s.selectedSectionId
+              ? targetInSection(s.doc, s.selectedSectionId)
+              : null;
           const resolved =
-            target ?? s.insertTarget ?? defaultInsertTarget(s.doc, s.selection);
+            target ??
+            s.insertTarget ??
+            sectionTarget ??
+            defaultInsertTarget(s.doc, s.selection);
           const id = resolved ? opInsert(s.doc, type, resolved) : null;
           // A stale target column falls through to a fresh section.
           newId =

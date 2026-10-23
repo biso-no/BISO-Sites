@@ -70,6 +70,20 @@ export function targetAfterBlock(
     : { columnId: found.column.id };
 }
 
+/**
+ * Where a block goes when a whole section is the target: its first empty
+ * column, else the end of its last column.
+ */
+export function targetInSection(
+  doc: PageDoc,
+  sectionId: string
+): InsertTarget | null {
+  const columns = findSection(doc, sectionId)?.section.columns ?? [];
+  const column =
+    columns.find((c) => c.blocks.length === 0) ?? columns.at(-1) ?? null;
+  return column ? { columnId: column.id } : null;
+}
+
 export function defaultInsertTarget(
   doc: PageDoc,
   selectedBlockId: string | null

@@ -6,6 +6,7 @@ import {
   findColumn,
   findSection,
   targetAfterBlock,
+  targetInSection,
   walkBlocks,
 } from "./tree";
 
@@ -47,5 +48,11 @@ describe("tree", () => {
   test("defaultInsertTarget follows the selection", () => {
     expect(defaultInsertTarget(d, "b-3")).toEqual({ columnId: "s-1-c1" });
     expect(defaultInsertTarget(d, null)).toBeNull();
+  });
+  test("targetInSection picks the first empty column, else the last", () => {
+    const gaps = doc(section("s-9", "1-1-1", [["b-1"], [], []]));
+    expect(targetInSection(gaps, "s-9")).toEqual({ columnId: "s-9-c1" });
+    expect(targetInSection(d, "s-1")).toEqual({ columnId: "s-1-c1" });
+    expect(targetInSection(d, "missing")).toBeNull();
   });
 });
