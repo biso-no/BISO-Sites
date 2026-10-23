@@ -32,7 +32,7 @@ export function CtaBandRender({ block, edit, onPatch }: Props) {
           />
         ) : null}
         <EditableText
-          className="type-display-lg"
+          className="type-display-sm"
           edit={edit}
           onChange={(v) => onPatch("title", v)}
           tag="h2"

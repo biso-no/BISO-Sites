@@ -31,10 +31,16 @@ const html = (b: CtaBandBlock, edit = false) =>
   );
 
 describe("CtaBandRender", () => {
-  test("renders the title as an h2 in the band layout", () => {
+  test("the title is an h2 at the site's band size", () => {
+    // The coded site's membership band sets its title in type-display-sm;
+    // display-lg stays an explicit opt-in on the heading block.
+    const h2 = parseHtml(html(block())).querySelector("h2");
+    expect(h2?.classList.contains("type-display-sm")).toBe(true);
+    expect(h2?.classList.contains("type-display-lg")).toBe(false);
+  });
+
+  test("renders the title in the band layout", () => {
     const out = html(block());
-    expect(out).toContain("<h2");
-    expect(out).toContain("type-display-lg");
     expect(out).toContain("@2xl:grid-cols-[1fr_auto]");
     expect(out).toContain("text-ink-accent");
     expect(out).toContain("Ready to jump in?");
