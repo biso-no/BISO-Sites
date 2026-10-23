@@ -46,7 +46,7 @@ export function ConfirmActionCard({
     );
   }
 
-  const accentColor = danger ? STUDIO.claret : STUDIO.sky;
+  const toneColor = danger ? STUDIO.claret : STUDIO.sky;
   const accentBg = danger ? "rgba(107,30,30,0.07)" : "rgba(42,74,122,0.07)";
   const accentBorder = danger ? "rgba(107,30,30,0.18)" : "rgba(42,74,122,0.18)";
 
@@ -66,15 +66,12 @@ export function ConfirmActionCard({
         {danger ? (
           <AlertTriangle
             size={14}
-            style={{ color: accentColor, flexShrink: 0 }}
+            style={{ color: toneColor, flexShrink: 0 }}
           />
         ) : (
-          <CheckCircle
-            size={14}
-            style={{ color: accentColor, flexShrink: 0 }}
-          />
+          <CheckCircle size={14} style={{ color: toneColor, flexShrink: 0 }} />
         )}
-        <span className="font-medium text-xs" style={{ color: accentColor }}>
+        <span className="font-medium text-xs" style={{ color: toneColor }}>
           {actionLabel}
         </span>
       </div>

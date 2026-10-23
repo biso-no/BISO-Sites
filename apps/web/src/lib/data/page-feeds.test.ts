@@ -33,7 +33,6 @@ const { resolvePageFeeds } = await import("./page-feeds");
 function doc(blocks: unknown[], department = "25"): PageDoc {
   return {
     meta: {
-      accentColor: "#3DA9E0",
       department,
       slug: "a-page",
       status: "published",

@@ -9,6 +9,7 @@ import {
   blankPageDoc,
   buildInitialDocuments,
   hasExistingContent,
+  syncSharedMeta,
 } from "./initial-documents";
 
 const EDITOR_CAMPUS = "campus-editor";
@@ -62,7 +63,6 @@ describe("blankPageDoc", () => {
     });
 
     expect(doc.meta).toEqual({
-      accentColor: "#3DA9E0",
       campus: "campus-page",
       department: "dept-1",
       description: "Om fadderuka",
@@ -102,7 +102,6 @@ describe("blankPageDoc", () => {
   test("another locale shares the open document's meta and keeps its own title", () => {
     const source: PageDoc = {
       meta: {
-        accentColor: "#123456",
         campus: "campus-chosen",
         department: "dept-2",
         slug: "renamed",
@@ -123,7 +122,6 @@ describe("blankPageDoc", () => {
       }),
     });
     expect(doc.meta).toEqual({
-      accentColor: "#123456",
       campus: "campus-chosen",
       department: "dept-2",
       description: "About freshers' week",
@@ -173,7 +171,6 @@ describe("buildInitialDocuments", () => {
   test("a stored document without a campus gets the page's own campus", () => {
     const stored: PageDoc = {
       meta: {
-        accentColor: "#3DA9E0",
         department: "dept-1",
         slug: "fadderullan",
         status: "published",
@@ -197,7 +194,6 @@ describe("buildInitialDocuments", () => {
 describe("hasExistingContent", () => {
   const empty = (): PageDoc => ({
     meta: {
-      accentColor: "#3DA9E0",
       department: "",
       slug: "x",
       status: "draft",
@@ -252,5 +248,49 @@ describe("hasExistingContent", () => {
         ],
       })
     ).toBe(true);
+  });
+});
+
+describe("syncSharedMeta and the theme", () => {
+  const THEME = { accent: "#c8a2f0", dark: "#3b1c6b" };
+  const docWith = (
+    title: string,
+    theme?: PageDoc["meta"]["theme"]
+  ): PageDoc => ({
+    meta: {
+      department: "d",
+      slug: "s",
+      status: "draft",
+      title,
+      ...(theme === undefined ? {} : { theme }),
+    },
+    sections: [],
+    version: 2,
+  });
+
+  test("a theme set in one locale appears in the other", () => {
+    const no = docWith("Norsk", THEME);
+    const synced = syncSharedMeta({ en: docWith("English"), no }, "no", no);
+    expect(synced.en?.meta.theme).toEqual(THEME);
+    expect(synced.en?.meta.title).toBe("English");
+  });
+
+  test("a reset to BISO (null) carries over too", () => {
+    const no = docWith("Norsk", null);
+    const synced = syncSharedMeta(
+      { en: docWith("English", THEME), no },
+      "no",
+      no
+    );
+    expect(synced.en?.meta.theme).toBeNull();
+  });
+
+  test("a blank document follows the open document's theme", () => {
+    const blank = blankPageDoc({
+      defaultCampusId: EDITOR_CAMPUS,
+      locale: "en",
+      source: docWith("Norsk", THEME),
+    });
+    expect(blank.meta.theme).toEqual(THEME);
   });
 });

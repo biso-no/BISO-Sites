@@ -29,7 +29,6 @@ export const section = (
 
 export const doc = (...sections: Section[]): PageDoc => ({
   meta: {
-    accentColor: "#3DA9E0",
     department: "",
     slug: "test",
     status: "draft",

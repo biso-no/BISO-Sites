@@ -10,7 +10,6 @@ const pageDocumentSchema = z
   .object({
     meta: z
       .object({
-        accentColor: z.string(),
         department: z.string(),
         description: z.string().optional(),
         slug: z.string(),

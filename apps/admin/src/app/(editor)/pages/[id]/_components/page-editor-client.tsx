@@ -25,6 +25,7 @@ import {
   buildInitialDocuments,
   hasExistingContent,
   type LocaleDocuments,
+  syncSharedMeta,
 } from "./initial-documents";
 
 interface PageEditorClientProps {
@@ -45,39 +46,6 @@ const LOCALE_LABELS: Record<EditorLocale, string> = {
 
 function cloneDoc(doc: PageDoc): PageDoc {
   return structuredClone(doc);
-}
-
-function syncSharedMeta(
-  docs: LocaleDocuments,
-  sourceLocale: EditorLocale,
-  sourceDoc: PageDoc
-): LocaleDocuments {
-  const next: LocaleDocuments = {};
-
-  for (const [locale, doc] of Object.entries(docs) as [
-    EditorLocale,
-    PageDoc | undefined,
-  ][]) {
-    if (!doc) {
-      continue;
-    }
-    next[locale] =
-      locale === sourceLocale
-        ? sourceDoc
-        : {
-            ...doc,
-            meta: {
-              ...doc.meta,
-              slug: sourceDoc.meta.slug,
-              campus: sourceDoc.meta.campus,
-              department: sourceDoc.meta.department,
-              status: sourceDoc.meta.status,
-              accentColor: sourceDoc.meta.accentColor,
-            },
-          };
-  }
-
-  return next;
 }
 
 export function PageEditorClient({
@@ -215,7 +183,7 @@ export function PageEditorClient({
           slug: activeDoc.meta.slug,
           department: activeDoc.meta.department,
           status: activeDoc.meta.status,
-          accentColor: activeDoc.meta.accentColor,
+          theme: activeDoc.meta.theme,
         },
       };
 

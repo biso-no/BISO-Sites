@@ -123,7 +123,6 @@ function makeDoc(overrides: Partial<PageDoc["meta"]> = {}): PageDoc {
     sections: [],
     version: 2,
     meta: {
-      accentColor: "#001731",
       department: "",
       description: "An ordinary page",
       slug: "about/team",

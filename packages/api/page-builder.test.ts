@@ -35,7 +35,6 @@ const doc: PageDoc = {
     title: "Hei",
     slug: "shared-slug",
     department: "dept-1",
-    accentColor: "#6b1e1e",
     description: "Beskrivelse",
     status: "draft",
   },

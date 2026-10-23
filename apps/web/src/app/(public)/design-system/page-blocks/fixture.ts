@@ -250,7 +250,6 @@ export const PAGE_BLOCKS_FEEDS: PageFeedSnapshot = {
 export const PAGE_BLOCKS_FIXTURE: PageDoc = {
   version: 2,
   meta: {
-    accentColor: "#3DA9E0",
     department: FAIR_DEPARTMENT,
     description: "Alle blokkene i sidebyggeren, samlet på én side.",
     slug: "design-system/page-blocks",

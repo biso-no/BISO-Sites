@@ -8,7 +8,6 @@ describe("setStatus", () => {
     const store = useEditorStore.getState();
     store.setDoc({
       meta: {
-        accentColor: "#3DA9E0",
         department: "",
         slug: "a",
         status: "draft",

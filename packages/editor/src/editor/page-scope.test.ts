@@ -23,7 +23,6 @@ describe("departmentsForCampus", () => {
 
 describe("metaAfterCampusChange", () => {
   const meta = {
-    accentColor: "#3DA9E0",
     campus: "1",
     department: "d-oslo",
     slug: "a",

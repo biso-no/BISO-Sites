@@ -4,7 +4,7 @@ import type { PageDoc } from "@/editor/types";
 import { autosaveSignature, shouldAutosave } from "./autosave-signature";
 
 const doc = (status: PageDoc["meta"]["status"], title = "A"): PageDoc => ({
-  meta: { accentColor: "#3DA9E0", department: "", slug: "a", status, title },
+  meta: { department: "", slug: "a", status, title },
   sections: [],
   version: 2,
 });

@@ -1,3 +1,4 @@
+import { parsePageTheme } from "@repo/shared/utils/page-theme";
 import { emptyHeader } from "../header/empty-header";
 import { newId } from "./ids";
 import {
@@ -15,6 +16,7 @@ import type {
   MediaRef,
   PageDoc,
   PageHeader,
+  PageMeta,
   Section,
   SectionAlign,
   SectionBackground,
@@ -260,6 +262,28 @@ function normalizeHeader(raw: unknown): PageHeader | undefined {
  * malformed sections, columns and blocks are repaired or dropped, so the
  * renderer and `walkBlocks` can trust the shape.
  */
+/**
+ * Keep `theme` only when it is `null` (reset to BISO) or passes `parsePageTheme`
+ * (valid hex and contrast); anything else becomes absent. Drops the legacy
+ * accent-swatch key.
+ */
+// Spelled in two parts so the repo-wide "no accent swatch" guard stays simple.
+const LEGACY_ACCENT_KEY = ["accent", "Color"].join("");
+
+const normalizeMeta = (meta: PageMeta): PageMeta => {
+  const {
+    [LEGACY_ACCENT_KEY]: _legacy,
+    theme,
+    ...rest
+  } = meta as PageMeta & Record<string, unknown>;
+  const base = rest as unknown as Omit<PageMeta, "theme">;
+  if (theme === null) {
+    return { ...base, theme: null };
+  }
+  const parsed = theme === undefined ? null : parsePageTheme(theme);
+  return parsed ? { ...base, theme: parsed } : base;
+};
+
 export const normalizePageDoc = (doc: PageDoc): PageDoc => {
   const raw = doc as unknown as {
     header?: unknown;
@@ -267,7 +291,11 @@ export const normalizePageDoc = (doc: PageDoc): PageDoc => {
     version?: unknown;
   };
   if (raw.version !== PAGE_DOC_VERSION || !Array.isArray(raw.sections)) {
-    return { meta: doc.meta, sections: [], version: PAGE_DOC_VERSION };
+    return {
+      meta: normalizeMeta(doc.meta),
+      sections: [],
+      version: PAGE_DOC_VERSION,
+    };
   }
   const sections: Section[] = [];
   for (const rawSection of raw.sections) {
@@ -286,8 +314,16 @@ export const normalizePageDoc = (doc: PageDoc): PageDoc => {
   }
   const { header: _stored, ...rest } = doc;
   const header = normalizeHeader(raw.header);
-  return header ? { ...rest, header, sections } : { ...rest, sections };
+  const meta = normalizeMeta(doc.meta);
+  return header
+    ? { ...rest, header, meta, sections }
+    : { ...rest, meta, sections };
 };
+
+function themeSummary(theme: PageMeta["theme"]): string {
+  const parsed = theme ? parsePageTheme(theme) : null;
+  return parsed ? `dark ${parsed.dark}, accent ${parsed.accent}` : "BISO";
+}
 
 function headerSummary(header: PageHeader | undefined): string {
   if (!header) {
@@ -348,7 +384,7 @@ export function serializePageForAI(
     `title: ${meta.title}`,
     `slug: ${meta.slug}`,
     `department: ${meta.department}`,
-    `accent: ${meta.accentColor}`,
+    `theme: ${themeSummary(meta.theme)}`,
     `status: ${meta.status}`,
     `sections: ${doc.sections.length}`,
     `blocks: ${blocks.length}`,

@@ -1,6 +1,7 @@
 // Pure document mutations. Every UI action and AI tool call goes through here.
 // Takes an immer draft of PageDoc (or a WritableDraft via zustand/immer).
 
+import type { PageTheme } from "@repo/shared/utils/page-theme";
 import { current, type Draft, isDraft } from "immer";
 import { newId } from "./ids";
 import { emptySection, resizeColumns } from "./sections";
@@ -571,9 +572,9 @@ export function bindCollection(
   }
 }
 
-/** Update the page accent colour and propagate to meta. */
-export function applyAccent(doc: PageDoc, hex: string): void {
-  doc.meta.accentColor = hex;
+/** Set the page theme: `null` resets to BISO, an object is a custom theme. */
+export function setTheme(doc: PageDoc, theme: PageTheme | null): void {
+  doc.meta.theme = theme;
 }
 
 /** Update a top-level meta field. */

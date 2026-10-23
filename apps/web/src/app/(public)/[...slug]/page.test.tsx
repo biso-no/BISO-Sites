@@ -37,7 +37,6 @@ vi.mock("./_components/rendered-page", () => ({ RenderedPage: () => null }));
 import DynamicPage, { generateMetadata } from "./page";
 
 const META = {
-  accentColor: "#3DA9E0",
   department: "25",
   slug: "old-page",
   status: "published",

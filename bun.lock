@@ -276,6 +276,7 @@
         "@dnd-kit/core": "catalog:",
         "@dnd-kit/sortable": "catalog:",
         "@dnd-kit/utilities": "catalog:",
+        "@repo/shared": "workspace:*",
         "@repo/ui": "workspace:*",
         "ai": "catalog:",
         "immer": "catalog:",

@@ -14,7 +14,6 @@ import type { BlockDefinition } from "../types";
  */
 const DOC: PageDoc = {
   meta: {
-    accentColor: "#3DA9E0",
     department: "",
     slug: "x",
     status: "draft",

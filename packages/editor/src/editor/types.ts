@@ -1,6 +1,8 @@
 // Core domain types for the BISO page editor.
 // All mutations go through operations.ts; this file is pure types only.
 
+import type { PageTheme } from "@repo/shared/utils/page-theme";
+
 export type BlockType =
   | "marquee"
   | "text"
@@ -461,7 +463,6 @@ export type Block = (
 // ── Page document ────────────────────────────────────────────────────────────
 
 export interface PageMeta {
-  accentColor: string;
   /**
    * Campus id the page belongs to; "" for a national page. Absent on
    * documents saved before campus lived on the document.
@@ -471,6 +472,11 @@ export interface PageMeta {
   description?: string;
   slug: string;
   status: "draft" | "published";
+  /**
+   * The page's colour theme. Absent: not set on this page, so it follows its
+   * department. `null`: reset to BISO. An object: a custom theme.
+   */
+  theme?: PageTheme | null;
   title: string;
 }
 

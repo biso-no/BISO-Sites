@@ -20,7 +20,6 @@ import type { Block, PageDoc } from "./types";
 function doc(blocks: Block[], department = "25"): PageDoc {
   return {
     meta: {
-      accentColor: "#3DA9E0",
       department,
       slug: "a-page",
       status: "published",

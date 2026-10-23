@@ -49,7 +49,6 @@ vi.mock("./loading", () => ({ default: () => null }));
 import UnitPage, { generateMetadata } from "./page";
 
 const META = {
-  accentColor: "#3DA9E0",
   department: "d-1",
   slug: "units/oslo/fadderullan",
   status: "published",

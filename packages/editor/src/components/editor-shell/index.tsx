@@ -45,7 +45,6 @@ import {
 import { sectionLabel } from "./canvas/section-frame";
 import { InspectorPane } from "./inspector";
 import { PalettePane } from "./palette";
-import { ThemeScope } from "./theme-scope";
 import { Topbar } from "./topbar";
 
 // Import block registrations (side effects)
@@ -349,43 +348,41 @@ export function EditorShell({
         translatingLocale,
       }}
     >
-      <ThemeScope accent={initial?.meta.accentColor}>
-        <DndContext
-          collisionDetection={canvasCollisions}
-          onDragCancel={resetDrag}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
-          onDragStart={handleDragStart}
-          sensors={sensors}
+      <DndContext
+        collisionDetection={canvasCollisions}
+        onDragCancel={resetDrag}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragStart={handleDragStart}
+        sensors={sensors}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            height: "100vh",
+            overflow: "hidden",
+            position: "relative",
+            zIndex: 2,
+          }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              height: "100vh",
-              overflow: "hidden",
-              position: "relative",
-              zIndex: 2,
-            }}
-          >
-            <Topbar actions={topbarActions} />
-            <div className="pe-shell">
-              <PalettePane />
-              <CanvasPane drag={drag} />
-              <InspectorPane />
-            </div>
+          <Topbar actions={topbarActions} />
+          <div className="pe-shell">
+            <PalettePane />
+            <CanvasPane drag={drag} />
+            <InspectorPane />
           </div>
+        </div>
 
-          <DragOverlay>
-            {overlayLabel && (
-              <div className="pe-drag-ghost">
-                <div aria-hidden="true" className="pe-drag-ghost__thumb" />
-                {overlayLabel}
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
-      </ThemeScope>
+        <DragOverlay>
+          {overlayLabel && (
+            <div className="pe-drag-ghost">
+              <div aria-hidden="true" className="pe-drag-ghost__thumb" />
+              {overlayLabel}
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
     </EditorCallbacksContext.Provider>
   );
 }

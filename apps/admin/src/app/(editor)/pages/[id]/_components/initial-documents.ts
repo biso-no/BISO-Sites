@@ -17,8 +17,6 @@ const UNTITLED: Record<EditorLocale, string> = {
   no: "Uten navn",
 };
 
-const DEFAULT_ACCENT = "#3DA9E0";
-
 /**
  * The campus a page's document carries: an existing page its own ("" for a
  * national page), a new page the editor's default. Never the editor's campus
@@ -64,13 +62,13 @@ export function blankPageDoc({
     // meta.title, and the editor shows it greyed until the page is named.
     header: emptyHeader(translation?.title ? title : ""),
     meta: {
-      accentColor: source?.meta.accentColor ?? DEFAULT_ACCENT,
       campus: source?.meta.campus ?? pageCampus(page, defaultCampusId),
       department: source?.meta.department ?? page?.departmentId ?? "",
       description: translation?.description ?? "",
       slug,
       status,
       title,
+      ...(source?.meta.theme === undefined ? {} : { theme: source.meta.theme }),
     },
     sections: [],
     version: 2,
@@ -135,4 +133,38 @@ export function hasExistingContent(doc: PageDoc | undefined): boolean {
         doc.header !== undefined ||
         doc.meta.title.trim())
   );
+}
+
+/** Copy the meta every locale shares from the document just edited. */
+export function syncSharedMeta(
+  docs: LocaleDocuments,
+  sourceLocale: EditorLocale,
+  sourceDoc: PageDoc
+): LocaleDocuments {
+  const next: LocaleDocuments = {};
+
+  for (const [locale, doc] of Object.entries(docs) as [
+    EditorLocale,
+    PageDoc | undefined,
+  ][]) {
+    if (!doc) {
+      continue;
+    }
+    next[locale] =
+      locale === sourceLocale
+        ? sourceDoc
+        : {
+            ...doc,
+            meta: {
+              ...doc.meta,
+              slug: sourceDoc.meta.slug,
+              campus: sourceDoc.meta.campus,
+              department: sourceDoc.meta.department,
+              status: sourceDoc.meta.status,
+              theme: sourceDoc.meta.theme,
+            },
+          };
+  }
+
+  return next;
 }

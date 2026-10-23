@@ -7,7 +7,6 @@ import {
 
 const sourceDocument = {
   meta: {
-    accentColor: "#001731",
     department: "department-1",
     description: "Den norske studentorganisasjonen",
     slug: "membership",
@@ -154,7 +153,6 @@ describe("page document translation", () => {
   test("translates text inside a column", async () => {
     const document = {
       meta: {
-        accentColor: "#3DA9E0",
         department: "",
         slug: "x",
         status: "draft",
@@ -199,7 +197,6 @@ describe("page document translation", () => {
   test("translates a facts item's text, not its link", async () => {
     const document = {
       meta: {
-        accentColor: "#3DA9E0",
         department: "",
         slug: "x",
         status: "draft",
@@ -256,7 +253,6 @@ describe("page document translation", () => {
         variant: "split",
       },
       meta: {
-        accentColor: "#3DA9E0",
         department: "",
         slug: "x",
         status: "draft",
@@ -295,7 +291,6 @@ describe("page document translation", () => {
   test("translates a photo section's alt text but no other layout value", async () => {
     const document = {
       meta: {
-        accentColor: "#3DA9E0",
         department: "",
         slug: "x",
         status: "draft",
@@ -353,7 +348,6 @@ describe("page document translation", () => {
   test("translates a card image's alt text but not its src, fileId or mime", async () => {
     const document = {
       meta: {
-        accentColor: "#3DA9E0",
         department: "",
         slug: "x",
         status: "draft",

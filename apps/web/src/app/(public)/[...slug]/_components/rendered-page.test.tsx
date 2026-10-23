@@ -59,7 +59,6 @@ vi.mock("@repo/editor/render", async () => ({
 const seededState: unknown[] = [];
 
 const META = {
-  accentColor: "#3DA9E0",
   department: "biso",
   slug: "brand-surface",
   status: "published" as const,
@@ -113,17 +112,20 @@ test("mounts the public brand surface", () => {
   expect(html).toContain('data-background="tinted"');
 });
 
-test("a hostile accentColor never reaches the HTML", () => {
+test("a hostile stored theme never reaches the HTML", () => {
   const doc = docOf([section("s-1", "white", [["first"]])], {
     ...META,
-    accentColor:
-      "red;position:fixed;inset:0;z-index:99999;background:url(https://evil.example/x)",
-  });
+    theme: {
+      accent: "#fff;}body{display:none",
+      dark: "red;position:fixed;inset:0;background:url(https://evil.example/x)",
+    },
+  } as unknown as typeof META);
   const html = renderToStaticMarkup(
     createElement(RenderedPage, { doc, locale: "no" })
   );
   expect(html).not.toContain("position:fixed");
   expect(html).not.toContain("evil.example");
+  expect(html).not.toContain("display:none");
 });
 
 test("renders a two-column section", () => {
@@ -153,7 +155,6 @@ test("hands the feed source to blocks through the provider, not the store", () =
     sections: [],
     version: 2,
     meta: {
-      accentColor: "#3DA9E0",
       department: "25",
       slug: "english-page",
       status: "published",
@@ -184,7 +185,6 @@ test("forwards the server-resolved feeds to the provider", () => {
     sections: [],
     version: 2,
     meta: {
-      accentColor: "#3DA9E0",
       department: "25",
       slug: "feed-page",
       status: "published",

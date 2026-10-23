@@ -17,8 +17,6 @@ import {
 import { useEditorStore } from "@/editor/store";
 import { findBlock, findSection } from "@/editor/tree";
 import type { EditorCampus, EditorDepartment, Section } from "@/editor/types";
-import type { AccentHue } from "@/theme/presets";
-import { HUE_COLORS } from "@/theme/presets";
 import { BlockVisibility } from "./block-visibility";
 import { HeaderPanel } from "./header-panel";
 import { SectionPanel } from "./section-panel";
@@ -35,7 +33,6 @@ export function InspectorPane() {
     ? findSection(doc, selectedSectionId)?.section
     : undefined;
   const setProp = useEditorStore((s) => s.setProp);
-  const applyAccent = useEditorStore((s) => s.applyAccent);
 
   const onPatch = useCallback<PatchFn>(
     (path, value) => {
@@ -72,7 +69,7 @@ export function InspectorPane() {
           />
         )}
 
-        {tab === "page" && <PageTab applyAccent={applyAccent} doc={doc} />}
+        {tab === "page" && <PageTab doc={doc} />}
 
         {tab === "outline" && (
           <OutlineTab
@@ -177,10 +174,8 @@ function getTabLabel(tab: "block" | "page" | "outline") {
 
 function PageTab({
   doc,
-  applyAccent,
 }: {
   doc: ReturnType<typeof useEditorStore.getState>["doc"];
-  applyAccent: (hex: string) => void;
 }) {
   const setMeta = useEditorStore((s) => s.setMeta);
   const setDoc = useEditorStore((s) => s.setDoc);
@@ -264,23 +259,7 @@ function PageTab({
         </p>
       )}
 
-      <div className="pe-insp-section__h" style={{ marginTop: 16 }}>
-        Accent colour
-      </div>
-      <div className="pe-color-row">
-        {(Object.entries(HUE_COLORS) as [AccentHue, string][]).map(
-          ([name, hex]) => (
-            <button
-              className={doc.meta.accentColor === hex ? "on" : ""}
-              key={name}
-              onClick={() => applyAccent(hex)}
-              style={{ background: hex }}
-              title={name}
-              type="button"
-            />
-          )
-        )}
-      </div>
+      {/* Task 7 adds the Theme panel here. */}
     </div>
   );
 }

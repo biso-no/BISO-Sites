@@ -347,8 +347,6 @@ async function _getDepartment(id: string) {
   return response.rows[0] ?? null;
 }
 
-const DEFAULT_ACCENT = "#3DA9E0";
-
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 /** The two locales the public site renders a unit in. */
@@ -749,7 +747,6 @@ export async function createUnitPage(
       header,
       sections,
       meta: {
-        accentColor: DEFAULT_ACCENT,
         department: department.$id,
         description: "",
         slug,

@@ -1,11 +1,11 @@
 "use client";
 
+import type { PageTheme } from "@repo/shared/utils/page-theme";
 import { current } from "immer";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { emptyHeader } from "../header/empty-header";
 import {
-  applyAccent as opApplyAccent,
   bindCollection as opBindCollection,
   duplicateBlock as opDuplicate,
   duplicateSection as opDuplicateSection,
@@ -24,6 +24,7 @@ import {
   setProp as opSetProp,
   setSectionAnchor as opSetSectionAnchor,
   setSectionLayout as opSetSectionLayout,
+  setTheme as opSetTheme,
 } from "./operations";
 import {
   defaultInsertTarget,
@@ -58,7 +59,6 @@ interface HistorySnap {
 interface EditorState {
   /** Give the page an empty header titled after it, if it has none, and select it. */
   addHeader: () => void;
-  applyAccent: (hex: string) => void;
   bindCollection: (id: string, source: string) => void;
   copilotOpen: boolean;
   doc: PageDoc;
@@ -130,6 +130,8 @@ interface EditorState {
   setSectionLayout: (id: string, patch: Partial<SectionLayout>) => void;
   /** Mirror a publish/unpublish. Not an edit, so it never enters history. */
   setStatus: (status: PageMeta["status"]) => void;
+  /** One undo step per call; `null` resets to BISO. */
+  setTheme: (theme: PageTheme | null) => void;
   setViewport: (viewport: EditorViewport) => void;
 
   // History
@@ -149,7 +151,6 @@ const EMPTY_DOC: PageDoc = {
      * exist; an empty value correctly means "no live feed yet".
      */
     department: "",
-    accentColor: "#3DA9E0",
     status: "draft",
   },
   sections: [],
@@ -389,10 +390,10 @@ export const useEditorStore = create<EditorState>()(
           opBindCollection(s.doc, id, source);
         }),
 
-      applyAccent: (hex) =>
+      setTheme: (theme) =>
         set((s) => {
           pushHistory(s);
-          opApplyAccent(s.doc, hex);
+          opSetTheme(s.doc, theme);
         }),
 
       setMeta: (key, value) =>

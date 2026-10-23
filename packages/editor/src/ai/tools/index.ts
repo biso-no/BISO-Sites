@@ -3,7 +3,6 @@ import { z } from "zod";
 import { paletteGroups } from "@/blocks/index";
 import type { PaletteGroupData } from "@/blocks/registry";
 import type { BlockType } from "@/editor/types";
-import { BRAND_ACCENT_VALUES } from "@/theme/presets";
 
 /**
  * The block types a set of palette groups offers, as the non-empty tuple
@@ -31,12 +30,6 @@ export function blockTypesOf(
  * never insert a hidden (cut) block or miss a new one.
  */
 export const BLOCK_TYPES = blockTypesOf(paletteGroups());
-
-/** Input schema for `apply_accent` — exported so the brand-swatch guard can be
- *  asserted directly (a tool's `inputSchema` is widened to `FlexibleSchema`). */
-export const applyAccentInputSchema = z.object({
-  hex: z.enum(BRAND_ACCENT_VALUES).describe("Approved brand accent colour"),
-});
 
 /** Server-side tool definitions for the AI route handler.
  *  Each tool's execute() is advisory — the actual mutations happen on the client
@@ -85,17 +78,6 @@ export const pageEditorTools = {
     execute: ({ id, path }) => ({
       status: "applied",
       message: `Set ${path} on ${id}`,
-    }),
-  }),
-
-  apply_accent: tool({
-    description:
-      "Change the page accent colour (used for headings, highlights, and the block selection outline). " +
-      "Use one of the brand hues: blue=#3DA9E0, navy=#001731, sky=#7CC7EC, gold=#F7D64A, slate=#33566F.",
-    inputSchema: applyAccentInputSchema,
-    execute: ({ hex }) => ({
-      status: "applied",
-      message: `Set accent to ${hex}`,
     }),
   }),
 

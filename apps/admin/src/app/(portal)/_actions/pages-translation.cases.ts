@@ -16,7 +16,6 @@ const sourceDocument: PageDoc = {
   ],
   version: 2,
   meta: {
-    accentColor: "#001731",
     department: "department-1",
     description: "Norsk beskrivelse",
     slug: "page",
