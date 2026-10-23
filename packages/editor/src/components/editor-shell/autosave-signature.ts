@@ -19,15 +19,17 @@ export function autosaveSignature(doc: PageDoc): string {
  * until the locale is hydrated (`hydratedSignature` undefined), and the
  * hydrated document itself is never written back: opening a page would
  * otherwise overwrite what is stored, and `/pages/new` would create a row
- * before anyone typed. After the first real change (`changedSinceHydration`)
+ * before anyone typed. `blocked` (a theme that fails contrast) saves nothing
+ * until the colours pass. After the first real change (`changedSinceHydration`)
  * every change saves, including an undo back to the hydrated state.
  */
 export function shouldAutosave(
   hydratedSignature: string | undefined,
   currentSignature: string,
-  changedSinceHydration: boolean
+  changedSinceHydration: boolean,
+  blocked = false
 ): boolean {
-  if (hydratedSignature === undefined) {
+  if (blocked || hydratedSignature === undefined) {
     return false;
   }
   return changedSinceHydration || currentSignature !== hydratedSignature;

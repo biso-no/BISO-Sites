@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { DndContext } from "@dnd-kit/core";
 import { renderToStaticMarkup } from "react-dom/server";
+import { parseHtml } from "@/lib/test-dom";
 import "@/blocks/index";
 import { useEditorStore } from "@/editor/store";
 import { doc, section } from "@/editor/test-fixtures";
@@ -161,4 +162,42 @@ test("preview shows the header without its chrome", () => {
   expect(html).toContain("pg-header");
   expect(html).not.toContain("pe-section__bar");
   expect(html.toLowerCase()).not.toContain("contenteditable");
+});
+
+const withTheme = (theme: PageDoc["meta"]["theme"]): PageDoc => {
+  const page = doc(section("s-1", "1", [["b-1"]]));
+  return { ...page, meta: { ...page.meta, theme } };
+};
+const frameStyle = (html: string) =>
+  parseHtml(html).querySelector(".pe-frame")?.getAttribute("style") ?? "";
+
+test("a themed page paints its tokens inline on the frame itself", () => {
+  const style = frameStyle(
+    render(withTheme({ dark: "#2a0a4a", accent: "#fecd45" }))
+  );
+  expect(style).toContain("--biso-deep:#2a0a4a");
+  expect(style).toContain("--biso-sky:#fecd45");
+  expect(style).toContain("--biso-deep-raised:");
+  expect(style).toContain("--biso-deep-ink-muted:");
+});
+
+test("null and BISO's own colours leave the frame unstyled", () => {
+  expect(frameStyle(render(withTheme(null)))).not.toContain("--biso-");
+  expect(frameStyle(render(withTheme(undefined)))).not.toContain("--biso-");
+  expect(
+    frameStyle(render(withTheme({ dark: "#001A35", accent: "#3AA3E1" })))
+  ).not.toContain("--biso-");
+});
+
+test("changing meta.theme in the store repaints the frame", () => {
+  expect(frameStyle(render(withTheme(null)))).not.toContain("--biso-deep:");
+  expect(
+    frameStyle(render(withTheme({ dark: "#0a3a1a", accent: "#7be495" })))
+  ).toContain("--biso-deep:#0a3a1a");
+});
+
+test("a failing but valid theme still paints the canvas", () => {
+  expect(
+    frameStyle(render(withTheme({ dark: "#9b5de5", accent: "#fecd45" })))
+  ).toContain("--biso-deep:#9b5de5");
 });

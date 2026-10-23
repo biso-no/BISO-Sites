@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
+import { themeBlocksSave } from "@/editor/effective-theme";
 import { useMeta, useSaving } from "@/editor/hooks";
 
 export function Topbar({ actions }: { actions?: ReactNode }) {
@@ -12,6 +13,14 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
   const [publishing, setPublishing] = useState(false);
 
   const isPublished = meta.status === "published";
+  const themeBlocked = themeBlocksSave(meta);
+  let publishTitle = "Publish to biso.no";
+  if (themeBlocked) {
+    publishTitle =
+      "The page colours fail the contrast check. Fix them in Page settings to publish.";
+  } else if (isPublished) {
+    publishTitle = "Publish the latest edits to biso.no";
+  }
   let publishLabel = "Publish";
   if (publishing) {
     publishLabel = "…";
@@ -102,13 +111,9 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
         {onPublish && (
           <button
             className={`pe-publish ${isPublished ? "pe-publish--live" : ""}`}
-            disabled={publishing || saving === "pending"}
+            disabled={publishing || saving === "pending" || themeBlocked}
             onClick={() => run(onPublish)}
-            title={
-              isPublished
-                ? "Publish the latest edits to biso.no"
-                : "Publish to biso.no"
-            }
+            title={publishTitle}
             type="button"
           >
             {!isPublished && (

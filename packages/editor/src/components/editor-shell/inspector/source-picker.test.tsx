@@ -14,9 +14,9 @@ const CALLBACKS: EditorCallbacks = {
     { id: "bergen", name: "Bergen" },
   ],
   departments: [
-    { campusId: "oslo", id: "d1", name: "Marketing" },
-    { campusId: "bergen", id: "d3", name: "Bergen Events" },
-    { campusId: null, id: "d2", name: "Events" },
+    { campusId: "oslo", id: "d1", name: "Marketing", theme: null },
+    { campusId: "bergen", id: "d3", name: "Bergen Events", theme: null },
+    { campusId: null, id: "d2", name: "Events", theme: null },
   ],
   locales: [],
   onLocaleChange: () => undefined,

@@ -1,4 +1,5 @@
 import { resolvePageCampusId } from "@repo/api/page-builder";
+import { parsePageTheme } from "@repo/shared/utils/page-theme";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { listAllDepartments } from "@/app/(portal)/_actions/departments";
@@ -65,6 +66,7 @@ export default async function PageEditorPage({ params }: Props) {
     campusId: d.campus_id ?? null,
     id: d.$id,
     name: d.Name ?? d.$id,
+    theme: parsePageTheme({ dark: d.theme_dark, accent: d.theme_accent }),
   }));
   // Existing pages open on their own campus; a new page starts on the
   // editor's (the campus switcher for a global admin, else their own).

@@ -574,6 +574,8 @@ export interface EditorDepartment {
   campusId: string | null;
   id: string;
   name: string;
+  /** The department's own theme, or null for BISO's colours. */
+  theme: PageTheme | null;
 }
 
 export interface EditorCampus {

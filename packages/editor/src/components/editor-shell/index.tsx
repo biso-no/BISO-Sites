@@ -17,6 +17,7 @@ import {
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { getBlock } from "@/blocks/registry";
 import { EditorCallbacksContext } from "@/editor/callbacks";
+import { guardPublish, themeBlocksSave } from "@/editor/effective-theme";
 import { withPublishStatusSync } from "@/editor/publish-status";
 import { useEditorStore } from "@/editor/store";
 import { findBlock, findSection } from "@/editor/tree";
@@ -145,8 +146,15 @@ export function EditorShell({
   // Mirror a publish/unpublish into the store, or the next autosave writes
   // the stale status back and undoes it.
   const publishCallbacks = useMemo(
-    () => withPublishStatusSync({ onPublish, onUnpublish }, setStatus),
-    [onPublish, onUnpublish, setStatus]
+    () =>
+      withPublishStatusSync(
+        {
+          onPublish: guardPublish(onPublish, () => doc.meta),
+          onUnpublish,
+        },
+        setStatus
+      ),
+    [onPublish, onUnpublish, setStatus, doc]
   );
   const setSaving = useEditorStore((s) => s.setSaving);
   const undo = useEditorStore((s) => s.undo);
@@ -271,7 +279,8 @@ export function EditorShell({
       !shouldAutosave(
         hydrated.signature,
         autosaveSignature(docSnapshot),
-        hydrated.changed
+        hydrated.changed,
+        themeBlocksSave(docSnapshot.meta)
       )
     ) {
       return;

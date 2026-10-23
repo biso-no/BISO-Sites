@@ -94,4 +94,9 @@ describe("shouldAutosave", () => {
     // undo too, or the stored page keeps the edit.
     expect(shouldAutosave(hydrated, hydrated, true)).toBe(true);
   });
+
+  test("never saves while blocked, even after changes", () => {
+    expect(shouldAutosave(hydrated, hydrated, true, true)).toBe(false);
+    expect(shouldAutosave(hydrated, "other", false, true)).toBe(false);
+  });
 });

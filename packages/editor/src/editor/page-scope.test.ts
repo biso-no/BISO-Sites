@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { departmentsForCampus, metaAfterCampusChange } from "./page-scope";
 
 const DEPARTMENTS = [
-  { campusId: "1", id: "d-oslo", name: "OSL Fadderullan" },
-  { campusId: "2", id: "d-bergen", name: "BRG Fadderullan" },
-  { campusId: "5", id: "d-nat", name: "Wintergames" },
+  { campusId: "1", id: "d-oslo", name: "OSL Fadderullan", theme: null },
+  { campusId: "2", id: "d-bergen", name: "BRG Fadderullan", theme: null },
+  { campusId: "5", id: "d-nat", name: "Wintergames", theme: null },
 ];
 
 describe("departmentsForCampus", () => {

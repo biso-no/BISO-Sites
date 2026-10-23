@@ -7,9 +7,11 @@ import {
 } from "@dnd-kit/sortable";
 import { Fragment, useMemo } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
+import { canvasThemeStyle, effectiveTheme } from "@/editor/effective-theme";
 import {
   useCopilotOpen,
   useHeader,
+  useMeta,
   useMode,
   useSections,
   useViewport,
@@ -118,7 +120,15 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
     onLocaleChange,
     onTranslateLocale,
     translatingLocale,
+    departments,
   } = useEditorCallbacks();
+  const meta = useMeta();
+  // On the frame itself: `.biso-surface-v2` re-declares these tokens there,
+  // so a value set on an ancestor would be shadowed.
+  const themeStyle = useMemo(
+    () => canvasThemeStyle(effectiveTheme(meta, departments)),
+    [meta, departments]
+  );
 
   const edit = mode === "edit";
   // `biso-surface-v2` gives the sections the redesign's aliases, as <html>
@@ -213,6 +223,7 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
           className={frameClass}
           data-dragging={dragging}
           data-editing={edit ? "" : undefined}
+          style={themeStyle}
         >
           <span className="pe-frame__breakpoint-tag">
             {getViewportWidth(viewport)}px
