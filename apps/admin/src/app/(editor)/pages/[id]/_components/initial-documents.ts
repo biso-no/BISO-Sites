@@ -6,6 +6,7 @@ import type {
   PageTranslationEditorEntry,
 } from "@repo/api/page-builder";
 import { normalizePageDoc } from "@repo/editor/serialize";
+import { emptyHeader } from "@repo/editor/templates";
 import type { EditorLocale, PageDoc } from "@repo/editor/types";
 import { generateSlug } from "@repo/shared/utils/content-slug";
 
@@ -35,6 +36,8 @@ function pageCampus(
  * first edit, so its meta is what the page already has: the translation's
  * title and description, and the page's slug, campus and department (or the
  * open document's, for a second locale). Placeholders only for a new page.
+ * It opens with a plain page header carrying the title, so every page has
+ * its `<h1>` from the start.
  */
 export function blankPageDoc({
   defaultCampusId,
@@ -57,6 +60,7 @@ export function blankPageDoc({
     source?.meta.status ??
     (page?.status === "published" ? "published" : "draft");
   return {
+    header: emptyHeader(title),
     meta: {
       accentColor: source?.meta.accentColor ?? DEFAULT_ACCENT,
       campus: source?.meta.campus ?? pageCampus(page, defaultCampusId),

@@ -9,6 +9,10 @@
 
 import { emptyHeader } from "../header/empty-header";
 import { emptyBlock } from "./operations";
+
+// The admin seeds a new page's blank document with it (`blankPageDoc`).
+export { emptyHeader } from "../header/empty-header";
+
 import { sectionOf } from "./sections";
 import type { Block, EditorLocale, PageHeader, Section } from "./types";
 

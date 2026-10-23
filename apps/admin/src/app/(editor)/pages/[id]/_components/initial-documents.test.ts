@@ -3,6 +3,7 @@ import type {
   PageEditorLoadResult,
   PageTranslationEditorEntry,
 } from "@repo/api/page-builder";
+import { emptyHeader } from "@repo/editor/templates";
 import type { PageDoc } from "@repo/editor/types";
 import {
   blankPageDoc,
@@ -130,6 +131,31 @@ describe("blankPageDoc", () => {
       status: "draft",
       title: "Buddy week",
     });
+  });
+});
+
+describe("a blank document starts with a page header", () => {
+  test("a new page opens with a plain header carrying its title", () => {
+    // The header is the page's only h1; without it a new page had none.
+    const doc = blankPageDoc({ defaultCampusId: EDITOR_CAMPUS, locale: "no" });
+    expect(doc.header).toEqual(emptyHeader("Uten navn"));
+    expect(doc.sections).toEqual([]);
+  });
+
+  test("/pages/new seeds its opening document with the header", () => {
+    const docs = buildInitialDocuments(null, "en", EDITOR_CAMPUS);
+    expect(docs.en?.header).toEqual(emptyHeader("Untitled page"));
+  });
+
+  test("a blank locale of an existing page gets a header with its own title", () => {
+    const doc = blankPageDoc({
+      defaultCampusId: EDITOR_CAMPUS,
+      locale: "no",
+      page: existingPage().page,
+      translation: translation("no"),
+    });
+    expect(doc.header?.title).toBe("Fadderullan");
+    expect(doc.header?.variant).toBe("plain");
   });
 });
 
