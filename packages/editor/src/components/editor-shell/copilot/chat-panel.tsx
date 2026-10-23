@@ -8,21 +8,30 @@ import { useSelection } from "@/editor/hooks";
 import { serializePageForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
 import { targetAfterBlock } from "@/editor/tree";
+import type { BlockType } from "@/editor/types";
 
 type ToolArgs = Record<string, unknown>;
 
-function applyToolCall(toolName: string, args: ToolArgs) {
+/** Applies one Copilot tool call to the editor store. */
+export function applyToolCall(toolName: string, args: ToolArgs) {
   const store = useEditorStore.getState();
   switch (toolName as PageEditorToolName) {
-    case "insert_block":
-      store.insertBlock(
-        args.type as never,
+    case "insert_block": {
+      const type = args.type as BlockType;
+      const target =
         typeof args.afterId === "string"
-          ? (targetAfterBlock(useEditorStore.getState().doc, args.afterId) ??
-              undefined)
-          : undefined
-      );
+          ? targetAfterBlock(store.doc, args.afterId)
+          : null;
+      // Without an afterId (or one that is gone) the tool promises the end
+      // of the page, so this must not fall back to the user's pending insert
+      // target or selection the way the palette does.
+      if (target) {
+        store.insertBlock(type, target);
+      } else {
+        store.insertBlockInNewSection(type, store.doc.sections.length);
+      }
       break;
+    }
     case "remove_block":
       store.removeBlock(args.id as string);
       break;
