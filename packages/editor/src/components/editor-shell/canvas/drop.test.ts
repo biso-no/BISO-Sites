@@ -7,6 +7,7 @@ import {
   dragSourceOf,
   dropIndicator,
   dropTargetOf,
+  rankDropZones,
   resolveDrop,
 } from "./drop";
 
@@ -367,4 +368,46 @@ test("applyDrop calls the matching store action", () => {
     ["moveBlockToNewSection", "b-1", 0],
     ["moveSection", "s-1", "s-2"],
   ]);
+});
+
+// A 1080px page: a side column centred at x=100, and the zero-height
+// new-section boundaries, which span the page and centre at x=540.
+const rect = (left: number, top: number, width: number, height: number) => ({
+  height,
+  left,
+  top,
+  width,
+});
+const boundary = (top: number) => rect(0, top, 1080, 0);
+
+test("a new-section boundary is measured vertically, so side columns reach it", () => {
+  // The drag sits over the left column, 5px above the boundary and 80px
+  // above that column's end. Centre to centre, the boundary is ~440px away
+  // and could never win.
+  const ranked = rankDropZones({ x: 100, y: 300 }, [
+    { id: "col:end", kind: "column", rect: rect(0, 360, 200, 40) },
+    { id: "new-section:1", kind: "new-section", rect: boundary(305) },
+  ]);
+  expect(ranked.map((zone) => zone.id)).toEqual(["new-section:1", "col:end"]);
+  expect(ranked[0].distance).toBe(5);
+  expect(ranked[1].distance).toBe(80);
+});
+
+test("a nearer block still beats a farther boundary", () => {
+  const ranked = rankDropZones({ x: 100, y: 300 }, [
+    { id: "new-section:0", kind: "new-section", rect: boundary(200) },
+    { id: "b-1", kind: "block", rect: rect(0, 280, 200, 60) },
+  ]);
+  expect(ranked.map((zone) => zone.id)).toEqual(["b-1", "new-section:0"]);
+  expect(ranked[0].distance).toBe(10);
+});
+
+test("blocks and columns keep centre-to-centre distance", () => {
+  const ranked = rankDropZones({ x: 100, y: 300 }, [
+    { id: "b-far-right", kind: "block", rect: rect(800, 280, 200, 40) },
+    { id: "b-below", kind: "block", rect: rect(0, 380, 200, 40) },
+  ]);
+  expect(ranked.map((zone) => zone.id)).toEqual(["b-below", "b-far-right"]);
+  expect(ranked[0].distance).toBe(100);
+  expect(ranked[1].distance).toBe(800);
 });

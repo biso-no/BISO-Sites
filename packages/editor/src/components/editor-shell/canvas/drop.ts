@@ -110,6 +110,35 @@ export function dragSourceOf(data: unknown): DragSource | null {
   return null;
 }
 
+/** A drop zone as the collision scoring sees it. */
+export interface DropZone<Id> {
+  id: Id;
+  kind: DropTarget["kind"];
+  rect: { height: number; left: number; top: number; width: number };
+}
+
+/**
+ * Drop zones from closest to farthest from `center`, the dragged item's
+ * centre. Distance is centre to centre, except for a new-section boundary:
+ * it spans the whole page with no height, so its centre sits mid-page and a
+ * drag over a side column could never get close to it. It is measured
+ * vertically only.
+ */
+export function rankDropZones<Id>(
+  center: { x: number; y: number },
+  zones: readonly DropZone<Id>[]
+): { distance: number; id: Id }[] {
+  return zones
+    .map(({ id, kind, rect }) => {
+      const dx = rect.left + rect.width / 2 - center.x;
+      const dy = rect.top + rect.height / 2 - center.y;
+      const distance =
+        kind === "new-section" ? Math.abs(dy) : Math.hypot(dx, dy);
+      return { distance, id };
+    })
+    .sort((a, b) => a.distance - b.distance);
+}
+
 /** Where a block lands when dropped on `target`, or null for no move. */
 function blockLanding(
   doc: PageDoc,

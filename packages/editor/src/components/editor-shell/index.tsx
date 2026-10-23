@@ -8,6 +8,7 @@ import {
   type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
+  type DroppableContainer,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -34,9 +35,11 @@ import {
   type CanvasDrag,
   type DragSource,
   type DropTarget,
+  type DropZone,
   dragSourceOf,
   dropIndicator,
   dropTargetOf,
+  rankDropZones,
   resolveDrop,
 } from "./canvas/drop";
 import { sectionLabel } from "./canvas/section-frame";
@@ -76,20 +79,32 @@ const DEBOUNCE_MS = 800;
 /**
  * Only the zones a drag can land in take part: sections see section and
  * new-section zones, blocks and palette items see blocks, column ends and
- * new-section zones. Then the closest centre wins, as before.
+ * new-section zones. Then the closest wins (`rankDropZones`): centre to
+ * centre, except that the full-width new-section boundaries are measured
+ * vertically, so a drag over a side column can still reach them.
  */
 const canvasCollisions: CollisionDetection = (args) => {
   const source = dragSourceOf(args.active.data.current);
   if (!source) {
     return closestCenter(args);
   }
-  return closestCenter({
-    ...args,
-    droppableContainers: args.droppableContainers.filter((container) => {
-      const target = dropTargetOf(container.data.current);
-      return target !== null && acceptsDrop(source.source, target.kind);
-    }),
-  });
+  const { collisionRect, droppableRects } = args;
+  const zones: DropZone<DroppableContainer>[] = [];
+  for (const container of args.droppableContainers) {
+    const target = dropTargetOf(container.data.current);
+    const rect = droppableRects.get(container.id);
+    if (target && rect && acceptsDrop(source.source, target.kind)) {
+      zones.push({ id: container, kind: target.kind, rect });
+    }
+  }
+  const center = {
+    x: collisionRect.left + collisionRect.width / 2,
+    y: collisionRect.top + collisionRect.height / 2,
+  };
+  return rankDropZones(center, zones).map(({ distance, id: container }) => ({
+    data: { droppableContainer: container, value: distance },
+    id: container.id,
+  }));
 };
 
 /** What the drag overlay says while `source` is dragged. */
