@@ -242,13 +242,14 @@ test("a full header is tall only when it has media behind it", () => {
 const TINTED = '.pg-sec:where([data-background="tinted"])';
 const EDGE_MIX =
   /--edge:\s*color-mix\(in srgb,\s*var\(--surface-sunken\),\s*var\(--ink\)\s*(\d+)%\);/;
+const HEX = /#[0-9a-f]{6}/i;
 const surfaceCss = readFileSync(
   join(import.meta.dir, "../../../ui/styles/biso-surface.css"),
   "utf8"
 );
 const token = (name: string, from = 0): string => {
   const at = surfaceCss.indexOf(`${name}:`, from);
-  const hex = surfaceCss.slice(at).match(/#[0-9a-f]{6}/i)?.[0];
+  const hex = surfaceCss.slice(at).match(HEX)?.[0];
   if (at < 0 || !hex) {
     throw new Error(`${name} not found`);
   }
