@@ -46,7 +46,7 @@ export function TextInspector({ block, onPatch }: Props) {
               border: "0.5px solid var(--rule-2)",
               borderRadius: 4,
               background: "var(--paper-2)",
-              color: "var(--ink)",
+              color: "var(--pg-ink)",
               flex: "0 0 auto",
             }}
             value={item.type}

@@ -23,7 +23,7 @@
 .pe-topbar__logo {
   font-family: var(--serif);
   font-size: 18px;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-topbar__sep {
   color: var(--ink-4);
@@ -61,7 +61,7 @@
     color 0.15s;
 }
 .pe-topbar__exit:hover {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--rule);
 }
 
@@ -97,7 +97,7 @@
   font-family: var(--serif);
   font-size: 18px;
   line-height: 1;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-palette-hd__sub {
   margin-top: 2px;
@@ -121,7 +121,7 @@
   flex: 1;
   min-width: 0;
   font: inherit;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: transparent;
   border: 0;
@@ -181,7 +181,7 @@
 .pe-palette-item__name {
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-palette-item__desc {
   margin-top: 1px;
@@ -222,7 +222,7 @@
   width: 100%;
   padding: 8px 10px;
   font-size: 12px;
-  color: var(--ink);
+  color: var(--pg-ink);
   appearance: none;
   cursor: pointer;
   background: linear-gradient(
@@ -302,7 +302,7 @@
 }
 .pe-mode-seg button.on {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pe-url {
   display: flex;
@@ -354,7 +354,7 @@
   border-radius: 5px;
 }
 .pe-vp-seg button.on {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
 }
 .pe-locale-seg {
@@ -382,7 +382,7 @@
   border-radius: 5px;
 }
 .pe-locale-seg button.on {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
 }
 .pe-locale-seg span {
@@ -428,7 +428,7 @@
   font-weight: 500;
   color: var(--paper);
   cursor: pointer;
-  background: var(--ink);
+  background: var(--pg-ink);
   border: 0;
   border-radius: 8px;
 }
@@ -484,7 +484,7 @@
   margin-bottom: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-confirm p {
   margin: 0;
@@ -510,8 +510,8 @@
 }
 .pe-confirm__actions button.primary {
   color: var(--paper);
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--pg-ink);
+  border-color: var(--pg-ink);
 }
 
 .pe-stage {
@@ -643,7 +643,7 @@
 }
 .pe-block__handle button:hover,
 .pe-section__dragger:hover {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
 }
 .pe-block__row-actions {
@@ -676,7 +676,7 @@
 }
 .pe-block__row-actions button:hover,
 .pe-section__actions button:hover {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
 }
 .pe-block__row-actions button.delete:hover,
@@ -729,7 +729,7 @@
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
   pointer-events: none;
   background: var(--paper);
   border: 1.5px solid var(--page-accent, var(--claret));
@@ -888,7 +888,7 @@
   opacity: 1;
 }
 .pe-col__add:hover {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
 }
 .pe-col__add[aria-pressed="true"] {
@@ -956,7 +956,7 @@
   transform: none;
 }
 .pe-add-section[data-end] .pe-add-section__btn:hover {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
   border-color: var(--ink-3);
 }
@@ -997,7 +997,7 @@
   border-radius: 6px;
 }
 .pe-add-section__hd button:hover {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--paper-2);
 }
 .pe-add-section__cols {
@@ -1038,7 +1038,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-add-section__hint {
   margin: -8px 0 0;
@@ -1075,7 +1075,7 @@
   border-radius: 6px;
 }
 .pe-inspector-tabs button.on {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--paper-2);
 }
 .pe-inspector-body {
@@ -1104,7 +1104,7 @@
 .pe-insp-hd__ti {
   font-size: 13.5px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-insp-hd__sub {
   margin-top: 2px;
@@ -1141,7 +1141,7 @@
   min-width: 0;
   padding: 5px 8px;
   font-size: 12px;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
@@ -1168,7 +1168,7 @@
   position: absolute;
   inset: -3px;
   content: "";
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--pg-ink);
   border-radius: 50%;
 }
 .pe-variant-grid {
@@ -1228,7 +1228,7 @@
 }
 .pe-outline-item.on {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pe-outline-item__num {
   font-family: var(--mono);
@@ -1261,7 +1261,7 @@
   color: var(--paper);
   appearance: none;
   cursor: pointer;
-  background: var(--ink);
+  background: var(--pg-ink);
   border: 0;
   border-radius: 999px;
   box-shadow: 0 12px 30px -10px rgba(26, 24, 20, 0.4);
@@ -1380,7 +1380,7 @@
 .pe-copilot-panel__suggestion {
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--ink);
+  color: var(--pg-ink);
   text-align: left;
   appearance: none;
   cursor: pointer;
@@ -1416,13 +1416,13 @@
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--paper-2);
   border-radius: 10px;
 }
 .pe-copilot-panel__msg--user .pe-copilot-panel__bubble {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pe-copilot-panel__bubble p {
   margin: 0 0 6px;
@@ -1482,7 +1482,7 @@
   flex: 1;
   padding: 8px 12px;
   font-size: 13px;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
@@ -1502,7 +1502,7 @@
   color: var(--paper);
   appearance: none;
   cursor: pointer;
-  background: var(--ink);
+  background: var(--pg-ink);
   border: 0;
   border-radius: 8px;
 }
@@ -1549,7 +1549,7 @@
   border-radius: 4px;
 }
 .pe-seg button.on {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
   box-shadow: 0 0 0 0.5px var(--rule-2);
 }

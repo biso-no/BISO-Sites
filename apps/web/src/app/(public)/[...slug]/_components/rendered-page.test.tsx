@@ -5,6 +5,7 @@ import { expect, test, vi } from "vitest";
 import { RenderedPage } from "./rendered-page";
 
 const BISO_SURFACE_CLASS = /class="[^"]*\bbiso-surface\b[^"]*"/;
+const SECTION_TAGS = /<section [^>]*>/g;
 
 // The real render barrel pulls in every block (and the editor's `@/` alias,
 // which this app's vitest does not resolve), so it is replaced. SectionView,
@@ -193,4 +194,33 @@ test("forwards the server-resolved feeds to the provider", () => {
   );
 
   expect(html).toContain('data-feed-keys="events|25|no"');
+});
+
+const sectionTags = (html: string) => html.match(SECTION_TAGS) ?? [];
+
+test("only the first section clears the fixed nav", () => {
+  const doc = docOf([
+    section("s-1", "white", [["first"]]),
+    section("s-2", "dark", [["second"]]),
+  ]);
+  const tags = sectionTags(
+    renderToStaticMarkup(createElement(RenderedPage, { doc, locale: "no" }))
+  );
+  expect(tags).toHaveLength(2);
+  expect(tags[0]).toContain('data-first=""');
+  expect(tags[1]).not.toContain("data-first");
+});
+
+test("an empty first section, which renders nothing, hands the nav clearance on", () => {
+  const doc = docOf([
+    section("s-0", "white", [[]]),
+    section("s-1", "white", [["first"]]),
+    section("s-2", "white", [["second"]]),
+  ]);
+  const tags = sectionTags(
+    renderToStaticMarkup(createElement(RenderedPage, { doc, locale: "no" }))
+  );
+  expect(tags).toHaveLength(2);
+  expect(tags[0]).toContain('data-first=""');
+  expect(tags[1]).not.toContain("data-first");
 });

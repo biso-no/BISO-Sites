@@ -13,6 +13,10 @@ const GLOBAL_START = /^(:root|\*|[a-z][a-z0-9]*)(?![\w-])/;
 const HOST_ROOT = /^(\.dark)?\s*\.biso-surface$|^\.dark\.biso-surface$/;
 const TAILWIND_KEYFRAMES = /@keyframes\s+(spin|ping|pulse|bounce)\b/;
 const TAILWIND_ANIMATION = /animation:\s*(spin|ping|pulse|bounce)\b/;
+// The exact property `--ink`, not `--ink-2…4` and not `--pg-ink`.
+const INK_DECLARATION = /(?<![\w-])--ink\s*:/;
+const INK_REFERENCE = /var\(\s*--ink\s*[,)]/;
+const PAINTS_BACKGROUND = /(?<![\w-])background(-color)?\s*:/;
 
 const read = (name: string) =>
   readFileSync(join(import.meta.dir, name), "utf8");
@@ -42,7 +46,7 @@ describe("brand surface binding", () => {
     for (const line of [
       "--paper: var(--background);",
       "--paper-2: var(--section);",
-      "--ink: var(--foreground);",
+      "--pg-ink: var(--foreground);",
       "--rule: var(--border);",
       "--claret: var(--brand-dark);",
       "--serif: var(--font-display, var(--font-biso-display));",
@@ -96,6 +100,50 @@ describe("brand surface binding", () => {
         ":is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg)) {"
       )
     ).toContain("var(--pg-navy)");
+  });
+});
+
+/**
+ * The site's v2 surface owns `--ink` (navy on paper, paper on navy). The
+ * editor's own ramp is `--pg-ink`, so a section's `color: var(--ink)` reads
+ * the v2 alias and a `data-surface="deep"` band flips it.
+ */
+describe("the editor's ink leaves the site's --ink alone", () => {
+  test("no editor sheet declares --ink", () => {
+    for (const name of [
+      "tokens.css",
+      "editor.css",
+      "blocks.css",
+      "sections.css",
+    ]) {
+      expect(read(name).replace(CSS_COMMENT, ""), name).not.toMatch(
+        INK_DECLARATION
+      );
+    }
+    expect(read("tokens.css")).toContain("--pg-ink: #1a1814;");
+  });
+
+  test("the legacy sheets read --pg-ink; only sections read the v2 --ink", () => {
+    for (const name of ["tokens.css", "editor.css", "blocks.css"]) {
+      expect(read(name).replace(CSS_COMMENT, ""), name).not.toMatch(
+        INK_REFERENCE
+      );
+    }
+    expect(read("sections.css")).toMatch(INK_REFERENCE);
+  });
+
+  test("a dark frame still rebinds the site tokens the legacy blocks read", () => {
+    // The section paints the surface now; the frame no longer does, but the
+    // legacy blocks' copy follows `--foreground` and must stay light on navy.
+    const inverted = ruleBody(
+      read("blocks.css"),
+      '.pg-section[data-background="inverted"] {'
+    );
+    expect(inverted).toContain("--foreground: var(--inverted-foreground);");
+    expect(inverted).toContain("--background: var(--inverted);");
+    expect(inverted).toContain("--muted-foreground: var(--inverted-muted);");
+    // Tokens only: the frame itself paints nothing over the section.
+    expect(inverted).not.toMatch(PAINTS_BACKGROUND);
   });
 });
 
@@ -161,10 +209,12 @@ const topLevelPreludes = (css: string): string[] => {
  * global `@keyframes pulse` replaced the one Tailwind's `animate-pulse` runs.
  */
 describe("nothing reaches the host page", () => {
-  const sheets = ["tokens.css", "editor.css", "blocks.css"].map((name) => ({
-    name,
-    css: read(name),
-  }));
+  const sheets = ["tokens.css", "editor.css", "blocks.css", "sections.css"].map(
+    (name) => ({
+      name,
+      css: read(name),
+    })
+  );
 
   test("every global rule sits in @layer base, below the host's utilities", () => {
     for (const { name, css } of sheets) {

@@ -2,9 +2,14 @@
 
 import { slugifyAnchor } from "@/editor/operations";
 import { COLUMN_COUNT } from "@/editor/sections";
-import type { Section, SectionLayout } from "@/editor/types";
+import type {
+  Section,
+  SectionBackgroundImage,
+  SectionLayout,
+} from "@/editor/types";
 import { SECTION_LAYOUTS } from "../canvas/add-section";
 import { InspRow, InspSection } from "./insp-parts";
+import { MediaPicker } from "./media-picker";
 
 interface Choice<T extends string> {
   label: string;
@@ -15,6 +20,7 @@ const BACKGROUNDS: Choice<SectionLayout["background"]>[] = [
   { label: "White", value: "white" },
   { label: "Tinted", value: "tinted" },
   { label: "Dark", value: "dark" },
+  { label: "Photo", value: "photo" },
 ];
 const SPACINGS: Choice<SectionLayout["spacing"]>[] = [
   { label: "Tight", value: "tight" },
@@ -53,6 +59,41 @@ function Segmented<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * A Photo section's image and its alt text. The image is uploaded or linked
+ * like a block's; the alt text shows once there is an image to describe.
+ */
+function BackgroundImageFields({
+  image,
+  onChange,
+}: {
+  image: SectionBackgroundImage | undefined;
+  onChange: (image: SectionBackgroundImage | undefined) => void;
+}) {
+  const alt = image?.alt;
+  return (
+    <InspSection label="Background image">
+      <MediaPicker
+        accept="image/*"
+        onClear={() => onChange(undefined)}
+        onPicked={(fileId, src) => onChange({ alt, fileId, src })}
+        onUrl={(src) => onChange({ alt, src })}
+        src={image?.src}
+      />
+      {image?.src ? (
+        <InspRow label="Alt text">
+          <input
+            aria-label="Alt text"
+            onChange={(e) => onChange({ ...image, alt: e.target.value })}
+            placeholder="What the photo shows"
+            value={alt ?? ""}
+          />
+        </InspRow>
+      ) : null}
+    </InspSection>
   );
 }
 
@@ -138,6 +179,13 @@ export function SectionPanel({
           />
         </InspRow>
       </InspSection>
+
+      {layout.background === "photo" && (
+        <BackgroundImageFields
+          image={layout.backgroundImage}
+          onChange={(backgroundImage) => onLayout({ backgroundImage })}
+        />
+      )}
 
       <InspSection label="Responsive">
         <InspRow label="Tablet">

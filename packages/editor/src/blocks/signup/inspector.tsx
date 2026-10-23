@@ -44,7 +44,7 @@ export function SignupInspector({ block, onPatch }: Props) {
                 padding: "6px 0",
                 borderRadius: 8,
                 border: "0.5px solid var(--rule-2)",
-                background: mode === m ? "var(--ink)" : "var(--paper-2)",
+                background: mode === m ? "var(--pg-ink)" : "var(--paper-2)",
                 color: mode === m ? "var(--paper)" : "var(--ink-2)",
                 cursor: "pointer",
                 fontSize: 12,

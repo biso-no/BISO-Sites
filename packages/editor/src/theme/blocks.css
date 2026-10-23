@@ -21,18 +21,18 @@
 .pe-frame,
 .pg-page {
   font-family: var(--ui);
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--paper);
 }
 
 /*
  * Design-panel layout for the blocks styled by this file.
  *
- * `BlockView` frames each of them in `.pg-section`, which paints the resolved
- * background with the same classes `BlockSection` uses. These rules turn the
- * frame's spacing and width into the padding and column the block applies,
- * and `tokens.css` re-derives the paper/ink ramp on the frame so a block's
- * copy follows a brand or dark surface.
+ * `BlockView` frames each of them in `.pg-section`, which marks the section's
+ * surface in `data-background` and paints nothing (the section does). These
+ * rules turn the frame's spacing and width into the padding and column the
+ * block applies, and `tokens.css` re-derives the paper/ink ramp on the frame
+ * so a block's copy follows a dark surface.
  */
 .pg-section[data-spacing="none"] {
   --pg-space: 0;
@@ -83,6 +83,32 @@
 /* Full bleed drops the gutter as well, as `BlockSection` does with `px-0`. */
 .pg-section[data-width="full"] .pg-block {
   --pg-gutter: 0px;
+}
+
+/*
+ * The section paints the surface (sections.css), so the frame paints none.
+ * On a dark or photo section it still rebinds the site tokens the legacy
+ * blocks read, the same values `BlockSection`'s inverted surface sets, so
+ * their copy, cards and rules stay light on navy.
+ */
+.pg-section[data-background="inverted"] {
+  --background: var(--inverted);
+  --foreground: var(--inverted-foreground);
+  --card: color-mix(in oklch, var(--inverted-foreground) 8%, transparent);
+  --card-foreground: var(--inverted-foreground);
+  --popover: var(--inverted);
+  --popover-foreground: var(--inverted-foreground);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+  --secondary: color-mix(in oklch, var(--inverted-foreground) 12%, transparent);
+  --secondary-foreground: var(--inverted-foreground);
+  --muted: color-mix(in oklch, var(--inverted-foreground) 10%, transparent);
+  --muted-foreground: var(--inverted-muted);
+  --accent: var(--brand-accent);
+  --accent-foreground: var(--brand-dark);
+  --border: color-mix(in oklch, var(--inverted-foreground) 18%, transparent);
+  --input: color-mix(in oklch, var(--inverted-foreground) 18%, transparent);
+  --ring: var(--brand);
 }
 
 /*
@@ -140,7 +166,7 @@
   font-size: 52px;
   font-weight: 700;
   line-height: 1.05;
-  color: var(--ink);
+  color: var(--pg-ink);
   letter-spacing: -0.022em;
   text-wrap: balance;
 }
@@ -342,7 +368,7 @@
   font-weight: 700;
   font-feature-settings: "tnum" 1;
   line-height: 1;
-  color: var(--ink);
+  color: var(--pg-ink);
   letter-spacing: -0.02em;
 }
 .pg-stat__lbl {
@@ -371,7 +397,7 @@
   font-size: 36px;
   font-weight: 700;
   line-height: 1.1;
-  color: var(--ink);
+  color: var(--pg-ink);
   letter-spacing: -0.012em;
   text-wrap: balance;
 }
@@ -381,7 +407,7 @@
   font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-text p {
   max-width: 60ch;
@@ -439,7 +465,7 @@
   font-style: italic;
   font-weight: 500;
   line-height: 1.25;
-  color: var(--ink);
+  color: var(--pg-ink);
   letter-spacing: -0.012em;
   text-wrap: balance;
 }
@@ -478,7 +504,7 @@
   font-size: 32px;
   font-weight: 700;
   line-height: 1.1;
-  color: var(--ink);
+  color: var(--pg-ink);
   letter-spacing: -0.012em;
 }
 .pg-team-grid {
@@ -514,7 +540,7 @@
 .pg-member__name {
   font-size: 14.5px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-member__role {
   margin-top: 2px;
@@ -603,7 +629,7 @@
   font-size: 15px;
   font-weight: 500;
   line-height: 1.25;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-event-card__where {
   font-size: 12px;
@@ -622,7 +648,7 @@
 .pg-event-card__foot b {
   font-family: var(--mono);
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 
 /* CALLOUT */
@@ -714,7 +740,7 @@
   font-family: var(--serif);
   font-size: 22px;
   line-height: 1.25;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-faq-item__q::before {
   flex-shrink: 0;
@@ -749,7 +775,7 @@
   grid-template-columns: 1.2fr 1fr 1fr 1fr;
   gap: 24px;
   padding: calc(56px * var(--pg-space, 1)) var(--pg-gutter);
-  color: var(--ink);
+  color: var(--pg-ink);
   border-top: 0.5px solid var(--rule);
 }
 .pg-contact h2 {
@@ -758,7 +784,7 @@
   font-size: 36px;
   font-weight: 700;
   line-height: 1.05;
-  color: var(--ink);
+  color: var(--pg-ink);
   letter-spacing: -0.012em;
 }
 .pg-contact__col {
@@ -773,7 +799,7 @@
 }
 .pg-contact__col-val {
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 /*
  * While the background is Auto the contact block is a navy panel, as it has
@@ -813,7 +839,7 @@
   font-size: 48px;
   font-weight: 700;
   line-height: 1;
-  color: var(--ink);
+  color: var(--pg-ink);
   letter-spacing: -0.018em;
   text-wrap: balance;
 }
@@ -991,7 +1017,7 @@
   font-family: var(--mono);
   font-size: 12px;
   color: var(--inverted-on-faint);
-  /* Theme-stable, like the other dark panels: `--ink` turns light on the
+  /* Theme-stable, like the other dark panels: `--pg-ink` turns light on the
    * dark surface and in dark mode, under the placeholder's light copy. */
   background: var(--pg-navy);
   border-radius: var(--pg-radius);
@@ -1065,7 +1091,7 @@
   flex: 1;
   padding: 8px 12px;
   font: inherit;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: transparent;
   border: 0;
@@ -1075,7 +1101,7 @@
   font-weight: 500;
   color: var(--paper);
   cursor: pointer;
-  background: var(--ink);
+  background: var(--pg-ink);
   border: 0;
   border-radius: 999px;
 }
@@ -1143,7 +1169,7 @@
 .pg-news__item-title {
   font-size: 14.5px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-jobs__item-meta,
 .pg-news__item-meta {
@@ -1162,7 +1188,7 @@
   font-family: var(--serif);
   font-size: 32px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-featuregrid__intro {
   max-width: 56ch;
@@ -1197,7 +1223,7 @@
 .pg-featuregrid__title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-featuregrid__body {
   font-size: 14px;
@@ -1230,7 +1256,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-partners__grid {
   display: flex;
@@ -1274,7 +1300,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-linktiles__grid {
   display: grid;
@@ -1306,7 +1332,7 @@
 .pg-linktiles__tile-title {
   font-size: 14.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-linktiles__tile-desc {
   font-size: 13px;
@@ -1339,7 +1365,7 @@
 }
 .pg-tabs__tab--active {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pg-tabs__panel {
   font-size: 15px;
@@ -1359,7 +1385,7 @@
   border-radius: 0;
 }
 .pg-tabs--underline .pg-tabs__tab--active {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: transparent;
 }
 .pg-tabs--underline .pg-tabs__tab--active::after {
@@ -1369,7 +1395,7 @@
   left: 0;
   height: 2px;
   content: "";
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pg-tabs--underline .pg-tabs__panel {
   padding-top: 20px;
@@ -1394,7 +1420,7 @@
   border-radius: var(--pg-radius-sm);
 }
 .pg-tabs--cards .pg-tabs__tab--active {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--paper-2);
   border-color: var(--rule-2);
 }
@@ -1409,7 +1435,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-deptgrid__grid {
   display: grid;
@@ -1425,7 +1451,7 @@
 .pg-deptgrid__card-name {
   font-size: 14.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-deptgrid__card-tag {
   margin-top: 3px;
@@ -1463,7 +1489,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-documents__list {
   display: flex;
@@ -1494,7 +1520,7 @@
   flex: 1;
   font-size: 14.5px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-documents__size {
   font-family: var(--mono);
@@ -1517,7 +1543,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-featcards__grid {
   display: grid;
@@ -1550,7 +1576,7 @@
   margin-bottom: 6px;
   font-size: 15.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-featcards__desc {
   font-size: 13.5px;
@@ -1568,7 +1594,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 /* cards mode */
 .pg-campusselect__cards {
@@ -1580,7 +1606,7 @@
   padding: 20px 16px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
   text-align: center;
   cursor: pointer;
   background: var(--paper-2);
@@ -1617,8 +1643,8 @@
 .pg-campusselect__btn:hover,
 .pg-campusselect__btn--active {
   color: var(--paper);
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--pg-ink);
+  border-color: var(--pg-ink);
 }
 
 /* STEP GRID */
@@ -1631,7 +1657,7 @@
   font-family: var(--serif);
   font-size: 32px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-stepgrid__grid {
   display: grid;
@@ -1655,7 +1681,7 @@
   margin-bottom: 6px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-stepgrid__body {
   font-size: 13.5px;
@@ -1673,7 +1699,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-scrollrow__track {
   display: flex;
@@ -1705,7 +1731,7 @@
 .pg-scrollrow__title {
   font-size: 14.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-scrollrow__body {
   font-size: 13px;
@@ -1723,7 +1749,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-productgrid__grid {
   display: grid;
@@ -1744,7 +1770,7 @@
   padding: 12px 14px 4px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-productgrid__price {
   padding: 0 14px 14px;
@@ -1774,14 +1800,14 @@
   padding: 9px 16px;
   font: inherit;
   font-size: 14px;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
   border-radius: 999px;
 }
 .pg-filterbar__input:focus {
-  border-color: var(--ink);
+  border-color: var(--pg-ink);
 }
 .pg-filterbar__hint {
   font-size: 11.5px;
@@ -1817,7 +1843,7 @@
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-profileheader__role {
   font-size: 13px;
@@ -1844,7 +1870,7 @@
   font-family: var(--serif);
   font-size: 32px;
   line-height: 1;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-profileheader__stat-label {
   display: block;
@@ -1869,7 +1895,7 @@
   font-family: var(--serif);
   font-size: 32px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-msform__stepper {
   display: flex;
@@ -1893,8 +1919,8 @@
 }
 .pg-msform__step-dot--active {
   color: var(--paper);
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--pg-ink);
+  border-color: var(--pg-ink);
 }
 .pg-msform__step-dot--done {
   color: var(--paper);
@@ -1910,7 +1936,7 @@
 .pg-msform__step-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pg-msform__field {
   display: flex;
@@ -1927,7 +1953,7 @@
   padding: 9px 12px;
   font: inherit;
   font-size: 14px;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
@@ -1935,7 +1961,7 @@
 }
 .pg-msform__input:focus {
   background: var(--paper);
-  border-color: var(--ink);
+  border-color: var(--pg-ink);
 }
 textarea.pg-msform__input {
   min-height: 96px;
@@ -1957,7 +1983,7 @@ textarea.pg-msform__input {
 }
 .pg-msform__btn--next {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pg-msform__btn--submit {
   color: var(--paper);
@@ -1978,24 +2004,6 @@ textarea.pg-msform__input {
   margin-bottom: 12px;
   font-size: 40px;
   color: var(--leaf);
-}
-
-/* ==========================================================================
-   PUBLIC RENDER ROOT
-   ========================================================================== */
-
-/*
- * `.pg-page` wraps the blocks on the public site only — the admin canvas uses
- * `.pe-frame` — so anything here is scoped to biso.no.
- *
- * The site navbar is `position: fixed` and 80px tall. Every hand-built page
- * reserves its own space beneath it (e.g. /about starts its h1 at y=217);
- * block-composed pages reserved none, so the first block rendered underneath
- * the nav and the hero eyebrow overprinted the BISO logo on mobile.
- */
-.pg-page {
-  --pg-nav-offset: 80px;
-  padding-top: var(--pg-nav-offset);
 }
 
 /* ==========================================================================

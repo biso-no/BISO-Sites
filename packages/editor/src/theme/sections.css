@@ -4,13 +4,18 @@
  * public site break at the same widths. Each column is itself the `pg`
  * container the blocks' own rules answer to.
  *
- * Backgrounds use the legacy paper/inverted tokens until stage 2.
+ * Surfaces are the redesign's v2 aliases (`packages/ui/styles/biso-surface.css`):
+ * the site mounts `.biso-surface-v2` on <html>, the canvas on its frame. Dark
+ * and Photo sections carry `data-surface="deep"`, which flips `--surface`,
+ * `--ink`, `--edge` and the rest to their on-navy values, so nothing inside a
+ * section branches on its background.
  */
 .pg-sec {
   --pg-sec-pad-y: clamp(3rem, 6cqi, 5rem);
+  position: relative;
   padding: var(--pg-sec-pad-y) clamp(1rem, 4cqi, 2rem);
   color: var(--ink);
-  background: var(--paper);
+  background: var(--surface);
 }
 .pg-sec[data-spacing="tight"] {
   --pg-sec-pad-y: 2rem;
@@ -18,15 +23,75 @@
 .pg-sec[data-spacing="roomy"] {
   --pg-sec-pad-y: clamp(4rem, 9cqi, 8rem);
 }
-.pg-sec[data-background="tinted"] {
-  background: var(--paper-2);
+/* Dark and Photo need no rule of their own: `data-surface="deep"` makes
+   `--surface` navy. */
+.pg-sec:where([data-background="tinted"]) {
+  background: var(--surface-sunken);
 }
-.pg-sec[data-background="dark"] {
-  color: var(--inverted-foreground);
-  background: var(--inverted);
+
+/* Photo: a full-bleed image under a flat navy scrim, both behind the grid. */
+.pg-sec__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pg-sec__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--biso-deep) 62%, transparent);
+}
+
+/* Two white sections in a row would run together; a hairline divides them.
+   On the site sections are siblings. On the canvas each sits in a
+   `.pe-section` wrapper, and in edit mode "+ Add section" sits between.
+   Two rules, so a browser without `:has()` still draws the site's. */
+.pg-sec:where([data-background="white"])
++ .pg-sec:where([data-background="white"]) {
+  border-top: 1px solid var(--edge);
+}
+.pe-section:has(> .pg-sec[data-background="white"])
+  + .pe-section
+  > .pg-sec:where([data-background="white"]),
+.pe-section:has(> .pg-sec[data-background="white"])
+  + :not(.pe-section)
+  + .pe-section
+  > .pg-sec:where([data-background="white"]) {
+  border-top: 1px solid var(--edge);
+}
+
+/*
+ * The page top. The site's nav is fixed and 5rem tall; the canvas shows no
+ * nav. Whatever comes first clears it: the first section here (until a page
+ * header takes over), with a navy strip of the nav's height behind it when
+ * the section is not navy itself, so the nav's white controls keep their
+ * surface (as the site's `Section` does with `backdropNeeded`).
+ */
+.pg-page {
+  --pg-nav-offset: 5rem;
+}
+.pe-frame {
+  --pg-nav-offset: 0px;
+}
+.pg-sec:where([data-first]) {
+  padding-top: calc(var(--pg-nav-offset, 0px) + var(--pg-sec-pad-y));
+}
+.pg-sec:where([data-first]):where(:not([data-surface="deep"]))::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--pg-nav-offset, 0px);
+  content: "";
+  background: var(--biso-deep);
+}
+/* A link to #name lands below the nav, not under it. */
+.pg-sec[id] {
+  scroll-margin-top: var(--pg-nav-offset, 0px);
 }
 
 .pg-sec__grid {
+  /* Positioned, so it paints above a Photo section's image and scrim. */
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: clamp(1.5rem, 3cqi, 3rem);

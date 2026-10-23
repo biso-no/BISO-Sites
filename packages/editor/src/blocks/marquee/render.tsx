@@ -29,7 +29,7 @@ export function MarqueeRender({ block, edit, onPatch }: Props) {
               background: "var(--paper-2)",
               font: "inherit",
               fontSize: 13,
-              color: "var(--ink)",
+              color: "var(--pg-ink)",
             }}
             value={block.text}
           />

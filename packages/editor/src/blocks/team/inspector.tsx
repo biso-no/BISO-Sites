@@ -127,7 +127,7 @@ export function TeamInspector({ block, onPatch }: Props) {
                       borderRadius: "50%",
                       border:
                         m.hue === h
-                          ? "2px solid var(--ink)"
+                          ? "2px solid var(--pg-ink)"
                           : "2px solid transparent",
                       background: HUE_COLORS[h],
                       cursor: "pointer",

@@ -115,7 +115,10 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
   } = useEditorCallbacks();
 
   const edit = mode === "edit";
-  const frameClass = `biso-surface pe-frame ${viewport}`;
+  // `biso-surface-v2` gives the sections the redesign's aliases, as <html>
+  // does on the site. In the admin's dark theme it turns the canvas navy, as
+  // the site's dark theme does.
+  const frameClass = `biso-surface biso-surface-v2 pe-frame ${viewport}`;
   const sectionIds = useMemo(
     () => sections.map((section) => `sec:${section.id}`),
     [sections]

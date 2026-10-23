@@ -61,3 +61,72 @@ test("renders nothing for an empty section outside the editor", () => {
   expect(html(empty)).toBe("");
   expect(html(empty, true)).toContain('class="pg-sec"');
 });
+
+const withBackground = (
+  background: Section["layout"]["background"],
+  backgroundImage?: Section["layout"]["backgroundImage"]
+): Section => ({ ...s, layout: { ...s.layout, background, backgroundImage } });
+
+const DEEP_SECTION = /<section class="pg-sec"[^>]*data-surface="deep"/;
+const FIRST_SECTION = /<section class="pg-sec"[^>]*data-first=""/;
+const PHOTO_BEFORE_GRID =
+  /<img[^>]*class="pg-sec__photo"[^>]*\/?>\s*<div aria-hidden="true" class="pg-sec__scrim"><\/div>\s*<div class="pg-sec__grid">/;
+
+test("light sections keep the page surface; a dark one opts into the deep aliases", () => {
+  expect(html(withBackground("white"))).not.toContain("data-surface");
+  expect(html(withBackground("tinted"))).not.toContain("data-surface");
+  const dark = html(withBackground("dark"));
+  expect(dark).toContain('data-background="dark"');
+  expect(dark).toMatch(DEEP_SECTION);
+});
+
+test("a photo section puts its image and a scrim behind the grid", () => {
+  const out = html(
+    withBackground("photo", {
+      alt: "Fadderullan på Storefjell",
+      fileId: "f-1",
+      src: "https://cdn.example/storefjell.jpg",
+    })
+  );
+  expect(out).toContain('data-background="photo"');
+  expect(out).toMatch(DEEP_SECTION);
+  expect(out).toContain('alt="Fadderullan på Storefjell"');
+  expect(out).toContain('src="https://cdn.example/storefjell.jpg"');
+  expect(out).toMatch(PHOTO_BEFORE_GRID);
+});
+
+test("a photo with no alt text is marked decorative", () => {
+  const out = html(
+    withBackground("photo", { src: "https://cdn.example/storefjell.jpg" })
+  );
+  expect(out).toContain('alt=""');
+});
+
+test("a photo section without an image falls back to dark", () => {
+  for (const sec of [
+    withBackground("photo"),
+    withBackground("photo", { src: "" }),
+  ]) {
+    const out = html(sec);
+    expect(out).toContain('data-background="dark"');
+    expect(out).toMatch(DEEP_SECTION);
+    expect(out).not.toContain("<img");
+    expect(out).not.toContain("pg-sec__scrim");
+  }
+});
+
+test("an image is ignored unless the background is Photo", () => {
+  const out = html(
+    withBackground("white", { src: "https://cdn.example/storefjell.jpg" })
+  );
+  expect(out).toContain('data-background="white"');
+  expect(out).not.toContain("<img");
+});
+
+test("the first section is marked so it can clear the fixed nav", () => {
+  const first = renderToStaticMarkup(
+    <SectionView first renderBlock={(b) => <p>{b.id}</p>} section={s} />
+  );
+  expect(first).toMatch(FIRST_SECTION);
+  expect(html(s)).not.toContain("data-first");
+});

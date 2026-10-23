@@ -1,9 +1,7 @@
 "use client";
 
-import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 import type { Block } from "@/editor/types";
-import { SURFACE } from "./_primitives/block-section";
 import type { ResolvedBackground } from "./_primitives/layout-types";
 import { getBlock } from "./index";
 import type { PatchFn } from "./types";
@@ -55,15 +53,16 @@ interface LayoutFrameProps {
 }
 
 /**
- * Paints the resolved surface with the same classes `BlockSection` uses, so a
- * framed block and a migrated one look alike on every background. Sections own
- * spacing and width, so the frame is always compact and full width. `data-auto`
- * lets the dark banner blocks (contact, full hero) keep their own panel.
+ * The section paints the surface, so the frame paints none. `data-background`
+ * stays: `blocks.css` reads it to rebind the site tokens the legacy blocks'
+ * copy follows on a dark section. Sections own spacing and width, so the frame
+ * is always compact and full width. `data-auto` lets the dark banner blocks
+ * (contact, full hero) keep their own panel.
  */
 function LayoutFrame({ background, children }: LayoutFrameProps) {
   return (
     <div
-      className={cn("pg-section relative text-foreground", SURFACE[background])}
+      className="pg-section relative text-foreground"
       data-auto=""
       data-background={background}
       data-spacing="compact"

@@ -268,7 +268,7 @@ describe("LAYOUT_VALUES", () => {
     const spacing: readonly SectionSpacing[] = LAYOUT_VALUES.spacing;
     const align: readonly SectionAlign[] = LAYOUT_VALUES.align;
     const tablet: readonly SectionTablet[] = LAYOUT_VALUES.tablet;
-    expect(background).toEqual(["white", "tinted", "dark"]);
+    expect(background).toEqual(["white", "tinted", "dark", "photo"]);
     expect(columns).toHaveLength(6);
     expect(spacing).toHaveLength(3);
     expect(align).toHaveLength(3);
@@ -287,5 +287,50 @@ describe("LAYOUT_VALUES", () => {
       ],
     });
     expect(result.sections[0]?.layout.background).toBe("dark");
+  });
+});
+
+describe("section background image", () => {
+  const withImage = (backgroundImage: unknown) =>
+    normalizePageDoc({
+      ...doc(),
+      sections: [
+        {
+          columns: [],
+          id: "s-1",
+          layout: {
+            ...DEFAULT_SECTION_LAYOUT,
+            background: "photo",
+            backgroundImage,
+          } as SectionLayout,
+        },
+      ],
+    }).sections[0]?.layout;
+
+  test("a Photo background and a valid image are kept", () => {
+    const layout = withImage({
+      alt: "Storefjell",
+      fileId: "f-1",
+      src: "https://cdn.example/storefjell.jpg",
+    });
+    expect(layout?.background).toBe("photo");
+    expect(layout?.backgroundImage).toEqual({
+      alt: "Storefjell",
+      fileId: "f-1",
+      src: "https://cdn.example/storefjell.jpg",
+    });
+  });
+
+  test("an image without a string src is dropped", () => {
+    for (const bad of ["oops", null, 42, {}, { src: 7 }, { alt: "x" }]) {
+      expect(withImage(bad)).not.toHaveProperty("backgroundImage");
+    }
+  });
+
+  test("an image keeps only its known string fields", () => {
+    expect(
+      withImage({ alt: 3, extra: "x", fileId: null, src: "https://x/y.jpg" })
+        ?.backgroundImage
+    ).toEqual({ src: "https://x/y.jpg" });
   });
 });

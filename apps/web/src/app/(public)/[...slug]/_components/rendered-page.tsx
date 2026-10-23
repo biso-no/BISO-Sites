@@ -59,6 +59,11 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
   const accentStyle = {
     "--page-accent": normalizedDoc.meta.accentColor,
   } as React.CSSProperties;
+  // The first section that renders clears the fixed nav. An empty section
+  // renders nothing on the site, so it cannot be the one.
+  const firstIndex = normalizedDoc.sections.findIndex((section) =>
+    section.columns.some((column) => column.blocks.length > 0)
+  );
 
   return (
     <PageFeedProvider
@@ -67,8 +72,9 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
       locale={locale}
     >
       <div className="biso-surface pg-page" style={accentStyle}>
-        {normalizedDoc.sections.map((section) => (
+        {normalizedDoc.sections.map((section, index) => (
           <SectionView
+            first={index === firstIndex}
             key={section.id}
             renderBlock={(block) => (
               <BlockRenderer

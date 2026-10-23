@@ -105,7 +105,7 @@ export function TabsInspector({ block, onPatch }: Props) {
                   border: "0.5px solid var(--rule-2)",
                   borderRadius: 4,
                   background: "var(--paper-2)",
-                  color: "var(--ink)",
+                  color: "var(--pg-ink)",
                 }}
                 value={tab.label}
               />
@@ -133,7 +133,7 @@ export function TabsInspector({ block, onPatch }: Props) {
                   border: "0.5px solid var(--rule-2)",
                   borderRadius: 4,
                   background: "var(--paper-2)",
-                  color: "var(--ink)",
+                  color: "var(--pg-ink)",
                   resize: "vertical",
                 }}
                 value={tab.body}

@@ -481,14 +481,25 @@ export interface PageMeta {
 export const PAGE_DOC_VERSION = 2;
 
 export type SectionColumns = "1" | "1-1" | "2-1" | "1-2" | "1-1-1" | "1-1-1-1";
-export type SectionBackground = "white" | "tinted" | "dark";
+export type SectionBackground = "white" | "tinted" | "dark" | "photo";
 export type SectionSpacing = "tight" | "normal" | "roomy";
 export type SectionAlign = "top" | "middle" | "bottom";
 export type SectionTablet = "row" | "stack";
 
+/** The full-bleed image behind a Photo section. */
+export interface SectionBackgroundImage {
+  /** Empty or absent marks the photo decorative. */
+  alt?: string;
+  /** Appwrite "media" bucket file ID, when uploaded. */
+  fileId?: string;
+  src: string;
+}
+
 export interface SectionLayout {
   align: SectionAlign;
   background: SectionBackground;
+  /** Shown only while `background` is "photo"; kept when switching away. */
+  backgroundImage?: SectionBackgroundImage;
   columns: SectionColumns;
   hideOnPhone: boolean;
   phoneReverse: boolean;

@@ -12,6 +12,7 @@ import type {
   Section,
   SectionAlign,
   SectionBackground,
+  SectionBackgroundImage,
   SectionColumns,
   SectionLayout,
   SectionSpacing,
@@ -33,6 +34,7 @@ export const LAYOUT_VALUES = {
     "white",
     "tinted",
     "dark",
+    "photo",
   ] as const satisfies readonly SectionBackground[],
   // COLUMN_COUNT is a Record<SectionColumns, number>, so its keys are exhaustive.
   columns: Object.keys(COLUMN_COUNT) as SectionColumns[],
@@ -112,7 +114,31 @@ function normalizeLayout(raw: unknown, storedColumns: number): SectionLayout {
   if (!columnPresets.includes(stored.columns)) {
     layout.columns = PRESET_FOR_COUNT[storedColumns] ?? "1";
   }
+  const backgroundImage = normalizeBackgroundImage(stored.backgroundImage);
+  if (backgroundImage) {
+    layout.backgroundImage = backgroundImage;
+  }
   return layout as unknown as SectionLayout;
+}
+
+/**
+ * A Photo section's image: kept only with a string `src`, and then with its
+ * known string fields only.
+ */
+function normalizeBackgroundImage(
+  raw: unknown
+): SectionBackgroundImage | undefined {
+  if (!(isRecord(raw) && isString(raw.src))) {
+    return;
+  }
+  const image: SectionBackgroundImage = { src: raw.src };
+  if (isString(raw.alt)) {
+    image.alt = raw.alt;
+  }
+  if (isString(raw.fileId)) {
+    image.fileId = raw.fileId;
+  }
+  return image;
 }
 
 /**

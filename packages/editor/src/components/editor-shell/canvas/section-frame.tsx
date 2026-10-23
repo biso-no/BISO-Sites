@@ -163,6 +163,9 @@ export function SectionFrame({ drag, index, section }: SectionFrameProps) {
 
       <SectionView
         edit={edit}
+        // The canvas has no nav (`--pg-nav-offset: 0px`), so this changes
+        // nothing visible; it keeps the canvas markup the site's.
+        first={index === 0}
         renderBlock={(block) => (
           <ColumnBlock
             background={background}

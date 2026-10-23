@@ -11,6 +11,11 @@ import { allBlocks } from "./index";
 
 const noopPatch = () => undefined;
 
+/** The legacy frame's classes: positioning and copy colour, no surface. */
+const FRAME_CLASS = "pg-section relative text-foreground";
+const FRAME_CLASS_ATTRIBUTE = /<div class="(pg-section\b[^"]*)"/;
+const frameClass = (html: string) => FRAME_CLASS_ATTRIBUTE.exec(html)?.[1];
+
 const render = (block: Block, background: ResolvedBackground) =>
   renderToStaticMarkup(
     <BlockView
@@ -38,15 +43,19 @@ const emptyOf = (type: Block["type"]): Block => {
  */
 describe("every block sits in the section's frame", () => {
   for (const def of allBlocks()) {
-    test(`${def.type} paints the surface at compact spacing and full width`, () => {
+    test(`${def.type} takes the section's surface at compact spacing and full width`, () => {
       const html = render(def.empty(), "inverted");
 
-      expect(html).toContain("bg-inverted");
       const framed =
+        html.includes('data-background="inverted"') &&
         html.includes('data-spacing="compact"') &&
         html.includes('data-width="full"');
       const sectioned = html.includes(SURFACE.inverted);
       expect(framed || sectioned).toBe(true);
+      if (framed) {
+        // The section paints the surface; the frame only marks it.
+        expect(frameClass(html)).toBe(FRAME_CLASS);
+      }
     });
   }
 });
@@ -59,7 +68,7 @@ describe("BlockView frame", () => {
     expect(html).toContain('data-background="brand"');
     expect(html).toContain('data-spacing="compact"');
     expect(html).toContain('data-width="full"');
-    expect(html).toContain("bg-brand");
+    expect(frameClass(html)).toBe(FRAME_CLASS);
   });
 
   test("block.layout is ignored: the section owns spacing and width", () => {
@@ -75,7 +84,7 @@ describe("BlockView frame", () => {
     expect(html).toContain('data-background="muted"');
     expect(html).toContain('data-spacing="compact"');
     expect(html).toContain('data-width="full"');
-    expect(html).toContain("bg-section");
+    expect(frameClass(html)).toBe(FRAME_CLASS);
   });
 
   test("a block that composes BlockSection is not framed twice", () => {

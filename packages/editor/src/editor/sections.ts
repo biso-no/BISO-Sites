@@ -62,6 +62,8 @@ export function resizeColumns(section: Section, columns: SectionColumns): void {
 
 const LEGACY_BACKGROUND: Record<SectionBackground, ResolvedBackground> = {
   dark: "inverted",
+  // A photo sits under a navy scrim, so legacy blocks read it as dark.
+  photo: "inverted",
   tinted: "muted",
   white: "default",
 };

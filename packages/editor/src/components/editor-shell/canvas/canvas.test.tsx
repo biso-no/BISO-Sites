@@ -35,6 +35,10 @@ const render = (
 };
 
 const count = (html: string, needle: string) => html.split(needle).length - 1;
+const FIRST_SECTION_MARKED =
+  /data-section-id="s-1"[^>]*>\s*<section class="pg-sec"[^>]*data-first=""/;
+const SECOND_SECTION_UNMARKED =
+  /data-section-id="s-2"[^>]*>\s*<section class="pg-sec"(?![^>]*data-first)[^>]*>/;
 
 afterEach(() => {
   Object.assign(useEditorStore.getInitialState(), pristine);
@@ -108,4 +112,13 @@ test("while dragging, zippers give way to drop slots and the frame says what is 
   expect(count(html, 'class="pe-drop-slot"')).toBe(3 + 2 + 3);
   // Only the slot before b-2 is lit.
   expect(count(html, "opacity:1;transition")).toBe(1);
+});
+
+test("the frame mounts the redesign's v2 surface and marks the first section", () => {
+  const html = render(twoSections);
+  expect(html).toContain('class="biso-surface biso-surface-v2 pe-frame desk"');
+  // The canvas has no nav (`--pg-nav-offset: 0px`), so the mark costs nothing
+  // there, and the canvas markup stays the site's.
+  expect(html).toMatch(FIRST_SECTION_MARKED);
+  expect(html).toMatch(SECOND_SECTION_UNMARKED);
 });

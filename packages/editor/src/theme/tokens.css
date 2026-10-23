@@ -15,6 +15,10 @@
  * In `base` the host's own styles and utilities win, and these still apply
  * wherever nothing else is set — the editor chrome and the rendered blocks.
  *
+ * The ramp's ink is `--pg-ink`, not `--ink`: the redesign's v2 surface owns
+ * `--ink` (navy on paper, paper on a `data-surface="deep"` band), and the
+ * sections read it from there.
+ *
  * The order statement matches Tailwind's, so `base` stays below `utilities`
  * whichever stylesheet the browser reads first.
  */
@@ -28,7 +32,7 @@
     --paper-3: #ede6d8;
 
     /* Ink ramp */
-    --ink: #1a1814;
+    --pg-ink: #1a1814;
     --ink-2: #3a342a;
     --ink-3: #6b6357;
     --ink-4: #9c9385;
@@ -92,7 +96,7 @@
     --paper-2: #1c1a16;
     --paper-3: #24211c;
 
-    --ink: #f5f1ea;
+    --pg-ink: #f5f1ea;
     --ink-2: #d6cfc2;
     --ink-3: #a79f90;
     --ink-4: #7e7768;
@@ -177,7 +181,7 @@
   --paper-2: var(--section);
   --paper-3: var(--muted);
 
-  --ink: var(--foreground);
+  --pg-ink: var(--foreground);
   --ink-2: color-mix(in oklab, var(--foreground) 82%, var(--background));
   --ink-3: var(--muted-foreground);
   --ink-4: color-mix(in oklab, var(--muted-foreground) 70%, var(--background));
