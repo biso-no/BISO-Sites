@@ -127,9 +127,10 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
           </button>
         )}
         {onPublish && (
+          // Not held while a save is pending: Publish stores it first.
           <button
             className={`pe-publish ${isPublished ? "pe-publish--live" : ""}`}
-            disabled={publishing || saving === "pending" || themeBlocked}
+            disabled={publishing || themeBlocked}
             onClick={() => run(onPublish)}
             title={publishTitle}
             type="button"

@@ -585,6 +585,15 @@ async function listPageTranslations(
  * `null` is kept. Only drafts that exist are touched: no translation row is
  * created, and a draft that already holds these values is not rewritten.
  *
+ * Each draft is re-read just before it is written: another tab may have
+ * saved that locale since the list was read, and writing the listed copy
+ * back would undo its edit. When the row changed, the shared meta is merged
+ * into the newer draft and the write retried once; when it changed again, the
+ * write is skipped with a warning (that tab's next save carries the shared
+ * meta anyway). Appwrite has no conditional update, so a write landing
+ * between the last re-read and this write can still be overwritten: the
+ * window is that one round trip, not the whole sync.
+ *
  * PRIVILEGED: writes through the service-key admin client. Callers MUST
  * authorize the write to this page first.
  */
@@ -600,23 +609,58 @@ export async function syncSharedDraftMeta({
 }): Promise<void> {
   const { db } = await createAdminClient();
   for (const translation of await listPageTranslations(db, id)) {
-    if (translation.locale === locale) {
-      continue;
-    }
-    const draft = jsonToPageDoc(translation.draft_doc);
-    if (!(draft?.meta && typeof draft.meta === "object")) {
-      continue;
-    }
-    const current = pageDocToJson(draft);
-    const next = pageDocToJson(
-      normalizeDocForSave({ ...draft, meta: { ...draft.meta, ...meta } })
-    );
-    if (next !== current) {
-      await db.updateRow("app", "page_translations", translation.$id, {
-        draft_doc: next,
-      });
+    if (translation.locale !== locale) {
+      await syncDraftMeta(db, translation, meta);
     }
   }
+}
+
+/** `json` with the shared `meta` merged in, or null when nothing changes. */
+function withSharedMeta(
+  json: string | null | undefined,
+  meta: Partial<PageMeta>
+): string | null {
+  const draft = jsonToPageDoc(json);
+  if (!(draft?.meta && typeof draft.meta === "object")) {
+    return null;
+  }
+  const next = pageDocToJson(
+    normalizeDocForSave({ ...draft, meta: { ...draft.meta, ...meta } })
+  );
+  return next === pageDocToJson(draft) ? null : next;
+}
+
+/** One write and one retry: see {@link syncSharedDraftMeta}. */
+const SHARED_META_ATTEMPTS = 2;
+
+async function syncDraftMeta(
+  db: PageDatabase,
+  listed: PageTranslations,
+  meta: Partial<PageMeta>
+): Promise<void> {
+  let read = listed;
+  for (let attempt = 0; attempt < SHARED_META_ATTEMPTS; attempt += 1) {
+    const next = withSharedMeta(read.draft_doc, meta);
+    if (next === null) {
+      return;
+    }
+    const fresh = await db.getRow<PageTranslations>(
+      "app",
+      "page_translations",
+      read.$id
+    );
+    if (fresh.$updatedAt === read.$updatedAt) {
+      await db.updateRow("app", "page_translations", read.$id, {
+        draft_doc: next,
+      });
+      return;
+    }
+    // Written meanwhile: merge into that newer draft instead.
+    read = fresh;
+  }
+  console.warn(
+    `[syncSharedDraftMeta] ${listed.$id} kept changing; its shared meta was not updated`
+  );
 }
 
 /** The document JSON without `meta.theme`, or null when it has none. */

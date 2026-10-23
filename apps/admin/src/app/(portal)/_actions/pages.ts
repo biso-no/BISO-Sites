@@ -17,7 +17,11 @@ import {
   syncSharedDraftMeta,
 } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
+import type {
+  Departments,
+  Pages,
+  PageViewEvents,
+} from "@repo/api/types/appwrite";
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc as EditorPageDoc } from "@repo/editor/types";
@@ -50,6 +54,7 @@ import {
 import { pickSharedMeta } from "@/lib/page-shared-meta";
 import {
   departmentThemeUpdate,
+  isDepartmentTheme,
   themeSaveError,
 } from "@/lib/page-theme-publish";
 import {
@@ -269,6 +274,40 @@ function ensureDepartmentForScoping(
   };
 }
 
+/**
+ * `doc` without its theme when that theme is what the page's department
+ * already has (`isDepartmentTheme`): a second tab opened before a publish
+ * moved the theme to the department would otherwise put it back on the page.
+ * One read of the department, through the admin client the save already
+ * uses; a failed read keeps the theme, as before.
+ */
+async function withoutDepartmentTheme(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  doc: PageDoc
+): Promise<PageDoc> {
+  const departmentId = doc.meta.department;
+  if (!departmentId || doc.meta.theme === undefined) {
+    return doc;
+  }
+  let department: Departments;
+  try {
+    department = await db.getRow<Departments>(
+      "app",
+      "departments",
+      departmentId,
+      [Query.select(["theme_dark", "theme_accent"])]
+    );
+  } catch (e) {
+    console.error("[savePageEditorDoc] department theme read failed", e);
+    return doc;
+  }
+  if (!isDepartmentTheme(doc.meta.theme, department)) {
+    return doc;
+  }
+  const { theme: _departmentHasIt, ...meta } = doc.meta;
+  return { ...doc, meta };
+}
+
 export async function savePageEditorDoc({
   id,
   doc,
@@ -384,12 +423,14 @@ export async function savePageEditorDoc({
       campusId,
       departmentId: normalizedDoc.meta.department || null,
     });
+    // After the ownership check: the department is verified before it is read.
+    const storedDoc = await withoutDepartmentTheme(db, normalizedDoc);
     const { pageId, slug } = await savePageDraft({
       id,
       // Text blocks store HTML that the site renders as markup. The editor
       // sanitizes on blur, but this action takes any document a client
       // posts, so what is stored is cleaned here.
-      doc: sanitizePageDocHtml(normalizedDoc),
+      doc: sanitizePageDocHtml(storedDoc),
       locale,
       ctx,
       campusId,
@@ -400,7 +441,7 @@ export async function savePageEditorDoc({
     await syncSharedDraftMeta({
       id: pageId,
       locale,
-      meta: pickSharedMeta({ ...normalizedDoc.meta, slug }),
+      meta: pickSharedMeta({ ...storedDoc.meta, slug }),
     });
     await logAuditEvent(ctx, "page_saved", {
       resourceId: pageId,
@@ -505,7 +546,14 @@ export async function publishPageAction(
     };
   } catch (e) {
     console.error("[publishPageAction]", e);
-    throw new Error(e instanceof Error ? e.message : "Failed to publish page");
+    const message = e instanceof Error ? e.message : "Failed to publish page";
+    // publishPage's message for a locale with no translation row: the editor
+    // saves that locale before publishing it, so this is only a backstop.
+    throw new Error(
+      message === "No translation found to publish"
+        ? "Save this language before publishing"
+        : message
+    );
   }
 }
 

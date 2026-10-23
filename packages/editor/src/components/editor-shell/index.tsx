@@ -14,7 +14,16 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type Ref,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { getBlock } from "@/blocks/registry";
 import { EditorCallbacksContext } from "@/editor/callbacks";
 import { guardPublish, themeBlocksSave } from "@/editor/effective-theme";
@@ -48,11 +57,23 @@ import {
 import { sectionLabel } from "./canvas/section-frame";
 import { InspectorPane } from "./inspector";
 import { PalettePane } from "./palette";
+import { createPendingSaves, type SaveRun, type SaveTo } from "./pending-save";
 import { Topbar } from "./topbar";
 import { useUnloadPrompt } from "./unload-prompt";
 
 // Import block registrations (side effects)
 import "@/blocks/index";
+
+/** What the shell offers its host through `ref`. */
+export interface EditorShellHandle {
+  /**
+   * Run the debounced save now and resolve once it is stored. Resolves at
+   * once when nothing is pending, waits for a save already in flight, and
+   * rejects when the latest save fails. While the theme blocks saving it
+   * resolves without saving: a failing theme is never stored.
+   */
+  flushPendingSave: () => Promise<void>;
+}
 
 interface Props {
   activeLocale: EditorLocale;
@@ -63,10 +84,21 @@ interface Props {
   lockedMeta?: { department?: boolean; slug?: boolean };
   onDocChange?: (doc: PageDoc, locale: EditorLocale) => void;
   onExit?: () => void;
+  /**
+   * The last-chance save when the editor unmounts or the page is hidden with
+   * a save pending, in place of `savePage`. A host whose save can outlive the
+   * page (`sendBeacon`, `fetch` with `keepalive`) sends it that way here; one
+   * that can't documents the limit. Default: `savePage`, best effort.
+   */
+  onFlush?: (
+    doc: PageDoc,
+    locale: EditorLocale
+  ) => Promise<StoredMeta | undefined>;
   onLocaleChange: (locale: EditorLocale) => void;
   onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
   onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
   onUnpublish?: (locale: EditorLocale) => Promise<void>;
+  ref?: Ref<EditorShellHandle>;
   /** Resolves with what the server stored differently from `doc`, if anything. */
   savePage: (
     doc: PageDoc,
@@ -79,6 +111,8 @@ interface Props {
 
 const EMPTY_CAMPUSES: EditorCampus[] = [];
 const DEBOUNCE_MS = 800;
+const LATEST_EDITS_NOT_SAVED =
+  "The latest edits could not be saved, so nothing was published";
 
 /**
  * Only the zones a drag can land in take part: sections see section and
@@ -140,7 +174,9 @@ export function EditorShell({
   locales,
   onLocaleChange,
   onDocChange,
+  onFlush,
   onTranslateLocale,
+  ref,
   translatingLocale,
   topbarActions,
 }: Props) {
@@ -148,9 +184,14 @@ export function EditorShell({
   const setStatus = useEditorStore((s) => s.setStatus);
   const doc = useEditorStore((s) => s.doc);
   const setSaving = useEditorStore((s) => s.setSaving);
-  // Nothing saves while the colours fail, so leaving would lose every edit.
-  const saveBlocked = useEditorStore((s) => s.saving === "blocked");
-  useUnloadPrompt(saveBlocked);
+  // Closing the tab now would lose edits: a save is waiting out the debounce
+  // or on its way (both "pending"), the last one failed, or nothing saves
+  // while the colours fail.
+  const unsaved = useEditorStore(
+    (s) =>
+      s.saving === "pending" || s.saving === "error" || s.saving === "blocked"
+  );
+  useUnloadPrompt(unsaved);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
 
@@ -222,15 +263,53 @@ export function EditorShell({
   } | null>(null);
 
   // Debounced save to Appwrite
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const pendingSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const [pendingSaves] = useState(createPendingSaves);
   const localeRef = useRef(activeLocale);
   const savePageRef = useRef(savePage);
   const onDocChangeRef = useRef(onDocChange);
+  const onFlushRef = useRef<SaveTo | undefined>(onFlush);
   const _docSignature = autosaveSignature(doc);
   localeRef.current = activeLocale;
   savePageRef.current = savePage;
   onDocChangeRef.current = onDocChange;
+  onFlushRef.current = onFlush;
+
+  const flushPendingSave = useCallback(async () => {
+    if (useEditorStore.getState().saving === "blocked") {
+      return;
+    }
+    if (!(await pendingSaves.flush())) {
+      throw new Error(LATEST_EDITS_NOT_SAVED);
+    }
+  }, [pendingSaves]);
+  useImperativeHandle(ref, () => ({ flushPendingSave }), [flushPendingSave]);
+
+  // The last chance for a pending save: leaving the editor, or the page being
+  // hidden (closed, reloaded, sent to the background). Best effort: on a real
+  // unload the browser may cancel the request, which is why the tab asks
+  // before closing while a save is pending.
+  useEffect(() => {
+    const flush = () => pendingSaves.start(onFlushRef.current);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [pendingSaves]);
+
+  /**
+   * `doc` with the publish status the store holds now, while it holds that
+   * locale. An edit made while a publish (or unpublish) was on its way was
+   * snapshotted with the old status, and saving that would take the page
+   * off the site again (or put it back).
+   */
+  function withCurrentStatus(snapshot: PageDoc, locale: EditorLocale): PageDoc {
+    const { status } = useEditorStore.getState().doc.meta;
+    if (localeRef.current !== locale || snapshot.meta.status === status) {
+      return snapshot;
+    }
+    return { ...snapshot, meta: { ...snapshot.meta, status } };
+  }
 
   /**
    * After a server-side correction to the document (`apply`), treat the
@@ -254,12 +333,18 @@ export function EditorShell({
   // the stale status back and undoes it. A theme the publish copied to the
   // department leaves the page the same way: nothing unsaved means the store
   // matched storage, which the server has just stripped of the theme too.
+  // Publish stores a pending edit first: it copies the stored draft live, so
+  // an edit still waiting out the debounce would be left out.
   const publishCallbacks = useMemo(
     () =>
       withPublishStatusSync(
         {
           onPublish: guardPublish(
-            onPublish,
+            onPublish &&
+              (async (locale: EditorLocale) => {
+                await flushPendingSave();
+                return onPublish(locale);
+              }),
             () => useEditorStore.getState().doc.meta
           ),
           onUnpublish,
@@ -273,7 +358,7 @@ export function EditorShell({
           );
         }
       ),
-    [onPublish, onUnpublish, setStatus]
+    [flushPendingSave, onPublish, onUnpublish, setStatus]
   );
 
   // Hydrate store when the editor enters a locale. Subsequent parent mirrors of
@@ -285,10 +370,7 @@ export function EditorShell({
 
     // Save the last locale's pending edits now: the hydration below changes
     // the document, which would otherwise cancel that save.
-    clearTimeout(saveTimer.current);
-    const pendingSave = pendingSaveRef.current;
-    pendingSaveRef.current = null;
-    pendingSave?.();
+    pendingSaves.start();
 
     hydratedLocaleRef.current = activeLocale;
     setDoc(initial);
@@ -297,12 +379,11 @@ export function EditorShell({
       locale: activeLocale,
       signature: autosaveSignature(useEditorStore.getState().doc),
     };
-  }, [activeLocale, initial, setDoc]);
+  }, [activeLocale, initial, pendingSaves, setDoc]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: autosave is keyed by serialized document changes; refs keep the current locale/callbacks without firing a save for locale-only renders.
   useEffect(() => {
-    clearTimeout(saveTimer.current);
-    pendingSaveRef.current = null;
+    pendingSaves.cancel();
     const localeSnapshot = localeRef.current;
     const hydrated = hydratedRef.current;
     if (hydrated?.locale !== localeSnapshot) {
@@ -333,10 +414,12 @@ export function EditorShell({
     }
     hydrated.changed = true;
 
-    const save = async () => {
-      pendingSaveRef.current = null;
+    const save: SaveRun = async (saveTo = savePageSnapshot) => {
       try {
-        const result = await savePageSnapshot(docSnapshot, localeSnapshot);
+        const result = await saveTo(
+          withCurrentStatus(docSnapshot, localeSnapshot),
+          localeSnapshot
+        );
         // Only into the locale it was saved for: a save flushed by a locale
         // switch resolves while the store holds the other locale. The stored
         // slug and department replace what was sent, with no undo step.
@@ -360,16 +443,18 @@ export function EditorShell({
             }
           }, 2000);
         }
+        return true;
       } catch (error) {
         console.error("[EditorShell autosave]", error);
         setSaving("error");
+        // Unsaved: the next flush, locale switch or unmount tries again.
+        pendingSaves.retry(save);
+        return false;
       }
     };
-    pendingSaveRef.current = save;
     setSaving("pending");
-    saveTimer.current = setTimeout(save, DEBOUNCE_MS);
-    return () => clearTimeout(saveTimer.current);
-  }, [_docSignature, setSaving]);
+    pendingSaves.schedule(save, DEBOUNCE_MS);
+  }, [_docSignature, pendingSaves, setSaving]);
 
   // Keyboard shortcuts
   useEffect(() => {

@@ -56,6 +56,12 @@ test("a passing theme or none leaves Publish as it was", () => {
   }
 });
 
+test("Publish stays available while a save is pending: it stores that save first", () => {
+  Object.assign(useEditorStore.getInitialState(), { saving: "pending" });
+  const button = render(undefined);
+  expect(button.hasAttribute("disabled")).toBe(false);
+});
+
 const renderExit = (saving: "blocked" | "idle" | "pending") => {
   Object.assign(useEditorStore.getInitialState(), {
     doc: {

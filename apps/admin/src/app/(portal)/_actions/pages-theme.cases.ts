@@ -402,7 +402,11 @@ function installStore() {
   adminDb.getRow.mockImplementation((_db: string, table: string, id: string) =>
     settle(() =>
       table === "departments"
-        ? { $id: id, campus: { $id: "campus-oslo" } }
+        ? {
+            $id: id,
+            campus: { $id: "campus-oslo" },
+            ...store.departments.get(id),
+          }
         : pageRowOf(id)
     )
   );
@@ -629,5 +633,88 @@ describe("save returns the bound department (I3)", () => {
   test("an admin's page without a department reports none", async () => {
     const result = await save(null, "no", doc() as Doc);
     expect(result.department).toBe("");
+  });
+});
+
+describe("a stale second tab cannot re-attach a theme Publish moved to the department", () => {
+  beforeEach(() => {
+    installStore();
+    seedPage("page-a", "dept-1", ["no", "en"]);
+  });
+
+  test("saving the department's current theme stores no theme", async () => {
+    // Tab 1 publishes T: the department has it, page A's docs are stripped.
+    const staleNo = withTheme(opened("page-a", "no"), T);
+    await publishThemed("page-a", T);
+    expect(docsWithTheme("page-a")).toEqual([]);
+
+    // Tab 2 still holds T (in another case) and saves an edit.
+    const edit = {
+      ...staleNo,
+      meta: {
+        ...staleNo.meta,
+        theme: { accent: T.accent.toUpperCase(), dark: T.dark.toUpperCase() },
+        title: "Typo fixed",
+      },
+    } as Doc;
+    await save("page-a", "no", edit);
+
+    expect(docsWithTheme("page-a")).toEqual([]);
+    expect(
+      parse(store.pages.get("page-a")?.translations.no?.draft)?.meta.title
+    ).toBe("Typo fixed");
+    // A later publish of A leaves the department as it is.
+    const result = await publishPageAction("page-a", "no");
+    expect(result).toMatchObject({ themeCopied: false });
+  });
+
+  test("a theme other than the department's is still saved", async () => {
+    await publishThemed("page-a", T);
+    await save("page-a", "no", withTheme(opened("page-a", "no"), U));
+    expect(docsWithTheme("page-a")).toEqual(["no:draft", "en:draft"]);
+  });
+
+  test("a reset on a department that already has BISO's colours stores no theme", async () => {
+    await save("page-a", "no", withTheme(opened("page-a", "no"), null));
+    expect(docsWithTheme("page-a")).toEqual([]);
+  });
+
+  test("a page with no department keeps the theme it saves", async () => {
+    seedPage("page-c", null, ["no"]);
+    store.departments.set("dept-1", {
+      theme_accent: T.accent,
+      theme_dark: T.dark,
+    });
+    await save("page-c", "no", withTheme(opened("page-c", "no"), T));
+    expect(docsWithTheme("page-c")).toEqual(["no:draft"]);
+  });
+
+  test("the department's theme is read once per save, with the admin client", async () => {
+    await publishThemed("page-a", T);
+    adminDb.getRow.mockClear();
+    await save("page-a", "no", withTheme(opened("page-a", "no"), T));
+    const themeReads = adminDb.getRow.mock.calls.filter(
+      (call) =>
+        call[1] === "departments" &&
+        JSON.stringify(call[3] ?? "").includes("theme_dark")
+    );
+    expect(themeReads.length).toBe(1);
+  });
+});
+
+describe("publishing a language that has no stored draft", () => {
+  beforeEach(() => {
+    installStore();
+    seedPage("page-a", null, ["no"]);
+  });
+
+  test("says to save the language first, not 'No translation found'", async () => {
+    let message = "";
+    try {
+      await publishPageAction("page-a", "en");
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toBe("Save this language before publishing");
   });
 });

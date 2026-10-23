@@ -50,6 +50,9 @@ const LOCALE_LABELS: Record<EditorLocale, string> = {
   en: "English",
 };
 
+const SAVE_LOCALE_FIRST = "Save this language before publishing";
+const NEW_PAGE_PATH = /\/pages\/new$/;
+
 function cloneDoc(doc: PageDoc): PageDoc {
   return structuredClone(doc);
 }
@@ -81,6 +84,16 @@ export function PageEditorClient({
   // copies the page's theme updates its department here, so the canvas shows
   // the colours that are now live.
   const [departmentList, setDepartmentList] = useState(departments);
+  // Saves run one at a time, each reading the page id the one before it
+  // stored: two saves racing on /pages/new would otherwise both create a row.
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // The locales that have a translation row: one without cannot be published
+  // until its document is saved.
+  const storedLocalesRef = useRef(
+    new Set(Object.keys(initialPage?.translations ?? {}))
+  );
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
 
   const activeDoc =
     documents[activeLocale] ??
@@ -101,7 +114,28 @@ export function PageEditorClient({
     [availableLocales, documents]
   );
 
-  async function handleSave(
+  function handleSave(doc: PageDoc, locale: EditorLocale): Promise<StoredMeta> {
+    const save = saveQueueRef.current.then(() => storeDoc(doc, locale));
+    saveQueueRef.current = save.catch(() => undefined);
+    return save;
+  }
+
+  /**
+   * The editor's last-chance save, when it unmounts or the page is hidden
+   * with a save pending. It is the queued save above: a server action is a
+   * plain POST that can't be sent with `keepalive` or `sendBeacon`, so when
+   * the tab is closing the browser may cancel it. That is why the editor asks
+   * before the tab closes while a save is pending; leaving for another admin
+   * page keeps this document alive and the save completes.
+   */
+  function handleFlush(
+    doc: PageDoc,
+    locale: EditorLocale
+  ): Promise<StoredMeta> {
+    return handleSave(doc, locale);
+  }
+
+  async function storeDoc(
     doc: PageDoc,
     locale: EditorLocale
   ): Promise<StoredMeta> {
@@ -125,11 +159,16 @@ export function PageEditorClient({
         stored
       )
     );
+    storedLocalesRef.current.add(locale);
     if (!pageIdRef.current && "pageId" in result) {
       pageIdRef.current = result.pageId;
       // Not router.replace: that remounts the editor and re-hydrates from the
-      // server copy, dropping edits made during the save round-trip.
-      window.history.replaceState(null, "", `/pages/${result.pageId}`);
+      // server copy, dropping edits made during the save round-trip. Only
+      // while the editor is still at /pages/new: a create that finishes after
+      // the editor was left must not rewrite the address of the page shown.
+      if (NEW_PAGE_PATH.test(window.location.pathname)) {
+        window.history.replaceState(null, "", `/pages/${result.pageId}`);
+      }
     }
     return stored;
   }
@@ -238,15 +277,42 @@ export function PageEditorClient({
     router.push("/pages");
   }
 
+  /**
+   * Make sure `locale` has a translation row to publish: a language opened
+   * but never edited exists only here, so its document is saved first, the
+   * same way an edit would save it. Then wait for every queued save, so the
+   * publish copies the latest draft.
+   */
+  async function storeLocaleForPublish(locale: EditorLocale): Promise<string> {
+    if (!(pageIdRef.current && storedLocalesRef.current.has(locale))) {
+      const doc = documentsRef.current[locale];
+      try {
+        if (!doc) {
+          throw new Error(`No ${LOCALE_LABELS[locale]} document to save`);
+        }
+        await handleSave(doc, locale);
+      } catch (err) {
+        console.error("[PageEditor publish] saving the language failed", err);
+        toast.error(SAVE_LOCALE_FIRST, {
+          description: err instanceof Error ? err.message : undefined,
+        });
+        throw err;
+      }
+    }
+    await saveQueueRef.current;
+    const id = pageIdRef.current;
+    if (!id) {
+      toast.error(SAVE_LOCALE_FIRST);
+      throw new Error("Page not saved yet");
+    }
+    return id;
+  }
+
   // Both handlers reject on failure: the editor shell mirrors a resolved
   // publish/unpublish into its own status, so resolving after a failure
   // would mark a page published that is not.
   async function handlePublish(locale: EditorLocale): Promise<PublishOutcome> {
-    const id = pageIdRef.current;
-    if (!id) {
-      toast.error("Save the page first before publishing.");
-      throw new Error("Page not saved yet");
-    }
+    const id = await storeLocaleForPublish(locale);
     try {
       const result = await publishPageAction(id, locale, {
         enabled: autoTranslate,
@@ -319,6 +385,7 @@ export function PageEditorClient({
         lockedMeta={lockedMeta}
         onDocChange={handleDocChange}
         onExit={handleExit}
+        onFlush={handleFlush}
         onLocaleChange={handleLocaleChange}
         onPublish={handlePublish}
         onTranslateLocale={handleTranslateLocale}

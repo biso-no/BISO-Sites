@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_SECTION_LAYOUT } from "@/editor/sections";
 import type { Section, SectionColumns, SectionLayout } from "@/editor/types";
 import { MediaPicker } from "./media-picker";
-import { SectionPanel } from "./section-panel";
+import { LinkNameField, SectionPanel } from "./section-panel";
 
 type AnyEl = ReactElement<{
   children?: ReactNode;
@@ -17,14 +17,19 @@ type AnyEl = ReactElement<{
 }>;
 
 // Walk the element tree, expanding function components so nested parts show.
-// The media picker uses hooks, so it is listed but not expanded.
+// The media picker and the link name field use hooks, so they are listed but
+// not expanded (the field's behaviour is in section-panel.dom.test.tsx).
 const walk = (node: ReactNode, out: AnyEl[] = []): AnyEl[] => {
   if (!isValidElement(node)) {
     return out;
   }
   const el = node as AnyEl;
   out.push(el);
-  if (typeof el.type === "function" && el.type !== MediaPicker) {
+  if (
+    typeof el.type === "function" &&
+    el.type !== MediaPicker &&
+    el.type !== LinkNameField
+  ) {
     walk((el.type as (p: unknown) => ReactNode)(el.props), out);
   }
   for (const child of Children.toArray(el.props.children)) {
@@ -114,69 +119,30 @@ test("four columns can switch to one", () => {
   expect(patches).toEqual([{ columns: "1" }]);
 });
 
-type LinkNameInput = ReactElement<{
-  defaultValue?: string;
-  onBlur?: (e: { currentTarget: { value: string } }) => void;
-  onChange?: unknown;
-  onKeyDown?: (e: { currentTarget: { value: string }; key: string }) => void;
-  value?: string;
-}>;
+type LinkNameElement = ReactElement<Parameters<typeof LinkNameField>[0]> & {
+  key: string | null;
+};
 
-const linkNameInput = (tree: ReactNode) =>
-  walk(tree).find(
-    (el) => el.type === "input" && el.props["aria-label"] === "Link name"
-  ) as LinkNameInput | undefined;
+const linkNameField = (tree: ReactNode) =>
+  walk(tree).find((el) => el.type === LinkNameField) as
+    | LinkNameElement
+    | undefined;
 
-test("the link name commits on blur, not on every keystroke", () => {
-  // Storing the slug per keystroke trimmed the trailing dash, so a space
-  // could never be typed ("Se aftermovien" became "seaftermovien"), and each
-  // keystroke was its own undo step.
-  const anchors: string[] = [];
-  const input = linkNameInput(
-    SectionPanel({
-      ...props(section("s", "1", [[]])),
-      onAnchor: (a) => anchors.push(a),
-    })
-  );
-  expect(input?.props.onChange).toBeUndefined();
-  expect(input?.props.value).toBeUndefined();
-  expect(input?.props.defaultValue).toBe("");
-
-  const field = { value: "Se aftermovien" };
-  input?.props.onBlur?.({ currentTarget: field });
-  expect(anchors).toEqual(["Se aftermovien"]);
-  // The field shows the stored form.
-  expect(field.value).toBe("se-aftermovien");
-});
-
-test("Enter commits the link name; other keys do not", () => {
-  const anchors: string[] = [];
-  const input = linkNameInput(
-    SectionPanel({
-      ...props(section("s", "1", [[]])),
-      onAnchor: (a) => anchors.push(a),
-    })
-  );
-  input?.props.onKeyDown?.({ currentTarget: { value: "Se a" }, key: "a" });
-  expect(anchors).toEqual([]);
-  input?.props.onKeyDown?.({
-    currentTarget: { value: "Café møte" },
-    key: "Enter",
-  });
-  expect(anchors).toEqual(["Café møte"]);
-});
-
-test("an unchanged link name commits nothing", () => {
-  const anchors: string[] = [];
-  const input = linkNameInput(
+test("the link name field shows the section's name, commits through onAnchor, and is keyed by section", () => {
+  const onAnchor = (_anchor: string) => undefined;
+  const field = linkNameField(
     SectionPanel({
       ...props({ ...section("s", "1", [[]]), anchor: "intro" }),
-      onAnchor: (a) => anchors.push(a),
+      onAnchor,
     })
   );
-  expect(input?.props.defaultValue).toBe("intro");
-  input?.props.onBlur?.({ currentTarget: { value: "Intro" } });
-  expect(anchors).toEqual([]);
+  expect(field?.props.anchor).toBe("intro");
+  expect(field?.props.onAnchor).toBe(onAnchor);
+  // Children.toArray (in the walk) prefixes the key with ".$".
+  expect(field?.key).toBe(".$s");
+  expect(
+    linkNameField(SectionPanel(props(section("t", "1", [[]]))))?.props.anchor
+  ).toBe("");
 });
 
 const photoSection = (backgroundImage?: SectionLayout["backgroundImage"]) => {

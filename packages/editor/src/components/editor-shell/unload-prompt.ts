@@ -10,7 +10,8 @@ function promptBeforeUnload(event: BeforeUnloadEvent) {
 
 /**
  * While `active`, closing or reloading the tab asks first. The shell turns it
- * on while the theme blocks saving: edits made then exist only in memory.
+ * on while edits exist only in memory: a save is pending or on its way, the
+ * last one failed, or the theme blocks saving.
  */
 export function useUnloadPrompt(active: boolean): void {
   useEffect(() => {

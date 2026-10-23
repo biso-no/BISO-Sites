@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { slugifyAnchor } from "@/editor/operations";
 import { COLUMN_COUNT } from "@/editor/sections";
 import type {
@@ -69,6 +70,48 @@ function BackgroundImageFields({
   );
 }
 
+/**
+ * The section's link name. It keeps what is typed and commits on blur or
+ * Enter: slugifying every keystroke trimmed the trailing dash, so no space
+ * could be typed, and made each keystroke its own undo step.
+ */
+export function LinkNameField({
+  anchor,
+  onAnchor,
+}: {
+  anchor: string;
+  onAnchor: (anchor: string) => void;
+}) {
+  const field = useRef<HTMLInputElement>(null);
+  // A commit, an undo or a redo shows the stored name, in the same input:
+  // keying the input on the name remounted it, so Enter dropped focus.
+  useEffect(() => {
+    if (field.current && field.current.value !== anchor) {
+      field.current.value = anchor;
+    }
+  }, [anchor]);
+  const commit = (input: { value: string }) => {
+    const typed = input.value;
+    input.value = slugifyAnchor(typed);
+    if (input.value !== anchor) {
+      onAnchor(typed);
+    }
+  };
+  return (
+    <input
+      aria-label="Link name"
+      defaultValue={anchor}
+      onBlur={(e) => commit(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          commit(e.currentTarget);
+        }
+      }}
+      ref={field}
+    />
+  );
+}
+
 export function SectionPanel({
   onAnchor,
   onDelete,
@@ -90,17 +133,6 @@ export function SectionPanel({
   } else if (count > 2) {
     reverseLabel = "Reverse order on phone";
   }
-  // The link name field keeps what is typed and commits on blur or Enter.
-  // Slugifying every keystroke trimmed the trailing dash, so no space could
-  // be typed, and made each keystroke its own undo step.
-  const anchor = section.anchor ?? "";
-  const commitAnchor = (field: { value: string }) => {
-    const typed = field.value;
-    field.value = slugifyAnchor(typed);
-    if (field.value !== anchor) {
-      onAnchor(typed);
-    }
-  };
 
   return (
     <>
@@ -192,17 +224,11 @@ export function SectionPanel({
 
       <InspSection label="Link name">
         <div className="pe-row">
-          <input
-            aria-label="Link name"
-            defaultValue={anchor}
-            // A new section, or an undo, shows the stored name afresh.
-            key={`${section.id}:${anchor}`}
-            onBlur={(e) => commitAnchor(e.currentTarget)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                commitAnchor(e.currentTarget);
-              }
-            }}
+          <LinkNameField
+            anchor={section.anchor ?? ""}
+            // Another section shows its own name afresh.
+            key={section.id}
+            onAnchor={onAnchor}
           />
         </div>
         <p className="pe-insp-note">Buttons can link to #name</p>

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { departmentThemeUpdate, themeSaveError } from "./page-theme-publish";
+import {
+  departmentThemeUpdate,
+  isDepartmentTheme,
+  themeSaveError,
+} from "./page-theme-publish";
 
 const CONTRAST = /contrast/i;
 
@@ -48,5 +52,41 @@ describe("themeSaveError", () => {
       themeSaveError({ theme: { accent: "#3aa3e1", dark: "#9b5de5" } })
     ).toMatch(CONTRAST);
     expect(themeSaveError({ theme: 5 as never })).toMatch(CONTRAST);
+  });
+});
+
+describe("isDepartmentTheme", () => {
+  const columns = { theme_accent: "#c8a2f0", theme_dark: "#3b1c6b" };
+  const biso = { theme_accent: null, theme_dark: null };
+
+  test("matches the department's pair, whatever the hex spelling", () => {
+    expect(
+      isDepartmentTheme({ accent: "#C8A2F0", dark: "#3B1C6B" }, columns)
+    ).toBe(true);
+    expect(
+      isDepartmentTheme({ accent: "#c8a2f0", dark: "#3b1c6b" }, columns)
+    ).toBe(true);
+  });
+
+  test("does not match when either colour differs", () => {
+    expect(
+      isDepartmentTheme({ accent: "#c8a2f0", dark: "#0b3d2e" }, columns)
+    ).toBe(false);
+    expect(
+      isDepartmentTheme({ accent: "#8fe3b5", dark: "#3b1c6b" }, columns)
+    ).toBe(false);
+  });
+
+  test("a reset matches a department on BISO's colours only", () => {
+    expect(isDepartmentTheme(null, biso)).toBe(true);
+    expect(isDepartmentTheme(null, columns)).toBe(false);
+    expect(
+      isDepartmentTheme({ accent: "#c8a2f0", dark: "#3b1c6b" }, biso)
+    ).toBe(false);
+  });
+
+  test("an absent theme never matches: there is nothing to drop", () => {
+    expect(isDepartmentTheme(undefined, columns)).toBe(false);
+    expect(isDepartmentTheme(undefined, biso)).toBe(false);
   });
 });
