@@ -698,3 +698,60 @@ also needs an admin build, because it touched a `"use server"` file.
 - The palette's search for the header matches its label only.
 - The fixture has no looping video, because `public/` holds no video file.
 - Stage 1's deferrals still stand.
+
+## Stage 3 done (2026-10-23)
+
+Branch `feat/page-editor-redesign`, plan
+`docs/superpowers/plans/2026-10-23-page-editor-stage-3-look-b.md`, commits
+`f7b7b0cb..` this note.
+
+**What works**
+
+- Every block is redesign-native. The legacy stylesheet (`blocks.css`),
+  `LayoutFrame`, `legacyBackground`, `_primitives` and the `v2`/`hidden`
+  flags are gone. A guard test scans every block folder. profileHeader,
+  filterBar, campusSelector and twoCol are removed; section columns replace
+  twoCol. A stored page that still holds one renders nothing there on the
+  site and shows an "Unknown block" card in the editor.
+- Live blocks (events, news, jobs, shop, partners, units, team with the live
+  board) read server-resolved feeds, clamp `limit` before the cache key, and
+  validate department ids. The board shows email only, never phone numbers.
+  A live block whose feed is empty is pruned before render, and a section
+  left empty disappears. A CSS fallback (flat `:has()`, checked in Chrome)
+  hides a section whose blocks all came back empty in the browser.
+- Cards replace four grid blocks; timeline and steps are new. FAQ uses native
+  `<details>`. Tabs follow the WAI-ARIA pattern. The marquee runs at 40 s and
+  stops and wraps under reduced motion.
+- Signup and the multi-step form post `{ blockId, slug, locale, data }` only.
+  The server loads the published page, reads recipient, mode, topic and team
+  from the block, keeps only defined fields, checks types and options, caps
+  the body at 32 KiB, and mails only `@biso.no` recipients through SMTP.
+  Answers survive Back. The admin inbox shows lists and checkboxes readably.
+- Documents upload to the `media` bucket (PDF, Office, CSV, TXT, 25 MB) and
+  link to `/download`. Only real Appwrite URLs on the configured endpoint are
+  rewritten, and every href passes `safeHref`.
+- Rich text is sanitized at save, in the admin loader, at web render, and in
+  the editor preview (inert parse). `sanitize-html` is pinned to 2.18.1.
+- Visual check on `/design-system/page-blocks` at 1440, 820 and 390 (temporary
+  dev server on :3010): no horizontal scroll, every image loads, FAQ, tabs,
+  form steps and reduced-motion marquee behave, the empty feed is hidden.
+
+**Owed / known**
+
+- Builds still owed: `next build` for admin and web, and one request against
+  the standalone web server (sanitize-html is CJS and requires ESM-only
+  htmlparser2). Not run while Markus's dev servers may be up.
+- Rate limiting on `/api/form/submit` is off until
+  `RATE_LIMIT_CLIENT_IP_HEADER` or `RATE_LIMIT_TRUSTED_PROXY_HOPS` is set, as
+  for varsling.
+- Cards dropped D9's `icon` (the redesign bans decorative icon tiles).
+- On a page without a header, if a live feed missing from the server snapshot
+  comes back empty in the first section, the next section can sit under the
+  fixed nav.
+- Option values are re-derived when a label is edited; a visitor on a cached
+  page can send an old value, which is dropped.
+- The media bucket serves `/view` with the client-declared MIME and has
+  antivirus off (pre-existing).
+- Pre-existing, unchanged: coded unit pages' `cachedUnitProducts` filters
+  products by locale and empties the English shop; the api `campus_benefits`
+  permission test fails on base.
