@@ -5,6 +5,7 @@ import { getBlock } from "@/blocks/registry";
 import type { PatchFn } from "@/blocks/types";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import {
+  useHeaderSelected,
   useInspectorTab,
   useSelectedSectionId,
   useSelection,
@@ -19,6 +20,7 @@ import type { EditorCampus, EditorDepartment, Section } from "@/editor/types";
 import type { AccentHue } from "@/theme/presets";
 import { HUE_COLORS } from "@/theme/presets";
 import { BlockVisibility } from "./block-visibility";
+import { HeaderPanel } from "./header-panel";
 import { SectionPanel } from "./section-panel";
 
 export function InspectorPane() {
@@ -27,6 +29,7 @@ export function InspectorPane() {
   const setTab = useEditorStore((s) => s.setInspectorTab);
   const doc = useEditorStore((s) => s.doc);
   const selectedSectionId = useSelectedSectionId();
+  const headerSelected = useHeaderSelected();
   const found = selection ? findBlock(doc, selection) : null;
   const selectedSection = selectedSectionId
     ? findSection(doc, selectedSectionId)?.section
@@ -63,6 +66,7 @@ export function InspectorPane() {
           <BlockTab
             doc={doc}
             found={found}
+            headerSelected={headerSelected}
             onPatch={onPatch}
             section={selectedSection}
           />
@@ -73,7 +77,9 @@ export function InspectorPane() {
         {tab === "outline" && (
           <OutlineTab
             doc={doc}
+            headerSelected={headerSelected}
             onSelectBlock={(id) => useEditorStore.getState().select(id)}
+            onSelectHeader={() => useEditorStore.getState().selectHeader()}
             onSelectSection={(id) =>
               useEditorStore.getState().selectSection(id)
             }
@@ -91,14 +97,26 @@ type EditorDoc = ReturnType<typeof useEditorStore.getState>["doc"];
 function BlockTab({
   doc,
   found,
+  headerSelected,
   onPatch,
   section,
 }: {
   doc: EditorDoc;
   found: ReturnType<typeof findBlock>;
+  headerSelected: boolean;
   onPatch: PatchFn;
   section: Section | undefined;
 }) {
+  if (headerSelected && doc.header) {
+    const store = useEditorStore.getState();
+    return (
+      <HeaderPanel
+        header={doc.header}
+        onPatch={store.setHeaderProp}
+        onRemove={store.removeHeader}
+      />
+    );
+  }
   const def = found ? getBlock(found.block.type) : null;
   if (found && def) {
     const { block } = found;
@@ -141,7 +159,8 @@ function BlockTab({
   }
   return (
     <p style={{ fontSize: 12, color: "var(--ink-3)", padding: "8px 0" }}>
-      Select a block or section on the canvas to edit its properties.
+      Select a block, a section or the page header on the canvas to edit its
+      properties.
     </p>
   );
 }
@@ -376,18 +395,22 @@ function DepartmentField({
 
 function OutlineTab({
   doc,
+  headerSelected,
   selection,
   selectedSectionId,
   onSelectBlock,
+  onSelectHeader,
   onSelectSection,
 }: {
   doc: ReturnType<typeof useEditorStore.getState>["doc"];
+  headerSelected: boolean;
   selection: string | null;
   selectedSectionId: string | null;
   onSelectBlock: (id: string) => void;
+  onSelectHeader: () => void;
   onSelectSection: (id: string) => void;
 }) {
-  if (doc.sections.length === 0) {
+  if (doc.sections.length === 0 && !doc.header) {
     return (
       <p style={{ fontSize: 12, color: "var(--ink-3)" }}>
         No sections on this page yet.
@@ -396,6 +419,17 @@ function OutlineTab({
   }
   return (
     <div className="pe-outline-list">
+      {doc.header ? (
+        <button
+          className={`pe-outline-item ${headerSelected ? "on" : ""}`}
+          onClick={onSelectHeader}
+          type="button"
+        >
+          <span className="pe-outline-item__num">H</span>
+          <span>Page header</span>
+          <span className="pe-outline-item__meta">{doc.header.variant}</span>
+        </button>
+      ) : null}
       {doc.sections.map((section, i) => (
         <div key={section.id}>
           <button

@@ -122,6 +122,7 @@ beforeEach(() => {
 });
 
 interface SectionDoc {
+  header?: Record<string, unknown>;
   meta: { title: string };
   sections: { columns: { blocks: { type: string }[] }[] }[];
   version: number;
@@ -259,7 +260,6 @@ describe("createUnitPage inactive-department guard", () => {
       [{ doc: SectionDoc }],
     ];
     expect(call.doc.sections.map((s) => s.columns[0].blocks[0].type)).toEqual([
-      "hero",
       "text",
       "events",
       "gallery",
@@ -267,9 +267,12 @@ describe("createUnitPage inactive-department guard", () => {
       "contact",
     ]);
     expect(call.doc.version).toBe(2);
-    expect(call.doc.sections[0].columns[0].blocks[0]).toMatchObject({
+    // The unit's name and campus live in the page header, not a hero block.
+    expect(call.doc.header).toMatchObject({
+      buttons: [],
       eyebrow: "BISO Trondheim",
       title: "Fadderullan",
+      variant: "plain",
     });
     expect(call.doc.meta.title).toBe("TRD Fadderullan");
   });
@@ -296,11 +299,14 @@ describe("createUnitPage inactive-department guard", () => {
       [{ doc: SectionDoc }],
     ];
     expect(call.doc.sections.map((s) => s.columns[0].blocks[0].type)).toEqual([
-      "hero",
       "text",
       "events",
       "contact",
     ]);
+    expect(call.doc.header).toMatchObject({
+      eyebrow: "BISO Bergen",
+      title: "Case Club",
+    });
   });
 });
 

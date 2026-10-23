@@ -12,6 +12,7 @@ import {
   legacyBackground,
   normalizePageDoc,
   PageFeedProvider,
+  PageHeaderView,
   SectionView,
   useEditorStore,
 } from "@repo/editor/render";
@@ -59,11 +60,15 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
   const accentStyle = {
     "--page-accent": normalizedDoc.meta.accentColor,
   } as React.CSSProperties;
-  // The first section that renders clears the fixed nav. An empty section
-  // renders nothing on the site, so it cannot be the one.
-  const firstIndex = normalizedDoc.sections.findIndex((section) =>
-    section.columns.some((column) => column.blocks.length > 0)
-  );
+  const { header } = normalizedDoc;
+  // Whatever renders first clears the fixed nav: the page header when there
+  // is one, which does so itself, else the first section that renders. An
+  // empty section renders nothing on the site, so it cannot be the one.
+  const firstIndex = header
+    ? -1
+    : normalizedDoc.sections.findIndex((section) =>
+        section.columns.some((column) => column.blocks.length > 0)
+      );
 
   return (
     <PageFeedProvider
@@ -72,6 +77,9 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
       locale={locale}
     >
       <div className="biso-surface pg-page" style={accentStyle}>
+        {header ? (
+          <PageHeaderView edit={false} header={header} onPatch={noopPatch} />
+        ) : null}
         {normalizedDoc.sections.map((section, index) => (
           <SectionView
             first={index === firstIndex}
@@ -90,6 +98,8 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
   );
 }
 
+const noopPatch = () => undefined;
+
 function BlockRenderer({
   background,
   block,
@@ -97,7 +107,6 @@ function BlockRenderer({
   background: ReturnType<typeof legacyBackground>;
   block: Block;
 }) {
-  const noopPatch = () => undefined;
   // BlockView, not the definition's Render: it is what applies the Design
   // panel's background, spacing and width, exactly as the admin canvas does.
   return (

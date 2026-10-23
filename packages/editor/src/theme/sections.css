@@ -89,6 +89,46 @@
   scroll-margin-top: var(--pg-nav-offset, 0px);
 }
 
+/*
+ * The page header (`PageHeaderView`): a navy band that clears the nav itself,
+ * so a page with one passes no section `data-first`. Its gutter is the
+ * sections', so its text lines up with theirs.
+ */
+.pg-header {
+  position: relative;
+  padding: calc(var(--pg-nav-offset, 0px) + var(--section-y))
+    clamp(1rem, 4cqi, 2rem) var(--section-y);
+  overflow: hidden;
+}
+.pg-header[data-variant="full"] {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: clamp(22rem, 48cqi, 36rem);
+}
+/* Full: the media covers the band under the sections' flat navy scrim. */
+.pg-header__media,
+.pg-header__scrim {
+  position: absolute;
+  inset: 0;
+}
+.pg-header__media > img,
+.pg-header__media > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pg-header__scrim {
+  background: color-mix(in srgb, var(--biso-deep) 62%, transparent);
+}
+/* While editing, an empty header field shows what goes there. */
+.pe-frame[data-editing] .pg-header [data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.45;
+}
+
 .pg-sec__grid {
   /* Positioned, so it paints above a Photo section's image and scrim. */
   position: relative;

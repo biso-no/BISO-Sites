@@ -5,6 +5,7 @@ import "@/blocks/index";
 import { useEditorStore } from "@/editor/store";
 import { doc, section } from "@/editor/test-fixtures";
 import type { PageDoc } from "@/editor/types";
+import { emptyHeader } from "@/header/empty-header";
 import type { CanvasDrag } from "./drop";
 import { CanvasPane } from "./index";
 
@@ -121,4 +122,43 @@ test("the frame mounts the redesign's v2 surface and marks the first section", (
   // there, and the canvas markup stays the site's.
   expect(html).toMatch(FIRST_SECTION_MARKED);
   expect(html).toMatch(SECOND_SECTION_UNMARKED);
+});
+
+const withHeader: PageDoc = {
+  ...twoSections,
+  header: { ...emptyHeader("Fadderullan"), eyebrow: "BISO Oslo" },
+};
+const HEADER_BEFORE_SECTIONS =
+  /class="pe-section pe-header"[\s\S]*<header class="pg-header[\s\S]*data-section-id="s-1"/;
+
+test("a page header sits above the sections, and the first section no longer clears the top", () => {
+  const html = render(withHeader);
+  expect(html).toMatch(HEADER_BEFORE_SECTIONS);
+  expect(html).not.toMatch(FIRST_SECTION_MARKED);
+  expect(html).not.toContain("+ Add page header");
+});
+
+test("a selected page header shows its tag and remove button", () => {
+  const html = render(withHeader, null, { headerSelected: true });
+  expect(html).toContain('class="pe-section pe-header selected"');
+  expect(html).toContain("Page header");
+  expect(html).toContain('title="Remove page header"');
+});
+
+test("without a header the editor offers one; preview shows nothing", () => {
+  expect(render(twoSections)).toContain("+ Add page header");
+  expect(render(doc())).toContain("+ Add page header");
+  const preview = render(twoSections, null, { mode: "preview" });
+  expect(preview).not.toContain("+ Add page header");
+  expect(preview).not.toContain("pg-header");
+});
+
+test("preview shows the header without its chrome", () => {
+  const html = render(withHeader, null, {
+    headerSelected: true,
+    mode: "preview",
+  });
+  expect(html).toContain("pg-header");
+  expect(html).not.toContain("pe-section__bar");
+  expect(html.toLowerCase()).not.toContain("contenteditable");
 });

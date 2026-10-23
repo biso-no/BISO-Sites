@@ -9,6 +9,7 @@ import { Fragment, useMemo } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import {
   useCopilotOpen,
+  useHeader,
   useMode,
   useSections,
   useViewport,
@@ -20,6 +21,7 @@ import { AddSection, FirstSectionPicker } from "./add-section";
 import type { CanvasDrag } from "./drop";
 import { DropSlot } from "./drop-line";
 import { FormatBar } from "./format-bar";
+import { HeaderSlot } from "./header-slot";
 import { SectionFrame } from "./section-frame";
 
 interface CanvasPaneProps {
@@ -33,16 +35,19 @@ const newSectionData = (index: number) =>
 /**
  * The boundary before section `index` (or after the last one, `end`). While
  * dragging it is the `new-section:<index>` drop zone; otherwise it holds
- * "+ Add section".
+ * "+ Add section". `top` marks the boundary at the top of the page, where a
+ * centred button would be clipped; below a page header it is centred again.
  */
 function SectionGap({
   drag,
   end = false,
   index,
+  top = false,
 }: {
   drag: CanvasDrag | null;
   end?: boolean;
   index: number;
+  top?: boolean;
 }) {
   const data = useMemo(() => newSectionData(index), [index]);
   const { setNodeRef } = useDroppable({ id: `new-section:${index}`, data });
@@ -53,7 +58,7 @@ function SectionGap({
     <div
       className="pe-add-section"
       data-end={end ? "" : undefined}
-      data-first={index === 0 && !end ? "" : undefined}
+      data-first={top ? "" : undefined}
       ref={setNodeRef}
     >
       {drag && <DropSlot active={active} />}
@@ -105,6 +110,7 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
   const setMode = useEditorStore((s) => s.setMode);
   const setViewport = useEditorStore((s) => s.setViewport);
   const sections = useSections();
+  const hasHeader = useHeader() !== undefined;
   const copilotOpen = useCopilotOpen();
   const {
     activeLocale,
@@ -212,6 +218,8 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
             {getViewportWidth(viewport)}px
           </span>
 
+          <HeaderSlot />
+
           {sections.length === 0 ? (
             <EmptyCanvas drag={drag} />
           ) : (
@@ -221,8 +229,19 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
             >
               {sections.map((section, index) => (
                 <Fragment key={section.id}>
-                  {edit && <SectionGap drag={drag} index={index} />}
-                  <SectionFrame drag={drag} index={index} section={section} />
+                  {edit && (
+                    <SectionGap
+                      drag={drag}
+                      index={index}
+                      top={index === 0 && !hasHeader}
+                    />
+                  )}
+                  <SectionFrame
+                    drag={drag}
+                    first={index === 0 && !hasHeader}
+                    index={index}
+                    section={section}
+                  />
                 </Fragment>
               ))}
               {edit && <SectionGap drag={drag} end index={sections.length} />}

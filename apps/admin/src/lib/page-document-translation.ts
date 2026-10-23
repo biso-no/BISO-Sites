@@ -23,6 +23,7 @@ const TRANSLATABLE_FIELDS = new Set([
   "date",
   "eyebrow",
   "label",
+  "lede",
   "text",
   "heading",
   "hours",
@@ -63,7 +64,6 @@ const SKIP_FIELDS = new Set([
   "icon",
   "iconName",
   "variant",
-  "layout",
   "size",
   "gap",
   "align",
@@ -91,6 +91,28 @@ const isTranslatableString = (value: string): boolean => {
   );
 };
 
+/**
+ * A section layout is configuration and is skipped, except a Photo section's
+ * alt text (`layout.backgroundImage.alt`), which visitors read.
+ */
+const collectLayoutAlt = (
+  layout: unknown,
+  path: string,
+  entries: { path: string; value: string }[]
+): void => {
+  if (!(layout && typeof layout === "object")) {
+    return;
+  }
+  const image = (layout as { backgroundImage?: unknown }).backgroundImage;
+  if (!(image && typeof image === "object")) {
+    return;
+  }
+  const alt = (image as { alt?: unknown }).alt;
+  if (typeof alt === "string" && isTranslatableString(alt)) {
+    entries.push({ path: `${path}.backgroundImage.alt`, value: alt.trim() });
+  }
+};
+
 const collectTranslatableValues = (
   value: unknown,
   path: string,
@@ -107,10 +129,14 @@ const collectTranslatableValues = (
   }
 
   for (const [key, child] of Object.entries(value)) {
+    const childPath = path ? `${path}.${key}` : key;
+    if (key === "layout") {
+      collectLayoutAlt(child, childPath, entries);
+      continue;
+    }
     if (SKIP_FIELDS.has(key)) {
       continue;
     }
-    const childPath = path ? `${path}.${key}` : key;
     if (
       TRANSLATABLE_FIELDS.has(key) &&
       typeof child === "string" &&
@@ -139,6 +165,7 @@ const getPageTranslationEntries = (
       value: document.meta.description.trim(),
     });
   }
+  collectTranslatableValues(document.header, "header", values);
   collectTranslatableValues(document.sections, "sections", values);
 
   return values.map(({ path, value }, index) => ({

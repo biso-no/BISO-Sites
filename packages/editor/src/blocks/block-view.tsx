@@ -56,8 +56,8 @@ interface LayoutFrameProps {
  * The section paints the surface, so the frame paints none. `data-background`
  * stays: `blocks.css` reads it to rebind the site tokens the legacy blocks'
  * copy follows on a dark section. Sections own spacing and width, so the frame
- * is always compact and full width. `data-auto` lets the dark banner blocks
- * (contact, full hero) keep their own panel.
+ * is always compact and full width. `data-auto` lets the dark banner block
+ * (contact) keep its own panel.
  */
 function LayoutFrame({ background, children }: LayoutFrameProps) {
   return (

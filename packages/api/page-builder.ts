@@ -50,6 +50,8 @@ interface PageMeta {
 }
 
 export interface PageDoc {
+  /** The page header (`PageHeader` in @repo/editor); absent on most pages. */
+  header?: unknown;
   meta: PageMeta;
   sections: unknown[];
   version: 2;

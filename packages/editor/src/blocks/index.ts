@@ -1,6 +1,5 @@
 // Import each block to trigger registerBlock() side effects.
 // Keep this list in sync with the block directories.
-import "./hero/index";
 import "./marquee/index";
 import "./text/index";
 import "./quote/index";

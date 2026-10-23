@@ -729,21 +729,24 @@ export async function createUnitPage(
       return { pageId: already.$id };
     }
 
-    // A new page starts from a layout, not a blank canvas: a project board
-    // sees where its programme, gallery and company pitch go, an ordinary
-    // unit gets the shorter version. Every block is editable or removable.
+    // A new page starts from a layout, not a blank canvas: a page header
+    // with the unit's name and campus, then sections where a project board
+    // sees its programme, gallery and company pitch go (an ordinary unit
+    // gets the shorter version). Everything is editable or removable.
     // The project check is by category OR slug because only some campuses
     // set `departments.type` (see @repo/shared/utils/project-units).
     const category = parseUnitCategory(department.type);
+    const { header, sections } = unitPageTemplate({
+      campusLabel: campusIdToLabel(department.campus_id),
+      kind: isProjectUnit({ category, slug: department.slug ?? null })
+        ? "project"
+        : "unit",
+      locale: "no",
+      name: unitDisplayName(department.Name),
+    });
     const doc: PageDoc = {
-      sections: unitPageTemplate({
-        campusLabel: campusIdToLabel(department.campus_id),
-        kind: isProjectUnit({ category, slug: department.slug ?? null })
-          ? "project"
-          : "unit",
-        locale: "no",
-        name: unitDisplayName(department.Name),
-      }),
+      header,
+      sections,
       meta: {
         accentColor: DEFAULT_ACCENT,
         department: department.$id,

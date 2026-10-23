@@ -946,7 +946,8 @@
 .pe-add-section[data-end] {
   padding: 16px;
 }
-.pe-add-section[data-end] .pe-add-section__btn {
+.pe-add-section[data-end] .pe-add-section__btn,
+.pe-add-section--header .pe-add-section__btn {
   position: static;
   width: 100%;
   height: 40px;
@@ -955,10 +956,18 @@
   opacity: 1;
   transform: none;
 }
-.pe-add-section[data-end] .pe-add-section__btn:hover {
+.pe-add-section[data-end] .pe-add-section__btn:hover,
+.pe-add-section--header .pe-add-section__btn:hover {
   color: var(--pg-ink);
   background: white;
   border-color: var(--ink-3);
+}
+/* "+ Add page header": the end control, slimmer, at the top of the page. */
+.pe-add-section--header {
+  padding: 8px 16px;
+}
+.pe-add-section--header .pe-add-section__btn {
+  height: 28px;
 }
 .pe-frame[data-dragging] .pe-add-section__btn {
   visibility: hidden;

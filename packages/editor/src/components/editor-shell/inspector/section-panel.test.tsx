@@ -234,7 +234,7 @@ test("an uploaded or linked image patches backgroundImage, keeping the alt text"
   const picker = pickerIn(tree);
   expect(picker?.props.accept).toBe("image/*");
   expect(picker?.props.src).toBe("https://old/a.jpg");
-  picker?.props.onPicked("f-9", "https://cdn/b.jpg");
+  picker?.props.onPicked("f-9", "https://cdn/b.jpg", "image/jpeg");
   picker?.props.onUrl("https://elsewhere/c.jpg");
   picker?.props.onClear?.();
   expect(patches).toEqual([

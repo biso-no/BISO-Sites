@@ -25,6 +25,22 @@ describe("autosaveSignature", () => {
     );
   });
 
+  test("a page header edit is a new signature", () => {
+    const a = treeDoc(section("s-1", "1", [["b-1"]]));
+    const b: PageDoc = {
+      ...structuredClone(a),
+      header: {
+        buttons: [],
+        crumbs: [],
+        eyebrow: "",
+        lede: "",
+        title: "Om oss",
+        variant: "plain",
+      },
+    };
+    expect(autosaveSignature(b)).not.toBe(autosaveSignature(a));
+  });
+
   test("a section layout change is a new signature; a status change is not", () => {
     const a = treeDoc(section("s-1", "1", [["b-1"]]));
     const b = structuredClone(a);

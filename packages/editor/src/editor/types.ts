@@ -5,7 +5,6 @@ import type { BlockLayout } from "@/blocks/_primitives/layout-types";
 import type { AccentHue } from "@/theme/presets";
 
 export type BlockType =
-  | "hero"
   | "marquee"
   | "text"
   | "quote"
@@ -66,23 +65,6 @@ export interface MediaRef {
 }
 
 // ── Per-block shapes ─────────────────────────────────────────────────────────
-
-export interface HeroBlock {
-  ctaLabel: string;
-  ctaUrl: string;
-  eyebrow: string;
-  id: string;
-  /** Alt text for `imageSrc`. Unused while there is no image. */
-  imageAlt?: string;
-  /** Appwrite "media" bucket file ID behind `imageSrc`, when uploaded. */
-  imageFileId?: string;
-  /** A photo for the art panel (split) or the backdrop (full). */
-  imageSrc?: string;
-  subtitle: string;
-  title: string;
-  type: "hero";
-  variant: "split" | "centered" | "full";
-}
 
 export interface MarqueeBlock {
   id: string;
@@ -453,7 +435,6 @@ export interface MultiStepFormBlock {
 }
 
 export type Block = (
-  | HeroBlock
   | MarqueeBlock
   | TextBlock
   | QuoteBlock
@@ -545,7 +526,33 @@ export interface Section {
   layout: SectionLayout;
 }
 
+export interface HeaderCrumb {
+  /** Absent on the current page, which is not a link. */
+  href?: string;
+  label: string;
+}
+
+export type HeaderVariant = "split" | "full" | "plain";
+
+/**
+ * The navy band at the top of the page: breadcrumb, eyebrow, the page's only
+ * `<h1>`, lede, buttons and optional media. A header video always plays as a
+ * muted loop (its poster stands in under reduced motion).
+ */
+export interface PageHeader {
+  buttons: LinkButton[];
+  crumbs: HeaderCrumb[];
+  eyebrow: string;
+  lede: string;
+  /** Shown beside the text (split) or behind it (full); plain shows none. */
+  media?: MediaRef;
+  title: string;
+  variant: HeaderVariant;
+}
+
 export interface PageDoc {
+  /** Absent on pages without a header; the first section then clears the nav. */
+  header?: PageHeader;
   meta: PageMeta;
   sections: Section[];
   version: 2;

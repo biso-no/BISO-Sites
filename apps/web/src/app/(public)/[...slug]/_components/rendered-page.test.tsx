@@ -6,6 +6,9 @@ import { RenderedPage } from "./rendered-page";
 
 const BISO_SURFACE_CLASS = /class="[^"]*\bbiso-surface\b[^"]*"/;
 const SECTION_TAGS = /<section [^>]*>/g;
+const HEADER_THEN_SECTION =
+  /<header class="pg-header[\s\S]*<section class="pg-sec"/;
+const H1_OPEN = /<h1[\s>]/g;
 
 // The real render barrel pulls in every block (and the editor's `@/` alias,
 // which this app's vitest does not resolve), so it is replaced. SectionView,
@@ -24,6 +27,11 @@ vi.mock("@repo/editor/render", async () => ({
   normalizePageDoc: (
     await import("../../../../../../../packages/editor/src/editor/serialize")
   ).normalizePageDoc,
+  PageHeaderView: (
+    await import(
+      "../../../../../../../packages/editor/src/header/page-header-view"
+    )
+  ).PageHeaderView,
   BlockView: ({
     background,
     block,
@@ -223,4 +231,41 @@ test("an empty first section, which renders nothing, hands the nav clearance on"
   expect(tags).toHaveLength(2);
   expect(tags[0]).toContain('data-first=""');
   expect(tags[1]).not.toContain("data-first");
+});
+
+const HEADER = {
+  buttons: [],
+  crumbs: [],
+  eyebrow: "BISO Oslo",
+  lede: "Tre dager på Storefjell",
+  title: "Vinterlekene",
+  variant: "plain",
+};
+
+test("a page header comes before the sections and takes the nav clearance", () => {
+  const doc = {
+    ...docOf([
+      section("s-1", "white", [["first"]]),
+      section("s-2", "dark", [["second"]]),
+    ]),
+    header: HEADER,
+  } as unknown as PageDoc;
+  const html = renderToStaticMarkup(
+    createElement(RenderedPage, { doc, locale: "no" })
+  );
+  expect(html).toMatch(HEADER_THEN_SECTION);
+  expect(html).toContain("Vinterlekene");
+  expect(html.match(H1_OPEN)).toHaveLength(1);
+  expect(html).not.toContain("data-first");
+  // Rendered for visitors: nothing is editable.
+  expect(html.toLowerCase()).not.toContain("contenteditable");
+});
+
+test("without a header the first section still clears the nav", () => {
+  const doc = docOf([section("s-1", "white", [["first"]])]);
+  const html = renderToStaticMarkup(
+    createElement(RenderedPage, { doc, locale: "no" })
+  );
+  expect(html).not.toContain("pg-header");
+  expect(sectionTags(html)[0]).toContain('data-first=""');
 });

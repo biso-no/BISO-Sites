@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { emptyHeader } from "../header/empty-header";
 import { useEditorStore } from "./store";
 import { doc, section } from "./test-fixtures";
 
@@ -132,5 +133,98 @@ describe("store on the section tree", () => {
     useEditorStore.getState().setDoc(doc(section("s-9", "1", [["b-9"]])));
     expect(useEditorStore.getState().selection).toBeNull();
     expect(useEditorStore.getState().insertTarget).toBeNull();
+  });
+});
+
+describe("store and the page header", () => {
+  beforeEach(() => {
+    useEditorStore
+      .getState()
+      .setDoc(doc(section("s-1", "1-1", [["b-1"], ["b-2"]])));
+    useEditorStore.setState({
+      headerSelected: false,
+      insertTarget: null,
+      selectedSectionId: null,
+      selection: null,
+    });
+  });
+
+  test("addHeader adds an empty header titled after the page and selects it", () => {
+    useEditorStore.getState().select("b-1");
+    useEditorStore.getState().addHeader();
+    const s = useEditorStore.getState();
+    expect(s.doc.header).toEqual(emptyHeader("Test page"));
+    expect(s.headerSelected).toBe(true);
+    expect(s.selection).toBeNull();
+    expect(s.selectedSectionId).toBeNull();
+  });
+
+  test("addHeader keeps an existing header and only selects it", () => {
+    useEditorStore.getState().addHeader();
+    useEditorStore.getState().setHeaderProp("title", "Kept");
+    const before = useEditorStore.getState().past.length;
+    useEditorStore.getState().select(null);
+    useEditorStore.getState().addHeader();
+    const s = useEditorStore.getState();
+    expect(s.doc.header?.title).toBe("Kept");
+    expect(s.past.length).toBe(before);
+    expect(s.headerSelected).toBe(true);
+  });
+
+  test("selecting a block or a section clears the header selection", () => {
+    const s = useEditorStore.getState();
+    s.addHeader();
+    s.select("b-1");
+    expect(useEditorStore.getState().headerSelected).toBe(false);
+    s.selectHeader();
+    expect(useEditorStore.getState()).toMatchObject({
+      headerSelected: true,
+      selectedSectionId: null,
+      selection: null,
+    });
+    s.selectSection("s-1");
+    expect(useEditorStore.getState().headerSelected).toBe(false);
+  });
+
+  test("inserting a block selects it instead of the header", () => {
+    const s = useEditorStore.getState();
+    s.addHeader();
+    s.insertBlock("stats");
+    expect(useEditorStore.getState().headerSelected).toBe(false);
+  });
+
+  test("undo after setHeaderProp restores the title", () => {
+    const s = useEditorStore.getState();
+    s.addHeader();
+    s.setHeaderProp("title", "X");
+    expect(useEditorStore.getState().doc.header?.title).toBe("X");
+    s.undo();
+    expect(useEditorStore.getState().doc.header?.title).toBe("Test page");
+    s.redo();
+    expect(useEditorStore.getState().doc.header?.title).toBe("X");
+  });
+
+  test("removeHeader clears it and its selection; undo brings it back", () => {
+    const s = useEditorStore.getState();
+    s.addHeader();
+    s.removeHeader();
+    expect(useEditorStore.getState().doc.header).toBeUndefined();
+    expect(useEditorStore.getState().headerSelected).toBe(false);
+    s.undo();
+    expect(useEditorStore.getState().doc.header?.title).toBe("Test page");
+  });
+
+  test("undoing addHeader drops the header and its selection", () => {
+    const s = useEditorStore.getState();
+    s.addHeader();
+    s.undo();
+    expect(useEditorStore.getState().doc.header).toBeUndefined();
+    expect(useEditorStore.getState().headerSelected).toBe(false);
+  });
+
+  test("setDoc without a header clears the header selection", () => {
+    useEditorStore.getState().addHeader();
+    useEditorStore.getState().setDoc(doc(section("s-9", "1", [["b-9"]])));
+    expect(useEditorStore.getState().headerSelected).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { emptyHeader } from "../header/empty-header";
 import { DEFAULT_SECTION_LAYOUT } from "./sections";
 import {
   fromJSON,
@@ -9,6 +10,7 @@ import {
 import { block, doc, section } from "./test-fixtures";
 import type {
   PageDoc,
+  PageHeader,
   SectionAlign,
   SectionBackground,
   SectionColumns,
@@ -332,5 +334,93 @@ describe("section background image", () => {
       withImage({ alt: 3, extra: "x", fileId: null, src: "https://x/y.jpg" })
         ?.backgroundImage
     ).toEqual({ src: "https://x/y.jpg" });
+  });
+});
+
+describe("page header", () => {
+  const withHeader = (header: unknown): PageDoc =>
+    ({ ...doc(), header }) as unknown as PageDoc;
+
+  test("a valid header is kept as it is", () => {
+    const header: PageHeader = {
+      ...emptyHeader("Fadderullan"),
+      buttons: [{ href: "/join", label: "Bli med", style: "primary" }],
+      crumbs: [{ href: "/units", label: "Enheter" }, { label: "Fadderullan" }],
+      eyebrow: "BISO Oslo",
+      lede: "Tre dager på Storefjell",
+      media: {
+        alt: "Studenter",
+        fileId: "f-1",
+        kind: "video",
+        poster: "https://x.no/p.jpg",
+        posterFileId: "f-2",
+        src: "https://x.no/v.mp4",
+      },
+      variant: "split",
+    };
+    expect(normalizePageDoc(withHeader(header)).header).toEqual(header);
+  });
+
+  test("a header missing crumbs (or any field) takes the empty header's", () => {
+    const n = normalizePageDoc(withHeader({ title: "Om oss" }));
+    expect(n.header).toEqual(emptyHeader("Om oss"));
+    expect(n.header?.crumbs).toEqual([]);
+  });
+
+  test("a non-object header is dropped", () => {
+    for (const header of ["oops", 3, null, ["x"]]) {
+      const n = normalizePageDoc(withHeader(header));
+      expect(n.header).toBeUndefined();
+      expect("header" in n).toBe(false);
+    }
+  });
+
+  test("media without a string src is dropped", () => {
+    const n = normalizePageDoc(
+      withHeader({ ...emptyHeader("A"), media: { kind: "image" } })
+    );
+    expect(n.header).toBeDefined();
+    expect(n.header?.media).toBeUndefined();
+  });
+
+  test("unknown values fall back and malformed list items are dropped", () => {
+    const n = normalizePageDoc(
+      withHeader({
+        buttons: [
+          { href: "/a", label: "A", style: "loud" },
+          { label: "no href" },
+          "x",
+        ],
+        crumbs: [{ label: "Ok", href: 4 }, { href: "/x" }, null],
+        media: { kind: "gif", src: "https://x.no/a.jpg", alt: 3 },
+        title: 7,
+        variant: "centered",
+      })
+    );
+    expect(n.header).toEqual({
+      ...emptyHeader(),
+      buttons: [{ href: "/a", label: "A", style: "primary" }],
+      crumbs: [{ label: "Ok" }],
+      media: { kind: "image", src: "https://x.no/a.jpg" },
+    });
+  });
+
+  test("an old flat document drops its header with everything else", () => {
+    const n = normalizePageDoc({
+      blocks: [],
+      header: emptyHeader("A"),
+      meta: doc().meta,
+    } as unknown as PageDoc);
+    expect(n.header).toBeUndefined();
+  });
+
+  test("the AI sees the header, or that there is none", () => {
+    expect(serializePageForAI(doc(), null)).toContain("header: none");
+    const out = serializePageForAI(
+      { ...doc(), header: { ...emptyHeader("Om oss"), variant: "split" } },
+      null
+    );
+    expect(out).toContain('header: variant=split title="Om oss"');
+    expect(out.indexOf("header:")).toBeLessThan(out.indexOf("== BLOCKS =="));
   });
 });

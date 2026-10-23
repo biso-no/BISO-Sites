@@ -8,13 +8,8 @@ import type {
   SectionLayout,
 } from "@/editor/types";
 import { SECTION_LAYOUTS } from "../canvas/add-section";
-import { InspRow, InspSection } from "./insp-parts";
+import { type Choice, InspRow, InspSection, Segmented } from "./insp-parts";
 import { MediaPicker } from "./media-picker";
-
-interface Choice<T extends string> {
-  label: string;
-  value: T;
-}
 
 const BACKGROUNDS: Choice<SectionLayout["background"]>[] = [
   { label: "White", value: "white" },
@@ -36,31 +31,6 @@ const TABLETS: Choice<SectionLayout["tablet"]>[] = [
   { label: "Side by side", value: "row" },
   { label: "Stacked", value: "stack" },
 ];
-
-function Segmented<T extends string>({
-  choices,
-  onPick,
-  value,
-}: {
-  choices: Choice<T>[];
-  onPick: (value: T) => void;
-  value: T;
-}) {
-  return (
-    <div className="pe-seg">
-      {choices.map((choice) => (
-        <button
-          className={choice.value === value ? "on" : ""}
-          key={choice.value}
-          onClick={() => onPick(choice.value)}
-          type="button"
-        >
-          {choice.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /**
  * A Photo section's image and its alt text. The image is uploaded or linked

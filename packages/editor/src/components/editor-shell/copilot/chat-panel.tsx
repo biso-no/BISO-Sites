@@ -157,8 +157,8 @@ export function CopilotPanel() {
             </p>
             <div className="pe-copilot-panel__suggestions">
               {[
-                "Add a hero section at the top",
-                "Write a subtitle for my hero",
+                "Add an events feed to this page",
+                "Write an intro paragraph for my page",
                 "Change the accent colour to BISO blue",
                 "Bind the events block to Appwrite",
               ].map((s) => (

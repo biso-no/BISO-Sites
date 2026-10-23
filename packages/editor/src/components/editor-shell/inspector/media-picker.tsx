@@ -10,7 +10,8 @@ interface MediaPickerProps {
   accept?: string;
   label?: string;
   onClear?: () => void;
-  onPicked: (fileId: string, url: string) => void;
+  /** `mime` is the uploaded file's type, e.g. to tell a video by. */
+  onPicked: (fileId: string, url: string, mime: string) => void;
   onUrl: (url: string) => void;
   /** Current URL to display (either from Appwrite or external) */
   src?: string;
@@ -41,7 +42,7 @@ export function MediaPicker({
     startTransition(async () => {
       try {
         const { fileId, url } = await uploadFile(fd);
-        onPicked(fileId, url);
+        onPicked(fileId, url, file.type);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed");
       }

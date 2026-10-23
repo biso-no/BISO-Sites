@@ -4,6 +4,8 @@ import { useEditorStore } from "./store";
 
 export const useMeta = () => useEditorStore((s) => s.doc.meta);
 export const useSections = () => useEditorStore((s) => s.doc.sections);
+export const useHeader = () => useEditorStore((s) => s.doc.header);
+export const useHeaderSelected = () => useEditorStore((s) => s.headerSelected);
 export const useSelectedSectionId = () =>
   useEditorStore((s) => s.selectedSectionId);
 export const useInsertTarget = () => useEditorStore((s) => s.insertTarget);

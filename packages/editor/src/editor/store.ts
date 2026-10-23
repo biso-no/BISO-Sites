@@ -3,6 +3,7 @@
 import { current } from "immer";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import { emptyHeader } from "../header/empty-header";
 import {
   applyAccent as opApplyAccent,
   bindCollection as opBindCollection,
@@ -15,7 +16,10 @@ import {
   moveBlockToNewSection as opMoveBlockToNewSection,
   moveSection as opMoveSection,
   removeBlock as opRemove,
+  removeHeader as opRemoveHeader,
   removeSection as opRemoveSection,
+  setHeader as opSetHeader,
+  setHeaderProp as opSetHeaderProp,
   setMeta as opSetMeta,
   setProp as opSetProp,
   setSectionAnchor as opSetSectionAnchor,
@@ -36,6 +40,7 @@ import type {
   EditorViewport,
   InsertTarget,
   PageDoc,
+  PageHeader,
   PageMeta,
   SavingState,
   Section,
@@ -46,11 +51,14 @@ import type {
 const HISTORY_LIMIT = 100;
 
 interface HistorySnap {
+  header: PageHeader | undefined;
   meta: PageMeta;
   sections: Section[];
 }
 
 interface EditorState {
+  /** Give the page an empty header titled after it, if it has none, and select it. */
+  addHeader: () => void;
   applyAccent: (hex: string) => void;
   bindCollection: (id: string, source: string) => void;
   copilotOpen: boolean;
@@ -58,6 +66,11 @@ interface EditorState {
   duplicateBlock: (id: string) => void;
   duplicateSection: (id: string) => void;
   future: HistorySnap[];
+  /**
+   * The page header is selected. Exclusive with `selection` and
+   * `selectedSectionId`: selecting either clears it.
+   */
+  headerSelected: boolean;
   hoveredId: string | null;
 
   // Document mutations
@@ -85,12 +98,14 @@ interface EditorState {
   past: HistorySnap[];
   redo: () => void;
   removeBlock: (id: string) => void;
+  removeHeader: () => void;
   removeSection: (id: string) => void;
   saving: SavingState;
 
   // Selection
   select: (id: string | null) => void;
   selectedSectionId: string | null;
+  selectHeader: () => void;
 
   // UI state
   selection: string | null;
@@ -101,6 +116,7 @@ interface EditorState {
 
   /** Replace the entire doc (used for initial load). */
   setDoc: (doc: PageDoc) => void;
+  setHeaderProp: (path: string, value: unknown) => void;
   setHovered: (id: string | null) => void;
   setInsertTarget: (target: InsertTarget | null) => void;
   setInspectorTab: (tab: "block" | "page" | "outline") => void;
@@ -144,18 +160,29 @@ const EMPTY_DOC: PageDoc = {
 
 function snap(doc: PageDoc): HistorySnap {
   return {
+    header: doc.header ? (current(doc.header) as PageHeader) : undefined,
     meta: current(doc.meta) as PageMeta,
     sections: current(doc.sections) as Section[],
   };
 }
 
-/** Clear selection state that points at ids missing from the current doc. */
+function restore(doc: PageDoc, entry: HistorySnap): void {
+  doc.header = entry.header;
+  doc.meta = entry.meta;
+  doc.sections = entry.sections;
+}
+
+/** Clear selection state that points at things missing from the current doc. */
 function reconcileSelection(state: {
   doc: PageDoc;
+  headerSelected: boolean;
   insertTarget: InsertTarget | null;
   selectedSectionId: string | null;
   selection: string | null;
 }) {
+  if (state.headerSelected && !state.doc.header) {
+    state.headerSelected = false;
+  }
   if (state.selection && !findBlock(state.doc, state.selection)) {
     state.selection = null;
   }
@@ -198,6 +225,7 @@ export const useEditorStore = create<EditorState>()(
 
       selection: null,
       selectedSectionId: null,
+      headerSelected: false,
       insertTarget: null,
       hoveredId: null,
       mode: "edit",
@@ -228,6 +256,7 @@ export const useEditorStore = create<EditorState>()(
           s.insertTarget = null;
           s.selection = newId;
           s.selectedSectionId = null;
+          s.headerSelected = false;
         });
         return newId;
       },
@@ -305,6 +334,36 @@ export const useEditorStore = create<EditorState>()(
           opSetSectionAnchor(s.doc, id, anchor);
         }),
 
+      addHeader: () =>
+        set((s) => {
+          if (!s.doc.header) {
+            pushHistory(s);
+            opSetHeader(s.doc, emptyHeader(s.doc.meta.title));
+          }
+          s.headerSelected = true;
+          s.selection = null;
+          s.selectedSectionId = null;
+        }),
+
+      removeHeader: () =>
+        set((s) => {
+          if (!s.doc.header) {
+            return;
+          }
+          pushHistory(s);
+          opRemoveHeader(s.doc);
+          s.headerSelected = false;
+        }),
+
+      setHeaderProp: (path, value) =>
+        set((s) => {
+          if (!s.doc.header) {
+            return;
+          }
+          pushHistory(s);
+          opSetHeaderProp(s.doc, path, value);
+        }),
+
       removeBlock: (id) =>
         set((s) => {
           pushHistory(s);
@@ -367,11 +426,19 @@ export const useEditorStore = create<EditorState>()(
         set((s) => {
           s.selection = id;
           s.selectedSectionId = null;
+          s.headerSelected = false;
         }),
       selectSection: (id) =>
         set((s) => {
           s.selectedSectionId = id;
           s.selection = null;
+          s.headerSelected = false;
+        }),
+      selectHeader: () =>
+        set((s) => {
+          s.headerSelected = s.doc.header !== undefined;
+          s.selection = null;
+          s.selectedSectionId = null;
         }),
       setInsertTarget: (target) =>
         set((s) => {
@@ -414,8 +481,7 @@ export const useEditorStore = create<EditorState>()(
             return;
           }
           s.future.push(snap(s.doc));
-          s.doc.sections = entry.sections;
-          s.doc.meta = entry.meta;
+          restore(s.doc, entry);
           reconcileSelection(s);
         }),
 
@@ -426,8 +492,7 @@ export const useEditorStore = create<EditorState>()(
             return;
           }
           s.past.push(snap(s.doc));
-          s.doc.sections = entry.sections;
-          s.doc.meta = entry.meta;
+          restore(s.doc, entry);
           reconcileSelection(s);
         }),
     };

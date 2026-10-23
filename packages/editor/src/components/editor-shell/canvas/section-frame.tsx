@@ -49,6 +49,8 @@ function placesOf(section: Section): Map<string, BlockPlace> {
 
 interface SectionFrameProps {
   drag: CanvasDrag | null;
+  /** The page's first section, with no page header above it. */
+  first: boolean;
   index: number;
   section: Section;
 }
@@ -58,7 +60,12 @@ interface SectionFrameProps {
  * handle, a click on its padding selects it, and in edit mode every column
  * ends in a drop zone with "+ Add block".
  */
-export function SectionFrame({ drag, index, section }: SectionFrameProps) {
+export function SectionFrame({
+  drag,
+  first,
+  index,
+  section,
+}: SectionFrameProps) {
   const mode = useMode();
   const edit = mode === "edit";
   const selectedSectionId = useSelectedSectionId();
@@ -165,7 +172,7 @@ export function SectionFrame({ drag, index, section }: SectionFrameProps) {
         edit={edit}
         // The canvas has no nav (`--pg-nav-offset: 0px`), so this changes
         // nothing visible; it keeps the canvas markup the site's.
-        first={index === 0}
+        first={first}
         renderBlock={(block) => (
           <ColumnBlock
             background={background}

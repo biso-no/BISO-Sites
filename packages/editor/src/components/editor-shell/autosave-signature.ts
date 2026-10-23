@@ -8,6 +8,7 @@ import type { PageDoc } from "@/editor/types";
  */
 export function autosaveSignature(doc: PageDoc): string {
   return JSON.stringify({
+    header: doc.header,
     meta: { ...doc.meta, status: undefined },
     sections: doc.sections,
   });

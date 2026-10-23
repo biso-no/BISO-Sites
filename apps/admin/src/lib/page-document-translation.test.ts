@@ -195,4 +195,114 @@ describe("page document translation", () => {
       "<translated>Hei alle sammen"
     );
   });
+
+  test("translates the page header's text, not its links or media", async () => {
+    const document = {
+      header: {
+        buttons: [{ href: "/join", label: "Bli med", style: "primary" }],
+        crumbs: [{ href: "/units", label: "Enheter" }],
+        eyebrow: "BISO Oslo",
+        lede: "Tre dager på Storefjell",
+        media: {
+          alt: "Studenter i snøen",
+          kind: "image",
+          src: "https://example.com/a.jpg",
+        },
+        title: "Vinterlekene",
+        variant: "split",
+      },
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "",
+        slug: "x",
+        status: "draft",
+        title: "Om oss",
+      },
+      sections: [],
+      version: 2,
+    } as unknown as PageDoc;
+
+    const source = getPageTranslationSource(document);
+    expect(source["header.lede"]).toBe("Tre dager på Storefjell");
+    expect(source["header.title"]).toBe("Vinterlekene");
+    expect(source["header.eyebrow"]).toBe("BISO Oslo");
+    expect(source["header.crumbs[0].label"]).toBe("Enheter");
+    expect(source["header.buttons[0].label"]).toBe("Bli med");
+    expect(source["header.media.alt"]).toBe("Studenter i snøen");
+    expect(JSON.stringify(source)).not.toContain("/join");
+    expect(JSON.stringify(source)).not.toContain("split");
+    expect(JSON.stringify(source)).not.toContain("primary");
+
+    const translated = await translatePageDocument(
+      { document, sourceLocale: "no", targetLocale: "en" },
+      async ({ fields }) =>
+        Object.fromEntries(fields.map((f) => [f.key, `EN:${f.value}`]))
+    );
+    const header = (
+      translated as unknown as { header: Record<string, unknown> }
+    ).header;
+    expect(header.lede).toBe("EN:Tre dager på Storefjell");
+    expect(header.variant).toBe("split");
+    expect(header.buttons).toEqual([
+      { href: "/join", label: "EN:Bli med", style: "primary" },
+    ]);
+  });
+
+  test("translates a photo section's alt text but no other layout value", async () => {
+    const document = {
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "",
+        slug: "x",
+        status: "draft",
+        title: "Om oss",
+      },
+      sections: [
+        {
+          columns: [{ blocks: [], id: "c-1" }],
+          id: "s-1",
+          layout: {
+            align: "top",
+            background: "photo",
+            backgroundImage: {
+              alt: "Studenter på campus",
+              fileId: "file-1",
+              src: "https://example.com/campus.jpg",
+            },
+            columns: "1",
+            spacing: "normal",
+            tablet: "row",
+          },
+        },
+      ],
+      version: 2,
+    } as unknown as PageDoc;
+
+    const source = getPageTranslationSource(document);
+    expect(source).toEqual({
+      "meta.title": "Om oss",
+      "sections[0].layout.backgroundImage.alt": "Studenter på campus",
+    });
+
+    const translated = await translatePageDocument(
+      { document, sourceLocale: "no", targetLocale: "en" },
+      async ({ fields }) =>
+        Object.fromEntries(fields.map((f) => [f.key, `EN:${f.value}`]))
+    );
+    const [section] = translated.sections as unknown as {
+      layout: Record<string, unknown>;
+    }[];
+    expect(section.layout).toEqual({
+      align: "top",
+      background: "photo",
+      backgroundImage: {
+        alt: "EN:Studenter på campus",
+        fileId: "file-1",
+        src: "https://example.com/campus.jpg",
+      },
+      columns: "1",
+      spacing: "normal",
+      tablet: "row",
+    });
+  });
 });

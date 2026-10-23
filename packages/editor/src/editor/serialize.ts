@@ -1,3 +1,4 @@
+import { emptyHeader } from "../header/empty-header";
 import { newId } from "./ids";
 import {
   COLUMN_COUNT,
@@ -8,7 +9,12 @@ import { walkBlocks } from "./tree";
 import type {
   Block,
   Column,
+  HeaderCrumb,
+  HeaderVariant,
+  LinkButton,
+  MediaRef,
   PageDoc,
+  PageHeader,
   Section,
   SectionAlign,
   SectionBackground,
@@ -141,6 +147,101 @@ function normalizeBackgroundImage(
   return image;
 }
 
+const HEADER_VARIANTS = [
+  "split",
+  "full",
+  "plain",
+] as const satisfies readonly HeaderVariant[];
+export type MissingHeaderVariants = AssertNever<
+  Exclude<HeaderVariant, (typeof HEADER_VARIANTS)[number]>
+>;
+
+const BUTTON_STYLES = [
+  "primary",
+  "secondary",
+] as const satisfies readonly LinkButton["style"][];
+
+const oneOf = <T>(allowed: readonly T[], value: unknown, fallback: T): T =>
+  allowed.includes(value as T) ? (value as T) : fallback;
+
+const MEDIA_STRINGS = ["alt", "fileId", "poster", "posterFileId"] as const;
+
+/** Header media: kept only with a string `src`, then with its known fields. */
+function normalizeMedia(raw: unknown): MediaRef | undefined {
+  if (!(isRecord(raw) && isString(raw.src))) {
+    return;
+  }
+  const media: MediaRef = {
+    kind: raw.kind === "video" ? "video" : "image",
+    src: raw.src,
+  };
+  for (const key of MEDIA_STRINGS) {
+    const value = raw[key];
+    if (isString(value)) {
+      media[key] = value;
+    }
+  }
+  return media;
+}
+
+function normalizeCrumbs(raw: unknown): HeaderCrumb[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const crumbs: HeaderCrumb[] = [];
+  for (const item of raw) {
+    if (isRecord(item) && isString(item.label)) {
+      crumbs.push(
+        isString(item.href)
+          ? { href: item.href, label: item.label }
+          : { label: item.label }
+      );
+    }
+  }
+  return crumbs;
+}
+
+function normalizeButtons(raw: unknown): LinkButton[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const buttons: LinkButton[] = [];
+  for (const item of raw) {
+    if (isRecord(item) && isString(item.label) && isString(item.href)) {
+      buttons.push({
+        href: item.href,
+        label: item.label,
+        style: oneOf(BUTTON_STYLES, item.style, "primary"),
+      });
+    }
+  }
+  return buttons;
+}
+
+/**
+ * A page header: any object is kept, its known fields checked and the rest
+ * taken from `emptyHeader`; anything else is no header.
+ */
+function normalizeHeader(raw: unknown): PageHeader | undefined {
+  if (!isRecord(raw) || Array.isArray(raw)) {
+    return;
+  }
+  const empty = emptyHeader();
+  const header: PageHeader = {
+    buttons: normalizeButtons(raw.buttons),
+    crumbs: normalizeCrumbs(raw.crumbs),
+    eyebrow: isString(raw.eyebrow) ? raw.eyebrow : empty.eyebrow,
+    lede: isString(raw.lede) ? raw.lede : empty.lede,
+    title: isString(raw.title) ? raw.title : empty.title,
+    variant: oneOf(HEADER_VARIANTS, raw.variant, empty.variant),
+  };
+  const media = normalizeMedia(raw.media);
+  if (media) {
+    header.media = media;
+  }
+  return header;
+}
+
 /**
  * Upgrade persisted page documents at every editor/render host boundary.
  * Never mutates its input. Old flat documents become an empty page (D2);
@@ -148,7 +249,11 @@ function normalizeBackgroundImage(
  * renderer and `walkBlocks` can trust the shape.
  */
 export const normalizePageDoc = (doc: PageDoc): PageDoc => {
-  const raw = doc as unknown as { sections?: unknown; version?: unknown };
+  const raw = doc as unknown as {
+    header?: unknown;
+    sections?: unknown;
+    version?: unknown;
+  };
   if (raw.version !== PAGE_DOC_VERSION || !Array.isArray(raw.sections)) {
     return { meta: doc.meta, sections: [], version: PAGE_DOC_VERSION };
   }
@@ -167,8 +272,17 @@ export const normalizePageDoc = (doc: PageDoc): PageDoc => {
     resizeColumns(next, next.layout.columns);
     sections.push(next);
   }
-  return { ...doc, sections };
+  const { header: _stored, ...rest } = doc;
+  const header = normalizeHeader(raw.header);
+  return header ? { ...rest, header, sections } : { ...rest, sections };
 };
+
+function headerSummary(header: PageHeader | undefined): string {
+  if (!header) {
+    return "header: none";
+  }
+  return `header: variant=${header.variant} title="${truncate(header.title)}"`;
+}
 
 function truncate(s: string | undefined): string {
   if (!s) {
@@ -194,20 +308,11 @@ function blockSummary(b: Block): string {
   if ("eyebrow" in r) {
     parts.push(`eyebrow="${truncate(r.eyebrow as string)}"`);
   }
-  if ("subtitle" in r) {
-    parts.push(`subtitle="${truncate(r.subtitle as string)}"`);
-  }
   if ("text" in r) {
     parts.push(`text="${truncate(r.text as string)}"`);
   }
   if ("source" in r) {
     parts.push(`source="${r.source}"`);
-  }
-  if ("ctaLabel" in r) {
-    parts.push(`ctaLabel="${r.ctaLabel}"`);
-  }
-  if ("ctaUrl" in r) {
-    parts.push(`ctaUrl="${r.ctaUrl}"`);
   }
   if ("items" in r && Array.isArray(r.items)) {
     parts.push(`items.count=${r.items.length}`);
@@ -235,6 +340,7 @@ export function serializePageForAI(
     `status: ${meta.status}`,
     `sections: ${doc.sections.length}`,
     `blocks: ${blocks.length}`,
+    headerSummary(doc.header),
     "",
     "== BLOCKS ==",
   ];

@@ -1,14 +1,16 @@
 // Starting layouts for pages the admin app creates on a unit's behalf. Pure:
 // no React, no store — safe to import from a server action.
 //
-// A template is a list of single-column sections of ordinary blocks, so the board edits or removes
-// anything it does not want. The point is that a new page is never a blank
-// canvas: a project board opening its page for the first time sees where the
-// programme, the gallery and the company pitch go.
+// A template is a plain page header over a list of single-column sections of
+// ordinary blocks, so the board edits or removes anything it does not want.
+// The point is that a new page is never a blank canvas: a project board
+// opening its page for the first time sees where the programme, the gallery
+// and the company pitch go.
 
+import { emptyHeader } from "../header/empty-header";
 import { emptyBlock } from "./operations";
 import { sectionOf } from "./sections";
-import type { Block, EditorLocale, Section } from "./types";
+import type { Block, EditorLocale, PageHeader, Section } from "./types";
 
 export type UnitPageKind = "project" | "unit";
 
@@ -27,7 +29,6 @@ interface TemplateCopy {
   companies: string;
   companiesBody: string;
   contact: string;
-  cta: string;
   events: string;
   subtitle: string;
 }
@@ -41,7 +42,6 @@ const COPY: Record<EditorLocale, TemplateCopy> = {
     companiesBody:
       "Describe how a company can take part, sponsor or meet students here.",
     contact: "Get in touch",
-    cta: "Get involved",
     events: "Upcoming events",
     subtitle: "One sentence about what you do.",
   },
@@ -53,23 +53,17 @@ const COPY: Record<EditorLocale, TemplateCopy> = {
     companiesBody:
       "Beskriv hvordan en bedrift kan delta, sponse eller møte studenter her.",
     contact: "Ta kontakt",
-    cta: "Bli med",
     events: "Kommende arrangementer",
     subtitle: "Én setning om hva dere gjør.",
   },
 };
 
-function hero(input: UnitPageTemplateInput, copy: TemplateCopy): Block {
-  const block = emptyBlock("hero");
-  if (block.type !== "hero") {
-    return block;
-  }
-  block.eyebrow = input.campusLabel ? `BISO ${input.campusLabel}` : "BISO";
-  block.title = input.name;
-  block.subtitle = copy.subtitle;
-  block.ctaLabel = copy.cta;
-  block.ctaUrl = "#";
-  return block;
+function header(input: UnitPageTemplateInput, copy: TemplateCopy): PageHeader {
+  return {
+    ...emptyHeader(input.name),
+    eyebrow: input.campusLabel ? `BISO ${input.campusLabel}` : "BISO",
+    lede: copy.subtitle,
+  };
 }
 
 function text(heading: string, paragraph: string): Block {
@@ -107,16 +101,21 @@ function contact(input: UnitPageTemplateInput, copy: TemplateCopy): Block {
   return block;
 }
 
-/** The sections a freshly created unit page starts with, one block each. */
-export function unitPageTemplate(input: UnitPageTemplateInput): Section[] {
+/**
+ * What a freshly created unit page starts with: a plain header carrying the
+ * unit's name and campus, over sections of one block each.
+ */
+export function unitPageTemplate(input: UnitPageTemplateInput): {
+  header: PageHeader;
+  sections: Section[];
+} {
   const copy = COPY[input.locale];
   const about = text(copy.about(input.name), copy.aboutBody);
 
   const blocks: Block[] =
     input.kind === "unit"
-      ? [hero(input, copy), about, events(copy), contact(input, copy)]
+      ? [about, events(copy), contact(input, copy)]
       : [
-          hero(input, copy),
           about,
           events(copy),
           emptyBlock("gallery"),
@@ -124,5 +123,8 @@ export function unitPageTemplate(input: UnitPageTemplateInput): Section[] {
           contact(input, copy),
         ];
 
-  return blocks.map((b) => sectionOf(b));
+  return {
+    header: header(input, copy),
+    sections: blocks.map((b) => sectionOf(b)),
+  };
 }

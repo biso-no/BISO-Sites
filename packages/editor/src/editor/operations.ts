@@ -11,6 +11,7 @@ import type {
   Column,
   InsertTarget,
   PageDoc,
+  PageHeader,
   PageMeta,
   SectionColumns,
   SectionLayout,
@@ -19,18 +20,6 @@ import type {
 export function emptyBlock(type: BlockType): Block {
   const id = newId("b");
   switch (type) {
-    case "hero":
-      return {
-        id,
-        type,
-        variant: "split",
-        eyebrow: "Eyebrow",
-        title: "A headline that earns the size.",
-        subtitle: "One sentence about what your unit does.",
-        ctaLabel: "Get involved",
-        ctaUrl: "#",
-        imageAlt: "",
-      };
     case "stats":
       return {
         id,
@@ -544,19 +533,13 @@ export function setSectionAnchor(
   }
 }
 
-/** Set a nested property on a block using dot-notation path. */
-export function setProp(
-  doc: PageDoc,
-  blockId: string,
-  path: string,
-  value: unknown
-): void {
-  const found = findBlock(doc, blockId);
-  if (!found) {
-    return;
-  }
+/**
+ * Set `path` (dot-notation; a numeric part indexes an array) on `target`,
+ * creating missing objects and arrays on the way.
+ */
+function setPath(target: object, path: string, value: unknown): void {
   const parts = path.split(".");
-  let node = found.block as unknown as Record<string, unknown>;
+  let node = target as Record<string, unknown>;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
     const next = node[key];
@@ -568,6 +551,39 @@ export function setProp(
   const lastKey = parts.at(-1);
   if (lastKey) {
     node[lastKey] = value;
+  }
+}
+
+/** Set a nested property on a block using dot-notation path. */
+export function setProp(
+  doc: PageDoc,
+  blockId: string,
+  path: string,
+  value: unknown
+): void {
+  const found = findBlock(doc, blockId);
+  if (found) {
+    setPath(found.block, path, value);
+  }
+}
+
+/** Give the page a header, replacing any it has. */
+export function setHeader(doc: PageDoc, header: PageHeader): void {
+  doc.header = header;
+}
+
+export function removeHeader(doc: PageDoc): void {
+  doc.header = undefined;
+}
+
+/** Set a nested header property; same path rules as `setProp`. */
+export function setHeaderProp(
+  doc: PageDoc,
+  path: string,
+  value: unknown
+): void {
+  if (doc.header) {
+    setPath(doc.header, path, value);
   }
 }
 

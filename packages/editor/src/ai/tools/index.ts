@@ -4,7 +4,6 @@ import type { BlockType } from "@/editor/types";
 import { BRAND_ACCENT_VALUES } from "@/theme/presets";
 
 const BLOCK_TYPES = [
-  "hero",
   "marquee",
   "text",
   "quote",
@@ -83,7 +82,7 @@ export const pageEditorTools = {
 
   set_variant: tool({
     description:
-      "Change the layout variant of a block (e.g. split/centered/full for a hero block).",
+      "Change the layout variant of a block (e.g. list/accordion-themed for an faq block).",
     inputSchema: z.object({
       id: z.string().describe("Block ID"),
       variant: z

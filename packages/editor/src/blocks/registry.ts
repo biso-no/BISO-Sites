@@ -24,7 +24,6 @@ export const BLOCK_LIBRARY: {
   {
     category: "Top of page",
     items: [
-      { type: "hero", label: "Hero", desc: "The big intro at the top" },
       { type: "marquee", label: "Marquee", desc: "Scrolling text strip" },
     ],
   },

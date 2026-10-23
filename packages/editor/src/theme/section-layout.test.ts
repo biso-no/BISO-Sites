@@ -68,7 +68,7 @@ const blockBody = (css: string, opening: string): string => {
   return "";
 };
 
-/** True when a selector targets a block root itself, e.g. `.pg-hero--full`. */
+/** True when a selector targets a block root itself, e.g. `.pg-cta--banner`. */
 const targetsRoot = (selector: string) =>
   selector
     .split(",")
@@ -80,7 +80,7 @@ const targetsRoot = (selector: string) =>
 
 describe("Design panel rules for blocks styled by blocks.css", () => {
   test("the root scan finds the blocks it guards", () => {
-    expect(rootClasses.has("hero")).toBe(true);
+    expect(rootClasses.has("stats")).toBe(true);
     expect(rootClasses.has("text")).toBe(true);
     expect(rootClasses.size).toBeGreaterThan(25);
   });

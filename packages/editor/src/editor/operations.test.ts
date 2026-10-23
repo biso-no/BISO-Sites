@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { produce } from "immer";
+import { emptyHeader } from "../header/empty-header";
 import {
   duplicateBlock,
   duplicateSection,
@@ -7,6 +8,9 @@ import {
   moveBlock,
   moveBlockToNewSection,
   moveSection,
+  removeHeader,
+  setHeader,
+  setHeaderProp,
   setProp,
   setSectionAnchor,
   setSectionLayout,
@@ -134,5 +138,38 @@ describe("operations", () => {
     expect(slugifyAnchor("Señor Zürich")).toBe("senor-zurich");
     expect(slugifyAnchor("  --Se aftermovien--  ")).toBe("se-aftermovien");
     expect(slugifyAnchor("!!!")).toBe("");
+  });
+});
+
+describe("page header operations", () => {
+  test("setHeader stores a header and removeHeader drops it", () => {
+    setHeader(d, emptyHeader("Om oss"));
+    expect(d.header).toMatchObject({ title: "Om oss", variant: "plain" });
+    removeHeader(d);
+    expect(d.header).toBeUndefined();
+  });
+
+  test("setHeaderProp follows setProp's dot paths", () => {
+    setHeader(d, emptyHeader());
+    setHeaderProp(d, "title", "Fadderullan");
+    setHeaderProp(d, "crumbs.0.label", "Enheter");
+    setHeaderProp(d, "media.src", "https://x.no/a.jpg");
+    expect(d.header?.title).toBe("Fadderullan");
+    expect(d.header?.crumbs).toEqual([{ label: "Enheter" }]);
+    expect(d.header?.media?.src).toBe("https://x.no/a.jpg");
+  });
+
+  test("setHeaderProp without a header changes nothing", () => {
+    setHeaderProp(d, "title", "X");
+    expect(d.header).toBeUndefined();
+  });
+
+  test("header operations work on an immer draft", () => {
+    const next = produce(d, (draft) => {
+      setHeader(draft, emptyHeader("A"));
+      setHeaderProp(draft, "lede", "B");
+    });
+    expect(next.header).toMatchObject({ lede: "B", title: "A" });
+    expect(d.header).toBeUndefined();
   });
 });

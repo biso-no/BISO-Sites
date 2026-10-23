@@ -31,17 +31,17 @@ function narratingModel() {
             {
               type: "text-delta",
               id: "t0",
-              delta: "Sure — I'll add a hero at the top.",
+              delta: "Sure — I'll add an events feed.",
             },
             { type: "text-end", id: "t0" },
             { type: "tool-input-start", id: "c1", toolName: "insert_block" },
-            { type: "tool-input-delta", id: "c1", delta: '{"type":"hero"}' },
+            { type: "tool-input-delta", id: "c1", delta: '{"type":"events"}' },
             { type: "tool-input-end", id: "c1" },
             {
               type: "tool-call",
               toolCallId: "c1",
               toolName: "insert_block",
-              input: '{"type":"hero"}',
+              input: '{"type":"events"}',
             },
             {
               type: "finish",
@@ -58,7 +58,7 @@ function narratingModel() {
           {
             type: "text-delta",
             id: "t1",
-            delta: "Added a hero at the top. Want me to write the headline?",
+            delta: "Added an events feed. Want me to write an intro above it?",
           },
           { type: "text-end", id: "t1" },
           {
@@ -76,7 +76,7 @@ async function runCopilotTurn() {
   const result = streamText({
     model: narratingModel(),
     instructions: "test",
-    prompt: "Add a hero",
+    prompt: "Add an events feed",
     tools: pageEditorTools,
     stopWhen: isStepCount(12),
   });

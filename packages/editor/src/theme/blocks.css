@@ -52,7 +52,7 @@
  * like its padded inner box each column includes the gutter.
  *
  * The column is the block's own inline padding, not a capped wrapper. A block
- * that paints its own panel (the full hero, contact) and every block's
+ * that paints its own panel (contact) and every block's
  * dividing rule therefore still run to the page edge, just as `BlockSection`
  * paints edge to edge and caps only its content.
  */
@@ -140,210 +140,6 @@
  */
 .pg-section[data-background="inverted"] > .pg-section__inner {
   --page-accent: var(--brand);
-}
-
-/* HERO — base */
-.pg-hero {
-  position: relative;
-  padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter)
-    calc(56px * var(--pg-space, 1));
-  border-bottom: 0.5px solid var(--rule);
-}
-.pg-hero__content {
-  max-width: 680px;
-}
-.pg-hero__eyebrow {
-  margin-bottom: 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--brand);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.pg-hero__h1 {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: 52px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--pg-ink);
-  letter-spacing: -0.022em;
-  text-wrap: balance;
-}
-.pg-hero__h1 em {
-  font-style: italic;
-  color: var(--page-accent, var(--claret));
-}
-.pg-hero__sub {
-  max-width: 44ch;
-  margin: 18px 0 26px;
-  font-size: 18px;
-  line-height: 1.55;
-  color: var(--ink-3);
-}
-.pg-hero__cta {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  padding: 12px 24px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--brand-foreground);
-  text-decoration: none;
-  cursor: pointer;
-  background: linear-gradient(
-    90deg,
-    var(--brand-gradient-from),
-    var(--brand-gradient-to)
-  );
-  border: 0;
-  border-radius: var(--pg-radius-sm);
-  box-shadow: var(--pg-shadow);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
-}
-.pg-hero__cta:hover,
-.pg-cta__btn:hover {
-  box-shadow: var(--pg-shadow-lg);
-  transform: translateY(-2px);
-}
-.pg-hero-art {
-  position: relative;
-  /*
-   * Without a cap the 4/5 ratio grows without bound on wide screens: at 1440px
-   * the art panel reached 884px tall and, because `.pg-hero--split` aligns to
-   * `end`, left ~630px of empty column beside it.
-   */
-  max-height: 560px;
-  aspect-ratio: 4 / 5;
-  overflow: hidden;
-  /* Derived from the page accent so the editor's colour picker is visible on
-   * the hero — this was a fixed green that ignored `--page-accent` entirely. */
-  background: linear-gradient(
-    135deg,
-    var(--page-accent, var(--brand)) 0%,
-    var(--brand-dark) 100%
-  );
-  border-radius: var(--pg-radius);
-  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.25);
-}
-/* A photo fills the art panel and the full-bleed hero when the board sets one. */
-.pg-hero-art__img,
-.pg-hero__bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.pg-hero__bg-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    var(--brand-overlay-from),
-    var(--brand-overlay-via),
-    var(--brand-overlay-to)
-  );
-}
-.pg-hero--full .pg-hero__content {
-  position: relative;
-  z-index: 1;
-}
-.pg-hero-art__crest {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  font-family: var(--serif);
-  font-size: 28px;
-  line-height: 1;
-  /* Fixed: this plate is always white, so the glyph must always be dark. */
-  color: var(--pg-navy);
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: var(--pg-radius);
-}
-.pg-hero-art__photo-tag {
-  position: absolute;
-  bottom: 14px;
-  left: 14px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 0.04em;
-}
-
-/* HERO variants */
-.pg-hero--split {
-  display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: 36px;
-  align-items: end;
-}
-.pg-hero--split .pg-hero__content {
-  max-width: none;
-}
-
-.pg-hero--centered {
-  padding: calc(72px * var(--pg-space, 1)) var(--pg-gutter)
-    calc(80px * var(--pg-space, 1));
-  text-align: center;
-}
-.pg-hero--centered .pg-hero__content {
-  margin: 0 auto;
-}
-.pg-hero--centered .pg-hero__sub {
-  max-width: 52ch;
-  margin-right: auto;
-  margin-left: auto;
-}
-.pg-hero--centered .pg-hero__eyebrow {
-  display: flex;
-  justify-content: center;
-}
-
-.pg-hero--full {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 480px;
-  padding: calc(80px * var(--pg-space, 1)) var(--pg-gutter);
-  overflow: hidden;
-}
-/*
- * The full hero is a navy banner while the background is Auto, and always when
- * it carries a photo: the photo covers the section, and its overlay is what
- * keeps the white copy readable. Without a photo, an explicit Design-panel
- * background replaces the banner and the copy follows that surface instead.
- */
-:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg)) {
-  /* The overlay is translucent (it is made to sit on a photo), so a solid
-   * navy base keeps white copy readable when the board has set no image. */
-  background:
-    linear-gradient(
-      135deg,
-      var(--brand-overlay-from),
-      var(--brand-overlay-via),
-      var(--brand-overlay-to)
-    ),
-    var(--pg-navy);
-}
-:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg))
-  :is(.pg-hero__eyebrow, .pg-hero__sub) {
-  color: rgb(255 255 255 / 0.8);
-}
-:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg))
-  .pg-hero__h1 {
-  color: #fff;
-}
-:is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg))
-  .pg-hero__cta {
-  color: var(--pg-navy);
-  background: #fff;
 }
 
 /* STATS */
@@ -864,6 +660,10 @@
   transition:
     transform 0.2s,
     box-shadow 0.2s;
+}
+.pg-cta__btn:hover {
+  box-shadow: var(--pg-shadow-lg);
+  transform: translateY(-2px);
 }
 
 /* CTA variants */
@@ -2012,8 +1812,8 @@ textarea.pg-msform__input {
    Container queries, not media queries: the container is the render root
    (`.pg-page`) or the editor's device frame (`.pe-frame`), so the admin's
    tablet/mobile preview collapses exactly like the real site does. Before
-   this, `blocks.css` had no breakpoints at all — at 390px the split hero kept
-   its desktop grid and the art column collapsed to a 12px sliver.
+   this, `blocks.css` had no breakpoints at all — at 390px a split layout kept
+   its desktop grid and its art column collapsed to a 12px sliver.
    ========================================================================== */
 
 @container pg (max-width: 900px) {
@@ -2037,10 +1837,6 @@ textarea.pg-msform__input {
   .pg-featuregrid__grid--cols3,
   .pg-featuregrid__grid--cols4 {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .pg-hero-art {
-    max-height: 420px;
   }
 }
 
@@ -2073,35 +1869,12 @@ textarea.pg-msform__input {
   .pg-section[data-width="prose"] .pg-featuregrid__grid--cols4 {
     grid-template-columns: repeat(2, 1fr);
   }
-
-  .pg-section[data-width="prose"] .pg-hero-art {
-    max-height: 420px;
-  }
 }
 
 @container pg (max-width: 640px) {
   /* Desktop's 48px gutter leaves too little measure on a phone. */
   .pg-block {
     --pg-gutter: 20px;
-  }
-
-  /* Split hero stacks; the art becomes a banner instead of a 4/5 portrait. */
-  .pg-hero--split {
-    grid-template-columns: 1fr;
-    gap: 28px;
-    align-items: start;
-  }
-  .pg-hero-art {
-    max-height: 240px;
-    aspect-ratio: 16 / 10;
-  }
-  .pg-hero--full {
-    min-height: 340px;
-    padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
-  }
-  .pg-hero--centered {
-    padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter)
-      calc(56px * var(--pg-space, 1));
   }
 
   /* Every fixed multi-column grid collapses to a single column. */
@@ -2126,11 +1899,6 @@ textarea.pg-msform__input {
     grid-template-columns: 64px 1fr;
   }
 
-  /* Display type: the 60px h1 was unchanged at 390px, wrapping to five lines
-   * in a 230px column. `cqi` keeps it fluid inside the frame. */
-  .pg-hero__h1 {
-    font-size: clamp(30px, 10cqi, 60px);
-  }
   .pg-cta h2,
   .pg-stat__num {
     font-size: 34px;

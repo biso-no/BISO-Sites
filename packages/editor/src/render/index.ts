@@ -46,11 +46,13 @@ export type {
   EditorLocale,
   InsertTarget,
   PageDoc,
+  PageHeader,
   PageMeta,
   Section,
   SectionColumns,
   SectionLayout,
 } from "../editor/types";
+export { PageHeaderView } from "../header/page-header-view";
 export { SectionView } from "../sections/section-view";
 export type { AccentHue } from "../theme/presets";
 export {

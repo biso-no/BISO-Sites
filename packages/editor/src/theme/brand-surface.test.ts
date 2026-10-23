@@ -84,22 +84,17 @@ describe("brand surface binding", () => {
 
   test("buttons use the brand gradient and dark panels a theme-stable navy", () => {
     const blocks = read("blocks.css");
-    expect(ruleBody(blocks, ".pg-hero__cta {")).toContain(
-      "var(--brand-gradient-from)"
-    );
     expect(ruleBody(blocks, ".pg-cta__btn {")).toContain(
       "var(--brand-gradient-from)"
     );
-    // Both dark banners keep their navy while the background is Auto.
+    // The dark contact banner keeps its navy while the background is Auto.
     expect(ruleBody(blocks, ".pg-section[data-auto] .pg-contact {")).toContain(
       "background: var(--pg-navy);"
     );
-    expect(
-      ruleBody(
-        blocks,
-        ":is(.pg-section[data-auto] .pg-hero--full, .pg-hero--full:has(> .pg-hero__bg)) {"
-      )
-    ).toContain("var(--pg-navy)");
+  });
+
+  test("the hero block's rules are gone with it", () => {
+    expect(read("blocks.css")).not.toContain(".pg-hero");
   });
 });
 
