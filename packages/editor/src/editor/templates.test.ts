@@ -143,3 +143,24 @@ describe("unitPageTemplate", () => {
     ]);
   });
 });
+
+describe("unitPageTemplate escapes the unit's name", () => {
+  // The name lands in a text block, whose body is HTML; department names come
+  // from the accounting system. The header shows it as plain text.
+  test.each([
+    ["no", "Om Case &amp; Co &lt;img src=x onerror=alert(1)&gt;"],
+    ["en", "About Case &amp; Co &lt;img src=x onerror=alert(1)&gt;"],
+  ] as const)("in the %s about heading", (locale, heading) => {
+    const name = "Case & Co <img src=x onerror=alert(1)>";
+    const { header, sections } = unitPageTemplate({
+      campusLabel: null,
+      kind: "unit",
+      locale,
+      name,
+    });
+    const about = sections[0].columns[0].blocks[0];
+
+    expect(about.type === "text" && about.body[0].text).toBe(heading);
+    expect(header.title).toBe(name);
+  });
+});

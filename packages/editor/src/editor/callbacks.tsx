@@ -51,3 +51,12 @@ export const EditorCallbacksContext =
 export function useEditorCallbacks(): EditorCallbacks {
   return useContext(EditorCallbacksContext);
 }
+
+/**
+ * Whether this render is inside the editor, in either mode. Only
+ * `EditorShell` provides the callbacks; the public renderer sees the no-op
+ * default.
+ */
+export function useInEditor(): boolean {
+  return useContext(EditorCallbacksContext) !== NOOP_CALLBACKS;
+}

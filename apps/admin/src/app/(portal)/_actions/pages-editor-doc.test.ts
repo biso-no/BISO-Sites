@@ -87,10 +87,15 @@ function resolvePageCampusIdMock(ctx: UserAuthContext): string | null {
   return null;
 }
 
+const pbGetPageEditorByIdSpy = mock(async (): Promise<unknown> => null);
+
+// `@repo/editor/sanitize` opens with `import "server-only"`, which throws
+// outside a react-server build.
+mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
   getPageById: mock(async () => null),
-  getPageEditorById: mock(async () => null),
+  getPageEditorById: pbGetPageEditorByIdSpy,
   publishPage: mock(async () => undefined),
   resolvePageCampusId: mock(resolvePageCampusIdMock),
   savePageDraft: savePageDraftSpy,
@@ -111,7 +116,7 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { savePageEditorDoc } = await import("./pages");
+const { getPageEditorById, savePageEditorDoc } = await import("./pages");
 
 function makeDoc(overrides: Partial<PageDoc["meta"]> = {}): PageDoc {
   return {
@@ -379,5 +384,77 @@ describe("savePageEditorDoc: rich text", () => {
     expect(
       saved.sections[0].columns[0].blocks[0].body.map((item) => item.text)
     ).toEqual(["hei", "<a>x</a> <b>fet</b>"]);
+  });
+});
+
+describe("getPageEditorById: rich text", () => {
+  test("hands the editor every stored document with its HTML sanitized", async () => {
+    // The editor renders text blocks as markup inside the admin session, and
+    // rows saved before the save path sanitized, or written straight to the
+    // table, hold whatever they were given.
+    currentCtx = globalAdminCtx;
+    const stored = (text: string) => ({
+      ...makeDoc(),
+      sections: [
+        {
+          columns: [
+            {
+              blocks: [{ body: [{ text, type: "p" }], id: "b", type: "text" }],
+              id: "c",
+            },
+          ],
+          id: "s",
+          layout: {},
+        },
+      ],
+    });
+    const textOf = (doc: unknown) =>
+      (
+        doc as {
+          sections: { columns: { blocks: { body: { text: string }[] }[] }[] }[];
+        }
+      ).sections[0].columns[0].blocks[0].body[0].text;
+    pbGetPageEditorByIdSpy.mockResolvedValueOnce({
+      availableLocales: ["no", "en"],
+      page: {
+        campusId: "campus-oslo",
+        departmentId: "",
+        id: "page-1",
+        slug: "about/team",
+        status: "published",
+        visibility: "public",
+      },
+      translations: {
+        en: {
+          draftDocument: null,
+          isPublished: false,
+          locale: "en",
+          publishedAt: null,
+          publishedDocument: stored("<b>en</b><script>alert(1)</script>"),
+          title: "Team",
+        },
+        no: {
+          draftDocument: stored("<img src=x onerror=alert(1)>utkast"),
+          isPublished: true,
+          locale: "no",
+          publishedAt: "2026-10-01",
+          publishedDocument: stored('<a href="javascript:alert(1)">pub</a>'),
+          title: "Team",
+        },
+      },
+    });
+
+    const result = await getPageEditorById("page-1");
+
+    expect(textOf(result?.translations.no?.draftDocument)).toBe("utkast");
+    expect(textOf(result?.translations.no?.publishedDocument)).toBe(
+      "<a>pub</a>"
+    );
+    expect(result?.translations.en?.draftDocument).toBeNull();
+    expect(textOf(result?.translations.en?.publishedDocument)).toBe(
+      "<b>en</b>"
+    );
+    expect(result?.translations.no?.title).toBe("Team");
+    expect(result?.page.slug).toBe("about/team");
   });
 });

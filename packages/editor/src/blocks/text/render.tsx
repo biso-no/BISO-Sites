@@ -4,6 +4,7 @@ import { createElement, type ReactNode, useMemo } from "react";
 import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
+import { useInEditor } from "@/editor/callbacks";
 import type { TextBlock, TextBodyItem } from "@/editor/types";
 import { sanitizeRichText } from "@/lib/sanitize";
 
@@ -99,17 +100,22 @@ function BodyItem({
   //
   // The object is memoized on the stored text: React writes innerHTML
   // whenever the prop's identity changes, and a fresh object on every
-  // render (hover, selection) would wipe whatever is being typed. In edit
-  // mode the markup is sanitized again before it is run inside the admin,
-  // since rows saved before the sanitizer existed were never cleaned.
+  // render (hover, selection) would wipe whatever is being typed.
+  //
+  // Inside the editor, in edit and preview alike, the markup is sanitized
+  // again before it runs in the admin session: old rows, direct table writes
+  // and copilot or translate output reach the canvas before any save cleans
+  // them. The public routes sanitize on the server (`@repo/editor/sanitize`)
+  // before the document reaches this renderer.
+  const inEditor = useInEditor();
   const html = useMemo(
     () => ({
       __html:
-        edit && typeof document !== "undefined"
+        inEditor && typeof document !== "undefined"
           ? sanitizeRichText(item.text)
           : item.text,
     }),
-    [edit, item.text]
+    [inEditor, item.text]
   );
   const props = {
     ...editProps,

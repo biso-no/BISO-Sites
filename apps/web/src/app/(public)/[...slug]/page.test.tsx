@@ -7,6 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const cachedPublishedPage = vi.hoisted(() => vi.fn());
 const cachedPageEventsFeed = vi.hoisted(() => vi.fn());
 
+// `@repo/editor/sanitize` opens with `import "server-only"`, which throws
+// outside a react-server build.
+vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: () => undefined }),
 }));

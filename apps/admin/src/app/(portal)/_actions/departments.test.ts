@@ -79,6 +79,9 @@ mock.module("@/lib/authorization", () => ({
 // mocks the same specifier with this full export set; mirror it exactly
 // (rather than only the `savePageDraft` this file needs) so load order
 // between the two files can't leave the other one missing an export.
+// `@repo/editor/sanitize` opens with `import "server-only"`, which throws
+// outside a react-server build.
+mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
   getPageById: mock(async () => null),
@@ -736,6 +739,9 @@ describe("createUnitPage rich text", () => {
       ],
     ];
     const about = call.doc.sections[0].columns[0].blocks[0].body ?? [];
-    expect(about[0]?.text).toBe("Om Case &amp; Co");
+    // Escaped by the template, so the name reads as written.
+    expect(about[0]?.text).toBe(
+      "Om Case &amp; Co&lt;img src=x onerror=alert(1)&gt;"
+    );
   });
 });

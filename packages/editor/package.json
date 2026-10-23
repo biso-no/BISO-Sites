@@ -33,6 +33,7 @@
     "immer": "catalog:",
     "motion": "catalog:",
     "sanitize-html": "catalog:",
+    "server-only": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"
   },

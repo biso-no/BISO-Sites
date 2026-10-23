@@ -87,6 +87,9 @@ const db = {
   })),
 };
 
+// `@repo/editor/sanitize` opens with `import "server-only"`, which throws
+// outside a react-server build.
+mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
   getPageById: mock(async () => null),

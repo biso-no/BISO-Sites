@@ -11,6 +11,9 @@ const stubs = vi.hoisted(() => ({
   UnitView: () => null,
 }));
 
+// `@repo/editor/sanitize` opens with `import "server-only"`, which throws
+// outside a react-server build.
+vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");

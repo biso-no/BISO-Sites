@@ -4,6 +4,7 @@ import { Query } from "@repo/api";
 import {
   PAGE_LOCALES,
   type PageDoc,
+  type PageEditorLoadResult,
   type PageEditorLocale,
   getPageById as pbGetPageById,
   getPageEditorById as pbGetPageEditorById,
@@ -182,6 +183,32 @@ export async function getPageById(id: string, locale: "no" | "en" = "no") {
   return result;
 }
 
+/**
+ * Every locale's stored documents with their text-block HTML sanitized. The
+ * editor renders that HTML as markup inside the admin session, and rows saved
+ * before the save path sanitized, or written straight to the table, hold
+ * whatever they were given.
+ */
+function sanitizeEditorDocuments(
+  result: PageEditorLoadResult
+): PageEditorLoadResult {
+  const translations: PageEditorLoadResult["translations"] = {};
+  for (const locale of PAGE_LOCALES) {
+    const entry = result.translations[locale];
+    if (entry) {
+      translations[locale] = {
+        ...entry,
+        draftDocument:
+          entry.draftDocument && sanitizePageDocHtml(entry.draftDocument),
+        publishedDocument:
+          entry.publishedDocument &&
+          sanitizePageDocHtml(entry.publishedDocument),
+      };
+    }
+  }
+  return { ...result, translations };
+}
+
 export async function getPageEditorById(id: string) {
   const ctx = await requireAuth();
   const { db } = await createAdminClient();
@@ -194,7 +221,7 @@ export async function getPageEditorById(id: string) {
   ) {
     return null;
   }
-  return result;
+  return sanitizeEditorDocuments(result);
 }
 
 export async function getPageEditorLocales(): Promise<PageEditorLocale[]> {

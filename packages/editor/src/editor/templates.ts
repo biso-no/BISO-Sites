@@ -70,6 +70,17 @@ function header(input: UnitPageTemplateInput, copy: TemplateCopy): PageHeader {
   };
 }
 
+/**
+ * Plain text made safe for a text block's body, which is HTML: `&`, `<` and
+ * `>` escaped as a browser serializes them, so both sanitizers keep it as is.
+ */
+function htmlText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 function text(heading: string, paragraph: string): Block {
   const block = emptyBlock("text");
   if (block.type === "text") {
@@ -114,7 +125,8 @@ export function unitPageTemplate(input: UnitPageTemplateInput): {
   sections: Section[];
 } {
   const copy = COPY[input.locale];
-  const about = text(copy.about(input.name), copy.aboutBody);
+  // The name comes from the accounting system: text, not markup.
+  const about = text(copy.about(htmlText(input.name)), copy.aboutBody);
 
   const blocks: Block[] =
     input.kind === "unit"

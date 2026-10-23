@@ -1,10 +1,15 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { Window } from "happy-dom";
 import { safeHref } from "../blocks/_v2/links";
 import { sanitizeRichText } from "../lib/sanitize";
-import { sanitizePageDocHtml, sanitizeRichHtml } from "./sanitize-doc";
 import { block, doc, section } from "./test-fixtures";
 import type { Block, PageDoc, TextBlock } from "./types";
+
+// `server-only` throws outside a react-server build, which a test is not.
+mock.module("server-only", () => ({}));
+const { sanitizePageDocHtml, sanitizeRichHtml } = await import(
+  "./sanitize-doc"
+);
 
 /** A `<` that opens anything but an allowlisted tag. */
 const OTHER_TAG = /<(?!\/?(?:b|strong|i|em|a|br|span)[\s>])/i;
@@ -179,6 +184,52 @@ describe("sanitizeRichHtml: what the editor stores", () => {
     expect(sanitizeRichHtml('<a href="/s?a=1&amp;b=2">x</a>')).toBe(
       '<a href="/s?a=1&amp;b=2">x</a>'
     );
+  });
+});
+
+describe("sanitizeRichHtml: hostile sizes", () => {
+  test("keeps at most 100 levels of nesting, and all of the text", () => {
+    const depth = 150;
+    const out = sanitizeRichHtml(
+      `${"<b>".repeat(depth)}x${"</b>".repeat(depth)}`
+    );
+    expect(out).toBe(`${"<b>".repeat(100)}x${"</b>".repeat(100)}`);
+  });
+
+  test("sanitizes 80,000 nested tags in under 200 ms", () => {
+    // Cold, as on a server's first request: no warm-up call.
+    const depth = 80_000;
+    const nested = `${"<b>".repeat(depth)}x${"</b>".repeat(depth)}`;
+    const unclosed = `${"<div><b>".repeat(depth / 2)}x`;
+
+    for (const html of [nested, unclosed]) {
+      const started = performance.now();
+      const out = sanitizeRichHtml(html);
+      const elapsed = performance.now() - started;
+
+      expect(out).not.toContain("<b>");
+      expect(out).toContain("x");
+      expect(elapsed).toBeLessThan(200);
+    }
+  });
+
+  test("parses markup up to 10,000 tags", () => {
+    const html = "<b>x</b>".repeat(5000);
+    expect(sanitizeRichHtml(html)).toBe(html);
+  });
+
+  test("keeps markup past 10,000 tags as escaped text, unparsed", () => {
+    // htmlparser2 is quadratic in nesting depth, so markup no paragraph comes
+    // near is shown as its source: inert, and visible to whoever fixes it.
+    const html = `${"<b>x</b>".repeat(5000)}<img src=x onerror=alert(1)>&\u00a0`;
+    const out = sanitizeRichHtml(html);
+
+    expect(out).not.toContain("<");
+    expect(out.startsWith("&lt;b&gt;x&lt;/b&gt;")).toBe(true);
+    expect(out.endsWith("&lt;img src=x onerror=alert(1)&gt;&amp;&nbsp;")).toBe(
+      true
+    );
+    expect(sanitizeRichHtml(out)).toBe(out);
   });
 });
 

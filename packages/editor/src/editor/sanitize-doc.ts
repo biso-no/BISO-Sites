@@ -3,6 +3,7 @@
 // client module (`sanitize-doc-boundary.test.ts` enforces that). Imports stay
 // relative: apps resolve this file through the package export, where the
 // editor's `@/` alias does not exist.
+import "server-only";
 import sanitizeHtml, {
   type Attributes,
   type IOptions,
@@ -64,6 +65,9 @@ const OPTIONS: IOptions = {
   allowedSchemesByTag: {},
   allowProtocolRelative: true,
   disallowedTagsMode: "discard",
+  // Deeper tags are discarded, their text kept. Bounds the work and the
+  // output for a document built to be deep.
+  nestingLimit: 100,
   nonTextTags: DROPPED_WITH_CONTENT,
   transformTags: { a: keepSafeHref },
 };
@@ -80,46 +84,99 @@ const TOKEN = /<(\/?)([a-z0-9]+)[^>]*>|[^<]+/g;
  * Unwraps every div and p, writing a `<br>` before one that follows anything
  * kept inside the same parent: the browser sanitizer's `previousSibling`
  * rule, so "one<div>two</div>" becomes "one<br>two" and a lone "<div>x</div>"
- * just "x". Each open element records whether anything kept has been written
- * inside it yet. (A line block inside an unwrapped tag, "a<u><div>b</div></u>",
+ * just "x". (A line block inside an unwrapped tag, "a<u><div>b</div></u>",
  * gets a break here and none in the browser, since the first pass has
  * already flattened the `<u>`; the editor never writes that shape.)
+ *
+ * Each open element records whether anything kept has been written inside
+ * it yet. A write marks only the innermost element; an unwrapped line block
+ * passes its mark to its parent as it closes, and a kept tag marks its
+ * parent as it opens. A parent's mark is only read once its open child has
+ * closed, so the walk stays linear however deep the markup.
  */
 function breakLines(html: string): string {
-  const wroteInside: boolean[] = [false];
-  const wrote = () => wroteInside.fill(true);
-  let out = "";
+  const walk: LineWalk = { out: "", wroteInside: [false] };
   for (const [token, closing, tag] of html.matchAll(TOKEN)) {
     if (tag === undefined) {
-      out += token;
-      wrote();
+      write(walk, token);
     } else if (tag === "br") {
       // Written as a browser serializes it, not sanitize-html's "<br />".
-      out += "<br>";
-      wrote();
+      write(walk, "<br>");
     } else if (closing) {
-      if (wroteInside.length > 1) {
-        wroteInside.pop();
-      }
-      if (!LINE_BLOCK_TAGS.has(tag)) {
-        out += token;
-      }
+      closeTag(walk, tag, token);
     } else {
-      if (!LINE_BLOCK_TAGS.has(tag)) {
-        out += token;
-        wrote();
-      } else if (wroteInside.at(-1)) {
-        out += "<br>";
-        wrote();
-      }
-      wroteInside.push(false);
+      openTag(walk, tag, token);
     }
   }
-  return out;
+  return walk.out;
+}
+
+interface LineWalk {
+  out: string;
+  /** One entry per open element, innermost last; the root first. */
+  wroteInside: boolean[];
+}
+
+/** Marks the innermost open element as holding something kept. */
+function mark(walk: LineWalk): void {
+  walk.wroteInside[walk.wroteInside.length - 1] = true;
+}
+
+function write(walk: LineWalk, markup: string): void {
+  walk.out += markup;
+  mark(walk);
+}
+
+function openTag(walk: LineWalk, tag: string, token: string): void {
+  if (!LINE_BLOCK_TAGS.has(tag)) {
+    write(walk, token);
+  } else if (walk.wroteInside.at(-1)) {
+    write(walk, "<br>");
+  }
+  walk.wroteInside.push(false);
+}
+
+function closeTag(walk: LineWalk, tag: string, token: string): void {
+  const childWrote = walk.wroteInside.length > 1 && walk.wroteInside.pop();
+  if (!LINE_BLOCK_TAGS.has(tag)) {
+    walk.out += token;
+  } else if (childWrote) {
+    // An unwrapped line block's content now sits in its parent.
+    mark(walk);
+  }
 }
 
 /** A no-break space, which a browser serializes as `&nbsp;`. */
 const NBSP = "\u00a0";
+
+/**
+ * htmlparser2 keeps its open elements in an array it `unshift`s, so a parse
+ * is quadratic in nesting depth, and `nestingLimit` only applies after it:
+ * 80,000 nested tags took 1.4 s under Node and 0.4 s under Bun. Every tag
+ * starts with a `<`, so counting them bounds the depth; at this many a parse
+ * still takes a few milliseconds, and no paragraph comes near it.
+ */
+const MAX_TAG_STARTS = 10_000;
+
+function hasTooManyTags(html: string): boolean {
+  let count = 0;
+  for (let at = html.indexOf("<"); at !== -1; at = html.indexOf("<", at + 1)) {
+    count += 1;
+    if (count > MAX_TAG_STARTS) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The input as text: inert, and showing its source to whoever fixes it. */
+function escapeText(html: string): string {
+  return html
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll(NBSP, "&nbsp;");
+}
 
 /**
  * Text-block HTML reduced to the editor's allowlist, without a DOM: the
@@ -128,8 +185,13 @@ const NBSP = "\u00a0";
  * text kept, except the elements in `DROPPED_WITH_CONTENT`, which go with
  * everything inside them. Lines typed with Enter become `<br>`s. The output
  * is serialized as a browser would, so the editor's blur leaves it unchanged.
+ * Markup with more than `MAX_TAG_STARTS` tags is not parsed at all: it comes
+ * back as escaped text.
  */
 export function sanitizeRichHtml(html: string): string {
+  if (hasTooManyTags(html)) {
+    return escapeText(html);
+  }
   return breakLines(sanitizeHtml(html, OPTIONS)).replaceAll(NBSP, "&nbsp;");
 }
 
