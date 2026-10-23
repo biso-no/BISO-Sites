@@ -7,7 +7,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { ResolvedBackground } from "@/blocks/_primitives/layout-types";
 import { useInsertTarget, useMode, useSelectedSectionId } from "@/editor/hooks";
 import { legacyBackground } from "@/editor/sections";
@@ -17,6 +17,7 @@ import type { Block, Column, Section } from "@/editor/types";
 import { SectionView } from "@/sections/section-view";
 import type { CanvasDrag } from "./drop";
 import { DropSlot } from "./drop-line";
+import { clickSelectsSection } from "./section-click";
 import { SortableBlock } from "./sortable-block";
 
 export function sectionLabel(section: Section): string {
@@ -64,6 +65,8 @@ export function SectionFrame({ drag, index, section }: SectionFrameProps) {
   const selectSection = useEditorStore((s) => s.selectSection);
   const duplicateSection = useEditorStore((s) => s.duplicateSection);
   const removeSection = useEditorStore((s) => s.removeSection);
+  // Where the press that led to a click started; see clickSelectsSection.
+  const pressTarget = useRef<EventTarget | null>(null);
 
   const data = useMemo(
     () => ({ kind: "section", sectionId: section.id }) as const,
@@ -103,7 +106,14 @@ export function SectionFrame({ drag, index, section }: SectionFrameProps) {
       data-section-id={section.id}
       onClick={(e) => {
         e.stopPropagation();
-        selectSection(section.id);
+        const target = pressTarget.current;
+        pressTarget.current = null;
+        if (clickSelectsSection(target, window.getSelection())) {
+          selectSection(section.id);
+        }
+      }}
+      onPointerDown={(e) => {
+        pressTarget.current = e.target;
       }}
       ref={setNodeRef}
       style={{
