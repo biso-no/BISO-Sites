@@ -132,7 +132,16 @@ interface EditorState {
   setStatus: (status: PageMeta["status"]) => void;
   /** One undo step per call; `null` resets to BISO. */
   setTheme: (theme: PageTheme | null) => void;
+  /**
+   * Live colours while a picker is dragged. Transient: not in the doc, not in
+   * history and not saved, so the canvas repaints without an undo step per
+   * pointer move. `null` ends the preview.
+   */
+  setThemePreview: (theme: PageTheme | null) => void;
   setViewport: (viewport: EditorViewport) => void;
+
+  /** See `setThemePreview`. The canvas prefers it over the doc's theme. */
+  themePreview: PageTheme | null;
 
   // History
   undo: () => void;
@@ -230,6 +239,7 @@ export const useEditorStore = create<EditorState>()(
       mode: "edit",
       viewport: "desk",
       saving: "idle",
+      themePreview: null,
       copilotOpen: false,
       inspectorTab: "block",
       locale: "no",
@@ -394,6 +404,12 @@ export const useEditorStore = create<EditorState>()(
         set((s) => {
           pushHistory(s);
           opSetTheme(s.doc, theme);
+          s.themePreview = null;
+        }),
+
+      setThemePreview: (theme) =>
+        set((s) => {
+          s.themePreview = theme;
         }),
 
       setMeta: (key, value) =>

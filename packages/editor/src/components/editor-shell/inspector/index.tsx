@@ -20,6 +20,7 @@ import type { EditorCampus, EditorDepartment, Section } from "@/editor/types";
 import { BlockVisibility } from "./block-visibility";
 import { HeaderPanel } from "./header-panel";
 import { SectionPanel } from "./section-panel";
+import { ThemePanel } from "./theme-panel";
 
 export function InspectorPane() {
   const selection = useSelection();
@@ -259,7 +260,7 @@ function PageTab({
         </p>
       )}
 
-      {/* Task 7 adds the Theme panel here. */}
+      <ThemePanel />
     </div>
   );
 }

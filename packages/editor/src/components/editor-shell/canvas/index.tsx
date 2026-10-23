@@ -129,9 +129,10 @@ export function CanvasPane({ drag }: CanvasPaneProps) {
   const switchHint = "Fix the theme colours before switching language";
   // On the frame itself: `.biso-surface-v2` re-declares these tokens there,
   // so a value set on an ancestor would be shadowed.
+  const themePreview = useEditorStore((s) => s.themePreview);
   const themeStyle = useMemo(
-    () => canvasThemeStyle(effectiveTheme(meta, departments)),
-    [meta, departments]
+    () => canvasThemeStyle(themePreview ?? effectiveTheme(meta, departments)),
+    [meta, departments, themePreview]
   );
 
   const edit = mode === "edit";
