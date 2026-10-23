@@ -26,6 +26,8 @@ import type {
 } from "./types";
 import { PAGE_DOC_VERSION } from "./types";
 
+export { pruneEmptyFeedBlocks } from "./prune-feeds";
+
 const MAX_TEXT_LEN = 120;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>

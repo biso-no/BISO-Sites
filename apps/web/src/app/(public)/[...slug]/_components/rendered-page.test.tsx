@@ -220,6 +220,26 @@ test("an empty first section, which renders nothing, hands the nav clearance on"
   expect(tags[1]).not.toContain("data-first");
 });
 
+test("a section pruned for an empty feed hands the nav clearance on", async () => {
+  const { pruneEmptyFeedBlocks } = await import(
+    "../../../../../../../packages/editor/src/editor/prune-feeds"
+  );
+  const events = section("s-0", "white", [[]]);
+  (events as { columns: { blocks: unknown[] }[] }).columns[0].blocks = [
+    { id: "ev", source: "auto", type: "events" },
+  ];
+  const doc = pruneEmptyFeedBlocks(
+    docOf([events, section("s-1", "white", [["first"]])]),
+    { "events|biso|no|3": [] },
+    "no"
+  );
+  const tags = sectionTags(
+    renderToStaticMarkup(createElement(RenderedPage, { doc, locale: "no" }))
+  );
+  expect(tags).toHaveLength(1);
+  expect(tags[0]).toContain('data-first=""');
+});
+
 const HEADER = {
   buttons: [],
   crumbs: [],

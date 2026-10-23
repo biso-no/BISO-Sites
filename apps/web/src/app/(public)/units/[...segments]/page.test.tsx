@@ -133,6 +133,34 @@ describe("unit route", () => {
     });
   });
 
+  it("an empty feed leaves the unit page no empty band", async () => {
+    cachedPageEventsFeed.mockResolvedValue([]);
+    cachedPublishedPage.mockResolvedValue(
+      ownPage({
+        meta: META,
+        sections: [
+          {
+            columns: [
+              { blocks: [{ id: "b-1", source: "auto", type: "events" }] },
+            ],
+            id: "s-1",
+          },
+        ],
+        version: 2,
+      })
+    );
+
+    const page = (await UnitPage({ params })) as Element;
+    const publishedUnit = child(child(page));
+    const render = publishedUnit.type as (props: unknown) => Promise<Element>;
+    const rendered = await render(publishedUnit.props);
+    const doc = rendered.props.doc as {
+      sections: { columns: { blocks: unknown[] }[] }[];
+    };
+
+    expect(doc.sections[0].columns[0].blocks).toEqual([]);
+  });
+
   it("a published page with only a page header is the unit's page, not the default", async () => {
     cachedPublishedPage.mockResolvedValue(
       ownPage({

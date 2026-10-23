@@ -1,6 +1,6 @@
 import { getPage } from "@repo/api/page-builder";
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
-import { normalizePageDoc } from "@repo/editor/serialize";
+import { normalizePageDoc, pruneEmptyFeedBlocks } from "@repo/editor/serialize";
 import type { PageDoc } from "@repo/editor/types";
 import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
@@ -110,5 +110,15 @@ export default async function DynamicPage({ params }: Props) {
   // Appwrite round-trip per visitor. See `@/lib/data/page-feeds`.
   const feeds = await resolvePageFeeds(doc, locale);
 
-  return <RenderedPage doc={doc} feeds={feeds} locale={locale} slug={slug} />;
+  // Blocks whose feed came back empty leave no empty band: drop them (and the
+  // sections they leave bare) before the renderer picks the nav-clearing first
+  // section.
+  return (
+    <RenderedPage
+      doc={pruneEmptyFeedBlocks(doc, feeds, locale)}
+      feeds={feeds}
+      locale={locale}
+      slug={slug}
+    />
+  );
 }

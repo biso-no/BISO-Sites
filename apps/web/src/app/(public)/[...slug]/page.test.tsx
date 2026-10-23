@@ -156,6 +156,41 @@ describe("block page route", () => {
   });
 });
 
+describe("block page route: empty live blocks", () => {
+  const eventsSection = (id: string) => ({
+    columns: [
+      {
+        blocks: [{ id: `b-${id}`, source: "auto", type: "events" }],
+        id: `c-${id}`,
+      },
+    ],
+    id,
+    layout: { columns: "1" },
+  });
+
+  it("drops a section whose only block resolved to an empty feed", async () => {
+    cachedPageEventsFeed.mockResolvedValue([]);
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [eventsSection("s-1")], version: 2 })
+    );
+
+    const page = await render("old-page");
+
+    expect(page.props.doc.sections[0].columns[0].blocks).toEqual([]);
+  });
+
+  it("keeps the block when its feed has rows", async () => {
+    cachedPageEventsFeed.mockResolvedValue([{ title: "Kickoff" }]);
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [eventsSection("s-1")], version: 2 })
+    );
+
+    const page = await render("old-page");
+
+    expect(page.props.doc.sections[0].columns[0].blocks).toHaveLength(1);
+  });
+});
+
 describe("block page route: rich text", () => {
   it("hands RenderedPage sanitized text-block HTML", async () => {
     // Rows saved before the save path sanitized, or written around the admin,

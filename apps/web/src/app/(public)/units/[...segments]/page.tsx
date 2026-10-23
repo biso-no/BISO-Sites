@@ -1,4 +1,5 @@
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
+import { pruneEmptyFeedBlocks } from "@repo/editor/serialize";
 import type { PageDoc } from "@repo/editor/types";
 import type { Locale } from "@repo/i18n/config";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
@@ -44,7 +45,14 @@ async function PublishedUnit({
   slug: string;
 }) {
   const feeds = await resolvePageFeeds(doc, locale);
-  return <RenderedPage doc={doc} feeds={feeds} locale={locale} slug={slug} />;
+  return (
+    <RenderedPage
+      doc={pruneEmptyFeedBlocks(doc, feeds, locale)}
+      feeds={feeds}
+      locale={locale}
+      slug={slug}
+    />
+  );
 }
 
 export default async function UnitPage({ params }: Props) {

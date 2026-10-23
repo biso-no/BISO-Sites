@@ -232,7 +232,7 @@ export function resolveFeedDepartment(
   return value === "auto" ? pageDepartment : value;
 }
 
-function requestForBlock(
+export function requestForBlock(
   block: Block,
   pageDepartment: string,
   pageCampus: string,

@@ -9,6 +9,8 @@ const WHERE_CLAUSE = /:where\([^)]*\)/g;
 const CLASS_OR_ATTRIBUTE = /\.[\w-]+|\[[^\]]+\]/g;
 const PHONE_REVERSE_STRETCH = /column-reverse;\s*align-items:\s*stretch/;
 
+const DISPLAY_NONE = /display:\s*none/;
+
 const read = (name: string) =>
   readFileSync(join(import.meta.dir, name), "utf8");
 
@@ -289,4 +291,18 @@ test("hairlines on a Tinted section are darker, so they show on its fill", () =>
   expect(
     contrast(mix(darkSunken, paper, share), darkSunken)
   ).toBeGreaterThanOrEqual(1.3);
+});
+
+test("a site section with only empty or hidden items is hidden, never on the canvas", () => {
+  const rule = [...sectionsCss.matchAll(/([^{}]*:has\([^{}]*)\{([^}]*)\}/g)]
+    .map((m) => ({ selector: m[1], body: m[2] }))
+    .find(
+      (r) =>
+        r.selector.includes(".pg-page") &&
+        r.selector.includes(".pg-sec") &&
+        DISPLAY_NONE.test(r.body) &&
+        r.selector.includes(":not(")
+    );
+  expect(rule).toBeDefined();
+  expect(rule?.selector).not.toContain(".pe-frame");
 });
