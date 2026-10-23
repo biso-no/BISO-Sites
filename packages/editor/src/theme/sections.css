@@ -1,0 +1,90 @@
+/*
+ * Sections: rows of columns. Everything responds to the page container
+ * (`pg-page`, declared in blocks.css), so the admin's device preview and the
+ * public site break at the same widths. Each column is itself the `pg`
+ * container the blocks' own rules answer to.
+ *
+ * Backgrounds use the legacy paper/inverted tokens until stage 2.
+ */
+.pg-sec {
+  --pg-sec-pad-y: clamp(3rem, 6cqi, 5rem);
+  padding: var(--pg-sec-pad-y) clamp(1rem, 4cqi, 2rem);
+  color: var(--ink);
+  background: var(--paper);
+}
+.pg-sec[data-spacing="tight"] {
+  --pg-sec-pad-y: 2rem;
+}
+.pg-sec[data-spacing="roomy"] {
+  --pg-sec-pad-y: clamp(4rem, 9cqi, 8rem);
+}
+.pg-sec[data-background="tinted"] {
+  background: var(--paper-2);
+}
+.pg-sec[data-background="dark"] {
+  color: var(--inverted-foreground);
+  background: var(--inverted);
+}
+
+.pg-sec__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.5rem, 3cqi, 3rem);
+  align-items: start;
+  max-width: 1200px;
+  margin-inline: auto;
+}
+.pg-sec[data-align="middle"] > .pg-sec__grid {
+  align-items: center;
+}
+.pg-sec[data-align="bottom"] > .pg-sec__grid {
+  align-items: end;
+}
+.pg-sec[data-columns="1-1"] > .pg-sec__grid {
+  grid-template-columns: 1fr 1fr;
+}
+.pg-sec[data-columns="2-1"] > .pg-sec__grid {
+  grid-template-columns: 2fr 1fr;
+}
+.pg-sec[data-columns="1-2"] > .pg-sec__grid {
+  grid-template-columns: 1fr 2fr;
+}
+.pg-sec[data-columns="1-1-1"] > .pg-sec__grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+.pg-sec[data-columns="1-1-1-1"] > .pg-sec__grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.pg-col {
+  min-width: 0;
+  container: pg / inline-size;
+}
+
+@container pg-page (max-width: 1023px) {
+  .pg-sec[data-tablet="stack"] > .pg-sec__grid {
+    grid-template-columns: 1fr;
+  }
+  .pg-sec[data-columns="1-1-1-1"][data-tablet="row"] > .pg-sec__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container pg-page (max-width: 639px) {
+  .pg-sec > .pg-sec__grid {
+    grid-template-columns: 1fr;
+  }
+  .pg-sec[data-phone-reverse] > .pg-sec__grid {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .pg-sec[data-hide-phone],
+  .pg-col__item[data-hide-phone] {
+    display: none;
+  }
+  .pe-frame[data-editing] .pg-sec[data-hide-phone],
+  .pe-frame[data-editing] .pg-col__item[data-hide-phone] {
+    display: block;
+    opacity: 0.45;
+  }
+}

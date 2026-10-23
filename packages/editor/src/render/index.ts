@@ -35,15 +35,23 @@ export {
   pageFeedKey,
   resolveFeedDepartment,
 } from "../editor/page-feeds";
+export { legacyBackground } from "../editor/sections";
 export { fromJSON, normalizePageDoc } from "../editor/serialize";
 export { useEditorStore } from "../editor/store";
+export { walkBlocks } from "../editor/tree";
 export type {
   Block,
   BlockType,
+  Column,
   EditorLocale,
+  InsertTarget,
   PageDoc,
   PageMeta,
+  Section,
+  SectionColumns,
+  SectionLayout,
 } from "../editor/types";
+export { SectionView } from "../sections/section-view";
 export type { AccentHue } from "../theme/presets";
 export {
   accentForDepartment,

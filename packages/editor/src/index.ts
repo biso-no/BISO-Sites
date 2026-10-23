@@ -22,13 +22,18 @@ export { useEditorStore } from "./editor/store";
 export type {
   Block,
   BlockType,
+  Column,
   EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
+  InsertTarget,
   PageDoc,
   PageMeta,
   SavingState,
+  Section,
+  SectionColumns,
+  SectionLayout,
 } from "./editor/types";
 
 // Side-effect: populate the block registry.
@@ -38,3 +43,7 @@ export type {
 // `"sideEffects": true`. See the longer note in `./render/index.ts` — without
 // both, bundlers drop these registrations and every block renders as null.
 import "./blocks/index";
+
+export { legacyBackground } from "./editor/sections";
+export { walkBlocks } from "./editor/tree";
+export { SectionView } from "./sections/section-view";
