@@ -65,9 +65,9 @@ function Fragile({ block }: { block: { title?: string } }) {
 }
 
 /** Runs `run` with `type`'s Render swapped for Fragile and errors muted. */
-function withFragile(type: Block["type"], v2: boolean, run: () => void) {
+function withFragile(type: Block["type"], run: () => void) {
   const def = original(type);
-  registerBlock({ ...def, Render: Fragile as never, v2: v2 || undefined });
+  registerBlock({ ...def, Render: Fragile as never });
   // React reports every caught render error on the console.
   const muted = spyOn(console, "error").mockImplementation(() => undefined);
   try {
@@ -89,7 +89,6 @@ function mount(block: Block, edit: boolean) {
     act(() => {
       root.render(
         createElement(BlockView, {
-          background: "default",
           block: next,
           edit,
           onPatch: () => undefined,
@@ -102,7 +101,7 @@ function mount(block: Block, edit: boolean) {
 
 describe("a block that throws", () => {
   test("shows a small error card in the editor, naming the block type", () => {
-    withFragile("divider", true, () => {
+    withFragile("divider", () => {
       const { host } = mount(bad, true);
       expect(host.textContent).toContain("This block couldn't be shown");
       expect(host.textContent).toContain("divider");
@@ -110,7 +109,7 @@ describe("a block that throws", () => {
   });
 
   test("renders nothing on the site, so the column hides its slot", () => {
-    withFragile("divider", true, () => {
+    withFragile("divider", () => {
       const { host } = mount(bad, false);
       expect(host.textContent).toBe("");
       const wrapper = host.querySelector("[data-block]");
@@ -118,16 +117,8 @@ describe("a block that throws", () => {
     });
   });
 
-  test("a legacy block is caught too, frame and all", () => {
-    withFragile("profileHeader", false, () => {
-      const block = { ...bad, type: "profileHeader" } as unknown as Block;
-      expect(mount(block, false).host.textContent).toBe("");
-      expect(mount(block, true).host.textContent).toContain("profileHeader");
-    });
-  });
-
   test("the block renders again once an edit repairs it", () => {
-    withFragile("divider", true, () => {
+    withFragile("divider", () => {
       const { host, render } = mount(bad, true);
       render({ ...bad, title: "good" } as unknown as Block);
       expect(host.textContent).toBe("fine");
@@ -135,10 +126,9 @@ describe("a block that throws", () => {
   });
 
   test("server rendering of the site skips it instead of failing the page", () => {
-    withFragile("divider", true, () => {
+    withFragile("divider", () => {
       const html = renderToStaticMarkup(
         createElement(BlockView, {
-          background: "default",
           block: bad,
           edit: false,
           onPatch: () => undefined,

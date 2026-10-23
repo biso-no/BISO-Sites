@@ -24,5 +24,4 @@ registerBlock({
   Render: MultiStepFormRender as never,
   Inspector: MultiStepFormInspector as never,
   PaletteThumb: MultiStepFormThumb,
-  v2: true,
 });

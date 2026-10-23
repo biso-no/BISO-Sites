@@ -30,5 +30,4 @@ registerBlock({
   Render: DividerRender as never,
   Inspector: DividerInspector as never,
   PaletteThumb: DividerThumb,
-  v2: true,
 });

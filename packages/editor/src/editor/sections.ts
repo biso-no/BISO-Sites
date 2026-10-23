@@ -1,12 +1,5 @@
-import type { ResolvedBackground } from "../blocks/_primitives/layout-types";
 import { newId } from "./ids";
-import type {
-  Block,
-  Section,
-  SectionBackground,
-  SectionColumns,
-  SectionLayout,
-} from "./types";
+import type { Block, Section, SectionColumns, SectionLayout } from "./types";
 
 export const DEFAULT_SECTION_LAYOUT: SectionLayout = {
   align: "top",
@@ -58,17 +51,4 @@ export function resizeColumns(section: Section, columns: SectionColumns): void {
       last.blocks.push(...col.blocks);
     }
   }
-}
-
-const LEGACY_BACKGROUND: Record<SectionBackground, ResolvedBackground> = {
-  dark: "inverted",
-  // A photo sits under a navy scrim, so legacy blocks read it as dark.
-  photo: "inverted",
-  tinted: "muted",
-  white: "default",
-};
-
-/** Interim map from a section background to the block surface; stage 2 replaces it. */
-export function legacyBackground(bg: SectionBackground): ResolvedBackground {
-  return LEGACY_BACKGROUND[bg];
 }

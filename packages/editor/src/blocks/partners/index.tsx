@@ -17,5 +17,4 @@ registerBlock({
   Render: PartnersRender as never,
   Inspector: PartnersInspector as never,
   PaletteThumb: PartnersThumb,
-  v2: true,
 });

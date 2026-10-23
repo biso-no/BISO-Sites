@@ -527,6 +527,8 @@
   position: relative;
   margin: 0 auto;
   overflow: hidden;
+  font-family: var(--ui);
+  color: var(--pg-ink);
   background: var(--paper);
   border-radius: 14px;
   box-shadow:

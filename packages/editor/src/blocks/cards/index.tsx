@@ -41,5 +41,4 @@ registerBlock({
   Render: CardsRender as never,
   Inspector: CardsInspector as never,
   PaletteThumb: CardsThumb,
-  v2: true,
 });

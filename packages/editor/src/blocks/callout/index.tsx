@@ -36,5 +36,4 @@ registerBlock({
   Render: CalloutRender as never,
   Inspector: CalloutInspector as never,
   PaletteThumb: CalloutThumb,
-  v2: true,
 });

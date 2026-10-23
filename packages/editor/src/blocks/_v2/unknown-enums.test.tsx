@@ -18,7 +18,6 @@ const render = (block: Block, edit = false): Element => {
   return parseHtml(
     renderToStaticMarkup(
       createElement(def.Render, {
-        background: "default",
         block: block as never,
         edit,
         onPatch: () => undefined,

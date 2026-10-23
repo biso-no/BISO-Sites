@@ -48,5 +48,4 @@ registerBlock({
   Render: JobsRender as never,
   Inspector: JobsInspector as never,
   PaletteThumb: JobsThumb,
-  v2: true,
 });

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const COLUMN_CONTAINER = /\.pg-col\s*{[^}]*container:\s*pg\s*\/\s*inline-size/;
@@ -13,11 +13,11 @@ const read = (name: string) =>
   readFileSync(join(import.meta.dir, name), "utf8");
 
 const sectionsCss = read("sections.css");
-const blocksCss = read("blocks.css");
 
 test("columns are the block container and the page is pg-page", () => {
   expect(sectionsCss).toMatch(COLUMN_CONTAINER);
-  expect(blocksCss).toMatch(PAGE_CONTAINER);
+  expect(sectionsCss).toMatch(PAGE_CONTAINER);
+  expect(existsSync(join(import.meta.dir, "blocks.css"))).toBe(false);
 });
 
 test("phones stack and tablets can", () => {
@@ -122,7 +122,7 @@ test("the site clears the fixed nav; the canvas, which has none, does not", () =
   expect(declares(".pg-page", "--pg-nav-offset: 5rem;")).toBe(true);
   expect(declares(".pe-frame", "--pg-nav-offset: 0px;")).toBe(true);
   // The old reservation on the page itself is gone: the first section owns it.
-  expect(blocksCss.replace(CSS_COMMENT, "")).not.toContain("--pg-nav-offset");
+  expect(existsSync(join(import.meta.dir, "blocks.css"))).toBe(false);
 });
 
 test("the first section clears the nav and paints a navy strip under it unless it is navy already", () => {

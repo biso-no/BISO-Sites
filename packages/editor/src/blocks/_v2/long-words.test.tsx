@@ -27,7 +27,6 @@ const render = (block: Block): Element => {
         "section",
         { "data-surface": "deep" },
         createElement(def.Render, {
-          background: "default",
           block: block as never,
           edit: false,
           onPatch: () => undefined,

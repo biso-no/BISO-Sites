@@ -27,5 +27,4 @@ registerBlock({
   Render: MarqueeRender as never,
   Inspector: MarqueeInspector as never,
   PaletteThumb: MarqueeThumb,
-  v2: true,
 });

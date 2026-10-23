@@ -2,12 +2,10 @@
 
 import { Component, type CSSProperties, type ReactNode, Suspense } from "react";
 import type { Block } from "@/editor/types";
-import type { ResolvedBackground } from "./_primitives/layout-types";
 import { getBlock } from "./index";
 import type { PatchFn } from "./types";
 
 interface BlockViewProps {
-  background: ResolvedBackground;
   block: Block;
   edit: boolean;
   onPatch: PatchFn;
@@ -16,52 +14,31 @@ interface BlockViewProps {
 /**
  * Renders one block identically in the admin canvas and on the public site.
  *
- * v2 blocks render bare; every legacy block is framed here. `block.layout` is ignored: the section owns spacing
- * and width.
+ * Blocks render bare: the section owns the surface, spacing and width.
+ * `data-block` names the type for the gallery page's tests and for anyone
+ * inspecting the DOM; `display: contents` keeps it out of the layout.
+ *
+ * A stored block of a type that no longer exists (a removed block, a
+ * hand-edited document) renders nothing on the site. The editor shows a card
+ * naming it, so it can be found and deleted.
  */
-export function BlockView({
-  background,
-  block,
-  edit,
-  onPatch,
-}: BlockViewProps) {
+export function BlockView({ block, edit, onPatch }: BlockViewProps) {
   const def = getBlock(block.type);
   if (!def) {
-    return null;
+    return edit ? <UnknownBlockCard type={block.type} /> : null;
   }
-
-  const rendered = (
-    <def.Render
-      background={background}
-      block={block as never}
-      edit={edit}
-      onPatch={onPatch}
-    />
-  );
 
   // A malformed block (copilot output, a seed script) must not take the page
   // down with it. The boundary catches it on the client; on the server an
   // error boundary cannot, but Suspense makes React skip the block there and
   // retry it on the client, where the boundary then catches it.
-  if (def.v2) {
-    // `data-block` names the type for the gallery page's tests and for anyone
-    // inspecting the DOM. `display: contents` keeps it out of the layout.
-    return (
-      <Suspense fallback={null}>
-        <div data-block={block.type} style={{ display: "contents" }}>
-          <BlockErrorBoundary block={block} edit={edit}>
-            {rendered}
-          </BlockErrorBoundary>
-        </div>
-      </Suspense>
-    );
-  }
-
   return (
     <Suspense fallback={null}>
-      <BlockErrorBoundary block={block} edit={edit}>
-        <LayoutFrame background={background}>{rendered}</LayoutFrame>
-      </BlockErrorBoundary>
+      <div data-block={block.type} style={{ display: "contents" }}>
+        <BlockErrorBoundary block={block} edit={edit}>
+          <def.Render block={block as never} edit={edit} onPatch={onPatch} />
+        </BlockErrorBoundary>
+      </div>
     </Suspense>
   );
 }
@@ -125,28 +102,11 @@ class BlockErrorBoundary extends Component<
   }
 }
 
-interface LayoutFrameProps {
-  background: ResolvedBackground;
-  children: ReactNode;
-}
-
-/**
- * The section paints the surface, so the frame paints none. `data-background`
- * stays: `blocks.css` reads it to rebind the site tokens the legacy blocks'
- * copy follows on a dark section. Sections own spacing and width, so the frame
- * is always compact and full width. `data-auto` lets the dark banner block
- * (contact) keep its own panel.
- */
-function LayoutFrame({ background, children }: LayoutFrameProps) {
+function UnknownBlockCard({ type }: { type: string }) {
   return (
-    <div
-      className="pg-section relative text-foreground"
-      data-auto=""
-      data-background={background}
-      data-spacing="compact"
-      data-width="full"
-    >
-      <div className="pg-section__inner">{children}</div>
+    <div style={ERROR_CARD}>
+      <strong style={{ color: "var(--pg-ink)" }}>Unknown block: {type}.</strong>{" "}
+      It is no longer supported and is not shown on the site. Delete it.
     </div>
   );
 }

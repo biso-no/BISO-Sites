@@ -102,15 +102,16 @@ export function CardsRender({ block, edit, onPatch }: Props) {
   if (layout !== "row") {
     return list;
   }
-  // A scroller must be reachable and announced for keyboard users.
+  // A scroller must be reachable and announced for keyboard users: a labelled
+  // `<section>` is a region, and the tab stop lets the arrow keys scroll it.
   return (
-    <div
+    <section
       aria-label={ROW_LABEL[locale] ?? ROW_LABEL.no}
       className={ROW_SCROLLER}
-      role="region"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: a horizontally scrolling region must be focusable, or keyboard users cannot scroll it (WCAG 2.1.1; axe "scrollable-region-focusable").
       tabIndex={0}
     >
       {list}
-    </div>
+    </section>
   );
 }

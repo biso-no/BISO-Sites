@@ -12,7 +12,7 @@ const H1_OPEN = /<h1[\s>]/g;
 
 // The real render barrel pulls in every block (and the editor's `@/` alias,
 // which this app's vitest does not resolve), so it is replaced. SectionView,
-// the normalizer and the background map are the real ones, imported by path:
+// and the normalizer are the real ones, imported by path:
 // they are what these tests are about. Only the blocks, the store and the feed
 // provider are stand-ins.
 vi.mock("@repo/editor/render", async () => ({
@@ -21,9 +21,6 @@ vi.mock("@repo/editor/render", async () => ({
       "../../../../../../../packages/editor/src/sections/section-view"
     )
   ).SectionView,
-  legacyBackground: (
-    await import("../../../../../../../packages/editor/src/editor/sections")
-  ).legacyBackground,
   normalizePageDoc: (
     await import("../../../../../../../packages/editor/src/editor/serialize")
   ).normalizePageDoc,
@@ -32,18 +29,8 @@ vi.mock("@repo/editor/render", async () => ({
       "../../../../../../../packages/editor/src/header/page-header-view"
     )
   ).PageHeaderView,
-  BlockView: ({
-    background,
-    block,
-  }: {
-    background: string;
-    block: { id: string; text?: string };
-  }) =>
-    createElement(
-      "div",
-      { "data-background": background, "data-block": block.id },
-      block.text
-    ),
+  BlockView: ({ block }: { block: { id: string; text?: string } }) =>
+    createElement("div", { "data-block": block.id }, block.text),
   useEditorStore: {
     setState: (patch: unknown) => seededState.push(patch),
   },
@@ -122,9 +109,9 @@ test("mounts the public brand surface without dropping the page accent", () => {
 
   expect(html).toMatch(BISO_SURFACE_CLASS);
   expect(html).toContain("--page-accent:#3DA9E0");
-  // Section backgrounds map onto the blocks' surfaces.
-  expect(html).toContain('data-background="default"');
-  expect(html).toContain('data-background="muted"');
+  // Each section carries its own background; blocks paint none.
+  expect(html).toContain('data-background="white"');
+  expect(html).toContain('data-background="tinted"');
 });
 
 test("renders a two-column section", () => {

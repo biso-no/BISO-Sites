@@ -50,5 +50,4 @@ registerBlock({
   Render: ContactRender as never,
   Inspector: ContactInspector as never,
   PaletteThumb: ContactThumb,
-  v2: true,
 });

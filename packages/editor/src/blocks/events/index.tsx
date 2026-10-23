@@ -37,5 +37,4 @@ registerBlock({
   Render: EventsRender as never,
   Inspector: EventsInspector as never,
   PaletteThumb: EventsThumb,
-  v2: true,
 });

@@ -38,5 +38,4 @@ registerBlock({
   Render: NewsRender as never,
   Inspector: NewsInspector as never,
   PaletteThumb: NewsThumb,
-  v2: true,
 });

@@ -45,6 +45,5 @@ export type {
 // both, bundlers drop these registrations and every block renders as null.
 import "./blocks/index";
 
-export { legacyBackground } from "./editor/sections";
 export { walkBlocks } from "./editor/tree";
 export { SectionView } from "./sections/section-view";

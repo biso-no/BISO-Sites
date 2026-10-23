@@ -49,12 +49,11 @@ const CORRUPTIONS: [string, Corrupt][] = [
   ["every prop is missing", (empty) => ({ id: empty.id, type: empty.type })],
 ];
 
-const v2Blocks = (): BlockDefinition[] => allBlocks().filter((def) => def.v2);
+const v2Blocks = (): BlockDefinition[] => allBlocks();
 
 const renderBlock = (def: BlockDefinition, block: Block, edit: boolean) =>
   renderToStaticMarkup(
     createElement(def.Render, {
-      background: "default",
       block: block as never,
       edit,
       onPatch: () => undefined,

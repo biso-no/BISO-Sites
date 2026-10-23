@@ -176,13 +176,6 @@ export function emptyBlock(type: BlockType): Block {
           { title: "Card three", body: "Describe this in one sentence." },
         ],
       };
-    case "twoCol":
-      return {
-        id,
-        type,
-        left: "Left column copy.",
-        right: "Right column copy.",
-      };
     case "signup":
       return {
         id,
@@ -231,8 +224,6 @@ export function emptyBlock(type: BlockType): Block {
       };
     case "documents":
       return { id, type, heading: "Documents", items: [] };
-    case "campusSelector":
-      return { id, type, mode: "cards", heading: "Choose your campus" };
     case "stepGrid":
       return {
         id,
@@ -255,16 +246,6 @@ export function emptyBlock(type: BlockType): Block {
       };
     case "productGrid":
       return { id, type, heading: "Shop", limit: 4, source: "auto" };
-    case "filterBar":
-      return { id, type, target: "news" };
-    case "profileHeader":
-      return {
-        id,
-        type,
-        heading: "My BISO",
-        showAvatar: true,
-        showStats: true,
-      };
     case "multiStepForm":
       return {
         id,

@@ -1,6 +1,6 @@
 /*
  * Sections: rows of columns. Everything responds to the page container
- * (`pg-page`, declared in blocks.css), so the admin's device preview and the
+ * (`pg-page`, declared below), so the admin's device preview and the
  * public site break at the same widths. Each column is itself the `pg`
  * container the blocks' own rules answer to.
  *
@@ -10,6 +10,24 @@
  * `--ink`, `--edge` and the rest to their on-navy values, so nothing inside a
  * section branches on its background.
  */
+/*
+ * Container context for the public render root (`pg-page`) and the editor's
+ * canvas frame. Sections size themselves against this frame, not the
+ * viewport, so the admin's device preview (`.pe-frame.mob` is a 390px frame
+ * inside a wide window) hits exactly the breakpoints the public site will.
+ * Plain `@media` queries would never fire there.
+ */
+.pg-page,
+.pe-frame {
+  container: pg-page / inline-size;
+}
+/* The site's own face and ink; the canvas frame sets its own in editor.css. */
+.pg-page {
+  font-family: var(--font-sans, var(--font-biso-sans));
+  color: var(--foreground);
+  background: var(--background);
+}
+
 .pg-sec {
   --pg-sec-pad-y: clamp(3rem, 6cqi, 5rem);
   position: relative;

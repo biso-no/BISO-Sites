@@ -45,5 +45,4 @@ registerBlock({
   Render: TeamRender as never,
   Inspector: TeamInspector as never,
   PaletteThumb: TeamThumb,
-  v2: true,
 });

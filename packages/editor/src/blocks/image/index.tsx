@@ -34,5 +34,4 @@ registerBlock({
   Render: ImageRender as never,
   Inspector: ImageInspector as never,
   PaletteThumb: ImageThumb,
-  v2: true,
 });

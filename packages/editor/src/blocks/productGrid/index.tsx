@@ -17,5 +17,4 @@ registerBlock({
   Render: ProductGridRender as never,
   Inspector: ProductGridInspector as never,
   PaletteThumb: ProductGridThumb,
-  v2: true,
 });

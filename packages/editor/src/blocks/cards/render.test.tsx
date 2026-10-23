@@ -30,10 +30,13 @@ const html = (block: CardsBlock, edit = false) =>
     )
   );
 
+const CLASS_ATTRIBUTE = /class="([^"]*)"/g;
+const WHITESPACE = /\s+/;
+
 const classTokens = (markup: string) =>
   new Set(
-    [...markup.matchAll(/class="([^"]*)"/g)].flatMap(([, c]) =>
-      (c ?? "").split(/\s+/)
+    [...markup.matchAll(CLASS_ATTRIBUTE)].flatMap(([, c]) =>
+      (c ?? "").split(WHITESPACE)
     )
   );
 
@@ -88,7 +91,8 @@ describe("CardsRender", () => {
 
   test("the row scroller is a labelled, focusable region", () => {
     const out = html({ ...base, layout: "row" });
-    expect(out).toContain('role="region"');
+    // A labelled <section> is a region; no explicit role needed.
+    expect(out).toContain('<section aria-label="Kort"');
     expect(out).toContain('aria-label="Kort"');
     expect(out).toContain('tabindex="0"');
     expect(classTokens(out).has("focus-visible:ring-focus-ring")).toBe(true);

@@ -39,5 +39,4 @@ registerBlock({
   Render: TimelineRender as never,
   Inspector: TimelineInspector as never,
   PaletteThumb: TimelineThumb,
-  v2: true,
 });

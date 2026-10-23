@@ -1,15 +1,12 @@
 // Core domain types for the BISO page editor.
 // All mutations go through operations.ts; this file is pure types only.
 
-import type { BlockLayout } from "@/blocks/_primitives/layout-types";
-
 export type BlockType =
   | "marquee"
   | "text"
   | "heading"
   | "quote"
   | "callout"
-  | "twoCol"
   | "team"
   | "stats"
   | "highlights"
@@ -32,11 +29,8 @@ export type BlockType =
   | "tabs"
   | "departmentGrid"
   | "documents"
-  | "campusSelector"
   | "stepGrid"
   | "productGrid"
-  | "filterBar"
-  | "profileHeader"
   | "multiStepForm";
 
 // ── Shared v2 shapes ─────────────────────────────────────────────────────────
@@ -112,14 +106,6 @@ export interface CalloutBlock {
   title: string;
   tone: "info" | "warn" | "tip";
   type: "callout";
-}
-
-export interface TwoColBlock {
-  id: string;
-  left: string;
-  right: string;
-  type: "twoCol";
-  variant?: "equal" | "leftWide" | "rightWide";
 }
 
 export interface TeamMember {
@@ -378,13 +364,6 @@ export interface DocumentsBlock {
   type: "documents";
 }
 
-export interface CampusSelectorBlock {
-  heading?: string;
-  id: string;
-  mode: "switcher" | "cards";
-  type: "campusSelector";
-}
-
 export interface StepGridItem {
   body: string;
   title: string;
@@ -403,20 +382,6 @@ export interface ProductGridBlock {
   /** `auto` follows the page's department; otherwise a department id. */
   source: string;
   type: "productGrid";
-}
-
-export interface FilterBarBlock {
-  id: string;
-  target: "news" | "jobs" | "units";
-  type: "filterBar";
-}
-
-export interface ProfileHeaderBlock {
-  heading?: string;
-  id: string;
-  showAvatar: boolean;
-  showStats: boolean;
-  type: "profileHeader";
 }
 
 export type FormFieldType =
@@ -466,7 +431,6 @@ export type Block = (
   | HeadingBlock
   | QuoteBlock
   | CalloutBlock
-  | TwoColBlock
   | TeamBlock
   | StatsBlock
   | HighlightsBlock
@@ -489,13 +453,10 @@ export type Block = (
   | TabsBlock
   | DepartmentGridBlock
   | DocumentsBlock
-  | CampusSelectorBlock
   | StepGridBlock
   | ProductGridBlock
-  | FilterBarBlock
-  | ProfileHeaderBlock
   | MultiStepFormBlock
-) & { hideOnPhone?: boolean; layout?: BlockLayout };
+) & { hideOnPhone?: boolean };
 
 // ── Page document ────────────────────────────────────────────────────────────
 

@@ -9,7 +9,6 @@ import type {
 } from "@repo/editor/render";
 import {
   BlockView,
-  legacyBackground,
   normalizePageDoc,
   PageFeedProvider,
   PageHeaderView,
@@ -96,12 +95,7 @@ export function RenderedPage({ doc, feeds, locale, slug }: Props) {
           <SectionView
             first={index === firstIndex}
             key={section.id}
-            renderBlock={(block) => (
-              <BlockRenderer
-                background={legacyBackground(section.layout.background)}
-                block={block}
-              />
-            )}
+            renderBlock={(block) => <BlockRenderer block={block} />}
             section={section}
           />
         ))}
@@ -112,21 +106,8 @@ export function RenderedPage({ doc, feeds, locale, slug }: Props) {
 
 const noopPatch = () => undefined;
 
-function BlockRenderer({
-  background,
-  block,
-}: {
-  background: ReturnType<typeof legacyBackground>;
-  block: Block;
-}) {
-  // BlockView, not the definition's Render: it is what applies the Design
-  // panel's background, spacing and width, exactly as the admin canvas does.
-  return (
-    <BlockView
-      background={background}
-      block={block}
-      edit={false}
-      onPatch={noopPatch}
-    />
-  );
+function BlockRenderer({ block }: { block: Block }) {
+  // BlockView, not the definition's Render: it is what wraps each block in its
+  // error boundary, exactly as the admin canvas does.
+  return <BlockView block={block} edit={false} onPatch={noopPatch} />;
 }

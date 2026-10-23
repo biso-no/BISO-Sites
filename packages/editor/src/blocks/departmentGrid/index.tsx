@@ -17,5 +17,4 @@ registerBlock({
   Render: DepartmentGridRender as never,
   Inspector: DepartmentGridInspector as never,
   PaletteThumb: DepartmentGridThumb,
-  v2: true,
 });

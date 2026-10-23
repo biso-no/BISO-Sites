@@ -56,5 +56,4 @@ registerBlock({
   Render: GalleryRender as never,
   Inspector: GalleryInspector as never,
   PaletteThumb: GalleryThumb,
-  v2: true,
 });

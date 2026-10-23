@@ -20,9 +20,7 @@ test("the fixture normalizes without loss", () => {
 });
 
 test("the fixture uses every v2 block type", () => {
-  const v2Types = allBlocks()
-    .filter((def) => def.v2)
-    .map((def) => def.type);
+  const v2Types = allBlocks().map((def) => def.type);
   expect(v2Types.length).toBeGreaterThan(0);
   const used = new Set<string>();
   for (const block of walkBlocks(PAGE_BLOCKS_FIXTURE)) {
@@ -43,7 +41,7 @@ test("the real page renders the header and every v2 block", () => {
   );
   expect(html).toContain("pg-header");
   expect(html.match(H1_OPEN)?.length).toBe(1);
-  for (const def of allBlocks().filter((d) => d.v2)) {
+  for (const def of allBlocks()) {
     expect(html, `no ${def.type} rendered`).toContain(
       `data-block="${def.type}"`
     );

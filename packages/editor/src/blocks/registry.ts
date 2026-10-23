@@ -40,11 +40,10 @@ export interface PaletteGroupData {
 
 /**
  * The palette's block groups, derived from the registry so the palette and the
- * definitions cannot drift: items in registration order, hidden blocks left
- * out, empty groups dropped.
+ * definitions cannot drift: items in registration order, empty groups dropped.
  */
 export function paletteGroups(): PaletteGroupData[] {
-  const offered = allBlocks().filter((def) => !def.hidden);
+  const offered = allBlocks();
   return GROUP_ORDER.map(({ group, label }) => ({
     group,
     label,

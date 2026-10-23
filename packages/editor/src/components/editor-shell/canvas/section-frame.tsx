@@ -8,9 +8,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useRef } from "react";
-import type { ResolvedBackground } from "@/blocks/_primitives/layout-types";
 import { useInsertTarget, useMode, useSelectedSectionId } from "@/editor/hooks";
-import { legacyBackground } from "@/editor/sections";
 import { useEditorStore } from "@/editor/store";
 import { targetAfterBlock } from "@/editor/tree";
 import type { Block, Column, Section } from "@/editor/types";
@@ -89,7 +87,6 @@ export function SectionFrame({
   } = useSortable({ id: `sec:${section.id}`, data, disabled: !edit });
 
   const places = useMemo(() => placesOf(section), [section]);
-  const background = legacyBackground(section.layout.background);
   const selected = selectedSectionId === section.id;
   const label = sectionLabel(section);
 
@@ -175,7 +172,6 @@ export function SectionFrame({
         first={first}
         renderBlock={(block) => (
           <ColumnBlock
-            background={background}
             block={block}
             drag={drag}
             edit={edit}
@@ -205,13 +201,11 @@ export function SectionFrame({
  * block of a column shares one sortable list (a context renders no DOM).
  */
 function ColumnBlock({
-  background,
   block,
   drag,
   edit,
   place,
 }: {
-  background: ResolvedBackground;
   block: Block;
   drag: CanvasDrag | null;
   edit: boolean;
@@ -256,7 +250,7 @@ function ColumnBlock({
         </div>
       )}
 
-      <SortableBlock background={background} block={block} />
+      <SortableBlock block={block} />
     </SortableContext>
   );
 }

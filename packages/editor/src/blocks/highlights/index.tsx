@@ -29,5 +29,4 @@ registerBlock({
   Render: HighlightsRender as never,
   Inspector: HighlightsInspector as never,
   PaletteThumb: HighlightsThumb,
-  v2: true,
 });

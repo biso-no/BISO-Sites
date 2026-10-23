@@ -92,7 +92,7 @@ describe("registry", () => {
     expect(types).not.toContain("cta");
     expect(types).not.toContain("hero");
     for (const type of ["buttons", "ctaBand"]) {
-      expect(allBlocks().find((d) => d.type === type)?.v2).toBe(true);
+      expect(allBlocks().some((d) => d.type === type)).toBe(true);
     }
   });
 });

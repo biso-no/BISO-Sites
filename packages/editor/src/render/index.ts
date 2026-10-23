@@ -16,8 +16,6 @@
 //      the registrations rather than an unrelated module.
 import "../blocks/index";
 
-export type { ResolvedBackground } from "../blocks/_primitives/layout-types";
-export { resolveBackgrounds } from "../blocks/_primitives/resolve-layout";
 export { BlockView } from "../blocks/block-view";
 export { allBlocks, getBlock } from "../blocks/index";
 export {
@@ -35,7 +33,6 @@ export {
   pageFeedKey,
   resolveFeedDepartment,
 } from "../editor/page-feeds";
-export { legacyBackground } from "../editor/sections";
 export { fromJSON, normalizePageDoc } from "../editor/serialize";
 export { useEditorStore } from "../editor/store";
 export { walkBlocks } from "../editor/tree";

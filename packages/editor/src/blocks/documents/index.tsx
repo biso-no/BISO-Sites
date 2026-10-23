@@ -17,5 +17,4 @@ registerBlock({
   Render: DocumentsRender as never,
   Inspector: DocumentsInspector as never,
   PaletteThumb: DocumentsThumb,
-  v2: true,
 });

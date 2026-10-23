@@ -16,5 +16,4 @@ registerBlock({
   Render: HeadingRender as never,
   Inspector: HeadingInspector as never,
   PaletteThumb: HeadingThumb,
-  v2: true,
 });

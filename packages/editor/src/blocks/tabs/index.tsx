@@ -16,5 +16,4 @@ registerBlock({
   Render: TabsRender as never,
   Inspector: TabsInspector as never,
   PaletteThumb: TabsThumb,
-  v2: true,
 });

@@ -35,5 +35,4 @@ registerBlock({
   Render: CtaBandRender as never,
   Inspector: CtaBandInspector as never,
   PaletteThumb: CtaBandThumb,
-  v2: true,
 });

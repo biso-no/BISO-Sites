@@ -62,11 +62,7 @@ const scanTargets = (): [string, string][] => {
   const v2Dirs: [string, string][] = [["_v2", join(BLOCKS, "_v2")]];
   for (const entry of readdirSync(BLOCKS)) {
     const index = join(BLOCKS, entry, "index.tsx");
-    if (
-      !entry.startsWith("_") &&
-      existsSync(index) &&
-      readFileSync(index, "utf8").includes("v2: true")
-    ) {
+    if (!entry.startsWith("_") && existsSync(index)) {
       v2Dirs.push([entry, join(BLOCKS, entry)]);
     }
   }
@@ -83,7 +79,18 @@ const scanTargets = (): [string, string][] => {
 };
 
 describe("v2 design rules", () => {
-  test("every v2 block, _v2 and header file follows them", () => {
+  test("every block folder is scanned, not only the ones that opt in", () => {
+    const scanned = new Set(scanTargets().map(([label]) => label));
+    const folders = readdirSync(BLOCKS, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !e.name.startsWith("_"))
+      .map((e) => e.name);
+    expect(folders.length).toBeGreaterThan(20);
+    for (const folder of folders) {
+      expect(scanned.has(folder), folder).toBe(true);
+    }
+  });
+
+  test("every block, _v2 and header file follows them", () => {
     const found: string[] = [];
     for (const [label, file] of scanTargets()) {
       const hits = violations(readFileSync(file, "utf8"), label);

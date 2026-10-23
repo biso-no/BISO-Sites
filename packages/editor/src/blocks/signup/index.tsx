@@ -37,5 +37,4 @@ registerBlock({
   Render: SignupRender as never,
   Inspector: SignupInspector as never,
   PaletteThumb: SignupThumb,
-  v2: true,
 });

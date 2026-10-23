@@ -45,5 +45,4 @@ registerBlock({
   Render: FaqRender as never,
   Inspector: FaqInspector as never,
   PaletteThumb: FaqThumb,
-  v2: true,
 });

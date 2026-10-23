@@ -25,5 +25,4 @@ registerBlock({
   Render: ButtonsRender as never,
   Inspector: ButtonsInspector as never,
   PaletteThumb: ButtonsThumb,
-  v2: true,
 });

@@ -35,5 +35,4 @@ registerBlock({
   Render: VideoRender as never,
   Inspector: VideoInspector as never,
   PaletteThumb: VideoThumb,
-  v2: true,
 });

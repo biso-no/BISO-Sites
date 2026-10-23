@@ -1,33 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Block } from "@/editor/types";
-import type {
-  BlockLayout,
-  ResolvedBackground,
-} from "./_primitives/layout-types";
+import { normalizePageDoc } from "@/editor/serialize";
+import type { Block, PageDoc } from "@/editor/types";
 import { BlockView } from "./block-view";
 import { allBlocks } from "./index";
 import { registerBlock } from "./registry";
 
 const noopPatch = () => undefined;
 
-/** The legacy frame's classes: positioning and copy colour, no surface. */
-const FRAME_CLASS = "pg-section relative text-foreground";
-const FRAME_CLASS_ATTRIBUTE = /<div class="(pg-section\b[^"]*)"/;
-const frameClass = (html: string) => FRAME_CLASS_ATTRIBUTE.exec(html)?.[1];
-
-const render = (block: Block, background: ResolvedBackground) =>
+const render = (block: Block, edit = false) =>
   renderToStaticMarkup(
-    <BlockView
-      background={background}
-      block={block}
-      edit={false}
-      onPatch={noopPatch}
-    />
+    <BlockView block={block} edit={edit} onPatch={noopPatch} />
   );
-
-const withLayout = (block: Block, layout?: BlockLayout): Block =>
-  ({ ...block, layout }) as Block;
 
 const emptyOf = (type: Block["type"]): Block => {
   const def = allBlocks().find((candidate) => candidate.type === type);
@@ -37,78 +21,100 @@ const emptyOf = (type: Block["type"]): Block => {
   return def.empty();
 };
 
-/*
- * Sections own spacing and width now, so a block is only ever framed compact
- * and full-width.
- */
-describe("every block sits in the section's frame", () => {
-  // v2 blocks render bare: the section owns the surface and spacing.
-  for (const def of allBlocks().filter((candidate) => !candidate.v2)) {
-    test(`${def.type} takes the section's surface at compact spacing and full width`, () => {
-      const html = render(def.empty(), "inverted");
-
-      expect(html).toContain('data-background="inverted"');
-      expect(html).toContain('data-spacing="compact"');
-      expect(html).toContain('data-width="full"');
-      // The section paints the surface; the frame only marks it.
-      expect(frameClass(html)).toBe(FRAME_CLASS);
-    });
-  }
-});
-
-describe("BlockView frame", () => {
-  test("a block styled by blocks.css gets one compact, full-width frame", () => {
-    const html = render(emptyOf("profileHeader"), "brand");
-
-    expect(html.match(/class="pg-section\b/g)).toHaveLength(1);
-    expect(html).toContain('data-background="brand"');
-    expect(html).toContain('data-spacing="compact"');
-    expect(html).toContain('data-width="full"');
-    expect(frameClass(html)).toBe(FRAME_CLASS);
-  });
-
-  test("block.layout is ignored: the section owns spacing and width", () => {
-    const html = render(
-      withLayout(emptyOf("profileHeader"), {
-        background: "brand",
-        spacing: "spacious",
-        width: "content",
-      }),
-      "muted"
-    );
-
-    expect(html).toContain('data-background="muted"');
-    expect(html).toContain('data-spacing="compact"');
-    expect(html).toContain('data-width="full"');
-    expect(frameClass(html)).toBe(FRAME_CLASS);
-  });
-
-  test("an unknown block type renders nothing", () => {
-    const html = render(
-      { id: "ghost", type: "not-a-block" } as unknown as Block,
-      "default"
-    );
-
-    expect(html).toBe("");
-  });
-});
-
-describe("v2 blocks", () => {
-  test("a v2 definition renders without the legacy frame, tagged with its type", () => {
-    const block = emptyOf("marquee");
+describe("BlockView", () => {
+  test("a block renders bare, tagged with its type, with no legacy frame", () => {
     const original = allBlocks().find((d) => d.type === "marquee");
     if (!original) {
       throw new Error("marquee is not registered");
     }
-    registerBlock({ ...original, Render: () => <p>bare</p>, v2: true });
+    registerBlock({ ...original, Render: () => <p>bare</p> });
     let html: string;
     try {
-      html = render(block, "default");
+      html = render(emptyOf("marquee"));
     } finally {
       registerBlock(original);
     }
     expect(html).toBe(
       '<div data-block="marquee" style="display:contents"><p>bare</p></div>'
     );
+  });
+
+  test("no block is framed in the retired legacy section", () => {
+    for (const def of allBlocks()) {
+      const html = render(def.empty(), true);
+      expect(html, def.type).not.toContain("pg-section");
+      expect(html, def.type).not.toContain("data-spacing");
+    }
+  });
+});
+
+/*
+ * Pages stored before the four cut blocks were removed may still hold them.
+ * They must load, stay out of the public site's way, and be deletable in the
+ * editor.
+ */
+describe("a stored block of a removed type", () => {
+  const stored = {
+    meta: { title: "Old page" },
+    sections: [
+      {
+        columns: [
+          {
+            blocks: [
+              {
+                id: "p1",
+                name: "Ada",
+                role: "Lead",
+                type: "profileHeader",
+              },
+              {
+                columns: [{ body: "a" }, { body: "b" }],
+                id: "t1",
+                type: "twoCol",
+              },
+            ],
+            id: "c1",
+          },
+        ],
+        id: "s1",
+        layout: {
+          align: "top",
+          background: "white",
+          columns: "1",
+          hideOnPhone: false,
+          phoneReverse: false,
+          spacing: "normal",
+          tablet: "row",
+        },
+      },
+    ],
+    version: 2,
+  } as unknown as PageDoc;
+
+  const blocks = (): Block[] =>
+    normalizePageDoc(stored).sections.flatMap((s) =>
+      s.columns.flatMap((c) => c.blocks)
+    );
+
+  test("the document normalizes without throwing and keeps both blocks", () => {
+    expect(() => normalizePageDoc(stored)).not.toThrow();
+    expect(blocks().map((b) => b.type as string)).toEqual([
+      "profileHeader",
+      "twoCol",
+    ]);
+  });
+
+  test("the site renders nothing for them", () => {
+    for (const block of blocks()) {
+      expect(render(block, false)).toBe("");
+    }
+  });
+
+  test("the editor shows a placeholder naming the type, so it can be deleted", () => {
+    for (const block of blocks()) {
+      const html = render(block, true);
+      expect(html).toContain("Unknown block");
+      expect(html).toContain(block.type);
+    }
   });
 });

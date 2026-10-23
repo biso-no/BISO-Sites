@@ -3,7 +3,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useMemo } from "react";
-import type { ResolvedBackground } from "@/blocks/_primitives/layout-types";
 import { BlockView } from "@/blocks/block-view";
 import { getBlock } from "@/blocks/registry";
 import type { PatchFn } from "@/blocks/types";
@@ -12,13 +11,7 @@ import { useEditorStore } from "@/editor/store";
 import type { Block } from "@/editor/types";
 import { handleBlockWrapperKeyDown } from "./block-keys";
 
-export function SortableBlock({
-  background,
-  block,
-}: {
-  background: ResolvedBackground;
-  block: Block;
-}) {
+export function SortableBlock({ block }: { block: Block }) {
   const mode = useMode();
   const selection = useSelection();
   const hoveredId = useHoveredId();
@@ -140,12 +133,7 @@ export function SortableBlock({
         </>
       )}
 
-      <BlockView
-        background={background}
-        block={block}
-        edit={mode === "edit"}
-        onPatch={onPatch}
-      />
+      <BlockView block={block} edit={mode === "edit"} onPatch={onPatch} />
     </div>
   );
 }
