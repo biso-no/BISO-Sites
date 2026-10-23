@@ -8,6 +8,7 @@ const H1_OPEN = /<h1[\s>]/g;
 const SECTION_BACKGROUND =
   /<section class="pg-sec"[^>]*data-background="(\w+)"/g;
 const SECTION_COLUMNS = /<section class="pg-sec"[^>]*data-columns="([\d-]+)"/g;
+const GALLERY_BIG_TILE = /data-block="gallery"[\s\S]*pg-chevron-fill/;
 
 function matches(html: string, re: RegExp): string[] {
   return [...html.matchAll(re)].map((m) => m[1] ?? "");
@@ -55,4 +56,27 @@ test("the fixture covers every background and column layout", () => {
   expect(new Set(matches(html, SECTION_COLUMNS))).toEqual(
     new Set(["1", "1-1", "2-1", "1-2", "1-1-1", "1-1-1-1"])
   );
+});
+
+test("the collage is big enough to render its big tile", () => {
+  // The big tile (and its exact-cut rule) appears only at five images.
+  const html = renderToStaticMarkup(
+    <RenderedPage doc={PAGE_BLOCKS_FIXTURE} feeds={{}} locale="no" />
+  );
+  expect(html).toMatch(GALLERY_BIG_TILE);
+});
+
+test("every content image has alt text", () => {
+  const alts: string[] = [PAGE_BLOCKS_FIXTURE.header?.media?.alt ?? ""];
+  for (const block of walkBlocks(PAGE_BLOCKS_FIXTURE)) {
+    if (block.type === "image") {
+      alts.push(block.alt);
+    }
+    if (block.type === "gallery") {
+      alts.push(...block.images.map((image) => image.alt ?? ""));
+    }
+  }
+  for (const alt of alts) {
+    expect(alt.trim().length).toBeGreaterThan(0);
+  }
 });

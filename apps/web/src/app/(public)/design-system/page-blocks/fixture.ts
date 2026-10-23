@@ -6,15 +6,19 @@ import type { Block, PageDoc, Section } from "@repo/editor/types";
  * real `RenderedPage`, so it is the place to check the page editor's visual
  * language against what the public site produces.
  *
- * Images are files already in `public/`; no binaries are added for it.
+ * Images are files already in `public/`; no binaries are added for it. The
+ * copy is about a career fair because that is what the photos show (BI's
+ * campus buildings, a handshake at a fair stand, a sketch of a lounge), and
+ * every alt text describes its image. The collage has five images so its big
+ * tile, which has its own cut rule, is exercised.
  */
 const OSLO = "/images/campus/oslo.png";
 const BERGEN = "/images/campus/bergen.png";
 const STAVANGER = "/images/campus/stavanger.png";
 const TRONDHEIM = "/images/campus/trondheim.png";
 const HERO = "/images/hero-bg.png";
-const BUSINESS = "/images/business-hotspot.png";
-const GROUP_PHOTO = "/images/bedrift.png";
+const LOUNGE_SKETCH = "/images/business-hotspot.png";
+const FAIR_PHOTO = "/images/bedrift.png";
 
 type SectionOptions = Pick<Section["layout"], "background" | "columns"> &
   Partial<Section["layout"]>;
@@ -51,26 +55,26 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
     description: "Alle blokkene i sidebyggeren, samlet på én side.",
     slug: "design-system/page-blocks",
     status: "draft",
-    title: "Vinterleker på Storefjell",
+    title: "Karrieredagene i Nydalen",
   },
   header: {
     variant: "split",
     crumbs: [
       { label: "Hjem", href: "/" },
       { label: "Arrangementer", href: "/events" },
-      { label: "Vinterleker" },
+      { label: "Karrieredagene" },
     ],
-    eyebrow: "BISO Winter Games 2027",
-    title: "Vinterleker på Storefjell",
-    lede: "Tre dager med konkurranser, hytteliv og nye venner. Alle studenter fra BI er velkomne, uansett campus og skinivå.",
+    eyebrow: "BISO Karrieredagene 2027",
+    title: "Karrieredagene i Nydalen",
+    lede: "To dager med bedriftsstander, foredrag og intervjuer på stedet. Alle studenter fra BI er velkomne, uansett campus og studieretning.",
     buttons: [
       { label: "Meld deg på", href: "/events", style: "primary" },
       { label: "Se programmet", href: "#program", style: "secondary" },
     ],
     media: {
       kind: "image",
-      src: GROUP_PHOTO,
-      alt: "Studenter samlet utenfor hytta etter en dag i bakken",
+      src: FAIR_PHOTO,
+      alt: "En student håndhilser på en representant ved EYs stand på en karrieremesse",
     },
   },
   sections: [
@@ -81,9 +85,9 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           id: "b-intro-heading",
           type: "heading",
           eyebrow: "Om arrangementet",
-          title: "Det største studentarrangementet i vinter",
+          title: "Den største karrieremessen for BI-studenter",
           intro:
-            "Winter Games samler over fire hundre studenter fra Oslo, Bergen, Stavanger og Trondheim.",
+            "Karrieredagene samler over seksti bedrifter og studenter fra Oslo, Bergen, Stavanger og Trondheim.",
           size: "large",
         },
         {
@@ -93,12 +97,15 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             { type: "h", text: "Slik ble det til" },
             {
               type: "p",
-              text: "Det begynte som en tur for én fadderkomité. I dag er Winter Games BISOs fremste møtested på tvers av campus, og i år reiser vi til Storefjell for tredje gang.",
+              text: "Det begynte som en stand-dag i kantina. I dag er Karrieredagene BISOs største møteplass mellom studenter og arbeidsliv, og i år arrangeres messen for tredje gang.",
             },
             { type: "h3", text: "Dette får du" },
-            { type: "li", text: "Overnatting i hytte med fullpensjon" },
-            { type: "li", text: "Heldagspass i alpinbakken" },
-            { type: "li", text: "Quiz, kveldsarrangement og premieutdeling" },
+            { type: "li", text: "Samtaler med over seksti bedrifter" },
+            { type: "li", text: "Gratis gjennomgang av CV-en din" },
+            {
+              type: "li",
+              text: "Foredrag, bedriftspresentasjoner og mingling",
+            },
           ],
         },
         { id: "b-intro-divider", type: "divider", spacing: "small" },
@@ -114,9 +121,9 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           {
             id: "b-program-image",
             type: "image",
-            src: OSLO,
-            alt: "Oslo-gjengen på vei opp til heisen",
-            caption: "Oslo-laget åpner konkurransen fredag formiddag.",
+            src: LOUNGE_SKETCH,
+            alt: "Skisse av en lounge med lenestoler, ståbord, planter og lette gardiner, med håndskrevne merknader",
+            caption: "Skisse av loungen der intervjuene holdes.",
             frame: "chevron",
             lean: "left",
             ratio: "3/2",
@@ -128,7 +135,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
               { type: "h", text: "Programmet" },
               {
                 type: "p",
-                text: "Fredag er ankomstdag med felles middag. Lørdag går i bakken og avsluttes med festmiddag. Søndag er det brunsj, premieutdeling og buss hjem.",
+                text: "Torsdag står bedriftene på stand hele dagen, med foredrag i auditoriet. Fredag er satt av til intervjuer og CV-hjelp, og dagen avsluttes med mingling.",
               },
             ],
           },
@@ -138,9 +145,9 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             id: "b-program-facts",
             type: "facts",
             items: [
-              { label: "Dato", text: "12.–14. februar 2027" },
-              { label: "Sted", text: "Storefjell Resort & Spa, Gol" },
-              { label: "Pris", text: "2 450 kr for medlemmer" },
+              { label: "Dato", text: "11.–12. februar 2027" },
+              { label: "Sted", text: "BI Nydalen, Oslo" },
+              { label: "Pris", text: "Gratis for studenter" },
               {
                 label: "Kontakt",
                 text: "events@biso.no",
@@ -152,8 +159,8 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             id: "b-program-callout",
             type: "callout",
             tone: "warn",
-            title: "Påmeldingen stenger 20. januar",
-            body: "Det er begrenset med plasser, og vi fyller opp i den rekkefølgen dere melder dere på.",
+            title: "Påmeldingen til intervjuer stenger 20. januar",
+            body: "Det er begrenset med intervjutider, og vi fordeler dem i den rekkefølgen dere melder dere på.",
           },
         ],
       ],
@@ -166,7 +173,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
         {
           id: "b-dark-quote",
           type: "quote",
-          text: "Jeg kom alene fra Trondheim og dro hjem med en vennegjeng fra hele landet.",
+          text: "Jeg kom for å se meg rundt og dro hjem med en sommerjobb.",
           author: "Ingrid Solberg",
           role: "Deltaker 2026, BI Trondheim",
         },
@@ -176,9 +183,9 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           id: "b-dark-stats",
           type: "stats",
           items: [
-            { num: "420", label: "deltakere i fjor" },
+            { num: "64", label: "bedrifter i fjor" },
             { num: "4", label: "campus samlet" },
-            { num: "3", label: "dager på fjellet" },
+            { num: "2", label: "dager med messe" },
           ],
         },
       ],
@@ -203,8 +210,8 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
             id: "b-photo-cta",
             type: "ctaBand",
             eyebrow: "Bli med",
-            title: "Sikre deg plassen på Winter Games",
-            text: "Billetten inkluderer overnatting, mat og heiskort. Pris og program finner du under.",
+            title: "Sikre deg plass på Karrieredagene",
+            text: "Påmeldingen er gratis og gir deg tilgang til stands, foredrag og intervjuer. Programmet og praktisk informasjon finner du lenger opp på siden.",
             buttons: [
               { label: "Meld deg på", href: "/events", style: "primary" },
               { label: "Spør oss", href: "/contact", style: "secondary" },
@@ -220,18 +227,19 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
         {
           id: "b-gallery-heading",
           type: "heading",
-          eyebrow: "Fra fjor",
-          title: "Bilder fra Storefjell",
-          intro: "Et utvalg fra de siste to årene.",
+          eyebrow: "Fire campus",
+          title: "Én messe for hele BI",
+          intro:
+            "Messen holdes i Oslo, og studenter fra Bergen, Stavanger og Trondheim får reisen dekket.",
           size: "medium",
         },
         {
           id: "b-gallery-highlights",
           type: "highlights",
           items: [
-            { text: "Sosiale konkurranser på tvers av campus" },
-            { text: "Skiopplæring for dem som aldri har stått på ski" },
-            { text: "Hyttekveld med quiz og premier" },
+            { text: "Bedrifter fra finans, konsulent og teknologi" },
+            { text: "Gratis reise for studenter utenfor Oslo" },
+            { text: "Intervjuer på stedet for sommerjobb og trainee" },
           ],
         },
       ],
@@ -241,10 +249,26 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           type: "gallery",
           layout: "collage",
           images: [
-            { src: BERGEN, alt: "Bergen-laget i bakken" },
-            { src: STAVANGER, alt: "Stavanger-laget feirer etter staffetten" },
-            { src: TRONDHEIM, alt: "Trondheim-laget på hyttetrappa" },
-            { src: BUSINESS, alt: "Studenter som jobber med en caseoppgave" },
+            {
+              src: OSLO,
+              alt: "BI-bygget i Nydalen i Oslo, med glassfasader og BI-logoer, en sommerdag",
+            },
+            {
+              src: BERGEN,
+              alt: "BI-bygget i Bergen ved sjøkanten, med fasade i betong og mørkt treverk",
+            },
+            {
+              src: STAVANGER,
+              alt: "Nye bygg med grønne tak ved sjøen i Stavanger, sett fra lufta",
+            },
+            {
+              src: TRONDHEIM,
+              alt: "BI-bygget i Trondheim ved kaia, med båter og speilbilde i vannet",
+            },
+            {
+              src: FAIR_PHOTO,
+              alt: "En student håndhilser på en representant ved EYs stand på en karrieremesse",
+            },
           ],
         },
       ],
@@ -257,8 +281,8 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           id: "b-tone-info",
           type: "callout",
           tone: "info",
-          title: "Transport",
-          body: "Bussen går fra Oslo S fredag klokken 12.",
+          title: "Reise",
+          body: "Bor du utenfor Oslo, dekker vi flybilletten. Søk innen 10. januar.",
         },
       ],
       [
@@ -267,7 +291,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           type: "callout",
           tone: "tip",
           title: "Ta med",
-          body: "Skiklær, badetøy og gode sko til hyttekvelden.",
+          body: "CV på papir og noen spørsmål du vil stille bedriftene.",
         },
       ],
       [
@@ -276,7 +300,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           type: "callout",
           tone: "warn",
           title: "Husk",
-          body: "Du må være medlem i BISO for å få medlemspris.",
+          body: "Du må være medlem i BISO for å melde deg på intervjuer.",
         },
       ],
     ]),
@@ -290,9 +314,9 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           style: "featured",
           ratio: "16/9",
           url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
-          poster: GROUP_PHOTO,
-          label: "Film fra Winter Games 2026",
-          caption: "Tre dager på fjellet i tre minutter.",
+          poster: FAIR_PHOTO,
+          label: "Film fra Karrieredagene 2026",
+          caption: "To dager på messen på tre minutter.",
         },
         {
           id: "b-video-inline",
@@ -322,8 +346,8 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           id: "b-narrow-facts",
           type: "facts",
           items: [
-            { label: "Start", text: "Fredag 14:00" },
-            { label: "Slutt", text: "Søndag 15:00" },
+            { label: "Start", text: "Torsdag 10:00" },
+            { label: "Slutt", text: "Fredag 16:00" },
           ],
         },
       ],
@@ -332,8 +356,8 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
           id: "b-narrow-stats",
           type: "stats",
           items: [
-            { num: "12", label: "lag" },
-            { num: "8", label: "øvelser" },
+            { num: "64", label: "stands" },
+            { num: "18", label: "foredrag" },
           ],
         },
       ],
@@ -341,7 +365,7 @@ export const PAGE_BLOCKS_FIXTURE: PageDoc = {
         {
           id: "b-narrow-highlights",
           type: "highlights",
-          items: [{ text: "Fullpensjon" }, { text: "Heiskort inkludert" }],
+          items: [{ text: "Gratis inngang" }, { text: "Lunsj inkludert" }],
         },
       ],
       [
