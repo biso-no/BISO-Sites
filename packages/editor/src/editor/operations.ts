@@ -2,7 +2,18 @@
 // Takes an immer draft of PageDoc (or a WritableDraft via zustand/immer).
 
 import { newId } from "./ids";
-import type { Block, BlockType, PageDoc, PageMeta } from "./types";
+import { emptySection, resizeColumns } from "./sections";
+import { findBlock, findColumn, findSection } from "./tree";
+import type {
+  Block,
+  BlockType,
+  Column,
+  InsertTarget,
+  PageDoc,
+  PageMeta,
+  SectionColumns,
+  SectionLayout,
+} from "./types";
 
 export function emptyBlock(type: BlockType): Block {
   const id = newId("b");
@@ -313,72 +324,222 @@ export function emptyBlock(type: BlockType): Block {
   }
 }
 
-/** Insert a new block after `afterId`, or at end if not provided. */
+function insertAt(column: Column, block: Block, beforeBlockId?: string): void {
+  const index = beforeBlockId
+    ? column.blocks.findIndex((b) => b.id === beforeBlockId)
+    : -1;
+  column.blocks.splice(index === -1 ? column.blocks.length : index, 0, block);
+}
+
+function clampIndex(doc: PageDoc, sectionIndex: number): number {
+  return Math.max(0, Math.min(sectionIndex, doc.sections.length));
+}
+
+/** Insert a new block at `target`. Returns its id, or null if the column is missing. */
 export function insertBlock(
   doc: PageDoc,
   type: BlockType,
-  afterId?: string
-): string {
+  target: InsertTarget
+): string | null {
+  const found = findColumn(doc, target.columnId);
+  if (!found) {
+    return null;
+  }
   const block = emptyBlock(type);
-  const idx = afterId
-    ? doc.blocks.findIndex((b) => b.id === afterId) + 1
-    : doc.blocks.length;
-  doc.blocks.splice(idx < 0 ? doc.blocks.length : idx, 0, block);
+  insertAt(found.column, block, target.beforeBlockId);
   return block.id;
 }
 
+/** Insert a new block in a fresh one-column section at `sectionIndex`. */
+export function insertBlockInNewSection(
+  doc: PageDoc,
+  type: BlockType,
+  sectionIndex: number
+): { blockId: string; sectionId: string } {
+  const block = emptyBlock(type);
+  const section = emptySection("1");
+  section.columns[0].blocks.push(block);
+  doc.sections.splice(clampIndex(doc, sectionIndex), 0, section);
+  return { blockId: block.id, sectionId: section.id };
+}
+
 /** Remove a block by id. */
-export function removeBlock(doc: PageDoc, id: string): void {
-  const idx = doc.blocks.findIndex((b) => b.id === id);
-  if (idx !== -1) {
-    doc.blocks.splice(idx, 1);
+export function removeBlock(doc: PageDoc, blockId: string): void {
+  const found = findBlock(doc, blockId);
+  if (found) {
+    found.column.blocks.splice(found.blockIndex, 1);
   }
 }
 
 /** Duplicate a block, inserting the copy immediately after. Returns new id. */
-export function duplicateBlock(doc: PageDoc, id: string): string | null {
-  const src = doc.blocks.find((b) => b.id === id);
-  if (!src) {
+export function duplicateBlock(doc: PageDoc, blockId: string): string | null {
+  const found = findBlock(doc, blockId);
+  if (!found) {
     return null;
   }
-  const copy = {
-    ...(JSON.parse(JSON.stringify(src)) as Block),
-    id: newId("b"),
-  };
-  const idx = doc.blocks.findIndex((b) => b.id === id);
-  doc.blocks.splice(idx + 1, 0, copy as Block);
+  const copy = structuredClone(found.block);
+  copy.id = newId("b");
+  found.column.blocks.splice(found.blockIndex + 1, 0, copy);
   return copy.id;
 }
 
-/** Move block from fromIndex to toIndex. */
-export function reorder(
+/** Move a block to `target`. No-op if the target is the block itself or missing. */
+export function moveBlock(
   doc: PageDoc,
-  fromIndex: number,
-  toIndex: number
+  blockId: string,
+  target: InsertTarget
 ): void {
-  if (fromIndex === toIndex) {
+  if (target.beforeBlockId === blockId) {
     return;
   }
-  const [block] = doc.blocks.splice(fromIndex, 1);
-  doc.blocks.splice(toIndex, 0, block);
+  const dest = findColumn(doc, target.columnId);
+  const src = findBlock(doc, blockId);
+  if (!(dest && src)) {
+    return;
+  }
+  const [block] = src.column.blocks.splice(src.blockIndex, 1);
+  insertAt(dest.column, block, target.beforeBlockId);
+}
+
+/** Move a block into a fresh section at `sectionIndex`. Returns the new section id. */
+export function moveBlockToNewSection(
+  doc: PageDoc,
+  blockId: string,
+  sectionIndex: number
+): string | null {
+  const src = findBlock(doc, blockId);
+  if (!src) {
+    return null;
+  }
+  const [block] = src.column.blocks.splice(src.blockIndex, 1);
+  const section = emptySection("1");
+  section.columns[0].blocks.push(block);
+  doc.sections.splice(clampIndex(doc, sectionIndex), 0, section);
+  return section.id;
+}
+
+/** Insert an empty section at `sectionIndex`. Returns its id. */
+export function insertSection(
+  doc: PageDoc,
+  columns: SectionColumns,
+  sectionIndex: number
+): string {
+  const section = emptySection(columns);
+  doc.sections.splice(clampIndex(doc, sectionIndex), 0, section);
+  return section.id;
+}
+
+export function removeSection(doc: PageDoc, sectionId: string): void {
+  const found = findSection(doc, sectionId);
+  if (found) {
+    doc.sections.splice(found.index, 1);
+  }
+}
+
+/** Duplicate a section (fresh ids throughout), inserted right after. */
+export function duplicateSection(
+  doc: PageDoc,
+  sectionId: string
+): string | null {
+  const found = findSection(doc, sectionId);
+  if (!found) {
+    return null;
+  }
+  const copy = structuredClone(found.section);
+  copy.id = newId("s");
+  for (const column of copy.columns) {
+    column.id = newId("c");
+    for (const block of column.blocks) {
+      block.id = newId("b");
+    }
+  }
+  doc.sections.splice(found.index + 1, 0, copy);
+  return copy.id;
+}
+
+/** Move a section before `beforeSectionId`, or to the end if omitted. */
+export function moveSection(
+  doc: PageDoc,
+  sectionId: string,
+  beforeSectionId?: string
+): void {
+  if (beforeSectionId === sectionId) {
+    return;
+  }
+  const found = findSection(doc, sectionId);
+  if (!found) {
+    return;
+  }
+  if (beforeSectionId && !findSection(doc, beforeSectionId)) {
+    return;
+  }
+  const [section] = doc.sections.splice(found.index, 1);
+  const index = beforeSectionId
+    ? doc.sections.findIndex((s) => s.id === beforeSectionId)
+    : doc.sections.length;
+  doc.sections.splice(index, 0, section);
+}
+
+export function setSectionLayout(
+  doc: PageDoc,
+  sectionId: string,
+  patch: Partial<SectionLayout>
+): void {
+  const found = findSection(doc, sectionId);
+  if (!found) {
+    return;
+  }
+  const { columns, ...rest } = patch;
+  Object.assign(found.section.layout, rest);
+  if (columns) {
+    resizeColumns(found.section, columns);
+  }
+}
+
+const NON_SLUG_RUN = /[^a-z0-9]+/g;
+const EDGE_DASHES = /^-+|-+$/g;
+
+export function slugifyAnchor(input: string): string {
+  return input
+    .toLowerCase()
+    .replaceAll("æ", "ae")
+    .replaceAll("ø", "o")
+    .replaceAll("å", "a")
+    .replace(NON_SLUG_RUN, "-")
+    .replace(EDGE_DASHES, "");
+}
+
+/** Store a slugified anchor; an empty result removes it. */
+export function setSectionAnchor(
+  doc: PageDoc,
+  sectionId: string,
+  anchor: string
+): void {
+  const found = findSection(doc, sectionId);
+  if (!found) {
+    return;
+  }
+  const slug = slugifyAnchor(anchor);
+  if (slug) {
+    found.section.anchor = slug;
+  } else {
+    found.section.anchor = undefined;
+  }
 }
 
 /** Set a nested property on a block using dot-notation path. */
 export function setProp(
   doc: PageDoc,
-  id: string,
+  blockId: string,
   path: string,
   value: unknown
 ): void {
-  const block = doc.blocks.find((b) => b.id === id) as unknown as Record<
-    string,
-    unknown
-  >;
-  if (!block) {
+  const found = findBlock(doc, blockId);
+  if (!found) {
     return;
   }
   const parts = path.split(".");
-  let node: Record<string, unknown> = block;
+  let node = found.block as unknown as Record<string, unknown>;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
     const next = node[key];
@@ -394,22 +555,26 @@ export function setProp(
 }
 
 /** Set the layout variant on a block. */
-export function setVariant(doc: PageDoc, id: string, variant: string): void {
-  const block = doc.blocks.find((b) => b.id === id) as
-    | Record<string, unknown>
-    | undefined;
-  if (block) {
-    block.variant = variant;
+export function setVariant(
+  doc: PageDoc,
+  blockId: string,
+  variant: string
+): void {
+  const found = findBlock(doc, blockId);
+  if (found) {
+    (found.block as unknown as Record<string, unknown>).variant = variant;
   }
 }
 
 /** Bind a data-fetch block to an Appwrite source string. */
-export function bindCollection(doc: PageDoc, id: string, source: string): void {
-  const block = doc.blocks.find((b) => b.id === id) as
-    | Record<string, unknown>
-    | undefined;
-  if (block) {
-    block.source = source;
+export function bindCollection(
+  doc: PageDoc,
+  blockId: string,
+  source: string
+): void {
+  const found = findBlock(doc, blockId);
+  if (found) {
+    (found.block as unknown as Record<string, unknown>).source = source;
   }
 }
 
