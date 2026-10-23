@@ -54,7 +54,10 @@ afterEach(() => {
   }
 });
 
-function mount(saves: unknown[]) {
+function mount(
+  saves: unknown[],
+  save: () => Promise<undefined> = () => Promise.resolve(undefined)
+) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -73,7 +76,7 @@ function mount(saves: unknown[]) {
         onLocaleChange: () => undefined,
         savePage: (d) => {
           saves.push(d);
-          return Promise.resolve(undefined);
+          return save();
         },
         uploadFile: () => Promise.resolve({ fileId: "", url: "" }),
       })
@@ -117,4 +120,49 @@ test("a failing theme shows Not saved, holds the locale switch, and saves once f
   expect(localeButtons(host).every((b) => !b.hasAttribute("disabled"))).toBe(
     true
   );
+});
+
+const SAVED_TIMER_WAIT_MS = 2200;
+const blockedHeld = (host: Element) => {
+  expect(useEditorStore.getState().saving).toBe("blocked");
+  expect(localeButtons(host).every((b) => b.hasAttribute("disabled"))).toBe(
+    true
+  );
+};
+
+test("the saved/idle timer does not clear a block that arrived after a save", async () => {
+  const saves: unknown[] = [];
+  const host = mount(saves);
+  act(() => useEditorStore.getState().setTheme(GOOD));
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
+  expect(useEditorStore.getState().saving).toBe("saved");
+
+  act(() => useEditorStore.getState().setTheme(BAD));
+  await wait(SAVED_TIMER_WAIT_MS);
+  blockedHeld(host);
+});
+
+test("a save that resolves after the block leaves it blocked", async () => {
+  const saves: unknown[] = [];
+  let resolveSave: () => void = () => undefined;
+  const host = mount(
+    saves,
+    () =>
+      new Promise<undefined>((resolve) => {
+        resolveSave = () => resolve(undefined);
+      })
+  );
+  act(() => useEditorStore.getState().setTheme(GOOD));
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
+
+  act(() => useEditorStore.getState().setTheme(BAD));
+  expect(useEditorStore.getState().saving).toBe("blocked");
+  await act(async () => {
+    resolveSave();
+    await Promise.resolve();
+  });
+  await wait(SAVED_TIMER_WAIT_MS);
+  blockedHeld(host);
 });

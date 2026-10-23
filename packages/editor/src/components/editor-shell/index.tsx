@@ -312,8 +312,15 @@ export function EditorShell({
           const current = useEditorStore.getState().doc;
           setDoc({ ...current, meta: { ...current.meta, slug: result.slug } });
         }
-        setSaving("saved");
-        setTimeout(() => setSaving("idle"), 2000);
+        // A theme block that arrived meanwhile owns the status.
+        if (useEditorStore.getState().saving !== "blocked") {
+          setSaving("saved");
+          setTimeout(() => {
+            if (useEditorStore.getState().saving === "saved") {
+              setSaving("idle");
+            }
+          }, 2000);
+        }
       } catch (error) {
         console.error("[EditorShell autosave]", error);
         setSaving("error");
