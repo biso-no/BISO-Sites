@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { section } from "@/editor/test-fixtures";
 import type { Section } from "@/editor/types";
+import { parseHtml } from "@/lib/test-dom";
 import { SectionView } from "./section-view";
 
 const s = section("s-1", "1-1", [["b-1"], ["b-2"]]);
@@ -158,4 +159,17 @@ test("the first section's photo loads eagerly", () => {
     />
   );
   expect(out).toContain('loading="eager"');
+});
+
+test("an SVG or GIF section photo is not sent through the raster preview", () => {
+  const section = photoSection(APPWRITE_VIEW);
+  const gif: Section = {
+    ...section,
+    layout: {
+      ...section.layout,
+      backgroundImage: { alt: "", mime: "image/gif", src: APPWRITE_VIEW },
+    },
+  };
+  const img = parseHtml(html(gif)).querySelector("img.pg-sec__photo");
+  expect(img?.getAttribute("src")).toBe(APPWRITE_VIEW);
 });

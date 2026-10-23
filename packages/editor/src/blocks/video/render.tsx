@@ -141,6 +141,7 @@ function Featured({
   edit,
   label,
   poster,
+  posterMime,
   ratio,
   title,
   url,
@@ -148,6 +149,7 @@ function Featured({
   edit: boolean;
   label?: string;
   poster?: string;
+  posterMime?: string;
   ratio: Ratio;
   title: string;
   url: string;
@@ -188,7 +190,13 @@ function Featured({
   }
   return (
     <div className="relative">
-      <ChevronMedia alt="" ratio={ratio} src={poster} width={POSTER_WIDTH} />
+      <ChevronMedia
+        alt=""
+        mime={posterMime}
+        ratio={ratio}
+        src={poster}
+        width={POSTER_WIDTH}
+      />
       {button}
       {pill}
     </div>
@@ -215,6 +223,7 @@ function VideoBody({
         kind="video"
         loop
         poster={poster}
+        posterMime={block.posterMime}
         ratio={ratio}
         src={url}
         width={POSTER_WIDTH}
@@ -233,6 +242,7 @@ function VideoBody({
       edit={edit}
       label={block.label}
       poster={poster}
+      posterMime={block.posterMime}
       ratio={ratio}
       title={title}
       url={url}

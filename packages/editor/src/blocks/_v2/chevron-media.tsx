@@ -12,9 +12,13 @@ interface ChevronMediaProps {
   /** "eager" for media above the fold (a page header's); lazy otherwise. */
   loading?: "lazy" | "eager";
   loop?: boolean;
+  /** The image's uploaded type: an SVG or GIF is shown unresized. */
+  mime?: string;
   /** Editor-only prompt for an empty `src`; blocks pass it only in edit mode. */
   placeholder?: string;
   poster?: string;
+  /** The poster's uploaded type, as `mime`. */
+  posterMime?: string;
   ratio: FrameRatio;
   src: string;
   width?: number;
@@ -29,8 +33,10 @@ export function ChevronMedia({
   lean = "left",
   loading = "lazy",
   loop = false,
+  mime,
   placeholder,
   poster,
+  posterMime,
   ratio,
   src,
   width = DEFAULT_WIDTH,
@@ -38,7 +44,9 @@ export function ChevronMedia({
   if (!src) {
     return <MediaPlaceholder label={placeholder} ratio={ratio} />;
   }
-  const posterSrc = poster ? sizedImageSrc(poster, width) : undefined;
+  const posterSrc = poster
+    ? sizedImageSrc(poster, width, posterMime)
+    : undefined;
   let child: React.ReactNode;
   if (kind === "video" && loop) {
     child = (
@@ -77,7 +85,7 @@ export function ChevronMedia({
         alt={alt}
         decoding="async"
         loading={loading}
-        src={sizedImageSrc(src, width)}
+        src={sizedImageSrc(src, width, mime)}
       />
     );
   }

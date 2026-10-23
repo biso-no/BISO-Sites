@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { VideoBlock } from "@/editor/types";
 import { classesOf, parseHtml } from "@/lib/test-dom";
+import { pickersIn } from "@/lib/test-tree";
 import { embedSrc } from "../_v2/media";
 import { VideoInspector } from "./inspector";
 import { VideoRender } from "./render";
@@ -176,9 +177,36 @@ describe("VideoInspector", () => {
     expect(on?.textContent).toBe("Featured");
   });
 
+  test("a poster upload stores its mime type; a linked poster has none", () => {
+    const patches: [string, unknown][] = [];
+    const [, poster] = pickersIn(
+      VideoInspector({
+        block: block(),
+        onPatch: (path, value) => patches.push([path, value]),
+      })
+    );
+    poster?.props.onPicked("f-2", "https://x/p", "image/gif");
+    expect(patches).toContainEqual(["posterMime", "image/gif"]);
+    patches.length = 0;
+    poster?.props.onUrl("https://x/p.jpg");
+    expect(patches).toContainEqual(["posterMime", undefined]);
+  });
+
   test("Loop is available for an uploaded file", () => {
     const root = inspector(block());
     expect(loopButton(root)?.hasAttribute("disabled")).toBe(false);
     expect(root.textContent).not.toContain("Loop needs an uploaded video file");
   });
+});
+
+test("a GIF or SVG poster is shown as it is", () => {
+  const view = "https://appwrite.biso.no/v1/storage/buckets/media/files/p/view";
+  const featured = parseHtml(
+    html(block({ poster: view, posterMime: "image/gif", url: YOUTUBE }))
+  );
+  expect(featured.querySelector("img")?.getAttribute("src")).toBe(view);
+  const loop = parseHtml(
+    html(block({ poster: view, posterMime: "image/svg+xml", style: "loop" }))
+  );
+  expect(loop.querySelector("video")?.getAttribute("poster")).toBe(view);
 });

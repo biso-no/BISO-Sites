@@ -30,7 +30,7 @@ function ImageBody({ block, edit }: { block: ImageBlock; edit: boolean }) {
           className="block h-auto w-full"
           decoding="async"
           loading="lazy"
-          src={sizedImageSrc(block.src, IMAGE_WIDTH)}
+          src={sizedImageSrc(block.src, IMAGE_WIDTH, block.mime)}
         />
       </div>
     );
@@ -39,6 +39,7 @@ function ImageBody({ block, edit }: { block: ImageBlock; edit: boolean }) {
     <ChevronMedia
       alt={alt}
       lean={block.lean ?? "left"}
+      mime={block.mime}
       placeholder={placeholder}
       ratio={ratio}
       src={block.src}

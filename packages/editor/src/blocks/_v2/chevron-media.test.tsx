@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { parseHtml } from "@/lib/test-dom";
 import { ChevronMedia } from "./chevron-media";
 
 const TAGS_RE = /<[^>]*>/g;
@@ -63,4 +64,27 @@ test("media above the fold can load eagerly, poster included", () => {
   );
   expect(video).toContain('loading="eager"');
   expect(video).not.toContain('loading="lazy"');
+});
+
+test("an SVG or GIF is shown as it is, as the image or the loop's poster", () => {
+  const view = "https://appwrite.biso.no/v1/storage/buckets/media/files/a/view";
+  const image = parseHtml(
+    renderToStaticMarkup(
+      <ChevronMedia mime="image/gif" ratio="1/1" src={view} />
+    )
+  );
+  expect(image.querySelector("img")?.getAttribute("src")).toBe(view);
+  const loop = parseHtml(
+    renderToStaticMarkup(
+      <ChevronMedia
+        kind="video"
+        loop
+        poster={view}
+        posterMime="image/svg+xml"
+        ratio="16/9"
+        src="https://x.no/v.mp4"
+      />
+    )
+  );
+  expect(loop.querySelector("video")?.getAttribute("poster")).toBe(view);
 });

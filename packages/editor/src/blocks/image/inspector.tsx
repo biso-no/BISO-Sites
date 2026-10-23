@@ -36,14 +36,17 @@ export function ImageInspector({ block, onPatch }: Props) {
           onClear={() => {
             onPatch("src", undefined);
             onPatch("fileId", undefined);
+            onPatch("mime", undefined);
           }}
-          onPicked={(fileId, url) => {
+          onPicked={(fileId, url, mime) => {
             onPatch("fileId", fileId);
+            onPatch("mime", mime || undefined);
             onPatch("src", url);
           }}
           onUrl={(url) => {
             onPatch("src", url);
             onPatch("fileId", undefined);
+            onPatch("mime", undefined);
           }}
           src={block.src}
         />

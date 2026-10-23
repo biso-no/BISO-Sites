@@ -144,6 +144,9 @@ function normalizeBackgroundImage(
   if (isString(raw.fileId)) {
     image.fileId = raw.fileId;
   }
+  if (isString(raw.mime)) {
+    image.mime = raw.mime;
+  }
   return image;
 }
 
@@ -164,7 +167,14 @@ const BUTTON_STYLES = [
 const oneOf = <T>(allowed: readonly T[], value: unknown, fallback: T): T =>
   allowed.includes(value as T) ? (value as T) : fallback;
 
-const MEDIA_STRINGS = ["alt", "fileId", "poster", "posterFileId"] as const;
+const MEDIA_STRINGS = [
+  "alt",
+  "fileId",
+  "mime",
+  "poster",
+  "posterFileId",
+  "posterMime",
+] as const;
 
 /** Header media: kept only with a string `src`, then with its known fields. */
 function normalizeMedia(raw: unknown): MediaRef | undefined {

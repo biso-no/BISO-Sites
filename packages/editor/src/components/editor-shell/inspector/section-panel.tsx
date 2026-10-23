@@ -49,7 +49,9 @@ function BackgroundImageFields({
       <MediaPicker
         accept="image/*"
         onClear={() => onChange(undefined)}
-        onPicked={(fileId, src) => onChange({ alt, fileId, src })}
+        onPicked={(fileId, src, mime) =>
+          onChange(mime ? { alt, fileId, mime, src } : { alt, fileId, src })
+        }
         onUrl={(src) => onChange({ alt, src })}
         src={image?.src}
       />

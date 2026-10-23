@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ImageBlock } from "@/editor/types";
+import { parseHtml } from "@/lib/test-dom";
 import { ImageRender } from "./render";
 
 const noPatch = () => undefined;
@@ -81,5 +82,16 @@ describe("ImageRender", () => {
     const out = html(old, true);
     expect(out).toContain("--ar:0.5625");
     expect(out).toContain("chevron-frame");
+  });
+
+  test("an SVG or GIF upload is shown as it is, in either frame", () => {
+    const view =
+      "https://appwrite.biso.no/v1/storage/buckets/media/files/logo/view";
+    for (const frame of ["chevron", "plain"] as const) {
+      const img = parseHtml(
+        html(block({ frame, mime: "image/svg+xml", src: view }))
+      ).querySelector("img");
+      expect(img?.getAttribute("src")).toBe(view);
+    }
   });
 });

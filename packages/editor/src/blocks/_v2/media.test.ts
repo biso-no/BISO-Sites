@@ -46,3 +46,41 @@ test("embeds: YouTube and Vimeo, nothing else", () => {
   );
   expect(embedSrc("https://example.com/a.mp4", {})).toBeNull();
 });
+
+const VIEW =
+  "https://appwrite.biso.no/v1/storage/buckets/media/files/abc/view?project=biso";
+
+test("an SVG or GIF upload is served as it is, not through the raster preview", () => {
+  // Appwrite's preview returns an icon for an SVG and drops a GIF's frames.
+  expect(sizedImageSrc(VIEW, 1200, "image/svg+xml")).toBe(VIEW);
+  expect(sizedImageSrc(VIEW, 1200, "image/gif")).toBe(VIEW);
+  expect(sizedImageSrc(VIEW, 1200, "IMAGE/GIF")).toBe(VIEW);
+  expect(sizedImageSrc(VIEW, 1200, "image/png")).toContain("/preview?");
+});
+
+test("a URL whose path ends in .svg or .gif is served as it is", () => {
+  for (const src of [
+    "https://appwrite.biso.no/v1/storage/buckets/media/files/logo.svg",
+    "https://cdn.example/anim.GIF?v=2",
+  ]) {
+    expect(sizedImageSrc(src, 800)).toBe(src);
+  }
+});
+
+test("only Appwrite's storage view path is rewritten", () => {
+  for (const src of [
+    "https://example.com/files/abc/view",
+    "https://example.com/media/1/view",
+    "https://example.com/page?next=/v1/storage/buckets/b/files/f/view",
+  ]) {
+    expect(sizedImageSrc(src, 800)).toBe(src);
+  }
+  expect(
+    sizedImageSrc(
+      "https://appwrite.biso.no/v1/storage/buckets/b/files/f/view",
+      800
+    )
+  ).toBe(
+    "https://appwrite.biso.no/v1/storage/buckets/b/files/f/preview?width=800&output=webp&quality=80"
+  );
+});

@@ -242,6 +242,7 @@ test("an uploaded or linked image patches backgroundImage, keeping the alt text"
       backgroundImage: {
         alt: "Storefjell",
         fileId: "f-9",
+        mime: "image/jpeg",
         src: "https://cdn/b.jpg",
       },
     },

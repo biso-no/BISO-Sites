@@ -60,8 +60,10 @@ export function PageHeaderView({ edit, header, onPatch }: PageHeaderViewProps) {
               // Above the fold, and likely the page's largest paint.
               loading="eager"
               loop={media?.kind === "video"}
+              mime={media?.mime}
               placeholder={edit ? MEDIA_PROMPT : undefined}
               poster={media?.poster}
+              posterMime={media?.posterMime}
               ratio="4/3"
               src={media?.src ?? ""}
               width={ASIDE_WIDTH}
@@ -185,7 +187,7 @@ function Crumbs({ crumbs, edit }: { crumbs: HeaderCrumb[]; edit: boolean }) {
 /** Full: the media covers the band under a flat navy scrim. */
 function Backdrop({ media }: { media: MediaRef }) {
   const poster = media.poster
-    ? sizedImageSrc(media.poster, BACKDROP_WIDTH)
+    ? sizedImageSrc(media.poster, BACKDROP_WIDTH, media.posterMime)
     : undefined;
   return (
     <>
@@ -216,7 +218,7 @@ function Backdrop({ media }: { media: MediaRef }) {
           <img
             alt={media.alt ?? ""}
             decoding="async"
-            src={sizedImageSrc(media.src, BACKDROP_WIDTH)}
+            src={sizedImageSrc(media.src, BACKDROP_WIDTH, media.mime)}
           />
         )}
       </div>

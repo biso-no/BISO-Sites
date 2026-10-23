@@ -127,6 +127,7 @@ export function GalleryRender({ block, edit, onPatch }: Props) {
                       : undefined
                   }
                   lean={i % 2 === 0 ? "left" : "right"}
+                  mime={image.mime}
                   ratio={ratio}
                   src={image.src}
                   width={isBig ? BIG_WIDTH : TILE_WIDTH}

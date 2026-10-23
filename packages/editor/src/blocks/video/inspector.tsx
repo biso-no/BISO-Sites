@@ -52,14 +52,17 @@ export function VideoInspector({ block, onPatch }: Props) {
           onClear={() => {
             onPatch("poster", undefined);
             onPatch("posterFileId", undefined);
+            onPatch("posterMime", undefined);
           }}
-          onPicked={(fileId, url) => {
+          onPicked={(fileId, url, mime) => {
             onPatch("posterFileId", fileId);
+            onPatch("posterMime", mime || undefined);
             onPatch("poster", url);
           }}
           onUrl={(url) => {
             onPatch("poster", url);
             onPatch("posterFileId", undefined);
+            onPatch("posterMime", undefined);
           }}
           src={block.poster}
         />

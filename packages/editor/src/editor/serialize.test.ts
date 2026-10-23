@@ -335,6 +335,15 @@ describe("section background image", () => {
         ?.backgroundImage
     ).toEqual({ src: "https://x/y.jpg" });
   });
+
+  test("an image keeps its mime type when it is a string", () => {
+    expect(
+      withImage({ mime: "image/svg+xml", src: "https://x/y" })?.backgroundImage
+    ).toEqual({ mime: "image/svg+xml", src: "https://x/y" });
+    expect(withImage({ mime: 4, src: "https://x/y" })?.backgroundImage).toEqual(
+      { src: "https://x/y" }
+    );
+  });
 });
 
 describe("page header", () => {
@@ -352,8 +361,10 @@ describe("page header", () => {
         alt: "Studenter",
         fileId: "f-1",
         kind: "video",
+        mime: "video/mp4",
         poster: "https://x.no/p.jpg",
         posterFileId: "f-2",
+        posterMime: "image/gif",
         src: "https://x.no/v.mp4",
       },
       variant: "split",
@@ -392,7 +403,7 @@ describe("page header", () => {
           "x",
         ],
         crumbs: [{ label: "Ok", href: 4 }, { href: "/x" }, null],
-        media: { kind: "gif", src: "https://x.no/a.jpg", alt: 3 },
+        media: { kind: "gif", mime: 3, src: "https://x.no/a.jpg", alt: 3 },
         title: 7,
         variant: "centered",
       })

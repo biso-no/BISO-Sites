@@ -20,6 +20,54 @@ interface Props {
   onPatch: PatchFn;
 }
 
+/** A picked or linked image without its file fields. */
+function withoutFile({
+  fileId: _fileId,
+  mime: _mime,
+  ...image
+}: GalleryImage): GalleryImage {
+  return image;
+}
+
+/** One gallery image's picker and alt text. */
+export function GalleryImageFields({
+  item,
+  update,
+}: {
+  item: GalleryImage;
+  update: (item: GalleryImage) => void;
+}) {
+  return (
+    <>
+      <MediaPicker
+        accept="image/*"
+        onClear={() => update({ ...withoutFile(item), src: "" })}
+        onPicked={(fileId, url, mime) =>
+          update(
+            mime
+              ? { ...item, fileId, mime, src: url }
+              : { ...withoutFile(item), fileId, src: url }
+          )
+        }
+        onUrl={(url) => update({ ...withoutFile(item), src: url })}
+        src={item.src || undefined}
+      />
+      <InspRow label="Alt text">
+        <input
+          onChange={(e) => update({ ...item, alt: e.target.value })}
+          placeholder="Describe the image"
+          value={item.alt ?? ""}
+        />
+      </InspRow>
+      {item.src && !item.alt?.trim() ? (
+        <p className="pe-insp-note" role="status">
+          Add alt text so screen readers can describe this image.
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export function GalleryInspector({ block, onPatch }: Props) {
   const { uploadFile } = useEditorCallbacks();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -68,31 +116,7 @@ export function GalleryInspector({ block, onPatch }: Props) {
           newItem={(): GalleryImage => ({ src: "" })}
           onChange={(next) => onPatch("images", next)}
           renderItem={(item, update) => (
-            <>
-              <MediaPicker
-                accept="image/*"
-                onClear={() => update({ ...item, fileId: undefined, src: "" })}
-                onPicked={(fileId, url) =>
-                  update({ ...item, fileId, src: url })
-                }
-                onUrl={(url) =>
-                  update({ ...item, fileId: undefined, src: url })
-                }
-                src={item.src || undefined}
-              />
-              <InspRow label="Alt text">
-                <input
-                  onChange={(e) => update({ ...item, alt: e.target.value })}
-                  placeholder="Describe the image"
-                  value={item.alt ?? ""}
-                />
-              </InspRow>
-              {item.src && !item.alt?.trim() ? (
-                <p className="pe-insp-note" role="status">
-                  Add alt text so screen readers can describe this image.
-                </p>
-              ) : null}
-            </>
+            <GalleryImageFields item={item} update={update} />
           )}
           title={(_, i) => `Image ${i + 1}`}
         />

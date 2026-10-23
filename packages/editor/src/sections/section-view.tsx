@@ -76,7 +76,7 @@ export function SectionView({
             className="pg-sec__photo"
             decoding="async"
             loading={first ? "eager" : "lazy"}
-            src={sizedImageSrc(photo.src, PHOTO_WIDTH)}
+            src={sizedImageSrc(photo.src, PHOTO_WIDTH, photo.mime)}
           />
           <div aria-hidden="true" className="pg-sec__scrim" />
         </>

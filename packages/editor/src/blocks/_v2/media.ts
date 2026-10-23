@@ -2,7 +2,13 @@ import type { FrameRatio } from "@/editor/types";
 
 const VIMEO_RE = /vimeo\.com\/(\d+)/;
 const YOUTUBE_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/;
-const APPWRITE_VIEW_RE = /^(.*\/files\/[^/?#]+)\/view(\?[^#]*)?$/;
+/** Appwrite storage's `…/v1/storage/buckets/<bucket>/files/<id>/view?…`. */
+const APPWRITE_VIEW_RE =
+  /^([^?#]*\/v1\/storage\/buckets\/[^/?#]+\/files\/[^/?#]+)\/view(\?[^#]*)?$/;
+/** Formats the preview endpoint would flatten: SVG (an icon) and GIF (one frame). */
+const UNSIZED_MIME_RE = /^image\/(?:svg\+xml|gif)$/i;
+const UNSIZED_PATH_RE = /\.(?:svg|gif)$/i;
+const QUERY_OR_FRAGMENT_RE = /[?#]/;
 
 /** True for a YouTube or Vimeo watch URL. */
 export function isEmbedUrl(url: string): boolean {
@@ -29,10 +35,23 @@ export function embedSrc(
 }
 
 /**
- * An Appwrite storage `…/files/<id>/view?…` URL becomes a resized WebP
- * `…/preview?…`. Any other URL is returned unchanged.
+ * An Appwrite storage `…/v1/storage/buckets/<bucket>/files/<id>/view?…` URL
+ * becomes a resized WebP `…/preview?…`. An SVG or GIF (by its uploaded `mime`
+ * or its path) and any other URL are returned unchanged: the preview turns an
+ * SVG into an icon and a GIF into one still frame.
  */
-export function sizedImageSrc(src: string, width: number): string {
+export function sizedImageSrc(
+  src: string,
+  width: number,
+  mime?: string
+): string {
+  const path = src.split(QUERY_OR_FRAGMENT_RE, 1)[0] ?? "";
+  if (
+    (typeof mime === "string" && UNSIZED_MIME_RE.test(mime)) ||
+    UNSIZED_PATH_RE.test(path)
+  ) {
+    return src;
+  }
   const match = APPWRITE_VIEW_RE.exec(src);
   if (!match) {
     return src;

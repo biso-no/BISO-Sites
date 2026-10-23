@@ -64,8 +64,12 @@ export interface MediaRef {
   alt?: string;
   fileId?: string;
   kind: "image" | "video";
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
   poster?: string;
   posterFileId?: string;
+  /** The uploaded poster's type, as `mime`. */
+  posterMime?: string;
   src: string;
 }
 
@@ -190,6 +194,8 @@ export interface ImageBlock {
   frame: "chevron" | "plain";
   id: string;
   lean: "left" | "right";
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
   ratio: FrameRatio;
   src?: string; // public view URL (set on upload) or external URL
   type: "image";
@@ -198,6 +204,8 @@ export interface ImageBlock {
 export interface GalleryImage {
   alt?: string;
   fileId?: string;
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
   src: string;
 }
 export interface GalleryBlock {
@@ -214,6 +222,8 @@ export interface VideoBlock {
   label?: string;
   poster?: string;
   posterFileId?: string;
+  /** The uploaded poster's type; an SVG or GIF skips the raster preview. */
+  posterMime?: string;
   ratio: "16/9" | "21/9";
   style: "featured" | "inline" | "loop";
   type: "video";
@@ -562,6 +572,8 @@ export interface SectionBackgroundImage {
   alt?: string;
   /** Appwrite "media" bucket file ID, when uploaded. */
   fileId?: string;
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
   src: string;
 }
 

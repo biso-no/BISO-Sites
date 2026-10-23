@@ -167,9 +167,38 @@ test("an uploaded video file is stored as a video", () => {
       {
         fileId: "f-1",
         kind: "video",
+        mime: "video/mp4",
         src: "https://cloud.appwrite.io/v1/storage/buckets/media/files/f-1/view",
       },
     ],
+  ]);
+});
+
+test("a linked URL has no mime type, and the poster keeps its own", () => {
+  const video = { kind: "video", mime: "video/mp4", src: "https://x.no/v" };
+  const { patches, tree } = setup(header({ media: video } as never));
+  const [media, poster] = walk(tree).filter(
+    (el) => el.type === MediaPicker
+  ) as ReactElement<{
+    onClear: () => void;
+    onPicked: (fileId: string, url: string, mime: string) => void;
+    onUrl: (url: string) => void;
+  }>[];
+  media?.props.onUrl("https://x.no/b.mp4");
+  poster?.props.onPicked("f-2", "https://x.no/p", "image/svg+xml");
+  poster?.props.onClear();
+  expect(patches).toEqual([
+    ["media", { kind: "video", src: "https://x.no/b.mp4" }],
+    [
+      "media",
+      {
+        ...video,
+        poster: "https://x.no/p",
+        posterFileId: "f-2",
+        posterMime: "image/svg+xml",
+      },
+    ],
+    ["media", video],
   ]);
 });
 

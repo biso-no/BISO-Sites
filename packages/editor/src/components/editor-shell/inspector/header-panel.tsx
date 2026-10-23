@@ -41,6 +41,7 @@ function withAlt(media: MediaRef, alt: string | undefined): MediaRef {
 function withoutPoster({
   poster: _poster,
   posterFileId: _posterFileId,
+  posterMime: _posterMime,
   ...media
 }: MediaRef): MediaRef {
   return media;
@@ -152,7 +153,12 @@ export function HeaderPanel({ header, onPatch, onRemove }: HeaderPanelProps) {
           onPicked={(fileId, src, mime) =>
             onPatch(
               "media",
-              withAlt({ fileId, kind: kindOf(src, mime), src }, media?.alt)
+              withAlt(
+                mime
+                  ? { fileId, kind: kindOf(src, mime), mime, src }
+                  : { fileId, kind: kindOf(src), src },
+                media?.alt
+              )
             )
           }
           onUrl={(src) =>
@@ -189,8 +195,22 @@ export function HeaderPanel({ header, onPatch, onRemove }: HeaderPanelProps) {
           <MediaPicker
             accept="image/*"
             onClear={() => onPatch("media", withoutPoster(media))}
-            onPicked={(fileId, src) =>
-              onPatch("media", { ...media, poster: src, posterFileId: fileId })
+            onPicked={(fileId, src, mime) =>
+              onPatch(
+                "media",
+                mime
+                  ? {
+                      ...media,
+                      poster: src,
+                      posterFileId: fileId,
+                      posterMime: mime,
+                    }
+                  : {
+                      ...withoutPoster(media),
+                      poster: src,
+                      posterFileId: fileId,
+                    }
+              )
             }
             onUrl={(src) =>
               onPatch("media", { ...withoutPoster(media), poster: src })

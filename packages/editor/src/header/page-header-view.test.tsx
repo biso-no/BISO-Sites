@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { PageHeader } from "@/editor/types";
+import { parseHtml } from "@/lib/test-dom";
 import { emptyHeader } from "./empty-header";
 import { PageHeaderView } from "./page-header-view";
 
@@ -157,5 +158,33 @@ describe("PageHeaderView", () => {
   test("empty eyebrow and lede are left out on the site", () => {
     const html = render(header({ eyebrow: "", lede: "" }));
     expect(html).not.toContain("<p");
+  });
+
+  test("SVG and GIF media are not sent through the raster preview", () => {
+    const view =
+      "https://appwrite.biso.no/v1/storage/buckets/media/files/logo/view";
+    const split = parseHtml(
+      render(
+        header({
+          media: { kind: "image", mime: "image/svg+xml", src: view },
+          variant: "split",
+        })
+      )
+    );
+    expect(split.querySelector("img")?.getAttribute("src")).toBe(view);
+    const full = parseHtml(
+      render(
+        header({
+          media: {
+            kind: "video",
+            poster: view,
+            posterMime: "image/gif",
+            src: "https://x.no/v.mp4",
+          },
+          variant: "full",
+        })
+      )
+    );
+    expect(full.querySelector("video")?.getAttribute("poster")).toBe(view);
   });
 });
