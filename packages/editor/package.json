@@ -15,7 +15,8 @@
     "./theme/styles.css": "./src/theme/styles.css",
     "./ai": "./src/ai/index.ts",
     "./types": "./src/editor/types.ts",
-    "./sanitize": "./src/editor/sanitize-doc.ts"
+    "./sanitize": "./src/editor/sanitize-doc.ts",
+    "./submit-rules": "./src/editor/submit-rules.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",

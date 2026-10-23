@@ -325,3 +325,40 @@ describe("signup", () => {
     expect(host.querySelector('[role="alert"]')).not.toBeNull();
   });
 });
+
+describe("form hardening", () => {
+  test("text fields carry a maxLength", () => {
+    const host = mountForm();
+    expect(byName(host, "name").getAttribute("maxlength")).toBe("2000");
+  });
+
+  test("a required group that is empty flags its inputs and points at the error", async () => {
+    const host = mountForm({
+      ...form,
+      steps: [
+        {
+          title: "x",
+          fields: [
+            {
+              fieldType: "radio",
+              label: "Valg",
+              name: "pick",
+              options: [{ label: "A", value: "a" }],
+              required: true,
+            },
+          ],
+        },
+      ],
+    });
+    await submit(host);
+    const radio = host.querySelector('input[value="a"]') as HTMLElement;
+    expect(radio.getAttribute("aria-invalid")).toBe("true");
+    const id = radio.getAttribute("aria-describedby") ?? "";
+    expect(host.querySelector(`[id="${id}"]`)?.textContent).toContain(
+      "må fylles ut"
+    );
+    expect(
+      host.querySelector("fieldset")?.getAttribute("aria-describedby")
+    ).toBe(id);
+  });
+});

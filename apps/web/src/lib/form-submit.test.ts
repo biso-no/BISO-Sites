@@ -1,10 +1,7 @@
+import { isBisoRecipient } from "@repo/editor/submit-rules";
 import type { PageDoc } from "@repo/editor/types";
 import { describe, expect, it } from "vitest";
-import {
-  isBisoRecipient,
-  MAX_DATA_JSON_LENGTH,
-  resolveSubmission,
-} from "./form-submit";
+import { MAX_DATA_JSON_LENGTH, resolveSubmission } from "./form-submit";
 
 function pageWith(...blocks: unknown[]): PageDoc {
   return {
@@ -76,7 +73,7 @@ describe("resolveSubmission", () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.submission.data).toEqual({ name: "Ada", pick: "a" });
+      expect(result.submission.data).toEqual({ name: "Ada", pick: "A" });
     }
   });
 
@@ -143,15 +140,18 @@ describe("resolveSubmission", () => {
     const result = resolveSubmission(doc, "f1", {
       name: { nested: true },
       pick: ["a", 3],
+      name2: "x",
     });
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.submission.topic).toHaveLength(100);
-      expect(result.submission.data).toEqual({ pick: ["a"] });
-    }
+    expect(result.ok).toBe(false);
+    expect(resolveSubmission(doc, "f1", { name: "Ada" })).toMatchObject({
+      ok: true,
+      submission: { topic: expect.any(String) },
+    });
+    const ok = resolveSubmission(doc, "f1", { name: "Ada" });
+    expect(ok.ok && ok.submission.topic).toHaveLength(100);
   });
 
-  it("treats a signup as one email field with a default topic", () => {
+  it("treats a signup as one email field whose empty topic falls back to its heading", () => {
     const doc = pageWith({
       id: "s",
       type: "signup",
@@ -165,8 +165,104 @@ describe("resolveSubmission", () => {
       data: { email: "a@b.no" },
       mode: "database",
       source: "signup",
-      topic: "signup",
+      topic: "Meld deg på",
     });
+  });
+});
+
+function typed(...fields: unknown[]) {
+  return pageWith({
+    ...form,
+    accessTeamId: undefined,
+    steps: [{ title: "x", fields }],
+  });
+}
+
+describe("answers are validated by field type", () => {
+  const options = [
+    { label: "Ål", value: "al" },
+    { label: "Øl", value: "ol" },
+  ];
+
+  it("keeps only a radio or select value that is an option, stored as its label", () => {
+    const doc = typed(
+      { name: "r", label: "R", fieldType: "radio", options },
+      { name: "s", label: "S", fieldType: "select", options }
+    );
+    const good = resolveSubmission(doc, "f1", { r: "ol", s: "al" });
+    expect(good.ok && good.submission.data).toEqual({ r: "Øl", s: "Ål" });
+    expect(resolveSubmission(doc, "f1", { r: "nope", s: ["al"] }).ok).toBe(
+      false
+    );
+  });
+
+  it("accepts a multi-option checkbox only as an array of option values", () => {
+    const doc = typed(
+      { name: "c", label: "C", fieldType: "checkbox", options },
+      { name: "t", label: "T", fieldType: "text" }
+    );
+    const good = resolveSubmission(doc, "f1", { c: ["al", "ol"], t: "x" });
+    expect(good.ok && good.submission.data.c).toEqual(["Ål", "Øl"]);
+    const bad = resolveSubmission(doc, "f1", { c: ["al", "evil"], t: "x" });
+    expect(bad.ok && bad.submission.data).toEqual({ t: "x" });
+    const wrong = resolveSubmission(doc, "f1", { c: true, t: "x" });
+    expect(wrong.ok && wrong.submission.data).toEqual({ t: "x" });
+  });
+
+  it("accepts a single checkbox only as a boolean", () => {
+    const doc = typed(
+      { name: "c", label: "C", fieldType: "checkbox" },
+      { name: "t", label: "T", fieldType: "text" }
+    );
+    const yes = resolveSubmission(doc, "f1", { c: true, t: "x" });
+    expect(yes.ok && yes.submission.data.c).toBe(true);
+    const str = resolveSubmission(doc, "f1", { c: "true", t: "x" });
+    expect(str.ok && str.submission.data).toEqual({ t: "x" });
+  });
+
+  it("takes text fields as strings only and checks the shape of emails", () => {
+    const doc = typed(
+      { name: "t", label: "T", fieldType: "text" },
+      { name: "e", label: "E", fieldType: "email" }
+    );
+    const result = resolveSubmission(doc, "f1", { t: ["x"], e: "nope" });
+    expect(result.ok).toBe(false);
+    const ok = resolveSubmission(doc, "f1", { t: "x", e: "a@b.no" });
+    expect(ok.ok && ok.submission.data).toEqual({ e: "a@b.no", t: "x" });
+  });
+
+  it("never fills a hidden field", () => {
+    const doc = typed(
+      { name: "h", label: "H", fieldType: "hidden" },
+      { name: "t", label: "T", fieldType: "text" }
+    );
+    const result = resolveSubmission(doc, "f1", { h: "x", t: "y" });
+    expect(result.ok && result.submission.data).toEqual({ t: "y" });
+  });
+});
+
+describe("block settings", () => {
+  it("drops an access team that is not a valid Appwrite id", () => {
+    const result = resolveSubmission(
+      pageWith({ ...form, accessTeamId: "bad id; drop" }),
+      "f1",
+      { name: "Ada" }
+    );
+    expect(result.ok && result.submission.accessTeamId).toBeUndefined();
+    expect(result.ok && result.submission.teamDropped).toBe(true);
+  });
+
+  it("falls back from an empty topic to the heading, then to a default", () => {
+    const heading = resolveSubmission(pageWith({ ...form, topic: "" }), "f1", {
+      name: "Ada",
+    });
+    expect(heading.ok && heading.submission.topic).toBe("Kontakt");
+    const none = resolveSubmission(
+      pageWith({ ...form, topic: "", heading: "" }),
+      "f1",
+      { name: "Ada" }
+    );
+    expect(none.ok && none.submission.topic).toBe("form");
   });
 });
 

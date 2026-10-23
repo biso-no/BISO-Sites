@@ -1,5 +1,4 @@
 import { sanitizePageDocHtml } from "@repo/editor/sanitize";
-import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc } from "@repo/editor/types";
 import type { Locale } from "@repo/i18n/config";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
@@ -10,6 +9,7 @@ import { getLocale } from "@/app/actions/locale";
 import { resolvePageFeeds } from "@/lib/data/page-feeds";
 import { cachedPublishedPage } from "@/lib/data/public-content";
 import { cachedUnitDetail } from "@/lib/data/units";
+import { publishedUnitPage } from "@/lib/unit-page";
 import { RenderedPage } from "../../[...slug]/_components/rendered-page";
 import { CampusChooser } from "./_components/campus-chooser";
 import { UnitView } from "./_components/unit-view";
@@ -18,72 +18,6 @@ import { resolveUnit } from "./resolve";
 
 interface Props {
   params: Promise<{ segments: string[] }>;
-}
-
-/**
- * The slug is the binding between a department and its custom page — but the
- * slug is reusable (a page can predate the `units/` namespace guard, or sit
- * there with a null `department_id`), so a page found at the canonical slug
- * is only genuinely *this* department's page if its `department_id` says so.
- * A null `department_id` must never match: it means "no department", not
- * "any department".
- */
-function pageBelongsToDepartment(
-  pageDepartmentId: string | null | undefined,
-  departmentId: string
-): boolean {
-  return pageDepartmentId != null && pageDepartmentId === departmentId;
-}
-
-type PageLookupResult = Awaited<ReturnType<typeof cachedPublishedPage>>;
-
-/** A lookup that passed `publishedUnitPage`, its document normalized. */
-interface PublishedUnitPage {
-  doc: PageDoc;
-  translation: NonNullable<PageLookupResult>["translation"];
-}
-
-/**
- * The single predicate for "this lookup is genuinely this department's
- * PUBLISHED custom page" — a published translation, a document to render,
- * and ownership. The page body and generateMetadata MUST share this exact
- * predicate, or they can disagree about what the page is.
- *
- * That disagreement is reachable, not theoretical: both `pages` and
- * `page_translations` are `rowSecurity: false` with table-level `read("any")`
- * (packages/api/appwrite.config.json), so the per-row permissions the publish
- * flow computes are NOT enforced — a guest client can read an unpublished
- * draft row. `getPage` (via `cachedPublishedPage`) returns the translation
- * row even when it has no published document, so checking ownership alone
- * (as generateMetadata used to) let a department whose `en` locale has only
- * an unpublished draft leak that draft's title/description into `<head>`
- * while the body correctly fell back to the default department view.
- *
- * The document is normalized here, inside the shared predicate, for the same
- * reason. An old flat (v1) document normalizes to zero sections and no
- * header, and a page with neither is treated as no page: the coded default
- * renders and the metadata describes it (D2). A page header alone is content
- * (the catch-all route renders it too), so a header-only page counts.
- */
-function publishedUnitPage(
-  pageResult: PageLookupResult,
-  departmentId: string
-): PublishedUnitPage | null {
-  if (
-    !(
-      pageResult?.translation?.is_published &&
-      pageResult.doc &&
-      pageBelongsToDepartment(pageResult.row.department_id, departmentId)
-    )
-  ) {
-    return null;
-  }
-  // Sanitized after normalizing, as on the catch-all: stored text-block HTML
-  // is untrusted.
-  const doc = sanitizePageDocHtml(normalizePageDoc(pageResult.doc as PageDoc));
-  return doc.sections.length > 0 || doc.header !== undefined
-    ? { doc, translation: pageResult.translation }
-    : null;
 }
 
 /**
@@ -151,7 +85,7 @@ export default async function UnitPage({ params }: Props) {
       <div className="min-h-screen bg-surface">
         <Suspense fallback={<DepartmentLoading />}>
           <PublishedUnit
-            doc={pageResult.doc}
+            doc={sanitizePageDocHtml(pageResult.doc)}
             locale={locale}
             slug={canonical?.slice(1) ?? ""}
           />

@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createRow: vi.fn(),
+  department: vi.fn(),
   page: vi.fn(),
   sendEmail: vi.fn(),
 }));
 
+vi.mock("server-only", () => ({}));
 vi.mock("@repo/connectors/email", () => ({ sendEmail: mocks.sendEmail }));
 vi.mock("@repo/api/server", () => ({
   createAdminClient: async () => ({ db: { createRow: mocks.createRow } }),
 }));
 vi.mock("@/lib/data/public-content", () => ({
+  cachedDepartmentBySlugAndCampus: mocks.department,
   cachedPublishedPage: mocks.page,
 }));
 
@@ -166,6 +169,133 @@ describe("POST /api/form/submit", () => {
     }
     vi.unstubAllEnvs();
     expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
+  });
+
+  it("answers 413 for a declared body over the cap without reading the page", async () => {
+    publish(block());
+    const res = await POST(
+      new Request("http://localhost/api/form/submit", {
+        body: JSON.stringify(base),
+        headers: { "content-length": String(10 * 1024 * 1024) },
+        method: "POST",
+      })
+    );
+    expect(res.status).toBe(413);
+    expect(mocks.page).not.toHaveBeenCalled();
+  });
+
+  it("answers 413 for a streamed body over the cap, whatever it declares", async () => {
+    publish(block());
+    const chunk = new TextEncoder().encode("x".repeat(8 * 1024));
+    let sent = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += 1;
+        controller.enqueue(chunk);
+        if (sent > 64) {
+          controller.close();
+        }
+      },
+    });
+    const res = await POST(
+      new Request("http://localhost/api/form/submit", {
+        body: stream,
+        duplex: "half",
+        headers: { "content-length": "10" },
+        method: "POST",
+      } as RequestInit)
+    );
+    expect(res.status).toBe(413);
+    expect(sent).toBeLessThan(10);
+    expect(mocks.page).not.toHaveBeenCalled();
+  });
+
+  it("checks the shape of the body before reading the page", async () => {
+    publish(block());
+    const many = Object.fromEntries(
+      Array.from({ length: 300 }, (_, i) => [`k${i}`, "v"])
+    );
+    for (const bad of [
+      { ...base, data: many },
+      { ...base, data: ["a"] },
+      { ...base, data: "x" },
+      { ...base, slug: "Has/Upper" },
+      { ...base, slug: `${"a".repeat(129)}` },
+      { ...base, slug: 4 },
+    ]) {
+      expect((await post(bad)).status).toBe(400);
+    }
+    expect(mocks.page).not.toHaveBeenCalled();
+  });
+
+  it("emails the labels of chosen options, not their values", async () => {
+    publish(
+      block({
+        steps: [
+          {
+            title: "x",
+            fields: [
+              {
+                name: "drink",
+                label: "Drikke",
+                fieldType: "radio",
+                options: [{ label: "Øl", value: "ol" }],
+              },
+            ],
+          },
+        ],
+      })
+    );
+    await post({ ...base, data: { drink: "ol" } });
+    expect(mocks.sendEmail.mock.calls[0][0].html).toContain("Øl");
+    expect(mocks.sendEmail.mock.calls[0][0].html).not.toContain(">ol<");
+  });
+
+  it("drops a malformed access team and still stores the row", async () => {
+    publish(block({ submitMode: "database", accessTeamId: "bad team!" }));
+    const res = await post(base);
+    expect(res.status).toBe(200);
+    const [, , , row, permissions] = mocks.createRow.mock.calls[0];
+    expect(row.access_team_id).toBeNull();
+    expect(permissions.join(" ")).not.toContain("bad team");
+  });
+
+  describe("unit pages", () => {
+    const unitSlug = "units/oslo/fadderullan";
+
+    function publishUnit(departmentId: string | null) {
+      mocks.department.mockResolvedValue({ $id: "d-1", slug: "fadderullan" });
+      mocks.page.mockResolvedValue({
+        row: { $id: "page-1", campus_id: "01", department_id: departmentId },
+        translation: { is_published: true },
+        doc: {
+          version: 2,
+          meta: {},
+          sections: [
+            { id: "s", layout: {}, columns: [{ id: "c", blocks: [block()] }] },
+          ],
+        },
+      });
+    }
+
+    it("accepts a unit page that belongs to the department", async () => {
+      publishUnit("d-1");
+      expect((await post({ ...base, slug: unitSlug })).status).toBe(200);
+    });
+
+    it("refuses a page sitting at a unit slug for another or no department", async () => {
+      for (const owner of ["d-2", null]) {
+        publishUnit(owner);
+        expect((await post({ ...base, slug: unitSlug })).status).toBe(404);
+      }
+      expect(mocks.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("refuses a unit slug that resolves to no department", async () => {
+      publishUnit("d-1");
+      mocks.department.mockResolvedValue(null);
+      expect((await post({ ...base, slug: unitSlug })).status).toBe(404);
+    });
   });
 
   it("answers 400 for a malformed body", async () => {

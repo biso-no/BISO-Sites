@@ -13,6 +13,7 @@ import {
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import { usePageFeedSource } from "@/editor/page-feed-context";
+import { MAX_VALUE_LENGTH } from "@/editor/submit-rules";
 import type {
   FormField,
   FormFieldOption,
@@ -97,6 +98,7 @@ function FieldInput({
     "aria-describedby": invalid ? `${id}-err` : undefined,
     "aria-invalid": invalid || undefined,
     id,
+    maxLength: MAX_VALUE_LENGTH,
     name: field.name,
     readOnly: edit,
   };
@@ -141,6 +143,8 @@ function FieldInput({
         {optionsOf(field).map((option, i) => (
           <label className={CHOICE_CLASS} key={i}>
             <input
+              aria-describedby={common["aria-describedby"]}
+              aria-invalid={common["aria-invalid"]}
               checked={value === text(option.value)}
               className={BOX_CLASS}
               name={field.name}
@@ -161,6 +165,8 @@ function FieldInput({
     if (options.length === 0) {
       return (
         <input
+          aria-describedby={common["aria-describedby"]}
+          aria-invalid={common["aria-invalid"]}
           checked={value === true}
           className={BOX_CLASS}
           id={id}
@@ -178,6 +184,8 @@ function FieldInput({
           return (
             <label className={CHOICE_CLASS} key={i}>
               <input
+                aria-describedby={common["aria-describedby"]}
+                aria-invalid={common["aria-invalid"]}
                 checked={chosen.includes(optionValue)}
                 className={BOX_CLASS}
                 name={field.name}
@@ -344,7 +352,10 @@ export function MultiStepFormRender({ block, edit, onPatch }: Props) {
           return (
             <div className="flex flex-col gap-2" key={field.name}>
               {grouped ? (
-                <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+                <fieldset
+                  aria-describedby={invalid ? `${id}-err` : undefined}
+                  className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0"
+                >
                   <legend className="type-label p-0 text-ink">{label}</legend>
                   <FieldInput
                     answers={answers}

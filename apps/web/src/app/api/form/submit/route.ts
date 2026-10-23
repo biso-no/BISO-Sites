@@ -2,19 +2,24 @@ import { ID, Permission, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { sendEmail } from "@repo/connectors/email";
 import { normalizePageDoc } from "@repo/editor/serialize";
+import { isBisoRecipient } from "@repo/editor/submit-rules";
 import type { PageDoc } from "@repo/editor/types";
 import { NextResponse } from "next/server";
 import { cachedPublishedPage } from "@/lib/data/public-content";
-import {
-  isBisoRecipient,
-  type ResolvedSubmission,
-  resolveSubmission,
-} from "@/lib/form-submit";
+import { type ResolvedSubmission, resolveSubmission } from "@/lib/form-submit";
 import { clampString, escapeHtml } from "@/lib/html-escape";
 import { clientKeyFromHeaders, createRateLimiter } from "@/lib/rate-limit";
+import { findCanonicalUnit, publishedUnitPage } from "@/lib/unit-page";
 
 const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
-const MAX_SLUG_LENGTH = 300;
+/** The `page_translations`/`pages` slug column size. */
+const MAX_SLUG_LENGTH = 128;
+/** Lowercase, digits, `-` and `/`, starting with a letter or digit. */
+const SLUG_SHAPE = /^[a-z0-9][a-z0-9/-]*$/;
+/** Largest request body read: a full 16 KiB answer set plus JSON overhead. */
+const MAX_BODY_BYTES = 32 * 1024;
+const MAX_DATA_KEYS = 100;
+const UNIT_SLUG_PARTS = 3;
 const MAX_ID_LENGTH = 100;
 const SUBMISSIONS_PER_MINUTE = 5;
 const MINUTE_MS = 60_000;
@@ -44,18 +49,55 @@ function parseRequest(input: unknown): FormRequest | null {
     return null;
   }
   const { blockId, data, locale, slug } = input as Record<string, unknown>;
+  const plainObject =
+    typeof data === "object" && data !== null && !Array.isArray(data);
   if (
+    !plainObject ||
+    Object.keys(data).length > MAX_DATA_KEYS ||
     typeof blockId !== "string" ||
     blockId.length === 0 ||
     blockId.length > MAX_ID_LENGTH ||
     typeof slug !== "string" ||
     slug.length === 0 ||
     slug.length > MAX_SLUG_LENGTH ||
+    !SLUG_SHAPE.test(slug) ||
     (locale !== "no" && locale !== "en")
   ) {
     return null;
   }
   return { blockId, data, locale, slug };
+}
+
+/**
+ * The request text, or null when it is over the cap. Bounded twice: a
+ * declared `content-length` is refused up front, and the stream is read
+ * through a counter that stops at the cap, so a chunked body or a header that
+ * lies cannot make the server buffer more.
+ */
+async function readCapped(request: Request): Promise<string | null> {
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+    return null;
+  }
+  if (!request.body) {
+    return "";
+  }
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
 function fail(error: string, status: number) {
@@ -143,11 +185,26 @@ async function loadDoc(slug: string, locale: FormLocale) {
   if (!page?.doc) {
     return null;
   }
-  return {
-    campusId: page.row.campus_id ?? null,
-    doc: normalizePageDoc(page.doc as PageDoc),
-    pageId: page.row.$id,
-  };
+  const base = { campusId: page.row.campus_id ?? null, pageId: page.row.$id };
+
+  if (slug.startsWith("units/")) {
+    // Exactly the pages the site renders for a unit: the slug must be the
+    // department's canonical one and the page must belong to it.
+    const parts = slug.split("/");
+    const unit =
+      parts.length === UNIT_SLUG_PARTS
+        ? await findCanonicalUnit(parts[1] ?? "", parts[2] ?? "").catch(
+            () => null
+          )
+        : null;
+    if (!unit || unit.canonical.slice(1) !== slug) {
+      return null;
+    }
+    const owned = publishedUnitPage(page, unit.department.$id);
+    return owned ? { ...base, doc: owned.doc } : null;
+  }
+
+  return { ...base, doc: normalizePageDoc(page.doc as PageDoc) };
 }
 
 export async function POST(request: Request) {
@@ -158,7 +215,11 @@ export async function POST(request: Request) {
 
   let raw: unknown;
   try {
-    raw = await request.json();
+    const bodyText = await readCapped(request);
+    if (bodyText === null) {
+      return fail("Request too large", 413);
+    }
+    raw = JSON.parse(bodyText);
   } catch {
     return fail("Invalid payload", 400);
   }
@@ -179,6 +240,13 @@ export async function POST(request: Request) {
     return fail("Invalid submission", 400);
   }
   const { submission } = resolved;
+  if (submission.teamDropped) {
+    // Deliberately without the submitter's answers.
+    console.warn("Form submit: access team is not a valid id; no grant made", {
+      blockId: parsed.blockId,
+      slug: parsed.slug,
+    });
+  }
 
   try {
     if (submission.mode === "email") {

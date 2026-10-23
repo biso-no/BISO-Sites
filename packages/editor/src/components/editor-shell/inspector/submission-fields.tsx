@@ -1,6 +1,7 @@
 "use client";
 
 import type { PatchFn } from "@/blocks/types";
+import { isBisoRecipient } from "@/editor/submit-rules";
 import { InspRow, InspSection, Segmented } from "./insp-parts";
 
 interface Props {
@@ -49,7 +50,7 @@ export function SubmissionFields({
           <InspRow label="Recipient">
             <input
               onChange={(e) =>
-                onPatch("recipientEmail", e.target.value || undefined)
+                onPatch("recipientEmail", e.target.value.trim() || undefined)
               }
               placeholder="name@biso.no"
               type="email"
@@ -60,6 +61,12 @@ export function SubmissionFields({
             Only @biso.no addresses work. Anything else is refused and nothing
             is sent.
           </p>
+          {recipientEmail && !isBisoRecipient(recipientEmail) ? (
+            <p className="pe-insp-note" role="status">
+              This is not a valid @biso.no address, so submissions will be
+              refused.
+            </p>
+          ) : null}
         </>
       ) : null}
       {mode === "database" && withTeam ? (

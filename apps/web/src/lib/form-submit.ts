@@ -1,14 +1,14 @@
+import { isAppwriteId, MAX_VALUE_LENGTH } from "@repo/editor/submit-rules";
 import type { Block, PageDoc } from "@repo/editor/types";
 
 /**
  * Everything a form submission means is read from the PUBLISHED page, never
  * from the request: who gets the email, which mode, the topic, the access
- * team, the field labels. The request names only a block and carries answers,
- * so a caller can neither pick a recipient (open relay) nor widen who can
- * read what they submit.
+ * team, the field labels and the choices on offer. The request names only a
+ * block and carries answers, so a caller can neither pick a recipient (open
+ * relay) nor widen who can read what they submit.
  */
 
-export const MAX_VALUE_LENGTH = 2000;
 export const MAX_DATA_JSON_LENGTH = 16_384;
 export const MAX_TOPIC_LENGTH = 100;
 const MAX_HEADING_LENGTH = 200;
@@ -18,6 +18,7 @@ export type SubmittedValue = string | string[] | boolean;
 
 export interface ResolvedSubmission {
   accessTeamId?: string;
+  /** Answers by field name. Choices are stored as the option's label. */
   data: Record<string, SubmittedValue>;
   /** Labels in the block's field order, for the email. */
   fields: { label: string; name: string }[];
@@ -25,6 +26,8 @@ export interface ResolvedSubmission {
   mode: "database" | "email";
   recipientEmail?: string;
   source: "multiStepForm" | "signup";
+  /** The block named a team that is not a valid Appwrite id; no grant made. */
+  teamDropped: boolean;
   topic: string;
 }
 
@@ -35,12 +38,7 @@ export type SubmissionResolution =
       reason: "empty" | "not-a-form" | "too-large" | "unknown-block";
     };
 
-/** A single `@biso.no` mailbox. No separators, whitespace or other domains. */
-const BISO_ADDRESS = /^[^\s@,;<>()"'\\]+@biso\.no$/i;
-
-export function isBisoRecipient(value: unknown): value is string {
-  return typeof value === "string" && BISO_ADDRESS.test(value);
-}
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const text = (value: unknown): string =>
   typeof value === "string" ? value : "";
@@ -61,11 +59,21 @@ function findBlock(doc: PageDoc, blockId: string): Block | null {
 interface FieldDefinition {
   label: string;
   name: string;
+  options: { label: string; value: string }[];
+  type: string;
+}
+
+function optionsOf(field: unknown): FieldDefinition["options"] {
+  const raw = (field as { options?: unknown })?.options;
+  return (Array.isArray(raw) ? raw : [])
+    .filter((o) => o && typeof o === "object")
+    .map((o) => ({ label: text(o.label), value: text(o.value) }))
+    .filter((o) => o.value !== "");
 }
 
 function fieldsOf(block: Block): FieldDefinition[] {
   if (block.type === "signup") {
-    return [{ label: "Email", name: "email" }];
+    return [{ label: "Email", name: "email", options: [], type: "email" }];
   }
   if (block.type !== "multiStepForm") {
     return [];
@@ -74,28 +82,58 @@ function fieldsOf(block: Block): FieldDefinition[] {
   for (const step of Array.isArray(block.steps) ? block.steps : []) {
     for (const field of Array.isArray(step?.fields) ? step.fields : []) {
       const name = text(field?.name);
-      if (name && !fields.some((known) => known.name === name)) {
-        fields.push({ label: text(field.label) || name, name });
+      // `hidden` fields are never sent by the form, so nothing may fill them.
+      if (
+        name &&
+        field.fieldType !== "hidden" &&
+        !fields.some((known) => known.name === name)
+      ) {
+        fields.push({
+          label: text(field.label) || name,
+          name,
+          options: optionsOf(field),
+          type: text(field.fieldType) || "text",
+        });
       }
     }
   }
   return fields;
 }
 
-function cleanValue(value: unknown): SubmittedValue | undefined {
-  if (typeof value === "string") {
-    return value.slice(0, MAX_VALUE_LENGTH);
+const labelFor = (field: FieldDefinition, value: string): string | undefined =>
+  field.options.find((option) => option.value === value)?.label;
+
+/** The stored answer, or undefined when it does not fit the field's type. */
+function cleanValue(
+  field: FieldDefinition,
+  value: unknown
+): SubmittedValue | undefined {
+  const { options, type } = field;
+  if (type === "select" || type === "radio") {
+    return typeof value === "string" ? labelFor(field, value) : undefined;
   }
-  if (typeof value === "boolean") {
-    return value;
+  if (type === "checkbox") {
+    if (options.length === 0) {
+      return typeof value === "boolean" ? value : undefined;
+    }
+    if (!Array.isArray(value) || value.length > MAX_LIST_ITEMS) {
+      return;
+    }
+    const labels = value.map((item) =>
+      typeof item === "string" ? labelFor(field, item) : undefined
+    );
+    return labels.every((label) => label !== undefined)
+      ? (labels as string[])
+      : undefined;
   }
-  if (Array.isArray(value)) {
-    return value
-      .filter((item): item is string => typeof item === "string")
-      .slice(0, MAX_LIST_ITEMS)
-      .map((item) => item.slice(0, MAX_VALUE_LENGTH));
+  if (typeof value !== "string") {
+    return;
   }
-  return;
+  const clamped = value.slice(0, MAX_VALUE_LENGTH);
+  if (type === "email" && clamped.trim() !== "") {
+    return EMAIL_SHAPE.test(clamped.trim()) ? clamped.trim() : undefined;
+  }
+  return clamped;
 }
 
 export function resolveSubmission(
@@ -117,13 +155,13 @@ export function resolveSubmission(
       : {};
   const fields = fieldsOf(block);
   const clean: Record<string, SubmittedValue> = {};
-  for (const { name } of fields) {
-    if (!Object.hasOwn(answers, name)) {
+  for (const field of fields) {
+    if (!Object.hasOwn(answers, field.name)) {
       continue;
     }
-    const value = cleanValue(answers[name]);
+    const value = cleanValue(field, answers[field.name]);
     if (value !== undefined) {
-      clean[name] = value;
+      clean[field.name] = value;
     }
   }
   if (Object.keys(clean).length === 0) {
@@ -133,9 +171,9 @@ export function resolveSubmission(
     return { ok: false, reason: "too-large" };
   }
 
-  const heading = text(block.heading);
+  const heading = text(block.heading).trim();
   const fallbackTopic = block.type === "signup" ? "signup" : "form";
-  const topic = (text(block.topic).trim() || fallbackTopic).slice(
+  const topic = (text(block.topic).trim() || heading || fallbackTopic).slice(
     0,
     MAX_TOPIC_LENGTH
   );
@@ -145,13 +183,14 @@ export function resolveSubmission(
   return {
     ok: true,
     submission: {
-      accessTeamId: team || undefined,
+      accessTeamId: isAppwriteId(team) ? team : undefined,
       data: clean,
-      fields,
+      fields: fields.map(({ label, name }) => ({ label, name })),
       formHeading: (heading || topic).slice(0, MAX_HEADING_LENGTH),
       mode: block.submitMode === "email" ? "email" : "database",
       recipientEmail: text(block.recipientEmail) || undefined,
       source: block.type,
+      teamDropped: team !== "" && !isAppwriteId(team),
       topic,
     },
   };

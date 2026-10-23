@@ -8,6 +8,7 @@ import {
 } from "@/components/editor-shell/inspector/insp-parts";
 import { ItemList } from "@/components/editor-shell/inspector/item-list";
 import { SubmissionFields } from "@/components/editor-shell/inspector/submission-fields";
+import { optionValueFromLabel, uniqueValue } from "@/editor/submit-rules";
 import type {
   FormField,
   FormFieldOption,
@@ -38,6 +39,18 @@ const HAS_OPTIONS = new Set<string>(["select", "radio", "checkbox"]);
 const slugName = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]+/g, "_");
 
+/** An option's value from its label, unique among the field's other options. */
+function valueForLabel(
+  label: string,
+  options: FormFieldOption[],
+  index: number
+): string {
+  const others = options
+    .filter((_, i) => i !== index)
+    .map((option) => option.value);
+  return uniqueValue(optionValueFromLabel(label), others);
+}
+
 function OptionsEditor({
   field,
   update,
@@ -49,9 +62,15 @@ function OptionsEditor({
     <ItemList<FormFieldOption>
       addLabel="+ Add option"
       items={listOf<FormFieldOption>(field.options)}
-      newItem={() => ({ label: "Option", value: `option_${Date.now()}` })}
+      newItem={() => {
+        const current = listOf<FormFieldOption>(field.options);
+        return {
+          label: "Option",
+          value: valueForLabel("Option", current, current.length),
+        };
+      }}
       onChange={(options) => update({ ...field, options })}
-      renderItem={(option, updateOption) => (
+      renderItem={(option, updateOption, index) => (
         <>
           <InspRow label="Label">
             <input
@@ -59,7 +78,11 @@ function OptionsEditor({
                 updateOption({
                   ...option,
                   label: e.target.value,
-                  value: slugName(e.target.value) || option.value,
+                  value: valueForLabel(
+                    e.target.value,
+                    listOf<FormFieldOption>(field.options),
+                    index
+                  ),
                 })
               }
               value={option.label ?? ""}

@@ -11,6 +11,7 @@ import {
 import type { PatchFn } from "@/blocks/types";
 import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import { usePageFeedSource } from "@/editor/page-feed-context";
+import { MAX_VALUE_LENGTH } from "@/editor/submit-rules";
 import type { SignupBlock } from "@/editor/types";
 
 interface Props {
@@ -90,6 +91,7 @@ export function SignupRender({ block, edit, onPatch }: Props) {
           autoComplete="email"
           className={`${FIELD_CLASS} @sm:flex-1`}
           disabled={state === "pending"}
+          maxLength={MAX_VALUE_LENGTH}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={text(block.placeholder) || "you@bi.no"}
           readOnly={edit}
