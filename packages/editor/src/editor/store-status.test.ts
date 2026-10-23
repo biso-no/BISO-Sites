@@ -7,7 +7,6 @@ describe("setStatus", () => {
     // would flip the page back to draft instead of undoing the last change.
     const store = useEditorStore.getState();
     store.setDoc({
-      blocks: [],
       meta: {
         accentColor: "#3DA9E0",
         department: "",
@@ -15,6 +14,8 @@ describe("setStatus", () => {
         status: "draft",
         title: "A",
       },
+      sections: [],
+      version: 2,
     });
     store.setMeta("title", "B");
     const stepsBefore = useEditorStore.getState().past.length;

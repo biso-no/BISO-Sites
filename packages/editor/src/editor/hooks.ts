@@ -3,7 +3,10 @@
 import { useEditorStore } from "./store";
 
 export const useMeta = () => useEditorStore((s) => s.doc.meta);
-export const useBlocks = () => useEditorStore((s) => s.doc.blocks);
+export const useSections = () => useEditorStore((s) => s.doc.sections);
+export const useSelectedSectionId = () =>
+  useEditorStore((s) => s.selectedSectionId);
+export const useInsertTarget = () => useEditorStore((s) => s.insertTarget);
 export const useSelection = () => useEditorStore((s) => s.selection);
 export const useHoveredId = () => useEditorStore((s) => s.hoveredId);
 export const useMode = () => useEditorStore((s) => s.mode);

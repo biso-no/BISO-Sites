@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { section, doc as treeDoc } from "@/editor/test-fixtures";
 import type { PageDoc } from "@/editor/types";
 import { autosaveSignature } from "./autosave-signature";
 
 const doc = (status: PageDoc["meta"]["status"], title = "A"): PageDoc => ({
-  blocks: [],
   meta: { accentColor: "#3DA9E0", department: "", slug: "a", status, title },
+  sections: [],
+  version: 2,
 });
 
 describe("autosaveSignature", () => {
@@ -21,5 +23,15 @@ describe("autosaveSignature", () => {
     expect(autosaveSignature(doc("draft"))).not.toBe(
       autosaveSignature(doc("draft", "B"))
     );
+  });
+
+  test("a section layout change is a new signature; a status change is not", () => {
+    const a = treeDoc(section("s-1", "1", [["b-1"]]));
+    const b = structuredClone(a);
+    b.sections[0].layout.background = "dark";
+    const c = structuredClone(a);
+    c.meta.status = "published";
+    expect(autosaveSignature(b)).not.toBe(autosaveSignature(a));
+    expect(autosaveSignature(c)).toBe(autosaveSignature(a));
   });
 });

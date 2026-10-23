@@ -7,29 +7,41 @@ import {
   applyAccent as opApplyAccent,
   bindCollection as opBindCollection,
   duplicateBlock as opDuplicate,
+  duplicateSection as opDuplicateSection,
   insertBlock as opInsert,
+  insertBlockInNewSection as opInsertInNewSection,
+  insertSection as opInsertSection,
+  moveBlock as opMoveBlock,
+  moveBlockToNewSection as opMoveBlockToNewSection,
+  moveSection as opMoveSection,
   removeBlock as opRemove,
-  reorder as opReorder,
+  removeSection as opRemoveSection,
   setMeta as opSetMeta,
   setProp as opSetProp,
+  setSectionAnchor as opSetSectionAnchor,
+  setSectionLayout as opSetSectionLayout,
   setVariant as opSetVariant,
 } from "./operations";
+import { defaultInsertTarget, findSection } from "./tree";
 import type {
-  Block,
   BlockType,
   EditorLocale,
   EditorMode,
   EditorViewport,
+  InsertTarget,
   PageDoc,
   PageMeta,
   SavingState,
+  Section,
+  SectionColumns,
+  SectionLayout,
 } from "./types";
 
 const HISTORY_LIMIT = 100;
 
 interface HistorySnap {
-  blocks: Block[];
   meta: PageMeta;
+  sections: Section[];
 }
 
 interface EditorState {
@@ -38,11 +50,19 @@ interface EditorState {
   copilotOpen: boolean;
   doc: PageDoc;
   duplicateBlock: (id: string) => void;
+  duplicateSection: (id: string) => void;
   future: HistorySnap[];
   hoveredId: string | null;
 
   // Document mutations
-  insertBlock: (type: BlockType, afterId?: string) => string;
+  /**
+   * Insert into `target`, else the pending `insertTarget`, else after the
+   * selected block, else a new one-column section at the end. Returns the id.
+   */
+  insertBlock: (type: BlockType, target?: InsertTarget) => string;
+  insertBlockInNewSection: (type: BlockType, sectionIndex: number) => string;
+  insertSection: (columns: SectionColumns, sectionIndex: number) => string;
+  insertTarget: InsertTarget | null;
   inspectorTab: "block" | "page" | "outline";
   /**
    * Locale the page is being rendered in. Auto-source blocks pass it to their
@@ -51,17 +71,22 @@ interface EditorState {
    */
   locale: EditorLocale;
   mode: EditorMode;
+  moveBlock: (blockId: string, target: InsertTarget) => void;
+  moveBlockToNewSection: (blockId: string, sectionIndex: number) => void;
+  moveSection: (id: string, beforeSectionId?: string) => void;
   past: HistorySnap[];
   redo: () => void;
   removeBlock: (id: string) => void;
-  reorder: (fromIndex: number, toIndex: number) => void;
+  removeSection: (id: string) => void;
   saving: SavingState;
 
   // Selection
   select: (id: string | null) => void;
+  selectedSectionId: string | null;
 
   // UI state
   selection: string | null;
+  selectSection: (id: string | null) => void;
 
   // Copilot
   setCopilotOpen: (open: boolean) => void;
@@ -69,6 +94,7 @@ interface EditorState {
   /** Replace the entire doc (used for initial load). */
   setDoc: (doc: PageDoc) => void;
   setHovered: (id: string | null) => void;
+  setInsertTarget: (target: InsertTarget | null) => void;
   setInspectorTab: (tab: "block" | "page" | "outline") => void;
   setLocale: (locale: EditorLocale) => void;
   setMeta: <K extends keyof PageMeta>(key: K, value: PageMeta[K]) => void;
@@ -77,6 +103,8 @@ interface EditorState {
   setMode: (mode: EditorMode) => void;
   setProp: (id: string, path: string, value: unknown) => void;
   setSaving: (state: SavingState) => void;
+  setSectionAnchor: (id: string, anchor: string) => void;
+  setSectionLayout: (id: string, patch: Partial<SectionLayout>) => void;
   /** Mirror a publish/unpublish. Not an edit, so it never enters history. */
   setStatus: (status: PageMeta["status"]) => void;
   setVariant: (id: string, variant: string) => void;
@@ -102,13 +130,14 @@ const EMPTY_DOC: PageDoc = {
     accentColor: "#3DA9E0",
     status: "draft",
   },
-  blocks: [],
+  sections: [],
+  version: 2,
 };
 
 function snap(doc: PageDoc): HistorySnap {
   return {
-    blocks: current(doc.blocks) as Block[],
     meta: current(doc.meta) as PageMeta,
+    sections: current(doc.sections) as Section[],
   };
 }
 
@@ -132,6 +161,8 @@ export const useEditorStore = create<EditorState>()(
       future: [],
 
       selection: null,
+      selectedSectionId: null,
+      insertTarget: null,
       hoveredId: null,
       mode: "edit",
       viewport: "desk",
@@ -140,14 +171,96 @@ export const useEditorStore = create<EditorState>()(
       inspectorTab: "block",
       locale: "no",
 
-      insertBlock: (type, afterId) => {
+      insertBlock: (type, target) => {
         let newId = "";
         set((s) => {
           pushHistory(s);
-          newId = opInsert(s.doc, type, afterId);
+          const resolved =
+            target ?? s.insertTarget ?? defaultInsertTarget(s.doc, s.selection);
+          const id = resolved ? opInsert(s.doc, type, resolved) : null;
+          // A stale target column falls through to a fresh section.
+          newId =
+            id ??
+            opInsertInNewSection(s.doc, type, s.doc.sections.length).blockId;
+          s.insertTarget = null;
+          s.selection = newId;
+          s.selectedSectionId = null;
         });
         return newId;
       },
+
+      insertBlockInNewSection: (type, sectionIndex) => {
+        let newId = "";
+        set((s) => {
+          pushHistory(s);
+          newId = opInsertInNewSection(s.doc, type, sectionIndex).blockId;
+        });
+        return newId;
+      },
+
+      moveBlock: (blockId, target) =>
+        set((s) => {
+          pushHistory(s);
+          opMoveBlock(s.doc, blockId, target);
+        }),
+
+      moveBlockToNewSection: (blockId, sectionIndex) =>
+        set((s) => {
+          pushHistory(s);
+          opMoveBlockToNewSection(s.doc, blockId, sectionIndex);
+        }),
+
+      insertSection: (columns, sectionIndex) => {
+        let newId = "";
+        set((s) => {
+          pushHistory(s);
+          newId = opInsertSection(s.doc, columns, sectionIndex);
+        });
+        return newId;
+      },
+
+      removeSection: (id) =>
+        set((s) => {
+          pushHistory(s);
+          const found = findSection(s.doc, id);
+          if (
+            found &&
+            s.selection &&
+            found.section.columns.some((c) =>
+              c.blocks.some((b) => b.id === s.selection)
+            )
+          ) {
+            s.selection = null;
+          }
+          if (s.selectedSectionId === id) {
+            s.selectedSectionId = null;
+          }
+          opRemoveSection(s.doc, id);
+        }),
+
+      duplicateSection: (id) =>
+        set((s) => {
+          pushHistory(s);
+          opDuplicateSection(s.doc, id);
+        }),
+
+      moveSection: (id, beforeSectionId) =>
+        set((s) => {
+          pushHistory(s);
+          opMoveSection(s.doc, id, beforeSectionId);
+        }),
+
+      setSectionLayout: (id, patch) =>
+        set((s) => {
+          pushHistory(s);
+          opSetSectionLayout(s.doc, id, patch);
+        }),
+
+      setSectionAnchor: (id, anchor) =>
+        set((s) => {
+          pushHistory(s);
+          opSetSectionAnchor(s.doc, id, anchor);
+        }),
 
       removeBlock: (id) =>
         set((s) => {
@@ -174,12 +287,6 @@ export const useEditorStore = create<EditorState>()(
         set((s) => {
           pushHistory(s);
           opSetVariant(s.doc, id, variant);
-        }),
-
-      reorder: (fromIndex, toIndex) =>
-        set((s) => {
-          pushHistory(s);
-          opReorder(s.doc, fromIndex, toIndex);
         }),
 
       bindCollection: (id, source) =>
@@ -210,11 +317,24 @@ export const useEditorStore = create<EditorState>()(
           s.doc = structuredClone(doc);
           s.past = [];
           s.future = [];
+          s.selection = null;
+          s.selectedSectionId = null;
+          s.insertTarget = null;
         }),
 
       select: (id) =>
         set((s) => {
           s.selection = id;
+          s.selectedSectionId = null;
+        }),
+      selectSection: (id) =>
+        set((s) => {
+          s.selectedSectionId = id;
+          s.selection = null;
+        }),
+      setInsertTarget: (target) =>
+        set((s) => {
+          s.insertTarget = target;
         }),
       setHovered: (id) =>
         set((s) => {
@@ -253,7 +373,7 @@ export const useEditorStore = create<EditorState>()(
             return;
           }
           s.future.push(snap(s.doc));
-          s.doc.blocks = entry.blocks;
+          s.doc.sections = entry.sections;
           s.doc.meta = entry.meta;
         }),
 
@@ -264,7 +384,7 @@ export const useEditorStore = create<EditorState>()(
             return;
           }
           s.past.push(snap(s.doc));
-          s.doc.blocks = entry.blocks;
+          s.doc.sections = entry.sections;
           s.doc.meta = entry.meta;
         }),
     };
