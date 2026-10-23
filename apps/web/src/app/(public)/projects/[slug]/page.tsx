@@ -1,8 +1,13 @@
 import type { Locale } from "@repo/i18n/config";
-import { isProjectSlug } from "@repo/shared/utils/project-units";
+import {
+  isProjectSlug,
+  type ProjectSlug,
+  projectPageSlug,
+} from "@repo/shared/utils/project-units";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { cache } from "react";
 import { getCampusMetadata } from "@/app/actions/campus";
 import { getLargeEventBySlug } from "@/app/actions/large-events";
 import { getLocale } from "@/app/actions/locale";
@@ -16,10 +21,33 @@ import {
 } from "@/components/projects/project-palette";
 import { type Crumb, PageHeader } from "@/components/ui/page-header";
 import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
-import { cachedPageEventsFeed } from "@/lib/data/public-content";
+import {
+  cachedPageEventsFeed,
+  cachedPublishedPage,
+} from "@/lib/data/public-content";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { buildProjectHub, HUB_EVENT_LIMIT } from "@/lib/project-hub";
+import {
+  boundDepartmentTheme,
+  isRenderablePage,
+  renderPublishedEditorPage,
+} from "@/lib/published-editor-page";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
+
+/**
+ * The project's published editor page, or null: only a known project may have
+ * one (the page table also holds `projects/<anything>` rows an editor could
+ * have typed), and a failed read falls back to the coded hub.
+ */
+const publishedProjectPage = cache(async (slug: string, locale: Locale) => {
+  if (!isProjectSlug(slug)) {
+    return null;
+  }
+  const result = await cachedPublishedPage(projectPageSlug(slug), locale).catch(
+    () => null
+  );
+  return isRenderablePage(result) ? result : null;
+});
 
 export async function generateMetadata({
   params,
@@ -28,6 +56,17 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
+    const page = await publishedProjectPage(
+      slug,
+      (await getLocale()) as Locale
+    );
+    const pageTitle = page?.translation?.title;
+    if (pageTitle) {
+      return {
+        title: `${pageTitle} | BISO`,
+        description: page?.translation?.description?.slice(0, 160) || undefined,
+      };
+    }
     const [event, t] = await Promise.all([
       getLargeEventBySlug(slug),
       getTranslations("projectDetail"),
@@ -108,6 +147,20 @@ export default async function ProjectDetailPage({
 }) {
   const { slug } = await params;
   const locale = (await getLocale()) as Locale;
+
+  // A published editor page at `projects/<slug>` replaces the coded hub; its
+  // department binding (the national unit) supplies the theme, an unbound hub
+  // page its document's own.
+  const editorPage = await publishedProjectPage(slug, locale);
+  if (editorPage) {
+    return renderPublishedEditorPage({
+      departmentTheme: await boundDepartmentTheme(editorPage),
+      locale,
+      result: editorPage,
+      slug: projectPageSlug(slug as ProjectSlug),
+    });
+  }
+
   const t = await getTranslations("projectDetail");
   const tNav = await getTranslations("common.navigation");
   const tCommon = await getTranslations("common");

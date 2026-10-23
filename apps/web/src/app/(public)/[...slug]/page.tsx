@@ -1,23 +1,20 @@
 import { getPage } from "@repo/api/page-builder";
-import { sanitizePageDocHtml } from "@repo/editor/sanitize";
-import { normalizePageDoc, pruneEmptyFeedBlocks } from "@repo/editor/serialize";
-import type { PageDoc } from "@repo/editor/types";
 import type { Locale } from "@repo/i18n/config";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getLocale } from "@/app/actions/locale";
-import { PageThemeStyle } from "@/components/page-theme-style";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
-import { resolvePageFeeds } from "@/lib/data/page-feeds";
 import {
-  cachedDepartmentTheme,
   cachedPublishedPage,
   isPublishedPage,
 } from "@/lib/data/public-content";
-import { resolvePageTheme } from "@/lib/page-theme";
-import { RenderedPage } from "./_components/rendered-page";
+import {
+  boundDepartmentTheme,
+  isRenderablePage,
+  renderPublishedEditorPage,
+} from "@/lib/published-editor-page";
 
 interface Props {
   params: Promise<{ slug?: string[] }>;
@@ -59,16 +56,26 @@ const resolvePage = cache(async (slug: string, locale: Locale) => {
   }
 });
 
+/**
+ * `projects/<slug>` is where a project's editor page is stored, but it is
+ * served at `/projects/<slug>` by its own route, never from here: a deeper path
+ * (or a stray row) must not render under another URL.
+ */
+const RESERVED_PREFIX = "projects/";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug: segments } = await params;
   if (!segments || segments.length === 0) {
     return {};
   }
   const slug = segments.join("/");
+  if (slug.startsWith(RESERVED_PREFIX)) {
+    return {};
+  }
   const locale = await getLocale();
   const result = await resolvePage(slug, locale);
   // Same guard as the page body: a page that 404s carries no title.
-  if (!(result?.translation?.is_published && result.doc)) {
+  if (!isRenderablePage(result)) {
     return {};
   }
   const title = result.translation.title;
@@ -91,53 +98,23 @@ export default async function DynamicPage({ params }: Props) {
   }
 
   const slug = segments.join("/");
+  if (slug.startsWith(RESERVED_PREFIX)) {
+    notFound();
+  }
   const locale = await getLocale();
   const result = await resolvePage(slug, locale);
 
-  if (!(result?.translation?.is_published && result.doc)) {
+  if (!isRenderablePage(result)) {
     notFound();
   }
 
-  // Normalized here, before anything walks it: an old flat (v1) document or
-  // a malformed section would otherwise throw in the feed resolver and 500
-  // the page. Old documents render as an empty page (D2). Then its text-block
-  // HTML is sanitized: rows saved before the admin cleaned it, or written
-  // around the admin, hold whatever markup they were given.
-  const doc = sanitizePageDocHtml(normalizePageDoc(result.doc as PageDoc));
-
-  // Resolve the page's auto-source feeds before rendering, so the HTML this
-  // route emits carries real events/news/jobs rather than the blocks'
-  // "Loading…" placeholder. Awaited deliberately: the blocks read it during
-  // their first (server) paint, so streaming it in later would defeat the
-  // point. Every reader behind this is `"use cache"`, so it costs no extra
-  // Appwrite round-trip per visitor. See `@/lib/data/page-feeds`.
-  const feeds = await resolvePageFeeds(doc, locale);
-
-  // A page bound to a department wears the department's theme; otherwise its
-  // own. A missing department row or a failed read renders BISO, never the
-  // page's stale doc theme.
-  const departmentId = result.row?.department_id;
-  const departmentTheme = departmentId
-    ? await cachedDepartmentTheme(departmentId).catch(() => null)
-    : null;
-  const theme = resolvePageTheme({
-    departmentId,
-    departmentTheme,
-    docTheme: doc.meta?.theme,
+  // Normalize, sanitize, feeds, prune and theme are one pipeline shared with
+  // the unit and project routes. A page bound to a department wears the
+  // department's theme; otherwise its own. See `@/lib/published-editor-page`.
+  return renderPublishedEditorPage({
+    departmentTheme: await boundDepartmentTheme(result),
+    locale,
+    result,
+    slug,
   });
-
-  // Blocks whose feed came back empty leave no empty band: drop them (and the
-  // sections they leave bare) before the renderer picks the nav-clearing first
-  // section.
-  return (
-    <>
-      <PageThemeStyle theme={theme} />
-      <RenderedPage
-        doc={pruneEmptyFeedBlocks(doc, feeds, locale)}
-        feeds={feeds}
-        locale={locale}
-        slug={slug}
-      />
-    </>
-  );
 }

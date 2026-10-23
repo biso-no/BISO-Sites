@@ -317,3 +317,19 @@ describe("POST /api/form/submit", () => {
     expect((await post(null)).status).toBe(400);
   });
 });
+
+describe("POST /api/form/submit: project pages", () => {
+  it("rejects a projects/ slug that is not a known project", async () => {
+    publish(block());
+    const res = await post({ ...base, slug: "projects/not-a-project" });
+    expect(res.status).toBe(404);
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("accepts the page of a known project", async () => {
+    publish(block());
+    mocks.sendEmail.mockResolvedValue(undefined);
+    const res = await post({ ...base, slug: "projects/winter-games" });
+    expect(res.status).toBe(200);
+  });
+});

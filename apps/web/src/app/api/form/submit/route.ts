@@ -4,6 +4,7 @@ import { sendEmail } from "@repo/connectors/email";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import { isBisoRecipient } from "@repo/editor/submit-rules";
 import type { PageDoc } from "@repo/editor/types";
+import { isProjectPageSlug } from "@repo/shared/utils/project-units";
 import { NextResponse } from "next/server";
 import { cachedPublishedPage } from "@/lib/data/public-content";
 import { type ResolvedSubmission, resolveSubmission } from "@/lib/form-submit";
@@ -207,6 +208,11 @@ async function loadDoc(slug: string, locale: FormLocale) {
     }
     const owned = publishedUnitPage(page, unit.department.$id);
     return owned ? { ...base, doc: owned.doc } : null;
+  }
+
+  // Reserved like `units/`: only the page of a known project is served there.
+  if (slug.startsWith("projects/") && !isProjectPageSlug(slug)) {
+    return null;
   }
 
   return { ...base, doc: normalizePageDoc(page.doc as PageDoc) };

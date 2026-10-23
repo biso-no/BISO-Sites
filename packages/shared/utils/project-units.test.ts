@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  isProjectPageSlug,
   isProjectUnit,
   PROJECT_UNIT_SLUGS,
+  projectPageSlug,
   projectSlugForUnit,
   sortByCampusOrder,
 } from "./project-units";
@@ -76,5 +78,21 @@ describe("sortByCampusOrder", () => {
     ];
     sortByCampusOrder(input);
     expect(input[0]?.name).toBe("b");
+  });
+});
+
+describe("project page slugs", () => {
+  it("stores a project's page at projects/<slug>", () => {
+    expect(projectPageSlug("winter-games")).toBe("projects/winter-games");
+  });
+
+  it("accepts only a known project under projects/", () => {
+    expect(isProjectPageSlug("projects/winter-games")).toBe(true);
+    expect(isProjectPageSlug("projects/not-a-project")).toBe(false);
+    expect(isProjectPageSlug("projects/winter-games/x")).toBe(false);
+    expect(isProjectPageSlug("units/oslo/fadderullan")).toBe(false);
+    expect(isProjectPageSlug("projects/")).toBe(false);
+    expect(isProjectPageSlug(null)).toBe(false);
+    expect(isProjectPageSlug(undefined)).toBe(false);
   });
 });

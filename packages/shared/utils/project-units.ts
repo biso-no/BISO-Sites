@@ -49,6 +49,24 @@ export function isProjectSlug(value: string): value is ProjectSlug {
   return Object.hasOwn(PROJECT_UNIT_SLUGS, value);
 }
 
+const PROJECT_PAGE_PREFIX = "projects/";
+
+/**
+ * Where a project's editor page is stored: `projects/<project>`. Reserved like
+ * `units/` — the public catch-all never serves it; `/projects/<slug>` does.
+ */
+export function projectPageSlug(project: ProjectSlug): string {
+  return `${PROJECT_PAGE_PREFIX}${project}`;
+}
+
+/** Whether a stored page slug is exactly `projects/<known project>`. */
+export function isProjectPageSlug(slug: string | null | undefined): boolean {
+  if (!slug?.startsWith(PROJECT_PAGE_PREFIX)) {
+    return false;
+  }
+  return isProjectSlug(slug.slice(PROJECT_PAGE_PREFIX.length));
+}
+
 /**
  * Whether a unit runs a project, by category or by name.
  *

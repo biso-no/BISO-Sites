@@ -28,8 +28,8 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
-  permanentRedirect: () => {
-    throw new Error("NEXT_REDIRECT");
+  permanentRedirect: (to: string) => {
+    throw new Error(`NEXT_REDIRECT ${to}`);
   },
 }));
 vi.mock("@/app/actions/locale", () => ({ getLocale: async () => "no" }));
@@ -326,5 +326,91 @@ describe("unit route: department theme", () => {
     const page = (await UnitPage({ params })) as Element;
 
     expect(themeOf(page).props.theme).toBeNull();
+  });
+});
+
+describe("unit route: national project redirect (C3)", () => {
+  const NATIONAL = {
+    $id: "d-nat",
+    campus_id: "5",
+    Name: "Winter Games",
+    slug: "wintergames",
+  };
+  const nationalParams = Promise.resolve({
+    segments: ["national", "wintergames"],
+  });
+  const projectPage = {
+    doc: {
+      meta: {},
+      sections: [{ columns: [{ blocks: [], id: "c" }], id: "s" }],
+      version: 2,
+    },
+    row: { department_id: null, status: "published" },
+    translation: { is_published: true, title: "Winter Games" },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cachedUnitDetail.mockResolvedValue(UNIT);
+    resolveUnit.mockResolvedValue({
+      canonical: "/units/national/wintergames",
+      department: NATIONAL,
+      kind: "department",
+    });
+  });
+
+  afterEach(() => {
+    resolveUnit.mockResolvedValue({
+      canonical: "/units/oslo/fadderullan",
+      department: { $id: "d-1", Name: "OSL Fadderullan" },
+      kind: "department",
+    });
+  });
+
+  it("redirects permanently once a page exists at projects/winter-games", async () => {
+    cachedPublishedPage.mockImplementation(async (slug: string) =>
+      slug === "projects/winter-games" ? projectPage : null
+    );
+
+    await expect(UnitPage({ params: nationalParams })).rejects.toThrow(
+      "NEXT_REDIRECT /projects/winter-games"
+    );
+  });
+
+  it("stays as today while no page exists there", async () => {
+    cachedPublishedPage.mockResolvedValue(null);
+
+    const tree = (await UnitPage({ params: nationalParams })) as Element & {
+      props: { children: Element[] };
+    };
+
+    // <><PageThemeStyle/><Suspense><UnitView/></Suspense></>
+    expect(child(tree.props.children[1]).type).toBe(stubs.UnitView);
+  });
+
+  it("an unpublished page does not redirect", async () => {
+    cachedPublishedPage.mockImplementation(async (slug: string) =>
+      slug === "projects/winter-games"
+        ? { ...projectPage, translation: { is_published: false } }
+        : null
+    );
+
+    const tree = (await UnitPage({ params: nationalParams })) as Element & {
+      props: { children: Element[] };
+    };
+
+    // <><PageThemeStyle/><Suspense><UnitView/></Suspense></>
+    expect(child(tree.props.children[1]).type).toBe(stubs.UnitView);
+  });
+
+  it("a campus unit of the same project does not redirect", async () => {
+    resolveUnit.mockResolvedValue({
+      canonical: "/units/oslo/wintergames",
+      department: { ...NATIONAL, $id: "d-osl", campus_id: "1" },
+      kind: "department",
+    });
+    cachedPublishedPage.mockResolvedValue(projectPage);
+
+    await expect(UnitPage({ params: nationalParams })).resolves.toBeDefined();
   });
 });

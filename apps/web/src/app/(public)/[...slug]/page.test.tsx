@@ -347,3 +347,23 @@ describe("block page route: page theme", () => {
     expect(style.props.theme).toBeNull();
   });
 });
+
+describe("block page route: reserved project slugs", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("404s a projects/ slug, whatever stands in the page table", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [], version: 2 })
+    );
+
+    await expect(
+      DynamicPage({ params: Promise.resolve({ slug: ["projects", "x", "y"] }) })
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(
+      await generateMetadata({
+        params: Promise.resolve({ slug: ["projects", "x", "y"] }),
+      })
+    ).toEqual({});
+    expect(cachedPublishedPage).not.toHaveBeenCalled();
+  });
+});
