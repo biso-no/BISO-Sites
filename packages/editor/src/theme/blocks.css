@@ -142,39 +142,6 @@
   --page-accent: var(--brand);
 }
 
-/* STATS */
-.pg-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-  padding: calc(40px * var(--pg-space, 1)) var(--pg-gutter);
-  border-bottom: 0.5px solid var(--rule);
-}
-.pg-stat {
-  padding: 0 24px;
-  border-left: 0.5px solid var(--rule);
-}
-.pg-stat:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-.pg-stat__num {
-  font-family: var(--serif);
-  font-size: 44px;
-  font-weight: 700;
-  font-feature-settings: "tnum" 1;
-  line-height: 1;
-  color: var(--pg-ink);
-  letter-spacing: -0.02em;
-}
-.pg-stat__lbl {
-  max-width: 22ch;
-  margin-top: 8px;
-  font-size: 13px;
-  line-height: 1.35;
-  color: var(--ink-3);
-}
-
 /* TEAM */
 .pg-team {
   padding: calc(48px * var(--pg-space, 1)) var(--pg-gutter);
@@ -1646,15 +1613,6 @@ textarea.pg-msform__input {
    ========================================================================== */
 
 @container pg (max-width: 900px) {
-  .pg-stats {
-    grid-template-columns: repeat(2, 1fr);
-    row-gap: 28px;
-  }
-  .pg-stat:nth-child(2n + 1) {
-    padding-left: 0;
-    border-left: 0;
-  }
-
   .pg-contact {
     grid-template-columns: repeat(2, 1fr);
     row-gap: 28px;
@@ -1677,15 +1635,6 @@ textarea.pg-msform__input {
  * below take over again.
  */
 @container pg (min-width: 641px) {
-  .pg-section[data-width="prose"] .pg-stats {
-    grid-template-columns: repeat(2, 1fr);
-    row-gap: 28px;
-  }
-  .pg-section[data-width="prose"] .pg-stat:nth-child(2n + 1) {
-    padding-left: 0;
-    border-left: 0;
-  }
-
   .pg-section[data-width="prose"] .pg-contact {
     grid-template-columns: repeat(2, 1fr);
     row-gap: 28px;
@@ -1707,7 +1656,6 @@ textarea.pg-msform__input {
   }
 
   /* Every fixed multi-column grid collapses to a single column. */
-  .pg-stats,
   .pg-contact,
   .pg-team-grid,
   .pg-events-grid,
@@ -1720,16 +1668,11 @@ textarea.pg-msform__input {
   .pg-featuregrid__grid--cols4 {
     grid-template-columns: 1fr;
   }
-  .pg-stat {
-    padding: 0;
-    border-left: 0;
-  }
   .pg-timeline-item {
     grid-template-columns: 64px 1fr;
   }
 
-  .pg-cta h2,
-  .pg-stat__num {
+  .pg-cta h2 {
     font-size: 34px;
   }
   .pg-contact h2 {

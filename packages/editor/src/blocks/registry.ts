@@ -59,6 +59,13 @@ export const BLOCK_LIBRARY: {
         desc: "Three or four metrics in a row",
       },
       { type: "timeline", label: "Timeline", desc: "Year-by-year milestones" },
+      {
+        type: "highlights",
+        label: "Highlights",
+        desc: "Short points with an accent rule",
+      },
+      { type: "facts", label: "Facts", desc: "Label and value rows" },
+      { type: "divider", label: "Divider", desc: "A line between sections" },
     ],
   },
   {

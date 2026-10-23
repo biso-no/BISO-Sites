@@ -1,6 +1,7 @@
 "use client";
 
 import type { PatchFn } from "@/blocks/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { StatsBlock } from "@/editor/types";
 
 interface Props {
@@ -10,56 +11,33 @@ interface Props {
 }
 
 export function StatsRender({ block, edit, onPatch }: Props) {
+  const update = (i: number, key: "label" | "num", value: string) =>
+    onPatch(
+      "items",
+      block.items.map((x, j) => (j === i ? { ...x, [key]: value } : x))
+    );
   return (
-    <div className="pg-stats pg-block">
+    <dl className="m-0 grid @sm:grid-cols-2 @xl:grid-cols-3 gap-6 border-edge border-t pt-6">
       {block.items.map((item, i) => (
-        <div className="pg-stat" key={i}>
-          {edit ? (
-            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-            <div
-              className="pg-stat__num"
-              contentEditable
-              data-edit="1"
-              onBlur={(e) => {
-                const items = block.items.map((x, j) =>
-                  j === i ? { ...x, num: e.currentTarget.textContent ?? "" } : x
-                );
-                onPatch("items", items);
-              }}
-              role="textbox"
-              suppressContentEditableWarning
-              tabIndex={0}
-            >
-              {item.num}
-            </div>
-          ) : (
-            <div className="pg-stat__num">{item.num}</div>
-          )}
-          {edit ? (
-            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-            <div
-              className="pg-stat__lbl"
-              contentEditable
-              data-edit="1"
-              onBlur={(e) => {
-                const items = block.items.map((x, j) =>
-                  j === i
-                    ? { ...x, label: e.currentTarget.textContent ?? "" }
-                    : x
-                );
-                onPatch("items", items);
-              }}
-              role="textbox"
-              suppressContentEditableWarning
-              tabIndex={0}
-            >
-              {item.label}
-            </div>
-          ) : (
-            <div className="pg-stat__lbl">{item.label}</div>
-          )}
+        <div className="flex flex-col-reverse gap-1" key={i}>
+          <dt className="type-body-sm text-ink-muted">
+            <EditableText
+              edit={edit}
+              onChange={(v) => update(i, "label", v)}
+              tag="span"
+              value={item.label}
+            />
+          </dt>
+          <dd className="type-data m-0 text-3xl text-ink-accent">
+            <EditableText
+              edit={edit}
+              onChange={(v) => update(i, "num", v)}
+              tag="span"
+              value={item.num}
+            />
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }

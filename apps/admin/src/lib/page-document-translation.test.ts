@@ -196,6 +196,50 @@ describe("page document translation", () => {
     );
   });
 
+  test("translates a facts item's text, not its link", async () => {
+    const document = {
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "",
+        slug: "x",
+        status: "draft",
+        title: "Om oss",
+      },
+      sections: [
+        {
+          columns: [
+            {
+              blocks: [
+                {
+                  id: "b-1",
+                  items: [
+                    { href: "/kontakt", label: "Sted", text: "Oslo sentrum" },
+                  ],
+                  type: "facts",
+                },
+              ],
+              id: "c-1",
+            },
+          ],
+          id: "s-1",
+          layout: {},
+        },
+      ],
+      version: 2,
+    } as unknown as PageDoc;
+    const translated = await translatePageDocument(
+      { document, sourceLocale: "no", targetLocale: "en" },
+      async ({ fields }) =>
+        Object.fromEntries(fields.map((f) => [f.key, `<translated>${f.value}`]))
+    );
+    const sections = translated.sections as unknown as {
+      columns: { blocks: { items: { href: string; text: string }[] }[] }[];
+    }[];
+    const item = sections[0].columns[0].blocks[0].items[0];
+    expect(item.text).toBe("<translated>Oslo sentrum");
+    expect(item.href).toBe("/kontakt");
+  });
+
   test("translates the page header's text, not its links or media", async () => {
     const document = {
       header: {

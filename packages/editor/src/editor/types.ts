@@ -13,6 +13,9 @@ export type BlockType =
   | "twoCol"
   | "team"
   | "stats"
+  | "highlights"
+  | "facts"
+  | "divider"
   | "timeline"
   | "image"
   | "gallery"
@@ -140,6 +143,30 @@ export interface StatsBlock {
   id: string;
   items: StatItem[];
   type: "stats";
+}
+
+export interface HighlightsBlock {
+  id: string;
+  items: { text: string }[];
+  type: "highlights";
+}
+
+export interface FactItem {
+  href?: string;
+  label: string;
+  /** Named `text`, not `value`: the admin translator skips `value`. */
+  text: string;
+}
+export interface FactsBlock {
+  id: string;
+  items: FactItem[];
+  type: "facts";
+}
+
+export interface DividerBlock {
+  id: string;
+  spacing: "small" | "medium" | "large";
+  type: "divider";
 }
 
 export interface TimelineItem {
@@ -454,6 +481,9 @@ export type Block = (
   | TwoColBlock
   | TeamBlock
   | StatsBlock
+  | HighlightsBlock
+  | FactsBlock
+  | DividerBlock
   | TimelineBlock
   | ImageBlock
   | GalleryBlock

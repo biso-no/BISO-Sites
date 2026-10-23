@@ -80,7 +80,7 @@ const targetsRoot = (selector: string) =>
 
 describe("Design panel rules for blocks styled by blocks.css", () => {
   test("the root scan finds the blocks it guards", () => {
-    expect(rootClasses.has("stats")).toBe(true);
+    expect(rootClasses.has("timeline")).toBe(true);
     expect(rootClasses.has("team")).toBe(true);
     expect(rootClasses.size).toBeGreaterThan(25);
   });

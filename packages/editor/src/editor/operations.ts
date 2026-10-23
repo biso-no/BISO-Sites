@@ -30,6 +30,26 @@ export function emptyBlock(type: BlockType): Block {
           { num: "3", label: "More" },
         ],
       };
+    case "highlights":
+      return {
+        id,
+        type,
+        items: [
+          { text: "A highlight worth remembering" },
+          { text: "Another one" },
+        ],
+      };
+    case "facts":
+      return {
+        id,
+        type,
+        items: [
+          { label: "When", text: "Every Thursday" },
+          { label: "Where", text: "Campus Oslo" },
+        ],
+      };
+    case "divider":
+      return { id, type, spacing: "medium" };
     case "text":
       return {
         id,

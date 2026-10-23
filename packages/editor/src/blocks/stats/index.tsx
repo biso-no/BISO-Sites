@@ -34,4 +34,5 @@ registerBlock({
   Render: StatsRender as never,
   Inspector: StatsInspector as never,
   PaletteThumb: StatsThumb,
+  v2: true,
 });
