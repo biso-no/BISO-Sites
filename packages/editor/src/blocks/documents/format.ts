@@ -1,13 +1,15 @@
 import { safeHref } from "@/blocks/_v2/links";
-import { appwriteDownloadSrc } from "@/blocks/_v2/media";
+import {
+  APPWRITE_ENDPOINT,
+  APPWRITE_PROJECT,
+  appwriteDownloadSrc,
+} from "@/blocks/_v2/media";
 import type { DocumentItem, EditorLocale } from "@/editor/types";
 
 const KB = 1000;
 const MB = KB * KB;
 const MEDIA_BUCKET = "media";
-const APPWRITE_ENDPOINT =
-  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1";
-const APPWRITE_PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
+const ID_RE = /^[A-Za-z0-9._-]{1,36}$/;
 const EXTENSION_RE = /\.([a-z0-9]{1,5})(?:[?#]|$)/i;
 const SEPARATOR_RE = /[_]+/g;
 
@@ -147,17 +149,16 @@ export const downloadLabel = (locale: EditorLocale): string => ACTION[locale];
  */
 export function downloadHref(item: Partial<DocumentItem>): string | null {
   const src = text(item.src).trim();
-  const download = appwriteDownloadSrc(src);
-  if (download) {
-    return download;
-  }
   const fileId = text(item.fileId).trim();
-  if (!src && fileId) {
+  // A link wins over a file id; the id only stands in when there is no link.
+  let href: string | null = src ? (appwriteDownloadSrc(src) ?? src) : null;
+  if (!src && ID_RE.test(fileId)) {
     // Mirrors `getStorageFileDownloadUrl("media", id)` in @repo/api, which the
     // editor package does not depend on.
-    return `${APPWRITE_ENDPOINT}/storage/buckets/${MEDIA_BUCKET}/files/${encodeURIComponent(fileId)}/download?project=${APPWRITE_PROJECT}`;
+    href = `${APPWRITE_ENDPOINT}/storage/buckets/${MEDIA_BUCKET}/files/${fileId}/download?project=${APPWRITE_PROJECT}`;
   }
-  return safeHref(src);
+  // Whatever was built, only a safe link reaches an `<a>`.
+  return safeHref(href);
 }
 
 /** A file name as a title: no extension, underscores as spaces. */

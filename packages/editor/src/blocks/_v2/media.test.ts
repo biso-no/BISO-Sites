@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { embedSrc, isEmbedUrl, ratioValue, sizedImageSrc } from "./media";
+import {
+  appwriteDownloadSrc,
+  embedSrc,
+  isEmbedUrl,
+  ratioValue,
+  sizedImageSrc,
+} from "./media";
 
 test("an Appwrite view URL becomes a sized WebP preview", () => {
   expect(
@@ -88,4 +94,40 @@ test("only Appwrite's storage view path is rewritten", () => {
   ).toBe(
     "https://appwrite.biso.no/v1/storage/buckets/b/files/f/preview?width=800&output=webp&quality=80"
   );
+});
+
+const EVIL_SOURCES = [
+  "javascript:alert(1)//v1/storage/buckets/a/files/b/view",
+  "data:text/html,x//v1/storage/buckets/media/files/b/view",
+  "https://evil.example/v1/storage/buckets/media/files/x/view",
+  "JaVaScRiPt:alert(1)//v1/storage/buckets/media/files/b/view",
+  "\tjavascript:alert(1)//v1/storage/buckets/media/files/b/view",
+  " javascript:alert(1)//v1/storage/buckets/media/files/b/view",
+  "https://appwrite.biso.no.evil.example/v1/storage/buckets/media/files/x/view",
+  "https://user@evil.example/v1/storage/buckets/media/files/x/view",
+];
+
+test("sizedImageSrc only rewrites real endpoint URLs", () => {
+  for (const src of EVIL_SOURCES) {
+    expect(sizedImageSrc(src, 800)).toBe(src);
+  }
+});
+
+test("appwriteDownloadSrc rewrites only real media-bucket endpoint URLs", () => {
+  for (const src of EVIL_SOURCES) {
+    expect(appwriteDownloadSrc(src)).toBeNull();
+  }
+  expect(
+    appwriteDownloadSrc(
+      "https://appwrite.biso.no/v1/storage/buckets/media/files/f1/view?project=biso"
+    )
+  ).toBe(
+    "https://appwrite.biso.no/v1/storage/buckets/media/files/f1/download?project=biso"
+  );
+  // Another bucket is left alone.
+  expect(
+    appwriteDownloadSrc(
+      "https://appwrite.biso.no/v1/storage/buckets/content/files/f1/view?project=biso"
+    )
+  ).toBeNull();
 });

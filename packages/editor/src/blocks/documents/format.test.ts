@@ -132,3 +132,48 @@ describe("titleFromFilename", () => {
     expect(titleFromFilename("noext")).toBe("noext");
   });
 });
+
+describe("downloadHref is never a script or data URL", () => {
+  const evil = [
+    "javascript:alert(1)//v1/storage/buckets/a/files/b/view",
+    "data:text/html,x//v1/storage/buckets/media/files/b/view",
+    "JaVaScRiPt:alert(1)//v1/storage/buckets/media/files/b/view",
+    "\tjavascript:alert(1)//v1/storage/buckets/media/files/b/view",
+    " javascript:alert(1)//v1/storage/buckets/media/files/b/view",
+  ];
+
+  test("none yields a link", () => {
+    for (const src of evil) {
+      expect(downloadHref({ src, title: "x" })).toBeNull();
+    }
+  });
+
+  test("a foreign host with the same path is not rewritten", () => {
+    const src = "https://evil.example/v1/storage/buckets/media/files/x/view";
+    expect(downloadHref({ src, title: "x" })).toBe(src);
+  });
+
+  test("a real endpoint URL keeps its project parameter", () => {
+    expect(downloadHref({ src: VIEW, title: "x" })).toBe(
+      "https://appwrite.biso.no/v1/storage/buckets/media/files/f1/download?project=biso"
+    );
+  });
+
+  test("a non-empty src wins over a fileId", () => {
+    expect(
+      downloadHref({
+        fileId: "abc",
+        src: "https://example.com/a.pdf",
+        title: "x",
+      })
+    ).toBe("https://example.com/a.pdf");
+    expect(
+      downloadHref({ fileId: "abc", src: "javascript:alert(1)", title: "x" })
+    ).toBeNull();
+  });
+
+  test("a hostile fileId cannot break out of the path", () => {
+    const href = downloadHref({ fileId: "../x?y#z", src: "", title: "x" });
+    expect(href).toBeNull();
+  });
+});

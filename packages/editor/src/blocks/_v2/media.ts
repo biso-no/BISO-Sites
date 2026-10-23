@@ -3,12 +3,17 @@ import { knownKey } from "./known-key";
 
 const VIMEO_RE = /vimeo\.com\/(\d+)/;
 const YOUTUBE_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/;
-/** Appwrite storage's `…/v1/storage/buckets/<bucket>/files/<id>/view?…`. */
-const APPWRITE_VIEW_RE =
-  /^([^?#]*\/v1\/storage\/buckets\/[^/?#]+\/files\/[^/?#]+)\/view(\?[^#]*)?$/;
+/** Mirrors `packages/api/storage.ts`, which the editor does not depend on. */
+export const APPWRITE_ENDPOINT =
+  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://appwrite.biso.no/v1";
+export const APPWRITE_PROJECT =
+  process.env.NEXT_PUBLIC_APPWRITE_PROJECT || "biso";
+/** Appwrite's id charset and length. */
+const APPWRITE_ID_RE = /^[A-Za-z0-9._-]{1,36}$/;
 /** Formats the preview endpoint would flatten: SVG (an icon) and GIF (one frame). */
 const UNSIZED_MIME_RE = /^image\/(?:svg\+xml|gif)$/i;
 const UNSIZED_PATH_RE = /\.(?:svg|gif)$/i;
+const TRAILING_SLASH_RE = /\/+$/;
 const QUERY_OR_FRAGMENT_RE = /[?#]/;
 
 /** True for a YouTube or Vimeo watch URL. */
@@ -53,21 +58,71 @@ export function sizedImageSrc(
   ) {
     return src;
   }
-  const match = APPWRITE_VIEW_RE.exec(src);
-  if (!match) {
+  const file = parseAppwriteFileUrl(src);
+  if (!file) {
     return src;
   }
-  const query = match[2] ? `${match[2]}&` : "?";
-  return `${match[1]}/preview${query}width=${width}&output=webp&quality=80`;
+  const query = file.search ? `${file.search}&` : "?";
+  return `${file.base}/preview${query}width=${width}&output=webp&quality=80`;
 }
 
 /**
- * An Appwrite storage `…/<id>/view?…` URL as its `…/<id>/download?…` twin
- * (the same file, served as an attachment), or null for any other URL.
+ * An Appwrite storage `<endpoint>/storage/buckets/<bucket>/files/<id>/view`
+ * URL on the configured endpoint, parsed. Anything else (another host, a
+ * `javascript:` or `data:` string that merely ends in the same path, ids
+ * outside Appwrite's charset, a fragment) is null.
+ */
+function parseAppwriteFileUrl(
+  src: string
+): { base: string; bucket: string; search: string } | null {
+  let url: URL;
+  let endpoint: URL;
+  try {
+    url = new URL(src);
+    endpoint = new URL(APPWRITE_ENDPOINT);
+  } catch {
+    return null;
+  }
+  if (
+    (url.protocol !== "https:" && url.protocol !== "http:") ||
+    url.origin !== endpoint.origin ||
+    url.username ||
+    url.password ||
+    url.hash
+  ) {
+    return null;
+  }
+  const prefix = `${endpoint.pathname.replace(TRAILING_SLASH_RE, "")}/storage/buckets/`;
+  if (!url.pathname.startsWith(prefix)) {
+    return null;
+  }
+  const [bucket, files, id, action, ...rest] = url.pathname
+    .slice(prefix.length)
+    .split("/");
+  if (
+    files !== "files" ||
+    action !== "view" ||
+    rest.length > 0 ||
+    !(bucket && id && APPWRITE_ID_RE.test(bucket) && APPWRITE_ID_RE.test(id))
+  ) {
+    return null;
+  }
+  return {
+    base: `${url.origin}${prefix}${bucket}/files/${id}`,
+    bucket,
+    search: url.search,
+  };
+}
+
+/**
+ * A media-bucket file URL on the Appwrite endpoint as its `…/download?…`
+ * twin (the same file, served as an attachment); null for any other URL.
  */
 export function appwriteDownloadSrc(src: string): string | null {
-  const match = APPWRITE_VIEW_RE.exec(src);
-  return match ? `${match[1]}/download${match[2] ?? ""}` : null;
+  const file = parseAppwriteFileUrl(src);
+  return file && file.bucket === "media"
+    ? `${file.base}/download${file.search}`
+    : null;
 }
 
 const DEFAULT_RATIO: FrameRatio = "16/9";
