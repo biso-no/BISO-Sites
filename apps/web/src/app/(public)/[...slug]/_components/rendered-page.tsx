@@ -9,10 +9,10 @@ import type {
 } from "@repo/editor/render";
 import {
   BlockView,
+  legacyBackground,
   normalizePageDoc,
   PageFeedProvider,
-  type ResolvedBackground,
-  resolveBackgrounds,
+  SectionView,
   useEditorStore,
 } from "@repo/editor/render";
 import { useEffect, useMemo, useRef } from "react";
@@ -59,7 +59,6 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
   const accentStyle = {
     "--page-accent": normalizedDoc.meta.accentColor,
   } as React.CSSProperties;
-  const backgrounds = resolveBackgrounds(normalizedDoc.blocks);
 
   return (
     <PageFeedProvider
@@ -68,11 +67,16 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
       locale={locale}
     >
       <div className="biso-surface pg-page" style={accentStyle}>
-        {normalizedDoc.blocks.map((block, index) => (
-          <BlockRenderer
-            background={backgrounds[index] ?? "default"}
-            block={block as Block}
-            key={(block as Block).id}
+        {normalizedDoc.sections.map((section) => (
+          <SectionView
+            key={section.id}
+            renderBlock={(block) => (
+              <BlockRenderer
+                background={legacyBackground(section.layout.background)}
+                block={block}
+              />
+            )}
+            section={section}
           />
         ))}
       </div>
@@ -84,7 +88,7 @@ function BlockRenderer({
   background,
   block,
 }: {
-  background: ResolvedBackground;
+  background: ReturnType<typeof legacyBackground>;
   block: Block;
 }) {
   const noopPatch = () => undefined;

@@ -50,8 +50,9 @@ interface PageMeta {
 }
 
 export interface PageDoc {
-  blocks: unknown[];
   meta: PageMeta;
+  sections: unknown[];
+  version: 2;
 }
 
 export const PAGE_LOCALES = ["no", "en"] as const;
@@ -176,12 +177,12 @@ function toEditorTranslation(
     return null;
   }
   const draftDocument = normalizeDoc({
-    doc: jsonToPageDoc(translation.draft_document),
+    doc: jsonToPageDoc(translation.draft_doc),
     row,
     translation,
   });
   const publishedDocument = normalizeDoc({
-    doc: jsonToPageDoc(translation.puck_document),
+    doc: jsonToPageDoc(translation.published_doc),
     row,
     translation,
   });
@@ -298,9 +299,7 @@ export async function getPage(
     row.translation_refs?.find((item) => item.locale === locale) ?? null;
   const doc = translation
     ? normalizeDoc({
-        doc: jsonToPageDoc(
-          translation.puck_document ?? translation.draft_document
-        ),
+        doc: jsonToPageDoc(translation.published_doc ?? translation.draft_doc),
         row,
         translation,
       })
@@ -339,10 +338,10 @@ export async function getPageById(
           locale: translation.locale,
           title: translation.title,
           description: translation.description ?? null,
-          draft_document: translation.draftDocument
+          draft_doc: translation.draftDocument
             ? pageDocToJson(translation.draftDocument)
             : null,
-          puck_document: translation.publishedDocument
+          published_doc: translation.publishedDocument
             ? pageDocToJson(translation.publishedDocument)
             : null,
           is_published: translation.isPublished,
@@ -475,7 +474,7 @@ export async function savePageDraft(params: {
       page_id: pageId,
       page: pageId as unknown as Pages,
       locale: locale as PageTranslationsLocale,
-      draft_document: json,
+      draft_doc: json,
       title: normalizedDoc.meta.title,
       description: normalizedDoc.meta.description ?? null,
       is_published: translationPublished,
@@ -541,7 +540,7 @@ export async function savePageTranslationDraft({
       page_id: id,
       page: id as unknown as Pages,
       locale: locale as PageTranslationsLocale,
-      draft_document: pageDocToJson(normalizedDoc),
+      draft_doc: pageDocToJson(normalizedDoc),
       title: normalizedDoc.meta.title,
       description: normalizedDoc.meta.description ?? null,
       is_published: existing?.is_published ?? false,
@@ -598,7 +597,7 @@ export async function publishPage({
     "page_translations",
     translation.$id,
     {
-      puck_document: translation.draft_document,
+      published_doc: translation.draft_doc,
       is_published: true,
       published_at: new Date().toISOString(),
     },

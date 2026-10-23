@@ -8,7 +8,6 @@ export const maxDuration = 120;
 
 const pageDocumentSchema = z
   .object({
-    blocks: z.array(z.unknown()),
     meta: z
       .object({
         accentColor: z.string(),
@@ -19,6 +18,8 @@ const pageDocumentSchema = z
         title: z.string(),
       })
       .passthrough(),
+    sections: z.array(z.unknown()),
+    version: z.literal(2),
   })
   .passthrough();
 

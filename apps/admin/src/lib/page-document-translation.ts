@@ -65,7 +65,6 @@ const SKIP_FIELDS = new Set([
   "variant",
   "layout",
   "size",
-  "columns",
   "gap",
   "align",
   "email",
@@ -140,7 +139,7 @@ const getPageTranslationEntries = (
       value: document.meta.description.trim(),
     });
   }
-  collectTranslatableValues(document.blocks, "blocks", values);
+  collectTranslatableValues(document.sections, "sections", values);
 
   return values.map(({ path, value }, index) => ({
     format: HTML_PATTERN.test(value) ? "html" : "plain",

@@ -121,6 +121,12 @@ beforeEach(() => {
   adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
 });
 
+interface SectionDoc {
+  meta: { title: string };
+  sections: { columns: { blocks: { type: string }[] }[] }[];
+  version: number;
+}
+
 describe("listDepartments campus scoping", () => {
   test("a campus admin's listing is scoped by managed campuses even when admin_campus_ctx points elsewhere", async () => {
     currentCtx = makeCtx({
@@ -250,9 +256,9 @@ describe("createUnitPage inactive-department guard", () => {
     await createUnitPage("dept-1");
 
     const [[call]] = savePageDraftSpy.mock.calls as unknown as [
-      [{ doc: { blocks: Array<{ type: string }>; meta: { title: string } } }],
+      [{ doc: SectionDoc }],
     ];
-    expect(call.doc.blocks.map((block) => block.type)).toEqual([
+    expect(call.doc.sections.map((s) => s.columns[0].blocks[0].type)).toEqual([
       "hero",
       "text",
       "events",
@@ -260,7 +266,8 @@ describe("createUnitPage inactive-department guard", () => {
       "text",
       "contact",
     ]);
-    expect(call.doc.blocks[0]).toMatchObject({
+    expect(call.doc.version).toBe(2);
+    expect(call.doc.sections[0].columns[0].blocks[0]).toMatchObject({
       eyebrow: "BISO Trondheim",
       title: "Fadderullan",
     });
@@ -286,9 +293,9 @@ describe("createUnitPage inactive-department guard", () => {
     await createUnitPage("dept-2");
 
     const [[call]] = savePageDraftSpy.mock.calls as unknown as [
-      [{ doc: { blocks: Array<{ type: string }> } }],
+      [{ doc: SectionDoc }],
     ];
-    expect(call.doc.blocks.map((block) => block.type)).toEqual([
+    expect(call.doc.sections.map((s) => s.columns[0].blocks[0].type)).toEqual([
       "hero",
       "text",
       "events",

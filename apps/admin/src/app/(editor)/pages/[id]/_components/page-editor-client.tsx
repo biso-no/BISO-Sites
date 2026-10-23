@@ -73,7 +73,8 @@ function emptyDoc({
       description: "",
       status: status ?? "draft",
     },
-    blocks: [],
+    sections: [],
+    version: 2,
   };
 }
 
@@ -246,7 +247,8 @@ export function PageEditorClient({
   async function handleTranslateLocale(targetLocale: EditorLocale) {
     const targetDoc = documents[targetLocale];
     const hasExistingContent = Boolean(
-      targetDoc && (targetDoc.blocks.length > 0 || targetDoc.meta.title.trim())
+      targetDoc &&
+        (targetDoc.sections.length > 0 || targetDoc.meta.title.trim())
     );
 
     if (hasExistingContent) {

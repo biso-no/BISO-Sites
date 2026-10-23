@@ -22,7 +22,6 @@ const { resolvePageFeeds } = await import("./page-feeds");
 
 function doc(blocks: unknown[], department = "25"): PageDoc {
   return {
-    blocks,
     meta: {
       accentColor: "#3DA9E0",
       department,
@@ -30,7 +29,15 @@ function doc(blocks: unknown[], department = "25"): PageDoc {
       status: "published",
       title: "A page",
     },
-  } as PageDoc;
+    sections: [
+      {
+        columns: [{ blocks, id: "c-1" }],
+        id: "s-1",
+        layout: {},
+      },
+    ],
+    version: 2,
+  } as unknown as PageDoc;
 }
 
 const EVENT_ROW = { date: "12 Sep", going: 0, title: "Kickoff", where: "Oslo" };

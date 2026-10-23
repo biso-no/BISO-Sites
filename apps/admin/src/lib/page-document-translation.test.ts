@@ -5,31 +5,7 @@ import {
   translatePageDocument,
 } from "./page-document-translation";
 
-const sourceDocument: PageDoc = {
-  blocks: [
-    {
-      id: "hero-1",
-      props: {
-        body: "Kort introduksjon",
-        ctaLabel: "Bli med nå",
-        ctaUrl: "/membership",
-        eyebrow: "Studentlivet starter her",
-        href: "/membership",
-        image: "https://example.com/hero.jpg",
-        imageAlt: "Studenter på campus",
-        subtitle: "For alle studenter",
-        title: "Bli medlem",
-      },
-      type: "hero",
-    },
-    {
-      id: "text-1",
-      props: {
-        content: "Les mer om fordelene.",
-      },
-      type: "text",
-    },
-  ],
+const sourceDocument = {
   meta: {
     accentColor: "#001731",
     department: "department-1",
@@ -38,7 +14,48 @@ const sourceDocument: PageDoc = {
     status: "draft",
     title: "Medlemskap",
   },
-};
+  sections: [
+    {
+      columns: [
+        {
+          blocks: [
+            {
+              id: "hero-1",
+              props: {
+                body: "Kort introduksjon",
+                ctaLabel: "Bli med nå",
+                ctaUrl: "/membership",
+                eyebrow: "Studentlivet starter her",
+                href: "/membership",
+                image: "https://example.com/hero.jpg",
+                imageAlt: "Studenter på campus",
+                subtitle: "For alle studenter",
+                title: "Bli medlem",
+              },
+              type: "hero",
+            },
+          ],
+          id: "c-1",
+        },
+        {
+          blocks: [
+            {
+              id: "text-1",
+              props: {
+                content: "Les mer om fordelene.",
+              },
+              type: "text",
+            },
+          ],
+          id: "c-2",
+        },
+      ],
+      id: "s-1",
+      layout: {},
+    },
+  ],
+  version: 2,
+} as unknown as PageDoc;
 
 describe("page document translation", () => {
   test("extracts only translatable fields for stale-source comparison", () => {
@@ -102,7 +119,12 @@ describe("page document translation", () => {
     );
     expect(translated.meta.slug).toBe("membership");
     expect(translated.meta.department).toBe("department-1");
-    expect(translated.blocks).toEqual([
+    const [first, second] = (
+      translated.sections as unknown as {
+        columns: { blocks: unknown[] }[];
+      }[]
+    )[0].columns;
+    expect(first.blocks).toEqual([
       {
         id: "hero-1",
         props: {
@@ -118,6 +140,8 @@ describe("page document translation", () => {
         },
         type: "hero",
       },
+    ]);
+    expect(second.blocks).toEqual([
       {
         id: "text-1",
         props: { content: "Learn more about the benefits." },
@@ -125,5 +149,50 @@ describe("page document translation", () => {
       },
     ]);
     expect(translate).toHaveBeenCalledTimes(1);
+  });
+
+  test("translates text inside a column", async () => {
+    const document = {
+      meta: {
+        accentColor: "#3DA9E0",
+        department: "",
+        slug: "x",
+        status: "draft",
+        title: "Om oss",
+      },
+      sections: [
+        {
+          columns: [
+            { blocks: [], id: "c-1" },
+            {
+              blocks: [
+                {
+                  author: "",
+                  id: "b-1",
+                  role: "",
+                  text: "Hei alle sammen",
+                  type: "quote",
+                },
+              ],
+              id: "c-2",
+            },
+          ],
+          id: "s-1",
+          layout: {},
+        },
+      ],
+      version: 2,
+    } as unknown as PageDoc;
+    const translated = await translatePageDocument(
+      { document, sourceLocale: "no", targetLocale: "en" },
+      async ({ fields }) =>
+        Object.fromEntries(fields.map((f) => [f.key, `<translated>${f.value}`]))
+    );
+    const sections = translated.sections as unknown as {
+      columns: { blocks: { text: string }[] }[];
+    }[];
+    expect(sections[0].columns[1].blocks[0].text).toBe(
+      "<translated>Hei alle sammen"
+    );
   });
 });

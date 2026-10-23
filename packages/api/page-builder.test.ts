@@ -16,6 +16,7 @@ vi.mock("./server", () => ({
 import {
   getPageEditorById,
   type PageDoc,
+  publishPage,
   savePageDraft,
   savePageTranslationDraft,
 } from "./page-builder";
@@ -37,7 +38,21 @@ const doc: PageDoc = {
     description: "Beskrivelse",
     status: "draft",
   },
-  blocks: [{ id: "b-1", type: "text", body: [{ type: "p", text: "Hei" }] }],
+  sections: [
+    {
+      id: "s-1",
+      layout: {},
+      columns: [
+        {
+          id: "c-1",
+          blocks: [
+            { id: "b-1", type: "text", body: [{ type: "p", text: "Hei" }] },
+          ],
+        },
+      ],
+    },
+  ],
+  version: 2,
 };
 
 describe("page builder", () => {
@@ -66,8 +81,8 @@ describe("page builder", () => {
               locale: "no",
               title: "Hei",
               description: "Beskrivelse",
-              draft_document: JSON.stringify(doc),
-              puck_document: null,
+              draft_doc: JSON.stringify(doc),
+              published_doc: null,
               is_published: false,
               published_at: null,
             },
@@ -233,7 +248,7 @@ describe("page builder", () => {
       "page_translations",
       expect.any(String),
       expect.objectContaining({
-        draft_document: expect.stringContaining('"slug":"shared-slug-2"'),
+        draft_doc: expect.stringContaining('"slug":"shared-slug-2"'),
       }),
       expect.any(Array)
     );
@@ -294,6 +309,27 @@ describe("page builder", () => {
     // proves the "fail" path truly skipped resolveUniquePageSlug rather than
     // swallowing the conflict some other way.
     expect(db.listRows).not.toHaveBeenCalled();
+  });
+
+  it("publishing copies the draft document into published_doc", async () => {
+    const draftJson = JSON.stringify(doc);
+    db.listRows
+      .mockResolvedValueOnce({
+        rows: [{ $id: "tr-no", draft_doc: draftJson, locale: "no" }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ $id: "page-1", visibility: "public" }],
+      });
+
+    await publishPage({ id: "page-1", updateParentStatus: false });
+
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "page_translations",
+      "tr-no",
+      expect.objectContaining({ published_doc: draftJson }),
+      expect.any(Array)
+    );
   });
 
   it("updates an existing locale translation instead of creating a duplicate", async () => {

@@ -618,7 +618,7 @@ export async function getDepartmentWithPage(id: string): Promise<{
   // session-scoped read would not see a department's own draft.
   //
   // Select only what UnitPageCard reads — page_translations rows carry
-  // puck_document/draft_document (string(50000) each), so `translation_refs.*`
+  // published_doc/draft_doc (string(50000) each), so `translation_refs.*`
   // would ship up to ~200KB of draft JSON into the RSC payload for a card that
   // never renders it. The two named relationship columns are what the card's
   // per-locale row needs: publishing is per-locale, and pages.status flips to
@@ -735,7 +735,7 @@ export async function createUnitPage(
     // set `departments.type` (see @repo/shared/utils/project-units).
     const category = parseUnitCategory(department.type);
     const doc: PageDoc = {
-      blocks: unitPageTemplate({
+      sections: unitPageTemplate({
         campusLabel: campusIdToLabel(department.campus_id),
         kind: isProjectUnit({ category, slug: department.slug ?? null })
           ? "project"
@@ -751,6 +751,7 @@ export async function createUnitPage(
         status: "draft",
         title: department.Name,
       },
+      version: 2,
     };
 
     // Left to itself, savePageDraft attributes the page to the AUTHOR's

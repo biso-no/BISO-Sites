@@ -23,7 +23,8 @@ mock.module("@/lib/page-document-translation", () => ({
 const { POST } = await import("../../api/translate-page/route");
 
 const pageData = {
-  blocks: [],
+  sections: [],
+  version: 2,
   meta: {
     accentColor: "#001731",
     department: "department-1",

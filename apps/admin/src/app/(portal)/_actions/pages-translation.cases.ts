@@ -2,7 +2,19 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { PageDoc } from "@repo/api/page-builder";
 
 const sourceDocument: PageDoc = {
-  blocks: [{ props: { title: "Norsk blokk" }, type: "hero" }],
+  sections: [
+    {
+      columns: [
+        {
+          blocks: [{ props: { title: "Norsk blokk" }, type: "hero" }],
+          id: "c-1",
+        },
+      ],
+      id: "s-1",
+      layout: {},
+    },
+  ],
+  version: 2,
   meta: {
     accentColor: "#001731",
     department: "department-1",
@@ -14,7 +26,18 @@ const sourceDocument: PageDoc = {
 };
 const translatedDocument: PageDoc = {
   ...sourceDocument,
-  blocks: [{ props: { title: "English block" }, type: "hero" }],
+  sections: [
+    {
+      columns: [
+        {
+          blocks: [{ props: { title: "English block" }, type: "hero" }],
+          id: "c-1",
+        },
+      ],
+      id: "s-1",
+      layout: {},
+    },
+  ],
   meta: {
     ...sourceDocument.meta,
     description: "English description",

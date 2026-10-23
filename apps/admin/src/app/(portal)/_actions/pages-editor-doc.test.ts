@@ -115,7 +115,8 @@ const { savePageEditorDoc } = await import("./pages");
 
 function makeDoc(overrides: Partial<PageDoc["meta"]> = {}): PageDoc {
   return {
-    blocks: [],
+    sections: [],
+    version: 2,
     meta: {
       accentColor: "#001731",
       department: "",

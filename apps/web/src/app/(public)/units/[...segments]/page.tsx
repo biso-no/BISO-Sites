@@ -46,7 +46,7 @@ type PageLookupResult = Awaited<ReturnType<typeof cachedPublishedPage>>;
  * (packages/api/appwrite.config.json), so the per-row permissions the publish
  * flow computes are NOT enforced — a guest client can read an unpublished
  * draft row. `getPage` (via `cachedPublishedPage`) falls back to
- * `draft_document` when there is no published document, so checking
+ * `draft_doc` when there is no published document, so checking
  * ownership alone (as generateMetadata used to) let a department whose `en`
  * locale has only an unpublished draft leak that draft's title/description
  * into `<head>` while the body correctly fell back to the default department
