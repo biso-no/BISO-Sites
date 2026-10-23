@@ -1,62 +1,26 @@
-import type { Block, PageDoc } from "./types";
+import { DEFAULT_SECTION_LAYOUT, resizeColumns } from "./sections";
+import { walkBlocks } from "./tree";
+import type { Block, PageDoc, Section } from "./types";
+import { PAGE_DOC_VERSION } from "./types";
 
 const MAX_TEXT_LEN = 120;
 
-const LEGACY_TEAM_HUES: Record<string, string> = {
-  claret: "blue",
-  leaf: "slate",
-};
-
-const normalizeBlock = (block: Block): Block => {
-  const record = block as unknown as Record<string, unknown>;
-
-  if (
-    block.type === "departmentGrid" &&
-    (record.layout === "grid" || record.layout === "list")
-  ) {
-    const { layout, ...rest } = record;
-    return {
-      ...rest,
-      variant: record.variant ?? layout,
-    } as unknown as Block;
-  }
-
-  if (block.type === "team" && Array.isArray(record.members)) {
-    let changed = false;
-    const members = record.members.map((member) => {
-      if (!member || typeof member !== "object") {
-        return member;
-      }
-      const memberRecord = member as Record<string, unknown>;
-      const migratedHue =
-        typeof memberRecord.hue === "string"
-          ? LEGACY_TEAM_HUES[memberRecord.hue]
-          : undefined;
-      if (!migratedHue) {
-        return member;
-      }
-      changed = true;
-      return { ...memberRecord, hue: migratedHue };
-    });
-
-    if (changed) {
-      return { ...record, members } as unknown as Block;
-    }
-  }
-
-  return block;
-};
-
 /** Upgrade persisted page documents at every editor/render host boundary. */
 export const normalizePageDoc = (doc: PageDoc): PageDoc => {
-  let changed = false;
-  const blocks = doc.blocks.map((block) => {
-    const normalized = normalizeBlock(block);
-    changed ||= normalized !== block;
-    return normalized;
+  const raw = doc as unknown as { sections?: unknown; version?: unknown };
+  if (raw.version !== PAGE_DOC_VERSION || !Array.isArray(raw.sections)) {
+    return { meta: doc.meta, sections: [], version: PAGE_DOC_VERSION };
+  }
+  const sections = doc.sections.map((section) => {
+    const next: Section = {
+      ...section,
+      columns: section.columns.map((c) => ({ ...c, blocks: [...c.blocks] })),
+      layout: { ...DEFAULT_SECTION_LAYOUT, ...section.layout },
+    };
+    resizeColumns(next, next.layout.columns);
+    return next;
   });
-
-  return changed ? { ...doc, blocks } : doc;
+  return { ...doc, sections };
 };
 
 function truncate(s: string | undefined): string {
@@ -113,7 +77,8 @@ export function serializePageForAI(
   doc: PageDoc,
   selection: string | null
 ): string {
-  const { meta, blocks } = doc;
+  const { meta } = doc;
+  const blocks = walkBlocks(doc);
   const lines: string[] = [
     "== PAGE ==",
     `title: ${meta.title}`,

@@ -460,7 +460,7 @@ export type Block = (
   | FilterBarBlock
   | ProfileHeaderBlock
   | MultiStepFormBlock
-) & { layout?: BlockLayout };
+) & { hideOnPhone?: boolean; layout?: BlockLayout };
 
 // ── Page document ────────────────────────────────────────────────────────────
 
@@ -478,9 +478,46 @@ export interface PageMeta {
   title: string;
 }
 
-export interface PageDoc {
+export const PAGE_DOC_VERSION = 2;
+
+export type SectionColumns = "1" | "1-1" | "2-1" | "1-2" | "1-1-1" | "1-1-1-1";
+export type SectionBackground = "white" | "tinted" | "dark";
+export type SectionSpacing = "tight" | "normal" | "roomy";
+export type SectionAlign = "top" | "middle" | "bottom";
+export type SectionTablet = "row" | "stack";
+
+export interface SectionLayout {
+  align: SectionAlign;
+  background: SectionBackground;
+  columns: SectionColumns;
+  hideOnPhone: boolean;
+  phoneReverse: boolean;
+  spacing: SectionSpacing;
+  tablet: SectionTablet;
+}
+
+export interface Column {
   blocks: Block[];
+  id: string;
+}
+
+export interface Section {
+  anchor?: string;
+  columns: Column[];
+  id: string;
+  layout: SectionLayout;
+}
+
+export interface PageDoc {
   meta: PageMeta;
+  sections: Section[];
+  version: 2;
+}
+
+/** Where to insert a block; no `beforeBlockId` means the end of the column. */
+export interface InsertTarget {
+  beforeBlockId?: string;
+  columnId: string;
 }
 
 // ── Editor UI state (not persisted) ─────────────────────────────────────────

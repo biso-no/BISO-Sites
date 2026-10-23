@@ -1,64 +1,52 @@
 import { describe, expect, test } from "bun:test";
-import { normalizePageDoc } from "./serialize";
-import type { PageDoc } from "./types";
-
-const legacyDoc = (blocks: unknown[]): PageDoc =>
-  ({
-    blocks,
-    meta: {
-      accentColor: "#3DA9E0",
-      department: "biso",
-      slug: "legacy",
-      status: "published",
-      title: "Legacy page",
-    },
-  }) as PageDoc;
+import { DEFAULT_SECTION_LAYOUT } from "./sections";
+import { fromJSON, normalizePageDoc } from "./serialize";
+import { block, doc, section } from "./test-fixtures";
+import type { PageDoc, SectionLayout } from "./types";
 
 describe("normalizePageDoc", () => {
-  test("moves the department-grid display mode out of universal layout", () => {
-    const normalized = normalizePageDoc(
-      legacyDoc([
-        {
-          heading: "Departments",
-          id: "departments",
-          layout: "list",
-          showFilters: true,
-          type: "departmentGrid",
-        },
-      ])
-    );
-    const block = normalized.blocks[0] as unknown as Record<string, unknown>;
-
-    expect(block.variant).toBe("list");
-    expect(block.layout).toBeUndefined();
+  test("an old flat document becomes an empty v2 page with its meta", () => {
+    const d = doc();
+    const old = { blocks: [block("b-9")], meta: d.meta } as unknown as PageDoc;
+    expect(normalizePageDoc(old)).toEqual({
+      meta: d.meta,
+      sections: [],
+      version: 2,
+    });
   });
 
-  test("normalizes retired team hue names on existing pages", () => {
-    const normalized = normalizePageDoc(
-      legacyDoc([
-        {
-          heading: "Team",
-          id: "team",
-          members: [
-            { hue: "claret", initials: "AA", name: "A", role: "One" },
-            { hue: "leaf", initials: "BB", name: "B", role: "Two" },
-          ],
-          type: "team",
-        },
-      ])
+  test("missing layout fields take the defaults", () => {
+    const partial = doc({
+      ...section("s-1", "1", [["b-1"]]),
+      layout: { columns: "1" } as SectionLayout,
+    });
+    expect(normalizePageDoc(partial).sections[0].layout).toEqual(
+      DEFAULT_SECTION_LAYOUT
     );
-    const block = normalized.blocks[0] as unknown as {
-      members: { hue: string }[];
-    };
+  });
 
-    expect(block.members.map((member) => member.hue)).toEqual([
-      "blue",
-      "slate",
+  test("a two-column layout with one stored column gets an empty second column", () => {
+    const s = section("s-1", "1", [["b-1"]]);
+    const n = normalizePageDoc(
+      doc({ ...s, layout: { ...s.layout, columns: "1-1" } })
+    );
+    expect(n.sections[0].columns.map((c) => c.blocks.length)).toEqual([1, 0]);
+  });
+
+  test("extra columns merge into the last kept column", () => {
+    const s = section("s-1", "1-1", [["b-1"], ["b-2"]]);
+    const n = normalizePageDoc(
+      doc({ ...s, layout: { ...s.layout, columns: "1" } })
+    );
+    expect(n.sections[0].columns).toHaveLength(1);
+    expect(n.sections[0].columns[0].blocks.map((b) => b.id)).toEqual([
+      "b-1",
+      "b-2",
     ]);
   });
 
-  test("returns the original object when no migration is needed", () => {
-    const doc = legacyDoc([]);
-    expect(normalizePageDoc(doc)).toBe(doc);
+  test("fromJSON normalizes", () => {
+    const d = doc(section("s-1", "1", [["b-1"]]));
+    expect(fromJSON(JSON.stringify(d))).toEqual(d);
   });
 });

@@ -1,14 +1,11 @@
 // Pure document mutations. Every UI action and AI tool call goes through here.
 // Takes an immer draft of PageDoc (or a WritableDraft via zustand/immer).
 
+import { newId } from "./ids";
 import type { Block, BlockType, PageDoc, PageMeta } from "./types";
 
-function rid(): string {
-  return `b-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 export function emptyBlock(type: BlockType): Block {
-  const id = rid();
+  const id = newId("b");
   switch (type) {
     case "hero":
       return {
@@ -344,7 +341,10 @@ export function duplicateBlock(doc: PageDoc, id: string): string | null {
   if (!src) {
     return null;
   }
-  const copy = { ...(JSON.parse(JSON.stringify(src)) as Block), id: rid() };
+  const copy = {
+    ...(JSON.parse(JSON.stringify(src)) as Block),
+    id: newId("b"),
+  };
   const idx = doc.blocks.findIndex((b) => b.id === id);
   doc.blocks.splice(idx + 1, 0, copy as Block);
   return copy.id;
