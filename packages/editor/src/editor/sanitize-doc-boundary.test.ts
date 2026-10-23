@@ -7,8 +7,9 @@ import { Glob } from "bun";
  * `sanitize-doc.ts` pulls in sanitize-html (and with it htmlparser2 and
  * postcss). A client module importing it would ship all of that to every
  * visitor, so only server code may: route pages (server components), the
- * admin's server actions, and tests. Its `import "server-only"` makes a
- * client import fail the build; this test names the offender before that.
+ * admin's server actions, the one server pipeline named below, and tests.
+ * Its `import "server-only"` makes a client import fail the build; this test
+ * names the offender before that.
  */
 const REPO_ROOT = join(import.meta.dir, "../../../..");
 const EXTENSIONS = "{ts,tsx,js,jsx,mjs,cjs}";
@@ -28,6 +29,16 @@ const USE_SERVER = new RegExp(`${PROLOGUE}["']use server["']`);
 const TEST_FILE = /\.(?:test|cases)\.[cm]?[jt]sx?$/;
 const ROUTE_PAGE = /^apps\/[^/]+\/src\/app\/.+\/page\.[jt]sx?$/;
 const SERVER_ACTION = /^apps\/admin\/src\/app\/.+\/_actions\/[^/]+\.[jt]s$/;
+/**
+ * The one importer that is neither a route page nor a server action: the
+ * website's published-page pipeline, which the catch-all, unit and project
+ * route pages (all server components) call to normalize, sanitize and render
+ * a stored page. Named by exact path, not by pattern, so the guard stays as
+ * tight as before for every other module; it still fails as a client module.
+ */
+const SERVER_PIPELINES = new Set([
+  "apps/web/src/lib/published-editor-page.tsx",
+]);
 
 function sourceFiles(): { path: string; source: string }[] {
   const files: { path: string; source: string }[] = [];
@@ -49,7 +60,7 @@ function offence(path: string, source: string): string | null {
   if (USE_CLIENT.test(source)) {
     return "is a client module";
   }
-  if (ROUTE_PAGE.test(path)) {
+  if (ROUTE_PAGE.test(path) || SERVER_PIPELINES.has(path)) {
     return null;
   }
   if (SERVER_ACTION.test(path)) {
@@ -72,6 +83,23 @@ describe("the directive matchers", () => {
   });
 });
 
+describe("the importer rules", () => {
+  test("allow the named pipeline, and no other library module", () => {
+    expect(offence("apps/web/src/lib/published-editor-page.tsx", "")).toBe(
+      null
+    );
+    expect(offence("apps/web/src/lib/published-editor-page-2.tsx", "")).toBe(
+      "is not a route page or a server action"
+    );
+    expect(offence("apps/web/src/lib/other.tsx", "")).toBe(
+      "is not a route page or a server action"
+    );
+    expect(
+      offence("apps/web/src/lib/published-editor-page.tsx", '"use client";')
+    ).toBe("is a client module");
+  });
+});
+
 describe("the server-only rich-text sanitizer", () => {
   const files = sourceFiles();
   const importers = files.filter(
@@ -85,13 +113,13 @@ describe("the server-only rich-text sanitizer", () => {
   });
 
   test("the scan sees the routes and actions that sanitize", () => {
-    // Guards the scan itself: a wrong root would find nothing and pass.
+    // Guards the scan itself: a wrong root would find nothing and pass. The
+    // public route pages sanitize through the shared pipeline now.
     expect(importers.map((f) => f.path).sort()).toEqual(
       expect.arrayContaining([
         "apps/admin/src/app/(portal)/_actions/departments.ts",
         "apps/admin/src/app/(portal)/_actions/pages.ts",
-        "apps/web/src/app/(public)/[...slug]/page.tsx",
-        "apps/web/src/app/(public)/units/[...segments]/page.tsx",
+        ...SERVER_PIPELINES,
       ])
     );
   });
