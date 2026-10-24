@@ -4,7 +4,10 @@ import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
   InspSection,
+  Segmented,
 } from "@/components/editor-shell/inspector/insp-parts";
+import { SourcePicker } from "@/components/editor-shell/inspector/source-picker";
+import { shopBlockLimit } from "@/editor/page-feeds";
 import type { PageDoc, ProductGridBlock } from "@/editor/types";
 
 interface Props {
@@ -13,30 +16,36 @@ interface Props {
   onPatch: PatchFn;
 }
 
+const LIMITS = [
+  { label: "4", value: "4" },
+  { label: "8", value: "8" },
+] as const;
+
 export function ProductGridInspector({ block, onPatch }: Props) {
   return (
     <>
-      <InspSection label="Content">
+      <InspSection label="Shop">
         <InspRow label="Heading">
           <input
-            onChange={(e) => onPatch("heading", e.target.value || undefined)}
-            placeholder="Shop"
+            onChange={(e) => onPatch("heading", e.target.value)}
             value={block.heading ?? ""}
           />
         </InspRow>
-      </InspSection>
-      <InspSection label="Filter">
-        <InspRow label="Tag">
-          <input
-            onChange={(e) => onPatch("tag", e.target.value || undefined)}
-            placeholder="e.g. featured, sale"
-            value={block.tag ?? ""}
+        <InspRow label="Show">
+          <Segmented
+            choices={[...LIMITS]}
+            onPick={(v) => onPatch("limit", v === "8" ? 8 : 4)}
+            value={String(shopBlockLimit(block.limit)) as "4" | "8"}
           />
         </InspRow>
-        <p style={{ fontSize: 11, color: "var(--ink-3)", margin: "6px 0 0" }}>
-          Leave blank to show all products. Products are fetched live from the
-          shop on publish.
-        </p>
+      </InspSection>
+      <InspSection label="Data source">
+        <InspRow label="Department">
+          <SourcePicker
+            onChange={(v) => onPatch("source", v)}
+            value={block.source ?? "auto"}
+          />
+        </InspRow>
       </InspSection>
     </>
   );

@@ -1,21 +1,32 @@
 import { describe, expect, test } from "bun:test";
 import {
+  BOARD_FEED_LIMIT,
+  boardFeedMembers,
+  clampFeedLimit,
   collectPageFeedRequests,
+  feedLimitFromParam,
   pageFeedKey,
   resolveFeedDepartment,
+  shopLimitFromParam,
 } from "./page-feeds";
+import { sectionOf } from "./sections";
+import {
+  block as fixtureBlock,
+  doc as fixtureDoc,
+  section,
+} from "./test-fixtures";
 import type { Block, PageDoc } from "./types";
 
 function doc(blocks: Block[], department = "25"): PageDoc {
   return {
-    blocks,
     meta: {
-      accentColor: "#3DA9E0",
       department,
       slug: "a-page",
       status: "published",
       title: "A page",
     },
+    sections: blocks.map((b) => sectionOf(b)),
+    version: 2,
   };
 }
 
@@ -39,7 +50,14 @@ describe("collectPageFeedRequests", () => {
   test("collects one request per auto-source block", () => {
     const requests = collectPageFeedRequests(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
         { id: "b", type: "news", heading: "", source: "auto" },
         { id: "c", type: "jobs", heading: "", source: "auto" },
       ] as Block[]),
@@ -57,13 +75,34 @@ describe("collectPageFeedRequests", () => {
     }
   });
 
-  test("deduplicates by (kind, department, locale)", () => {
+  test("deduplicates by (kind, department, locale, limit)", () => {
     // Repeating a block must not multiply the page's backend round-trips.
     const requests = collectPageFeedRequests(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
-        { id: "b", type: "events", heading: "", items: [], source: "25" },
-        { id: "c", type: "events", heading: "", items: [], source: "41" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "25",
+        },
+        {
+          id: "c",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "41",
+        },
       ] as Block[]),
       "no"
     );
@@ -73,12 +112,19 @@ describe("collectPageFeedRequests", () => {
   });
 
   test("a block with no department resolves to no request", () => {
-    // Those blocks render the inspector's authored placeholder items, which is
+    // Those blocks render nothing on the site, which is
     // a documented feature — there is nothing to fetch on their behalf.
     const requests = collectPageFeedRequests(
       doc(
         [
-          { id: "a", type: "events", heading: "", items: [], source: "auto" },
+          {
+            id: "a",
+            type: "events",
+            heading: "",
+            limit: 3,
+            seeAll: true,
+            source: "auto",
+          },
         ] as Block[],
         ""
       ),
@@ -102,16 +148,46 @@ describe("collectPageFeedRequests", () => {
     expect(manual).toEqual([]);
   });
 
+  test("only a board team block asks for the board feed, keyed by department", () => {
+    const board = collectPageFeedRequests(
+      doc([{ id: "a", type: "team", source: "board" }] as Block[]),
+      "en"
+    );
+    expect(board).toHaveLength(1);
+    expect(board[0]?.kind).toBe("board");
+    expect(board[0]?.department).toBe("25");
+    expect(board[0]?.key).toBe(pageFeedKey("board", "25"));
+    for (const source of ["manual", undefined, "weird"]) {
+      expect(
+        collectPageFeedRequests(
+          doc([{ id: "a", type: "team", source }] as Block[]),
+          "no"
+        )
+      ).toEqual([]);
+    }
+    // No page department means nothing to read.
+    expect(
+      collectPageFeedRequests(
+        doc([{ id: "a", type: "team", source: "board" }] as Block[], ""),
+        "no"
+      )
+    ).toEqual([]);
+  });
+
   test("departmentGrid and partners keys ignore department and locale", () => {
     // Both feeds are global, so a page carrying them in two locales must not
     // fetch twice and must key identically on every page.
     const nb = collectPageFeedRequests(
-      doc([{ id: "a", type: "departmentGrid", showFilters: false }] as Block[]),
+      doc([
+        { id: "a", type: "departmentGrid", limit: 6, scope: "all" },
+      ] as Block[]),
       "no"
     );
     const en = collectPageFeedRequests(
       doc(
-        [{ id: "a", type: "departmentGrid", showFilters: false }] as Block[],
+        [
+          { id: "a", type: "departmentGrid", limit: 6, scope: "all" },
+        ] as Block[],
         "41"
       ),
       "en"
@@ -145,5 +221,163 @@ describe("pageFeedKey", () => {
     expect(pageFeedKey("events", "25", "no")).not.toBe(
       pageFeedKey("news", "25", "no")
     );
+  });
+});
+
+describe("collectPageFeedRequests in columns", () => {
+  test("feeds are collected from blocks inside columns", () => {
+    const events = fixtureBlock("b-9", "events");
+    const d = fixtureDoc(
+      section("s-1", "1", [["b-1"]]),
+      section("s-2", "1-1", [["b-2"], []])
+    );
+    d.sections[1].columns[1].blocks.push(events);
+    d.meta.department = "dept-1";
+    expect(collectPageFeedRequests(d, "no").map((r) => r.key)).toContain(
+      "events|dept-1|no|3"
+    );
+  });
+});
+
+describe("feed limit", () => {
+  test("is part of the key and the request", () => {
+    expect(pageFeedKey("events", "25", "no", 6)).toBe("events|25|no|6");
+    expect(pageFeedKey("partners")).toBe("partners||");
+    const [request] = collectPageFeedRequests(
+      doc([
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 6,
+          seeAll: true,
+          source: "auto",
+        },
+      ] as Block[]),
+      "no"
+    );
+    expect(request?.limit).toBe(6);
+    expect(request?.key).toBe("events|25|no|6");
+  });
+
+  test("different limits are different requests; a missing one means 3", () => {
+    const requests = collectPageFeedRequests(
+      doc([
+        {
+          id: "a",
+          type: "news",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "news",
+          heading: "",
+          limit: 6,
+          seeAll: true,
+          source: "auto",
+        },
+        { id: "c", type: "news", heading: "", source: "auto" },
+      ] as Block[]),
+      "no"
+    );
+    expect(requests.map((r) => r.limit).sort()).toEqual([3, 6]);
+  });
+});
+
+describe("feedLimitFromParam", () => {
+  test("only the allowed row counts get through", () => {
+    expect(feedLimitFromParam("6")).toBe(6);
+    expect(feedLimitFromParam("3")).toBe(3);
+    expect(feedLimitFromParam("999")).toBe(3);
+    expect(feedLimitFromParam("abc")).toBe(3);
+    expect(feedLimitFromParam("-5")).toBe(3);
+    expect(feedLimitFromParam("")).toBe(3);
+    expect(feedLimitFromParam(null)).toBe(3);
+  });
+});
+
+describe("clampFeedLimit", () => {
+  test("keeps an allowed value, else the fallback", () => {
+    expect(clampFeedLimit(8, [4, 8], 4)).toBe(8);
+    expect(clampFeedLimit("8", [4, 8], 4)).toBe(8);
+    expect(clampFeedLimit(999, [4, 8], 4)).toBe(4);
+    expect(clampFeedLimit("abc", [4, 8], 4)).toBe(4);
+    expect(clampFeedLimit(undefined, [4, 8], 4)).toBe(4);
+  });
+
+  test("the 3|6 and 4|8 helpers wrap it", () => {
+    expect(feedLimitFromParam("6")).toBe(6);
+    expect(feedLimitFromParam("7")).toBe(3);
+    expect(shopLimitFromParam("8")).toBe(8);
+    expect(shopLimitFromParam("6")).toBe(4);
+  });
+});
+
+describe("shop requests", () => {
+  test("a productGrid asks for products by department, locale and limit", () => {
+    const requests = collectPageFeedRequests(
+      doc([
+        { id: "a", type: "productGrid", heading: "", limit: 8, source: "auto" },
+        { id: "b", type: "productGrid", heading: "", limit: 9, source: "41" },
+      ] as Block[]),
+      "no"
+    );
+    expect(requests.map((r) => r.key)).toEqual([
+      pageFeedKey("products", "25", "no", 8),
+      pageFeedKey("products", "41", "no", 4),
+    ]);
+    expect(requests.every((r) => r.kind === "products")).toBe(true);
+  });
+
+  test("no department means no request", () => {
+    expect(
+      collectPageFeedRequests(
+        doc(
+          [
+            {
+              id: "a",
+              type: "productGrid",
+              heading: "",
+              limit: 4,
+              source: "auto",
+            },
+          ] as Block[],
+          ""
+        ),
+        "no"
+      )
+    ).toEqual([]);
+  });
+});
+
+describe("boardFeedMembers", () => {
+  test("maps both host shapes, drops phones, nameless rows and the overflow", () => {
+    const items = boardFeedMembers([
+      {
+        email: "a@example.org",
+        imageUrl: "data:image/png;base64,AAAA",
+        name: " Kari ",
+        phone: "+47 000 00 001",
+        role: "Leder",
+      },
+      { name: "Ola", profilePhotoUrl: "data:image/png;base64,BBBB" },
+      { name: "" },
+      null,
+      ...Array.from({ length: 40 }, (_, i) => ({ name: `M${i}` })),
+    ]);
+    expect(items[0]).toEqual({
+      email: "a@example.org",
+      name: "Kari",
+      photo: { src: "data:image/png;base64,AAAA" },
+      role: "Leder",
+    });
+    expect(items[1]?.photo?.src).toBe("data:image/png;base64,BBBB");
+    expect(items).toHaveLength(BOARD_FEED_LIMIT);
+    for (const item of items) {
+      expect(item).not.toHaveProperty("phone");
+    }
   });
 });

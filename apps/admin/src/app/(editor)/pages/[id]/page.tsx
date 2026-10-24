@@ -1,4 +1,6 @@
 import { resolvePageCampusId } from "@repo/api/page-builder";
+import { parsePageTheme } from "@repo/shared/utils/page-theme";
+import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { listAllDepartments } from "@/app/(portal)/_actions/departments";
@@ -21,6 +23,7 @@ export default async function PageEditorPage({ params }: Props) {
 
   const isNew = id === "new";
 
+  const pagePromise = isNew ? null : getPageEditorById(id);
   const [
     ctx,
     pageResult,
@@ -30,8 +33,16 @@ export default async function PageEditorPage({ params }: Props) {
     availableLocales,
   ] = await Promise.all([
     getUserAuthContext(),
-    isNew ? null : getPageEditorById(id),
-    listAllDepartments(),
+    pagePromise,
+    // Only the departments this user can edit, plus the page's current one so
+    // its value still displays.
+    pagePromise
+      ? pagePromise.then((result) =>
+          listAllDepartments({
+            keepId: result?.page.departmentId || undefined,
+          })
+        )
+      : listAllDepartments(),
     listCampuses(),
     getLocale(),
     getPageEditorLocales(),
@@ -55,7 +66,10 @@ export default async function PageEditorPage({ params }: Props) {
   let locked:
     | { campus?: boolean; department?: boolean; slug?: boolean }
     | undefined;
-  if (isUnitPageSlug(pageResult?.page.slug)) {
+  if (
+    isUnitPageSlug(pageResult?.page.slug) ||
+    isProjectNamespaceSlug(pageResult?.page.slug)
+  ) {
     locked = { campus: true, department: true, slug: true };
   } else if (campusLocked) {
     locked = { campus: true };
@@ -65,6 +79,7 @@ export default async function PageEditorPage({ params }: Props) {
     campusId: d.campus_id ?? null,
     id: d.$id,
     name: d.Name ?? d.$id,
+    theme: parsePageTheme({ dark: d.theme_dark, accent: d.theme_accent }),
   }));
   // Existing pages open on their own campus; a new page starts on the
   // editor's (the campus switcher for a global admin, else their own).

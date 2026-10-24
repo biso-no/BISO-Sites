@@ -9,11 +9,7 @@ registerBlock({
   label: "Tabs",
   description: "Tabbed content panels",
   category: "Layout",
-  variants: [
-    { id: "pills", label: "Pills", kind: "pills" },
-    { id: "underline", label: "Underline", kind: "underline" },
-    { id: "cards", label: "Cards", kind: "cards" },
-  ],
+  group: "structure",
   aiHint: "Tabbed content with multiple panels.",
   aiProps: ["tabs"],
   empty: () => emptyBlock("tabs") as never,

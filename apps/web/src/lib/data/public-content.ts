@@ -48,6 +48,7 @@ import type {
   PageJobItem,
   PageNewsItem,
   PagePartnerItem,
+  PageProductItem,
 } from "@repo/shared/utils/page-feeds";
 import {
   readPageDepartmentsFeed,
@@ -55,6 +56,7 @@ import {
   readPageJobsFeed,
   readPageNewsFeed,
   readPagePartnersFeed,
+  readPageProductsFeed,
 } from "@repo/shared/utils/page-feeds";
 import { isPublicUnit } from "@repo/shared/utils/unit-visibility";
 import { cacheLife, cacheTag } from "next/cache";
@@ -89,6 +91,9 @@ export async function cachedPublishedEvents(
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
+  // Same `upcomingOnly` the session-scoped path uses. Without it the anonymous
+  // (cached) homepage feed would keep showing finished events while a signed-in
+  // visitor's did not.
   const { rows } = await queryEvents(db, {
     campus: campusId ?? undefined,
     limit,
@@ -205,6 +210,33 @@ export async function cachedCampuses(
 }
 
 /**
+ * Campus list for the site chrome. Never throws.
+ *
+ * `SiteShell` renders on every page, so this must degrade to an empty switcher
+ * rather than take the page down. The catch has to live **inside** the
+ * `"use cache"` scope: during static export a rejection thrown out of a cached
+ * function aborts the page render before any caller's `.catch()` or
+ * `try/catch` runs. `cachedNavFeatured` avoids the same trap the same way — its
+ * `buildNavFeatured` catches per slice.
+ *
+ * Includes National, matching what `getCampuses()` returned by default to the
+ * client-side provider this replaced.
+ */
+export async function cachedShellCampuses(): Promise<Campus[]> {
+  "use cache";
+  cacheLife("hours");
+  try {
+    const { db } = await createPublicClient();
+    const campuses = await db.listRows<Campus>("app", "campus", [
+      Query.limit(500),
+    ]);
+    return campuses.rows;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Every campus's metadata, keyed by campus id AND campus name like
  * `getCampusMetadata`, for the front page's focus areas. Public rows, so the
  * guest client; one read an hour for everyone.
@@ -286,12 +318,30 @@ export async function cachedNavFeatured(
  * Published block-editor page for the public catch-all route. Guest
  * permissions only — members-only pages come back null here and the route
  * falls back to a session-scoped lookup.
+ *
+ * **The page row's own status is checked here, not only the translation's.**
+ * `getPage` returns whatever row matches the slug; the routes then tested
+ * `translation.is_published` alone. Publishing a translation and later
+ * archiving the page leaves that flag set, so `/uten-navn-2` — an archived
+ * page carrying an editor demo headline — was serving 200 to the public. This
+ * function is the one that promises "published", so it enforces it.
  */
 export async function cachedPublishedPage(slug: string, locale: PublicLocale) {
   "use cache";
   cacheLife("minutes");
+  cacheTag("pages");
   const { db } = await createPublicClient();
-  return await getPage(slug, locale, db);
+  const result = await getPage(slug, locale, db);
+  return isPublishedPage(result) ? result : null;
+}
+
+/** A page is public only when the row and the translation both say so. */
+export function isPublishedPage(
+  result: Awaited<ReturnType<typeof getPage>>
+): boolean {
+  return Boolean(
+    result?.row?.status === "published" && result.translation?.is_published
+  );
 }
 
 const DEPARTMENT_SELECT = [
@@ -301,7 +351,32 @@ const DEPARTMENT_SELECT = [
   "slug",
   "active",
   "type",
+  "theme_dark",
+  "theme_accent",
 ] as const;
+
+/**
+ * A department's page-theme colours, for pages bound to it by `department_id`.
+ * Null when the row is missing. The values are raw: `resolvePageTheme`
+ * validates them.
+ */
+export async function cachedDepartmentTheme(
+  id: string
+): Promise<Pick<Departments, "theme_accent" | "theme_dark"> | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("departments");
+  const { db } = await createPublicClient();
+  const res = await db.listRows<Departments>("app", "departments", [
+    Query.equal("$id", id),
+    Query.select(["$id", "theme_dark", "theme_accent"]),
+    Query.limit(1),
+  ]);
+  const row = res.rows[0];
+  return row
+    ? { theme_accent: row.theme_accent, theme_dark: row.theme_dark }
+    : null;
+}
 
 /*
  * The three readers below all apply `isPublicUnit` on top of `active`.
@@ -328,6 +403,7 @@ export async function cachedDepartmentsBySlug(
 ): Promise<Departments[]> {
   "use cache";
   cacheLife("minutes");
+  cacheTag("departments");
   const { db } = await createPublicClient();
   const res = await db.listRows<Departments>("app", "departments", [
     Query.equal("slug", slug),
@@ -345,6 +421,7 @@ export async function cachedDepartmentBySlugAndCampus(
 ): Promise<Departments | null> {
   "use cache";
   cacheLife("minutes");
+  cacheTag("departments");
   const { db } = await createPublicClient();
   const res = await db.listRows<Departments>("app", "departments", [
     Query.equal("slug", slug),
@@ -363,6 +440,7 @@ export async function cachedDepartmentById(
 ): Promise<Departments | null> {
   "use cache";
   cacheLife("minutes");
+  cacheTag("departments");
   const { db } = await createPublicClient();
   const res = await db.listRows<Departments>("app", "departments", [
     Query.equal("$id", id),
@@ -402,36 +480,51 @@ export type {
   PageJobItem,
   PageNewsItem,
   PagePartnerItem,
+  PageProductItem,
 } from "@repo/shared/utils/page-feeds";
 
 export async function cachedPageEventsFeed(
   departmentId: string,
-  locale: PublicLocale
+  locale: PublicLocale,
+  limit?: number
 ): Promise<PageEventItem[]> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await readPageEventsFeed(db, departmentId, locale);
+  return await readPageEventsFeed(db, departmentId, locale, limit);
 }
 
 export async function cachedPageNewsFeed(
   departmentId: string,
-  locale: PublicLocale
+  locale: PublicLocale,
+  limit?: number
 ): Promise<PageNewsItem[]> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await readPageNewsFeed(db, departmentId, locale);
+  return await readPageNewsFeed(db, departmentId, locale, limit);
 }
 
 export async function cachedPageJobsFeed(
   departmentId: string,
-  locale: PublicLocale
+  locale: PublicLocale,
+  limit?: number
 ): Promise<PageJobItem[]> {
   "use cache";
   cacheLife("minutes");
   const { db } = await createPublicClient();
-  return await readPageJobsFeed(db, departmentId, locale);
+  return await readPageJobsFeed(db, departmentId, locale, limit);
+}
+
+export async function cachedPageProductsFeed(
+  departmentId: string,
+  locale: PublicLocale,
+  limit?: number
+): Promise<PageProductItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  const { db } = await createPublicClient();
+  return await readPageProductsFeed(db, departmentId, locale, limit);
 }
 
 export async function cachedPagePartnersFeed(): Promise<PagePartnerItem[]> {
@@ -579,6 +672,7 @@ async function cachedSitemapProjects(): Promise<SitemapRow[]> {
 async function cachedSitemapPages(): Promise<SitemapRow[]> {
   "use cache";
   cacheLife("hours");
+  cacheTag("pages");
   const { db } = await createPublicClient();
   const res = await db.listRows<Pages>("app", "pages", [
     Query.select([...SITEMAP_SELECT]),

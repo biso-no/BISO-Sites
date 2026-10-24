@@ -1,13 +1,20 @@
 // Starting layouts for pages the admin app creates on a unit's behalf. Pure:
 // no React, no store — safe to import from a server action.
 //
-// A template is a list of ordinary blocks, so the board edits or removes
-// anything it does not want. The point is that a new page is never a blank
-// canvas: a project board opening its page for the first time sees where the
-// programme, the gallery and the company pitch go.
+// A template is a plain page header over a list of single-column sections of
+// ordinary blocks, so the board edits or removes anything it does not want.
+// The point is that a new page is never a blank canvas: a project board
+// opening its page for the first time sees where the programme, the gallery
+// and the company pitch go.
 
+import { emptyHeader } from "../header/empty-header";
 import { emptyBlock } from "./operations";
-import type { Block, EditorLocale } from "./types";
+
+// The admin seeds a new page's blank document with it (`blankPageDoc`).
+export { emptyHeader } from "../header/empty-header";
+
+import { sectionOf } from "./sections";
+import type { Block, EditorLocale, PageHeader, Section } from "./types";
 
 export type UnitPageKind = "project" | "unit";
 
@@ -26,7 +33,6 @@ interface TemplateCopy {
   companies: string;
   companiesBody: string;
   contact: string;
-  cta: string;
   events: string;
   subtitle: string;
 }
@@ -40,7 +46,6 @@ const COPY: Record<EditorLocale, TemplateCopy> = {
     companiesBody:
       "Describe how a company can take part, sponsor or meet students here.",
     contact: "Get in touch",
-    cta: "Get involved",
     events: "Upcoming events",
     subtitle: "One sentence about what you do.",
   },
@@ -52,23 +57,28 @@ const COPY: Record<EditorLocale, TemplateCopy> = {
     companiesBody:
       "Beskriv hvordan en bedrift kan delta, sponse eller møte studenter her.",
     contact: "Ta kontakt",
-    cta: "Bli med",
     events: "Kommende arrangementer",
     subtitle: "Én setning om hva dere gjør.",
   },
 };
 
-function hero(input: UnitPageTemplateInput, copy: TemplateCopy): Block {
-  const block = emptyBlock("hero");
-  if (block.type !== "hero") {
-    return block;
-  }
-  block.eyebrow = input.campusLabel ? `BISO ${input.campusLabel}` : "BISO";
-  block.title = input.name;
-  block.subtitle = copy.subtitle;
-  block.ctaLabel = copy.cta;
-  block.ctaUrl = "#";
-  return block;
+function header(input: UnitPageTemplateInput, copy: TemplateCopy): PageHeader {
+  return {
+    ...emptyHeader(input.name),
+    eyebrow: input.campusLabel ? `BISO ${input.campusLabel}` : "BISO",
+    lede: copy.subtitle,
+  };
+}
+
+/**
+ * Plain text made safe for a text block's body, which is HTML: `&`, `<` and
+ * `>` escaped as a browser serializes them, so both sanitizers keep it as is.
+ */
+function htmlText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function text(heading: string, paragraph: string): Block {
@@ -89,7 +99,6 @@ function events(copy: TemplateCopy): Block {
     // "auto" binds the feed to the page's department, so the block shows the
     // unit's own published events without the board setting anything up.
     block.source = "auto";
-    block.items = [];
   }
   return block;
 }
@@ -106,21 +115,31 @@ function contact(input: UnitPageTemplateInput, copy: TemplateCopy): Block {
   return block;
 }
 
-/** The blocks a freshly created unit page starts with. */
-export function unitPageTemplate(input: UnitPageTemplateInput): Block[] {
+/**
+ * What a freshly created unit page starts with: a plain header carrying the
+ * unit's name and campus, over sections of one block each.
+ */
+export function unitPageTemplate(input: UnitPageTemplateInput): {
+  header: PageHeader;
+  sections: Section[];
+} {
   const copy = COPY[input.locale];
-  const about = text(copy.about(input.name), copy.aboutBody);
+  // The name comes from the accounting system: text, not markup.
+  const about = text(copy.about(htmlText(input.name)), copy.aboutBody);
 
-  if (input.kind === "unit") {
-    return [hero(input, copy), about, events(copy), contact(input, copy)];
-  }
+  const blocks: Block[] =
+    input.kind === "unit"
+      ? [about, events(copy), contact(input, copy)]
+      : [
+          about,
+          events(copy),
+          emptyBlock("gallery"),
+          text(copy.companies, copy.companiesBody),
+          contact(input, copy),
+        ];
 
-  return [
-    hero(input, copy),
-    about,
-    events(copy),
-    emptyBlock("gallery"),
-    text(copy.companies, copy.companiesBody),
-    contact(input, copy),
-  ];
+  return {
+    header: header(input, copy),
+    sections: blocks.map((b) => sectionOf(b)),
+  };
 }

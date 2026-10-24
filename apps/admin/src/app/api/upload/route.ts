@@ -6,6 +6,7 @@ import { requireApiAuth } from "@/lib/api-auth";
 import {
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
+  maxBytesForMime,
   resolveUploadBucket,
   resolveUploadMimeType,
   sanitizeUploadFilename,
@@ -22,6 +23,13 @@ import {
  * `UPLOAD_BUCKETS` are accepted — private buckets (resumes, expenses) are not.
  */
 
+function tooLarge(maxBytes: number) {
+  return NextResponse.json(
+    { error: `File too large (max ${maxBytes / 1024 / 1024} MB)` },
+    { status: 413 }
+  );
+}
+
 export async function POST(request: Request) {
   const auth = await requireApiAuth();
   if (auth.response) {
@@ -37,34 +45,31 @@ export async function POST(request: Request) {
     );
   }
 
+  // The largest limit of any type bounds the body; the type's own limit
+  // applies once it is known.
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > bucket.maxBytes) {
-    return NextResponse.json(
-      { error: `File too large (max ${bucket.maxBytes / 1024 / 1024} MB)` },
-      { status: 413 }
-    );
+    return tooLarge(bucket.maxBytes);
   }
 
   const blob = await request.blob();
   if (blob.size === 0) {
     return NextResponse.json({ error: "Empty upload" }, { status: 400 });
   }
-  if (blob.size > bucket.maxBytes) {
-    return NextResponse.json(
-      { error: `File too large (max ${bucket.maxBytes / 1024 / 1024} MB)` },
-      { status: 413 }
-    );
-  }
 
   const mimeType = resolveUploadMimeType(
     blob.type,
     request.headers.get("content-type")
   );
-  if (!bucket.mimeTypes.has(mimeType)) {
+  const typeLimit = maxBytesForMime(bucket, mimeType);
+  if (typeLimit === null) {
     return NextResponse.json(
       { error: "Unsupported file type" },
       { status: 415 }
     );
+  }
+  if (blob.size > typeLimit) {
+    return tooLarge(typeLimit);
   }
 
   const filename = sanitizeUploadFilename(

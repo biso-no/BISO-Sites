@@ -1,16 +1,15 @@
 import type { Departments } from "@repo/api/types/appwrite";
 import {
   campusIdToLabel,
-  campusSegmentToId,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import { cache } from "react";
 import { getActiveCampus } from "@/app/actions/campus";
 import {
   cachedDepartmentById,
-  cachedDepartmentBySlugAndCampus,
   cachedDepartmentsBySlug,
 } from "@/lib/data/public-content";
+import { findCanonicalUnit } from "@/lib/unit-page";
 
 export type UnitResolution =
   /**
@@ -82,24 +81,8 @@ async function resolveCanonical(
   campusSegment: string,
   slug: string
 ): Promise<UnitResolution> {
-  const campusId = campusSegmentToId(campusSegment);
-  if (!campusId) {
-    return { kind: "notFound" };
-  }
-  const department = await cachedDepartmentBySlugAndCampus(slug, campusId);
-  if (!department) {
-    return { kind: "notFound" };
-  }
-  // Built from the resolved campus id and the department's own slug, never
-  // from the raw URL text: campusSegmentToId lowercases before lookup and
-  // Appwrite's Query.equal is case-insensitive, so echoing the URL segments
-  // verbatim would let e.g. /units/OSLO/Fadderullan self-canonicalize to
-  // itself — a second indexable URL for identical content.
-  const canonical = unitCanonicalPath({ campusId, slug: department.slug });
-  if (!canonical) {
-    return { kind: "notFound" };
-  }
-  return { kind: "department", department, canonical };
+  const found = await findCanonicalUnit(campusSegment, slug);
+  return found ? { kind: "department", ...found } : { kind: "notFound" };
 }
 
 async function resolveFiltered(slug: string): Promise<UnitResolution> {

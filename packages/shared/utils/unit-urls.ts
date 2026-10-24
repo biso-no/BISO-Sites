@@ -96,9 +96,17 @@ export function unitCanonicalPath(target: UnitTarget): string | null {
  * namespace guard and field lock, the sitemap filter, and both public
  * routes), so trimming here closes the gap everywhere at once.
  */
+/** Accents fold as well: the lookup's collation matches `ünits/…` to `units/…`. */
+const COMBINING_MARKS = /\p{M}/gu;
+
 export function isUnitPageSlug(slug: string | null | undefined): boolean {
   return (
     typeof slug === "string" &&
-    slug.trim().toLowerCase().startsWith(UNIT_PAGE_SLUG_PREFIX)
+    slug
+      .trim()
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(COMBINING_MARKS, "")
+      .startsWith(UNIT_PAGE_SLUG_PREFIX)
   );
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
+  maxBytesForMime,
+  mimeFromFilename,
   resolveUploadBucket,
   resolveUploadMimeType,
   sanitizeUploadFilename,
@@ -16,7 +18,37 @@ describe("resolveUploadBucket", () => {
     const bucket = resolveUploadBucket("media");
     expect(bucket?.client).toBe("admin");
     expect(bucket?.mimeTypes.has("image/png")).toBeTrue();
-    expect(bucket?.mimeTypes.has("application/pdf")).toBeFalse();
+  });
+
+  it("takes the document types the Documents block offers", () => {
+    const bucket = resolveUploadBucket("media");
+    for (const type of [
+      "application/pdf",
+      "text/plain",
+      "text/csv",
+      "application/vnd.ms-excel",
+      "application/msword",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ]) {
+      expect(bucket?.mimeTypes.has(type)).toBeTrue();
+    }
+  });
+
+  it("rejects executables, archives and html even though the bucket takes zip", () => {
+    const bucket = resolveUploadBucket("media");
+    for (const type of [
+      "application/x-msdownload",
+      "application/x-sh",
+      "application/zip",
+      "application/x-zip-compressed",
+      "text/html",
+      "application/octet-stream",
+    ]) {
+      expect(bucket?.mimeTypes.has(type)).toBeFalse();
+    }
   });
 
   it("accepts the video types the editor offers for upload", () => {
@@ -46,6 +78,47 @@ describe("resolveUploadBucket", () => {
     ]) {
       expect(resolveUploadBucket(bucketId)).toBeNull();
     }
+  });
+});
+
+describe("per-type size limits", () => {
+  const MB = 1024 * 1024;
+  const media = resolveUploadBucket("media");
+
+  it("allows 25 MB for a PDF, 10 MB for an image", () => {
+    expect(media && maxBytesForMime(media, "application/pdf")).toBe(25 * MB);
+    expect(media && maxBytesForMime(media, "image/png")).toBe(10 * MB);
+    expect(media && maxBytesForMime(media, "video/mp4")).toBe(10 * MB);
+  });
+
+  it("has no limit for a type the bucket does not take", () => {
+    expect(
+      media && maxBytesForMime(media, "application/x-msdownload")
+    ).toBeNull();
+  });
+
+  it("keeps the content bucket at 10 MB", () => {
+    const content = resolveUploadBucket("content");
+    expect(content && maxBytesForMime(content, "application/pdf")).toBe(
+      10 * MB
+    );
+  });
+
+  it("caps the whole request at the largest per-type limit", () => {
+    expect(media?.maxBytes).toBe(25 * MB);
+  });
+});
+
+describe("mimeFromFilename", () => {
+  it("names a document the browser reported no type for", () => {
+    expect(mimeFromFilename("Budsjett.CSV")).toBe("text/csv");
+    expect(mimeFromFilename("Vedtekter.pdf")).toBe("application/pdf");
+    expect(mimeFromFilename("a.docx")).toContain("wordprocessingml");
+  });
+
+  it("does not guess for anything else", () => {
+    expect(mimeFromFilename("run.exe")).toBeNull();
+    expect(mimeFromFilename("noextension")).toBeNull();
   });
 });
 

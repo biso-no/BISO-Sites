@@ -1,8 +1,9 @@
 import type { Users } from "@repo/api/types/appwrite";
 import { NATIONAL_CAMPUS_ID } from "@repo/shared/utils/benefit-catalog";
 import { getMembershipOfferCandidates } from "@repo/shared/utils/membership-catalog";
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import { isTransientMembershipReason } from "@repo/shared/utils/membership-gate";
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { getActiveCampus } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
@@ -14,6 +15,8 @@ import {
 } from "@/app/actions/member-portal";
 import { MemberPortalTabs } from "@/components/member-portal/member-portal-tabs";
 import { MemberPortalHeader } from "@/components/member-portal/shared/member-portal-header";
+import { Section } from "@/components/ui/section";
+import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
 import type { MembershipStatus } from "@/lib/actions/membership";
 import { CAMPUS_COOKIE } from "@/lib/cookie-prefs";
 import { getMembershipTextItems } from "@/lib/data/membership-texts";
@@ -38,6 +41,27 @@ interface MemberPortalContentProps {
   hasBIIdentity: boolean;
   membership: MembershipStatus | null;
   user: LoggedInUser | null;
+}
+
+/**
+ * "We couldn't check" — never "you're not a member". The status comes live
+ * from apps/api, and an outage there must not tell a paying member to buy a
+ * membership, so the portal stops at this notice until the check answers.
+ */
+async function MembershipCheckUnavailable() {
+  const t = await getTranslations("memberPortal.unavailable");
+  return (
+    <div
+      className="flex flex-col items-start gap-4 rounded-biso-md border border-edge p-8"
+      role="status"
+    >
+      <h2 className="type-heading-card text-ink">{t("title")}</h2>
+      <p className="type-body max-w-(--measure) text-ink-muted">{t("body")}</p>
+      <Link className={statusPanelPrimaryAction} href="/member">
+        {t("retry")}
+      </Link>
+    </div>
+  );
 }
 
 export async function MemberPortalContent({
@@ -72,6 +96,7 @@ export async function MemberPortalContent({
       getMembershipTextItems("portal_locked", textLocale),
     ]);
 
+  const checkFailed = isTransientMembershipReason(membership?.reason);
   const current = membership ? toCurrentMembershipView(membership) : null;
   const isMember = current !== null;
   const tDuration = await getTranslations("memberPass.duration");
@@ -93,75 +118,78 @@ export async function MemberPortalContent({
     user?.profile?.campus?.name ||
     tCommon("allCampuses");
 
-  // Get user name and avatar
+  // Get user name
   const userName =
     profile?.name ||
     user?.profile?.name ||
     user?.user?.name ||
     tCommon("guest");
-  const userAvatar = profile?.avatar || user?.profile?.avatar || null;
 
   // Get student ID for BI email construction
   const studentId = profile?.student_id || user?.profile?.student_id || "";
   const biEmail = `${studentId}@bi.no`;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-background via-section to-background dark:from-background dark:via-card dark:to-background">
+    <>
       <MemberPortalHeader
-        benefitsCount={benefits.length}
         campus={campus}
-        daysRemaining={daysRemaining}
+        checkFailed={checkFailed}
         isMember={isMember}
         membershipExpiry={expiryDate}
-        userAvatar={userAvatar}
         userName={userName}
       />
 
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      <Section tone="paper">
         {upcoming ? (
-          <Alert className="mb-6">
-            <AlertDescription>
-              {tMembership("upcomingMembership", {
-                start: format.dateTime(new Date(upcoming.startDate), {
-                  dateStyle: "long",
-                }),
-              })}
-            </AlertDescription>
-          </Alert>
+          <p
+            className="type-body-sm mb-8 rounded-biso-md border border-edge bg-surface-sunken p-4 text-ink"
+            role="status"
+          >
+            {tMembership("upcomingMembership", {
+              start: format.dateTime(new Date(upcoming.startDate), {
+                dateStyle: "long",
+              }),
+            })}
+          </p>
         ) : null}
-        <MemberPortalTabs
-          bankAccount={
-            profile?.bank_account ?? user?.profile?.bank_account ?? undefined
-          }
-          benefits={benefits}
-          benefitsCount={benefits.length}
-          biEmail={biEmail}
-          current={current}
-          daysRemaining={daysRemaining}
-          estimatedSavings={null}
-          expiryDate={expiryDate}
-          featuredBenefits={featuredBenefits}
-          hasBIIdentity={hasBIIdentity}
-          isGuest={!user}
-          isMember={isMember}
-          lockedItems={lockedItems}
-          membershipType={membershipType}
-          planCardItems={planCardItems}
-          plans={offeredPlans}
-          profile={profile || user?.profile || null}
-          profileAccount={
-            user?.user
-              ? ({
-                  name: user.user.name,
-                  email: user.user.email,
-                } satisfies AccountSummary)
-              : null
-          }
-          publicProfile={publicProfile}
-          startDate={startDate}
-          termDays={termDays}
-        />
-      </div>
-    </div>
+
+        {checkFailed ? (
+          <MembershipCheckUnavailable />
+        ) : (
+          <MemberPortalTabs
+            bankAccount={
+              profile?.bank_account ?? user?.profile?.bank_account ?? undefined
+            }
+            benefits={benefits}
+            benefitsCount={benefits.length}
+            biEmail={biEmail}
+            current={current}
+            daysRemaining={daysRemaining}
+            estimatedSavings={null}
+            expiryDate={expiryDate}
+            featuredBenefits={featuredBenefits}
+            hasBIIdentity={hasBIIdentity}
+            isGuest={!user}
+            isMember={isMember}
+            lockedItems={lockedItems}
+            membershipType={membershipType}
+            planCardItems={planCardItems}
+            plans={offeredPlans}
+            profile={profile || user?.profile || null}
+            profileAccount={
+              user?.user
+                ? ({
+                    name: user.user.name,
+                    email: user.user.email,
+                  } satisfies AccountSummary)
+                : null
+            }
+            publicProfile={publicProfile}
+            startDate={startDate}
+            termDays={termDays}
+          />
+        )}
+      </Section>
+    </>
   );
 }

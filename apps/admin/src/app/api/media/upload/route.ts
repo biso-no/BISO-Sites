@@ -46,7 +46,7 @@ export async function handleInlineMediaUpload(
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > INLINE_MEDIA_MAX_BYTES) {
-    return errorResponse("File too large (max 10 MB)", 413);
+    return errorResponse("File too large (max 250 MB)", 413);
   }
 
   const decodedFilename = decodeFilename(
@@ -68,7 +68,7 @@ export async function handleInlineMediaUpload(
     return errorResponse("Empty upload", 400);
   }
   if (blob.size > INLINE_MEDIA_MAX_BYTES) {
-    return errorResponse("File too large (max 10 MB)", 413);
+    return errorResponse("File too large (max 250 MB)", 413);
   }
 
   const storageResponse = await dependencies.createFile({

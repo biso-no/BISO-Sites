@@ -1,4 +1,4 @@
-export { allBlocks, BLOCK_LIBRARY, getBlock } from "./blocks/index";
+export { allBlocks, getBlock, paletteGroups } from "./blocks/index";
 export { EditorShell } from "./components/editor-shell";
 export type { EditorCallbacks } from "./editor/callbacks";
 export { EditorCallbacksContext, useEditorCallbacks } from "./editor/callbacks";
@@ -22,13 +22,21 @@ export { useEditorStore } from "./editor/store";
 export type {
   Block,
   BlockType,
+  Column,
   EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
+  InsertTarget,
   PageDoc,
+  PageHeader,
   PageMeta,
+  PublishOutcome,
   SavingState,
+  Section,
+  SectionColumns,
+  SectionLayout,
+  StoredMeta,
 } from "./editor/types";
 
 // Side-effect: populate the block registry.
@@ -38,3 +46,6 @@ export type {
 // `"sideEffects": true`. See the longer note in `./render/index.ts` — without
 // both, bundlers drop these registrations and every block renders as null.
 import "./blocks/index";
+
+export { walkBlocks } from "./editor/tree";
+export { SectionView } from "./sections/section-view";

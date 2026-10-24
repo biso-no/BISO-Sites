@@ -54,7 +54,7 @@
     "checking": "Checking availability...",
     "membersPay": "Members pay only {price}",
     "viewDetails": "View Details",
-    "uncategorized": "Uncategorized"
+    "free": "Free"
   },
   "product": {
     "backToShop": "Back to Shop",
@@ -268,6 +268,7 @@
       "continue": "Continue Shopping",
       "print": "Print Order",
       "receipt": "View Vipps Receipt",
+      "viewReceipt": "View receipt",
       "returnToCart": "Return to Cart",
       "backToShop": "Back to Shop"
     },
@@ -287,6 +288,19 @@
       "thanks": "Thank you for supporting BISO!",
       "proof": "This is your proof of purchase.",
       "org": "BI Student Organisation (BISO)"
-    }
+    },
+    "vippsReceipt": "View Vipps Receipt"
+  },
+  "list": {
+    "searchLabel": "Search products",
+    "searchSubmit": "Search",
+    "categoryLabel": "Filter products by category"
+  },
+  "toast": {
+    "outOfStock": "This item is out of stock",
+    "onlyAvailable": "Only {count} available (others reserved in carts)",
+    "limitExceeded": "Purchase limit exceeded",
+    "reserveFailed": "Failed to reserve stock. Please try again.",
+    "addedToCart": "Added to cart"
   }
 }

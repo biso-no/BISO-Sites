@@ -1,9 +1,5 @@
-import { UnitsSkeleton } from "./units-skeleton";
+import { FeedSkeleton } from "@/components/ui/loading-shell";
 
 export default function UnitsLoading() {
-  return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <UnitsSkeleton />
-    </div>
-  );
+  return <FeedSkeleton />;
 }

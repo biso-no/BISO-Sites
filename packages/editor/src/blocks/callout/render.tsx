@@ -1,12 +1,21 @@
 "use client";
 
+import { isBlank } from "@/blocks/_v2/blank";
+import { knownKey } from "@/blocks/_v2/known-key";
 import type { PatchFn } from "@/blocks/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import { usePageFeedSource } from "@/editor/page-feed-context";
 import type { CalloutBlock } from "@/editor/types";
 
-const TONE_ICONS: Record<CalloutBlock["tone"], string> = {
-  info: "ℹ",
-  warn: "⚠",
-  tip: "✦",
+const LABELS = {
+  en: { info: "Info", tip: "Tip", warn: "Important" },
+  no: { info: "Info", tip: "Tips", warn: "Viktig" },
+} as const;
+
+export const TONE_CLASS: Record<CalloutBlock["tone"], string> = {
+  info: "text-ink-accent",
+  tip: "text-success",
+  warn: "text-warning",
 };
 
 interface Props {
@@ -16,44 +25,33 @@ interface Props {
 }
 
 export function CalloutRender({ block, edit, onPatch }: Props) {
-  const tone = block.tone ?? "info";
+  const { locale } = usePageFeedSource();
+  const tone = knownKey(TONE_CLASS, block.tone, "info");
+  if (!edit && isBlank(block.title) && isBlank(block.body)) {
+    return null;
+  }
+  const labels = locale === "en" ? LABELS.en : LABELS.no;
   return (
-    <div className="pg-callout-wrap pg-block">
-      <div className={`pg-callout pg-callout--${tone}`}>
-        <div aria-hidden="true" className="pg-callout__ic">
-          {TONE_ICONS[tone]}
-        </div>
-        <div className="pg-callout__body">
-          {edit ? (
-            // biome-ignore lint/a11y/noNoninteractiveElementInteractions lint/a11y/noStaticElementInteractions: contentEditable is the editor interaction surface.
-            <b
-              contentEditable
-              data-edit="1"
-              onBlur={(e) =>
-                onPatch("title", e.currentTarget.textContent ?? "")
-              }
-              suppressContentEditableWarning
-            >
-              {block.title}
-            </b>
-          ) : (
-            <b>{block.title}</b>
-          )}
-          {edit ? (
-            // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable is the editor interaction surface.
-            <p
-              contentEditable
-              data-edit="1"
-              onBlur={(e) => onPatch("body", e.currentTarget.textContent ?? "")}
-              suppressContentEditableWarning
-            >
-              {block.body}
-            </p>
-          ) : (
-            <p>{block.body}</p>
-          )}
-        </div>
-      </div>
-    </div>
+    <aside className="flex flex-col gap-2 break-words rounded-biso-md border border-edge bg-surface-raised p-5 text-ink">
+      <span
+        className={`type-label inline-flex w-fit rounded-biso-pill border border-current px-3 py-0.5 ${TONE_CLASS[tone]}`}
+      >
+        {labels[tone]}
+      </span>
+      <EditableText
+        className="type-heading-card text-ink"
+        edit={edit}
+        onChange={(v) => onPatch("title", v)}
+        tag="p"
+        value={block.title}
+      />
+      <EditableText
+        className="type-body-sm text-ink"
+        edit={edit}
+        onChange={(v) => onPatch("body", v)}
+        tag="p"
+        value={block.body}
+      />
+    </aside>
   );
 }

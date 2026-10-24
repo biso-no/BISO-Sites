@@ -1,52 +1,80 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import type { LucideIcon } from "lucide-react";
+import { ArrowUpRight, FileText } from "lucide-react";
 import Link from "next/link";
+import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
 
 interface CtaCardProps {
   cta: string;
   description: string;
   external?: boolean;
   href: string;
-  icon: LucideIcon;
   title: string;
 }
 
-/** Title, blurb and one button, as used for SPU, "your case", alumni, SAIH. */
+/**
+ * Title, blurb and one action — SPU, "your case", SAIH. A bordered row, not a
+ * gradient panel with an icon tile: the action carries the colour.
+ */
 export function CtaCard({
   cta,
   description,
   external,
   href,
-  icon: Icon,
   title,
 }: CtaCardProps) {
   return (
-    <Card className="flex h-full flex-col items-start gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-md">
-          <Icon className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-foreground text-lg">{title}</h3>
-          <p className="mt-1 text-muted-foreground">{description}</p>
-        </div>
+    <div className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-biso-md border border-edge p-6">
+      <div className="min-w-0 max-w-(--measure)">
+        <p className="type-heading-card break-words text-ink">{title}</p>
+        <p className="type-body-sm mt-1 text-ink-muted">{description}</p>
       </div>
-      <Button
-        asChild
-        className="shrink-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white shadow-md hover:opacity-90"
-        size="lg"
-      >
-        {external ? (
-          <a href={href} rel="noreferrer" target="_blank">
-            {cta}
-          </a>
-        ) : (
-          <Link href={href}>{cta}</Link>
-        )}
-      </Button>
-    </Card>
+      {external ? (
+        <a
+          className={statusPanelPrimaryAction}
+          href={href}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {cta}
+          <ArrowUpRight aria-hidden="true" className="size-4 shrink-0" />
+        </a>
+      ) : (
+        <Link className={statusPanelPrimaryAction} href={href}>
+          {cta}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** A published PDF on SharePoint: the political and academic target documents. */
+export function PdfLink({
+  description,
+  href,
+  title,
+}: {
+  description: string;
+  href: string;
+  title: string;
+}) {
+  return (
+    <a
+      className="group mt-4 flex items-start gap-3 rounded-biso-md border border-edge p-6 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      href={href}
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      <FileText
+        aria-hidden="true"
+        className="mt-0.5 size-5 shrink-0 text-ink-accent"
+      />
+      <span className="min-w-0">
+        <span className="type-heading-card block break-words text-ink group-hover:text-ink-accent">
+          {title}
+        </span>
+        <span className="type-body-sm mt-1 block text-ink-muted">
+          {description}
+        </span>
+      </span>
+    </a>
   );
 }

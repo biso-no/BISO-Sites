@@ -33,6 +33,7 @@ import type { UserAuthContext } from "@/lib/authorization";
  */
 
 const sessionDb = {
+  getRow: mock(),
   listRows: mock(),
 };
 const adminDb = {
@@ -79,14 +80,19 @@ mock.module("@/lib/authorization", () => ({
 // mocks the same specifier with this full export set; mirror it exactly
 // (rather than only the `savePageDraft` this file needs) so load order
 // between the two files can't leave the other one missing an export.
+// `@repo/editor/sanitize` opens with `import "server-only"`, which throws
+// outside a react-server build.
+mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
+  clearPageTheme: mock(async () => undefined),
   getPageById: mock(async () => null),
   getPageEditorById: mock(async () => null),
   publishPage: mock(async () => undefined),
   resolvePageCampusId: mock(() => null),
   savePageDraft: savePageDraftSpy,
   savePageTranslationDraft: mock(async () => undefined),
+  syncSharedDraftMeta: mock(async () => undefined),
   unpublishPage: mock(async () => undefined),
 }));
 mock.module("next/cache", () => ({
@@ -120,6 +126,13 @@ beforeEach(() => {
   sessionDb.listRows.mockResolvedValue({ rows: [], total: 0 });
   adminDb.listRows.mockResolvedValue({ rows: [], total: 0 });
 });
+
+interface SectionDoc {
+  header?: Record<string, unknown>;
+  meta: { title: string };
+  sections: { columns: { blocks: { type: string }[] }[] }[];
+  version: number;
+}
 
 describe("listDepartments campus scoping", () => {
   test("a campus admin's listing is scoped by managed campuses even when admin_campus_ctx points elsewhere", async () => {
@@ -250,19 +263,22 @@ describe("createUnitPage inactive-department guard", () => {
     await createUnitPage("dept-1");
 
     const [[call]] = savePageDraftSpy.mock.calls as unknown as [
-      [{ doc: { blocks: Array<{ type: string }>; meta: { title: string } } }],
+      [{ doc: SectionDoc }],
     ];
-    expect(call.doc.blocks.map((block) => block.type)).toEqual([
-      "hero",
+    expect(call.doc.sections.map((s) => s.columns[0].blocks[0].type)).toEqual([
       "text",
       "events",
       "gallery",
       "text",
       "contact",
     ]);
-    expect(call.doc.blocks[0]).toMatchObject({
+    expect(call.doc.version).toBe(2);
+    // The unit's name and campus live in the page header, not a hero block.
+    expect(call.doc.header).toMatchObject({
+      buttons: [],
       eyebrow: "BISO Trondheim",
       title: "Fadderullan",
+      variant: "plain",
     });
     expect(call.doc.meta.title).toBe("TRD Fadderullan");
   });
@@ -286,14 +302,17 @@ describe("createUnitPage inactive-department guard", () => {
     await createUnitPage("dept-2");
 
     const [[call]] = savePageDraftSpy.mock.calls as unknown as [
-      [{ doc: { blocks: Array<{ type: string }> } }],
+      [{ doc: SectionDoc }],
     ];
-    expect(call.doc.blocks.map((block) => block.type)).toEqual([
-      "hero",
+    expect(call.doc.sections.map((s) => s.columns[0].blocks[0].type)).toEqual([
       "text",
       "events",
       "contact",
     ]);
+    expect(call.doc.header).toMatchObject({
+      eyebrow: "BISO Bergen",
+      title: "Case Club",
+    });
   });
 });
 
@@ -670,6 +689,7 @@ describe("listAllDepartments", () => {
   });
 
   test("returns every active department for a picker, unbounded by PageSize", async () => {
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
     sessionDb.listRows.mockResolvedValueOnce({
       rows: [{ $id: "d1" }, { $id: "d2" }],
       total: 2,
@@ -687,5 +707,100 @@ describe("listAllDepartments", () => {
     for (const pageSize of [25, 50, 100]) {
       expect(queries).not.toContain(Query.limit(pageSize));
     }
+  });
+});
+
+describe("listAllDepartments editable-only", () => {
+  const rows = [
+    { $id: "d1", campus_id: "1" },
+    { $id: "d2", campus_id: "1" },
+    { $id: "d3", campus_id: "2" },
+  ];
+
+  beforeEach(() => {
+    sessionDb.listRows.mockReset();
+    sessionDb.listRows.mockResolvedValue({ rows, total: rows.length });
+    sessionDb.getRow.mockReset();
+  });
+
+  const ids = (list: { $id: string }[]) => list.map((d) => d.$id);
+
+  test("a department user sees only their own departments", async () => {
+    currentCtx = makeCtx({
+      resolvedCampusIds: ["1"],
+      resolvedDepartmentIds: ["d2"],
+    });
+    expect(ids(await listAllDepartments())).toEqual(["d2"]);
+  });
+
+  test("a campus admin sees their managed campuses' departments", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["1"],
+      roles: ["campusadmin"],
+    });
+    expect(ids(await listAllDepartments())).toEqual(["d1", "d2"]);
+  });
+
+  test("a global admin sees all", async () => {
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
+    expect(ids(await listAllDepartments())).toEqual(["d1", "d2", "d3"]);
+  });
+
+  test("keeps the page's current department even when it is not editable", async () => {
+    currentCtx = makeCtx({
+      managedCampusIds: ["1"],
+      roles: ["campusadmin"],
+    });
+    sessionDb.getRow.mockResolvedValue({ $id: "d3", campus_id: "2" });
+    expect(ids(await listAllDepartments({ keepId: "d3" }))).toEqual([
+      "d1",
+      "d2",
+      "d3",
+    ]);
+  });
+
+  test("a user with no editable departments sees none", async () => {
+    currentCtx = makeCtx();
+    expect(await listAllDepartments()).toEqual([]);
+  });
+});
+
+describe("createUnitPage rich text", () => {
+  test("a department name is sanitized where the template writes it as HTML", async () => {
+    // The template interpolates the name into a text block, whose body is
+    // rendered as markup; department names come from the accounting system.
+    currentCtx = makeCtx({ roles: ["globaladmin"] });
+    mockAdminRows({
+      departments: [
+        {
+          $id: "dept-3",
+          Name: "OSL Case & Co<img src=x onerror=alert(1)>",
+          active: true,
+          campus_id: "1",
+          slug: "case-co",
+          type: "society",
+        },
+      ],
+      pages: [],
+    });
+
+    await createUnitPage("dept-3");
+
+    const [[call]] = savePageDraftSpy.mock.calls as unknown as [
+      [
+        {
+          doc: {
+            sections: {
+              columns: { blocks: { body?: { text: string }[] }[] }[];
+            }[];
+          };
+        },
+      ],
+    ];
+    const about = call.doc.sections[0].columns[0].blocks[0].body ?? [];
+    // Escaped by the template, so the name reads as written.
+    expect(about[0]?.text).toBe(
+      "Om Case &amp; Co&lt;img src=x onerror=alert(1)&gt;"
+    );
   });
 });

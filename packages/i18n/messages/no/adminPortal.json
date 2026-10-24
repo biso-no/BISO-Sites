@@ -1107,6 +1107,8 @@
     "title": "Sider",
     "description": "Administrer nettsider og innhold.",
     "create": "Opprett side",
+    "createProject": "Opprett prosjektside",
+    "createProjectLabel": "Prosjekt",
     "empty": "Ingen sider ennå",
     "emptyDescription": "Opprett din første side for å komme i gang.",
     "fields": {

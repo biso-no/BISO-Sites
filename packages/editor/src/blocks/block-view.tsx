@@ -1,18 +1,11 @@
 "use client";
 
-import { cn } from "@repo/ui/lib/utils";
-import type { ReactNode } from "react";
+import { Component, type CSSProperties, type ReactNode, Suspense } from "react";
 import type { Block } from "@/editor/types";
-import { SURFACE } from "./_primitives/block-section";
-import type {
-  BlockLayout,
-  ResolvedBackground,
-} from "./_primitives/layout-types";
 import { getBlock } from "./index";
 import type { PatchFn } from "./types";
 
 interface BlockViewProps {
-  background: ResolvedBackground;
   block: Block;
   edit: boolean;
   onPatch: PatchFn;
@@ -21,68 +14,99 @@ interface BlockViewProps {
 /**
  * Renders one block identically in the admin canvas and on the public site.
  *
- * Blocks rebuilt on `BlockSection` apply the Design panel themselves. Every
- * other block is still styled by `blocks.css` and never reads `layout`, so it
- * is framed here instead: without the frame, the panel's background, spacing
- * and width choices would be saved but change nothing on the page.
+ * Blocks render bare: the section owns the surface, spacing and width.
+ * `data-block` names the type for the gallery page's tests and for anyone
+ * inspecting the DOM; `display: contents` keeps it out of the layout.
+ *
+ * A stored block of a type that no longer exists (a removed block, a
+ * hand-edited document) renders nothing on the site. The editor shows a card
+ * naming it, so it can be found and deleted.
  */
-export function BlockView({
-  background,
-  block,
-  edit,
-  onPatch,
-}: BlockViewProps) {
+export function BlockView({ block, edit, onPatch }: BlockViewProps) {
   const def = getBlock(block.type);
   if (!def) {
-    return null;
+    return edit ? <UnknownBlockCard type={block.type} /> : null;
   }
 
-  const rendered = (
-    <def.Render
-      background={background}
-      block={block as never}
-      edit={edit}
-      onPatch={onPatch}
-    />
-  );
-
-  if (def.appliesLayout) {
-    return rendered;
-  }
-
+  // A malformed block (copilot output, a seed script) must not take the page
+  // down with it. The boundary catches it on the client; on the server an
+  // error boundary cannot, but Suspense makes React skip the block there and
+  // retry it on the client, where the boundary then catches it.
   return (
-    <LayoutFrame background={background} layout={block.layout}>
-      {rendered}
-    </LayoutFrame>
+    <Suspense fallback={null}>
+      <div data-block={block.type} style={{ display: "contents" }}>
+        <BlockErrorBoundary block={block} edit={edit}>
+          <def.Render block={block as never} edit={edit} onPatch={onPatch} />
+        </BlockErrorBoundary>
+      </div>
+    </Suspense>
   );
 }
 
-interface LayoutFrameProps {
-  background: ResolvedBackground;
+interface BlockErrorBoundaryProps {
+  /** A new block object (any edit) clears the error and tries again. */
+  block: Block;
   children: ReactNode;
-  layout?: BlockLayout;
+  edit: boolean;
 }
+
+/** In the editor's chrome, like "Unknown block": the block can be deleted. */
+const ERROR_CARD: CSSProperties = {
+  padding: "14px 16px",
+  fontSize: 12,
+  lineHeight: 1.45,
+  color: "var(--ink-2)",
+  background: "var(--paper-2)",
+  border: "0.5px dashed var(--rule-2)",
+  borderRadius: 8,
+};
 
 /**
- * Paints the resolved surface with the same classes `BlockSection` uses, so a
- * framed block and a migrated one look alike on every background. The data
- * attributes drive the spacing and width rules in `blocks.css`; `data-auto`
- * lets the dark banner blocks (contact, full hero) keep their own panel until
- * an editor picks a background on purpose.
+ * Catches a block that throws while rendering. The site shows nothing in its
+ * place; the editor shows a small card naming the block, so it can be found
+ * and deleted.
  */
-function LayoutFrame({ background, children, layout }: LayoutFrameProps) {
-  const chosen = layout?.background;
-  const automatic = !chosen || chosen === "auto";
+// biome-ignore lint/style/useReactFunctionComponents: error boundaries can only be class components.
+class BlockErrorBoundary extends Component<
+  BlockErrorBoundaryProps,
+  { failed: boolean }
+> {
+  state = { failed: false };
 
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidUpdate(previous: BlockErrorBoundaryProps) {
+    if (this.state.failed && previous.block !== this.props.block) {
+      this.setState({ failed: false });
+    }
+  }
+
+  render() {
+    if (!this.state.failed) {
+      return this.props.children;
+    }
+    if (!this.props.edit) {
+      return null;
+    }
+    return (
+      <div style={ERROR_CARD}>
+        <strong style={{ color: "var(--pg-ink)" }}>
+          This block couldn't be shown.
+        </strong>{" "}
+        Block type: {this.props.block.type}. Delete it, or undo the change that
+        broke it.
+      </div>
+    );
+  }
+}
+
+function UnknownBlockCard({ type }: { type: string }) {
   return (
-    <div
-      className={cn("pg-section relative text-foreground", SURFACE[background])}
-      data-auto={automatic ? "" : undefined}
-      data-background={background}
-      data-spacing={layout?.spacing ?? "normal"}
-      data-width={layout?.width ?? "wide"}
-    >
-      <div className="pg-section__inner">{children}</div>
+    <div style={ERROR_CARD}>
+      <strong style={{ color: "var(--pg-ink)" }}>Unknown block: {type}.</strong>{" "}
+      It is no longer supported and is not shown on the site. Delete it.
     </div>
   );
 }

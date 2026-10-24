@@ -1,20 +1,33 @@
 "use client";
 
-import { ImageWithFallback } from "@repo/ui/components/image";
-import { Button } from "@repo/ui/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@repo/ui/components/ui/sheet";
-import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
+import { cn } from "@repo/ui/lib/utils";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useUserMembership } from "@/components/context/membership-provider";
+import { RowThumb } from "@/components/ui/row-thumb";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 import { useCart } from "@/lib/contexts/cart-context";
 
+const STEP_BUTTON =
+  "flex size-8 items-center justify-center rounded-biso-pill text-ink transition-colors hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink";
+
+/**
+ * The cart drawer the header's cart button opens, on every public page.
+ *
+ * Painted from the design system's paper surface: the sheet portals to
+ * `<body>`, which still sits inside the `.biso-surface-v2` root, so the same
+ * aliases resolve here as on the page behind it.
+ */
 export function CartDrawer() {
   const t = useTranslations("shop");
   const { isMember } = useUserMembership();
@@ -43,15 +56,22 @@ export function CartDrawer() {
       open={isDrawerOpen}
     >
       <SheetContent
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
+        className="flex w-full flex-col gap-0 border-edge bg-surface p-0 text-ink shadow-elev-2 sm:max-w-md"
         side="right"
       >
-        <SheetHeader className="border-border/60 border-b px-6 py-5 text-left">
-          <SheetTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5 text-brand" />
-            {t("cart.drawer.title")}
+        <SheetHeader className="border-edge border-b px-6 py-5 text-left">
+          {/* The type role sits on the inner span: `SheetTitle`'s own
+              `text-lg font-semibold` are utilities, which outrank a role. */}
+          <SheetTitle className="flex items-center gap-2 text-ink">
+            <ShoppingBag
+              aria-hidden="true"
+              className="size-5 text-ink-accent"
+            />
+            <span className="type-heading-section">
+              {t("cart.drawer.title")}
+            </span>
             {itemCount > 0 ? (
-              <span className="ml-1 rounded-full bg-brand px-2 py-0.5 font-semibold text-white text-xs">
+              <span className="type-data ms-1 rounded-biso-pill bg-action px-2 py-0.5 text-action-ink">
                 {itemCount}
               </span>
             ) : null}
@@ -59,21 +79,24 @@ export function CartDrawer() {
         </SheetHeader>
 
         {items.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-            <ShoppingBag className="h-14 w-14 text-muted-foreground/50" />
-            <p className="font-semibold text-foreground">
+          <div className="flex flex-1 flex-col items-start justify-center gap-3 px-6">
+            <p className="type-heading-card text-ink">
               {t("cart.drawer.empty")}
             </p>
-            <p className="text-muted-foreground text-sm">
+            <p className="type-body-sm text-ink-muted">
               {t("cart.drawer.emptyDesc")}
             </p>
-            <Button asChild className="mt-2" onClick={closeDrawer}>
-              <Link href="/shop">{t("cart.drawer.browse")}</Link>
-            </Button>
+            <Link
+              className={cn(statusPanelPrimaryAction, "mt-2")}
+              href="/shop"
+              onClick={closeDrawer}
+            >
+              {t("cart.drawer.browse")}
+            </Link>
           </div>
         ) : (
           <>
-            <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+            <ul className="flex-1 divide-y divide-edge overflow-y-auto px-6">
               {items.map((item) => {
                 const unitPrice =
                   isMember && item.memberPrice
@@ -81,48 +104,47 @@ export function CartDrawer() {
                     : item.regularPrice;
 
                 return (
-                  <div className="flex gap-3" key={item.id}>
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg">
-                      <ImageWithFallback
-                        alt={item.name}
-                        className="object-cover"
-                        fill
-                        src={item.image || PLACEHOLDER_IMAGE}
-                      />
-                    </div>
+                  <li className="flex gap-3 py-4" key={item.id}>
+                    <RowThumb
+                      className="h-16 w-16 sm:h-16 sm:w-16"
+                      src={item.image}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="truncate font-medium text-foreground text-sm">
+                        <p className="type-body-sm truncate font-semibold text-ink">
                           {item.name}
                         </p>
                         <button
-                          aria-label={t("cart.item.remove")}
-                          className="shrink-0 text-muted-foreground transition-colors hover:text-red-600"
+                          aria-label={`${t("cart.item.remove")} ${item.name}`}
+                          className={cn(
+                            STEP_BUTTON,
+                            "shrink-0 text-ink-muted hover:text-danger"
+                          )}
                           onClick={() => removeItem(item.id)}
                           type="button"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 aria-hidden="true" className="size-4" />
                         </button>
                       </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="flex items-center rounded-lg border border-border">
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <div className="inline-flex items-center rounded-biso-pill border border-edge">
                           <button
                             aria-label={t("cart.item.decrease")}
-                            className="flex h-7 w-7 items-center justify-center text-foreground disabled:opacity-40"
+                            className={STEP_BUTTON}
                             disabled={item.quantity <= 1}
                             onClick={() =>
                               updateQuantity(item.id, item.quantity - 1)
                             }
                             type="button"
                           >
-                            <Minus className="h-3.5 w-3.5" />
+                            <Minus aria-hidden="true" className="size-3.5" />
                           </button>
-                          <span className="w-7 text-center font-medium text-sm">
+                          <span className="type-data w-7 text-center text-ink">
                             {item.quantity}
                           </span>
                           <button
                             aria-label={t("cart.item.increase")}
-                            className="flex h-7 w-7 items-center justify-center text-foreground disabled:opacity-40"
+                            className={STEP_BUTTON}
                             disabled={
                               item.stock !== null && item.quantity >= item.stock
                             }
@@ -131,46 +153,55 @@ export function CartDrawer() {
                             }
                             type="button"
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus aria-hidden="true" className="size-3.5" />
                           </button>
                         </div>
-                        <span className="font-semibold text-foreground text-sm">
+                        <span className="type-data text-ink">
                           {unitPrice * item.quantity} NOK
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
 
-            <div className="space-y-4 border-border/60 border-t px-6 py-5">
+            <div className="space-y-4 border-edge border-t px-6 py-5">
               {isMember && savings > 0 ? (
-                <div className="flex items-center justify-between text-green-700 text-sm">
+                <div className="type-body-sm flex items-center justify-between text-success">
                   <span>{t("cart.drawer.memberSavings")}</span>
-                  <span>-{savings} NOK</span>
+                  <span className="type-data">-{savings} NOK</span>
                 </div>
               ) : null}
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-muted-foreground">
+              <div className="flex items-baseline justify-between">
+                <span className="type-body-sm text-ink-muted">
                   {t("cart.drawer.subtotal")}
                 </span>
-                <span className="font-bold text-foreground text-lg">
+                <span className="type-heading-section text-ink">
                   {subtotal} NOK
                 </span>
               </div>
               <div className="flex flex-col gap-2">
-                <Button asChild className="w-full" onClick={closeDrawer}>
-                  <Link href="/shop/checkout">{t("cart.drawer.checkout")}</Link>
-                </Button>
-                <Button
-                  asChild
-                  className="w-full"
+                <Link
+                  className={cn(
+                    statusPanelPrimaryAction,
+                    "w-full justify-center"
+                  )}
+                  href="/shop/checkout"
                   onClick={closeDrawer}
-                  variant="outline"
                 >
-                  <Link href="/shop/cart">{t("cart.drawer.viewCart")}</Link>
-                </Button>
+                  {t("cart.drawer.checkout")}
+                </Link>
+                <Link
+                  className={cn(
+                    statusPanelSecondaryAction,
+                    "w-full justify-center"
+                  )}
+                  href="/shop/cart"
+                  onClick={closeDrawer}
+                >
+                  {t("cart.drawer.viewCart")}
+                </Link>
               </div>
             </div>
           </>

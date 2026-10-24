@@ -1,124 +1,120 @@
-import type { ListSearchParams } from "@repo/shared/utils/list-params";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import type { EventsCategory } from "@repo/api/types/appwrite";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { listEventFacets, listEvents } from "@/app/actions/events";
 import { getLocale } from "@/app/actions/locale";
-import { EventsHero } from "@/components/events/events-hero";
-import { EventsListClient } from "@/components/events/events-list-client";
+import {
+  firstPageTotal,
+  parseCategory,
+} from "@/components/events/v2/event-fields";
+import { EventsV2 } from "@/components/events/v2/events-v2";
+import { FeedSkeleton } from "@/components/ui/loading-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getUserPreferences } from "@/lib/auth-utils";
-import { parseWebListParams } from "@/lib/list-params";
+import { resolveRequestCampus } from "@/lib/campus-scope";
+import { parseWebListParams, WEB_PAGE_SIZE } from "@/lib/list-params";
 
-// This is a server component
-export const metadata = {
+export const metadata: Metadata = {
+  // A campus-scoped feed is a filtered view of the same collection, so it
+  // points its canonical at the unscoped URL rather than competing with it.
+  alternates: { canonical: "/events" },
   title: "Events | BISO",
   description:
     "Discover amazing events and experiences at BI Norwegian Business School",
 };
 
-interface EventsPageProps {
-  searchParams: Promise<ListSearchParams>;
+type EventsSearchParams = Record<string, string | string[] | undefined>;
+
+/**
+ * The search term. `?q=` is what the feed reads and what its form submits —
+ * the name main's list actions use. `?search=` was the redesign's name for the
+ * same thing, so links made with it keep working.
+ */
+function searchTerm(sp: EventsSearchParams): string {
+  const { q } = parseWebListParams(sp);
+  if (q) {
+    return q;
+  }
+  const legacy = Array.isArray(sp.search) ? sp.search[0] : sp.search;
+  return legacy?.trim() ?? "";
 }
 
-const first = (value: string | string[] | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value;
-
-async function EventsList({
+async function EventsListV2({
   campus,
   category,
-  isMember,
   locale,
-  page,
   search,
+  searchParams,
 }: {
-  campus: string;
-  category: string | null;
-  isMember: boolean;
+  campus: string | null;
+  category: EventsCategory | null;
   locale: "en" | "no";
-  page: number;
   search: string;
+  searchParams: EventsSearchParams;
 }) {
-  // `upcomingOnly` is a real server-side filter: `queryEvents` expresses "has
-  // not finished yet" as a three-armed `Query.or` over end_date/start_date, so
-  // there is no post-fetch pass here to overfetch for. `isMember` never
-  // narrows the list (members-only events are shown to everyone); it only
-  // drives member pricing and the members-only notice in the client.
-  const [result, facets] = await Promise.all([
+  const campusKey = campus ?? "all";
+  // Page 1 is always rendered here; "Load more" fetches the rest through the
+  // same action. `upcomingOnly` filters finished events out and orders by
+  // start date in the query. `isMember` never narrows anything — members-only
+  // events are listed for everyone — it only picks the price a card leads with.
+  const [result, facets, membership] = await Promise.all([
     listEvents({
-      campus,
+      campus: campusKey,
       category,
       locale,
-      page,
       search,
-      status: "published",
       upcomingOnly: true,
     }),
-    listEventFacets({ campus }),
+    listEventFacets({ campus: campusKey }),
+    getMembershipStatus(),
   ]);
 
+  const total = firstPageTotal(result.rows.length, result.total, WEB_PAGE_SIZE);
+
   return (
-    <EventsListClient
-      campus={campus}
+    <EventsV2
+      campusId={campus}
       capped={result.capped}
       categories={facets.categories}
-      initialEvents={result.rows}
-      initialSearch={search}
-      isMember={isMember}
-      // Remounts on any filter change so the load-more list resets to the
-      // new page 1 instead of appending onto the previous filter's rows.
-      key={`${campus}|${category}|${search}`}
+      category={category}
+      events={result.rows}
+      isMember={membership.isMember}
       locale={locale}
-      selectedCategory={category}
-      total={result.total}
+      search={search}
+      searchParams={searchParams}
+      total={total}
     />
   );
 }
 
-function EventsListSkeleton() {
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {[...new Array(6)].map((_, i) => (
-          <div className="space-y-4" key={i}>
-            <Skeleton className="h-56 w-full" />
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export default async function EventsPage({ searchParams }: EventsPageProps) {
-  const [sp, locale, prefs, membership] = await Promise.all([
-    searchParams,
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<EventsSearchParams>;
+}) {
+  const [locale, sp, prefs] = await Promise.all([
     getLocale(),
+    searchParams,
     getUserPreferences(),
-    getMembershipStatus(),
   ]);
-  const { page, q } = parseWebListParams(sp);
-  const campus = first(sp.campus) ?? prefs?.campusId ?? "all";
-  const category = first(sp.category) ?? null;
+
+  // URL beats cookie beats "all". An unrecognised campus is a 404, not a
+  // silent fallback to everything — see `resolveRequestCampus`.
+  const campus = resolveRequestCampus(sp.campus, prefs?.campusId);
+  if (campus === undefined) {
+    notFound();
+  }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <EventsHero />
-      <Suspense
-        fallback={<EventsListSkeleton />}
-        key={`${campus}|${q}|${page}`}
-      >
-        <EventsList
-          campus={campus}
-          category={category}
-          isMember={membership.isMember}
-          locale={locale}
-          page={page}
-          search={q}
-        />
-      </Suspense>
-    </div>
+    <Suspense fallback={<FeedSkeleton />}>
+      <EventsListV2
+        campus={campus}
+        category={parseCategory(sp.category)}
+        locale={locale}
+        search={searchTerm(sp)}
+        searchParams={sp}
+      />
+    </Suspense>
   );
 }

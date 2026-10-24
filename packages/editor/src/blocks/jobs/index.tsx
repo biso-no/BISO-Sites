@@ -40,9 +40,10 @@ registerBlock({
   label: "Open roles",
   description: "Your unit's job board",
   category: "Pull from BISO",
+  group: "live",
   aiHint:
     "A live list of open volunteer roles from the department's job board.",
-  aiProps: ["heading", "source"],
+  aiProps: ["heading", "source", "limit", "seeAll"],
   empty: () => emptyBlock("jobs") as never,
   Render: JobsRender as never,
   Inspector: JobsInspector as never,

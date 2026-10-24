@@ -1,7 +1,11 @@
 "use client";
 
+import { ChevronMedia } from "@/blocks/_v2/chevron-media";
+import { FeedCardShell, FeedSection } from "@/blocks/_v2/feed-section";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
-import { pageFeedKey } from "@/editor/page-feeds";
+import { usePageFeedSource } from "@/editor/page-feed-context";
+import { pageFeedKey, partnersSource } from "@/editor/page-feeds";
 import type { PartnerItem, PartnersBlock } from "@/editor/types";
 import { useAutoFeed } from "@/editor/use-auto-feed";
 
@@ -11,50 +15,78 @@ interface Props {
   onPatch: PatchFn;
 }
 
-export function PartnersRender({ block }: Props) {
-  const isAuto = block.source === "auto";
+const CARD = "block rounded-biso-sm";
+// Two columns from the narrowest page: name-only tiles stay compact.
+const GRID = "grid grid-cols-2 gap-5 @3xl:grid-cols-4";
 
-  // An auto feed that legitimately returns no partners is *done*, not still
-  // loading. `useAutoFeed` distinguishes "resolved to zero rows" from
-  // "unresolved", so an empty partners table no longer renders
-  // "Loading partners…" forever on a published page.
-  const { items: liveItems, loading } = useAutoFeed<PartnerItem>({
+function logoOf(partner: PartnerItem): { mime?: string; src: string } | null {
+  const src = partner.logo?.src || partner.logoSrc;
+  return src ? { mime: partner.logo?.mime, src } : null;
+}
+
+function PartnerCard({
+  edit,
+  partner,
+}: {
+  edit: boolean;
+  partner: PartnerItem;
+}) {
+  const logo = logoOf(partner);
+  const name = typeof partner.name === "string" ? partner.name : "";
+  return (
+    <FeedCardShell className={CARD} edit={edit} href={partner.href}>
+      {logo ? (
+        <ChevronMedia
+          alt={name}
+          className="border border-edge bg-surface-raised"
+          imageClassName="object-contain p-4"
+          mime={logo.mime}
+          ratio="16/9"
+          src={logo.src}
+          width={440}
+        />
+      ) : (
+        <span className="type-heading-card flex @md:aspect-video aspect-[3/1] items-center justify-center break-words border border-edge bg-surface-raised p-4 text-center text-ink">
+          {name}
+        </span>
+      )}
+    </FeedCardShell>
+  );
+}
+
+export function PartnersRender({ block, edit, onPatch }: Props) {
+  const { locale } = usePageFeedSource();
+  const isAuto = partnersSource(block.source) === "auto";
+  const { items: live } = useAutoFeed<PartnerItem>({
     enabled: isAuto,
     key: pageFeedKey("partners"),
     url: "/api/pages/partners",
   });
-
-  const items = isAuto ? (liveItems ?? []) : (block.items ?? []);
-
-  let emptyMessage = "No partners added yet.";
-  if (loading) {
-    emptyMessage = "Loading partners…";
-  } else if (isAuto) {
-    emptyMessage = "No partners to show yet.";
-  }
+  const resolved = isAuto ? live : block.items;
+  const items = resolved === null ? null : listOf<PartnerItem>(resolved);
 
   return (
-    <div className="pg-partners pg-block">
-      {block.heading && <h2 className="pg-partners__h">{block.heading}</h2>}
-      <div className="pg-partners__grid">
-        {items.map((p, i) => (
-          <div className="pg-partners__logo" key={i}>
-            {p.logoSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt={p.name} height={120} src={p.logoSrc} width={240} />
-            ) : (
-              <span className="pg-partners__name">{p.name}</span>
-            )}
-          </div>
-        ))}
-        {items.length === 0 && (
-          <p
-            style={{ fontSize: 13, color: "var(--ink-3)", gridColumn: "1/-1" }}
-          >
-            {emptyMessage}
-          </p>
-        )}
-      </div>
-    </div>
+    <FeedSection
+      columns={4}
+      dept=""
+      edit={edit}
+      gridClassName={GRID}
+      heading={block.heading ?? ""}
+      items={items}
+      locale={locale}
+      noun="partners to show yet"
+      onPatch={onPatch}
+      requireDept={false}
+      seeAll={false}
+      seeAllHref=""
+    >
+      {(items ?? []).map((partner, i) => (
+        <PartnerCard
+          edit={edit}
+          key={`${partner.name}-${i}`}
+          partner={partner}
+        />
+      ))}
+    </FeedSection>
   );
 }

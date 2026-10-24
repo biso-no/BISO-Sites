@@ -35,3 +35,53 @@ describe("TextRender in edit mode", () => {
     );
   });
 });
+
+const renderBlock = (body: TextBlock["body"]) =>
+  renderToStaticMarkup(
+    createElement(
+      "section",
+      { "data-surface": "deep" },
+      createElement(TextRender, {
+        block: { body, id: "t2", type: "text" },
+        edit: false,
+        onPatch: noPatch,
+      })
+    )
+  );
+
+describe("TextRender in the redesign's type", () => {
+  test("consecutive list items share one list", () => {
+    const html = renderBlock([
+      { text: "a", type: "li" },
+      { text: "b", type: "li" },
+    ]);
+    expect(html.match(/<ul/g)?.length).toBe(1);
+    expect(html.match(/<li/g)?.length).toBe(2);
+    expect(html).toContain("marker:text-ink-accent");
+  });
+
+  test("a paragraph between list items splits the list", () => {
+    const html = renderBlock([
+      { text: "a", type: "li" },
+      { text: "mid", type: "p" },
+      { text: "b", type: "li" },
+    ]);
+    expect(html.match(/<ul/g)?.length).toBe(2);
+  });
+
+  test("h renders the display role and body uses the measure", () => {
+    const html = renderBlock([{ text: "Title", type: "h" }]);
+    expect(html).toContain('<h2 class="type-display-sm');
+    expect(html).toContain("max-w-(--measure)");
+    expect(html).toContain("text-ink");
+  });
+
+  test("h3 and p use their roles", () => {
+    const html = renderBlock([
+      { text: "Sub", type: "h3" },
+      { text: "Body", type: "p" },
+    ]);
+    expect(html).toContain("type-heading-card");
+    expect(html).toContain("type-body");
+  });
+});

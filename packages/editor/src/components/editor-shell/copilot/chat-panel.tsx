@@ -7,26 +7,36 @@ import type { PageEditorToolName } from "@/ai/tools";
 import { useSelection } from "@/editor/hooks";
 import { serializePageForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
+import { targetAfterBlock } from "@/editor/tree";
+import type { BlockType } from "@/editor/types";
 
 type ToolArgs = Record<string, unknown>;
 
-function applyToolCall(toolName: string, args: ToolArgs) {
+/** Applies one Copilot tool call to the editor store. */
+export function applyToolCall(toolName: string, args: ToolArgs) {
   const store = useEditorStore.getState();
   switch (toolName as PageEditorToolName) {
-    case "insert_block":
-      store.insertBlock(args.type as never, args.afterId as string | undefined);
+    case "insert_block": {
+      const type = args.type as BlockType;
+      const target =
+        typeof args.afterId === "string"
+          ? targetAfterBlock(store.doc, args.afterId)
+          : null;
+      // Without an afterId (or one that is gone) the tool promises the end
+      // of the page, so this must not fall back to the user's pending insert
+      // target or selection the way the palette does.
+      if (target) {
+        store.insertBlock(type, target);
+      } else {
+        store.insertBlockInNewSection(type, store.doc.sections.length);
+      }
       break;
+    }
     case "remove_block":
       store.removeBlock(args.id as string);
       break;
     case "set_prop":
       store.setProp(args.id as string, args.path as string, args.value);
-      break;
-    case "set_variant":
-      store.setVariant(args.id as string, args.variant as string);
-      break;
-    case "apply_accent":
-      store.applyAccent(args.hex as string);
       break;
     case "bind_collection":
       store.bindCollection(args.id as string, args.source as string);
@@ -141,8 +151,8 @@ export function CopilotPanel() {
             </p>
             <div className="pe-copilot-panel__suggestions">
               {[
-                "Add a hero section at the top",
-                "Write a subtitle for my hero",
+                "Add an events feed to this page",
+                "Write an intro paragraph for my page",
                 "Change the accent colour to BISO blue",
                 "Bind the events block to Appwrite",
               ].map((s) => (

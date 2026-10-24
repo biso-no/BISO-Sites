@@ -31,3 +31,37 @@ export function InspRow({
     </div>
   );
 }
+
+export interface Choice<T extends string> {
+  /** Shown but not pickable, e.g. a style the current media cannot use. */
+  disabled?: boolean;
+  label: string;
+  value: T;
+}
+
+/** One-of-a-few choice, as a row of buttons with the current one on. */
+export function Segmented<T extends string>({
+  choices,
+  onPick,
+  value,
+}: {
+  choices: Choice<T>[];
+  onPick: (value: T) => void;
+  value: T;
+}) {
+  return (
+    <div className="pe-seg">
+      {choices.map((choice) => (
+        <button
+          className={choice.value === value ? "on" : ""}
+          disabled={choice.disabled}
+          key={choice.value}
+          onClick={() => onPick(choice.value)}
+          type="button"
+        >
+          {choice.label}
+        </button>
+      ))}
+    </div>
+  );
+}

@@ -16,7 +16,7 @@
  * would never see.
  */
 
-import { Query } from "@repo/api";
+import { Query, resolveStorageFileUrl } from "@repo/api";
 import type { createPublicClient } from "@repo/api/server";
 import type {
   ContentTranslations,
@@ -25,10 +25,18 @@ import type {
   Jobs,
   News,
   Partners,
+  WebshopProducts,
 } from "@repo/api/types/appwrite";
-import { JobsStatus, NewsStatus } from "@repo/api/types/appwrite";
+import {
+  JobsStatus,
+  NewsStatus,
+  WebshopProductsStatus,
+} from "@repo/api/types/appwrite";
 import { isRecruitmentVacancyOpen } from "../types/recruitment";
+import { listedProductsOnly } from "./product-visibility";
+import { isUnitCategory, parseUnitCategory } from "./unit-categories";
 import { unitDisplayName } from "./unit-names";
+import { campusIdToLabel, unitCanonicalPath } from "./unit-urls";
 import { isPublicUnit } from "./unit-visibility";
 
 /** Erased at runtime — this module never constructs a client. */
@@ -37,6 +45,33 @@ type FeedDb = Awaited<ReturnType<typeof createPublicClient>>["db"];
 export type PageFeedLocale = "en" | "no";
 
 const FEED_LIMIT = 6;
+const FEED_LIMIT_MAX = 12;
+
+/** The caller's `limit`, clamped to 1..12 and defaulting to `FEED_LIMIT`. */
+function feedLimit(limit: number | undefined): number {
+  if (typeof limit !== "number" || !Number.isFinite(limit)) {
+    return FEED_LIMIT;
+  }
+  return Math.min(FEED_LIMIT_MAX, Math.max(1, Math.floor(limit)));
+}
+
+/** ISO instant for a stored date, or undefined when absent or unparseable. */
+function toIso(value: string | null | undefined): string | undefined {
+  if (!value) {
+    return;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
+/** `${base}/${slug}`, or undefined for a row with no usable slug. */
+function detailHref(
+  base: string,
+  slug: string | null | undefined
+): string | undefined {
+  const trimmed = slug?.trim();
+  return trimmed ? `${base}/${encodeURIComponent(trimmed)}` : undefined;
+}
 /**
  * Headroom, not a page size. The `departmentGrid` block has no pagination, so
  * whatever this cuts off simply disappears from the page — and because the
@@ -108,8 +143,17 @@ export function toPlainSummary(html: string): string {
 }
 
 export interface PageEventItem {
+  category?: string;
   date: string;
   going: number;
+  /** Event detail route, as `getEventHref` builds it. Absent without a slug. */
+  href?: string;
+  id: string;
+  image?: string;
+  memberOnly?: boolean;
+  /** ISO instant of `start_date`. */
+  startsAt?: string;
+  ticketUrl?: string;
   title: string;
   where: string;
 }
@@ -127,11 +171,17 @@ export interface PageEventItem {
 export async function readPageEventsFeed(
   db: FeedDb,
   departmentId: string,
-  locale: PageFeedLocale
+  locale: PageFeedLocale,
+  limit?: number
 ): Promise<PageEventItem[]> {
   const events = await db.listRows<Events>("app", "events", [
     Query.select([
       "$id",
+      "slug",
+      "image",
+      "category",
+      "ticket_url",
+      "member_only",
       "start_date",
       "location",
       "translation_refs.locale",
@@ -141,12 +191,19 @@ export async function readPageEventsFeed(
     Query.equal("department_id", departmentId),
     Query.greaterThanEqual("start_date", new Date().toISOString()),
     Query.orderAsc("start_date"),
-    Query.limit(FEED_LIMIT),
+    Query.limit(feedLimit(limit)),
   ]);
 
   return events.rows.map((event) => ({
+    category: event.category ?? undefined,
     date: formatFeedDate(event.start_date, locale),
     going: 0,
+    href: detailHref("/events", event.slug),
+    id: event.$id,
+    image: resolveStorageFileUrl(event.image) ?? undefined,
+    memberOnly: event.member_only || undefined,
+    startsAt: toIso(event.start_date),
+    ticketUrl: event.ticket_url || undefined,
     title: pickTranslation(event.translation_refs, locale)?.title ?? "",
     where: event.location ?? "",
   }));
@@ -154,7 +211,12 @@ export async function readPageEventsFeed(
 
 export interface PageNewsItem {
   department: string;
+  /** Article route, as the coded news list builds it. Absent without a slug. */
+  href?: string;
+  id: string;
+  image?: string;
   publishedAt: string;
+  publishedAtIso?: string;
   summary: string;
   title: string;
 }
@@ -163,12 +225,15 @@ export interface PageNewsItem {
 export async function readPageNewsFeed(
   db: FeedDb,
   departmentId: string,
-  locale: PageFeedLocale
+  locale: PageFeedLocale,
+  limit?: number
 ): Promise<PageNewsItem[]> {
   const news = await db.listRows<News>("app", "news", [
     Query.select([
       "$id",
       "$createdAt",
+      "slug",
+      "image",
       "department.Name",
       "translation_refs.locale",
       "translation_refs.title",
@@ -178,14 +243,18 @@ export async function readPageNewsFeed(
     Query.equal("status", NewsStatus.PUBLISHED),
     Query.equal("department_id", departmentId),
     Query.orderDesc("$createdAt"),
-    Query.limit(FEED_LIMIT),
+    Query.limit(feedLimit(limit)),
   ]);
 
   return news.rows.map((row) => {
     const translation = pickTranslation(row.translation_refs, locale);
     return {
       department: departmentName(row.department),
+      href: detailHref("/news", row.slug),
+      id: row.$id,
+      image: resolveStorageFileUrl(row.image) ?? undefined,
       publishedAt: formatFeedDate(row.$createdAt, locale),
+      publishedAtIso: toIso(row.$createdAt),
       summary: toPlainSummary(
         translation?.short_description ?? translation?.description ?? ""
       ),
@@ -197,8 +266,41 @@ export async function readPageNewsFeed(
 export interface PageJobItem {
   commitment: string;
   deadline: string;
+  deadlineIso?: string;
   department: string;
+  employmentType?: string;
+  /** Vacancy route, as the sitemap and applications list build it. */
+  href?: string;
+  id: string;
+  paid?: boolean;
   title: string;
+}
+
+/** `paid` and `employment_type` from the `jobs.metadata` JSON blob. */
+export function jobExtras(metadata: string | null): {
+  employmentType?: string;
+  paid?: boolean;
+} {
+  if (!metadata) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(metadata) as {
+      employment_type?: unknown;
+      paid?: unknown;
+    };
+    const employmentType =
+      typeof parsed.employment_type === "string" &&
+      parsed.employment_type.trim()
+        ? parsed.employment_type
+        : undefined;
+    return {
+      employmentType,
+      paid: typeof parsed.paid === "boolean" ? parsed.paid : undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 /** `jobs.metadata` is a JSON blob; only `commitment` matters to this feed. */
@@ -238,11 +340,13 @@ export function jobCommitment(metadata: string | null): string {
 export async function readPageJobsFeed(
   db: FeedDb,
   departmentId: string,
-  locale: PageFeedLocale
+  locale: PageFeedLocale,
+  limit?: number
 ): Promise<PageJobItem[]> {
   const jobs = await db.listRows<Jobs>("app", "jobs", [
     Query.select([
       "$id",
+      "slug",
       "status",
       "metadata",
       "application_deadline",
@@ -257,7 +361,7 @@ export async function readPageJobsFeed(
       Query.greaterThanEqual("application_deadline", new Date().toISOString()),
     ]),
     Query.orderDesc("$createdAt"),
-    Query.limit(FEED_LIMIT),
+    Query.limit(feedLimit(limit)),
   ]);
 
   return jobs.rows
@@ -267,7 +371,11 @@ export async function readPageJobsFeed(
     .map((job) => ({
       commitment: jobCommitment(job.metadata),
       deadline: formatFeedDate(job.application_deadline, locale),
+      deadlineIso: toIso(job.application_deadline),
       department: departmentName(job.department),
+      href: detailHref("/jobs", job.slug),
+      id: job.$id,
+      ...jobExtras(job.metadata),
       title: pickTranslation(job.translations, locale)?.title ?? "",
     }));
 }
@@ -297,11 +405,82 @@ export async function readPagePartnersFeed(
   }));
 }
 
+export interface PageProductItem {
+  /** `/shop/<slug>`. Absent without a slug: the shop resolves by slug only. */
+  href?: string;
+  id: string;
+  image?: string;
+  /** Purchase is gated to members; the product is still listed. */
+  memberOnly: boolean;
+  memberPrice?: number;
+  price: number;
+  /** `stock === 0`; null stock means untracked, not sold out. */
+  soldOut: boolean;
+  title: string;
+}
+
+/**
+ * Published, listed products of one department, newest first. Mirrors the
+ * web's `cachedUnitProducts`: link-only (`unlisted`) products never appear.
+ */
+export async function readPageProductsFeed(
+  db: FeedDb,
+  departmentId: string,
+  locale: PageFeedLocale,
+  limit?: number
+): Promise<PageProductItem[]> {
+  const products = await db.listRows<WebshopProducts>(
+    "app",
+    "webshop_products",
+    [
+      Query.select([
+        "$id",
+        "$createdAt",
+        "slug",
+        "image",
+        "regular_price",
+        "member_price",
+        "member_only",
+        "stock",
+        "translation_refs.locale",
+        "translation_refs.title",
+      ]),
+      // The column is camelCase, unlike `department_id` on the other tables.
+      Query.equal("departmentId", departmentId),
+      Query.equal("status", WebshopProductsStatus.PUBLISHED),
+      listedProductsOnly(),
+      Query.orderDesc("$createdAt"),
+      Query.limit(feedLimit(limit)),
+    ]
+  );
+
+  return products.rows.map((product) => ({
+    href: detailHref("/shop", product.slug),
+    id: product.$id,
+    image: resolveStorageFileUrl(product.image) ?? undefined,
+    memberOnly: product.member_only === true,
+    memberPrice: product.member_price ?? undefined,
+    price: product.regular_price,
+    soldOut: product.stock === 0,
+    // Every translation is fetched and `locale` preferred: most products
+    // have no English row, and a hard filter would empty the block on /en.
+    title:
+      pickTranslation(product.translation_refs, locale)?.title ??
+      product.slug ??
+      "",
+  }));
+}
+
 export interface PageDepartmentItem {
   campusId: string | null;
+  campusLabel?: string;
+  /** `unitCanonicalPath`; absent for a department with no slug or campus. */
+  href?: string;
   id: string;
   internalId: string | null;
   logo: string | null;
+  /** `logo` expanded from a bare file id into a renderable URL. */
+  logoUrl?: string;
   name: string;
   type: string | null;
 }
@@ -329,16 +508,22 @@ export async function readPageDepartmentsFeed(
   type: string | null = null
 ): Promise<PageDepartmentsFeed> {
   const queries: string[] = [
-    Query.select(["$id", "Id", "Name", "active", "campus_id", "type", "logo"]),
+    Query.select([
+      "$id",
+      "Id",
+      "Name",
+      "active",
+      "campus_id",
+      "type",
+      "logo",
+      "slug",
+    ]),
     Query.equal("active", true),
     Query.orderAsc("Name"),
     Query.limit(DEPARTMENT_LIMIT),
   ];
   if (campusId) {
     queries.push(Query.equal("campus_id", campusId));
-  }
-  if (type) {
-    queries.push(Query.equal("type", type));
   }
 
   const departments = await db.listRows<Departments>(
@@ -353,18 +538,65 @@ export async function readPageDepartmentsFeed(
   // rendered block. `total` deliberately keeps reporting Appwrite's count for
   // the reason documented on the type; it is a query cardinality, not the size
   // of what was rendered.
-  const visible = departments.rows.filter(isPublicUnit);
+  // The category is matched through `parseUnitCategory` here, not by an
+  // equality query, so legacy values ("forening") land in their category.
+  // At most DEPARTMENT_LIMIT rows, so filtering in memory is cheap.
+  const wanted = type ? parseUnitCategory(type) : null;
+  const visible = departments.rows
+    .filter(isPublicUnit)
+    .filter(
+      (department) =>
+        !type || (wanted && parseUnitCategory(department.type) === wanted)
+    );
 
   return {
     departments: visible.map((department) => ({
       campusId: department.campus_id,
+      campusLabel: campusIdToLabel(department.campus_id) ?? undefined,
+      href:
+        unitCanonicalPath({
+          campusId: department.campus_id,
+          slug: department.slug,
+        }) ?? undefined,
       id: department.$id,
       internalId: department.Id,
       logo: department.logo,
+      logoUrl: resolveStorageFileUrl(department.logo) ?? undefined,
       // The student-facing label, not the campus-prefixed accounting name.
       name: unitDisplayName(department.Name),
       type: department.type,
     })),
     total: departments.total,
   };
+}
+
+/**
+ * The departments feed's `campus_id` and `type` query parameters, narrowed to
+ * known campuses and unit categories. They become part of a cache key, so an
+ * unknown value must collapse to "no filter" instead of minting entries.
+ */
+export function departmentsFeedFilters(params: URLSearchParams): {
+  campusId: string | null;
+  type: string | null;
+} {
+  const campus = params.get("campus_id");
+  const type = params.get("type");
+  return {
+    campusId: campusIdToLabel(campus) ? campus : null,
+    type: isUnitCategory(type) ? type : null,
+  };
+}
+
+const FEED_DEPARTMENT_ID = /^[A-Za-z0-9._-]{1,36}$/;
+
+/**
+ * The `dept` query parameter of a feed route, or null when blank or not shaped
+ * like an Appwrite id. It becomes part of a cache key, so anything else must
+ * never reach a cached reader.
+ */
+export function feedDepartmentId(
+  raw: string | null | undefined
+): string | null {
+  const value = raw?.trim();
+  return value && FEED_DEPARTMENT_ID.test(value) ? value : null;
 }

@@ -6,10 +6,11 @@ import type {
   MemberPassResponse,
 } from "@repo/shared/member-pass/types";
 import type { MemberPassCode } from "@repo/shared/utils/member-pass-slots";
-import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
 import { RefreshCw, Smartphone, Wallet, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { statusPanelSecondaryAction } from "@/components/ui/status-panel";
 import "./member-pass.css";
 import { QrCode } from "./qr-code";
 
@@ -136,7 +137,7 @@ function PassBody({
 
       <div className="flex items-center justify-between px-6 pt-5">
         <p className="truncate font-semibold text-2xl">{pass.holder.name}</p>
-        <p className="flex items-center gap-2 font-mono text-lg tabular-nums">
+        <p className="flex items-center gap-2 font-semibold text-lg tabular-nums">
           <span className="member-pass-live-dot inline-block h-2.5 w-2.5 rounded-full bg-green-400" />
           <span className="sr-only">{t("live")}</span>
           {clock}
@@ -183,57 +184,83 @@ function PassBody({
   );
 }
 
+/** Compact secondary action for the row under the pass. */
+const passActionClass = cn(statusPanelSecondaryAction, "px-4 py-2");
+
+/**
+ * The pass plus its chrome: the tap-to-present button, retry, wallet links and
+ * the full-screen view. Only the chrome follows the site's panel style — the
+ * pass itself (`PassBody`) keeps its own look, since staff read it by the
+ * colour of the day, the moving band and the live clock.
+ */
 export function MemberPassCard(props: MemberPassCardProps) {
   const t = useTranslations("memberPass");
   const [presenting, setPresenting] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
   useWakeLock(presenting);
   const { wallets } = props.pass;
 
+  // The full-screen view is a modal: focus moves into it, Escape leaves it.
+  useEffect(() => {
+    if (!presenting) {
+      return;
+    }
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPresenting(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [presenting]);
+
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <button
         aria-label={t("tapToShow")}
-        className="block w-full text-left"
+        className="block w-full rounded-3xl text-left focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-4"
         onClick={() => setPresenting(true)}
         type="button"
       >
         <PassBody {...props} />
       </button>
-      <p className="text-center text-muted-foreground text-xs">
+      <p className="type-body-sm text-center text-ink-muted">
         {t("tapToShow")}
       </p>
       {props.offline ? (
         <div className="flex justify-center">
-          <Button onClick={props.onRetry} size="sm" variant="outline">
-            <RefreshCw className="mr-2 h-4 w-4" />
+          <button
+            className={passActionClass}
+            onClick={props.onRetry}
+            type="button"
+          >
+            <RefreshCw aria-hidden="true" className="size-4 shrink-0" />
             {t("states.unavailable.action")}
-          </Button>
+          </button>
         </div>
       ) : null}
 
       {wallets.apple || wallets.google ? (
         <div className="flex flex-wrap justify-center gap-2">
           {wallets.apple ? (
-            <Button asChild size="sm" variant="outline">
-              <a href="/api/member-pass/apple">
-                <Wallet className="mr-2 h-4 w-4" />
-                {t("wallet.apple")}
-              </a>
-            </Button>
+            <a className={passActionClass} href="/api/member-pass/apple">
+              <Wallet aria-hidden="true" className="size-4 shrink-0" />
+              {t("wallet.apple")}
+            </a>
           ) : null}
           {wallets.google ? (
-            <Button asChild size="sm" variant="outline">
-              <a href="/api/member-pass/google">
-                <Smartphone className="mr-2 h-4 w-4" />
-                {t("wallet.google")}
-              </a>
-            </Button>
+            <a className={passActionClass} href="/api/member-pass/google">
+              <Smartphone aria-hidden="true" className="size-4 shrink-0" />
+              {t("wallet.google")}
+            </a>
           ) : null}
         </div>
       ) : null}
 
       {presenting ? (
         <div
+          aria-label={t("showToStaff")}
           aria-modal="true"
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black p-4"
           role="dialog"
@@ -241,13 +268,18 @@ export function MemberPassCard(props: MemberPassCardProps) {
           <div className="w-full max-w-md">
             <PassBody {...props} />
           </div>
-          <p className="max-w-md text-center text-sm text-white/70">
+          <p className="type-body-sm max-w-md text-center text-white/70">
             {t("showToStaff")}
           </p>
-          <Button onClick={() => setPresenting(false)} variant="secondary">
-            <X className="mr-2 h-4 w-4" />
+          <button
+            className="type-label inline-flex items-center gap-2 rounded-biso-pill bg-white px-5 py-3 text-deep transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-white focus-visible:outline-offset-2"
+            onClick={() => setPresenting(false)}
+            ref={closeRef}
+            type="button"
+          >
+            <X aria-hidden="true" className="size-4 shrink-0" />
             {t("close")}
-          </Button>
+          </button>
         </div>
       ) : null}
     </div>

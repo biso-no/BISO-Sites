@@ -75,8 +75,8 @@ test("classifies case-insensitive extensions and MIME tokens", () => {
   expect(classifyInlineMedia("PHOTO.JPEG", "IMAGE/JPEG")).toBe("image");
 });
 
-test("keeps the Appwrite bucket ceiling", () => {
-  expect(INLINE_MEDIA_MAX_BYTES).toBe(10 * 1024 * 1024);
+test("allows inline media uploads up to 250 MB", () => {
+  expect(INLINE_MEDIA_MAX_BYTES).toBe(250 * 1024 * 1024);
 });
 
 test("sanitizes untrusted filenames for Appwrite", () => {

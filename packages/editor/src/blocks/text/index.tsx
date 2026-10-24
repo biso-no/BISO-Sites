@@ -21,6 +21,7 @@ registerBlock({
   label: "Rich text",
   description: "Headings, paragraphs, bullets",
   category: "Tell a story",
+  group: "text",
   aiHint: "A rich-text block with headings and paragraphs.",
   aiProps: ["body"],
   empty: () => emptyBlock("text") as never,

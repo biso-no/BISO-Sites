@@ -79,6 +79,15 @@ const EVENT_SELECT = [
   "is_collection",
   "collection_pricing",
   "department_id",
+  // Real columns the feed needs and the current views never read: `category`
+  // is the typed enum the filter chips run on, and `member_price` is what the
+  // card prices from, with `pricing_mode` above. Adding to a `Query.select` is
+  // additive — the shared readers (home, campus, students, nav) get more fields
+  // and behave exactly as before — but never name a column twice: Appwrite
+  // rejects the whole read ("Duplicate attributes selected"). Both sides of the
+  // main merge added `pricing_mode` here and took down every event listing.
+  "category",
+  "member_price",
   "campus.$id",
   "campus.name",
   "department.$id",

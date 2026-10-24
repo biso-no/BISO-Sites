@@ -1,8 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
+import { buttonClass } from "@/blocks/_v2/button-link";
+import { listOf } from "@/blocks/_v2/list";
+import {
+  type AnswerValue,
+  FIELD_CLASS,
+  formCopy,
+  looksLikeEmail,
+  postSubmission,
+} from "@/blocks/_v2/submit-form";
 import type { PatchFn } from "@/blocks/types";
-import type { FormField, MultiStepFormBlock } from "@/editor/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import { usePageFeedSource } from "@/editor/page-feed-context";
+import { MAX_VALUE_LENGTH } from "@/editor/submit-rules";
+import type {
+  FormField,
+  FormFieldOption,
+  FormStep,
+  MultiStepFormBlock,
+} from "@/editor/types";
 
 interface Props {
   block: MultiStepFormBlock;
@@ -10,86 +27,91 @@ interface Props {
   onPatch: PatchFn;
 }
 
-function getStepDotClass(index: number, step: number): string {
-  if (index === step) {
-    return "pg-msform__step-dot pg-msform__step-dot--active";
-  }
-  if (index < step) {
-    return "pg-msform__step-dot pg-msform__step-dot--done";
-  }
-  return "pg-msform__step-dot";
-}
+type Status = "idle" | "pending" | "done" | "error" | "preview";
+type Answers = Record<string, AnswerValue>;
+type Copy = ReturnType<typeof formCopy>;
 
-function getActiveStepDotClass(index: number, step: number): string {
-  if (index === step) {
-    return "pg-msform__step-dot pg-msform__step-dot--active";
-  }
-  return "pg-msform__step-dot";
-}
+const text = (v: unknown): string => (typeof v === "string" ? v : "");
 
-function getSubmitLabel(
-  submitting: boolean,
-  step: number,
-  stepsLength: number
-): string {
-  if (submitting) {
-    return "Sending…";
-  }
-  if (step < stepsLength - 1) {
-    return "Next";
-  }
-  return "Submit";
-}
+const CHOICE_CLASS = "type-body flex items-center gap-3 text-ink";
+const BOX_CLASS =
+  "size-5 shrink-0 accent-[var(--color-action)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
 
-function renderEditField(field: FormField, index: number) {
-  const id = `msf-edit-${index}-${field.name}`;
-
-  if (field.fieldType === "textarea") {
-    return (
-      <textarea
-        className="pg-msform__input"
-        id={id}
-        placeholder={field.placeholder}
-        readOnly
-        rows={4}
-      />
-    );
-  }
-
-  if (field.fieldType === "select") {
-    return (
-      <select className="pg-msform__input" id={id}>
-        {(field.options ?? []).map((option, optionIndex) => (
-          <option key={optionIndex} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    );
-  }
-
-  return (
-    <input
-      className="pg-msform__input"
-      id={id}
-      placeholder={field.placeholder}
-      readOnly
-      type={field.fieldType}
-    />
+const fieldsOf = (step: FormStep | undefined): FormField[] =>
+  listOf<FormField>(step?.fields).filter(
+    (f) => text(f.name) && f.fieldType !== "hidden"
   );
+
+const optionsOf = (field: FormField): FormFieldOption[] =>
+  listOf<FormFieldOption>(field.options);
+
+function isEmpty(value: AnswerValue | undefined): boolean {
+  if (typeof value === "boolean") {
+    return !value;
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  return !value?.trim();
 }
 
-function renderField(field: FormField) {
+/** The names of the step's fields that are required and unanswered, or bad. */
+function problemsIn(step: FormStep | undefined, answers: Answers): string[] {
+  return fieldsOf(step)
+    .filter((field) => {
+      const value = answers[field.name];
+      if (field.required && isEmpty(value)) {
+        return true;
+      }
+      return (
+        field.fieldType === "email" &&
+        typeof value === "string" &&
+        value.trim() !== "" &&
+        !looksLikeEmail(value)
+      );
+    })
+    .map((field) => field.name);
+}
+
+interface FieldInputProps {
+  answers: Answers;
+  baseId: string;
+  copy: Copy;
+  edit: boolean;
+  field: FormField;
+  invalid: boolean;
+  set: (name: string, value: AnswerValue) => void;
+}
+
+function FieldInput({
+  answers,
+  baseId,
+  copy,
+  edit,
+  field,
+  invalid,
+  set,
+}: FieldInputProps) {
+  const id = `${baseId}-${field.name}`;
+  const value = answers[field.name];
+  const common = {
+    "aria-describedby": invalid ? `${id}-err` : undefined,
+    "aria-invalid": invalid || undefined,
+    id,
+    maxLength: MAX_VALUE_LENGTH,
+    name: field.name,
+    readOnly: edit,
+  };
+
   if (field.fieldType === "textarea") {
     return (
       <textarea
-        aria-label={field.label}
-        className="pg-msform__input"
-        id={`msf-${field.name}`}
-        name={field.name}
-        placeholder={field.placeholder}
-        required={field.required}
+        {...common}
+        className={FIELD_CLASS}
+        onChange={(e) => set(field.name, e.target.value)}
+        placeholder={text(field.placeholder)}
         rows={4}
+        value={typeof value === "string" ? value : ""}
       />
     );
   }
@@ -97,228 +119,318 @@ function renderField(field: FormField) {
   if (field.fieldType === "select") {
     return (
       <select
-        aria-label={field.label}
-        className="pg-msform__input"
-        id={`msf-${field.name}`}
+        aria-describedby={common["aria-describedby"]}
+        aria-invalid={common["aria-invalid"]}
+        className={FIELD_CLASS}
+        id={id}
         name={field.name}
-        required={field.required}
+        onChange={(e) => set(field.name, e.target.value)}
+        value={typeof value === "string" ? value : ""}
       >
-        <option value="">Choose…</option>
-        {(field.options ?? []).map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
+        <option value="">{copy.choose}</option>
+        {optionsOf(field).map((option, i) => (
+          <option key={i} value={text(option.value)}>
+            {text(option.label)}
           </option>
         ))}
       </select>
     );
   }
 
+  if (field.fieldType === "radio") {
+    return (
+      <div className="flex flex-col gap-2">
+        {optionsOf(field).map((option, i) => (
+          <label className={CHOICE_CLASS} key={i}>
+            <input
+              aria-describedby={common["aria-describedby"]}
+              aria-invalid={common["aria-invalid"]}
+              checked={value === text(option.value)}
+              className={BOX_CLASS}
+              name={field.name}
+              onChange={() => set(field.name, text(option.value))}
+              type="radio"
+              value={text(option.value)}
+            />
+            {text(option.label)}
+          </label>
+        ))}
+      </div>
+    );
+  }
+
+  if (field.fieldType === "checkbox") {
+    const options = optionsOf(field);
+    // Without options it is one yes/no box; with options, a group of choices.
+    if (options.length === 0) {
+      return (
+        <input
+          aria-describedby={common["aria-describedby"]}
+          aria-invalid={common["aria-invalid"]}
+          checked={value === true}
+          className={BOX_CLASS}
+          id={id}
+          name={field.name}
+          onChange={(e) => set(field.name, e.target.checked)}
+          type="checkbox"
+        />
+      );
+    }
+    const chosen = Array.isArray(value) ? value : [];
+    return (
+      <div className="flex flex-col gap-2">
+        {options.map((option, i) => {
+          const optionValue = text(option.value);
+          return (
+            <label className={CHOICE_CLASS} key={i}>
+              <input
+                aria-describedby={common["aria-describedby"]}
+                aria-invalid={common["aria-invalid"]}
+                checked={chosen.includes(optionValue)}
+                className={BOX_CLASS}
+                name={field.name}
+                onChange={(e) =>
+                  set(
+                    field.name,
+                    e.target.checked
+                      ? [...chosen, optionValue]
+                      : chosen.filter((item) => item !== optionValue)
+                  )
+                }
+                type="checkbox"
+                value={optionValue}
+              />
+              {text(option.label)}
+            </label>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <input
-      aria-label={field.label}
-      className="pg-msform__input"
-      id={`msf-${field.name}`}
-      name={field.name}
-      placeholder={field.placeholder}
-      required={field.required}
-      type={field.fieldType}
+      {...common}
+      className={FIELD_CLASS}
+      onChange={(e) => set(field.name, e.target.value)}
+      placeholder={text(field.placeholder)}
+      type={field.fieldType === "email" ? "email" : "text"}
+      value={typeof value === "string" ? value : ""}
     />
   );
 }
 
-export function MultiStepFormRender({ block, edit }: Props) {
+export function MultiStepFormRender({ block, edit, onPatch }: Props) {
+  const { locale, slug } = usePageFeedSource();
+  const copy = formCopy(locale);
+  const steps = listOf<FormStep>(block.steps);
   const [step, setStep] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [problems, setProblems] = useState<string[]>([]);
+  const [status, setStatus] = useState<Status>("idle");
+  const baseId = text(block.id) || "form";
+  const at = Math.min(step, Math.max(steps.length - 1, 0));
+  const current = steps[at];
+  const last = at >= steps.length - 1;
+  const heading = text(block.heading);
 
-  const steps = block.steps ?? [];
-  const current = steps[step];
-  const mode = block.submitMode ?? "database";
+  const set = (name: string, value: AnswerValue) => {
+    setAnswers((previous) => ({ ...previous, [name]: value }));
+    setProblems((previous) => previous.filter((item) => item !== name));
+  };
 
-  if (edit) {
+  const go = (to: number) => {
+    setProblems([]);
+    setStep(to);
+  };
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (status === "pending") {
+      return;
+    }
+    if (!edit) {
+      const found = problemsIn(current, answers);
+      if (found.length > 0) {
+        setProblems(found);
+        return;
+      }
+    }
+    if (!last) {
+      go(at + 1);
+      return;
+    }
+    if (edit) {
+      return;
+    }
+    // No page slug (the admin preview, the gallery): there is no form to post to.
+    if (!slug) {
+      setStatus("preview");
+      return;
+    }
+    setStatus("pending");
+    const names = new Set(steps.flatMap((s) => fieldsOf(s).map((f) => f.name)));
+    const data: Answers = {};
+    for (const [name, value] of Object.entries(answers)) {
+      if (names.has(name)) {
+        data[name] = value;
+      }
+    }
+    const ok = await postSubmission({
+      blockId: text(block.id),
+      data,
+      locale,
+      slug,
+    });
+    setStatus(ok ? "done" : "error");
+  }
+
+  const title =
+    edit || heading.trim() ? (
+      <EditableText
+        className="type-heading-section m-0 min-w-0 hyphens-auto break-words text-ink"
+        edit={edit}
+        onChange={(v) => onPatch("heading", v)}
+        tag="h2"
+        value={heading}
+      />
+    ) : null;
+
+  if (status === "done") {
     return (
-      <div className="pg-msform pg-block">
-        {block.heading && (
-          <h2 className="pg-msform__heading">{block.heading}</h2>
-        )}
-        <div className="pg-msform__stepper">
-          {steps.map((_s, i) => (
-            <button
-              className={getActiveStepDotClass(i, step)}
-              key={i}
-              onClick={() => setStep(i)}
-              style={{ cursor: "pointer" }}
-              type="button"
-            >
-              {i + 1}
-            </button>
-          ))}
-        </div>
-        {current && (
-          <div className="pg-msform__panel">
-            <div className="pg-msform__step-title">{current.title}</div>
-            {current.fields.map((f, i) => (
-              <div className="pg-msform__field" key={i}>
-                <label
-                  className="pg-msform__label"
-                  htmlFor={`msf-edit-${i}-${f.name}`}
-                >
-                  {f.label}
-                  {f.required && <span aria-hidden="true"> *</span>}
-                </label>
-                {renderEditField(f, i)}
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="pg-msform__nav">
-          {step > 0 && (
-            <button
-              className="pg-msform__btn pg-msform__btn--back"
-              onClick={() => setStep(step - 1)}
-              type="button"
-            >
-              Back
-            </button>
-          )}
-          {step < steps.length - 1 ? (
-            <button
-              className="pg-msform__btn pg-msform__btn--next"
-              onClick={() => setStep(step + 1)}
-              type="button"
-            >
-              Next
-            </button>
-          ) : (
-            <button
-              className="pg-msform__btn pg-msform__btn--submit"
-              type="button"
-            >
-              Submit
-            </button>
-          )}
-        </div>
-        <p style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 10 }}>
-          {mode === "email"
-            ? `Submissions will be emailed to ${block.recipientEmail || "(no recipient set)"}`
-            : `Submissions stored in DB · topic: "${block.submitTarget?.topic ?? "(no topic set)"}"`}
+      <div className="flex flex-col gap-4 break-words">
+        {title}
+        <p className="type-body m-0 text-ink" role="status">
+          {copy.formDone}
         </p>
       </div>
     );
   }
 
-  if (submitted) {
-    return (
-      <div className="pg-msform pg-block">
-        <div className="pg-msform__success">
-          <span aria-label="Success" role="img">
-            ✓
-          </span>
-          <p>Your message has been sent. We'll be in touch soon.</p>
-        </div>
-      </div>
+  if (!current) {
+    return edit ? title : null;
+  }
+
+  let submitLabel: string = copy.next;
+  if (last) {
+    submitLabel = status === "pending" ? copy.sending : copy.submit;
+  }
+
+  const updateStepTitle = (value: string) =>
+    onPatch(
+      "steps",
+      steps.map((s, i) => (i === at ? { ...s, title: value } : s))
     );
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-
-    // Collect all form data gathered so far (across steps we accumulate in state)
-    const data: Record<string, string> = {};
-    for (const field of current?.fields ?? []) {
-      const el = form.elements.namedItem(field.name);
-      if (
-        el instanceof HTMLInputElement ||
-        el instanceof HTMLTextAreaElement ||
-        el instanceof HTMLSelectElement
-      ) {
-        data[field.name] = el.value;
-      }
-    }
-
-    if (step < steps.length - 1) {
-      setStep(step + 1);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/form/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode,
-          topic: block.submitTarget?.topic ?? block.heading ?? "form",
-          formHeading: block.adminLabel ?? block.heading,
-          data,
-          accessTeamId: block.accessTeamId,
-          recipientEmail: block.recipientEmail,
-          source: "multiStepForm",
-        }),
-      });
-      if (res.ok) {
-        setSubmitted(true);
-      }
-    } catch {
-      // silent — user sees the form remain, can retry
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   return (
-    <div className="pg-msform pg-block">
-      {block.heading && <h2 className="pg-msform__heading">{block.heading}</h2>}
-      {steps.length > 1 && (
-        <div className="pg-msform__stepper">
-          {steps.map((_s, i) => (
-            <div
-              aria-hidden="true"
-              className={getStepDotClass(i, step)}
-              key={i}
-            >
-              {i < step ? "✓" : i + 1}
-            </div>
-          ))}
+    <div className="flex max-w-2xl flex-col gap-6 break-words">
+      {title}
+      <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit}>
+        <div className="flex flex-col gap-1">
+          {steps.length > 1 ? (
+            <p className="type-label m-0 text-ink-muted">
+              {copy.step(at + 1, steps.length)}
+            </p>
+          ) : null}
+          {edit || text(current.title).trim() ? (
+            <EditableText
+              className="type-heading-card m-0 min-w-0 break-words text-ink"
+              edit={edit}
+              onChange={updateStepTitle}
+              tag="h3"
+              value={text(current.title)}
+            />
+          ) : null}
         </div>
-      )}
-      {current && (
-        <form onSubmit={handleSubmit}>
-          <div className="pg-msform__panel">
-            <div className="pg-msform__step-title">{current.title}</div>
-            {current.fields.map((f) => (
-              <div className="pg-msform__field" key={f.name}>
-                {f.fieldType !== "hidden" && (
-                  <label className="pg-msform__label" htmlFor={`msf-${f.name}`}>
-                    {f.label}
-                    {f.required && <span aria-hidden="true"> *</span>}
+        {fieldsOf(current).map((field) => {
+          const id = `${baseId}-${field.name}`;
+          const invalid = problems.includes(field.name);
+          const grouped =
+            field.fieldType === "radio" ||
+            (field.fieldType === "checkbox" && optionsOf(field).length > 0);
+          const label = (
+            <>
+              {text(field.label)}
+              {field.required ? <span aria-hidden="true"> *</span> : null}
+            </>
+          );
+          return (
+            <div className="flex flex-col gap-2" key={field.name}>
+              {grouped ? (
+                <fieldset
+                  aria-describedby={invalid ? `${id}-err` : undefined}
+                  className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0"
+                >
+                  <legend className="type-label p-0 text-ink">{label}</legend>
+                  <FieldInput
+                    answers={answers}
+                    baseId={baseId}
+                    copy={copy}
+                    edit={edit}
+                    field={field}
+                    invalid={invalid}
+                    set={set}
+                  />
+                </fieldset>
+              ) : (
+                <>
+                  <label className="type-label text-ink" htmlFor={id}>
+                    {label}
                   </label>
-                )}
-                {renderField(f)}
-              </div>
-            ))}
-          </div>
-          <div className="pg-msform__nav">
-            {step > 0 && (
-              <button
-                className="pg-msform__btn pg-msform__btn--back"
-                onClick={() => setStep(step - 1)}
-                type="button"
-              >
-                Back
-              </button>
-            )}
+                  <FieldInput
+                    answers={answers}
+                    baseId={baseId}
+                    copy={copy}
+                    edit={edit}
+                    field={field}
+                    invalid={invalid}
+                    set={set}
+                  />
+                </>
+              )}
+              {invalid ? (
+                <p
+                  className="type-body-sm m-0 text-danger"
+                  id={`${id}-err`}
+                  role="alert"
+                >
+                  {field.fieldType === "email" && !isEmpty(answers[field.name])
+                    ? copy.emailInvalid
+                    : copy.required}
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
+        {status === "preview" ? (
+          <p className="type-body-sm m-0 text-ink-muted" role="status">
+            {copy.preview}
+          </p>
+        ) : null}
+        {status === "error" ? (
+          <p className="type-body-sm m-0 text-danger" role="alert">
+            {copy.failed}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-3">
+          {at > 0 ? (
             <button
-              className="pg-msform__btn pg-msform__btn--next"
-              disabled={submitting}
-              type="submit"
+              className={buttonClass("secondary")}
+              onClick={() => go(at - 1)}
+              type="button"
             >
-              {getSubmitLabel(submitting, step, steps.length)}
+              {copy.back}
             </button>
-          </div>
-        </form>
-      )}
+          ) : null}
+          <button
+            className={`${buttonClass("primary")} disabled:opacity-60`}
+            disabled={status === "pending"}
+            type="submit"
+          >
+            {submitLabel}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -4,10 +4,17 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { WebshopProducts } from "@repo/api/types/appwrite";
 
-export async function getProduct(
-  id: string,
-  locale: "en" | "no"
-): Promise<WebshopProducts | null> {
+/**
+ * One published product with every translation, for the checkout preview.
+ *
+ * No locale filter: the shop lists, and the product page renders, every
+ * published product whatever its languages, and 52 of the 55 have no English
+ * row. Filtering here refused each of those at checkout for an English reader
+ * ("Product … is not available anymore") after it had been added to the cart.
+ * `loadProduct` in `orders.ts` picks the reader's translation and falls back
+ * to the one that exists — the same rule the storefront uses.
+ */
+export async function getProduct(id: string): Promise<WebshopProducts | null> {
   try {
     const { db } = await createSessionClient();
 
@@ -23,7 +30,6 @@ export async function getProduct(
         // unpublished product again on the trusted path; this keeps the site
         // from quoting one in the first place.
         Query.equal("status", "published"),
-        Query.equal("translation_refs.locale", locale),
         Query.select([
           "$id",
           "$createdAt",

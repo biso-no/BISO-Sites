@@ -102,8 +102,10 @@ interface PageMeta {
   slug: string;
   description?: string;
   department: string;
-  accentColor: string;
   status: "draft" | "published";
+  // Colour theme: absent follows the department, null resets to BISO,
+  // an object is { dark, accent } (checked for contrast on load).
+  theme?: { dark: string; accent: string } | null;
 }
 ```
 
@@ -276,7 +278,7 @@ decides what "save" means (the admin app upserts
   with sortable. Clicking a block sets `selection`; the inspector
   switches to that block's `Inspector` component.
 - **Inspector.** Three tabs — "Props" (the block's `Inspector`),
-  "Design" (variants + accent color), "Visibility" (visibility
+  "Design" (variants), "Visibility" (visibility
   rules).
 
 ### Auto-save

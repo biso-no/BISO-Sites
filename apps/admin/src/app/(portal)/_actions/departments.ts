@@ -8,8 +8,17 @@ import type {
   Departments,
   Pages,
 } from "@repo/api/types/appwrite";
+import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { unitPageTemplate } from "@repo/editor/templates";
-import { isProjectUnit } from "@repo/shared/utils/project-units";
+import {
+  HUB_PROJECTS,
+  isHubProject,
+  isProjectPageSlug,
+  isProjectSlug,
+  isProjectUnit,
+  projectPageSlug,
+  projectSlugForUnit,
+} from "@repo/shared/utils/project-units";
 import {
   assertStorableUnitCategory,
   isUnitCategory,
@@ -30,7 +39,10 @@ import {
 } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
 import { buildContentTranslationPermissions } from "@/lib/utils";
+import { hasRowAccess } from "@/lib/utils/authorization";
 import { logAuditEvent } from "./audit-log";
+
+const NATIONAL_CAMPUS_ID = "5";
 
 interface DepartmentScope {
   campusId?: string;
@@ -245,7 +257,14 @@ export async function listDepartments(
  * `(limit: number)` shape (see `listRecentActivity` in `activity.ts`) for
  * anything with more than one.
  */
-export async function listAllDepartments(): Promise<Departments[]> {
+export async function listAllDepartments(opts?: {
+  /**
+   * A department to keep in the list even when the user cannot edit it, so a
+   * page already bound to one shows its current value. Selecting it is still
+   * enforced by the server on save.
+   */
+  keepId?: string;
+}): Promise<Departments[]> {
   const ctx = await requireAuth();
   const { db } = await createSessionClient();
 
@@ -256,7 +275,24 @@ export async function listAllDepartments(): Promise<Departments[]> {
     ...(scope ?? []),
   ]);
 
-  return response.rows;
+  // The scope above is a read filter. The dropdown must offer exactly what
+  // savePageEditorDoc accepts, so apply its write predicate (hasRowAccess
+  // mirrors assertWriteAccess, which assertContentOwnership enforces).
+  const rows = response.rows.filter((department) =>
+    hasRowAccess(ctx, department.campus_id ?? null, department.$id)
+  );
+
+  const keepId = opts?.keepId;
+  if (keepId && !rows.some((department) => department.$id === keepId)) {
+    try {
+      const kept = await db.getRow<Departments>("app", "departments", keepId);
+      rows.push(kept);
+    } catch {
+      // A deleted department simply has nothing to show.
+    }
+  }
+
+  return rows;
 }
 
 /**
@@ -345,8 +381,6 @@ async function _getDepartment(id: string) {
   ]);
   return response.rows[0] ?? null;
 }
-
-const DEFAULT_ACCENT = "#3DA9E0";
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
@@ -606,10 +640,7 @@ export async function getDepartmentWithPage(id: string): Promise<{
   const { db: adminDb } = await createAdminClient();
   const translations = await loadDepartmentTranslations(adminDb, id);
 
-  const slug = unitPageSlug({
-    campusId: department.campus_id,
-    slug: department.slug,
-  });
+  const slug = unitPageAddress(department);
   if (!slug) {
     return { department, page: null, slugConflict: false, translations };
   }
@@ -618,12 +649,13 @@ export async function getDepartmentWithPage(id: string): Promise<{
   // session-scoped read would not see a department's own draft.
   //
   // Select only what UnitPageCard reads — page_translations rows carry
-  // puck_document/draft_document (string(50000) each), so `translation_refs.*`
-  // would ship up to ~200KB of draft JSON into the RSC payload for a card that
-  // never renders it. The two named relationship columns are what the card's
-  // per-locale row needs: publishing is per-locale, and pages.status flips to
-  // "published" as soon as ANY locale is, so the page-level flag alone would
-  // tell a board that published only Norwegian that both locales are live.
+  // published_doc/draft_doc (mediumtext each, up to ~4.2M characters), so
+  // `translation_refs.*` would ship whole page documents into the RSC payload
+  // for a card that never renders them. The two named relationship columns
+  // are what the card's per-locale row needs: publishing is per-locale, and
+  // pages.status flips to "published" as soon as ANY locale is, so the
+  // page-level flag alone would tell a board that published only Norwegian
+  // that both locales are live.
   const pages = await adminDb.listRows<Pages>("app", "pages", [
     Query.equal("slug", slug),
     Query.select([
@@ -654,6 +686,42 @@ export async function getDepartmentWithPage(id: string): Promise<{
     slugConflict: false,
     translations,
   };
+}
+
+/**
+ * The page address of a unit. The national unit of a flagship project (campus
+ * "5", e.g. Winter Games) is the project: its page lives at
+ * `projects/<project>`, which the public `/projects/<slug>` route serves and
+ * the unit URL redirects to. A campus unit of the same project keeps its own
+ * `units/<campus>/<slug>` page; the multi-campus hub is a separate,
+ * department-less page.
+ */
+function unitPageAddress(department: {
+  campus_id: string;
+  slug?: string | null;
+}): string | null {
+  const project =
+    department.campus_id === NATIONAL_CAMPUS_ID
+      ? projectSlugForUnit(department.slug)
+      : null;
+  // A hub project's page is the department-less hub, never a unit's.
+  if (project && !isHubProject(project)) {
+    return projectPageSlug(project);
+  }
+  return unitPageSlug({
+    campusId: department.campus_id,
+    slug: department.slug,
+  });
+}
+
+function addressTakenError(
+  row: { department_id?: string | null },
+  slug: string
+): string {
+  if (!row.department_id && isProjectPageSlug(slug)) {
+    return "A project hub page already uses this address";
+  }
+  return "Another department already owns a page at this address. Contact BISO IT to sort it out.";
 }
 
 export async function createUnitPage(
@@ -692,10 +760,7 @@ export async function createUnitPage(
       };
     }
 
-    const slug = unitPageSlug({
-      campusId: department.campus_id,
-      slug: department.slug,
-    });
+    const slug = unitPageAddress(department);
     if (!slug) {
       return {
         error:
@@ -720,37 +785,37 @@ export async function createUnitPage(
       // returning it would drop this board straight into another
       // department's editor.
       if (already.department_id !== department.$id) {
-        return {
-          error:
-            "Another department already owns a page at this address. Contact BISO IT to sort it out.",
-        };
+        return { error: addressTakenError(already, slug) };
       }
       return { pageId: already.$id };
     }
 
-    // A new page starts from a layout, not a blank canvas: a project board
-    // sees where its programme, gallery and company pitch go, an ordinary
-    // unit gets the shorter version. Every block is editable or removable.
+    // A new page starts from a layout, not a blank canvas: a page header
+    // with the unit's name and campus, then sections where a project board
+    // sees its programme, gallery and company pitch go (an ordinary unit
+    // gets the shorter version). Everything is editable or removable.
     // The project check is by category OR slug because only some campuses
     // set `departments.type` (see @repo/shared/utils/project-units).
     const category = parseUnitCategory(department.type);
+    const { header, sections } = unitPageTemplate({
+      campusLabel: campusIdToLabel(department.campus_id),
+      kind: isProjectUnit({ category, slug: department.slug ?? null })
+        ? "project"
+        : "unit",
+      locale: "no",
+      name: unitDisplayName(department.Name),
+    });
     const doc: PageDoc = {
-      blocks: unitPageTemplate({
-        campusLabel: campusIdToLabel(department.campus_id),
-        kind: isProjectUnit({ category, slug: department.slug ?? null })
-          ? "project"
-          : "unit",
-        locale: "no",
-        name: unitDisplayName(department.Name),
-      }),
+      header,
+      sections,
       meta: {
-        accentColor: DEFAULT_ACCENT,
         department: department.$id,
         description: "",
         slug,
         status: "draft",
         title: department.Name,
       },
+      version: 2,
     };
 
     // Left to itself, savePageDraft attributes the page to the AUTHOR's
@@ -774,7 +839,9 @@ export async function createUnitPage(
     try {
       ({ pageId } = await savePageDraft({
         id: null,
-        doc,
+        // The template writes the department's name into a text block,
+        // whose body is rendered as HTML.
+        doc: sanitizePageDocHtml(doc),
         locale: "no",
         ctx,
         campusId: department.campus_id,
@@ -802,10 +869,7 @@ export async function createUnitPage(
         throw writeError;
       }
       if (raceWinner.department_id !== department.$id) {
-        return {
-          error:
-            "Another department already owns a page at this address. Contact BISO IT to sort it out.",
-        };
+        return { error: addressTakenError(raceWinner, slug) };
       }
       pageId = raceWinner.$id;
     }
@@ -819,6 +883,115 @@ export async function createUnitPage(
     return { pageId };
   } catch (e) {
     console.error("[createUnitPage]", e);
+    return { error: e instanceof Error ? e.message : "Could not create page" };
+  }
+}
+
+/**
+ * Create the hub page of a multi-campus project (`projects/<project>`, no
+ * department). Global admin only: a hub belongs to no unit, so there is nobody
+ * else it could be scoped to, and `savePageEditorDoc` keeps saves global-admin
+ * only too.
+ *
+ * Idempotent like `createUnitPage`, and for the same reason (a second create
+ * must not mint an unreachable `-2` slug). A page at the slug that DOES carry a
+ * department is a national project unit's page, not a hub, so it is reported
+ * rather than returned.
+ */
+export async function createProjectHubPage(
+  project: string
+): Promise<{ pageId: string } | { error: string }> {
+  const ctx = await requireAuth();
+  try {
+    if (!ctx.roles.includes("globaladmin")) {
+      return { error: "Only a global admin can create a project hub page" };
+    }
+    if (!(isProjectSlug(project) && isHubProject(project))) {
+      return {
+        error:
+          "Only a multi-campus project has a hub page. A national project's page is created from its unit under Departments.",
+      };
+    }
+    const slug = projectPageSlug(project);
+    const { db } = await createAdminClient();
+
+    const findAtSlug = async () => {
+      const found = await db.listRows<Pages>("app", "pages", [
+        Query.equal("slug", slug),
+        Query.select(["$id", "department_id"]),
+        Query.limit(1),
+      ]);
+      return found.rows[0];
+    };
+    const existingOutcome = (
+      row: Pages
+    ): { pageId: string } | { error: string } =>
+      row.department_id
+        ? {
+            error:
+              "This address already holds the national unit's page, not a hub page. Edit it from the unit under Departments.",
+          }
+        : { pageId: row.$id };
+
+    const already = await findAtSlug();
+    if (already) {
+      return existingOutcome(already);
+    }
+
+    const name =
+      HUB_PROJECTS.find((entry) => entry.slug === project)?.name ?? project;
+    const { header, sections } = unitPageTemplate({
+      campusLabel: null,
+      kind: "project",
+      locale: "no",
+      name,
+    });
+    const doc: PageDoc = {
+      header,
+      sections,
+      meta: {
+        department: "",
+        description: "",
+        slug,
+        status: "draft",
+        title: name,
+      },
+      version: 2,
+    };
+
+    let pageId: string;
+    try {
+      // campusId null: a hub is national, not the author's campus. "fail" so a
+      // race hits the unique slug index instead of minting "<slug>-2".
+      ({ pageId } = await savePageDraft({
+        id: null,
+        doc: sanitizePageDocHtml(doc),
+        locale: "no",
+        ctx,
+        campusId: null,
+        slugConflict: "fail",
+      }));
+    } catch (writeError) {
+      if (
+        !(writeError instanceof AppwriteException && writeError.code === 409)
+      ) {
+        throw writeError;
+      }
+      const winner = await findAtSlug();
+      if (!winner) {
+        throw writeError;
+      }
+      return existingOutcome(winner);
+    }
+
+    await logAuditEvent(ctx, "unit_page_created", {
+      resourceId: pageId,
+      resourceType: "page",
+    });
+    revalidatePath("/pages");
+    return { pageId };
+  } catch (e) {
+    console.error("[createProjectHubPage]", e);
     return { error: e instanceof Error ? e.message : "Could not create page" };
   }
 }

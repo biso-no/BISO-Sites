@@ -2,7 +2,6 @@
 
 import { trackEvent } from "@repo/shared/utils/analytics";
 import { Avatar, AvatarFallback } from "@repo/ui/components/ui/avatar";
-import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
+import { cn } from "@repo/ui/lib/utils";
 import { ChevronDown, LogIn, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -44,18 +44,19 @@ export function AccountMenu({ account, className }: AccountMenuProps) {
   const [isSigningOut, startSignOut] = useTransition();
 
   if (!account) {
+    // The header's secondary action: an outlined pill beside the one primary
+    // CTA. It sits on the header's navy surface, so the aliases are on-navy.
     return (
-      <Button
-        asChild
-        className={`shrink-0 border-brand bg-transparent text-white hover:bg-brand hover:text-white ${className ?? ""}`}
-        size="sm"
-        variant="outline"
+      <Link
+        className={cn(
+          "type-body-sm inline-flex shrink-0 items-center gap-1.5 rounded-biso-pill border border-edge px-3 py-1.5 font-semibold text-ink transition-colors hover:border-ink-accent hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+          className
+        )}
+        href="/auth/login"
       >
-        <Link href="/auth/login">
-          <LogIn aria-hidden className="mr-1.5 h-4 w-4" />
-          {t("account.signIn")}
-        </Link>
-      </Button>
+        <LogIn aria-hidden className="size-4" />
+        {t("account.signIn")}
+      </Link>
     );
   }
 
@@ -72,34 +73,37 @@ export function AccountMenu({ account, className }: AccountMenuProps) {
       <DropdownMenuTrigger asChild>
         <button
           aria-label={t("account.menuLabel")}
-          className={`flex shrink-0 items-center gap-1 rounded-full p-0.5 text-white transition-colors hover:text-brand ${className ?? ""}`}
+          className={cn(
+            "flex shrink-0 items-center gap-1 rounded-biso-pill p-0.5 text-ink transition-colors hover:text-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+            className
+          )}
           type="button"
         >
-          <Avatar className="h-8 w-8 border border-brand/60">
-            <AvatarFallback className="bg-brand font-semibold text-white text-xs">
+          <Avatar className="h-8 w-8 border border-edge">
+            <AvatarFallback className="type-data bg-action text-action-ink text-xs">
               {account.initials}
             </AvatarFallback>
           </Avatar>
-          <ChevronDown aria-hidden className="h-4 w-4" />
+          <ChevronDown aria-hidden className="size-4" />
         </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="font-normal">
-          <p className="truncate font-semibold text-sm">{account.name}</p>
+          <p className="type-body-sm truncate font-semibold text-ink">
+            {account.name}
+          </p>
           {account.email && (
-            <p className="truncate text-muted-foreground text-xs">
-              {account.email}
-            </p>
+            <p className="truncate text-ink-muted text-xs">{account.email}</p>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
         {links.map((link) => (
           <DropdownMenuItem asChild key={link.id}>
-            <Link href={link.href}>
+            <Link className="cursor-pointer gap-2" href={link.href}>
               {link.icon && (
-                <link.icon aria-hidden className="mr-2 h-4 w-4 opacity-80" />
+                <link.icon aria-hidden className="size-4 text-ink-muted" />
               )}
               {t(link.labelKey)}
             </Link>
@@ -108,6 +112,7 @@ export function AccountMenu({ account, className }: AccountMenuProps) {
 
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          className="cursor-pointer gap-2"
           disabled={isSigningOut}
           onSelect={(event) => {
             // Keep the item mounted while the action runs; the server action
@@ -118,7 +123,7 @@ export function AccountMenu({ account, className }: AccountMenuProps) {
             });
           }}
         >
-          <LogOut aria-hidden className="mr-2 h-4 w-4 opacity-80" />
+          <LogOut aria-hidden className="size-4 text-ink-muted" />
           {t("account.signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>

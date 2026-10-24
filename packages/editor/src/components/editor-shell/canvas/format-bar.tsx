@@ -95,7 +95,7 @@ export function FormatBar() {
         gap: 2,
         padding: "0 6px",
         height: 32,
-        background: "var(--ink)",
+        background: "var(--pg-ink)",
         color: "var(--paper)",
         borderRadius: 999,
         fontSize: 13,

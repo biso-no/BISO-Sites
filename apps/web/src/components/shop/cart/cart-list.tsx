@@ -1,8 +1,6 @@
 "use client";
 
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
 import { Clock } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/contexts/cart-context";
@@ -62,37 +60,32 @@ export function CartList({ isMember }: { isMember: boolean }) {
   };
 
   return (
-    <div className="space-y-4 lg:col-span-2">
-      {/* Countdown Timer */}
-      {timeRemaining && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <Clock className="h-4 w-4 text-primary" />
-          <AlertDescription className="flex items-center gap-2 text-blue-800">
-            <span className="font-medium">{t("cart.list.reservedFor")}</span>
-            <span className="font-bold font-mono">{timeRemaining}</span>
-          </AlertDescription>
-        </Alert>
-      )}
+    <div className="min-w-0 space-y-4">
+      {/* How long the stock is held for. Not a live region: it ticks every
+          second, and a screen reader announcing each tick drowns the page. */}
+      {timeRemaining ? (
+        <p className="type-body-sm flex flex-wrap items-center gap-2 rounded-biso-md border border-edge bg-surface-sunken p-4 text-ink">
+          <Clock
+            aria-hidden="true"
+            className="size-4 shrink-0 text-ink-accent"
+          />
+          <span className="font-semibold">{t("cart.list.reservedFor")}</span>
+          <span className="type-data">{timeRemaining}</span>
+        </p>
+      ) : null}
 
-      <AnimatePresence mode="popLayout">
+      <ul className="space-y-4">
         {items.map((item) => (
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, x: -100 }}
-            initial={{ opacity: 0, y: 20 }}
-            key={item.id}
-            layout
-            transition={{ duration: 0.2 }}
-          >
+          <li key={item.id}>
             <CartItem
               isMember={isMember}
               item={item}
               onRemove={removeItem}
               onUpdateQuantity={handleQuantityChange}
             />
-          </motion.div>
+          </li>
         ))}
-      </AnimatePresence>
+      </ul>
     </div>
   );
 }

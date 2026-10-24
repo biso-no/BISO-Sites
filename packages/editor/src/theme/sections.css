@@ -1,0 +1,350 @@
+/*
+ * Sections: rows of columns. Everything responds to the page container
+ * (`pg-page`, declared below), so the admin's device preview and the
+ * public site break at the same widths. Each column is itself the `pg`
+ * container the blocks' own rules answer to.
+ *
+ * Surfaces are the redesign's v2 aliases (`packages/ui/styles/biso-surface.css`):
+ * the site mounts `.biso-surface-v2` on <html>, the canvas on its frame. Dark
+ * and Photo sections carry `data-surface="deep"`, which flips `--surface`,
+ * `--ink`, `--edge` and the rest to their on-navy values, so nothing inside a
+ * section branches on its background.
+ */
+/*
+ * Container context for the public render root (`pg-page`) and the editor's
+ * canvas frame. Sections size themselves against this frame, not the
+ * viewport, so the admin's device preview (`.pe-frame.mob` is a 390px frame
+ * inside a wide window) hits exactly the breakpoints the public site will.
+ * Plain `@media` queries would never fire there.
+ */
+.pg-page,
+.pe-frame {
+  container: pg-page / inline-size;
+}
+/* The site's own face and ink; the canvas frame sets its own in editor.css. */
+.pg-page {
+  font-family: var(--font-sans, var(--font-biso-sans));
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.pg-sec {
+  --pg-sec-pad-y: clamp(3rem, 6cqi, 5rem);
+  position: relative;
+  padding: var(--pg-sec-pad-y) clamp(1rem, 4cqi, 2rem);
+  color: var(--ink);
+  background: var(--surface);
+}
+.pg-sec[data-spacing="tight"] {
+  --pg-sec-pad-y: 2rem;
+}
+.pg-sec[data-spacing="roomy"] {
+  --pg-sec-pad-y: clamp(4rem, 9cqi, 8rem);
+}
+/* Dark and Photo need no rule of their own: `data-surface="deep"` makes
+   `--surface` navy. */
+.pg-sec:where([data-background="tinted"]) {
+  /* The page's hairline (--edge, #e8ecf0) is ~1.05:1 on the tinted fill
+     (#eef1f5), so dividers and borders vanish there. A step toward the ink
+     instead: #cad1d8, 1.36:1, in the light theme; toward paper, still a
+     line, in the dark one. Computed from the tokens, so it follows both. */
+  --edge: color-mix(in srgb, var(--surface-sunken), var(--ink) 15%);
+  background: var(--surface-sunken);
+}
+
+/* Photo: a full-bleed image under a flat navy scrim, both behind the grid. */
+.pg-sec__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pg-sec__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--biso-deep) 62%, transparent);
+}
+
+/* Two white sections in a row would run together; a hairline divides them.
+   On the site sections are siblings. On the canvas each sits in a
+   `.pe-section` wrapper, and in edit mode "+ Add section" sits between.
+   Two rules, so a browser without `:has()` still draws the site's. */
+.pg-sec:where([data-background="white"])
++ .pg-sec:where([data-background="white"]) {
+  border-top: 1px solid var(--edge);
+}
+.pe-section:has(> .pg-sec[data-background="white"])
+  + .pe-section
+  > .pg-sec:where([data-background="white"]),
+.pe-section:has(> .pg-sec[data-background="white"])
+  + :not(.pe-section)
+  + .pe-section
+  > .pg-sec:where([data-background="white"]) {
+  border-top: 1px solid var(--edge);
+}
+
+/*
+ * The page top. The site's nav is fixed and 5rem tall; the canvas shows no
+ * nav. Whatever comes first clears it: the first section here (until a page
+ * header takes over), with a navy strip of the nav's height behind it when
+ * the section is not navy itself, so the nav's white controls keep their
+ * surface (as the site's `Section` does with `backdropNeeded`).
+ */
+.pg-page {
+  --pg-nav-offset: 5rem;
+}
+.pe-frame {
+  --pg-nav-offset: 0px;
+}
+.pg-sec:where([data-first]) {
+  padding-top: calc(var(--pg-nav-offset, 0px) + var(--pg-sec-pad-y));
+}
+.pg-sec:where([data-first]):where(:not([data-surface="deep"]))::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--pg-nav-offset, 0px);
+  content: "";
+  background: var(--biso-deep);
+}
+/* A link to #name lands below the nav, not under it. */
+.pg-sec[id] {
+  scroll-margin-top: var(--pg-nav-offset, 0px);
+}
+
+/*
+ * The page header (`PageHeaderView`): a navy band that clears the nav itself,
+ * so a page with one passes no section `data-first`. Its rhythm and gutter
+ * are the sections', so its text lines up with theirs. Container units, not
+ * the site's vw-based `--section-y`: on the site the page spans the viewport,
+ * so the two agree, and the canvas's phone and tablet frames get the
+ * spacing the site will have at that width.
+ */
+.pg-header {
+  --pg-header-pad-y: clamp(3rem, 6cqi, 5rem);
+  position: relative;
+  padding: calc(var(--pg-nav-offset, 0px) + var(--pg-header-pad-y))
+    clamp(1rem, 4cqi, 2rem) var(--pg-header-pad-y);
+  overflow: hidden;
+}
+/* Full: a tall band with the text at its foot, when there is media behind
+   it. Without media it is as tall as its text, like Plain. */
+.pg-header[data-variant="full"][data-media] {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: clamp(22rem, 48cqi, 36rem);
+}
+/* Full: the media covers the band under the sections' flat navy scrim. */
+.pg-header__media,
+.pg-header__scrim {
+  position: absolute;
+  inset: 0;
+}
+.pg-header__media > img,
+.pg-header__media > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pg-header__scrim {
+  background: color-mix(in srgb, var(--biso-deep) 62%, transparent);
+}
+/* While editing, an empty header field shows what goes there. */
+.pe-frame[data-editing] .pg-header [data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.45;
+}
+
+.pg-sec__grid {
+  /* Positioned, so it paints above a Photo section's image and scrim. */
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.5rem, 3cqi, 3rem);
+  align-items: start;
+  max-width: 1200px;
+  margin-inline: auto;
+}
+.pg-sec:where([data-align="middle"]) > .pg-sec__grid {
+  align-items: center;
+}
+.pg-sec:where([data-align="bottom"]) > .pg-sec__grid {
+  align-items: end;
+}
+.pg-sec:where([data-columns="1-1"]) > .pg-sec__grid {
+  grid-template-columns: 1fr 1fr;
+}
+.pg-sec:where([data-columns="2-1"]) > .pg-sec__grid {
+  grid-template-columns: 2fr 1fr;
+}
+.pg-sec:where([data-columns="1-2"]) > .pg-sec__grid {
+  grid-template-columns: 1fr 2fr;
+}
+.pg-sec:where([data-columns="1-1-1"]) > .pg-sec__grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+.pg-sec:where([data-columns="1-1-1-1"]) > .pg-sec__grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.pg-col {
+  --pg-stack: 1.5rem;
+  min-width: 0;
+  container: pg / inline-size;
+}
+
+/* Blocks in a column stack with the site's heading-to-content gap
+   (`SectionHeading`'s mb-6). v2 blocks render bare (`[data-block]`), so the
+   column spaces them; a legacy block's frame brings its own padding. A v2
+   block that renders nothing on the site takes no room. In the canvas the
+   between-block zipper and drop line move up into the middle of the gap. */
+.pg-col__item:has([data-block]) + .pg-col__item:has([data-block]) {
+  margin-top: var(--pg-stack);
+}
+.pg-col__item:has(> [data-block]:empty) {
+  display: none;
+}
+/* A section whose every item renders nothing leaves only its padding. The
+   server drops empty feed blocks up front (`pruneEmptyFeedBlocks`); this
+   covers feeds the client resolves after hydration. An item is empty when its
+   `[data-block]` wrapper has no children (BlockView wraps every block, so plain
+   `:empty` on the item never matches). `:has()` cannot nest, so the rule asks
+   for a non-empty item instead. Site only: the canvas keeps
+   showing empty sections so they can be edited. */
+.pg-page .pg-sec:not(:has(.pg-col__item > [data-block]:not(:empty))) {
+  display: none;
+}
+.pg-col__item:has([data-block])
+  + .pg-col__item:has([data-block])
+  > :is(.pe-zipper, .pe-drop-slot) {
+  top: calc(var(--pg-stack) / -2);
+}
+
+@container pg-page (max-width: 1023px) {
+  .pg-sec:where([data-tablet="stack"]) > .pg-sec__grid {
+    grid-template-columns: 1fr;
+  }
+  .pg-sec:where([data-columns="1-1-1-1"]):where([data-tablet="row"])
+    > .pg-sec__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container pg-page (max-width: 639px) {
+  .pg-sec > .pg-sec__grid {
+    grid-template-columns: 1fr;
+  }
+  .pg-sec:where([data-phone-reverse]) > .pg-sec__grid {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .pg-sec[data-hide-phone],
+  .pg-col__item[data-hide-phone] {
+    display: none;
+  }
+  /* Items hidden only here count as empty only here: a section whose other
+     items are empty must not leave a band on phones. */
+  .pg-page
+  .pg-sec:not(
+    :has(.pg-col__item:not([data-hide-phone]) > [data-block]:not(:empty))
+  ) {
+    display: none;
+  }
+  /* The first section is hidden here, so the first one still shown clears
+     the nav instead (on the canvas the offset is 0px, so nothing changes). */
+  .pg-sec:where([data-first][data-hide-phone])
+  ~ .pg-sec:where(:not([data-hide-phone])):not(
+    .pg-sec:not([data-hide-phone]) ~ *
+  ) {
+    padding-top: calc(var(--pg-nav-offset, 0px) + var(--pg-sec-pad-y));
+  }
+  .pg-sec:where([data-first][data-hide-phone])
+    ~ .pg-sec:where(:not([data-hide-phone])):where(
+      :not([data-surface="deep"])
+    ):not(.pg-sec:not([data-hide-phone]) ~ *)::before {
+    position: absolute;
+    inset: 0 0 auto;
+    height: var(--pg-nav-offset, 0px);
+    content: "";
+    background: var(--biso-deep);
+  }
+  .pe-frame[data-editing] .pg-sec[data-hide-phone],
+  .pe-frame[data-editing] .pg-col__item[data-hide-phone] {
+    display: block;
+    opacity: 0.45;
+  }
+  /* Dimmed once: a hidden block inside a hidden section does not dim again. */
+  .pe-frame[data-editing] .pg-sec[data-hide-phone]
+    .pg-col__item[data-hide-phone] {
+    opacity: 1;
+  }
+}
+
+/* Looping muted video: the poster stands in under reduced motion. */
+.pg-reduced-motion-poster {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-reduced-motion-poster {
+    display: block;
+  }
+  .pg-reduced-motion-video {
+    display: none;
+  }
+}
+
+/* A chevron frame sized by its parent (a collage tile spanning grid rows).
+   The wrapper is a size container and sets --cut-len from its real height
+   (100cqh), so the cut is exactly 13 degrees whatever the grid makes the box.
+   Without --cut-len (narrow layouts) the normal ratio-derived cut applies. */
+.pg-chevron-fill {
+  clip-path: polygon(
+    var(--cut-len, var(--cut)) 0,
+    100% 0,
+    calc(100% - var(--cut-len, var(--cut))) 100%,
+    0 100%
+  );
+}
+.pg-chevron-fill[data-lean="right"] {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut-len, var(--cut))) 0,
+    100% 100%,
+    var(--cut-len, var(--cut)) 100%
+  );
+}
+
+/* Marquee: the strip scrolls on the site only. Each track is one half of the
+   loop, so shifting the run by -50% lands exactly where it started. */
+.pg-marquee--live .pg-marquee__run {
+  animation: pg-marquee-scroll 40s linear infinite;
+}
+@keyframes pg-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-marquee--live .pg-marquee__run {
+    flex-wrap: wrap;
+    width: 100%;
+    animation: none;
+  }
+  .pg-marquee--live .pg-marquee__track[aria-hidden="true"] {
+    display: none;
+  }
+  .pg-marquee--live .pg-marquee__track {
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+}

@@ -1,5 +1,6 @@
 import { createPublicClient } from "@repo/api/server";
 import type { PageFeedLocale } from "@repo/shared/utils/page-feeds";
+import { feedDepartmentId } from "@repo/shared/utils/page-feeds";
 import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
 
@@ -9,8 +10,8 @@ import { requireApiAuth } from "@/lib/api-auth";
  * `@repo/editor`'s events/news/jobs/partners/departmentGrid blocks fetch
  * `/api/pages/*` with a RELATIVE url. Only `apps/web` ever implemented those
  * routes, so in the canvas on :3001 all five hit a 404, `r.json()` threw, and
- * every block silently fell back to its placeholder items — the editor preview
- * has never shown live feed data. These routes close that gap; the alternative,
+ * every block silently came up empty — the editor preview has never shown live
+ * feed data. These routes close that gap; the alternative,
  * pointing the blocks at an absolute web URL, would make the CMS depend on the
  * public site being reachable and need CORS on top.
  *
@@ -35,8 +36,8 @@ export async function requireFeedAuth(): Promise<NextResponse | null> {
 }
 
 /**
- * Blocks call `r.json()` and swallow failures into placeholder items, so an
- * error status would put demo content in the canvas with no visible reason.
+ * Blocks call `r.json()` and swallow failures into an empty feed, so an
+ * error status would leave the canvas blank with no visible reason.
  * Answer 200 with an empty payload instead, and keep it uncacheable.
  */
 export function feedResponse(payload: unknown) {
@@ -45,10 +46,12 @@ export function feedResponse(payload: unknown) {
   });
 }
 
-/** Department id the feed is scoped to; blank means "nothing to show". */
+/**
+ * Department id the feed is scoped to; blank or malformed means "nothing to
+ * show". Validated here because it becomes part of a cache key.
+ */
 export function requireDepartment(params: URLSearchParams): string | null {
-  const dept = params.get("dept")?.trim();
-  return dept ? dept : null;
+  return feedDepartmentId(params.get("dept"));
 }
 
 export function feedLocale(params: URLSearchParams): PageFeedLocale {

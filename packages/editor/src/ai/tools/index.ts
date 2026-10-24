@@ -1,35 +1,35 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { paletteGroups } from "@/blocks/index";
+import type { PaletteGroupData } from "@/blocks/registry";
 import type { BlockType } from "@/editor/types";
-import { BRAND_ACCENT_VALUES } from "@/theme/presets";
 
-const BLOCK_TYPES = [
-  "hero",
-  "marquee",
-  "text",
-  "quote",
-  "callout",
-  "twoCol",
-  "team",
-  "stats",
-  "timeline",
-  "image",
-  "gallery",
-  "video",
-  "events",
-  "jobs",
-  "news",
-  "cta",
-  "faq",
-  "contact",
-  "signup",
-] as const satisfies readonly BlockType[];
+/**
+ * The block types a set of palette groups offers, as the non-empty tuple
+ * `z.enum` needs. Throws when there are none: that means the registrations
+ * never ran here (for instance a `blocks/<name>/index.tsx` marked
+ * "use client", which a server route imports only as a client reference),
+ * and an empty enum would silently stop the AI from inserting any block.
+ */
+export function blockTypesOf(
+  groups: PaletteGroupData[]
+): [BlockType, ...BlockType[]] {
+  const [first, ...rest] = groups.flatMap((group) =>
+    group.items.map((item) => item.type)
+  );
+  if (first === undefined) {
+    throw new Error(
+      'No block types are registered: import @/blocks/index before the AI tools, and keep every blocks/<name>/index.tsx free of "use client".'
+    );
+  }
+  return [first, ...rest];
+}
 
-/** Input schema for `apply_accent` — exported so the brand-swatch guard can be
- *  asserted directly (a tool's `inputSchema` is widened to `FlexibleSchema`). */
-export const applyAccentInputSchema = z.object({
-  hex: z.enum(BRAND_ACCENT_VALUES).describe("Approved brand accent colour"),
-});
+/**
+ * Every block type the palette offers, derived from the registry so the AI can
+ * never insert a hidden (cut) block or miss a new one.
+ */
+export const BLOCK_TYPES = blockTypesOf(paletteGroups());
 
 /** Server-side tool definitions for the AI route handler.
  *  Each tool's execute() is advisory — the actual mutations happen on the client
@@ -81,32 +81,6 @@ export const pageEditorTools = {
     }),
   }),
 
-  set_variant: tool({
-    description:
-      "Change the layout variant of a block (e.g. split/centered/full for a hero block).",
-    inputSchema: z.object({
-      id: z.string().describe("Block ID"),
-      variant: z
-        .string()
-        .describe("Variant name, e.g. 'split', 'centered', 'full'"),
-    }),
-    execute: ({ id, variant }) => ({
-      status: "applied",
-      message: `Set variant of ${id} to ${variant}`,
-    }),
-  }),
-
-  apply_accent: tool({
-    description:
-      "Change the page accent colour (used for headings, highlights, and the block selection outline). " +
-      "Use one of the brand hues: blue=#3DA9E0, navy=#001731, sky=#7CC7EC, gold=#F7D64A, slate=#33566F.",
-    inputSchema: applyAccentInputSchema,
-    execute: ({ hex }) => ({
-      status: "applied",
-      message: `Set accent to ${hex}`,
-    }),
-  }),
-
   bind_collection: tool({
     description:
       "Bind a data block (events, jobs, news) to an Appwrite collection. " +
@@ -130,7 +104,7 @@ export const pageEditorTools = {
     inputSchema: z.object({
       context: z
         .string()
-        .describe("What the copy is for (e.g. 'hero title for ESN Oslo')"),
+        .describe("What the copy is for (e.g. 'intro paragraph for ESN Oslo')"),
       tone: z
         .enum(["formal", "friendly", "direct"])
         .optional()

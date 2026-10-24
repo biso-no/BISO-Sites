@@ -23,7 +23,10 @@ export async function uploadGalleryFiles(
     fd.append("file", file);
     try {
       const { fileId, url } = await uploadFile(fd);
-      added.push({ fileId, src: url });
+      // The type tells an SVG or GIF, which must skip the raster preview.
+      added.push(
+        file.type ? { fileId, mime: file.type, src: url } : { fileId, src: url }
+      );
     } catch (error) {
       return {
         added,

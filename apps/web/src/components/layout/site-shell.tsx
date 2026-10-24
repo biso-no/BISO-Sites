@@ -1,20 +1,26 @@
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
 import { cookies } from "next/headers";
+import { getActiveCampus } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
-import { Footer } from "@/components/layout/footer";
+import { FooterV2 } from "@/components/layout/footer-v2";
 import { PublicProviders } from "@/components/layout/public-providers";
-import { Navigation } from "@/components/nav/mega-nav";
+import { MAIN_CONTENT_ID, SkipLink } from "@/components/layout/skip-link";
+import { NavigationV2 } from "@/components/nav/mega-nav-v2";
 import { OnboardingPopout } from "@/components/onboarding/onboarding-popout";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { getLoggedInUser } from "@/lib/actions/user";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
 import { sessionNavFeatured } from "@/lib/data/nav-featured";
-import { cachedNavFeatured } from "@/lib/data/public-content";
+import {
+  cachedNavFeatured,
+  cachedShellCampuses,
+} from "@/lib/data/public-content";
 import { cachedPublicUnits } from "@/lib/data/units";
 import { campusProjectNavLinks } from "@/lib/project-unit-links";
 import type { NavAccount } from "@/lib/types/nav";
 
 const EMPTY_FEATURED = { event: null, news: null, project: null };
+
 const MAX_INITIALS = 2;
 const WHITESPACE = /\s+/;
 
@@ -40,11 +46,23 @@ function initialsFor(name: string): string {
  * `(protected)/layout.tsx` and runs before this component.
  */
 export async function SiteShell({ children }: { children: React.ReactNode }) {
-  const [membershipStatus, userData, locale, cookieStore] = await Promise.all([
+  const [
+    membershipStatus,
+    userData,
+    locale,
+    cookieStore,
+    campuses,
+    activeCampusId,
+  ] = await Promise.all([
     getMembershipStatus(),
     getLoggedInUser(),
     getLocale(),
     cookies(),
+    // Resolved here so the switcher renders its label on the first paint and
+    // agrees with the content beneath it. `getCampuses()` defaulted to
+    // including National, so this matches the previous list exactly.
+    cachedShellCampuses(),
+    getActiveCampus(),
   ]);
   // Anonymous visitors (all bot/monitor traffic) share one cached result;
   // session holders get a per-request read so member-only rows still surface
@@ -94,25 +112,31 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PublicProviders
+      campuses={campuses}
+      initialCampusId={activeCampusId}
       initialMembershipStatus={membershipStatus}
       memberIdentity={memberIdentity}
     >
+      {/* Landmark order: banner -> main -> contentinfo. Previously <nav> and
+          <footer> were descendants of the root layout's <main>, so a screen
+          reader announced the header and footer as page content. */}
+      <SkipLink />
       {/*
-        Passed explicitly so the membership CTA is right in the server-rendered
-        HTML: the provider below carries the same status, but reading it through
-        context would render "Become a member" to an existing member for the
-        first paint and then retract it.
+        `isMember` is passed explicitly so the membership CTA is right in the
+        server-rendered HTML: the provider above carries the same status, but
+        reading it through context would render "Become a member" to an
+        existing member for the first paint and then retract it.
       */}
-      <Navigation
+      <NavigationV2
         account={account}
         featured={featured}
         isMember={membershipStatus?.isMember ?? false}
         projectLinks={campusProjectNavLinks(units)}
       />
-      <main>
-        <div>{children}</div>
+      <main id={MAIN_CONTENT_ID} tabIndex={-1}>
+        {children}
       </main>
-      <Footer />
+      <FooterV2 />
       <OnboardingPopout needsOnboarding={needsOnboarding} />
     </PublicProviders>
   );

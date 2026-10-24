@@ -15,8 +15,8 @@ describe("uploadGalleryFiles", () => {
 
     expect(result).toEqual({
       added: [
-        { fileId: "a.png", src: "https://cdn/a.png" },
-        { fileId: "b.png", src: "https://cdn/b.png" },
+        { fileId: "a.png", mime: "image/png", src: "https://cdn/a.png" },
+        { fileId: "b.png", mime: "image/png", src: "https://cdn/b.png" },
       ],
       error: null,
     });
@@ -38,8 +38,15 @@ describe("uploadGalleryFiles", () => {
     );
 
     expect(result.added).toEqual([
-      { fileId: "a.png", src: "https://cdn/a.png" },
+      { fileId: "a.png", mime: "image/png", src: "https://cdn/a.png" },
     ]);
     expect(result.error).toBe("Unsupported file type");
+  });
+
+  test("a file the browser gives no type gets no mime", async () => {
+    const result = await uploadGalleryFiles([new File(["x"], "a")], () =>
+      Promise.resolve({ fileId: "a", url: "https://cdn/a" })
+    );
+    expect(result.added).toEqual([{ fileId: "a", src: "https://cdn/a" }]);
   });
 });

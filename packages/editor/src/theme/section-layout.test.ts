@@ -1,18 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { SPACING, WIDTH } from "@/blocks/_primitives/block-section";
 
 const BLOCKS_DIR = join(import.meta.dir, "..", "blocks");
-const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
-const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const ROOT_CLASS =
   /className=(?:"pg-([a-z-]+)[^"]*\bpg-block\b|\{`pg-([a-z-]+)[^`]*\bpg-block\b)/g;
-const PADDING_DECLARATION = /(?:^|;)\s*padding(?:-[a-z]+)?\s*:[^;]*/g;
-const MAX_WIDTH_DECLARATION = /\bmax-width\s*:/;
-const BACKGROUND_DECLARATION = /\bbackground\s*:/;
-const ROOT_SELECTOR = /^\.pg-([a-z-]+?)(?:--[a-z-]+)?$/;
-const TABLET_QUERY = "@container pg (max-width: 900px) {";
+const TS_SOURCE = /\.tsx?$/;
+const TEST_SOURCE = /\.test\.tsx?$/;
+const LEGACY_FRAME = /\bpg-section\b|\bpg-block\b/;
 const INLINE_COLOUR = /\bcolor:\s*"(#[0-9a-fA-F]{3,8}|rgba?\([^"]*\))"/g;
 
 /**
@@ -25,21 +20,25 @@ const SELF_CONTAINED_INLINE_COLOURS = new Set([
   "gallery/render.tsx #b42318",
 ]);
 
-const blocksCss = readFileSync(
-  join(import.meta.dir, "blocks.css"),
-  "utf8"
-).replace(CSS_COMMENT, "");
-
-const renderFiles = (directory: string): string[] =>
-  readdirSync(directory).flatMap((entry) => {
+const sourceFiles = (directory: string, wanted: (name: string) => boolean) =>
+  readdirSync(directory).flatMap((entry): string[] => {
     const fullPath = join(directory, entry);
     if (statSync(fullPath).isDirectory()) {
-      return renderFiles(fullPath);
+      return sourceFiles(fullPath, wanted);
     }
-    return entry === "render.tsx" ? [fullPath] : [];
+    return wanted(entry) ? [fullPath] : [];
   });
 
-/** `hero`, `text`, … — the class each blocks.css block puts on its root. */
+const renderFiles = (directory: string): string[] =>
+  sourceFiles(directory, (name) => name === "render.tsx");
+
+const nonTestSources = (directory: string): string[] =>
+  sourceFiles(
+    directory,
+    (name) => TS_SOURCE.test(name) && !TEST_SOURCE.test(name)
+  );
+
+/** `hero`, `text`, … — the class a block would put on a legacy-framed root. */
 const rootClasses = new Set(
   renderFiles(BLOCKS_DIR).flatMap((file) =>
     [...readFileSync(file, "utf8").matchAll(ROOT_CLASS)].map(
@@ -48,117 +47,20 @@ const rootClasses = new Set(
   )
 );
 
-/** The body of the at-rule or rule that starts at `opening`, braces matched. */
-const blockBody = (css: string, opening: string): string => {
-  const start = css.indexOf(opening);
-  if (start === -1) {
-    return "";
-  }
-  let depth = 0;
-  for (let index = start; index < css.length; index++) {
-    if (css[index] === "{") {
-      depth++;
-    } else if (css[index] === "}") {
-      depth--;
-      if (depth === 0) {
-        return css.slice(css.indexOf("{", start) + 1, index);
-      }
-    }
-  }
-  return "";
-};
-
-/** True when a selector targets a block root itself, e.g. `.pg-hero--full`. */
-const targetsRoot = (selector: string) =>
-  selector
-    .split(",")
-    .map((part) => part.trim())
-    .some((part) => {
-      const match = ROOT_SELECTOR.exec(part);
-      return match !== null && rootClasses.has(match[1]);
-    });
-
-describe("Design panel rules for blocks styled by blocks.css", () => {
-  test("the root scan finds the blocks it guards", () => {
-    expect(rootClasses.has("hero")).toBe(true);
-    expect(rootClasses.has("text")).toBe(true);
-    expect(rootClasses.size).toBeGreaterThan(25);
+describe("no legacy block styling is left", () => {
+  test("no legacy roots exist: no block puts a pg-<name> pg-block class on its root", () => {
+    expect([...rootClasses]).toEqual([]);
   });
 
-  test("every spacing option sets a scale", () => {
-    for (const spacing of Object.keys(SPACING)) {
-      expect(blocksCss).toContain(`.pg-section[data-spacing="${spacing}"]`);
-    }
+  test("blocks.css does not exist", () => {
+    expect(existsSync(join(import.meta.dir, "blocks.css"))).toBe(false);
   });
 
-  test("every width option sets a measure", () => {
-    for (const width of Object.keys(WIDTH)) {
-      expect(blocksCss).toContain(`.pg-section[data-width="${width}"]`);
-    }
-  });
-
-  test("every block root scales its vertical padding by the spacing option", () => {
-    const unscaled: string[] = [];
-    for (const [, selector, body] of blocksCss.matchAll(CSS_RULE)) {
-      if (!targetsRoot(selector.trim())) {
-        continue;
-      }
-      for (const [declaration] of body.matchAll(PADDING_DECLARATION)) {
-        if (!declaration.includes("var(--pg-space")) {
-          unscaled.push(`${selector.trim()} → ${declaration.trim()}`);
-        }
-      }
-    }
-    expect(unscaled).toEqual([]);
-  });
-
-  test("no block root caps its own width, which would hide the width option", () => {
-    const capped: string[] = [];
-    for (const [, selector, body] of blocksCss.matchAll(CSS_RULE)) {
-      if (targetsRoot(selector.trim()) && MAX_WIDTH_DECLARATION.test(body)) {
-        capped.push(selector.trim());
-      }
-    }
-    expect(capped).toEqual([]);
-  });
-
-  test("no block root paints a background over the section's surface", () => {
-    const painted: string[] = [];
-    for (const [, selector, body] of blocksCss.matchAll(CSS_RULE)) {
-      if (targetsRoot(selector.trim()) && BACKGROUND_DECLARATION.test(body)) {
-        painted.push(selector.trim());
-      }
-    }
-    expect(painted).toEqual([]);
-  });
-
-  test("block roots take the column as their own inline padding", () => {
-    // A capped wrapper would box in the panels and rules of every block on a
-    // page wider than the column; the padding keeps them running edge to edge.
-    for (const [, selector, body] of blocksCss.matchAll(CSS_RULE)) {
-      if (selector.trim() === ".pg-section__inner") {
-        expect(body).not.toMatch(MAX_WIDTH_DECLARATION);
-      }
-    }
-    const column = [...blocksCss.matchAll(CSS_RULE)].find(
-      ([, selector]) => selector.trim() === ".pg-section__inner > .pg-block"
+  test("no block or editor source names the legacy frame", () => {
+    const offenders = nonTestSources(join(import.meta.dir, "..")).filter(
+      (file) => LEGACY_FRAME.test(readFileSync(file, "utf8"))
     );
-    expect(column?.[2]).toContain("padding-inline:");
-    expect(column?.[2]).toContain("var(--pg-column)");
-  });
-
-  test("a Narrow column repeats every tablet rule", () => {
-    const tablet = blockBody(blocksCss, TABLET_QUERY);
-    expect(tablet).not.toBe("");
-    const selectors = [...tablet.matchAll(CSS_RULE)].flatMap(([, selector]) =>
-      selector.split(",").map((part) => part.trim())
-    );
-    expect(selectors.length).toBeGreaterThan(0);
-    for (const selector of selectors) {
-      expect(blocksCss).toContain(
-        `.pg-section[data-width="prose"] ${selector}`
-      );
-    }
+    expect(offenders).toEqual([]);
   });
 });
 

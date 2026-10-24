@@ -23,7 +23,7 @@
 .pe-topbar__logo {
   font-family: var(--serif);
   font-size: 18px;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-topbar__sep {
   color: var(--ink-4);
@@ -61,8 +61,14 @@
     color 0.15s;
 }
 .pe-topbar__exit:hover {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--rule);
+}
+.pe-topbar__exit:disabled {
+  color: var(--ink-2);
+  cursor: default;
+  background: none;
+  opacity: 0.5;
 }
 
 /* === Shell ================================================================ */
@@ -97,7 +103,7 @@
   font-family: var(--serif);
   font-size: 18px;
   line-height: 1;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-palette-hd__sub {
   margin-top: 2px;
@@ -121,7 +127,7 @@
   flex: 1;
   min-width: 0;
   font: inherit;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: transparent;
   border: 0;
@@ -181,7 +187,7 @@
 .pe-palette-item__name {
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-palette-item__desc {
   margin-top: 1px;
@@ -222,7 +228,7 @@
   width: 100%;
   padding: 8px 10px;
   font-size: 12px;
-  color: var(--ink);
+  color: var(--pg-ink);
   appearance: none;
   cursor: pointer;
   background: linear-gradient(
@@ -302,7 +308,7 @@
 }
 .pe-mode-seg button.on {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pe-url {
   display: flex;
@@ -354,7 +360,7 @@
   border-radius: 5px;
 }
 .pe-vp-seg button.on {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
 }
 .pe-locale-seg {
@@ -382,7 +388,7 @@
   border-radius: 5px;
 }
 .pe-locale-seg button.on {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: white;
 }
 .pe-locale-seg span {
@@ -428,7 +434,7 @@
   font-weight: 500;
   color: var(--paper);
   cursor: pointer;
-  background: var(--ink);
+  background: var(--pg-ink);
   border: 0;
   border-radius: 8px;
 }
@@ -437,7 +443,7 @@
   height: 6px;
   background: var(--gold);
   border-radius: 50%;
-  animation: pulse 1.4s infinite;
+  animation: pe-pulse 1.4s infinite;
 }
 .pe-save {
   display: inline-flex;
@@ -456,7 +462,11 @@
 }
 .pe-save__dot.pending {
   background: var(--gold);
-  animation: pulse 1s infinite;
+  animation: pe-pulse 1s infinite;
+}
+.pe-locale-seg button:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 .pe-save__dot.error {
   background: var(--claret);
@@ -484,7 +494,7 @@
   margin-bottom: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-confirm p {
   margin: 0;
@@ -510,8 +520,8 @@
 }
 .pe-confirm__actions button.primary {
   color: var(--paper);
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--pg-ink);
+  border-color: var(--pg-ink);
 }
 
 .pe-stage {
@@ -527,6 +537,8 @@
   position: relative;
   margin: 0 auto;
   overflow: hidden;
+  font-family: var(--ui);
+  color: var(--pg-ink);
   background: var(--paper);
   border-radius: 14px;
   box-shadow:
@@ -627,7 +639,8 @@
 .pe-block.selected .pe-block__handle {
   opacity: 1;
 }
-.pe-block__handle button {
+.pe-block__handle button,
+.pe-section__dragger {
   display: grid;
   place-items: center;
   width: 26px;
@@ -640,8 +653,9 @@
   border-radius: 6px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.pe-block__handle button:hover {
-  color: var(--ink);
+.pe-block__handle button:hover,
+.pe-section__dragger:hover {
+  color: var(--pg-ink);
   background: white;
 }
 .pe-block__row-actions {
@@ -658,7 +672,8 @@
 .pe-block.selected .pe-block__row-actions {
   opacity: 1;
 }
-.pe-block__row-actions button {
+.pe-block__row-actions button,
+.pe-section__actions button {
   display: grid;
   place-items: center;
   width: 26px;
@@ -671,11 +686,13 @@
   border-radius: 6px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.pe-block__row-actions button:hover {
-  color: var(--ink);
+.pe-block__row-actions button:hover,
+.pe-section__actions button:hover {
+  color: var(--pg-ink);
   background: white;
 }
-.pe-block__row-actions button.delete:hover {
+.pe-block__row-actions button.delete:hover,
+.pe-section__actions button.delete:hover {
   color: var(--claret);
 }
 .pe-zipper {
@@ -705,7 +722,8 @@
     color 0.12s,
     background 0.12s;
 }
-.pe-block:hover ~ .pe-zipper button,
+.pg-col__item:hover > .pe-zipper button,
+.pg-col__item:hover + .pg-col__item > .pe-zipper button,
 .pe-zipper:hover button {
   opacity: 1;
 }
@@ -723,7 +741,7 @@
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
   pointer-events: none;
   background: var(--paper);
   border: 1.5px solid var(--page-accent, var(--claret));
@@ -738,6 +756,318 @@
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
   border-radius: 4px;
+}
+
+/* A drop line on a boundary that takes no room (see DropSlot). */
+.pe-drop-slot {
+  position: relative;
+  z-index: 8;
+  height: 0;
+}
+.pe-drop-slot > * {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  left: 0;
+}
+
+/* === Section & column chrome ============================================== */
+/* Same outlines, tag, handle and row actions as the block chrome above. */
+.pe-section {
+  position: relative;
+}
+.pe-section::before {
+  position: absolute;
+  inset: 4px;
+  z-index: 5;
+  pointer-events: none;
+  content: "";
+  border-radius: 8px;
+}
+.pe-frame[data-editing]:not([data-dragging])
+  .pe-section:hover:not(:has(.pe-block:hover))::before {
+  outline: 1px dashed rgba(107, 30, 30, 0.35);
+  outline-offset: -1px;
+}
+.pe-frame[data-editing] .pe-section.selected::before {
+  outline: 1.5px solid var(--page-accent, var(--claret));
+  outline-offset: -1px;
+  box-shadow: 0 0 0 4px rgba(107, 30, 30, 0.08);
+}
+.pe-section__bar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pe-section__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  background: var(--page-accent, var(--claret));
+  border-radius: 4px;
+}
+.pe-section__actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Columns: a dashed outline drawn over each `.pg-col` while it matters. */
+.pe-section .pg-col {
+  position: relative;
+}
+.pe-col {
+  position: absolute;
+  inset: -6px;
+  z-index: 4;
+  pointer-events: none;
+  outline: 1px dashed var(--rule-2);
+  outline-offset: -1px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.pe-frame:not([data-dragging]) .pe-section:hover .pe-col,
+.pe-section.selected .pe-col,
+.pe-frame[data-dragging="block"] .pe-col {
+  opacity: 1;
+}
+/* The column "+ Add block" points the palette at. */
+.pe-frame:not([data-dragging]) .pe-col[data-target] {
+  outline: 1.5px solid var(--page-accent, var(--claret));
+  box-shadow: 0 0 0 4px rgba(107, 30, 30, 0.08);
+  opacity: 1;
+}
+.pe-col__end {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding-top: 8px;
+}
+.pe-col__end[data-empty] {
+  justify-content: center;
+  min-height: 88px;
+  padding-top: 0;
+  /* currentColor, so the tint also reads on a dark section. */
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  border-radius: 8px;
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
+}
+.pe-col__end[data-empty][data-over] {
+  background: color-mix(
+    in srgb,
+    var(--page-accent, var(--claret)) 8%,
+    transparent
+  );
+  box-shadow: inset 0 0 0 1.5px var(--page-accent, var(--claret));
+}
+.pe-col__add {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-3);
+  white-space: nowrap;
+  appearance: none;
+  cursor: pointer;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  opacity: 0;
+  transition:
+    opacity 0.12s,
+    color 0.12s,
+    background 0.12s;
+}
+.pe-section:hover .pe-col__add,
+.pe-section.selected .pe-col__add,
+.pe-col__end[data-empty] .pe-col__add,
+.pe-col__add:focus-visible {
+  opacity: 1;
+}
+.pe-col__add:hover {
+  color: var(--pg-ink);
+  background: white;
+}
+.pe-col__add[aria-pressed="true"] {
+  color: white;
+  background: var(--page-accent, var(--claret));
+  border-color: var(--page-accent, var(--claret));
+  opacity: 1;
+}
+.pe-frame[data-dragging] .pe-col__add {
+  visibility: hidden;
+}
+
+/* "+ Add section": on each section boundary, and after the last section. */
+.pe-add-section {
+  position: relative;
+  z-index: 8;
+}
+.pe-add-section__btn {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 22px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-3);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 999px;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 0.12s,
+    color 0.12s,
+    background 0.12s;
+}
+/* The top edge of the page would clip a centred button. */
+.pe-add-section[data-first] .pe-add-section__btn {
+  transform: translate(-50%, 8px);
+}
+.pe-add-section__btn:hover,
+.pe-add-section__btn:focus-visible,
+.pe-section:hover + .pe-add-section .pe-add-section__btn,
+.pe-add-section[data-first]:has(+ .pe-section:hover) .pe-add-section__btn {
+  opacity: 1;
+}
+.pe-add-section__btn:hover {
+  color: white;
+  background: var(--page-accent, var(--claret));
+  border-color: var(--page-accent, var(--claret));
+}
+.pe-add-section[data-end] {
+  padding: 16px;
+}
+.pe-add-section[data-end] .pe-add-section__btn,
+.pe-add-section--header .pe-add-section__btn {
+  position: static;
+  width: 100%;
+  height: 40px;
+  border: 1px dashed var(--rule-2);
+  border-radius: 8px;
+  opacity: 1;
+  transform: none;
+}
+.pe-add-section[data-end] .pe-add-section__btn:hover,
+.pe-add-section--header .pe-add-section__btn:hover {
+  color: var(--pg-ink);
+  background: white;
+  border-color: var(--ink-3);
+}
+/* "+ Add page header": the end control, slimmer, at the top of the page. */
+.pe-add-section--header {
+  padding: 8px 16px;
+}
+.pe-add-section--header .pe-add-section__btn {
+  height: 28px;
+}
+.pe-frame[data-dragging] .pe-add-section__btn {
+  visibility: hidden;
+}
+.pe-add-section__panel {
+  position: relative;
+  max-width: 320px;
+  padding: 12px;
+  margin: 12px auto;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px -8px rgba(26, 24, 20, 0.3);
+}
+.pe-add-section__hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pe-add-section__hd button {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+.pe-add-section__hd button:hover {
+  color: var(--pg-ink);
+  background: var(--paper-2);
+}
+.pe-add-section__cols {
+  display: flex;
+  gap: 3px;
+  width: 72%;
+  height: 22px;
+}
+.pe-add-section__cols > span {
+  flex-basis: 0;
+  background: var(--rule-2);
+  border-radius: 2px;
+  transition: background 0.12s;
+}
+.pe-variant:hover .pe-add-section__cols > span {
+  background: var(--page-accent, var(--claret));
+}
+/* The empty page. */
+.pe-add-section--first {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  padding: 64px 48px;
+  color: var(--ink-3);
+  text-align: center;
+  border-radius: 14px;
+  transition: box-shadow 0.12s;
+}
+.pe-add-section--first[data-over] {
+  box-shadow: inset 0 0 0 1.5px var(--page-accent, var(--claret));
+}
+.pe-add-section__icon {
+  font-size: 32px;
+  opacity: 0.3;
+}
+.pe-add-section__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pg-ink);
+}
+.pe-add-section__hint {
+  margin: -8px 0 0;
+  font-size: 13px;
+}
+.pe-add-section--first .pe-add-section__grid {
+  width: 100%;
+  max-width: 320px;
 }
 
 /* === Inspector ============================================================ */
@@ -766,7 +1096,7 @@
   border-radius: 6px;
 }
 .pe-inspector-tabs button.on {
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--paper-2);
 }
 .pe-inspector-body {
@@ -795,7 +1125,7 @@
 .pe-insp-hd__ti {
   font-size: 13.5px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--pg-ink);
 }
 .pe-insp-hd__sub {
   margin-top: 2px;
@@ -832,7 +1162,7 @@
   min-width: 0;
   padding: 5px 8px;
   font-size: 12px;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
@@ -859,7 +1189,7 @@
   position: absolute;
   inset: -3px;
   content: "";
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--pg-ink);
   border-radius: 50%;
 }
 .pe-variant-grid {
@@ -919,7 +1249,7 @@
 }
 .pe-outline-item.on {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pe-outline-item__num {
   font-family: var(--mono);
@@ -952,7 +1282,7 @@
   color: var(--paper);
   appearance: none;
   cursor: pointer;
-  background: var(--ink);
+  background: var(--pg-ink);
   border: 0;
   border-radius: 999px;
   box-shadow: 0 12px 30px -10px rgba(26, 24, 20, 0.4);
@@ -1071,7 +1401,7 @@
 .pe-copilot-panel__suggestion {
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--ink);
+  color: var(--pg-ink);
   text-align: left;
   appearance: none;
   cursor: pointer;
@@ -1107,13 +1437,13 @@
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--ink);
+  color: var(--pg-ink);
   background: var(--paper-2);
   border-radius: 10px;
 }
 .pe-copilot-panel__msg--user .pe-copilot-panel__bubble {
   color: var(--paper);
-  background: var(--ink);
+  background: var(--pg-ink);
 }
 .pe-copilot-panel__bubble p {
   margin: 0 0 6px;
@@ -1131,7 +1461,7 @@
   height: 6px;
   background: var(--ink-3);
   border-radius: 50%;
-  animation: bounce 0.9s infinite;
+  animation: pe-bounce 0.9s infinite;
 }
 .pe-copilot-panel__bubble--thinking span:nth-child(2) {
   animation-delay: 0.15s;
@@ -1139,7 +1469,7 @@
 .pe-copilot-panel__bubble--thinking span:nth-child(3) {
   animation-delay: 0.3s;
 }
-@keyframes bounce {
+@keyframes pe-bounce {
   0%,
   100% {
     transform: translateY(0);
@@ -1173,7 +1503,7 @@
   flex: 1;
   padding: 8px 12px;
   font-size: 13px;
-  color: var(--ink);
+  color: var(--pg-ink);
   outline: 0;
   background: var(--paper-2);
   border: 0.5px solid var(--rule-2);
@@ -1193,7 +1523,7 @@
   color: var(--paper);
   appearance: none;
   cursor: pointer;
-  background: var(--ink);
+  background: var(--pg-ink);
   border: 0;
   border-radius: 8px;
 }
@@ -1217,4 +1547,232 @@
   padding: 0 2px;
   margin: 0 -2px;
   transition: background 0.12s;
+}
+
+/* === Inspector segmented choice (section settings) ======================= */
+.pe-seg {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  padding: 2px;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+}
+.pe-seg button {
+  flex: 1;
+  padding: 3px 4px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+.pe-seg button.on {
+  color: var(--pg-ink);
+  background: white;
+  box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-seg button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.pe-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.pe-insp-note {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+.pe-insp-actions {
+  display: flex;
+  gap: 6px;
+}
+.pe-insp-actions button,
+.pe-insp-link {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+}
+.pe-insp-actions button:hover,
+.pe-insp-link:hover {
+  background: white;
+}
+.pe-outline-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 14px;
+}
+.pe-palette-target {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  background: var(--paper-2);
+}
+.pe-palette-target button {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  text-decoration: underline;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+/* Theme panel: two colour fields with live contrast results. */
+.pe-colour-panel {
+  margin-top: 16px;
+}
+.pe-colour__scope {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.pe-colour__block {
+  margin-bottom: 12px;
+}
+.pe-colour__label {
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.pe-colour__area {
+  position: relative;
+  height: 96px;
+  touch-action: none;
+  cursor: crosshair;
+  outline-offset: 2px;
+  background-image:
+    linear-gradient(to top, #000, transparent),
+    linear-gradient(to right, #fff, transparent);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+}
+.pe-colour__thumb {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  outline: 0.5px solid var(--ink-3);
+  border: 1.5px solid white;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.pe-colour__hue {
+  display: block;
+  width: 100%;
+  height: 10px;
+  margin: 8px 0;
+  appearance: none;
+  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    #f00,
+    #ff0 17%,
+    #0f0 33%,
+    #0ff 50%,
+    #00f 67%,
+    #f0f 83%,
+    #f00
+  );
+  border: 0.5px solid var(--rule-2);
+  border-radius: 5px;
+}
+.pe-colour__hue::-webkit-slider-thumb {
+  width: 10px;
+  height: 14px;
+  appearance: none;
+  background: white;
+  border: 0.5px solid var(--ink-3);
+  border-radius: 3px;
+}
+.pe-colour__hue::-moz-range-thumb {
+  width: 10px;
+  height: 14px;
+  background: white;
+  border: 0.5px solid var(--ink-3);
+  border-radius: 3px;
+}
+.pe-colour__hexrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pe-colour__chip {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 0.5px solid var(--rule-2);
+  border-radius: 50%;
+}
+.pe-colour__hex {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--pg-ink);
+  outline: 0;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+}
+.pe-colour__hex:focus {
+  background: white;
+  border-color: var(--ink-3);
+}
+.pe-colour__hex[aria-invalid="true"] {
+  border-color: var(--pg-ink);
+}
+.pe-colour__error {
+  min-height: 12px;
+  margin: 2px 0 4px;
+  font-size: 10px;
+  color: var(--ink-2);
+}
+.pe-colour__result {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.pe-colour__result--fail {
+  color: var(--ink-2);
+}
+.pe-colour__use {
+  display: block;
+  padding: 3px 8px;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--pg-ink);
+  cursor: pointer;
+  background: transparent;
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+}
+.pe-colour__reset {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: transparent;
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
 }

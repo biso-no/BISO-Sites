@@ -95,7 +95,8 @@
     "back": "Tilbake",
     "continue": "Fortsett",
     "complete": "Fullfør oppsett",
-    "saving": "Lagrer…"
+    "saving": "Lagrer…",
+    "stepOf": "Steg {current} av {total}"
   },
   "errors": {
     "nameRequired": "Fullt navn er påkrevd",

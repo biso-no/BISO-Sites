@@ -202,7 +202,7 @@ async function loadProduct(
   if (cached) {
     return cached;
   }
-  const product = await getProduct(productId, locale);
+  const product = await getProduct(productId);
   if (!product) {
     throw new Error(`Product ${productId} is not available anymore.`);
   }

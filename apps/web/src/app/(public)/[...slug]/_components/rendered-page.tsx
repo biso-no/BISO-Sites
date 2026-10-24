@@ -11,8 +11,8 @@ import {
   BlockView,
   normalizePageDoc,
   PageFeedProvider,
-  type ResolvedBackground,
-  resolveBackgrounds,
+  PageHeaderView,
+  SectionView,
   useEditorStore,
 } from "@repo/editor/render";
 import { useEffect, useMemo, useRef } from "react";
@@ -37,9 +37,14 @@ interface Props {
    */
   feeds?: PageFeedSnapshot;
   locale: EditorLocale;
+  /**
+   * The page's storage slug (URL path without the leading slash), which the
+   * form blocks send so the server can find the published block itself.
+   */
+  slug?: string;
 }
 
-export function RenderedPage({ doc, feeds, locale }: Props) {
+export function RenderedPage({ doc, feeds, locale, slug }: Props) {
   const normalizedDoc = useMemo(() => normalizePageDoc(doc), [doc]);
   // Seed the shared editor store so anything still reading it (inspectors,
   // AI tooling) sees this page. The auto-source blocks do NOT rely on this —
@@ -56,23 +61,39 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
     useEditorStore.setState({ doc: normalizedDoc, locale });
   }, [normalizedDoc, locale]);
 
-  const accentStyle = {
-    "--page-accent": normalizedDoc.meta.accentColor,
-  } as React.CSSProperties;
-  const backgrounds = resolveBackgrounds(normalizedDoc.blocks);
+  const { header } = normalizedDoc;
+  // Whatever renders first clears the fixed nav: the page header when there
+  // is one, which does so itself, else the first section that renders. An
+  // empty section renders nothing on the site, so it cannot be the one.
+  const firstIndex = header
+    ? -1
+    : normalizedDoc.sections.findIndex((section) =>
+        section.columns.some((column) => column.blocks.length > 0)
+      );
 
   return (
     <PageFeedProvider
+      campus={normalizedDoc.meta.campus ?? ""}
       department={normalizedDoc.meta.department}
       feeds={feeds}
       locale={locale}
+      slug={slug}
     >
-      <div className="biso-surface pg-page" style={accentStyle}>
-        {normalizedDoc.blocks.map((block, index) => (
-          <BlockRenderer
-            background={backgrounds[index] ?? "default"}
-            block={block as Block}
-            key={(block as Block).id}
+      <div className="biso-surface pg-page">
+        {header ? (
+          <PageHeaderView
+            edit={false}
+            fallbackTitle={normalizedDoc.meta.title}
+            header={header}
+            onPatch={noopPatch}
+          />
+        ) : null}
+        {normalizedDoc.sections.map((section, index) => (
+          <SectionView
+            first={index === firstIndex}
+            key={section.id}
+            renderBlock={(block) => <BlockRenderer block={block} />}
+            section={section}
           />
         ))}
       </div>
@@ -80,22 +101,10 @@ export function RenderedPage({ doc, feeds, locale }: Props) {
   );
 }
 
-function BlockRenderer({
-  background,
-  block,
-}: {
-  background: ResolvedBackground;
-  block: Block;
-}) {
-  const noopPatch = () => undefined;
-  // BlockView, not the definition's Render: it is what applies the Design
-  // panel's background, spacing and width, exactly as the admin canvas does.
-  return (
-    <BlockView
-      background={background}
-      block={block}
-      edit={false}
-      onPatch={noopPatch}
-    />
-  );
+const noopPatch = () => undefined;
+
+function BlockRenderer({ block }: { block: Block }) {
+  // BlockView, not the definition's Render: it is what wraps each block in its
+  // error boundary, exactly as the admin canvas does.
+  return <BlockView block={block} edit={false} onPatch={noopPatch} />;
 }

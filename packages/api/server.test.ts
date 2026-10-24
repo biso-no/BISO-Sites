@@ -259,3 +259,69 @@ describe("plain row results", () => {
     }
   });
 });
+
+describe("select queries", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function createRecordingServer() {
+    const urls: URL[] = [];
+    const server = createServer((request, response) => {
+      urls.push(new URL(request.url ?? "/", "http://127.0.0.1"));
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ total: 0, rows: [] }));
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Expected local HTTP server address");
+    }
+    return {
+      endpoint: `http://127.0.0.1:${address.port}/v1`,
+      sentQueries: () =>
+        [...(urls.at(-1)?.searchParams.entries() ?? [])]
+          .filter(([key]) => key.startsWith("queries"))
+          .map(([, value]) => JSON.parse(value)),
+      close: () =>
+        new Promise<void>((resolve) => {
+          server.close(() => resolve());
+        }),
+    };
+  }
+
+  // Appwrite answers a select that names an attribute twice with "Invalid
+  // query: Duplicate attributes selected" and fails the read. The main →
+  // redesign merge added `pricing_mode` to the shared event select on both
+  // sides, which took down every event listing; no select reaches Appwrite
+  // with a repeat any more, whichever list it was assembled from.
+  test("sends each selected attribute once, in first-seen order", async () => {
+    const server = await createRecordingServer();
+    try {
+      const { createAdminClient } = await loadServerModule(server.endpoint);
+      const { Query } = await import("node-appwrite");
+      const { db } = await createAdminClient();
+
+      await db.listRows("app", "events", [
+        Query.select(["$id", "pricing_mode", "slug", "pricing_mode", "$id"]),
+        Query.equal("status", "published"),
+      ]);
+
+      expect(server.sentQueries()).toEqual([
+        { method: "select", values: ["$id", "pricing_mode", "slug"] },
+        { method: "equal", attribute: "status", values: ["published"] },
+      ]);
+    } finally {
+      await server.close();
+    }
+  });
+
+  test("leaves a request without repeats exactly as built", async () => {
+    const { withUniqueSelects } = await import("./select-queries");
+    const params = { queries: ['{"method":"select","values":["$id","slug"]}'] };
+    expect(withUniqueSelects(params)).toBe(params);
+    expect(withUniqueSelects(undefined)).toBeUndefined();
+  });
+});

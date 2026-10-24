@@ -3,6 +3,7 @@ import {
   isBenefitCategory,
 } from "@repo/shared/utils/benefit-catalog";
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
+import { toPlainText } from "@/lib/content-text";
 
 const firstFilled = (...values: (string | null | undefined)[]): string =>
   values.find((value) => value?.trim()) ?? "";
@@ -50,4 +51,21 @@ export function localizedPublicBenefitText(
       ? firstFilled(benefit.title.en, benefit.title.nb)
       : firstFilled(benefit.title.nb, benefit.title.en),
   };
+}
+
+/** Stored HTML or Plate JSON starts with "<" or "["; anything else is text. */
+export function isRichBenefitDescription(description: string): boolean {
+  const start = description.trimStart().charAt(0);
+  return start === "<" || start === "[";
+}
+
+/**
+ * A description as plain text for a summary card. Migrated benefits hold
+ * HTML or Plate JSON, flattened here; the studio saves plain text, whose line
+ * breaks are kept for `whitespace-pre-line`.
+ */
+export function benefitDescriptionText(description: string): string {
+  return isRichBenefitDescription(description)
+    ? toPlainText(description)
+    : description.trim();
 }

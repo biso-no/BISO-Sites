@@ -1,36 +1,46 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getActiveCampus } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
+import { FeedSkeleton } from "@/components/ui/loading-shell";
+import { UnitsV2 } from "@/components/units/v2/units-v2";
+import { getUserPreferences } from "@/lib/auth-utils";
+import { campusIdToSlug, resolveRequestCampus } from "@/lib/campus-scope";
 import { cachedPublicUnits } from "@/lib/data/units";
-import { UnitsPageClient } from "./units-page-client";
-import { UnitsSkeleton } from "./units-skeleton";
 
 export const metadata: Metadata = {
+  // A campus-scoped feed is a filtered view of the same collection, so it
+  // points its canonical at the unscoped URL rather than competing with it.
+  alternates: { canonical: "/units" },
   title: "BISO Units & Departments | BI Student Organisation",
   description:
     "Explore the student-run units and departments that make up BISO across BI Norwegian Business School campuses.",
 };
 
-/**
- * `?campus_id=` seeds the campus filter. Both entry points that deep-link here
- * — the campus overview grid and the /students hero — build that shape, so it
- * has to survive as a server-read initial value rather than being applied
- * after hydration, or the first paint shows all four campuses and then jumps.
- */
-async function UnitsDirectory({ campusParam }: { campusParam: string | null }) {
-  const locale = await getLocale();
-  // A failed unit read must render the directory's own empty state, not take
-  // the whole route down — `cachedPublicUnits` deliberately lets errors throw
-  // so they are never cached, which makes catching them the caller's job.
-  const [units, activeCampusId] = await Promise.all([
-    cachedPublicUnits(locale).catch(() => null),
-    getActiveCampus(),
-  ]);
+type SearchParams = Record<string, string | string[] | undefined>;
 
+const first = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
+
+async function UnitsDirectory({
+  campus,
+  searchParams,
+  searchQuery,
+}: {
+  campus: string | null;
+  searchParams: SearchParams;
+  searchQuery: string;
+}) {
+  const locale = await getLocale();
+  // `cachedPublicUnits` throws rather than caching a failed read, so the
+  // fallback is ours — and it is `null`, not `[]`: the directory renders its
+  // "unavailable" state instead of claiming there are no units.
+  const units = await cachedPublicUnits(locale).catch(() => null);
   return (
-    <UnitsPageClient
-      initialCampusId={campusParam ?? activeCampusId ?? null}
+    <UnitsV2
+      campusId={campus}
+      searchParams={searchParams}
+      searchQuery={searchQuery}
       units={units}
     />
   );
@@ -39,17 +49,36 @@ async function UnitsDirectory({ campusParam }: { campusParam: string | null }) {
 export default async function UnitsPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const resolved = await searchParams;
-  const raw = resolved.campus_id;
-  const campusParam = (Array.isArray(raw) ? raw[0] : raw) ?? null;
+  const [sp, prefs] = await Promise.all([searchParams, getUserPreferences()]);
+  const remembered = prefs?.campusId;
+
+  // URL > cookie > all, like every campus-scoped feed. `?campus_id=` is the
+  // older spelling the campus overview and /students deep-linked with; it is
+  // still honoured, server-side, so the first paint is already filtered.
+  const campus = resolveRequestCampus(sp.campus ?? sp.campus_id, remembered);
+  if (campus === undefined) {
+    notFound();
+  }
+
+  // Fold the legacy parameter into the one the filters write, so a chip or a
+  // search from a `?campus_id=` URL carries the campus forward exactly once.
+  const { campus_id: _legacy, ...rest } = sp;
+  const normalized: SearchParams =
+    sp.campus === undefined && sp.campus_id !== undefined
+      ? { ...rest, campus: campusIdToSlug(campus) ?? "all" }
+      : rest;
+
+  const searchQuery = (first(sp.q) ?? first(sp.search) ?? "").trim();
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <Suspense fallback={<UnitsSkeleton />}>
-        <UnitsDirectory campusParam={campusParam} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<FeedSkeleton />}>
+      <UnitsDirectory
+        campus={campus}
+        searchParams={normalized}
+        searchQuery={searchQuery}
+      />
+    </Suspense>
   );
 }

@@ -49,6 +49,74 @@ export function isProjectSlug(value: string): value is ProjectSlug {
   return Object.hasOwn(PROJECT_UNIT_SLUGS, value);
 }
 
+const PROJECT_PAGE_PREFIX = "projects/";
+const COMBINING_MARKS = /\p{M}/gu;
+
+/**
+ * Where a project's editor page is stored: `projects/<project>`. Reserved like
+ * `units/` — the public catch-all never serves it; `/projects/<slug>` does.
+ */
+export function projectPageSlug(project: ProjectSlug): string {
+  return `${PROJECT_PAGE_PREFIX}${project}`;
+}
+
+/**
+ * Whether a slug is anywhere under the reserved `projects/` prefix, known
+ * project or not. Shaped like `isUnitPageSlug` (trim, lowercase, prefix): the
+ * whole namespace is the admin's, so a page saved at `projects/charity`
+ * today cannot be served when `charity` becomes a project tomorrow.
+ */
+export function isProjectNamespaceSlug(
+  slug: string | null | undefined
+): boolean {
+  if (typeof slug !== "string") {
+    return false;
+  }
+  // Accents fold too: Appwrite's collation matches `projécts/x` to the
+  // `projects/x` lookup.
+  const folded = slug
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(COMBINING_MARKS, "");
+  return folded.startsWith(PROJECT_PAGE_PREFIX);
+}
+
+/**
+ * The projects that run in several campuses and so have a department-less
+ * hub page. The other projects (Winter Games) are national only: their page
+ * belongs to their national unit. The one source for both admin and web.
+ */
+export const HUB_PROJECTS: readonly { name: string; slug: ProjectSlug }[] = [
+  { name: "Fadderullan", slug: "fadderullan" },
+  { name: "Karrieredagene", slug: "karrieredagene" },
+  { name: "Bergensbaneløpet", slug: "bergensbanelopet" },
+  { name: "Winter Games", slug: "winter-games" },
+];
+
+export function isHubProject(project: ProjectSlug): boolean {
+  return HUB_PROJECTS.some((entry) => entry.slug === project);
+}
+
+/**
+ * Whether a stored page slug is exactly `projects/<known project>`.
+ *
+ * Trims and lowercases, like `isUnitPageSlug`: Appwrite matches slugs
+ * case-insensitively and storage trims them, so `Projects/winter-games` and
+ * ` projects/winter-games` are served at the reserved address and must be
+ * treated as it.
+ */
+export function isProjectPageSlug(slug: string | null | undefined): boolean {
+  if (typeof slug !== "string") {
+    return false;
+  }
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized.startsWith(PROJECT_PAGE_PREFIX)) {
+    return false;
+  }
+  return isProjectSlug(normalized.slice(PROJECT_PAGE_PREFIX.length));
+}
+
 /**
  * Whether a unit runs a project, by category or by name.
  *

@@ -2,24 +2,16 @@
 
 import type { PublicBenefit } from "@repo/shared/utils/benefit-public";
 import type { MembershipTextItem } from "@repo/shared/utils/membership-texts";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { Progress } from "@repo/ui/components/ui/progress";
 import { TabsContent } from "@repo/ui/components/ui/tabs";
-import {
-  ArrowRight,
-  Check,
-  Clock,
-  Gift,
-  Shield,
-  Sparkles,
-  TrendingUp,
-  Zap,
-} from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowRight, Check, Gift, Zap } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { MemberPass } from "@/components/member-pass/member-pass";
+import { Pill } from "@/components/ui/pill";
+import { type Stat, StatRow } from "@/components/ui/stat-row";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 import { shouldShowEstimatedSavings } from "@/lib/member-portal-utils";
 import { BenefitCard } from "../shared/benefit-card";
 import { BenefitsShowcase } from "../shared/benefits-showcase";
@@ -43,31 +35,83 @@ interface HomeTabProps {
 }
 
 const FALLBACK_HIGHLIGHT_COUNT = 3;
+const PERCENT = 100;
 
-interface AnimatedCounterProps {
-  prefix?: string;
-  suffix?: string;
-  value: number;
+/** Time left in the term, as a native progress bar with a label. */
+function TermProgress({ label, value }: { label: string; value: number }) {
+  return (
+    <progress
+      aria-label={label}
+      className="h-2 w-full appearance-none overflow-hidden rounded-biso-pill bg-surface-sunken [&::-moz-progress-bar]:bg-action [&::-webkit-progress-bar]:bg-surface-sunken [&::-webkit-progress-value]:bg-action"
+      max={PERCENT}
+      value={value}
+    />
+  );
 }
 
-function AnimatedCounter({
-  value,
-  suffix = "",
-  prefix = "",
-}: AnimatedCounterProps) {
+function MembershipStatus({
+  daysRemaining,
+  expiryDate,
+  startDate,
+  termDays,
+}: Pick<
+  HomeTabProps,
+  "daysRemaining" | "expiryDate" | "startDate" | "termDays"
+>) {
+  const t = useTranslations("memberPortal.overview");
+  const tCommon = useTranslations("memberPortal.common");
+  const format = useFormatter();
+  const progress = Math.min(PERCENT, (daysRemaining / termDays) * PERCENT);
+  const formatDate = (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "Europe/Oslo",
+    });
+
   return (
-    <motion.span animate={{ opacity: 1 }} initial={{ opacity: 0 }} key={value}>
-      {prefix}
-      <motion.span
-        animate={{ scale: [1.2, 1] }}
-        initial={{ scale: 1 }}
-        key={value}
-        transition={{ duration: 0.3 }}
-      >
-        {value}
-      </motion.span>
-      {suffix}
-    </motion.span>
+    <section className="flex flex-col gap-5 rounded-biso-md border border-edge p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="type-heading-section text-ink">
+            {t("membershipStatus")}
+          </h2>
+          <p className="type-body-sm mt-1 text-ink-muted">
+            {t("statusActive")}
+          </p>
+        </div>
+        <Pill tone="success">
+          <Check aria-hidden="true" className="size-3.5 shrink-0" />
+          {tCommon("status.active")}
+        </Pill>
+      </div>
+
+      <div>
+        <div className="type-body-sm mb-2 flex justify-between gap-3">
+          <span className="text-ink-muted">{t("timeRemaining")}</span>
+          <span className="type-data text-ink">
+            {t("daysRemaining", { days: daysRemaining })}
+          </span>
+        </div>
+        <TermProgress label={t("timeRemaining")} value={progress} />
+      </div>
+
+      <dl className="type-body-sm grid gap-3 sm:grid-cols-2">
+        <div className="rounded-biso-sm bg-surface-sunken p-4">
+          <dt className="text-ink-muted">{t("started")}</dt>
+          <dd className="mt-1 font-semibold text-ink">
+            {formatDate(startDate)}
+          </dd>
+        </div>
+        <div className="rounded-biso-sm bg-surface-sunken p-4">
+          <dt className="text-ink-muted">{t("expires")}</dt>
+          <dd className="mt-1 font-semibold text-ink">
+            {formatDate(expiryDate)}
+          </dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
@@ -82,243 +126,103 @@ function MemberOverview({
   featuredBenefits: featuredFromServer = [],
   onTabChange,
   termDays,
-}: Omit<HomeTabProps, "isMember" | "hasBIIdentity">) {
+}: Omit<HomeTabProps, "isMember" | "hasBIIdentity" | "planCardItems">) {
   const t = useTranslations("memberPortal.overview");
-  const tCommon = useTranslations("memberPortal.common");
-  const format = useFormatter();
-
+  // Featured benefits drive the highlights; the newest stand in without any.
   const featuredBenefits =
     featuredFromServer.length > 0
       ? featuredFromServer
       : benefits.slice(0, FALLBACK_HIGHLIGHT_COUNT);
-  const progressPercentage = Math.min(100, (daysRemaining / termDays) * 100);
-  const formatDate = (date: string) =>
-    format.dateTime(new Date(`${date}T12:00:00Z`), {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
+
+  const stats: Stat[] = [
+    { label: t("stats.membershipType"), value: membershipType },
+    {
+      label: t("stats.benefitsAvailable"),
+      value: String(benefitsCount),
+    },
+  ];
+  if (shouldShowEstimatedSavings(estimatedSavings)) {
+    stats.push({
+      label: t("stats.estimatedSavings"),
+      value: `~${estimatedSavings} NOK`,
     });
+  }
 
   return (
     <>
-      {/* Hero Stats Grid */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        initial={{ opacity: 0, y: 20 }}
-      >
-        {/* Membership Status */}
-        <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-linear-to-br from-brand-muted to-transparent opacity-50" />
-          <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
-              <Shield className="h-6 w-6 text-white" />
-            </div>
-            <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
-              {t("stats.membershipType")}
-            </p>
-            <p className="font-bold text-foreground text-xl dark:text-foreground">
-              {membershipType}
-            </p>
-            <Badge className="mt-2 border-green-200 bg-green-100 text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400">
-              <Check className="mr-1 h-3 w-3" />
-              {tCommon("status.active")}
-            </Badge>
-          </div>
-        </Card>
-
-        {/* Benefits Available */}
-        <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
-          <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
-              <Gift className="h-6 w-6 text-white" />
-            </div>
-            <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
-              {t("stats.benefitsAvailable")}
-            </p>
-            <p className="font-bold text-3xl text-foreground dark:text-foreground">
-              <AnimatedCounter value={benefitsCount} />
-            </p>
-            <p className="mt-1 text-muted-foreground text-sm">
-              {t("stats.exclusiveDeals")}
-            </p>
-          </div>
-        </Card>
-
-        {/* Days Remaining */}
-        <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-          <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
-          <div className="relative">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
-              <Clock className="h-6 w-6 text-white" />
-            </div>
-            <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
-              {t("stats.daysUntilRenewal")}
-            </p>
-            <p className="font-bold text-3xl text-foreground dark:text-foreground">
-              <AnimatedCounter suffix=" days" value={daysRemaining} />
-            </p>
-            <Progress className="mt-3 h-2" value={progressPercentage} />
-          </div>
-        </Card>
-
-        {shouldShowEstimatedSavings(estimatedSavings) ? (
-          <Card className="group relative overflow-hidden border-0 p-6 shadow-lg transition-all duration-300 hover:shadow-xl dark:bg-inverted/50">
-            <div className="absolute inset-0 bg-linear-to-br from-brand-muted/50 to-transparent opacity-50 dark:from-brand-muted-strong/20" />
-            <div className="relative">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-brand-gradient-from to-brand-gradient-to shadow-lg">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <p className="mb-1 text-muted-foreground text-sm dark:text-muted-foreground">
-                {t("stats.estimatedSavings")}
-              </p>
-              <p className="font-bold text-3xl text-foreground dark:text-foreground">
-                <AnimatedCounter
-                  prefix="~"
-                  suffix=" NOK"
-                  value={estimatedSavings}
-                />
-              </p>
-              <p className="mt-1 text-green-600 text-sm dark:text-green-400">
-                <TrendingUp className="mr-1 inline h-3 w-3" />
-                {t("stats.potential")}
-              </p>
-            </div>
-          </Card>
-        ) : null}
-      </motion.div>
-
-      {/* Featured Benefits */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ delay: 0.2 }}
-      >
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-2xl text-foreground dark:text-foreground">
-              {t("featuredBenefits")}
-            </h2>
-            <p className="text-muted-foreground">{t("featuredDescription")}</p>
-          </div>
-          <Button
-            className="group"
-            onClick={() => onTabChange("benefits")}
-            variant="outline"
-          >
-            {t("viewAll")}
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
+      <div className="grid items-start gap-8 lg:grid-cols-2">
+        <div className="max-w-md">
+          <MemberPass />
         </div>
+        <MembershipStatus
+          daysRemaining={daysRemaining}
+          expiryDate={expiryDate}
+          startDate={startDate}
+          termDays={termDays}
+        />
+      </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {featuredBenefits.map((benefit, index) => (
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              initial={{ opacity: 0, y: 20 }}
-              key={benefit.id}
-              transition={{ delay: 0.1 * index }}
+      <StatRow stats={stats} />
+
+      {featuredBenefits.length > 0 ? (
+        <section>
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="type-heading-section text-ink">
+                {t("featuredBenefits")}
+              </h2>
+              <p className="type-body-sm mt-1 text-ink-muted">
+                {t("featuredDescription")}
+              </p>
+            </div>
+            <button
+              className={statusPanelSecondaryAction}
+              onClick={() => onTabChange("benefits")}
+              type="button"
             >
-              <BenefitCard benefit={benefit} />
-            </motion.div>
-          ))}
+              {t("viewAll")}
+              <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+            </button>
+          </div>
+
+          <ul className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {featuredBenefits.map((benefit) => (
+              <li key={benefit.id}>
+                <BenefitCard benefit={benefit} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="flex flex-col items-start justify-between gap-6 rounded-biso-md border border-edge bg-surface-sunken p-8 md:flex-row md:items-center">
+        <div>
+          <h2 className="type-heading-section text-ink">
+            {t("quickActions.title")}
+          </h2>
+          <p className="type-body mt-2 max-w-md text-ink-muted">
+            {t("quickActions.description")}
+          </p>
         </div>
-      </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ delay: 0.4 }}
-      >
-        <Card className="overflow-hidden border-0 bg-linear-to-r from-brand-gradient-from to-brand-gradient-to p-8 shadow-xl">
-          <div className="flex flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
-            <div className="text-white">
-              <h3 className="mb-2 font-bold text-2xl">
-                {t("quickActions.title")}
-              </h3>
-              <p className="max-w-md text-white/80">
-                {t("quickActions.description")}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                className="bg-white text-brand-gradient-to hover:bg-white/90"
-                onClick={() => onTabChange("benefits")}
-              >
-                <Gift className="mr-2 h-4 w-4" />
-                {t("quickActions.viewBenefits")}
-              </Button>
-              <Button
-                className="border-white/30 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
-                onClick={() => onTabChange("membership")}
-                variant="outline"
-              >
-                <Zap className="mr-2 h-4 w-4" />
-                {t("quickActions.manageMembership")}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* Membership Status Card */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ delay: 0.5 }}
-      >
-        <Card className="border-0 bg-section p-8 shadow-lg dark:bg-inverted">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h3 className="mb-2 font-bold text-foreground text-xl dark:text-foreground">
-                {t("membershipStatus")}
-              </h3>
-              <p className="text-muted-foreground dark:text-muted-foreground">
-                {t("statusActive")}
-              </p>
-            </div>
-            <Badge className="border-green-200 bg-green-100 px-4 py-2 text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400">
-              <Check className="mr-2 h-4 w-4" />
-              {tCommon("status.active")}
-            </Badge>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <div className="mb-2 flex justify-between text-sm">
-                <span className="text-muted-foreground dark:text-muted-foreground">
-                  {t("timeRemaining")}
-                </span>
-                <span className="font-medium text-foreground dark:text-foreground">
-                  {daysRemaining} days
-                </span>
-              </div>
-              <Progress className="h-3" value={progressPercentage} />
-            </div>
-
-            <div className="grid gap-4 pt-4 text-sm sm:grid-cols-2">
-              <div className="rounded-lg bg-background p-4 dark:bg-card">
-                <span className="text-muted-foreground dark:text-muted-foreground">
-                  {t("started")}
-                </span>
-                <span className="ml-2 font-medium text-foreground dark:text-foreground">
-                  {formatDate(startDate)}
-                </span>
-              </div>
-              <div className="rounded-lg bg-background p-4 dark:bg-card">
-                <span className="text-muted-foreground dark:text-muted-foreground">
-                  {t("expires")}
-                </span>
-                <span className="ml-2 font-medium text-foreground dark:text-foreground">
-                  {formatDate(expiryDate)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
+        <div className="flex flex-wrap gap-3">
+          <button
+            className={statusPanelPrimaryAction}
+            onClick={() => onTabChange("benefits")}
+            type="button"
+          >
+            <Gift aria-hidden="true" className="size-4 shrink-0" />
+            {t("quickActions.viewBenefits")}
+          </button>
+          <button
+            className={statusPanelSecondaryAction}
+            onClick={() => onTabChange("membership")}
+            type="button"
+          >
+            <Zap aria-hidden="true" className="size-4 shrink-0" />
+            {t("quickActions.manageMembership")}
+          </button>
+        </div>
+      </section>
     </>
   );
 }
@@ -333,32 +237,20 @@ function NonMemberOverview({
   const t = useTranslations("memberPortal.overview");
   return (
     <>
-      {/* Welcome section for non-members */}
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-        initial={{ opacity: 0, y: 20 }}
-      >
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-brand-muted px-4 py-2">
-          <Sparkles className="h-4 w-4 text-brand" />
-          <span className="text-brand-dark dark:text-brand">
-            Discover BISO Benefits
-          </span>
-        </div>
-        <h2 className="mb-4 font-bold text-3xl text-foreground dark:text-foreground">
-          See What You&apos;re Missing
+      <section>
+        <p className="type-label text-ink-accent">{t("discoverEyebrow")}</p>
+        <h2 className="type-display-sm mt-3 break-words text-ink">
+          {t("discoverTitle")}
         </h2>
-        <p className="mx-auto max-w-2xl text-muted-foreground dark:text-muted-foreground">
+        <p className="type-body mt-3 max-w-(--measure) text-ink-muted">
           {benefits.length > 0
             ? t("discoverIntroCount", { count: benefits.length })
             : t("discoverIntro")}
         </p>
-      </motion.div>
+      </section>
 
-      {/* Benefits Showcase */}
       <BenefitsShowcase benefits={benefits} />
 
-      {/* CTA Section */}
       <MembershipCtaSection items={planCardItems} />
     </>
   );
@@ -380,25 +272,20 @@ export function HomeTab({
   termDays,
 }: HomeTabProps) {
   return (
-    <TabsContent className="space-y-8" value="home">
+    <TabsContent className="flex flex-col gap-12" value="home">
       {isMember ? (
-        <>
-          <div className="mx-auto max-w-md">
-            <MemberPass />
-          </div>
-          <MemberOverview
-            benefits={benefits}
-            benefitsCount={benefitsCount}
-            daysRemaining={daysRemaining}
-            estimatedSavings={estimatedSavings}
-            expiryDate={expiryDate}
-            featuredBenefits={featuredBenefits}
-            membershipType={membershipType}
-            onTabChange={onTabChange}
-            startDate={startDate}
-            termDays={termDays}
-          />
-        </>
+        <MemberOverview
+          benefits={benefits}
+          benefitsCount={benefitsCount}
+          daysRemaining={daysRemaining}
+          estimatedSavings={estimatedSavings}
+          expiryDate={expiryDate}
+          featuredBenefits={featuredBenefits}
+          membershipType={membershipType}
+          onTabChange={onTabChange}
+          startDate={startDate}
+          termDays={termDays}
+        />
       ) : (
         <NonMemberOverview benefits={benefits} planCardItems={planCardItems} />
       )}

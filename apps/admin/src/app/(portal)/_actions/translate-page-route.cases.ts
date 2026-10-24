@@ -23,9 +23,9 @@ mock.module("@/lib/page-document-translation", () => ({
 const { POST } = await import("../../api/translate-page/route");
 
 const pageData = {
-  blocks: [],
+  sections: [],
+  version: 2,
   meta: {
-    accentColor: "#001731",
     department: "department-1",
     description: "Beskrivelse",
     slug: "side",
@@ -59,6 +59,28 @@ describe("page translation route", () => {
     expect(invalidLocale.status).toBe(400);
     expect(invalidDocument.status).toBe(400);
     expect(translatePageDocument).not.toHaveBeenCalled();
+  });
+
+  test("accepts a meta carrying a theme", async () => {
+    const themed = {
+      ...pageData,
+      meta: { ...pageData.meta, theme: { accent: "#c8a2f0", dark: "#3b1c6b" } },
+    };
+    const response = await POST(
+      request({ pageData: themed, sourceLocale: "no", targetLocale: "en" })
+    );
+    expect(response.status).toBe(200);
+  });
+
+  test("rejects a theme that is not null or a colour pair", async () => {
+    const response = await POST(
+      request({
+        pageData: { ...pageData, meta: { ...pageData.meta, theme: 5 } },
+        sourceLocale: "no",
+        targetLocale: "en",
+      })
+    );
+    expect(response.status).toBe(400);
   });
 
   test("requires page publishing access before invoking AI", async () => {

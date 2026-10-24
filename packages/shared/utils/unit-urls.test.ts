@@ -104,3 +104,11 @@ describe("isUnitPageSlug", () => {
     expect(isUnitPageSlug(" Units/oslo/x")).toBe(true);
   });
 });
+
+describe("isUnitPageSlug accents", () => {
+  it("folds accents like the lookup collation", () => {
+    expect(isUnitPageSlug("ünits/oslo/x")).toBe(true);
+    expect(isUnitPageSlug("únits/oslo/x")).toBe(true);
+    expect(isUnitPageSlug("unit/oslo/x")).toBe(false);
+  });
+});

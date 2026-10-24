@@ -1,3 +1,4 @@
+import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
 import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 
 /**
@@ -13,7 +14,9 @@ export function assertUnitPageBindingUnchanged(
   persisted: { department_id?: string | null; slug?: string | null },
   next: { department: string; slug: string }
 ): string | null {
-  if (!isUnitPageSlug(persisted.slug)) {
+  // A `projects/<project>` page is bound the same way: a national project
+  // page to its unit, a hub page to no department at all.
+  if (!isAdminOwnedPageSlug(persisted.slug)) {
     return null;
   }
   if (next.slug !== persisted.slug) {
@@ -62,4 +65,109 @@ export function assertUnitPageNamespace(
     return null;
   }
   return 'The "units/" address space belongs to department pages. Open the department under Departments and use "Create page" instead.';
+}
+
+/**
+ * Reserve `projects/<known project>`: the admin owns this namespace, exactly
+ * as it owns `units/`. Only `createUnitPage` (a national project unit's page)
+ * and `createProjectHubPage` (a multi-campus hub) may put a page there; both
+ * call `savePageDraft` directly and never reach this guard.
+ *
+ * Same shape and same reasoning as `assertUnitPageNamespace`, checked on every
+ * save: a create-only check is stepped around by saving an ordinary slug and
+ * renaming it into the namespace. `isProjectPageSlug` trims and lowercases
+ * because Appwrite matches slugs case-insensitively and storage trims them, so
+ * `Projects/winter-games` would otherwise land on the reserved address while
+ * passing this check.
+ *
+ * Returns an error message, or null when the slug is allowed.
+ */
+export function assertProjectPageNamespace(
+  persistedSlug: string | null | undefined,
+  nextSlug: string
+): string | null {
+  if (!isProjectNamespaceSlug(nextSlug)) {
+    return null;
+  }
+  if (persistedSlug === nextSlug) {
+    return null;
+  }
+  return 'The "projects/" address space belongs to project pages. Open the unit under Departments and use "Create page", or ask BISO IT for a project hub page.';
+}
+
+/**
+ * A hub page is a `projects/<project>` page with no department. No department
+ * means no unit's members to scope it to, so only a global admin may save one
+ * (a campus admin whose managed campus happens to match the row would
+ * otherwise pass `assertWriteAccess`). A national project page is bound to its
+ * unit and follows the ordinary department write rules instead.
+ */
+export function assertProjectHubWriteAccess(
+  persisted: { department_id?: string | null; slug?: string | null },
+  isGlobalAdmin: boolean
+): string | null {
+  if (!isProjectHubPage(persisted) || isGlobalAdmin) {
+    return null;
+  }
+  return "Only a global admin can edit a project hub page";
+}
+
+/**
+ * A hub page: anywhere in the `projects/` namespace with no department. The
+ * whole namespace counts, not just known projects, so a legacy
+ * `projects/<anything>` row nobody owns is global-admin territory too.
+ */
+export function isProjectHubPage(
+  persisted: { department_id?: string | null; slug?: string | null } | null
+): boolean {
+  return isProjectNamespaceSlug(persisted?.slug) && !persisted?.department_id;
+}
+
+/**
+ * Throwing form of `assertProjectHubWriteAccess` for the actions that throw
+ * (publish, unpublish, archive). Runs after the caller's own access check.
+ */
+export function requireProjectHubAccess(
+  persisted: { department_id?: string | null; slug?: string | null },
+  roles: readonly string[]
+): void {
+  const error = assertProjectHubWriteAccess(
+    persisted,
+    roles.includes("globaladmin")
+  );
+  if (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Both rules for a `projects/` save in one call: the namespace is reserved
+ * (see `assertProjectPageNamespace`), and a hub page is global-admin only.
+ * The hub rule runs only for an existing row, after the caller's own access
+ * check, so it cannot become an existence oracle.
+ */
+export function assertProjectPageSave({
+  isGlobalAdmin,
+  nextSlug,
+  persisted,
+}: {
+  isGlobalAdmin: boolean;
+  nextSlug: string;
+  persisted: { department_id?: string | null; slug?: string | null } | null;
+}): string | null {
+  const namespaceError = assertProjectPageNamespace(
+    persisted?.slug ?? null,
+    nextSlug
+  );
+  if (namespaceError) {
+    return namespaceError;
+  }
+  return persisted
+    ? assertProjectHubWriteAccess(persisted, isGlobalAdmin)
+    : null;
+}
+
+/** A page whose address is owned by the admin (`units/…` or `projects/<project>`). */
+export function isAdminOwnedPageSlug(slug: string | null | undefined): boolean {
+  return isUnitPageSlug(slug) || isProjectNamespaceSlug(slug);
 }

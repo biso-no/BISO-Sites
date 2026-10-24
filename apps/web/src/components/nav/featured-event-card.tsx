@@ -2,11 +2,9 @@
 
 import { formatOsloDate } from "@repo/shared/utils/oslo-time";
 import { ImageWithFallback } from "@repo/ui/components/image";
-import { Card } from "@repo/ui/components/ui/card";
-import { PLACEHOLDER_IMAGE } from "@repo/ui/lib/placeholder-images";
-import { CalendarDays } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { ChevronFrame } from "@/components/ui/chevron-frame";
 import type { NavFeaturedItem } from "@/lib/types/nav";
 
 interface FeaturedEventCardProps {
@@ -14,52 +12,60 @@ interface FeaturedEventCardProps {
   onNavigate: () => void;
 }
 
+/**
+ * The next event, in the "For students" panel.
+ *
+ * The date is shown in Oslo wall-clock time whatever zone the browser runs in
+ * (the stored value is a UTC instant), in the reader's language. An event
+ * without a picture is shown without a frame rather than with a stock
+ * placeholder.
+ */
 export function FeaturedEventCard({
   event,
   onNavigate,
 }: FeaturedEventCardProps) {
   const t = useTranslations("common.navigation");
+  const locale = useLocale();
 
-  const formattedDate = event.startDate
-    ? formatOsloDate(
-        event.startDate,
-        {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        },
-        "en-GB"
-      )
-    : null;
+  const formattedDate = formatOsloDate(
+    event.startDate,
+    { day: "numeric", month: "short", year: "numeric" },
+    locale === "no" ? "nb-NO" : "en-GB"
+  );
 
   return (
-    <Link href={`/events/${event.slug}`} onClick={onNavigate}>
-      <Card className="group overflow-hidden border-brand-border bg-brand-muted/40 transition-colors hover:border-brand">
-        <div className="relative aspect-[16/9] w-full overflow-hidden">
+    <Link
+      className="group block rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-4 focus-visible:ring-offset-surface"
+      href={`/events/${event.slug}`}
+      onClick={onNavigate}
+    >
+      {event.image ? (
+        <ChevronFrame className="mb-3 bg-surface-sunken" ratio="16/9">
+          {/* `alt=""`: the title below is the link's accessible name. */}
           <ImageWithFallback
-            alt={event.title}
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            fill
-            sizes="320px"
-            src={event.image || PLACEHOLDER_IMAGE}
+            alt=""
+            className="transition-transform duration-500 group-hover:scale-[1.03]"
+            height={360}
+            sizes="300px"
+            src={event.image}
+            width={640}
           />
-          <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
-        </div>
-        <div className="space-y-1 p-4">
-          <span className="font-semibold text-[11px] text-brand uppercase tracking-wide">
-            {t("featured.eventLabel")}
-          </span>
-          <h4 className="line-clamp-2 font-semibold text-sm text-white">
-            {event.title}
-          </h4>
-          {formattedDate && (
-            <span className="flex items-center gap-1.5 text-white/70 text-xs">
-              <CalendarDays aria-hidden className="h-3.5 w-3.5" />
-              {formattedDate}
-            </span>
-          )}
-        </div>
-      </Card>
+        </ChevronFrame>
+      ) : null}
+      <span className="type-label block text-ink-accent">
+        {t("featured.eventLabel")}
+      </span>
+      <span className="type-heading-card mt-1 line-clamp-2 block text-ink transition-colors group-hover:text-ink-accent">
+        {event.title}
+      </span>
+      {formattedDate && event.startDate ? (
+        <time
+          className="type-data mt-1 block text-ink-muted"
+          dateTime={event.startDate}
+        >
+          {formattedDate}
+        </time>
+      ) : null}
     </Link>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import type { Users } from "@repo/api/types/appwrite";
-import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -11,11 +11,19 @@ import {
   DialogTitle,
 } from "@repo/ui/components/ui/dialog";
 import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
-import { AlertTriangle, Loader2, UserCog } from "lucide-react";
-import { useState, useTransition } from "react";
+import { cn } from "@repo/ui/lib/utils";
+import { AlertTriangle, Loader2, UserCog, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateProfile } from "@/lib/actions/user";
+import {
+  fieldClass,
+  fieldLabelClass,
+  focusRingClass,
+  primaryActionClass,
+  secondaryActionClass,
+} from "./form-styles";
 
 interface RequiredProfileFields {
   address: string | null;
@@ -42,16 +50,6 @@ const REQUIRED_FIELDS: (keyof RequiredProfileFields)[] = [
   "city",
 ];
 
-const FIELD_LABELS: Record<keyof RequiredProfileFields, string> = {
-  name: "Full Name",
-  email: "Email Address",
-  phone: "Phone Number",
-  bank_account: "Bank Account Number",
-  address: "Street Address",
-  zip: "Postal Code",
-  city: "City",
-};
-
 function getMissingFields(
   profile: Partial<Users>
 ): (keyof RequiredProfileFields)[] {
@@ -62,6 +60,8 @@ export function ProfileCompletionBanner({
   userProfile,
   onProfileUpdate,
 }: ProfileCompletionBannerProps) {
+  const t = useTranslations("expenses");
+  const idPrefix = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState<RequiredProfileFields>({
@@ -73,6 +73,25 @@ export function ProfileCompletionBanner({
     zip: userProfile.zip ?? "",
     city: userProfile.city ?? "",
   });
+
+  const fieldLabels: Record<keyof RequiredProfileFields, string> = {
+    name: t("composer.profile.fields.name"),
+    email: t("composer.profile.fields.email"),
+    phone: t("composer.profile.fields.phone"),
+    bank_account: t("composer.profile.fields.bankAccount"),
+    address: t("composer.profile.fields.address"),
+    zip: t("composer.profile.fields.zip"),
+    city: t("composer.profile.fields.city"),
+  };
+  const fieldPlaceholders: Record<keyof RequiredProfileFields, string> = {
+    name: t("composer.profile.placeholders.name"),
+    email: t("composer.profile.placeholders.email"),
+    phone: t("composer.profile.placeholders.phone"),
+    bank_account: t("composer.profile.placeholders.bankAccount"),
+    address: t("composer.profile.placeholders.address"),
+    zip: t("composer.profile.placeholders.zip"),
+    city: t("composer.profile.placeholders.city"),
+  };
 
   const missingFields = getMissingFields(userProfile);
 
@@ -87,7 +106,9 @@ export function ProfileCompletionBanner({
     const stillMissing = missingFields.filter((field) => !formData[field]);
     if (stillMissing.length > 0) {
       toast.error(
-        `Please fill in: ${stillMissing.map((f) => FIELD_LABELS[f]).join(", ")}`
+        t("composer.profile.missing", {
+          fields: stillMissing.map((f) => fieldLabels[f]).join(", "),
+        })
       );
       return;
     }
@@ -101,11 +122,11 @@ export function ProfileCompletionBanner({
     startTransition(async () => {
       const result = await updateProfile(updateData);
       if (result) {
-        toast.success("Profile updated successfully");
+        toast.success(t("composer.profile.updated"));
         onProfileUpdate({ ...userProfile, ...updateData });
         setIsOpen(false);
       } else {
-        toast.error("Failed to update profile");
+        toast.error(t("composer.profile.updateFailed"));
       }
     });
   };
@@ -119,86 +140,104 @@ export function ProfileCompletionBanner({
 
   return (
     <>
-      <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-900/20">
+      <div
+        className="mt-6 rounded-biso-md border border-warning/30 bg-warning/10 p-4"
+        role="status"
+      >
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <div className="flex-1 space-y-2">
-            <p className="font-medium text-amber-900 text-sm dark:text-amber-200">
-              Complete Your Profile
-            </p>
-            <p className="text-amber-700 text-xs dark:text-amber-400">
-              The following information is required to submit expenses:{" "}
-              <span className="font-medium">
-                {missingFields.map((f) => FIELD_LABELS[f]).join(", ")}
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 text-warning"
+          />
+          <div className="type-body-sm min-w-0 flex-1 space-y-2 text-ink">
+            <p className="font-semibold">{t("composer.profile.title")}</p>
+            <p>
+              {t("composer.profile.required")}{" "}
+              <span className="font-semibold">
+                {missingFields.map((f) => fieldLabels[f]).join(", ")}
               </span>
             </p>
-            <Button
-              className="mt-2 gap-2 border-amber-200 bg-background text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:bg-transparent dark:text-amber-300 dark:hover:bg-amber-900/50"
+            <button
+              className={cn(secondaryActionClass, "mt-2 bg-surface")}
               onClick={() => setIsOpen(true)}
-              size="sm"
-              variant="outline"
+              type="button"
             >
-              <UserCog className="h-4 w-4" />
-              Update Profile
-            </Button>
+              <UserCog aria-hidden="true" className="size-4 shrink-0" />
+              {t("composer.profile.update")}
+            </button>
           </div>
         </div>
       </div>
 
       <Dialog onOpenChange={setIsOpen} open={isOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className="rounded-biso-lg border-edge bg-surface text-ink shadow-elev-2 sm:max-w-md"
+          showCloseButton={false}
+        >
           <DialogHeader>
-            <DialogTitle>Complete Your Profile</DialogTitle>
-            <DialogDescription>
-              Please provide the following information to submit expense
-              reports.
+            <DialogTitle className="type-heading-card pr-8 text-ink">
+              {t("composer.profile.title")}
+            </DialogTitle>
+            <DialogDescription className="type-body-sm text-ink-muted">
+              {t("composer.profile.dialogBody")}
             </DialogDescription>
           </DialogHeader>
+          <DialogClose
+            aria-label={t("composer.close")}
+            className={cn(
+              "absolute top-4 right-4 rounded-biso-sm p-1 text-ink-muted transition-colors hover:text-ink",
+              focusRingClass
+            )}
+          >
+            <X aria-hidden="true" className="size-4" />
+          </DialogClose>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             {missingFields.map((field) => (
               <div className="space-y-2" key={field}>
-                <Label htmlFor={field}>{FIELD_LABELS[field]}</Label>
+                <label
+                  className={fieldLabelClass}
+                  htmlFor={`${idPrefix}-${field}`}
+                >
+                  {fieldLabels[field]}
+                </label>
                 <Input
-                  id={field}
+                  className={fieldClass}
+                  id={`${idPrefix}-${field}`}
                   onChange={(e) => handleInputChange(field, e.target.value)}
-                  placeholder={
-                    (
-                      {
-                        bank_account: "1234 56 78901",
-                        phone: "+47 123 45 678",
-                        email: "your@email.com",
-                        address: "Street name 123",
-                        zip: "0123",
-                        city: "Oslo",
-                        name: "Your full name",
-                      } as Record<string, string>
-                    )[field] || "Enter value"
-                  }
+                  placeholder={fieldPlaceholders[field]}
                   type={field === "email" ? "email" : "text"}
                   value={formData[field] ?? ""}
                 />
               </div>
             ))}
 
-            <DialogFooter className="pt-4">
-              <Button
+            <DialogFooter className="border-edge border-t pt-4">
+              <button
+                className={secondaryActionClass}
                 onClick={() => setIsOpen(false)}
                 type="button"
-                variant="outline"
               >
-                Cancel
-              </Button>
-              <Button disabled={isPending} type="submit">
+                {t("composer.profile.cancel")}
+              </button>
+              <button
+                aria-busy={isPending}
+                className={primaryActionClass}
+                disabled={isPending}
+                type="submit"
+              >
                 {isPending ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    <Loader2
+                      aria-hidden="true"
+                      className="size-4 shrink-0 animate-spin"
+                    />
+                    {t("composer.profile.saving")}
                   </>
                 ) : (
-                  "Save Profile"
+                  t("composer.profile.save")
                 )}
-              </Button>
+              </button>
             </DialogFooter>
           </form>
         </DialogContent>

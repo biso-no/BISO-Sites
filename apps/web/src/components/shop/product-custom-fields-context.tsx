@@ -71,6 +71,18 @@ export function useProductCustomFields(): CustomFieldsState | null {
   return useContext(ProductCustomFieldsContext);
 }
 
+const WHITESPACE = /\s+/g;
+
+/**
+ * The DOM id of a question's control. Prefixed because a field id is the
+ * product's own `field_key` ("email", "name", …), which could otherwise collide
+ * with another element on the page; the add-to-cart button uses it to move
+ * focus to the first unanswered question.
+ */
+export function productFieldDomId(fieldId: string): string {
+  return `product-field-${fieldId.replace(WHITESPACE, "-")}`;
+}
+
 /** Field ids that are required but still unanswered. */
 export function findMissingRequired(
   fields: ProductCustomField[],
