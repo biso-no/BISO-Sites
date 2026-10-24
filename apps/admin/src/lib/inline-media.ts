@@ -1,4 +1,4 @@
-export const INLINE_MEDIA_MAX_BYTES = 10 * 1024 * 1024;
+export const INLINE_MEDIA_MAX_BYTES = 250 * 1024 * 1024;
 
 export type InlineMediaKind = "audio" | "file" | "image" | "video";
 

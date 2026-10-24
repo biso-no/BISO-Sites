@@ -91,6 +91,7 @@ export const HUB_PROJECTS: readonly { name: string; slug: ProjectSlug }[] = [
   { name: "Fadderullan", slug: "fadderullan" },
   { name: "Karrieredagene", slug: "karrieredagene" },
   { name: "Bergensbaneløpet", slug: "bergensbanelopet" },
+  { name: "Winter Games", slug: "winter-games" },
 ];
 
 export function isHubProject(project: ProjectSlug): boolean {

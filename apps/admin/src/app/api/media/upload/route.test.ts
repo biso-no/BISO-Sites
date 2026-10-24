@@ -80,8 +80,34 @@ test("rejects an oversized content length before reading the body", async () => 
   expect(response.status).toBe(413);
   expect(bodyReads).toBe(0);
   expect(await response.json()).toEqual({
-    error: "File too large (max 10 MB)",
+    error: "File too large (max 250 MB)",
   });
+});
+
+test("accepts uploads larger than the previous 10 MB limit", async () => {
+  let createCalls = 0;
+  const previousLimitBytes = 10 * 1024 * 1024;
+  const response = await handleInlineMediaUpload(
+    new Request("http://admin.test/api/media/upload", {
+      body: new Blob(["photo"], { type: "image/jpeg" }),
+      headers: {
+        "content-length": String(previousLimitBytes + 1),
+        "content-type": "image/jpeg",
+        "x-filename": "photo.jpg",
+      },
+      method: "POST",
+    }),
+    {
+      authenticate: () => Promise.resolve(true),
+      createFile: () => {
+        createCalls += 1;
+        return Promise.resolve(new Response(null, { status: 201 }));
+      },
+    }
+  );
+
+  expect(response.status).toBe(201);
+  expect(createCalls).toBe(1);
 });
 
 test("rejects empty and actually oversized request bodies", async () => {
@@ -100,14 +126,20 @@ test("rejects empty and actually oversized request bodies", async () => {
     }),
     dependencies
   );
+  const oversizedBlob = new Blob(["too large"], { type: "image/png" });
+  Object.defineProperty(oversizedBlob, "size", {
+    value: INLINE_MEDIA_MAX_BYTES + 1,
+  });
+  const oversizedRequest = new Request("http://admin.test/api/media/upload", {
+    body: new Blob(["photo"], { type: "image/png" }),
+    headers: { "content-type": "image/png", "x-filename": "photo.png" },
+    method: "POST",
+  });
+  Object.defineProperty(oversizedRequest, "blob", {
+    value: () => Promise.resolve(oversizedBlob),
+  });
   const oversizedResponse = await handleInlineMediaUpload(
-    new Request("http://admin.test/api/media/upload", {
-      body: new Blob([new Uint8Array(INLINE_MEDIA_MAX_BYTES + 1)], {
-        type: "image/png",
-      }),
-      headers: { "content-type": "image/png", "x-filename": "photo.png" },
-      method: "POST",
-    }),
+    oversizedRequest,
     dependencies
   );
 

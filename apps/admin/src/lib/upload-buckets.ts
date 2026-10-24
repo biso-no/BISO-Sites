@@ -1,5 +1,6 @@
 const MB = 1024 * 1024;
 const TEN_MB = 10 * MB;
+const TWO_HUNDRED_FIFTY_MB = 250 * MB;
 const DOCUMENT_MAX_BYTES = 25 * MB;
 
 /** Largest image the editor takes. */
@@ -118,7 +119,7 @@ const UPLOAD_BUCKETS: Record<string, UploadBucketConfig> = {
   media: defineBucket({ client: "admin", id: "media" }, [
     { bytes: IMAGE_MAX_BYTES, types: IMAGE_MIME_TYPES },
     // Stage 5 raises video with chunked upload.
-    { bytes: TEN_MB, types: VIDEO_MIME_TYPES },
+    { bytes: TWO_HUNDRED_FIFTY_MB, types: VIDEO_MIME_TYPES },
     { bytes: DOCUMENT_MAX_BYTES, types: DOCUMENT_MIME_TYPES },
   ]),
 };
