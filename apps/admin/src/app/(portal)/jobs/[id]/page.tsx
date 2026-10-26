@@ -1,10 +1,13 @@
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { describeJobReuse } from "@/lib/job-reuse";
-import { getTranslations } from "next-intl/server";
-import { notFound } from "next/navigation";
 import { getContentNotificationState } from "../../_actions/content-notifications";
 import { getJob, getJobApplicationCount } from "../../_actions/jobs";
-import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
+import {
+  listCampuses,
+  listJobDepartmentsForCampus,
+} from "../../_actions/lookups";
 import { JobStudioEditor } from "./_components/job-studio-editor";
 
 interface JobEditorPageProps {
@@ -41,6 +44,7 @@ export default async function JobEditorPage({
 
   const isGlobalAdmin = ctx.roles.includes("globaladmin");
   const isHRAdmin = ctx.roles.includes("hradmin");
+  const isHR = ctx.roles.includes("hr");
   const notificationState = isNew
     ? ({ kind: "none" } as const)
     : await getContentNotificationState("job", id);
@@ -57,21 +61,27 @@ export default async function JobEditorPage({
   })();
 
   const canChangeCampus = isGlobalAdmin || isHRAdmin;
-  const filteredCampuses = isGlobalAdmin || isHRAdmin
-    ? campuses
-    : campuses.filter((c) => {
-        const allowed = isCampusAdmin
-          ? ctx.managedCampusIds
-          : ctx.resolvedCampusIds;
-        return allowed.includes(c.$id);
-      });
+  const filteredCampuses =
+    isGlobalAdmin || isHRAdmin
+      ? campuses
+      : campuses.filter((c) => {
+          const allowed = isCampusAdmin
+            ? ctx.managedCampusIds
+            : ctx.resolvedCampusIds;
+          return allowed.includes(c.$id);
+        });
 
   const campusIdForDepts = job?.campus_id ?? effectiveCampusId;
   const departments = campusIdForDepts
-    ? await listDepartmentsForCampus(campusIdForDepts)
+    ? await listJobDepartmentsForCampus(campusIdForDepts)
     : [];
 
-  const isDepartmentUser = !(isGlobalAdmin || isCampusAdmin);
+  const isDepartmentUser = !(
+    isGlobalAdmin ||
+    isCampusAdmin ||
+    isHRAdmin ||
+    isHR
+  );
   const allowedDepartmentIds =
     isDepartmentUser && ctx.resolvedDepartmentIds.length
       ? departments

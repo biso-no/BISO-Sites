@@ -38,6 +38,23 @@ describe("jobScopeQueries", () => {
     ).toEqual([Query.equal("campus.$id", ["1"])]);
   });
 
+  test("national HR admin sees all campuses unless filtered by active campus", () => {
+    expect(
+      jobScopeQueries(
+        makeCtx({ resolvedCampusIds: ["5"], roles: ["hr", "hradmin"] })
+      )
+    ).toEqual([]);
+    expect(
+      jobScopeQueries(
+        makeCtx({
+          activeCampusId: "1",
+          resolvedCampusIds: ["5"],
+          roles: ["hr", "hradmin"],
+        })
+      )
+    ).toEqual([Query.equal("campus.$id", ["1"])]);
+  });
+
   test("HR members filter by their campuses", () => {
     expect(
       jobScopeQueries(makeCtx({ resolvedCampusIds: ["1"], roles: ["hr"] }))
