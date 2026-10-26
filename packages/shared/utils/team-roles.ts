@@ -75,6 +75,22 @@ export function isNationalOperations(
 }
 
 /**
+ * National HR = member of the National campus team plus the HR Unit department
+ * team. Accepts both the expanded and camelCase department form.
+ */
+export function isNationalHR(
+  campusNames: readonly string[],
+  departmentNames: readonly string[]
+): boolean {
+  return (
+    campusNames.includes("National") &&
+    (departmentNames.includes("HR") ||
+      departmentNames.includes("HRUnit") ||
+      departmentNames.includes("HR Unit"))
+  );
+}
+
+/**
  * Campus admin for a city = member of that city's campus team plus its
  * "Ledelsen" (leadership) department team. Accepts both "Ledelsen Oslo" and
  * the legacy "LedelsenOslo" form.

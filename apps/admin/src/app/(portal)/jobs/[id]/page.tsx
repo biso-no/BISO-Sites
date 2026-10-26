@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { requireNavAccess } from "@/lib/authorization";
 import { describeJobReuse } from "@/lib/job-reuse";
+import { getTranslations } from "next-intl/server";
+import { notFound } from "next/navigation";
 import { getContentNotificationState } from "../../_actions/content-notifications";
 import { getJob, getJobApplicationCount } from "../../_actions/jobs";
 import { listCampuses, listDepartmentsForCampus } from "../../_actions/lookups";
@@ -40,13 +40,14 @@ export default async function JobEditorPage({
   }
 
   const isGlobalAdmin = ctx.roles.includes("globaladmin");
+  const isHRAdmin = ctx.roles.includes("hradmin");
   const notificationState = isNew
     ? ({ kind: "none" } as const)
     : await getContentNotificationState("job", id);
   const isCampusAdmin = ctx.roles.includes("campusadmin");
 
   const effectiveCampusId = (() => {
-    if (isGlobalAdmin) {
+    if (isGlobalAdmin || isHRAdmin) {
       return ctx.activeCampusId ?? campuses[0]?.$id ?? "";
     }
     if (isCampusAdmin) {
@@ -55,8 +56,8 @@ export default async function JobEditorPage({
     return ctx.resolvedCampusIds[0] ?? campuses[0]?.$id ?? "";
   })();
 
-  const canChangeCampus = isGlobalAdmin;
-  const filteredCampuses = isGlobalAdmin
+  const canChangeCampus = isGlobalAdmin || isHRAdmin;
+  const filteredCampuses = isGlobalAdmin || isHRAdmin
     ? campuses
     : campuses.filter((c) => {
         const allowed = isCampusAdmin
@@ -96,7 +97,7 @@ export default async function JobEditorPage({
       allowedDepartmentIds={allowedDepartmentIds}
       campuses={filteredCampuses}
       canChangeCampus={canChangeCampus}
-      canNotifyNational={isGlobalAdmin}
+      canNotifyNational={isGlobalAdmin || isHRAdmin}
       defaultCampusId={effectiveCampusId}
       initialDepartments={initialDepartments}
       isFreshDuplicate={Boolean(duplicated) && !isNew}
