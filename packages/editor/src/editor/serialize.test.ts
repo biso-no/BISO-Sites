@@ -435,3 +435,20 @@ describe("page header", () => {
     expect(out.indexOf("header:")).toBeLessThan(out.indexOf("== BLOCKS =="));
   });
 });
+
+test("the AI view shows the department's theme on a page that has none of its own", () => {
+  const d = doc(section("s-1", "1", [["b-1"]]));
+  d.meta = { ...d.meta, department: "dep-1" };
+  d.meta = { ...d.meta, theme: undefined };
+  const text = serializePageForAI(d, null, [
+    {
+      campusId: null,
+      id: "dep-1",
+      name: "Dept",
+      theme: { accent: "#3aa3e1", dark: "#112233" },
+    },
+  ]);
+  expect(text).toContain(
+    "theme: dark #112233, accent #3aa3e1 (from the department)"
+  );
+});

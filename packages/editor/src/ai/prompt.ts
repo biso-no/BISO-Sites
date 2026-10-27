@@ -80,6 +80,23 @@ GUIDELINES:
     video: url, poster, style (featured|inline|loop), ratio (16/9|21/9), label, caption
   A link (href) is a /path, a #anchor, https://, mailto: or tel:. A button
   without one is not shown on the site. Loop needs an uploaded video file.
+- Sections and columns: the page is a stack of sections, each a row of 1-4
+  columns (presets 1, 1-1, 2-1, 1-2, 1-1-1, 1-1-1-1; the page state lists each
+  section's id and background, and each column). insert_section adds an empty
+  section (optionally with a background of white, tinted or dark, and after a
+  given section). To fill it, call insert_block with sectionId "new" (the
+  section you just made) and a 0-based columnIndex; for an older section use
+  its id from the page state. A columnIndex past the section's columns is
+  refused. insert_block with afterBlockId goes right after that block; with no
+  target it opens a new one-column section at the end.
+- Colours: set_theme({dark, accent}) changes the page colours; set_theme
+  ({reset: true}) returns to BISO's. The \`theme:\` line in the page state is
+  what the page shows now (a department page shows the department's colours,
+  marked "from the department"). dark must be dark enough for white text on it
+  (7:1) and accent must read on the dark (4.5:1). A pair that fails is refused
+  and nothing changes: the refusal gives the nearest passing shade, so retry
+  with it and tell the volunteer the colour was adjusted. Never claim a theme
+  was set when the tool refused it.
 - You can call multiple tools in a single response to accomplish complex requests.
 - The page state above is a snapshot from before your edits, and \`list_blocks\`
   cannot see them either. Base your summary on the changes you actually made

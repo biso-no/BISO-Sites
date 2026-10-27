@@ -4,34 +4,137 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PageEditorToolName } from "@/ai/tools";
+import {
+  type SetThemeInput,
+  type ToolResult,
+  validateSetTheme,
+} from "@/ai/tools/theme";
+import { useEditorCallbacks } from "@/editor/callbacks";
 import { useSelection } from "@/editor/hooks";
 import { serializePageForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
-import { targetAfterBlock } from "@/editor/tree";
-import type { BlockType } from "@/editor/types";
+import { findSection, targetAfterBlock } from "@/editor/tree";
+import type {
+  BlockType,
+  InsertTarget,
+  PageDoc,
+  SectionBackground,
+  SectionColumns,
+} from "@/editor/types";
 
 type ToolArgs = Record<string, unknown>;
 
+/** The section the most recent insert_section made, for `sectionId: "new"`. */
+const NEW_SECTION = "new";
+let lastInsertedSectionId: string | null = null;
+
+function toolError(message: string): ToolResult {
+  return { message, status: "error" };
+}
+
+/** The column an insert_block aimed at a section lands in, or why it cannot. */
+function resolveColumnTarget(
+  doc: PageDoc,
+  sectionRef: string,
+  columnIndex: unknown
+): { target: InsertTarget } | { error: ToolResult } {
+  const sectionId =
+    sectionRef === NEW_SECTION ? (lastInsertedSectionId ?? "") : sectionRef;
+  const found = findSection(doc, sectionId);
+  if (!found) {
+    return { error: toolError(`There is no section ${sectionRef}.`) };
+  }
+  const index = columnIndex ?? 0;
+  const count = found.section.columns.length;
+  if (
+    typeof index !== "number" ||
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= count
+  ) {
+    return {
+      error: toolError(
+        `Section ${sectionRef} has ${count} column${count === 1 ? "" : "s"} (columnIndex 0 to ${count - 1}); columnIndex ${String(index)} does not exist.`
+      ),
+    };
+  }
+  return { target: { columnId: found.section.columns[index].id } };
+}
+
+function applyInsertBlock(args: ToolArgs): ToolResult {
+  const store = useEditorStore.getState();
+  const type = args.type as BlockType;
+  const { afterBlockId, columnIndex, sectionId } = args;
+  if (columnIndex !== undefined && typeof sectionId !== "string") {
+    return toolError("columnIndex needs a sectionId.");
+  }
+  // Without any target (or an afterBlockId that is gone) the tool promises
+  // the end of the page, so this must not fall back to the user's pending
+  // insert target or selection the way the palette does.
+  let target: InsertTarget | null =
+    typeof afterBlockId === "string"
+      ? targetAfterBlock(store.doc, afterBlockId)
+      : null;
+  if (!target && typeof sectionId === "string") {
+    const resolved = resolveColumnTarget(store.doc, sectionId, columnIndex);
+    if ("error" in resolved) {
+      return resolved.error;
+    }
+    target = resolved.target;
+  }
+  if (target) {
+    store.insertBlock(type, target);
+  } else {
+    store.insertBlockInNewSection(type, store.doc.sections.length);
+  }
+  return { message: `Inserted ${type} block.`, status: "applied" };
+}
+
+function applyInsertSection(args: ToolArgs): ToolResult {
+  const store = useEditorStore.getState();
+  let index = store.doc.sections.length;
+  if (typeof args.afterSectionId === "string") {
+    const found = findSection(store.doc, args.afterSectionId);
+    if (!found) {
+      return toolError(`There is no section ${args.afterSectionId}.`);
+    }
+    index = found.index + 1;
+  }
+  const sectionId = store.insertSection(args.columns as SectionColumns, index);
+  const background = args.background as SectionBackground | undefined;
+  if (background && background !== "white") {
+    store.setSectionLayout(sectionId, { background });
+  }
+  lastInsertedSectionId = sectionId;
+  return {
+    message: `Inserted section ${sectionId}.`,
+    sectionId,
+    status: "applied",
+  };
+}
+
+function applySetTheme(args: ToolArgs): ToolResult {
+  const checked = validateSetTheme(args as SetThemeInput);
+  if ("error" in checked) {
+    return checked.error;
+  }
+  useEditorStore.getState().setTheme(checked.theme);
+  return {
+    message: checked.theme ? "Theme set." : "Theme reset to BISO.",
+    status: "applied",
+  };
+}
+
 /** Applies one Copilot tool call to the editor store. */
-export function applyToolCall(toolName: string, args: ToolArgs) {
+export function applyToolCall(toolName: string, args: ToolArgs): ToolResult {
   const store = useEditorStore.getState();
   switch (toolName as PageEditorToolName) {
-    case "insert_block": {
-      const type = args.type as BlockType;
-      const target =
-        typeof args.afterId === "string"
-          ? targetAfterBlock(store.doc, args.afterId)
-          : null;
-      // Without an afterId (or one that is gone) the tool promises the end
-      // of the page, so this must not fall back to the user's pending insert
-      // target or selection the way the palette does.
-      if (target) {
-        store.insertBlock(type, target);
-      } else {
-        store.insertBlockInNewSection(type, store.doc.sections.length);
-      }
-      break;
-    }
+    case "insert_block":
+      return applyInsertBlock(args);
+    case "insert_section":
+      return applyInsertSection(args);
+    case "set_theme":
+      return applySetTheme(args);
     case "remove_block":
       store.removeBlock(args.id as string);
       break;
@@ -42,18 +145,20 @@ export function applyToolCall(toolName: string, args: ToolArgs) {
       store.bindCollection(args.id as string, args.source as string);
       break;
     default:
-      break;
+      return toolError(`Unknown tool ${toolName}.`);
   }
+  return { message: "Applied.", status: "applied" };
 }
 
 export function CopilotPanel() {
   const setCopilotOpen = useEditorStore((s) => s.setCopilotOpen);
   const doc = useEditorStore((s) => s.doc);
   const selection = useSelection();
+  const { departments } = useEditorCallbacks();
 
   const getPageContext = useCallback(
-    () => serializePageForAI(doc, selection),
-    [doc, selection]
+    () => serializePageForAI(doc, selection, departments),
+    [doc, selection, departments]
   );
 
   const [input, setInput] = useState("");
@@ -86,6 +191,7 @@ export function CopilotPanel() {
     const text = input.trim();
     setInput("");
     setStreamError(null);
+    lastInsertedSectionId = null;
     sendMessage({ text }, { body: { pageContext: getPageContext() } });
   }
 
@@ -160,6 +266,7 @@ export function CopilotPanel() {
                   className="pe-copilot-panel__suggestion"
                   key={s}
                   onClick={() => {
+                    lastInsertedSectionId = null;
                     sendMessage(
                       { text: s },
                       { body: { pageContext: getPageContext() } }

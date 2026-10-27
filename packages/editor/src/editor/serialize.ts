@@ -1,5 +1,6 @@
 import { parsePageTheme } from "@repo/shared/utils/page-theme";
 import { emptyHeader } from "../header/empty-header";
+import { effectiveTheme } from "./effective-theme";
 import { newId } from "./ids";
 import {
   COLUMN_COUNT,
@@ -10,6 +11,7 @@ import { walkBlocks } from "./tree";
 import type {
   Block,
   Column,
+  EditorDepartment,
   HeaderCrumb,
   HeaderVariant,
   LinkButton,
@@ -323,9 +325,15 @@ export const normalizePageDoc = (doc: PageDoc): PageDoc => {
     : { ...rest, meta, sections };
 };
 
-function themeSummary(theme: PageMeta["theme"]): string {
-  const parsed = theme ? parsePageTheme(theme) : null;
-  return parsed ? `dark ${parsed.dark}, accent ${parsed.accent}` : "BISO";
+function themeSummary(meta: PageMeta, departments: EditorDepartment[]): string {
+  const effective = effectiveTheme(meta, departments);
+  const parsed = effective ? parsePageTheme(effective) : null;
+  if (!parsed) {
+    return "BISO";
+  }
+  const fromDepartment =
+    meta.theme === undefined ? " (from the department)" : "";
+  return `dark ${parsed.dark}, accent ${parsed.accent}${fromDepartment}`;
 }
 
 function headerSummary(header: PageHeader | undefined): string {
@@ -378,7 +386,8 @@ function blockSummary(b: Block): string {
 /** Compact plain-text representation of the page injected into every AI request. */
 export function serializePageForAI(
   doc: PageDoc,
-  selection: string | null
+  selection: string | null,
+  departments: EditorDepartment[] = []
 ): string {
   const { meta } = doc;
   const blocks = walkBlocks(doc);
@@ -387,7 +396,7 @@ export function serializePageForAI(
     `title: ${meta.title}`,
     `slug: ${meta.slug}`,
     `department: ${meta.department}`,
-    `theme: ${themeSummary(meta.theme)}`,
+    `theme: ${themeSummary(meta, departments)}`,
     `status: ${meta.status}`,
     `sections: ${doc.sections.length}`,
     `blocks: ${blocks.length}`,
