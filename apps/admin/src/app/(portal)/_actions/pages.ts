@@ -284,10 +284,10 @@ function ensureDepartmentForScoping(
 async function withoutDepartmentTheme(
   db: Awaited<ReturnType<typeof createAdminClient>>["db"],
   doc: PageDoc
-): Promise<PageDoc> {
+): Promise<{ dropped: boolean; doc: PageDoc }> {
   const departmentId = doc.meta.department;
   if (!departmentId || doc.meta.theme === undefined) {
-    return doc;
+    return { doc, dropped: false };
   }
   let department: Departments;
   try {
@@ -299,14 +299,17 @@ async function withoutDepartmentTheme(
     );
   } catch (e) {
     console.error("[savePageEditorDoc] department theme read failed", e);
-    return doc;
+    return { doc, dropped: false };
   }
   if (!isDepartmentTheme(doc.meta.theme, department)) {
-    return doc;
+    return { doc, dropped: false };
   }
   const { theme: _departmentHasIt, ...meta } = doc.meta;
-  return { ...doc, meta };
+  return { doc: { ...doc, meta }, dropped: true };
 }
+
+const themeDroppedFlag = (dropped: boolean): { themeDropped?: true } =>
+  dropped ? { themeDropped: true } : {};
 
 export async function savePageEditorDoc({
   id,
@@ -424,7 +427,8 @@ export async function savePageEditorDoc({
       departmentId: normalizedDoc.meta.department || null,
     });
     // After the ownership check: the department is verified before it is read.
-    const storedDoc = await withoutDepartmentTheme(db, normalizedDoc);
+    const { doc: storedDoc, dropped: themeDropped } =
+      await withoutDepartmentTheme(db, normalizedDoc);
     const { pageId, slug } = await savePageDraft({
       id,
       // Text blocks store HTML that the site renders as markup. The editor
@@ -451,7 +455,14 @@ export async function savePageEditorDoc({
     // The department is returned like the slug: a department user's page may
     // have been bound to their department above, and the editor's scope line
     // and canvas must show what Publish will do.
-    return { department: normalizedDoc.meta.department || "", pageId, slug };
+    // `themeDropped` tells a stale tab to stop holding the theme the
+    // department already has.
+    return {
+      department: normalizedDoc.meta.department || "",
+      pageId,
+      slug,
+      ...themeDroppedFlag(themeDropped),
+    };
   } catch (e) {
     console.error("[savePageEditorDoc]", e);
     return { error: e instanceof Error ? e.message : "Save failed" };

@@ -407,12 +407,97 @@ test("Publish waits for a save still queued, so it copies the latest draft", asy
   expect(publishPageAction).toHaveBeenCalledTimes(1);
 });
 
-test("Publish on an unedited /pages/new creates the page, then publishes it", async () => {
+test("Publish on an unedited /pages/new creates nothing and says to save the page first", async () => {
+  mount(null);
+  let failure: unknown;
+  await act(async () => {
+    await props()
+      .onPublish?.("no")
+      .catch((err: unknown) => {
+        failure = err;
+      });
+  });
+  expect(failure).toBeInstanceOf(Error);
+  expect(savePageEditorDoc).not.toHaveBeenCalled();
+  expect(publishPageAction).not.toHaveBeenCalled();
+  expect(toast.error).toHaveBeenCalledWith(
+    "Save the page first before publishing"
+  );
+});
+
+test("Publish on /pages/new after a real edit has been saved publishes that page", async () => {
   mount(null);
   await act(async () => {
+    await props().savePage(titled("Min side"), "no");
     await props().onPublish?.("no");
   });
   expect(savePageEditorDoc.mock.calls.map(([a]) => a.id)).toEqual([null]);
   expect(publishPageAction.mock.calls[0]?.[0]).toBe("page-1");
   expect(toast.error).not.toHaveBeenCalled();
+});
+
+test("Publish on /pages/new waits for the first create that is still in flight", async () => {
+  let finishCreate: () => void = () => undefined;
+  savePageEditorDoc.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finishCreate = () =>
+          resolve({ department: "", pageId: "page-new-1", slug: "side" });
+      })
+  );
+  mount(null);
+  let publish: Promise<unknown> = Promise.resolve();
+  await act(async () => {
+    props().savePage(titled("Min side"), "no");
+    publish = props().onPublish?.("no") ?? Promise.resolve();
+    await new Promise((r) => setTimeout(r, 10));
+  });
+  await act(async () => {
+    finishCreate();
+    await publish;
+  });
+  expect(publishPageAction.mock.calls[0]?.[0]).toBe("page-new-1");
+  expect(toast.error).not.toHaveBeenCalled();
+});
+
+test("a failed save before Publish says nothing was published", () => {
+  mount(NORWEGIAN_ONLY);
+  props().onPublishSaveFailed?.();
+  expect(toast.error).toHaveBeenCalledWith(
+    "Your latest changes couldn't be saved, so nothing was published."
+  );
+});
+
+test("a save the server dropped the theme from clears it in every locale document", async () => {
+  const withTheme = (doc: PageDoc): PageDoc => ({
+    ...doc,
+    meta: { ...doc.meta, theme: { accent: "#fecd45", dark: "#2a0a4a" } },
+  });
+  savePageEditorDoc.mockImplementation(({ id }) =>
+    Promise.resolve({
+      department: "",
+      pageId: id ?? "page-1",
+      slug: "side",
+      themeDropped: true,
+    })
+  );
+  mount(NORWEGIAN_ONLY);
+  // Open English, so two locale documents hold a theme.
+  act(() => props().onLocaleChange("en"));
+  act(() => props().onDocChange?.(withTheme(props().initial as PageDoc), "en"));
+  act(() => props().onLocaleChange("no"));
+  act(() => props().onDocChange?.(withTheme(DOC_NO), "no"));
+
+  let stored: unknown;
+  await act(async () => {
+    stored = await props().savePage(withTheme(DOC_NO), "no");
+  });
+
+  // The shell is told, to clear its own store ...
+  expect(stored).toMatchObject({ themeDropped: true });
+  // ... and every locale document the host holds drops it.
+  act(() => props().onLocaleChange("en"));
+  expect(props().initial?.meta.theme).toBeUndefined();
+  act(() => props().onLocaleChange("no"));
+  expect(props().initial?.meta.theme).toBeUndefined();
 });

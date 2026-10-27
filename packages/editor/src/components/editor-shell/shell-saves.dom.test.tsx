@@ -57,6 +57,7 @@ afterAll(() => {
   flags.IS_REACT_ACT_ENVIRONMENT = undefined;
 });
 
+const GOOD = { dark: "#2a0a4a", accent: "#fecd45" };
 const BAD = { dark: "#9b5de5", accent: "#fecd45" };
 const SAVE_WAIT_MS = 1100;
 
@@ -80,9 +81,11 @@ type Save = (
 function mount({
   onFlush,
   onPublish,
+  onPublishSaveFailed,
   savePage,
 }: {
   onFlush?: Save;
+  onPublishSaveFailed?: () => void;
   onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
   savePage: Save;
 }) {
@@ -101,6 +104,7 @@ function mount({
         onFlush,
         onLocaleChange: () => undefined,
         onPublish,
+        onPublishSaveFailed,
         ref,
         savePage,
         uploadFile: () => Promise.resolve({ fileId: "", url: "" }),
@@ -393,4 +397,72 @@ test("an edit made while a publish is on its way saves the published status, not
   expect(saves.length).toBe(1);
   expect(saves[0]?.meta.title).toBe("Skrevet under publisering");
   expect(saves[0]?.meta.status).toBe("published");
+});
+
+test("a failed save before Publish tells the host, which publishes nothing", async () => {
+  let failed = 0;
+  let published = 0;
+  const { host } = mount({
+    onPublish: () => {
+      published += 1;
+      return Promise.resolve(undefined);
+    },
+    onPublishSaveFailed: () => {
+      failed += 1;
+    },
+    savePage: () => Promise.reject(new Error("network blip")),
+  });
+  const quiet = console.error;
+  console.error = () => undefined;
+  try {
+    edit("Ny tittel");
+    await act(async () => {
+      publishButton(host).click();
+      await new Promise((r) => setTimeout(r, 40));
+    });
+    expect(failed).toBe(1);
+    expect(published).toBe(0);
+  } finally {
+    console.error = quiet;
+  }
+});
+
+test("a publish that itself fails is not reported as a failed save", async () => {
+  let failed = 0;
+  const { host } = mount({
+    onPublish: () => Promise.reject(new Error("publish refused")),
+    onPublishSaveFailed: () => {
+      failed += 1;
+    },
+    savePage: () => Promise.resolve(undefined),
+  });
+  edit("Ny tittel");
+  await act(async () => {
+    publishButton(host).click();
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  expect(failed).toBe(0);
+});
+
+test("a save the server dropped the theme from clears it here, with no undo step", async () => {
+  const saves: PageDoc[] = [];
+  mount({
+    savePage: (d) => {
+      saves.push(d);
+      return Promise.resolve({ themeDropped: true });
+    },
+  });
+  act(() => useEditorStore.getState().setTheme(GOOD));
+  expect(useEditorStore.getState().doc.meta.theme).toEqual(GOOD);
+  const undoSteps = useEditorStore.getState().past.length;
+
+  await wait(SAVE_WAIT_MS);
+
+  expect(saves.length).toBe(1);
+  expect(useEditorStore.getState().doc.meta.theme).toBeUndefined();
+  expect("theme" in useEditorStore.getState().doc.meta).toBe(false);
+  expect(useEditorStore.getState().past.length).toBe(undoSteps);
+  // The correction is not an edit: it saves nothing more.
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
 });

@@ -96,6 +96,11 @@ interface Props {
   ) => Promise<StoredMeta | undefined>;
   onLocaleChange: (locale: EditorLocale) => void;
   onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
+  /**
+   * Publish stores a pending edit first, and that save failed: nothing was
+   * published. The host tells the user, as the shell has no toasts.
+   */
+  onPublishSaveFailed?: () => void;
   onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
   onUnpublish?: (locale: EditorLocale) => Promise<void>;
   ref?: Ref<EditorShellHandle>;
@@ -169,6 +174,7 @@ export function EditorShell({
   onExit,
   campuses = EMPTY_CAMPUSES,
   onPublish,
+  onPublishSaveFailed,
   onUnpublish,
   activeLocale,
   locales,
@@ -342,7 +348,12 @@ export function EditorShell({
           onPublish: guardPublish(
             onPublish &&
               (async (locale: EditorLocale) => {
-                await flushPendingSave();
+                try {
+                  await flushPendingSave();
+                } catch (err) {
+                  onPublishSaveFailed?.();
+                  throw err;
+                }
                 return onPublish(locale);
               }),
             () => useEditorStore.getState().doc.meta
@@ -358,7 +369,7 @@ export function EditorShell({
           );
         }
       ),
-    [flushPendingSave, onPublish, onUnpublish, setStatus]
+    [flushPendingSave, onPublish, onPublishSaveFailed, onUnpublish, setStatus]
   );
 
   // Hydrate store when the editor enters a locale. Subsequent parent mirrors of
@@ -428,11 +439,16 @@ export function EditorShell({
             department: docSnapshot.meta.department,
             slug: docSnapshot.meta.slug,
           };
-          correctStoredDocRef.current(
-            () => useEditorStore.getState().adoptStoredMeta(sent, result),
-            autosaveSignature(useEditorStore.getState().doc) ===
-              autosaveSignature(docSnapshot)
-          );
+          correctStoredDocRef.current(() => {
+            const store = useEditorStore.getState();
+            store.adoptStoredMeta(sent, result);
+            // The department already has this theme: leave the page, with
+            // no undo step, as a publish that copied it does.
+            if (result.themeDropped) {
+              store.dropPageTheme();
+            }
+          }, autosaveSignature(useEditorStore.getState().doc) ===
+            autosaveSignature(docSnapshot));
         }
         // A theme block that arrived meanwhile owns the status.
         if (useEditorStore.getState().saving !== "blocked") {

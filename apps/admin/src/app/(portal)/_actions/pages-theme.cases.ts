@@ -657,7 +657,9 @@ describe("a stale second tab cannot re-attach a theme Publish moved to the depar
         title: "Typo fixed",
       },
     } as Doc;
-    await save("page-a", "no", edit);
+    const saved = await save("page-a", "no", edit);
+    // The tab is told, so it can stop holding the theme.
+    expect(saved).toMatchObject({ themeDropped: true });
 
     expect(docsWithTheme("page-a")).toEqual([]);
     expect(
@@ -670,13 +672,23 @@ describe("a stale second tab cannot re-attach a theme Publish moved to the depar
 
   test("a theme other than the department's is still saved", async () => {
     await publishThemed("page-a", T);
-    await save("page-a", "no", withTheme(opened("page-a", "no"), U));
+    const saved = await save(
+      "page-a",
+      "no",
+      withTheme(opened("page-a", "no"), U)
+    );
     expect(docsWithTheme("page-a")).toEqual(["no:draft", "en:draft"]);
+    expect("themeDropped" in saved).toBe(false);
   });
 
   test("a reset on a department that already has BISO's colours stores no theme", async () => {
-    await save("page-a", "no", withTheme(opened("page-a", "no"), null));
+    const saved = await save(
+      "page-a",
+      "no",
+      withTheme(opened("page-a", "no"), null)
+    );
     expect(docsWithTheme("page-a")).toEqual([]);
+    expect(saved).toMatchObject({ themeDropped: true });
   });
 
   test("a page with no department keeps the theme it saves", async () => {
@@ -685,8 +697,13 @@ describe("a stale second tab cannot re-attach a theme Publish moved to the depar
       theme_accent: T.accent,
       theme_dark: T.dark,
     });
-    await save("page-c", "no", withTheme(opened("page-c", "no"), T));
+    const saved = await save(
+      "page-c",
+      "no",
+      withTheme(opened("page-c", "no"), T)
+    );
     expect(docsWithTheme("page-c")).toEqual(["no:draft"]);
+    expect("themeDropped" in saved).toBe(false);
   });
 
   test("the department's theme is read once per save, with the admin client", async () => {

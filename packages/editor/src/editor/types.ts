@@ -575,6 +575,13 @@ export type SavingState = "idle" | "pending" | "saved" | "error" | "blocked";
 export interface StoredMeta {
   department?: string;
   slug?: string;
+  /**
+   * The server dropped the theme from what it stored because the page's
+   * department already has it (a stale tab saving a theme a publish moved to
+   * the department). The editor clears it too, or its next save, after the
+   * department's theme changes, would store it again.
+   */
+  themeDropped?: boolean;
 }
 
 /** What a host's publish did beyond publishing. */

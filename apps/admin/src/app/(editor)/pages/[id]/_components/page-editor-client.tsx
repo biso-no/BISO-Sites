@@ -51,6 +51,9 @@ const LOCALE_LABELS: Record<EditorLocale, string> = {
 };
 
 const SAVE_LOCALE_FIRST = "Save this language before publishing";
+const SAVE_PAGE_FIRST = "Save the page first before publishing";
+const LATEST_NOT_SAVED =
+  "Your latest changes couldn't be saved, so nothing was published.";
 const NEW_PAGE_PATH = /\/pages\/new$/;
 
 function cloneDoc(doc: PageDoc): PageDoc {
@@ -151,14 +154,23 @@ export function PageEditorClient({
     // (a department user's page is bound to their department). Every locale
     // takes it, so the Theme panel's scope line and the canvas match what
     // Publish will do.
-    const stored = { department: result.department, slug: result.slug };
-    setDocuments((current) =>
-      withStoredMeta(
+    const stored: StoredMeta = {
+      department: result.department,
+      slug: result.slug,
+      ...("themeDropped" in result && result.themeDropped
+        ? { themeDropped: true }
+        : {}),
+    };
+    setDocuments((current) => {
+      const next = withStoredMeta(
         current,
         { department: doc.meta.department, slug: doc.meta.slug },
         stored
-      )
-    );
+      );
+      // The department already has the theme the server dropped: no locale
+      // may save it back, as after a publish that copied it.
+      return stored.themeDropped ? withoutPageTheme(next) : next;
+    });
     storedLocalesRef.current.add(locale);
     if (!pageIdRef.current && "pageId" in result) {
       pageIdRef.current = result.pageId;
@@ -278,13 +290,21 @@ export function PageEditorClient({
   }
 
   /**
-   * Make sure `locale` has a translation row to publish: a language opened
-   * but never edited exists only here, so its document is saved first, the
-   * same way an edit would save it. Then wait for every queued save, so the
-   * publish copies the latest draft.
+   * Make sure the page and `locale` have stored rows to publish. A page
+   * that was never created (an unedited /pages/new) has nothing to publish:
+   * a real edit is stored by the editor before Publish reaches here. A
+   * language opened but never edited exists only here, so its document is
+   * saved first, the same way an edit would save it. Then wait for every
+   * queued save, so the publish copies the latest draft.
    */
   async function storeLocaleForPublish(locale: EditorLocale): Promise<string> {
-    if (!(pageIdRef.current && storedLocalesRef.current.has(locale))) {
+    // A first create may still be in flight.
+    await saveQueueRef.current;
+    if (!pageIdRef.current) {
+      toast.error(SAVE_PAGE_FIRST);
+      throw new Error(SAVE_PAGE_FIRST);
+    }
+    if (!storedLocalesRef.current.has(locale)) {
       const doc = documentsRef.current[locale];
       try {
         if (!doc) {
@@ -302,8 +322,8 @@ export function PageEditorClient({
     await saveQueueRef.current;
     const id = pageIdRef.current;
     if (!id) {
-      toast.error(SAVE_LOCALE_FIRST);
-      throw new Error("Page not saved yet");
+      toast.error(SAVE_PAGE_FIRST);
+      throw new Error(SAVE_PAGE_FIRST);
     }
     return id;
   }
@@ -350,6 +370,10 @@ export function PageEditorClient({
     }
   }
 
+  function handlePublishSaveFailed() {
+    toast.error(LATEST_NOT_SAVED);
+  }
+
   async function handleUnpublish(locale: EditorLocale) {
     const id = pageIdRef.current;
     if (!id) {
@@ -388,6 +412,7 @@ export function PageEditorClient({
         onFlush={handleFlush}
         onLocaleChange={handleLocaleChange}
         onPublish={handlePublish}
+        onPublishSaveFailed={handlePublishSaveFailed}
         onTranslateLocale={handleTranslateLocale}
         onUnpublish={handleUnpublish}
         savePage={handleSave}
