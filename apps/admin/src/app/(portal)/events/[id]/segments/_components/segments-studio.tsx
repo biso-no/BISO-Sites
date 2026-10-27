@@ -42,7 +42,7 @@ interface SegmentsStudioProps {
   canMessage: boolean;
   eventId: string;
   eventTitle: string;
-  rsvps: EventRsvpEntry[];
+  rsvps: EventRsvpEntry[] | null;
   segments: SegmentWithCount[];
 }
 

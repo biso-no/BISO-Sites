@@ -25,7 +25,7 @@ export default async function EventSegmentsPage({ params }: SegmentsPageProps) {
   const [segments, attendees, rsvps] = await Promise.all([
     listSegments(id),
     listAttendees(id),
-    listEventRsvps(id),
+    listEventRsvps(id).catch(() => null),
   ]);
 
   const enTitle =

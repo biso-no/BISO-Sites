@@ -1,4 +1,5 @@
 import type { EventRsvpStatus } from "@repo/shared/utils/event-rsvp";
+import { OSLO_TIME_ZONE } from "@repo/shared/utils/oslo-time";
 import { CalendarCheck } from "lucide-react";
 import type { EventRsvpEntry } from "../../../../_actions/event-segments";
 import { STUDIO, StudioPanel } from "../../../../_components/studio";
@@ -18,6 +19,7 @@ const STATUS_LABEL: Record<EventRsvpStatus, string> = {
 const ANSWERED_FORMAT = new Intl.DateTimeFormat("nb-NO", {
   dateStyle: "medium",
   timeStyle: "short",
+  timeZone: OSLO_TIME_ZONE,
 });
 
 export function sortRsvpEntries(entries: EventRsvpEntry[]): EventRsvpEntry[] {
@@ -44,9 +46,10 @@ function formatAnswered(value: string): string {
   return Number.isNaN(date.getTime()) ? "—" : ANSWERED_FORMAT.format(date);
 }
 
-export function RsvpPanel({ entries }: { entries: EventRsvpEntry[] }) {
+export function RsvpPanel({ entries }: { entries: EventRsvpEntry[] | null }) {
+  const list = entries ?? [];
   const count = (status: EventRsvpStatus) =>
-    entries.filter((entry) => entry.status === status).length;
+    list.filter((entry) => entry.status === status).length;
   const summary = `${count("going")} going · ${count("maybe")} maybe · ${count("not_going")} not going`;
 
   return (
@@ -57,9 +60,11 @@ export function RsvpPanel({ entries }: { entries: EventRsvpEntry[] }) {
           RSVPs
         </h2>
       </div>
-      {entries.length === 0 ? (
+      {list.length === 0 ? (
         <p className="text-sm" style={{ color: STUDIO.ink4 }}>
-          No one has answered yet.
+          {entries === null
+            ? "RSVPs couldn't be loaded."
+            : "No one has answered yet."}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -80,7 +85,7 @@ export function RsvpPanel({ entries }: { entries: EventRsvpEntry[] }) {
                 </tr>
               </thead>
               <tbody>
-                {sortRsvpEntries(entries).map((entry) => (
+                {sortRsvpEntries(list).map((entry) => (
                   <tr
                     key={entry.userId}
                     style={{ borderTop: `0.5px solid ${STUDIO.rule}` }}

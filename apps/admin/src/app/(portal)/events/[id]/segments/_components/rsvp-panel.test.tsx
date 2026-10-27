@@ -50,7 +50,7 @@ const entries = [
   entry("e", "going", null),
 ];
 
-async function mount(list: EventRsvpEntry[]): Promise<TestElement> {
+async function mount(list: EventRsvpEntry[] | null): Promise<TestElement> {
   const container = installedDom.document.createElement("div");
   installedDom.document.body.appendChild(container);
   root = createRoot(container as unknown as Element);
@@ -81,5 +81,17 @@ describe("RsvpPanel", () => {
   test("RsvpPanel shows the empty state", async () => {
     const container = await mount([]);
     expect(container.textContent).toContain("No one has answered yet.");
+  });
+
+  test("RsvpPanel says so when RSVPs could not be loaded", async () => {
+    const container = await mount(null);
+    expect(container.textContent).toContain("RSVPs couldn't be loaded.");
+    expect(container.textContent).not.toContain("No one has answered yet.");
+  });
+
+  test("RsvpPanel shows the answered time in Oslo time", async () => {
+    const container = await mount([entry("a", "going", "A")]);
+    // 10:00Z on 20 Oct 2026 is 12:00 in Oslo (CEST)
+    expect(container.textContent).toContain("12:00");
   });
 });
