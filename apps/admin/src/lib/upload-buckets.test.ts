@@ -85,10 +85,10 @@ describe("per-type size limits", () => {
   const MB = 1024 * 1024;
   const media = resolveUploadBucket("media");
 
-  it("allows 25 MB for a PDF, 10 MB for an image", () => {
+  it("allows 25 MB for a PDF, 10 MB for an image, 250 MB for a video", () => {
     expect(media && maxBytesForMime(media, "application/pdf")).toBe(25 * MB);
     expect(media && maxBytesForMime(media, "image/png")).toBe(10 * MB);
-    expect(media && maxBytesForMime(media, "video/mp4")).toBe(10 * MB);
+    expect(media && maxBytesForMime(media, "video/mp4")).toBe(250 * MB);
   });
 
   it("has no limit for a type the bucket does not take", () => {
@@ -105,7 +105,7 @@ describe("per-type size limits", () => {
   });
 
   it("caps the whole request at the largest per-type limit", () => {
-    expect(media?.maxBytes).toBe(25 * MB);
+    expect(media?.maxBytes).toBe(250 * MB);
   });
 });
 

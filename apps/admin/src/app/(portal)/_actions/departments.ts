@@ -16,6 +16,9 @@ import {
   isProjectPageSlug,
   isProjectSlug,
   isProjectUnit,
+  PROJECT_PAGE_CHOICES,
+  PROJECT_UNIT_SLUGS,
+  type ProjectSlug,
   projectPageSlug,
   projectSlugForUnit,
 } from "@repo/shared/utils/project-units";
@@ -888,8 +891,9 @@ export async function createUnitPage(
 }
 
 /**
- * Create the hub page of a multi-campus project (`projects/<project>`, no
- * department). Global admin only: a hub belongs to no unit, so there is nobody
+ * Create the page of a flagship project (`projects/<project>`). A national
+ * project (Winter Games) gets its unit's page via `createUnitPage`; the rest
+ * is the hub page of a multi-campus project (no department). Global admin only: a hub belongs to no unit, so there is nobody
  * else it could be scoped to, and `savePageEditorDoc` keeps saves global-admin
  * only too.
  *
@@ -898,7 +902,11 @@ export async function createUnitPage(
  * department is a national project unit's page, not a hub, so it is reported
  * rather than returned.
  */
-export async function createProjectHubPage(
+function isProjectPageChoice(project: ProjectSlug): boolean {
+  return PROJECT_PAGE_CHOICES.some((entry) => entry.slug === project);
+}
+
+export async function createProjectPage(
   project: string
 ): Promise<{ pageId: string } | { error: string }> {
   const ctx = await requireAuth();
@@ -906,14 +914,28 @@ export async function createProjectHubPage(
     if (!ctx.roles.includes("globaladmin")) {
       return { error: "Only a global admin can create a project hub page" };
     }
-    if (!(isProjectSlug(project) && isHubProject(project))) {
-      return {
-        error:
-          "Only a multi-campus project has a hub page. A national project's page is created from its unit under Departments.",
-      };
+    if (!(isProjectSlug(project) && isProjectPageChoice(project))) {
+      return { error: "Unknown project" };
+    }
+    const { db } = await createAdminClient();
+    if (!isHubProject(project)) {
+      // A national project's page is its national unit's, bound to it so the
+      // unit's board can edit it. createUnitPage does the work.
+      const unit = await db.listRows<Departments>("app", "departments", [
+        Query.equal("campus_id", NATIONAL_CAMPUS_ID),
+        Query.equal("slug", PROJECT_UNIT_SLUGS[project]),
+        Query.limit(1),
+      ]);
+      const row = unit.rows[0];
+      if (!row || row.active !== true) {
+        const label =
+          PROJECT_PAGE_CHOICES.find((entry) => entry.slug === project)?.name ??
+          project;
+        return { error: `The ${label} unit isn't set up yet` };
+      }
+      return await createUnitPage(row.$id);
     }
     const slug = projectPageSlug(project);
-    const { db } = await createAdminClient();
 
     const findAtSlug = async () => {
       const found = await db.listRows<Pages>("app", "pages", [
@@ -991,7 +1013,7 @@ export async function createProjectHubPage(
     revalidatePath("/pages");
     return { pageId };
   } catch (e) {
-    console.error("[createProjectHubPage]", e);
+    console.error("[createProjectPage]", e);
     return { error: e instanceof Error ? e.message : "Could not create page" };
   }
 }

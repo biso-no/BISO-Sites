@@ -5,6 +5,7 @@ import {
   isProjectNamespaceSlug,
   isProjectPageSlug,
   isProjectUnit,
+  PROJECT_PAGE_CHOICES,
   PROJECT_UNIT_SLUGS,
   projectPageSlug,
   projectSlugForUnit,
@@ -127,5 +128,16 @@ describe("HUB_PROJECTS", () => {
     ]);
     expect(isHubProject("fadderullan")).toBe(true);
     expect(isHubProject("winter-games")).toBe(false);
+  });
+});
+describe("PROJECT_PAGE_CHOICES", () => {
+  it("offers the hubs and the national Winter Games", () => {
+    expect(PROJECT_PAGE_CHOICES.map((p) => p.slug)).toEqual([
+      "fadderullan",
+      "karrieredagene",
+      "bergensbanelopet",
+      "winter-games",
+    ]);
+    expect(PROJECT_PAGE_CHOICES.at(-1)?.name).toBe("Winter Games");
   });
 });

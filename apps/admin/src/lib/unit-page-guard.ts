@@ -70,7 +70,7 @@ export function assertUnitPageNamespace(
 /**
  * Reserve `projects/<known project>`: the admin owns this namespace, exactly
  * as it owns `units/`. Only `createUnitPage` (a national project unit's page)
- * and `createProjectHubPage` (a multi-campus hub) may put a page there; both
+ * and `createProjectPage` (a multi-campus hub) may put a page there; both
  * call `savePageDraft` directly and never reach this guard.
  *
  * Same shape and same reasoning as `assertUnitPageNamespace`, checked on every

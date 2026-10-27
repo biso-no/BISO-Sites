@@ -73,7 +73,7 @@ const {
   savePageEditorDoc,
   unpublishPageAction,
 } = await import("./pages");
-const { createProjectHubPage, createUnitPage, getDepartmentWithPage } =
+const { createProjectPage, createUnitPage, getDepartmentWithPage } =
   await import("./departments");
 
 const docAt = (slug: string, department = "") => ({
@@ -350,38 +350,70 @@ describe("hub pages: publish, unpublish, archive, campus", () => {
   });
 });
 
-describe("createProjectHubPage", () => {
+describe("createProjectPage", () => {
   test("refuses anyone but a globaladmin", async () => {
     currentCtx = makeCtx({
       managedCampusIds: ["1"],
       roles: ["campusadmin"],
     });
-    expect(await createProjectHubPage("fadderullan")).toHaveProperty("error");
+    expect(await createProjectPage("fadderullan")).toHaveProperty("error");
     expect(savePageDraft).not.toHaveBeenCalled();
   });
 
   test("refuses an unknown project", async () => {
-    expect(await createProjectHubPage("not-a-project")).toHaveProperty("error");
+    expect(await createProjectPage("not-a-project")).toHaveProperty("error");
     expect(savePageDraft).not.toHaveBeenCalled();
   });
 
   test("creates a department-less page at projects/<project>", async () => {
-    const result = await createProjectHubPage("fadderullan");
+    const result = await createProjectPage("fadderullan");
     expect(result).toEqual({ pageId: "new-page-id" });
     const call = savePageDraft.mock.calls[0]?.[0];
     expect(call?.doc.meta.slug).toBe("projects/fadderullan");
     expect(call?.doc.meta.department ?? "").toBe("");
   });
 
-  test("is idempotent for a hub page, and explains a national one", async () => {
+  test("is idempotent for a hub page", async () => {
     pagesTable.rows = [{ $id: "hub", department_id: null }];
-    expect(await createProjectHubPage("fadderullan")).toEqual({
-      pageId: "hub",
-    });
+    expect(await createProjectPage("fadderullan")).toEqual({ pageId: "hub" });
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+
+  test("explains a unit's page sitting at a hub address", async () => {
     pagesTable.rows = [{ $id: "national", department_id: "dept-w" }];
-    const result = await createProjectHubPage("winter-games");
-    expect(result).toHaveProperty("error");
+    const result = await createProjectPage("fadderullan");
     expect((result as { error: string }).error).toMatch(NATIONAL);
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+
+  test("winter-games as globaladmin creates the national unit's page", async () => {
+    departmentsTable.rows = [unit({})];
+    const result = await createProjectPage("winter-games");
+    expect(result).toEqual({ pageId: "new-page-id" });
+    const call = savePageDraft.mock.calls[0]?.[0];
+    expect(call?.doc.meta.slug).toBe("projects/winter-games");
+    expect(call?.doc.meta.department).toBe("dept-1");
+  });
+
+  test("winter-games returns the unit's existing page", async () => {
+    departmentsTable.rows = [unit({})];
+    pagesTable.rows = [{ $id: "wg", department_id: "dept-1" }];
+    expect(await createProjectPage("winter-games")).toEqual({ pageId: "wg" });
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+
+  test("winter-games says so when the unit is missing or inactive", async () => {
+    const missing = await createProjectPage("winter-games");
+    expect((missing as { error: string }).error).toContain("isn't set up yet");
+    departmentsTable.rows = [unit({ active: false })];
+    expect(await createProjectPage("winter-games")).toHaveProperty("error");
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+
+  test("winter-games is refused for a non-globaladmin", async () => {
+    currentCtx = makeCtx({ managedCampusIds: ["5"], roles: ["campusadmin"] });
+    departmentsTable.rows = [unit({})];
+    expect(await createProjectPage("winter-games")).toHaveProperty("error");
     expect(savePageDraft).not.toHaveBeenCalled();
   });
 });

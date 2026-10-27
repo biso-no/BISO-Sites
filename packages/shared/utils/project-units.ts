@@ -91,12 +91,28 @@ export const HUB_PROJECTS: readonly { name: string; slug: ProjectSlug }[] = [
   { name: "Fadderullan", slug: "fadderullan" },
   { name: "Karrieredagene", slug: "karrieredagene" },
   { name: "Bergensbaneløpet", slug: "bergensbanelopet" },
-  { name: "Winter Games", slug: "winter-games" },
 ];
 
 export function isHubProject(project: ProjectSlug): boolean {
   return HUB_PROJECTS.some((entry) => entry.slug === project);
 }
+
+/** Display names of the national projects, whose page is their unit's. */
+const NATIONAL_PROJECT_NAMES: Partial<Record<ProjectSlug, string>> = {
+  "winter-games": "Winter Games",
+};
+
+/** The projects that run as one national unit, not as a hub of campus units. */
+export const NATIONAL_PROJECTS: readonly { name: string; slug: ProjectSlug }[] =
+  (Object.keys(PROJECT_UNIT_SLUGS) as ProjectSlug[])
+    .filter((slug) => !isHubProject(slug))
+    .map((slug) => ({ name: NATIONAL_PROJECT_NAMES[slug] ?? slug, slug }));
+
+/** Every project the globaladmin "Create project page" button offers. */
+export const PROJECT_PAGE_CHOICES: readonly {
+  name: string;
+  slug: ProjectSlug;
+}[] = [...HUB_PROJECTS, ...NATIONAL_PROJECTS];
 
 /**
  * Whether a stored page slug is exactly `projects/<known project>`.
