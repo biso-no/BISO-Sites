@@ -1,0 +1,100 @@
+---
+title: How recruitment works
+description: How a recruitment round runs in the BISO admin, who can use it, and what the system does on its own.
+covers:
+  - apps/admin/src/app/(portal)/jobs/**
+  - apps/admin/src/app/api/recruitment/**
+  - apps/admin/src/lib/recruitment.ts
+  - apps/admin/src/lib/job-publication.ts
+  - packages/shared/recruitment/**
+  - packages/shared/recruitment.ts
+  - packages/shared/types/recruitment.ts
+  - apps/web/src/app/(public)/jobs/**
+  - apps/web/src/app/(public)/recruitment/**
+  - apps/web/src/app/(protected)/applications/**
+  - apps/web/src/app/actions/jobs.ts
+  - apps/web/src/app/actions/booking.ts
+  - apps/api/src/app/api/recruitment/**
+  - apps/api/src/app/api/cron/cleanup-recruitment/**
+---
+
+Recruitment covers a BISO vacancy from the day you post it to the day its applications are deleted. In the admin it lives under **Stillinger** (Jobs). This page shows how the parts fit together.
+
+The jobs list is in Norwegian unless your account is set to English. The vacancy editor and the applications workspace are in English whatever your language, so this guide names their buttons in English.
+
+## Who can use recruitment
+
+- HR team members manage every vacancy on their own campus, whatever the department.
+- National HR (HR members on the National campus) manage recruitment on every campus.
+- Global admins (Operations Unit) manage recruitment on every campus too.
+- Vacancies on the National campus are for National HR and global admins. Campus HR members can't open them.
+
+Nobody else has access. Campus admins (campus leaders) and members of other departments don't see **Stillinger** (Jobs) in the sidebar, and a link to a recruitment page shows them a page-not-found error. If you're in HR and can't see **Stillinger** (Jobs), ask IT to check your groups.
+
+## The round from start to finish
+
+1. Publish the vacancy. On **Stillinger** (Jobs), choose **Utlys stilling** (Post Job) and fill in the vacancy editor. Publish it at once or schedule a time. Students then find it on biso.no and in the app.
+2. Applications arrive. Students apply on the vacancy's page on biso.no or in the app. They must be signed in, and only members can apply to a members-only vacancy. Every new application starts in **Applied**. Nothing tells you when one arrives, so check the vacancy's applications yourself.
+3. The AI screens each application. When auto-screen is on, which it is by default, an AI tool reads each application once, right after it's sent. It gives a match score and a short summary. It never changes the status.
+4. You shortlist. Open the vacancy's applications with the people icon on its row in **Stillinger** (Jobs). Read each candidate and move them to **Shortlist** or **Archived**.
+5. You hold interviews. Either pick a time for the candidate in the scheduling dialog, or send them a booking link so they pick a time themselves. After an interview, the panel can fill in a scorecard.
+6. You make an offer or archive. Move the candidate you choose to **Offer** and the others to **Archived**. Moving someone sends them nothing, so you tell each candidate yourself.
+7. Applications stop at the deadline. There is no close button. When the deadline passes, the vacancy leaves biso.no and the app, and nobody else can apply. The jobs list still shows it as **Publisert** (Published), with **Frist passert** (Past deadline) in the **Frist** (Deadline) column.
+8. The applications are deleted. Each application is deleted 180 days after the deadline, or 180 days after it was sent if the vacancy has no deadline. See [How long applications are kept](#how-long-applications-are-kept).
+
+The pages after this one follow the round in the same order: Publish a vacancy, Review applications, Book interviews, and Make offers, reject, and close the round.
+
+## Statuses
+
+Each application has one status. On the **Pipeline** tab of the applications workspace, the status is the column the candidate sits in. The student sees their status on biso.no, on **Mine søknader** (My applications), under different names.
+
+| What you see | What it means | Where it can go next | What the applicant sees |
+|---|---|---|---|
+| **Applied** | A new application. Every application starts here. | **Shortlist** or **Archived** | **Sendt inn** (Submitted) |
+| **Shortlist** | You want to take the candidate further. | **Interview** or **Archived** | **Vurdert** (Reviewed) |
+| **Interview** | The candidate is in the interview round. | **Shortlist**, **Offer** or **Archived** | **Intervju** (Interview) |
+| **Offer** | You're offering the candidate the role. You send the offer yourself. | Nowhere. This is final. | **Tilbud** (Accepted) |
+| **Archived** | The candidate isn't going further this round. | Nowhere. This is final. | **Ikke valgt** (Not selected) |
+
+<Mermaid chart={`flowchart LR
+  applied[Applied] --> shortlist[Shortlist]
+  applied --> archived[Archived]
+  shortlist --> interview[Interview]
+  shortlist --> archived
+  interview --> shortlist
+  interview --> offer[Offer]
+  interview --> archived
+`} />
+
+- A candidate can't jump ahead. To get from **Applied** to **Interview**, they go through **Shortlist** first, and only **Interview** leads to **Offer**.
+- **Offer** and **Archived** can't be undone. Check before you move someone there.
+- Moving a candidate sends no email. The student still sees the new status on **Mine søknader** (My applications) straight away.
+
+## What the system does on its own
+
+- Publishes a scheduled vacancy. It checks every five minutes, so the vacancy goes live within about five minutes of the time you set.
+- Sends an app notification to students when a vacancy goes live, if **Notify students when published** is on. It is on by default for a new vacancy. The notification reaches app users who follow jobs for the vacancy's campus. It goes out a few minutes after the vacancy goes live, and never between 22:00 and 08:00 Oslo time. In that window it waits until 08:00.
+- Removes the vacancy from biso.no and the app when the deadline passes, and refuses new applications. The deadline is the end of the day you pick, Oslo time.
+- Screens each new application with AI, once, when auto-screen is on. If a candidate's match score shows "—" (tooltip: *Not screened*), that application has no screening, and you can't run it again. Turning auto-screen on later doesn't screen the applications you already have.
+- Sends calendar invites when you schedule an interview in the dialog. The candidate and the panel get an Outlook invite from the lead panelist's mailbox, with a Teams meeting when the location is Teams or Hybrid. The candidate also moves to **Interview**. If the admin can't reach Outlook, the interview is still saved and a warning tells you that no invite was sent.
+- Sends the same kind of invite, with a Teams meeting, when a candidate books a time through a booking link.
+- Shows each applicant their current status on biso.no.
+- Deletes applications when their storage time ends.
+
+## What you do yourself
+
+- Check for new applications. Nothing tells you when one arrives: there's no email, and nothing shows in the notification bell.
+- Write every email to applicants. The system sends none when someone applies or when you change a status. The admin can draft emails with AI, which you copy and send from your own email.
+- Move each candidate from status to status. The only move the system makes is to **Interview**, when you schedule an interview in the dialog. AI screening never moves anyone.
+- Send booking links. You create the link on the **Interviews** tab, copy it and send it to the candidate yourself. Only candidates already in **Interview** can get one, so move the candidate there first. A booking through the link doesn't change the status.
+- After each interview, move the candidate on to **Offer** or **Archived**, or back to **Shortlist**.
+- Archive several candidates at once with **Move stage**. The bulk **Archive** button only drafts **Not this round** emails. It doesn't change anyone's status.
+- Send the offer. The system doesn't send offers.
+- Stop applications early if you need to. Bring the deadline forward, or open the vacancy and choose **Save Draft**, which takes a live vacancy offline. To change a live vacancy and keep it live, save with **Publish** instead.
+
+## How long applications are kept
+
+- When a student applies, the application gets a delete date. It is 180 days after the vacancy's application deadline. If the vacancy has no deadline, it is 180 days after the student applied.
+- The date is fixed when the student applies. If you change the deadline later, applications you already have keep their date.
+- After that date the system deletes the application with its CV, cover letter, answers and interviews.
+- The student sees the date on **Mine søknader** (My applications), next to **Lagres til** (Stored until).

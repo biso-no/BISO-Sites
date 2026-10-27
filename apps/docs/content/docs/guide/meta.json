@@ -1,1 +1,5 @@
-{ "title": "Platform guide", "root": true, "pages": ["index", "start-here"] }
+{
+  "title": "Platform guide",
+  "root": true,
+  "pages": ["index", "start-here", "recruitment"]
+}
