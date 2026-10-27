@@ -417,8 +417,7 @@ describe("POST /api/form/submit on members-only pages", () => {
     mocks.adminGetPage.mockResolvedValue(membersPage());
     mocks.cookieGet.mockReturnValue(undefined);
     const res = await post(base);
-    expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ success: false, error: "members_only" });
+    expect(res.status).toBe(404);
     expect(mocks.getPage).not.toHaveBeenCalled();
     expect(mocks.sendEmail).not.toHaveBeenCalled();
   });
@@ -428,8 +427,7 @@ describe("POST /api/form/submit on members-only pages", () => {
     mocks.cookieGet.mockReturnValue({ value: "s" });
     mocks.getPage.mockResolvedValue(null);
     const res = await post(base);
-    expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ success: false, error: "members_only" });
+    expect(res.status).toBe(404);
     expect(mocks.sendEmail).not.toHaveBeenCalled();
   });
 
@@ -449,6 +447,19 @@ describe("POST /api/form/submit on members-only pages", () => {
     );
     mocks.cookieGet.mockReturnValue({ value: "s" });
     expect((await post(base)).status).toBe(404);
+  });
+
+  it("never reads a members-only unit or project slug with the admin client", async () => {
+    mocks.adminGetPage.mockResolvedValue(membersPage());
+    mocks.cookieGet.mockReturnValue({ value: "s" });
+    mocks.getPage.mockResolvedValue(membersPage());
+    for (const slug of [
+      "units/national/wintergames",
+      "projects/winter-games",
+    ]) {
+      expect((await post({ ...base, slug })).status).toBe(404);
+    }
+    expect(mocks.adminGetPage).not.toHaveBeenCalled();
   });
 
   it("leaves public pages alone: no admin read", async () => {

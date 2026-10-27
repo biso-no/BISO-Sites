@@ -242,20 +242,31 @@ async function sessionCanReadPage(
   }
 }
 
-async function loadDoc(slug: string, locale: FormLocale) {
-  let membersOnly = false;
-  let page = await cachedPublishedPage(slug, locale).catch(() => null);
-  if (!page) {
-    page = await findPublishedMembersPage(slug, locale);
-    membersOnly = page !== null;
+/** The page and whether it was found only through the members-only path. */
+async function findPage(slug: string, locale: FormLocale) {
+  const page = await cachedPublishedPage(slug, locale).catch(() => null);
+  if (page) {
+    return { membersOnly: false, page };
   }
+  // Unit and project routes render only from the public cache, so a
+  // members-only page is never visible there: no admin read at all.
+  if (slug.startsWith("units/") || isProjectNamespaceSlug(slug)) {
+    return { membersOnly: false, page: null };
+  }
+  const members = await findPublishedMembersPage(slug, locale);
+  return { membersOnly: members !== null, page: members };
+}
+
+async function loadDoc(slug: string, locale: FormLocale) {
+  const { membersOnly, page } = await findPage(slug, locale);
   if (!page?.doc) {
     return null;
   }
   // Before the unit/project branches, which return early: a members-only page
   // is never served to anyone but a member, whatever its slug.
   if (membersOnly && !(await sessionCanReadPage(slug, locale))) {
-    return "members_only" as const;
+    // Same answer as a missing page, like the catch-all.
+    return null;
   }
   const base = { campusId: page.row.campus_id ?? null, pageId: page.row.$id };
 
@@ -314,9 +325,6 @@ export async function POST(request: Request) {
   const loaded = await loadDoc(parsed.slug, parsed.locale);
   if (!loaded) {
     return fail("Form not found", 404);
-  }
-  if (loaded === "members_only") {
-    return fail("members_only", 403);
   }
   const resolved = resolveSubmission(loaded.doc, parsed.blockId, parsed.data);
   if (!resolved.ok) {
