@@ -10,6 +10,7 @@ import { useState, useTransition } from "react";
 import { respondToEvent } from "@/app/actions/event-rsvp";
 import { statusPanelSecondaryAction } from "@/components/ui/status-panel";
 import { rsvpCountParts } from "./event-fields";
+import { settleRsvpSave } from "./rsvp-save";
 
 const ANSWERS: {
   key: "going" | "maybe" | "notGoing";
@@ -62,13 +63,14 @@ export function EventRsvp({
     setFailed(false);
     setSummary({ ...previous, counts, mine: next });
     startTransition(async () => {
-      const result = await respondToEvent(eventId, next);
-      if (result.success && result.data) {
-        setSummary(result.data);
-        return;
-      }
-      setSummary(previous);
-      setFailed(true);
+      const settled = await settleRsvpSave(
+        respondToEvent,
+        eventId,
+        next,
+        previous
+      );
+      setSummary(settled.summary);
+      setFailed(settled.failed);
     });
   };
 
