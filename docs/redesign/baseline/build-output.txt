@@ -1,0 +1,153 @@
+$ turbo run build "--filter=web"
+• turbo 2.9.3
+
+   • Packages in scope: web
+   • Running build in 1 packages
+   • Remote caching disabled
+
+@repo/typescript-config:build: cache hit, replaying logs ccb6ff76d5619607
+@repo/typescript-config:build: $ echo 'typescript-config: no build step (JSON configs only)'
+@repo/typescript-config:build: typescript-config: no build step (JSON configs only)
+@repo/ui:build: cache hit, replaying logs f0fdc05be966fcb1
+@repo/ui:build: $ tsc --noEmit
+@repo/api:build: cache hit, replaying logs a2e44819544f387c
+@repo/api:build: $ tsc --noEmit
+@repo/connectors:build: cache hit, replaying logs 47e0dc2510b56f49
+@repo/connectors:build: $ tsc --noEmit
+@repo/shared:build: cache hit, replaying logs 2f21035b8022a74a
+@repo/shared:build: $ tsc --noEmit
+@repo/ai:build: cache hit, replaying logs da69bbe0140c3a7f
+@repo/ai:build: $ tsc --noEmit
+@repo/payment:build: cache hit, replaying logs c99d92127fdefdec
+@repo/payment:build: $ tsc --noEmit
+@repo/i18n:build: cache hit, replaying logs 8bdb73f75431a2c1
+@repo/i18n:build: $ tsc --noEmit
+web:build: cache hit, replaying logs 948782e36632a260
+web:build: $ next build
+web:build: ▲ Next.js 16.3.0 (Turbopack)
+web:build: - Environments: .env.local
+web:build: ✓ Running next.config.ts took 95ms
+web:build: - Cache Components enabled
+web:build: - Partial Prefetching enabled
+web:build: - Experiments (use with caution):
+web:build:   ✓ authInterrupts
+web:build:   ✓ hideLogsAfterAbort
+web:build:   · serverActions
+web:build: 
+web:build:   Creating an optimized production build ...
+web:build: (node:70648) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+web:build: (Use `node --trace-deprecation ...` to show where the warning was created)
+web:build: (node:70649) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+web:build: (Use `node --trace-deprecation ...` to show where the warning was created)
+web:build: ✓ Compiled successfully in 5.2s
+web:build:   Running TypeScript ...
+web:build:   Finished TypeScript in 717ms ...
+web:build:   Collecting page data using 17 workers ...
+web:build:   Generating static pages using 17 workers (0/78) ...
+web:build:   Generating static pages using 17 workers (19/78) 
+web:build:   Generating static pages using 17 workers (38/78) 
+web:build:   Generating static pages using 17 workers (58/78) 
+web:build: ✓ Generating static pages using 17 workers (78/78) in 288ms
+web:build:   Finalizing page optimization ...
+web:build: 
+web:build: Route (app)                         Revalidate  Expire
+web:build: ┌ ƒ /
+web:build: ├ ƒ /_not-found
+web:build: ├   /[...slug]
+web:build: │ └ ◐ /[...slug]
+web:build: ├ ƒ /about
+web:build: ├ ƒ /about/academics-contact
+web:build: ├ ƒ /about/alumni
+web:build: ├ ƒ /about/bylaws
+web:build: ├ ƒ /about/history
+web:build: ├ ƒ /about/operations
+web:build: ├ ƒ /about/politics
+web:build: ├ ƒ /about/saih
+web:build: ├ ƒ /about/study-quality
+web:build: ├ ƒ /about/what-is-biso
+web:build: ├ ƒ /api/analytics/page-view
+web:build: ├ ƒ /api/auth/bi-link
+web:build: ├ ƒ /api/auth/check
+web:build: ├ ƒ /api/campus-leadership
+web:build: ├ ƒ /api/checkout/return
+web:build: ├ ƒ /api/checkout/webhook
+web:build: ├ ƒ /api/cron/cleanup-reservations
+web:build: ├ ƒ /api/cron/reconcile-orders
+web:build: ├ ƒ /api/documents/[id]/download
+web:build: ├ ƒ /api/form/submit
+web:build: ├ ƒ /api/health
+web:build: ├ ƒ /api/health/ready
+web:build: ├ ƒ /api/membership
+web:build: ├ ƒ /api/pages/departments
+web:build: ├ ƒ /api/pages/events
+web:build: ├ ƒ /api/pages/jobs
+web:build: ├ ƒ /api/pages/news
+web:build: ├ ƒ /api/pages/partners
+web:build: ├ ƒ /applications
+web:build: ├ ƒ /auth/callback
+web:build: ├ ƒ /auth/invite
+web:build: ├ ƒ /auth/login
+web:build: ├ ƒ /auth/oauth
+web:build: ├ ƒ /bi-fondet
+web:build: ├ ƒ /business
+web:build: ├ ƒ /business-hotspot
+web:build: ├ ƒ /campus
+web:build: ├ ƒ /contact
+web:build: ├ ƒ /documents
+web:build: ├ ƒ /events
+web:build: ├   /events/[slug]
+web:build: │ └ ◐ /events/[slug]
+web:build: ├ ƒ /fs
+web:build: ├   /fs/[id]
+web:build: │ └ ◐ /fs/[id]
+web:build: ├   /fs/approve/[token]
+web:build: │ └ ◐ /fs/approve/[token]
+web:build: ├ ƒ /fs/new
+web:build: ├ ƒ /jobs
+web:build: ├   /jobs/[slug]
+web:build: │ └ ◐ /jobs/[slug]
+web:build: ├ ƒ /member
+web:build: ├ ƒ /membership
+web:build: ├ ƒ /membership/join
+web:build: ├ ƒ /news
+web:build: ├   /news/[slug]
+web:build: │ └ ◐ /news/[slug]
+web:build: ├ ƒ /onboarding
+web:build: ├ ƒ /policies/drugs-policy
+web:build: ├ ƒ /press
+web:build: ├ ƒ /privacy
+web:build: ├ ƒ /profile
+web:build: ├ ƒ /projects
+web:build: ├   /projects/[slug]
+web:build: │ └ ◐ /projects/[slug]
+web:build: ├   /recruitment/book/[token]
+web:build: │ └ ◐ /recruitment/book/[token]
+web:build: ├ ƒ /resources
+web:build: ├ ○ /robots.txt
+web:build: ├ ƒ /safety
+web:build: ├ ƒ /shop
+web:build: ├   /shop/[slug]
+web:build: │ └ ◐ /shop/[slug]
+web:build: ├ ƒ /shop/cart
+web:build: ├ ƒ /shop/checkout
+web:build: ├ ƒ /shop/membership
+web:build: ├   /shop/order/[orderId]
+web:build: │ └ ◐ /shop/order/[orderId]
+web:build: ├ ○ /sitemap.xml                            1h      1d
+web:build: ├ ƒ /students
+web:build: ├ ƒ /terms
+web:build: ├ ƒ /units
+web:build: ├   /units/[...segments]
+web:build: │ └ ◐ /units/[...segments]
+web:build: └ ƒ /varsling
+web:build: 
+web:build: 
+web:build: ○  (Static)             prerendered as static content
+web:build: ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+web:build: ƒ  (Dynamic)            server-rendered on demand
+web:build: 
+
+ Tasks:    9 successful, 9 total
+Cached:    9 cached, 9 total
+  Time:    56ms >>> FULL TURBO
+

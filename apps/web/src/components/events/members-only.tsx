@@ -1,90 +1,78 @@
-import { Badge } from "@repo/ui/components/ui/badge";
-import { BadgeCheck, Users } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Pill } from "@/components/ui/pill";
+import { statusPanelPrimaryAction } from "@/components/ui/status-panel";
 
 /**
  * `member_only` limits who can JOIN an event, never who can SEE it. Every
  * public surface lists members-only events like any other and marks them with
  * these components instead of filtering them out.
+ *
+ * Drawn on the design system's tokens, so the same markup reads on a paper
+ * section and inside a deep band (`data-surface="deep"` flips every alias).
+ * Neither component holds state: `useTranslations` works in a Server Component
+ * as well as a Client one, so both render wherever they are imported.
  */
 
 interface MembersOnlyBadgeProps {
   className?: string;
 }
 
-export function MembersOnlyBadge({ className = "" }: MembersOnlyBadgeProps) {
+export function MembersOnlyBadge({ className }: MembersOnlyBadgeProps) {
   const t = useTranslations("events");
 
   return (
-    <Badge
-      className={`flex w-fit items-center gap-1 border-0 bg-orange-500 text-white ${className}`}
-    >
-      <Users aria-hidden className="h-3 w-3" />
+    <Pill className={className} tone="warning">
       {t("card.membersOnly")}
-    </Badge>
+    </Pill>
   );
 }
-
-const NOTICE_TONES = {
-  default:
-    "border-orange-200 bg-orange-50 text-orange-950 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-50",
-  onBrand: "border-white/25 bg-white/10 text-white",
-} as const;
 
 interface MembersOnlyNoticeProps {
   isMember: boolean;
   /** Offer a sign-in link — only meaningful to visitors who are signed out. */
   showSignIn?: boolean;
-  /** `onBrand` for placement on the brand gradient, where text is white. */
-  tone?: keyof typeof NOTICE_TONES;
 }
 
 export function MembersOnlyNotice({
   isMember,
   showSignIn = false,
-  tone = "default",
 }: MembersOnlyNoticeProps) {
   const t = useTranslations("events");
-  const toneClass = NOTICE_TONES[tone];
 
   if (isMember) {
     return (
-      <div
-        className={`mb-4 flex items-start gap-2 rounded-lg border p-4 text-sm ${toneClass}`}
-      >
-        <BadgeCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+      <p className="type-body-sm flex items-start gap-2 rounded-biso-sm border border-success/30 bg-success/10 p-4 text-ink">
+        <BadgeCheck
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0 text-success"
+        />
         <span>{t("membersOnly.memberConfirmed")}</span>
-      </div>
+      </p>
     );
   }
 
   return (
-    <div
-      className={`mb-4 space-y-3 rounded-lg border p-4 text-sm ${toneClass}`}
-    >
-      <div className="flex items-start gap-2">
-        <Users aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-        <div className="space-y-1">
-          <p className="font-semibold">{t("membersOnly.title")}</p>
-          <p>{t("membersOnly.description")}</p>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Link
-          className="inline-flex items-center rounded-md bg-orange-500 px-3 py-1.5 font-medium text-white transition-colors hover:bg-orange-600"
-          href="/membership"
-        >
+    <div className="rounded-biso-sm border border-warning/30 bg-warning/10 p-4">
+      <p className="type-body-sm font-semibold text-ink">
+        {t("membersOnly.title")}
+      </p>
+      <p className="type-body-sm mt-1 text-ink">
+        {t("membersOnly.description")}
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <Link className={statusPanelPrimaryAction} href="/membership">
           {t("membersOnly.becomeMember")}
         </Link>
-        {showSignIn && (
+        {showSignIn ? (
           <Link
-            className="font-medium underline underline-offset-4"
+            className="type-body-sm text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
             href="/auth/login"
           >
             {t("membersOnly.signIn")}
           </Link>
-        )}
+        ) : null}
       </div>
     </div>
   );

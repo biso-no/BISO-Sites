@@ -177,8 +177,15 @@ await db.createRow("app", "page_translations", ID.unique(), data, perms);
 ## The page editor
 
 - The page editor is `@repo/editor`. It is the only block editor.
-- **Do not re-introduce Puck.** The DB column `pages.puck_document` exists for historical
-  reasons and is read-only. Writes happen to `pages.document` via `@repo/api/page-builder`.
+- **Do not re-introduce Puck.** Pages are stored as `PageDoc` v2 (sections, columns, blocks)
+  in `page_translations.draft_doc` and `published_doc`. Read and write them only through
+  `@repo/api/page-builder`; saves never write publish state, only publish and unpublish do.
+  The old `draft_document` / `puck_document` columns are unused: do not touch them.
+- Blocks live in a section's column, never in a flat list. Layout is the section's `columns`,
+  not a block. Page colours come from `meta.theme` and the `--biso-*` tokens, not hard-coded
+  hex values.
+- A new code path that changes page state must refresh the website with
+  `notifyWebsite(["pages"])` (`apps/admin/src/lib/web-revalidate.ts`).
 - See [Adding an editor block](/docs/developing/adding-an-editor-block).
 
 ## Images

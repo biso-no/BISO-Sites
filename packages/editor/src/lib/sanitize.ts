@@ -3,9 +3,23 @@ const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "a", "br", "span"]);
 const LINE_BLOCK_TAGS = new Set(["div", "p"]);
 const SAFE_HREF = /^(?:https?:|mailto:|tel:|[/#?.])/i;
 
+/**
+ * The markup parsed into a document with no browsing context. Set as
+ * innerHTML in the live document, it starts loading at once: an
+ * `<img onerror>` ran its handler before the walk below could remove it,
+ * though the string returned was clean. Nothing in an inert document loads
+ * or runs.
+ */
+export function parseInert(html: string): HTMLElement {
+  const host = document.implementation
+    .createHTMLDocument("")
+    .createElement("div");
+  host.innerHTML = html;
+  return host;
+}
+
 export function sanitizeRichText(html: string): string {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html;
+  const tmp = parseInert(html);
   cleanNode(tmp);
   return tmp.innerHTML;
 }
@@ -31,7 +45,7 @@ function cleanChild(child: Node): void {
 
   if (!ALLOWED_TAGS.has(tag)) {
     if (LINE_BLOCK_TAGS.has(tag) && el.previousSibling) {
-      el.before(document.createElement("br"));
+      el.before(el.ownerDocument.createElement("br"));
     }
     cleanNode(el);
     unwrapElement(el);

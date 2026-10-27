@@ -28,7 +28,7 @@ const NO_SCOPE_FILTER = Query.equal("$id", "__no_scope_resolved__");
  * anyone else fails closed (the palette additionally gates on portal.jobs).
  */
 export function jobScopeQueries(ctx: UserAuthContext): string[] {
-  if (ctx.roles.includes("globaladmin")) {
+  if (ctx.roles.includes("globaladmin") || ctx.roles.includes("hradmin")) {
     return ctx.activeCampusId
       ? [Query.equal("campus.$id", [ctx.activeCampusId])]
       : [];

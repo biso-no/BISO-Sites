@@ -98,6 +98,84 @@ export async function listProducts(
   }
 }
 
+/**
+ * The product read for the redesigned page (RD-022) and its metadata.
+ *
+ * Identical to `getProductBySlug` except that it does **not** filter
+ * `translation_refs` by locale. That filter is why the English product page was
+ * blank: only 3 of the 55 published products have an English translation, so
+ * for the other 52 the row came back carrying no usable copy and the page
+ * rendered an empty headline. The caller picks the best available translation
+ * with `getPrimaryTranslation`, which prefers the reader's locale.
+ *
+ * Like `getProductBySlug` it filters on `status` but deliberately NOT on
+ * `unlisted`: a link-only product is sold at its `/shop/<slug>` URL, and the
+ * column is projected so `generateMetadata` can mark that page `noindex`. The
+ * checkout questions are projected for the storefront form and validated again
+ * server-side in app/actions/orders.ts.
+ */
+export async function getProductDetailBySlug(
+  slug: string
+): Promise<WebshopProducts | null> {
+  try {
+    const { db } = await createSessionClient();
+
+    const response = await db.listRows<WebshopProducts>(
+      "app",
+      "webshop_products",
+      [
+        Query.equal("slug", slug),
+        // Same guard as `getProductBySlug`: `webshop_products` grants row read
+        // to `any`, so without this a draft or archived product is reachable
+        // by direct URL.
+        Query.equal("status", "published"),
+        Query.select([
+          "$id",
+          "$createdAt",
+          "$updatedAt",
+          "slug",
+          "status",
+          "campus_id",
+          "category",
+          "regular_price",
+          "member_price",
+          "member_only",
+          "unlisted",
+          "image",
+          "stock",
+          "metadata",
+          "departmentId",
+          "campus.$id",
+          "campus.name",
+          "department.$id",
+          "department.Name",
+          "translation_refs.$id",
+          "translation_refs.locale",
+          "translation_refs.title",
+          "translation_refs.description",
+          "translation_refs.short_description",
+          "custom_fields.$id",
+          "custom_fields.field_key",
+          "custom_fields.label",
+          "custom_fields.type",
+          "custom_fields.is_required",
+          "custom_fields.placeholder",
+          "custom_fields.help_text",
+          "custom_fields.options",
+          "custom_fields.sort_order",
+          "custom_fields.enabled",
+        ]),
+        Query.limit(1),
+      ]
+    );
+
+    return response.rows[0] ?? null;
+  } catch (error) {
+    console.error("Error fetching product detail by slug:", error);
+    return null;
+  }
+}
+
 export async function getProductBySlug(
   slug: string,
   locale: "en" | "no"

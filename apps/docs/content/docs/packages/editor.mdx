@@ -12,9 +12,11 @@ read-only renderer to display the same document. Both sides use the
 same block registry, so a block authored in the admin renders
 identically in production.
 
-The package replaced an earlier integration of Puck — that name still
-shows up in the `puck_document` column name in `page_translations`,
-which is kept for backward compatibility.
+A page is a `PageDoc` **version 2**: an optional page header, then
+sections, each with one to four columns that hold the blocks, plus the
+page's meta and colour theme. Pages saved by the earlier flat-list
+editor still load; `normalizePageDoc` converts them. The package
+replaced an earlier integration of Puck, which is gone.
 
 For the conceptual model (block tree, drag-and-drop, undo/redo,
 persistence), see [Editor architecture](/docs/architecture/editor-architecture).
@@ -26,19 +28,22 @@ This page is the API reference.
 |-----------------------|-------------------------------------------------------------------------|
 | `@repo/editor`        | Editor runtime: `EditorShell`, store, callbacks, block registry helpers |
 | `@repo/editor/render` | Read-only renderer used by `apps/web`                                   |
-| `@repo/editor/blocks` | Side-effect import that registers every block in `BLOCK_LIBRARY`        |
-| `@repo/editor/theme`  | CSS variables consumed by blocks and the shell                          |
+| `@repo/editor/blocks` | Side-effect import that registers every block                           |
+| `@repo/editor/theme/styles.css` | CSS variables consumed by blocks and the shell                |
 | `@repo/editor/ai`     | `buildSystemPrompt()`, `pageEditorTools` for the assistant integration  |
-| `@repo/editor/types`  | TypeScript schema for `PageDoc`, blocks, and block definitions          |
+| `@repo/editor/types`  | TypeScript schema for `PageDoc`, sections, blocks and block definitions |
+| `@repo/editor/serialize`, `/sanitize`, `/templates`, `/page-feeds`, `/submit-rules` | Helpers used by the hosts: document (de)serialising, rich-text sanitising, page templates, live-feed resolution, form submit rules |
 
 ### Root export
 
 ```ts
 import {
   EditorShell,
-  BLOCK_LIBRARY,
   allBlocks,
   getBlock,
+  paletteGroups,
+  normalizePageDoc,
+  SectionView,
   useEditorStore,
   useEditorCallbacks,
   type EditorCallbacks,
@@ -85,52 +90,68 @@ export function PageEditor({ doc, callbacks }: Props) {
 
 ```ts
 type EditorCallbacks = {
-  onSaveDraft: (doc: PageDoc) => Promise<void>;
-  onPublish: () => Promise<void>;
-  onUnpublish: () => Promise<void>;
-  onAssetUpload: (file: File) => Promise<{ url: string; id: string }>;
-  // ...
+  savePage: (doc: PageDoc, locale: EditorLocale) => Promise<StoredMeta | undefined>;
+  onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
+  onUnpublish?: (locale: EditorLocale) => Promise<void>;
+  uploadFile: (fd: FormData) => Promise<{ fileId: string; url: string }>;
+  // ...plus locales, departments, campuses and lockedMeta
 };
 ```
 
-The admin app wires these to server actions that call
-`@repo/api/page-builder`.
+`savePage` returns what the server actually stored (the unique slug, the
+bound department, whether it dropped a stale theme), and `onPublish`
+reports whether the page's theme was copied to its department, so the
+editor can follow the server. The admin app wires these to server
+actions that call `@repo/api/page-builder`. Saves never write publish
+state; see [Pages publish flow](/docs/architecture/pages-publish-flow).
 
 ## The block registry
 
 Blocks register themselves by importing `@repo/editor/blocks`, which
-populates `BLOCK_LIBRARY`. Use the helpers to introspect:
+populates the registry. Use the helpers to introspect:
 
 ```ts
-import { BLOCK_LIBRARY, allBlocks, getBlock } from "@repo/editor";
+import { allBlocks, getBlock, paletteGroups } from "@repo/editor";
 
 allBlocks();            // BlockDefinition[]
-getBlock("hero");       // BlockDefinition | undefined
-BLOCK_LIBRARY.hero;     // same
+getBlock("callout");    // BlockDefinition | undefined
+paletteGroups();        // the palette's groups, derived from the registry
 ```
 
-A `BlockDefinition` carries the type id, JSON schema for props, the
-React component used in the editor preview, and the renderer used by
-`@repo/editor/render`.
+A `BlockDefinition` carries the type id, its `group` in the palette, the
+`empty()` default, the `Render` component (used on the canvas and the
+site), the `Inspector` and the palette thumbnail. The palette and the
+AI's block list are both derived from the registry, so they cannot
+drift from it. The AI list throws at load if no block is registered.
+
+Blocks live inside a **column** of a **section**. There is no flat
+block list, no hero block (the page header replaces it) and no two-column
+block (a section with two columns does that job).
 
 ### Built-in blocks
 
-There are **37 blocks**, organized into 8 categories so the inserter
-menu is navigable:
+There are **30 blocks** (the `BlockType` union in
+`packages/editor/src/editor/types.ts`), offered in seven palette groups:
 
-| Category              | Blocks                                                                                 |
-|-----------------------|----------------------------------------------------------------------------------------|
-| Top of page           | Hero, Page header, Breadcrumb                                                          |
-| Tell a story          | Rich text, Quote, Callout, Image with caption, Side-by-side                            |
-| Show people & numbers | People grid, Stat row, Logo wall, Department leadership                                |
-| Media                 | Image, Image gallery, Video, Embed                                                     |
-| Pull from BISO        | Events list, News list, Jobs list, Benefits list, Shop products, Document list         |
-| Engage                | CTA, Newsletter signup, Form, FAQ, Membership upsell                                   |
-| Layout                | Columns, Section, Divider, Spacer, Tabs, Accordion                                     |
-| Data                  | Table, Chart, KPI card                                                                 |
+| Group           | Blocks                                                                 |
+|-----------------|------------------------------------------------------------------------|
+| Text and story  | text, heading, quote, callout, highlights, facts                       |
+| Media           | image, gallery, video                                                  |
+| Structure       | cards, tabs, faq, stats, stepGrid, timeline                            |
+| People          | team, contact                                                          |
+| Live from BISO  | events, jobs, news, partners, departmentGrid, productGrid              |
+| Actions         | buttons, ctaBand, signup, multiStepForm, documents                     |
+| Small extras    | marquee, divider                                                       |
 
-The "Pull from BISO" category is the bridge between authored content
-and live data — those blocks query `@repo/api` at render time.
+The "Live from BISO" blocks are the bridge between authored content and
+live data. Their feeds are resolved on the server per page, `limit` is
+clamped before it reaches the cache key, and a live block whose feed
+comes back empty is pruned before render (a section left empty
+disappears). The team block's live board shows email only, never phone
+numbers.
+
+The group is set in each block's `registerBlock` call; if this table
+and the code disagree, the code wins.
 
 ## Read-only renderer
 
@@ -169,8 +190,10 @@ import { buildSystemPrompt, pageEditorTools } from "@repo/editor/ai";
   copilot — it includes a compressed description of the current block
   tree so the model can reference specific blocks.
 - `pageEditorTools` is the AI SDK tool definition set the copilot
-  invokes (insert block, update block, delete block, move block, set
-  page metadata).
+  invokes. It inserts sections and blocks into columns, edits and
+  moves blocks, sets page metadata, and sets or resets the page theme
+  within the contrast rules. The copilot sees the effective theme (the
+  page's, else the department's).
 
 These run inside the admin app's assistant route. See
 [Editor architecture](/docs/architecture/editor-architecture) for the
@@ -182,17 +205,37 @@ end-to-end flow.
 import most often:
 
 ```ts
-type PageDoc = {
-  blocks: Block[];
-  meta: { title?: string; description?: string; /* ... */ };
-};
+interface PageDoc {
+  version: 2;
+  header?: PageHeader;   // absent: the first section clears the nav
+  sections: Section[];
+  meta: PageMeta;        // title, slug, department, status, theme
+}
 
-type Block = {
-  id: string;       // stable, persisted
-  type: string;     // matches a key in BLOCK_LIBRARY
-  props: Record<string, unknown>;
-  children?: Block[];
-};
+interface Section {
+  id: string;
+  anchor?: string;       // link name
+  layout: SectionLayout; // columns, background, spacing, align, tablet, ...
+  columns: Column[];     // 1 to 4, matching layout.columns
+}
+
+interface Column {
+  id: string;
+  blocks: Block[];
+}
 ```
 
-Block-specific prop types live next to their definitions.
+`Block` is a discriminated union on `type`, with stable ids. Section
+columns are `"1" | "1-1" | "2-1" | "1-2" | "1-1-1" | "1-1-1-1"`;
+backgrounds are `white`, `tinted`, `dark` and `photo`. Blocks and
+sections can be hidden on phones. The header has three variants
+(`split`, `full`, `plain`) and holds the page's only `<h1>`.
+
+`meta.theme` is `PageTheme | null | undefined`: absent follows the
+department, `null` resets to BISO, an object is a custom
+`{ dark, accent }` pair. The colour maths (contrast, the nearest
+passing shade, every derived token) live in
+`@repo/shared/utils/page-theme`, not in this package. The five-swatch
+`accentColor` it replaced is gone.
+
+Block-specific prop types live in the same `types.ts`.

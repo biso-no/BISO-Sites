@@ -38,11 +38,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Slowed, not stopped: the motion is what tells a live pass from a still. */
+  /* Slowed, not stopped: the motion is what tells a live pass from a still
+     (a screenshot). `!important` because the app-wide reduced-motion floor in
+     `app/styles.css` caps every animation at 1ms, once, with `!important`;
+     these class selectors outrank its `*`, so the pass alone keeps a slow,
+     endless band. */
   .member-pass-holo {
-    animation-duration: 20s;
+    animation-duration: 20s !important;
+    animation-iteration-count: infinite !important;
   }
   .member-pass-live-dot {
-    animation-duration: 4s;
+    animation-duration: 4s !important;
+    animation-iteration-count: infinite !important;
   }
 }

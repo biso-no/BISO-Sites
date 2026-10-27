@@ -7,10 +7,12 @@ import { PartnersThumb } from "./thumb";
 registerBlock({
   type: "partners",
   label: "Partners",
-  description: "Logo grid from Appwrite",
-  category: "Data",
-  aiHint: "A grid of partner/sponsor logos.",
-  aiProps: ["heading"],
+  description: "Logo grid, from the partner list or your own",
+  category: "Pull from BISO",
+  group: "live",
+  aiHint:
+    "A grid of partner logos. source auto shows BISO's national partners; manual uses items [{ name, logo: { src }, href }].",
+  aiProps: ["heading", "source", "items"],
   empty: () => emptyBlock("partners") as never,
   Render: PartnersRender as never,
   Inspector: PartnersInspector as never,

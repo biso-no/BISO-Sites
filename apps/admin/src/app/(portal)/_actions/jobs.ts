@@ -917,7 +917,8 @@ export async function createJob(
       translationPerms,
       resolveNotifyPush({
         campusId: validated.data.campus_id,
-        isGlobalAdmin: ctx.roles.includes("globaladmin"),
+        isGlobalAdmin:
+          ctx.roles.includes("globaladmin") || ctx.roles.includes("hradmin"),
         requested: validated.data.notify_push,
         stored: null,
         storedCampusId: null,
@@ -1069,7 +1070,8 @@ export async function updateJob(
       translationPerms,
       resolveNotifyPush({
         campusId: validated.data.campus_id,
-        isGlobalAdmin: ctx.roles.includes("globaladmin"),
+        isGlobalAdmin:
+          ctx.roles.includes("globaladmin") || ctx.roles.includes("hradmin"),
         requested: validated.data.notify_push,
         stored: vacancy.notify_push,
         storedCampusId: vacancy.campus_id,

@@ -1,20 +1,17 @@
-"use client";
-
-import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent } from "@repo/ui/components/ui/card";
-import { motion } from "motion/react";
-import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { ProjectCard } from "@/components/projects/project-card";
-import { SectionHeading } from "@/components/shared/section-heading";
+import { CardGrid } from "@/components/ui/card-grid";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 
 export interface FeaturedVM {
   ctaLabel: string;
   description: string;
-  gradient: string[];
   highlight?: string;
   href: string;
   key: string;
+  /** The project row's own colours; `null` when it has none. */
+  palette: string[] | null;
   slug: string;
   title: string;
 }
@@ -22,166 +19,99 @@ export interface FeaturedVM {
 export interface ScheduleVM {
   description: string;
   formattedDate?: string;
-  gradient: string[];
   href: string;
   id: string;
+  /** The project row's own colours; `null` when it has none. */
+  palette: string[] | null;
   slug: string;
   tag?: string;
   title: string;
 }
 
-const fadeUp = {
-  initial: { opacity: 0, y: 20 },
-  viewport: { once: true },
-  whileInView: { opacity: 1, y: 0 },
-} as const;
-
 const INSIGHT_KEYS = ["item1", "item2", "item3"] as const;
 
-export function ProjectsBody({
+/**
+ * `/projects` below its header: the flagships, why they matter, and any other
+ * project the `large_event` table holds.
+ *
+ * A Server Component now — the v1 body was a client component only to fade
+ * its sections in on scroll. The "more projects" block renders only when
+ * there are more projects: `large_event` holds none today (PLACEHOLDER-011),
+ * and a section saying so would be furniture.
+ */
+export async function ProjectsBody({
   featured,
   otherEvents,
 }: {
   featured: FeaturedVM[];
   otherEvents: ScheduleVM[];
 }) {
-  const t = useTranslations("projects");
+  const t = await getTranslations("projects");
 
   return (
     <>
-      {/* Intro / insight */}
-      <section className="relative overflow-hidden py-16" id="about-content">
-        <div className="pointer-events-none absolute inset-0 bg-grid-primary-soft opacity-60" />
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[3fr_2fr] lg:px-8">
-          <motion.div
-            className="surface-spotlight space-y-6"
-            transition={{ duration: 0.6 }}
-            {...fadeUp}
-          >
-            <div className="inline-block rounded-full bg-brand-muted px-4 py-2 font-medium text-brand-dark text-sm">
-              {t("hero.badge")}
-            </div>
-            <h2 className="font-bold text-3xl text-foreground leading-tight md:text-4xl">
-              {t("hero.title")}
-            </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              {t("hero.subtitle")}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" variant="gradient">
-                <Link href="#featured">{t("hero.ctaPrimary")}</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="#calendar">{t("hero.ctaSecondary")}</Link>
-              </Button>
-            </div>
-          </motion.div>
+      <Section id="featured" tone="paper">
+        <SectionHeading className="mb-2">{t("featuredTitle")}</SectionHeading>
+        <p className="type-body-sm mb-8 max-w-(--measure) text-ink-muted">
+          {t("featuredSubtitle")}
+        </p>
+        <CardGrid columns={featured.length % 2 === 0 ? 2 : 3}>
+          {featured.map((project) => (
+            <li className="min-w-0" key={project.slug}>
+              <ProjectCard
+                badge={project.highlight ?? t(`featuredLabels.${project.key}`)}
+                ctaLabel={project.ctaLabel}
+                description={project.description}
+                href={project.href}
+                palette={project.palette}
+                title={project.title}
+                variant="featured"
+              />
+            </li>
+          ))}
+        </CardGrid>
+      </Section>
 
-          <motion.div
-            className="h-full"
-            transition={{ delay: 0.15, duration: 0.6 }}
-            {...fadeUp}
-          >
-            <div className="glass-panel h-full p-8">
-              <h3 className="font-semibold text-foreground text-xl">
-                {t("insight.title")}
-              </h3>
-              <div className="mt-5 space-y-4">
-                {INSIGHT_KEYS.map((item) => (
-                  <div className="flex items-start gap-3" key={item}>
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {t(`insight.${item}`)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      <Section className="border-edge border-t" tone="paper">
+        <SectionHeading>{t("insight.title")}</SectionHeading>
+        <ul className="grid gap-6 md:grid-cols-3">
+          {INSIGHT_KEYS.map((item) => (
+            <li
+              className="type-body border-ink-accent border-l-2 pl-4 text-ink"
+              key={item}
+            >
+              {t(`insight.${item}`)}
+            </li>
+          ))}
+        </ul>
+      </Section>
 
-      {/* Featured */}
-      <section className="bg-section/50 py-16" id="featured">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="mb-10"
-            transition={{ duration: 0.6 }}
-            {...fadeUp}
-          >
-            <SectionHeading
-              gradient
-              subtitle={t("featuredSubtitle")}
-              title={t("featuredTitle")}
-            />
-          </motion.div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {featured.map((project, index) => (
-              <motion.div
-                key={project.slug}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-                {...fadeUp}
-              >
+      {otherEvents.length > 0 ? (
+        <Section className="border-edge border-t" id="calendar" tone="paper">
+          <SectionHeading className="mb-2">
+            {t("schedule.title")}
+          </SectionHeading>
+          <p className="type-body-sm mb-8 max-w-(--measure) text-ink-muted">
+            {t("schedule.subtitle")}
+          </p>
+          <CardGrid>
+            {otherEvents.map((event) => (
+              <li className="min-w-0" key={event.id}>
                 <ProjectCard
-                  badge={
-                    project.highlight ?? t(`featuredLabels.${project.key}`)
-                  }
-                  ctaLabel={project.ctaLabel}
-                  description={project.description}
-                  gradient={project.gradient}
-                  href={project.href}
-                  title={project.title}
-                  variant="featured"
+                  badge={event.tag ?? t("schedule.defaultTag")}
+                  ctaLabel={t("schedule.more")}
+                  description={event.description}
+                  formattedDate={event.formattedDate}
+                  href={event.href}
+                  palette={event.palette}
+                  title={event.title}
+                  variant="schedule"
                 />
-              </motion.div>
+              </li>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Schedule */}
-      <section className="py-16" id="calendar">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="mb-10"
-            transition={{ duration: 0.6 }}
-            {...fadeUp}
-          >
-            <SectionHeading
-              subtitle={t("schedule.subtitle")}
-              title={t("schedule.title")}
-            />
-          </motion.div>
-          {otherEvents.length === 0 ? (
-            <Card className="border-2 border-border/60 border-dashed bg-transparent">
-              <CardContent className="py-16 text-center text-muted-foreground">
-                {t("schedule.empty")}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {otherEvents.map((event, index) => (
-                <motion.div
-                  key={event.id}
-                  transition={{ delay: index * 0.08, duration: 0.5 }}
-                  {...fadeUp}
-                >
-                  <ProjectCard
-                    badge={event.tag ?? t("schedule.defaultTag")}
-                    ctaLabel={t("schedule.more")}
-                    description={event.description}
-                    formattedDate={event.formattedDate}
-                    gradient={event.gradient}
-                    href={event.href}
-                    title={event.title}
-                    variant="schedule"
-                  />
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+          </CardGrid>
+        </Section>
+      ) : null}
     </>
   );
 }

@@ -6,7 +6,12 @@ vi.mock("@repo/api/server", () => ({
   createSessionClient: vi.fn(async () => ({ db: sessionDb })),
 }));
 
-import { getProductBySlug, listProducts } from "./webshop";
+import { getProduct } from "./products";
+import {
+  getProductBySlug,
+  getProductDetailBySlug,
+  listProducts,
+} from "./webshop";
 
 const queriesOf = (call: number): string[] =>
   sessionDb.listRows.mock.calls[call][2].map(String);
@@ -62,6 +67,20 @@ describe("link-only products", () => {
     // Still projected, so `generateMetadata` can mark the page `noindex`.
     expect(serialized).toContain("unlisted");
   });
+
+  it("is served by the all-locale reader the product page renders from", async () => {
+    // `/shop/<slug>` and its metadata read through `getProductDetailBySlug`
+    // (every translation, so a product with no English row still renders).
+    // It must sell a link-only product as well, and still refuse a draft.
+    await getProductDetailBySlug("julebord-2026");
+
+    const serialized = queriesOf(0).join("|");
+    expect(serialized).not.toContain('"attribute":"unlisted"');
+    expect(serialized).toContain("unlisted");
+    expect(serialized).toContain(PUBLISHED_FILTER);
+    // The checkout questions the storefront renders and checkout re-validates.
+    expect(serialized).toContain("custom_fields.field_key");
+  });
 });
 
 describe("member-only products", () => {
@@ -78,5 +97,25 @@ describe("member-only products", () => {
     // so pin the filter's attribute key rather than the bare column name.
     expect(serialized).not.toContain('"attribute":"member_only"');
     expect(serialized).toContain("member_only");
+  });
+});
+
+describe("the checkout read", () => {
+  beforeEach(() => {
+    sessionDb.listRows.mockReset();
+    sessionDb.listRows.mockResolvedValue({ rows: [], total: 0 });
+  });
+
+  it("sells every product the shop lists, whatever its languages", async () => {
+    // The shop and the product page show every published product, and 52 of
+    // the 55 have no English row. A locale filter here refused each of those
+    // at checkout for an English reader, after it was already in the cart.
+    await getProduct("product-1");
+
+    const serialized = queriesOf(0).join("|");
+    expect(serialized).not.toContain('"attribute":"translation_refs.locale"');
+    expect(serialized).toContain("translation_refs.title");
+    // Still never quotes a draft: `webshop_products` is readable by `any`.
+    expect(serialized).toContain(PUBLISHED_FILTER);
   });
 });

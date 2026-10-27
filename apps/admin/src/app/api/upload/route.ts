@@ -3,12 +3,19 @@ import { InputFile } from "@repo/api/file";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
+import type { UserAuthContext } from "@/lib/authorization";
+import { handleChunkedUpload, isChunkRequest } from "@/lib/chunked-upload";
+import { readCapped } from "@/lib/read-capped";
 import {
+  allowsChunkedUpload,
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
+  filenameMatchesMime,
+  maxBytesForMime,
   resolveUploadBucket,
   resolveUploadMimeType,
   sanitizeUploadFilename,
+  type UploadBucketConfig,
 } from "@/lib/upload-buckets";
 
 /**
@@ -20,7 +27,45 @@ import {
  * Headers: `x-filename` (optional).
  * Query: `bucket` (optional, defaults to "content"). Only buckets listed in
  * `UPLOAD_BUCKETS` are accepted — private buckets (resumes, expenses) are not.
+ *
+ * `?chunk=1` switches to chunk mode for files over 5 MiB, in buckets that
+ * allow it (`allowsChunkedUpload`): see `lib/chunked-upload.ts`. The chunk
+ * that completes the file answers `{ fileId, url }`, the same `/view` url as
+ * a single request.
  */
+
+function tooLarge(maxBytes: number) {
+  return NextResponse.json(
+    { error: `File too large (max ${maxBytes / 1024 / 1024} MB)` },
+    { status: 413 }
+  );
+}
+
+function chunkedUpload(
+  request: Request,
+  bucket: UploadBucketConfig,
+  ctx: UserAuthContext
+): Promise<Response> | Response {
+  if (!allowsChunkedUpload(bucket)) {
+    return NextResponse.json(
+      { error: "This bucket takes files in one request" },
+      { status: 400 }
+    );
+  }
+  return handleChunkedUpload(request, {
+    complete: ({ fileId, url }) => NextResponse.json({ fileId, url }),
+    ctx,
+    policy: {
+      bucketId: bucket.id,
+      // The name must agree with the type, or a `.zip` declared as
+      // `video/mp4` would get the video limit.
+      limitFor: (mime, filename) =>
+        filenameMatchesMime(filename, mime)
+          ? maxBytesForMime(bucket, mime)
+          : null,
+    },
+  });
+}
 
 export async function POST(request: Request) {
   const auth = await requireApiAuth();
@@ -37,39 +82,36 @@ export async function POST(request: Request) {
     );
   }
 
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > bucket.maxBytes) {
-    return NextResponse.json(
-      { error: `File too large (max ${bucket.maxBytes / 1024 / 1024} MB)` },
-      { status: 413 }
-    );
+  if (isChunkRequest(request)) {
+    return chunkedUpload(request, bucket, auth.ctx);
   }
 
-  const blob = await request.blob();
-  if (blob.size === 0) {
-    return NextResponse.json({ error: "Empty upload" }, { status: 400 });
-  }
-  if (blob.size > bucket.maxBytes) {
-    return NextResponse.json(
-      { error: `File too large (max ${bucket.maxBytes / 1024 / 1024} MB)` },
-      { status: 413 }
-    );
-  }
-
+  // The type and name come from the headers, so the type's own limit caps
+  // the read: a larger declared length is refused unread, and a body that
+  // runs past it is cut off there.
   const mimeType = resolveUploadMimeType(
-    blob.type,
+    "",
     request.headers.get("content-type")
   );
-  if (!bucket.mimeTypes.has(mimeType)) {
+  const typeLimit = maxBytesForMime(bucket, mimeType);
+  const filename = sanitizeUploadFilename(
+    decodeUploadFilename(request.headers.get("x-filename"))
+  );
+  if (typeLimit === null || !filenameMatchesMime(filename, mimeType)) {
     return NextResponse.json(
       { error: "Unsupported file type" },
       { status: 415 }
     );
   }
 
-  const filename = sanitizeUploadFilename(
-    decodeUploadFilename(request.headers.get("x-filename"))
-  );
+  const body = await readCapped(request, typeLimit);
+  if (body.tooLarge) {
+    return tooLarge(typeLimit);
+  }
+  const { bytes } = body;
+  if (bytes.byteLength === 0) {
+    return NextResponse.json({ error: "Empty upload" }, { status: 400 });
+  }
 
   try {
     // Buckets whose create permission is narrower than "any admin user" are
@@ -81,7 +123,7 @@ export async function POST(request: Request) {
     const file = await storage.createFile({
       bucketId: bucket.id,
       fileId: ID.unique(),
-      file: InputFile.fromBuffer(blob, filename),
+      file: InputFile.fromBuffer(bytes, filename),
     });
     return NextResponse.json({
       file,
@@ -92,7 +134,7 @@ export async function POST(request: Request) {
     console.error("[api/upload] createFile failed", {
       bucket: bucket.id,
       error,
-      size: blob.size,
+      size: bytes.byteLength,
       userId: auth.ctx.userId,
     });
     return NextResponse.json(

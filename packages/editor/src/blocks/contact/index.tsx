@@ -42,13 +42,10 @@ registerBlock({
   label: "Contact",
   description: "Email, address, socials",
   category: "Engage",
-  variants: [
-    { id: "single", label: "Single", kind: "single" },
-    { id: "directory", label: "Directory", kind: "directory" },
-  ],
+  group: "people",
   aiHint:
-    "A contact section with email, Instagram, address, and opening hours.",
-  aiProps: ["heading", "email", "instagram", "address", "hours"],
+    "A list of contact facts: email, phone, Instagram, address and opening hours. Empty fields are left out.",
+  aiProps: ["heading", "email", "phone", "instagram", "address", "hours"],
   empty: () => emptyBlock("contact") as never,
   Render: ContactRender as never,
   Inspector: ContactInspector as never,

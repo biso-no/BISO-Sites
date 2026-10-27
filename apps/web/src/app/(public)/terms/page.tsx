@@ -1,184 +1,109 @@
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Card } from "@repo/ui/components/ui/card";
-import {
-  CheckCircle,
-  Clock,
-  CreditCard,
-  FileText,
-  Mail,
-  RotateCcw,
-  ShieldCheck,
-  Truck,
-} from "lucide-react";
+import { Mail, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pill } from "@/components/ui/pill";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
 
-export const metadata: Metadata = {
-  title: "Purchase Terms | BISO",
-  description: "Terms of sale, refunds/returns, and delivery information.",
-};
+const SUPPORT_EMAIL = "contact@biso.no";
 
-const sectionIcons = {
-  payment: CreditCard,
-  delivery: Truck,
-  returns: RotateCcw,
-  withdrawal: ShieldCheck,
-  contact: Mail,
-};
+/** Order is the reading order of the terms; it is not alphabetical. */
+const SECTIONS = [
+  "payment",
+  "delivery",
+  "returns",
+  "withdrawal",
+  "contact",
+] as const;
 
-const sectionColors = {
-  payment: "from-blue-500 to-cyan-500",
-  delivery: "from-green-500 to-emerald-500",
-  returns: "from-orange-500 to-amber-500",
-  withdrawal: "from-purple-500 to-violet-500",
-  contact: "from-brand-gradient-from to-brand-gradient-to",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("terms");
+  return { title: `${t("title")} | BISO`, description: t("intro") };
+}
 
 export default async function TermsPage() {
-  const t = await getTranslations("terms");
-
-  const sections = [
-    "payment",
-    "delivery",
-    "returns",
-    "withdrawal",
-    "contact",
-  ] as const;
+  const [t, tCommon] = await Promise.all([
+    getTranslations("terms"),
+    getTranslations("common"),
+  ]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-background via-section to-background">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-linear-to-br from-brand-gradient-to via-brand-gradient-from to-brand-gradient-to py-20">
-        {/* Animated background elements */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-10 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -right-20 bottom-10 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
-        </div>
+    <>
+      <PageHeader
+        breadcrumbs={[
+          { label: tCommon("breadcrumbs.home"), href: "/" },
+          { label: t("title") },
+        ]}
+        eyebrow={t("badge")}
+        lede={t("intro")}
+        meta={
+          <>
+            <Pill>{t("lastUpdated")}</Pill>
+            <Pill>{t("version")}</Pill>
+          </>
+        }
+        title={t("title")}
+      />
 
-        {/* Wave decoration at bottom */}
-        <div className="absolute right-0 -bottom-1 left-0">
-          <svg
-            aria-hidden="true"
-            className="w-full text-background"
-            fill="currentColor"
-            preserveAspectRatio="none"
-            viewBox="0 0 1440 48"
-          >
-            <path d="M0,48L60,42.7C120,37,240,27,360,26.7C480,27,600,37,720,42.7C840,48,960,48,1080,42.7C1200,37,1320,27,1380,21.3L1440,16L1440,48L1380,48C1320,48,1200,48,1080,48C960,48,840,48,720,48C600,48,480,48,360,48C240,48,120,48,60,48L0,48Z" />
-          </svg>
-        </div>
-
-        <div className="relative z-10 mx-auto max-w-4xl px-4 text-center">
-          <Badge className="mb-6 border-white/20 bg-white/10 px-4 py-1.5 text-white backdrop-blur-sm">
-            <FileText className="mr-2 h-4 w-4" />
-            {t("badge")}
-          </Badge>
-          <h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
-            {t("title")}
-          </h1>
-          <p className="mx-auto max-w-2xl text-lg text-white/80">
-            {t("intro")}
-          </p>
-          <div className="mt-8 flex items-center justify-center gap-4 text-sm text-white/60">
-            <span className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              {t("lastUpdated")}
-            </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              {t("version")}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Content Grid */}
-      <section className="relative z-10 mx-auto -mt-8 max-w-5xl px-4 pb-20">
-        <div className="grid gap-6 md:grid-cols-2">
-          {sections.map((sectionKey, _index) => {
-            const Icon = sectionIcons[sectionKey];
-            const gradient = sectionColors[sectionKey];
-
+      <Section tone="paper" width="prose">
+        <Prose>
+          {SECTIONS.map((key) => {
+            // `contact.highlight` is deliberately an empty string in both
+            // bundles. Rendering it would leave an empty callout box, so the
+            // truthiness check the previous design relied on is kept.
+            const highlight = t(`sections.${key}.highlight`);
             return (
-              <Card
-                className={`group relative overflow-hidden border-0 p-0 shadow-lg transition-all duration-300 hover:shadow-xl ${
-                  sectionKey === "contact" ? "md:col-span-2" : ""
-                }`}
-                key={sectionKey}
-              >
-                {/* Section gradient header */}
-                <div
-                  className={`bg-linear-to-r ${gradient} relative h-2 w-full`}
-                />
-
-                <div className="p-6">
-                  <div className="mb-4 flex items-start gap-4">
-                    <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${gradient} shadow-lg`}
-                    >
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="font-bold text-foreground text-xl">
-                        {t(`sections.${sectionKey}.title`)}
-                      </h2>
-                      <Badge
-                        className="mt-1 text-muted-foreground text-xs"
-                        variant="outline"
-                      >
-                        {t(`sections.${sectionKey}.badge`)}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <p className="text-muted-foreground leading-relaxed">
-                    {t(`sections.${sectionKey}.body`)}
+              <section key={key}>
+                <h2 id={key}>{t(`sections.${key}.title`)}</h2>
+                {/* A <span>, not a <p>: `<Prose>` styles descendant `p` with
+                    `[&_p]:type-body`, whose specificity beats a `type-label`
+                    class set on the element itself, so a paragraph here would
+                    silently render as body text. */}
+                <Pill className="mb-4">{t(`sections.${key}.badge`)}</Pill>
+                <p>{t(`sections.${key}.body`)}</p>
+                {highlight ? (
+                  <p className="rounded-biso-md border-ink-accent border-s-4 bg-surface-sunken p-4">
+                    {highlight}
                   </p>
-
-                  {/* Highlight box for important info */}
-                  {t.raw(`sections.${sectionKey}.highlight`) && (
-                    <div className="mt-4 rounded-lg bg-brand-muted p-4 dark:bg-brand-muted-strong">
-                      <p className="text-brand-dark text-sm dark:text-brand">
-                        {t(`sections.${sectionKey}.highlight`)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Hover glow effect */}
-                <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 shadow-[inset_0_0_40px_rgba(61,169,224,0.05)] transition-opacity duration-300 group-hover:opacity-100" />
-              </Card>
+                ) : null}
+              </section>
             );
           })}
-        </div>
+        </Prose>
+      </Section>
 
-        {/* Footer CTA */}
-        <Card className="mt-8 border-0 bg-linear-to-r from-brand-muted to-brand-muted-strong p-8 text-center shadow-lg dark:from-brand-muted dark:to-brand-muted-strong">
-          <h3 className="mb-2 font-bold text-foreground text-xl">
-            {t("footer.title")}
-          </h3>
-          <p className="mb-4 text-muted-foreground">
-            {t("footer.description")}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              className="flex items-center gap-2 font-medium text-brand hover:underline"
-              href="mailto:contact@biso.no"
+      <Section className="border-edge border-t" tone="paper" width="prose">
+        <h2 className="type-display-sm break-words text-ink">
+          {t("footer.title")}
+        </h2>
+        <p className="type-body mt-3 max-w-(--measure) text-ink-muted">
+          {t("footer.description")}
+        </p>
+        <ul className="mt-6 flex flex-col gap-3">
+          <li>
+            <a
+              className="type-body inline-flex items-center gap-2 text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              href={`mailto:${SUPPORT_EMAIL}`}
             >
-              <Mail className="h-4 w-4" />
-              contact@biso.no
-            </Link>
+              <Mail aria-hidden="true" className="size-4 shrink-0" />
+              <span className="min-w-0 break-words">{SUPPORT_EMAIL}</span>
+            </a>
+          </li>
+          <li>
             <Link
-              className="flex items-center gap-2 font-medium text-brand hover:underline"
+              className="type-body inline-flex items-center gap-2 text-ink-accent underline underline-offset-4 hover:no-underline focus-visible:rounded-biso-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
               href="/privacy"
             >
-              <ShieldCheck className="h-4 w-4" />
-              {t("footer.privacyPolicy")}
+              <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />
+              <span className="min-w-0 break-words">
+                {t("footer.privacyPolicy")}
+              </span>
             </Link>
-          </div>
-        </Card>
-      </section>
-    </div>
+          </li>
+        </ul>
+      </Section>
+    </>
   );
 }

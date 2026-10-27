@@ -13,6 +13,12 @@ import {
   Users,
 } from "node-appwrite";
 import { appwriteErrorStatus } from "./errors";
+import { withUniqueSelects } from "./select-queries";
+import {
+  APPWRITE_PROJECT,
+  NEXT_PUBLIC_APPWRITE_ENDPOINT,
+  resolveApiKey,
+} from "./server-env";
 
 /**
  * Returns the base URL of the current deployment.
@@ -99,26 +105,6 @@ function plainDb(db: TablesDB): TablesDB {
     },
   });
 }
-
-/**
- * Read on every call, not at module load: inside an Appwrite Function the key
- * arrives per execution (the `x-appwrite-key` header, which the function copies
- * into `APPWRITE_FUNCTION_API_KEY`) — after this module has been imported. The
- * injected `APPWRITE_FUNCTION_API_KEY` env var itself only exists at build time.
- */
-function resolveApiKey(): string | undefined {
-  return process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY;
-}
-
-const APPWRITE_PROJECT =
-  process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
-  process.env.APPWRITE_PROJECT_ID ||
-  "biso";
-
-const NEXT_PUBLIC_APPWRITE_ENDPOINT =
-  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
-  process.env.APPWRITE_ENDPOINT ||
-  "https://appwrite.biso.no/v1";
 
 const SESSION_COOKIE_NAME =
   process.env.APPWRITE_SESSION_COOKIE || "a_session_biso";
@@ -284,8 +270,16 @@ function configureServerClient(
   const call = client.call.bind(client);
   const redirect = client.redirect.bind(client);
 
+  // Every request leaves through here — `call` and `redirect` both prepare
+  // through it — so selects are de-duplicated once, for every service and
+  // every app that reads through `@repo/api/server`.
   client.prepareRequest = (method, url, requestHeaders, params) => {
-    const request = prepareRequest(method, url, requestHeaders, params);
+    const request = prepareRequest(
+      method,
+      url,
+      requestHeaders,
+      withUniqueSelects(params)
+    );
     const options = request.options as AppwriteRequestOptions;
     const transport = getSharedTransport(client, options);
 
@@ -510,6 +504,13 @@ async function nullIfNoSession<T>(read: Promise<T>): Promise<T | null> {
  * the user id and the session id are resolved from the caller's own session
  * cookie, so this can only ever mint a token for whoever is already signed in,
  * and the token still dies with that session.
+ *
+ * There is deliberately **no `userId` parameter**: `users.createJWT()` will mint
+ * a token for any id it is handed, so the only thing that keeps this equivalent
+ * to the session-scoped call it replaced is that identity comes from
+ * `account.get()` and nowhere else. Passing `sessionId` back is the other half —
+ * without it Appwrite picks one of the user's sessions on its own, and the token
+ * could outlive the logout of the session that asked for it.
  *
  * Returns `null` when there is no usable session (Appwrite answers 401).
  * Any other failure — an outage, a timeout, misconfiguration such as a missing

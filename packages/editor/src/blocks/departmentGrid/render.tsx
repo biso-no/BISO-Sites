@@ -1,17 +1,60 @@
 "use client";
 
+import { Crest } from "@/blocks/_v2/crest";
+import { FeedCardShell, FeedSection } from "@/blocks/_v2/feed-section";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
-import { pageFeedKey } from "@/editor/page-feeds";
+import { usePageFeedSource } from "@/editor/page-feed-context";
+import {
+  departmentsFeedKey,
+  unitsBlockLimit,
+  unitsFeedCampus,
+  unitsFeedCategory,
+} from "@/editor/page-feeds";
 import type { DepartmentGridBlock } from "@/editor/types";
 import { useAutoFeed } from "@/editor/use-auto-feed";
 
-interface DeptItem {
-  campusId: string | null;
-  id: string;
-  internalId: string | null;
-  logo: string | null;
-  name: string;
-  type: string | null;
+interface FeedUnit {
+  campusLabel?: string;
+  href?: string;
+  id?: string;
+  logoUrl?: string;
+  name?: string;
+}
+
+/**
+ * Module scope on purpose: `useAutoFeed` takes this as an effect dependency,
+ * so a closure recreated per render would refetch forever. The snapshot holds
+ * the rows; the HTTP endpoint answers `{ departments, total }`.
+ */
+const selectDepartments = (payload: unknown): FeedUnit[] => {
+  const departments = (payload as { departments?: unknown } | null)
+    ?.departments;
+  return Array.isArray(departments) ? (departments as FeedUnit[]) : [];
+};
+
+const CARD =
+  "group flex h-full flex-col rounded-biso-md border border-edge bg-surface-raised p-5 hover:border-ink-accent";
+
+function UnitCard({ edit, unit }: { edit: boolean; unit: FeedUnit }) {
+  const name = typeof unit.name === "string" ? unit.name : "";
+  return (
+    <FeedCardShell className={CARD} edit={edit} href={unit.href}>
+      <span className="flex items-start gap-4">
+        <Crest logoUrl={unit.logoUrl} name={name} />
+        <span className="min-w-0 flex-1">
+          <span className="type-heading-card block break-words text-ink group-hover:text-ink-accent">
+            {name}
+          </span>
+          {unit.campusLabel ? (
+            <span className="type-label mt-1 block text-ink-muted">
+              {unit.campusLabel}
+            </span>
+          ) : null}
+        </span>
+      </span>
+    </FeedCardShell>
+  );
 }
 
 interface Props {
@@ -20,55 +63,43 @@ interface Props {
   onPatch: PatchFn;
 }
 
-/**
- * Module scope on purpose: `useAutoFeed` takes this as an effect dependency,
- * so a closure recreated per render would refetch forever.
- */
-const selectDepartments = (payload: unknown): DeptItem[] => {
-  const departments = (payload as { departments?: unknown } | null)
-    ?.departments;
-  return Array.isArray(departments) ? (departments as DeptItem[]) : [];
-};
-
-export function DepartmentGridRender({ block }: Props) {
-  const { items, loading } = useAutoFeed<DeptItem>({
+export function DepartmentGridRender({ block, edit, onPatch }: Props) {
+  const { campus: pageCampus, locale } = usePageFeedSource();
+  const campus = unitsFeedCampus(block.scope, pageCampus);
+  const category = unitsFeedCategory(block.category);
+  const limit = unitsBlockLimit(block.limit);
+  const params = new URLSearchParams();
+  if (campus) {
+    params.set("campus_id", campus);
+  }
+  if (category) {
+    params.set("type", category);
+  }
+  const query = params.toString();
+  const { items } = useAutoFeed<FeedUnit>({
     enabled: true,
-    key: pageFeedKey("departments"),
+    key: departmentsFeedKey(campus, category),
     select: selectDepartments,
-    url: "/api/pages/departments",
+    url: `/api/pages/departments${query ? `?${query}` : ""}`,
   });
-  const departments = items ?? [];
+  const units = items === null ? null : listOf<FeedUnit>(items).slice(0, limit);
 
   return (
-    <div
-      className={`pg-deptgrid pg-deptgrid--${block.variant ?? "grid"} pg-block`}
+    <FeedSection
+      dept=""
+      edit={edit}
+      heading={block.heading ?? ""}
+      items={units}
+      locale={locale}
+      noun="units"
+      onPatch={onPatch}
+      requireDept={false}
+      seeAll={false}
+      seeAllHref=""
     >
-      {block.heading && <h2 className="pg-deptgrid__h">{block.heading}</h2>}
-      {loading && (
-        <p style={{ fontSize: 13, color: "var(--ink-3)" }}>
-          Loading departments…
-        </p>
-      )}
-      <div className="pg-deptgrid__grid">
-        {departments.map((dept) => (
-          <div className="pg-deptgrid__card" key={dept.id}>
-            <div className="pg-deptgrid__card-name">{dept.name}</div>
-            {dept.type && (
-              <div className="pg-deptgrid__card-tag">
-                {dept.type}
-                {dept.campusId ? ` · ${dept.campusId.toUpperCase()}` : ""}
-              </div>
-            )}
-          </div>
-        ))}
-        {!loading && departments.length === 0 && (
-          <p
-            style={{ fontSize: 13, color: "var(--ink-3)", gridColumn: "1/-1" }}
-          >
-            No departments found.
-          </p>
-        )}
-      </div>
-    </div>
+      {(units ?? []).map((unit, i) => (
+        <UnitCard edit={edit} key={unit.id ?? i} unit={unit} />
+      ))}
+    </FeedSection>
   );
 }

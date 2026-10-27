@@ -1,18 +1,13 @@
 import type { Block, BlockType, PageDoc } from "@/editor/types";
-import type { ResolvedBackground } from "./_primitives/layout-types";
 
-export interface BlockVariant {
-  id: string;
-  kind: string;
-  label: string;
-}
-
-export interface PropSchema {
-  key: string;
-  label: string;
-  options?: string[];
-  type: "text" | "textarea" | "url" | "color" | "select" | "number";
-}
+export type PaletteGroup =
+  | "text"
+  | "media"
+  | "structure"
+  | "people"
+  | "live"
+  | "actions"
+  | "extras";
 
 /** Everything the editor needs to know about a block type. */
 export interface BlockDefinition<B extends Block = Block> {
@@ -20,28 +15,20 @@ export interface BlockDefinition<B extends Block = Block> {
   aiHint?: string;
   /** Keys that the AI can set via set_prop. */
   aiProps?: string[];
-  /**
-   * True when `Render` composes `BlockSection` and applies `block.layout`
-   * itself. Every other block is framed by `BlockView`, which applies the
-   * Design panel's background, spacing and width on its behalf.
-   */
-  appliesLayout?: boolean;
   category: string;
   description: string;
   empty: () => B;
+  /** Palette group the block is offered under. */
+  group: PaletteGroup;
   Inspector: React.ComponentType<{ block: B; doc: PageDoc; onPatch: PatchFn }>;
   label: string;
   PaletteThumb: React.ComponentType;
   Render: React.ComponentType<{
-    background: ResolvedBackground;
     block: B;
     edit: boolean;
     onPatch: PatchFn;
   }>;
-  /** Inspector prop schema — rendered as form rows. */
-  schema?: PropSchema[];
   type: BlockType;
-  variants?: BlockVariant[];
 }
 
 export type PatchFn = (path: string, value: unknown) => void;

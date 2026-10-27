@@ -4,7 +4,9 @@ import { Query } from "@repo/api";
 import {
   PAGE_LOCALES,
   type PageDoc,
+  type PageEditorLoadResult,
   type PageEditorLocale,
+  clearPageTheme as pbClearPageTheme,
   getPageById as pbGetPageById,
   getPageEditorById as pbGetPageEditorById,
   publishPage as pbPublishPage,
@@ -12,10 +14,18 @@ import {
   unpublishPage as pbUnpublishPage,
   resolvePageCampusId,
   savePageDraft,
+  syncSharedDraftMeta,
 } from "@repo/api/page-builder";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
-import type { Pages, PageViewEvents } from "@repo/api/types/appwrite";
-import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
+import type {
+  Departments,
+  Pages,
+  PageViewEvents,
+} from "@repo/api/types/appwrite";
+import { sanitizePageDocHtml } from "@repo/editor/sanitize";
+import { normalizePageDoc } from "@repo/editor/serialize";
+import type { PageDoc as EditorPageDoc } from "@repo/editor/types";
+import type { PageTheme } from "@repo/shared/utils/page-theme";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
@@ -33,6 +43,7 @@ import {
   parseAutoTranslationOptions,
   scheduleContentTranslation,
 } from "@/lib/content-translation.server";
+import { pageAccessContext } from "@/lib/page-access";
 import {
   requestedPageCampusId,
   resolvePageSaveCampusId,
@@ -41,9 +52,19 @@ import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
+import { pickSharedMeta } from "@/lib/page-shared-meta";
 import {
+  departmentThemeUpdate,
+  isDepartmentTheme,
+  themeSaveError,
+} from "@/lib/page-theme-publish";
+import {
+  assertProjectPageSave,
   assertUnitPageBindingUnchanged,
   assertUnitPageNamespace,
+  isAdminOwnedPageSlug,
+  isProjectHubPage,
+  requireProjectHubAccess,
 } from "@/lib/unit-page-guard";
 import {
   applyScopeQueries,
@@ -51,6 +72,7 @@ import {
   assertWriteAccess,
   hasRowAccess,
 } from "@/lib/utils/authorization";
+import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
@@ -181,6 +203,32 @@ export async function getPageById(id: string, locale: "no" | "en" = "no") {
   return result;
 }
 
+/**
+ * Every locale's stored documents with their text-block HTML sanitized. The
+ * editor renders that HTML as markup inside the admin session, and rows saved
+ * before the save path sanitized, or written straight to the table, hold
+ * whatever they were given.
+ */
+function sanitizeEditorDocuments(
+  result: PageEditorLoadResult
+): PageEditorLoadResult {
+  const translations: PageEditorLoadResult["translations"] = {};
+  for (const locale of PAGE_LOCALES) {
+    const entry = result.translations[locale];
+    if (entry) {
+      translations[locale] = {
+        ...entry,
+        draftDocument:
+          entry.draftDocument && sanitizePageDocHtml(entry.draftDocument),
+        publishedDocument:
+          entry.publishedDocument &&
+          sanitizePageDocHtml(entry.publishedDocument),
+      };
+    }
+  }
+  return { ...result, translations };
+}
+
 export async function getPageEditorById(id: string) {
   const ctx = await requireAuth();
   const { db } = await createAdminClient();
@@ -188,12 +236,20 @@ export async function getPageEditorById(id: string) {
   if (!result) {
     return null;
   }
-  if (
-    !hasRowAccess(ctx, result.page.campusId, result.page.departmentId || null)
-  ) {
+  const departmentId = result.page.departmentId || null;
+  // Opening a page is the first step of writing it, so it follows the page
+  // write rule: a member of the page's department also reaches it on that
+  // department's campus (see pageAccessContext).
+  const pageCtx = await pageAccessContext(
+    db,
+    ctx,
+    result.page.campusId,
+    departmentId
+  );
+  if (!hasRowAccess(pageCtx, result.page.campusId, departmentId)) {
     return null;
   }
-  return result;
+  return sanitizeEditorDocuments(result);
 }
 
 export async function getPageEditorLocales(): Promise<PageEditorLocale[]> {
@@ -227,6 +283,43 @@ function ensureDepartmentForScoping(
   };
 }
 
+/**
+ * `doc` without its theme when that theme is what the page's department
+ * already has (`isDepartmentTheme`): a second tab opened before a publish
+ * moved the theme to the department would otherwise put it back on the page.
+ * One read of the department, through the admin client the save already
+ * uses; a failed read keeps the theme, as before.
+ */
+async function withoutDepartmentTheme(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  doc: PageDoc
+): Promise<{ dropped: boolean; doc: PageDoc }> {
+  const departmentId = doc.meta.department;
+  if (!departmentId || doc.meta.theme === undefined) {
+    return { doc, dropped: false };
+  }
+  let department: Departments;
+  try {
+    department = await db.getRow<Departments>(
+      "app",
+      "departments",
+      departmentId,
+      [Query.select(["theme_dark", "theme_accent"])]
+    );
+  } catch (e) {
+    console.error("[savePageEditorDoc] department theme read failed", e);
+    return { doc, dropped: false };
+  }
+  if (!isDepartmentTheme(doc.meta.theme, department)) {
+    return { doc, dropped: false };
+  }
+  const { theme: _departmentHasIt, ...meta } = doc.meta;
+  return { doc: { ...doc, meta }, dropped: true };
+}
+
+const themeDroppedFlag = (dropped: boolean): { themeDropped?: true } =>
+  dropped ? { themeDropped: true } : {};
+
 export async function savePageEditorDoc({
   id,
   doc,
@@ -235,9 +328,25 @@ export async function savePageEditorDoc({
   id: string | null;
   doc: PageDoc;
   locale?: PageEditorLocale;
-}): Promise<{ pageId: string; slug: string } | { error: string }> {
+}): Promise<
+  | {
+      /** The department the page is stored under; "" for none. */
+      department: string;
+      pageId: string;
+      slug: string;
+      /** The theme was left out: the page's department already has it. */
+      themeDropped?: true;
+    }
+  | { error: string }
+> {
   const ctx = await requireAuth();
   try {
+    // Before anything normalizes the document: normalizing silently drops a
+    // failing theme, and the editor should hear about it instead.
+    const themeError = themeSaveError(doc.meta);
+    if (themeError) {
+      return { error: themeError };
+    }
     const scopedDoc = ensureDepartmentForScoping(doc, ctx);
     // Normalize the incoming slug ONCE, before any guard inspects it, and
     // reuse that exact value everywhere — the guards and the persisted row.
@@ -269,17 +378,28 @@ export async function savePageEditorDoc({
       // access check would turn this action into an existence oracle for any
       // authenticated portal user posting a crafted id.
       assertWriteAccess(
-        ctx,
+        await pageAccessContext(
+          db,
+          ctx,
+          persisted?.campus,
+          persisted?.department
+        ),
         persisted?.campus ?? null,
         persisted?.department ?? null
       );
     }
     // Every save, create or update: a create-only check is stepped around by
     // saving an ordinary slug first and renaming into `units/` afterwards.
-    const namespaceError = assertUnitPageNamespace(
-      existing?.slug ?? null,
-      normalizedDoc.meta.slug
-    );
+    const namespaceError =
+      assertUnitPageNamespace(
+        existing?.slug ?? null,
+        normalizedDoc.meta.slug
+      ) ??
+      assertProjectPageSave({
+        isGlobalAdmin: ctx.roles.includes("globaladmin"),
+        nextSlug: normalizedDoc.meta.slug,
+        persisted: existing,
+      });
     if (namespaceError) {
       return { error: namespaceError };
     }
@@ -311,34 +431,86 @@ export async function savePageEditorDoc({
         : undefined;
     const campusId = resolvePageSaveCampusId({
       authorCampusId: resolvePageCampusId(ctx),
-      campusLocked: isUnitPageSlug(existing?.slug ?? null),
+      campusLocked: isAdminOwnedPageSlug(existing?.slug),
+      hub: isProjectHubPage(existing),
       chosenCampusId,
       isUpdate: Boolean(existing),
       persistedCampusId: persisted?.campus ?? null,
     });
-    await assertContentOwnership(db, ctx, {
-      allowGlobalCampus: true,
-      campusId,
-      departmentId: normalizedDoc.meta.department || null,
-    });
+    const departmentId = normalizedDoc.meta.department || null;
+    // The requested department's own campus, for its member: the ownership
+    // check still verifies the department belongs to `campusId`.
+    await assertContentOwnership(
+      db,
+      await pageAccessContext(db, ctx, campusId, departmentId),
+      { allowGlobalCampus: true, campusId, departmentId }
+    );
+    // After the ownership check: the department is verified before it is read.
+    const { doc: storedDoc, dropped: themeDropped } =
+      await withoutDepartmentTheme(db, normalizedDoc);
     const { pageId, slug } = await savePageDraft({
       id,
-      doc: normalizedDoc,
+      // Text blocks store HTML that the site renders as markup. The editor
+      // sanitizes on blur, but this action takes any document a client
+      // posts, so what is stored is cleaned here.
+      doc: sanitizePageDocHtml(storedDoc),
       locale,
       ctx,
       campusId,
+    });
+    // The theme, slug, department … are the page's, not the locale's: write
+    // them into every other stored locale draft too, so publishing any locale
+    // ships what the editor showed. (A new page has no other locale yet.)
+    await syncSharedDraftMeta({
+      id: pageId,
+      locale,
+      meta: pickSharedMeta({ ...storedDoc.meta, slug }),
     });
     await logAuditEvent(ctx, "page_saved", {
       resourceId: pageId,
       resourceType: "page",
     });
     revalidatePath("/pages");
-    return { pageId, slug };
+    // The department is returned like the slug: a department user's page may
+    // have been bound to their department above, and the editor's scope line
+    // and canvas must show what Publish will do.
+    // `themeDropped` tells a stale tab to stop holding the theme the
+    // department already has.
+    return {
+      department: normalizedDoc.meta.department || "",
+      pageId,
+      slug,
+      ...themeDroppedFlag(themeDropped),
+    };
   } catch (e) {
     console.error("[savePageEditorDoc]", e);
     return { error: e instanceof Error ? e.message : "Save failed" };
   }
 }
+
+/** What publishPageAction did. */
+export type PublishPageResult =
+  | {
+      /**
+       * Nothing was published: the language has no stored row yet. A value,
+       * not a thrown error, because Next.js hides a server action's error
+       * message in production and the editor must tell this case apart.
+       */
+      missingTranslation: true;
+    }
+  | {
+      /** The department now has this theme (null: BISO's). */
+      departmentTheme: { id: string; theme: PageTheme | null } | null;
+      missingTranslation: false;
+      /** The theme left the page's stored docs: it follows its department. */
+      themeCopied: boolean;
+      /** Live, but the department's colours were not updated. */
+      themeCopyFailed: boolean;
+      translationQueued: boolean;
+    };
+
+/** publishPage's message for a language with no translation row. */
+const NO_TRANSLATION_TO_PUBLISH = "No translation found to publish";
 
 export async function publishPageAction(
   id: string,
@@ -347,7 +519,7 @@ export async function publishPageAction(
     enabled: false,
     sourceLocale: locale,
   }
-) {
+): Promise<PublishPageResult> {
   const ctx = await requireAuth();
   try {
     const publishedLocale = contentLocaleSchema.parse(locale);
@@ -360,7 +532,12 @@ export async function publishPageAction(
     // publish their own department's pages, campus/global admins their scope.
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
-    assertPublishAccess(ctx, ownership.campus, ownership.department);
+    assertPublishAccess(
+      await pageAccessContext(db, ctx, ownership.campus, ownership.department),
+      ownership.campus,
+      ownership.department
+    );
+    requireProjectHubAccess(page, ctx.roles);
 
     if (
       translationOptions?.enabled &&
@@ -372,40 +549,158 @@ export async function publishPageAction(
       ? await getPageSourceDocument(id, publishedLocale, db)
       : null;
 
-    await pbPublishPage({ id, locale: publishedLocale });
+    try {
+      await pbPublishPage({ id, locale: publishedLocale });
+    } catch (e) {
+      // Thrown before anything was written.
+      if (e instanceof Error && e.message === NO_TRANSLATION_TO_PUBLISH) {
+        return { missingTranslation: true };
+      }
+      throw e;
+    }
     await logAuditEvent(ctx, "page_published", {
       resourceId: id,
       resourceType: "page",
     });
+    const themeCopy = await copyThemeToDepartment({
+      ctx,
+      db,
+      departmentId: ownership.department,
+      locale: publishedLocale,
+      pageId: id,
+    });
     revalidatePath("/pages");
+    // The page, and the department when its theme was just written, are
+    // cached on the website by tag. Best-effort: never fails the publish.
+    await notifyWebsite(
+      themeCopy.status === "copied" ? ["pages", "departments"] : ["pages"]
+    );
     const publishedPageVersion = sourceDocument
       ? (await db.getRow<Pages>("app", "pages", id)).$updatedAt
       : null;
-    // Translation drafts live in `page_translations`, which never touches the
-    // parent row, so the version pin above cannot see a concurrent edit of the
-    // destination locale. Snapshot it too.
-    const destinationDocument = sourceDocument
-      ? await getPageSourceDocument(id, getTargetLocale(publishedLocale), db)
+    // Both locales live in `page_translations`, and neither an edit of one
+    // nor an unpublish of one while the other stays live writes the parent
+    // row, so the version pin above cannot see them. Snapshot both rows too.
+    const translationRows = sourceDocument
+      ? await readTranslationRows(id, publishedLocale, db)
       : null;
     const translationQueued =
-      sourceDocument && publishedPageVersion
+      sourceDocument && publishedPageVersion && translationRows
         ? scheduleContentTranslation({
             enabled: true,
             task: () =>
               translatePublishedPage({
-                destinationDocument,
                 id,
                 publishedPageVersion,
                 sourceDocument,
                 sourceLocale: publishedLocale,
+                translationRows,
               }),
           })
         : false;
-    return { translationQueued };
+    return {
+      departmentTheme:
+        themeCopy.status === "copied"
+          ? { id: themeCopy.departmentId, theme: themeCopy.theme }
+          : null,
+      missingTranslation: false,
+      themeCopied: themeCopy.status === "copied" && themeCopy.pageCleared,
+      themeCopyFailed: themeCopy.status === "failed",
+      translationQueued,
+    };
   } catch (e) {
     console.error("[publishPageAction]", e);
     throw new Error(e instanceof Error ? e.message : "Failed to publish page");
   }
+}
+
+type DepartmentThemeCopy =
+  | { status: "unchanged" }
+  | { status: "failed" }
+  | {
+      departmentId: string;
+      /** False when the strip failed: the page still holds the theme. */
+      pageCleared: boolean;
+      status: "copied";
+      theme: PageTheme | null;
+    };
+
+/**
+ * After a publish, copy the published page's theme to its department, then
+ * strip the theme from the page's stored docs (every locale's draft and
+ * published doc). A department page holds a theme only until it is copied:
+ * after that it follows its department, so republishing it later cannot put
+ * back colours another page has since replaced. Reset (`null`) is copied as
+ * nulls and stripped the same way.
+ *
+ * Never throws into the publish: the page is already live. A failed copy
+ * leaves the theme on the page, so the next publish retries it.
+ */
+async function copyThemeToDepartment({
+  ctx,
+  db,
+  departmentId,
+  locale,
+  pageId,
+}: {
+  ctx: UserAuthContext;
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"];
+  departmentId: string | null;
+  locale: PageEditorLocale;
+  pageId: string;
+}): Promise<DepartmentThemeCopy> {
+  if (!departmentId) {
+    return { status: "unchanged" };
+  }
+  let update: Exclude<ReturnType<typeof departmentThemeUpdate>, "skip">;
+  try {
+    const editor = await pbGetPageEditorById(pageId, db);
+    const published = editor?.translations[locale]?.publishedDocument;
+    if (!published) {
+      return { status: "unchanged" };
+    }
+    // Normalizing drops a failing theme to absent, so "invalid" is unreachable
+    // here; it is handled as a skip anyway.
+    const next = departmentThemeUpdate(
+      normalizePageDoc(published as EditorPageDoc).meta
+    );
+    if (next === "skip") {
+      return { status: "unchanged" };
+    }
+    if (next === "invalid") {
+      console.warn(
+        `[publishPageAction] page ${pageId} carries an invalid theme; department ${departmentId} left unchanged`
+      );
+      return { status: "unchanged" };
+    }
+    update = next;
+    await db.updateRow("app", "departments", departmentId, update);
+  } catch (e) {
+    console.error("[publishPageAction] department theme update failed", e);
+    return { status: "failed" };
+  }
+  const theme =
+    update.theme_dark && update.theme_accent
+      ? { accent: update.theme_accent, dark: update.theme_dark }
+      : null;
+  try {
+    await logAuditEvent(ctx, "department_theme_updated", {
+      payload: { pageId, ...update },
+      resourceId: departmentId,
+      resourceType: "department",
+    });
+  } catch (e) {
+    console.error("[publishPageAction] department theme audit failed", e);
+  }
+  try {
+    await pbClearPageTheme(pageId);
+  } catch (e) {
+    // The department has the colours; the page keeps them too, so the next
+    // publish copies them again and retries the strip.
+    console.error("[publishPageAction] page theme strip failed", e);
+    return { departmentId, pageCleared: false, status: "copied", theme };
+  }
+  return { departmentId, pageCleared: true, status: "copied", theme };
 }
 
 async function getPageSourceDocument(
@@ -429,19 +724,110 @@ function isSamePageDocument(a: PageDoc | null, b: PageDoc | null): boolean {
   );
 }
 
+type AdminDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/** One `page_translations` row, as the auto-translation guard compares it. */
+interface TranslationRowState {
+  document: PageDoc | null;
+  isPublished: boolean;
+  updatedAt: string | null;
+}
+
+/** The source and target locale's rows. A locale with no row is null. */
+interface TranslationRows {
+  source: TranslationRowState | null;
+  target: TranslationRowState | null;
+}
+
+async function readTranslationRows(
+  id: string,
+  sourceLocale: PageEditorLocale,
+  db: AdminDatabase
+): Promise<TranslationRows> {
+  const editor = await pbGetPageEditorById(id, db);
+  const rowState = (locale: PageEditorLocale): TranslationRowState | null => {
+    const translation = editor?.translations[locale];
+    if (!translation) {
+      return null;
+    }
+    return {
+      document:
+        translation.draftDocument ?? translation.publishedDocument ?? null,
+      isPublished: translation.isPublished,
+      updatedAt: translation.updatedAt ?? null,
+    };
+  };
+  return {
+    source: rowState(sourceLocale),
+    target: rowState(getTargetLocale(sourceLocale)),
+  };
+}
+
+/** Whether nobody wrote the row in between: no edit, publish or unpublish. */
+function isSameTranslationRow(
+  before: TranslationRowState | null,
+  after: TranslationRowState | null
+): boolean {
+  if (!(before && after)) {
+    return !(before || after);
+  }
+  return (
+    before.isPublished === after.isPublished &&
+    before.updatedAt === after.updatedAt &&
+    isSamePageDocument(before.document, after.document)
+  );
+}
+
+/** The page row and both translation rows, read together. */
+async function readPublishState(
+  id: string,
+  sourceLocale: PageEditorLocale,
+  db: AdminDatabase
+): Promise<{ page: Pages; rows: TranslationRows }> {
+  const [page, rows] = await Promise.all([
+    db.getRow<Pages>("app", "pages", id),
+    readTranslationRows(id, sourceLocale, db),
+  ]);
+  return { page, rows };
+}
+
+/**
+ * Whether the publish that queued the translation still stands: the page row
+ * is as that publish left it and the source locale is still live. Unpublishing
+ * one locale while the other stays live leaves the page row untouched, so the
+ * row alone cannot tell.
+ */
+function sourcePublishStands(
+  state: { page: Pages; rows: TranslationRows },
+  publishedPageVersion: string
+): boolean {
+  return (
+    state.page.status === "published" &&
+    state.page.$updatedAt === publishedPageVersion &&
+    state.rows.source?.isPublished === true
+  );
+}
+
+/**
+ * Translate the locale just published into the other one, save it as that
+ * locale's draft and publish it. Gives up, writing nothing more, as soon as
+ * the editor has acted on either locale since the publish: unpublished the
+ * source, edited it, or edited, published or unpublished the target. The
+ * check runs before the draft save and again before the publish.
+ */
 async function translatePublishedPage({
-  destinationDocument,
   id,
   publishedPageVersion,
   sourceDocument,
   sourceLocale,
+  translationRows,
 }: {
-  /** The target locale as this publish left it — see the stale check below. */
-  destinationDocument: PageDoc | null;
   id: string;
   publishedPageVersion: string;
   sourceDocument: PageDoc;
   sourceLocale: PageEditorLocale;
+  /** Both locales' rows as this publish left them. */
+  translationRows: TranslationRows;
 }): Promise<void> {
   const { db } = await createAdminClient();
   const targetLocale = getTargetLocale(sourceLocale);
@@ -450,15 +836,11 @@ async function translatePublishedPage({
     sourceLocale,
     targetLocale,
   });
-  const [currentPage, currentSource, currentDestination] = await Promise.all([
-    db.getRow<Pages>("app", "pages", id),
-    getPageSourceDocument(id, sourceLocale, db),
-    getPageSourceDocument(id, targetLocale, db),
-  ]);
+  const current = await readPublishState(id, sourceLocale, db);
+  const currentSource = current.rows.source?.document;
   if (
     !(
-      currentPage.status === "published" &&
-      currentPage.$updatedAt === publishedPageVersion &&
+      sourcePublishStands(current, publishedPageVersion) &&
       currentSource &&
       isCurrentTranslationSource(
         getPageTranslationSource(sourceDocument),
@@ -468,28 +850,38 @@ async function translatePublishedPage({
   ) {
     return;
   }
-  // An editor who worked on the destination locale while the model request was
-  // in flight owns the newer document.
-  if (!isSamePageDocument(destinationDocument, currentDestination)) {
+  // An editor who worked on, published or unpublished the destination locale
+  // while the model request was in flight owns it.
+  if (!isSameTranslationRow(translationRows.target, current.rows.target)) {
     return;
   }
 
-  await pbSavePageTranslationDraft({
-    doc: {
+  const saved = await pbSavePageTranslationDraft({
+    // Model output: its text-block HTML is as untrusted as a client's. The
+    // shared meta comes from the source as stored now, not the snapshot: a
+    // theme the publish copied to the department has left the page since.
+    doc: sanitizePageDocHtml({
       ...translatedDocument,
-      meta: { ...translatedDocument.meta, status: "published" },
-    },
+      meta: {
+        ...translatedDocument.meta,
+        ...pickSharedMeta(currentSource.meta),
+        status: "published",
+      },
+    }),
     id,
     locale: targetLocale,
   });
-  const pageBeforeDestinationPublish = await db.getRow<Pages>(
-    "app",
-    "pages",
-    id
-  );
+  // Our save is now the target's latest write; anything after it is the
+  // editor's.
+  const beforePublish = await readPublishState(id, sourceLocale, db);
+  const target = beforePublish.rows.target;
   if (
-    pageBeforeDestinationPublish.status !== "published" ||
-    pageBeforeDestinationPublish.$updatedAt !== publishedPageVersion
+    !(
+      sourcePublishStands(beforePublish, publishedPageVersion) &&
+      target &&
+      target.updatedAt === saved.updatedAt &&
+      target.isPublished === (translationRows.target?.isPublished ?? false)
+    )
   ) {
     return;
   }
@@ -499,6 +891,7 @@ async function translatePublishedPage({
     updateParentStatus: false,
   });
   revalidatePath("/pages");
+  await notifyWebsite(["pages"]);
 }
 
 export async function unpublishPageAction(
@@ -515,7 +908,12 @@ export async function unpublishPageAction(
     // way as publishing: general write scope over the page's ownership.
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
-    assertPublishAccess(ctx, ownership.campus, ownership.department);
+    assertPublishAccess(
+      await pageAccessContext(db, ctx, ownership.campus, ownership.department),
+      ownership.campus,
+      ownership.department
+    );
+    requireProjectHubAccess(page, ctx.roles);
 
     await pbUnpublishPage({ id, locale });
     await logAuditEvent(ctx, "page_unpublished", {
@@ -523,6 +921,7 @@ export async function unpublishPageAction(
       resourceType: "page",
     });
     revalidatePath("/pages");
+    await notifyWebsite(["pages"]);
   } catch (e) {
     console.error("[unpublishPageAction]", e);
     throw new Error(
@@ -541,7 +940,12 @@ export async function deletePageAction(id: string) {
     // so a user can only archive pages within their campus/department scope.
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
-    assertWriteAccess(ctx, ownership.campus, ownership.department);
+    assertWriteAccess(
+      await pageAccessContext(db, ctx, ownership.campus, ownership.department),
+      ownership.campus,
+      ownership.department
+    );
+    requireProjectHubAccess(page, ctx.roles);
 
     await db.updateRow("app", "pages", id, { status: "archived" });
     await logAuditEvent(ctx, "page_deleted", {
@@ -549,6 +953,8 @@ export async function deletePageAction(id: string) {
       resourceType: "page",
     });
     revalidatePath("/pages");
+    // Archiving a published page takes it offline too.
+    await notifyWebsite(["pages"]);
   } catch (e) {
     console.error("[deletePageAction]", e);
     throw new Error(e instanceof Error ? e.message : "Failed to delete page");

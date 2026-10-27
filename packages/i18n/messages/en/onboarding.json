@@ -95,7 +95,8 @@
     "back": "Back",
     "continue": "Continue",
     "complete": "Complete setup",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "stepOf": "Step {current} of {total}"
   },
   "errors": {
     "nameRequired": "Full name is required",

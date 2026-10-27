@@ -20,6 +20,7 @@ registerBlock({
   label: "Marquee",
   description: "Scrolling text strip",
   category: "Top of page",
+  group: "extras",
   aiHint: "A horizontal scrolling text strip, great for taglines or keywords.",
   aiProps: ["text"],
   empty: () => emptyBlock("marquee") as never,

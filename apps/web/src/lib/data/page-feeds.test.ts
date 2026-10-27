@@ -1,4 +1,4 @@
-import { pageFeedKey } from "@repo/editor/page-feeds";
+import { departmentsFeedKey, pageFeedKey } from "@repo/editor/page-feeds";
 import type { PageDoc } from "@repo/editor/types";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -7,8 +7,16 @@ const cachedPageEventsFeed = vi.fn();
 const cachedPageJobsFeed = vi.fn();
 const cachedPageNewsFeed = vi.fn();
 const cachedPagePartnersFeed = vi.fn();
+const cachedPageProductsFeed = vi.fn();
+const cachedDepartmentById = vi.fn();
+const cachedUnitBoard = vi.fn();
+
+vi.mock("./unit-board", () => ({
+  cachedUnitBoard: (...args: unknown[]) => cachedUnitBoard(...args),
+}));
 
 vi.mock("./public-content", () => ({
+  cachedDepartmentById: (...args: unknown[]) => cachedDepartmentById(...args),
   cachedPageDepartmentsFeed: (...args: unknown[]) =>
     cachedPageDepartmentsFeed(...args),
   cachedPageEventsFeed: (...args: unknown[]) => cachedPageEventsFeed(...args),
@@ -16,21 +24,29 @@ vi.mock("./public-content", () => ({
   cachedPageNewsFeed: (...args: unknown[]) => cachedPageNewsFeed(...args),
   cachedPagePartnersFeed: (...args: unknown[]) =>
     cachedPagePartnersFeed(...args),
+  cachedPageProductsFeed: (...args: unknown[]) =>
+    cachedPageProductsFeed(...args),
 }));
 
 const { resolvePageFeeds } = await import("./page-feeds");
 
 function doc(blocks: unknown[], department = "25"): PageDoc {
   return {
-    blocks,
     meta: {
-      accentColor: "#3DA9E0",
       department,
       slug: "a-page",
       status: "published",
       title: "A page",
     },
-  } as PageDoc;
+    sections: [
+      {
+        columns: [{ blocks, id: "c-1" }],
+        id: "s-1",
+        layout: {},
+      },
+    ],
+    version: 2,
+  } as unknown as PageDoc;
 }
 
 const EVENT_ROW = { date: "12 Sep", going: 0, title: "Kickoff", where: "Oslo" };
@@ -51,15 +67,22 @@ describe("resolvePageFeeds", () => {
     // with no error anywhere.
     const feeds = await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
       ]),
       "no"
     );
 
     expect(feeds).toEqual({
-      [pageFeedKey("events", "25", "no")]: [EVENT_ROW],
+      [pageFeedKey("events", "25", "no", 3)]: [EVENT_ROW],
     });
-    expect(cachedPageEventsFeed).toHaveBeenCalledWith("25", "no");
+    expect(cachedPageEventsFeed).toHaveBeenCalledWith("25", "no", 3);
   });
 
   test("reads the cached readers directly, never the HTTP routes", async () => {
@@ -70,7 +93,14 @@ describe("resolvePageFeeds", () => {
 
     await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
       ]),
       "no"
     );
@@ -96,9 +126,30 @@ describe("resolvePageFeeds", () => {
     // same feed block in three times.
     await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
-        { id: "b", type: "events", heading: "", items: [], source: "auto" },
-        { id: "c", type: "events", heading: "", items: [], source: "25" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "c",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "25",
+        },
       ]),
       "no"
     );
@@ -107,8 +158,8 @@ describe("resolvePageFeeds", () => {
   });
 
   test("a block with no department resolves nothing", async () => {
-    // Those blocks render the authored placeholder items instead, which is a
-    // documented feature of the events inspector.
+    // Those blocks render nothing on the site, which is a
+    // documented behaviour.
     const feeds = await resolvePageFeeds(
       doc(
         [
@@ -116,7 +167,8 @@ describe("resolvePageFeeds", () => {
             id: "a",
             type: "events",
             heading: "",
-            items: [],
+            limit: 3,
+            seeAll: true,
             source: "auto",
           },
         ],
@@ -137,15 +189,22 @@ describe("resolvePageFeeds", () => {
 
     const feeds = await resolvePageFeeds(
       doc([
-        { id: "a", type: "events", heading: "", items: [], source: "auto" },
+        {
+          id: "a",
+          type: "events",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
         { id: "b", type: "news", heading: "", source: "auto" },
       ]),
       "no"
     );
 
-    expect(feeds).not.toHaveProperty(pageFeedKey("events", "25", "no"));
+    expect(feeds).not.toHaveProperty(pageFeedKey("events", "25", "no", 3));
     // The healthy feed on the same page still resolves.
-    expect(feeds).toHaveProperty(pageFeedKey("news", "25", "no"), []);
+    expect(feeds).toHaveProperty(pageFeedKey("news", "25", "no", 3), []);
   });
 
   test("global feeds resolve without a department", async () => {
@@ -160,7 +219,7 @@ describe("resolvePageFeeds", () => {
     const feeds = await resolvePageFeeds(
       doc([
         { id: "a", type: "partners", source: "auto" },
-        { id: "b", type: "departmentGrid", showFilters: false },
+        { id: "b", type: "departmentGrid", limit: 6, scope: "all" },
       ]),
       "no"
     );
@@ -172,6 +231,36 @@ describe("resolvePageFeeds", () => {
     expect(feeds[pageFeedKey("departments")]).toEqual([
       { id: "1", name: "Dept" },
     ]);
+  });
+
+  test("a shop block resolves its clamped products feed", async () => {
+    cachedPageProductsFeed.mockResolvedValue([{ id: "p" }]);
+    const feeds = await resolvePageFeeds(
+      doc([
+        { id: "a", type: "productGrid", heading: "", limit: 8, source: "auto" },
+      ]),
+      "no"
+    );
+    expect(feeds[pageFeedKey("products", "25", "no", 8)]).toEqual([
+      { id: "p" },
+    ]);
+    expect(cachedPageProductsFeed).toHaveBeenCalledWith("25", "no", 8);
+  });
+
+  test("a campus-scoped units block passes the page campus and category", async () => {
+    const withCampus = doc([
+      {
+        id: "a",
+        type: "departmentGrid",
+        category: "society",
+        limit: 6,
+        scope: "campus",
+      },
+    ]);
+    withCampus.meta.campus = "2";
+    const feeds = await resolvePageFeeds(withCampus, "no");
+    expect(cachedPageDepartmentsFeed).toHaveBeenCalledWith("2", "society");
+    expect(Object.keys(feeds)).toEqual([departmentsFeedKey("2", "society")]);
   });
 
   test("a manual partners block resolves nothing", async () => {
@@ -187,13 +276,97 @@ describe("resolvePageFeeds", () => {
   test("locale reaches the department-scoped readers", async () => {
     await resolvePageFeeds(
       doc([
-        { id: "a", type: "news", heading: "", source: "auto" },
-        { id: "b", type: "jobs", heading: "", source: "auto" },
+        {
+          id: "a",
+          type: "news",
+          heading: "",
+          limit: 6,
+          seeAll: true,
+          source: "auto",
+        },
+        {
+          id: "b",
+          type: "jobs",
+          heading: "",
+          limit: 3,
+          seeAll: true,
+          source: "auto",
+        },
       ]),
       "en"
     );
 
-    expect(cachedPageNewsFeed).toHaveBeenCalledWith("25", "en");
-    expect(cachedPageJobsFeed).toHaveBeenCalledWith("25", "en");
+    // The block's limit rides along so the reader fetches enough rows.
+    expect(cachedPageNewsFeed).toHaveBeenCalledWith("25", "en", 6);
+    expect(cachedPageJobsFeed).toHaveBeenCalledWith("25", "en", 3);
+  });
+
+  describe("board team blocks", () => {
+    const teamDoc = () =>
+      doc([{ id: "a", type: "team", members: [], source: "board" }]);
+    const MEMBER = {
+      email: "leder@example.org",
+      imageUrl: "data:image/png;base64,AAAA",
+      name: "Kari Eksempel",
+      phone: "+47 000 00 001",
+      role: "Leder",
+    };
+
+    beforeEach(() => {
+      cachedDepartmentById.mockResolvedValue({ $id: "25", campus_id: "2" });
+      cachedUnitBoard.mockResolvedValue([MEMBER]);
+    });
+
+    test("reads the board for the department's campus, photo kept", async () => {
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+
+      expect(cachedDepartmentById).toHaveBeenCalledWith("25");
+      expect(cachedUnitBoard).toHaveBeenCalledWith("2", "25");
+      expect(feeds[pageFeedKey("board", "25")]).toEqual([
+        {
+          email: "leder@example.org",
+          name: "Kari Eksempel",
+          photo: { src: "data:image/png;base64,AAAA" },
+          role: "Leder",
+        },
+      ]);
+    });
+
+    test("board items never carry a phone number", async () => {
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      for (const item of feeds[pageFeedKey("board", "25")] ?? []) {
+        expect(item).not.toHaveProperty("phone");
+      }
+    });
+
+    test("caps the board at 24 members", async () => {
+      cachedUnitBoard.mockResolvedValue(
+        Array.from({ length: 40 }, (_, i) => ({ ...MEMBER, name: `M${i}` }))
+      );
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      expect(feeds[pageFeedKey("board", "25")]).toHaveLength(24);
+    });
+
+    test("a failing board is left out of the snapshot", async () => {
+      cachedUnitBoard.mockRejectedValue(new Error("api down"));
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      expect(feeds).not.toHaveProperty(pageFeedKey("board", "25"));
+    });
+
+    test("an unknown department resolves to an empty board without asking the API", async () => {
+      cachedDepartmentById.mockResolvedValue(null);
+      const feeds = await resolvePageFeeds(teamDoc(), "no");
+      expect(feeds[pageFeedKey("board", "25")]).toEqual([]);
+      expect(cachedUnitBoard).not.toHaveBeenCalled();
+    });
+
+    test("a manual team block resolves nothing", async () => {
+      const feeds = await resolvePageFeeds(
+        doc([{ id: "a", type: "team", members: [], source: "manual" }]),
+        "no"
+      );
+      expect(feeds).toEqual({});
+      expect(cachedUnitBoard).not.toHaveBeenCalled();
+    });
   });
 });

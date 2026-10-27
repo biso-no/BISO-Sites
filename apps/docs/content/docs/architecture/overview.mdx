@@ -90,10 +90,12 @@ of `appwrite` or `node-appwrite` allowed.
 3. The catch-all `(public)/[...slug]/page.tsx` calls `getPage(slug, locale)`
    in `@repo/api/page-builder`.
 4. `getPage()` joins `pages` and `page_translations`, filters by status =
-   published and visibility = public, deserialises the `puck_document`
+   published and visibility = public, deserialises the `published_doc`
    JSON column into a `PageDoc`, and returns it.
-5. The page renders the `PageDoc` through `@repo/editor`'s render entry
-   point. Each block component is a Server Component by default; data-
+5. The page renders the `PageDoc` (a header, then sections of columns
+   of blocks) through `@repo/editor`'s render entry point, wearing the
+   page's colour theme. `/projects/<slug>` and unit pages use the same
+   pipeline. Each block component is a Server Component by default; data-
    bound blocks (eventList, jobList, …) call back into server actions to
    fetch their list.
 
@@ -114,10 +116,12 @@ of `appwrite` or `node-appwrite` allowed.
    in `_actions/pages.ts`). That action:
    - Calls `requireAuth()` / `getUserAuthContext()`.
    - Scopes the page row to the user's campus.
-   - Upserts `pages` and the `page_translations` row's `draft_document`.
-   - Calls `logAuditEvent()` and `revalidatePath()`.
-6. Publishing copies `draft_document` → `puck_document` and flips
-   `is_published`.
+   - Upserts `pages` and the `page_translations` row's `draft_doc`.
+   - Calls `logAuditEvent()` and refreshes the admin's `/pages` list.
+6. Publishing copies `draft_doc` → `published_doc` and flips
+   `is_published`, copies an explicit page theme to the department, and
+   asks `apps/web` to drop its cached pages through `/api/revalidate`
+   (cache tags `pages`, `departments`).
 
 ### A student buys a shop item
 

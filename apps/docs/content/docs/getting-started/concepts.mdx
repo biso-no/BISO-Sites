@@ -117,14 +117,14 @@ for the developer view.
 ### PageDoc
 
 The serialised JSON shape that represents the editor state for one locale of
-one page — `{ blocks: Block[], meta: PageMeta }`. Stored in the
-`draft_document` (work in progress) or `puck_document` (published; field is
-named historically) column of `page_translations`.
+one page — `{ version: 2, header?, sections: Section[], meta: PageMeta }`,
+where each section holds one to four columns of blocks. Stored in the
+`draft_doc` (work in progress) or `published_doc` (published) column of
+`page_translations`.
 
-> **Note on the `puck_document` column**: The column is still named that for
-> historical reasons — it pre-dates the Puck → `@repo/editor` migration and
-> the schema was kept stable. The column holds the published block document
-> for the in-house editor.
+> **Note on the old columns**: `draft_document` and `puck_document` still
+> exist in the schema but are unused. They pre-date the redesigned editor
+> and wait for removal.
 
 ### Draft / Published
 
@@ -174,8 +174,8 @@ site and admin respectively to load a page.
 
 The two mutations that drive the page lifecycle. `savePageDraft` upserts
 both the `pages` row and the matching `page_translations` row's
-`draft_document`. `publishPage` copies `draft_document` into
-`puck_document` and flips `is_published`.
+`draft_doc`. `publishPage` copies `draft_doc` into
+`published_doc` and flips `is_published`.
 
 ## Backend mechanics
 

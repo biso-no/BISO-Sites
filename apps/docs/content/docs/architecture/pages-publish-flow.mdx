@@ -24,8 +24,8 @@ pages                              page_translations
 $id            (PK)                $id              (PK)
 slug                               page_id          → pages.$id
 status                             locale           "no" | "en"
-visibility                         draft_document   PageDoc JSON
-campus_id                          puck_document    PageDoc JSON (published)
+visibility                         draft_doc        PageDoc v2 JSON
+campus_id                          published_doc    PageDoc v2 JSON (published)
 department_id                      is_published     boolean
 translation_refs[]                 status           "draft" | "published"
 ...                                ...
@@ -33,11 +33,11 @@ translation_refs[]                 status           "draft" | "published"
 
 A single page (`pages.$id`) typically has two `page_translations`
 rows — one for `no`, one for `en`. Each translation row carries
-**both** `draft_document` and `puck_document` columns.
+**both** `draft_doc` and `published_doc` columns.
 
 The four columns/flags together encode the lifecycle:
 
-| State | `draft_document` | `puck_document` | `is_published` |
+| State | `draft_doc` | `published_doc` | `is_published` |
 |---|---|---|---|
 | Brand new | empty `PageDoc` | empty | `false` |
 | Editing | latest editor state | empty | `false` |
@@ -46,8 +46,8 @@ The four columns/flags together encode the lifecycle:
 | Republish | (copied below) | new `PageDoc` | `true` |
 | Unpublish | unchanged | unchanged | `false` |
 
-The key idea: `draft_document` is what the editor is writing to;
-`puck_document` is what the public site reads. Publishing copies one
+The key idea: `draft_doc` is what the editor is writing to;
+`published_doc` is what the public site reads. Publishing copies one
 to the other.
 
 ## Why two documents
@@ -59,18 +59,25 @@ Because:
    half-visible on biso.no. The draft is invisible to the public
    until publish.
 2. **Rollback.** When you unpublish, the last-published JSON stays in
-   `puck_document` — you can re-publish the same revision without
+   `published_doc` — you can re-publish the same revision without
    re-doing work.
 3. **Per-locale independence.** Norwegian and English are separate
    rows. You can publish Norwegian today, keep editing English, and
    publish English next week.
 
-## Why "puck_document"
+## Column names
 
-The column kept its name from before we replaced
-[Puck](https://puckeditor.com) with `@repo/editor`. Renaming an
-Appwrite column with live data, indexes, and ACLs is expensive; the
-name stuck. Read "the published page JSON" whenever you see it.
+The two columns are `draft_doc` and `published_doc`. The redesigned
+editor stores `PageDoc` **version 2** in them: an optional `header`,
+then `sections`, each with one to four `columns` that hold the blocks,
+plus `meta` (see
+[Editor architecture](/docs/architecture/editor-architecture#the-pagedoc-shape)).
+Documents saved by the old editor (a flat block list) still load,
+because `normalizePageDoc` converts them on read.
+
+The older `draft_document` and `puck_document` columns are still in the
+table. Nothing reads or writes them. They wait for the cutover, after
+which they can be removed. Do not use them.
 
 ## The server actions
 
@@ -84,7 +91,7 @@ getPage(slug: string, locale: Locale): Promise<{ doc: PageDoc; ... } | null>
 getPageById(id: string, locale: Locale): Promise<...>
 
 // Admin editor — full state for the editor (metadata + every locale's
-// draft and puck documents)
+// draft and published documents)
 getPageEditorById(id: string): Promise<PageEditorState>
 
 // Editor save
@@ -104,10 +111,12 @@ The public catch-all `(public)/[...slug]/page.tsx` calls this. It:
 1. Looks up the `pages` row by `slug`.
 2. Filters by `status = "published"` and `visibility = "public"`.
 3. Finds the matching `page_translations` row for the locale.
-4. Returns `puck_document` deserialized into a `PageDoc`.
+4. Returns `published_doc` deserialized into a `PageDoc`. A row
+   marked published but with no `published_doc` is not served; the
+   draft is never used as a fallback.
 
 If any check fails, returns `null` → 404. **The public site never
-reads `draft_document`.**
+reads `draft_doc`.**
 
 ### `getPageEditorById(id)` — the editor's load
 
@@ -117,8 +126,8 @@ The admin's editor route calls this. It returns the whole edit state:
 type PageEditorState = {
   page: PagesRow;                            // metadata
   translations: Record<Locale, {
-    draftDoc: PageDoc | null;
-    puckDoc:  PageDoc | null;
+    draftDocument:     PageDoc | null;
+    publishedDocument: PageDoc | null;
     isPublished: boolean;
     status: "draft" | "published";
   }>;
@@ -136,24 +145,30 @@ Called by `EditorShell` via the `savePage` callback, debounced at
 2. Checks `ctx.resolvedCampusIds` includes the page's `campus_id`.
 3. Upserts the `pages` row (metadata changes).
 4. Upserts the `page_translations` row for `(page_id, locale)`,
-   writing `doc` to `draft_document`.
+   writing `doc` to `draft_doc`.
 5. Writes to `audit_logs`.
-6. `revalidatePath()` on relevant routes.
+6. Refreshes the admin's `/pages` list.
 
-It does **not** touch `puck_document` or `is_published`. Saving a
-draft is invisible to the public site.
+It does **not** touch `published_doc`, `is_published`, the page's
+`status` or the rows' read permissions: only `publishPage` and
+`unpublishPage` change those, so a save that lands while a publish or
+unpublish is on its way cannot undo it. A new page starts as a draft.
+Saving a draft is invisible to the public site.
 
 ### `publishPage({ id, locale })`
 
 What "publish" really does:
 
 1. Auth + scope check.
-2. Reads `draft_document` from the matching
+2. Reads `draft_doc` from the matching
    `page_translations` row.
-3. Writes that JSON to `puck_document`.
+3. Writes that JSON to `published_doc`.
 4. Sets `is_published = true`, `status = "published"`.
 5. Updates the parent `pages.status` if needed.
-6. Audit log + revalidate.
+6. If the page carries an explicit theme, copies it to the page's
+   department row (see [Themes and the department](#themes-and-the-department)).
+7. Audit log, then refreshes the website (see
+   [Refreshing the public site](#refreshing-the-public-site)).
 
 After this call, `getPage()` will return the freshly published
 content on the next read.
@@ -161,11 +176,78 @@ content on the next read.
 ### `unpublishPage({ id, locale })`
 
 Flips `is_published = false` and `status = "draft"` on the
-translation row. **Does not** clear `puck_document` — that means a
+translation row. **Does not** clear `published_doc` — that means a
 later re-publish without changes can just flip the flag back.
 
 The parent `pages.status` may also be flipped to `draft` if no locale
 is published.
+
+## What a save will and won't do
+
+Saving is built so that it can never undo a publish:
+
+- Saves are serialised per page: the first one creates the page, later
+  ones update it using the stored slug.
+- A save never changes publish state. Only publish and unpublish do.
+- **Publish** waits for a pending save. Leaving the editor starts a
+  save and warns while one is pending, in flight, failed or blocked.
+- A save is refused, with a plain sentence, if the page's theme fails
+  the contrast check. While that is true autosave pauses and Publish is
+  disabled.
+- Two tabs on different languages cannot overwrite each other's text,
+  and a stale tab cannot re-attach a theme that has moved to the
+  department.
+- A draft save on a page that is already published rewrites that page's
+  live title and description (long-standing behaviour).
+
+## Themes and the department
+
+`PageMeta.theme` has three states: absent (follow the department),
+`null` (reset to BISO) and an object `{ dark, accent }`. Publishing a
+page with an explicit theme copies it to the `departments` row through
+the admin client, after the publish permission check, with an audit
+event, and removes it from the page's own documents. An absent theme
+never touches the department, and a stored theme that fails the
+contrast check never blocks the publish. Unpublishing a page does
+**not** clear its department's theme.
+
+## Refreshing the public site
+
+Publish, unpublish, archive and the auto-translation refresh call
+`notifyWebsite()` from `apps/admin/src/lib/web-revalidate.ts` with the
+tag `pages`, plus `departments` when a publish just wrote a theme to the
+department. That posts the cache tags to
+`apps/web/src/app/api/revalidate/route.ts`, authenticated with
+`CRON_SECRET` in the `x-cron-secret` header. The website then drops
+the cached data for those tags, and the sitemap follows. The
+call is best effort: it never throws and gives up after 3 seconds, so a
+slow website cannot stall a publish. If `NEXT_PUBLIC_WEB_BASE_URL` or
+`CRON_SECRET` is missing in the admin, it logs a warning and skips.
+
+## Project and unit pages
+
+Some slugs belong to the admin, not to the public catch-all:
+
+- `units/<slug>`: a unit's own page, served by the unit route.
+- `projects/<slug>`: a project page, served by `/projects/<slug>` when
+  a published editor page exists at exactly that slug, and by the coded
+  hub otherwise. The catch-all never serves anything under `projects/`.
+
+A project is either a **hub** (Fadderullan, Karrieredagene,
+Bergensbaneløpet: many campus units, the page has no department) or a
+**national project** (Winter Games, bound to the national Wintergames
+unit). Hub pages are created, saved, published, unpublished and
+archived by global admins only, with the campus pinned to none.
+National project pages are edited by the unit's board. The mapping
+lives in `packages/shared/utils/project-units.ts` (`PROJECT_UNIT_SLUGS`,
+`projectPageSlug`). Once a national project's page exists, the unit URL
+redirects to `/projects/<slug>`.
+
+A department member can edit, save and publish the page bound to their
+own department even when their campus team doesn't match the page's
+campus (`apps/admin/src/lib/page-access.ts`). This applies only when the
+department name is unambiguous, and it doesn't widen any list or read
+scope.
 
 ## The flow as a diagram
 
@@ -181,11 +263,11 @@ is published.
   Unpublished --> Published: publishPage(locale)
   Unpublished --> EditingPublished: savePageDraft()
   note right of Published
-    puck_document = last-published JSON
+    published_doc = last-published JSON
     public site reads this
   end note
   note right of Editing
-    draft_document = work in progress
+    draft_doc = work in progress
     public site cannot see this
   end note
 `} />
@@ -214,7 +296,7 @@ The catch-all renders a page only when:
 page.status === "published" &&
 page.visibility === "public" &&
 translation.is_published === true &&
-translation.puck_document !== null
+translation.published_doc !== null
 ```
 
 `visibility` lets us mark a page as `internal` or `member` (the
@@ -224,16 +306,17 @@ members.
 
 ## Common pitfalls
 
-- **Editing `puck_document` directly.** Don't. The editor only writes
-  to `draft_document`. If you patch `puck_document` from a server
+- **Editing `published_doc` directly.** Don't. The editor only writes
+  to `draft_doc`. If you patch `published_doc` from a server
   action, you bypass the publish lifecycle and the audit trail.
 - **Bumping `status` without copying the doc.** If you flip
-  `is_published = true` but didn't copy `draft_document` into
-  `puck_document`, the public site renders the *previous* publish.
+  `is_published = true` but didn't copy `draft_doc` into
+  `published_doc`, the public site renders the *previous* publish.
   Always go through `publishPage()`.
-- **Forgetting `revalidatePath()`.** The public site uses Next's
-  cache. After a publish, you must invalidate `/`, the slug path, and
-  any list pages that include the slug.
+- **Forgetting to refresh the website.** The public site uses Next's
+  cache. A new code path that changes page state must call
+  `notifyWebsite(["pages"])`, or visitors see the old
+  page until the cache expires.
 - **Cross-locale assumptions.** A page being "published" is not a
   single boolean — it's per locale. Code that says
   `page.isPublished` is a smell; the truth lives on
@@ -242,7 +325,7 @@ members.
 ## Where to read next
 
 - **[Editor architecture](/docs/architecture/editor-architecture)** —
-  the editor that produces `draft_document`.
+  the editor that produces `draft_doc`.
 - **[Translations](/docs/architecture/translations)** — why each
   locale has its own translation row.
 - **[Pages handbook](/docs/admin-handbook/pages)** — the user-facing

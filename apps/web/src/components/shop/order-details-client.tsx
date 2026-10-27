@@ -1,138 +1,104 @@
 "use client";
 
-import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
 import { ExternalLink, Receipt } from "lucide-react";
-import { motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { PropsWithChildren } from "react";
+import {
+  statusPanelPrimaryAction,
+  statusPanelSecondaryAction,
+} from "@/components/ui/status-panel";
 
 type ActionType = "back" | "cart" | "shop" | "print" | "receipt";
 
 type OrderActionsClientProps = PropsWithChildren<{
   type: ActionType;
   receiptUrl?: string;
-  className?: string; // For the back button's special positioning
+  className?: string;
 }>;
 
+/**
+ * The order page's actions, as the design system's primary and secondary CTAs.
+ *
+ * Navigation is a real `<Link>` rather than a `router.push` button, so it works
+ * before hydration and opens in a new tab. Only "print" needs the browser; it
+ * is why this stays a Client Component.
+ *
+ * The receipt label names no provider: `payment_receipt_url` is written for
+ * Stripe orders only (the Vipps ePayment API exposes no receipt URL), so the
+ * old "View Vipps Receipt" was wrong on every order that showed it.
+ */
 export function OrderActionsClient({
   type,
   receiptUrl,
   className,
   children,
 }: OrderActionsClientProps) {
-  const router = useRouter();
+  const t = useTranslations("shop.order");
 
-  const getActionProps = (actionType: ActionType) => {
-    switch (actionType) {
-      case "back":
-        return {
-          onClick: () => router.push("/shop"),
-          content: children,
-          buttonClass: className || "", // Use the passed className for positioning
-          motionProps: {
-            animate: { opacity: 1, x: 0 },
-            initial: { opacity: 0, x: -20 },
-          },
-        };
+  switch (type) {
+    case "back":
+      return (
+        <Link className={className} href="/shop">
+          {children}
+        </Link>
+      );
 
-      case "cart":
-        return {
-          onClick: () => router.push("/shop/cart"),
-          content: "Return to Cart",
-          buttonClass:
-            "bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90",
-          motionProps: {
-            animate: { opacity: 1, y: 0 },
-            initial: { opacity: 0, y: 20 },
-            transition: { delay: 0.1 },
-          },
-        };
+    case "cart":
+      return (
+        <Link
+          className={cn(statusPanelPrimaryAction, className)}
+          href="/shop/cart"
+        >
+          {t("actions.returnToCart")}
+        </Link>
+      );
 
-      case "shop":
-        return {
-          onClick: () => router.push("/shop"),
-          content: "Continue Shopping",
-          buttonClass:
-            "w-full bg-linear-to-r from-brand-gradient-from to-brand-gradient-to text-white hover:from-brand-gradient-from/90 hover:to-brand-gradient-to/90",
-          motionProps: {
-            animate: { opacity: 1, x: 0 },
-            initial: { opacity: 0, x: 20 },
-            transition: { delay: 0.5 },
-          },
-        };
+    case "shop":
+      return (
+        <Link
+          className={cn(
+            statusPanelPrimaryAction,
+            "w-full justify-center",
+            className
+          )}
+          href="/shop"
+        >
+          {t("actions.continue")}
+        </Link>
+      );
 
-      case "print":
-        return {
-          onClick: () => window.print(),
-          content: children,
-          buttonClass:
-            "w-full border-brand-border text-brand-dark hover:bg-brand-muted",
-          variant: "outline" as const,
-          motionProps: {
-            animate: { opacity: 1, x: 0 },
-            initial: { opacity: 0, x: 20 },
-            transition: { delay: 0.5 },
-          },
-        };
+    case "print":
+      return (
+        <button
+          className={cn(
+            statusPanelSecondaryAction,
+            "w-full justify-center",
+            className
+          )}
+          onClick={() => window.print()}
+          type="button"
+        >
+          {children}
+        </button>
+      );
 
-      case "receipt":
-        return {
-          onClick: () => window.open(receiptUrl!, "_blank"),
-          content: (
-            <>
-              <Receipt className="mr-2 h-4 w-4" />
-              View Vipps Receipt
-              <ExternalLink className="ml-2 h-3 w-3" />
-            </>
-          ),
-          buttonClass: "border-green-300 text-green-700 hover:bg-green-100",
-          size: "sm" as const,
-          variant: "outline" as const,
-          motionProps: {
-            animate: { opacity: 1, y: 0 },
-            initial: { opacity: 0, y: 0 },
-            transition: { delay: 0.2 },
-          },
-        };
+    case "receipt":
+      return receiptUrl ? (
+        <a
+          className={cn(statusPanelSecondaryAction, className)}
+          href={receiptUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <Receipt aria-hidden="true" className="size-4" />
+          {t("actions.viewReceipt")}
+          <ExternalLink aria-hidden="true" className="size-3" />
+        </a>
+      ) : null;
 
-      default:
-        return {
-          onClick: () => {
-            // no-op
-          },
-          content: null,
-          buttonClass: "",
-        };
-    }
-  };
-
-  const { onClick, content, buttonClass, variant, size, motionProps } =
-    getActionProps(type);
-
-  if (!content) {
-    return null;
+    default:
+      return null;
   }
-
-  // Render a simple div for the "back" link outside of the main layout flow
-  if (type === "back") {
-    return (
-      <motion.button className={buttonClass} onClick={onClick} {...motionProps}>
-        {content}
-      </motion.button>
-    );
-  }
-
-  // Render the buttons that use 'motion' for animation
-  return (
-    <motion.div {...motionProps} className={type === "receipt" ? "" : "w-full"}>
-      <Button
-        className={buttonClass}
-        onClick={onClick}
-        size={size}
-        variant={variant}
-      >
-        {content}
-      </Button>
-    </motion.div>
-  );
 }

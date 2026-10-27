@@ -29,9 +29,11 @@ function TimelineThumb() {
 registerBlock({
   type: "timeline",
   label: "Timeline",
-  description: "Year-by-year milestones",
+  description: "Dated entries: a programme or a history",
   category: "Show people & numbers",
-  aiHint: "A chronological list of milestones with year and description.",
+  group: "structure",
+  aiHint:
+    "A vertical list of entries with a label (like Dag 1 - 10:00, or 2019), an optional title and text. Use for programmes and histories.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("timeline") as never,
   Render: TimelineRender as never,

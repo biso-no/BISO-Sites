@@ -1,4 +1,7 @@
-import { readPageDepartmentsFeed } from "@repo/shared/utils/page-feeds";
+import {
+  departmentsFeedFilters,
+  readPageDepartmentsFeed,
+} from "@repo/shared/utils/page-feeds";
 import { feedClient, feedResponse, requireFeedAuth } from "../_lib/feed";
 
 /**
@@ -14,16 +17,13 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
+  const { campusId, type } = departmentsFeedFilters(searchParams);
 
   try {
     // Passed through unchanged: `total` counts every matching row, which is
     // independent of how many the reader's limit returned.
     return feedResponse(
-      await readPageDepartmentsFeed(
-        await feedClient(),
-        searchParams.get("campus_id"),
-        searchParams.get("type")
-      )
+      await readPageDepartmentsFeed(await feedClient(), campusId, type)
     );
   } catch {
     return feedResponse({ departments: [], total: 0 });

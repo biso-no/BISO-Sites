@@ -21,20 +21,22 @@ docs](/docs/packages/editor) first; this page assumes you know what a
 The admin used to edit pages with [Puck](https://puckeditor.com), an
 open-source block editor. We replaced it for four reasons:
 
-1. **Block type control.** Our block library has 37+ types with strong
-   variants and AI metadata. Defining them in our own registry is
+1. **Block type control.** Our block library has 30 types with strong
+   typing and AI metadata. Defining them in our own registry is
    simpler than fitting Puck's API.
 2. **AI integration.** The page copilot needs to know about block
    types, their props, and which fields are translatable. That's
    easier when the registry is ours.
-3. **Draft / publish state.** Per-locale `draft_document` and
-   `puck_document` columns require coordinated save/publish actions
+3. **Draft / publish state.** Per-locale `draft_doc` and
+   `published_doc` columns require coordinated save/publish actions
    that didn't map cleanly onto Puck's model.
 4. **Multi-locale workflow.** Switching locales mid-edit, translating,
    and tracking `translation_status` is built in from the start.
 
-The renaming of the published column (`puck_document`) is a leftover
-from the migration. The package and its API are entirely ours.
+The package and its API are entirely ours. The page model was
+redesigned in 2026 (sections and columns instead of a flat block list,
+a page header, themes); the old `draft_document` / `puck_document`
+columns are unused and wait for removal.
 
 ## Package surface
 
@@ -45,7 +47,7 @@ from the migration. The package and its API are entirely ours.
   ".":         // Editor entry: EditorShell, registry helpers, store, types
   "./render":  // Read-only renderer used by apps/web
   "./blocks":  // Side-effecting block-registration imports
-  "./theme":   // CSS variables + theme utilities
+  "./theme/styles.css": // CSS variables
   "./ai":      // Copilot helpers (system prompt, tools)
   "./types":   // Full TypeScript schema
 }
@@ -64,10 +66,12 @@ import {
   BLOCK_LIBRARY,
   allBlocks,
   getBlock,
-  EditorCallbacks,
+  paletteGroups,
+  normalizePageDoc,
   EditorCallbacksContext,
   useEditorCallbacks,
   useEditorStore,
+  type EditorCallbacks,
   type PageDoc,
   type PageMeta,
   type Block,
@@ -93,8 +97,22 @@ The persisted unit of work is a `PageDoc`:
 
 ```ts
 interface PageDoc {
-  blocks: Block[]; // discriminated union over ~37 block types
+  version: 2;
+  header?: PageHeader; // the page's only <h1>; absent on headerless pages
+  sections: Section[]; // each: layout + 1 to 4 columns of blocks
   meta: PageMeta;
+}
+
+interface Section {
+  id: string;
+  anchor?: string;
+  layout: SectionLayout; // columns, background, spacing, align, tablet, phone
+  columns: Column[];
+}
+
+interface Column {
+  id: string;
+  blocks: Block[]; // discriminated union over 30 block types
 }
 
 interface PageMeta {
@@ -102,24 +120,34 @@ interface PageMeta {
   slug: string;
   description?: string;
   department: string;
-  accentColor: string;
   status: "draft" | "published";
+  // Colour theme: absent follows the department, null resets to BISO,
+  // an object is { dark, accent } (checked for contrast on load).
+  theme?: { dark: string; accent: string } | null;
 }
 ```
 
 `Block` is a discriminated union with `type` as the discriminator.
-Each block carries its own props plus shared fields (id, optional
-variant, optional visibility rules).
+Each block carries its own props plus an `id` (and a hide-on-phone flag).
+Layout is not a block: a section's `layout.columns` is one of `1`,
+`1-1`, `2-1`, `1-2`, `1-1-1` or `1-1-1-1`, with a white, tinted, dark
+or photo background. Column grids respond to the page's container
+width (tablet up to 1023px, phone up to 639px), and a tablet section
+either stays side by side or stacks, with an optional phone order.
 
 `PageDoc` is serialized as JSON and stored in
-`page_translations.draft_document` or `.puck_document`. The same
-shape is read back by `getPage()` for rendering.
+`page_translations.draft_doc` or `.published_doc`. The same shape is
+read back by `getPage()` for rendering. Documents from the old
+flat-list editor are converted on load by `normalizePageDoc`, so both
+shapes read cleanly. Rich text is sanitised on the server at save, in
+the admin loader and at render, and in the editor preview.
 
 ## Block registry
 
 Every block type is registered via `registerBlock()`. The registry
 lives in `packages/editor/src/blocks/registry.ts` and is populated by
-side-effect imports under `packages/editor/src/blocks/`. The host app
+side-effect imports under `packages/editor/src/blocks/`. The palette's
+groups and the AI's block list are both derived from it. The host app
 imports `@repo/editor/blocks` once at module load and gets the whole
 library registered.
 
@@ -127,44 +155,31 @@ A registry entry looks like this:
 
 ```ts
 registerBlock({
-  type: "hero",
-  label: "Hero",
-  description: "Top-of-page banner with heading, subheading, and CTA.",
-  category: "Top of page",
-
-  // Optional UI variants (e.g. "Centered", "Split", "Image right")
-  variants: [
-    { id: "centered", label: "Centered" },
-    { id: "split",    label: "Split" },
-  ],
+  type: "callout",
+  label: "Callout",
+  description: "An info box with an icon",
+  category: "Tell a story",
+  group: "text", // palette group
 
   // For the AI copilot
-  aiHint: "Use for the first block on a page. Don't use more than once.",
-  aiProps: [
-    { path: "heading",    translatable: true },
-    { path: "subheading", translatable: true },
-    { path: "cta.label",  translatable: true },
-  ],
+  aiHint: "A highlighted info or warning box.",
+  aiProps: ["title", "body"],
 
-  // Default props when the user drops the block onto the canvas
-  empty: () => ({ /* default block */ }),
+  // Default block when the user drops it onto the canvas
+  empty: () => emptyBlock("callout"),
 
   // Three components:
-  Render:       HeroRender,       // What's drawn in the canvas + on the public site
-  Inspector:    HeroInspector,    // Props editor in the right pane
-  PaletteThumb: HeroPaletteThumb, // Thumbnail in the left palette
+  Render:       CalloutRender,    // What's drawn in the canvas + on the public site
+  Inspector:    CalloutInspector, // Props editor in the right pane
+  PaletteThumb: CalloutThumb,     // Thumbnail in the left palette
 });
 ```
 
-`aiProps` is the contract with the copilot and the AI translator:
-
-- `translatable: true` paths are walked by the AI translation
-  pipeline.
-- The list also tells the copilot which props it's allowed to modify
-  via tool calls.
-
-The category (`"Top of page"`, `"Content"`, `"Media"`, `"Embeds"`,
-`"Lists"`, …) groups blocks in the palette.
+`aiProps` lists the prop keys the copilot may set with its tools. The
+`group` (`text`, `media`, `structure`, `people`, `live`, `actions` or
+`extras`) decides where the block appears in the palette. A guard test
+fails any block that breaks the visual rules, and another keeps every
+`blocks/*/index.tsx` out of `"use client"`.
 
 ### Adding a new block
 
@@ -172,11 +187,13 @@ The category (`"Top of page"`, `"Content"`, `"Media"`, `"Embeds"`,
    `packages/editor/src/blocks/<name>/`.
 2. Add a Zod schema for its props.
 3. Call `registerBlock({...})` in the block's `index.ts`.
-4. Re-export from `packages/editor/src/blocks/index.ts` so it loads
-   when the host imports `@repo/editor/blocks`.
+4. Add the type to the `BlockType` union and block interface in
+   `packages/editor/src/editor/types.ts`, and import it in
+   `packages/editor/src/blocks/index.ts` so it loads when the host
+   imports `@repo/editor/blocks`.
 
-That's it. No central manifest to update, no enums to widen — the
-discriminated union of block types is computed from the registry.
+See [Adding an editor block](/docs/developing/adding-an-editor-block)
+for the full steps.
 
 ## State: the Zustand+Immer store
 
@@ -186,13 +203,15 @@ runtime.
 ```ts
 interface EditorState {
   // Document
-  doc: PageDoc;
+  doc: PageDoc;                   // header + sections + meta
 
   // Selection / UI
   selection: string | null;       // selected block id
+  selectedSectionId: string | null;
   mode: "edit" | "preview";
   viewport: "desk" | "tab" | "mob";
-  inspectorTab: "props" | "design" | "visibility";
+  inspectorTab: "block" | "page" | "outline";
+  themePreview: PageTheme | null; // transient drag preview, never saved
   hoveredId: string | null;
   copilotOpen: boolean;
 
@@ -203,21 +222,28 @@ interface EditorState {
   past: PageDoc[];
   future: PageDoc[];
 
-  // ~20 mutation methods, all written with Immer drafts
+  // many more mutation methods (header, sections, meta), all written
+  // with Immer drafts
   setMeta: (patch: Partial<PageMeta>) => void;
-  addBlock: (block: Block, atIndex?: number) => void;
-  updateBlock: (id: string, recipe: (b: Block) => void) => void;
+  insertBlock: (type: BlockType, target?: InsertTarget) => string;
+  moveBlock: (blockId: string, target: InsertTarget) => void;
+  moveBlockToNewSection: (blockId: string, sectionIndex: number) => void;
+  insertSection: (columns?: SectionColumns, index?: number) => string;
+  moveSection: (id: string, beforeSectionId?: string) => void;
+  setSectionLayout: (id: string, patch: Partial<SectionLayout>) => void;
+  setProp: (id: string, path: string, value: unknown) => void;
+  setTheme: (theme: PageTheme | null) => void;
   removeBlock: (id: string) => void;
-  moveBlock: (id: string, toIndex: number) => void;
   duplicateBlock: (id: string) => void;
-  setSelection: (id: string | null) => void;
+  select: (id: string | null) => void;
   // ...
 }
 ```
 
-Mutations use Immer drafts, so block handlers can write
-`b.props.heading = "..."` directly without spreading. Every mutation
-also pushes the previous `doc` onto `past` for undo/redo.
+Mutations use Immer drafts and go through `editor/operations.ts`. Every
+mutation pushes the previous document onto `past`, so undo and redo
+work across columns. A theme drag repaints the canvas through
+`themePreview` and adds exactly one undo step when it ends.
 
 `useEditorStore` exposes the store to React. Components subscribe
 with selectors for fine-grained re-renders.
@@ -231,27 +257,39 @@ The shell calls back into the host for every persistence operation.
 ```ts
 interface Props {
   initial: PageEditorState;       // metadata + all locale translations
-  activeLocale: Locale;
-  locales: Locale[];
-  departments: Department[];
+}
+
+// Provided through EditorCallbacksContext:
+interface EditorCallbacks {
+  activeLocale: EditorLocale;
+  locales: EditorLocaleOption[];
+  departments: EditorDepartment[];
+  campuses: EditorCampus[];
+  lockedMeta?: { campus?: boolean; department?: boolean; slug?: boolean };
 
   // Persistence callbacks
-  savePage:     (doc: PageDoc, locale: Locale) => Promise<void>;
-  uploadFile:   (file: File) => Promise<{ url: string; id: string }>;
-  onDocChange:  (doc: PageDoc) => void;          // for auto-save / dirty tracking
-  onPublish:    (locale: Locale) => Promise<void>;
-  onUnpublish:  (locale: Locale) => Promise<void>;
-  onLocaleChange:    (locale: Locale) => void;
-  onTranslateLocale: (target: Locale) => Promise<void>;
-  translatingLocale: Locale | null;
-  onExit: () => void;
+  savePage:     (doc: PageDoc, locale: EditorLocale) => Promise<StoredMeta | undefined>;
+  uploadFile:   (fd: FormData) => Promise<{ fileId: string; url: string }>;
+  onPublish?:   (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
+  onUnpublish?: (locale: EditorLocale) => Promise<void>;
+  onLocaleChange:     (locale: EditorLocale) => void;
+  onTranslateLocale?: (target: EditorLocale) => Promise<void>;
+  translatingLocale?: EditorLocale | null;
+  onExit?: () => void;
 }
 ```
+
+`lockedMeta` is how a host pins fields. Unit and project pages lock
+slug and department, because both encode the page's binding to a
+department and changing either would orphan it. `savePage` returns what
+the server stored (`StoredMeta`: the slug it settled on, the department,
+whether it dropped a stale theme), and `onPublish` returns a
+`PublishOutcome` (`themeCopied`), so the editor follows the server.
 
 This contract is intentional: the editor is host-agnostic. The host
 decides what "save" means (the admin app upserts
 `page_translations`), what "publish" means (copies
-`draft_document` → `puck_document`), and what "translate" means
+`draft_doc` → `published_doc`), and what "translate" means
 (calls the `/api/translate-page` endpoint).
 
 ### The 4-pane layout
@@ -269,21 +307,33 @@ decides what "save" means (the admin app upserts
 
 - **Topbar.** Document metadata, save indicator, publish/unpublish
   buttons, locale switcher (including "Translate this locale" for the
-  AI pipeline).
-- **Palette.** Block library, grouped by category, with thumbnails.
-  Drag from here onto the canvas.
-- **Canvas.** Renders blocks in order. `dnd-kit` provides drag-drop
-  with sortable. Clicking a block sets `selection`; the inspector
-  switches to that block's `Inspector` component.
-- **Inspector.** Three tabs — "Props" (the block's `Inspector`),
-  "Design" (variants + accent color), "Visibility" (visibility
-  rules).
+  AI pipeline). Publish and the language switch are disabled, with a
+  reason, while the page's theme fails the contrast check.
+- **Palette.** Block library in seven groups, with thumbnails, plus a
+  layout picker for new sections. Drag from here onto the canvas, or
+  add to a chosen column.
+- **Canvas.** Renders the header, then the sections, each with its
+  columns of blocks. `dnd-kit` drags sections, and blocks within and
+  between columns or into a new section. Clicking a block or section
+  selects it. The canvas wears the effective theme (page, else
+  department, else BISO) as inline variables on `.pe-frame`.
+- **Inspector.** Three tabs: "Block" (the block's `Inspector`, or the
+  section's settings), "Page" (title, slug, description, department,
+  Theme panel) and "Outline" (the section tree). Section settings cover
+  columns, background, spacing, column alignment, tablet side-by-side
+  or stacked, phone order, hide on phone and link name.
 
 ### Auto-save
 
 `EditorShell` debounces calls to `savePage()` at **800 ms** after the
-last change. The host's `savePage` writes to `draft_document`. The
+last change. The host's `savePage` writes to `draft_doc`. The
 "Save" button in the topbar flushes immediately.
+
+Saves are serialised, and Publish waits for a pending save. Leaving the
+editor starts a save and prompts while one is pending, in flight, failed
+or blocked. If the theme fails the contrast check, autosave pauses with
+"Not saved: theme colours fail the contrast check". See
+[Pages publish flow](/docs/architecture/pages-publish-flow#what-a-save-will-and-wont-do).
 
 There is **no auto-publish**. Publishing always requires an explicit
 button press because it's a state change with consequences (visibility
@@ -305,8 +355,9 @@ import {
   prompt with the current document's block summary, the registered
   blocks' `aiHint`s and `aiProps`, and the active locale.
 - **`pageEditorTools`** is the tool registry exposed to the model.
-  It includes tools for adding blocks, updating block props, moving
-  blocks, removing blocks, and reading the current document.
+  It includes tools for inserting sections and blocks into columns,
+  updating block props, moving and removing blocks, and setting or
+  resetting the page theme within the contrast rules.
 - **`PageEditorToolName`** is the union of tool names — useful for
   typed routing on the host's side.
 
@@ -316,21 +367,58 @@ the result like any other change.
 
 ## Render path
 
-`apps/web` imports from `@repo/editor/render`:
+`apps/web` imports from `@repo/editor/render` (`SectionView`,
+`PageHeaderView`, `BlockView`, `normalizePageDoc`) and
+`@repo/editor/blocks`. The shared pipeline is
+`renderPublishedEditorPage` in `apps/web/src/lib/published-editor-page.tsx`.
+The catch-all, unit pages and `/projects/<slug>` all go through it:
 
 ```tsx
-import { renderPage } from "@repo/editor/render";
-import "@repo/editor/blocks";  // side-effect: registers block renderers
+import "@repo/editor/blocks"; // side-effect: registers block renderers
 
 // In a Server Component:
 const page = await getPage(slug, locale);
-return renderPage(page.doc);
 ```
 
-`renderPage` walks the `PageDoc.blocks` array and renders each
-block's `Render` component. Server Components by default; only blocks
-that *need* client interactivity (e.g. carousels) opt in with a
-`"use client"` boundary inside the `Render` component.
+The page's header renders first, then each section through
+`SectionView`, which lays out the columns and renders each block's
+`Render` component. Server Components by default; only blocks that
+*need* client interactivity opt in with a `"use client"` boundary.
+Every link in a block goes through `safeHref`.
+
+### Themes on the site
+
+A page's effective theme (page, else department, else BISO) renders as
+the first element of the page. The nav, page header, Dark and Photo
+sections, forms band and footer take the theme's dark; buttons, links
+and stat numbers take the accent or its derived on-white shade. Body
+text on white stays navy under any theme, and a theme equal to BISO's
+own colours applies no overrides. Because Next keeps the previous page
+mounted in a hidden Activity, the style is a small client component
+that switches its sheet off when hidden and on when shown.
+
+The colour maths live in `packages/shared/utils/page-theme.ts`: WCAG
+contrast, the two checks (dark at least 7:1 on white, accent at least
+4.5:1 on dark), the nearest passing shade, and the derived tokens
+(`--biso-deep-raised|sunken|edge|ink-muted`, `--biso-ink`). Colours
+that fail never reach CSS, and save rejects a failing theme.
+
+### Uploads
+
+The editor's `uploadFile` posts to the admin's upload routes. Files up
+to one Appwrite chunk (5 MiB) go in one request. Larger files to the
+`media` bucket go in 5 MiB chunks with `?chunk=1`
+(`apps/admin/src/lib/chunked-upload.ts`), because Appwrite Sites cannot
+carry a bigger single request. The first chunk creates the file and
+returns an HMAC token that binds the file, user, type, size and name;
+later chunks must repeat matching terms, arrive in order, and come from
+the admin's own origin. Every body is read under a byte cap, stale
+partial uploads are swept, and every upload is audit-logged. Allowed
+types and per-kind limits live in `apps/admin/src/lib/upload-buckets.ts`.
+In the `media` bucket, images may be up to 10 MB, documents up to 25 MB
+and video (mp4, mov, webm) up to 250 MB, which is also the bucket's own
+limit. Only buckets written with the service key accept chunks, so the
+`content` bucket keeps single requests (images and PDF up to 10 MB).
 
 Importantly: `apps/web` does **not** pull in `EditorShell`, the
 Zustand store, or `dnd-kit`. The export split keeps the bundle clean.

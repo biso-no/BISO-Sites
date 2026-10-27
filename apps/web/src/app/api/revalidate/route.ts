@@ -9,7 +9,13 @@ import { isProd } from "@/lib/utils";
  * `/api/cron/cleanup-reservations`: `CRON_SECRET` via `x-cron-secret` or
  * `Authorization: Bearer`; production refuses to run without the secret.
  */
-const ALLOWED_TAGS = new Set(["benefits", "membership-texts", "partners"]);
+const ALLOWED_TAGS = new Set([
+  "benefits",
+  "departments",
+  "membership-texts",
+  "pages",
+  "partners",
+]);
 
 function isAuthorized(request: Request, cronSecret: string): boolean {
   const headerSecret = request.headers.get("x-cron-secret");

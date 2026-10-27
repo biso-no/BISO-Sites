@@ -4,16 +4,34 @@ import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
   InspSection,
+  Segmented,
 } from "@/components/editor-shell/inspector/insp-parts";
 import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
-import type { ImageBlock } from "@/editor/types";
+import type { FrameRatio, ImageBlock, PageDoc } from "@/editor/types";
 
 interface Props {
   block: ImageBlock;
+  doc: PageDoc;
   onPatch: PatchFn;
 }
 
+const RATIOS: FrameRatio[] = [
+  "21/9",
+  "16/9",
+  "3/2",
+  "4/3",
+  "1/1",
+  "4/5",
+  "3/4",
+];
+
 export function ImageInspector({ block, onPatch }: Props) {
+  // What the block renders as: unknown values (copilot output) are defaults.
+  const frame = block.frame === "plain" ? "plain" : "chevron";
+  const lean = block.lean === "right" ? "right" : "left";
+  const ratio = RATIOS.includes(block.ratio) ? block.ratio : "16/9";
+  const needsAlt =
+    !(block.decorative || (block.alt ?? "").trim()) && !!block.src;
   return (
     <>
       <InspSection label="Image">
@@ -22,38 +40,81 @@ export function ImageInspector({ block, onPatch }: Props) {
           onClear={() => {
             onPatch("src", undefined);
             onPatch("fileId", undefined);
+            onPatch("mime", undefined);
           }}
-          onPicked={(fileId, url) => {
+          onPicked={(fileId, url, mime) => {
             onPatch("fileId", fileId);
+            onPatch("mime", mime || undefined);
             onPatch("src", url);
           }}
           onUrl={(url) => {
             onPatch("src", url);
             onPatch("fileId", undefined);
+            onPatch("mime", undefined);
           }}
           src={block.src}
         />
-      </InspSection>
-      <InspSection label="Settings">
-        <InspRow label="Caption">
+        <InspRow label="Alt text">
           <input
-            onChange={(e) => onPatch("caption", e.target.value)}
-            placeholder="Caption…"
-            value={block.caption ?? ""}
+            disabled={block.decorative}
+            onChange={(e) => onPatch("alt", e.target.value)}
+            placeholder="Describe the image"
+            value={block.alt ?? ""}
           />
         </InspRow>
-        <InspRow label="Aspect">
-          <select
-            onChange={(e) => onPatch("aspect", e.target.value)}
-            value={block.aspect ?? "16/9"}
-          >
-            <option value="16/9">16:9</option>
-            <option value="4/3">4:3</option>
-            <option value="1/1">1:1</option>
-            <option value="3/4">3:4 portrait</option>
-            <option value="21/9">21:9 cinematic</option>
-          </select>
-        </InspRow>
+        <label className="pe-check">
+          <input
+            checked={!!block.decorative}
+            onChange={(e) => onPatch("decorative", e.target.checked)}
+            type="checkbox"
+          />
+          Decorative image
+        </label>
+        {needsAlt ? (
+          <p className="pe-insp-note" role="status">
+            Add alt text, or mark the image as decorative. Screen readers need
+            one or the other.
+          </p>
+        ) : null}
+      </InspSection>
+      <InspSection label="Frame">
+        <Segmented
+          choices={[
+            { label: "Chevron", value: "chevron" },
+            { label: "Plain", value: "plain" },
+          ]}
+          onPick={(frame) => onPatch("frame", frame)}
+          value={frame}
+        />
+      </InspSection>
+      <InspSection label="Ratio">
+        <Segmented
+          choices={RATIOS.map((r) => ({
+            label: r.replace("/", ":"),
+            value: r,
+          }))}
+          onPick={(ratio) => onPatch("ratio", ratio)}
+          value={ratio}
+        />
+      </InspSection>
+      {frame === "chevron" ? (
+        <InspSection label="Lean">
+          <Segmented
+            choices={[
+              { label: "Left", value: "left" },
+              { label: "Right", value: "right" },
+            ]}
+            onPick={(lean) => onPatch("lean", lean)}
+            value={lean}
+          />
+        </InspSection>
+      ) : null}
+      <InspSection label="Caption">
+        <input
+          onChange={(e) => onPatch("caption", e.target.value)}
+          placeholder="Caption…"
+          value={block.caption ?? ""}
+        />
       </InspSection>
     </>
   );

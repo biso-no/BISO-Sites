@@ -76,4 +76,21 @@ describe("revalidate route", () => {
     expect(revalidateTag).toHaveBeenCalledWith("benefits", { expire: 0 });
     expect(revalidateTag).toHaveBeenCalledWith("partners", { expire: 0 });
   });
+
+  it("accepts the pages and departments tags", async () => {
+    const response = await POST(
+      request({ tags: ["pages", "departments"] }, { "x-cron-secret": "s3cret" })
+    );
+    expect(response.status).toBe(200);
+    expect(revalidateTag).toHaveBeenCalledWith("pages", { expire: 0 });
+    expect(revalidateTag).toHaveBeenCalledWith("departments", { expire: 0 });
+  });
+
+  it("still rejects a list that mixes in an unknown tag", async () => {
+    const response = await POST(
+      request({ tags: ["pages", "users"] }, { "x-cron-secret": "s3cret" })
+    );
+    expect(response.status).toBe(400);
+    expect(revalidateTag).not.toHaveBeenCalled();
+  });
 });

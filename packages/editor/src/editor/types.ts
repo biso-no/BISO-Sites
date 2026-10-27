@@ -1,62 +1,71 @@
 // Core domain types for the BISO page editor.
 // All mutations go through operations.ts; this file is pure types only.
 
-import type { BlockLayout } from "@/blocks/_primitives/layout-types";
-import type { AccentHue } from "@/theme/presets";
+import type { PageTheme } from "@repo/shared/utils/page-theme";
 
 export type BlockType =
-  | "hero"
   | "marquee"
   | "text"
+  | "heading"
   | "quote"
   | "callout"
-  | "twoCol"
   | "team"
   | "stats"
+  | "highlights"
+  | "facts"
+  | "divider"
   | "timeline"
+  | "cards"
   | "image"
   | "gallery"
   | "video"
   | "events"
   | "jobs"
   | "news"
-  | "cta"
+  | "buttons"
+  | "ctaBand"
   | "faq"
   | "contact"
   | "signup"
-  | "featureGrid"
   | "partners"
-  | "linkTileGrid"
   | "tabs"
   | "departmentGrid"
   | "documents"
-  | "featuredCards"
-  | "campusSelector"
   | "stepGrid"
-  | "scrollRow"
   | "productGrid"
-  | "filterBar"
-  | "profileHeader"
   | "multiStepForm";
 
-// ── Per-block shapes ─────────────────────────────────────────────────────────
+// ── Shared v2 shapes ─────────────────────────────────────────────────────────
 
-export interface HeroBlock {
-  ctaLabel: string;
-  ctaUrl: string;
-  eyebrow: string;
-  id: string;
-  /** Alt text for `imageSrc`. Unused while there is no image. */
-  imageAlt?: string;
-  /** Appwrite "media" bucket file ID behind `imageSrc`, when uploaded. */
-  imageFileId?: string;
-  /** A photo for the art panel (split) or the backdrop (full). */
-  imageSrc?: string;
-  subtitle: string;
-  title: string;
-  type: "hero";
-  variant: "split" | "centered" | "full";
+export interface LinkButton {
+  href: string;
+  label: string;
+  style: "primary" | "secondary";
 }
+
+export type FrameRatio =
+  | "21/9"
+  | "16/9"
+  | "3/2"
+  | "4/3"
+  | "1/1"
+  | "4/5"
+  | "3/4";
+
+export interface MediaRef {
+  alt?: string;
+  fileId?: string;
+  kind: "image" | "video";
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
+  poster?: string;
+  posterFileId?: string;
+  /** The uploaded poster's type, as `mime`. */
+  posterMime?: string;
+  src: string;
+}
+
+// ── Per-block shapes ─────────────────────────────────────────────────────────
 
 export interface MarqueeBlock {
   id: string;
@@ -75,6 +84,16 @@ export interface TextBlock {
   type: "text";
 }
 
+export interface HeadingBlock {
+  eyebrow: string;
+  id: string;
+  intro: string;
+  link?: { href: string; label: string };
+  size: "small" | "medium" | "large";
+  title: string;
+  type: "heading";
+}
+
 export interface QuoteBlock {
   author: string;
   id: string;
@@ -91,25 +110,22 @@ export interface CalloutBlock {
   type: "callout";
 }
 
-export interface TwoColBlock {
-  id: string;
-  left: string;
-  right: string;
-  type: "twoCol";
-  variant?: "equal" | "leftWide" | "rightWide";
-}
-
 export interface TeamMember {
-  hue: AccentHue;
-  initials: string;
+  email?: string;
   name: string;
+  phone?: string;
+  photo?: { fileId?: string; mime?: string; src: string };
   role: string;
 }
 
 export interface TeamBlock {
-  heading: string;
+  heading?: string;
   id: string;
   members: TeamMember[];
+  /** Show email and phone links on each card. */
+  showContact: boolean;
+  /** `board` reads the page department's board from the live feed. */
+  source: "manual" | "board";
   type: "team";
 }
 
@@ -123,33 +139,70 @@ export interface StatsBlock {
   type: "stats";
 }
 
-export interface TimelineItem {
+export interface HighlightsBlock {
+  id: string;
+  items: { text: string }[];
+  type: "highlights";
+}
+
+export interface FactItem {
+  href?: string;
+  label: string;
+  /** Named `text`, not `value`: the admin translator skips `value`. */
   text: string;
-  year: string;
+}
+export interface FactsBlock {
+  id: string;
+  items: FactItem[];
+  type: "facts";
+}
+
+export interface DividerBlock {
+  id: string;
+  spacing: "small" | "medium" | "large";
+  type: "divider";
+}
+
+export interface TimelineItem {
+  /** "Dag 1 · 10:00", "2019": the entry's time or date. */
+  label: string;
+  text: string;
+  title?: string;
 }
 export interface TimelineBlock {
-  heading: string;
+  heading?: string;
   id: string;
   items: TimelineItem[];
   type: "timeline";
 }
 
 export interface ImageBlock {
-  aspect: string;
+  alt: string;
   caption: string;
+  /** Marks the image as decoration: it then renders with an empty alt. */
+  decorative?: boolean;
   fileId?: string; // Appwrite "media" bucket file ID
+  frame: "chevron" | "plain";
   id: string;
+  lean: "left" | "right";
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
+  ratio: FrameRatio;
   src?: string; // public view URL (set on upload) or external URL
   type: "image";
 }
 
 export interface GalleryImage {
+  alt?: string;
   fileId?: string;
-  src?: string;
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
+  src: string;
 }
 export interface GalleryBlock {
   id: string;
   images: GalleryImage[];
+  layout: "collage" | "grid" | "row";
   type: "gallery";
 }
 
@@ -157,47 +210,55 @@ export interface VideoBlock {
   caption: string;
   fileId?: string; // Appwrite "media" bucket file ID
   id: string;
+  label?: string;
+  poster?: string;
+  posterFileId?: string;
+  /** The uploaded poster's type; an SVG or GIF skips the raster preview. */
+  posterMime?: string;
+  ratio: "16/9" | "21/9";
+  style: "featured" | "inline" | "loop";
   type: "video";
   url?: string; // external URL or public view URL
 }
 
-export interface EventItem {
-  date: string;
-  going: number;
-  title: string;
-  where: string;
-}
-
-export interface EventsBlock {
+/** Shared by the three live feed blocks. */
+interface LiveFeedBlock {
   heading: string;
   id: string;
-  items: EventItem[];
-  /** "auto:<dept>:upcoming" or an Appwrite collection binding */
+  /** How many cards to show, and how many rows the feed request asks for. */
+  limit: 3 | 6;
+  /** Adds a "see all" link to the section's listing page. */
+  seeAll: boolean;
+  /** `auto` follows the page's department; anything else is a department id. */
   source: string;
+}
+
+export interface EventsBlock extends LiveFeedBlock {
   type: "events";
 }
 
-export interface JobsBlock {
-  heading: string;
-  id: string;
-  source?: string;
+export interface JobsBlock extends LiveFeedBlock {
   type: "jobs";
 }
 
-export interface NewsBlock {
-  heading: string;
-  id: string;
-  source?: string;
+export interface NewsBlock extends LiveFeedBlock {
   type: "news";
 }
 
-export interface CtaBlock {
+export interface ButtonsBlock {
+  align: "start" | "center";
   id: string;
-  label: string;
+  items: LinkButton[];
+  type: "buttons";
+}
+
+export interface CtaBandBlock {
+  buttons: LinkButton[];
+  eyebrow: string;
+  id: string;
+  text: string;
   title: string;
-  type: "cta";
-  url: string;
-  variant?: "card" | "banner" | "gradient";
+  type: "ctaBand";
 }
 
 export interface FaqItem {
@@ -205,19 +266,10 @@ export interface FaqItem {
   q: string;
 }
 export interface FaqBlock {
-  heading: string;
+  heading?: string;
   id: string;
   items: FaqItem[];
   type: "faq";
-  variant?: "list" | "accordion-themed";
-}
-
-export interface ContactCard {
-  address?: string;
-  email?: string;
-  name: string;
-  phone?: string;
-  role: string;
 }
 
 export interface ContactBlock {
@@ -227,42 +279,27 @@ export interface ContactBlock {
   hours: string;
   id: string;
   instagram: string;
-  members?: ContactCard[];
+  phone: string;
   type: "contact";
-  variant?: "single" | "directory";
 }
 
 export interface SignupBlock {
   heading: string;
   id: string;
   placeholder: string;
+  /** Email mode only. The server sends to it only when it ends in `@biso.no`. */
   recipientEmail?: string;
-  submitMode?: "email" | "database";
-  topic?: string;
+  submitMode: "email" | "database";
+  topic: string;
   type: "signup";
 }
 
 // ── New block shapes (Phase C) ────────────────────────────────────────────────
 
-export interface FeatureGridItem {
-  body: string;
-  href?: string;
-  icon: string;
-  title: string;
-}
-export interface FeatureGridBlock {
-  columns: 2 | 3 | 4;
-  heading?: string;
-  id: string;
-  intro?: string;
-  items: FeatureGridItem[];
-  type: "featureGrid";
-  variant?: "bordered" | "cards" | "minimal";
-}
-
 export interface PartnerItem {
   href?: string;
-  logoFileId?: string;
+  logo?: { fileId?: string; mime?: string; src: string };
+  /** Legacy flat logo URL: older documents and the auto feed carry this. */
   logoSrc?: string;
   name: string;
 }
@@ -274,17 +311,20 @@ export interface PartnersBlock {
   type: "partners";
 }
 
-export interface LinkTileItem {
-  description?: string;
-  href: string;
-  icon: string;
+export interface CardItem {
+  body: string;
+  eyebrow?: string;
+  href?: string;
+  image?: { alt?: string; fileId?: string; mime?: string; src: string };
   title: string;
 }
-export interface LinkTileGridBlock {
-  heading?: string;
+export interface CardsBlock {
+  columns: 2 | 3 | 4;
   id: string;
-  items: LinkTileItem[];
-  type: "linkTileGrid";
+  items: CardItem[];
+  layout: "grid" | "row";
+  style: "bordered" | "plain";
+  type: "cards";
 }
 
 export interface TabItem {
@@ -295,20 +335,28 @@ export interface TabsBlock {
   id: string;
   tabs: TabItem[];
   type: "tabs";
-  variant?: "pills" | "underline" | "cards";
 }
 
 export interface DepartmentGridBlock {
+  /** A `UnitCategory`; empty or absent shows every category. */
+  category?: string;
   heading?: string;
   id: string;
-  showFilters: boolean;
+  limit: number;
+  /** `campus` narrows to the page's own campus. */
+  scope: "campus" | "all";
   type: "departmentGrid";
-  variant?: "grid" | "list";
 }
 
 export interface DocumentItem {
-  fileId: string;
-  size?: string;
+  /** Appwrite file id of an uploaded file. */
+  fileId?: string;
+  /** The uploaded file's type; names it ("PDF") and tells the label. */
+  mime?: string;
+  /** Bytes, from the upload. */
+  size?: number;
+  /** The file's link: an uploaded file's `/view` URL or any https URL. */
+  src: string;
   title: string;
 }
 export interface DocumentsBlock {
@@ -318,30 +366,8 @@ export interface DocumentsBlock {
   type: "documents";
 }
 
-export interface FeaturedCardItem {
-  body: string;
-  eyebrow?: string;
-  href?: string;
-  stripeAccent: string;
-  title: string;
-}
-export interface FeaturedCardsBlock {
-  heading?: string;
-  id: string;
-  items: FeaturedCardItem[];
-  type: "featuredCards";
-}
-
-export interface CampusSelectorBlock {
-  heading?: string;
-  id: string;
-  mode: "switcher" | "cards";
-  type: "campusSelector";
-}
-
 export interface StepGridItem {
   body: string;
-  number: string;
   title: string;
 }
 export interface StepGridBlock {
@@ -351,39 +377,13 @@ export interface StepGridBlock {
   type: "stepGrid";
 }
 
-export interface ScrollRowItem {
-  body: string;
-  href?: string;
-  icon?: string;
-  title: string;
-}
-export interface ScrollRowBlock {
-  heading?: string;
-  id: string;
-  items: ScrollRowItem[];
-  type: "scrollRow";
-}
-
 export interface ProductGridBlock {
   heading?: string;
   id: string;
-  source: "auto";
-  tag?: string;
+  limit: 4 | 8;
+  /** `auto` follows the page's department; otherwise a department id. */
+  source: string;
   type: "productGrid";
-}
-
-export interface FilterBarBlock {
-  id: string;
-  target: "news" | "jobs" | "units";
-  type: "filterBar";
-}
-
-export interface ProfileHeaderBlock {
-  heading?: string;
-  id: string;
-  showAvatar: boolean;
-  showStats: boolean;
-  type: "profileHeader";
 }
 
 export type FormFieldType =
@@ -415,57 +415,54 @@ export interface FormStep {
 }
 
 export interface MultiStepFormBlock {
+  /** Database mode: the one extra Appwrite team that may read submissions. */
   accessTeamId?: string;
-  adminLabel?: string;
   heading?: string;
   id: string;
+  /** Email mode only. The server sends to it only when it ends in `@biso.no`. */
   recipientEmail?: string;
   steps: FormStep[];
-  submitMode?: "email" | "database";
-  submitTarget: { collection: string; topic?: string };
+  submitMode: "email" | "database";
+  topic: string;
   type: "multiStepForm";
 }
 
 export type Block = (
-  | HeroBlock
   | MarqueeBlock
   | TextBlock
+  | HeadingBlock
   | QuoteBlock
   | CalloutBlock
-  | TwoColBlock
   | TeamBlock
   | StatsBlock
+  | HighlightsBlock
+  | FactsBlock
+  | DividerBlock
   | TimelineBlock
+  | CardsBlock
   | ImageBlock
   | GalleryBlock
   | VideoBlock
   | EventsBlock
   | JobsBlock
   | NewsBlock
-  | CtaBlock
+  | ButtonsBlock
+  | CtaBandBlock
   | FaqBlock
   | ContactBlock
   | SignupBlock
-  | FeatureGridBlock
   | PartnersBlock
-  | LinkTileGridBlock
   | TabsBlock
   | DepartmentGridBlock
   | DocumentsBlock
-  | FeaturedCardsBlock
-  | CampusSelectorBlock
   | StepGridBlock
-  | ScrollRowBlock
   | ProductGridBlock
-  | FilterBarBlock
-  | ProfileHeaderBlock
   | MultiStepFormBlock
-) & { layout?: BlockLayout };
+) & { hideOnPhone?: boolean };
 
 // ── Page document ────────────────────────────────────────────────────────────
 
 export interface PageMeta {
-  accentColor: string;
   /**
    * Campus id the page belongs to; "" for a national page. Absent on
    * documents saved before campus lived on the document.
@@ -475,19 +472,126 @@ export interface PageMeta {
   description?: string;
   slug: string;
   status: "draft" | "published";
+  /**
+   * The page's colour theme. Absent: not set on this page, so it follows its
+   * department. `null`: reset to BISO. An object: a custom theme.
+   */
+  theme?: PageTheme | null;
   title: string;
 }
 
-export interface PageDoc {
+export const PAGE_DOC_VERSION = 2;
+
+export type SectionColumns = "1" | "1-1" | "2-1" | "1-2" | "1-1-1" | "1-1-1-1";
+export type SectionBackground = "white" | "tinted" | "dark" | "photo";
+export type SectionSpacing = "tight" | "normal" | "roomy";
+export type SectionAlign = "top" | "middle" | "bottom";
+export type SectionTablet = "row" | "stack";
+
+/** The full-bleed image behind a Photo section. */
+export interface SectionBackgroundImage {
+  /** Empty or absent marks the photo decorative. */
+  alt?: string;
+  /** Appwrite "media" bucket file ID, when uploaded. */
+  fileId?: string;
+  /** The uploaded file's type; an SVG or GIF skips the raster preview. */
+  mime?: string;
+  src: string;
+}
+
+export interface SectionLayout {
+  align: SectionAlign;
+  background: SectionBackground;
+  /** Shown only while `background` is "photo"; kept when switching away. */
+  backgroundImage?: SectionBackgroundImage;
+  columns: SectionColumns;
+  hideOnPhone: boolean;
+  phoneReverse: boolean;
+  spacing: SectionSpacing;
+  tablet: SectionTablet;
+}
+
+export interface Column {
   blocks: Block[];
+  id: string;
+}
+
+export interface Section {
+  anchor?: string;
+  columns: Column[];
+  id: string;
+  layout: SectionLayout;
+}
+
+export interface HeaderCrumb {
+  /** Absent on the current page, which is not a link. */
+  href?: string;
+  label: string;
+}
+
+export type HeaderVariant = "split" | "full" | "plain";
+
+/**
+ * The navy band at the top of the page: breadcrumb, eyebrow, the page's only
+ * `<h1>`, lede, buttons and optional media. A header video always plays as a
+ * muted loop (its poster stands in under reduced motion).
+ */
+export interface PageHeader {
+  buttons: LinkButton[];
+  crumbs: HeaderCrumb[];
+  eyebrow: string;
+  lede: string;
+  /** Shown beside the text (split) or behind it (full); plain shows none. */
+  media?: MediaRef;
+  title: string;
+  variant: HeaderVariant;
+}
+
+export interface PageDoc {
+  /** Absent on pages without a header; the first section then clears the nav. */
+  header?: PageHeader;
   meta: PageMeta;
+  sections: Section[];
+  version: 2;
+}
+
+/** Where to insert a block; no `beforeBlockId` means the end of the column. */
+export interface InsertTarget {
+  beforeBlockId?: string;
+  columnId: string;
 }
 
 // ── Editor UI state (not persisted) ─────────────────────────────────────────
 
 export type EditorMode = "edit" | "preview";
 export type EditorViewport = "desk" | "tab" | "mob";
-export type SavingState = "idle" | "pending" | "saved" | "error";
+export type SavingState = "idle" | "pending" | "saved" | "error" | "blocked";
+
+/**
+ * What the server stored differently from what the editor sent: the unique
+ * slug it settled on, and the department it bound the page to. Returned by
+ * the host's `savePage`.
+ */
+export interface StoredMeta {
+  department?: string;
+  slug?: string;
+  /**
+   * The server dropped the theme from what it stored because the page's
+   * department already has it (a stale tab saving a theme a publish moved to
+   * the department). The editor clears it too, or its next save, after the
+   * department's theme changes, would store it again.
+   */
+  themeDropped?: boolean;
+}
+
+/** What a host's publish did beyond publishing. */
+export interface PublishOutcome {
+  /**
+   * The page's theme was copied to its department and removed from the
+   * page's stored documents: the page follows its department again.
+   */
+  themeCopied?: boolean;
+}
 
 // ── Host-provided data types ─────────────────────────────────────────────────
 
@@ -496,6 +600,8 @@ export interface EditorDepartment {
   campusId: string | null;
   id: string;
   name: string;
+  /** The department's own theme, or null for BISO's colours. */
+  theme: PageTheme | null;
 }
 
 export interface EditorCampus {

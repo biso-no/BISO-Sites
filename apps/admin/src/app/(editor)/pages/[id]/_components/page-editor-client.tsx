@@ -1,21 +1,19 @@
 "use client";
 
-import type {
-  PageEditorLoadResult,
-  PageTranslationEditorEntry,
-} from "@repo/api/page-builder";
+import type { PageEditorLoadResult } from "@repo/api/page-builder";
 import type {
   EditorCampus,
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
   PageDoc,
+  PublishOutcome,
+  StoredMeta,
 } from "@repo/editor";
-import { EditorShell, normalizePageDoc } from "@repo/editor";
+import { EditorShell } from "@repo/editor";
 import "@repo/editor/theme/styles.css";
-import { generateSlug } from "@repo/shared/utils/content-slug";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AutoTranslateControl } from "@/app/_components/content-translation-controls";
 import {
@@ -23,7 +21,18 @@ import {
   savePageEditorDoc,
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
+import { pickSharedMeta } from "@/lib/page-shared-meta";
 import { uploadMediaFile } from "@/lib/upload-client";
+import {
+  blankPageDoc,
+  buildInitialDocuments,
+  hasExistingContent,
+  type LocaleDocuments,
+  syncSharedMeta,
+  withDepartmentTheme,
+  withoutDroppedTheme,
+  withStoredMeta,
+} from "./initial-documents";
 
 interface PageEditorClientProps {
   availableLocales: EditorLocale[];
@@ -36,120 +45,19 @@ interface PageEditorClientProps {
   pageId: string | null;
 }
 
-type LocaleDocuments = Partial<Record<EditorLocale, PageDoc>>;
-
 const LOCALE_LABELS: Record<EditorLocale, string> = {
   no: "Norwegian",
   en: "English",
 };
 
+const SAVE_LOCALE_FIRST = "Save this language before publishing";
+const SAVE_PAGE_FIRST = "Save the page first before publishing";
+const LATEST_NOT_SAVED =
+  "Your latest changes couldn't be saved, so nothing was published.";
+const NEW_PAGE_PATH = /\/pages\/new$/;
+
 function cloneDoc(doc: PageDoc): PageDoc {
   return structuredClone(doc);
-}
-
-function emptyDoc({
-  locale,
-  slug,
-  campus,
-  department,
-  status,
-  source,
-}: {
-  locale: EditorLocale;
-  slug?: string | null;
-  campus?: string | null;
-  department?: string | null;
-  status?: PageDoc["meta"]["status"];
-  source?: PageDoc | null;
-}): PageDoc {
-  const title = locale === "no" ? "Uten navn" : "Untitled page";
-  return {
-    meta: {
-      title,
-      slug: slug || generateSlug(title) || "untitled",
-      campus: campus ?? "",
-      department: department ?? "",
-      accentColor: source?.meta.accentColor ?? "#3DA9E0",
-      description: "",
-      status: status ?? "draft",
-    },
-    blocks: [],
-  };
-}
-
-function getTranslationDoc(
-  entry: PageTranslationEditorEntry | undefined
-): PageDoc | null {
-  const doc = (entry?.draftDocument ??
-    entry?.publishedDocument ??
-    null) as PageDoc | null;
-  return doc ? normalizePageDoc(doc) : null;
-}
-
-function buildInitialDocuments(
-  initialPage: PageEditorLoadResult | null,
-  initialLocale: EditorLocale,
-  defaultCampusId: string
-): LocaleDocuments {
-  const docs: LocaleDocuments = {};
-
-  if (initialPage) {
-    for (const locale of initialPage.availableLocales) {
-      const doc = getTranslationDoc(initialPage.translations[locale]);
-      if (doc) {
-        // Documents saved before campus lived on them get the page's campus.
-        docs[locale] = cloneDoc({
-          ...doc,
-          meta: { ...doc.meta, campus: doc.meta.campus ?? defaultCampusId },
-        });
-      }
-    }
-  }
-
-  if (!docs[initialLocale]) {
-    docs[initialLocale] = emptyDoc({
-      locale: initialLocale,
-      slug: initialPage?.page.slug,
-      campus: defaultCampusId,
-      department: initialPage?.page.departmentId,
-      status: initialPage?.page.status === "published" ? "published" : "draft",
-    });
-  }
-
-  return docs;
-}
-
-function syncSharedMeta(
-  docs: LocaleDocuments,
-  sourceLocale: EditorLocale,
-  sourceDoc: PageDoc
-): LocaleDocuments {
-  const next: LocaleDocuments = {};
-
-  for (const [locale, doc] of Object.entries(docs) as [
-    EditorLocale,
-    PageDoc | undefined,
-  ][]) {
-    if (!doc) {
-      continue;
-    }
-    next[locale] =
-      locale === sourceLocale
-        ? sourceDoc
-        : {
-            ...doc,
-            meta: {
-              ...doc.meta,
-              slug: sourceDoc.meta.slug,
-              campus: sourceDoc.meta.campus,
-              department: sourceDoc.meta.department,
-              status: sourceDoc.meta.status,
-              accentColor: sourceDoc.meta.accentColor,
-            },
-          };
-  }
-
-  return next;
 }
 
 export function PageEditorClient({
@@ -163,7 +71,9 @@ export function PageEditorClient({
   lockedMeta,
 }: PageEditorClientProps) {
   const router = useRouter();
-  const [currentPageId, setCurrentPageId] = useState<string | null>(pageId);
+  // The latest id, readable from closures captured before the first create
+  // resolved (autosave, the explicit translate save).
+  const pageIdRef = useRef<string | null>(pageId);
   const [activeLocale, setActiveLocale] = useState<EditorLocale>(initialLocale);
   const [documents, setDocuments] = useState<LocaleDocuments>(() =>
     buildInitialDocuments(initialPage, initialLocale, defaultCampusId)
@@ -173,13 +83,37 @@ export function PageEditorClient({
   const [translatingLocale, setTranslatingLocale] =
     useState<EditorLocale | null>(null);
   const [autoTranslate, setAutoTranslate] = useState(false);
+  // The departments' themes as this session last saw them: a publish that
+  // copies the page's theme updates its department here, so the canvas shows
+  // the colours that are now live.
+  const [departmentList, setDepartmentList] = useState(departments);
+  // Saves run one at a time, each reading the page id the one before it
+  // stored: two saves racing on /pages/new would otherwise both create a row.
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // What the server stored in place of what a save sent: a slug it made
+  // unique, the department it bound the page to. A save queued before that
+  // answer (a locale switch, Translate, the last-chance save) still carries
+  // the sent value and sends the stored one instead, or the update would hit
+  // the slug's unique index. A value typed since is sent as typed.
+  const storedInsteadRef = useRef({
+    department: new Map<string, string>(),
+    slug: new Map<string, string>(),
+  });
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
+  // The theme storage holds, as far as this tab knows: the page's as it
+  // loaded, then each stored save's. It is the theme a publish copies.
+  const storedThemeRef = useRef<PageDoc["meta"]["theme"]>(
+    initialPage ? documents[initialLocale]?.meta.theme : undefined
+  );
 
   const activeDoc =
     documents[activeLocale] ??
-    emptyDoc({
+    blankPageDoc({
+      defaultCampusId,
       locale: activeLocale,
-      slug: initialPage?.page.slug,
-      department: initialPage?.page.departmentId,
+      page: initialPage?.page,
+      translation: initialPage?.translations[activeLocale],
     });
 
   const localeOptions = useMemo<EditorLocaleOption[]>(
@@ -192,29 +126,92 @@ export function PageEditorClient({
     [availableLocales, documents]
   );
 
-  async function handleSave(doc: PageDoc, locale: EditorLocale) {
-    const result = await savePageEditorDoc({ id: currentPageId, doc, locale });
+  function handleSave(doc: PageDoc, locale: EditorLocale): Promise<StoredMeta> {
+    const save = saveQueueRef.current.then(() => storeDoc(doc, locale));
+    saveQueueRef.current = save.catch(() => undefined);
+    return save;
+  }
+
+  /**
+   * The editor's last-chance save, when it unmounts or the page is hidden
+   * with a save pending. It is the queued save above: a server action is a
+   * plain POST that can't be sent with `keepalive` or `sendBeacon`, so when
+   * the tab is closing the browser may cancel it. That is why the editor asks
+   * before the tab closes while a save is pending; leaving for another admin
+   * page keeps this document alive and the save completes.
+   */
+  function handleFlush(
+    doc: PageDoc,
+    locale: EditorLocale
+  ): Promise<StoredMeta> {
+    return handleSave(doc, locale);
+  }
+
+  function withStoredInstead(doc: PageDoc): PageDoc {
+    const { department, slug } = storedInsteadRef.current;
+    const meta = { ...doc.meta };
+    meta.department = department.get(meta.department) ?? meta.department;
+    meta.slug = slug.get(meta.slug) ?? meta.slug;
+    return meta.department === doc.meta.department &&
+      meta.slug === doc.meta.slug
+      ? doc
+      : { ...doc, meta };
+  }
+
+  async function storeDoc(
+    queued: PageDoc,
+    locale: EditorLocale
+  ): Promise<StoredMeta> {
+    const doc = withStoredInstead(queued);
+    const result = await savePageEditorDoc({
+      id: pageIdRef.current,
+      doc,
+      locale,
+    });
     if ("error" in result) {
       throw new Error(result.error);
     }
-    if (result.slug && result.slug !== doc.meta.slug) {
-      const docWithResolvedSlug = {
-        ...doc,
-        meta: { ...doc.meta, slug: result.slug },
-      };
-      setDocuments((current) =>
-        syncSharedMeta(
-          { ...current, [locale]: docWithResolvedSlug },
-          locale,
-          docWithResolvedSlug
-        )
+    const instead = storedInsteadRef.current;
+    if (result.slug !== doc.meta.slug) {
+      instead.slug.set(doc.meta.slug, result.slug);
+    }
+    if (result.department !== doc.meta.department) {
+      instead.department.set(doc.meta.department, result.department);
+    }
+    // The server may have stored another slug (made unique) or department
+    // (a department user's page is bound to their department). Every locale
+    // takes it, so the Theme panel's scope line and the canvas match what
+    // Publish will do.
+    const stored: StoredMeta = {
+      department: result.department,
+      slug: result.slug,
+      themeDropped: result.themeDropped,
+    };
+    storedThemeRef.current = result.themeDropped ? undefined : doc.meta.theme;
+    setDocuments((current) => {
+      const next = withStoredMeta(
+        current,
+        { department: doc.meta.department, slug: doc.meta.slug },
+        stored
       );
+      // The department already has the theme the server dropped: no locale
+      // may save it back, as after a publish that copied it. One picked
+      // since this save went out stays.
+      return stored.themeDropped
+        ? withoutDroppedTheme(next, locale, doc.meta.theme)
+        : next;
+    });
+    if (!pageIdRef.current && "pageId" in result) {
+      pageIdRef.current = result.pageId;
+      // Not router.replace: that remounts the editor and re-hydrates from the
+      // server copy, dropping edits made during the save round-trip. Only
+      // while the editor is still at /pages/new: a create that finishes after
+      // the editor was left must not rewrite the address of the page shown.
+      if (NEW_PAGE_PATH.test(window.location.pathname)) {
+        window.history.replaceState(null, "", `/pages/${result.pageId}`);
+      }
     }
-    if (!currentPageId && "pageId" in result) {
-      setCurrentPageId(result.pageId);
-      router.replace(`/pages/${result.pageId}`);
-    }
-    return { slug: result.slug };
+    return stored;
   }
 
   function handleDocChange(doc: PageDoc, locale: EditorLocale) {
@@ -231,12 +228,12 @@ export function PageEditorClient({
       }
       return {
         ...current,
-        [locale]: emptyDoc({
+        [locale]: blankPageDoc({
+          defaultCampusId,
           locale,
-          slug: activeDoc.meta.slug,
-          department: activeDoc.meta.department,
-          status: activeDoc.meta.status,
+          page: initialPage?.page,
           source: activeDoc,
+          translation: initialPage?.translations[locale],
         }),
       };
     });
@@ -244,12 +241,7 @@ export function PageEditorClient({
   }
 
   async function handleTranslateLocale(targetLocale: EditorLocale) {
-    const targetDoc = documents[targetLocale];
-    const hasExistingContent = Boolean(
-      targetDoc && (targetDoc.blocks.length > 0 || targetDoc.meta.title.trim())
-    );
-
-    if (hasExistingContent) {
+    if (hasExistingContent(documents[targetLocale])) {
       setPendingTranslateLocale(targetLocale);
       return;
     }
@@ -280,10 +272,7 @@ export function PageEditorClient({
         ...result.translatedDocument,
         meta: {
           ...result.translatedDocument.meta,
-          slug: activeDoc.meta.slug,
-          department: activeDoc.meta.department,
-          status: activeDoc.meta.status,
-          accentColor: activeDoc.meta.accentColor,
+          ...pickSharedMeta(activeDoc.meta),
         },
       };
 
@@ -295,6 +284,9 @@ export function PageEditorClient({
         )
       );
       setActiveLocale(targetLocale);
+      // The editor autosaves only real edits, and a generated draft opens as
+      // the locale's loaded document, so it is stored here.
+      await handleSave(translatedDocument, targetLocale);
       toast.success(
         `Translated ${LOCALE_LABELS[activeLocale]} to ${LOCALE_LABELS[targetLocale]}`
       );
@@ -326,46 +318,124 @@ export function PageEditorClient({
     router.push("/pages");
   }
 
-  // Both handlers reject on failure: the editor shell mirrors a resolved
-  // publish/unpublish into its own status, so resolving after a failure
-  // would mark a page published that is not.
-  async function handlePublish(locale: EditorLocale) {
-    if (!currentPageId) {
-      toast.error("Save the page first before publishing.");
-      throw new Error("Page not saved yet");
+  /**
+   * The page to publish. A page that was never created (an unedited
+   * /pages/new) has nothing to publish: a real edit is stored by the editor
+   * before Publish reaches here. Waits for every queued save first, so the
+   * publish copies the latest draft.
+   */
+  async function pageIdForPublish(): Promise<string> {
+    await saveQueueRef.current;
+    const id = pageIdRef.current;
+    if (!id) {
+      toast.error(SAVE_PAGE_FIRST);
+      throw new Error(SAVE_PAGE_FIRST);
     }
+    return id;
+  }
+
+  /**
+   * Store this tab's copy of `locale`, which the server has no row for: a
+   * language opened but never edited exists only here.
+   */
+  async function saveLocaleForPublish(locale: EditorLocale): Promise<void> {
+    const doc = documentsRef.current[locale];
     try {
-      const result = await publishPageAction(currentPageId, locale, {
+      if (!doc) {
+        throw new Error(`No ${LOCALE_LABELS[locale]} document to save`);
+      }
+      await handleSave(doc, locale);
+    } catch (err) {
+      console.error("[PageEditor publish] saving the language failed", err);
+      toast.error(SAVE_LOCALE_FIRST, {
+        description: err instanceof Error ? err.message : undefined,
+      });
+      throw err;
+    }
+  }
+
+  async function publishOnce(id: string, locale: EditorLocale) {
+    try {
+      return await publishPageAction(id, locale, {
         enabled: autoTranslate,
         sourceLocale: locale,
       });
-      setDocuments((current) => {
-        const doc = current[locale];
-        if (!doc) {
-          return current;
-        }
-        return {
-          ...current,
-          [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
-        };
-      });
-      toast.success(
-        result.translationQueued
-          ? "Page published. Translation queued."
-          : "Page published to biso.no"
-      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publish failed");
       throw err;
     }
   }
 
+  // Both handlers reject on failure: the editor shell mirrors a resolved
+  // publish/unpublish into its own status, so resolving after a failure
+  // would mark a page published that is not.
+  async function handlePublish(locale: EditorLocale): Promise<PublishOutcome> {
+    const id = await pageIdForPublish();
+    // Publish what the server holds. Only when it has no row for this
+    // language is this tab's copy saved, then the publish tried once more: a
+    // translation created meanwhile (by auto-translate or another tab) must
+    // never be replaced by the blank copy this tab still shows.
+    // The theme the publish copies to the department is the stored one; a
+    // theme picked while it is on its way is not part of it.
+    let publishedTheme = storedThemeRef.current;
+    let result = await publishOnce(id, locale);
+    if (result.missingTranslation) {
+      await saveLocaleForPublish(locale);
+      publishedTheme = storedThemeRef.current;
+      result = await publishOnce(id, locale);
+    }
+    if (result.missingTranslation) {
+      toast.error(SAVE_LOCALE_FIRST);
+      throw new Error(SAVE_LOCALE_FIRST);
+    }
+    const published = result;
+    if (published.themeCopied) {
+      // The server stripped the theme from every stored draft.
+      storedThemeRef.current = undefined;
+    }
+    setDocuments((current) => {
+      const doc = current[locale];
+      const next = doc
+        ? {
+            ...current,
+            [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
+          }
+        : current;
+      // The department owns the published theme now; no locale may save it
+      // back. One picked while the publish was on its way stays, and the
+      // editor saves it again after the server's strip.
+      return published.themeCopied
+        ? withoutDroppedTheme(next, locale, publishedTheme)
+        : next;
+    });
+    setDepartmentList((current) =>
+      withDepartmentTheme(current, published.departmentTheme)
+    );
+    if (published.themeCopyFailed) {
+      toast.warning(
+        "Published, but the department colours couldn't be updated. Try publishing again."
+      );
+    } else {
+      toast.success(
+        published.translationQueued
+          ? "Page published. Translation queued."
+          : "Page published to biso.no"
+      );
+    }
+    return { themeCopied: published.themeCopied };
+  }
+
+  function handlePublishSaveFailed() {
+    toast.error(LATEST_NOT_SAVED);
+  }
+
   async function handleUnpublish(locale: EditorLocale) {
-    if (!currentPageId) {
+    const id = pageIdRef.current;
+    if (!id) {
       throw new Error("Page not saved yet");
     }
     try {
-      await unpublishPageAction(currentPageId, locale);
+      await unpublishPageAction(id, locale);
       setDocuments((current) => {
         const doc = current[locale];
         if (!doc) {
@@ -388,14 +458,16 @@ export function PageEditorClient({
       <EditorShell
         activeLocale={activeLocale}
         campuses={campuses}
-        departments={departments}
+        departments={departmentList}
         initial={activeDoc}
         locales={localeOptions}
         lockedMeta={lockedMeta}
         onDocChange={handleDocChange}
         onExit={handleExit}
+        onFlush={handleFlush}
         onLocaleChange={handleLocaleChange}
         onPublish={handlePublish}
+        onPublishSaveFailed={handlePublishSaveFailed}
         onTranslateLocale={handleTranslateLocale}
         onUnpublish={handleUnpublish}
         savePage={handleSave}

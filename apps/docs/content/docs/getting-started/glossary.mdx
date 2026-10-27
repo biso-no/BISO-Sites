@@ -88,11 +88,15 @@ description: Quick lookup for every acronym, product name, and proper noun used 
 
 - **PageDoc** — The JSON shape `{ blocks, meta }` representing one locale of
   one page.
-- **Block** — A unit of layout (hero, text, gallery, ...). 37 types in the
-  registry.
-- **`draft_document`** / **`puck_document`** — The two JSON columns on
-  `page_translations`. Draft is work in progress; `puck_document` (named
-  historically) holds the published version.
+- **Block** — A unit of content (text, gallery, events, ...) that sits in a
+  section's column. 30 types in the registry.
+- **Section** — A band of the page with one to four columns, a background
+  (white, tinted, dark, photo) and spacing. A page is a header plus sections.
+- **Theme** — A page's or department's `{ dark, accent }` colour pair, checked
+  for contrast. See [Editor architecture](/docs/architecture/editor-architecture).
+- **`draft_doc`** / **`published_doc`** — The two JSON columns on
+  `page_translations`. Draft is work in progress; `published_doc` holds the
+  published version. (`draft_document` / `puck_document` are old, unused.)
 - **`EditorShell`** — The editor UI entry component (admin only).
 - **`PageDoc` renderer** — The read-only renderer used by the public site.
 
@@ -150,6 +154,6 @@ description: Quick lookup for every acronym, product name, and proper noun used 
   `apps/api` proxies a few endpoints for backward compatibility but the
   WooCommerce connector in `@repo/connectors` is otherwise dead code.
 - **Puck** — A page-builder library this platform used historically. The
-  `page_translations.puck_document` column name is the only thing left of it
+  unused `page_translations.puck_document` column is the only thing left of it
   in the schema; everything else has moved to `@repo/editor`. **Do not
   re-introduce Puck.**

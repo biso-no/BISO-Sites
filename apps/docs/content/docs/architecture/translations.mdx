@@ -89,19 +89,15 @@ pages (one row per page)
 page_translations (one row per locale per page)
   ├─ page_id
   ├─ locale: "no" | "en"
-  ├─ draft_document: PageDoc (JSON) — work in progress
-  └─ puck_document: PageDoc (JSON) — published (historical name)
+  ├─ draft_doc: PageDoc v2 (JSON) — work in progress
+  └─ published_doc: PageDoc v2 (JSON) — published
 ```
 
-**Both `draft_document` and `puck_document` exist per locale.** That
+**Both `draft_doc` and `published_doc` exist per locale.** That
 means you can publish Norwegian today and English tomorrow — they
 have independent draft and published states. See
 [Pages publish flow](/docs/architecture/pages-publish-flow) for the
 full lifecycle.
-
-`puck_document` is named for [Puck](https://puckeditor.com), the
-editor library we used before building `@repo/editor`. The column
-kept its name through the migration.
 
 ### Reading
 
@@ -110,15 +106,15 @@ import { getPage } from "@repo/api/page-builder";
 
 // Public site
 const page = await getPage("oslo/career", "no");
-// page.doc is the PageDoc from puck_document for the matching locale
+// page.doc is the PageDoc from published_doc for the matching locale
 ```
 
 ### Writing
 
 The editor calls `savePageDraft({ id, doc, locale, ctx })`. It locates
 the `page_translations` row for `(page_id, locale)`, upserts it, and
-writes `doc` to `draft_document`. Publishing copies it to
-`puck_document`.
+writes `doc` to `draft_doc`. Publishing copies it to
+`published_doc`.
 
 ---
 
@@ -188,9 +184,9 @@ re-implementing the join.
 The admin app exposes an AI translation endpoint at
 `POST /api/translate-page` (in `apps/admin/src/app/api/translate-page/route.ts`).
 It uses OpenAI via `@repo/ai` and is tailored for the page case
-specifically — it walks a `PageDoc`'s blocks, finds translatable
+specifically — it walks a `PageDoc`'s sections and blocks, finds translatable
 string fields, translates them in place, and writes the result back to
-the target locale's `draft_document`.
+the target locale's `draft_doc`.
 
 ### Deep translation paths
 

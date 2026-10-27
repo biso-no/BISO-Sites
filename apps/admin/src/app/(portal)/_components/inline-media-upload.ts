@@ -1,4 +1,6 @@
+import { CHUNK_BYTES } from "@repo/api/storage";
 import type { InlineMediaUpload } from "@/lib/inline-media";
+import { sendInChunks } from "@/lib/upload-client";
 
 type Fetcher = (
   input: RequestInfo | URL,
@@ -41,10 +43,18 @@ async function readResponseBody(response: Response): Promise<unknown> {
   }
 }
 
-export async function uploadInlineMedia(
+/** Files over 5 MiB go up in chunks; the rest in one request. */
+async function send(
   file: File,
-  fetcher: Fetcher = fetch
-): Promise<InlineMediaUpload> {
+  fetcher: Fetcher
+): Promise<{ body: unknown; ok: boolean }> {
+  if (file.size > CHUNK_BYTES) {
+    return await sendInChunks(file, {
+      endpoint: "/api/media/upload?chunk=1",
+      fetcher,
+      mime: file.type,
+    });
+  }
   const response = await fetcher("/api/media/upload", {
     body: file,
     headers: {
@@ -53,9 +63,16 @@ export async function uploadInlineMedia(
     },
     method: "POST",
   });
-  const body = await readResponseBody(response);
+  return { body: await readResponseBody(response), ok: response.ok };
+}
 
-  if (!response.ok) {
+export async function uploadInlineMedia(
+  file: File,
+  fetcher: Fetcher = fetch
+): Promise<InlineMediaUpload> {
+  const { body, ok } = await send(file, fetcher);
+
+  if (!ok) {
     const message =
       isRecord(body) && typeof body.error === "string"
         ? body.error

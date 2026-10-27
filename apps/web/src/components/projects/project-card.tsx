@@ -1,72 +1,87 @@
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Card } from "@repo/ui/components/ui/card";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { paletteBackground } from "@/components/projects/project-palette";
+import { ChevronFrame } from "@/components/ui/chevron-frame";
+import { Pill } from "@/components/ui/pill";
 
 interface ProjectCardProps {
   badge: string;
   ctaLabel: string;
   description: string;
   formattedDate?: string;
-  gradient: string[];
   href: string;
+  /**
+   * The project's own palette, from its `large_event` row — `gradientHex`, or
+   * its primary and secondary colours. `null` when the row carries none, which
+   * today is every project (PLACEHOLDER-011): no stand-in colour is drawn.
+   */
+  palette: string[] | null;
   title: string;
   variant: "featured" | "schedule";
 }
 
 /**
- * Event card used by both the featured grid and the schedule grid on /projects.
- * Carries a per-project gradient accent bar, a category badge, a line-clamped
- * description, an optional formatted date, and an animated arrow CTA. Wrap the
- * call site in a `motion.div` for staggered scroll-in.
+ * One project on `/projects` — the featured grid and the schedule share it.
+ *
+ * Bordered, not shadowed, and no hover lift (spec §1.8, §1.9). When a project
+ * row supplies its own colours, the chevron frame carries them: spec §7.4's
+ * "container for identity", which lets a flagship keep its palette inside
+ * BISO's frame instead of repainting the card.
  */
 export function ProjectCard({
   badge,
   ctaLabel,
   description,
   formattedDate,
-  gradient,
   href,
+  palette,
   title,
   variant,
 }: ProjectCardProps) {
-  const accent = `linear-gradient(90deg, ${gradient.join(", ")})`;
   const isFeatured = variant === "featured";
 
   return (
-    <Link className="block h-full" href={href}>
-      <Card className="group flex h-full flex-col overflow-hidden border border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand/30 hover:shadow-xl">
-        <div className="h-1.5 w-full shrink-0" style={{ background: accent }} />
-        <div className="flex flex-1 flex-col gap-3 p-6">
-          <Badge
-            className="w-fit uppercase tracking-wide"
-            variant={isFeatured ? "secondary" : "outline"}
-          >
-            {badge}
-          </Badge>
-          <h3
-            className={cn(
-              "font-semibold text-foreground transition-colors group-hover:text-brand",
-              isFeatured ? "text-2xl" : "text-lg"
-            )}
-          >
-            {title}
-          </h3>
-          <p className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
-            {description}
-          </p>
-          <div className="mt-auto flex items-center justify-between gap-3 pt-2">
-            <span className="text-muted-foreground text-xs">
-              {formattedDate ?? ""}
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium text-brand text-sm">
-              {ctaLabel}
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </span>
-          </div>
-        </div>
-      </Card>
+    <Link
+      className="group flex h-full flex-col rounded-biso-md border border-edge p-6 transition-colors hover:border-ink-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      href={href}
+    >
+      {palette && palette.length > 0 ? (
+        <ChevronFrame className="mb-5" ratio="21/9">
+          <span
+            aria-hidden="true"
+            className="block size-full"
+            style={{ background: paletteBackground(palette) }}
+          />
+        </ChevronFrame>
+      ) : null}
+
+      <span className="flex">
+        <Pill tone="accent" uppercase>
+          {badge}
+        </Pill>
+      </span>
+
+      <h3
+        className={cn(
+          "mt-3 break-words text-ink group-hover:text-ink-accent",
+          isFeatured ? "type-display-sm" : "type-heading-card"
+        )}
+      >
+        {title}
+      </h3>
+
+      <p className="type-body-sm mt-2 line-clamp-3 text-ink-muted">
+        {description}
+      </p>
+
+      <span className="mt-auto flex items-center justify-between gap-3 pt-5">
+        <span className="type-data text-ink-muted">{formattedDate ?? ""}</span>
+        <span className="type-label inline-flex items-center gap-1 text-ink-accent">
+          {ctaLabel}
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </span>
+      </span>
     </Link>
   );
 }

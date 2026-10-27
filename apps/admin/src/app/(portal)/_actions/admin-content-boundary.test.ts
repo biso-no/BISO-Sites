@@ -73,7 +73,9 @@ mock.module("./audit-log", () => ({
 
 const { listDrafts } = await import("./drafts");
 const { searchEverything } = await import("./palette-search");
-const { listDepartmentsForCampus } = await import("./lookups");
+const { listDepartmentsForCampus, listJobDepartmentsForCampus } = await import(
+  "./lookups"
+);
 const { getInboxCounts } = await import("./inbox");
 
 beforeEach(() => {
@@ -213,6 +215,74 @@ describe("department lookup boundary", () => {
     const rows = await listDepartmentsForCampus("campus-oslo");
 
     expect(rows).toHaveLength(2);
+  });
+
+  test("national HR sees every department in any campus plus HR in the job studio", async () => {
+    currentCtx = makeCtx({
+      campusNames: ["National"],
+      departmentNames: ["HR"],
+      departmentTeamIds: ["sg-app-dept-hr"],
+      resolvedCampusIds: ["5"],
+      resolvedDepartmentIds: ["dept-hr"],
+      roles: ["hr", "hradmin"],
+    });
+    adminDb.listRows.mockResolvedValue({
+      rows: [
+        { $id: "dept-2", Name: "Fadderuka", campus_id: "1" },
+        { $id: "dept-hr", Name: "HR", campus_id: "5" },
+        { $id: "dept-1", Name: "Sosialutvalget", campus_id: "1" },
+      ],
+      total: 3,
+    });
+
+    const rows = await listJobDepartmentsForCampus("1");
+
+    expect(rows.map((row) => row.$id)).toEqual(["dept-2", "dept-hr", "dept-1"]);
+    expect(adminDb.listRows).toHaveBeenCalledWith(
+      "app",
+      "departments",
+      expect.arrayContaining([
+        Query.or([
+          Query.equal("campus_id", "1"),
+          Query.equal("Name", ["HR", "HR Unit", "HRUnit"]),
+        ]),
+      ])
+    );
+  });
+
+  test("campus HR sees every department in their campus plus national HR, and nothing for other campuses", async () => {
+    currentCtx = makeCtx({
+      campusNames: ["Oslo"],
+      departmentNames: ["HR"],
+      departmentTeamIds: ["sg-app-dept-hr"],
+      resolvedCampusIds: ["1"],
+      resolvedDepartmentIds: ["dept-hr"],
+      roles: ["hr"],
+    });
+    adminDb.listRows.mockResolvedValue({
+      rows: [
+        { $id: "dept-hr", Name: "HR", campus_id: "5" },
+        { $id: "dept-1", Name: "Sosialutvalget", campus_id: "1" },
+      ],
+      total: 2,
+    });
+
+    const osloRows = await listJobDepartmentsForCampus("1");
+    expect(osloRows.map((row) => row.$id)).toEqual(["dept-hr", "dept-1"]);
+
+    adminDb.listRows.mockClear();
+    const bergenRows = await listJobDepartmentsForCampus("2");
+    expect(bergenRows).toEqual([]);
+    expect(adminDb.listRows).not.toHaveBeenCalled();
+  });
+
+  test("non-HR department authors cannot list job studio departments", async () => {
+    currentCtx = departmentCtx;
+
+    const rows = await listJobDepartmentsForCampus("campus-oslo");
+
+    expect(rows).toEqual([]);
+    expect(adminDb.listRows).not.toHaveBeenCalled();
   });
 });
 

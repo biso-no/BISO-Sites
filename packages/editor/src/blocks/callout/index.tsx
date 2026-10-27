@@ -18,7 +18,7 @@ function CalloutThumb() {
         x="3"
         y="9"
       />
-      <circle cx="8" cy="15" fill="var(--gold)" r="2" />
+      <circle cx="8" cy="15" fill="var(--ink-3)" r="2" />
       <rect fill={s} height="1.5" width="14" x="13" y="14" />
     </svg>
   );
@@ -29,6 +29,7 @@ registerBlock({
   label: "Callout",
   description: "An info box with an icon",
   category: "Tell a story",
+  group: "text",
   aiHint: "A highlighted info or warning box.",
   aiProps: ["title", "body"],
   empty: () => emptyBlock("callout") as never,

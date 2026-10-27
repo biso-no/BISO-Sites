@@ -2,24 +2,12 @@ import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type { Orders } from "@repo/api/types/appwrite";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
-import { Card } from "@repo/ui/components/ui/card";
-import { Separator } from "@repo/ui/components/ui/separator";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { format } from "date-fns";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Clock,
-  MapPin,
-  Package,
-  Receipt,
-  Sparkles,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, MapPin, Receipt, XCircle } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import { getOrder, verifyOrder } from "@/app/actions/orders";
 import { CartResetOnSuccess } from "@/components/shop/cart-reset-on-success";
 import { OrderActionsClient } from "@/components/shop/order-details-client";
@@ -28,7 +16,9 @@ import {
   type ReceiptItem,
 } from "@/components/shop/order-receipt";
 import { PurchaseTracker } from "@/components/shop/purchase-tracker";
-import { ShopHeroShell } from "@/components/shop/shop-hero-shell";
+import { ShopPageShell } from "@/components/shop/v2/shop-page-shell";
+import { DetailSkeleton } from "@/components/ui/loading-shell";
+import { Pill, type PillTone } from "@/components/ui/pill";
 import { upcomingMembershipStart } from "@/lib/membership-order-start";
 import { normalizeCampusKey } from "@/lib/shop/pickup-locations";
 
@@ -45,47 +35,15 @@ type OrderStatusKey =
   | "failed"
   | "refunded";
 
-// Visual config only — labels/descriptions are localized at render time.
-const statusVisual: Record<
-  OrderStatusKey,
-  { Icon: typeof Clock; color: string; bg: string; border: string }
-> = {
-  pending: {
-    Icon: Clock,
-    color: "text-orange-600",
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-  },
-  authorized: {
-    Icon: Clock,
-    color: "text-brand",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-  },
-  paid: {
-    Icon: CheckCircle2,
-    color: "text-green-600",
-    bg: "bg-green-50",
-    border: "border-green-200",
-  },
-  cancelled: {
-    Icon: XCircle,
-    color: "text-muted-foreground",
-    bg: "bg-section",
-    border: "border-border",
-  },
-  failed: {
-    Icon: XCircle,
-    color: "text-red-600",
-    bg: "bg-red-50",
-    border: "border-red-200",
-  },
-  refunded: {
-    Icon: XCircle,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-  },
+// Visual config only — labels/descriptions are localized at render time. The
+// pill's words carry the state; the tone repeats it.
+const statusTone: Record<OrderStatusKey, PillTone> = {
+  pending: "warning",
+  authorized: "accent",
+  paid: "success",
+  cancelled: "neutral",
+  failed: "danger",
+  refunded: "neutral",
 };
 
 const statusLabelKey: Record<OrderStatusKey, string> = {
@@ -105,6 +63,9 @@ const statusDescKey: Record<OrderStatusKey, string> = {
   failed: "failedDesc",
   refunded: "refundedDesc",
 };
+
+/** A bordered panel on the paper surface — the order page's one card shape. */
+const PANEL = "rounded-biso-md border border-edge bg-surface-raised p-6";
 
 interface RawOrderItem {
   custom_fields?: { id: string; label: string; value: string }[];
@@ -138,6 +99,23 @@ function resolvePurchaseType(
   return membershipCount === items.length ? "membership" : "mixed";
 }
 
+function DetailRow({
+  label,
+  value,
+  className = "text-ink",
+}: {
+  className?: string;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-1.5">
+      <dt className="type-body-sm text-ink-muted">{label}</dt>
+      <dd className={`type-body-sm min-w-0 text-end ${className}`}>{value}</dd>
+    </div>
+  );
+}
+
 async function StatusBanner({
   order,
   isSuccess,
@@ -152,23 +130,24 @@ async function StatusBanner({
 
   if (showSuccess) {
     return (
-      <div className="mb-8 rounded-3xl border border-green-200 bg-green-50 p-6">
-        <div className="flex items-start gap-4">
-          <CheckCircle2 className="h-8 w-8 shrink-0 text-green-600" />
-          <div>
-            <h2 className="mb-2 font-bold text-2xl text-foreground">
-              {t("order.success.title")}
-            </h2>
-            <p className="mb-4 text-muted-foreground">
-              {t("order.success.desc")}
-            </p>
-            {order.payment_receipt_url ? (
+      <div className="mb-8 flex items-start gap-4 rounded-biso-md border border-success/30 bg-success/10 p-6">
+        <CheckCircle2
+          aria-hidden="true"
+          className="mt-0.5 size-6 shrink-0 text-success"
+        />
+        <div className="min-w-0">
+          <h2 className="type-heading-section text-ink">
+            {t("order.success.title")}
+          </h2>
+          <p className="type-body mt-2 text-ink">{t("order.success.desc")}</p>
+          {order.payment_receipt_url ? (
+            <div className="mt-4">
               <OrderActionsClient
                 receiptUrl={order.payment_receipt_url}
                 type="receipt"
               />
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -178,21 +157,26 @@ async function StatusBanner({
     const isCancelled = status === "cancelled";
     return (
       <div
-        className={`mb-8 rounded-3xl border p-6 ${statusVisual[status].border} ${statusVisual[status].bg}`}
+        className={`mb-8 flex items-start gap-4 rounded-biso-md border p-6 ${
+          isCancelled
+            ? "border-edge bg-surface-sunken"
+            : "border-danger/30 bg-danger/10"
+        }`}
       >
-        <div className="flex items-start gap-4">
-          <XCircle
-            className={`h-8 w-8 shrink-0 ${statusVisual[status].color}`}
-          />
-          <div>
-            <h2 className="mb-2 font-bold text-2xl text-foreground">
-              {isCancelled
-                ? t("order.cancelled.title")
-                : t("order.failed.title")}
-            </h2>
-            <p className="mb-4 text-muted-foreground">
-              {isCancelled ? t("order.cancelled.desc") : t("order.failed.desc")}
-            </p>
+        <XCircle
+          aria-hidden="true"
+          className={`mt-0.5 size-6 shrink-0 ${
+            isCancelled ? "text-ink-muted" : "text-danger"
+          }`}
+        />
+        <div className="min-w-0">
+          <h2 className="type-heading-section text-ink">
+            {isCancelled ? t("order.cancelled.title") : t("order.failed.title")}
+          </h2>
+          <p className="type-body mt-2 text-ink">
+            {isCancelled ? t("order.cancelled.desc") : t("order.failed.desc")}
+          </p>
+          <div className="mt-4">
             <OrderActionsClient type="cart" />
           </div>
         </div>
@@ -210,28 +194,31 @@ async function CustomerInfoCard({ order }: { order: Orders }) {
   }
 
   return (
-    <Card className="rounded-3xl border border-border/60 p-6 shadow-sm">
-      <h3 className="mb-4 font-bold text-foreground">
+    <section className={PANEL}>
+      <h2 className="type-heading-card text-ink">
         {t("order.customer.title")}
-      </h3>
-      <div className="space-y-2 text-sm">
+      </h2>
+      <dl className="mt-3">
         {order.buyer_name ? (
-          <div>
-            <strong>{t("order.customer.name")}:</strong> {order.buyer_name}
-          </div>
+          <DetailRow
+            label={t("order.customer.name")}
+            value={order.buyer_name}
+          />
         ) : null}
         {order.buyer_email ? (
-          <div>
-            <strong>{t("order.customer.email")}:</strong> {order.buyer_email}
-          </div>
+          <DetailRow
+            label={t("order.customer.email")}
+            value={<span className="break-all">{order.buyer_email}</span>}
+          />
         ) : null}
         {order.buyer_phone ? (
-          <div>
-            <strong>{t("order.customer.phone")}:</strong> {order.buyer_phone}
-          </div>
+          <DetailRow
+            label={t("order.customer.phone")}
+            value={order.buyer_phone}
+          />
         ) : null}
-      </div>
-    </Card>
+      </dl>
+    </section>
   );
 }
 
@@ -253,29 +240,24 @@ async function MembershipWelcomeCard({
       })
     : null;
   return (
-    <Card className="rounded-3xl border border-brand-border bg-brand-muted p-6 shadow-sm">
-      <div className="flex items-start gap-3">
-        <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-        <div>
-          <h4 className="mb-2 font-semibold text-foreground">
-            {start
-              ? t("order.membershipWelcome.upcomingTitle")
-              : t("order.membershipWelcome.title")}
-          </h4>
-          <p className="mb-4 text-muted-foreground text-sm">
-            {start
-              ? t("order.membershipWelcome.upcomingDesc", { start })
-              : t("order.membershipWelcome.desc")}
-          </p>
-          <Link
-            className="font-medium text-brand text-sm hover:underline"
-            href="/member"
-          >
-            {t("order.membershipWelcome.cta")}
-          </Link>
-        </div>
-      </div>
-    </Card>
+    <section className="rounded-biso-md bg-surface-sunken p-6">
+      <h2 className="type-heading-card text-ink">
+        {start
+          ? t("order.membershipWelcome.upcomingTitle")
+          : t("order.membershipWelcome.title")}
+      </h2>
+      <p className="type-body-sm mt-2 text-ink-muted">
+        {start
+          ? t("order.membershipWelcome.upcomingDesc", { start })
+          : t("order.membershipWelcome.desc")}
+      </p>
+      <Link
+        className="type-label mt-4 inline-flex text-ink-accent underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        href="/member"
+      >
+        {t("order.membershipWelcome.cta")}
+      </Link>
+    </section>
   );
 }
 
@@ -312,26 +294,22 @@ function SecondaryInfoCard({
 async function PickupInfoCard({ pickupLocation }: { pickupLocation: string }) {
   const t = await getTranslations("shop");
   return (
-    <Card className="rounded-3xl border border-brand-border bg-brand-muted p-6 shadow-sm">
-      <div className="flex items-start gap-3">
-        <Package className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-        <div>
-          <h4 className="mb-2 font-semibold text-foreground">
-            {t("order.pickup.title")}
-          </h4>
-          <p className="mb-2 text-muted-foreground text-sm">
-            {t("order.pickup.desc")}
-          </p>
-          <div className="flex items-center gap-2 text-foreground text-sm">
-            <MapPin className="h-4 w-4 text-brand" />
-            <span className="font-medium">{pickupLocation}</span>
-          </div>
-          <p className="mt-3 text-muted-foreground text-xs">
-            {t("order.pickup.emailNote")}
-          </p>
-        </div>
-      </div>
-    </Card>
+    <section className="rounded-biso-md bg-surface-sunken p-6">
+      <h2 className="type-heading-card text-ink">{t("order.pickup.title")}</h2>
+      <p className="type-body-sm mt-2 text-ink-muted">
+        {t("order.pickup.desc")}
+      </p>
+      <p className="type-body-sm mt-3 flex items-center gap-2 text-ink">
+        <MapPin
+          aria-hidden="true"
+          className="size-4 shrink-0 text-ink-accent"
+        />
+        <span className="font-semibold">{pickupLocation}</span>
+      </p>
+      <p className="type-body-sm mt-3 text-ink-muted">
+        {t("order.pickup.emailNote")}
+      </p>
+    </section>
   );
 }
 
@@ -343,89 +321,88 @@ async function OrderItemsCard({
   items: RawOrderItem[];
 }) {
   const t = await getTranslations("shop");
+  const money = (value: number) => `${value.toFixed(2)} ${order.currency}`;
 
   return (
-    <Card className="rounded-3xl border border-border/60 p-6 shadow-sm">
-      <h2 className="mb-6 font-bold text-foreground text-xl">
+    <section className={PANEL}>
+      <h2 className="type-heading-section text-ink">
         {t("order.items.title")}
       </h2>
-      <div className="space-y-4">
+      <ul className="mt-2 divide-y divide-edge">
         {items.map((item, index) => {
           const itemName = item.title || item.name || "Product";
           const itemPrice = item.unit_price ?? item.price ?? 0;
           return (
-            <div
-              className="flex gap-4 rounded-2xl bg-section/50 p-4"
+            <li
+              className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 py-4"
               key={`${itemName}-${index}`}
             >
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground">{itemName}</h3>
-                <div className="mt-1 text-muted-foreground text-sm">
+              <div className="min-w-0">
+                <h3 className="type-heading-card text-ink">{itemName}</h3>
+                <p className="type-body-sm mt-1 text-ink-muted">
                   {t("order.items.quantity")}: {item.quantity}
-                </div>
+                </p>
                 {item.variation_name ? (
-                  <div className="mt-1 text-muted-foreground text-sm">
+                  <p className="type-body-sm mt-1 text-ink-muted">
                     {t("order.items.variant")}: {item.variation_name}
-                  </div>
+                  </p>
                 ) : null}
                 {item.custom_fields?.length ? (
-                  <div className="mt-2 space-y-1 text-muted-foreground text-sm">
+                  <dl className="type-body-sm mt-2 space-y-1 text-ink-muted">
                     {item.custom_fields.map((field) => (
                       <div key={field.id}>
-                        <strong>{field.label}:</strong> {field.value}
+                        <dt className="inline font-semibold text-ink">
+                          {field.label}:
+                        </dt>{" "}
+                        <dd className="inline">{field.value}</dd>
                       </div>
                     ))}
-                  </div>
+                  </dl>
                 ) : null}
               </div>
-              <div className="text-right">
-                <div className="font-semibold text-foreground">
-                  {(itemPrice * item.quantity).toFixed(2)} {order.currency}
-                </div>
-                <div className="text-muted-foreground text-sm">
-                  {itemPrice.toFixed(2)} {order.currency}{" "}
-                  {t("order.items.each")}
-                </div>
+              <div className="text-end">
+                <p className="type-data text-ink">
+                  {money(itemPrice * item.quantity)}
+                </p>
+                <p className="type-body-sm text-ink-muted">
+                  {money(itemPrice)} {t("order.items.each")}
+                </p>
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      <Separator className="my-6" />
-
-      <div className="space-y-2">
-        <div className="flex justify-between text-muted-foreground">
-          <span>{t("order.totals.subtotal")}</span>
-          <span>
-            {order.subtotal.toFixed(2)} {order.currency}
-          </span>
-        </div>
+      <dl className="mt-2 border-edge border-t pt-3">
+        <DetailRow
+          label={t("order.totals.subtotal")}
+          value={money(order.subtotal)}
+        />
         {order.discount_total && order.discount_total > 0 ? (
-          <div className="flex justify-between text-green-600">
-            <span>{t("order.totals.discount")}</span>
-            <span>
-              -{order.discount_total.toFixed(2)} {order.currency}
-            </span>
-          </div>
+          <DetailRow
+            className="text-success"
+            label={t("order.totals.discount")}
+            value={`-${money(order.discount_total)}`}
+          />
         ) : null}
-        {order.membership_applied ? (
-          <div className="text-brand text-sm">
-            ✓{" "}
-            {t("order.totals.memberApplied", {
-              percent: order.member_discount_percent ?? 0,
-            })}
-          </div>
-        ) : null}
-        <Separator className="my-2" />
-        <div className="flex justify-between font-bold text-foreground text-xl">
-          <span>{t("order.totals.total")}</span>
-          <span>
-            {order.total.toFixed(2)} {order.currency}
-          </span>
-        </div>
+      </dl>
+      {order.membership_applied ? (
+        <p className="type-body-sm mt-1 flex items-center gap-2 text-ink-accent">
+          <CheckCircle2 aria-hidden="true" className="size-4 shrink-0" />
+          {t("order.totals.memberApplied", {
+            percent: order.member_discount_percent ?? 0,
+          })}
+        </p>
+      ) : null}
+      <div className="mt-3 flex items-baseline justify-between gap-4 border-edge border-t pt-4">
+        <span className="type-heading-card text-ink">
+          {t("order.totals.total")}
+        </span>
+        <span className="type-heading-section text-ink">
+          {money(order.total)}
+        </span>
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -442,6 +419,89 @@ async function resolveCampusName(campusId?: string | null) {
   } catch {
     return null;
   }
+}
+
+/**
+ * The order body, wrapped by `ShopPageShell`. Kept as one component, rendered
+ * once, so the screen view and the print rules have a single body to reason
+ * about.
+ */
+async function OrderBody({
+  isMembershipOnly,
+  isSuccess,
+  membershipStartsOn,
+  order,
+  orderDate,
+  pickupLocation,
+  rawItems,
+  status,
+  statusDesc,
+  statusLabel,
+  tone,
+}: {
+  isMembershipOnly: boolean;
+  isSuccess: boolean;
+  membershipStartsOn: string | null;
+  order: Orders;
+  orderDate: string;
+  pickupLocation: string;
+  rawItems: RawOrderItem[];
+  status: string;
+  statusDesc: string;
+  statusLabel: string;
+  tone: PillTone;
+}) {
+  const t = await getTranslations("shop");
+  return (
+    <>
+      <StatusBanner isSuccess={isSuccess} order={order} />
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-8">
+          <section className={PANEL}>
+            <h2 className="type-heading-section text-ink">
+              {t("order.status.title")}
+            </h2>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Pill tone={tone}>{statusLabel}</Pill>
+              <span className="type-body-sm text-ink-muted">{statusDesc}</span>
+            </div>
+            <dl className="mt-4 border-edge border-t pt-3">
+              <DetailRow label={t("order.status.date")} value={orderDate} />
+              {order.payment_intent_id ? (
+                <DetailRow
+                  label={t("order.status.paymentId")}
+                  value={
+                    <span className="break-all">{order.payment_intent_id}</span>
+                  }
+                />
+              ) : null}
+            </dl>
+          </section>
+
+          <OrderItemsCard items={rawItems} order={order} />
+        </div>
+
+        <div className="space-y-6">
+          <CustomerInfoCard order={order} />
+          <SecondaryInfoCard
+            isMembershipOnly={isMembershipOnly}
+            isPaid={status === "paid"}
+            membershipStartsOn={membershipStartsOn}
+            pickupLocation={pickupLocation}
+          />
+
+          <div className="flex flex-col gap-3">
+            <OrderActionsClient type="shop" />
+            <OrderActionsClient type="print">
+              <Receipt aria-hidden="true" className="size-4" />
+              {t("order.actions.print")}
+            </OrderActionsClient>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }
 
 async function OrderDetails({
@@ -472,8 +532,7 @@ async function OrderDetails({
   }
 
   const status = order.status as OrderStatusKey;
-  const visual = statusVisual[status] ?? statusVisual.pending;
-  const StatusIcon = visual.Icon;
+  const tone = statusTone[status] ?? statusTone.pending;
   const statusLabel = t(`order.status.${statusLabelKey[status] ?? "pending"}`);
   const statusDesc = t(
     `order.status.${statusDescKey[status] ?? "pendingDesc"}`
@@ -482,6 +541,8 @@ async function OrderDetails({
   const rawItems = getOrderItems(order) as RawOrderItem[];
   const purchaseType = resolvePurchaseType(rawItems);
   const isMembershipOnly = purchaseType === "membership";
+  // A membership bought for next season grants nothing until it starts, so
+  // the confirmation says when it starts rather than "you're a member now".
   const membershipStartsOn = upcomingMembershipStart(rawItems);
   const receiptItems: ReceiptItem[] = rawItems.map((item) => ({
     name: item.title || item.name || "Product",
@@ -506,6 +567,10 @@ async function OrderDetails({
   const reservationsCleared =
     isSuccess && (status === "paid" || status === "authorized");
   const heroTitle = t(getHeroTitleKey(showSuccess, isMembershipOnly));
+  const [tCommon, tNav] = await Promise.all([
+    getTranslations("common"),
+    getTranslations("common.navigation"),
+  ]);
 
   return (
     <>
@@ -519,81 +584,34 @@ async function OrderDetails({
         />
       ) : null}
 
-      <div className="min-h-screen bg-linear-to-b from-section to-background print:hidden">
-        <ShopHeroShell
-          eyebrow={
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 font-medium text-sm text-white/85">
-              <StatusIcon className="h-4 w-4 text-brand-accent" />
-              {statusLabel}
-            </span>
-          }
-          heightClass="h-[36vh] min-h-[280px]"
-          subtitle={t("order.orderNumber", { id: orderIdShort })}
-          title={heroTitle}
-          topLeft={
-            <Link
-              className="absolute top-8 left-6 z-10 flex items-center gap-2 text-sm text-white/80 transition-colors hover:text-white sm:left-8"
-              href="/shop"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              {t("order.actions.backToShop")}
-            </Link>
-          }
+      {/* `print:hidden` has to stay on the outermost screen element: printing
+          must yield `<OrderReceipt>` alone, not the receipt behind a full copy
+          of the page. `ShopPageShell` forwards the class for exactly this. */}
+      <ShopPageShell
+        breadcrumbs={[
+          { label: tCommon("breadcrumbs.home"), href: "/" },
+          { label: tNav("shop"), href: "/shop" },
+          { label: t("order.orderNumber", { id: orderIdShort }) },
+        ]}
+        className="print:hidden"
+        lede={t("order.orderNumber", { id: orderIdShort })}
+        meta={<Pill tone={tone}>{statusLabel}</Pill>}
+        title={heroTitle}
+      >
+        <OrderBody
+          isMembershipOnly={isMembershipOnly}
+          isSuccess={isSuccess}
+          membershipStartsOn={membershipStartsOn}
+          order={order}
+          orderDate={orderDate}
+          pickupLocation={pickupLocation}
+          rawItems={rawItems}
+          status={status}
+          statusDesc={statusDesc}
+          statusLabel={statusLabel}
+          tone={tone}
         />
-
-        <div className="mx-auto max-w-4xl px-4 py-12">
-          <StatusBanner isSuccess={isSuccess} order={order} />
-
-          <div className="grid gap-8 md:grid-cols-3">
-            <div className="space-y-8 md:col-span-2">
-              <Card className="rounded-3xl border border-border/60 p-6 shadow-sm">
-                <h2 className="mb-4 font-bold text-foreground text-xl">
-                  {t("order.status.title")}
-                </h2>
-                <div className="mb-4 flex items-center gap-3">
-                  <span
-                    className={`rounded-full px-4 py-2 font-medium text-base ${visual.bg} ${visual.color}`}
-                  >
-                    {statusLabel}
-                  </span>
-                  <span className="text-muted-foreground">{statusDesc}</span>
-                </div>
-                <div className="text-muted-foreground text-sm">
-                  <div>
-                    <strong>{t("order.status.date")}:</strong> {orderDate}
-                  </div>
-                  {order.payment_intent_id ? (
-                    <div className="mt-2">
-                      <strong>{t("order.status.paymentId")}:</strong>{" "}
-                      {order.payment_intent_id}
-                    </div>
-                  ) : null}
-                </div>
-              </Card>
-
-              <OrderItemsCard items={rawItems} order={order} />
-            </div>
-
-            <div className="space-y-6">
-              <CustomerInfoCard order={order} />
-              <SecondaryInfoCard
-                isMembershipOnly={isMembershipOnly}
-                isPaid={status === "paid"}
-                membershipStartsOn={membershipStartsOn}
-                pickupLocation={pickupLocation}
-              />
-
-              <div className="space-y-3">
-                <OrderActionsClient type="shop" />
-                <OrderActionsClient type="print">
-                  <Receipt className="mr-2 h-4 w-4" />
-                  {t("order.actions.print")}
-                </OrderActionsClient>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      </ShopPageShell>
 
       <OrderReceipt
         items={receiptItems}
@@ -615,32 +633,9 @@ export default async function OrderPage({
   const isSuccess = success === "true";
 
   return (
-    <Suspense fallback={<OrderDetailsSkeleton />}>
+    <Suspense fallback={<DetailSkeleton />}>
       <OrderDetails isSuccess={isSuccess} orderId={orderId} />
     </Suspense>
-  );
-}
-
-function OrderDetailsSkeleton() {
-  return (
-    <div className="min-h-screen bg-linear-to-b from-section to-background">
-      <div className="relative h-[36vh]">
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className="mx-auto max-w-4xl px-4 py-12">
-        <Skeleton className="mb-8 h-24 w-full rounded-3xl" />
-        <div className="grid gap-8 md:grid-cols-3">
-          <div className="space-y-8 md:col-span-2">
-            <Skeleton className="h-40 w-full rounded-3xl" />
-            <Skeleton className="h-80 w-full rounded-3xl" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-32 w-full rounded-3xl" />
-            <Skeleton className="h-48 w-full rounded-3xl" />
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 

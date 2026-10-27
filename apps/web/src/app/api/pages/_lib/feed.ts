@@ -1,14 +1,14 @@
+import { feedDepartmentId } from "@repo/shared/utils/page-feeds";
 import { NextResponse } from "next/server";
 import type { PublicLocale } from "@/lib/data/queries";
 
 /**
  * Shared plumbing for the page-builder's auto-source feeds.
  *
- * Every block in `@repo/editor` fetches these endpoints, calls `r.json()`, and
- * swallows failures into its own placeholder items. A 404 or a 500 therefore
- * shows the editor's demo content ("Event title / Where / 0 going") to the
- * public with no visible error, so these routes always answer 200 with an
- * empty payload rather than an error status when there is nothing to show.
+ * Every block in `@repo/editor` fetches these endpoints and calls `r.json()`;
+ * a failure becomes an empty feed. These routes therefore always answer 200
+ * with an empty payload rather than an error status when there is nothing to
+ * show.
  *
  * Four of the five feeds answer a bare array; `departments` answers
  * `{ departments, total }`, which is why the payload here is not narrowed to
@@ -40,10 +40,12 @@ export function feedFailure(payload: unknown = []) {
   });
 }
 
-/** Department id the feed is scoped to; blank means "nothing to show". */
+/**
+ * Department id the feed is scoped to; blank or malformed means "nothing to
+ * show". Validated here because it becomes part of a cache key.
+ */
 export function requireDepartment(params: URLSearchParams): string | null {
-  const dept = params.get("dept")?.trim();
-  return dept ? dept : null;
+  return feedDepartmentId(params.get("dept"));
 }
 
 export function feedLocale(params: URLSearchParams): PublicLocale {

@@ -5,6 +5,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
 import {
   getManagedCampuses,
+  isNationalHR,
   isNationalOperations,
 } from "@repo/shared/utils/team-roles";
 import { cookies } from "next/headers";
@@ -74,8 +75,14 @@ function deriveRoles(parsed: TeamParseResult): {
     parsed.departmentNames
   );
 
+  const isNatHR = isNationalHR(parsed.campusNames, parsed.departmentNames);
+
   if (isNatOps && !roles.includes("globaladmin")) {
     roles.push("globaladmin");
+  }
+
+  if (isNatHR && !roles.includes("hradmin")) {
+    roles.push("hradmin");
   }
 
   const managedCampuses = getManagedCampuses(

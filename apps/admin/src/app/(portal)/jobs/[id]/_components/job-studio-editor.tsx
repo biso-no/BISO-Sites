@@ -49,7 +49,7 @@ import {
   suggestJobDescriptionSection,
   updateJob,
 } from "../../../_actions/jobs";
-import { listDepartmentsForCampus } from "../../../_actions/lookups";
+import { listJobDepartmentsForCampus } from "../../../_actions/lookups";
 import { type JobFormValues, jobSchema } from "../../../_actions/schemas";
 import {
   JOB_STUDIO_SCHEMA_ID,
@@ -866,7 +866,7 @@ export function JobStudioEditor({
     setValue("campus_id", campusId);
     setValue("department_id", null);
     const nextDepartments = campusId
-      ? await listDepartmentsForCampus(campusId)
+      ? await listJobDepartmentsForCampus(campusId)
       : [];
     setDepartments(nextDepartments);
   }

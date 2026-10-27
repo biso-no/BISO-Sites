@@ -1,6 +1,8 @@
 "use client";
 
+import { isBlank } from "@/blocks/_v2/blank";
 import type { PatchFn } from "@/blocks/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
 import type { QuoteBlock } from "@/editor/types";
 
 interface Props {
@@ -10,71 +12,39 @@ interface Props {
 }
 
 export function QuoteRender({ block, edit, onPatch }: Props) {
+  // No quote, no figure: a name or role alone is not worth showing.
+  if (!edit && isBlank(block.text)) {
+    return null;
+  }
+  const showCaption = Boolean(block.author || block.role) || edit;
   return (
-    <div className="pg-quote pg-block">
-      <div aria-hidden="true" className="pg-quote__mark">
-        "
-      </div>
-      {edit ? (
-        // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-        <div
-          className="pg-quote__body"
-          contentEditable
-          data-edit="1"
-          onBlur={(e) => onPatch("text", e.currentTarget.textContent ?? "")}
-          role="textbox"
-          suppressContentEditableWarning
-          tabIndex={0}
-        >
-          {block.text}
-        </div>
-      ) : (
-        <div className="pg-quote__body">{block.text}</div>
+    <figure className="m-0 flex max-w-(--measure) flex-col gap-4 break-words border-action border-l-4 pl-6">
+      <blockquote className="type-display-sm m-0 hyphens-auto break-words text-ink">
+        <EditableText
+          edit={edit}
+          onChange={(v) => onPatch("text", v)}
+          tag="span"
+          value={block.text}
+        />
+      </blockquote>
+      {showCaption && (
+        <figcaption className="flex flex-col gap-1">
+          <EditableText
+            className="type-heading-card text-ink"
+            edit={edit}
+            onChange={(v) => onPatch("author", v)}
+            tag="span"
+            value={block.author}
+          />
+          <EditableText
+            className="type-body-sm text-ink-muted"
+            edit={edit}
+            onChange={(v) => onPatch("role", v)}
+            tag="span"
+            value={block.role}
+          />
+        </figcaption>
       )}
-      <div className="pg-quote__attrib">
-        <div aria-hidden="true" className="pg-quote__av">
-          {(block.author || "?")
-            .split(" ")
-            .filter(Boolean)
-            .map((p) => p[0])
-            .join("")
-            .slice(0, 2)}
-        </div>
-        <div>
-          {edit ? (
-            // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-            // biome-ignore lint/a11y/noStaticElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-            <b
-              contentEditable
-              data-edit="1"
-              onBlur={(e) =>
-                onPatch("author", e.currentTarget.textContent ?? "")
-              }
-              suppressContentEditableWarning
-            >
-              {block.author}
-            </b>
-          ) : (
-            <b>{block.author}</b>
-          )}
-          {", "}
-          {edit ? (
-            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-            <span
-              contentEditable
-              data-edit="1"
-              onBlur={(e) => onPatch("role", e.currentTarget.textContent ?? "")}
-              role="textbox"
-              suppressContentEditableWarning
-              tabIndex={0}
-            >
-              {block.role}
-            </span>
-          ) : (
-            <span>{block.role}</span>
-          )}
-        </div>
-      </div>
-    </div>
+    </figure>
   );
 }

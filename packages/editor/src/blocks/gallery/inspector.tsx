@@ -1,37 +1,82 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { knownKey } from "@/blocks/_v2/known-key";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
-import { InspSection } from "@/components/editor-shell/inspector/insp-parts";
+import {
+  InspRow,
+  InspSection,
+  Segmented,
+} from "@/components/editor-shell/inspector/insp-parts";
+import { ItemList } from "@/components/editor-shell/inspector/item-list";
+import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
 import { useEditorCallbacks } from "@/editor/callbacks";
-import type { GalleryBlock } from "@/editor/types";
+import type { GalleryBlock, GalleryImage, PageDoc } from "@/editor/types";
+import { LAYOUTS } from "./render";
 import { uploadGalleryFiles } from "./upload";
 
 interface Props {
   block: GalleryBlock;
+  doc: PageDoc;
   onPatch: PatchFn;
+}
+
+/** A picked or linked image without its file fields. */
+function withoutFile({
+  fileId: _fileId,
+  mime: _mime,
+  ...image
+}: GalleryImage): GalleryImage {
+  return image;
+}
+
+/** One gallery image's picker and alt text. */
+export function GalleryImageFields({
+  item,
+  update,
+}: {
+  item: GalleryImage;
+  update: (item: GalleryImage) => void;
+}) {
+  return (
+    <>
+      <MediaPicker
+        accept="image/*"
+        onClear={() => update({ ...withoutFile(item), src: "" })}
+        onPicked={(fileId, url, mime) =>
+          update(
+            mime
+              ? { ...item, fileId, mime, src: url }
+              : { ...withoutFile(item), fileId, src: url }
+          )
+        }
+        onUrl={(url) => update({ ...withoutFile(item), src: url })}
+        src={item.src || undefined}
+      />
+      <InspRow label="Alt text">
+        <input
+          onChange={(e) => update({ ...item, alt: e.target.value })}
+          placeholder="Describe the image"
+          value={item.alt ?? ""}
+        />
+      </InspRow>
+      {item.src && !item.alt?.trim() ? (
+        <p className="pe-insp-note" role="status">
+          Add alt text so screen readers can describe this image.
+        </p>
+      ) : null}
+    </>
+  );
 }
 
 export function GalleryInspector({ block, onPatch }: Props) {
   const { uploadFile } = useEditorCallbacks();
   const fileRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const images = block.images ?? [];
-
-  function handleDrop(e: React.DragEvent, toIdx: number) {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === toIdx) {
-      return;
-    }
-    const updated = [...images];
-    const [item] = updated.splice(dragIdx, 1);
-    updated.splice(toIdx, 0, item);
-    onPatch("images", updated);
-    setDragIdx(null);
-  }
+  const images = listOf<GalleryImage>(block.images);
+  const layout = knownKey(LAYOUTS, block.layout, "collage");
 
   function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -50,116 +95,56 @@ export function GalleryInspector({ block, onPatch }: Props) {
   }
 
   return (
-    <InspSection label="Gallery images">
-      {images.length === 0 && (
-        <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0 }}>
-          No images yet.
-        </p>
-      )}
-      {uploadError && (
-        <p role="alert" style={{ fontSize: 12, color: "#b42318", margin: 0 }}>
-          {uploadError}
-        </p>
-      )}
-      {images.map((img, i) => (
-        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-        // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-        <div
-          draggable
-          key={img.fileId ?? i}
-          onDragOver={(e) => e.preventDefault()}
-          onDragStart={() => setDragIdx(i)}
-          onDrop={(e) => handleDrop(e, i)}
-          role="listitem"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "4px 0",
-            cursor: "grab",
-          }}
+    <>
+      <InspSection label="Layout">
+        <Segmented
+          choices={[
+            { label: "Collage", value: "collage" },
+            { label: "Grid", value: "grid" },
+            { label: "Row", value: "row" },
+          ]}
+          onPick={(layout) => onPatch("layout", layout)}
+          value={layout}
+        />
+        {layout === "collage" ? (
+          <p className="pe-insp-note">
+            The collage shows up to 5 images; 5 gives the big first tile.
+          </p>
+        ) : null}
+      </InspSection>
+      <InspSection label="Images">
+        <ItemList
+          addLabel="+ Add image"
+          items={images}
+          newItem={(): GalleryImage => ({ src: "" })}
+          onChange={(next) => onPatch("images", next)}
+          renderItem={(item, update) => (
+            <GalleryImageFields item={item} update={update} />
+          )}
+          title={(_, i) => `Image ${i + 1}`}
+        />
+        <button
+          className="pe-insp-link"
+          disabled={isPending}
+          onClick={() => fileRef.current?.click()}
+          type="button"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt=""
-            height={40}
-            src={img.src ?? ""}
-            style={{
-              width: 40,
-              height: 40,
-              objectFit: "cover",
-              borderRadius: 6,
-              flexShrink: 0,
-            }}
-            width={40}
-          />
-          <span
-            style={{
-              flex: 1,
-              fontSize: 11,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              color: "var(--ink-2)",
-            }}
-          >
-            {img.src
-              ? (img.src.split("/").pop()?.split("?")[0] ?? img.src)
-              : (img.fileId ?? "")}
-          </span>
-          <button
-            onClick={() =>
-              onPatch(
-                "images",
-                images.filter((_, idx) => idx !== i)
-              )
-            }
-            style={{
-              flexShrink: 0,
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              border: 0,
-              background: "var(--rule-2)",
-              cursor: "pointer",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 10,
-            }}
-            type="button"
-          >
-            ✕
-          </button>
-        </div>
-      ))}
-
-      <button
-        disabled={isPending}
-        onClick={() => fileRef.current?.click()}
-        style={{
-          marginTop: 8,
-          width: "100%",
-          padding: "6px 0",
-          border: "0.5px dashed var(--rule-2)",
-          borderRadius: 6,
-          background: "transparent",
-          fontSize: 12,
-          cursor: "pointer",
-          color: "var(--ink-3)",
-        }}
-        type="button"
-      >
-        {isPending ? "Uploading…" : "+ Add images"}
-      </button>
-
-      <input
-        accept="image/*"
-        multiple
-        onChange={handleFiles}
-        ref={fileRef}
-        style={{ display: "none" }}
-        type="file"
-      />
-    </InspSection>
+          {isPending ? "Uploading…" : "Upload several images"}
+        </button>
+        {uploadError ? (
+          <p className="pe-insp-note" role="alert">
+            {uploadError}
+          </p>
+        ) : null}
+        <input
+          accept="image/*"
+          className="hidden"
+          multiple
+          onChange={handleFiles}
+          ref={fileRef}
+          type="file"
+        />
+      </InspSection>
+    </>
   );
 }

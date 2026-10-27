@@ -14,6 +14,7 @@ import {
   type FormSubmission,
   updateSubmissionStatus,
 } from "../../../../_actions/submissions";
+import { formatSubmissionValue } from "./submission-value";
 
 interface Props {
   page: number;
@@ -43,7 +44,7 @@ function formatDate(iso: string) {
   });
 }
 
-function parseData(json: string): Record<string, string> {
+function parseData(json: string): Record<string, unknown> {
   try {
     return JSON.parse(json);
   } catch {
@@ -112,7 +113,7 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium text-sm">
-                    {Object.values(data)[0] ?? "—"}
+                    {formatSubmissionValue(Object.values(data)[0]) || "—"}
                   </div>
                   <div className="text-muted-foreground text-xs">
                     {formatDate(sub.$createdAt)}
@@ -161,7 +162,9 @@ export function SubmissionsList({ rows, topic, page, total }: Props) {
                           <td className="w-1/3 whitespace-nowrap py-1 pr-4 font-medium text-muted-foreground">
                             {k}
                           </td>
-                          <td className="break-words py-1">{v}</td>
+                          <td className="break-words py-1">
+                            {formatSubmissionValue(v)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

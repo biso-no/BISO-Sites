@@ -1,12 +1,10 @@
-"use client";
-
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { AboutSection, SectionCopy } from "./section-shell";
 
-export function OperationsSection() {
-  const t = useTranslations("about.pages.operations");
+export async function OperationsSection() {
+  const t = await getTranslations("about.pages.operations");
   return (
-    <AboutSection id="drift" intro={t("intro")} muted title={t("title")}>
+    <AboutSection id="drift" intro={t("intro")} title={t("title")}>
       <SectionCopy text={t("content")} />
     </AboutSection>
   );

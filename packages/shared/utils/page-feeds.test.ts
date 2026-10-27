@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { readPageDepartmentsFeed, readPagePartnersFeed } from "./page-feeds";
+import {
+  departmentsFeedFilters,
+  feedDepartmentId,
+  readPageDepartmentsFeed,
+  readPageEventsFeed,
+  readPageJobsFeed,
+  readPageNewsFeed,
+  readPagePartnersFeed,
+  readPageProductsFeed,
+} from "./page-feeds";
 
 function departmentRow(id: number) {
   return {
@@ -8,6 +17,7 @@ function departmentRow(id: number) {
     Name: `Department ${id}`,
     campus_id: "1",
     logo: null,
+    slug: `dept-${id}`,
     type: "unit",
   };
 }
@@ -59,6 +69,8 @@ describe("readPageDepartmentsFeed", () => {
 
     expect(feed.departments[0]).toEqual({
       campusId: "1",
+      campusLabel: "Oslo",
+      href: "/units/oslo/dept-7",
       id: "d-7",
       internalId: "7",
       logo: null,
@@ -67,7 +79,7 @@ describe("readPageDepartmentsFeed", () => {
     });
   });
 
-  it("filters by campus and type only when asked", async () => {
+  it("filters by campus in the query when asked", async () => {
     // Asserted on the `equal` filters, not on a substring of the whole query
     // list: `campus_id` also appears in the `select` projection either way.
     const equalFilters = async (campusId?: string, type?: string) => {
@@ -82,11 +94,8 @@ describe("readPageDepartmentsFeed", () => {
     };
 
     expect(await equalFilters()).toEqual(["active"]);
-    expect(await equalFilters("2", "unit")).toEqual([
-      "active",
-      "campus_id",
-      "type",
-    ]);
+    // The category is matched in memory (legacy aliases), not by a query.
+    expect(await equalFilters("2", "society")).toEqual(["active", "campus_id"]);
   });
 });
 
@@ -100,5 +109,272 @@ describe("readPagePartnersFeed", () => {
     ).join("|");
     expect(queries).toContain("sort_order");
     expect(queries).toContain('"method":"orderAsc","attribute":"sort_order"');
+  });
+});
+
+function limitOf(db: ReturnType<typeof fakeDb>): number | undefined {
+  const [, , queries] = (db.listRows as unknown as ReturnType<typeof vi.fn>)
+    .mock.calls[0];
+  return (queries as string[])
+    .map((q) => JSON.parse(q) as { method: string; values?: number[] })
+    .find((q) => q.method === "limit")?.values?.[0];
+}
+
+describe("readPageEventsFeed", () => {
+  const row = {
+    $id: "e-1",
+    category: "SOCIAL",
+    image: "https://cdn.example/e.jpg",
+    location: "Campus",
+    member_only: true,
+    slug: "spring party",
+    start_date: "2027-02-11T09:00:00+01:00",
+    ticket_url: "https://tickets.example/1",
+    translation_refs: [{ locale: "no", title: "Vårfest" }],
+  };
+
+  it("maps slug, image and start_date onto href, image and startsAt", async () => {
+    const [item] = await readPageEventsFeed(
+      fakeDb({ rows: [row], total: 1 }),
+      "d-1",
+      "no"
+    );
+    expect(item).toMatchObject({
+      category: "SOCIAL",
+      href: "/events/spring%20party",
+      id: "e-1",
+      image: "https://cdn.example/e.jpg",
+      memberOnly: true,
+      startsAt: "2027-02-11T08:00:00.000Z",
+      ticketUrl: "https://tickets.example/1",
+      title: "Vårfest",
+      where: "Campus",
+    });
+    expect(item?.date).not.toBe("");
+  });
+
+  it("leaves href off a row without a slug", async () => {
+    const [item] = await readPageEventsFeed(
+      fakeDb({ rows: [{ ...row, slug: null }], total: 1 }),
+      "d-1",
+      "no"
+    );
+    expect(item?.href).toBeUndefined();
+  });
+
+  it("honours limit, clamped to 1..12, default 6", async () => {
+    const limits: (number | undefined)[] = [];
+    for (const requested of [3, 50, 0, undefined]) {
+      const db = fakeDb({ rows: [], total: 0 });
+      await readPageEventsFeed(db, "d-1", "no", requested);
+      limits.push(limitOf(db));
+    }
+    expect(limits).toEqual([3, 12, 1, 6]);
+  });
+});
+
+describe("readPageNewsFeed", () => {
+  it("adds id, href, publishedAtIso and image", async () => {
+    const db = fakeDb({
+      rows: [
+        {
+          $createdAt: "2027-01-05T10:00:00.000Z",
+          $id: "n-1",
+          image: null,
+          slug: "hello",
+          translation_refs: [{ locale: "no", title: "Hei" }],
+        },
+      ],
+      total: 1,
+    });
+    const [item] = await readPageNewsFeed(db, "d-1", "no", 2);
+    expect(item).toMatchObject({
+      href: "/news/hello",
+      id: "n-1",
+      publishedAtIso: "2027-01-05T10:00:00.000Z",
+      title: "Hei",
+    });
+    expect(item?.image).toBeUndefined();
+    expect(limitOf(db)).toBe(2);
+  });
+});
+
+describe("readPageJobsFeed", () => {
+  it("adds id, href, deadlineIso, paid and employmentType", async () => {
+    const db = fakeDb({
+      rows: [
+        {
+          $id: "j-1",
+          application_deadline: "2999-01-01T00:00:00.000Z",
+          metadata: JSON.stringify({
+            employment_type: "Part-time",
+            paid: true,
+          }),
+          slug: "editor",
+          status: "published",
+          translations: [{ locale: "no", title: "Redaktør" }],
+        },
+      ],
+      total: 1,
+    });
+    const [item] = await readPageJobsFeed(db, "d-1", "no");
+    expect(item).toMatchObject({
+      commitment: "Part-time",
+      deadlineIso: "2999-01-01T00:00:00.000Z",
+      employmentType: "Part-time",
+      href: "/jobs/editor",
+      id: "j-1",
+      paid: true,
+    });
+  });
+});
+
+describe("readPageProductsFeed", () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    $id: "p1",
+    image: null,
+    member_only: false,
+    member_price: null,
+    regular_price: 250,
+    slug: "lue",
+    stock: 5,
+    translation_refs: [
+      { locale: "en", title: "Beanie" },
+      { locale: "no", title: "Lue" },
+    ],
+    ...over,
+  });
+
+  it("maps price, member price, members-only and sold-out", async () => {
+    const db = fakeDb({
+      rows: [
+        row(),
+        row({
+          $id: "p2",
+          member_only: true,
+          member_price: 199,
+          slug: "",
+          stock: 0,
+        }),
+      ],
+      total: 2,
+    });
+    const items = await readPageProductsFeed(db, "dept-1", "no", 4);
+    expect(items[0]).toEqual({
+      href: "/shop/lue",
+      id: "p1",
+      image: undefined,
+      memberOnly: false,
+      memberPrice: undefined,
+      price: 250,
+      soldOut: false,
+      title: "Lue",
+    });
+    expect(items[1]).toMatchObject({
+      href: undefined,
+      memberOnly: true,
+      memberPrice: 199,
+      soldOut: true,
+    });
+  });
+
+  it("keeps a product that has only a Norwegian translation on an en request", async () => {
+    const db = fakeDb({
+      rows: [row({ translation_refs: [{ locale: "no", title: "Lue" }] })],
+      total: 1,
+    });
+    const items = await readPageProductsFeed(db, "dept-1", "en", 4);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.title).toBe("Lue");
+    const [, , queries] = (db.listRows as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0];
+    expect((queries as string[]).join("|")).not.toContain(
+      'translation_refs.locale","method":"equal'
+    );
+  });
+
+  it("gives a product without a slug no href", async () => {
+    const db = fakeDb({ rows: [row({ slug: "" })], total: 1 });
+    const [item] = await readPageProductsFeed(db, "dept-1", "no", 4);
+    expect(item?.href).toBeUndefined();
+  });
+
+  it("filters to the department, published and listed rows", async () => {
+    const db = fakeDb({ rows: [], total: 0 });
+    await readPageProductsFeed(db, "dept-1", "en", 8);
+    const [, table, queries] = (
+      db.listRows as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls[0];
+    const parsed = (queries as string[]).map(
+      (q) =>
+        JSON.parse(q) as {
+          attribute?: string;
+          method: string;
+          values?: unknown[];
+        }
+    );
+    expect(table).toBe("webshop_products");
+    expect(parsed.find((q) => q.attribute === "departmentId")?.values).toEqual([
+      "dept-1",
+    ]);
+    expect(parsed.find((q) => q.attribute === "status")?.values).toEqual([
+      "published",
+    ]);
+    const or = parsed.find((q) => q.method === "or");
+    expect(or?.values).toEqual([
+      { attribute: "unlisted", method: "equal", values: [false] },
+      { attribute: "unlisted", method: "isNull" },
+    ]);
+    expect(parsed.some((q) => q.attribute === "translation_refs.locale")).toBe(
+      false
+    );
+    expect(parsed.find((q) => q.method === "limit")?.values).toEqual([8]);
+  });
+});
+
+describe("departmentsFeedFilters", () => {
+  it("keeps a known campus and category", () => {
+    expect(
+      departmentsFeedFilters(new URLSearchParams("campus_id=2&type=society"))
+    ).toEqual({ campusId: "2", type: "society" });
+  });
+
+  it("collapses anything unknown to no filter", () => {
+    expect(
+      departmentsFeedFilters(new URLSearchParams("campus_id=99&type=zzz"))
+    ).toEqual({ campusId: null, type: null });
+    expect(departmentsFeedFilters(new URLSearchParams())).toEqual({
+      campusId: null,
+      type: null,
+    });
+  });
+});
+
+describe("feedDepartmentId", () => {
+  it("accepts an Appwrite-shaped id and rejects the rest", () => {
+    expect(feedDepartmentId(" 6501abc_x-9 ")).toBe("6501abc_x-9");
+    expect(feedDepartmentId("")).toBeNull();
+    expect(feedDepartmentId(null)).toBeNull();
+    expect(feedDepartmentId("a b")).toBeNull();
+    expect(feedDepartmentId("../x")).toBeNull();
+    expect(feedDepartmentId("x".repeat(37))).toBeNull();
+  });
+});
+
+describe("readPageDepartmentsFeed category", () => {
+  it("matches legacy type values through parseUnitCategory", async () => {
+    const db = fakeDb({
+      rows: [
+        { ...departmentRow(1), type: "forening" },
+        { ...departmentRow(2), type: "society" },
+        { ...departmentRow(3), type: "project" },
+      ],
+      total: 3,
+    });
+    const feed = await readPageDepartmentsFeed(db, null, "society");
+    expect(feed.departments.map((d) => d.id)).toEqual(["d-1", "d-2"]);
+    const [, , queries] = (db.listRows as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0];
+    expect((queries as string[]).join("|")).not.toContain('"attribute":"type"');
   });
 });

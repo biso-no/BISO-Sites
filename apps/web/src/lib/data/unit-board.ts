@@ -34,11 +34,20 @@ export interface UnitBoardMember {
   email: string | null;
   imageUrl: string | null;
   name: string;
+  /**
+   * The directory's work or mobile number. Optional and additive: the campus
+   * landing's management board offers it (as the old campus Team tab did); the
+   * unit page deliberately does not render it.
+   */
+  phone?: string | null;
   role: string | null;
 }
 
 const asString = (value: unknown): string | null =>
   typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+
+const firstString = (value: unknown): string | null =>
+  Array.isArray(value) ? asString(value[0]) : null;
 
 function toBoardMember(entry: Record<string, unknown>): UnitBoardMember | null {
   const name = asString(entry.name) ?? asString(entry.displayName);
@@ -49,6 +58,10 @@ function toBoardMember(entry: Record<string, unknown>): UnitBoardMember | null {
     email: asString(entry.email) ?? asString(entry.mail),
     imageUrl: asString(entry.profilePhotoUrl) ?? asString(entry.imageUrl),
     name,
+    phone:
+      asString(entry.phone) ??
+      firstString(entry.businessPhones) ??
+      asString(entry.mobilePhone),
     role: asString(entry.role) ?? asString(entry.jobTitle),
   };
 }

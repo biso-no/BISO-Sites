@@ -3,6 +3,10 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useEditorCallbacks } from "@/editor/callbacks";
+import {
+  THEME_BLOCKS_PUBLISH,
+  themeBlocksSave,
+} from "@/editor/effective-theme";
 import { useMeta, useSaving } from "@/editor/hooks";
 
 export function Topbar({ actions }: { actions?: ReactNode }) {
@@ -12,6 +16,16 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
   const [publishing, setPublishing] = useState(false);
 
   const isPublished = meta.status === "published";
+  const themeBlocked = themeBlocksSave(meta);
+  // Leaving now would drop every edit since the colours started failing:
+  // held like the locale switch until they pass.
+  const exitBlocked = saving === "blocked";
+  let publishTitle = "Publish to biso.no";
+  if (themeBlocked) {
+    publishTitle = THEME_BLOCKS_PUBLISH;
+  } else if (isPublished) {
+    publishTitle = "Publish the latest edits to biso.no";
+  }
   let publishLabel = "Publish";
   if (publishing) {
     publishLabel = "…";
@@ -20,7 +34,9 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
     publishLabel = "Publish changes";
   }
 
-  async function run(action?: (locale: typeof activeLocale) => Promise<void>) {
+  async function run(
+    action?: (locale: typeof activeLocale) => Promise<unknown>
+  ) {
     if (!action) {
       return;
     }
@@ -41,8 +57,13 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
           <button
             aria-label="Back to pages"
             className="pe-topbar__exit"
+            disabled={exitBlocked}
             onClick={onExit}
-            title="Back to pages"
+            title={
+              exitBlocked
+                ? "Fix the theme colours before leaving"
+                : "Back to pages"
+            }
             type="button"
           >
             ←
@@ -85,6 +106,12 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
               Error
             </>
           )}
+          {saving === "blocked" && (
+            <>
+              <i aria-hidden="true" className="error pe-save__dot" />
+              Not saved: theme colours fail the contrast check
+            </>
+          )}
           {saving === "idle" && null}
         </span>
         {actions}
@@ -100,15 +127,12 @@ export function Topbar({ actions }: { actions?: ReactNode }) {
           </button>
         )}
         {onPublish && (
+          // Not held while a save is pending: Publish stores it first.
           <button
             className={`pe-publish ${isPublished ? "pe-publish--live" : ""}`}
-            disabled={publishing || saving === "pending"}
+            disabled={publishing || themeBlocked}
             onClick={() => run(onPublish)}
-            title={
-              isPublished
-                ? "Publish the latest edits to biso.no"
-                : "Publish to biso.no"
-            }
+            title={publishTitle}
             type="button"
           >
             {!isPublished && (

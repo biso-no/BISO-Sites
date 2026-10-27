@@ -1,17 +1,10 @@
 "use client";
 
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/ui/card";
 import { Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Pill } from "@/components/ui/pill";
 import { removeIdentity } from "@/lib/actions/user";
 
 interface Identity {
@@ -20,11 +13,17 @@ interface Identity {
   providerUid?: string;
 }
 
+/**
+ * How the account signs in — read-only apart from removing a secondary
+ * identity. There is no "link" step any more: a BI student signs in with BI,
+ * and that sign-in attaches the BI identity to the account by itself.
+ */
 export function IdentityManagement({
   initialIdentities,
 }: {
   initialIdentities: Identity[] | undefined;
 }) {
+  const t = useTranslations("common.profile");
   const [identities, setIdentities] = useState<Identity[] | undefined>(
     initialIdentities
   );
@@ -60,10 +59,10 @@ export function IdentityManagement({
       return "BI Student";
     }
     if (key === "email") {
-      return "Email";
+      return t("identities.providerEmail");
     }
     if (key === "magic-url" || key === "magicurl") {
-      return "Magic URL";
+      return t("identities.providerLoginLink");
     }
     return p;
   };
@@ -79,15 +78,15 @@ export function IdentityManagement({
         setIdentities((prev) =>
           (prev || []).filter((i) => i.$id !== identity.$id)
         );
-        toast.success("Identity removed");
+        toast.success(t("identities.removed"));
       } else {
-        toast.error("Failed to remove", {
-          description: String(res?.error || "Unknown error"),
+        toast.error(t("identities.removeFailed"), {
+          description: String(res?.error || t("identities.unknownError")),
         });
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      toast.error("Failed to remove", {
+      toast.error(t("identities.removeFailed"), {
         description: message,
       });
     } finally {
@@ -96,51 +95,45 @@ export function IdentityManagement({
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="border border-primary/10">
-        <CardHeader>
-          <CardTitle>Connected Identities</CardTitle>
-          <CardDescription>
-            How you sign in. Your BI Student identity is what verifies your
-            membership; sign in with BI to add it.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(identities?.length || 0) === 0 ? (
-            <div className="text-primary-60 text-sm">
-              No identities linked yet.
-            </div>
-          ) : (
-            identities?.map((id) => (
-              <div
-                className="flex items-center justify-between rounded-lg border border-primary/10 bg-background px-3 py-2"
-                key={id.$id}
-              >
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary">
-                    {providerLabel(id.provider)}
-                  </Badge>
-                  <div
-                    className="max-w-[28ch] truncate text-primary-80 text-sm"
-                    title={id.providerUid || id.$id}
-                  >
-                    {id.providerUid || id.$id}
-                  </div>
-                </div>
-                <Button
-                  className="text-red-600 hover:bg-red-50"
-                  disabled={!canRemove(id) || removingId === id.$id}
-                  onClick={() => onRemove(id)}
-                  size="sm"
-                  variant="ghost"
+    <section className="rounded-biso-md border border-edge p-6">
+      <h2 className="type-heading-card text-ink">{t("identities.title")}</h2>
+      <p className="type-body-sm mt-1 mb-6 text-ink-muted">
+        {t("identities.signInBody")}
+      </p>
+
+      {(identities?.length || 0) === 0 ? (
+        <p className="type-body-sm text-ink-muted">{t("identities.empty")}</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {identities?.map((id) => (
+            <li
+              className="flex flex-wrap items-center justify-between gap-3 rounded-biso-md border border-edge px-4 py-3"
+              key={id.$id}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <Pill tone="accent">{providerLabel(id.provider)}</Pill>
+                <span
+                  className="type-body-sm max-w-[28ch] truncate text-ink-muted"
+                  title={id.providerUid || id.$id}
                 >
-                  <Trash2 className="mr-1 h-4 w-4" /> Remove
-                </Button>
+                  {id.providerUid || id.$id}
+                </span>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              {canRemove(id) ? (
+                <button
+                  className="type-label inline-flex items-center gap-1.5 rounded-biso-pill px-3 py-2 text-danger transition-colors hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-60"
+                  disabled={removingId === id.$id}
+                  onClick={() => onRemove(id)}
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" className="size-4 shrink-0" />
+                  {t("identities.remove")}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

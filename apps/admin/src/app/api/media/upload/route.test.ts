@@ -1,6 +1,12 @@
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import { INLINE_MEDIA_MAX_BYTES } from "@/lib/inline-media";
-import { handleInlineMediaUpload, type InlineMediaUploadInput } from "./route";
+import type { InlineMediaUploadInput } from "./route";
+
+// The route's chunk mode (`lib/chunked-upload`) opens with
+// `import "server-only"`, which throws outside a react-server build.
+mock.module("server-only", () => ({}));
+
+const { handleInlineMediaUpload } = await import("./route");
 
 test("rejects an unauthenticated upload before reading or storing it", async () => {
   let bodyReads = 0;
@@ -27,6 +33,7 @@ test("rejects an unauthenticated upload before reading or storing it", async () 
 
   expect(response.status).toBe(401);
   expect(bodyReads).toBe(0);
+  expect(request.bodyUsed).toBe(false);
   expect(createCalls).toBe(0);
 });
 
@@ -79,9 +86,36 @@ test("rejects an oversized content length before reading the body", async () => 
 
   expect(response.status).toBe(413);
   expect(bodyReads).toBe(0);
+  expect(request.bodyUsed).toBe(false);
   expect(await response.json()).toEqual({
-    error: "File too large (max 10 MB)",
+    error: "File too large (max 250 MB)",
   });
+});
+
+test("accepts uploads larger than the previous 10 MB limit", async () => {
+  let createCalls = 0;
+  const previousLimitBytes = 10 * 1024 * 1024;
+  const response = await handleInlineMediaUpload(
+    new Request("http://admin.test/api/media/upload", {
+      body: new Blob(["photo"], { type: "image/jpeg" }),
+      headers: {
+        "content-length": String(previousLimitBytes + 1),
+        "content-type": "image/jpeg",
+        "x-filename": "photo.jpg",
+      },
+      method: "POST",
+    }),
+    {
+      authenticate: () => Promise.resolve(true),
+      createFile: () => {
+        createCalls += 1;
+        return Promise.resolve(new Response(null, { status: 201 }));
+      },
+    }
+  );
+
+  expect(response.status).toBe(201);
+  expect(createCalls).toBe(1);
 });
 
 test("rejects empty and actually oversized request bodies", async () => {
@@ -100,14 +134,27 @@ test("rejects empty and actually oversized request bodies", async () => {
     }),
     dependencies
   );
+  // One MiB more than the limit, streamed without a length, reusing a
+  // single 1 MiB buffer: the read is cut off once it passes the limit.
+  const mib = new Uint8Array(1024 * 1024);
+  let sent = 0;
+  const oversizedBody = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (sent * mib.byteLength > INLINE_MEDIA_MAX_BYTES) {
+        controller.close();
+        return;
+      }
+      sent += 1;
+      controller.enqueue(mib);
+    },
+  });
+  const oversizedRequest = new Request("http://admin.test/api/media/upload", {
+    body: oversizedBody,
+    headers: { "content-type": "image/png", "x-filename": "photo.png" },
+    method: "POST",
+  });
   const oversizedResponse = await handleInlineMediaUpload(
-    new Request("http://admin.test/api/media/upload", {
-      body: new Blob([new Uint8Array(INLINE_MEDIA_MAX_BYTES + 1)], {
-        type: "image/png",
-      }),
-      headers: { "content-type": "image/png", "x-filename": "photo.png" },
-      method: "POST",
-    }),
+    oversizedRequest,
     dependencies
   );
 

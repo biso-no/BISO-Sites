@@ -1,0 +1,90 @@
+import { expect, test } from "bun:test";
+import { renderToStaticMarkup } from "react-dom/server";
+import { parseHtml } from "@/lib/test-dom";
+import { ChevronMedia } from "./chevron-media";
+
+const TAGS_RE = /<[^>]*>/g;
+
+test("an image sits in a chevron frame with its ratio", () => {
+  const html = renderToStaticMarkup(
+    <ChevronMedia alt="A" ratio="16/9" src="https://example.com/a.jpg" />
+  );
+  expect(html).toContain('class="chevron-frame"');
+  expect(html).toContain("--ar:0.5625");
+  expect(html).toContain('loading="lazy"');
+});
+
+test("an empty src renders the placeholder and no image", () => {
+  const html = renderToStaticMarkup(<ChevronMedia ratio="16/9" src="" />);
+  expect(html).toContain("bg-surface-sunken");
+  expect(html).not.toContain("<img");
+  expect(html.replace(TAGS_RE, "")).toBe("");
+});
+
+test("an editor placeholder shows only when passed", () => {
+  const html = renderToStaticMarkup(
+    <ChevronMedia placeholder="Add media" ratio="16/9" src="" />
+  );
+  expect(html).toContain("Add media");
+});
+
+test("a looping video is muted, inline and has a reduced-motion poster", () => {
+  const html = renderToStaticMarkup(
+    <ChevronMedia
+      alt="Loop"
+      kind="video"
+      loop
+      poster="https://example.com/p.jpg"
+      ratio="21/9"
+      src="https://example.com/v.mp4"
+    />
+  );
+  expect(html).toContain("muted");
+  expect(html).toContain("loop");
+  expect(html.toLowerCase()).toContain("playsinline");
+  expect(html).toContain("pg-reduced-motion-poster");
+});
+
+test("media above the fold can load eagerly, poster included", () => {
+  const image = renderToStaticMarkup(
+    <ChevronMedia loading="eager" ratio="4/3" src="https://example.com/a.jpg" />
+  );
+  expect(image).toContain('loading="eager"');
+  expect(image).not.toContain('loading="lazy"');
+
+  const video = renderToStaticMarkup(
+    <ChevronMedia
+      kind="video"
+      loading="eager"
+      loop
+      poster="https://example.com/p.jpg"
+      ratio="4/3"
+      src="https://example.com/v.mp4"
+    />
+  );
+  expect(video).toContain('loading="eager"');
+  expect(video).not.toContain('loading="lazy"');
+});
+
+test("an SVG or GIF is shown as it is, as the image or the loop's poster", () => {
+  const view = "https://appwrite.biso.no/v1/storage/buckets/media/files/a/view";
+  const image = parseHtml(
+    renderToStaticMarkup(
+      <ChevronMedia mime="image/gif" ratio="1/1" src={view} />
+    )
+  );
+  expect(image.querySelector("img")?.getAttribute("src")).toBe(view);
+  const loop = parseHtml(
+    renderToStaticMarkup(
+      <ChevronMedia
+        kind="video"
+        loop
+        poster={view}
+        posterMime="image/svg+xml"
+        ratio="16/9"
+        src="https://x.no/v.mp4"
+      />
+    )
+  );
+  expect(loop.querySelector("video")?.getAttribute("poster")).toBe(view);
+});

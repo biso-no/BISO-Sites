@@ -2531,6 +2531,24 @@
                     "size": 128,
                     "default": null,
                     "encrypt": false
+                },
+                {
+                    "key": "theme_dark",
+                    "type": "varchar",
+                    "required": false,
+                    "array": false,
+                    "size": 7,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "theme_accent",
+                    "type": "varchar",
+                    "required": false,
+                    "array": false,
+                    "size": 7,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -4238,6 +4256,22 @@
                     "twoWayKey": "translation_refs",
                     "onDelete": "cascade",
                     "side": "child"
+                },
+                {
+                    "key": "draft_doc",
+                    "type": "mediumtext",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "published_doc",
+                    "type": "mediumtext",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -12471,7 +12505,7 @@
             "fileSecurity": false,
             "name": "Media",
             "enabled": true,
-            "maximumFileSize": 10485760,
+            "maximumFileSize": 262144000,
             "allowedFileExtensions": [
                 "jpg",
                 "jpeg",

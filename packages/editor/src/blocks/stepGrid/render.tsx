@@ -1,7 +1,11 @@
 "use client";
 
+import { withoutBlankItems } from "@/blocks/_v2/blank";
+import { cardGridClass } from "@/blocks/_v2/card-grid";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
-import type { StepGridBlock } from "@/editor/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import type { StepGridBlock, StepGridItem } from "@/editor/types";
 
 interface Props {
   block: StepGridBlock;
@@ -9,19 +13,55 @@ interface Props {
   onPatch: PatchFn;
 }
 
-export function StepGridRender({ block }: Props) {
+const text = (v: unknown): string => (typeof v === "string" ? v : "");
+
+export function StepGridRender({ block, edit, onPatch }: Props) {
+  const items = withoutBlankItems(
+    listOf<StepGridItem>(block.items),
+    (x) => [x.title, x.body],
+    edit
+  );
+  const heading = text(block.heading);
+  if (!edit && items.length === 0) {
+    return null;
+  }
+  const update = (i: number, key: "body" | "title", v: string) =>
+    onPatch(
+      "items",
+      items.map((x, j) => (j === i ? { ...x, [key]: v } : x))
+    );
   return (
-    <div className="pg-stepgrid pg-block">
-      {block.heading && <h2 className="pg-stepgrid__h">{block.heading}</h2>}
-      <div className="pg-stepgrid__grid">
-        {block.items.map((item, i) => (
-          <div className="pg-stepgrid__card" key={i}>
-            <div className="pg-stepgrid__num">{item.number}</div>
-            <div className="pg-stepgrid__title">{item.title}</div>
-            <p className="pg-stepgrid__body">{item.body}</p>
-          </div>
+    <div className="flex flex-col gap-6 break-words">
+      {edit || heading.trim() ? (
+        <EditableText
+          className="type-heading-section min-w-0 hyphens-auto break-words text-ink"
+          edit={edit}
+          onChange={(v) => onPatch("heading", v)}
+          tag="h2"
+          value={heading}
+        />
+      ) : null}
+      <ol className={`${cardGridClass(3)} m-0 list-none p-0`}>
+        {items.map((item, i) => (
+          <li className="flex min-w-0 flex-col gap-2" key={i}>
+            <span className="type-display-sm text-ink-accent">{i + 1}</span>
+            <EditableText
+              className="type-heading-card text-ink"
+              edit={edit}
+              onChange={(v) => update(i, "title", v)}
+              tag="h3"
+              value={text(item.title)}
+            />
+            <EditableText
+              className="type-body text-ink-muted"
+              edit={edit}
+              onChange={(v) => update(i, "body", v)}
+              tag="p"
+              value={text(item.body)}
+            />
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 }

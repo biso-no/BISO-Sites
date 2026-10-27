@@ -1,10 +1,114 @@
 "use client";
 
+import { ChevronMedia } from "@/blocks/_v2/chevron-media";
+import { DateBlock } from "@/blocks/_v2/date-block";
+import { FeedCardShell, FeedSection } from "@/blocks/_v2/feed-section";
+import { Pill } from "@/blocks/_v2/pill";
+import { useBlockFeed } from "@/blocks/_v2/use-block-feed";
 import type { PatchFn } from "@/blocks/types";
-import { usePageFeedSource } from "@/editor/page-feed-context";
-import { pageFeedKey, resolveFeedDepartment } from "@/editor/page-feeds";
-import type { EventItem, EventsBlock } from "@/editor/types";
-import { useAutoFeed } from "@/editor/use-auto-feed";
+import type { EditorLocale, EventsBlock } from "@/editor/types";
+
+interface FeedEvent {
+  category?: string;
+  href?: string;
+  id?: string;
+  image?: string;
+  memberOnly?: boolean;
+  startsAt?: string;
+  ticketUrl?: string;
+  title?: string;
+  where?: string;
+}
+
+const LABELS: Record<
+  EditorLocale,
+  { info: string; members: string; register: string }
+> = {
+  en: { info: "Info only", members: "Members only", register: "Register" },
+  no: { info: "Kun info", members: "Kun for medlemmer", register: "Påmelding" },
+};
+
+/** Same words as the web events filters (`events.filters.*`). */
+const CATEGORIES: Record<EditorLocale, Record<string, string>> = {
+  en: {
+    academic: "Academic",
+    career: "Career",
+    party: "Party",
+    social: "Social",
+    sport: "Sport",
+    talk: "Talk",
+    trip: "Trip",
+    workshop: "Workshop",
+  },
+  no: {
+    academic: "Faglig",
+    career: "Karriere",
+    party: "Fest",
+    social: "Sosialt",
+    sport: "Idrett",
+    talk: "Foredrag",
+    trip: "Tur",
+    workshop: "Workshop",
+  },
+};
+
+const CARD = "group flex h-full flex-col rounded-biso-sm";
+
+function EventCard({
+  edit,
+  event,
+  locale,
+}: {
+  edit: boolean;
+  event: FeedEvent;
+  locale: EditorLocale;
+}) {
+  const labels = LABELS[locale] ?? LABELS.no;
+  // An unknown category shows no pill rather than a raw enum value.
+  const category =
+    typeof event.category === "string"
+      ? (CATEGORIES[locale] ?? CATEGORIES.no)[event.category]
+      : undefined;
+  return (
+    <FeedCardShell className={CARD} edit={edit} href={event.href}>
+      {event.image ? (
+        <ChevronMedia ratio="16/9" src={event.image} width={640} />
+      ) : null}
+      {category || event.memberOnly ? (
+        <span className="mt-4 flex flex-wrap items-center gap-2">
+          {category ? (
+            <Pill tone="accent" uppercase>
+              {category}
+            </Pill>
+          ) : null}
+          {event.memberOnly ? (
+            <Pill tone="warning">{labels.members}</Pill>
+          ) : null}
+        </span>
+      ) : null}
+      <span className="mt-3 flex items-start gap-4">
+        {event.startsAt ? (
+          <DateBlock iso={event.startsAt} locale={locale} />
+        ) : null}
+        <span className="min-w-0">
+          <span className="type-heading-card block text-ink group-hover:text-ink-accent">
+            {event.title}
+          </span>
+          {event.where ? (
+            <span className="type-body-sm mt-1 block text-ink-muted">
+              {event.where}
+            </span>
+          ) : null}
+        </span>
+      </span>
+      <span className="mt-auto flex justify-end pt-4">
+        <Pill tone={event.ticketUrl ? "success" : "accent"}>
+          {event.ticketUrl ? labels.register : labels.info}
+        </Pill>
+      </span>
+    </FeedCardShell>
+  );
+}
 
 interface Props {
   block: EventsBlock;
@@ -13,80 +117,31 @@ interface Props {
 }
 
 export function EventsRender({ block, edit, onPatch }: Props) {
-  const { department, locale } = usePageFeedSource();
-  // "auto" → use page department; any other value → use as explicit table/dept ID
-  const dept = resolveFeedDepartment(block.source, department);
-  const isLive = !!dept;
-
-  const { items: liveItems, loading } = useAutoFeed<EventItem>({
-    enabled: isLive,
-    key: pageFeedKey("events", dept, locale),
-    url: `/api/pages/events?dept=${encodeURIComponent(dept)}&locale=${locale}`,
-  });
-
-  // A live block shows the feed or nothing — never `block.items`. Those are
-  // the inspector's "Placeholder events", documented as "shown when no
-  // department is set", so emitting them while a real feed loads is what put
-  // demo content in front of visitors and crawlers.
-  const items = isLive ? (liveItems ?? []) : block.items;
-  let emptyMessage = "Set a department to load live events.";
-  if (loading) {
-    emptyMessage = "Loading…";
-  } else if (isLive) {
-    emptyMessage = "No upcoming events.";
-  }
-
+  const { dept, items, locale } = useBlockFeed<FeedEvent>(
+    "events",
+    block.source,
+    block.limit
+  );
   return (
-    <div className="pg-events pg-block">
-      <div className="pg-events-hd">
-        {edit ? (
-          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-          <h2
-            contentEditable
-            data-edit="1"
-            onBlur={(e) =>
-              onPatch("heading", e.currentTarget.textContent ?? "")
-            }
-            suppressContentEditableWarning
-          >
-            {block.heading}
-          </h2>
-        ) : (
-          <h2>{block.heading}</h2>
-        )}
-        {isLive && (
-          <div className="pg-events__live-feed">
-            <i aria-hidden="true" />
-            {loading ? "Loading…" : "Live feed"}
-          </div>
-        )}
-      </div>
-      <div className="pg-events-grid">
-        {items.map((ev, i) => (
-          <div className="pg-event-card" key={i}>
-            <div className="pg-event-card__date-stripe">
-              <span>{ev.date}</span>
-              {isLive && <span className="syn">live</span>}
-            </div>
-            <div className="pg-event-card__body">
-              <div className="pg-event-card__title">{ev.title}</div>
-              <div className="pg-event-card__where">{ev.where}</div>
-            </div>
-            {ev.going > 0 && (
-              <div className="pg-event-card__foot">
-                <b>{ev.going}</b> going
-              </div>
-            )}
-          </div>
-        ))}
-        {items.length === 0 && (
-          <p
-            style={{ fontSize: 13, color: "var(--ink-3)", gridColumn: "1/-1" }}
-          >
-            {emptyMessage}
-          </p>
-        )}
-      </div>
-    </div>
+    <FeedSection
+      dept={dept}
+      edit={edit}
+      heading={block.heading}
+      items={items}
+      locale={locale}
+      noun="upcoming events"
+      onPatch={onPatch}
+      seeAll={block.seeAll !== false}
+      seeAllHref="/events"
+    >
+      {(items ?? []).map((event, i) => (
+        <EventCard
+          edit={edit}
+          event={event}
+          key={event.id ?? i}
+          locale={locale}
+        />
+      ))}
+    </FeedSection>
   );
 }

@@ -9,6 +9,7 @@ registerBlock({
   label: "Steps",
   description: "Numbered how-it-works cards",
   category: "Layout",
+  group: "structure",
   aiHint: "Numbered step cards showing a process or how-it-works flow.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("stepGrid") as never,

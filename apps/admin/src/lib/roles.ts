@@ -17,6 +17,7 @@
 export const ROLES = {
   GLOBAL_ADMIN: "globaladmin", // National + OperationsUnit
   CAMPUS_ADMIN: "campusadmin", // Ledelsen{City} + Campus-{City}
+  HR_ADMIN: "hradmin", // National + HR
   HR: "hr", // Membership in the HR department (normalized team name "hr")
   BENEFITS_EDITOR: "benefitseditor", // Email allow-list (BENEFITS_EDITOR_EMAILS)
 } as const;

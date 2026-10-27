@@ -39,19 +39,23 @@ function pageAudience(visibility: PagesVisibility): "public" | "members" {
 
 // Minimal local definition — avoids circular dep with @repo/editor
 interface PageMeta {
-  accentColor: string;
   /** Campus id the page belongs to; "" for national. Absent on older documents. */
   campus?: string;
   department: string;
   description?: string;
   slug: string;
   status: "draft" | "published";
+  /** Colour theme: absent follows the department, `null` resets to BISO. */
+  theme?: { accent: string; dark: string } | null;
   title: string;
 }
 
 export interface PageDoc {
-  blocks: unknown[];
+  /** The page header (`PageHeader` in @repo/editor); absent on most pages. */
+  header?: unknown;
   meta: PageMeta;
+  sections: unknown[];
+  version: 2;
 }
 
 export const PAGE_LOCALES = ["no", "en"] as const;
@@ -176,12 +180,12 @@ function toEditorTranslation(
     return null;
   }
   const draftDocument = normalizeDoc({
-    doc: jsonToPageDoc(translation.draft_document),
+    doc: jsonToPageDoc(translation.draft_doc),
     row,
     translation,
   });
   const publishedDocument = normalizeDoc({
-    doc: jsonToPageDoc(translation.puck_document),
+    doc: jsonToPageDoc(translation.published_doc),
     row,
     translation,
   });
@@ -261,6 +265,10 @@ async function resolveUniquePageSlug(
   throw new Error(`Could not find an available slug for "${baseSlug}"`);
 }
 
+/**
+ * Public read of a page by slug: the row, the locale's translation and its
+ * published document. `doc` is null when that locale has nothing published.
+ */
 export async function getPage(
   slug: string,
   locale: PageEditorLocale = "no",
@@ -283,7 +291,11 @@ export async function getPage(
       "$id",
       "slug",
       "status",
+      // The form route tells a members-only page from a missing one by this.
+      "visibility",
       "department_id",
+      // Form submissions inherit the page's campus.
+      "campus_id",
       "translation_refs.*",
     ]),
     Query.limit(1),
@@ -296,11 +308,13 @@ export async function getPage(
 
   const translation =
     row.translation_refs?.find((item) => item.locale === locale) ?? null;
+  // The published document only, never the draft. Legacy translations are
+  // `is_published` with no `published_doc`; once opened in the editor they
+  // gain a `draft_doc`, and falling back to it would put unpublished edits on
+  // the public site.
   const doc = translation
     ? normalizeDoc({
-        doc: jsonToPageDoc(
-          translation.puck_document ?? translation.draft_document
-        ),
+        doc: jsonToPageDoc(translation.published_doc),
         row,
         translation,
       })
@@ -339,10 +353,10 @@ export async function getPageById(
           locale: translation.locale,
           title: translation.title,
           description: translation.description ?? null,
-          draft_document: translation.draftDocument
+          draft_doc: translation.draftDocument
             ? pageDocToJson(translation.draftDocument)
             : null,
-          puck_document: translation.publishedDocument
+          published_doc: translation.publishedDocument
             ? pageDocToJson(translation.publishedDocument)
             : null,
           is_published: translation.isPublished,
@@ -424,74 +438,114 @@ export async function savePageDraft(params: {
     };
   }
 
-  const pageStatus = id
-    ? (normalizedDoc.meta.status as PagesStatus)
-    : PagesStatus.DRAFT;
   const departmentId = normalizedDoc.meta.department || null;
-  const visibility = PagesVisibility.PUBLIC;
-  const pagePermissions = buildPageRowPermissions({
-    isPublished: pageStatus === PagesStatus.PUBLISHED,
-    audience: pageAudience(visibility),
-  });
-
-  const page = await db.upsertRow(
-    "app",
-    "pages",
-    id ?? ID.unique(),
-    {
-      slug: normalizedDoc.meta.slug,
-      status: pageStatus,
-      visibility,
-      // Canonical ownership relationships; the scalar columns remain as
-      // migration-era compatibility metadata only.
-      campus: campusId,
-      campus_id: campusId,
-      department: departmentId,
-      department_id: departmentId,
-    },
-    pagePermissions
-  );
-  const pageId = page.$id;
-  const json = pageDocToJson(normalizedDoc);
-
-  // Upsert translation row
-  const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
-    Query.equal("page_id", pageId),
-    Query.equal("locale", locale as PageTranslationsLocale),
-    Query.limit(1),
-  ]);
-
-  const translationPublished = tRes.rows[0]?.is_published ?? false;
-  const translationPermissions = buildPageRowPermissions({
-    isPublished: pageStatus === PagesStatus.PUBLISHED && translationPublished,
-    audience: pageAudience(visibility),
-  });
-
-  const translation = await db.upsertRow<PageTranslations>(
-    "app",
-    "page_translations",
-    tRes.rows[0]?.$id ?? ID.unique(),
-    {
-      page_id: pageId,
-      page: pageId as unknown as Pages,
-      locale: locale as PageTranslationsLocale,
-      draft_document: json,
-      title: normalizedDoc.meta.title,
-      description: normalizedDoc.meta.description ?? null,
-      is_published: translationPublished,
-    },
-    translationPermissions
-  );
-
-  return {
-    pageId,
+  const ownership = {
     slug: normalizedDoc.meta.slug,
-    translationId: translation.$id,
+    // Canonical ownership relationships; the scalar columns remain as
+    // migration-era compatibility metadata only.
+    campus: campusId,
+    campus_id: campusId,
+    department: departmentId,
+    department_id: departmentId,
   };
+
+  // A save never writes the publish state: the page's status, the read
+  // permissions that follow it, and a translation's is_published belong to
+  // publishPage and unpublishPage. A save read nothing of them, so writing
+  // its idea of them back would undo a publish or unpublish that landed
+  // while it was on its way. A new page starts as an unpublished draft.
+  let pageId: string;
+  if (id) {
+    await db.updateRow("app", "pages", id, ownership);
+    pageId = id;
+  } else {
+    const visibility = PagesVisibility.PUBLIC;
+    const page = await db.upsertRow(
+      "app",
+      "pages",
+      ID.unique(),
+      { ...ownership, status: PagesStatus.DRAFT, visibility },
+      buildPageRowPermissions({
+        isPublished: false,
+        audience: pageAudience(visibility),
+      })
+    );
+    pageId = page.$id;
+  }
+
+  const { translationId } = await writeTranslationDraft(db, {
+    doc: normalizedDoc,
+    locale,
+    pageId,
+  });
+
+  return { pageId, slug: normalizedDoc.meta.slug, translationId };
+}
+
+/** The translation row a draft write produced. */
+interface TranslationDraftWrite {
+  translationId: string;
+  /** The row's `$updatedAt` after this write. */
+  updatedAt: string;
 }
 
 /**
- * Save one translated draft without mutating the parent page.
+ * Store `doc` as the draft of the page's `locale` translation. An existing
+ * row gets the draft, title and description only, so its publish state and
+ * permissions stay as publishing left them; a new row starts unpublished.
+ */
+async function writeTranslationDraft(
+  db: PageDatabase,
+  {
+    doc,
+    locale,
+    pageId,
+  }: { doc: PageDoc; locale: PageEditorLocale; pageId: string }
+): Promise<TranslationDraftWrite> {
+  const existing = await db.listRows<PageTranslations>(
+    "app",
+    "page_translations",
+    [
+      Query.equal("page_id", pageId),
+      Query.equal("locale", locale as PageTranslationsLocale),
+      Query.limit(1),
+    ]
+  );
+  const draft = {
+    draft_doc: pageDocToJson(doc),
+    title: doc.meta.title,
+    description: doc.meta.description ?? null,
+  };
+  const row = existing.rows[0];
+  if (row) {
+    const updated = await db.updateRow<PageTranslations>(
+      "app",
+      "page_translations",
+      row.$id,
+      draft
+    );
+    return { translationId: row.$id, updatedAt: updated?.$updatedAt };
+  }
+  const created = await db.upsertRow<PageTranslations>(
+    "app",
+    "page_translations",
+    ID.unique(),
+    {
+      ...draft,
+      page_id: pageId,
+      page: pageId as unknown as Pages,
+      locale: locale as PageTranslationsLocale,
+      is_published: false,
+    },
+    buildPageRowPermissions({ isPublished: false, audience: "public" })
+  );
+  return { translationId: created.$id, updatedAt: created.$updatedAt };
+}
+
+/**
+ * Save one translated draft without mutating the parent page. Returns the
+ * row's `$updatedAt` after the write, so a caller that publishes next can
+ * tell whether anyone wrote the locale in between.
  *
  * PRIVILEGED: callers must authorize access before invoking this helper. It is
  * intended for deferred translation work, where the request session may have
@@ -505,7 +559,7 @@ export async function savePageTranslationDraft({
   id: string;
   doc: PageDoc;
   locale: PageEditorLocale;
-}): Promise<{ translationId: string }> {
+}): Promise<TranslationDraftWrite> {
   const { db } = await createAdminClient();
   const pageRes = await db.listRows<Pages>("app", "pages", [
     Query.equal("$id", id),
@@ -516,39 +570,152 @@ export async function savePageTranslationDraft({
     throw new Error("Page not found");
   }
 
-  const normalizedDoc = normalizeDocForSave(doc);
-  const existingRes = await db.listRows<PageTranslations>(
-    "app",
-    "page_translations",
-    [
-      Query.equal("page_id", id),
-      Query.equal("locale", locale as PageTranslationsLocale),
-      Query.limit(1),
-    ]
-  );
-  const existing = existingRes.rows[0];
-  const permissions = buildPageRowPermissions({
-    isPublished:
-      page.status === PagesStatus.PUBLISHED &&
-      (existing?.is_published ?? false),
-    audience: pageAudience(page.visibility),
+  return await writeTranslationDraft(db, {
+    doc: normalizeDocForSave(doc),
+    locale,
+    pageId: id,
   });
-  const translation = await db.upsertRow<PageTranslations>(
-    "app",
-    "page_translations",
-    existing?.$id ?? ID.unique(),
-    {
-      page_id: id,
-      page: id as unknown as Pages,
-      locale: locale as PageTranslationsLocale,
-      draft_document: pageDocToJson(normalizedDoc),
-      title: normalizedDoc.meta.title,
-      description: normalizedDoc.meta.description ?? null,
-      is_published: existing?.is_published ?? false,
-    },
-    permissions
+}
+
+/** A page has one translation row per locale; this covers them with room. */
+const TRANSLATION_ROWS_LIMIT = 25;
+
+async function listPageTranslations(
+  db: PageDatabase,
+  id: string
+): Promise<PageTranslations[]> {
+  const res = await db.listRows<PageTranslations>("app", "page_translations", [
+    Query.equal("page_id", id),
+    Query.limit(TRANSLATION_ROWS_LIMIT),
+  ]);
+  return res.rows;
+}
+
+/**
+ * Write the meta every locale shares into each OTHER locale's stored draft of
+ * a page, so a theme (or slug, department …) saved in one locale is what the
+ * other locale's Publish copies live. `meta` holds exactly the shared fields,
+ * chosen by the caller; one that is undefined is removed from the drafts, and
+ * `null` is kept. Only drafts that exist are touched: no translation row is
+ * created, and a draft that already holds these values is not rewritten.
+ *
+ * Each draft is re-read just before it is written: another tab may have
+ * saved that locale since the list was read, and writing the listed copy
+ * back would undo its edit. When the row changed, the shared meta is merged
+ * into the newer draft and the write retried once; when it changed again, the
+ * write is skipped with a warning (that tab's next save carries the shared
+ * meta anyway). Appwrite has no conditional update, so a write landing
+ * between the last re-read and this write can still be overwritten: the
+ * window is that one round trip, not the whole sync.
+ *
+ * PRIVILEGED: writes through the service-key admin client. Callers MUST
+ * authorize the write to this page first.
+ */
+export async function syncSharedDraftMeta({
+  id,
+  locale,
+  meta,
+}: {
+  id: string;
+  /** The locale just saved; its draft is left alone. */
+  locale: PageEditorLocale;
+  meta: Partial<PageMeta>;
+}): Promise<void> {
+  const { db } = await createAdminClient();
+  for (const translation of await listPageTranslations(db, id)) {
+    if (translation.locale !== locale) {
+      await syncDraftMeta(db, translation, meta);
+    }
+  }
+}
+
+/** `json` with the shared `meta` merged in, or null when nothing changes. */
+function withSharedMeta(
+  json: string | null | undefined,
+  meta: Partial<PageMeta>
+): string | null {
+  const draft = jsonToPageDoc(json);
+  if (!(draft?.meta && typeof draft.meta === "object")) {
+    return null;
+  }
+  const next = pageDocToJson(
+    normalizeDocForSave({ ...draft, meta: { ...draft.meta, ...meta } })
   );
-  return { translationId: translation.$id };
+  return next === pageDocToJson(draft) ? null : next;
+}
+
+/** One write and one retry: see {@link syncSharedDraftMeta}. */
+const SHARED_META_ATTEMPTS = 2;
+
+async function syncDraftMeta(
+  db: PageDatabase,
+  listed: PageTranslations,
+  meta: Partial<PageMeta>
+): Promise<void> {
+  let read = listed;
+  for (let attempt = 0; attempt < SHARED_META_ATTEMPTS; attempt += 1) {
+    const next = withSharedMeta(read.draft_doc, meta);
+    if (next === null) {
+      return;
+    }
+    const fresh = await db.getRow<PageTranslations>(
+      "app",
+      "page_translations",
+      read.$id
+    );
+    if (fresh.$updatedAt === read.$updatedAt) {
+      await db.updateRow("app", "page_translations", read.$id, {
+        draft_doc: next,
+      });
+      return;
+    }
+    // Written meanwhile: merge into that newer draft instead.
+    read = fresh;
+  }
+  console.warn(
+    `[syncSharedDraftMeta] ${listed.$id} kept changing; its shared meta was not updated`
+  );
+}
+
+/** The document JSON without `meta.theme`, or null when it has none. */
+function withoutTheme(json: string | null | undefined): string | null {
+  const doc = jsonToPageDoc(json);
+  if (!(doc?.meta && typeof doc.meta === "object" && "theme" in doc.meta)) {
+    return null;
+  }
+  const { theme: _copied, ...meta } = doc.meta;
+  return pageDocToJson({ ...doc, meta });
+}
+
+/**
+ * Remove `meta.theme` from every stored document of a page: each locale's
+ * draft and published document. Called once a department page's theme has
+ * been copied to its department, so the page follows the department again and
+ * a later publish of it cannot copy the old theme back. A JSON round trip of
+ * the meta only; a document without a theme is not rewritten, and row
+ * permissions are left as they are.
+ *
+ * PRIVILEGED: writes through the service-key admin client. Callers MUST
+ * authorize the publish first.
+ */
+export async function clearPageTheme(id: string): Promise<void> {
+  const { db } = await createAdminClient();
+  for (const translation of await listPageTranslations(db, id)) {
+    const update: Partial<
+      Pick<PageTranslations, "draft_doc" | "published_doc">
+    > = {};
+    const draft = withoutTheme(translation.draft_doc);
+    if (draft !== null) {
+      update.draft_doc = draft;
+    }
+    const published = withoutTheme(translation.published_doc);
+    if (published !== null) {
+      update.published_doc = published;
+    }
+    if (Object.keys(update).length > 0) {
+      await db.updateRow("app", "page_translations", translation.$id, update);
+    }
+  }
 }
 
 /**
@@ -598,7 +765,7 @@ export async function publishPage({
     "page_translations",
     translation.$id,
     {
-      puck_document: translation.draft_document,
+      published_doc: translation.draft_doc,
       is_published: true,
       published_at: new Date().toISOString(),
     },
@@ -619,7 +786,8 @@ export async function publishPage({
 }
 
 /**
- * Unpublish a page's translation (removes it from the public site).
+ * Unpublish a page's translation (removes it from the public site). The
+ * page row becomes a draft only when no other locale is still published.
  *
  * PRIVILEGED: same contract as {@link publishPage} — the row writes use the
  * service-key admin client because campus approvers are not on the page rows'
@@ -662,6 +830,15 @@ export async function unpublishPage({
       },
       draftPermissions
     );
+  }
+
+  // The page is one row shared by its locales: it stays published (with its
+  // published permissions) while any other locale is still live.
+  const stillLive = (await listPageTranslations(db, id)).some(
+    (other) => other.$id !== translation?.$id && other.is_published
+  );
+  if (stillLive) {
+    return;
   }
 
   await db.updateRow(

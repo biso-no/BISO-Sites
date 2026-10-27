@@ -38,10 +38,7 @@ registerBlock({
   label: "FAQ",
   description: "Expandable questions",
   category: "Engage",
-  variants: [
-    { id: "list", label: "List", kind: "list" },
-    { id: "accordion-themed", label: "Themed", kind: "accordion-themed" },
-  ],
+  group: "structure",
   aiHint: "Frequently asked questions with answers.",
   aiProps: ["heading", "items"],
   empty: () => emptyBlock("faq") as never,

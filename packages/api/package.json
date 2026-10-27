@@ -20,11 +20,13 @@
   "exports": {
     ".": "./index.ts",
     "./server": "./server.ts",
+    "./server-env": "./server-env.ts",
     "./client": "./client.ts",
     "./errors": "./errors.ts",
     "./file": "./file.ts",
     "./page-builder": "./page-builder.ts",
     "./storage": "./storage.ts",
+    "./storage-chunks": "./storage-chunks.ts",
     "./write": "./write.ts",
     "./types/*": "./types/*.ts"
   },
@@ -39,6 +41,7 @@
     "appwrite": "catalog:",
     "next": "catalog:",
     "node-appwrite": "catalog:",
-    "react": "catalog:"
+    "react": "catalog:",
+    "server-only": "catalog:"
   }
 }

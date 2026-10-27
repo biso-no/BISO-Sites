@@ -1,0 +1,117 @@
+{
+  "note": "Timecodes in seconds. Sources live in temp/ (git-ignored); outputs go to temp/wg-media/. Timecodes marked 'nudged' were adjusted after viewing the frames (stage 6 Task 1 step 4).",
+  "sources": {
+    "aftermovie": "temp/wg-26-aftermovie.mp4",
+    "arena": "temp/AHA - BISO -05883Christian - Carpagnano_.jpg"
+  },
+  "outputs": [
+    {
+      "name": "aftermovie.mp4",
+      "kind": "video",
+      "source": "aftermovie",
+      "start": 0,
+      "duration": 78,
+      "width": 1920,
+      "height": 1080,
+      "bitrate": "4500k",
+      "maxrate": "5500k",
+      "bufsize": "9000k",
+      "audio": "aac 128k",
+      "minBytes": 35000000,
+      "maxBytes": 60000000,
+      "durationTolerance": 1.5
+    },
+    {
+      "name": "aftermovie-poster.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 31.2,
+      "width": 1920,
+      "nudged": "30 → 31.2: at 30 s the frame is the DJ close-up; 31.2 is the stage with the crowd's raised hands (spec: 'poster frame of the crowd')."
+    },
+    {
+      "name": "header-loop.mp4",
+      "kind": "loop",
+      "source": "aftermovie",
+      "start": 10.44,
+      "duration": 4,
+      "width": 1280,
+      "height": 720,
+      "bitrate": "1200k",
+      "audio": "none",
+      "maxBytes": 2000000,
+      "durationTolerance": 0.1,
+      "nudged": "9.8 → 10.44: the montage cuts every ~0.9 s; 10.44 is the cut into the retro-ski-suit shot, so the loop opens on the team the spec names."
+    },
+    {
+      "name": "header-poster.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 10.9,
+      "width": 1280,
+      "nudged": "9.8 → 10.9: mid-shot frame of the team in retro ski suits (the loop's first frame at 9.8 was the aerial of people walking)."
+    },
+    {
+      "name": "card-vinterleker.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 10.5,
+      "width": 1600
+    },
+    {
+      "name": "card-ski.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 60,
+      "width": 1600
+    },
+    {
+      "name": "card-afterski.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 27,
+      "width": 1600
+    },
+    {
+      "name": "gallery-aerial.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 75.5,
+      "width": 1600
+    },
+    {
+      "name": "gallery-selfie.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 52.5,
+      "width": 1600
+    },
+    {
+      "name": "gallery-friends.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 33.5,
+      "width": 1600
+    },
+    {
+      "name": "gallery-teepees.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 63,
+      "width": 1600
+    },
+    {
+      "name": "gallery-arrival.jpg",
+      "kind": "still",
+      "source": "aftermovie",
+      "at": 4,
+      "width": 1600
+    },
+    {
+      "name": "arena.jpg",
+      "kind": "image",
+      "source": "arena",
+      "width": 2000
+    }
+  ]
+}

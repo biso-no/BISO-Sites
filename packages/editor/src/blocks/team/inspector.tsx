@@ -1,24 +1,16 @@
 "use client";
 
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import {
   InspRow,
   InspSection,
+  Segmented,
 } from "@/components/editor-shell/inspector/insp-parts";
+import { ItemList } from "@/components/editor-shell/inspector/item-list";
+import { MediaPicker } from "@/components/editor-shell/inspector/media-picker";
+import { teamSource } from "@/editor/page-feeds";
 import type { PageDoc, TeamBlock, TeamMember } from "@/editor/types";
-import { HUE_COLORS } from "@/theme/presets";
-
-const HUES = Object.keys(HUE_COLORS) as TeamMember["hue"][];
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 interface Props {
   block: TeamBlock;
@@ -26,147 +18,106 @@ interface Props {
   onPatch: PatchFn;
 }
 
-export function TeamInspector({ block, onPatch }: Props) {
-  function patchMember(i: number, patch: Partial<TeamMember>) {
-    onPatch(
-      "members",
-      block.members.map((m, j) => (j === i ? { ...m, ...patch } : m))
-    );
-  }
+const SOURCES = [
+  { label: "Manual", value: "manual" },
+  { label: "Board", value: "board" },
+] as const;
 
+const CONTACT = [
+  { label: "Show", value: "show" },
+  { label: "Hide", value: "hide" },
+] as const;
+
+export function TeamInspector({ block, onPatch }: Props) {
+  const source = teamSource(block.source);
   return (
     <>
       <InspSection label="Team">
         <InspRow label="Heading">
           <input
             onChange={(e) => onPatch("heading", e.target.value)}
-            value={block.heading}
+            value={block.heading ?? ""}
           />
         </InspRow>
+        <InspRow label="Source">
+          <Segmented
+            choices={[...SOURCES]}
+            onPick={(v) => onPatch("source", v)}
+            value={source}
+          />
+        </InspRow>
+        <InspRow label="Contact details">
+          <Segmented
+            choices={[...CONTACT]}
+            onPick={(v) => onPatch("showContact", v === "show")}
+            value={block.showContact === false ? "hide" : "show"}
+          />
+        </InspRow>
+        {source === "board" ? (
+          <p className="pe-insp-note">
+            Shows the elected board of this page's department, read from
+            Microsoft 365. Set the department on the Page tab.
+          </p>
+        ) : null}
       </InspSection>
-      <InspSection label={`Members (${block.members.length})`}>
-        {block.members.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              padding: "10px 0",
-              borderBottom: "0.5px solid var(--rule)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              <span
-                style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 500 }}
-              >
-                {m.name || `Member ${i + 1}`}
-              </span>
-              <button
-                aria-label="Remove member"
-                onClick={() =>
-                  onPatch(
-                    "members",
-                    block.members.filter((_, j) => j !== i)
-                  )
-                }
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: 0,
-                  background: "var(--rule-2)",
-                  cursor: "pointer",
-                  fontSize: 9,
-                  display: "grid",
-                  placeItems: "center",
-                }}
-                type="button"
-              >
-                ✕
-              </button>
-            </div>
-            <InspRow label="Name">
-              <input
-                onChange={(e) => {
-                  const name = e.target.value;
-                  patchMember(i, { name, initials: initials(name) });
-                }}
-                value={m.name}
-              />
-            </InspRow>
-            <InspRow label="Role">
-              <input
-                onChange={(e) => patchMember(i, { role: e.target.value })}
-                value={m.role}
-              />
-            </InspRow>
-            <InspRow label="Initials">
-              <input
-                maxLength={2}
-                onChange={(e) =>
-                  patchMember(i, { initials: e.target.value.toUpperCase() })
-                }
-                value={m.initials}
-              />
-            </InspRow>
-            <InspRow label="Color">
-              <div style={{ display: "flex", gap: 6 }}>
-                {HUES.map((h) => (
-                  <button
-                    aria-pressed={m.hue === h}
-                    key={h}
-                    onClick={() => patchMember(i, { hue: h })}
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      border:
-                        m.hue === h
-                          ? "2px solid var(--ink)"
-                          : "2px solid transparent",
-                      background: HUE_COLORS[h],
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                    title={h}
-                    type="button"
+      {source === "manual" ? (
+        <InspSection label="Members">
+          <ItemList<TeamMember>
+            addLabel="+ Add member"
+            items={listOf<TeamMember>(block.members)}
+            newItem={() => ({ name: "Name", role: "Role" })}
+            onChange={(members) => onPatch("members", members)}
+            renderItem={(item, update) => (
+              <>
+                <InspRow label="Name">
+                  <input
+                    onChange={(e) => update({ ...item, name: e.target.value })}
+                    value={item.name ?? ""}
                   />
-                ))}
-              </div>
-            </InspRow>
-          </div>
-        ))}
-        <button
-          onClick={() =>
-            onPatch("members", [
-              ...block.members,
-              {
-                name: "New Member",
-                role: "Role",
-                initials: "NM",
-                hue: "blue",
-              },
-            ])
-          }
-          style={{
-            fontSize: 12,
-            marginTop: 8,
-            padding: "4px 8px",
-            border: "0.5px solid var(--rule-2)",
-            borderRadius: 6,
-            background: "var(--paper-2)",
-            cursor: "pointer",
-          }}
-          type="button"
-        >
-          + Add member
-        </button>
-      </InspSection>
+                </InspRow>
+                <InspRow label="Role">
+                  <input
+                    onChange={(e) => update({ ...item, role: e.target.value })}
+                    value={item.role ?? ""}
+                  />
+                </InspRow>
+                <InspRow label="Email">
+                  <input
+                    onChange={(e) =>
+                      update({ ...item, email: e.target.value || undefined })
+                    }
+                    type="email"
+                    value={item.email ?? ""}
+                  />
+                </InspRow>
+                <InspRow label="Phone">
+                  <input
+                    onChange={(e) =>
+                      update({ ...item, phone: e.target.value || undefined })
+                    }
+                    value={item.phone ?? ""}
+                  />
+                </InspRow>
+                <MediaPicker
+                  accept="image/*"
+                  onClear={() => update({ ...item, photo: undefined })}
+                  onPicked={(fileId, url, mime) =>
+                    update({
+                      ...item,
+                      photo: { fileId, mime: mime || undefined, src: url },
+                    })
+                  }
+                  onUrl={(url) =>
+                    update({ ...item, photo: url ? { src: url } : undefined })
+                  }
+                  src={item.photo?.src}
+                />
+              </>
+            )}
+            title={(item) => item.name || "Member"}
+          />
+        </InspSection>
+      ) : null}
     </>
   );
 }

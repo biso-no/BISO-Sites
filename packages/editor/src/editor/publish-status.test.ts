@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { withPublishStatusSync } from "./publish-status";
 
-const resolved = () => Promise.resolve();
+const resolved = () => Promise.resolve(undefined);
 
 describe("withPublishStatusSync", () => {
   test("marks the document published once the host has published it", async () => {
@@ -31,6 +31,31 @@ describe("withPublishStatusSync", () => {
 
     await expect(callbacks.onPublish?.("no")).rejects.toThrow("publish failed");
     expect(statuses).toEqual([]);
+  });
+
+  test("tells the shell when the host copied the page's theme to its department", async () => {
+    const events: string[] = [];
+    const copied = withPublishStatusSync(
+      { onPublish: () => Promise.resolve({ themeCopied: true }) },
+      (status) => events.push(status),
+      () => events.push("theme copied")
+    );
+    await copied.onPublish?.("no");
+    expect(events).toEqual(["published", "theme copied"]);
+
+    events.length = 0;
+    const kept = withPublishStatusSync(
+      { onPublish: () => Promise.resolve({ themeCopied: false }) },
+      (status) => events.push(status),
+      () => events.push("theme copied")
+    );
+    await kept.onPublish?.("no");
+    await withPublishStatusSync(
+      { onPublish: resolved },
+      (status) => events.push(status),
+      () => events.push("theme copied")
+    ).onPublish?.("no");
+    expect(events).toEqual(["published", "published"]);
   });
 
   test("passes through a host that cannot publish", () => {

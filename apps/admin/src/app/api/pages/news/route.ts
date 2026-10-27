@@ -1,3 +1,4 @@
+import { feedLimitFromParam } from "@repo/editor/page-feeds";
 import { readPageNewsFeed } from "@repo/shared/utils/page-feeds";
 import {
   feedClient,
@@ -25,7 +26,8 @@ export async function GET(request: Request) {
       await readPageNewsFeed(
         await feedClient(),
         department,
-        feedLocale(searchParams)
+        feedLocale(searchParams),
+        feedLimitFromParam(searchParams.get("limit"))
       )
     );
   } catch {

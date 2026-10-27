@@ -1,15 +1,22 @@
 import { getPage } from "@repo/api/page-builder";
-import type { PageDoc } from "@repo/editor";
 import type { Locale } from "@repo/i18n/config";
+import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
+import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getLocale } from "@/app/actions/locale";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
-import { resolvePageFeeds } from "@/lib/data/page-feeds";
-import { cachedPublishedPage } from "@/lib/data/public-content";
-import { RenderedPage } from "./_components/rendered-page";
+import {
+  cachedPublishedPage,
+  isPublishedPage,
+} from "@/lib/data/public-content";
+import {
+  boundDepartmentTheme,
+  isRenderablePage,
+  renderPublishedEditorPage,
+} from "@/lib/published-editor-page";
 
 interface Props {
   params: Promise<{ slug?: string[] }>;
@@ -42,11 +49,26 @@ const resolvePage = cache(async (slug: string, locale: Locale) => {
     return null;
   }
   try {
-    return await getPage(slug, locale);
+    // Same gate the cached lookup applies: an archived page whose translation
+    // still carries `is_published` is not public.
+    const result = await getPage(slug, locale);
+    return isPublishedPage(result) ? result : null;
   } catch {
     return null;
   }
 });
+
+/**
+ * `units/<campus>/<slug>` and `projects/<slug>` pages are served by their own
+ * routes, which check the page belongs to its unit or project, never from
+ * here: a variant URL (or a stray row) must not render without that check.
+ * Next matches routes case-sensitively, so `/Units/oslo/x` lands here, while
+ * the page lookup matches slugs case- and accent-insensitively; both
+ * predicates trim, lowercase and fold accents to match it.
+ */
+function isReservedSlug(slug: string): boolean {
+  return isUnitPageSlug(slug) || isProjectNamespaceSlug(slug);
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug: segments } = await params;
@@ -54,10 +76,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {};
   }
   const slug = segments.join("/");
+  if (isReservedSlug(slug)) {
+    return {};
+  }
   const locale = await getLocale();
   const result = await resolvePage(slug, locale);
-  const title = result?.translation?.title;
-  const description = result?.translation?.description ?? undefined;
+  // Same guard as the page body: a page that 404s carries no title.
+  if (!isRenderablePage(result)) {
+    return {};
+  }
+  const title = result.translation.title;
+  const description = result.translation.description ?? undefined;
   if (!title) {
     return {};
   }
@@ -76,22 +105,23 @@ export default async function DynamicPage({ params }: Props) {
   }
 
   const slug = segments.join("/");
+  if (isReservedSlug(slug)) {
+    notFound();
+  }
   const locale = await getLocale();
   const result = await resolvePage(slug, locale);
 
-  if (!(result?.translation?.is_published && result.doc)) {
+  if (!isRenderablePage(result)) {
     notFound();
   }
 
-  const doc = result.doc as PageDoc;
-
-  // Resolve the page's auto-source feeds before rendering, so the HTML this
-  // route emits carries real events/news/jobs rather than the blocks'
-  // "Loading…" placeholder. Awaited deliberately: the blocks read it during
-  // their first (server) paint, so streaming it in later would defeat the
-  // point. Every reader behind this is `"use cache"`, so it costs no extra
-  // Appwrite round-trip per visitor. See `@/lib/data/page-feeds`.
-  const feeds = await resolvePageFeeds(doc, locale);
-
-  return <RenderedPage doc={doc} feeds={feeds} locale={locale} />;
+  // Normalize, sanitize, feeds, prune and theme are one pipeline shared with
+  // the unit and project routes. A page bound to a department wears the
+  // department's theme; otherwise its own. See `@/lib/published-editor-page`.
+  return renderPublishedEditorPage({
+    departmentTheme: await boundDepartmentTheme(result),
+    locale,
+    result,
+    slug,
+  });
 }

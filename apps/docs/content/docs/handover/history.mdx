@@ -62,8 +62,26 @@ things became friction:
 
 The in-house editor at `@repo/editor` replaced Puck during 2025. The
 `puck_document` column name on `pages` is the most visible legacy of
-that era — it now stores the in-house editor's `PageDoc` blob despite
-the name.
+that era. It held the in-house editor's `PageDoc` blob despite the
+name, until the October 2026 redesign moved pages to new columns (see
+below).
+
+### The page editor redesign (October 2026)
+
+In October 2026 the editor was redesigned in six stages on the branch
+`feat/page-editor-redesign`. The flat block list gave way to **sections
+with one to four columns** that hold the blocks; the hero block became a
+page **header**; every block was rebuilt in the site's visual language;
+and a page or department can carry a two-colour **theme** that is
+checked for contrast. Pages are now stored as `PageDoc` v2 in the new
+`draft_doc` and `published_doc` columns; the old `draft_document` and
+`puck_document` columns were left in place, unused, until the cutover.
+Publishing now refreshes the public site by cache tag, project pages can
+live at `projects/<slug>`, and files up to 250 MB upload in chunks.
+The stage notes are at the end of
+`docs/superpowers/specs/2026-10-23-page-editor-redesign-design.md`. For
+how it works now, see [Editor architecture](/docs/architecture/editor-architecture)
+and [Pages publish flow](/docs/architecture/pages-publish-flow).
 
 ## The role-model rework
 

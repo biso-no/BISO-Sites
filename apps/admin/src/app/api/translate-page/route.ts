@@ -8,17 +8,20 @@ export const maxDuration = 120;
 
 const pageDocumentSchema = z
   .object({
-    blocks: z.array(z.unknown()),
     meta: z
       .object({
-        accentColor: z.string(),
         department: z.string(),
         description: z.string().optional(),
         slug: z.string(),
         status: z.enum(["draft", "published"]),
+        theme: z
+          .union([z.null(), z.object({ dark: z.string(), accent: z.string() })])
+          .optional(),
         title: z.string(),
       })
       .passthrough(),
+    sections: z.array(z.unknown()),
+    version: z.literal(2),
   })
   .passthrough();
 

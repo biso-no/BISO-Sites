@@ -1,54 +1,126 @@
 import { tool } from "ai";
 import { z } from "zod";
-import type { BlockType } from "@/editor/types";
-import { BRAND_ACCENT_VALUES } from "@/theme/presets";
+import { paletteGroups } from "@/blocks/index";
+import type { PaletteGroupData } from "@/blocks/registry";
+import { COLUMN_COUNT } from "@/editor/sections";
+import type { BlockType, SectionColumns } from "@/editor/types";
+import { validateSetTheme } from "./theme";
 
-const BLOCK_TYPES = [
-  "hero",
-  "marquee",
-  "text",
-  "quote",
-  "callout",
-  "twoCol",
-  "team",
-  "stats",
-  "timeline",
-  "image",
-  "gallery",
-  "video",
-  "events",
-  "jobs",
-  "news",
-  "cta",
-  "faq",
-  "contact",
-  "signup",
-] as const satisfies readonly BlockType[];
+// COLUMN_COUNT is a Record<SectionColumns, number>, so its keys are exactly the presets.
+const SECTION_COLUMNS = Object.keys(COLUMN_COUNT) as [
+  SectionColumns,
+  ...SectionColumns[],
+];
+const SECTION_BACKGROUNDS = ["white", "tinted", "dark", "photo"] as const;
 
-/** Input schema for `apply_accent` — exported so the brand-swatch guard can be
- *  asserted directly (a tool's `inputSchema` is widened to `FlexibleSchema`). */
-export const applyAccentInputSchema = z.object({
-  hex: z.enum(BRAND_ACCENT_VALUES).describe("Approved brand accent colour"),
-});
+/**
+ * The block types a set of palette groups offers, as the non-empty tuple
+ * `z.enum` needs. Throws when there are none: that means the registrations
+ * never ran here (for instance a `blocks/<name>/index.tsx` marked
+ * "use client", which a server route imports only as a client reference),
+ * and an empty enum would silently stop the AI from inserting any block.
+ */
+export function blockTypesOf(
+  groups: PaletteGroupData[]
+): [BlockType, ...BlockType[]] {
+  const [first, ...rest] = groups.flatMap((group) =>
+    group.items.map((item) => item.type)
+  );
+  if (first === undefined) {
+    throw new Error(
+      'No block types are registered: import @/blocks/index before the AI tools, and keep every blocks/<name>/index.tsx free of "use client".'
+    );
+  }
+  return [first, ...rest];
+}
+
+/**
+ * Every block type the palette offers, derived from the registry so the AI can
+ * never insert a hidden (cut) block or miss a new one.
+ */
+export const BLOCK_TYPES = blockTypesOf(paletteGroups());
 
 /** Server-side tool definitions for the AI route handler.
  *  Each tool's execute() is advisory — the actual mutations happen on the client
  *  via the store's operations (see ai/client.ts onToolCall). */
 export const pageEditorTools = {
-  insert_block: tool({
+  insert_section: tool({
     description:
-      "Insert a new block onto the page. Use this to add new content sections.",
+      "Insert a new, empty section (a row of columns) on the page. Presets: 1 = one column, " +
+      "1-1 = two equal, 2-1 = wide then narrow, 1-2 = narrow then wide, 1-1-1 = three, 1-1-1-1 = four. " +
+      'Then fill it with insert_block, passing sectionId "new" (the section you just made) and a columnIndex.',
     inputSchema: z.object({
-      type: z.enum(BLOCK_TYPES).describe("The block type to insert"),
-      afterId: z
+      columns: z.enum(SECTION_COLUMNS).describe("The column preset"),
+      background: z
+        .enum(SECTION_BACKGROUNDS)
+        .optional()
+        .describe(
+          "Section background. Photo needs an uploaded image, so avoid it."
+        ),
+      afterSectionId: z
         .string()
         .optional()
-        .describe("Insert after this block ID. Omit to append at the end."),
+        .describe("Insert after this section ID. Omit to append at the end."),
     }),
-    execute: ({ type, afterId }) => ({
+    execute: ({ columns, afterSectionId }) => ({
       status: "applied",
-      message: `Inserted ${type} block${afterId ? ` after ${afterId}` : " at end"}`,
+      message: `Inserted a ${columns} section${afterSectionId ? ` after ${afterSectionId}` : " at the end"}. Use sectionId "new" to fill it.`,
     }),
+  }),
+
+  insert_block: tool({
+    description:
+      "Insert a new block onto the page. Without a target it goes in a new section at the end. " +
+      "Give sectionId (and columnIndex, 0-based, default 0) to put it in a column of an existing section, " +
+      "or afterBlockId to place it right after another block.",
+    inputSchema: z.object({
+      type: z.enum(BLOCK_TYPES).describe("The block type to insert"),
+      sectionId: z
+        .string()
+        .optional()
+        .describe(
+          'Section to insert into. "new" means the section insert_section just made.'
+        ),
+      columnIndex: z
+        .number()
+        .optional()
+        .describe(
+          "0-based column within sectionId. Must exist in the section's layout."
+        ),
+      afterBlockId: z
+        .string()
+        .optional()
+        .describe("Insert after this block ID."),
+    }),
+    execute: ({ type, sectionId, columnIndex, afterBlockId }) => {
+      let where = "at the end";
+      if (afterBlockId) {
+        where = `after ${afterBlockId}`;
+      } else if (sectionId) {
+        where = `in ${sectionId} column ${columnIndex ?? 0}`;
+      }
+      return { status: "applied", message: `Inserted ${type} block ${where}` };
+    },
+  }),
+
+  set_theme: tool({
+    description:
+      "Set the page's colours: dark (headings and dark sections, must be dark enough for white text, 7:1) and " +
+      "accent (must reach 4.5:1 on the dark). Both are hex. A pair that fails is refused with the nearest " +
+      "passing shade; retry with that. { reset: true } returns the page to BISO's colours.",
+    inputSchema: z.union([
+      z.object({
+        dark: z.string().describe("Dark colour, hex like #001a35"),
+        accent: z.string().describe("Accent colour, hex like #3aa3e1"),
+      }),
+      z.object({ reset: z.literal(true) }),
+    ]),
+    execute: (input) => {
+      const checked = validateSetTheme(input);
+      return "error" in checked
+        ? checked.error
+        : { status: "applied", message: "Theme set." };
+    },
   }),
 
   remove_block: tool({
@@ -81,45 +153,21 @@ export const pageEditorTools = {
     }),
   }),
 
-  set_variant: tool({
-    description:
-      "Change the layout variant of a block (e.g. split/centered/full for a hero block).",
-    inputSchema: z.object({
-      id: z.string().describe("Block ID"),
-      variant: z
-        .string()
-        .describe("Variant name, e.g. 'split', 'centered', 'full'"),
-    }),
-    execute: ({ id, variant }) => ({
-      status: "applied",
-      message: `Set variant of ${id} to ${variant}`,
-    }),
-  }),
-
-  apply_accent: tool({
-    description:
-      "Change the page accent colour (used for headings, highlights, and the block selection outline). " +
-      "Use one of the brand hues: blue=#3DA9E0, navy=#001731, sky=#7CC7EC, gold=#F7D64A, slate=#33566F.",
-    inputSchema: applyAccentInputSchema,
-    execute: ({ hex }) => ({
-      status: "applied",
-      message: `Set accent to ${hex}`,
-    }),
-  }),
-
   bind_collection: tool({
     description:
-      "Bind a data block (events, jobs, news) to an Appwrite collection. " +
-      "The block will fetch live data from that collection.",
+      "Bind a data block (events, jobs, news) to a department's data. " +
+      "The block will show that department's live items.",
     inputSchema: z.object({
       id: z.string().describe("Block ID (must be type: events | jobs | news)"),
       source: z
         .string()
-        .describe("Appwrite collection ID or 'auto' for default"),
+        .describe(
+          "Department id (not a collection id), or 'auto' for the default"
+        ),
     }),
     execute: ({ id, source }) => ({
       status: "applied",
-      message: `Bound ${id} to collection ${source}`,
+      message: `Bound ${id} to department ${source}`,
     }),
   }),
 
@@ -130,7 +178,7 @@ export const pageEditorTools = {
     inputSchema: z.object({
       context: z
         .string()
-        .describe("What the copy is for (e.g. 'hero title for ESN Oslo')"),
+        .describe("What the copy is for (e.g. 'intro paragraph for ESN Oslo')"),
       tone: z
         .enum(["formal", "friendly", "direct"])
         .optional()

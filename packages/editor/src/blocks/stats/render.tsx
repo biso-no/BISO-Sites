@@ -1,7 +1,10 @@
 "use client";
 
+import { withoutBlankItems } from "@/blocks/_v2/blank";
+import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
-import type { StatsBlock } from "@/editor/types";
+import { EditableText } from "@/components/editor-shell/canvas/editable-text";
+import type { StatItem, StatsBlock } from "@/editor/types";
 
 interface Props {
   block: StatsBlock;
@@ -10,56 +13,41 @@ interface Props {
 }
 
 export function StatsRender({ block, edit, onPatch }: Props) {
+  const items = withoutBlankItems(
+    listOf<StatItem>(block.items),
+    (x) => [x.label, x.num],
+    edit
+  );
+  if (!edit && items.length === 0) {
+    return null;
+  }
+  const update = (i: number, key: "label" | "num", value: string) =>
+    onPatch(
+      "items",
+      items.map((x, j) => (j === i ? { ...x, [key]: value } : x))
+    );
   return (
-    <div className="pg-stats pg-block">
-      {block.items.map((item, i) => (
-        <div className="pg-stat" key={i}>
-          {edit ? (
-            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-            <div
-              className="pg-stat__num"
-              contentEditable
-              data-edit="1"
-              onBlur={(e) => {
-                const items = block.items.map((x, j) =>
-                  j === i ? { ...x, num: e.currentTarget.textContent ?? "" } : x
-                );
-                onPatch("items", items);
-              }}
-              role="textbox"
-              suppressContentEditableWarning
-              tabIndex={0}
-            >
-              {item.num}
-            </div>
-          ) : (
-            <div className="pg-stat__num">{item.num}</div>
-          )}
-          {edit ? (
-            // biome-ignore lint/a11y/useSemanticElements: contentEditable and editor preview controls intentionally use custom interaction surfaces.
-            <div
-              className="pg-stat__lbl"
-              contentEditable
-              data-edit="1"
-              onBlur={(e) => {
-                const items = block.items.map((x, j) =>
-                  j === i
-                    ? { ...x, label: e.currentTarget.textContent ?? "" }
-                    : x
-                );
-                onPatch("items", items);
-              }}
-              role="textbox"
-              suppressContentEditableWarning
-              tabIndex={0}
-            >
-              {item.label}
-            </div>
-          ) : (
-            <div className="pg-stat__lbl">{item.label}</div>
-          )}
+    <dl className="m-0 grid @sm:grid-cols-2 @xl:grid-cols-3 gap-6 break-words border-edge border-t pt-6">
+      {items.map((item, i) => (
+        <div className="flex min-w-0 flex-col-reverse gap-1" key={i}>
+          <dt className="type-body-sm text-ink-muted">
+            <EditableText
+              edit={edit}
+              onChange={(v) => update(i, "label", v)}
+              tag="span"
+              value={item.label}
+            />
+          </dt>
+          <dd className="type-data m-0 text-3xl text-ink-accent">
+            <EditableText
+              edit={edit}
+              onChange={(v) => update(i, "num", v)}
+              tag="span"
+              value={item.num}
+            />
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }

@@ -137,7 +137,7 @@ function buildVarslingEmail(input: VarslingEmailInput): string {
   );
 
   return `
-    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+    <div style="font-family:'Museo Sans',system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
       <h2 style="margin:0 0 16px;font-size:20px;">BISO Varsling – ny sak</h2>
       <p><strong>Campus:</strong> ${campus}</p>
       <p><strong>Rolle:</strong> ${role}</p>

@@ -203,18 +203,42 @@ export async function GET(
         if (!member.email) {
           return;
         }
-        try {
-          const photoStream = await graphClient
-            // A sized photo: the full-size one is several hundred KB per
-            // person and travels as a data: URI to every visitor.
-            .api(`/users/${member.email}/photos/240x240/$value`)
-            .responseType(ResponseType.ARRAYBUFFER)
-            .get();
+        // Graph serves the original upload from `/photo/$value` — for this
+        // tenant that is full-resolution portraits inlined as base64, and
+        // Oslo's board alone came to **25 MB** of JSON. `/photos/<size>/$value`
+        // returns a pre-rendered thumbnail instead, and every one of these
+        // travels as a data: URI to every visitor. 240x240 covers the largest
+        // rendering (the front-page leadership grid) on a 2x display.
+        //
+        // Graph only renders sizes up to the original upload's own, so a miss
+        // steps down; a user with no sized photo at all falls back to the
+        // original below, which can then only be a small one.
+        const photoSizes = ["240x240", "120x120", "96x96", "64x64"];
+        for (const size of photoSizes) {
+          try {
+            const stream = await graphClient
+              .api(`/users/${member.email}/photos/${size}/$value`)
+              .responseType(ResponseType.ARRAYBUFFER)
+              .get();
+            member.profilePhotoUrl = `data:image/jpeg;base64,${Buffer.from(stream).toString("base64")}`;
+            break;
+          } catch (_e) {
+            // This size is not available for this user; try the next one.
+          }
+        }
 
-          const base64 = Buffer.from(photoStream).toString("base64");
-          member.profilePhotoUrl = `data:image/jpeg;base64,${base64}`;
-        } catch (_e) {
-          // No photo found, skip silently
+        if (!member.profilePhotoUrl) {
+          try {
+            const photoStream = await graphClient
+              .api(`/users/${member.email}/photo/$value`)
+              .responseType(ResponseType.ARRAYBUFFER)
+              .get();
+
+            const base64 = Buffer.from(photoStream).toString("base64");
+            member.profilePhotoUrl = `data:image/jpeg;base64,${base64}`;
+          } catch (_e) {
+            // No photo found, skip silently
+          }
         }
       })
     );

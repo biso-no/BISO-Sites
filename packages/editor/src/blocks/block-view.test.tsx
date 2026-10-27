@@ -1,28 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Block } from "@/editor/types";
-import { SPACING, WIDTH } from "./_primitives/block-section";
-import type {
-  BlockLayout,
-  ResolvedBackground,
-} from "./_primitives/layout-types";
+import { normalizePageDoc } from "@/editor/serialize";
+import type { Block, PageDoc } from "@/editor/types";
 import { BlockView } from "./block-view";
 import { allBlocks } from "./index";
+import { registerBlock } from "./registry";
 
 const noopPatch = () => undefined;
 
-const render = (block: Block, background: ResolvedBackground) =>
+const render = (block: Block, edit = false) =>
   renderToStaticMarkup(
-    <BlockView
-      background={background}
-      block={block}
-      edit={false}
-      onPatch={noopPatch}
-    />
+    <BlockView block={block} edit={edit} onPatch={noopPatch} />
   );
-
-const withLayout = (block: Block, layout?: BlockLayout): Block =>
-  ({ ...block, layout }) as Block;
 
 const emptyOf = (type: Block["type"]): Block => {
   const def = allBlocks().find((candidate) => candidate.type === type);
@@ -32,88 +21,100 @@ const emptyOf = (type: Block["type"]): Block => {
   return def.empty();
 };
 
-/*
- * The Design panel sits under every block, so every block has to answer it.
- * Most blocks are still styled by blocks.css and never read `layout`; those
- * are framed by BlockView. Blocks rebuilt on BlockSection apply it themselves.
- */
-describe("every block answers the Design panel", () => {
-  const layout: BlockLayout = {
-    background: "inverted",
-    spacing: "compact",
-    width: "prose",
-  };
+describe("BlockView", () => {
+  test("a block renders bare, tagged with its type, with no legacy frame", () => {
+    const original = allBlocks().find((d) => d.type === "marquee");
+    if (!original) {
+      throw new Error("marquee is not registered");
+    }
+    registerBlock({ ...original, Render: () => <p>bare</p> });
+    let html: string;
+    try {
+      html = render(emptyOf("marquee"));
+    } finally {
+      registerBlock(original);
+    }
+    expect(html).toBe(
+      '<div data-block="marquee" style="display:contents"><p>bare</p></div>'
+    );
+  });
 
-  for (const def of allBlocks()) {
-    test(`${def.type} paints the chosen surface, spacing and width`, () => {
-      const html = render(withLayout(def.empty(), layout), "inverted");
-
-      expect(html).toContain("bg-inverted");
-      const framed =
-        html.includes('data-spacing="compact"') &&
-        html.includes('data-width="prose"');
-      const sectioned =
-        html.includes(SPACING.compact) && html.includes(WIDTH.prose);
-      expect(framed || sectioned).toBe(true);
-    });
-  }
+  test("no block is framed in the retired legacy section", () => {
+    for (const def of allBlocks()) {
+      const html = render(def.empty(), true);
+      expect(html, def.type).not.toContain("pg-section");
+      expect(html, def.type).not.toContain("data-spacing");
+    }
+  });
 });
 
-describe("BlockView frame", () => {
-  test("a block styled by blocks.css gets one frame carrying its layout", () => {
-    const html = render(
-      withLayout(emptyOf("text"), {
-        background: "brand",
-        spacing: "spacious",
-        width: "content",
-      }),
-      "brand"
+/*
+ * Pages stored before the four cut blocks were removed may still hold them.
+ * They must load, stay out of the public site's way, and be deletable in the
+ * editor.
+ */
+describe("a stored block of a removed type", () => {
+  const stored = {
+    meta: { title: "Old page" },
+    sections: [
+      {
+        columns: [
+          {
+            blocks: [
+              {
+                id: "p1",
+                name: "Ada",
+                role: "Lead",
+                type: "profileHeader",
+              },
+              {
+                columns: [{ body: "a" }, { body: "b" }],
+                id: "t1",
+                type: "twoCol",
+              },
+            ],
+            id: "c1",
+          },
+        ],
+        id: "s1",
+        layout: {
+          align: "top",
+          background: "white",
+          columns: "1",
+          hideOnPhone: false,
+          phoneReverse: false,
+          spacing: "normal",
+          tablet: "row",
+        },
+      },
+    ],
+    version: 2,
+  } as unknown as PageDoc;
+
+  const blocks = (): Block[] =>
+    normalizePageDoc(stored).sections.flatMap((s) =>
+      s.columns.flatMap((c) => c.blocks)
     );
 
-    expect(html.match(/class="pg-section\b/g)).toHaveLength(1);
-    expect(html).toContain('data-background="brand"');
-    expect(html).toContain('data-spacing="spacious"');
-    expect(html).toContain('data-width="content"');
-    expect(html).toContain("bg-brand");
-    expect(html).not.toContain("data-auto");
+  test("the document normalizes without throwing and keeps both blocks", () => {
+    expect(() => normalizePageDoc(stored)).not.toThrow();
+    expect(blocks().map((b) => b.type as string)).toEqual([
+      "profileHeader",
+      "twoCol",
+    ]);
   });
 
-  test("an untouched block shows the panel's defaults and stays automatic", () => {
-    const html = render(withLayout(emptyOf("text")), "muted");
-
-    expect(html).toContain('data-background="muted"');
-    expect(html).toContain('data-spacing="normal"');
-    expect(html).toContain('data-width="wide"');
-    expect(html).toContain('data-auto=""');
-    expect(html).toContain("bg-section");
+  test("the site renders nothing for them", () => {
+    for (const block of blocks()) {
+      expect(render(block, false)).toBe("");
+    }
   });
 
-  test("an explicit Auto background is treated like no choice", () => {
-    const html = render(
-      withLayout(emptyOf("text"), { background: "auto" }),
-      "default"
-    );
-
-    expect(html).toContain('data-auto=""');
-    expect(html).toContain('data-background="default"');
-  });
-
-  test("a block that composes BlockSection is not framed twice", () => {
-    const html = render(
-      withLayout(emptyOf("cta"), { background: "inverted" }),
-      "inverted"
-    );
-
-    expect(html).not.toContain("pg-section");
-    expect(html).toContain("bg-inverted");
-  });
-
-  test("an unknown block type renders nothing", () => {
-    const html = render(
-      { id: "ghost", type: "not-a-block" } as unknown as Block,
-      "default"
-    );
-
-    expect(html).toBe("");
+  test("the editor shows a placeholder naming the type, so it can be deleted", () => {
+    for (const block of blocks()) {
+      const html = render(block, true);
+      expect(html).toContain("Unknown block");
+      expect(html).toContain(block.type);
+    }
   });
 });

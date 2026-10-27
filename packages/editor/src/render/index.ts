@@ -16,8 +16,6 @@
 //      the registrations rather than an unrelated module.
 import "../blocks/index";
 
-export type { ResolvedBackground } from "../blocks/_primitives/layout-types";
-export { resolveBackgrounds } from "../blocks/_primitives/resolve-layout";
 export { BlockView } from "../blocks/block-view";
 export { allBlocks, getBlock } from "../blocks/index";
 export {
@@ -37,16 +35,19 @@ export {
 } from "../editor/page-feeds";
 export { fromJSON, normalizePageDoc } from "../editor/serialize";
 export { useEditorStore } from "../editor/store";
+export { walkBlocks } from "../editor/tree";
 export type {
   Block,
   BlockType,
+  Column,
   EditorLocale,
+  InsertTarget,
   PageDoc,
+  PageHeader,
   PageMeta,
+  Section,
+  SectionColumns,
+  SectionLayout,
 } from "../editor/types";
-export type { AccentHue } from "../theme/presets";
-export {
-  accentForDepartment,
-  DEPARTMENT_ACCENTS,
-  HUE_COLORS,
-} from "../theme/presets";
+export { PageHeaderView } from "../header/page-header-view";
+export { SectionView } from "../sections/section-view";
