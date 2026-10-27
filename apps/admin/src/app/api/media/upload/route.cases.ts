@@ -79,6 +79,8 @@ globalThis.fetch = (() => {
 }) as unknown as typeof fetch;
 const realKey = process.env.APPWRITE_API_KEY;
 process.env.APPWRITE_API_KEY = "cases-secret";
+// The admin's canonical origin, as in production (own process: no restore).
+process.env.NEXT_PUBLIC_BASE_URL = "http://admin.test/";
 
 const { POST } = await import("./route");
 
@@ -261,8 +263,27 @@ test("refuses a chunk from another site", async () => {
   );
 });
 
-test("requires a valid content-length", async () => {
-  await expectRefused(first({}, { "content-length": null }), 411);
+test("a chunk without a content-length still goes up, capped", async () => {
+  const response = await POST(await first({}, { "content-length": null }));
+  expect(response.status).toBe(200);
+  expect(forwardChunk).toHaveBeenCalledTimes(1);
+});
+
+test("a chunk body larger than it declared is cut off at one chunk", async () => {
+  await expectRefused(
+    first(
+      { chunk: new Blob([new Uint8Array(CHUNK + 256 * 1024)]) },
+      { "content-length": "1024" }
+    ),
+    413
+  );
+});
+
+test("the admin's own Origin passes without Sec-Fetch-Site", async () => {
+  const response = await POST(
+    await first({}, { origin: "http://admin.test", "sec-fetch-site": null })
+  );
+  expect(response.status).toBe(200);
 });
 
 test("records who opened the upload and schedules the sweep", async () => {

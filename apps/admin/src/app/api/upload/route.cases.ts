@@ -103,6 +103,8 @@ globalThis.fetch = (() => {
 }) as unknown as typeof fetch;
 const realKey = process.env.APPWRITE_API_KEY;
 process.env.APPWRITE_API_KEY = "cases-secret";
+// The admin's canonical origin, as in production (own process: no restore).
+process.env.NEXT_PUBLIC_BASE_URL = "http://admin.test/";
 
 const { POST } = await import("./route");
 
@@ -519,22 +521,87 @@ test("without Sec-Fetch-Site, only the admin's own Origin passes", async () => {
   expect(response.status).toBe(200);
 });
 
-test("requires a valid content-length", async () => {
-  for (const contentLength of [null, "abc", "0"]) {
-    await expectRefused(
-      firstChunk({}, { headers: { "content-length": contentLength } }),
-      411
-    );
-  }
-  const single = await POST(
-    new Request("http://admin.test/api/upload?bucket=media", {
-      body: new Blob([new Uint8Array(1024)], { type: "image/png" }),
-      headers: { "content-type": "image/png", "x-filename": "a.png" },
-      method: "POST",
-    })
-  );
-  expect(single.status).toBe(411);
+function singleRequest(
+  body: BodyInit,
+  headers: Record<string, string>
+): Request {
+  return new Request("http://admin.test/api/upload?bucket=media", {
+    body,
+    headers: { "content-type": "image/png", "x-filename": "a.png", ...headers },
+    method: "POST",
+  });
+}
+
+/** A body of `count` pieces of 1 MiB that never holds more than one. */
+function streamOfMib(count: number): ReadableStream<Uint8Array> {
+  const piece = new Uint8Array(MIB);
+  let sent = 0;
+  return new ReadableStream({
+    pull(controller) {
+      if (sent === count) {
+        controller.close();
+        return;
+      }
+      sent += 1;
+      controller.enqueue(piece);
+    },
+  });
+}
+
+test("a single request without a content-length still uploads", async () => {
+  const response = await POST(singleRequest(new Uint8Array(1024), {}));
+  expect(response.status).toBe(200);
+  expect(createFile).toHaveBeenCalledTimes(1);
+});
+
+test("a single request declaring more than its type allows is refused unread", async () => {
+  const request = singleRequest(new Uint8Array(1024), {
+    "content-length": String(10 * MIB + 1),
+  });
+  expect((await POST(request)).status).toBe(413);
+  expect(request.bodyUsed).toBeFalse();
   expect(createFile).not.toHaveBeenCalled();
+});
+
+test("a single request larger than it declared is cut off at the type's limit", async () => {
+  // 11 MiB of PNG while claiming 1 KiB: the read stops past 10 MiB.
+  const response = await POST(
+    singleRequest(streamOfMib(11), { "content-length": "1024" })
+  );
+  expect(response.status).toBe(413);
+  expect(createFile).not.toHaveBeenCalled();
+});
+
+test("a single request whose name disagrees with its type is refused", async () => {
+  const request = new Request("http://admin.test/api/upload?bucket=media", {
+    body: new Uint8Array(1024),
+    headers: {
+      "content-length": "1024",
+      "content-type": "video/mp4",
+      "x-filename": "a.zip",
+    },
+    method: "POST",
+  });
+  expect((await POST(request)).status).toBe(415);
+  expect(createFile).not.toHaveBeenCalled();
+});
+
+test("a chunk without a content-length still goes up, capped", async () => {
+  const response = await POST(
+    await firstChunk({}, { headers: { "content-length": null } })
+  );
+  expect(response.status).toBe(200);
+  expect(forwardChunk).toHaveBeenCalledTimes(1);
+});
+
+test("a chunk body larger than it declared is cut off at one chunk", async () => {
+  await expectRefused(
+    firstChunk(
+      { chunk: bytes(CHUNK + 256 * 1024) },
+      { headers: { "content-length": "1024" } }
+    ),
+    413
+  );
 });
 
 test("refuses a file name whose extension disagrees with its type", async () => {

@@ -33,6 +33,7 @@ test("rejects an unauthenticated upload before reading or storing it", async () 
 
   expect(response.status).toBe(401);
   expect(bodyReads).toBe(0);
+  expect(request.bodyUsed).toBe(false);
   expect(createCalls).toBe(0);
 });
 
@@ -85,6 +86,7 @@ test("rejects an oversized content length before reading the body", async () => 
 
   expect(response.status).toBe(413);
   expect(bodyReads).toBe(0);
+  expect(request.bodyUsed).toBe(false);
   expect(await response.json()).toEqual({
     error: "File too large (max 250 MB)",
   });
@@ -132,17 +134,24 @@ test("rejects empty and actually oversized request bodies", async () => {
     }),
     dependencies
   );
-  const oversizedBlob = new Blob(["too large"], { type: "image/png" });
-  Object.defineProperty(oversizedBlob, "size", {
-    value: INLINE_MEDIA_MAX_BYTES + 1,
+  // One MiB more than the limit, streamed without a length, reusing a
+  // single 1 MiB buffer: the read is cut off once it passes the limit.
+  const mib = new Uint8Array(1024 * 1024);
+  let sent = 0;
+  const oversizedBody = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (sent * mib.byteLength > INLINE_MEDIA_MAX_BYTES) {
+        controller.close();
+        return;
+      }
+      sent += 1;
+      controller.enqueue(mib);
+    },
   });
   const oversizedRequest = new Request("http://admin.test/api/media/upload", {
-    body: new Blob(["photo"], { type: "image/png" }),
+    body: oversizedBody,
     headers: { "content-type": "image/png", "x-filename": "photo.png" },
     method: "POST",
-  });
-  Object.defineProperty(oversizedRequest, "blob", {
-    value: () => Promise.resolve(oversizedBlob),
   });
   const oversizedResponse = await handleInlineMediaUpload(
     oversizedRequest,

@@ -11,11 +11,8 @@ import { after, NextResponse } from "next/server";
 import { logAuditEvent } from "@/app/(portal)/_actions/audit-log";
 import type { UserAuthContext } from "./authorization";
 import { sweepStaleChunkUploads } from "./chunk-upload-sweep";
-import {
-  CHUNK_UPLOAD_HEADER,
-  readContentLength,
-  sanitizeUploadFilename,
-} from "./upload-buckets";
+import { readCapped } from "./read-capped";
+import { CHUNK_UPLOAD_HEADER, sanitizeUploadFilename } from "./upload-buckets";
 import { createUploadToken, verifyUploadToken } from "./upload-token";
 
 /**
@@ -35,8 +32,11 @@ import { createUploadToken, verifyUploadToken } from "./upload-token";
  *   bytes sent, and be a whole chunk unless it is the last one. A middle chunk
  *   answers `{ fileId }`; the last one answers through the route's `complete`.
  *
- * Only the admin's own pages may send chunks (`isSameOriginUpload`), and
- * every chunk needs a positive `content-length`. Every refusal happens before
+ * Only the admin's own pages may send chunks (`isSameOriginUpload`). A body
+ * is read through `readCapped`, so no chunk request holds more than one chunk
+ * plus its form fields in memory: a declared length over that answers 413
+ * unread, and a missing length is tolerated but the read stops at the cap.
+ * Every refusal happens before
  * anything is sent to Appwrite. Chunks must be sent in order, one at a time;
  * the last one completes the file. Opening an upload is written to the audit
  * log, and after the response a bounded sweep deletes partial uploads too old
@@ -89,32 +89,21 @@ function refuse(error: string, status: number): Response {
   return NextResponse.json({ error }, { status });
 }
 
-function firstValue(header: string | null): string | undefined {
-  return header?.split(",")[0]?.trim() || undefined;
-}
-
-/** The admin's own origin, as the request and the configured base URL name it. */
-function adminOrigins(request: Request): Set<string> {
-  const url = new URL(request.url);
-  const origins = new Set([url.origin]);
-  const host =
-    firstValue(request.headers.get("x-forwarded-host")) ??
-    firstValue(request.headers.get("host"));
-  if (host) {
-    const protocol =
-      firstValue(request.headers.get("x-forwarded-proto")) ??
-      url.protocol.slice(0, -1);
-    origins.add(`${protocol}://${host}`);
-  }
+/**
+ * The admin's canonical origin, from `NEXT_PUBLIC_BASE_URL` (required at
+ * startup, and what `getCanonicalOrigin` uses for OAuth), or null when unset
+ * or malformed, which refuses the Origin fallback.
+ */
+function adminOrigin(): string | null {
   const base = process.env.NEXT_PUBLIC_BASE_URL?.trim();
-  if (base) {
-    try {
-      origins.add(new URL(base).origin);
-    } catch {
-      // A malformed base URL adds nothing.
-    }
+  if (!base) {
+    return null;
   }
-  return origins;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -127,7 +116,7 @@ function adminOrigins(request: Request): Set<string> {
  *   makes a cross-site request preflight, and the preflight fails (the admin
  *   sends no CORS headers); `no-cors` requests cannot carry it at all.
  * - `Sec-Fetch-Site: same-origin`; a browser without Fetch Metadata must send
- *   an `Origin` that is the admin's own.
+ *   an `Origin` equal to the admin's canonical origin.
  */
 function isSameOriginUpload(request: Request): boolean {
   if (request.headers.get(CHUNK_UPLOAD_HEADER) !== "1") {
@@ -138,7 +127,7 @@ function isSameOriginUpload(request: Request): boolean {
     return site === "same-origin";
   }
   const origin = request.headers.get("origin");
-  return origin !== null && adminOrigins(request).has(origin);
+  return origin !== null && origin === adminOrigin();
 }
 
 function readText(value: FormDataEntryValue | null): string {
@@ -350,16 +339,15 @@ export async function handleChunkedUpload(
   if (!isSameOriginUpload(request)) {
     return refuse("Uploads must come from the admin itself", 403);
   }
-  const contentLength = readContentLength(request.headers);
-  if (contentLength === null) {
-    return refuse("Content-Length required", 411);
-  }
-  if (contentLength > CHUNK_BYTES + FORM_OVERHEAD_BYTES) {
+  const body = await readCapped(request, CHUNK_BYTES + FORM_OVERHEAD_BYTES);
+  if (body.tooLarge) {
     return refuse(`Chunk too large (max ${CHUNK_BYTES / MB} MB)`, 413);
   }
   let form: FormData;
   try {
-    form = await request.formData();
+    form = await new Response(body.bytes, {
+      headers: { "content-type": request.headers.get("content-type") ?? "" },
+    }).formData();
   } catch {
     return refuse("Malformed chunk upload", 400);
   }

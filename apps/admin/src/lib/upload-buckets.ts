@@ -220,8 +220,8 @@ const CONTENT_LENGTH_REGEX = /^\d{1,16}$/;
 
 /**
  * The request's declared body size, or null when it is missing, not a plain
- * integer, or zero. The upload routes answer 411 then: every browser sends a
- * length for a file or form body.
+ * integer, or zero. `readCapped` refuses a declared size over its cap before
+ * reading, and caps the read itself either way.
  */
 export function readContentLength(headers: Headers): number | null {
   const value = headers.get("content-length")?.trim() ?? "";

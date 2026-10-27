@@ -5,13 +5,13 @@ import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
 import type { UserAuthContext } from "@/lib/authorization";
 import { handleChunkedUpload, isChunkRequest } from "@/lib/chunked-upload";
+import { readCapped } from "@/lib/read-capped";
 import {
   allowsChunkedUpload,
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
   filenameMatchesMime,
   maxBytesForMime,
-  readContentLength,
   resolveUploadBucket,
   resolveUploadMimeType,
   sanitizeUploadFilename,
@@ -86,42 +86,32 @@ export async function POST(request: Request) {
     return chunkedUpload(request, bucket, auth.ctx);
   }
 
-  // The largest limit of any type bounds the body; the type's own limit
-  // applies once it is known.
-  const contentLength = readContentLength(request.headers);
-  if (contentLength === null) {
-    return NextResponse.json(
-      { error: "Content-Length required" },
-      { status: 411 }
-    );
-  }
-  if (contentLength > bucket.maxBytes) {
-    return tooLarge(bucket.maxBytes);
-  }
-
-  const blob = await request.blob();
-  if (blob.size === 0) {
-    return NextResponse.json({ error: "Empty upload" }, { status: 400 });
-  }
-
+  // The type and name come from the headers, so the type's own limit caps
+  // the read: a larger declared length is refused unread, and a body that
+  // runs past it is cut off there.
   const mimeType = resolveUploadMimeType(
-    blob.type,
+    "",
     request.headers.get("content-type")
   );
   const typeLimit = maxBytesForMime(bucket, mimeType);
-  if (typeLimit === null) {
+  const filename = sanitizeUploadFilename(
+    decodeUploadFilename(request.headers.get("x-filename"))
+  );
+  if (typeLimit === null || !filenameMatchesMime(filename, mimeType)) {
     return NextResponse.json(
       { error: "Unsupported file type" },
       { status: 415 }
     );
   }
-  if (blob.size > typeLimit) {
+
+  const body = await readCapped(request, typeLimit);
+  if (body.tooLarge) {
     return tooLarge(typeLimit);
   }
-
-  const filename = sanitizeUploadFilename(
-    decodeUploadFilename(request.headers.get("x-filename"))
-  );
+  const { bytes } = body;
+  if (bytes.byteLength === 0) {
+    return NextResponse.json({ error: "Empty upload" }, { status: 400 });
+  }
 
   try {
     // Buckets whose create permission is narrower than "any admin user" are
@@ -133,7 +123,7 @@ export async function POST(request: Request) {
     const file = await storage.createFile({
       bucketId: bucket.id,
       fileId: ID.unique(),
-      file: InputFile.fromBuffer(blob, filename),
+      file: InputFile.fromBuffer(bytes, filename),
     });
     return NextResponse.json({
       file,
@@ -144,7 +134,7 @@ export async function POST(request: Request) {
     console.error("[api/upload] createFile failed", {
       bucket: bucket.id,
       error,
-      size: blob.size,
+      size: bytes.byteLength,
       userId: auth.ctx.userId,
     });
     return NextResponse.json(

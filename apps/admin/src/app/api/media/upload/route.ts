@@ -17,6 +17,7 @@ import {
   type InlineMediaUpload,
   sanitizeInlineMediaFilename,
 } from "@/lib/inline-media";
+import { readCapped } from "@/lib/read-capped";
 
 export interface InlineMediaUploadInput {
   bytes: Buffer;
@@ -70,20 +71,21 @@ export async function handleInlineMediaUpload(
     return errorResponse("Unsupported or mismatched file type", 415);
   }
 
-  const blob = await request.blob();
-  if (blob.size === 0) {
-    return errorResponse("Empty upload", 400);
-  }
-  if (blob.size > INLINE_MEDIA_MAX_BYTES) {
+  // Never holds more than the limit, whatever content-length claimed.
+  const body = await readCapped(request, INLINE_MEDIA_MAX_BYTES);
+  if (body.tooLarge) {
     return errorResponse("File too large (max 250 MB)", 413);
+  }
+  if (body.bytes.byteLength === 0) {
+    return errorResponse("Empty upload", 400);
   }
 
   const storageResponse = await dependencies.createFile({
-    bytes: Buffer.from(await blob.arrayBuffer()),
+    bytes: Buffer.from(body.bytes),
     fileName,
     mediaKind,
     mimeType,
-    size: blob.size,
+    size: body.bytes.byteLength,
   });
 
   if (!(storageResponse instanceof Response)) {
