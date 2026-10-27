@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import {
   defineConfig,
   defineDocs,
@@ -5,6 +6,17 @@ import {
 } from "fumadocs-mdx/config";
 import lastModified from "fumadocs-mdx/plugins/last-modified";
 import { z } from "zod";
+import { createGitDateLookup } from "./lib/git-dates";
+
+const gitDates = createGitDateLookup(
+  (args) =>
+    new Promise((resolve) => {
+      execFile("git", args, (error, stdout) => {
+        const failed = error !== null;
+        resolve({ exitCode: failed ? 1 : 0, stdout: String(stdout) });
+      });
+    })
+);
 
 /** @public — collection consumed by fumadocs codegen (.source). */
 export const docs = defineDocs({
@@ -20,4 +32,6 @@ export const docs = defineDocs({
   },
 });
 
-export default defineConfig({ plugins: [lastModified()] });
+export default defineConfig({
+  plugins: [lastModified({ versionControl: gitDates })],
+});
