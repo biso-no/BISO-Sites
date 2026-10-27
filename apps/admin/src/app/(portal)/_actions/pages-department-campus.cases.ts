@@ -70,7 +70,21 @@ const adminDb = {
     }
     return Promise.resolve(row);
   }),
-  listRows: mock(async () => ({ rows: [], total: 0 })),
+  // Departments by `Name` (the grant's uniqueness read); nothing else here
+  // needs rows.
+  listRows: mock((_db: string, table: string, queries: string[] = []) => {
+    if (table !== "departments") {
+      return Promise.resolve({ rows: [], total: 0 });
+    }
+    const names = queries
+      .map((query) => JSON.parse(query) as Record<string, unknown>)
+      .filter((query) => query.method === "equal" && query.attribute === "Name")
+      .flatMap((query) => query.values as unknown[]);
+    const rows = Object.values(tables.departments).filter((row) =>
+      names.includes(row.Name)
+    );
+    return Promise.resolve({ rows, total: rows.length });
+  }),
   updateRow: mock(async () => ({})),
 };
 const savePageDraft = mock(
@@ -256,6 +270,28 @@ describe("the department-campus grant stays narrow", () => {
         { $id: "sg-app-campus-oslo", name: "Oslo" },
       ],
       ["dept-x"]
+    );
+
+    expect(await openInEditor("pw")).toBeNull();
+    expect(
+      await savePageEditorDoc({ doc: winterGamesDoc() as never, id: "pw" })
+    ).toHaveProperty("error");
+    await expect(publishPageAction("pw", "no")).rejects.toThrow();
+    expect(savePageDraft).not.toHaveBeenCalled();
+    expect(publishPage).not.toHaveBeenCalled();
+  });
+
+  test("no grant when the member's department name matches two departments", async () => {
+    // A second "Wintergames" row on Bergen: the team name resolves to both.
+    tables.departments["dept-w-bergen"] = {
+      $id: "dept-w-bergen",
+      campus: "2",
+      campus_id: "2",
+      Name: "Wintergames",
+    };
+    currentCtx = contextFromTeams(
+      [WG_TEAM, { $id: "sg-app-campus-oslo", name: "Oslo" }],
+      [WG, "dept-w-bergen"]
     );
 
     expect(await openInEditor("pw")).toBeNull();

@@ -20,10 +20,48 @@ const member = (overrides: Partial<UserAuthContext> = {}): UserAuthContext => ({
 });
 
 const DEPARTMENTS: Record<string, Record<string, unknown>> = {
-  "dept-w": { $id: "dept-w", campus: { $id: "5" }, campus_id: "5" },
-  "dept-x": { $id: "dept-x", campus: "1", campus_id: "1" },
+  "dept-w": {
+    $id: "dept-w",
+    campus: { $id: "5" },
+    campus_id: "5",
+    Name: "Wintergames",
+  },
+  "dept-x": { $id: "dept-x", campus: "1", campus_id: "1", Name: "OSL Other" },
   // A row from before the relationship backfill.
-  "dept-legacy": { $id: "dept-legacy", campus: null, campus_id: "3" },
+  "dept-legacy": {
+    $id: "dept-legacy",
+    campus: null,
+    campus_id: "3",
+    Name: "TRD Legacy",
+  },
+  // Two rows sharing one Name: a team named "Shared" resolves to both.
+  "dept-shared-5": {
+    $id: "dept-shared-5",
+    campus: "5",
+    campus_id: "5",
+    Name: "Shared",
+  },
+  "dept-shared-2": {
+    $id: "dept-shared-2",
+    campus: "2",
+    campus_id: "2",
+    Name: "Shared",
+  },
+};
+
+/** The `values` of the `equal` query on `Name`, as `Query.equal` encodes it. */
+const nameFilter = (queries: string[] = []): unknown[] => {
+  for (const query of queries) {
+    const parsed = JSON.parse(query) as {
+      attribute?: string;
+      method?: string;
+      values?: unknown[];
+    };
+    if (parsed.method === "equal" && parsed.attribute === "Name") {
+      return parsed.values ?? [];
+    }
+  }
+  return [];
 };
 
 const db = {
@@ -33,6 +71,13 @@ const db = {
       return Promise.reject(new Error("Row not found"));
     }
     return Promise.resolve(row);
+  }),
+  listRows: mock((_db: string, _table: string, queries?: string[]) => {
+    const names = nameFilter(queries);
+    const rows = Object.values(DEPARTMENTS).filter((row) =>
+      names.includes(row.Name)
+    );
+    return Promise.resolve({ rows, total: rows.length });
   }),
 };
 
@@ -91,6 +136,29 @@ describe("pageAccessContext", () => {
       ).toBe(ctx);
     }
     expect(db.getRow).not.toHaveBeenCalled();
+  });
+
+  // Membership comes from team name == `departments.Name`, and Name is not
+  // unique: a member of "Shared" resolves to both rows, so neither campus
+  // can be said to be their department's.
+  test("a name shared by two departments on different campuses gives no grant", async () => {
+    const ctx = member({
+      departmentNames: ["Shared"],
+      resolvedDepartmentIds: ["dept-shared-5", "dept-shared-2"],
+    });
+    for (const [campusId, departmentId] of [
+      ["5", "dept-shared-5"],
+      ["2", "dept-shared-2"],
+    ] as const) {
+      const pageCtx = await pageAccessContext(
+        db as never,
+        ctx,
+        campusId,
+        departmentId
+      );
+      expect(pageCtx).toBe(ctx);
+      expect(hasRowAccess(pageCtx, campusId, departmentId)).toBe(false);
+    }
   });
 
   test("a failed department read changes nothing", async () => {

@@ -8,6 +8,39 @@ import {
 interface DepartmentCampusRow {
   campus?: string | { $id: string } | null;
   campus_id?: string | null;
+  Name?: string | null;
+}
+
+/** The admin TablesDB, or a test double: the department reads only. */
+export interface PageAccessReader extends DepartmentScopeReader {
+  listRows<T>(
+    databaseId: string,
+    tableId: string,
+    queries?: string[]
+  ): Promise<{ rows: T[] }>;
+}
+
+/**
+ * Whether `departmentId` is the only department called `name`. Membership is
+ * a team name matched to `departments.Name` (`resolveDepartmentIds`), and Name
+ * is not unique: a member of a team whose name two departments share resolves
+ * to both, so neither one's campus can be said to be theirs. Fails closed.
+ */
+async function isOnlyDepartmentNamed(
+  db: PageAccessReader,
+  name: string,
+  departmentId: string
+): Promise<boolean> {
+  try {
+    const { rows } = await db.listRows<{ $id: string }>("app", "departments", [
+      Query.equal("Name", name),
+      Query.select(["$id"]),
+      Query.limit(2),
+    ]);
+    return rows.length === 1 && rows[0]?.$id === departmentId;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -27,15 +60,17 @@ interface DepartmentCampusRow {
  * and not a campus admin, whose managed campuses stay their whole reach, as in
  * `hasRowAccess`), `campusId` joins `resolvedCampusIds` when it is that
  * department's own campus. The campus is checked against the department row,
- * never taken on the page's or the request's word. In every other case `ctx`
- * comes back unchanged, and nothing is read when `campusId` is already the
- * member's or the department is not theirs.
+ * never taken on the page's or the request's word, and only a department
+ * whose Name no other department shares qualifies (see
+ * `isOnlyDepartmentNamed`). In every other case `ctx` comes back unchanged,
+ * and nothing is read when `campusId` is already the member's or the
+ * department is not theirs.
  *
  * Page actions only. List scoping, other content types and campus selection
  * keep the caller's own context.
  */
 export async function pageAccessContext(
-  db: DepartmentScopeReader,
+  db: PageAccessReader,
   ctx: UserAuthContext,
   campusId: string | null | undefined,
   departmentId: string | null | undefined
@@ -56,14 +91,18 @@ export async function pageAccessContext(
       "app",
       "departments",
       departmentId,
-      [Query.select(["$id", "campus.$id", "campus_id"])]
+      [Query.select(["$id", "Name", "campus.$id", "campus_id"])]
     );
   } catch {
     return ctx;
   }
   const departmentCampusId =
     relationId(department.campus) ?? department.campus_id;
-  if (departmentCampusId !== campusId) {
+  if (
+    departmentCampusId !== campusId ||
+    !department.Name ||
+    !(await isOnlyDepartmentNamed(db, department.Name, departmentId))
+  ) {
     return ctx;
   }
   return { ...ctx, resolvedCampusIds: [...ctx.resolvedCampusIds, campusId] };
