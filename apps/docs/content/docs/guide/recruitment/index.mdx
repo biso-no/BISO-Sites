@@ -6,9 +6,16 @@ covers:
   - apps/admin/src/app/api/recruitment/**
   - apps/admin/src/lib/recruitment.ts
   - apps/admin/src/lib/job-publication.ts
+  - apps/admin/src/lib/job-reuse.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - apps/admin/src/app/(portal)/_actions/jobs.ts
+  - apps/admin/src/app/(portal)/_actions/interviews.ts
   - packages/shared/recruitment/**
   - packages/shared/recruitment.ts
   - packages/shared/types/recruitment.ts
+  - packages/shared/utils/content-notifications.ts
+  - packages/connectors/src/azure/recruitment-scheduling.ts
+  - packages/i18n/messages/*/applications.json
   - apps/web/src/app/(public)/jobs/**
   - apps/web/src/app/(public)/recruitment/**
   - apps/web/src/app/(protected)/applications/**
@@ -36,7 +43,7 @@ Nobody else has access. Campus admins (campus leaders) and members of other depa
 1. Publish the vacancy. On **Stillinger** (Jobs), choose **Utlys stilling** (Post Job) and fill in the vacancy editor. Publish it at once or schedule a time. Students then find it on biso.no and in the app.
 2. Applications arrive. Students apply on the vacancy's page on biso.no or in the app. They must be signed in, and only members can apply to a members-only vacancy. Every new application starts in **Applied**. Nothing tells you when one arrives, so check the vacancy's applications yourself.
 3. The AI screens each application. When auto-screen is on, which it is by default, an AI tool reads each application once, right after it's sent. It gives a match score and a short summary. It never changes the status.
-4. You shortlist. Open the vacancy's applications with the people icon on its row in **Stillinger** (Jobs). Read each candidate and move them to **Shortlist** or **Archived**.
+4. You shortlist. Open the vacancy's applications with the people icon on its row in **Stillinger** (Jobs). On a computer, the row's icons appear when you point at the row. Read each candidate and move them to **Shortlist** or **Archived**.
 5. You hold interviews. Either pick a time for the candidate in the scheduling dialog, or send them a booking link so they pick a time themselves. After an interview, the panel can fill in a scorecard.
 6. You make an offer or archive. Move the candidate you choose to **Offer** and the others to **Archived**. Moving someone sends them nothing, so you tell each candidate yourself.
 7. Applications stop at the deadline. There is no close button. When the deadline passes, the vacancy leaves biso.no and the app, and nobody else can apply. The jobs list still shows it as **Publisert** (Published), with **Frist passert** (Past deadline) in the **Frist** (Deadline) column.
@@ -68,16 +75,16 @@ Each application has one status. On the **Pipeline** tab of the applications wor
 
 - A candidate can't jump ahead. To get from **Applied** to **Interview**, they go through **Shortlist** first, and only **Interview** leads to **Offer**.
 - **Offer** and **Archived** can't be undone. Check before you move someone there.
-- Moving a candidate sends no email. The student still sees the new status on **Mine søknader** (My applications) straight away.
+- Moving a candidate sends no email. The student still sees the new status on **Mine søknader** (My applications) straight away. A move to **Offer** shows them **Tilbud** (Accepted), and a move to **Archived** shows them **Ikke valgt** (Not selected). Move them only when you're ready to tell them.
 
 ## What the system does on its own
 
-- Publishes a scheduled vacancy. It checks every five minutes, so the vacancy goes live within about five minutes of the time you set.
-- Sends an app notification to students when a vacancy goes live, if **Notify students when published** is on. It is on by default for a new vacancy. The notification reaches app users who follow jobs for the vacancy's campus. It goes out a few minutes after the vacancy goes live, and never between 22:00 and 08:00 Oslo time. In that window it waits until 08:00.
+- Publishes a scheduled vacancy. It checks every five minutes, so the vacancy goes live within about five minutes of the time you set. If the jobs list still shows **Planlagt** (Scheduled) well after that time, tell IT.
+- Sends an app notification to students when a vacancy goes live, if **Notify students when published** is on. It is on by default when you start with **Utlys stilling** (Post Job). A copy, including one made with the copy icon (tooltip: *Dupliser for en ny runde*), starts with it off, so turn it on yourself. The notification reaches app users who follow jobs for the vacancy's campus. It goes out a few minutes after the vacancy goes live, and never between 22:00 and 08:00 Oslo time. In that window it waits until 08:00.
 - Removes the vacancy from biso.no and the app when the deadline passes, and refuses new applications. The deadline is the end of the day you pick, Oslo time.
-- Screens each new application with AI, once, when auto-screen is on. If a candidate's match score shows "—" (tooltip: *Not screened*), that application has no screening, and you can't run it again. Turning auto-screen on later doesn't screen the applications you already have.
-- Sends calendar invites when you schedule an interview in the dialog. The candidate and the panel get an Outlook invite from the lead panelist's mailbox, with a Teams meeting when the location is Teams or Hybrid. The candidate also moves to **Interview**. If the admin can't reach Outlook, the interview is still saved and a warning tells you that no invite was sent.
-- Sends the same kind of invite, with a Teams meeting, when a candidate books a time through a booking link.
+- Screens each new application with AI, once, when auto-screen is on. If a candidate's match score shows "—" (tooltip: *Not screened*), that application has no screening, and there's no way to run it. Turning auto-screen on later doesn't screen the applications you already have. If auto-screen is on and every new application shows "—", tell IT.
+- Sends calendar invites when you schedule an interview in the dialog. The candidate and the panel get an Outlook invite with a Teams meeting when the location is Teams or Hybrid. The invite comes from the mailbox of the first selected person in the panel list. The candidate also moves to **Interview**. If the admin can't reach Outlook, the interview is still saved and a warning tells you that no invite was sent. Then send the time to the candidate and the panel yourself.
+- Sends the same kind of invite, with a Teams meeting, when a candidate books a time through a booking link. If the invite can't be sent, the booking is still saved, the link is used up, and the candidate is told **BISO-teamet sender deg møtedetaljene på e-post.** (The BISO team will send you the meeting details by email.) Nothing tells you, so check the **Interviews** tab after you send a link.
 - Shows each applicant their current status on biso.no.
 - Deletes applications when their storage time ends.
 
@@ -87,8 +94,9 @@ Each application has one status. On the **Pipeline** tab of the applications wor
 - Write every email to applicants. The system sends none when someone applies or when you change a status. The admin can draft emails with AI, which you copy and send from your own email.
 - Move each candidate from status to status. The only move the system makes is to **Interview**, when you schedule an interview in the dialog. AI screening never moves anyone.
 - Send booking links. You create the link on the **Interviews** tab, copy it and send it to the candidate yourself. Only candidates already in **Interview** can get one, so move the candidate there first. A booking through the link doesn't change the status.
+- Send the meeting details yourself when a booked interview has no Teams link. The booking shows under **Scheduled & proposed** on the **Interviews** tab. When the Teams meeting was made, its line shows **Teams** after the date. If it doesn't, the candidate has no Teams link.
 - After each interview, move the candidate on to **Offer** or **Archived**, or back to **Shortlist**.
-- Archive several candidates at once with **Move stage**. The bulk **Archive** button only drafts **Not this round** emails. It doesn't change anyone's status.
+- Archive several candidates at once with **Move stage**. The bulk **Archive** button only drafts **Not this round** emails. It doesn't change anyone's status. The bulk **Schedule** button also only drafts interview-invite emails. It books no interviews.
 - Send the offer. The system doesn't send offers.
 - Stop applications early if you need to. Bring the deadline forward, or open the vacancy and choose **Save Draft**, which takes a live vacancy offline. To change a live vacancy and keep it live, save with **Publish** instead.
 
