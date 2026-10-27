@@ -869,6 +869,11 @@ between and are not part of it).
   theme (C7).
 - Forms on members-only pages accept members; non-members get the same 404
   the page shows them.
+- The Wintergames board can edit and publish its page: page actions grant a
+  department member their own department's campus for pages bound to that
+  department (only when the department name is unambiguous), without widening
+  any list or read scope. Auto-translation gives up when either language was
+  unpublished or edited meanwhile.
 - `bun run build` passes for admin and web; the standalone web server serves
   pages, and sanitize-html is bundled into the server chunks.
 
@@ -883,3 +888,9 @@ between and are not part of it).
   proxy (the production check called the forwarder directly).
 - Undo can bring back a theme the department already holds; the next save
   drops it again.
+- After deploy, smoke-test uploads of 5–10 MB images through Appwrite Sites
+  (they now go in chunks, in every admin editor).
+- Archived pages stay readable through the Appwrite API without login
+  (pre-existing).
+- An ordinary page bound to a national department opens for its members but
+  doesn't save; `projects/` and `units/` pages are unaffected.
