@@ -5,7 +5,7 @@ export function baseOptions(): BaseLayoutProps {
   return {
     links: [
       {
-        url: "/docs",
+        url: "/guide",
         external: false,
         type: "main",
         text: "Documentation",

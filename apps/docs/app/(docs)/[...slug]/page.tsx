@@ -13,7 +13,7 @@ import { notFound } from "next/navigation";
 import type { ElementType } from "react";
 
 interface Param {
-  slug?: string[];
+  slug: string[];
 }
 
 interface MDX extends PageData {
@@ -39,7 +39,7 @@ export default async function Page(props: { params: Promise<Param> }) {
       editOnGithub={{
         owner: "biso-no",
         repo: "biso-sites",
-        path: `apps/docs/content/docs/${params.slug?.join("/") || "index"}.mdx`,
+        path: `apps/docs/content/docs/${page.path}`,
       }}
       full={(page.data as MDX).full}
       toc={(page.data as MDX).toc}
@@ -63,13 +63,6 @@ export async function generateMetadata(props: {
   params: Promise<Param>;
 }): Promise<Metadata> {
   const params = await props.params;
-
-  if (!params.slug) {
-    return {
-      title: "Documentation",
-      description: "BISO Sites Documentation",
-    };
-  }
 
   const page = source.getPage(params.slug);
   if (!page) {

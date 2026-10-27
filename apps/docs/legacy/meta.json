@@ -1,0 +1,18 @@
+{
+  "title": "BISO Sites",
+  "pages": [
+    "index",
+    "---Use the platform---",
+    "getting-started",
+    "admin-handbook",
+    "public-website",
+    "---Build & extend---",
+    "architecture",
+    "developing",
+    "packages",
+    "---Run it in production---",
+    "integrations",
+    "operations",
+    "handover"
+  ]
+}

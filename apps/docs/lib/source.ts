@@ -9,7 +9,7 @@ type PageDataWithText = InferPageType<typeof source>["data"] & {
 // Create a single loader for all documentation
 // Root folders (marked with "root": true in meta.json) will automatically create sidebar tabs
 export const source = loader({
-  baseUrl: "/docs",
+  baseUrl: "/",
   source: docs.toFumadocsSource(),
   plugins: [lucideIconsPlugin()],
 });
@@ -19,7 +19,7 @@ export function getPageImage(page: InferPageType<typeof source>) {
 
   return {
     segments,
-    url: `/og/docs/${segments.join("/")}`,
+    url: `/og/${segments.join("/")}`,
   };
 }
 

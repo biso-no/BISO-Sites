@@ -116,6 +116,7 @@
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
         "@tailwindcss/postcss": "catalog:",
+        "@types/bun": "catalog:",
         "@types/mdx": "catalog:",
         "@types/node": "catalog:",
         "@types/react": "catalog:",
