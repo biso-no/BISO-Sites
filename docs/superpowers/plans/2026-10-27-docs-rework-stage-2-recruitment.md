@@ -19,7 +19,7 @@
 ## Global Constraints
 
 - **Authoring rules:** `apps/docs/CLAUDE.md` is binding. That covers front matter, the six-part task-page shape, the panel pattern, the language rule, no placeholders, no private values, and adding every page to its folder's `meta.json`.
-- **Labels:** name each on-screen label as it appears in the admin's default Norwegian locale, with the English in brackets, for example **Opprett ny stilling** (New vacancy). Where the screen shows a hard-coded English string, use it alone. Take every label from the fact sheet, never from memory or the old docs.
+- **Labels:** name each on-screen label as it appears in the admin's default Norwegian locale, with the English in brackets, for example **Utlys stilling** (Post Job). Where the screen shows a hard-coded English string, use it alone. Take every label from the fact sheet, never from memory or the old docs.
 - **Evidence:**
   - Every factual claim needs evidence in the code. A page's report lists claim → fact-sheet entry, or file:line.
   - A claim with no evidence is cut.

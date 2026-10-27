@@ -183,7 +183,7 @@ Then one page per task. **Every task page has the same shape**:
 defaults to Norwegian for every user, and only global admins can switch it,
 so screenshots are taken in Norwegian. Steps name each button and field as it
 appears on screen, with the English in brackets, for example "choose
-**Opprett ny stilling** (New vacancy)". Some strings are hard-coded in
+**Utlys stilling** (Post Job)". Some strings are hard-coded in
 English, so steps follow what the screen actually shows. If the language
 switch is later opened to everyone, this can be revisited.
 
