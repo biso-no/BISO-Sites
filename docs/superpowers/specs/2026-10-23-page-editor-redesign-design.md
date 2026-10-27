@@ -894,3 +894,40 @@ between and are not part of it).
   (pre-existing).
 - An ordinary page bound to a national department opens for its members but
   doesn't save; `projects/` and `units/` pages are unaffected.
+
+## Stage 6 done (2026-10-27)
+
+Branch `feat/page-editor-redesign`, plan
+`docs/superpowers/plans/2026-10-27-page-editor-stage-6-winter-games.md`,
+commits `9387d877..` this note.
+
+**What exists now**
+
+- `scripts/winter-games/process-media.sh` makes the web media from `temp/`
+  (aftermovie 44 MB H.264 1080p at 4.5 Mbps with `+faststart`; a 4 s muted
+  720p header loop of 0.7 MB; posters; eight stills; the arena photo with
+  metadata stripped). Timecodes were checked frame by frame: the montage cuts
+  every ~0.9 s, so the loop starts at 10.44 s on the retro-ski-suit team and
+  the aftermovie poster is the stage and crowd at 31.2 s.
+- 13 files in the production `media` bucket under fixed ids (`wg26-*`),
+  uploaded by `scripts/winter-games/upload-media.ts` (idempotent) and listed
+  in `apps/web/src/app/(public)/design-system/winter-games/media.json`.
+- The page document in Norwegian (the approved copy) and English (written to
+  match), with previews at `/design-system/winter-games` and `/en` (noindex).
+  Checked at 1440, 820 and 390, in dark mode and with reduced motion. The
+  arena photo is not used (the approved mockup doesn't place it).
+- Markus had already built and published a Winter Games page at
+  `projects/winter-games` (page `6adcd79b001c93ad6a13`, 24 Oct, no
+  department). As he chose on 2026-10-27, `scripts/winter-games/seed-draft.ts
+  --adopt` bound it to the Wintergames unit (`1007`, campus 5) and replaced
+  both drafts with this design. Its published version, publish flags and live
+  title and description were verified unchanged.
+
+**For whoever publishes**
+
+- Open the page in the editor, compare the new draft with what is live, set a
+  meta description (the drafts carry the live, empty one), then publish each
+  language.
+- Red Bull branding is visible in the arch and in much of the aftermovie.
+- Editor draft saves on a published page rewrite its live title and
+  description (pre-existing behaviour).
