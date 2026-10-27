@@ -10,7 +10,7 @@
  *     scripts/winter-games/upload-media.ts [--write]
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -288,6 +288,7 @@ async function main() {
     { write }
   );
   if (manifest) {
+    mkdirSync(dirname(MANIFEST_PATH), { recursive: true });
     writeFileSync(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`);
     console.log(`wrote ${MANIFEST_PATH}`);
   }
