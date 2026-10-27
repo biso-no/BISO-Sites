@@ -1,7 +1,7 @@
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
 import "./global.css";
-import { inter, museoSans } from "./fonts";
+import { museoSans, museoSlab } from "./fonts";
 
 export const metadata: Metadata = {
   title: "BISO Docs",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      className={`${museoSans.variable} ${inter.variable}`}
+      className={`${museoSans.variable} ${museoSlab.variable} biso-surface biso-surface-v2`}
       lang="en"
       suppressHydrationWarning
     >

@@ -25,40 +25,11 @@ export async function GET(
         justifyContent: "space-between",
         width: "100%",
         height: "100%",
-        background:
-          "linear-gradient(135deg, #001731 0%, #002a5c 60%, #0a3d6b 100%)",
+        background: "#001a35",
         padding: "60px 72px",
         fontFamily: "ui-sans-serif, system-ui, sans-serif",
-        position: "relative",
       }}
     >
-      {/* Subtle brand blue glow top-right */}
-      <div
-        style={{
-          position: "absolute",
-          top: -120,
-          right: -80,
-          width: 480,
-          height: 480,
-          borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(61,169,224,0.22) 0%, transparent 70%)",
-        }}
-      />
-      {/* Yellow accent glow bottom-left */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: -100,
-          left: -60,
-          width: 360,
-          height: 360,
-          borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(247,214,74,0.12) 0%, transparent 70%)",
-        }}
-      />
-
       {/* Site wordmark */}
       <div
         style={{
@@ -72,12 +43,12 @@ export async function GET(
             width: 10,
             height: 10,
             borderRadius: "50%",
-            background: "#3DA9E0",
+            background: "#3aa3e1",
           }}
         />
         <span
           style={{
-            color: "rgba(255,255,255,0.55)",
+            color: "#93a7bb",
             fontSize: 18,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
@@ -101,7 +72,7 @@ export async function GET(
             width: 48,
             height: 4,
             borderRadius: 2,
-            background: "#3DA9E0",
+            background: "#3aa3e1",
           }}
         />
         <div
@@ -118,7 +89,7 @@ export async function GET(
         {page.data.description && (
           <div
             style={{
-              color: "rgba(255,255,255,0.60)",
+              color: "#93a7bb",
               fontSize: 24,
               lineHeight: 1.5,
               maxWidth: 740,
@@ -137,12 +108,12 @@ export async function GET(
           justifyContent: "space-between",
         }}
       >
-        <span style={{ color: "#3DA9E0", fontSize: 18, fontWeight: 600 }}>
+        <span style={{ color: "#3aa3e1", fontSize: 18, fontWeight: 600 }}>
           biso.no
         </span>
         <span
           style={{
-            color: "rgba(255,255,255,0.30)",
+            color: "#93a7bb",
             fontSize: 16,
           }}
         >

@@ -42,7 +42,7 @@ function MermaidContent({ chart }: { chart: string }) {
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "loose",
-    fontFamily: "var(--font-inter), ui-sans-serif, system-ui",
+    fontFamily: "var(--font-museo), ui-sans-serif, system-ui",
     theme: "base",
     themeVariables: {
       /* BISO brand palette: blue #3DA9E0, navy #001731, yellow #F7D64A */

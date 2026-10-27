@@ -40,7 +40,12 @@ export default async function Page(props: { params: Promise<Param> }) {
   const MDXContent = mdxPage.body;
 
   return (
-    <DocsPage full={(page.data as MDX).full} toc={(page.data as MDX).toc}>
+    <DocsPage
+      // PageHeader carries the crumb, so Fumadocs' own breadcrumb would repeat it.
+      breadcrumb={{ enabled: false }}
+      full={(page.data as MDX).full}
+      toc={(page.data as MDX).toc}
+    >
       <PageHeader
         crumb={crumbFor(page.url)}
         description={page.data.description}

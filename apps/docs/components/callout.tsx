@@ -1,88 +1,51 @@
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 
-type CalloutType = "info" | "warning" | "danger" | "success" | "note" | "tip";
+type CalloutType = "info" | "warn" | "error";
 
 interface CalloutProps {
   children: ReactNode;
   title?: string;
-  // "warn" is Fumadocs' built-in name for the warning callout
-  type?: CalloutType | "warn";
+  /**
+   * `info`, `warn` or `error`. The older names `warning` and `danger` still
+   * work, so pages moved over from legacy/ render unchanged.
+   */
+  type?: CalloutType | "warning" | "danger";
 }
 
-const calloutStyles: Record<
-  CalloutType,
-  { container: string; icon: string; iconBg: string }
-> = {
-  info: {
-    container:
-      "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950",
-    icon: "text-blue-600 dark:text-blue-400",
-    iconBg: "bg-blue-100 dark:bg-blue-900",
-  },
-  warning: {
-    container:
-      "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950",
-    icon: "text-yellow-600 dark:text-yellow-400",
-    iconBg: "bg-yellow-100 dark:bg-yellow-900",
-  },
-  danger: {
-    container: "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950",
-    icon: "text-red-600 dark:text-red-400",
-    iconBg: "bg-red-100 dark:bg-red-900",
-  },
-  success: {
-    container:
-      "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950",
-    icon: "text-green-600 dark:text-green-400",
-    iconBg: "bg-green-100 dark:bg-green-900",
-  },
-  note: {
-    container:
-      "border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900",
-    icon: "text-gray-600 dark:text-gray-400",
-    iconBg: "bg-gray-100 dark:bg-gray-800",
-  },
-  tip: {
-    container:
-      "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950",
-    icon: "text-purple-600 dark:text-purple-400",
-    iconBg: "bg-purple-100 dark:bg-purple-900",
-  },
+const ALIASES: Record<string, CalloutType> = {
+  warning: "warn",
+  danger: "error",
 };
 
-const calloutIcons: Record<CalloutType, string> = {
-  info: "ℹ️",
-  warning: "⚠️",
-  danger: "🚫",
-  success: "✅",
-  note: "📝",
-  tip: "💡",
+/** A left rule marks the kind; there is no icon. */
+const calloutStyles: Record<CalloutType, string> = {
+  info: "border-action bg-panel",
+  warn: "border-sun bg-notice",
+  error: "border-danger bg-panel",
 };
+
+function isCalloutType(value: string): value is CalloutType {
+  return Object.hasOwn(calloutStyles, value);
+}
+
+/** Unknown types fall back to `info` rather than rendering unstyled. */
+function calloutType(type: string): CalloutType {
+  const resolved = ALIASES[type] ?? type;
+  return isCalloutType(resolved) ? resolved : "info";
+}
 
 export function Callout({ type = "info", title, children }: CalloutProps) {
-  const calloutType = type === "warn" ? "warning" : type;
-  const styles = calloutStyles[calloutType];
-
   return (
-    <div className={cn("my-6 rounded-lg border-l-4 p-4", styles.container)}>
-      <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm",
-            styles.iconBg
-          )}
-        >
-          <span className={styles.icon}>{calloutIcons[calloutType]}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          {title && (
-            <div className={cn("mb-1 font-semibold", styles.icon)}>{title}</div>
-          )}
-          <div className="text-sm [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-0">
-            {children}
-          </div>
-        </div>
+    <div
+      className={cn(
+        "my-6 border-l-[3px] px-4 py-3 text-sm",
+        calloutStyles[calloutType(type)]
+      )}
+    >
+      {title && <p className="mt-0 mb-1 font-bold">{title}</p>}
+      <div className="[&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>p]:my-2">
+        {children}
       </div>
     </div>
   );

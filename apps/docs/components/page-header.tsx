@@ -15,11 +15,10 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className="mb-8">
-      {crumb ? <p className="mb-2 text-[#526475] text-sm">{crumb}</p> : null}
+      {crumb ? <p className="mb-2 text-ink-muted text-sm">{crumb}</p> : null}
       <h1
-        className="font-black text-[#001a35] uppercase"
+        className="font-black font-display text-ink uppercase"
         style={{
-          fontFamily: "var(--font-museo-slab, 'Museo Slab', serif)",
           fontSize: "clamp(1.75rem, 3.5vw, 2.375rem)",
           lineHeight: 0.95,
         }}
@@ -27,10 +26,10 @@ export function PageHeader({
         {title}
       </h1>
       {description ? (
-        <p className="mt-3 text-[#526475] text-lg">{description}</p>
+        <p className="mt-3 text-ink-muted text-lg">{description}</p>
       ) : null}
       {who || updated ? (
-        <p className="mt-4 flex flex-wrap gap-x-4 text-[#526475] text-sm">
+        <p className="mt-4 flex flex-wrap gap-x-4 text-ink-muted text-sm">
           {who ? <span>Who can do this: {who}</span> : null}
           {updated ? <span>Updated {updated}</span> : null}
         </p>
