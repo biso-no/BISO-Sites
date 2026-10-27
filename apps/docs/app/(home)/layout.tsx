@@ -1,7 +1,16 @@
-import { HomeLayout } from "fumadocs-ui/layouts/home";
+import { SiteHeader } from "components/landing/site-header";
 import type { ReactNode } from "react";
-import { baseOptions } from "@/lib/layout.shared";
 
+/**
+ * A plain layout, not Fumadocs' HomeLayout: that wraps the page in its own
+ * <main> and a light header the navy logo can't sit on. Search still works
+ * here, because the RootProvider in app/layout.tsx provides it.
+ */
 export default function Layout({ children }: { children: ReactNode }) {
-  return <HomeLayout {...baseOptions()}>{children}</HomeLayout>;
+  return (
+    <>
+      <SiteHeader />
+      {children}
+    </>
+  );
 }

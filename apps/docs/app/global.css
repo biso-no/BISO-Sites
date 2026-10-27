@@ -108,9 +108,11 @@
 /*
  * The header bar: navy in both themes, like the site's own top bar. Fumadocs
  * renders it as `#nd-subnav`; its colour tokens are re-pointed inside it so
- * the title, links, search field and theme switch all read as on-navy.
+ * the title, links, search field and theme switch all read as on-navy. The
+ * landing's own header, `#site-header`, takes the same tokens so the two match.
  */
-#nd-subnav {
+#nd-subnav,
+#site-header {
   --color-fd-background: var(--biso-deep-raised);
   --color-fd-foreground: #ffffff;
   --color-fd-muted-foreground: var(--biso-deep-ink-muted);
