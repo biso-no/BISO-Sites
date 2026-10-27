@@ -6,7 +6,7 @@
 - A national project's page lives at `/projects/<slug>`, and its board can edit it.
 - Only `globaladmin` can build a multi-campus project hub page.
 - Publish and unpublish refresh the site within seconds.
-- Files up to 150 MB upload in chunks.
+- Files up to 250 MB upload in chunks.
 - The copilot speaks the new document model.
 - The editor's save and publish edges no longer drop work.
 
@@ -30,7 +30,7 @@
   - `packages/editor` and `apps/admin` use `bun test`; `apps/web`, `packages/shared` and `packages/api` use `bunx vitest run`.
   - The full admin `bun test` must stay green (1813+).
   - Admin `mock.module` use goes in `.cases.ts` files run by a child-process runner (pattern: `apps/admin/src/app/api/pages/route-cases.test.ts`).
-- **Data and schema.** All Appwrite access goes through `@repo/api`. Do not edit `appwrite.config.json`; the `media` bucket already allows 150 MB.
+- **Data and schema.** All Appwrite access goes through `@repo/api`. Edit `appwrite.config.json` only to set the `media` bucket to 250 MB (Markus raised it in the console on 2026-10-27 and pushes the file); nothing else.
 - **Editor UI.** The editor interface keeps its current look (D10). New controls reuse `.pe-*`.
 - **Production (D13).**
   - Unpublished test pages and media may be created and must be deleted and listed.
@@ -41,7 +41,7 @@
   - C4: "Hub and national-project pages use the slug `projects/<project-slug>`, reserved like `units/` is today … A multi-campus hub page has no department, so only `globaladmin` can edit it."
   - C5a: "the browser sends large files to the admin route in chunks of a few MB, and the route forwards each chunk to Appwrite's chunked upload (same file ID, `Content-Range`) with the service key."
 - **Commits.** End every commit message with:
-  `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
   `Claude-Session: https://claude.ai/code/session_01H48AWgSdxtsCEZGyPFzJyq`
 
 ## Review Focus
@@ -210,7 +210,7 @@
 
 ---
 
-### Task 6: Chunked uploads up to 150 MB (C5a)
+### Task 6: Chunked uploads up to 250 MB (C5a)
 
 **Files:**
 - Create:
@@ -219,7 +219,7 @@
 - Modify:
   - `apps/admin/src/app/api/upload/route.ts`, adding a chunk mode
   - `apps/admin/src/lib/upload-client.ts`, which chunks files over 5 MiB
-  - `apps/admin/src/lib/upload-buckets.ts`, where the video limit becomes 150 MB (157,286,400 bytes) for the `media` bucket. Images stay at 10 MB and documents at 25 MB.
+  - `apps/admin/src/lib/upload-buckets.ts`, where the video limit is 250 MB (262,144,000 bytes, as commit a2671a0c already set) for the `media` bucket, and `packages/api/appwrite.config.json` sets the `media` bucket `maximumFileSize` to 262144000. Images stay at 10 MB and documents at 25 MB.
 - Tests: `upload-token.test.ts`, upload route `.cases.ts`, `upload-client.test.ts`, and `storage-chunks.test.ts` (vitest, fetch mocked).
 
 **Interfaces:**
@@ -242,7 +242,7 @@
   - The route rejects:
     - an over-limit `total`;
     - an `image/png` total over 10 MB;
-    - a `video/mp4` total over 150 MB;
+    - a `video/mp4` total over 250 MB;
     - a forged token;
     - an `end >= total`;
     - an oversize middle chunk.
@@ -251,7 +251,7 @@
   - A 3-chunk upload calls `forwardChunk` three times with the correct ranges, and returns the `/view` url.
   - The client splits a 12 MiB file into 5 + 5 + 2 MiB and reports progress.
 - [ ] **Steps 2–4: Watch them fail, implement, and run the full admin suite, the api vitest and `check-types`.**
-- [ ] **Step 5: Commit** with message `feat(admin): chunked uploads up to 150 MB for media`.
+- [ ] **Step 5: Commit** with message `feat(admin): chunked uploads up to 250 MB for media`.
 
 ---
 
