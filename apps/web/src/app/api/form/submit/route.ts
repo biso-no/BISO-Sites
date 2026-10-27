@@ -1,5 +1,7 @@
 import { ID, Permission, Role } from "@repo/api";
+import { getPage } from "@repo/api/page-builder";
 import { createAdminClient } from "@repo/api/server";
+import { PagesVisibility } from "@repo/api/types/appwrite";
 import { sendEmail } from "@repo/connectors/email";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import { isBisoRecipient } from "@repo/editor/submit-rules";
@@ -8,8 +10,13 @@ import {
   isProjectNamespaceSlug,
   isProjectSlug,
 } from "@repo/shared/utils/project-units";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { cachedPublishedPage } from "@/lib/data/public-content";
+import { SESSION_COOKIE } from "@/lib/cookie-prefs";
+import {
+  cachedPublishedPage,
+  isPublishedPage,
+} from "@/lib/data/public-content";
 import { type ResolvedSubmission, resolveSubmission } from "@/lib/form-submit";
 import { clampString, escapeHtml } from "@/lib/html-escape";
 import { clientKeyFromHeaders, createRateLimiter } from "@/lib/rate-limit";
@@ -193,10 +200,62 @@ async function storeSubmission(
   );
 }
 
+type PageResult = Awaited<ReturnType<typeof cachedPublishedPage>>;
+
+/**
+ * The page the public cache cannot see. It is read with the admin client only
+ * to learn that a published page is members-only (never to serve it): drafts
+ * and public pages come back null.
+ */
+async function findPublishedMembersPage(
+  slug: string,
+  locale: FormLocale
+): Promise<PageResult> {
+  try {
+    const { db } = await createAdminClient();
+    const page = await getPage(slug, locale, db);
+    return isPublishedPage(page) &&
+      page?.row.visibility === PagesVisibility.AUTHENTICATED
+      ? page
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether the caller is a member. Same proof the catch-all uses: the visitor's
+ * own session reads the row, and Appwrite lets only the `biso-members` team
+ * do that. No cookie means no session; one is never minted here.
+ */
+async function sessionCanReadPage(
+  slug: string,
+  locale: FormLocale
+): Promise<boolean> {
+  try {
+    if (!(await cookies()).get(SESSION_COOKIE)) {
+      return false;
+    }
+    return isPublishedPage(await getPage(slug, locale));
+  } catch {
+    return false;
+  }
+}
+
 async function loadDoc(slug: string, locale: FormLocale) {
-  const page = await cachedPublishedPage(slug, locale).catch(() => null);
+  let membersOnly = false;
+  let page = await cachedPublishedPage(slug, locale).catch(() => null);
+  if (!page) {
+    page = await findPublishedMembersPage(slug, locale);
+    membersOnly = page !== null;
+  }
   if (!page?.doc) {
     return null;
+  }
+  // Before the unit/project branches, which return early: a members-only page
+  // is never served to anyone but a member, whatever its slug.
+  if (membersOnly && !(await sessionCanReadPage(slug, locale))) {
+    return "members_only" as const;
   }
   const base = { campusId: page.row.campus_id ?? null, pageId: page.row.$id };
 
@@ -255,6 +314,9 @@ export async function POST(request: Request) {
   const loaded = await loadDoc(parsed.slug, parsed.locale);
   if (!loaded) {
     return fail("Form not found", 404);
+  }
+  if (loaded === "members_only") {
+    return fail("members_only", 403);
   }
   const resolved = resolveSubmission(loaded.doc, parsed.blockId, parsed.data);
   if (!resolved.ok) {

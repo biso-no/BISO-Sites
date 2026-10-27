@@ -291,6 +291,8 @@ export async function getPage(
       "$id",
       "slug",
       "status",
+      // The form route tells a members-only page from a missing one by this.
+      "visibility",
       "department_id",
       // Form submissions inherit the page's campus.
       "campus_id",

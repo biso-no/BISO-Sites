@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createRow: vi.fn(),
+  adminGetPage: vi.fn(),
+  cookieGet: vi.fn(),
   department: vi.fn(),
+  getPage: vi.fn(),
   page: vi.fn(),
   sendEmail: vi.fn(),
 }));
@@ -10,11 +13,29 @@ const mocks = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/connectors/email", () => ({ sendEmail: mocks.sendEmail }));
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: async () => ({ db: { createRow: mocks.createRow } }),
+  createAdminClient: async () => ({
+    db: { createRow: mocks.createRow, marker: "admin" },
+  }),
+  createSessionClient: async () => ({ db: { marker: "session" } }),
+}));
+vi.mock("@repo/api/page-builder", () => ({
+  getPage: (slug: string, locale: string, db?: { marker?: string }) =>
+    db?.marker === "admin"
+      ? mocks.adminGetPage(slug, locale)
+      : mocks.getPage(slug, locale),
+}));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: mocks.cookieGet }),
 }));
 vi.mock("@/lib/data/public-content", () => ({
   cachedDepartmentBySlugAndCampus: mocks.department,
   cachedPublishedPage: mocks.page,
+  isPublishedPage: (
+    r: {
+      row?: { status?: string };
+      translation?: { is_published?: boolean };
+    } | null
+  ) => Boolean(r?.row?.status === "published" && r.translation?.is_published),
 }));
 
 import { POST } from "./route";
@@ -357,5 +378,83 @@ describe("POST /api/form/submit: project pages", () => {
     expect(
       (await post({ ...base, slug: "projects/winter-games" })).status
     ).toBe(404);
+  });
+});
+
+describe("POST /api/form/submit on members-only pages", () => {
+  function membersPage(
+    status = "published",
+    translated = true,
+    visibility = "authenticated"
+  ) {
+    return {
+      row: { $id: "page-m", campus_id: "01", status, visibility },
+      translation: { is_published: translated },
+      doc: {
+        version: 2,
+        meta: {},
+        sections: [
+          { id: "s", layout: {}, columns: [{ id: "c", blocks: [block()] }] },
+        ],
+      },
+    };
+  }
+
+  beforeEach(() => {
+    mocks.page.mockResolvedValue(null);
+  });
+
+  it("accepts a member (their session can read the row)", async () => {
+    mocks.adminGetPage.mockResolvedValue(membersPage());
+    mocks.cookieGet.mockReturnValue({ value: "s" });
+    mocks.getPage.mockResolvedValue(membersPage());
+    const res = await post(base);
+    expect(res.status).toBe(200);
+    expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a visitor with no session without reading further", async () => {
+    mocks.adminGetPage.mockResolvedValue(membersPage());
+    mocks.cookieGet.mockReturnValue(undefined);
+    const res = await post(base);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ success: false, error: "members_only" });
+    expect(mocks.getPage).not.toHaveBeenCalled();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("refuses a signed-in non-member", async () => {
+    mocks.adminGetPage.mockResolvedValue(membersPage());
+    mocks.cookieGet.mockReturnValue({ value: "s" });
+    mocks.getPage.mockResolvedValue(null);
+    const res = await post(base);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ success: false, error: "members_only" });
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("404s a draft members-only page, even for a member", async () => {
+    mocks.adminGetPage.mockResolvedValue(membersPage("draft"));
+    mocks.cookieGet.mockReturnValue({ value: "s" });
+    mocks.getPage.mockResolvedValue(membersPage("draft"));
+    expect((await post(base)).status).toBe(404);
+    mocks.adminGetPage.mockResolvedValue(membersPage("published", false));
+    expect((await post(base)).status).toBe(404);
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("404s when the public lookup missed a page that is not members-only", async () => {
+    mocks.adminGetPage.mockResolvedValue(
+      membersPage("published", true, "public")
+    );
+    mocks.cookieGet.mockReturnValue({ value: "s" });
+    expect((await post(base)).status).toBe(404);
+  });
+
+  it("leaves public pages alone: no admin read", async () => {
+    publish(block());
+    const res = await post(base);
+    expect(res.status).toBe(200);
+    expect(mocks.adminGetPage).not.toHaveBeenCalled();
   });
 });
