@@ -18,9 +18,11 @@ every href resolves to a page.
 as source material only, and check everything against the code. It is deleted
 in the final stage of the rework.
 
-Old URLs are redirected through `redirects.json`. Specific rules go above
-section fallbacks. Use `permanent: false`. If you move or rename a page, add
-a redirect. The tests fail on redirect chains.
+Old URLs are redirected through `redirects.json`. Rules there are
+`{ source, destination }` only. `next.config.mjs` serves all of them as
+temporary (307) redirects, so don't add a `permanent` key. The first matching
+rule wins, so put specific rules above the section fallbacks. If you move or
+rename a page, add a redirect. The tests fail on redirect chains.
 
 ## Front matter
 
@@ -35,13 +37,13 @@ covers:
 ---
 ```
 
-- `title` and `description`: required.
+- `title`: required. `description`: optional in the schema, but write one.
 - `who`: guide task pages only. It fills "Who can do this". Name the real
   roles from `apps/admin/src/lib/roles.ts`.
 - `covers`: globs, relative to the repo root, for the code the page describes.
   `[` and `]` are literal, so a Next route folder like `[id]` matches as
   written. Use `covers: []` for a narrative page (history, design decisions).
-  Never leave `covers` out.
+  Always include `covers`: the PR check warns when a changed page has none.
 
 The last-updated date comes from git. It is hidden on shallow clones.
 
@@ -99,9 +101,10 @@ end to end, and what the system does on its own against what staff must do.
 - Plain English, sentence case, short sentences. Display headings are
   uppercased by CSS, so the source stays sentence case.
 
-The look rules are enforced by `app/brand.test.ts`: no gradients, no
-backdrop-blur, no scroll-triggered motion, no `next/font/google`, no
-hover-lift. Fonts are Museo Sans and Museo Slab only.
+`app/brand.test.ts` blocks specific patterns: gradients, `backdrop-blur`,
+`whileInView`, `next/font/google`, `hover:-translate-y` and `--font-inter`.
+Separately, the rule is Museo Sans and Museo Slab only. The test does not
+check that.
 
 ## The PR check
 
