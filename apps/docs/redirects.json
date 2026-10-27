@@ -1,0 +1,12 @@
+[
+  { "source": "/docs", "destination": "/" },
+  { "source": "/docs/getting-started/:path*", "destination": "/" },
+  { "source": "/docs/admin-handbook/:path*", "destination": "/guide" },
+  { "source": "/docs/public-website/:path*", "destination": "/developers" },
+  { "source": "/docs/architecture/:path*", "destination": "/developers" },
+  { "source": "/docs/developing/:path*", "destination": "/developers" },
+  { "source": "/docs/packages/:path*", "destination": "/developers" },
+  { "source": "/docs/integrations/:path*", "destination": "/developers" },
+  { "source": "/docs/operations/:path*", "destination": "/developers" },
+  { "source": "/docs/handover/:path*", "destination": "/developers" }
+]
