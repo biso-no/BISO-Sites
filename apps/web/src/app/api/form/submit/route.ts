@@ -10,6 +10,7 @@ import {
   isProjectNamespaceSlug,
   isProjectSlug,
 } from "@repo/shared/utils/project-units";
+import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
@@ -250,7 +251,7 @@ async function findPage(slug: string, locale: FormLocale) {
   }
   // Unit and project routes render only from the public cache, so a
   // members-only page is never visible there: no admin read at all.
-  if (slug.startsWith("units/") || isProjectNamespaceSlug(slug)) {
+  if (isUnitPageSlug(slug) || isProjectNamespaceSlug(slug)) {
     return { membersOnly: false, page: null };
   }
   const members = await findPublishedMembersPage(slug, locale);
@@ -270,7 +271,10 @@ async function loadDoc(slug: string, locale: FormLocale) {
   }
   const base = { campusId: page.row.campus_id ?? null, pageId: page.row.$id };
 
-  if (slug.startsWith("units/")) {
+  // Case- and accent-insensitive, like the page lookup: `Units/oslo/x` finds
+  // the unit's row too, so it must take this branch, where only the exact
+  // canonical slug (the one the unit route gives its forms) passes.
+  if (isUnitPageSlug(slug)) {
     // Exactly the pages the site renders for a unit: the slug must be the
     // department's canonical one and the page must belong to it.
     const parts = slug.split("/");

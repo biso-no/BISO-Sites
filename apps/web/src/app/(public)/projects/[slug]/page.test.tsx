@@ -84,7 +84,11 @@ describe("ProjectDetailPage", () => {
 
   describe("editor page", () => {
     const page = {
-      doc: { meta: {}, sections: [], version: 2 },
+      doc: {
+        meta: {},
+        sections: [{ columns: [{ blocks: [], id: "c" }], id: "s" }],
+        version: 2,
+      },
       row: { department_id: "d-nat", slug: "projects/winter-games" },
       translation: {
         description: "Stored description",
@@ -172,6 +176,44 @@ describe("ProjectDetailPage", () => {
         row: { department_id: "d-nat", slug: "Projects/winter-games" },
       });
       await expect(render("winter-games")).resolves.toBe("EDITOR_PAGE");
+    });
+
+    // Like a unit's page (D2): a page with no sections and no header, which
+    // an old flat (v1) document also normalizes to, is no page.
+    it("an empty published page falls back to the coded hub", async () => {
+      for (const doc of [
+        { meta: {}, sections: [], version: 2 },
+        // v1, as `getPage` hands it over: meta filled in from the row.
+        { content: [{ props: {}, type: "Hero" }], meta: {}, root: {} },
+      ]) {
+        cachedPublishedPage.mockResolvedValue({
+          ...page,
+          doc,
+          row: { department_id: null, slug: "projects/fadderullan" },
+        });
+
+        await expect(render("fadderullan")).resolves.not.toBe("EDITOR_PAGE");
+        const metadata = await generateMetadata({
+          params: Promise.resolve({ slug: "fadderullan" }),
+        });
+        expect(metadata.title).not.toBe("Winter Games | BISO");
+      }
+      expect(renderPublishedEditorPage).not.toHaveBeenCalled();
+    });
+
+    it("a page with only a header is content", async () => {
+      cachedPublishedPage.mockResolvedValue({
+        ...page,
+        doc: {
+          header: { title: "Fadderullan" },
+          meta: {},
+          sections: [],
+          version: 2,
+        },
+        row: { department_id: null, slug: "projects/fadderullan" },
+      });
+
+      await expect(render("fadderullan")).resolves.toBe("EDITOR_PAGE");
     });
 
     it("renders the coded hub when no page is published", async () => {

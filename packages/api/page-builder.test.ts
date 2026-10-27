@@ -457,7 +457,7 @@ describe("page builder", () => {
       })
       // existing translation lookup
       .mockResolvedValueOnce({ rows: [] });
-    db.upsertRow.mockResolvedValueOnce({ $id: "tr-en" });
+    db.upsertRow.mockResolvedValueOnce({ $id: "tr-en", $updatedAt: "v-1" });
 
     const result = await savePageTranslationDraft({
       doc: {
@@ -468,7 +468,9 @@ describe("page builder", () => {
       locale: "en",
     });
 
-    expect(result).toEqual({ translationId: "tr-en" });
+    // The row version this write produced: auto-translation checks nobody
+    // wrote the locale after it before publishing.
+    expect(result).toEqual({ translationId: "tr-en", updatedAt: "v-1" });
     expect(db.upsertRow).toHaveBeenCalledTimes(1);
     expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
@@ -565,12 +567,15 @@ describe("saving a draft never writes the publish state", () => {
         rows: [{ $id: "tr-en", is_published: true, locale: "en" }],
       });
 
-    await savePageTranslationDraft({
+    db.updateRow.mockResolvedValueOnce({ $id: "tr-en", $updatedAt: "v-2" });
+
+    const result = await savePageTranslationDraft({
       doc: { ...doc, meta: { ...doc.meta, title: "Hello" } },
       id: "page-1",
       locale: "en",
     });
 
+    expect(result).toEqual({ translationId: "tr-en", updatedAt: "v-2" });
     expect(writes()).toEqual([
       {
         keys: expect.not.arrayContaining(["is_published"]),

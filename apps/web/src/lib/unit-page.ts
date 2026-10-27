@@ -6,6 +6,7 @@ import {
   PROJECT_UNIT_SLUGS,
   type ProjectSlug,
   projectPageSlug,
+  projectSlugForUnit,
 } from "@repo/shared/utils/project-units";
 import {
   campusSegmentToId,
@@ -43,6 +44,16 @@ export interface PublishedUnitPage {
 }
 
 /**
+ * Whether a normalized document has anything to show. An old flat (v1)
+ * document normalizes to zero sections and no header; a page with neither is
+ * treated as no page, and the route shows its coded default instead (D2). A
+ * header alone is content.
+ */
+export function hasPageContent(doc: PageDoc): boolean {
+  return doc.sections.length > 0 || doc.header !== undefined;
+}
+
+/**
  * The single predicate for "this lookup is genuinely this department's
  * PUBLISHED custom page": a published translation, a document to render, and
  * ownership. The page body, generateMetadata and the form endpoint MUST share
@@ -53,8 +64,7 @@ export interface PublishedUnitPage {
  * even without a published document. Checking ownership alone would leak a
  * draft's title into `<head>` while the body falls back to the default view.
  *
- * An old flat (v1) document normalizes to zero sections and no header; a page
- * with neither is treated as no page (D2). A header alone is content.
+ * A document with no content is no page: see {@link hasPageContent}.
  */
 export function publishedUnitPage(
   pageResult: PageLookupResult,
@@ -73,7 +83,7 @@ export function publishedUnitPage(
   // caller that RENDERS the document sanitizes it (the sanitizer is limited to
   // server pages and actions); the structure checked here is unaffected.
   const doc = normalizePageDoc(pageResult.doc as PageDoc);
-  return doc.sections.length > 0 || doc.header !== undefined
+  return hasPageContent(doc)
     ? { doc, translation: pageResult.translation }
     : null;
 }
@@ -130,4 +140,44 @@ export async function projectPageIsGenuine(
     NATIONAL_CAMPUS_ID
   ).catch(() => null);
   return unit?.$id === row.department_id;
+}
+
+/**
+ * Whether `/projects/<project>` serves this lookup instead of its coded hub:
+ * a published page with something to show ({@link hasPageContent}, the rule a
+ * unit's page follows) that is genuinely the project's
+ * ({@link projectPageIsGenuine}). The project route, the C3 unit redirect and
+ * the sitemap all decide with it, so a unit URL redirects, and leaves the
+ * sitemap, only for a project page that actually renders.
+ */
+export async function isServableProjectPage(
+  pageResult: PageLookupResult | null | undefined,
+  project: ProjectSlug
+): Promise<boolean> {
+  if (
+    !(
+      pageResult?.translation?.is_published &&
+      pageResult.doc &&
+      hasPageContent(normalizePageDoc(pageResult.doc as PageDoc))
+    )
+  ) {
+    return false;
+  }
+  return await projectPageIsGenuine(pageResult, project);
+}
+
+/**
+ * The national project whose own page takes over this unit's URL (C3), or
+ * null. Only a project's campus-5 unit, and only a national project: a hub
+ * project's page stands beside its campus units, it replaces none of them.
+ */
+export function nationalProjectForUnit(unit: {
+  campus_id?: string | null;
+  slug?: string | null;
+}): ProjectSlug | null {
+  if (unit.campus_id !== NATIONAL_CAMPUS_ID) {
+    return null;
+  }
+  const project = projectSlugForUnit(unit.slug);
+  return project && !isHubProject(project) ? project : null;
 }

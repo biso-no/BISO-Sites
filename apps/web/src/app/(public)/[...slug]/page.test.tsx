@@ -384,4 +384,57 @@ describe("block page route: reserved project slugs", () => {
     ).toEqual({});
     expect(cachedPublishedPage).not.toHaveBeenCalled();
   });
+
+  it("404s an accent variant of the reserved prefix", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [], version: 2 })
+    );
+
+    // Composed and decomposed é: Appwrite's collation matches both to
+    // `projects/…`.
+    for (const prefix of ["projécts", "projec\u0301ts", "PROJÉCTS"]) {
+      const params = Promise.resolve({ slug: [prefix, "winter-games"] });
+      await expect(DynamicPage({ params })).rejects.toThrow("NEXT_NOT_FOUND");
+      expect(
+        await generateMetadata({
+          params: Promise.resolve({ slug: [prefix, "winter-games"] }),
+        })
+      ).toEqual({});
+    }
+    expect(cachedPublishedPage).not.toHaveBeenCalled();
+  });
+});
+
+describe("block page route: unit slugs", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // `/units/…` has its own route, which checks the page belongs to the unit.
+  // Next matches routes case-sensitively, so a variant lands here, and the
+  // case- and accent-insensitive lookup would find the unit's slug.
+  it("404s a units/ slug in any case or accent, without reading the page", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [], version: 2 })
+    );
+
+    for (const prefix of ["Units", "UNITS", "ünits", "u\u0308nits", "units"]) {
+      const slug = [prefix, "oslo", "fadderullan"];
+      await expect(
+        DynamicPage({ params: Promise.resolve({ slug }) })
+      ).rejects.toThrow("NEXT_NOT_FOUND");
+      expect(
+        await generateMetadata({ params: Promise.resolve({ slug }) })
+      ).toEqual({});
+    }
+    expect(cachedPublishedPage).not.toHaveBeenCalled();
+  });
+
+  it("still serves a slug that only starts with the word units", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      published({ meta: META, sections: [], version: 2 })
+    );
+
+    await expect(
+      DynamicPage({ params: Promise.resolve({ slug: ["units-guide"] }) })
+    ).resolves.toBeDefined();
+  });
 });

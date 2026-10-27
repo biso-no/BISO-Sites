@@ -33,12 +33,13 @@ import {
   renderPublishedEditorPage,
 } from "@/lib/published-editor-page";
 import type { ParsedLargeEvent } from "@/lib/types/large-event";
-import { projectPageIsGenuine } from "@/lib/unit-page";
+import { isServableProjectPage } from "@/lib/unit-page";
 
 /**
  * The project's published editor page, or null: only a known project may have
  * one (the page table also holds `projects/<anything>` rows an editor could
- * have typed), and a failed read falls back to the coded hub.
+ * have typed). A failed read, and a page with nothing to show, fall back to
+ * the coded hub.
  */
 const publishedProjectPage = cache(async (slug: string, locale: Locale) => {
   if (!isProjectSlug(slug)) {
@@ -50,7 +51,7 @@ const publishedProjectPage = cache(async (slug: string, locale: Locale) => {
   if (!isRenderablePage(result)) {
     return null;
   }
-  return (await projectPageIsGenuine(result, slug)) ? result : null;
+  return (await isServableProjectPage(result, slug)) ? result : null;
 });
 
 export async function generateMetadata({

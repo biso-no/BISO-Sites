@@ -442,6 +442,21 @@ describe("unit route: national project redirect (C3)", () => {
     expect(child(tree.props.children[1]).type).toBe(stubs.UnitView);
   });
 
+  it("an empty project page does not redirect: the project route would not serve it", async () => {
+    cachedPublishedPage.mockImplementation(async (slug: string) =>
+      slug === "projects/winter-games"
+        ? { ...projectPage, doc: { meta: {}, sections: [], version: 2 } }
+        : null
+    );
+
+    const tree = (await UnitPage({ params: nationalParams })) as Element & {
+      props: { children: Element[] };
+    };
+
+    // <><PageThemeStyle/><Suspense><UnitView/></Suspense></>
+    expect(child(tree.props.children[1]).type).toBe(stubs.UnitView);
+  });
+
   it("a campus unit of the same project does not redirect", async () => {
     resolveUnit.mockResolvedValue({
       canonical: "/units/oslo/wintergames",

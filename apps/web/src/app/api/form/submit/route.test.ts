@@ -319,6 +319,30 @@ describe("POST /api/form/submit", () => {
       mocks.department.mockResolvedValue(null);
       expect((await post({ ...base, slug: unitSlug })).status).toBe(404);
     });
+
+    // The page lookup matches slugs case- and accent-insensitively, so a
+    // variant finds the row at the unit's address. It must still get the
+    // unit's ownership check, and no page renders a form at a variant.
+    it.each([
+      "Units/oslo/fadderullan",
+      "UNITS/OSLO/fadderullan",
+      "ünits/oslo/fadderullan",
+    ])("refuses the unit slug variant %s, whoever owns the row", async (slug) => {
+      for (const owner of ["d-2", null, "d-1"]) {
+        publishUnit(owner);
+        expect((await post({ ...base, slug })).status).toBe(404);
+      }
+      expect(mocks.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("never reads a unit slug variant with the admin client", async () => {
+      mocks.page.mockResolvedValue(null);
+      mocks.cookieGet.mockReturnValue({ value: "s" });
+      expect(
+        (await post({ ...base, slug: "Units/oslo/fadderullan" })).status
+      ).toBe(404);
+      expect(mocks.adminGetPage).not.toHaveBeenCalled();
+    });
   });
 
   it.each([

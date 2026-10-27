@@ -1,8 +1,4 @@
-import {
-  isHubProject,
-  projectPageSlug,
-  projectSlugForUnit,
-} from "@repo/shared/utils/project-units";
+import { projectPageSlug } from "@repo/shared/utils/project-units";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -12,11 +8,12 @@ import { PageThemeStyle } from "@/components/page-theme-style";
 import { cachedPublishedPage } from "@/lib/data/public-content";
 import { cachedUnitDetail } from "@/lib/data/units";
 import { resolvePageTheme } from "@/lib/page-theme";
+import { renderPublishedEditorPage } from "@/lib/published-editor-page";
 import {
-  isRenderablePage,
-  renderPublishedEditorPage,
-} from "@/lib/published-editor-page";
-import { projectPageIsGenuine, publishedUnitPage } from "@/lib/unit-page";
+  isServableProjectPage,
+  nationalProjectForUnit,
+  publishedUnitPage,
+} from "@/lib/unit-page";
 import { CampusChooser } from "./_components/campus-chooser";
 import { UnitView } from "./_components/unit-view";
 import DepartmentLoading from "./loading";
@@ -39,9 +36,6 @@ interface Props {
  * status.
  */
 export const instant = false;
-
-/** Campus "5" (National): the unit URLs a project's own page replaces. */
-const NATIONAL_CAMPUS_ID = "5";
 
 export default async function UnitPage({ params }: Props) {
   const { segments } = await params;
@@ -67,22 +61,16 @@ export default async function UnitPage({ params }: Props) {
   const { department, canonical } = resolution;
 
   // C3: a national project unit's URL belongs to the project's own page once
-  // one is published at `projects/<project>`. A failed read leaves the unit
-  // page in place. Decided here, before any Suspense boundary, like every
-  // other redirect.
-  const project =
-    department.campus_id === NATIONAL_CAMPUS_ID
-      ? projectSlugForUnit(department.slug)
-      : null;
-  if (project && !isHubProject(project)) {
+  // `/projects/<project>` serves one (the sitemap drops the unit URL by the
+  // same rule). A failed read leaves the unit page in place. Decided here,
+  // before any Suspense boundary, like every other redirect.
+  const project = nationalProjectForUnit(department);
+  if (project) {
     const projectPage = await cachedPublishedPage(
       projectPageSlug(project),
       locale
     ).catch(() => null);
-    if (
-      isRenderablePage(projectPage) &&
-      (await projectPageIsGenuine(projectPage, project))
-    ) {
+    if (await isServableProjectPage(projectPage, project)) {
       permanentRedirect(`/projects/${project}`);
     }
   }

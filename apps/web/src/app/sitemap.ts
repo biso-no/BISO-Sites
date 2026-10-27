@@ -1,12 +1,19 @@
-import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
+import { DEFAULT_LOCALE } from "@repo/i18n/config";
+import {
+  isProjectNamespaceSlug,
+  PROJECT_UNIT_SLUGS,
+  type ProjectSlug,
+  projectPageSlug,
+} from "@repo/shared/utils/project-units";
 import {
   isUnitPageSlug,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import type { MetadataRoute } from "next";
 import { CAMPUS_SLUGS } from "@/lib/campus-scope";
-import { sitemapEntries } from "@/lib/data/public-content";
+import { cachedPublishedPage, sitemapEntries } from "@/lib/data/public-content";
 import { PROJECT_HUB_SLUGS } from "@/lib/project-hub";
+import { isServableProjectPage, nationalProjectForUnit } from "@/lib/unit-page";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://biso.no";
 
@@ -34,6 +41,33 @@ function mapSlugRoutes(
       changeFrequency,
       priority,
     }));
+}
+
+/**
+ * The projects whose own page `/projects/<project>` serves, by the predicate
+ * that route and the C3 unit redirect use. A crawler carries no locale
+ * cookie, so it is asked in the default locale. Best-effort per project: a
+ * failed read counts as no page, which leaves the sitemap as it was without
+ * one (the coded hubs listed, the unit URL kept).
+ */
+async function servableProjectPages(): Promise<Set<ProjectSlug>> {
+  const projects = Object.keys(PROJECT_UNIT_SLUGS) as ProjectSlug[];
+  const servable = await Promise.all(
+    projects.map(async (project) => {
+      try {
+        const page = await cachedPublishedPage(
+          projectPageSlug(project),
+          DEFAULT_LOCALE
+        );
+        return (await isServableProjectPage(page, project)) ? project : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  return new Set(
+    servable.filter((project): project is ProjectSlug => project !== null)
+  );
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -102,20 +136,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // tolerance lives in `sitemapEntries`, outside the cache, so a degraded
   // result is never the thing the next crawler is served. It catches every
   // branch itself and cannot reject, so there is nothing to catch here.
-  const entries = await sitemapEntries();
+  const [entries, projectPages] = await Promise.all([
+    sitemapEntries(),
+    servableProjectPages(),
+  ]);
 
   // The flagship hubs render from their own copy with no `large_event` row,
-  // and that table is empty, so the listing below never named them. A hub the
-  // table does list keeps that entry (it carries a real timestamp) and is not
-  // repeated here.
+  // and that table is empty, so the listing below never named them. A project
+  // with a published page of its own is served too, Bergensbaneløpet among
+  // them, which has no coded copy. A hub the table does list keeps that entry
+  // (it carries a real timestamp) and is not repeated here.
   const listedProjects = new Set(entries.projects.map((row) => row.slug));
-  const projectHubs: MetadataRoute.Sitemap = PROJECT_HUB_SLUGS.filter(
-    (slug) => !listedProjects.has(slug)
-  ).map((slug) => ({
-    url: `${BASE}/projects/${slug}`,
-    changeFrequency: "weekly",
-    priority: 0.6,
-  }));
+  const projectHubs: MetadataRoute.Sitemap = [
+    ...new Set<string>([...PROJECT_HUB_SLUGS, ...projectPages]),
+  ]
+    .filter((slug) => !listedProjects.has(slug))
+    .map((slug) => ({
+      url: `${BASE}/projects/${slug}`,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    }));
 
   return [
     ...staticRoutes,
@@ -139,8 +179,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ),
     // Only the campus-explicit /units/<campus>/<slug> URLs are listed — the
     // one-segment /units/<slug> route is cookie-dependent and points its
-    // canonical here.
+    // canonical here. A national project unit whose project page is served
+    // redirects there (C3), so only the project URL is listed.
     ...entries.units
+      .filter((row) => {
+        const project = nationalProjectForUnit(row);
+        return !(project && projectPages.has(project));
+      })
       .map((row) => ({
         path: unitCanonicalPath({ campusId: row.campus_id, slug: row.slug }),
         lastModified: new Date(row.$updatedAt),

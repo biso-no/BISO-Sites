@@ -1,5 +1,7 @@
 import { getPage } from "@repo/api/page-builder";
 import type { Locale } from "@repo/i18n/config";
+import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
+import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -57,15 +59,15 @@ const resolvePage = cache(async (slug: string, locale: Locale) => {
 });
 
 /**
- * `projects/<slug>` is where a project's editor page is stored, but it is
- * served at `/projects/<slug>` by its own route, never from here: a deeper path
- * (or a stray row) must not render under another URL.
+ * `units/<campus>/<slug>` and `projects/<slug>` pages are served by their own
+ * routes, which check the page belongs to its unit or project, never from
+ * here: a variant URL (or a stray row) must not render without that check.
+ * Next matches routes case-sensitively, so `/Units/oslo/x` lands here, while
+ * the page lookup matches slugs case- and accent-insensitively; both
+ * predicates trim, lowercase and fold accents to match it.
  */
-const RESERVED_PREFIX = "projects/";
-
-/** Case-insensitive and trimmed: the page lookup matches slugs that way. */
 function isReservedSlug(slug: string): boolean {
-  return slug.trim().toLowerCase().startsWith(RESERVED_PREFIX);
+  return isUnitPageSlug(slug) || isProjectNamespaceSlug(slug);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

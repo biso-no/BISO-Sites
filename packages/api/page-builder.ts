@@ -473,13 +473,20 @@ export async function savePageDraft(params: {
     pageId = page.$id;
   }
 
-  const translationId = await writeTranslationDraft(db, {
+  const { translationId } = await writeTranslationDraft(db, {
     doc: normalizedDoc,
     locale,
     pageId,
   });
 
   return { pageId, slug: normalizedDoc.meta.slug, translationId };
+}
+
+/** The translation row a draft write produced. */
+interface TranslationDraftWrite {
+  translationId: string;
+  /** The row's `$updatedAt` after this write. */
+  updatedAt: string;
 }
 
 /**
@@ -494,7 +501,7 @@ async function writeTranslationDraft(
     locale,
     pageId,
   }: { doc: PageDoc; locale: PageEditorLocale; pageId: string }
-): Promise<string> {
+): Promise<TranslationDraftWrite> {
   const existing = await db.listRows<PageTranslations>(
     "app",
     "page_translations",
@@ -511,8 +518,13 @@ async function writeTranslationDraft(
   };
   const row = existing.rows[0];
   if (row) {
-    await db.updateRow("app", "page_translations", row.$id, draft);
-    return row.$id;
+    const updated = await db.updateRow<PageTranslations>(
+      "app",
+      "page_translations",
+      row.$id,
+      draft
+    );
+    return { translationId: row.$id, updatedAt: updated?.$updatedAt };
   }
   const created = await db.upsertRow<PageTranslations>(
     "app",
@@ -527,11 +539,13 @@ async function writeTranslationDraft(
     },
     buildPageRowPermissions({ isPublished: false, audience: "public" })
   );
-  return created.$id;
+  return { translationId: created.$id, updatedAt: created.$updatedAt };
 }
 
 /**
- * Save one translated draft without mutating the parent page.
+ * Save one translated draft without mutating the parent page. Returns the
+ * row's `$updatedAt` after the write, so a caller that publishes next can
+ * tell whether anyone wrote the locale in between.
  *
  * PRIVILEGED: callers must authorize access before invoking this helper. It is
  * intended for deferred translation work, where the request session may have
@@ -545,7 +559,7 @@ export async function savePageTranslationDraft({
   id: string;
   doc: PageDoc;
   locale: PageEditorLocale;
-}): Promise<{ translationId: string }> {
+}): Promise<TranslationDraftWrite> {
   const { db } = await createAdminClient();
   const pageRes = await db.listRows<Pages>("app", "pages", [
     Query.equal("$id", id),
@@ -556,12 +570,11 @@ export async function savePageTranslationDraft({
     throw new Error("Page not found");
   }
 
-  const translationId = await writeTranslationDraft(db, {
+  return await writeTranslationDraft(db, {
     doc: normalizeDocForSave(doc),
     locale,
     pageId: id,
   });
-  return { translationId };
 }
 
 /** A page has one translation row per locale; this covers them with room. */

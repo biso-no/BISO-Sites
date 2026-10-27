@@ -557,23 +557,23 @@ export async function publishPageAction(
     const publishedPageVersion = sourceDocument
       ? (await db.getRow<Pages>("app", "pages", id)).$updatedAt
       : null;
-    // Translation drafts live in `page_translations`, which never touches the
-    // parent row, so the version pin above cannot see a concurrent edit of the
-    // destination locale. Snapshot it too.
-    const destinationDocument = sourceDocument
-      ? await getPageSourceDocument(id, getTargetLocale(publishedLocale), db)
+    // Both locales live in `page_translations`, and neither an edit of one
+    // nor an unpublish of one while the other stays live writes the parent
+    // row, so the version pin above cannot see them. Snapshot both rows too.
+    const translationRows = sourceDocument
+      ? await readTranslationRows(id, publishedLocale, db)
       : null;
     const translationQueued =
-      sourceDocument && publishedPageVersion
+      sourceDocument && publishedPageVersion && translationRows
         ? scheduleContentTranslation({
             enabled: true,
             task: () =>
               translatePublishedPage({
-                destinationDocument,
                 id,
                 publishedPageVersion,
                 sourceDocument,
                 sourceLocale: publishedLocale,
+                translationRows,
               }),
           })
         : false;
@@ -703,19 +703,110 @@ function isSamePageDocument(a: PageDoc | null, b: PageDoc | null): boolean {
   );
 }
 
+type AdminDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/** One `page_translations` row, as the auto-translation guard compares it. */
+interface TranslationRowState {
+  document: PageDoc | null;
+  isPublished: boolean;
+  updatedAt: string | null;
+}
+
+/** The source and target locale's rows. A locale with no row is null. */
+interface TranslationRows {
+  source: TranslationRowState | null;
+  target: TranslationRowState | null;
+}
+
+async function readTranslationRows(
+  id: string,
+  sourceLocale: PageEditorLocale,
+  db: AdminDatabase
+): Promise<TranslationRows> {
+  const editor = await pbGetPageEditorById(id, db);
+  const rowState = (locale: PageEditorLocale): TranslationRowState | null => {
+    const translation = editor?.translations[locale];
+    if (!translation) {
+      return null;
+    }
+    return {
+      document:
+        translation.draftDocument ?? translation.publishedDocument ?? null,
+      isPublished: translation.isPublished,
+      updatedAt: translation.updatedAt ?? null,
+    };
+  };
+  return {
+    source: rowState(sourceLocale),
+    target: rowState(getTargetLocale(sourceLocale)),
+  };
+}
+
+/** Whether nobody wrote the row in between: no edit, publish or unpublish. */
+function isSameTranslationRow(
+  before: TranslationRowState | null,
+  after: TranslationRowState | null
+): boolean {
+  if (!(before && after)) {
+    return !(before || after);
+  }
+  return (
+    before.isPublished === after.isPublished &&
+    before.updatedAt === after.updatedAt &&
+    isSamePageDocument(before.document, after.document)
+  );
+}
+
+/** The page row and both translation rows, read together. */
+async function readPublishState(
+  id: string,
+  sourceLocale: PageEditorLocale,
+  db: AdminDatabase
+): Promise<{ page: Pages; rows: TranslationRows }> {
+  const [page, rows] = await Promise.all([
+    db.getRow<Pages>("app", "pages", id),
+    readTranslationRows(id, sourceLocale, db),
+  ]);
+  return { page, rows };
+}
+
+/**
+ * Whether the publish that queued the translation still stands: the page row
+ * is as that publish left it and the source locale is still live. Unpublishing
+ * one locale while the other stays live leaves the page row untouched, so the
+ * row alone cannot tell.
+ */
+function sourcePublishStands(
+  state: { page: Pages; rows: TranslationRows },
+  publishedPageVersion: string
+): boolean {
+  return (
+    state.page.status === "published" &&
+    state.page.$updatedAt === publishedPageVersion &&
+    state.rows.source?.isPublished === true
+  );
+}
+
+/**
+ * Translate the locale just published into the other one, save it as that
+ * locale's draft and publish it. Gives up, writing nothing more, as soon as
+ * the editor has acted on either locale since the publish: unpublished the
+ * source, edited it, or edited, published or unpublished the target. The
+ * check runs before the draft save and again before the publish.
+ */
 async function translatePublishedPage({
-  destinationDocument,
   id,
   publishedPageVersion,
   sourceDocument,
   sourceLocale,
+  translationRows,
 }: {
-  /** The target locale as this publish left it — see the stale check below. */
-  destinationDocument: PageDoc | null;
   id: string;
   publishedPageVersion: string;
   sourceDocument: PageDoc;
   sourceLocale: PageEditorLocale;
+  /** Both locales' rows as this publish left them. */
+  translationRows: TranslationRows;
 }): Promise<void> {
   const { db } = await createAdminClient();
   const targetLocale = getTargetLocale(sourceLocale);
@@ -724,15 +815,11 @@ async function translatePublishedPage({
     sourceLocale,
     targetLocale,
   });
-  const [currentPage, currentSource, currentDestination] = await Promise.all([
-    db.getRow<Pages>("app", "pages", id),
-    getPageSourceDocument(id, sourceLocale, db),
-    getPageSourceDocument(id, targetLocale, db),
-  ]);
+  const current = await readPublishState(id, sourceLocale, db);
+  const currentSource = current.rows.source?.document;
   if (
     !(
-      currentPage.status === "published" &&
-      currentPage.$updatedAt === publishedPageVersion &&
+      sourcePublishStands(current, publishedPageVersion) &&
       currentSource &&
       isCurrentTranslationSource(
         getPageTranslationSource(sourceDocument),
@@ -742,13 +829,13 @@ async function translatePublishedPage({
   ) {
     return;
   }
-  // An editor who worked on the destination locale while the model request was
-  // in flight owns the newer document.
-  if (!isSamePageDocument(destinationDocument, currentDestination)) {
+  // An editor who worked on, published or unpublished the destination locale
+  // while the model request was in flight owns it.
+  if (!isSameTranslationRow(translationRows.target, current.rows.target)) {
     return;
   }
 
-  await pbSavePageTranslationDraft({
+  const saved = await pbSavePageTranslationDraft({
     // Model output: its text-block HTML is as untrusted as a client's. The
     // shared meta comes from the source as stored now, not the snapshot: a
     // theme the publish copied to the department has left the page since.
@@ -763,14 +850,17 @@ async function translatePublishedPage({
     id,
     locale: targetLocale,
   });
-  const pageBeforeDestinationPublish = await db.getRow<Pages>(
-    "app",
-    "pages",
-    id
-  );
+  // Our save is now the target's latest write; anything after it is the
+  // editor's.
+  const beforePublish = await readPublishState(id, sourceLocale, db);
+  const target = beforePublish.rows.target;
   if (
-    pageBeforeDestinationPublish.status !== "published" ||
-    pageBeforeDestinationPublish.$updatedAt !== publishedPageVersion
+    !(
+      sourcePublishStands(beforePublish, publishedPageVersion) &&
+      target &&
+      target.updatedAt === saved.updatedAt &&
+      target.isPublished === (translationRows.target?.isPublished ?? false)
+    )
   ) {
     return;
   }
