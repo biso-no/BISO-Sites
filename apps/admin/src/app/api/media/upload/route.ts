@@ -5,9 +5,16 @@ import { NextResponse } from "next/server";
 import { MEDIA_BUCKET_ID } from "@/app/(portal)/_actions/schemas";
 import { requireApiAuth } from "@/lib/api-auth";
 import {
+  type ChunkUploadPolicy,
+  type CompletedChunkUpload,
+  handleChunkedUpload,
+  isChunkRequest,
+} from "@/lib/chunked-upload";
+import {
   classifyInlineMedia,
   INLINE_MEDIA_MAX_BYTES,
   type InlineMediaKind,
+  type InlineMediaUpload,
   sanitizeInlineMediaFilename,
 } from "@/lib/inline-media";
 
@@ -85,8 +92,45 @@ export async function handleInlineMediaUpload(
   return storageResponse;
 }
 
-export function POST(request: Request): Promise<Response> {
-  return handleInlineMediaUpload(request, {
+/** Files over 5 MiB arrive in chunks (`?chunk=1`), under the same rules. */
+const INLINE_MEDIA_CHUNK_POLICY: ChunkUploadPolicy = {
+  bucketId: MEDIA_BUCKET_ID,
+  limitFor: (mime, filename) =>
+    classifyInlineMedia(filename, mime) ? INLINE_MEDIA_MAX_BYTES : null,
+};
+
+function completedInlineMedia({
+  fileId,
+  filename,
+  mime,
+  total,
+  url,
+}: CompletedChunkUpload): Response {
+  const file: InlineMediaUpload = {
+    fileId,
+    fileName: filename,
+    // The policy refused anything unclassified before the first chunk.
+    mediaKind: classifyInlineMedia(filename, mime) ?? "file",
+    mimeType: mime,
+    size: total,
+    url,
+  };
+  return NextResponse.json({ file });
+}
+
+export async function POST(request: Request): Promise<Response> {
+  if (isChunkRequest(request)) {
+    const auth = await requireApiAuth();
+    if (auth.response) {
+      return auth.response;
+    }
+    return await handleChunkedUpload(request, {
+      complete: completedInlineMedia,
+      policy: INLINE_MEDIA_CHUNK_POLICY,
+      userId: auth.ctx.userId,
+    });
+  }
+  return await handleInlineMediaUpload(request, {
     authenticate: async () => {
       const auth = await requireApiAuth();
       return !auth.response;

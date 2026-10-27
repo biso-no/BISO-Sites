@@ -25,6 +25,7 @@
     "./file": "./file.ts",
     "./page-builder": "./page-builder.ts",
     "./storage": "./storage.ts",
+    "./storage-chunks": "./storage-chunks.ts",
     "./write": "./write.ts",
     "./types/*": "./types/*.ts"
   },

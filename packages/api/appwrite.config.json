@@ -12498,7 +12498,7 @@
             "fileSecurity": false,
             "name": "Media",
             "enabled": true,
-            "maximumFileSize": 157286400,
+            "maximumFileSize": 262144000,
             "allowedFileExtensions": [
                 "jpg",
                 "jpeg",

@@ -118,11 +118,22 @@ const UPLOAD_BUCKETS: Record<string, UploadBucketConfig> = {
   // `uploadMediaFile` server action.
   media: defineBucket({ client: "admin", id: "media" }, [
     { bytes: IMAGE_MAX_BYTES, types: IMAGE_MIME_TYPES },
-    // Stage 5 raises video with chunked upload.
+    // Above 5 MiB the browser sends it in chunks (`allowsChunkedUpload`);
+    // the bucket's own limit in Appwrite is 250 MiB too.
     { bytes: TWO_HUNDRED_FIFTY_MB, types: VIDEO_MIME_TYPES },
     { bytes: DOCUMENT_MAX_BYTES, types: DOCUMENT_MIME_TYPES },
   ]),
 };
+
+/**
+ * Whether files over one chunk may go up in chunks. The chunk forwarder writes
+ * with the service key, so only buckets the route already writes with the
+ * service key qualify: chunking must never widen what an editor's own session
+ * may write. The rest keep the single request.
+ */
+export function allowsChunkedUpload(bucket: UploadBucketConfig): boolean {
+  return bucket.client === "admin";
+}
 
 export function resolveUploadBucket(
   bucketId: string

@@ -46,6 +46,8 @@ const KNOWN_BROAD_CREATE_EXCEPTIONS = new Set(['user: create("users")']);
 
 const MAX_BUCKET_FILE_SIZE_BYTES = 100_000_000;
 
+const MEDIA_MAX_FILE_SIZE_BYTES = 250 * 1024 * 1024;
+
 const REQUIRED_MEDIA_EXTENSIONS = [
   "jpg",
   "jpeg",
@@ -212,5 +214,15 @@ describe("appwrite bucket permissions", () => {
         extension
       );
     }
+  });
+
+  test("media bucket takes the admin's 250 MB video limit", () => {
+    // apps/admin/src/lib/upload-buckets.ts: video goes up to 250 MiB, sent
+    // in chunks; Appwrite refuses a total over the bucket's own limit.
+    const mediaBucket = loadConfig().buckets.find(
+      (bucket) => bucket.$id === "media"
+    );
+
+    expect(mediaBucket?.maximumFileSize).toBe(MEDIA_MAX_FILE_SIZE_BYTES);
   });
 });

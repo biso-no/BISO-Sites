@@ -69,6 +69,13 @@ export function getStorageFileThumbnailUrl(
 export const MEDIA_BUCKET_ID = "media";
 
 /**
+ * Appwrite's chunk size for chunked file uploads (`Client.CHUNK_SIZE` in the
+ * SDKs). Appwrite numbers a chunk by dividing its start by its own length, so
+ * every chunk but the last must be exactly this long.
+ */
+export const CHUNK_BYTES = 5 * 1024 * 1024;
+
+/**
  * Appwrite file IDs are at most 36 chars of `a-z A-Z 0-9 . - _`, and may not
  * start with a special character. Anything else (a URL, a `/public` path, a
  * relative path) is not an ID.

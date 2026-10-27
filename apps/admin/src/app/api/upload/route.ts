@@ -3,13 +3,16 @@ import { InputFile } from "@repo/api/file";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
+import { handleChunkedUpload, isChunkRequest } from "@/lib/chunked-upload";
 import {
+  allowsChunkedUpload,
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
   maxBytesForMime,
   resolveUploadBucket,
   resolveUploadMimeType,
   sanitizeUploadFilename,
+  type UploadBucketConfig,
 } from "@/lib/upload-buckets";
 
 /**
@@ -21,6 +24,11 @@ import {
  * Headers: `x-filename` (optional).
  * Query: `bucket` (optional, defaults to "content"). Only buckets listed in
  * `UPLOAD_BUCKETS` are accepted — private buckets (resumes, expenses) are not.
+ *
+ * `?chunk=1` switches to chunk mode for files over 5 MiB, in buckets that
+ * allow it (`allowsChunkedUpload`): see `lib/chunked-upload.ts`. The chunk
+ * that completes the file answers `{ fileId, url }`, the same `/view` url as
+ * a single request.
  */
 
 function tooLarge(maxBytes: number) {
@@ -28,6 +36,27 @@ function tooLarge(maxBytes: number) {
     { error: `File too large (max ${maxBytes / 1024 / 1024} MB)` },
     { status: 413 }
   );
+}
+
+function chunkedUpload(
+  request: Request,
+  bucket: UploadBucketConfig,
+  userId: string
+): Promise<Response> | Response {
+  if (!allowsChunkedUpload(bucket)) {
+    return NextResponse.json(
+      { error: "This bucket takes files in one request" },
+      { status: 400 }
+    );
+  }
+  return handleChunkedUpload(request, {
+    complete: ({ fileId, url }) => NextResponse.json({ fileId, url }),
+    policy: {
+      bucketId: bucket.id,
+      limitFor: (mime) => maxBytesForMime(bucket, mime),
+    },
+    userId,
+  });
 }
 
 export async function POST(request: Request) {
@@ -43,6 +72,10 @@ export async function POST(request: Request) {
       { error: "Uploads to this bucket are not allowed" },
       { status: 400 }
     );
+  }
+
+  if (isChunkRequest(request)) {
+    return chunkedUpload(request, bucket, auth.ctx.userId);
   }
 
   // The largest limit of any type bounds the body; the type's own limit

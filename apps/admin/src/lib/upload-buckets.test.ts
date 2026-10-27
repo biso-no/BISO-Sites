@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  allowsChunkedUpload,
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
   maxBytesForMime,
@@ -154,5 +155,16 @@ describe("resolveUploadMimeType", () => {
 
   it("defaults to octet-stream when neither is present", () => {
     expect(resolveUploadMimeType("", null)).toBe("application/octet-stream");
+  });
+});
+
+describe("allowsChunkedUpload", () => {
+  it("chunks only buckets already written with the service key", () => {
+    // The chunk forwarder uploads with the service key, so a bucket the
+    // editor's own session writes to must not gain it through chunking.
+    const media = resolveUploadBucket("media");
+    const content = resolveUploadBucket("content");
+    expect(media && allowsChunkedUpload(media)).toBeTrue();
+    expect(content && allowsChunkedUpload(content)).toBeFalse();
   });
 });
