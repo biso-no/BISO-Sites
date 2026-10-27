@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import { canSendNotifications } from "@/lib/announcements/audience-policy";
 import { requireNavAccess } from "@/lib/authorization";
-import { listAttendees, listSegments } from "../../../_actions/event-segments";
+import {
+  listAttendees,
+  listEventRsvps,
+  listSegments,
+} from "../../../_actions/event-segments";
 import { getEvent } from "../../../_actions/events";
 import { SegmentsStudio } from "./_components/segments-studio";
 
@@ -18,9 +22,10 @@ export default async function EventSegmentsPage({ params }: SegmentsPageProps) {
     notFound();
   }
 
-  const [segments, attendees] = await Promise.all([
+  const [segments, attendees, rsvps] = await Promise.all([
     listSegments(id),
     listAttendees(id),
+    listEventRsvps(id),
   ]);
 
   const enTitle =
@@ -36,6 +41,7 @@ export default async function EventSegmentsPage({ params }: SegmentsPageProps) {
       canMessage={canSendNotifications(ctx.roles)}
       eventId={id}
       eventTitle={enTitle}
+      rsvps={rsvps}
       segments={segments}
     />
   );

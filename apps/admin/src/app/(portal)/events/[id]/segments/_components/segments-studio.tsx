@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { parseSegmentMetadata } from "@/lib/segments/types";
+import type { EventRsvpEntry } from "../../../../_actions/event-segments";
 import {
   createSegment,
   deleteSegment,
@@ -30,6 +31,7 @@ import {
   StudioPanel,
 } from "../../../../_components/studio";
 import { AttendeePanel } from "./attendee-panel";
+import { RsvpPanel } from "./rsvp-panel";
 import { SegmentForm } from "./segment-form";
 import type { SegmentFormState, SegmentWithCount } from "./types";
 
@@ -40,6 +42,7 @@ interface SegmentsStudioProps {
   canMessage: boolean;
   eventId: string;
   eventTitle: string;
+  rsvps: EventRsvpEntry[];
   segments: SegmentWithCount[];
 }
 
@@ -85,6 +88,7 @@ export function SegmentsStudio({
   canMessage,
   eventId,
   eventTitle,
+  rsvps,
   segments,
 }: SegmentsStudioProps) {
   const router = useRouter();
@@ -203,6 +207,8 @@ export function SegmentsStudio({
           </p>
         </StudioCard>
       )}
+
+      <RsvpPanel entries={rsvps} />
 
       <StudioPanel className="mt-8 p-5">
         <div className="mb-4 flex items-center gap-2">
