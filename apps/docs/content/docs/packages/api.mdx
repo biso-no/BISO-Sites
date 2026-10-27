@@ -129,9 +129,9 @@ The page builder operates on two collections:
 - `pages` — one row per slug, contains routing metadata
   (`is_published`, `status`, `campus`, etc.).
 - `page_translations` — one row per `(page_id, locale)`. Holds the
-  block document in two columns: `draft_document` (working copy) and
-  `puck_document` (published copy — column name is historical and is
-  not edited).
+  block document in two columns: `draft_doc` (working copy) and
+  `published_doc` (published copy). Both hold a `PageDoc` v2. The old
+  `draft_document` / `puck_document` columns are unused.
 
 Typical usage from a server action:
 
@@ -152,10 +152,10 @@ The flow:
 
 1. **`savePageDraft({ id, doc, locale, ctx })`** upserts the `pages`
    row and writes `doc` into the matching `page_translations` row's
-   `draft_document` column. `ctx` carries the author identity for
-   audit columns.
-2. **`publishPage({ id, locale })`** copies `draft_document` into
-   `puck_document`, sets `is_published = true`, and bumps `status` to
+   `draft_doc` column. It never writes publish state. `ctx` carries the
+   author identity for audit columns.
+2. **`publishPage({ id, locale })`** copies `draft_doc` into
+   `published_doc`, sets `is_published = true`, and bumps `status` to
    `"published"`.
 3. **`unpublishPage({ id, locale })`** reverses (2) — clears
    `is_published` and sets `status` back to `"draft"`. The draft is

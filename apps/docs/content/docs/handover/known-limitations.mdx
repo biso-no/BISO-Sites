@@ -68,13 +68,49 @@ turns out to be a known issue.
 
 ## Naming legacy
 
-- The `puck_document` column on `pages` is named after the *previous*
-  page editor (Puck). It now stores the in-house editor's `PageDoc`
-  blob. The name is misleading; renaming it would be a schema change
-  that requires care.
+- `page_translations` still has the old `draft_document` and
+  `puck_document` columns (the second is named after the *previous*
+  page editor, Puck). Nothing uses them: pages live in `draft_doc` and
+  `published_doc`. Removing the old columns waits for the cutover.
 - Some admin route group names still reflect older role labels
   (`SG-App-Role-*`) before the move to campus+department combinations.
   See [history](/docs/handover/history).
+
+## Page editor (redesign)
+
+Known gaps in the redesigned editor, from the stage notes in
+`docs/superpowers/specs/2026-10-23-page-editor-redesign-design.md`:
+
+- **Checked by tests, not by eye.** Admin sign-in is Microsoft OAuth
+  only, so the automated browser could not open the editor. The canvas,
+  the Theme panel and the stage 1 drag checks still need a look in a
+  real browser. After a deploy, smoke-test 5 to 10 MB image uploads
+  through Appwrite Sites (they now go in chunks) and the Sites
+  request-size limit, which was only tested against the forwarder.
+- **Themes.** Unpublishing a page does not clear its department's
+  theme. Undo can bring back a theme the department already holds; the
+  next save drops it again.
+- **Copilot.** Its tools are advisory: it cannot see ids the browser
+  creates (it says "new" for the latest section) and doesn't hear about
+  a rejected placement.
+- **Uploads.** The inline-media route allows 250 MB for every file kind;
+  consider per-kind caps. Upload progress is not shown. The `media`
+  bucket serves `/view` with the client-declared type and has antivirus
+  off.
+- **Forms.** Option values are re-derived when a label is edited, so a
+  visitor on a cached page can send an old value, which is dropped.
+- **Pages without a header.** If the first section ends up empty on the
+  site (a live feed that comes back empty, an empty block, a removed or
+  unknown block type), the next section can sit under the fixed nav. An
+  empty header title renders an empty `<h1>`.
+- **Cards** dropped the old `icon` field.
+- **Page binding.** An ordinary page bound to a national department
+  opens for its members but doesn't save; `projects/` and `units/` pages
+  are unaffected. Archived pages stay readable through the Appwrite API
+  without login (pre-existing).
+- **Winter Games.** The page is a draft for whoever publishes it:
+  compare it with what is live, set a meta description, then publish
+  each language.
 
 ## Editor blocks
 
@@ -94,9 +130,8 @@ limits to know about:
   intended, but it means a mis-set department looks like a missing block.
 - `profileHeader`, `filterBar`, `campusSelector` and `twoCol` were
   removed. Old pages that still contain them need editing.
-- Production builds of the redesigned editor have not all been run yet
-  (type-checks and tests pass). Check a published page after the first
-  deploy.
+- `bun run build` passes for admin and web, but check a published page
+  after the first deploy.
 
 ## Search
 

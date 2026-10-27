@@ -58,7 +58,7 @@ Two patterns, deliberately different:
 
 | Table | Used by | Why |
 |---|---|---|
-| `page_translations` | Pages only | Pages carry a 30 KB+ JSON document — they get their own translation table with both `draft_document` and `puck_document` columns. |
+| `page_translations` | Pages only | Pages carry a 30 KB+ JSON document — they get their own translation table with both `draft_doc` and `published_doc` columns. |
 | `content_translations` | Everything else | Generic table keyed by `content_type`, `target_locale`, `source_locale`, `translation_status` (`source`, `manual`, `ai`, `stale`). |
 
 See [Translations](/docs/architecture/translations) for the full
@@ -191,19 +191,19 @@ await db.createRow<FormSubmissions>("app", "form_submissions", {
 A few names and concepts pre-date their current implementation.
 They're documented so you don't fix what isn't broken.
 
-### `puck_document`
+### `draft_document` and `puck_document`
 
-`page_translations` has two JSON columns:
+`page_translations` has two JSON columns that hold pages:
 
-- `draft_document` — work-in-progress page (the editor saves here).
-- `puck_document` — **the published page**.
+- `draft_doc` — work-in-progress page (the editor saves here).
+- `published_doc` — **the published page**.
 
-`puck_document` is named for the previous editor library
-([Puck](https://puckeditor.com)) we used before building `@repo/editor`.
-The column kept its name through the migration because renaming an
-Appwrite attribute is operationally expensive (live data, indexes,
-permissions). When you read code that says `puck_document`, read
-"published page JSON". See [Pages publish flow](/docs/architecture/pages-publish-flow).
+Both hold a `PageDoc` version 2 (header, sections, columns, blocks,
+meta with the theme). The older `draft_document` and `puck_document`
+columns (the second named for the Puck editor we used before
+`@repo/editor`) are still in the schema but nothing reads or writes
+them; they can be removed after the cutover. Do not use them. See
+[Pages publish flow](/docs/architecture/pages-publish-flow).
 
 ### Inactive tables
 
