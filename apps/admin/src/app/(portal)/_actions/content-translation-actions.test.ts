@@ -8,6 +8,7 @@ const CASE_FILES = [
   "events-translation.cases.ts",
   "jobs-translation.cases.ts",
   "news-translation.cases.ts",
+  "pages-department-campus.cases.ts",
   "pages-publish-notify.cases.ts",
   "pages-theme.cases.ts",
   "pages-translation.cases.ts",

@@ -43,6 +43,7 @@ import {
   parseAutoTranslationOptions,
   scheduleContentTranslation,
 } from "@/lib/content-translation.server";
+import { pageAccessContext } from "@/lib/page-access";
 import {
   requestedPageCampusId,
   resolvePageSaveCampusId,
@@ -235,9 +236,17 @@ export async function getPageEditorById(id: string) {
   if (!result) {
     return null;
   }
-  if (
-    !hasRowAccess(ctx, result.page.campusId, result.page.departmentId || null)
-  ) {
+  const departmentId = result.page.departmentId || null;
+  // Opening a page is the first step of writing it, so it follows the page
+  // write rule: a member of the page's department also reaches it on that
+  // department's campus (see pageAccessContext).
+  const pageCtx = await pageAccessContext(
+    db,
+    ctx,
+    result.page.campusId,
+    departmentId
+  );
+  if (!hasRowAccess(pageCtx, result.page.campusId, departmentId)) {
     return null;
   }
   return sanitizeEditorDocuments(result);
@@ -369,7 +378,12 @@ export async function savePageEditorDoc({
       // access check would turn this action into an existence oracle for any
       // authenticated portal user posting a crafted id.
       assertWriteAccess(
-        ctx,
+        await pageAccessContext(
+          db,
+          ctx,
+          persisted?.campus,
+          persisted?.department
+        ),
         persisted?.campus ?? null,
         persisted?.department ?? null
       );
@@ -423,11 +437,14 @@ export async function savePageEditorDoc({
       isUpdate: Boolean(existing),
       persistedCampusId: persisted?.campus ?? null,
     });
-    await assertContentOwnership(db, ctx, {
-      allowGlobalCampus: true,
-      campusId,
-      departmentId: normalizedDoc.meta.department || null,
-    });
+    const departmentId = normalizedDoc.meta.department || null;
+    // The requested department's own campus, for its member: the ownership
+    // check still verifies the department belongs to `campusId`.
+    await assertContentOwnership(
+      db,
+      await pageAccessContext(db, ctx, campusId, departmentId),
+      { allowGlobalCampus: true, campusId, departmentId }
+    );
     // After the ownership check: the department is verified before it is read.
     const { doc: storedDoc, dropped: themeDropped } =
       await withoutDepartmentTheme(db, normalizedDoc);
@@ -515,7 +532,11 @@ export async function publishPageAction(
     // publish their own department's pages, campus/global admins their scope.
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
-    assertPublishAccess(ctx, ownership.campus, ownership.department);
+    assertPublishAccess(
+      await pageAccessContext(db, ctx, ownership.campus, ownership.department),
+      ownership.campus,
+      ownership.department
+    );
     requireProjectHubAccess(page, ctx.roles);
 
     if (
@@ -887,7 +908,11 @@ export async function unpublishPageAction(
     // way as publishing: general write scope over the page's ownership.
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
-    assertPublishAccess(ctx, ownership.campus, ownership.department);
+    assertPublishAccess(
+      await pageAccessContext(db, ctx, ownership.campus, ownership.department),
+      ownership.campus,
+      ownership.department
+    );
     requireProjectHubAccess(page, ctx.roles);
 
     await pbUnpublishPage({ id, locale });
@@ -915,7 +940,11 @@ export async function deletePageAction(id: string) {
     // so a user can only archive pages within their campus/department scope.
     const page = await db.getRow<Pages>("app", "pages", id);
     const ownership = getContentOwnership(page, { legacyFallback: true });
-    assertWriteAccess(ctx, ownership.campus, ownership.department);
+    assertWriteAccess(
+      await pageAccessContext(db, ctx, ownership.campus, ownership.department),
+      ownership.campus,
+      ownership.department
+    );
     requireProjectHubAccess(page, ctx.roles);
 
     await db.updateRow("app", "pages", id, { status: "archived" });
