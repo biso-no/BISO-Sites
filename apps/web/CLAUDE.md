@@ -283,6 +283,10 @@ bun run check-types  # tsc --noEmit  ← use this, build ignores type errors
 bun x ultracite fix  # repo-wide formatter/linter (see root CLAUDE.md)
 ```
 
+## Documentation
+
+Student-facing behaviour is described in the platform guide, in the "What the student sees" sections of `apps/docs/content/docs/guide/`. Technical details belong in `apps/docs/content/docs/developers/`. When you change either, update the page whose `covers` matches the code you changed, or add one. Rules in `apps/docs/CLAUDE.md`.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

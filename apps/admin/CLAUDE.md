@@ -158,3 +158,7 @@ than a full Next build. **But `check-types` is not sufficient on its own** when
 you've touched a `"use server"` file: it cannot see the "exports must be async
 functions" rule (see "App-specific patterns"). Run `bun run build --filter=admin`
 to catch that before claiming a server-action change is done.
+
+## Documentation
+
+Admin features are documented in the platform guide, `apps/docs/content/docs/guide/`. When you change how an admin feature behaves, update the guide page whose `covers` matches the code you changed, or add a page if none does. Rules in `apps/docs/CLAUDE.md`.
