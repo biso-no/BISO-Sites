@@ -95,9 +95,7 @@ export function HeroChevron({
                 to shrink and shoves the collage past the viewport edge. */}
             <div className="min-w-0">
               <h1 className="type-display-hero max-w-[16ch] text-ink">
-                {campusName
-                  ? t("titleActive", { campusName })
-                  : t("titleDefault")}
+                {campusName ? t("titleActive") : t("titleDefault")}
               </h1>
 
               <p className="type-body type-measure mt-6 text-ink-muted">

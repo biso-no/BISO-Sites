@@ -69,10 +69,7 @@ export async function OverviewSection({
               ? t("overview.eyebrowCampus", { campusName })
               : t("overview.eyebrow")}
           </p>
-          <SectionHeading>
-            {t("about.mainContent.premier")}{" "}
-            {t("about.mainContent.studentCommunity")}
-          </SectionHeading>
+          <SectionHeading>{t("about.mainContent.heading")}</SectionHeading>
           <div className="max-w-(--measure) space-y-4">
             <p className="type-body text-ink">
               {t("about.mainContent.paragraph1")}

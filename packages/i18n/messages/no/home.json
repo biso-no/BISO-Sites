@@ -23,9 +23,9 @@
       "events": "Kommende arrangementer",
       "jobs": "Ledige stillinger"
     },
-    "subtitleActive": "Opplev alt som skjer på {campusName}. Oppdag arrangementer, fordeler og verv som gjør studentlivet uforglemmelig.",
+    "subtitleActive": "Opplev alt som skjer i {campusName}. Oppdag arrangementer, fordeler og verv som gjør studentlivet uforglemmelig.",
     "subtitleDefault": "BI Studentorganisasjon samler studenter på tvers av campuser. Utforsk mulighetene og finn din vei inn i fellesskapet.",
-    "titleActive": "Bli med på pulsen på {campusName}",
+    "titleActive": "Dare to be more.",
     "titleDefault": "En sterk studentstemme på alle BI-campuser",
     "mission": "Vi hjelper studenter å knytte kontakter, utvikle seg og påvirke på alle BI-campuser.",
     "contactCta": "Snakk med teamet",
@@ -45,10 +45,9 @@
     "mainContent": {
       "title": "Om BISO",
       "subtitle": "BI Studentorganisasjon",
-      "premier": "Norges ledende",
-      "studentCommunity": "studentfellesskap",
-      "paragraph1": "BI Studentorganisasjon (BISO) er hjertet i studentlivet på BI Norwegian Business School. Vi er dedikert til å skape uforglemmelige opplevelser, styrke meningsfulle kontakter og styrke studentene til å tjene det meste av sine universitetsår.",
-      "paragraph2": "Fra spennende sosiale arrangementer og karriereworkshops til kulturelle festivaler og sportskonkurranser, vi tilbyr noe for alle. Bli med oss og bli en del av et fellesskap som feirer diversitet, styrker innovasjon og skaper minner som varer til livet."
+      "heading": "Mer enn studentliv",
+      "paragraph1": "BI Studentorganisasjon (BISO) er studentorganisasjonen ved BI, med campuser i Oslo, Bergen, Trondheim og Stavanger. Vi jobber for at du skal få mer ut av studietiden – faglig, sosialt og karrieremessig.",
+      "paragraph2": "Gjennom studentgrupper, arrangementer og verv kan du møte nye folk, lære noe nytt og være med på å påvirke hvordan det er å studere på BI."
     }
   },
   "overview": {

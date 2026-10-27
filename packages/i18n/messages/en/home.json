@@ -23,9 +23,9 @@
       "events": "Upcoming events",
       "jobs": "Open positions"
     },
-    "subtitleActive": "Experience everything happening at {campusName}. Discover events, perks and positions that make student life unforgettable.",
+    "subtitleActive": "Experience everything happening in {campusName}. Discover events, perks and positions that make student life unforgettable.",
     "subtitleDefault": "BI Student Organisation unites students across campuses. Explore the opportunities and find your way into the community.",
-    "titleActive": "Join the pulse at {campusName}",
+    "titleActive": "Dare to be more.",
     "titleDefault": "A strong student voice across all BI campuses",
     "mission": "We help students connect, grow and influence across every BI campus.",
     "contactCta": "Talk to the team",
@@ -45,10 +45,9 @@
     "mainContent": {
       "title": "About BISO",
       "subtitle": "BI Student Organisation",
-      "premier": "Norway's Premier",
-      "studentCommunity": "Student Community",
-      "paragraph1": "BI Student Organisation (BISO) is the heartbeat of student life at BI Norwegian Business School. We're dedicated to creating unforgettable experiences, fostering meaningful connections, and empowering students to make the most of their university years.",
-      "paragraph2": "From exciting social events and career workshops to cultural festivals and sports competitions, we offer something for everyone. Join us and become part of a community that celebrates diversity, encourages innovation, and creates memories that last a lifetime."
+      "heading": "More than student life",
+      "paragraph1": "BI Student Organisation (BISO) is the student organisation at BI, with campuses in Oslo, Bergen, Trondheim and Stavanger. We work to help you get more out of your time as a student – academically, socially and for your career.",
+      "paragraph2": "Through student groups, events and volunteer roles you can meet new people, learn something new and help shape what it's like to study at BI."
     }
   },
   "overview": {
