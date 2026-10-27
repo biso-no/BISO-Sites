@@ -14,6 +14,7 @@ import {
   isPastEvent,
   parseCategory,
   pickContent,
+  rsvpCountParts,
 } from "./event-fields";
 
 const here = join(process.cwd(), "src/components/events/v2");
@@ -431,5 +432,21 @@ describe("events message bundle", () => {
           )
         : [prefix];
     expect(flatten(bundle("en")).sort()).toEqual(flatten(bundle("no")).sort());
+  });
+});
+
+describe("rsvpCountParts", () => {
+  it("keeps only the non-zero counts", () => {
+    expect(rsvpCountParts({ going: 3, maybe: 0 })).toEqual([
+      { count: 3, key: "goingCount" },
+    ]);
+    expect(rsvpCountParts({ going: 0, maybe: 0 })).toEqual([]);
+  });
+
+  it("lists going first", () => {
+    expect(rsvpCountParts({ going: 2, maybe: 1 })).toEqual([
+      { count: 2, key: "goingCount" },
+      { count: 1, key: "maybeCount" },
+    ]);
   });
 });

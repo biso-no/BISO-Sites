@@ -12,6 +12,7 @@ import { pickContent } from "@/components/events/v2/event-fields";
 import { DetailSkeleton } from "@/components/ui/loading-shell";
 import { getMembershipStatus } from "@/lib/actions/membership";
 import { toPlainText } from "@/lib/content-text";
+import { readEventRsvpForViewer } from "@/lib/event-rsvp";
 import { buildSummary } from "@/lib/news-article";
 
 interface EventPageProps {
@@ -31,9 +32,12 @@ async function EventDetailsV2({ slug }: { slug: string }) {
   }
 
   // Both a collection parent and one of its children want the sibling list.
-  const collectionEvents = event.collection_id
-    ? await getCollectionEvents(event.collection_id, locale)
-    : [];
+  const [collectionEvents, rsvp] = await Promise.all([
+    event.collection_id
+      ? getCollectionEvents(event.collection_id, locale)
+      : Promise.resolve([]),
+    readEventRsvpForViewer(event.$id),
+  ]);
 
   return (
     <EventDetailV2
@@ -41,6 +45,7 @@ async function EventDetailsV2({ slug }: { slug: string }) {
       event={event}
       isMember={membership.isMember}
       locale={locale}
+      rsvp={rsvp}
       // "Already a member? Sign in" is only an offer to a signed-out visitor.
       showSignIn={membership.reason === "not_authenticated"}
     />
