@@ -36,6 +36,9 @@ const UNIT = {
 const CREATED_PAGE_ID = "page-wg";
 const LIVE_PAGE_ID = "6adcd79b001c93ad6a13";
 const PUBLIC_READ = ['read("any")'];
+/** The live rows' title and description; the seed's own differ from both. */
+const LIVE_TITLE = "Winter Games (live)";
+const LIVE_DESCRIPTION = "";
 const MISSING = /not found/i;
 const INACTIVE = /inactive/i;
 const AMBIGUOUS = /2 active/i;
@@ -355,13 +358,13 @@ function liveTranslations(): FakeTranslation[] {
   return LOCALES.map((locale) => ({
     $id: `tr-live-${locale}`,
     $permissions: [...PUBLIC_READ],
-    description: "",
+    description: LIVE_DESCRIPTION,
     draft_doc: liveDoc(locale),
     is_published: true,
     locale,
     page_id: LIVE_PAGE_ID,
     published_doc: liveDoc(locale),
-    title: "Winter Games",
+    title: LIVE_TITLE,
   }));
 }
 
@@ -384,6 +387,19 @@ function counts(locale: WinterGamesLocale): string {
 function expectedDoc(locale: WinterGamesLocale): PageDoc {
   const doc = winterGamesDoc(locale);
   doc.meta.department = UNIT.$id;
+  return doc;
+}
+
+/** Our draft as written into an existing row: that row's meta kept. */
+function keptMetaDoc(
+  locale: WinterGamesLocale,
+  title: string,
+  description: string | null
+): PageDoc {
+  const doc = expectedDoc(locale);
+  const { description: _seeded, ...meta } = doc.meta;
+  doc.meta =
+    description === null ? { ...meta, title } : { ...meta, description, title };
   return doc;
 }
 
@@ -617,9 +633,15 @@ describe("a re-run", () => {
       ["tr-no-old", "no"],
       ["tr-en", "en"],
     ]);
+    const [no, en] = backend.translations;
+    expect(no?.title).toBe("Old");
+    expect(no?.description).toBeNull();
+    expect(JSON.parse(no?.draft_doc ?? "null")).toEqual(
+      keptMetaDoc("no", "Old", null)
+    );
+    expect(JSON.parse(en?.draft_doc ?? "null")).toEqual(expectedDoc("en"));
     for (const t of backend.translations) {
       expect(t.is_published).toBe(false);
-      expect(JSON.parse(t.draft_doc ?? "null")).toEqual(expectedDoc(t.locale));
     }
   });
 });
@@ -654,8 +676,14 @@ describe("adopting the unbound live page", () => {
       expect(t.is_published).toBe(true);
       expect(t.published_doc).toBe(liveDoc(t.locale));
       expect(t.$permissions).toEqual(PUBLIC_READ);
-      expect(JSON.parse(t.draft_doc ?? "null")).toEqual(expectedDoc(t.locale));
+      expect(t.title).toBe(LIVE_TITLE);
+      expect(t.description).toBe(LIVE_DESCRIPTION);
+      expect(JSON.parse(t.draft_doc ?? "null")).toEqual(
+        keptMetaDoc(t.locale, LIVE_TITLE, LIVE_DESCRIPTION)
+      );
     }
+    expect(bind?.doc.meta.title).toBe(LIVE_TITLE);
+    expect(bind?.doc.meta.description).toBe(LIVE_DESCRIPTION);
   });
 
   it("expects the status and publish flags as they were, and reports them", async () => {
@@ -719,8 +747,34 @@ describe("adopting the unbound live page", () => {
       `PUBLISHED DOCUMENT CHANGED: en sha256 was ${sha256(liveDoc("en"))}, is now ${sha256("{}")}`
     );
     const printed = backend.lines.join("\n");
-    expect(printed).toContain("!!! ERROR: A PUBLISHED DOCUMENT CHANGED");
+    expect(printed).toContain("!!! ERROR: WHAT THE LIVE PAGE SHOWS CHANGED");
     expect(printed).toContain("CHECK FAILED");
+  });
+
+  it("reports loudly when the live title or description changes during the run", async () => {
+    const backend = makeBackend(liveSeed());
+    const { savePageTranslationDraft } = backend.deps.pages;
+    backend.deps.pages.savePageTranslationDraft = async (params) => {
+      const result = await savePageTranslationDraft(params);
+      const row = backend.translations.find((t) => t.locale === params.locale);
+      if (row) {
+        row.description = "changed";
+      }
+      return result;
+    };
+    const outcome = await runSeed(backend.deps, {
+      adopt: LIVE_PAGE_ID,
+      write: true,
+    });
+    if (outcome.status !== "written") {
+      throw new Error(`expected a write, got ${outcome.status}`);
+    }
+    expect(outcome.problems).toEqual([
+      'LIVE META CHANGED: en description was "", is now "changed"',
+    ]);
+    const printed = backend.lines.join("\n");
+    expect(printed).toContain("!!! ERROR: WHAT THE LIVE PAGE SHOWS CHANGED");
+    expect(printed).toContain("live meta CHANGED");
   });
 });
 
@@ -765,6 +819,10 @@ describe("over the real page builder", () => {
     for (const w of draftWrites) {
       expect(w.permissionsPassed).toBe(false);
       expect(writtenKeys(w)).toEqual(DRAFT_COLUMNS);
+      // The page builder always writes these two; the seed hands it the
+      // stored values, so the live <title> and meta description stay.
+      expect(w.data.title).toBe(LIVE_TITLE);
+      expect(w.data.description).toBe(LIVE_DESCRIPTION);
     }
     expect(store.writes.map((w) => w.tableId).sort()).toEqual([
       "page_translations",
@@ -779,6 +837,8 @@ describe("over the real page builder", () => {
       expect(t.is_published).toBe(true);
       expect(t.published_doc).toBe(liveDoc(t.locale));
       expect(t.$permissions).toEqual(PUBLIC_READ);
+      expect(t.title).toBe(LIVE_TITLE);
+      expect(t.description).toBe(LIVE_DESCRIPTION);
     }
     for (const helper of publishHelpers) {
       expect(helper).not.toHaveBeenCalled();
@@ -865,9 +925,9 @@ describe("a dry run", () => {
     const printed = backend.lines.join("\n");
     expect(printed).toContain("ADOPT");
     expect(printed).toContain("status published");
-    // The draft save rewrites the row's description, which the live page's
-    // meta description reads: the plan says so.
-    expect(printed).toContain('row title "Winter Games" -> "Winter Games"');
+    expect(printed).toContain(
+      `live meta unchanged: row title ${JSON.stringify(LIVE_TITLE)}`
+    );
     for (const locale of LOCALES) {
       expect(printed).toContain(`sha256 ${sha256(liveDoc(locale))}`);
     }

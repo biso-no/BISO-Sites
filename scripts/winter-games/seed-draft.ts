@@ -23,9 +23,11 @@
  *
  * Writes go through the page builder only (`savePageDraft`,
  * `savePageTranslationDraft`). The script never publishes and never
- * revalidates the site. Before writing to an existing page it hashes each
- * locale's stored published document, and after writing it reads everything
- * back and compares it with that earlier state.
+ * revalidates the site. An existing translation row keeps its title and
+ * description (the live page's <title> and meta description): the drafts
+ * carry them back unchanged. Before writing to an existing page it hashes
+ * each locale's stored published document, and after writing it reads
+ * everything back and compares it with that earlier state.
  *
  * Dry run by default (reads only); `--write` performs the writes.
  *
@@ -150,7 +152,7 @@ export interface TranslationState {
   publishedHash: string | null;
   publishedLength: number;
   /** The row's title column (the live page's <title>). */
-  title: string | null;
+  title: string;
 }
 
 /** A page row and its translations, as stored. */
@@ -206,6 +208,7 @@ type Checked<T> = { error: string } | { value: T };
 
 const NOTHING_WRITTEN = "Nothing was written.";
 const PUBLISHED_CHANGED = "PUBLISHED DOCUMENT CHANGED";
+const LIVE_META_CHANGED = "LIVE META CHANGED";
 const ALARM = "!".repeat(72);
 
 function isSeedLocale(locale: string | null | undefined): locale is SeedLocale {
@@ -356,7 +359,7 @@ async function readTranslations(
       isPublished: row.is_published,
       publishedHash: sha256(row.published_doc),
       publishedLength: row.published_doc?.length ?? 0,
-      title: row.title ?? null,
+      title: row.title,
     };
   }
   return { duplicates, translations };
@@ -415,6 +418,52 @@ function countBlocks(doc: PageDoc): number {
   return blocks;
 }
 
+/**
+ * `doc` with the stored row's title and description in its meta. A draft
+ * save writes the row's `title` and `description` columns from the
+ * document's meta along with the draft (page-builder `writeTranslationDraft`,
+ * through both `savePageDraft` and `savePageTranslationDraft`), and the public
+ * page reads those two columns for its <title> and meta description whether
+ * or not anything is published. Handing the stored values back leaves what
+ * the live page shows exactly as it is.
+ *
+ * Hand-over: an ordinary draft save from the editor does change them, so
+ * editing a published page's draft changes its live title and meta
+ * description before anyone publishes.
+ */
+function withStoredMeta(doc: PageDoc, stored: TranslationState): PageDoc {
+  const { description: _seeded, ...meta } = doc.meta;
+  return {
+    ...doc,
+    meta:
+      stored.description === null
+        ? { ...meta, title: stored.title }
+        : { ...meta, description: stored.description, title: stored.title },
+  };
+}
+
+/** Each locale's draft; an existing row keeps its own title and description. */
+function planDocs(
+  deps: SeedDeps,
+  unitId: string,
+  before: PageState | null
+): { docs: Record<SeedLocale, PageDoc>; locales: LocalePlan[] } {
+  const docs = {} as Record<SeedLocale, PageDoc>;
+  const locales: LocalePlan[] = [];
+  for (const locale of LOCALES) {
+    const { cleaned, doc } = seedDoc(deps, locale, unitId);
+    const stored = before?.translations[locale];
+    docs[locale] = stored ? withStoredMeta(doc, stored) : doc;
+    locales.push({
+      blocks: countBlocks(doc),
+      cleaned,
+      locale,
+      sections: doc.sections.length,
+    });
+  }
+  return { docs, locales };
+}
+
 async function makePlan(
   deps: SeedDeps,
   adopt: string | null
@@ -427,27 +476,18 @@ async function makePlan(
   if ("error" in page) {
     return page;
   }
-
-  const docs = {} as Record<SeedLocale, PageDoc>;
-  const locales: LocalePlan[] = [];
-  for (const locale of LOCALES) {
-    const { cleaned, doc } = seedDoc(deps, locale, unit.value.$id);
-    docs[locale] = doc;
-    locales.push({
-      blocks: countBlocks(doc),
-      cleaned,
-      locale,
-      sections: doc.sections.length,
-    });
-  }
-  const base = {
-    docs,
-    locales,
-    unit: { id: unit.value.$id, name: unit.value.Name },
-  };
+  const unitRef = { id: unit.value.$id, name: unit.value.Name };
   const choice = page.value;
   if (choice.action === "create") {
-    return { value: { ...base, action: "create", before: null, pageId: null } };
+    return {
+      value: {
+        ...planDocs(deps, unitRef.id, null),
+        action: "create",
+        before: null,
+        pageId: null,
+        unit: unitRef,
+      },
+    };
   }
   const { duplicates, translations } = await readTranslations(
     deps.db,
@@ -458,12 +498,14 @@ async function makePlan(
       error: `Page ${choice.row.$id} has more than one ${duplicates.join(", ")} translation row. ${NOTHING_WRITTEN}`,
     };
   }
+  const before = toState(choice.row, translations);
   return {
     value: {
-      ...base,
+      ...planDocs(deps, unitRef.id, before),
       action: choice.action,
-      before: toState(choice.row, translations),
+      before,
       pageId: choice.row.$id,
+      unit: unitRef,
     },
   };
 }
@@ -472,21 +514,6 @@ function describePublished(entry: TranslationState): string {
   return entry.publishedHash
     ? `sha256 ${entry.publishedHash} (${entry.publishedLength} chars)`
     : "none";
-}
-
-/**
- * A draft save writes the row's title and description along with the draft
- * (page-builder `writeTranslationDraft`, as every editor save does), and the
- * public page reads those two columns for its <title> and meta description,
- * published or not. Said out loud, since on a live page they change before
- * anyone publishes.
- */
-function rowColumnsChange(stored: TranslationState, doc: PageDoc): string {
-  const description = doc.meta.description ?? null;
-  if (stored.title === doc.meta.title && stored.description === description) {
-    return "row title and description unchanged";
-  }
-  return `row title "${String(stored.title)}" -> "${doc.meta.title}", description ${stored.description?.length ?? 0} -> ${description?.length ?? 0} chars (the public page's <title> and meta description read these columns)`;
 }
 
 function printPlan(log: SeedDeps["log"], plan: SeedPlan): void {
@@ -523,7 +550,9 @@ function printPlan(log: SeedDeps["log"], plan: SeedPlan): void {
     );
     if (stored) {
       log(`      published ${describePublished(stored)}; must stay unchanged`);
-      log(`      ${rowColumnsChange(stored, plan.docs[entry.locale])}`);
+      log(
+        `      live meta unchanged: row title ${JSON.stringify(stored.title)} and description (${stored.description?.length ?? 0} chars) are written back as stored`
+      );
     }
   }
 }
@@ -652,9 +681,47 @@ function draftProblems(
 }
 
 /**
+ * What the live page shows from one translation row: its publish flag, its
+ * published document and (for a row that existed) its title and description,
+ * each as it was before the run. A row the seed created has nothing live, so
+ * it is expected unpublished with no published document.
+ */
+function publishStateProblems(
+  locale: SeedLocale,
+  now: TranslationState,
+  was: TranslationState | undefined
+): string[] {
+  const problems: string[] = [];
+  const wasPublished = was?.isPublished ?? false;
+  const wasHash = was?.publishedHash ?? null;
+  if (now.isPublished !== wasPublished) {
+    problems.push(
+      `${locale} is_published is ${now.isPublished}, expected ${wasPublished} (as before)`
+    );
+  }
+  if (now.publishedHash !== wasHash) {
+    problems.push(
+      `${PUBLISHED_CHANGED}: ${locale} sha256 was ${String(wasHash)}, is now ${String(now.publishedHash)}`
+    );
+  }
+  if (was && now.title !== was.title) {
+    problems.push(
+      `${LIVE_META_CHANGED}: ${locale} title was ${JSON.stringify(was.title)}, is now ${JSON.stringify(now.title)}`
+    );
+  }
+  if (was && now.description !== was.description) {
+    problems.push(
+      `${LIVE_META_CHANGED}: ${locale} description was ${JSON.stringify(was.description)}, is now ${JSON.stringify(now.description)}`
+    );
+  }
+  return problems;
+}
+
+/**
  * Compare the page after the writes with the page before them (a new page:
  * with an unpublished draft). The binding is the seed's; the status, each
- * publish flag and each published document must be exactly as they were.
+ * publish flag, each published document and each existing row's title and
+ * description (the live page's meta) must be exactly as they were.
  */
 function readBackProblems(after: PageState, plan: SeedPlan): string[] {
   const { before } = plan;
@@ -682,24 +749,14 @@ function readBackProblems(after: PageState, plan: SeedPlan): string[] {
   }
   for (const locale of LOCALES) {
     const now = after.translations[locale];
-    if (!now) {
+    if (now) {
+      problems.push(
+        ...publishStateProblems(locale, now, before?.translations[locale]),
+        ...draftProblems(locale, now.draft, plan)
+      );
+    } else {
       problems.push(`no ${locale} translation row`);
-      continue;
     }
-    const was = before?.translations[locale];
-    const wasPublished = was?.isPublished ?? false;
-    const wasHash = was?.publishedHash ?? null;
-    if (now.isPublished !== wasPublished) {
-      problems.push(
-        `${locale} is_published is ${now.isPublished}, expected ${wasPublished} (as before)`
-      );
-    }
-    if (now.publishedHash !== wasHash) {
-      problems.push(
-        `${PUBLISHED_CHANGED}: ${locale} sha256 was ${String(wasHash)}, is now ${String(now.publishedHash)}`
-      );
-    }
-    problems.push(...draftProblems(locale, now.draft, plan));
   }
   return problems;
 }
@@ -739,23 +796,28 @@ function printReadBack(
       log(`  ${locale}             no translation row`);
       continue;
     }
-    const wasHash = plan.before?.translations[locale]?.publishedHash ?? null;
+    const was = plan.before?.translations[locale];
     const published =
-      entry.publishedHash === wasHash
+      entry.publishedHash === (was?.publishedHash ?? null)
         ? `published ${describePublished(entry)}, unchanged`
         : `published ${describePublished(entry)}, CHANGED`;
+    const sameMeta =
+      !was ||
+      (entry.title === was.title && entry.description === was.description);
     log(
-      `  ${locale}             is_published=${entry.isPublished}, draft ${entry.draft ? "present" : "MISSING"}, ${published}`
+      `  ${locale}             is_published=${entry.isPublished}, draft ${entry.draft ? "present" : "MISSING"}, ${published}, live meta ${sameMeta ? "unchanged" : "CHANGED"}`
     );
   }
-  // Detection, not rollback: the published documents were never copied
-  // aside, and Appwrite has no transaction across these writes, so a change
-  // found here cannot be undone by this script. It is reported, loudly, and
-  // the run exits non-zero.
-  const alarms = problems.filter((p) => p.startsWith(PUBLISHED_CHANGED));
+  // Detection, not rollback: the published documents and the live meta were
+  // never copied aside, and Appwrite has no transaction across these writes,
+  // so a change found here cannot be undone by this script. It is reported,
+  // loudly, and the run exits non-zero.
+  const alarms = problems.filter(
+    (p) => p.startsWith(PUBLISHED_CHANGED) || p.startsWith(LIVE_META_CHANGED)
+  );
   if (alarms.length > 0) {
     log(ALARM);
-    log("!!! ERROR: A PUBLISHED DOCUMENT CHANGED DURING THIS RUN.");
+    log("!!! ERROR: WHAT THE LIVE PAGE SHOWS CHANGED DURING THIS RUN.");
     for (const alarm of alarms) {
       log(`!!! ${alarm}`);
     }
@@ -764,7 +826,7 @@ function printReadBack(
   }
   log(
     problems.length === 0
-      ? `VERIFIED: bound to ${plan.unit.id}, status ${after.status} as before, publish flags and published documents unchanged, both drafts are the seed's`
+      ? `VERIFIED: bound to ${plan.unit.id}, status ${after.status} as before, publish flags, published documents and live meta unchanged, both drafts are the seed's`
       : `CHECK FAILED: ${problems.join("; ")}`
   );
 }
