@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   createRow: vi.fn(),
@@ -383,24 +383,63 @@ describe("page builder", () => {
   });
 
   it("updates an existing locale translation instead of creating a duplicate", async () => {
-    db.upsertRow
-      .mockResolvedValueOnce({ $id: "page-1" })
-      .mockResolvedValueOnce({ $id: "tr-no" });
+    db.upsertRow.mockImplementation(
+      async (_db: string, _table: string, id: string) => ({ $id: id })
+    );
     // existing translation lookup (no team lookups remain)
     db.listRows.mockResolvedValueOnce({
       rows: [{ $id: "tr-no", is_published: false }],
     });
 
-    await savePageDraft({ id: "page-1", doc, locale: "no", ctx });
+    const result = await savePageDraft({
+      id: "page-1",
+      doc,
+      locale: "no",
+      ctx,
+    });
 
-    expect(db.upsertRow).toHaveBeenCalledWith(
+    expect(db.updateRow).toHaveBeenCalledWith(
       "app",
       "page_translations",
       "tr-no",
-      expect.objectContaining({ title: "Hei" }),
-      expect.any(Array)
+      expect.objectContaining({ title: "Hei" })
     );
+    expect(result.translationId).toBe("tr-no");
+    expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("a create starts the page and its translation as unpublished drafts", async () => {
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "page-1" })
+      .mockResolvedValueOnce({ $id: "tr-no" });
+    db.listRows
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await savePageDraft({
+      id: null,
+      doc: { ...doc, meta: { ...doc.meta, status: "published" } },
+      locale: "no",
+      ctx,
+    });
+
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      1,
+      "app",
+      "pages",
+      expect.any(String),
+      expect.objectContaining({ status: "draft" }),
+      []
+    );
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      2,
+      "app",
+      "page_translations",
+      expect.any(String),
+      expect.objectContaining({ is_published: false }),
+      []
+    );
   });
 
   it("saves a generated locale without mutating the parent page", async () => {
@@ -443,6 +482,102 @@ describe("page builder", () => {
       }),
       expect.any(Array)
     );
+  });
+});
+
+/**
+ * Only publishPage and unpublishPage change whether a page is live. A save
+ * read the rows before a publish or unpublish landed, so anything it wrote
+ * about the publish state would undo that publish or unpublish.
+ */
+describe("saving a draft never writes the publish state", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    db.listRows.mockResolvedValue({ rows: [] });
+    db.upsertRow.mockImplementation(
+      async (_db: string, _table: string, id: string) => ({ $id: id })
+    );
+    db.updateRow.mockImplementation(
+      async (_db: string, _table: string, id: string) => ({ $id: id })
+    );
+  });
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  /** The keys a write sets, and whether it passed permissions. */
+  const writes = () =>
+    [...db.updateRow.mock.calls, ...db.upsertRow.mock.calls].map(
+      ([, table, , data, permissions]) => ({
+        keys: Object.keys(data as object),
+        permissions,
+        table,
+      })
+    );
+
+  it("a save racing a publish leaves the page published", async () => {
+    // Read before the publish landed: the translation was not live yet.
+    db.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "tr-no", is_published: false }],
+    });
+
+    await savePageDraft({
+      id: "page-1",
+      doc: { ...doc, meta: { ...doc.meta, status: "draft" } },
+      locale: "no",
+      ctx,
+    });
+
+    const page = writes().find((w) => w.table === "pages");
+    expect(page?.keys).not.toContain("status");
+    expect(page?.permissions).toBeUndefined();
+    const translation = writes().find((w) => w.table === "page_translations");
+    expect(translation?.keys).not.toContain("is_published");
+    expect(translation?.permissions).toBeUndefined();
+  });
+
+  it("a save racing an unpublish leaves the locale unpublished", async () => {
+    // Read before the unpublish landed: the translation was still live.
+    db.listRows.mockResolvedValueOnce({
+      rows: [{ $id: "tr-no", is_published: true }],
+    });
+
+    await savePageDraft({
+      id: "page-1",
+      doc: { ...doc, meta: { ...doc.meta, status: "published" } },
+      locale: "no",
+      ctx,
+    });
+
+    for (const write of writes()) {
+      expect(write.keys).not.toContain("status");
+      expect(write.keys).not.toContain("is_published");
+      expect(write.permissions).toBeUndefined();
+    }
+  });
+
+  it("a translated draft saved over a live locale leaves it live", async () => {
+    db.listRows
+      .mockResolvedValueOnce({
+        rows: [{ $id: "page-1", status: "published", visibility: "public" }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ $id: "tr-en", is_published: true, locale: "en" }],
+      });
+
+    await savePageTranslationDraft({
+      doc: { ...doc, meta: { ...doc.meta, title: "Hello" } },
+      id: "page-1",
+      locale: "en",
+    });
+
+    expect(writes()).toEqual([
+      {
+        keys: expect.not.arrayContaining(["is_published"]),
+        permissions: undefined,
+        table: "page_translations",
+      },
+    ]);
   });
 });
 

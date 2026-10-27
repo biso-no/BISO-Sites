@@ -14,7 +14,7 @@ import type {
   StoredMeta,
 } from "@repo/editor/types";
 import { generateSlug } from "@repo/shared/utils/content-slug";
-import type { PageTheme } from "@repo/shared/utils/page-theme";
+import { type PageTheme, sameTheme } from "@repo/shared/utils/page-theme";
 import { pickSharedMeta } from "@/lib/page-shared-meta";
 
 export type LocaleDocuments = Partial<Record<EditorLocale, PageDoc>>;
@@ -213,6 +213,33 @@ export function withoutPageTheme(docs: LocaleDocuments): LocaleDocuments {
   for (const [locale, doc] of localeEntries(docs)) {
     const { theme: _copied, ...meta } = doc.meta;
     next[locale] = { ...doc, meta };
+  }
+  return next;
+}
+
+/**
+ * Every locale's document without `theme`, after a save of `locale` that the
+ * server stored without it (the department already has it). Only while that
+ * locale's document still holds `theme`, and only in documents that hold it:
+ * a theme picked since the save went out is the editor's own. Unchanged
+ * documents come back as the same object.
+ */
+export function withoutDroppedTheme(
+  docs: LocaleDocuments,
+  locale: EditorLocale,
+  theme: PageDoc["meta"]["theme"]
+): LocaleDocuments {
+  if (!sameTheme(docs[locale]?.meta.theme, theme)) {
+    return docs;
+  }
+  const next: LocaleDocuments = {};
+  for (const [key, doc] of localeEntries(docs)) {
+    if (sameTheme(doc.meta.theme, theme)) {
+      const { theme: _departmentHasIt, ...meta } = doc.meta;
+      next[key] = { ...doc, meta };
+    } else {
+      next[key] = doc;
+    }
   }
   return next;
 }

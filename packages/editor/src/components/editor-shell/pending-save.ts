@@ -14,70 +14,100 @@ export type SaveTo = (
 export type SaveRun = (to?: SaveTo) => Promise<boolean>;
 
 /**
- * The shell's autosave bookkeeping: at most one save waiting out the
- * debounce, plus the saves already sent. The shell creates one per mount and
- * its effects and callbacks share it.
+ * Where the saves stand, for the status line and the close-tab prompt: a
+ * failed save waits for a retry, a save waits out the debounce or is on its
+ * way, or everything is stored.
+ */
+export type SavesState = "error" | "pending" | "saved";
+
+/**
+ * The shell's autosave bookkeeping, per language: at most one save waiting
+ * out the debounce (or waiting for a retry after it failed), plus the saves
+ * already sent. Each language is its own: a save in one never stands in for
+ * the other's. The shell creates one per mount; `onSettled` runs after each
+ * save settles, once this bookkeeping is up to date.
  */
 export interface PendingSaves {
-  /** Forget the waiting save without running it. */
-  cancel: () => void;
+  /** Forget the save waiting for `locale`, without running it. */
+  cancel: (locale: EditorLocale) => void;
   /**
-   * Start the waiting save now, then wait for every save in flight. Resolves
-   * whether the latest save stored its document (true when nothing ran).
+   * Start every waiting save now, retries included, then wait for every save
+   * in flight. Resolves whether all of them stored their document.
    */
   flush: (to?: SaveTo) => Promise<boolean>;
-  /**
-   * After `run` failed, keep it waiting (with no timer) so the next flush,
-   * locale switch or unmount retries it. Only when it is still the latest
-   * save and nothing newer waits: an older document must never be sent
-   * after a newer one.
-   */
-  retry: (run: SaveRun) => void;
-  /** Make `run` the waiting save, started after `delayMs`. */
-  schedule: (run: SaveRun, delayMs: number) => void;
-  /** Start the waiting save now, if there is one. */
+  /** Make `run` the save waiting for `locale`, started after `delayMs`. */
+  schedule: (locale: EditorLocale, run: SaveRun, delayMs: number) => void;
+  /** Start every waiting save now, if there are any. */
   start: (to?: SaveTo) => void;
+  state: () => SavesState;
 }
 
-export function createPendingSaves(): PendingSaves {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let waiting: SaveRun | null = null;
-  let latest: { run: SaveRun; stored: Promise<boolean> } | null = null;
+interface Waiting {
+  /** A save that failed, kept for a retry (no timer). */
+  failed: boolean;
+  run: SaveRun;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
+export function createPendingSaves(onSettled: () => void): PendingSaves {
+  const waiting = new Map<EditorLocale, Waiting>();
+  const latest = new Map<EditorLocale, SaveRun>();
   const inFlight = new Set<Promise<boolean>>();
 
-  function start(to?: SaveTo) {
-    clearTimeout(timer);
-    const run = waiting;
-    if (!run) {
+  function startOne(locale: EditorLocale, to?: SaveTo) {
+    const entry = waiting.get(locale);
+    if (!entry) {
       return;
     }
-    waiting = null;
-    const stored = run(to);
-    latest = { run, stored };
+    clearTimeout(entry.timer);
+    waiting.delete(locale);
+    const { run } = entry;
+    latest.set(locale, run);
+    const stored: Promise<boolean> = run(to).then((ok) => {
+      inFlight.delete(stored);
+      // Kept for a retry by the next flush, locale switch or unmount, but
+      // only while it is still its language's latest save and nothing newer
+      // waits: an older document must never be sent after a newer one.
+      if (!(ok || waiting.has(locale)) && latest.get(locale) === run) {
+        waiting.set(locale, { failed: true, run });
+      }
+      onSettled();
+      return ok;
+    });
     inFlight.add(stored);
-    stored.then(() => inFlight.delete(stored));
+  }
+
+  function start(to?: SaveTo) {
+    for (const locale of [...waiting.keys()]) {
+      startOne(locale, to);
+    }
   }
 
   return {
-    cancel() {
-      clearTimeout(timer);
-      waiting = null;
+    cancel(locale) {
+      clearTimeout(waiting.get(locale)?.timer);
+      waiting.delete(locale);
     },
     async flush(to) {
       start(to);
       await Promise.all([...inFlight]);
-      return latest ? await latest.stored : true;
+      return ![...waiting.values()].some((entry) => entry.failed);
     },
-    retry(run) {
-      if (waiting === null && latest?.run === run) {
-        waiting = run;
-      }
-    },
-    schedule(run, delayMs) {
-      clearTimeout(timer);
-      waiting = run;
-      timer = setTimeout(() => start(), delayMs);
+    schedule(locale, run, delayMs) {
+      clearTimeout(waiting.get(locale)?.timer);
+      waiting.set(locale, {
+        failed: false,
+        run,
+        timer: setTimeout(() => startOne(locale), delayMs),
+      });
     },
     start,
+    state() {
+      const entries = [...waiting.values()];
+      if (entries.some((entry) => entry.failed)) {
+        return "error";
+      }
+      return entries.length > 0 || inFlight.size > 0 ? "pending" : "saved";
+    },
   };
 }

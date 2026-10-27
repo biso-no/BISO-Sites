@@ -12,6 +12,7 @@ import {
   hasExistingContent,
   syncSharedMeta,
   withDepartmentTheme,
+  withoutDroppedTheme,
   withoutPageTheme,
   withStoredMeta,
 } from "./initial-documents";
@@ -405,5 +406,36 @@ describe("after a publish copied the theme (I1)", () => {
     expect(next[0]?.theme).toEqual(theme);
     expect(next[1]).toBe(list[1]);
     expect(withDepartmentTheme(list, null)).toBe(list);
+  });
+});
+
+describe("after a save the server stored without its theme", () => {
+  const T = { accent: "#fecd45", dark: "#2a0a4a" };
+  const U = { accent: "#fecd45", dark: "#0b3d2e" };
+  const docOf = (t: PageDoc["meta"]["theme"]): PageDoc => ({
+    meta: { department: "d", slug: "s", status: "draft", theme: t, title: "T" },
+    sections: [],
+    version: 2,
+  });
+
+  test("drops that theme from every locale that holds it", () => {
+    const docs = withoutDroppedTheme(
+      { en: docOf({ ...T, dark: T.dark.toUpperCase() }), no: docOf(T) },
+      "no",
+      T
+    );
+    expect("theme" in (docs.no?.meta ?? {})).toBe(false);
+    expect("theme" in (docs.en?.meta ?? {})).toBe(false);
+  });
+
+  test("keeps a theme picked since the save went out", () => {
+    const docs = { en: docOf(U), no: docOf(U) };
+    expect(withoutDroppedTheme(docs, "no", T)).toBe(docs);
+  });
+
+  test("leaves a locale holding another theme as it is", () => {
+    const docs = withoutDroppedTheme({ en: docOf(U), no: docOf(T) }, "no", T);
+    expect("theme" in (docs.no?.meta ?? {})).toBe(false);
+    expect(docs.en?.meta.theme).toEqual(U);
   });
 });

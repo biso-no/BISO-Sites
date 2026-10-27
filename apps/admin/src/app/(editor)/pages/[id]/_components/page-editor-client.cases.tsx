@@ -20,7 +20,7 @@ import { createRoot, type Root } from "react-dom/client";
 
 type ShellProps = ComponentProps<typeof EditorShell>;
 type SaveResult =
-  | { department: string; pageId: string; slug: string }
+  | { department: string; pageId: string; slug: string; themeDropped?: true }
   | { error: string };
 interface SaveArgs {
   doc: PageDoc;
@@ -39,6 +39,8 @@ const PUBLISHED = {
   themeCopyFailed: false,
   translationQueued: false,
 };
+/** What publishPageAction answers for a language with no stored row. */
+const MISSING_TRANSLATION = { missingTranslation: true };
 const publishPageAction = mock(
   (_id: string, _locale: string, _options?: unknown): Promise<unknown> =>
     Promise.resolve(PUBLISHED)
@@ -306,9 +308,7 @@ test("publishing the untouched English locale saves it first, then publishes it"
     });
   });
   publishPageAction.mockImplementation((_id, locale) =>
-    stored.has(locale)
-      ? Promise.resolve(PUBLISHED)
-      : Promise.reject(new Error("No translation found to publish"))
+    Promise.resolve(stored.has(locale) ? PUBLISHED : MISSING_TRANSLATION)
   );
   mount(NORWEGIAN_ONLY);
   act(() => props().onLocaleChange("en"));
@@ -319,13 +319,15 @@ test("publishing the untouched English locale saves it first, then publishes it"
     await props().onPublish?.("en");
   });
 
+  // Published first; the server had no English row, so it is saved and the
+  // publish tried once more.
   expect(savePageEditorDoc).toHaveBeenCalledTimes(1);
   const [saved] = savePageEditorDoc.mock.calls[0] ?? [];
   expect(saved?.id).toBe("page-1");
   expect(saved?.locale).toBe("en");
   expect(saved?.doc.meta.title).toBe(english.meta.title);
-  expect(publishPageAction).toHaveBeenCalledTimes(1);
-  expect(publishPageAction.mock.calls[0]?.[1]).toBe("en");
+  expect(publishPageAction).toHaveBeenCalledTimes(2);
+  expect(publishPageAction.mock.calls.map((c) => c[1])).toEqual(["en", "en"]);
   expect(toast.error).not.toHaveBeenCalled();
   expect(toast.success).toHaveBeenCalledTimes(1);
 });
@@ -333,6 +335,9 @@ test("publishing the untouched English locale saves it first, then publishes it"
 test("when that save is refused, says to save the language first and publishes nothing", async () => {
   savePageEditorDoc.mockImplementation(() =>
     Promise.resolve({ error: "Not allowed" })
+  );
+  publishPageAction.mockImplementation(() =>
+    Promise.resolve(MISSING_TRANSLATION)
   );
   mount(NORWEGIAN_ONLY);
   act(() => props().onLocaleChange("en"));
@@ -353,7 +358,8 @@ test("when that save is refused, says to save the language first and publishes n
   }
 
   expect(failure).toBeInstanceOf(Error);
-  expect(publishPageAction).not.toHaveBeenCalled();
+  // Only the first try, which the server refused for want of a row.
+  expect(publishPageAction).toHaveBeenCalledTimes(1);
   expect(toast.error).toHaveBeenCalledTimes(1);
   expect(toast.error.mock.calls[0]?.[0]).toBe(
     "Save this language before publishing"
@@ -500,4 +506,108 @@ test("a save the server dropped the theme from clears it in every locale documen
   expect(props().initial?.meta.theme).toBeUndefined();
   act(() => props().onLocaleChange("no"));
   expect(props().initial?.meta.theme).toBeUndefined();
+});
+
+test("a language the server already holds is published as stored, never overwritten by this tab's blank copy", async () => {
+  // Another tab, or an auto-translation, created English on the server
+  // while this tab still shows it blank.
+  mount(NORWEGIAN_ONLY);
+  act(() => props().onLocaleChange("en"));
+  await act(async () => {
+    await props().onPublish?.("en");
+  });
+  expect(savePageEditorDoc).not.toHaveBeenCalled();
+  expect(publishPageAction).toHaveBeenCalledTimes(1);
+  expect(publishPageAction.mock.calls[0]?.[1]).toBe("en");
+  expect(toast.success).toHaveBeenCalledTimes(1);
+});
+
+test("saves queued behind the first create send the slug and department it stored", async () => {
+  let finishCreate: () => void = () => undefined;
+  savePageEditorDoc.mockImplementation(({ doc: sent, id }) =>
+    id === null
+      ? new Promise((resolve) => {
+          // The slug was taken, so the create suffixed it; a department
+          // user's page was bound to their department.
+          finishCreate = () =>
+            resolve({
+              department: "dept-1",
+              pageId: "page-new-1",
+              slug: "uten-navn-2",
+            });
+        })
+      : Promise.resolve({
+          department: sent.meta.department,
+          pageId: id,
+          slug: sent.meta.slug,
+        })
+  );
+  mount(null);
+  const draft = (slug: string, title: string): PageDoc => ({
+    ...DOC_NO,
+    meta: { ...DOC_NO.meta, department: "", slug, title },
+  });
+
+  let saves: Promise<unknown>[] = [];
+  await act(async () => {
+    saves = [
+      props().savePage(draft("uten-navn", "Første"), "no"),
+      // A locale switch flushes the English draft with the old slug ...
+      props().savePage(draft("uten-navn", "First"), "en"),
+      // ... while a rename typed meanwhile is the editor's own choice.
+      props().savePage(draft("om-oss", "Tredje"), "no"),
+    ];
+    await new Promise((r) => setTimeout(r, 10));
+    finishCreate();
+    await Promise.all(saves);
+  });
+
+  const sent = savePageEditorDoc.mock.calls.map(([a]) => ({
+    department: a.doc.meta.department,
+    id: a.id,
+    slug: a.doc.meta.slug,
+  }));
+  expect(sent).toEqual([
+    { department: "", id: null, slug: "uten-navn" },
+    { department: "dept-1", id: "page-new-1", slug: "uten-navn-2" },
+    { department: "dept-1", id: "page-new-1", slug: "om-oss" },
+  ]);
+});
+
+test("a themeDropped answer about an older save leaves a theme picked since", async () => {
+  const T = { accent: "#fecd45", dark: "#2a0a4a" };
+  const U = { accent: "#fecd45", dark: "#0b3d2e" };
+  const themed = (theme: typeof T): PageDoc => ({
+    ...DOC_NO,
+    meta: { ...DOC_NO.meta, theme },
+  });
+  let answer: () => void = () => undefined;
+  savePageEditorDoc.mockImplementation(
+    ({ id }) =>
+      new Promise((resolve) => {
+        answer = () =>
+          resolve({
+            department: "",
+            pageId: id ?? "page-1",
+            slug: "side",
+            themeDropped: true,
+          });
+      })
+  );
+  mount(NORWEGIAN_ONLY);
+  act(() => props().onDocChange?.(themed(T), "no"));
+
+  let save: Promise<unknown> = Promise.resolve();
+  await act(async () => {
+    save = props().savePage(themed(T), "no");
+    await new Promise((r) => setTimeout(r, 10));
+  });
+  // U is picked while the save of T is on its way.
+  act(() => props().onDocChange?.(themed(U), "no"));
+  await act(async () => {
+    answer();
+    await save;
+  });
+
+  expect(props().initial?.meta.theme).toEqual(U);
 });

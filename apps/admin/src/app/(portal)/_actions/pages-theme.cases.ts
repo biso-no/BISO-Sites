@@ -454,7 +454,11 @@ async function save(id: string | null, locale: Locale, d: Doc) {
 /** Set a theme on a department page in Norwegian and publish it. */
 async function publishThemed(id: string, theme: Theme) {
   await save(id, "no", withTheme(opened(id, "no"), theme));
-  return await publishPageAction(id, "no");
+  const result = await publishPageAction(id, "no");
+  if (result.missingTranslation) {
+    throw new Error(`no ${id} draft to publish`);
+  }
+  return result;
 }
 
 describe("department pages hold a theme only until it is copied (I1)", () => {
@@ -725,13 +729,30 @@ describe("publishing a language that has no stored draft", () => {
     seedPage("page-a", null, ["no"]);
   });
 
-  test("says to save the language first, not 'No translation found'", async () => {
+  test("answers missingTranslation as a value, and writes nothing", async () => {
+    // A value, not a thrown message: Next.js hides a server action's error
+    // message in production, so the editor could not tell this case apart.
+    logAuditEvent.mockClear();
+    const result = await publishPageAction("page-a", "en");
+    expect(result).toEqual({ missingTranslation: true });
+    expect(logAuditEvent).not.toHaveBeenCalled();
+    expect(store.pages.get("page-a")?.translations.en).toBeUndefined();
+  });
+
+  test("other publish failures still throw", async () => {
+    publishPage.mockImplementationOnce(() =>
+      Promise.reject(new Error("appwrite blip"))
+    );
     let message = "";
+    const quiet = console.error;
+    console.error = () => undefined;
     try {
-      await publishPageAction("page-a", "en");
+      await publishPageAction("page-a", "no");
     } catch (error) {
       message = error instanceof Error ? error.message : String(error);
+    } finally {
+      console.error = quiet;
     }
-    expect(message).toBe("Save this language before publishing");
+    expect(message).toBe("appwrite blip");
   });
 });

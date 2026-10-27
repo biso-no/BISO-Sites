@@ -30,6 +30,7 @@ import {
   type LocaleDocuments,
   syncSharedMeta,
   withDepartmentTheme,
+  withoutDroppedTheme,
   withoutPageTheme,
   withStoredMeta,
 } from "./initial-documents";
@@ -90,11 +91,15 @@ export function PageEditorClient({
   // Saves run one at a time, each reading the page id the one before it
   // stored: two saves racing on /pages/new would otherwise both create a row.
   const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
-  // The locales that have a translation row: one without cannot be published
-  // until its document is saved.
-  const storedLocalesRef = useRef(
-    new Set(Object.keys(initialPage?.translations ?? {}))
-  );
+  // What the server stored in place of what a save sent: a slug it made
+  // unique, the department it bound the page to. A save queued before that
+  // answer (a locale switch, Translate, the last-chance save) still carries
+  // the sent value and sends the stored one instead, or the update would hit
+  // the slug's unique index. A value typed since is sent as typed.
+  const storedInsteadRef = useRef({
+    department: new Map<string, string>(),
+    slug: new Map<string, string>(),
+  });
   const documentsRef = useRef(documents);
   documentsRef.current = documents;
 
@@ -138,10 +143,22 @@ export function PageEditorClient({
     return handleSave(doc, locale);
   }
 
+  function withStoredInstead(doc: PageDoc): PageDoc {
+    const { department, slug } = storedInsteadRef.current;
+    const meta = { ...doc.meta };
+    meta.department = department.get(meta.department) ?? meta.department;
+    meta.slug = slug.get(meta.slug) ?? meta.slug;
+    return meta.department === doc.meta.department &&
+      meta.slug === doc.meta.slug
+      ? doc
+      : { ...doc, meta };
+  }
+
   async function storeDoc(
-    doc: PageDoc,
+    queued: PageDoc,
     locale: EditorLocale
   ): Promise<StoredMeta> {
+    const doc = withStoredInstead(queued);
     const result = await savePageEditorDoc({
       id: pageIdRef.current,
       doc,
@@ -150,6 +167,13 @@ export function PageEditorClient({
     if ("error" in result) {
       throw new Error(result.error);
     }
+    const instead = storedInsteadRef.current;
+    if (result.slug !== doc.meta.slug) {
+      instead.slug.set(doc.meta.slug, result.slug);
+    }
+    if (result.department !== doc.meta.department) {
+      instead.department.set(doc.meta.department, result.department);
+    }
     // The server may have stored another slug (made unique) or department
     // (a department user's page is bound to their department). Every locale
     // takes it, so the Theme panel's scope line and the canvas match what
@@ -157,9 +181,7 @@ export function PageEditorClient({
     const stored: StoredMeta = {
       department: result.department,
       slug: result.slug,
-      ...("themeDropped" in result && result.themeDropped
-        ? { themeDropped: true }
-        : {}),
+      themeDropped: result.themeDropped,
     };
     setDocuments((current) => {
       const next = withStoredMeta(
@@ -168,10 +190,12 @@ export function PageEditorClient({
         stored
       );
       // The department already has the theme the server dropped: no locale
-      // may save it back, as after a publish that copied it.
-      return stored.themeDropped ? withoutPageTheme(next) : next;
+      // may save it back, as after a publish that copied it. One picked
+      // since this save went out stays.
+      return stored.themeDropped
+        ? withoutDroppedTheme(next, locale, doc.meta.theme)
+        : next;
     });
-    storedLocalesRef.current.add(locale);
     if (!pageIdRef.current && "pageId" in result) {
       pageIdRef.current = result.pageId;
       // Not router.replace: that remounts the editor and re-hydrates from the
@@ -290,35 +314,12 @@ export function PageEditorClient({
   }
 
   /**
-   * Make sure the page and `locale` have stored rows to publish. A page
-   * that was never created (an unedited /pages/new) has nothing to publish:
-   * a real edit is stored by the editor before Publish reaches here. A
-   * language opened but never edited exists only here, so its document is
-   * saved first, the same way an edit would save it. Then wait for every
-   * queued save, so the publish copies the latest draft.
+   * The page to publish. A page that was never created (an unedited
+   * /pages/new) has nothing to publish: a real edit is stored by the editor
+   * before Publish reaches here. Waits for every queued save first, so the
+   * publish copies the latest draft.
    */
-  async function storeLocaleForPublish(locale: EditorLocale): Promise<string> {
-    // A first create may still be in flight.
-    await saveQueueRef.current;
-    if (!pageIdRef.current) {
-      toast.error(SAVE_PAGE_FIRST);
-      throw new Error(SAVE_PAGE_FIRST);
-    }
-    if (!storedLocalesRef.current.has(locale)) {
-      const doc = documentsRef.current[locale];
-      try {
-        if (!doc) {
-          throw new Error(`No ${LOCALE_LABELS[locale]} document to save`);
-        }
-        await handleSave(doc, locale);
-      } catch (err) {
-        console.error("[PageEditor publish] saving the language failed", err);
-        toast.error(SAVE_LOCALE_FIRST, {
-          description: err instanceof Error ? err.message : undefined,
-        });
-        throw err;
-      }
-    }
+  async function pageIdForPublish(): Promise<string> {
     await saveQueueRef.current;
     const id = pageIdRef.current;
     if (!id) {
@@ -328,46 +329,83 @@ export function PageEditorClient({
     return id;
   }
 
-  // Both handlers reject on failure: the editor shell mirrors a resolved
-  // publish/unpublish into its own status, so resolving after a failure
-  // would mark a page published that is not.
-  async function handlePublish(locale: EditorLocale): Promise<PublishOutcome> {
-    const id = await storeLocaleForPublish(locale);
+  /**
+   * Store this tab's copy of `locale`, which the server has no row for: a
+   * language opened but never edited exists only here.
+   */
+  async function saveLocaleForPublish(locale: EditorLocale): Promise<void> {
+    const doc = documentsRef.current[locale];
     try {
-      const result = await publishPageAction(id, locale, {
+      if (!doc) {
+        throw new Error(`No ${LOCALE_LABELS[locale]} document to save`);
+      }
+      await handleSave(doc, locale);
+    } catch (err) {
+      console.error("[PageEditor publish] saving the language failed", err);
+      toast.error(SAVE_LOCALE_FIRST, {
+        description: err instanceof Error ? err.message : undefined,
+      });
+      throw err;
+    }
+  }
+
+  async function publishOnce(id: string, locale: EditorLocale) {
+    try {
+      return await publishPageAction(id, locale, {
         enabled: autoTranslate,
         sourceLocale: locale,
       });
-      setDocuments((current) => {
-        const doc = current[locale];
-        const next = doc
-          ? {
-              ...current,
-              [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
-            }
-          : current;
-        // The department owns the theme now; no locale may save it back.
-        return result.themeCopied ? withoutPageTheme(next) : next;
-      });
-      setDepartmentList((current) =>
-        withDepartmentTheme(current, result.departmentTheme)
-      );
-      if (result.themeCopyFailed) {
-        toast.warning(
-          "Published, but the department colours couldn't be updated. Try publishing again."
-        );
-      } else {
-        toast.success(
-          result.translationQueued
-            ? "Page published. Translation queued."
-            : "Page published to biso.no"
-        );
-      }
-      return { themeCopied: result.themeCopied };
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publish failed");
       throw err;
     }
+  }
+
+  // Both handlers reject on failure: the editor shell mirrors a resolved
+  // publish/unpublish into its own status, so resolving after a failure
+  // would mark a page published that is not.
+  async function handlePublish(locale: EditorLocale): Promise<PublishOutcome> {
+    const id = await pageIdForPublish();
+    // Publish what the server holds. Only when it has no row for this
+    // language is this tab's copy saved, then the publish tried once more: a
+    // translation created meanwhile (by auto-translate or another tab) must
+    // never be replaced by the blank copy this tab still shows.
+    let result = await publishOnce(id, locale);
+    if (result.missingTranslation) {
+      await saveLocaleForPublish(locale);
+      result = await publishOnce(id, locale);
+    }
+    if (result.missingTranslation) {
+      toast.error(SAVE_LOCALE_FIRST);
+      throw new Error(SAVE_LOCALE_FIRST);
+    }
+    const published = result;
+    setDocuments((current) => {
+      const doc = current[locale];
+      const next = doc
+        ? {
+            ...current,
+            [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
+          }
+        : current;
+      // The department owns the theme now; no locale may save it back.
+      return published.themeCopied ? withoutPageTheme(next) : next;
+    });
+    setDepartmentList((current) =>
+      withDepartmentTheme(current, published.departmentTheme)
+    );
+    if (published.themeCopyFailed) {
+      toast.warning(
+        "Published, but the department colours couldn't be updated. Try publishing again."
+      );
+    } else {
+      toast.success(
+        published.translationQueued
+          ? "Page published. Translation queued."
+          : "Page published to biso.no"
+      );
+    }
+    return { themeCopied: published.themeCopied };
   }
 
   function handlePublishSaveFailed() {

@@ -436,70 +436,96 @@ export async function savePageDraft(params: {
     };
   }
 
-  const pageStatus = id
-    ? (normalizedDoc.meta.status as PagesStatus)
-    : PagesStatus.DRAFT;
   const departmentId = normalizedDoc.meta.department || null;
-  const visibility = PagesVisibility.PUBLIC;
-  const pagePermissions = buildPageRowPermissions({
-    isPublished: pageStatus === PagesStatus.PUBLISHED,
-    audience: pageAudience(visibility),
+  const ownership = {
+    slug: normalizedDoc.meta.slug,
+    // Canonical ownership relationships; the scalar columns remain as
+    // migration-era compatibility metadata only.
+    campus: campusId,
+    campus_id: campusId,
+    department: departmentId,
+    department_id: departmentId,
+  };
+
+  // A save never writes the publish state: the page's status, the read
+  // permissions that follow it, and a translation's is_published belong to
+  // publishPage and unpublishPage. A save read nothing of them, so writing
+  // its idea of them back would undo a publish or unpublish that landed
+  // while it was on its way. A new page starts as an unpublished draft.
+  let pageId: string;
+  if (id) {
+    await db.updateRow("app", "pages", id, ownership);
+    pageId = id;
+  } else {
+    const visibility = PagesVisibility.PUBLIC;
+    const page = await db.upsertRow(
+      "app",
+      "pages",
+      ID.unique(),
+      { ...ownership, status: PagesStatus.DRAFT, visibility },
+      buildPageRowPermissions({
+        isPublished: false,
+        audience: pageAudience(visibility),
+      })
+    );
+    pageId = page.$id;
+  }
+
+  const translationId = await writeTranslationDraft(db, {
+    doc: normalizedDoc,
+    locale,
+    pageId,
   });
 
-  const page = await db.upsertRow(
-    "app",
-    "pages",
-    id ?? ID.unique(),
-    {
-      slug: normalizedDoc.meta.slug,
-      status: pageStatus,
-      visibility,
-      // Canonical ownership relationships; the scalar columns remain as
-      // migration-era compatibility metadata only.
-      campus: campusId,
-      campus_id: campusId,
-      department: departmentId,
-      department_id: departmentId,
-    },
-    pagePermissions
-  );
-  const pageId = page.$id;
-  const json = pageDocToJson(normalizedDoc);
+  return { pageId, slug: normalizedDoc.meta.slug, translationId };
+}
 
-  // Upsert translation row
-  const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
-    Query.equal("page_id", pageId),
-    Query.equal("locale", locale as PageTranslationsLocale),
-    Query.limit(1),
-  ]);
-
-  const translationPublished = tRes.rows[0]?.is_published ?? false;
-  const translationPermissions = buildPageRowPermissions({
-    isPublished: pageStatus === PagesStatus.PUBLISHED && translationPublished,
-    audience: pageAudience(visibility),
-  });
-
-  const translation = await db.upsertRow<PageTranslations>(
+/**
+ * Store `doc` as the draft of the page's `locale` translation. An existing
+ * row gets the draft, title and description only, so its publish state and
+ * permissions stay as publishing left them; a new row starts unpublished.
+ */
+async function writeTranslationDraft(
+  db: PageDatabase,
+  {
+    doc,
+    locale,
+    pageId,
+  }: { doc: PageDoc; locale: PageEditorLocale; pageId: string }
+): Promise<string> {
+  const existing = await db.listRows<PageTranslations>(
     "app",
     "page_translations",
-    tRes.rows[0]?.$id ?? ID.unique(),
+    [
+      Query.equal("page_id", pageId),
+      Query.equal("locale", locale as PageTranslationsLocale),
+      Query.limit(1),
+    ]
+  );
+  const draft = {
+    draft_doc: pageDocToJson(doc),
+    title: doc.meta.title,
+    description: doc.meta.description ?? null,
+  };
+  const row = existing.rows[0];
+  if (row) {
+    await db.updateRow("app", "page_translations", row.$id, draft);
+    return row.$id;
+  }
+  const created = await db.upsertRow<PageTranslations>(
+    "app",
+    "page_translations",
+    ID.unique(),
     {
+      ...draft,
       page_id: pageId,
       page: pageId as unknown as Pages,
       locale: locale as PageTranslationsLocale,
-      draft_doc: json,
-      title: normalizedDoc.meta.title,
-      description: normalizedDoc.meta.description ?? null,
-      is_published: translationPublished,
+      is_published: false,
     },
-    translationPermissions
+    buildPageRowPermissions({ isPublished: false, audience: "public" })
   );
-
-  return {
-    pageId,
-    slug: normalizedDoc.meta.slug,
-    translationId: translation.$id,
-  };
+  return created.$id;
 }
 
 /**
@@ -528,39 +554,12 @@ export async function savePageTranslationDraft({
     throw new Error("Page not found");
   }
 
-  const normalizedDoc = normalizeDocForSave(doc);
-  const existingRes = await db.listRows<PageTranslations>(
-    "app",
-    "page_translations",
-    [
-      Query.equal("page_id", id),
-      Query.equal("locale", locale as PageTranslationsLocale),
-      Query.limit(1),
-    ]
-  );
-  const existing = existingRes.rows[0];
-  const permissions = buildPageRowPermissions({
-    isPublished:
-      page.status === PagesStatus.PUBLISHED &&
-      (existing?.is_published ?? false),
-    audience: pageAudience(page.visibility),
+  const translationId = await writeTranslationDraft(db, {
+    doc: normalizeDocForSave(doc),
+    locale,
+    pageId: id,
   });
-  const translation = await db.upsertRow<PageTranslations>(
-    "app",
-    "page_translations",
-    existing?.$id ?? ID.unique(),
-    {
-      page_id: id,
-      page: id as unknown as Pages,
-      locale: locale as PageTranslationsLocale,
-      draft_doc: pageDocToJson(normalizedDoc),
-      title: normalizedDoc.meta.title,
-      description: normalizedDoc.meta.description ?? null,
-      is_published: existing?.is_published ?? false,
-    },
-    permissions
-  );
-  return { translationId: translation.$id };
+  return { translationId };
 }
 
 /** A page has one translation row per locale; this covers them with room. */

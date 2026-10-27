@@ -325,6 +325,8 @@ export async function savePageEditorDoc({
       department: string;
       pageId: string;
       slug: string;
+      /** The theme was left out: the page's department already has it. */
+      themeDropped?: true;
     }
   | { error: string }
 > {
@@ -469,6 +471,30 @@ export async function savePageEditorDoc({
   }
 }
 
+/** What publishPageAction did. */
+export type PublishPageResult =
+  | {
+      /**
+       * Nothing was published: the language has no stored row yet. A value,
+       * not a thrown error, because Next.js hides a server action's error
+       * message in production and the editor must tell this case apart.
+       */
+      missingTranslation: true;
+    }
+  | {
+      /** The department now has this theme (null: BISO's). */
+      departmentTheme: { id: string; theme: PageTheme | null } | null;
+      missingTranslation: false;
+      /** The theme left the page's stored docs: it follows its department. */
+      themeCopied: boolean;
+      /** Live, but the department's colours were not updated. */
+      themeCopyFailed: boolean;
+      translationQueued: boolean;
+    };
+
+/** publishPage's message for a language with no translation row. */
+const NO_TRANSLATION_TO_PUBLISH = "No translation found to publish";
+
 export async function publishPageAction(
   id: string,
   locale: "no" | "en" = "no",
@@ -476,7 +502,7 @@ export async function publishPageAction(
     enabled: false,
     sourceLocale: locale,
   }
-) {
+): Promise<PublishPageResult> {
   const ctx = await requireAuth();
   try {
     const publishedLocale = contentLocaleSchema.parse(locale);
@@ -502,7 +528,15 @@ export async function publishPageAction(
       ? await getPageSourceDocument(id, publishedLocale, db)
       : null;
 
-    await pbPublishPage({ id, locale: publishedLocale });
+    try {
+      await pbPublishPage({ id, locale: publishedLocale });
+    } catch (e) {
+      // Thrown before anything was written.
+      if (e instanceof Error && e.message === NO_TRANSLATION_TO_PUBLISH) {
+        return { missingTranslation: true };
+      }
+      throw e;
+    }
     await logAuditEvent(ctx, "page_published", {
       resourceId: id,
       resourceType: "page",
@@ -544,27 +578,18 @@ export async function publishPageAction(
           })
         : false;
     return {
-      /** The department now has this theme (null: BISO's). */
       departmentTheme:
         themeCopy.status === "copied"
           ? { id: themeCopy.departmentId, theme: themeCopy.theme }
           : null,
-      /** The theme left the page's stored docs: it follows its department. */
+      missingTranslation: false,
       themeCopied: themeCopy.status === "copied" && themeCopy.pageCleared,
-      /** Live, but the department's colours were not updated. */
       themeCopyFailed: themeCopy.status === "failed",
       translationQueued,
     };
   } catch (e) {
     console.error("[publishPageAction]", e);
-    const message = e instanceof Error ? e.message : "Failed to publish page";
-    // publishPage's message for a locale with no translation row: the editor
-    // saves that locale before publishing it, so this is only a backstop.
-    throw new Error(
-      message === "No translation found to publish"
-        ? "Save this language before publishing"
-        : message
-    );
+    throw new Error(e instanceof Error ? e.message : "Failed to publish page");
   }
 }
 

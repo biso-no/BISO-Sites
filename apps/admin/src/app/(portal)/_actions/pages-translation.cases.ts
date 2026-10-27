@@ -230,7 +230,7 @@ describe("page auto-translation", () => {
       enabled: true,
       sourceLocale: "no",
     });
-    expect(result.themeCopied).toBe(true);
+    expect(result).toMatchObject({ themeCopied: true });
     await deferredTask?.();
 
     const [call] = savePageTranslationDraftSpy.mock.calls as unknown as [

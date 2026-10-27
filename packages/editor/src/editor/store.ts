@@ -1,6 +1,6 @@
 "use client";
 
-import type { PageTheme } from "@repo/shared/utils/page-theme";
+import { type PageTheme, sameTheme } from "@repo/shared/utils/page-theme";
 import { current } from "immer";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -71,12 +71,14 @@ interface EditorState {
   copilotOpen: boolean;
   doc: PageDoc;
   /**
-   * The page's theme was copied to its department: remove it from the page
-   * and from every undo step, so the page follows its department and undo
-   * cannot bring back colours the department now owns. Not an edit: no undo
-   * step.
+   * The department has `theme` now (a publish copied it, or a save found it
+   * there already): remove it from the page and from every undo step holding
+   * it, so the page follows its department and undo cannot bring back
+   * colours the department owns. Only while the page still holds `theme`: a
+   * theme picked since the save or publish went out is the editor's own, and
+   * stays with every step. Not an edit: no undo step.
    */
-  dropPageTheme: () => void;
+  dropPageTheme: (theme: PageMeta["theme"]) => void;
   duplicateBlock: (id: string) => void;
   duplicateSection: (id: string) => void;
   future: HistorySnap[];
@@ -143,7 +145,10 @@ interface EditorState {
   setSaving: (state: SavingState) => void;
   setSectionAnchor: (id: string, anchor: string) => void;
   setSectionLayout: (id: string, patch: Partial<SectionLayout>) => void;
-  /** Mirror a publish/unpublish. Not an edit, so it never enters history. */
+  /**
+   * Mirror a publish/unpublish. Not an edit, so it never enters history; every
+   * undo and redo step takes it too, so neither can revert it.
+   */
   setStatus: (status: PageMeta["status"]) => void;
   /** One undo step per call; `null` resets to BISO. */
   setTheme: (theme: PageTheme | null) => void;
@@ -446,7 +451,11 @@ export const useEditorStore = create<EditorState>()(
 
       setStatus: (status) =>
         set((s) => {
-          s.doc.meta.status = status;
+          // Every undo and redo step too: restoring one must not bring back
+          // the status the page had when the step was taken.
+          for (const holder of metaHolders(s)) {
+            holder.meta.status = status;
+          }
         }),
 
       adoptStoredMeta: (sent, stored) =>
@@ -465,13 +474,18 @@ export const useEditorStore = create<EditorState>()(
           }
         }),
 
-      dropPageTheme: () =>
+      dropPageTheme: (theme) =>
         set((s) => {
+          if (!sameTheme(s.doc.meta.theme, theme)) {
+            return;
+          }
           // Absent, not undefined: absent is what "follows the department"
           // looks like everywhere a document is read.
           for (const holder of metaHolders(s)) {
-            const { theme: _copied, ...meta } = holder.meta;
-            holder.meta = meta;
+            if (sameTheme(holder.meta.theme, theme)) {
+              const { theme: _departmentHasIt, ...meta } = holder.meta;
+              holder.meta = meta;
+            }
           }
         }),
 

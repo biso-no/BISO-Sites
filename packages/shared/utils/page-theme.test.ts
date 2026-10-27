@@ -12,6 +12,7 @@ import {
   nearestPassingShade,
   normalizeHex,
   parsePageTheme,
+  sameTheme,
   THEME_QUICK_PICKS,
   themeCss,
   themeTokens,
@@ -208,6 +209,27 @@ describe("parsePageTheme", () => {
     expect(parsePageTheme("x")).toBeNull();
     expect(parsePageTheme(null)).toBeNull();
     expect(parsePageTheme(undefined)).toBeNull();
+  });
+});
+
+describe("sameTheme", () => {
+  const T = { accent: "#fecd45", dark: "#2a0a4a" };
+
+  it("matches the same pair, however the hex is written", () => {
+    expect(sameTheme(T, { accent: "#FECD45", dark: " #2A0A4A " })).toBe(true);
+    expect(sameTheme(T, { ...T, dark: "#0b3d2e" })).toBe(false);
+  });
+
+  it("matches a reset only to a reset", () => {
+    expect(sameTheme(null, null)).toBe(true);
+    expect(sameTheme(null, T)).toBe(false);
+    expect(sameTheme(T, null)).toBe(false);
+  });
+
+  it("never matches an absent theme", () => {
+    expect(sameTheme(undefined, undefined)).toBe(false);
+    expect(sameTheme(undefined, T)).toBe(false);
+    expect(sameTheme(null, undefined)).toBe(false);
   });
 });
 

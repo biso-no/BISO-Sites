@@ -140,8 +140,11 @@ Called by `EditorShell` via the `savePage` callback, debounced at
 5. Writes to `audit_logs`.
 6. `revalidatePath()` on relevant routes.
 
-It does **not** touch `puck_document` or `is_published`. Saving a
-draft is invisible to the public site.
+It does **not** touch `puck_document`, `is_published`, the page's
+`status` or the rows' read permissions: only `publishPage` and
+`unpublishPage` change those, so a save that lands while a publish or
+unpublish is on its way cannot undo it. A new page starts as a draft.
+Saving a draft is invisible to the public site.
 
 ### `publishPage({ id, locale })`
 

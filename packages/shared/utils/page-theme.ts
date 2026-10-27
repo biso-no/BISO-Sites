@@ -339,6 +339,31 @@ export function isBisoTheme(theme: PageTheme | null | undefined): boolean {
   );
 }
 
+/**
+ * Whether two page themes are the same: both a reset (`null`), or the same
+ * pair after normalising the hex. An absent theme (`undefined`) matches
+ * nothing, not even another absent one.
+ */
+export function sameTheme(
+  a: PageTheme | null | undefined,
+  b: PageTheme | null | undefined
+): boolean {
+  if (a === undefined || b === undefined) {
+    return false;
+  }
+  if (a === null || b === null) {
+    return a === b;
+  }
+  const dark = normalizeHex(a.dark);
+  const accent = normalizeHex(a.accent);
+  return (
+    dark !== null &&
+    accent !== null &&
+    dark === normalizeHex(b.dark) &&
+    accent === normalizeHex(b.accent)
+  );
+}
+
 export function parsePageTheme(value: unknown): PageTheme | null {
   if (typeof value !== "object" || value === null) {
     return null;
