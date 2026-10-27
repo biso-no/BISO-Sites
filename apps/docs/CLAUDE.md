@@ -94,7 +94,7 @@ end to end, and what the system does on its own against what staff must do.
 
 - **Language.** The guide is in English. The admin defaults to Norwegian, so
   name each button and field as it appears on screen, with the English in
-  brackets: choose **Opprett ny stilling** (New vacancy). Some strings are
+  brackets: choose **Utlys stilling** (Post Job). Some strings are
   hard-coded in English. Follow what the screen shows.
 - **Screenshots.** Plain frame, never cut at an angle. Made-up data only: no
   real students, applicants, buyers or staff. Never point real credentials at
