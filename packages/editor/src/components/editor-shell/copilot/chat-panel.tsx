@@ -4,14 +4,12 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PageEditorToolName } from "@/ai/tools";
-import {
-  type SetThemeInput,
-  type ToolResult,
-  validateSetTheme,
-} from "@/ai/tools/theme";
+import { type ToolResult, validateSetTheme } from "@/ai/tools/theme";
+import { getBlock } from "@/blocks/registry";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { useSelection } from "@/editor/hooks";
-import { serializePageForAI } from "@/editor/serialize";
+import { COLUMN_COUNT } from "@/editor/sections";
+import { LAYOUT_VALUES, serializePageForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
 import { findSection, targetAfterBlock } from "@/editor/tree";
 import type {
@@ -63,6 +61,9 @@ function resolveColumnTarget(
 
 function applyInsertBlock(args: ToolArgs): ToolResult {
   const store = useEditorStore.getState();
+  if (typeof args.type !== "string" || !getBlock(args.type as BlockType)) {
+    return toolError(`${String(args.type)} is not a block type.`);
+  }
   const type = args.type as BlockType;
   const { afterBlockId, columnIndex, sectionId } = args;
   if (columnIndex !== undefined && typeof sectionId !== "string") {
@@ -92,6 +93,21 @@ function applyInsertBlock(args: ToolArgs): ToolResult {
 
 function applyInsertSection(args: ToolArgs): ToolResult {
   const store = useEditorStore.getState();
+  const columns = args.columns as SectionColumns;
+  if (!(columns in COLUMN_COUNT)) {
+    return toolError(`${String(args.columns)} is not a column preset.`);
+  }
+  let background: SectionBackground | undefined;
+  if (args.background !== undefined) {
+    if (
+      !LAYOUT_VALUES.background.includes(args.background as SectionBackground)
+    ) {
+      return toolError(
+        `${String(args.background)} is not a section background.`
+      );
+    }
+    background = args.background as SectionBackground;
+  }
   let index = store.doc.sections.length;
   if (typeof args.afterSectionId === "string") {
     const found = findSection(store.doc, args.afterSectionId);
@@ -100,11 +116,7 @@ function applyInsertSection(args: ToolArgs): ToolResult {
     }
     index = found.index + 1;
   }
-  const sectionId = store.insertSection(args.columns as SectionColumns, index);
-  const background = args.background as SectionBackground | undefined;
-  if (background && background !== "white") {
-    store.setSectionLayout(sectionId, { background });
-  }
+  const sectionId = store.insertSection(columns, index, background);
   lastInsertedSectionId = sectionId;
   return {
     message: `Inserted section ${sectionId}.`,
@@ -114,7 +126,7 @@ function applyInsertSection(args: ToolArgs): ToolResult {
 }
 
 function applySetTheme(args: ToolArgs): ToolResult {
-  const checked = validateSetTheme(args as SetThemeInput);
+  const checked = validateSetTheme(args);
   if ("error" in checked) {
     return checked.error;
   }
@@ -143,6 +155,10 @@ export function applyToolCall(toolName: string, args: ToolArgs): ToolResult {
       break;
     case "bind_collection":
       store.bindCollection(args.id as string, args.source as string);
+      break;
+    case "list_blocks":
+    case "generate_copy":
+      // Server-only: the model's own tool result is all there is to apply.
       break;
     default:
       return toolError(`Unknown tool ${toolName}.`);

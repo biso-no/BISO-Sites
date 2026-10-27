@@ -179,3 +179,40 @@ test("set_theme reset sets the theme to null", () => {
   applyToolCall("set_theme", { reset: true });
   expect(theme()).toBeNull();
 });
+
+test("set_theme stores normalized lowercase hex", () => {
+  applyToolCall("set_theme", { accent: " #3AA3E1 ", dark: "#001A35" });
+  expect(theme()).toEqual({ accent: "#3aa3e1", dark: "#001a35" });
+});
+
+test("only reset: true resets; reset: false and non-objects are errors", () => {
+  applyToolCall("set_theme", { accent: "#3aa3e1", dark: "#001a35" });
+  for (const bad of [{ reset: false }, "reset", null, 5]) {
+    expect(applyToolCall("set_theme", bad as never).status).toBe("error");
+  }
+  expect(theme()).toEqual({ accent: "#3aa3e1", dark: "#001a35" });
+});
+
+test("invalid section columns, background or block type never reach the store", () => {
+  const before = useEditorStore.getState().doc;
+  expect(applyToolCall("insert_section", { columns: "5" }).status).toBe(
+    "error"
+  );
+  expect(
+    applyToolCall("insert_section", { background: "neon", columns: "1" }).status
+  ).toBe("error");
+  expect(applyToolCall("insert_block", { type: "nope" }).status).toBe("error");
+  expect(useEditorStore.getState().doc).toBe(before);
+});
+
+test("insert_section with a background is one undo step", () => {
+  applyToolCall("insert_section", { background: "dark", columns: "1-1" });
+  expect(useEditorStore.getState().doc.sections).toHaveLength(2);
+  useEditorStore.getState().undo();
+  expect(useEditorStore.getState().doc.sections).toHaveLength(1);
+});
+
+test("server-only tools are a neutral success", () => {
+  expect(applyToolCall("list_blocks", {}).status).toBe("applied");
+  expect(applyToolCall("generate_copy", {}).status).toBe("applied");
+});

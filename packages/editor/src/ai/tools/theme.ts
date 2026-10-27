@@ -3,6 +3,7 @@ import {
   checkTheme,
   MIN_ACCENT_ON_DARK,
   MIN_DARK_ON_WHITE,
+  normalizeHex,
   type PageTheme,
 } from "@repo/shared/utils/page-theme";
 
@@ -12,6 +13,10 @@ export interface ToolResult {
   message: string;
   status: "applied" | "error";
   [key: string]: unknown;
+}
+
+function badInput(message: string): ToolResult {
+  return { message, status: "error" };
 }
 
 /** Rounded DOWN to one decimal so 6.99 never reads as the 7 it just missed. */
@@ -40,15 +45,29 @@ function describeFailure(
  * suggested shade. Nothing here writes; the caller writes only on `theme`.
  */
 export function validateSetTheme(
-  input: SetThemeInput
+  input: unknown
 ): { theme: PageTheme | null } | { error: ToolResult } {
-  if ("reset" in input) {
+  if (typeof input !== "object" || input === null) {
+    return {
+      error: badInput("set_theme needs { dark, accent } or { reset: true }."),
+    };
+  }
+  const { accent, dark, reset } = input as Record<string, unknown>;
+  if (reset === true) {
     return { theme: null };
   }
-  const theme: PageTheme = { accent: input.accent, dark: input.dark };
+  if (typeof dark !== "string" || typeof accent !== "string") {
+    return {
+      error: badInput(
+        "set_theme needs { dark, accent } hex strings or { reset: true }."
+      ),
+    };
+  }
+  const theme: PageTheme = { accent, dark };
   const check = checkTheme(theme);
-  if (check.ok) {
-    return { theme };
+  const normalized = { accent: normalizeHex(accent), dark: normalizeHex(dark) };
+  if (check.ok && normalized.accent && normalized.dark) {
+    return { theme: { accent: normalized.accent, dark: normalized.dark } };
   }
   const problems: string[] = [];
   if (!check.dark.ok) {

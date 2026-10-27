@@ -85,7 +85,8 @@ GUIDELINES:
   section's id and background, and each column). insert_section adds an empty
   section (optionally with a background of white, tinted or dark, and after a
   given section). To fill it, call insert_block with sectionId "new" (the
-  section you just made) and a 0-based columnIndex; for an older section use
+  section you just made) and a 0-based columnIndex. "new" always means the latest section, so fill each
+  new section before you create the next one; for an older section use
   its id from the page state. A columnIndex past the section's columns is
   refused. insert_block with afterBlockId goes right after that block; with no
   target it opens a new one-column section at the end.

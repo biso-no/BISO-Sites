@@ -44,6 +44,7 @@ import type {
   PageMeta,
   SavingState,
   Section,
+  SectionBackground,
   SectionColumns,
   SectionLayout,
   StoredMeta,
@@ -98,7 +99,11 @@ interface EditorState {
    */
   insertBlock: (type: BlockType, target?: InsertTarget) => string;
   insertBlockInNewSection: (type: BlockType, sectionIndex: number) => string;
-  insertSection: (columns: SectionColumns, sectionIndex: number) => string;
+  insertSection: (
+    columns: SectionColumns,
+    sectionIndex: number,
+    background?: SectionBackground
+  ) => string;
   insertTarget: InsertTarget | null;
   inspectorTab: "block" | "page" | "outline";
   /**
@@ -322,11 +327,14 @@ export const useEditorStore = create<EditorState>()(
           opMoveBlockToNewSection(s.doc, blockId, sectionIndex);
         }),
 
-      insertSection: (columns, sectionIndex) => {
+      insertSection: (columns, sectionIndex, background) => {
         let newId = "";
         set((s) => {
           pushHistory(s);
           newId = opInsertSection(s.doc, columns, sectionIndex);
+          if (background) {
+            opSetSectionLayout(s.doc, newId, { background });
+          }
         });
         return newId;
       },
