@@ -1,11 +1,9 @@
+import { PageHeader } from "components/page-header";
+import { getBreadcrumbItems } from "fumadocs-core/breadcrumb";
 import type { PageData } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
-import {
-  DocsBody,
-  DocsDescription,
-  DocsPage,
-  DocsTitle,
-} from "fumadocs-ui/page";
+import { DocsBody, DocsPage } from "fumadocs-ui/page";
+import { formatUpdated } from "lib/format";
 import { getPageImage, source } from "lib/source";
 import { getMDXComponents } from "mdx-components";
 import type { Metadata } from "next";
@@ -19,7 +17,14 @@ interface Param {
 interface MDX extends PageData {
   body: ElementType;
   full: boolean;
+  lastModified?: Date;
   toc: TOCItemType[];
+}
+
+/** Title of the page's parent folder; none for an area index or a top-level page. */
+function crumbFor(url: string): string | undefined {
+  const parent = getBreadcrumbItems(url, source.pageTree).at(-1);
+  return typeof parent?.name === "string" ? parent.name : undefined;
 }
 
 export default async function Page(props: { params: Promise<Param> }) {
@@ -35,17 +40,14 @@ export default async function Page(props: { params: Promise<Param> }) {
   const MDXContent = mdxPage.body;
 
   return (
-    <DocsPage
-      editOnGithub={{
-        owner: "biso-no",
-        repo: "biso-sites",
-        path: `apps/docs/content/docs/${page.path}`,
-      }}
-      full={(page.data as MDX).full}
-      toc={(page.data as MDX).toc}
-    >
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
+    <DocsPage full={(page.data as MDX).full} toc={(page.data as MDX).toc}>
+      <PageHeader
+        crumb={crumbFor(page.url)}
+        description={page.data.description}
+        title={page.data.title}
+        updated={formatUpdated(mdxPage.lastModified)}
+        who={page.data.who}
+      />
       <DocsBody>
         <MDXContent components={getMDXComponents()} />
       </DocsBody>

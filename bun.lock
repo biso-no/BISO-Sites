@@ -112,6 +112,7 @@
         "next-themes": "catalog:",
         "react": "catalog:",
         "react-dom": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
