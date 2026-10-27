@@ -1,0 +1,108 @@
+{
+  "aftermovie": {
+    "fileId": "wg26-aftermovie",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-aftermovie/view?project=biso",
+    "mime": "video/mp4",
+    "bytes": 44049758,
+    "width": 1920,
+    "height": 1080,
+    "durationSeconds": 78
+  },
+  "aftermovie-poster": {
+    "fileId": "wg26-aftermovie-poster",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-aftermovie-poster/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 54187,
+    "width": 1920,
+    "height": 1080
+  },
+  "arena": {
+    "fileId": "wg26-arena",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-arena/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 717040,
+    "width": 2000,
+    "height": 1334
+  },
+  "card-afterski": {
+    "fileId": "wg26-card-afterski",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-card-afterski/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 38056,
+    "width": 1600,
+    "height": 900
+  },
+  "card-ski": {
+    "fileId": "wg26-card-ski",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-card-ski/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 160141,
+    "width": 1600,
+    "height": 900
+  },
+  "card-vinterleker": {
+    "fileId": "wg26-card-vinterleker",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-card-vinterleker/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 117954,
+    "width": 1600,
+    "height": 900
+  },
+  "gallery-aerial": {
+    "fileId": "wg26-gallery-aerial",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-gallery-aerial/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 96892,
+    "width": 1600,
+    "height": 900
+  },
+  "gallery-arrival": {
+    "fileId": "wg26-gallery-arrival",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-gallery-arrival/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 102088,
+    "width": 1600,
+    "height": 900
+  },
+  "gallery-friends": {
+    "fileId": "wg26-gallery-friends",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-gallery-friends/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 61146,
+    "width": 1600,
+    "height": 900
+  },
+  "gallery-selfie": {
+    "fileId": "wg26-gallery-selfie",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-gallery-selfie/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 75873,
+    "width": 1600,
+    "height": 900
+  },
+  "gallery-teepees": {
+    "fileId": "wg26-gallery-teepees",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-gallery-teepees/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 162742,
+    "width": 1600,
+    "height": 900
+  },
+  "header-loop": {
+    "fileId": "wg26-header-loop",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-header-loop/view?project=biso",
+    "mime": "video/mp4",
+    "bytes": 679553,
+    "width": 1280,
+    "height": 720,
+    "durationSeconds": 4
+  },
+  "header-poster": {
+    "fileId": "wg26-header-poster",
+    "url": "https://appwrite.biso.no/v1/storage/buckets/media/files/wg26-header-poster/view?project=biso",
+    "mime": "image/jpeg",
+    "bytes": 90751,
+    "width": 1280,
+    "height": 720
+  }
+}
