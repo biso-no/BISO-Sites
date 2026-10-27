@@ -5,6 +5,7 @@ import {
   findMalformed,
   findMissingCoverage,
   findStalePages,
+  findUnlistedNarrative,
 } from "./check";
 import { readPages } from "./read-pages";
 
@@ -34,7 +35,15 @@ function run(): void {
   }
   const changed = lines(readFileSync(changedPath, "utf8"));
   const repoRoot = git("rev-parse", "--show-toplevel").trim();
-  const repoFiles = lines(git("-c", "core.quotepath=false", "ls-files"));
+  const repoFiles = lines(
+    git("-C", repoRoot, "-c", "core.quotepath=false", "ls-files")
+  );
+  const allowList = JSON.parse(
+    readFileSync(
+      `${repoRoot}/apps/docs/scripts/page-coverage/narrative-pages.json`,
+      "utf8"
+    )
+  ) as string[];
   const pages = readPages(repoRoot);
 
   const out: string[] = [];
@@ -68,6 +77,14 @@ function run(): void {
       `::warning file=${page},title=Page has no covers list::Add the code paths this page describes, or 'covers: []' if it describes none.`
     );
     summary.push(`- \`${page}\`: no \`covers\` list`);
+  }
+  for (const page of findUnlistedNarrative(pages, changed, allowList)) {
+    out.push(
+      `::warning file=${page},title=Page declares no code::'covers: []' is for narrative pages only. List the code paths this page describes, or add it to apps/docs/scripts/page-coverage/narrative-pages.json if it truly describes none.`
+    );
+    summary.push(
+      `- \`${page}\`: \`covers: []\` but not on the narrative allow-list`
+    );
   }
 
   for (const line of out) {

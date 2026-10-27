@@ -4,7 +4,7 @@ import { TaskGroups } from "components/landing/task-groups";
 import { readingPaths, taskGroups } from "lib/landing";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "BISO Docs" };
+export const metadata: Metadata = { title: { absolute: "BISO Docs" } };
 
 export default function Home() {
   return (

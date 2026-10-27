@@ -54,10 +54,31 @@ export function findMissingCoverage(
 ): string[] {
   const changedSet = new Set(changed);
   return pages
-    .filter(({ page, covers }) => covers === null && changedSet.has(page))
+    .filter(
+      ({ page, covers, malformed }) =>
+        covers === null && !malformed && changedSet.has(page)
+    )
     .map(({ page }) => page);
 }
 
 export function findMalformed(pages: PageCoverage[]): string[] {
   return pages.filter((p) => p.malformed).map((p) => p.page);
+}
+
+export function findUnlistedNarrative(
+  pages: PageCoverage[],
+  changed: string[],
+  allowList: string[]
+): string[] {
+  const changedSet = new Set(changed);
+  const allowed = new Set(allowList);
+  return pages
+    .filter(
+      ({ page, covers }) =>
+        Array.isArray(covers) &&
+        covers.length === 0 &&
+        changedSet.has(page) &&
+        !allowed.has(page)
+    )
+    .map(({ page }) => page);
 }

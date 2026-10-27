@@ -4,8 +4,8 @@ import "./global.css";
 import { museoSans, museoSlab } from "./fonts";
 
 export const metadata: Metadata = {
-  title: "BISO Docs",
-  description: "Documentation for BISO Apps",
+  title: { default: "BISO Docs", template: "%s | BISO Docs" },
+  description: "How to use the BISO platform, and how to keep it running.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_BASE_URL ?? "https://docs.biso.no"
   ),

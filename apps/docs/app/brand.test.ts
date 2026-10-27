@@ -9,6 +9,7 @@ const TEST_FILE = /\.test\./;
 
 const FORBIDDEN = [
   /gradient/i,
+  /\bbg-(linear|radial|conic)\b/,
   /backdrop-blur/,
   /whileInView/,
   /next\/font\/google/,

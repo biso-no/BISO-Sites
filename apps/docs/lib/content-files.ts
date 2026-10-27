@@ -8,7 +8,7 @@ export type ResolvedHref =
   | { kind: "page"; file: string }
   | null;
 
-const APP_ROOT = join(import.meta.dir, "..");
+const APP_ROOT = join(import.meta.dirname, "..");
 const QUERY_OR_HASH = /[?#].*$/;
 const SLASHES = /^\/+|\/+$/g;
 

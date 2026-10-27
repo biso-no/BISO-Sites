@@ -48,3 +48,7 @@ test("first match wins", () => {
     ])
   ).toBe("/x");
 });
+
+test("a longer section name does not match", () => {
+  expect(matchRedirect("/docs/handoverx", rules)).toBeNull();
+});

@@ -42,8 +42,16 @@ covers:
   roles from `apps/admin/src/lib/roles.ts`.
 - `covers`: globs, relative to the repo root, for the code the page describes.
   `[` and `]` are literal, so a Next route folder like `[id]` matches as
-  written. Use `covers: []` for a narrative page (history, design decisions).
-  Always include `covers`: the PR check warns when a changed page has none.
+  written. Quote any glob that starts with `*`, e.g. `- "**/jobs/**"`: unquoted
+  it is a YAML alias and the list is reported as malformed.
+  `covers: []` is only for pages on the allow-list in
+  `scripts/page-coverage/narrative-pages.json` (history, design decisions, area
+  indexes and similar). To add one, put its repo-relative path in that file.
+  Always include `covers`: the PR check warns when a changed page has none, or
+  has `covers: []` without being on the list.
+- Add every new page or folder to its folder's `meta.json` `pages`, in reading
+  order. Fumadocs hides anything not listed, and `lib/content-structure.test.ts`
+  enforces it.
 
 The last-updated date comes from git. It is hidden on shallow clones.
 
@@ -115,7 +123,8 @@ It warns on a PR. It never fails it. It warns when:
   and names the pages;
 - a glob matches no files;
 - a page changed in the PR has no `covers`;
-- `covers` is malformed.
+- `covers` is malformed;
+- a changed page has `covers: []` but is not on the narrative allow-list.
 
 ## Commands
 

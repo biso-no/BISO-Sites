@@ -12,12 +12,18 @@ export function readPages(repoRoot: string): PageCoverage[] {
   for (const rel of glob.scanSync({ cwd })) {
     const text = readFileSync(`${cwd}/${rel}`, "utf8");
     const match = FRONT_MATTER.exec(text);
-    const data = match ? (YAML.parse(match[1]) as unknown) : null;
+    const page = `${PAGES_DIR}/${rel}`;
+    let data: unknown = null;
+    try {
+      data = match ? (YAML.parse(match[1]) as unknown) : null;
+    } catch {
+      pages.push({ page, covers: null, malformed: true });
+      continue;
+    }
     const covers =
       data && typeof data === "object" && "covers" in data
         ? (data as { covers: unknown }).covers
         : undefined;
-    const page = `${PAGES_DIR}/${rel}`;
     if (covers === undefined) {
       pages.push({ page, covers: null });
     } else if (

@@ -2,7 +2,12 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findDeadGlobs, findMissingCoverage, findStalePages } from "./check";
+import {
+  findDeadGlobs,
+  findMissingCoverage,
+  findStalePages,
+  findUnlistedNarrative,
+} from "./check";
 import { readPages } from "./read-pages";
 
 const pages = [
@@ -89,3 +94,56 @@ test("readPages flags a malformed covers value", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("malformed pages are not also reported as missing coverage", () =>
+  expect(
+    findMissingCoverage(
+      [{ page: "a.mdx", covers: null, malformed: true }],
+      ["a.mdx"]
+    )
+  ).toEqual([]));
+
+test("a YAML alias in covers does not abort the run", () => {
+  const root = mkdtempSync(join(tmpdir(), "covers-"));
+  try {
+    const dir = join(root, "apps/docs/content/docs");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "bad.mdx"),
+      "---\ntitle: x\ncovers:\n  - **/jobs/**\n---\n"
+    );
+    writeFileSync(join(dir, "ok.mdx"), "---\ntitle: x\ncovers: []\n---\n");
+    const result = readPages(root);
+    expect(result.find((p) => p.page.endsWith("bad.mdx"))).toEqual({
+      page: "apps/docs/content/docs/bad.mdx",
+      covers: null,
+      malformed: true,
+    });
+    expect(result.find((p) => p.page.endsWith("ok.mdx"))?.covers).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const narrative = [
+  { page: "listed.mdx", covers: [] },
+  { page: "unlisted.mdx", covers: [] },
+  { page: "code.mdx", covers: ["a/**"] },
+];
+
+test("listed narrative page gets no warning", () =>
+  expect(
+    findUnlistedNarrative(narrative, ["listed.mdx"], ["listed.mdx"])
+  ).toEqual([]));
+
+test("unlisted covers: [] page that changed gets a warning", () =>
+  expect(
+    findUnlistedNarrative(
+      narrative,
+      ["unlisted.mdx", "code.mdx"],
+      ["listed.mdx"]
+    )
+  ).toEqual(["unlisted.mdx"]));
+
+test("unchanged unlisted narrative page gets no warning", () =>
+  expect(findUnlistedNarrative(narrative, [], [])).toEqual([]));
