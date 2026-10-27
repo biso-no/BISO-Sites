@@ -237,6 +237,7 @@
         "next": "catalog:",
         "node-appwrite": "catalog:",
         "react": "catalog:",
+        "server-only": "catalog:",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",

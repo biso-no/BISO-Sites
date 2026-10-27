@@ -1,12 +1,21 @@
+import "server-only";
 import { ID } from "@repo/api";
+import { createAdminClient } from "@repo/api/server";
 import { CHUNK_BYTES } from "@repo/api/storage";
 import {
   type ForwardChunkInput,
   type ForwardChunkResult,
   forwardChunk,
 } from "@repo/api/storage-chunks";
-import { NextResponse } from "next/server";
-import { sanitizeUploadFilename } from "./upload-buckets";
+import { after, NextResponse } from "next/server";
+import { logAuditEvent } from "@/app/(portal)/_actions/audit-log";
+import type { UserAuthContext } from "./authorization";
+import { sweepStaleChunkUploads } from "./chunk-upload-sweep";
+import {
+  CHUNK_UPLOAD_HEADER,
+  readContentLength,
+  sanitizeUploadFilename,
+} from "./upload-buckets";
 import { createUploadToken, verifyUploadToken } from "./upload-token";
 
 /**
@@ -26,8 +35,12 @@ import { createUploadToken, verifyUploadToken } from "./upload-token";
  *   bytes sent, and be a whole chunk unless it is the last one. A middle chunk
  *   answers `{ fileId }`; the last one answers through the route's `complete`.
  *
- * Every refusal happens before anything is sent to Appwrite. Chunks must be
- * sent in order, one at a time; the last one completes the file.
+ * Only the admin's own pages may send chunks (`isSameOriginUpload`), and
+ * every chunk needs a positive `content-length`. Every refusal happens before
+ * anything is sent to Appwrite. Chunks must be sent in order, one at a time;
+ * the last one completes the file. Opening an upload is written to the audit
+ * log, and after the response a bounded sweep deletes partial uploads too old
+ * to finish (`chunk-upload-sweep.ts`).
  */
 
 const MB = 1024 * 1024;
@@ -60,8 +73,9 @@ export interface CompletedChunkUpload {
 interface ChunkUploadOptions {
   /** The response for the chunk that completes the file. */
   complete: (upload: CompletedChunkUpload) => Response;
+  /** The signed-in editor; the token and the audit log are theirs. */
+  ctx: UserAuthContext;
   policy: ChunkUploadPolicy;
-  userId: string;
 }
 
 interface ChunkTerms {
@@ -73,6 +87,58 @@ interface ChunkTerms {
 
 function refuse(error: string, status: number): Response {
   return NextResponse.json({ error }, { status });
+}
+
+function firstValue(header: string | null): string | undefined {
+  return header?.split(",")[0]?.trim() || undefined;
+}
+
+/** The admin's own origin, as the request and the configured base URL name it. */
+function adminOrigins(request: Request): Set<string> {
+  const url = new URL(request.url);
+  const origins = new Set([url.origin]);
+  const host =
+    firstValue(request.headers.get("x-forwarded-host")) ??
+    firstValue(request.headers.get("host"));
+  if (host) {
+    const protocol =
+      firstValue(request.headers.get("x-forwarded-proto")) ??
+      url.protocol.slice(0, -1);
+    origins.add(`${protocol}://${host}`);
+  }
+  const base = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (base) {
+    try {
+      origins.add(new URL(base).origin);
+    } catch {
+      // A malformed base URL adds nothing.
+    }
+  }
+  return origins;
+}
+
+/**
+ * Whether the chunk comes from the admin's own pages. The session cookie is
+ * `SameSite=None` in production and a multipart POST needs no preflight, so
+ * without this any site an editor visits could start uploads with the
+ * service key. Two independent checks:
+ *
+ * - `CHUNK_UPLOAD_HEADER`, which `sendInChunks` always sends: a custom header
+ *   makes a cross-site request preflight, and the preflight fails (the admin
+ *   sends no CORS headers); `no-cors` requests cannot carry it at all.
+ * - `Sec-Fetch-Site: same-origin`; a browser without Fetch Metadata must send
+ *   an `Origin` that is the admin's own.
+ */
+function isSameOriginUpload(request: Request): boolean {
+  if (request.headers.get(CHUNK_UPLOAD_HEADER) !== "1") {
+    return false;
+  }
+  const site = request.headers.get("sec-fetch-site");
+  if (site !== null) {
+    return site === "same-origin";
+  }
+  const origin = request.headers.get("origin");
+  return origin !== null && adminOrigins(request).has(origin);
 }
 
 function readText(value: FormDataEntryValue | null): string {
@@ -145,6 +211,25 @@ function readRange(
   return { end, start };
 }
 
+/** Best-effort, after the response: never slows or fails the upload. */
+async function sweepStaleUploads(bucketId: string): Promise<void> {
+  try {
+    const { storage } = await createAdminClient();
+    const deleted = await sweepStaleChunkUploads(storage, { bucketId });
+    if (deleted.length > 0) {
+      console.info("[upload] swept stale chunked uploads", {
+        bucket: bucketId,
+        deleted,
+      });
+    }
+  } catch (error) {
+    console.error("[upload] stale chunk sweep failed", {
+      bucket: bucketId,
+      error,
+    });
+  }
+}
+
 async function forward(
   input: ForwardChunkInput,
   userId: string
@@ -167,8 +252,9 @@ async function forward(
 
 async function openUpload(
   terms: ChunkTerms,
-  { policy, userId }: ChunkUploadOptions
+  { ctx, policy }: ChunkUploadOptions
 ): Promise<Response> {
+  const { userId } = ctx;
   if (terms.chunk.size !== CHUNK_BYTES) {
     return refuse("The first chunk must be exactly 5 MB", 400);
   }
@@ -195,14 +281,26 @@ async function openUpload(
   if (result instanceof Response) {
     return result;
   }
+  await logAuditEvent(ctx, "media.chunked_upload.start", {
+    payload: {
+      bucket: policy.bucketId,
+      filename: terms.filename,
+      mime: terms.mime,
+      total: terms.total,
+    },
+    resourceId: fileId,
+    resourceType: "file",
+  });
+  after(() => sweepStaleUploads(policy.bucketId));
   return NextResponse.json({ fileId, token });
 }
 
 async function continueUpload(
   form: FormData,
   terms: ChunkTerms,
-  { complete, policy, userId }: ChunkUploadOptions
+  { complete, ctx, policy }: ChunkUploadOptions
 ): Promise<Response> {
+  const { userId } = ctx;
   const fileId = readText(form.get("fileId"));
   const authorised =
     FILE_ID_REGEX.test(fileId) &&
@@ -249,7 +347,13 @@ export async function handleChunkedUpload(
   request: Request,
   options: ChunkUploadOptions
 ): Promise<Response> {
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (!isSameOriginUpload(request)) {
+    return refuse("Uploads must come from the admin itself", 403);
+  }
+  const contentLength = readContentLength(request.headers);
+  if (contentLength === null) {
+    return refuse("Content-Length required", 411);
+  }
   if (contentLength > CHUNK_BYTES + FORM_OVERHEAD_BYTES) {
     return refuse(`Chunk too large (max ${CHUNK_BYTES / MB} MB)`, 413);
   }

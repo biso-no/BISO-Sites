@@ -1,12 +1,16 @@
+import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { resolveApiKey } from "@repo/api/server-env";
 
 /**
  * Server-only. Signs the terms of a chunked upload when its first chunk is
  * accepted, so every later chunk must carry the same file, bucket, type, total
  * size, name and editor, or be refused before it reaches Appwrite.
  *
- * The signing key is derived from `APPWRITE_API_KEY` (HMAC-SHA256 of a fixed
- * label, keyed by the API key): a secret the admin server already holds and
+ * The signing key is derived from the service key (HMAC-SHA256 of a fixed
+ * label, keyed by the API key), read with the admin client's own
+ * `resolveApiKey` (`APPWRITE_API_KEY`, else `APPWRITE_FUNCTION_API_KEY`), so
+ * the two never disagree. It is a secret the admin server already holds and
  * requires at startup, so no new env var is needed. The label keeps the
  * derived key distinct from the API key and from any other use of it. Rotating
  * the API key invalidates uploads in flight, which then simply fail.
@@ -35,12 +39,12 @@ export interface UploadTokenClaims {
 
 interface UploadTokenOptions {
   now?: number;
-  /** Defaults to `APPWRITE_API_KEY`. */
+  /** Defaults to the service key, as the admin client resolves it. */
   secret?: string;
 }
 
 function resolveSecret(secret: string | undefined): string {
-  const value = secret ?? process.env.APPWRITE_API_KEY;
+  const value = secret ?? resolveApiKey();
   if (!value) {
     throw new Error(
       "APPWRITE_API_KEY is not configured — upload tokens cannot be signed."

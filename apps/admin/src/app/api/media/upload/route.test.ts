@@ -1,6 +1,12 @@
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import { INLINE_MEDIA_MAX_BYTES } from "@/lib/inline-media";
-import { handleInlineMediaUpload, type InlineMediaUploadInput } from "./route";
+import type { InlineMediaUploadInput } from "./route";
+
+// The route's chunk mode (`lib/chunked-upload`) opens with
+// `import "server-only"`, which throws outside a react-server build.
+mock.module("server-only", () => ({}));
+
+const { handleInlineMediaUpload } = await import("./route");
 
 test("rejects an unauthenticated upload before reading or storing it", async () => {
   let bodyReads = 0;

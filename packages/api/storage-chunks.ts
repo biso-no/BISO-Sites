@@ -1,3 +1,4 @@
+import "server-only";
 import {
   APPWRITE_PROJECT,
   NEXT_PUBLIC_APPWRITE_ENDPOINT,

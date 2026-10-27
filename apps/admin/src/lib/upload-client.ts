@@ -1,6 +1,7 @@
 import { CHUNK_BYTES, MEDIA_BUCKET_ID } from "@repo/api/storage";
 import {
   allowsChunkedUpload,
+  CHUNK_UPLOAD_HEADER,
   DEFAULT_UPLOAD_BUCKET,
   IMAGE_MAX_BYTES,
   maxBytesForMime,
@@ -74,8 +75,13 @@ export async function sendInChunks(
       form.append("start", String(start));
       form.append("end", String(end));
     }
-    // Chunks go one at a time: the last one completes the file.
-    const response = await fetcher(endpoint, { body: form, method: "POST" });
+    // Chunks go one at a time: the last one completes the file. The header
+    // proves the request comes from the admin's own pages.
+    const response = await fetcher(endpoint, {
+      body: form,
+      headers: { [CHUNK_UPLOAD_HEADER]: "1" },
+      method: "POST",
+    });
     const body: unknown = await response.json().catch(() => null);
     answer = { body, ok: response.ok, status: response.status };
     if (!response.ok) {

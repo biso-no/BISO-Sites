@@ -3,8 +3,10 @@ import {
   allowsChunkedUpload,
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
+  filenameMatchesMime,
   maxBytesForMime,
   mimeFromFilename,
+  readContentLength,
   resolveUploadBucket,
   resolveUploadMimeType,
   sanitizeUploadFilename,
@@ -166,5 +168,41 @@ describe("allowsChunkedUpload", () => {
     const content = resolveUploadBucket("content");
     expect(media && allowsChunkedUpload(media)).toBeTrue();
     expect(content && allowsChunkedUpload(content)).toBeFalse();
+  });
+});
+
+describe("filenameMatchesMime", () => {
+  it("accepts a name whose extension carries the declared type", () => {
+    expect(filenameMatchesMime("Min_film.MP4", "video/mp4")).toBeTrue();
+    expect(filenameMatchesMime("clip.mov", "video/quicktime")).toBeTrue();
+    expect(filenameMatchesMime("photo.jpeg", "image/jpeg")).toBeTrue();
+    expect(filenameMatchesMime("report.pdf", "application/pdf")).toBeTrue();
+    // Windows reports CSV as Excel.
+    expect(
+      filenameMatchesMime("list.csv", "application/vnd.ms-excel")
+    ).toBeTrue();
+  });
+
+  it("refuses a name that disagrees with the declared type", () => {
+    expect(filenameMatchesMime("archive.zip", "video/mp4")).toBeFalse();
+    expect(filenameMatchesMime("photo.png", "video/mp4")).toBeFalse();
+    expect(filenameMatchesMime("clip.mp4", "image/png")).toBeFalse();
+    expect(filenameMatchesMime("noextension", "video/mp4")).toBeFalse();
+    expect(filenameMatchesMime("clip.exe", "video/mp4")).toBeFalse();
+  });
+});
+
+describe("readContentLength", () => {
+  const headers = (value?: string) =>
+    new Headers(value === undefined ? {} : { "content-length": value });
+
+  it("reads a positive byte count", () => {
+    expect(readContentLength(headers("5242880"))).toBe(5_242_880);
+  });
+
+  it("is null when the length is missing, not a number, or not positive", () => {
+    for (const value of [undefined, "", "abc", "12.5", "-1", "0", "1e6"]) {
+      expect(readContentLength(headers(value))).toBeNull();
+    }
   });
 });

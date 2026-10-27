@@ -53,6 +53,30 @@ const EXTENSION_MIME_TYPES: Record<string, string> = {
 const FILE_EXTENSION_REGEX = /\.([a-z0-9]{1,10})$/i;
 
 /**
+ * Every extension the upload buckets take, with the types allowed to carry
+ * it: the document map above plus images and video. Windows reports CSV as
+ * `application/vnd.ms-excel`.
+ */
+const EXTENSION_TYPES: Record<string, readonly string[]> = {
+  ...Object.fromEntries(
+    Object.entries(EXTENSION_MIME_TYPES).map(([extension, type]) => [
+      extension,
+      [type],
+    ])
+  ),
+  csv: ["text/csv", "application/vnd.ms-excel"],
+  gif: ["image/gif"],
+  jpeg: ["image/jpeg"],
+  jpg: ["image/jpeg"],
+  mov: ["video/quicktime"],
+  mp4: ["video/mp4"],
+  png: ["image/png"],
+  svg: ["image/svg+xml"],
+  webm: ["video/webm"],
+  webp: ["image/webp"],
+};
+
+/**
  * The document type for a file name. Browsers leave `File.type` empty for
  * some documents (CSV without Excel installed), and the route would then see
  * octet-stream and refuse it. Only document extensions are named.
@@ -63,6 +87,26 @@ export function mimeFromFilename(name: string): string | null {
     ? (EXTENSION_MIME_TYPES[extension] ?? null)
     : null;
 }
+
+/**
+ * Whether the file name's extension carries the declared type. Chunk mode
+ * checks this, so a `.zip` declared as `video/mp4` cannot borrow the video
+ * limit; the bucket's own extension filter then sees a matching name.
+ */
+export function filenameMatchesMime(filename: string, mime: string): boolean {
+  const extension = FILE_EXTENSION_REGEX.exec(filename)?.[1]?.toLowerCase();
+  if (!(extension && Object.hasOwn(EXTENSION_TYPES, extension))) {
+    return false;
+  }
+  return EXTENSION_TYPES[extension]?.includes(mime) ?? false;
+}
+
+/**
+ * Header every chunk request carries. A custom header forces a CORS
+ * preflight, which another site fails, so no other page can send chunks with
+ * an editor's cookie.
+ */
+export const CHUNK_UPLOAD_HEADER = "x-biso-upload";
 
 export interface UploadBucketConfig {
   /** "admin" uses the service key (after the route's auth check). */
@@ -170,6 +214,22 @@ export function sanitizeUploadFilename(name: string | undefined): string {
   }
   const extension = EXTENSION_REGEX.exec(cleaned)?.[0] ?? "";
   return `${cleaned.slice(0, MAX_FILENAME_LENGTH - extension.length)}${extension}`;
+}
+
+const CONTENT_LENGTH_REGEX = /^\d{1,16}$/;
+
+/**
+ * The request's declared body size, or null when it is missing, not a plain
+ * integer, or zero. The upload routes answer 411 then: every browser sends a
+ * length for a file or form body.
+ */
+export function readContentLength(headers: Headers): number | null {
+  const value = headers.get("content-length")?.trim() ?? "";
+  if (!CONTENT_LENGTH_REGEX.test(value)) {
+    return null;
+  }
+  const length = Number(value);
+  return length > 0 ? length : null;
 }
 
 /**

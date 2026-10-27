@@ -60,6 +60,8 @@ describe("uploadFile in chunks", () => {
     for (const [url, init] of fetchMock.mock.calls) {
       expect(url).toBe("/api/upload?bucket=media&chunk=1");
       expect(init?.method).toBe("POST");
+      // Forces a CORS preflight, so another site cannot send a chunk.
+      expect(init?.headers).toEqual({ "x-biso-upload": "1" });
     }
     const sizes = [0, 1, 2].map(
       (call) => (sentForm(call).get("chunk") as Blob).size

@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 import { getStorageFileUrl } from "@repo/api/storage";
-import { NextResponse } from "next/server";
+
+const nextServer = await import("next/server");
+const { NextResponse } = nextServer;
 
 /**
  * Chunk mode of the inline-media route. Runs in its own `bun test` process
@@ -34,12 +36,14 @@ const forwardChunk = mock((input: ForwardInput) =>
   )
 );
 const createFile = mock(() => Promise.resolve({ $id: "single" }));
+const createRow = mock((..._args: unknown[]) => Promise.resolve({}));
+const afterTasks: (() => unknown)[] = [];
 
 mock.module("@/lib/api-auth", () => ({
   requireApiAuth: () =>
     Promise.resolve(
       userId
-        ? { ctx: { userId } }
+        ? { ctx: { email: "editor@example.org", userId } }
         : {
             response: NextResponse.json(
               { error: "Unauthorized" },
@@ -50,8 +54,24 @@ mock.module("@/lib/api-auth", () => ({
 }));
 mock.module("@repo/api/storage-chunks", () => ({ forwardChunk }));
 mock.module("@repo/api/server", () => ({
-  createAdminClient: () => Promise.resolve({ storage: { createFile } }),
+  createAdminClient: () =>
+    Promise.resolve({
+      db: { createRow },
+      storage: {
+        createFile,
+        deleteFile: () => Promise.resolve({}),
+        listFiles: () => Promise.resolve({ files: [], total: 0 }),
+      },
+    }),
 }));
+mock.module("next/server", () => ({
+  ...nextServer,
+  after: (task: () => unknown) => {
+    afterTasks.push(task);
+  },
+}));
+// `lib/chunked-upload` and `lib/upload-token` open with `import "server-only"`.
+mock.module("server-only", () => ({}));
 
 const realFetch = globalThis.fetch;
 globalThis.fetch = (() => {
@@ -74,19 +94,39 @@ afterAll(() => {
 
 beforeEach(() => {
   userId = "user-1";
+  afterTasks.length = 0;
   forwardChunk.mockClear();
   createFile.mockClear();
+  createRow.mockClear();
 });
 
-function chunkRequest(fields: Record<string, string | Blob>): Request {
+/** As `sendInChunks` sends it; a `null` header leaves that header out. */
+async function chunkRequest(
+  fields: Record<string, string | Blob>,
+  overrides: Record<string, string | null> = {}
+): Promise<Request> {
   const form = new FormData();
   for (const [name, value] of Object.entries(fields)) {
     form.append(name, value);
   }
-  return new Request("http://admin.test/api/media/upload?chunk=1", {
-    body: form,
-    method: "POST",
+  const url = "http://admin.test/api/media/upload?chunk=1";
+  // Bun leaves content-length unset on a Request; a browser always sends it.
+  const length = (
+    await new Request(url, { body: form, method: "POST" }).arrayBuffer()
+  ).byteLength;
+  const headers = new Headers({
+    "content-length": String(length),
+    "sec-fetch-site": "same-origin",
+    "x-biso-upload": "1",
   });
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === null) {
+      headers.delete(name);
+    } else {
+      headers.set(name, value);
+    }
+  }
+  return new Request(url, { body: form, headers, method: "POST" });
 }
 
 const PODCAST = {
@@ -95,12 +135,18 @@ const PODCAST = {
   total: String(TOTAL),
 };
 
-function first(overrides: Record<string, string | Blob> = {}): Request {
-  return chunkRequest({
-    chunk: new Blob([new Uint8Array(CHUNK)]),
-    ...PODCAST,
-    ...overrides,
-  });
+function first(
+  overrides: Record<string, string | Blob> = {},
+  headers: Record<string, string | null> = {}
+): Promise<Request> {
+  return chunkRequest(
+    {
+      chunk: new Blob([new Uint8Array(CHUNK)]),
+      ...PODCAST,
+      ...overrides,
+    },
+    headers
+  );
 }
 
 function next(
@@ -108,7 +154,7 @@ function next(
   start: number,
   end: number,
   overrides: Record<string, string | Blob> = {}
-): Request {
+): Promise<Request> {
   return chunkRequest({
     chunk: new Blob([new Uint8Array(end - start + 1)]),
     ...PODCAST,
@@ -120,20 +166,24 @@ function next(
   });
 }
 
-async function expectRefused(request: Request, status: number) {
-  const before = forwardChunk.mock.calls.length;
-  expect((await POST(request)).status).toBe(status);
-  expect(forwardChunk.mock.calls.length).toBe(before);
+async function expectRefused(request: Promise<Request>, status: number) {
+  const forwarded = forwardChunk.mock.calls.length;
+  const audited = createRow.mock.calls.length;
+  expect((await POST(await request)).status).toBe(status);
+  expect(forwardChunk.mock.calls.length).toBe(forwarded);
+  expect(createRow.mock.calls.length).toBe(audited);
   expect(createFile).not.toHaveBeenCalled();
 }
 
 test("a 3-chunk audio upload answers with the inline media shape", async () => {
-  const upload = (await (await POST(first())).json()) as {
+  const upload = (await (await POST(await first())).json()) as {
     fileId: string;
     token: string;
   };
-  expect((await POST(next(upload, CHUNK, 2 * CHUNK - 1))).status).toBe(200);
-  const last = await POST(next(upload, 2 * CHUNK, TOTAL - 1));
+  expect((await POST(await next(upload, CHUNK, 2 * CHUNK - 1))).status).toBe(
+    200
+  );
+  const last = await POST(await next(upload, 2 * CHUNK, TOTAL - 1));
 
   expect(last.status).toBe(200);
   expect(await last.json()).toEqual({
@@ -177,7 +227,9 @@ test("refuses a total over 250 MB", async () => {
 });
 
 test("refuses a forged token", async () => {
-  const upload = (await (await POST(first())).json()) as { fileId: string };
+  const upload = (await (await POST(await first())).json()) as {
+    fileId: string;
+  };
   await expectRefused(
     next(
       { fileId: upload.fileId, token: `9999999999999.${"A".repeat(43)}` },
@@ -190,7 +242,7 @@ test("refuses a forged token", async () => {
 
 test("refuses a MIME that changes mid-upload", async () => {
   const video = { filename: "clip.mp4", mime: "video/mp4" };
-  const upload = (await (await POST(first(video))).json()) as {
+  const upload = (await (await POST(await first(video))).json()) as {
     fileId: string;
     token: string;
   };
@@ -198,4 +250,30 @@ test("refuses a MIME that changes mid-upload", async () => {
     next(upload, CHUNK, 2 * CHUNK - 1, { ...video, mime: "audio/mp4" }),
     403
   );
+});
+
+test("refuses a chunk from another site", async () => {
+  await expectRefused(first({}, { "x-biso-upload": null }), 403);
+  await expectRefused(first({}, { "sec-fetch-site": "cross-site" }), 403);
+  await expectRefused(
+    first({}, { origin: "https://evil.test", "sec-fetch-site": null }),
+    403
+  );
+});
+
+test("requires a valid content-length", async () => {
+  await expectRefused(first({}, { "content-length": null }), 411);
+});
+
+test("records who opened the upload and schedules the sweep", async () => {
+  const upload = (await (await POST(await first())).json()) as {
+    fileId: string;
+  };
+  expect(createRow).toHaveBeenCalledTimes(1);
+  expect(createRow.mock.calls[0]?.[3]).toMatchObject({
+    action: "media.chunked_upload.start",
+    actor_id: "user-1",
+    resource_id: upload.fileId,
+  });
+  expect(afterTasks).toHaveLength(1);
 });

@@ -3,12 +3,15 @@ import { InputFile } from "@repo/api/file";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
+import type { UserAuthContext } from "@/lib/authorization";
 import { handleChunkedUpload, isChunkRequest } from "@/lib/chunked-upload";
 import {
   allowsChunkedUpload,
   DEFAULT_UPLOAD_BUCKET,
   decodeUploadFilename,
+  filenameMatchesMime,
   maxBytesForMime,
+  readContentLength,
   resolveUploadBucket,
   resolveUploadMimeType,
   sanitizeUploadFilename,
@@ -41,7 +44,7 @@ function tooLarge(maxBytes: number) {
 function chunkedUpload(
   request: Request,
   bucket: UploadBucketConfig,
-  userId: string
+  ctx: UserAuthContext
 ): Promise<Response> | Response {
   if (!allowsChunkedUpload(bucket)) {
     return NextResponse.json(
@@ -51,11 +54,16 @@ function chunkedUpload(
   }
   return handleChunkedUpload(request, {
     complete: ({ fileId, url }) => NextResponse.json({ fileId, url }),
+    ctx,
     policy: {
       bucketId: bucket.id,
-      limitFor: (mime) => maxBytesForMime(bucket, mime),
+      // The name must agree with the type, or a `.zip` declared as
+      // `video/mp4` would get the video limit.
+      limitFor: (mime, filename) =>
+        filenameMatchesMime(filename, mime)
+          ? maxBytesForMime(bucket, mime)
+          : null,
     },
-    userId,
   });
 }
 
@@ -75,12 +83,18 @@ export async function POST(request: Request) {
   }
 
   if (isChunkRequest(request)) {
-    return chunkedUpload(request, bucket, auth.ctx.userId);
+    return chunkedUpload(request, bucket, auth.ctx);
   }
 
   // The largest limit of any type bounds the body; the type's own limit
   // applies once it is known.
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  const contentLength = readContentLength(request.headers);
+  if (contentLength === null) {
+    return NextResponse.json(
+      { error: "Content-Length required" },
+      { status: 411 }
+    );
+  }
   if (contentLength > bucket.maxBytes) {
     return tooLarge(bucket.maxBytes);
   }

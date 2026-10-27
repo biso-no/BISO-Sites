@@ -126,8 +126,8 @@ export async function POST(request: Request): Promise<Response> {
     }
     return await handleChunkedUpload(request, {
       complete: completedInlineMedia,
+      ctx: auth.ctx,
       policy: INLINE_MEDIA_CHUNK_POLICY,
-      userId: auth.ctx.userId,
     });
   }
   return await handleInlineMediaUpload(request, {

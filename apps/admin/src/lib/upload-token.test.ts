@@ -1,10 +1,12 @@
-import { describe, expect, it } from "bun:test";
-import {
-  createUploadToken,
-  UPLOAD_TOKEN_TTL_MS,
-  type UploadTokenClaims,
-  verifyUploadToken,
-} from "./upload-token";
+import { afterEach, describe, expect, it, mock } from "bun:test";
+import type { UploadTokenClaims } from "./upload-token";
+
+// `./upload-token` starts with `import "server-only"`, which throws outside a
+// react-server build.
+mock.module("server-only", () => ({}));
+
+const { createUploadToken, UPLOAD_TOKEN_TTL_MS, verifyUploadToken } =
+  await import("./upload-token");
 
 const SECRET = "test-appwrite-api-key";
 const NOW = 1_800_000_000_000;
@@ -104,5 +106,39 @@ describe("upload tokens", () => {
     expect(() => createUploadToken(CLAIMS, { now: NOW, secret: "" })).toThrow(
       NAMES_THE_KEY
     );
+  });
+});
+
+describe("the upload token key", () => {
+  const saved = {
+    APPWRITE_API_KEY: process.env.APPWRITE_API_KEY,
+    APPWRITE_FUNCTION_API_KEY: process.env.APPWRITE_FUNCTION_API_KEY,
+  };
+  afterEach(() => {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        // Assigning undefined would store the string "undefined".
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  });
+
+  it("comes from the service key the admin client uses", () => {
+    process.env.APPWRITE_API_KEY = "service-key";
+    const token = createUploadToken(CLAIMS, { now: NOW });
+    expect(
+      verifyUploadToken(token, CLAIMS, { now: NOW, secret: "service-key" })
+    ).toBeTrue();
+  });
+
+  it("falls back to APPWRITE_FUNCTION_API_KEY like the admin client", () => {
+    process.env.APPWRITE_API_KEY = "";
+    process.env.APPWRITE_FUNCTION_API_KEY = "function-key";
+    const token = createUploadToken(CLAIMS, { now: NOW });
+    expect(
+      verifyUploadToken(token, CLAIMS, { now: NOW, secret: "function-key" })
+    ).toBeTrue();
   });
 });

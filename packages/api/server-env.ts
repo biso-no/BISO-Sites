@@ -1,8 +1,12 @@
 /**
  * Where the server clients reach Appwrite, and with which service key. Lives
  * outside `server.ts` because that file is `"use server"`, and so may export
- * only async functions; `storage-chunks.ts` needs the same values. Not a
- * package export: nothing outside `packages/api` should read the key.
+ * only async functions (and an exported sync key reader there would be a
+ * server action handing out the key). `storage-chunks.ts` and the admin's
+ * upload token (`@repo/api/server-env`) need the same values, so the key is
+ * resolved the same way everywhere. Server code only: in a browser bundle
+ * the key is simply undefined. No `server-only` marker here: `server.ts`
+ * imports this file, and tests across the apps load `server.ts` as is.
  */
 
 /**

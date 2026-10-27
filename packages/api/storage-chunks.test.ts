@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+// `./storage-chunks` opens with `import "server-only"`, which throws outside a
+// react-server build.
+vi.mock("server-only", () => ({}));
+
 const ENDPOINT = "https://appwrite.test/v1";
 const PROJECT = "test-project";
 const API_KEY = "test-api-key";
