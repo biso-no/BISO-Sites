@@ -31,7 +31,6 @@ import {
   syncSharedMeta,
   withDepartmentTheme,
   withoutDroppedTheme,
-  withoutPageTheme,
   withStoredMeta,
 } from "./initial-documents";
 
@@ -102,6 +101,11 @@ export function PageEditorClient({
   });
   const documentsRef = useRef(documents);
   documentsRef.current = documents;
+  // The theme storage holds, as far as this tab knows: the page's as it
+  // loaded, then each stored save's. It is the theme a publish copies.
+  const storedThemeRef = useRef<PageDoc["meta"]["theme"]>(
+    initialPage ? documents[initialLocale]?.meta.theme : undefined
+  );
 
   const activeDoc =
     documents[activeLocale] ??
@@ -183,6 +187,7 @@ export function PageEditorClient({
       slug: result.slug,
       themeDropped: result.themeDropped,
     };
+    storedThemeRef.current = result.themeDropped ? undefined : doc.meta.theme;
     setDocuments((current) => {
       const next = withStoredMeta(
         current,
@@ -370,9 +375,13 @@ export function PageEditorClient({
     // language is this tab's copy saved, then the publish tried once more: a
     // translation created meanwhile (by auto-translate or another tab) must
     // never be replaced by the blank copy this tab still shows.
+    // The theme the publish copies to the department is the stored one; a
+    // theme picked while it is on its way is not part of it.
+    let publishedTheme = storedThemeRef.current;
     let result = await publishOnce(id, locale);
     if (result.missingTranslation) {
       await saveLocaleForPublish(locale);
+      publishedTheme = storedThemeRef.current;
       result = await publishOnce(id, locale);
     }
     if (result.missingTranslation) {
@@ -380,6 +389,10 @@ export function PageEditorClient({
       throw new Error(SAVE_LOCALE_FIRST);
     }
     const published = result;
+    if (published.themeCopied) {
+      // The server stripped the theme from every stored draft.
+      storedThemeRef.current = undefined;
+    }
     setDocuments((current) => {
       const doc = current[locale];
       const next = doc
@@ -388,8 +401,12 @@ export function PageEditorClient({
             [locale]: { ...doc, meta: { ...doc.meta, status: "published" } },
           }
         : current;
-      // The department owns the theme now; no locale may save it back.
-      return published.themeCopied ? withoutPageTheme(next) : next;
+      // The department owns the published theme now; no locale may save it
+      // back. One picked while the publish was on its way stays, and the
+      // editor saves it again after the server's strip.
+      return published.themeCopied
+        ? withoutDroppedTheme(next, locale, publishedTheme)
+        : next;
     });
     setDepartmentList((current) =>
       withDepartmentTheme(current, published.departmentTheme)

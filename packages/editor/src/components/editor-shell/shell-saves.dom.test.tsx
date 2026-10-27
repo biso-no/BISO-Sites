@@ -629,3 +629,57 @@ test("a save that finishes after the editor closed leaves the shared store alone
   expect(state.doc.meta.slug).toBe("test");
   expect(state.doc.meta.theme).toEqual(GOOD);
 });
+
+test("a theme picked while a publish that copies the stored one is on its way survives it", async () => {
+  // T is stored and published; U is picked before the publish answers. The
+  // server copies T to the department and strips the theme from the stored
+  // drafts, so U is kept here and saved once more after the publish.
+  const saves: PageDoc[] = [];
+  let finish: (outcome: PublishOutcome) => void = () => undefined;
+  const { host } = mount({
+    onPublish: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    savePage: (d) => {
+      saves.push(d);
+      return Promise.resolve(undefined);
+    },
+  });
+  act(() => useEditorStore.getState().setTheme(GOOD));
+  await wait(SAVE_WAIT_MS);
+  await act(async () => {
+    publishButton(host).click();
+    await new Promise((r) => setTimeout(r, 10));
+  });
+  act(() => useEditorStore.getState().setTheme(U));
+  await act(async () => {
+    finish({ themeCopied: true });
+    await new Promise((r) => setTimeout(r, 10));
+  });
+
+  expect(useEditorStore.getState().doc.meta.status).toBe("published");
+  expect(useEditorStore.getState().doc.meta.theme).toEqual(U);
+  await wait(SAVE_WAIT_MS);
+  expect(saves.map((d) => d.meta.theme ?? "absent")).toEqual([GOOD, U]);
+});
+
+test("a publish that copies the theme the page still shows drops it, with no save", async () => {
+  const saves: PageDoc[] = [];
+  const { host } = mount({
+    onPublish: () => Promise.resolve({ themeCopied: true }),
+    savePage: (d) => {
+      saves.push(d);
+      return Promise.resolve(undefined);
+    },
+  });
+  act(() => useEditorStore.getState().setTheme(GOOD));
+  await wait(SAVE_WAIT_MS);
+  await act(async () => {
+    publishButton(host).click();
+    await new Promise((r) => setTimeout(r, 20));
+  });
+  expect("theme" in useEditorStore.getState().doc.meta).toBe(false);
+  await wait(SAVE_WAIT_MS);
+  expect(saves.length).toBe(1);
+});

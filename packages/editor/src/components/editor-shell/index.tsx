@@ -14,6 +14,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { sameTheme } from "@repo/shared/utils/page-theme";
 import {
   type ReactNode,
   type Ref,
@@ -36,6 +37,7 @@ import type {
   EditorLocale,
   EditorLocaleOption,
   PageDoc,
+  PageMeta,
   PublishOutcome,
   StoredMeta,
 } from "@/editor/types";
@@ -353,6 +355,92 @@ export function EditorShell({
   const correctStoredDocRef = useRef(correctStoredDoc);
   correctStoredDocRef.current = correctStoredDoc;
 
+  // The theme storage holds, as far as this tab knows: the page's as it
+  // loaded, then each stored save's. It is the theme a publish copies.
+  const storedThemeRef = useRef<PageMeta["theme"]>(undefined);
+  // What the publish on its way copies, taken once its pending edits are
+  // stored: a theme picked after that is not part of it.
+  const publishedThemeRef = useRef<PageMeta["theme"]>(undefined);
+
+  /** One autosave of `docSnapshot`, for `localeSnapshot`. */
+  function createSave(
+    docSnapshot: PageDoc,
+    localeSnapshot: EditorLocale,
+    savePageSnapshot: SaveTo
+  ): SaveRun {
+    return async (saveTo = savePageSnapshot) => {
+      let result: StoredMeta | undefined;
+      try {
+        result = await saveTo(docSnapshot, localeSnapshot);
+      } catch (error) {
+        console.error("[EditorShell autosave]", error);
+        return false;
+      }
+      storedThemeRef.current = result?.themeDropped
+        ? undefined
+        : docSnapshot.meta.theme;
+      // Only into the locale it was saved for: a save flushed by a locale
+      // switch resolves while the store holds the other locale. The stored
+      // slug and department replace what was sent, with no undo step.
+      if (
+        result &&
+        mountedRef.current &&
+        localeRef.current === localeSnapshot
+      ) {
+        const stored = result;
+        const sent = {
+          department: docSnapshot.meta.department,
+          slug: docSnapshot.meta.slug,
+        };
+        correctStoredDocRef.current(() => {
+          const store = useEditorStore.getState();
+          store.adoptStoredMeta(sent, stored);
+          // The department already has the theme this save sent: leave the
+          // page, with no undo step, as a publish that copied it does. Only
+          // while the page still holds that theme; one picked since stays.
+          if (stored.themeDropped) {
+            store.dropPageTheme(docSnapshot.meta.theme);
+          }
+        }, autosaveSignature(useEditorStore.getState().doc) ===
+          autosaveSignature(docSnapshot));
+      }
+      return true;
+    };
+  }
+  const createSaveRef = useRef(createSave);
+  createSaveRef.current = createSave;
+
+  /**
+   * After a publish copied `published` to the department, the server has
+   * stripped the theme from every stored draft. The page drops `published`
+   * too; a theme picked while the publish was on its way stays, and is
+   * saved once more now, since its own save may have landed before the
+   * strip.
+   */
+  function afterThemeCopied(published: PageMeta["theme"]) {
+    storedThemeRef.current = undefined;
+    const { doc: current, saving } = useEditorStore.getState();
+    const kept =
+      current.meta.theme !== undefined &&
+      !sameTheme(current.meta.theme, published);
+    correctStoredDocRef.current(
+      () => useEditorStore.getState().dropPageTheme(published),
+      !kept && (saving === "idle" || saving === "saved")
+    );
+    if (!kept || themeBlocksSave(current.meta)) {
+      return;
+    }
+    const locale = localeRef.current;
+    setSaving("pending");
+    pendingSaves.schedule(
+      locale,
+      createSaveRef.current(current, locale, savePageRef.current),
+      0
+    );
+  }
+  const afterThemeCopiedRef = useRef(afterThemeCopied);
+  afterThemeCopiedRef.current = afterThemeCopied;
+
   // Mirror a publish/unpublish into the store, or the next autosave writes
   // the stale status back and undoes it. A theme the publish copied to the
   // department leaves the page the same way: nothing unsaved means the store
@@ -372,6 +460,7 @@ export function EditorShell({
                   onPublishSaveFailed?.();
                   throw err;
                 }
+                publishedThemeRef.current = storedThemeRef.current;
                 return onPublish(locale);
               }),
             () => useEditorStore.getState().doc.meta
@@ -379,15 +468,7 @@ export function EditorShell({
           onUnpublish,
         },
         setStatus,
-        () => {
-          const { doc: current, saving } = useEditorStore.getState();
-          // The server stripped the theme from every stored draft, so the
-          // page drops the one it shows.
-          correctStoredDocRef.current(
-            () => useEditorStore.getState().dropPageTheme(current.meta.theme),
-            saving === "idle" || saving === "saved"
-          );
-        }
+        () => afterThemeCopiedRef.current(publishedThemeRef.current)
       ),
     [flushPendingSave, onPublish, onPublishSaveFailed, onUnpublish, setStatus]
   );
@@ -403,6 +484,10 @@ export function EditorShell({
     // the document, which would otherwise cancel that save.
     pendingSaves.start();
 
+    if (hydratedLocaleRef.current === null) {
+      // The page as it loaded is what storage holds.
+      storedThemeRef.current = initial.meta.theme;
+    }
     hydratedLocaleRef.current = activeLocale;
     setDoc(initial);
     hydratedRef.current = {
@@ -445,41 +530,11 @@ export function EditorShell({
     }
     hydrated.changed = true;
 
-    const save: SaveRun = async (saveTo = savePageSnapshot) => {
-      let result: StoredMeta | undefined;
-      try {
-        result = await saveTo(docSnapshot, localeSnapshot);
-      } catch (error) {
-        console.error("[EditorShell autosave]", error);
-        return false;
-      }
-      // Only into the locale it was saved for: a save flushed by a locale
-      // switch resolves while the store holds the other locale. The stored
-      // slug and department replace what was sent, with no undo step.
-      if (
-        result &&
-        mountedRef.current &&
-        localeRef.current === localeSnapshot
-      ) {
-        const stored = result;
-        const sent = {
-          department: docSnapshot.meta.department,
-          slug: docSnapshot.meta.slug,
-        };
-        correctStoredDocRef.current(() => {
-          const store = useEditorStore.getState();
-          store.adoptStoredMeta(sent, stored);
-          // The department already has the theme this save sent: leave the
-          // page, with no undo step, as a publish that copied it does. Only
-          // while the page still holds that theme; one picked since stays.
-          if (stored.themeDropped) {
-            store.dropPageTheme(docSnapshot.meta.theme);
-          }
-        }, autosaveSignature(useEditorStore.getState().doc) ===
-          autosaveSignature(docSnapshot));
-      }
-      return true;
-    };
+    const save = createSaveRef.current(
+      docSnapshot,
+      localeSnapshot,
+      savePageSnapshot
+    );
     setSaving("pending");
     pendingSaves.schedule(localeSnapshot, save, DEBOUNCE_MS);
   }, [_docSignature, pendingSaves, setSaving]);

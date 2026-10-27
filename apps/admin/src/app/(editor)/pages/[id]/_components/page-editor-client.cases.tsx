@@ -152,7 +152,10 @@ const NORWEGIAN_ONLY = {
   },
 } as unknown as PageEditorLoadResult;
 
-function mount(page: PageEditorLoadResult | null) {
+function mount(
+  page: PageEditorLoadResult | null,
+  departments: ShellProps["departments"] = []
+) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -163,7 +166,7 @@ function mount(page: PageEditorLoadResult | null) {
         availableLocales={["no", "en"]}
         campuses={[]}
         defaultCampusId="campus-oslo"
-        departments={[]}
+        departments={departments}
         initialLocale="no"
         initialPage={page}
         pageId={page ? page.page.id : null}
@@ -610,4 +613,48 @@ test("a themeDropped answer about an older save leaves a theme picked since", as
   });
 
   expect(props().initial?.meta.theme).toEqual(U);
+});
+
+test("a theme picked while a publish that copies the stored one is on its way survives it", async () => {
+  const T = { accent: "#fecd45", dark: "#2a0a4a" };
+  const U = { accent: "#fecd45", dark: "#0b3d2e" };
+  const themed = (theme: typeof T): PageDoc => ({
+    ...DOC_NO,
+    meta: { ...DOC_NO.meta, department: "dept-1", theme },
+  });
+  let finish: () => void = () => undefined;
+  publishPageAction.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = () =>
+          resolve({
+            ...PUBLISHED,
+            departmentTheme: { id: "dept-1", theme: T },
+            missingTranslation: false,
+            themeCopied: true,
+          });
+      })
+  );
+  mount(NORWEGIAN_ONLY, [
+    { campusId: "campus-oslo", id: "dept-1", name: "Fadderullan", theme: null },
+  ]);
+  act(() => props().onDocChange?.(themed(T), "no"));
+  await act(async () => {
+    await props().savePage(themed(T), "no");
+  });
+
+  let publish: Promise<unknown> = Promise.resolve();
+  await act(async () => {
+    publish = props().onPublish?.("no") ?? Promise.resolve();
+    await new Promise((r) => setTimeout(r, 10));
+  });
+  // U is picked while the publish of T is on its way.
+  act(() => props().onDocChange?.(themed(U), "no"));
+  await act(async () => {
+    finish();
+    await publish;
+  });
+
+  expect(props().initial?.meta.theme).toEqual(U);
+  expect(props().departments.find((d) => d.id === "dept-1")?.theme).toEqual(T);
 });
