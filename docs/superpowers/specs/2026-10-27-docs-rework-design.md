@@ -442,6 +442,8 @@ The builder gets everything it can from code, config and git. These need the
 owner, collected in one question session during stage 3:
 
 - how deploys are triggered now (the GitHub workflow was deleted 2026-09-17)
+- whether the Appwrite build has the full git history; without it, pages show
+  no last-updated date (added 2026-10-27 after the Stage 1 review)
 - the Appwrite server version, and where Appwrite and Infisical run and back up
 - who owns and pays for each outside account, and when each renews
 - the August board handover routine, and the BISO year's recurring jobs
@@ -456,7 +458,9 @@ sensitivity.
 
 - Give the administration leader emergency access to Infisical, and test it.
 - Assemble the emergency kit from the builder's list.
-- Create the docs Appwrite project for screenshots, with an API key.
+- Create the docs Appwrite project for screenshots, push the schema from
+  `packages/api/appwrite.config.json` to it, and create an API key. Then run
+  the seed and capture scripts as their README describes.
 - Create the Infisical folder and a read-only machine identity scoped to it.
 - Fill the folder from the builder's list of private values, then check every
   private block in final QA.
