@@ -1,6 +1,8 @@
 import { appendFileSync, readFileSync } from "node:fs";
+import { spawnSync } from "bun";
 import {
   findDeadGlobs,
+  findMalformed,
   findMissingCoverage,
   findStalePages,
 } from "./check";
@@ -9,9 +11,11 @@ import { readPages } from "./read-pages";
 const MAX_LISTED = 5;
 
 function git(...args: string[]): string {
-  const result = Bun.spawnSync(["git", ...args]);
+  const result = spawnSync(["git", ...args]);
   if (result.exitCode !== 0) {
-    throw new Error(`git ${args.join(" ")} failed: ${result.stderr.toString()}`);
+    throw new Error(
+      `git ${args.join(" ")} failed: ${result.stderr.toString()}`
+    );
   }
   return result.stdout.toString();
 }
@@ -30,7 +34,7 @@ function run(): void {
   }
   const changed = lines(readFileSync(changedPath, "utf8"));
   const repoRoot = git("rev-parse", "--show-toplevel").trim();
-  const repoFiles = lines(git("ls-files"));
+  const repoFiles = lines(git("-c", "core.quotepath=false", "ls-files"));
   const pages = readPages(repoRoot);
 
   const out: string[] = [];
@@ -39,7 +43,9 @@ function run(): void {
   for (const { page, files } of findStalePages(pages, changed)) {
     const shown = files.slice(0, MAX_LISTED).join(", ");
     const more =
-      files.length > MAX_LISTED ? `, and ${files.length - MAX_LISTED} more` : "";
+      files.length > MAX_LISTED
+        ? `, and ${files.length - MAX_LISTED} more`
+        : "";
     out.push(
       `::warning file=${page},title=Docs may be out of date::This PR changes code this page describes (${shown}${more}), but not the page. Check it's still accurate.`
     );
@@ -50,6 +56,12 @@ function run(): void {
       `::warning file=${page},title=Coverage glob matches nothing::'${glob}' matches no files. Fix or remove it.`
     );
     summary.push(`- \`${page}\`: glob \`${glob}\` matches no files`);
+  }
+  for (const page of findMalformed(pages)) {
+    out.push(
+      `::warning file=${page},title=Invalid covers list::'covers' must be a list of glob strings.`
+    );
+    summary.push(`- \`${page}\`: \`covers\` is not a list of glob strings`);
   }
   for (const page of findMissingCoverage(pages, changed)) {
     out.push(

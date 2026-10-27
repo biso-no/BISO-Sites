@@ -18,6 +18,6 @@ jobs:
         with:
           bun-version: 1.3.1
       - name: List changed files
-        run: git diff --name-only "origin/${{ github.base_ref }}...HEAD" > "$RUNNER_TEMP/changed.txt"
+        run: git -c core.quotepath=false diff --name-only "origin/${{ github.base_ref }}...HEAD" > "$RUNNER_TEMP/changed.txt"
       - name: Check docs coverage
-        run: bun apps/docs/scripts/coverage/cli.ts --changed "$RUNNER_TEMP/changed.txt"
+        run: bun apps/docs/scripts/page-coverage/cli.ts --changed "$RUNNER_TEMP/changed.txt"

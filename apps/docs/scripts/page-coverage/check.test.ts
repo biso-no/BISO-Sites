@@ -29,7 +29,10 @@ test("route folders match literally", () =>
 
 test("no warning when the page changed too", () =>
   expect(
-    findStalePages(pages, ["packages/shared/recruitment/apply.ts", pages[0].page])
+    findStalePages(pages, [
+      "packages/shared/recruitment/apply.ts",
+      pages[0].page,
+    ])
   ).toEqual([]));
 
 test("unrelated change", () =>
@@ -62,8 +65,25 @@ test("readPages reads covers from front matter", () => {
     writeFileSync(join(dir, "b.mdx"), "---\ntitle: B\n---\n\nBody\n");
     const result = readPages(root).sort((x, y) => x.page.localeCompare(y.page));
     expect(result).toEqual([
-      { page: "apps/docs/content/docs/guide/a.mdx", covers: ["packages/shared/**"] },
+      {
+        page: "apps/docs/content/docs/guide/a.mdx",
+        covers: ["packages/shared/**"],
+      },
       { page: "apps/docs/content/docs/guide/b.mdx", covers: null },
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("readPages flags a malformed covers value", () => {
+  const root = mkdtempSync(join(tmpdir(), "docs-coverage-"));
+  try {
+    const dir = join(root, "apps/docs/content/docs");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "c.mdx"), "---\ntitle: C\ncovers: nope\n---\n");
+    expect(readPages(root)).toEqual([
+      { page: "apps/docs/content/docs/c.mdx", covers: null, malformed: true },
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });

@@ -1,13 +1,16 @@
+import { Glob } from "bun";
 export interface PageCoverage {
-  page: string;
   covers: string[] | null;
+  /** `covers` is present but not a list of strings. */
+  malformed?: boolean;
+  page: string;
 }
 
 const BRACKET = /[[\]]/g;
 
 /** Build a glob where `[` and `]` match literally (Next route folders). */
-export function toGlob(pattern: string): Bun.Glob {
-  return new Bun.Glob(pattern.replace(BRACKET, (c) => `\\${c}`));
+export function toGlob(pattern: string): Glob {
+  return new Glob(pattern.replace(BRACKET, (c) => `\\${c}`));
 }
 
 export function findStalePages(
@@ -53,4 +56,8 @@ export function findMissingCoverage(
   return pages
     .filter(({ page, covers }) => covers === null && changedSet.has(page))
     .map(({ page }) => page);
+}
+
+export function findMalformed(pages: PageCoverage[]): string[] {
+  return pages.filter((p) => p.malformed).map((p) => p.page);
 }
