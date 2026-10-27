@@ -818,3 +818,68 @@ Branch `feat/page-editor-redesign`, plan
   removes the message.
 - Web `next build` and the standalone-server request (owed since stage 3) are
   still to run, once no dev server uses `apps/web`.
+
+## Stage 5 done (2026-10-27)
+
+Branch `feat/page-editor-redesign`, plan
+`docs/superpowers/plans/2026-10-23-page-editor-stage-5-publishing.md`, commits
+`31d669b9..` this note (Markus's a2671a0c, f9fc1a2d and ec08b638 landed in
+between and are not part of it).
+
+**Decisions made on 2026-10-27 (Markus)**
+
+- Winter Games stays a national project: its page is bound to the national
+  Wintergames unit so the board edits it, and the globaladmin "Create project
+  page" button offers it too (creating that same unit-bound page).
+- The `media` bucket is 250 MB (raised in the console). `appwrite.config.json`
+  now says 262144000; Markus pushes it.
+
+**What works**
+
+- `/projects/<slug>` renders a published editor page stored at
+  `projects/<slug>` when one exists, through the same pipeline as the
+  catch-all and unit pages (`renderPublishedEditorPage`), and the coded hub
+  otherwise. The page is served only when its stored slug is exactly
+  `projects/<slug>` (accent- and case-folded) and its department fits the
+  project: none for a hub, the national unit for Winter Games. The national
+  unit URL redirects there once that page exists (C3).
+- The admin owns the whole `projects/` prefix like `units/`. National
+  project units create their page at `projects/<project>`; hub pages
+  (Fadderullan, Karrieredagene, Bergensbaneløpet) are created, saved,
+  published, unpublished and archived by globaladmin only, and their campus
+  is pinned to none.
+- Publish, unpublish, archive and auto-translation refresh the website
+  through cache tags `pages` and `departments` (C5); the sitemap follows.
+- Unpublishing one language keeps the other live; the department dropdown
+  shows only departments the user can edit (C11).
+- Saves never undo work: Publish waits for a pending save; leaving the
+  editor starts it and prompts while one is pending, in flight, failed or
+  blocked; saves are serialised (one create, then updates, with the stored
+  slug); ordinary saves never change publish status (only Publish and
+  Unpublish do); a theme picked during a publish survives it; a stale tab
+  can't re-attach a moved theme; two tabs on different languages can't
+  overwrite each other's text.
+- Files over 5 MiB upload in 5 MiB chunks to `media` (up to 250 MB), bound
+  by an HMAC token to file, user, type, size and name, same-origin only, with
+  every body read under a byte cap; stale partial uploads are swept and every
+  upload is logged (C5a). Checked in production with one 32.8 MB clip
+  (uploaded, served as `video/mp4` at full length, deleted).
+- The copilot inserts sections and blocks into columns and sets or resets
+  the theme within the contrast rules; it sees the effective (department)
+  theme (C7).
+- Forms on members-only pages accept members; non-members get the same 404
+  the page shows them.
+- `bun run build` passes for admin and web; the standalone web server serves
+  pages, and sanitize-html is bundled into the server chunks.
+
+**Owed / known**
+
+- The copilot's tools are advisory: it can't see ids the browser creates
+  (it says "new" for the latest section) and doesn't hear about a rejected
+  placement.
+- The inline-media route allows 250 MB for every file kind (Markus's
+  a2671a0c); consider per-kind caps. Upload progress is not shown.
+- The Appwrite Sites request-size limit was not exercised through the Sites
+  proxy (the production check called the forwarder directly).
+- Undo can bring back a theme the department already holds; the next save
+  drops it again.
