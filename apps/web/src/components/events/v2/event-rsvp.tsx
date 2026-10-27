@@ -22,7 +22,7 @@ const ANSWERS: {
 ];
 
 const buttonBase =
-  "type-label flex-1 rounded-biso-sm px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-60";
+  "type-label flex-1 rounded-biso-sm border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-60";
 
 /**
  * Going / Maybe / Not going on the event's action card.
@@ -77,9 +77,14 @@ export function EventRsvp({
   const title = t("rsvp.title");
   const parts = rsvpCountParts(summary.counts);
 
+  const showTitle = !signedIn || canRespond;
+  if (!(showTitle || parts.length > 0 || hasTicket)) {
+    return null;
+  }
+
   return (
     <div className="mt-5">
-      <p className="type-label text-ink-muted">{title}</p>
+      {showTitle ? <p className="type-label text-ink-muted">{title}</p> : null}
 
       {canRespond ? (
         <fieldset
@@ -93,8 +98,8 @@ export function EventRsvp({
                 aria-pressed={selected}
                 className={`${buttonBase} ${
                   selected
-                    ? "bg-action text-action-ink"
-                    : "border border-edge text-ink"
+                    ? "border-transparent bg-action text-action-ink"
+                    : "border-edge text-ink hover:border-ink-accent hover:text-ink"
                 }`}
                 disabled={pending}
                 key={status}

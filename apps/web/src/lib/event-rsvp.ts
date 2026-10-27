@@ -5,6 +5,7 @@ import {
   type EventRsvpSummary,
   readEventRsvp,
 } from "@repo/shared/utils/event-rsvp";
+import { unstable_rethrow } from "next/navigation";
 import { getLoggedInUser } from "@/lib/actions/user";
 
 const DATABASE_ID = "app";
@@ -42,6 +43,7 @@ export async function readEventRsvpForViewer(
     });
     return { signedIn, summary };
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Error reading event RSVP:", error);
     return { signedIn, summary: null };
   }

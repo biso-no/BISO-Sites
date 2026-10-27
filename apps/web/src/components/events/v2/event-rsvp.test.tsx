@@ -59,6 +59,17 @@ describe("EventRsvp", () => {
     expect(html).toContain("rsvp.goingCount2");
   });
 
+  it("non-member sees no title, and nothing at all without counts", () => {
+    const withCounts = render({ canRespond: false, signedIn: true });
+    expect(withCounts).not.toContain("rsvp.title");
+    const empty = render({
+      canRespond: false,
+      initial: summary({ counts: { going: 0, maybe: 0 } }),
+      signedIn: true,
+    });
+    expect(empty).toBe("");
+  });
+
   it("ticket hint only on ticketed events", () => {
     expect(render({ hasTicket: true })).toContain("rsvp.ticketHint");
     expect(render({ hasTicket: false })).not.toContain("rsvp.ticketHint");
