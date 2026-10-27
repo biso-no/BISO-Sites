@@ -21,7 +21,7 @@ export function Screenshot({
 }: ScreenshotProps) {
   return (
     <figure className="not-prose my-6">
-      <div className="border border-line bg-surface-sunken">
+      <div className="border border-edge bg-surface-sunken">
         <Image
           alt={alt}
           className="block h-auto w-full"

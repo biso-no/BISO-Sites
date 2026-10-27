@@ -16,6 +16,46 @@ export function Mermaid({ chart }: { chart: string }) {
   return <MermaidContent chart={chart} />;
 }
 
+/**
+ * Diagram colours from the BISO palette. On paper, lines and borders are the
+ * action blue (sky is for navy only); on navy, they are sky. Sun is a marker,
+ * so it only ever draws a border, never text.
+ */
+const MERMAID_THEME = {
+  light: {
+    primaryColor: "#eef1f5",
+    primaryTextColor: "#001a35",
+    primaryBorderColor: "#1668ae",
+    lineColor: "#1668ae",
+    secondaryColor: "#f7f9fb",
+    tertiaryColor: "#ffffff",
+    mainBkg: "#ffffff",
+    nodeBorder: "#1668ae",
+    clusterBkg: "#f7f9fb",
+    clusterBorder: "#e8ecf0",
+    titleColor: "#001a35",
+    edgeLabelBackground: "#ffffff",
+    tertiaryTextColor: "#001a35",
+    tertiaryBorderColor: "#fecd45",
+  },
+  dark: {
+    primaryColor: "#0b2747",
+    primaryTextColor: "#ffffff",
+    primaryBorderColor: "#3aa3e1",
+    lineColor: "#3aa3e1",
+    secondaryColor: "#001a35",
+    tertiaryColor: "#00142a",
+    mainBkg: "#0b2747",
+    nodeBorder: "#3aa3e1",
+    clusterBkg: "#001a35",
+    clusterBorder: "#12314f",
+    titleColor: "#ffffff",
+    edgeLabelBackground: "#00142a",
+    tertiaryTextColor: "#93a7bb",
+    tertiaryBorderColor: "#fecd45",
+  },
+} as const;
+
 const cache = new Map<string, Promise<unknown>>();
 
 function cachePromise<T>(
@@ -44,27 +84,8 @@ function MermaidContent({ chart }: { chart: string }) {
     securityLevel: "loose",
     fontFamily: "var(--font-museo), ui-sans-serif, system-ui",
     theme: "base",
-    themeVariables: {
-      /* BISO brand palette: blue #3DA9E0, navy #001731, yellow #F7D64A */
-      primaryColor: resolvedTheme === "dark" ? "#1a3a5c" : "#dbeeff",
-      primaryTextColor: resolvedTheme === "dark" ? "#e0f2fe" : "#001731",
-      primaryBorderColor: resolvedTheme === "dark" ? "#3DA9E0" : "#3DA9E0",
-      lineColor: resolvedTheme === "dark" ? "#3DA9E0" : "#0077b6",
-      secondaryColor: resolvedTheme === "dark" ? "#0d2235" : "#f0f9ff",
-      tertiaryColor: resolvedTheme === "dark" ? "#001731" : "#ffffff",
-      mainBkg: resolvedTheme === "dark" ? "#0d2235" : "#ffffff",
-      nodeBorder: resolvedTheme === "dark" ? "#3DA9E0" : "#93c5fd",
-      clusterBkg:
-        resolvedTheme === "dark"
-          ? "rgba(0, 23, 49, 0.6)"
-          : "rgba(219, 238, 255, 0.5)",
-      clusterBorder: resolvedTheme === "dark" ? "#3DA9E0" : "#93c5fd",
-      titleColor: resolvedTheme === "dark" ? "#7dd3fc" : "#0077b6",
-      edgeLabelBackground: resolvedTheme === "dark" ? "#001731" : "#f0f9ff",
-      /* Accent nodes use BISO yellow */
-      tertiaryTextColor: resolvedTheme === "dark" ? "#F7D64A" : "#92620d",
-      tertiaryBorderColor: resolvedTheme === "dark" ? "#F7D64A" : "#f7d64a",
-    },
+    themeVariables:
+      resolvedTheme === "dark" ? MERMAID_THEME.dark : MERMAID_THEME.light,
   });
 
   const { svg, bindFunctions } = use(

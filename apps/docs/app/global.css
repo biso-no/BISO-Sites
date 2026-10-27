@@ -20,14 +20,14 @@
   --color-fd-card-foreground: var(--biso-ink);
   --color-fd-popover: var(--biso-paper);
   --color-fd-popover-foreground: var(--biso-ink);
-  --color-fd-muted: #eef1f5;
-  --color-fd-muted-foreground: #526475;
-  --color-fd-secondary: #eef1f5;
+  --color-fd-muted: var(--surface-sunken);
+  --color-fd-muted-foreground: var(--ink-muted);
+  --color-fd-secondary: var(--surface-sunken);
   --color-fd-secondary-foreground: var(--biso-ink);
   --color-fd-border: var(--biso-line);
   --color-fd-primary: var(--biso-blue);
   --color-fd-primary-foreground: var(--biso-paper);
-  --color-fd-accent: #eef1f5;
+  --color-fd-accent: var(--surface-sunken);
   --color-fd-accent-foreground: var(--biso-ink);
   --color-fd-ring: var(--biso-blue);
 
@@ -84,6 +84,28 @@
 }
 
 /*
+ * No backdrop blur anywhere (the brand has none). Fumadocs puts it on its
+ * header, the "On this page" bar, popovers, the search and drawer overlays and
+ * the code copy button; the surfaces that relied on it are made opaque below.
+ */
+*,
+::before,
+::after,
+::backdrop {
+  backdrop-filter: none;
+}
+
+/* The "On this page" bar under the header on narrow screens. */
+[data-toc-popover] > header {
+  background-color: var(--color-fd-background);
+}
+
+/* Popover panels (Fumadocs renders them at 60% opacity). */
+[data-radix-popper-content-wrapper] > [data-state] {
+  background-color: var(--color-fd-popover);
+}
+
+/*
  * The header bar: navy in both themes, like the site's own top bar. Fumadocs
  * renders it as `#nd-subnav`; its colour tokens are re-pointed inside it so
  * the title, links, search field and theme switch all read as on-navy.
@@ -100,7 +122,6 @@
   --color-fd-border: var(--biso-deep-edge);
   color: #ffffff;
   background-color: var(--biso-deep);
-  backdrop-filter: none;
 }
 
 #nd-subnav [data-header-body] {
@@ -139,13 +160,17 @@
   --color-fd-muted-foreground: var(--biso-deep-ink-muted);
 }
 
-/* Group headings (folders and separators) are bold ink. */
-#nd-sidebar button[data-state],
-#nd-sidebar a:has(> svg[data-icon]),
-#nd-sidebar p,
-#nd-sidebar-mobile button[data-state],
-#nd-sidebar-mobile a:has(> svg[data-icon]),
-#nd-sidebar-mobile p {
+/*
+ * Group headings are bold ink. A folder renders as a Radix collapsible: its
+ * first child is the heading (a toggle button, a plain div when meta.json says
+ * `"collapsible": false`, or the folder's index link, which keeps the active
+ * style when it is the page you are on). A `---Separator---` is the tree's
+ * only paragraph.
+ */
+:is(#nd-sidebar, #nd-sidebar-mobile)
+  [data-state]:has(> [data-state][id])
+  > :first-child:not([data-active="true"]),
+:is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] p {
   font-weight: 700;
   color: var(--color-fd-foreground);
 }
@@ -169,6 +194,20 @@
 /* Article headings take the display face, Museo Slab. */
 #nd-page :is(h1, h2, h3) {
   font-family: var(--font-display);
+}
+
+/*
+ * A task panel's own heading ("Before you start", "What happens next") is its
+ * title: compact bold sans, not a display heading. It stays an MDX heading so
+ * it has an anchor and a line in "On this page".
+ */
+#nd-page [data-panel] :is(h2, h3) {
+  margin: 0 0 0.375rem;
+  font-family: var(--font-biso-sans);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: normal;
 }
 
 /* Museo Sans comes in 300 and 700 only, and the prose's 500 resolves to 300. */
