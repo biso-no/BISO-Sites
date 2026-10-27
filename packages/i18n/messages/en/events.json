@@ -146,5 +146,16 @@
     "joinOnline": "Join online",
     "tags": "Topics",
     "translationFallback": "This description is only available in English."
+  },
+  "rsvp": {
+    "title": "Are you going?",
+    "going": "Going",
+    "maybe": "Maybe",
+    "notGoing": "Not going",
+    "goingCount": "{count} going",
+    "maybeCount": "{count} maybe",
+    "signIn": "Sign in to respond",
+    "ticketHint": "Saying you're going doesn't get you a ticket.",
+    "saveFailed": "Couldn't save your answer. Try again."
   }
 }
