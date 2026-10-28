@@ -130,16 +130,22 @@ It warns on a PR. It never fails it. It warns when:
 
 Docs reuses the admin's Microsoft sign-in and only ever reads its session
 cookie (`lib/auth/viewer.ts`, exposed as `GET /api/viewer`, `no-store`). Docs
-never sets or clears cookies and never uses `createAdminClient`.
+never sets or clears cookies and never uses `createAdminClient`. With no
+session cookie at all, docs answers "signed out" without calling Appwrite.
 
-- `APPWRITE_SESSION_COOKIE=a_session_biso_admin` is required. Unset, the shared
-  client falls back to `a_session_biso`, which is Appwrite's own cookie, not
-  the admin's. Docs is read-only here, so there is no collision, but nobody
-  would be recognised.
+- `APPWRITE_SESSION_COOKIE=a_session_biso_admin` must be set. Unset, the
+  shared client reads `a_session_biso` instead. Old web sessions may have left
+  an `a_session_biso` cookie on `.biso.no` (see `apps/web/CLAUDE.md`), so docs
+  could treat such a visitor as signed in with no access, while real admins
+  would not be recognised.
 - Also needed: `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT`.
-- `NEXT_PUBLIC_ADMIN_URL` is the admin's origin, used for sign-in links.
+- `NEXT_PUBLIC_ADMIN_URL` is the admin's origin, used for sign-in links. It is
+  inlined at build time, so rebuild docs after changing it.
 - Locally the admin cookie is host-only on `localhost` and ignores ports, so
   docs on :3002 receives it after signing in on :3001.
+- Docs needs no Microsoft sign-in setup of its own, and no redirect URL for
+  docs.biso.no. The OAuth flow stays on the admin. Docs only makes
+  server-side GETs to Appwrite with the session it reads.
 
 ## Private details
 
@@ -166,9 +172,9 @@ with `<Private>`, and the reader's browser fetches the value after sign-in.
   "Your account doesn't have access to this.", or "This couldn't be loaded
   right now. Try again later."
 - Values are served only by `GET /api/private` (`no-store`) and never appear in
-  static HTML, the RSC payload or `llms-full.txt`. The search index is built
-  per request by `/api/search`, so the leak check does not scan it. Values stay
-  out of it by design, because they are never in page source.
+  static HTML, the RSC payload or `llms-full.txt`. The search index
+  (`/api/search`) is built at runtime on demand, so it isn't in the build
+  output. Private values stay out of it because they're never in page source.
 
 ### Who can see values
 
@@ -189,7 +195,10 @@ name (`sanitizeTeamId` in `apps/admin/src/lib/m365-sync.ts`), so
   cities are Oslo, Bergen, Stavanger and Trondheim (`CAMPUS_CITY_NAMES` in
   `@repo/shared/utils/team-roles`).
 - The `docs-handover` team. A global admin adds and removes consultants by
-  hand in the Appwrite console. Nothing is automatic.
+  hand in the Appwrite console. Nothing is automatic. To let a consultant in:
+  they sign in to the admin once with a Microsoft account the admin's sign-in
+  accepts, which creates their Appwrite account. Then a global admin adds
+  that account to `docs-handover`.
 - Nobody else, including plain department members, HR, and anyone whose team
   only has the right name.
 
@@ -202,11 +211,14 @@ Docs:
 
 - `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT`
 - `APPWRITE_SESSION_COOKIE=a_session_biso_admin`
-- `NEXT_PUBLIC_ADMIN_URL`: the admin's origin, for sign-in links
+- `NEXT_PUBLIC_ADMIN_URL`: the admin's origin, for sign-in links. Inlined at
+  build time, so rebuild docs after changing it.
 - `DOCS_PRIVATE_SOURCE`: `infisical`, `fake` or `none` (default `none`)
 - `INFISICAL_SITE_URL`, `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`,
   `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_SECRET_PATH`
 - `DOCS_PRIVATE_FAKE_FILE` and `DOCS_PRIVATE_ALLOW_FAKE`: fake source only
+
+`apps/docs/.env.example` lists these names without values.
 
 Admin:
 
@@ -215,6 +227,11 @@ Admin:
 
 In production the admin session cookie must be set on `.biso.no` and docs must
 run on a `*.biso.no` host, or the browser never sends the cookie to docs.
+
+Owner note: the admin sets that cookie on `.biso.no`
+(`apps/admin/src/app/(auth)/auth/oauth/route.ts`), so the browser sends every
+admin's session to every `*.biso.no` host. Only host first-party BISO sites on
+biso.no subdomains. Anything else there would receive admin sessions.
 
 ### Local development
 
@@ -233,9 +250,9 @@ declares no env vars. So `bun run dev --filter=docs` drops variables you set
 in the shell, such as `DOCS_PRIVATE_SOURCE` and `APPWRITE_SESSION_COOKIE`.
 Use one of these instead:
 
-- Put the vars in `apps/docs/.env.local`. Next.js reads that file itself, so
-  it works with `bun run dev --filter=docs` too. It is gitignored
-  (`.env*.local` in `apps/docs/.gitignore`).
+- Copy `apps/docs/.env.example` to `apps/docs/.env.local` and fill it in.
+  Next.js reads that file itself, so it works with `bun run dev --filter=docs`
+  too. It is gitignored (`.env*.local` in `apps/docs/.gitignore`).
 - Or run from inside `apps/docs`, which skips turbo:
 
   ```bash
@@ -277,7 +294,11 @@ These need the owner. Nothing here is done by code. Do them in this order.
    scoped to that folder. Put its details in the `INFISICAL_*` vars above.
 4. Set the docs Appwrite site env: the vars listed under Docs.
 5. Set `NEXT_PUBLIC_DOCS_URL` on the admin and rebuild the admin.
-6. Set `NEXT_PUBLIC_ADMIN_URL` on docs.
+6. Set `NEXT_PUBLIC_ADMIN_URL` on docs and rebuild docs.
+
+The spec also listed "set up the Microsoft sign-in for docs.biso.no (redirect
+URL)". That is not needed: sign-in happens on the admin, and docs only reads
+the admin's cookie.
 
 ### Leak check
 

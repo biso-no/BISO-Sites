@@ -101,6 +101,7 @@
       "name": "docs",
       "version": "0.0.0",
       "dependencies": {
+        "@repo/api": "workspace:*",
         "@repo/shared": "workspace:*",
         "@repo/ui": "workspace:*",
         "fumadocs-core": "catalog:",
@@ -115,7 +116,6 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@repo/api": "workspace:*",
         "@repo/typescript-config": "workspace:*",
         "@tailwindcss/postcss": "catalog:",
         "@types/bun": "catalog:",

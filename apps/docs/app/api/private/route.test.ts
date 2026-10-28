@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { Viewer } from "@/lib/auth/viewer";
 import { createPrivateHandler, parseNames } from "@/lib/private/handler";
 import type { PrivateValueSource } from "@/lib/private/types";
@@ -50,6 +50,39 @@ describe("GET /api/private", () => {
       state: "ok",
       values: { "account-owners": SECRET },
     });
+  });
+
+  it("logs the names (only) that the source has no value for", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const partial: PrivateValueSource = {
+        get: async () => ({ "account-owners": SECRET }),
+      };
+      const { handler } = setup(allowed, partial);
+      const res = await handler(request("account-owners,server-access"));
+      expect(await res.json()).toEqual({
+        state: "ok",
+        values: { "account-owners": SECRET },
+      });
+      expect(warn).toHaveBeenCalledTimes(1);
+      const logged = warn.mock.calls.flat().join(" ");
+      expect(logged).toContain("server-access");
+      expect(logged).not.toContain("account-owners");
+      expect(logged).not.toContain(SECRET);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("logs nothing when every value is found", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const { handler } = setup(allowed, okSource);
+      await handler(request("account-owners,server-access"));
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("says signed-out without touching the source", async () => {

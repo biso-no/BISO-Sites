@@ -57,11 +57,21 @@ async function readValues(
   }
   const found = await source.get(names);
   const values: Partial<Record<PrivateName, string>> = {};
+  const missing: PrivateName[] = [];
   for (const name of names) {
     const value = found[name];
     if (typeof value === "string") {
       values[name] = value;
+    } else {
+      missing.push(name);
     }
+  }
+  if (missing.length > 0) {
+    // Names only, never values: lets owner QA tell a missing key from an
+    // outage, which shows up as "unavailable" instead.
+    console.warn(
+      `[docs] private source has no value for: ${missing.join(", ")}`
+    );
   }
   return { state: "ok", values };
 }

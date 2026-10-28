@@ -8,7 +8,7 @@
  * never uses the service-key client.
  */
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createSessionClient, getSessionSecret } from "@repo/api/server";
 import { type DocsAccess, docsAccessFromTeams } from "./access";
 
 export type Viewer =
@@ -16,13 +16,20 @@ export type Viewer =
   | { signedIn: true; name: string; access: DocsAccess };
 
 interface ViewerDeps {
+  /** True when the request carries a session cookie at all. */
+  hasSession: () => Promise<boolean>;
   loadAccount: () => Promise<{ name: string }>;
   loadTeams: () => Promise<{ $id: string; name: string }[]>;
 }
 
+// Appwrite's default page is 25 teams. 200 is far above what any staff member
+// belongs to, so access is never decided on a truncated list.
 const TEAM_LIMIT = 200;
 
 const defaultDeps: ViewerDeps = {
+  async hasSession() {
+    return Boolean(await getSessionSecret());
+  },
   async loadAccount() {
     const { account } = await createSessionClient();
     const { name } = await account.get();
@@ -38,6 +45,12 @@ const defaultDeps: ViewerDeps = {
 export async function getViewer(
   deps: ViewerDeps = defaultDeps
 ): Promise<Viewer> {
+  // No cookie means signed out. Don't spend an Appwrite call finding that out.
+  const hasSession = await deps.hasSession().catch(() => false);
+  if (!hasSession) {
+    return { signedIn: false };
+  }
+
   let name: string;
   try {
     ({ name } = await deps.loadAccount());

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createInfisicalSource } from "./infisical";
+import { createInfisicalSource, readInfisicalEnv } from "./infisical";
 import { PrivateSourceUnavailable } from "./types";
 
 const env = {
@@ -121,5 +121,26 @@ describe("createInfisicalSource", () => {
         (init?.method === "GET" && pathname === "/api/v4/secrets");
       expect(ok).toBe(true);
     }
+  });
+});
+
+describe("readInfisicalEnv", () => {
+  it("returns every setting when all are set", () => {
+    expect(readInfisicalEnv({ ...env, OTHER: "x" })).toEqual(env);
+  });
+
+  it("has no default secret path", () => {
+    expect(() =>
+      readInfisicalEnv({ ...env, INFISICAL_SECRET_PATH: undefined })
+    ).toThrow("INFISICAL_SECRET_PATH");
+    expect(() =>
+      readInfisicalEnv({ ...env, INFISICAL_SECRET_PATH: "" })
+    ).toThrow("INFISICAL_SECRET_PATH");
+  });
+
+  it("names every missing setting", () => {
+    expect(() => readInfisicalEnv({})).toThrow(
+      "INFISICAL_SITE_URL, INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID, INFISICAL_ENVIRONMENT, INFISICAL_SECRET_PATH"
+    );
   });
 });

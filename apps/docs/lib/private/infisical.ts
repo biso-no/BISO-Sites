@@ -23,20 +23,56 @@ const secretsSchema = z.object({
   ),
 });
 
+export const INFISICAL_ENV_VARS = [
+  "INFISICAL_SITE_URL",
+  "INFISICAL_CLIENT_ID",
+  "INFISICAL_CLIENT_SECRET",
+  "INFISICAL_PROJECT_ID",
+  "INFISICAL_ENVIRONMENT",
+  "INFISICAL_SECRET_PATH",
+] as const;
+
+/**
+ * Every Infisical setting, all required. There are no defaults: in particular
+ * no secret path, so a missing `INFISICAL_SECRET_PATH` can't silently read the
+ * project root.
+ */
+export type InfisicalEnv = Record<(typeof INFISICAL_ENV_VARS)[number], string>;
+
+/** Picks the Infisical settings out of `env`, naming any that are missing. */
+export function readInfisicalEnv(env: PrivateEnv): InfisicalEnv {
+  const config: Partial<InfisicalEnv> = {};
+  const missing: string[] = [];
+  for (const name of INFISICAL_ENV_VARS) {
+    const value = env[name];
+    if (value) {
+      config[name] = value;
+    } else {
+      missing.push(name);
+    }
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `DOCS_PRIVATE_SOURCE=infisical requires: ${missing.join(", ")}`
+    );
+  }
+  return config as InfisicalEnv;
+}
+
 export interface InfisicalOptions {
   now?: () => number;
   timeoutMs?: number;
 }
 
 export function createInfisicalSource(
-  env: PrivateEnv,
+  env: InfisicalEnv,
   fetchImpl: typeof fetch = fetch,
   { now = Date.now, timeoutMs = REQUEST_TIMEOUT_MS }: InfisicalOptions = {}
 ): PrivateValueSource {
   let token: { value: string; expires: number } | null = null;
   let values: { map: Map<string, string>; expires: number } | null = null;
 
-  const base = (env.INFISICAL_SITE_URL ?? "").replace(TRAILING_SLASHES, "");
+  const base = env.INFISICAL_SITE_URL.replace(TRAILING_SLASHES, "");
 
   async function request(url: string, init: RequestInit): Promise<unknown> {
     const res = await fetchImpl(url, {
@@ -86,9 +122,9 @@ export function createInfisicalSource(
   async function fetchAll(): Promise<Map<string, string>> {
     const accessToken = await login();
     const query = new URLSearchParams({
-      projectId: env.INFISICAL_PROJECT_ID ?? "",
-      environment: env.INFISICAL_ENVIRONMENT ?? "",
-      secretPath: env.INFISICAL_SECRET_PATH ?? "/",
+      projectId: env.INFISICAL_PROJECT_ID,
+      environment: env.INFISICAL_ENVIRONMENT,
+      secretPath: env.INFISICAL_SECRET_PATH,
       viewSecretValue: "true",
       expandSecretReferences: "true",
       includeImports: "false",

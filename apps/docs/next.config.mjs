@@ -12,6 +12,17 @@ const redirectRules = JSON.parse(
 
 const withMDX = createMDX();
 
+/**
+ * No site may frame docs. Private values render inside docs pages after
+ * sign-in, so a framing page could otherwise overlay or clickjack them.
+ * `frame-ancestors` is the modern control; `X-Frame-Options` covers old
+ * browsers.
+ */
+const NO_FRAMING_HEADERS = [
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+  { key: "X-Frame-Options", value: "DENY" },
+];
+
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
@@ -27,6 +38,11 @@ const config = {
   ],
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  headers() {
+    return Promise.resolve([
+      { source: "/:path*", headers: NO_FRAMING_HEADERS },
+    ]);
+  },
   redirects() {
     return Promise.resolve(
       redirectRules.map((rule) => ({ ...rule, permanent: false }))

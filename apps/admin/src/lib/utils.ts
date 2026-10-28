@@ -37,7 +37,7 @@ export const isProd =
 // C0 controls and DEL (tab, CR, LF among them): browsers strip tabs/newlines from URLs, so
 // "/\t/evil.com" would become "//evil.com".
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching them is the point
-const CONTROL_OR_SPACE = /[\u0000-\u001f\u007f]/;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
 const PLAIN_ABSOLUTE_URL = /^https?:\/\/[^\s\\@]*$/i;
 
@@ -62,11 +62,16 @@ function isDocsUrl(value: string): boolean {
  * absolute URLs on the docs origin (`NEXT_PUBLIC_DOCS_URL`).
  *
  * Accepts a `redirectTo` value from a query parameter (typically URL-encoded
- * once already) and returns either a safe relative path beginning with a
- * single "/" or the fallback "/". Rejects absolute URLs, protocol-relative
- * URLs ("//..."), backslash tricks ("/\..."), and anything that fails to
- * decode. Use this anywhere a user-controlled string is passed to
- * `redirect()` after login or callback.
+ * once already) and returns one of:
+ * - an absolute http(s) URL whose origin is exactly the docs origin (only
+ *   when `NEXT_PUBLIC_DOCS_URL` is set and valid), returned as given or
+ *   decoded;
+ * - a safe relative path beginning with a single "/";
+ * - the fallback "/".
+ * Rejects every other absolute URL, protocol-relative URLs ("//..."),
+ * backslash tricks ("/\..."), anything holding a control character, and
+ * anything that fails to decode. Use this anywhere a user-controlled string
+ * is passed to `redirect()` after login or callback.
  */
 export function sanitizeRedirectTarget(
   input: string | null | undefined
@@ -80,7 +85,7 @@ export function sanitizeRedirectTarget(
   } catch {
     return "/";
   }
-  if (CONTROL_OR_SPACE.test(decoded)) {
+  if (CONTROL_CHARS.test(decoded)) {
     return "/";
   }
   // The docs site is the one cross-origin target allowed. Check the raw value
