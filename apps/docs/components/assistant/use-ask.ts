@@ -33,7 +33,7 @@ interface RequestOptions {
 }
 
 /** The route's own limit, checked here too so a long question costs no request. */
-const MAX_QUESTION_CHARS = 500;
+export const MAX_QUESTION_CHARS = 500;
 
 /** One header entry, or null unless its url is a docs page path. */
 function toSource(value: unknown): AnswerSource | null {

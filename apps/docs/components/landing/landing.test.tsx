@@ -1,12 +1,16 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AskField } from "./ask-field";
+import { AskField, AskFieldView } from "./ask-field";
 import { RolePaths } from "./role-paths";
 import { SplitHero } from "./split-hero";
 import { TaskGroups } from "./task-groups";
 
 const HANDOVER_LINK = /<a[^>]*href="\/developers"[^>]*>Start the handover/;
 const BUTTON_OPEN = /^<button[^>]*type="button"/;
+const INPUT_ID = /<input[^>]*id="([^"]+)"/;
+const ASK_LABEL = /<label[^>]*>Ask a question or search<\/label>/;
+const ASK_BUTTON = /<button[^>]*type="submit"[^>]*>Ask<\/button>/;
+const ASK_BUTTON_DISABLED = /<button[^>]*disabled=""[^>]*>Ask<\/button>/;
 const GROUP_LINK = /<a[^>]*href="\/guide\/recruitment"[^>]*>Recruitment/;
 const TASK_LINK =
   /<a[^>]*href="\/guide\/recruitment\/publish"[^>]*>Publish a vacancy/;
@@ -51,11 +55,41 @@ test("the hero's edge is cut at 13 degrees", () => {
   );
 });
 
-test("the ask field is a named button", () => {
+test("with the assistant off, the ask field is the search button", () => {
+  // No AssistantProvider: the assistant is off, as it is with no API key.
   const html = renderToStaticMarkup(<AskField />);
   expect(html).toMatch(BUTTON_OPEN);
   expect(html).toContain('aria-label="Search the docs"');
   expect(html).toContain(">Search<");
+  expect(html).not.toContain("<input");
+  expect(html).not.toContain(">Ask<");
+});
+
+test("with the assistant on, the ask field is a labelled input and an Ask button", () => {
+  const html = renderToStaticMarkup(
+    <AskFieldView ask={() => undefined} enabled />
+  );
+  const id = html.match(INPUT_ID)?.[1];
+  expect(id).toBeTruthy();
+  expect(html).toContain(`for="${id}"`);
+  expect(html).toMatch(ASK_LABEL);
+  expect(html).toContain('maxLength="500"');
+  expect(html).toMatch(ASK_BUTTON);
+  expect(html).toContain(">Search instead<");
+  expect(html).not.toContain('aria-label="Search the docs"');
+});
+
+test("the Ask button starts disabled, with nothing typed", () => {
+  const html = renderToStaticMarkup(
+    <AskFieldView ask={() => undefined} enabled />
+  );
+  expect(html).toMatch(ASK_BUTTON_DISABLED);
+});
+
+test("with the assistant off, the view is exactly the search button", () => {
+  expect(
+    renderToStaticMarkup(<AskFieldView ask={() => undefined} enabled={false} />)
+  ).toBe(renderToStaticMarkup(<AskField />));
 });
 
 test("task groups link their heading and each task", () => {

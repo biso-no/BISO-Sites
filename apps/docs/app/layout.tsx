@@ -24,8 +24,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       suppressHydrationWarning
     >
       <body className="flex min-h-screen flex-col">
-        {/* Outside RootProvider, so Fumadocs' search dialog, which it renders
-            beside the page, can ask the assistant too. */}
+        {/* Outside RootProvider, so anything Fumadocs renders beside the page
+            can reach the assistant. Its search dialog doesn't yet: in
+            fumadocs-ui 16.7.10 the dialog's footer slot renders outside the
+            dialog, so an ask item there can't be reached. */}
         <AssistantProvider>
           <RootProvider>{children}</RootProvider>
         </AssistantProvider>

@@ -1,3 +1,4 @@
+import { AskAboutPage } from "components/assistant/ask-about-page";
 import { PageHeader } from "components/page-header";
 import { getBreadcrumbItems } from "fumadocs-core/breadcrumb";
 import type { PageData } from "fumadocs-core/source";
@@ -39,12 +40,23 @@ export default async function Page(props: { params: Promise<Param> }) {
 
   const MDXContent = mdxPage.body;
 
+  // A footer alone would make Fumadocs show the contents rail, and its popover
+  // below 1280px, on every page, assistant on or off. Keep its own rule, so
+  // they show only on pages with headings, as before.
+  const hasToc = mdxPage.toc.length > 0;
+  const askAboutPage = <AskAboutPage url={page.url} />;
+
   return (
     <DocsPage
       // PageHeader carries the crumb, so Fumadocs' own breadcrumb would repeat it.
       breadcrumb={{ enabled: false }}
-      full={(page.data as MDX).full}
-      toc={(page.data as MDX).toc}
+      full={mdxPage.full}
+      tableOfContent={{
+        enabled: hasToc && !mdxPage.full,
+        footer: askAboutPage,
+      }}
+      tableOfContentPopover={{ enabled: hasToc, footer: askAboutPage }}
+      toc={mdxPage.toc}
     >
       <PageHeader
         crumb={crumbFor(page.url)}
