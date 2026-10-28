@@ -1,0 +1,142 @@
+---
+title: How departments work
+description: What a department is in the BISO admin, where its members come from, who can open departments and documents, and what you can see and change on a department's page.
+covers:
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/nav-tree.ts
+  - apps/admin/src/lib/departments.ts
+  - apps/admin/src/lib/m365-sync.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - apps/admin/src/lib/documents/access.ts
+  - apps/admin/src/app/(portal)/departments/**
+  - apps/admin/src/app/(portal)/_actions/departments.ts
+  - apps/admin/src/app/api/units/sync/route.ts
+  - packages/shared/utils/unit-categories.ts
+  - packages/shared/utils/unit-names.ts
+  - packages/shared/utils/unit-visibility.ts
+  - apps/web/src/lib/data/units.ts
+  - apps/web/src/components/units/**
+---
+
+Departments in the admin come from BISO's accounting system, 24SevenOffice. They cover student societies, academic associations, projects and staff functions, and also national bodies and accounting units. The admin also calls them units (**enheter**), and biso.no lists them at biso.no/units.
+
+In the admin, departments sit under **Organisasjon** (Organization) in the sidebar, next to **Dokumenter** (Documents):
+
+- **Avdelinger** (Departments) holds each department's profile and its page on biso.no.
+- **Dokumenter** (Documents) holds BISO's governing documents, such as the statutes. See [Upload and update documents](/guide/departments-and-documents/documents).
+
+## Departments, units and projects
+
+- Each department belongs to one campus: Oslo, Bergen, Trondheim, Stavanger or National.
+- A project, such as Fadderullan or Karrieredagene, is a department too. A project that runs on several campuses has a separate department on each campus.
+- A department is either active or **Inaktiv** (Inactive). An inactive department stays in the admin, but it has nothing on biso.no.
+- New departments and projects are created in 24SevenOffice, never in the admin. They show up in the admin after the next **Sync units**, which a global admin runs. See [New and closed departments](#new-and-closed-departments).
+- A department can have its own page on biso.no, built in the page editor. See [Department pages](/guide/pages-and-news/department-pages).
+
+## Who can use departments and documents
+
+| Who | Departments | Documents |
+|---|---|---|
+| Global admins (National + Operations Unit) | Every department, on every campus. Only they can run **Sync units**. | Every document, national and on every campus |
+| Members of the Control Committee | Their own department, like other department members | Every document, national and on every campus |
+| Campus leaders (Ledelsen on your campus) | Every department on your campus | Documents on your campus. National documents aren't in your list. |
+| Department members, for their own department | Your own departments | Your department's documents on your campus |
+
+- Anyone else, such as a benefits editor who isn't in a department, doesn't have **Avdelinger** (Departments) or **Dokumenter** (Documents) in the sidebar. A link to them shows a page-not-found error.
+- Department members in one department go straight to it when they open **Avdelinger** (Departments). Members of several departments see a list of theirs.
+- A global admin who has picked a campus in the campus box sees only that campus's departments and documents.
+- If you're in a department and **Avdelinger** (Departments) shows a page-not-found error, ask IT to check your groups.
+
+## Where members come from
+
+- IT manages who is in which department, in Microsoft 365. Your BISO Microsoft account is put in your department's group. BISO's groups for the admin all have names that start with `SG-App-`.
+- The admin reads your groups each time you sign in. If IT changes them while you're signed in, sign out and sign in again. See [Sign in and find your way](/guide/start-here/sign-in).
+- The admin has no member list for a department, and no way to add or remove people. To join, leave or change department, ask IT.
+- The board that biso.no shows for a department also comes from Microsoft 365, and IT changes who holds which role.
+
+## The department list
+
+Open **Organisasjon** (Organization) and choose **Avdelinger** (Departments).
+
+- A line at the top counts the departments in your list, for example **42 enheter · 30 uten kategori · 35 uten logo** (42 units · 30 uncategorised · 35 without a logo).
+- **Søk** (Search) finds departments by name.
+- The filters narrow the list, each with a count: **Alle** (All), the six categories, **Uten kategori** (Uncategorised) and **Mangler logo** (Missing logo). Use the last two to find departments whose profile isn't finished.
+- Departments are shown as cards, sorted by name. Change how many you see with **Per side** (Per page) at the bottom.
+- Each card shows the department's hero image or logo, its category or **Ingen kategori** (No category), its name and its campus. It also shows **Inaktiv** (Inactive) for an inactive department and **Ingen logo** (No logo) when there's no logo.
+- Choose a card to open the department.
+
+Inactive departments are in the list too.
+
+The six categories are **Forening** (Society), **Fagforening** (Academic association), **Prosjekt** (Project), **Stabsfunksjon** (Staff function), **Nasjonal** (National) and **Annet** (Other).
+
+## A department's page in the admin
+
+The page is headed with the department's name. Under it are the campus and the category, for example **Oslo · Forening**. Below that are three cards.
+
+- **Offentlig side** (Public page) is about the department's own page on biso.no. [Department pages](/guide/pages-and-news/department-pages) covers it.
+- **Godt å vite** (Good to know) has three reminders:
+  - The board comes from Microsoft 365, and IT changes it.
+  - New units and projects are created in 24SevenOffice and show up after the next sync.
+  - Set the category **Prosjekt** (Project) on departments that run a project, so they're listed under Projects in the biso.no menu for their campus.
+- **Profil** (Profile) holds what biso.no shows about the department: **Kategori, bilder og tekst som vises for enheten på biso.no.** (The category, imagery and copy shown for this unit on biso.no.)
+
+## Edit the profile
+
+1. Open the department and go to the **Profil** (Profile) card.
+2. Choose a **Kategori** (Category), or **Ingen kategori** (No category). The category decides the type filter on biso.no/units, the job filter, and whether the department is listed under Projects in the biso.no menu for its campus.
+3. Add a **Logo**, which should be square, and a **Toppbilde** (Hero image), a wide image for the top of the department's page. Click the box or drop an image on it: **Slipp bilde eller bla gjennom** (Drop image or browse), **JPG, PNG, GIF, WEBP, SVG · maks 10 MB**. To change an image, point at it and choose **Bytt** (Replace) or **Fjern** (Remove).
+4. Under **Tekst** (Copy), choose **Norsk** (Norwegian), then fill in:
+   - **Visningsnavn** (Display name). This is optional.
+   - **Kort beskrivelse** (Short description), up to 500 characters. It's shown on cards and in lists.
+   - **Beskrivelse** (Description), up to 8,000 characters. It's the main text on the department's page.
+5. Choose **Engelsk** (English) and fill in the same fields in English.
+6. Choose **Lagre profil** (Save profile). The button reads **Lagrer …** (Saving …), then you see **Profilen er lagret** (Profile saved).
+
+**Lagre profil** (Save profile) saves the category, both images and both languages at once. A new image is only used once you save.
+
+A language is saved only when its **Beskrivelse** (Description) has text.
+
+- If you fill in **Kort beskrivelse** (Short description) without **Beskrivelse** (Description), the save is refused with **Add a description for the Norwegian teaser** (or **English teaser**).
+- If you fill in only **Visningsnavn** (Display name), that language isn't saved.
+- biso.no shows the department's name from 24SevenOffice, without the campus code at the start: *Demo Events* for *OSL Demo Events*. What you type in **Visningsnavn** (Display name) isn't shown on biso.no.
+
+<Callout type="warn">
+If you empty **Beskrivelse** (Description) in a language and save, that language's text is deleted. The admin keeps no earlier copy of the profile.
+</Callout>
+
+On biso.no, the profile shows on the department's card at biso.no/units and on its standard page. Each language's text is shown only to visitors who read biso.no in that language. If the department has its own published page, that page replaces the standard page, but its card on biso.no/units still uses the profile.
+
+## New and closed departments
+
+Only global admins see **Sync units**, at the top of **Avdelinger** (Departments). It's in English. The sync never runs by itself.
+
+**Sync units** reads every department from 24SevenOffice. For each one it:
+
+- adds the department if it's new
+- sets its name, its campus and whether it's active
+- gives a new active department its address on biso.no, once. The address never changes after that, even if the department is renamed.
+
+It never deletes a department, and it doesn't change the category, images or text on the **Profil** (Profile) card.
+
+When it's done, you see **Units synced (240/240)**, or **Synced with errors: 3 of 240 failed** if some departments couldn't be saved. If 24SevenOffice can't be reached, you see **Failed to sync units**. The departments already in the admin keep working.
+
+<Callout type="warn">
+**Sync units** updates every department at once. A department that's no longer active in 24SevenOffice becomes **Inaktiv** (Inactive), and it disappears from biso.no, together with its page.
+</Callout>
+
+## What the system does on its own
+
+- Reads your Microsoft groups when you sign in, and gives you access to your departments.
+- Shows a department's profile on biso.no after you save it. biso.no can take a few minutes to show the change.
+- Keeps inactive departments off biso.no.
+- Writes each profile save to the activity log.
+- Sends no email or notification when a department or its profile changes.
+
+## What you do yourself
+
+- Fill in the profile, in Norwegian and in English.
+- Set **Prosjekt** (Project) on departments that run a project.
+- Ask IT to add or remove members, or to change the board.
+- Ask a global admin to run **Sync units** after a new department is created in 24SevenOffice.
+- Build the department's own page, if you want one. See [Department pages](/guide/pages-and-news/department-pages).
+- Upload and update governing documents. See [Upload and update documents](/guide/departments-and-documents/documents).

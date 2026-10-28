@@ -1,5 +1,12 @@
 {
   "title": "Platform guide",
   "root": true,
-  "pages": ["index", "start-here", "recruitment", "pages-and-news", "analytics"]
+  "pages": [
+    "index",
+    "start-here",
+    "recruitment",
+    "pages-and-news",
+    "departments-and-documents",
+    "analytics"
+  ]
 }
