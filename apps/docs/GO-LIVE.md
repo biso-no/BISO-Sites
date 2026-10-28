@@ -11,7 +11,7 @@ never write a value from these steps into it.
 
 ## 1. Before go-live: security fixes
 
-- [ ] **Fix the items marked for before go-live in the private issues list.**
+- [ ] **Fix every item tagged **[Before go-live]** in the private issues list.**
   Done when: each of them is fixed on `main` and live in production.
 
 ## 2. Microsoft and Appwrite teams
@@ -27,9 +27,9 @@ view for these checks: it lowercases ids.
   Done when: the team `docs-handover` exists with no members and no owner.
 - [ ] **Check the 10 trusted team ids.** Each id in the table under Owner
   actions step 2 must exist. Create any that's missing, with the id and name
-  exactly as in the table. For each `sg-app-dept-*` team you create, do the
-  department-team setup by hand (`grantDeptTeamAccess` in
-  `apps/admin/src/lib/team-provisioning.ts`). If a team has an owner, someone
+  exactly as in the table. For each `sg-app-dept-*` team you create, set up
+  the department by hand: on the matching row in the `departments` table,
+  keep it readable by anyone and give that team update and delete. If a team has an owner, someone
   made it by hand: delete it, create it again, and redo that setup.
   Done when: all 10 ids exist with the names in the table, and none has an
   owner.
@@ -82,9 +82,10 @@ view for these checks: it lowercases ids.
   test it.**
   Done when: the administration leader has signed in with that access and
   opened a value.
-- [ ] **The administration leader assembles the emergency kit**, using the
-  checklist that `emergency-kit-contents` describes, and keeps it offline,
-  away from every server.
+- [ ] **The administration leader assembles the emergency kit** from the private
+  emergency kit checklist the builder handed to the owner. The
+  `emergency-kit-contents` description says what it must cover. The leader
+  keeps the kit offline, away from every server.
   Done when: the administration leader holds the kit and has ticked every
   item on the checklist.
 
@@ -151,7 +152,8 @@ The Sites build the latest commit on `main`. The admin's half of docs sign-in
 ## 7. Appwrite site for docs
 
 - [ ] **Create the docs Site** in the production project, from BISO-Sites
-  `main`. Copy the admin Site's settings, with the build command
+  `main`. Copy the admin Site's build settings (root directory, install command,
+  output directory, runtime), not its variables. Use the build command
   `bun run build:docs:appwrite`. If a docs Site already exists (the old
   deploy workflow had one), use it. If the console builds on create, let it:
   section 8 deploys again with the variables set.
@@ -171,7 +173,7 @@ The Sites build the latest commit on `main`. The admin's half of docs sign-in
   | `DOCS_PRIVATE_FAKE_FILE`, `DOCS_PRIVATE_ALLOW_FAKE` | Leave unset: development only |
 
   `NEXT_PUBLIC_ADMIN_URL` comes two steps down.
-  Done when: the Site has every value above, and none of the four left unset.
+  Done when: the Site has every value above and no other variables.
 - [ ] **Set `NEXT_PUBLIC_DOCS_URL` on the admin and rebuild the admin.** Set
   `NEXT_PUBLIC_DOCS_URL=https://docs.biso.no` on the admin Site, then deploy
   the latest `main` to it
@@ -181,6 +183,7 @@ The Sites build the latest commit on `main`. The admin's half of docs sign-in
   [roll back](content/docs/developers/keep-it-running/deploying.mdx#roll-back).
   Done when: the admin's active deployment is the latest `main`,
   `https://admin.biso.no/api/health/ready` answers 200, and you can sign in.
+  The docs link in the admin leads nowhere until section 8 is done.
 - [ ] **Set `NEXT_PUBLIC_ADMIN_URL` on docs** to `https://admin.biso.no`. It
   is inlined at build time, so set it before the deploy in section 8.
   Done when: the docs Site has it.
@@ -213,7 +216,8 @@ The Sites build the latest commit on `main`. The admin's half of docs sign-in
   `INFISICAL_*` variables.
   Done when: no block says "This couldn't be loaded right now. Try again
   later.", and the log shows no new `[docs] private source has no value for:`
-  line.
+  line. If there is no such line, check that `DOCS_PRIVATE_SOURCE` is
+  `infisical`.
 - [ ] **Confirm the proxy sets `x-forwarded-for`.** Follow
   [Owner steps](CLAUDE.md#owner-steps) step 4: on the landing, ask `qzxv`
   nine times, then ask once from another network, such as a phone on mobile
@@ -230,6 +234,11 @@ The Sites build the latest commit on `main`. The admin's half of docs sign-in
 
   Done when: each answers 307 with a `location` that loads. This one goes to
   `/guide/recruitment`.
+- [ ] **Check the denied side.** Sign in as a department member who isn't a
+  global or campus admin, and open
+  `https://docs.biso.no/developers/start-here/getting-access`.
+  Done when: every private block reads "Your account doesn't have access to
+  this."
 - [ ] **Check that last-updated dates show.** Open any page.
   Done when: "Updated" and a date show under the title. If no page has one,
   the Appwrite build is a shallow clone and `lib/git-dates.ts` hides every
@@ -276,12 +285,6 @@ redeploy ([Switch it off](CLAUDE.md#switch-it-off)).
   with [What a question costs](CLAUDE.md#what-a-question-costs). A day with
   more than 50 requests means the Site restarted that day or runs more than
   one process.
-- [ ] **Confirm the production settings the pages describe but nobody has
-  checked:** `OPENAI_API_KEY` on the web and api Sites (it switches AI
-  screening on), the target URLs on scheduled-dispatch
-  ([Scheduled jobs](content/docs/developers/keep-it-running/scheduled-jobs.mdx)),
-  and the `AZURE_GRAPH_*` values.
-  Done when: each is set, or the page that describes it is corrected.
 - [ ] **Answer the two open questions.** When does the BI sign-in (OIDC)
   client secret expire, and who owns its app registration? When the scanner
   shows orange, **Allerede skannet** (Already scanned), should the guard check
@@ -289,6 +292,9 @@ redeploy ([Switch it off](CLAUDE.md#switch-it-off)).
   Done when: the first is under
   [Azure app secrets](content/docs/developers/keep-it-running/yearly-calendar.mdx#azure-app-secrets),
   and the second is in `content/docs/guide/members-and-benefits/scan-member-passes.mdx`.
-- [ ] **Stage 5b**, the assistant inside the admin, waits for
-  `feat/admin-assistant` to merge.
-  Done when: that branch has merged and Stage 5b is planned.
+- [ ] **Delete this file** once every box above is ticked, and remove the
+  `GO-LIVE.md` pointer line in `apps/docs/CLAUDE.md`.
+  Done when: `git grep -n "GO-LIVE" apps/docs` prints nothing.
+
+The admin assistant's docs tool comes after `feat/admin-assistant` merges.
+Nothing is needed for it at go-live.

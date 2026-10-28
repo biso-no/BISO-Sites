@@ -112,7 +112,7 @@ Signing in to the admin can change permissions. When the Microsoft group sync cr
 
 ## Types
 
-`packages/api/types/appwrite.ts` holds a type for every table's row and every enum, except `event_rsvps`. That table was added to the schema file after the types were last generated, so it has no type, and the RSVP code declares its own row shapes (`packages/shared/utils/event-rsvp.ts`). Use the types as the type parameter on every read:
+`packages/api/types/appwrite.ts` holds a type for every table's row and every enum, except possibly `event_rsvps`. Check that `packages/api/types/appwrite.ts` has an `EventRsvps` type. If it's missing, regenerate the types. Until then the RSVP code declares its own row shapes (`packages/shared/utils/event-rsvp.ts`). Use the types as the type parameter on every read:
 
 ```ts
 import { createSessionClient } from "@repo/api/server";

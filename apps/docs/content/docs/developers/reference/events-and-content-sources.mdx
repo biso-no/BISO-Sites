@@ -83,7 +83,7 @@ bun run load --jobs --products --apply
 
 ### Old api routes
 
-`/api/events`, `/api/jobs` and `/api/wc-products` on the api still read from `https://biso.no/wp-json/…`. That address now serves the new website, so these routes no longer get WordPress data. Nothing in this repo or in the app calls them. `WC_CONSUMER_KEY` and `WC_CONSUMER_SECRET` on the api exist only for `/api/wc-products`. They're candidates for deletion.
+`/api/events`, `/api/jobs` and `/api/wc-products` on the api still read from `https://biso.no/wp-json/…`. That address now serves the new website, so these routes no longer get WordPress data. Nothing in this repo or in the app calls them. `WC_CONSUMER_KEY` and `WC_CONSUMER_SECRET` on the api exist only for `/api/wc-products`. The three route files (`apps/api/src/app/api/events/route.ts`, `jobs/route.ts` and `wc-products/route.ts` in the same folder) and those two variables are candidates for deletion. `apps/api/src/app/api/events/[id]/rsvp/route.ts` is a different route and must stay.
 
 The api's `/api/config` still reports `events_source: "wordpress"`, `jobs_source: "wordpress"` and `products_source: "woocommerce"`, from `apps/api/config/app-config.json`. The app doesn't read those values.
 

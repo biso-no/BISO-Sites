@@ -20,8 +20,9 @@ Old URLs are redirected through `redirects.json`. Rules there are
 `{ source, destination }` only. `next.config.mjs` serves all of them as
 temporary (307) redirects, so don't add a `permanent` key. The first matching
 rule wins, so put specific rules above the section fallbacks. If you move or
-rename a page, add a redirect. The tests fail on redirect chains. `legacy-urls.json` is a frozen list of the
-old site's URLs, and the redirect tests check that every one of them resolves.
+rename a page, add a redirect. The tests fail on redirect chains.
+`legacy-urls.json` is a frozen list of the old site's URLs, and the redirect
+tests check that every one of them resolves.
 
 ## Front matter
 
@@ -329,10 +330,6 @@ These need the owner. Nothing here is done by code. Do them in this order.
 4. Set the docs Appwrite site env: the vars listed under Docs.
 5. Set `NEXT_PUBLIC_DOCS_URL` on the admin and rebuild the admin.
 6. Set `NEXT_PUBLIC_ADMIN_URL` on docs and rebuild docs.
-
-The spec also listed "set up the Microsoft sign-in for docs.biso.no (redirect
-URL)". That is not needed: sign-in happens on the admin, and docs only reads
-the admin's cookie.
 
 ### Leak check
 
