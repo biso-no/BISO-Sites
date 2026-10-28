@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { resolveModel } from "@repo/ai/models";
-import { createTextStreamResponse, type LanguageModel, streamText } from "ai";
+import {
+  createTextStreamResponse,
+  type LanguageModel,
+  streamText,
+  type TextStreamPart,
+  type ToolSet,
+} from "ai";
 import { checkLimits } from "lib/assistant/limits";
 import { buildUserMessage, SYSTEM_PROMPT } from "lib/assistant/prompt";
 import { retrieveSources } from "lib/assistant/retrieve";
@@ -10,6 +16,9 @@ export const maxDuration = 60;
 
 const MAX_QUESTION_CHARS = 500;
 const MAX_OUTPUT_TOKENS = 1200;
+const MAX_BODY_BYTES = 4096;
+const TOTAL_TIMEOUT_MS = 60_000;
+const JSON_CONTENT_TYPE = /^application\/json\b/i;
 const NO_ANSWER_NOTE = "I couldn't answer that. Try the docs search instead.";
 const HASH_OR_QUERY = /[#?].*$/;
 const TRAILING_SLASH = /(.)\/$/;
@@ -45,12 +54,51 @@ async function pageExists(path: string): Promise<boolean> {
     .some((p) => p.url.replace(TRAILING_SLASH, "$1") === wanted);
 }
 
+// Reads the body with a running byte cap, so a missing or false
+// content-length can't make the server buffer an arbitrary upload.
+async function readBody(req: Request): Promise<string | null> {
+  const declared = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+    return null;
+  }
+  if (!req.body) {
+    return null;
+  }
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      total += value.byteLength;
+      if (total > MAX_BODY_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 async function parse(
   req: Request
 ): Promise<{ question: string; pageUrl?: string } | null> {
+  if (!JSON_CONTENT_TYPE.test(req.headers.get("content-type") ?? "")) {
+    return null;
+  }
+  const text = await readBody(req);
+  if (text === null) {
+    return null;
+  }
   let body: unknown;
   try {
-    body = await req.json();
+    body = JSON.parse(text);
   } catch {
     return null;
   }
@@ -78,22 +126,21 @@ async function parse(
   return { question: trimmed, pageUrl };
 }
 
-interface Part {
-  finishReason?: string;
-  text?: string;
-  type: string;
-}
+type Part = TextStreamPart<ToolSet>;
 
 const STOP_TYPES = new Set(["error", "abort"]);
 
-function endsClean(part: Part, wrote: boolean): boolean {
-  return (
-    part.type === "finish" && wrote && part.finishReason !== "content-filter"
-  );
+function endsClean(finishReason: string, wrote: boolean): boolean {
+  return wrote && (finishReason === "stop" || finishReason === "tool-calls");
 }
 
 // Turns the model's part stream into plain text. A refusal or content filter
 // arrives as a finish reason, not an exception, so it ends with a short note.
+async function* noteOnly(): AsyncGenerator<string> {
+  await Promise.resolve();
+  yield NO_ANSWER_NOTE;
+}
+
 async function* answerText(
   iterator: AsyncIterator<Part>,
   first: Part | undefined
@@ -108,7 +155,7 @@ async function* answerText(
       } else if (STOP_TYPES.has(part.type)) {
         break;
       } else if (part.type === "finish") {
-        if (endsClean(part, wrote)) {
+        if (endsClean(part.finishReason, wrote)) {
           return;
         }
         break;
@@ -144,29 +191,39 @@ export async function handleAsk(
   if (!deps.enabled) {
     return json({ error: "disabled" }, 503);
   }
-  const input = await parse(req);
-  if (!input) {
-    return json({ error: "invalid" }, 400);
-  }
-  if (checkLimits(visitorKey(req)) !== "ok") {
-    return json({ error: "rate_limited" }, 429);
-  }
-
   try {
+    const input = await parse(req);
+    if (!input) {
+      return json({ error: "invalid" }, 400);
+    }
+    if (checkLimits(visitorKey(req)) !== "ok") {
+      return json({ error: "rate_limited" }, 429);
+    }
+
     const sources = await deps.retrieve(input.question, input.pageUrl);
+    if (sources.length === 0) {
+      // Nothing to answer from, so don't pay for a call that could only guess.
+      return createTextStreamResponse({
+        stream: toStream(noteOnly()),
+        headers: { ...NO_STORE, "X-Docs-Sources": encodeURIComponent("[]") },
+      });
+    }
     const result = streamText({
       model: deps.model,
       instructions: SYSTEM_PROMPT,
       prompt: buildUserMessage(input.question, sources),
       reasoning: "low",
       maxOutputTokens: MAX_OUTPUT_TOKENS,
+      // One question is one call: no retries, and a client that disconnects
+      // stops the generation.
+      maxRetries: 0,
+      abortSignal: req.signal,
+      timeout: { totalMs: TOTAL_TIMEOUT_MS },
       // The default handler logs the error, which can carry the request.
       onError: () => undefined,
     });
 
-    const iterator = result.stream[
-      Symbol.asyncIterator
-    ]() as AsyncIterator<Part>;
+    const iterator = result.stream[Symbol.asyncIterator]();
     // Read up to the first text or the end, so a failed call is a clean 502.
     let first: Part | undefined;
     while (true) {
