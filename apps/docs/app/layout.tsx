@@ -1,3 +1,4 @@
+import { AssistantProvider } from "components/assistant/assistant-context";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
 import "./global.css";
@@ -23,7 +24,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       suppressHydrationWarning
     >
       <body className="flex min-h-screen flex-col">
-        <RootProvider>{children}</RootProvider>
+        {/* Outside RootProvider, so Fumadocs' search dialog, which it renders
+            beside the page, can ask the assistant too. */}
+        <AssistantProvider>
+          <RootProvider>{children}</RootProvider>
+        </AssistantProvider>
       </body>
     </html>
   );
