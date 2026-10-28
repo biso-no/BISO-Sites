@@ -8,6 +8,8 @@ covers:
   - packages/shared/utils/membership-fulfilment.ts
   - packages/shared/utils/membership-gate.ts
   - packages/shared/utils/order-settlement.ts
+  - packages/shared/utils/order-refunds.ts
+  - apps/api/src/app/api/cron/reconcile-orders/route.ts
   - apps/api/src/lib/membership-status-cache.ts
   - apps/api/src/app/api/membership/route.ts
   - apps/api/src/lib/expense-posting.ts
@@ -75,7 +77,15 @@ Membership plans also depend on 24SevenOffice: before each season, next season's
 
 ## Shop sales and refunds
 
-**What it does.** Each paid shop order is posted to the ledger as one voucher, against the sales type of each product. This only happens while ledger posting is switched on. A global admin or campus admin sets it up in the admin under **Regnskap for nettbutikken** (Shop accounting), at `/shop/accounting`. That page holds the sales types, the voucher settings, the chart of accounts synced from 24SevenOffice, and the **Automatisk bokføring** (Automatic posting) switch, which sets the `shop_ledger_posting` flag. It's off by default, and it refuses to switch on until the settings, the sales types and their accounts are complete. While it's off, paid orders wait, and they're posted once it's on. A refund made in the admin reverses the order's posting.
+**What it does.** Each paid shop order is posted to the ledger as one voucher, against the sales type of each product. This only happens while ledger posting is switched on. A global admin or campus admin sets it up in the admin under **Regnskap for nettbutikken** (Shop accounting), at `/shop/accounting`. That page holds the sales types, the voucher settings, the chart of accounts synced from 24SevenOffice, and the **Automatisk bokføring** (Automatic posting) switch, which sets the `shop_ledger_posting` flag. It's off by default, and it refuses to switch on until the settings, the sales types and their accounts are complete. While it's off, paid orders wait, and they're posted once it's on.
+
+**Refunds.** A refund made in the admin reverses the order's posting only if the order was already posted. It then posts a reversal voucher to 24SevenOffice and records it on the refund. Otherwise nothing is reversed automatically:
+
+- **The order wasn't posted yet,** for example because ledger posting was off. After a full refund the order is never posted. After a partial refund, automatic posting won't post the order once posting is on, because the full total would book money that was already given back. The api then logs `[Reconcile Orders] Order <id> needs manual Finago posting: …` on every run. Book the net sale in 24SevenOffice by hand, then put that transaction's id in the order's `finago_transaction_id` column in the Appwrite console, which stops the message. If posting was on when the refund was made, the refund also shows a note on the order's page in the admin.
+- **The posting was still in progress, the reversal can't be worked out safely, or the call to 24SevenOffice fails.** An example of the second is an earlier refund on the order that posted no reversal. The refund shows a note on the order's page in the admin. Post the reversal in 24SevenOffice by hand.
+- **The order is a membership.** It was booked as an invoice, so its refund needs a credit note made by hand in 24SevenOffice.
+
+In each case the buyer still gets the money back. Only the bookkeeping is left to you.
 
 **When it fails.** Buyers notice nothing. The order stays without a posting:
 

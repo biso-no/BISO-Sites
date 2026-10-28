@@ -98,10 +98,10 @@ function MermaidContent({ chart }: { chart: string }) {
 }
 
 /**
- * In a narrow column a diagram may not shrink below this share of its natural
- * size, which keeps Mermaid's 16 px labels at 12 px or more.
+ * A diagram never shrinks below this share of its natural size, which keeps
+ * Mermaid's 16 px labels at 12 px or more.
  */
-export const MIN_SCALE_IN_NARROW_COLUMNS = 0.75;
+export const MIN_SCALE = 0.75;
 
 /** The width of the root `<svg>`'s viewBox, ignoring any nested viewBox. */
 const ROOT_VIEWBOX_WIDTH =
@@ -116,10 +116,10 @@ export function naturalWidth(svg: string): number | null {
 
 /**
  * Mermaid sizes the SVG to `width="100%"` with its natural width as
- * `max-width`, so in a wide column it fits the column as before. When the
- * frame is narrower than 42rem (a phone, or a tablet with the sidebar open),
- * the SVG also gets a `min-width` and scrolls sideways inside the frame. The
- * frame's inline-size containment keeps the page itself from widening.
+ * `max-width`. The frame adds a `min-width` of `MIN_SCALE` times that width,
+ * at every screen size. A diagram that still doesn't fit scrolls sideways
+ * inside the frame, and the frame's inline-size containment keeps the page
+ * itself from widening.
  */
 export function MermaidFrame({
   svg,
@@ -131,13 +131,13 @@ export function MermaidFrame({
   const width = naturalWidth(svg);
   const style = width
     ? ({
-        "--mermaid-min-width": `${Math.round(width * MIN_SCALE_IN_NARROW_COLUMNS)}px`,
+        "--mermaid-min-width": `${Math.round(width * MIN_SCALE)}px`,
       } as CSSProperties)
     : undefined;
 
   return (
     <div
-      className="@container overflow-x-auto overscroll-x-contain @max-2xl:[&>svg]:min-w-(--mermaid-min-width)"
+      className="overflow-x-auto overscroll-x-contain contain-inline-size [&>svg]:min-w-(--mermaid-min-width)"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid returns SVG for trusted docs content.
       dangerouslySetInnerHTML={{ __html: svg }}
       ref={(container) => {

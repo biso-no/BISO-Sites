@@ -64,7 +64,7 @@ None of this talks to Appwrite. It worked when Turbo's summary reports every tas
 ### Run the apps against a non-production Appwrite project
 
 <Callout type="warn">
-`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset or empty, that value silently becomes the production one. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
+`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset or empty, server code then tries `APPWRITE_ENDPOINT` or `APPWRITE_PROJECT_ID` before it falls back to production. The browser reads only the `NEXT_PUBLIC_*` names and goes straight to production, so set those two. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
 </Callout>
 
 The repo has no local Appwrite and no staging project, so make an Appwrite project of your own before you run anything. [Local setup](/developers/change-it/local-setup) has the full steps and the usual first-run failures. In short:
