@@ -12,6 +12,7 @@
     "screenshots:schema": "bun scripts/screenshots/schema.ts",
     "screenshots:seed": "bun scripts/screenshots/seed.ts",
     "screenshots:capture": "bun scripts/screenshots/capture.ts",
+    "check:private-leaks": "bun scripts/private-leak-check.ts",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {

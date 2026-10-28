@@ -141,6 +141,107 @@ never sets or clears cookies and never uses `createAdminClient`.
 - Locally the admin cookie is host-only on `localhost` and ignores ports, so
   docs on :3002 receives it after signing in on :3001.
 
+## Private details
+
+Some facts are too sensitive for a public repo and a static site: who owns an
+account, where the servers live, the emergency kit. A page names them with
+`<Private>`, and the reader's browser fetches the value after sign-in.
+
+```mdx
+<Private name="server-access" label="Server access" />
+```
+
+- `name` must be a key in `lib/private/registry.ts`. To add one, add an entry
+  there. The entry holds a name and a description only. The description tells
+  the owner what to store under that key, so write it for them.
+- Values never go in a page, the registry, a test or a screenshot. They live in
+  Infisical (production) or a local JSON file (development).
+- `label` is optional text shown with the value.
+- A page always renders. A reader sees the value, or one of three messages:
+  "Sign in with your BISO admin account to see this." (with a sign-in link),
+  "Your account doesn't have access to this.", or "This couldn't be loaded
+  right now. Try again later."
+- Values are served only by `GET /api/private` (`no-store`) and never appear in
+  static HTML, the RSC payload, the search index or `llms-full.txt`.
+
+### Who can see values
+
+- Global admins: members of the National campus team and the OperationsUnit
+  department team.
+- Campus admins: members of a campus team plus the matching `Ledelsen{City}`
+  team.
+- The `docs-handover` Appwrite team. A global admin adds and removes
+  consultants by hand in the Appwrite console. Nothing is automatic.
+- Nobody else, including plain department members and HR.
+
+This must match `apps/admin/src/lib/roles.ts`. A drift test pins it.
+
+### Env vars
+
+Docs:
+
+- `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT`
+- `APPWRITE_SESSION_COOKIE=a_session_biso_admin`
+- `NEXT_PUBLIC_ADMIN_URL`: the admin's origin, for sign-in links
+- `DOCS_PRIVATE_SOURCE`: `infisical`, `fake` or `none` (default `none`)
+- `INFISICAL_SITE_URL`, `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`,
+  `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_SECRET_PATH`
+- `DOCS_PRIVATE_FAKE_FILE` and `DOCS_PRIVATE_ALLOW_FAKE`: fake source only
+
+Admin:
+
+- `NEXT_PUBLIC_DOCS_URL`: lets the admin's sign-in return to docs. It is
+  inlined at build time, so rebuild the admin after setting it.
+
+In production the admin session cookie must be set on `.biso.no` and docs must
+run on a `*.biso.no` host, or the browser never sends the cookie to docs.
+
+### Local development
+
+Use the fake source. The file maps registry names to made-up values:
+
+```json
+{
+  "server-access": "Fake value: ask Fake Person (fake@example.test)",
+  "account-owners": "Fake value: domain is owned by Nobody Real"
+}
+```
+
+```bash
+DOCS_PRIVATE_SOURCE=fake DOCS_PRIVATE_FAKE_FILE=/path/to/values.json bun run dev --filter=docs
+```
+
+Locally the admin cookie is host-only on `localhost` and ignores ports, so sign
+in on :3001 and docs on :3002 sees you. The fake source is refused when
+`NODE_ENV=production` unless `DOCS_PRIVATE_ALLOW_FAKE=1`.
+
+### Owner actions
+
+These need the owner. Nothing here is done by code.
+
+1. Create an Infisical folder for docs values and a read-only machine identity
+   scoped to that folder. Put its details in the `INFISICAL_*` vars above.
+2. Set the docs Appwrite site env: the vars listed under Docs.
+3. Create the Appwrite team with id `docs-handover`.
+4. Set `NEXT_PUBLIC_DOCS_URL` on the admin and rebuild the admin.
+5. Set `NEXT_PUBLIC_ADMIN_URL` on docs.
+
+### Leak check
+
+```bash
+cd apps/docs && bun run check:private-leaks
+```
+
+It builds docs with random fake values and a temporary page using every
+registry name, scans `.next` for those values, and removes the page even if the
+build fails. It exits non-zero on a leak. Run it after changing anything in
+`lib/private/` or how `<Private>` renders.
+
+### Stage 3b
+
+Pages do not use `<Private>` yet. When they do, flip `REQUIRE_REGISTRY_USAGE`
+to `true` in `lib/private/registry.test.ts` so every registry name must be used.
+
 ## Commands
 
 Run from the repo root with `--filter=docs`, or from `apps/docs/`.
