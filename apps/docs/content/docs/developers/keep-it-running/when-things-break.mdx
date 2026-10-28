@@ -1,0 +1,296 @@
+---
+title: When things break
+description: Runbooks for the failures you're most likely to meet in production, each with what you see, what to check and how to fix it.
+covers:
+  - apps/*/src/app/api/health/**
+  - apps/admin/src/lib/server.ts
+  - apps/admin/src/app/(auth)/auth/**
+  - apps/admin/src/lib/m365-sync.ts
+  - apps/admin/src/lib/authorization.ts
+  - apps/admin/src/app/unauthorized.tsx
+  - apps/admin/src/app/(portal)/settings/payments/**
+  - apps/api/src/app/api/payment/[provider]/callback/route.ts
+  - apps/api/src/app/api/payment/[provider]/checkout/route.ts
+  - packages/payment/src/credentials/**
+  - packages/shared/utils/push-dispatch.ts
+  - apps/admin/src/lib/announcements/send.ts
+  - functions/content-notifier/**
+  - packages/ai/src/models.ts
+  - packages/shared/recruitment/apply.ts
+  - apps/api/src/app/api/recruitment/applications/route.ts
+  - apps/web/src/app/actions/jobs.ts
+  - apps/admin/src/lib/it/graph.ts
+  - packages/connectors/src/azure/graph-client.ts
+  - apps/docs/components/private.tsx
+  - apps/docs/lib/private/infisical.ts
+  - WEB_APP_APPWRITE_INCIDENT_AUDIT.md
+---
+
+Use this page when something in production is broken. Each runbook starts with what you see, then lists what to check in order, then the fix. If you don't know yet what's wrong, start with [First checks](#first-checks). Get the service back first and look for the cause after: if a deploy caused it, roll back before you investigate.
+
+<Callout type="warn">
+Docs is built to run on Appwrite too, so once it's live at `docs.biso.no`, it goes down when Appwrite does. This page is also in the repo on GitHub, at `apps/docs/content/docs/developers/keep-it-running/when-things-break.mdx` in BISO-Sites. The private details don't show there, so make sure you have the access in [Getting access](/developers/start-here/getting-access) before you need it.
+</Callout>
+
+## First checks
+
+1. **See which apps answer.**
+
+   ```bash
+   for host in biso.no admin.biso.no api.biso.no; do
+     printf '%s ' "$host"
+     curl -s -o /dev/null -m 10 -w '%{http_code}\n' "https://$host/api/health"
+   done
+   ```
+
+   Each line should end in `200`.
+
+   - Every app fails or times out (`000`): go to [Appwrite is down](#appwrite-is-down).
+   - One app fails: go to [The site is down](#the-site-is-down).
+   - All answer `200`: the apps are running. Run the same loop with `/api/health/ready`. A `503` there means that app can't reach Appwrite with its key.
+2. **Look for a change.** A deploy, a changed variable or a rotated secret just before the trouble started is the likely cause. If one fits, undo it first: [Roll back](/developers/keep-it-running/deploying#roll-back).
+3. **If one feature is broken**, go to its runbook below.
+
+The logs are described in [Monitoring and health](/developers/keep-it-running/monitoring-and-health#logs).
+
+## The site is down
+
+**What you see.** Better Stack sends an alert, or `biso.no`, `admin.biso.no` or `api.biso.no` won't load. If only the api is down, the website and the app also lose BI sign-in, checkout and membership purchase, because those go through the api.
+
+**Check**
+
+1. Run [First checks](#first-checks). If every app fails, go to [Appwrite is down](#appwrite-is-down).
+2. In the Appwrite console (<Private name="appwrite-console-url" label="Appwrite console" />), open the failing app's Site. Check whether a deployment finished just before the trouble, and whether the active deployment is the one you expect.
+3. Read the Site's logs. A line starting with `[web]` or `[admin]` when the Site starts names the variable that's wrong. `[request-error]` lines show the errors behind failing requests.
+4. If `/api/health` answers `200` but pages are empty or slow, Appwrite is failing behind the app. Look for `[appwrite] request timed out` in the logs, and check `/api/health/ready`.
+
+**Fix**
+
+- **After a bad deploy:** make the last good deployment active again, as in [Roll back](/developers/keep-it-running/deploying#roll-back).
+- **After a variable change, or a start-up error:** set the variable right, then redeploy without shipping new code, as in [Redeploy without shipping new code](/developers/keep-it-running/deploying#redeploy-without-shipping-new-code).
+- **Appwrite timing out:** go to [Appwrite is down](#appwrite-is-down).
+
+## Sign-in to the admin fails
+
+**What you see.** One of these:
+
+- Staff end up back on the sign-in page under **Innlogging mislyktes. Prøv igjen eller kontakt support.** (Sign-in failed. Please try again or contact support.)
+- Staff sign in, then get a page headed **401 · Tilgang nektet** (Access denied) that says **Du må være logget inn for å se denne siden** (You must be signed in to view this page).
+
+Either way, those people also can't see the private details in these docs, because docs uses the admin's sign-in.
+
+### Sent back to the sign-in page
+
+**Check.** Look at the address bar after a failed attempt. Its `error` value says where sign-in stopped:
+
+| `error` | What it means |
+|---|---|
+| `session_failed` | Microsoft and Appwrite accepted the sign-in, but Appwrite couldn't create the session. Appwrite is down or slow, or the sign-in link was used twice. The admin logs `Failed to create session from OAuth token:`. |
+| `invalid_parameters` | The return from Appwrite had no user id or secret. Start again from the sign-in page. |
+| A JSON object, URL-encoded, with `message`, `type` and `code` | Appwrite's Microsoft sign-in failed before it reached the admin. Read `message`. |
+
+If the `message` mentions `AADSTS7000222` or `invalid_client`, or if every new sign-in fails from one moment on, the Microsoft sign-in secret has most likely expired. Check its date in the Azure portal.
+
+**Fix**
+
+- **Expired secret:** see [An Azure secret has expired](#an-azure-secret-has-expired).
+- **`session_failed` for everyone:** check Appwrite, as in [Appwrite is down](#appwrite-is-down).
+
+### Signed in, but "401 · Tilgang nektet"
+
+The page is misleading. The person is signed in, but they're in no campus or department team, and the admin lets nobody in without one unless they're a benefits editor (`requireAdminAccess` in `apps/admin/src/lib/authorization.ts`). The M365 sync puts people in those teams from their `SG-App-*` groups.
+
+**Check**
+
+1. In Microsoft Entra, or on the admin's **IT** page, check that the person is in the right `SG-App-*` groups. [Getting access](/developers/start-here/getting-access#microsoft-account) lists which groups give which role.
+2. In the admin's logs, look for `M365 Sync Failed:` at the time they signed in. Each sign-in copies the person's groups to their Appwrite teams. If that fails, they're signed in with the teams they had before. The error after it includes Microsoft Graph's answer.
+3. In the Appwrite console, open the user and check their `sg-app-*` team memberships.
+
+**Fix**
+
+1. Add the missing groups on the admin's **IT** page. Only global admins can change groups there.
+2. Make the person sign in again, because the groups are copied only at sign-in. The 401 page has no way to sign out. Either the person clears their browser's cookies for `biso.no`, or you delete their sessions in the Appwrite console.
+
+## Payments fail
+
+**What you see.** Buyers can't start or finish a payment in the shop or for a membership. Orders stay `pending`. Checkout answers `503` with `Vipps is not configured` or `Stripe is not configured`.
+
+**Check, in this order**
+
+1. **The api.** Checkout runs there. Check `https://api.biso.no/api/health` and `/api/health/ready`.
+2. **The `payment_settings` table.** As a global admin, open **Innstillinger** (Settings), then **Betaling** (Payments), at `/settings/payments`. For the provider that fails:
+   - **Aktiv modus** (Active mode) must be **Live** in production. A provider whose mode was never set counts as test.
+   - The active mode's credentials must show **Klar** (Ready). Vipps needs the client id, client secret, subscription key and merchant serial number. Stripe needs its secret key.
+   - The page never shows the values. If you suspect one is wrong, enter it again.
+3. **The variables.** The api uses `VIPPS_*` or `STRIPE_*` on its Site only when the active mode's set is **Ufullstendig** (Incomplete), or the provider has no row. With no row, the api logs `[payment/credentials] vipps row not found in DB — falling back to env`, or the same for Stripe. While the table's set is complete, changing the variables does nothing.
+4. **The webhooks.** A Vipps callback that answers `401` with `Invalid webhook signature` means the stored webhook secret doesn't match Vipps. For Stripe, the api logs `[payment/stripe/callback] signature check failed:` when the webhook secret in the table doesn't match the endpoint's signing secret in Stripe's dashboard.
+5. **Orders stuck as `pending`.** Order reconciliation re-checks them after 10 minutes, if scheduled-dispatch's `ORDERS_RECONCILE_URL` is set and points at `api.biso.no`. Check its line in the latest scheduled-dispatch run.
+6. **After a server restore or an Appwrite reinstall.** If the credentials in the table can't be read, the encryption key changed. See [The encryption keys](/developers/keep-it-running/backups-and-recovery#the-encryption-keys).
+
+**Fix**
+
+- **Wrong mode:** choose **Sett Live som aktiv** (Set Live as active). For Vipps, then choose **Registrer webhook** (Register webhook). It registers the webhook for the active mode and stores its signing secret. Do this after every switch between test and live, and after changing the merchant.
+- **Missing or wrong value:** enter it on the same page and save. The api keeps the settings for 15 seconds, so wait that long before you try again.
+- **Stripe signature fails:** copy the endpoint's signing secret from Stripe's dashboard into the webhook secret field for the active mode.
+- **Orders stuck:** run order reconciliation by hand, as in [Run a job by hand](/developers/keep-it-running/scheduled-jobs#run-a-job-by-hand).
+- **An outage at Vipps or Stripe:** wait. Order reconciliation catches up on missed payment updates once they're back.
+
+## Push notifications aren't sent
+
+**What you see.** An automatic push for a new event, news item or job never arrives. A scheduled announcement doesn't go out. Or an announcement sent from **Kommunikasjon** (Communications) doesn't reach phones.
+
+**Check**
+
+1. **The time.** An automatic push waits 3 minutes after the item goes live (`NOTIFY_DELAY_MINUTES`). Nothing automatic goes out between 22:00 and 08:00, Oslo time. It waits for the morning.
+2. **Whether Appwrite got a message.** In the console, open **Messaging**, then **Messages**, and find the time of the push.
+   - **No message:** the sending side never asked Appwrite. Go to step 3.
+   - **Status `failed`, or delivery errors:** Appwrite tried and the push provider refused. Go to step 4.
+   - **Sent, but delivered to nobody:** no phone is subscribed to that audience.
+3. **The sending side.**
+   - **Automatic push:** find the item's row in `content_notifications`. `sent` means the push was handed to Appwrite, so go back to step 2. `pending` means it isn't due yet, or no dispatch pass has run. `cancelled` means the item stopped being eligible. `skipped` means it was already published when the function went live. Then read content-notifier's executions, and the `CONTENT_NOTIFIER_URL` line in the latest scheduled-dispatch run. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#content-notifier) explains both.
+   - **Scheduled announcement:** read the `ANNOUNCEMENTS_DISPATCH_URL` line in the latest scheduled-dispatch run.
+   - **Sent now from the admin:** look for `Failed to send announcement push:` in the admin's logs.
+4. **The push provider.** In the console, open **Messaging**, then **Providers**. The FCM provider with the id `push` must exist and be enabled. The app registers each phone against that id (`kFcmProviderId` in BISO-Flutter's `lib/data/services/notification_service.dart`), so never replace it with a provider under another id. Its credential is a Firebase service account JSON.
+
+**Fix**
+
+- **The provider refuses:** create a new key for the service account in the Firebase project's settings, and paste the JSON into the `push` provider.
+- **Dispatch isn't running:** fix scheduled-dispatch, as in [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working). Pending automatic pushes go out at the next pass that works.
+
+## Scheduled jobs stopped
+
+**What you see.** Scheduled announcements don't go out, scheduled vacancies stay unpublished, orders stay pending, departures in the app go stale, or the members page shows **Siste oppdatering feilet** (Last refresh failed).
+
+**Check.** Open scheduled-dispatch's latest executions in the console, and match what you see against the table in [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working). For the members page, open member-roster-sync's executions instead.
+
+**Fix.** The same table gives the fix for each case. After Appwrite has been down, check that new scheduled-dispatch executions appear every 5 minutes again.
+
+## Appwrite is down
+
+**What you see.** Every app fails its health check or times out. The Appwrite console doesn't load. The BISO app can't load anything. Once docs is live at `docs.biso.no`, it's down too.
+
+**Check**
+
+1. **The server.** In the Webdock account, check that the server is running: <Private name="server-provider-account" label="Webdock account" />.
+2. **Get onto the server:** <Private name="server-access" label="Server access" />.
+3. **The containers.** Appwrite runs in Docker. Its containers have names starting with `appwrite`, such as `appwrite`, `appwrite-mariadb`, `appwrite-redis` and `appwrite-traefik`. Look for any that are stopped or restarting:
+
+   ```bash
+   docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep appwrite
+   ```
+
+4. **Disk and memory.** A full disk stops Appwrite from writing.
+
+   ```bash
+   df -h
+   free -h
+   ```
+
+5. **Appwrite's own log.**
+
+   ```bash
+   docker logs --tail 200 appwrite
+   ```
+
+   In August 2026 the whole platform went down because the website's pages used up every Appwrite worker. The log showed `did not find a idle worker` and `Synchronous function execution timed out`, while the server itself was nearly idle. `WEB_APP_APPWRITE_INCIDENT_AUDIT.md` in the repo root explains what happened.
+
+**Fix**
+
+1. Find Appwrite's folder, the one that holds its `docker-compose.yml` and `.env`:
+
+   ```bash
+   docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' appwrite
+   ```
+
+2. If the disk is full, free space first.
+3. From that folder, start what's stopped. If that doesn't help, restart everything:
+
+   ```bash
+   docker compose up -d
+   docker compose restart
+   ```
+
+   An older install may use `docker-compose` instead of `docker compose`.
+4. If the log shows the worker signs from August 2026, follow the first steps in the incident audit: raise `_APP_WORKER_PER_CORE` in Appwrite's `.env`, then run `docker compose up -d`. During that incident, taking the web Site offline stopped the trouble at once. Then find out what's calling Appwrite so often.
+5. Never change `_APP_OPENSSL_KEY_V1` in that `.env`. Appwrite needs the same key to read what it has encrypted. See [The encryption keys](/developers/keep-it-running/backups-and-recovery#the-encryption-keys).
+6. When Appwrite is back, run [First checks](#first-checks), and check that scheduled-dispatch runs again.
+
+If the server or its data can't be saved, see [Backups and recovery](/developers/keep-it-running/backups-and-recovery).
+
+## Infisical is down
+
+**What you see.** Infisical's site doesn't load, and you can't fetch credentials. A few minutes later, the private details in these docs say **This couldn't be loaded right now. Try again later.** Docs keeps the values it read for 5 minutes (`apps/docs/lib/private/infisical.ts`). The website, the admin and the API keep running, because they don't read Infisical.
+
+**Check**
+
+1. If Appwrite is down as well, the server is the problem. Go to [Appwrite is down](#appwrite-is-down).
+2. On the server, list the containers with `docker ps -a`, find Infisical's, and read its log with `docker logs --tail 200 <container>`.
+
+**Fix**
+
+- **Infisical has stopped:** start its containers again. The repo doesn't record how Infisical was installed. If it runs under Docker Compose, the same `docker inspect` command as for Appwrite, with Infisical's container name, finds its folder, and `docker compose up -d` there starts it.
+- **Infisical runs, but nobody who can sign in is left:** <Private name="infisical-admin-recovery" label="Infisical recovery" />
+- **It can't be brought back, and something urgent needs a credential:** ask the administration leader for the emergency kit: <Private name="admin-leader-contact" label="Administration leader" />. Afterwards, change every credential you used from it, and update the kit.
+
+Never change Infisical's `ENCRYPTION_KEY`. Without the same key, Infisical can't read what it stores.
+
+## An Azure secret has expired
+
+**What you see** depends on whose secret ran out:
+
+| What breaks | Secret | Where it's set |
+|---|---|---|
+| New sign-ins to the admin fail, and so does signing in to see the private details in these docs. People who are already signed in stay signed in. | The admin's Microsoft sign-in secret. It probably expires on 5 March 2027. | The Appwrite console, in the Microsoft sign-in provider |
+| The admin's **IT** pages fail, and interview invitations aren't sent | `AZURE_GRAPH_CLIENT_SECRET` | admin, api, web |
+| The unit boards on the website show nobody | `AZURE_CLIENT_SECRET` | api |
+| Governing documents don't open | `SHAREPOINT_CLIENT_SECRET` | web, admin, api |
+| A BI sign-in doesn't fill in the student id, so membership purchase is blocked | `BI_AZURE_CLIENT_SECRET` | web, api |
+| Expense approvals don't reach Teams | `TEAMS_BOT_APP_PASSWORD` | api |
+
+Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and none of these secrets (`apps/admin/src/lib/m365-sync.ts`). So an expired Graph secret doesn't stop staff from signing in or getting their roles.
+
+**Check**
+
+1. In the failing app's logs, look for Microsoft's error codes. `AADSTS7000222` means the secret has expired. `AADSTS7000215` means the value is wrong, for example the secret's id instead of its value.
+2. In the Azure portal, open the app registration and check **Certificates & secrets** for the end date. Where each registration lives: <Private name="azure-app-registration" label="Azure app registrations" />.
+
+**Fix**
+
+- **The admin's sign-in secret:**
+  1. In the Azure portal, add a new client secret to the sign-in registration, and copy its value.
+  2. In the Appwrite console, open the production project's **Auth** settings, then the Microsoft provider, paste the new secret and save. Nothing needs redeploying.
+  3. Sign in to the admin to check it works.
+  4. Store the secret in Infisical, write its end date in the [Yearly calendar](/developers/keep-it-running/yearly-calendar#azure-app-secrets), and delete the old secret in Azure.
+- **A secret held in variables:** follow [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret). Start with [Azure secrets](/developers/keep-it-running/secrets-and-environment#azure-secrets): one registration's secret can sit in several variables on several Sites. Write the new end date in the yearly calendar.
+
+## AI features fail
+
+**What you see.** An AI feature in the admin shows an error: the page editor's AI chat, translation, AI help on events and jobs, recruitment AI or the assistant. Receipt reading for expenses fails. New job applications get no AI score.
+
+**Check**
+
+1. **The Site's logs**, on the admin, the api or the website, depending on where it failed:
+
+   | Log shows | What it means |
+   |---|---|
+   | `Anthropic API key is missing` | `ANTHROPIC_API_KEY` isn't set on that Site. It's in no `.env.example`, because the AI library reads it by itself. |
+   | `authentication_error` (`401`) | The key is wrong, revoked or expired. |
+   | `billing_error` (`402`) | Something is wrong with billing at Anthropic. |
+   | `rate_limit_error` (`429`), or `invalid_request_error` (`400`) about a spend limit | Too many requests, or a spend limit or the month's spend cap has been reached. BISO's plan comes with about USD 160 of credit a month. |
+   | `overloaded_error` (`529`) or `api_error` (`500`) | A problem on Anthropic's side. Try again later. |
+
+2. **Job application screening** has its own switch:
+   - Applications sent from the website are screened by the web Site. Applications sent from the app are screened by the api Site.
+   - Screening runs only when `OPENAI_API_KEY` is set on that Site, although it runs on Anthropic and never calls OpenAI (`isAutoScreened` in `packages/shared/recruitment/apply.ts`). If it's unset, screening is skipped and nothing is logged. It's also skipped for a vacancy with auto-screening turned off.
+   - To tell what happened, open the application's row in `job_applications`. No `ai_screening` and no `screening_score` means it wasn't screened. If the Site's log has `AI screening failed for application <id>:` for it, screening ran and failed, and the error follows.
+
+**Fix**
+
+- **Missing or wrong key:** set `ANTHROPIC_API_KEY` on the Site, as in [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret), and redeploy without shipping new code. The owner sets it on the admin, the api and the website.
+- **Billing, limits or credit:** check usage and billing in Anthropic's console. Who owns the account: <Private name="account-owners" label="Account owners" />.
+- **Screening skipped:** set `OPENAI_API_KEY` on the web and api Sites. The lasting fix is a small code change: make `isAutoScreened` check `ANTHROPIC_API_KEY` instead.
+
+## After an incident
+
+- Write down what happened, the cause and the fix while you remember them. Copy the log lines you need: Appwrite deletes execution logs after 14 days by default.
+- If a runbook here was wrong or missing, fix this page.

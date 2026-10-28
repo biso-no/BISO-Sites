@@ -1,0 +1,196 @@
+---
+title: Yearly calendar
+description: Everything that comes round once a year, with the known dates. The August board turnover and its access changes, certificate and secret renewals, and the membership seasons.
+covers:
+  - apps/admin/src/app/(portal)/_actions/it-turnover.ts
+  - apps/admin/src/lib/it/turnover.ts
+  - apps/admin/src/app/api/it/turnover/stop-retention/route.ts
+  - apps/admin/src/app/(portal)/it/users/_components/turnover-dialog.tsx
+  - apps/admin/src/lib/it-permission-rules.ts
+  - apps/api/src/app/api/admin/account-turnover/**
+  - packages/shared/utils/membership-seasons.ts
+  - packages/connectors/src/24sevenoffice/membership-sync.ts
+  - packages/shared/member-pass/wallet-config.ts
+---
+
+This page lists the work that comes round every year, with every date that's known. Nothing in the code warns anyone before a certificate or a secret expires, so this page is the reminder. Copy the dates into a shared calendar with a reminder a month ahead. When you renew something or learn a date that's missing, write the new date here.
+
+## The year, month by month
+
+- [ ] **February:** renew the admin's Microsoft sign-in secret. It probably expires on 5 March 2027. See [Azure app secrets](#azure-app-secrets).
+- [ ] **May:** make sure next fall's membership products exist in 24SevenOffice. See [Membership seasons](#membership-seasons).
+- [ ] **May, in 2027:** renew the Apple certificate for the "BI Student Organisation" app before 12 June 2027. See [Apple](#apple).
+- [ ] **July:** check the retention webhooks before the turnover. See [Before August](#before-august).
+- [ ] **August:** the board turnover. Hand over role accounts, and add and remove access. See [The August board turnover](#the-august-board-turnover).
+- [ ] **August:** check that the app meets Google Play's target Android version by 31 August. See [Google Play](#google-play).
+- [ ] **September, in 2027:** renew the Apple Wallet "BISO Membership Pass" certificate before 17 October 2027. See [Apple](#apple).
+- [ ] **November:** make sure next spring's membership products exist in 24SevenOffice.
+- [ ] **Every two months:** check the TLS certificates. See [Domain and certificates](#domain-and-certificates).
+- [ ] **Once a year:** test a restore, as in [Backups and recovery](/developers/keep-it-running/backups-and-recovery#test-a-restore).
+
+### Dates nobody has recorded yet
+
+Find each of these once, write it on this page, and add it to the list above:
+
+- [ ] when the Apple Developer membership renews
+- [ ] anything due on the Google Play account
+- [ ] when the `biso.no` domain name renews
+- [ ] the new end date of the "BISO Sites" Azure secret, which the owner renewed in October 2026
+- [ ] the end dates of the other Azure secrets
+- [ ] the end dates of the two Azure Automation webhooks
+
+## The August board turnover
+
+A new board takes over every August. People leave and join, and accounts that belong to a role pass to the next holder. The admin automates part of the handover. The Azure side it depends on isn't in the repo.
+
+### What the admin does today
+
+This is for role accounts: Microsoft accounts that belong to a position and pass from one holder to the next. It was added in July 2026.
+
+A global admin opens **IT** in the admin, opens the role account, and chooses **Start overgang** (Trigger turnover). They enter the new holder's first and last name, type the account's login address to confirm, and choose **Kjør overgang** (Run turnover). The admin then:
+
+1. Renames the account to the new holder. The login address stays the same.
+2. Removes every sign-in method that Microsoft allows it to remove, so the new holder sets up their own MFA.
+3. Signs the account out everywhere.
+4. Sets a temporary password and shows it once. Give it to the new holder over a secure channel. They change it at their first sign-in.
+5. Records a job in the `m365_turnover_jobs` table, then calls `AZURE_RETENTION_START_WEBHOOK_URL` to start a 7-day retention run in Azure Automation. The run clears the previous holder's Teams history.
+6. Seven days later, scheduled-dispatch's `TURNOVER_RETENTION_STOP_URL` target calls `AZURE_RETENTION_STOP_WEBHOOK_URL` to stop the run. A stop that fails is tried again on every run until it works.
+
+The rename always happens first. If steps 2 to 5 fail, the turnover still completes, and the dialog lists what failed under **Krever manuell oppfølging:** (Needs manual follow-up). The account's IT page has separate actions to reset MFA, sign the account out and reset the password, so redo a failed step there. A retention run that didn't start has to be started in Azure.
+
+A job in `m365_turnover_jobs` has one of these states:
+
+| State | Meaning |
+|---|---|
+| `retention_active` | The retention run was started, or Azure's answer was lost, and the stop is due at `retention_stop_at` |
+| `completed` | The run was stopped |
+| `retention_start_failed` | Azure refused the start, or the start URL isn't set. No run is going. |
+| `stop_failed` | The stop failed. The next scheduled-dispatch run tries again. |
+
+### What isn't in the repo
+
+- **The Azure Automation runbook.** A PowerShell runbook in Azure receives the two webhooks and creates, starts and stops the retention policy. It isn't in the repo, and nothing in the repo shows whether it exists or works. The two webhook URLs exist only as variables on the admin's Site.
+- **The owner's plan, against the code.** The plan is that the admin calls the runbook for each leaving user, and that the runbook creates and starts a retention policy, stops it after 7 days, and resets MFA and the password. In the code, the admin resets MFA and the password itself, through Microsoft Graph. It sends the runbook only this, with `"stop"` as the action for the stop:
+
+  ```json
+  {
+    "action": "start",
+    "userId": "<Microsoft user id>",
+    "userUpn": "<login address>",
+    "retentionDays": 7,
+    "turnoverJobId": "<m365_turnover_jobs row id>"
+  }
+  ```
+
+- **Personal accounts.** The turnover only hands on role accounts. When a person with their own account leaves, no retention run starts. The account's IT page has separate actions for that, such as disabling the account.
+- **An older route that nothing uses.** The api's `/api/admin/account-turnover` and its `/bulk` route post to `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL` with a different payload. Nothing in the repo calls them.
+
+### Before August
+
+- [ ] `AZURE_RETENTION_START_WEBHOOK_URL` and `AZURE_RETENTION_STOP_WEBHOOK_URL` are set on the admin's Site. Without the stop URL, the stop target answers `500` on every scheduled-dispatch run.
+- [ ] `TURNOVER_RETENTION_STOP_URL` is set on scheduled-dispatch.
+- [ ] Neither webhook has expired, or will during the turnover. See [Azure Automation webhooks](#azure-automation-webhooks).
+- [ ] The runbook exists in Azure Automation and accepts the JSON above.
+
+### After each turnover
+
+- [ ] The job's row in `m365_turnover_jobs` says `retention_active`. Seven days later it says `completed`.
+- [ ] In the Azure portal, the runbook's job history shows a start job, and a stop job a week later.
+
+### Access to add and remove
+
+New board members who need admin roles get `SG-App-*` groups from a global admin on the admin's **IT** page. [Getting access](/developers/start-here/getting-access#microsoft-account) shows which groups give which role. A change takes effect at the person's next sign-in.
+
+For everyone who leaves, follow [When the work ends](/developers/start-here/getting-access#when-the-work-ends). In short:
+
+1. Remove their `SG-App-*` groups on the admin's **IT** page.
+2. In the Appwrite console, remove their `sg-app-*` team memberships and their place in `docs-handover`, and delete their sessions. Removing the groups isn't enough on its own: the admin updates a person's teams only when they next sign in, and Appwrite sessions last a year.
+3. Remove their Infisical user, their membership of BISO's organisation in the Appwrite console, their server and Webdock access, and their GitHub collaborator access.
+
+Then check the people and owners behind the platform:
+
+- [ ] The `docs-handover` team holds only people who still need it: <Private name="docs-handover-team" label="Docs handover team" />
+- [ ] Every account is owned by someone who's staying. Move any account whose owner is leaving: <Private name="account-owners" label="Account owners" />
+- [ ] Better Stack's alerts go to someone who's staying: <Private name="better-stack-account" label="Better Stack" />
+- [ ] If the administration leader changes, the emergency kit passes to the new one, and this detail is updated: <Private name="admin-leader-contact" label="Administration leader" />
+- [ ] If anyone named in the private details on [Getting access](/developers/start-here/getting-access) is leaving, those details are updated.
+
+## Renewals
+
+### Apple
+
+The Apple Developer account: <Private name="apple-developer-account" label="Apple Developer account" />
+
+- **The Apple Developer membership** renews every year. Its date isn't recorded. Find it in the account and write it on this page. Apple says an app already in the App Store keeps working when a certificate expires only while the membership is valid, so don't let it lapse.
+- **The certificate for the "BI Student Organisation" app expires on 2027-06-12.** First check in the account what kind of certificate it is, because the two kinds fail differently:
+  - A distribution certificate: when it expires, the app in the App Store keeps working, but you can't upload new builds signed with it. Make a new one before the next iOS release after that date.
+  - A push notification certificate: when it expires, push to iPhones stops. Make a new one before the date, and replace the old one in the Firebase project's Cloud Messaging settings.
+- **The Apple Wallet "BISO Membership Pass" certificate expires on 2027-10-17.** When it expires, passes already in people's Wallets keep working, but the platform can't sign new passes or update existing ones. Before the date, make a new Pass Type ID certificate and replace `APPLE_PASS_CERT`, `APPLE_PASS_KEY` and `APPLE_PASS_KEY_PASSPHRASE` on web and api, as in [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret). Don't revoke the old certificate first: Apple says passes stop working properly when their certificate is revoked.
+
+### Google Play
+
+The Google Play Console: <Private name="google-play-account" label="Google Play account" />
+
+- The owner lists Google Play among the yearly renewals. No date is recorded. Check the Play Console for anything that falls due, and write it here.
+- **By 31 August every year**, Google Play requires new apps and app updates to target a recent Android version. From 31 August 2026 that's Android 16 (API level 36). The app takes its target from Flutter (`targetSdk = flutter.targetSdkVersion` in BISO-Flutter's `android/app/build.gradle.kts`), so before each deadline, check that the Flutter version CI builds with still meets it. If it doesn't, upgrade Flutter, or Google Play will refuse new builds.
+
+### Azure app secrets
+
+Where each app registration lives, and who owns it: <Private name="azure-app-registration" label="Azure app registrations" />
+
+| Secret | Ends |
+|---|---|
+| The admin's Microsoft sign-in secret, set in Appwrite's Microsoft sign-in provider | Probably 5 March 2027. Check the exact date in the Azure portal: the owner noted it as 3/5/2027, and the portal may show dates in US format. |
+| The "BISO Sites" registration's secret | Not recorded. The owner renewed it in October 2026. Write its new end date here. |
+| The secrets behind `AZURE_GRAPH_CLIENT_SECRET`, `AZURE_CLIENT_SECRET`, `SHAREPOINT_CLIENT_SECRET`, `BI_AZURE_CLIENT_SECRET` and `TEAMS_BOT_APP_PASSWORD` | Not recorded. Open each registration's **Certificates & secrets** in the Azure portal and write the dates here. |
+
+Renew each secret a few weeks early. An app registration can hold two secrets at once, so you can switch to the new one before the old one stops working.
+
+- For the sign-in secret, follow the fix in [An Azure secret has expired](/developers/keep-it-running/when-things-break#an-azure-secret-has-expired).
+- For the rest, follow [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret). Which variables hold the "BISO Sites" secret isn't recorded. Find them as in [Azure secrets](/developers/keep-it-running/secrets-and-environment#azure-secrets).
+
+[An Azure secret has expired](/developers/keep-it-running/when-things-break#an-azure-secret-has-expired) lists what breaks when each one runs out.
+
+### Azure Automation webhooks
+
+The two retention webhooks behind `AZURE_RETENTION_START_WEBHOOK_URL` and `AZURE_RETENTION_STOP_WEBHOOK_URL` each have an end date, set when they were made. Their dates aren't recorded. In the Azure portal, open the runbook, then **Webhooks**, and write the dates here.
+
+- You can move the end date of a webhook that hasn't expired yet.
+- An expired webhook can't be brought back. You have to create a new one, which gets a new URL. Azure shows that URL only once, when you create it.
+- An expired webhook answers `400` with `This webhook has expired or is disabled`. Turnover jobs then end up as `retention_start_failed` or `stop_failed`.
+
+After replacing one, set the new URL on the admin's Site and in Infisical, then redeploy without shipping new code, as in [Deploying](/developers/keep-it-running/deploying#redeploy-without-shipping-new-code).
+
+### Domain and certificates
+
+The owner lists the domain certificates among the yearly renewals. On 28 October 2026, `biso.no`, `admin.biso.no` and `api.biso.no` had Let's Encrypt certificates, issued on 7 and 8 September and ending on 6 and 7 December 2026. Certificates that last 90 days are renewed automatically. The repo doesn't record what renews them. Appwrite issues certificates for custom domains itself, so it's most likely Appwrite.
+
+Check the end dates every two months:
+
+```bash
+for host in biso.no admin.biso.no api.biso.no; do
+  echo "$host"
+  echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null | openssl x509 -noout -issuer -enddate
+done
+```
+
+Each `notAfter` date should keep moving forward. If one is less than two weeks away, automatic renewal has stopped, so find out why before it runs out. Add `docs.biso.no` to the loop once docs is live.
+
+When the domain name `biso.no` renews, and with whom, isn't recorded. Who owns the domain is listed under <Private name="account-owners" label="Account owners" />.
+
+## Membership seasons
+
+Membership runs in two seasons, in Oslo time: spring from 1 January to 30 June, and fall from 1 July to 31 December. Plans for the next season go on sale in the last month of the current one, in June and December.
+
+The plans come from 24SevenOffice:
+
+- Each plan is a 24SevenOffice product. Its name sets its dates, so it must contain the season and year, for example `BISO Membership fall 2027`. A product whose name has no season and year is skipped.
+- Each plan length (semester, year and three years) has one product for each season it starts in.
+- Each product needs a customer category with exactly the same name. Only categories with "BISO Membership" in their name are matched.
+- member-roster-sync copies the products into the `memberships` table every night. Nothing else fills that table, and it decides what's for sale.
+
+So, twice a year:
+
+- [ ] **By 31 May:** the products and categories for the coming fall season exist in 24SevenOffice, one for each plan length.
+- [ ] **By 30 November:** the same for the coming spring season.
+- [ ] **Then:** press **Oppdater nå** (Refresh now) on the admin's members page, or wait for the nightly run, and check that the new plans appear in `memberships`.
