@@ -1,0 +1,124 @@
+---
+title: How pages and news work
+description: Who can build pages and publish news in the BISO admin, how a draft goes live in each language, and what the system does on its own.
+covers:
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/nav-tree.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - apps/admin/src/lib/content-authorization.ts
+  - apps/admin/src/app/(portal)/pages/**
+  - apps/admin/src/app/(portal)/news/**
+  - apps/admin/src/app/(portal)/_actions/pages.ts
+  - apps/admin/src/app/(portal)/_actions/news.ts
+  - apps/admin/src/app/(portal)/_actions/drafts.ts
+  - apps/admin/src/app/(portal)/_components/status-badge.tsx
+  - apps/admin/src/lib/web-revalidate.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - packages/api/page-builder.ts
+  - packages/shared/utils/content-notifications.ts
+  - functions/content-notifier/**
+  - apps/web/src/app/(public)/[...slug]/**
+  - apps/web/src/app/(public)/news/**
+  - apps/web/src/lib/data/public-content.ts
+---
+
+Pages and news are how BISO puts its own writing on biso.no. In the admin they sit under **Innhold** (Content) in the sidebar:
+
+- **Sider** (Pages) holds the pages you build in the page editor, from a page about BISO to a department's own page.
+- **Nyheter** (News) holds articles. Students read them on biso.no/news and in the BISO app.
+
+A department's page is a page like any other, but you open it from **Organisasjon** (Organization) → **Avdelinger** (Departments). See [Department pages](/guide/pages-and-news/department-pages).
+
+The lists are mostly in your admin language. The page editor and the news studio are in English whatever your language, so this guide names their buttons in English.
+
+## Who can use pages and news
+
+| Who | Pages | News | Department pages |
+|---|---|---|---|
+| Global admins (National + Operations Unit) | Every page, on any campus or National | Every article, on any campus | Every department |
+| Campus leaders (Ledelsen on your campus) | Pages on your campus | Articles on your campus | Departments on your campus |
+| Department members, for their own department | Your department's pages on your campus | Your department's articles on your campus | Your own department |
+
+- Anyone else, such as a benefits editor who isn't in a department, doesn't have **Sider** (Pages) or **Nyheter** (News) in the sidebar. A link to them shows a page-not-found error.
+- Each list shows only what you can edit. A global admin who has picked a campus in the campus box sees only that campus.
+- Department members work inside their department. If you're in one department, a new page is tied to it when it's first saved. If you're in several, choose one in the page's settings. An article always needs its department chosen, or it can't be saved.
+- Only global admins can make a page for National, with no campus, or a project's shared page.
+- Nobody has to approve your work. If you can edit a page or an article, you can publish it. **Gjennomgå utkast** (Review Drafts) shows draft articles to global admins and campus leaders, but an article doesn't have to go through it, and pages never appear there.
+
+If you think you should have access and don't, ask IT to check your groups.
+
+## Pages: from draft to live
+
+Each language of a page, Norwegian and English, has its own draft and its own live copy.
+
+1. You change the draft in the page editor. The editor saves it about a second after each change. There's no Save button.
+2. **Publish** copies the draft of the language you have open to biso.no. Until then, that language of the page isn't shown on biso.no.
+3. After that, your changes go to the draft again. The live page stays as it was until you choose **Publish changes**.
+4. **Unpublish** takes the language you have open off biso.no. Its draft is kept.
+5. **Slett side** (Delete page) in **Sider** (Pages) archives the page. It goes off biso.no in every language, but it stays in the list. To bring it back, open it and publish it again.
+
+The list shows one status per page, in English whatever your admin language:
+
+| Status | What it means |
+|---|---|
+| **Draft** | No language of the page is live. |
+| **Published** | At least one language is live. It doesn't say which. |
+| **Archived** | Someone deleted it with **Slett side** (Delete page). It isn't on biso.no. |
+
+<Mermaid chart={`flowchart LR
+  draft[Draft] -->|Publish| published[Published]
+  published -->|Unpublish the last live language| draft
+  draft -->|Slett side| archived[Archived]
+  published -->|Slett side| archived
+  archived -->|Open and publish| published
+`} />
+
+## News: from draft to live
+
+An article has one status, for both languages.
+
+- **Save Draft** stores the article as a draft. Drafts aren't shown on biso.no or in the app.
+- **Publish** stores the article and makes it public.
+- To take a published article offline, open it and choose **Save Draft**.
+- There's no publish time. An article goes live when you choose **Publish**.
+
+The list shows **Draft** or **Published**.
+
+## Two languages
+
+The admin language and the language of what you write are separate. You can write a page or an article in Norwegian, English or both, whatever language your admin is in.
+
+For pages:
+
+- Each language has its own draft and its own **Publish**. Publishing Norwegian leaves English as it was.
+- biso.no shows a page only in the visitor's language. If the page isn't live in English, a visitor reading biso.no in English gets page not found.
+- **Translate to EN** (or **Translate to NO**) fills the other language with an AI translation, as a draft. You check it and publish it yourself.
+- The **Auto-translate** switch translates the other language each time you publish, and publishes that translation too.
+
+For news:
+
+- One article holds both languages. The headline and the article text are separate for each language. Everything else is shared.
+- biso.no shows an article only to visitors whose language it has. The app shows every article: in the student's language when it has one, otherwise in Norwegian, otherwise in English.
+- **Generate English** (or **Generate Norwegian**) fills the other language with an AI translation, for you to check and save.
+- The **Auto-translate** switch translates the other language each time you save.
+
+## What the system does on its own
+
+- Saves your page draft as you work.
+- Tells biso.no to refresh when you publish, unpublish or delete a page. If biso.no can't be reached, nobody is told, and the change can take a little longer to show.
+- Sends one app notification when an article goes live, if its **Notify students when published** switch is on. The switch is on for every new article, and for articles the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone) creates. The notification reaches app users who follow news for the article's campus. It goes out a few minutes after the article goes live, and never between 22:00 and 08:00 Oslo time: in that window it waits until 08:00. Each article sends it only once.
+- Translates the other language in the background when **Auto-translate** is on. For a page it also publishes the translation.
+- Copies a department page's colours to the department when you publish it, so all of the department's pages, and its standard page on biso.no, use them.
+- Shows a department's own page on biso.no instead of its standard page, in each language the page is published in.
+- Writes saves, publishes and deletions of pages and articles to the activity log.
+
+## What you do yourself
+
+- Publish. Nothing goes live by itself, and nothing can be published at a set time.
+- Publish each language of a page. Publishing one language doesn't publish the other.
+- Check translations. **Auto-translate** on a page publishes the translation without showing it to you first.
+- Switch off **Notify students when published** before you publish an article that students shouldn't get a notification about.
+- Tell people. No email goes out for pages or news, and publishing a page sends no notification at all.
+- Take things offline: unpublish a page in each language, or save a published article as a draft.
+
+The pages after this one show each task step by step: [Edit a page](/guide/pages-and-news/edit-a-page), [Department pages](/guide/pages-and-news/department-pages) and [Publish news](/guide/pages-and-news/publish-news).

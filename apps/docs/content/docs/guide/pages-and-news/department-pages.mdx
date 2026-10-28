@@ -1,0 +1,149 @@
+---
+title: Department pages
+description: How a department or project gets its own page on biso.no in place of the standard one, who can edit it, and how to create and publish it.
+who: "Global admins (National + Operations Unit), campus leaders (Ledelsen on your campus) for departments on their campus, and department members, for their own department."
+covers:
+  - apps/admin/src/app/(portal)/departments/[id]/page.tsx
+  - apps/admin/src/app/(portal)/departments/[id]/_components/unit-page-card.tsx
+  - apps/admin/src/app/(portal)/departments/page.tsx
+  - apps/admin/src/app/(portal)/_actions/departments.ts
+  - apps/admin/src/app/(portal)/pages/_components/create-project-hub-button.tsx
+  - apps/admin/src/app/(editor)/pages/[id]/page.tsx
+  - apps/admin/src/app/(portal)/_actions/pages.ts
+  - apps/admin/src/lib/departments.ts
+  - apps/admin/src/lib/page-access.ts
+  - apps/admin/src/lib/unit-page-guard.ts
+  - packages/editor/src/editor/templates.ts
+  - packages/shared/utils/unit-urls.ts
+  - packages/shared/utils/project-units.ts
+  - apps/web/src/app/(public)/units/**
+  - apps/web/src/app/(public)/projects/**
+  - apps/web/src/lib/unit-page.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Most departments have a standard page on biso.no, at biso.no/units/ followed by its campus and its own short name. For example, Demo Events in Oslo would be at biso.no/units/oslo/demo-events. biso.no builds the standard page from the department's details in the admin.
+- You can build the department its own page in the page editor instead. Once that page is published in a language, visitors who read biso.no in that language see it in place of the standard page, at the same address.
+- A project, such as Fadderullan or Karrieredagene, is a department too. Its page works the same way.
+- Who can do what:
+  - Department members can create and edit their own department's page.
+  - Campus leaders can do it for any department on their campus.
+  - Global admins can do it for every department.
+- You're a member of a department through your BISO Microsoft account. If you can't open your department, ask IT to check your groups.
+- The page editor is in English. [Edit a page](/guide/pages-and-news/edit-a-page) shows how it works.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open your department">
+
+Open **Organisasjon** (Organization) and choose **Avdelinger** (Departments).
+
+- If you're a member of one department, it opens straight away.
+- If you're in several, or you're a campus leader or global admin, choose the department in the list.
+
+The department opens with its name at the top and its campus under it. The **Offentlig side** (Public page) card is about its page on biso.no.
+
+If you're on the board of a national project, such as Winter Games, open its page from here. It isn't in your **Sider** (Pages) list.
+
+</Step>
+<Step title="Create the page">
+
+If the department has no page yet, the card reads **Ingen side ennå. Opprett én for å gi avdelingen sin egen side på biso.no.** (No page yet. Create one to give this department its own page on biso.no.)
+
+Choose **Opprett side** (Create page). The page is made as a draft and opens in the page editor. It doesn't start blank:
+
+- a page header with the department's name, and BISO and the campus above it
+- **Om** and the department's name: a text block for what you do
+- **Kommende arrangementer**: an events feed that shows the department's own published events
+- **Ta kontakt**: a contact block
+
+A project's page also gets an empty gallery and a **For bedrifter** text block for companies. Change or remove any of it.
+
+The starting page is in Norwegian only. You write or translate the English yourself.
+
+Once the page exists, the card shows **Rediger side** (Edit Page) instead. A department never has two pages.
+
+Instead of the button, you may see:
+
+- **Denne avdelingen er inaktiv, så det kan ikke opprettes en side for den.** (This department is inactive, so a page cannot be created for it.) An inactive department has no page on biso.no.
+- **Denne avdelingen har ingen slug ennå. Kjør avdelingssynkroniseringen for å tildele en.** (This department has no slug yet. Run the department sync to assign one.) Only global admins can run the sync, so ask them.
+- **Denne adressen er allerede i bruk av en annen side. Ta kontakt med BISO IT for å løse dette før en side kan opprettes her.** (This address is already used by another page. Contact BISO IT to resolve it before a page can be created here.) Contact IT.
+
+</Step>
+<Step title="Edit the page">
+
+Build the page as in [Edit a page](/guide/pages-and-news/edit-a-page). There are a few differences:
+
+- The address, campus and department are fixed. On the **Page** tab, **Shared slug**, **Campus** and **Dept** can't be changed, and a note says *Managed by the department — this page is published at its unit URL.*
+- The **Theme** colours are the department's. When you publish, they apply to all of the department's pages, and to its standard page on biso.no.
+- Live blocks such as **Events feed**, **Open roles** and **News feed** follow the department, under **This page's department**.
+
+To come back to the page later, choose **Rediger side** (Edit Page) on the **Offentlig side** (Public page) card.
+
+</Step>
+<Step title="Publish each language">
+
+In the editor, choose **Publish** with **NO** selected. Then choose **EN**, write the English page or use **Translate to EN**, and choose **Publish** again.
+
+Back on the department's page in the admin, the **Offentlig side** (Public page) card shows the page's address and one line for each language, **Norsk** (Norwegian) and **Engelsk** (English):
+
+| Shows | What it means |
+|---|---|
+| **Publisert** (Published) | That language is live on biso.no. |
+| **Utkast** (Draft) | That language has a draft, but isn't live. A language you have unpublished shows this too. |
+| **Ikke publisert** (Not published) | That language has never been written. |
+
+**Se publisert side** (View live) opens the page on biso.no. It shows once at least one language is live, if the department is active.
+
+</Step>
+<Step title="Go back to the standard page">
+
+To show the standard page again, open the page with **Rediger side** (Edit Page). Choose **Unpublish** in each language that's live.
+
+The standard page comes back at the same address, in each language you unpublish. Your page stays as a draft, so you can publish it again later.
+
+</Step>
+<Step title="Make a project's shared page (global admins)">
+
+Some projects run on several campuses: Fadderullan, Karrieredagene and Bergensbaneløpet. Each campus's project has its own department page. The project as a whole can also have a shared page at biso.no/projects/ followed by the project's name, such as biso.no/projects/fadderullan.
+
+On **Sider** (Pages), choose the project in the **Prosjekt** (Project) list and choose **Opprett prosjektside** (Create project page). The page opens in the editor, starting from the same layout as a project's department page. It belongs to no department, and only global admins can edit, publish or delete it.
+
+Winter Games is one national project, so the button makes the page of its national department instead. Its board edits it from **Avdelinger** (Departments), as above. If that department isn't set up, you see **The Winter Games unit isn't set up yet**.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- Creating the page saves a draft. Nothing changes on biso.no, and nobody is told.
+- When you publish a language, your page replaces the standard page in that language.
+- The colours you publish become the department's colours.
+- No email or notification goes out when a department page is created or published.
+- The department's address never changes, even when the department is renamed. Links to it keep working.
+</WhatHappensNext>
+
+## What the student sees
+
+- At biso.no/units/ followed by the campus and the department's short name, a visitor sees your page when it's published in their language and has something on it: a page header or at least one section. Otherwise they see the standard page.
+- biso.no/units/ followed by the department's short name alone, with no campus, uses the campus the visitor has chosen on biso.no. If that doesn't settle it, they're asked to pick a campus.
+- An inactive department has no page on biso.no, even if its page is published.
+- The department's colours show on its page and on its standard page.
+- For Winter Games, the department's address sends visitors to biso.no/projects/winter-games once that page is published.
+- At biso.no/projects/ followed by a project's name, visitors see the project's shared page once it's published in their language. Until then, biso.no shows its built-in project page, where the project has one.
+
+## Common mistakes
+
+- Publishing only Norwegian. The page starts in Norwegian only, so visitors who read biso.no in English keep seeing the standard page until you publish English too.
+- Deleting the page from **Sider** (Pages) with **Slett side** (Delete page). The page is archived and the standard page comes back, but the **Offentlig side** (Public page) card can still show **Publisert** (Published). To hide your page, use **Unpublish** instead. To bring an archived page back, open it with **Rediger side** (Edit Page) and publish each language.
+- Emptying the page. A published page with no header and no sections counts as no page, so biso.no shows the standard page.
+- Changing the colours without meaning to change them everywhere. Publishing changes the colours of every page the department has, and of its standard page.
+- Trying to change the page's address. It's tied to the department and can't be changed.
+- Looking for a national project's page in **Sider** (Pages). Open it from **Avdelinger** (Departments).

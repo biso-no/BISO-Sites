@@ -1,5 +1,5 @@
 {
   "title": "Platform guide",
   "root": true,
-  "pages": ["index", "start-here", "recruitment", "analytics"]
+  "pages": ["index", "start-here", "recruitment", "pages-and-news", "analytics"]
 }

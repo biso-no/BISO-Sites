@@ -1,0 +1,245 @@
+---
+title: Edit a page
+description: How to build or change a page in the BISO page editor, with sections, blocks and colours, then preview it and publish it on biso.no.
+who: "Global admins (National + Operations Unit), campus leaders (Ledelsen on your campus) for pages on their campus, and department members, for their own department's pages."
+covers:
+  - apps/admin/src/app/(portal)/pages/**
+  - apps/admin/src/app/(editor)/**
+  - apps/admin/src/app/(portal)/_actions/pages.ts
+  - apps/admin/src/app/(portal)/_components/status-badge.tsx
+  - apps/admin/src/app/_components/content-translation-controls.tsx
+  - apps/admin/src/app/api/translate-page/**
+  - apps/admin/src/lib/page-campus.ts
+  - apps/admin/src/lib/page-shared-meta.ts
+  - apps/admin/src/lib/page-access.ts
+  - apps/admin/src/lib/page-theme-publish.ts
+  - apps/admin/src/lib/page-document-translation.ts
+  - apps/admin/src/lib/unit-page-guard.ts
+  - apps/admin/src/lib/upload-buckets.ts
+  - apps/admin/src/lib/web-revalidate.ts
+  - packages/editor/src/components/editor-shell/**
+  - packages/editor/src/blocks/**
+  - packages/editor/src/editor/**
+  - packages/shared/utils/page-theme.ts
+  - packages/api/page-builder.ts
+  - apps/web/src/app/(public)/[...slug]/**
+  - apps/web/src/lib/published-editor-page.tsx
+  - apps/web/src/lib/data/public-content.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Sider** (Pages) in your sidebar. [How pages and news work](/guide/pages-and-news#who-can-use-pages-and-news) shows who can edit which pages.
+- The page editor is in English whatever your admin language, so this page names its labels in English. It opens full screen, without the admin's sidebar.
+- Decide the page's web address. A page lives at biso.no/ followed by its address, for example biso.no/about/history.
+- Making your department's own page? It has a fixed address. Start from [Department pages](/guide/pages-and-news/department-pages), then come back here to edit it.
+- Have your text and pictures ready. Images can be up to 10 MB (JPG, PNG, GIF, WEBP or SVG). Files for download can be up to 25 MB.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the page in the editor">
+
+Open **Innhold** (Content) and choose **Sider** (Pages). The list shows up to 100 pages you can edit, most recently changed first. Each row shows the page's title, its address under the title, the date it was last changed and its status. The list has no search or filter.
+
+- To start a new page, choose **Opprett side** (Create Page).
+- To change a page, choose its title or **Rediger side** (Edit page).
+
+The editor has three columns:
+
+- **Blocks** on the left: the pieces you build the page from.
+- The page itself in the middle.
+- The settings on the right, under three tabs: **Block**, **Page** and **Outline**.
+
+The top bar shows the page's address after **biso.no /**. The back arrow at its left (tooltip: *Back to pages*) takes you back to **Sider** (Pages).
+
+The editor opens in your admin language. The buttons **NO** and **EN** above the page show which language you're editing.
+
+A new page isn't stored until you make your first change.
+
+</Step>
+<Step title="Fill in the page settings">
+
+Choose the **Page** tab on the right. Under **Page settings**:
+
+- **Title** and **Description** belong to the language you have open. biso.no shows the title in the browser tab, as the title followed by "| BISO". It uses the first 160 characters of the description as the page's summary for search engines.
+- **Shared slug** is the page's address after biso.no/. It's the same in both languages. A new page starts with `uten-navn` (or `untitled-page` in English), so change it. The editor doesn't check what you type: use lowercase letters, numbers and hyphens, with a slash between levels, as in `about/history`.
+  - If a new page's address is already taken, the editor adds "-2" to it, or "-3" and so on.
+  - Changing an existing page's address to one that's taken fails, and the top bar shows **Error**.
+  - Addresses that start with `units/` or `projects/` are kept for department and project pages. A page can't be saved there.
+- **Campus.** Global admins choose a campus, or **— National (no campus) —**. Campus leaders choose one of their campuses. Department members see their own campus and can't change it. Changing the campus clears **Dept** if that department isn't on the new campus.
+- **Dept** is the department the page belongs to. Each one is listed with its name and the first 8 characters of its id. If you're a department member in one department, the page is tied to it when it's first saved. If you're in several, choose one, or the page can't be saved.
+
+The **Theme** panel is further down this tab. See the colours step below.
+
+</Step>
+<Step title="Add sections">
+
+A page is built from sections, from top to bottom. Each section has one to four columns, and each column holds blocks.
+
+- On an empty page, pick a layout under **Add your first section**. You can also drag a block from the left onto the page.
+- To add a section later, point at the line between two sections, or go to the end of the page, and choose **+ Add section**. Under **Choose a layout**, pick one, or choose **Cancel**.
+
+| Layout | Name | Columns |
+|---|---|---|
+| 1 | **One column** | One, full width |
+| 1:1 | **Two equal columns** | Two, the same width |
+| 2:1 | **Wide left** | Two, the left one wider |
+| 1:2 | **Wide right** | Two, the right one wider |
+| 1:1:1 | **Three columns** | Three, the same width |
+| 1:1:1:1 | **Four columns** | Four, the same width |
+
+The page header is the band at the top, with the page's title. A new page already has one. Click it to change it in the **Block** tab: **Variant** (**Split**, **Full** or **Plain**), **Eyebrow**, **Title**, **Lede**, **Breadcrumbs**, **Buttons** and **Media**. If you remove it with **Remove page header**, add it back with **Page header** under **Page opening** at the top of the **Blocks** list.
+
+</Step>
+<Step title="Add blocks">
+
+The **Blocks** list on the left has a search box, **Search blocks…**, and these groups:
+
+| Group | Blocks |
+|---|---|
+| **Text and story** | **Rich text**, **Heading**, **Pull quote**, **Callout**, **Facts**, **Highlights** |
+| **Media** | **Image**, **Gallery**, **Video** |
+| **Structure** | **Cards**, **FAQ**, **Big numbers**, **Steps**, **Tabs**, **Timeline** |
+| **People** | **Team grid**, **Contact** |
+| **Live from BISO** | **Units**, **Events feed**, **Open roles**, **News feed**, **Partners**, **Shop** |
+| **Actions** | **Buttons**, **Call to action**, **Documents**, **Signup form**, **Multi-step form** |
+| **Small extras** | **Divider**, **Marquee** |
+
+Point at a block in the list to see what it's for. To add it, drag it onto the page, or click it. A click puts the block:
+
+- in the column where you last chose **+ Add block**. The list then shows which section and column, with **Cancel**.
+- otherwise in the section you've selected, or after the block you've selected.
+- otherwise in a new section at the end of the page.
+
+Then fill in the block's fields in the **Block** tab on the right. Some blocks need more:
+
+- **Live from BISO** blocks fill themselves from biso.no, such as your department's events, open roles or news. Under **Data source**, **Department** is set to **This page's department**, which follows the page's **Dept**. You can pick another department instead. On biso.no, a live block with nothing to show is left out.
+- **Signup form** and **Multi-step form** have a **Submission** setting. **Save to admin** sends the answers to the admin's inbox (see [Inbox and approvals](/guide/start-here/inbox-and-approvals)). **Email** sends them to the **Recipient**, which must be a @biso.no address. Any other address is refused, and nothing is sent.
+- Images, logos and files: choose **↑ Upload**, or paste a link that starts with https://.
+- In a **Rich text** block, select some text to get **Bold**, **Italic**, **Link** and **Remove formatting**.
+
+At the bottom of the list, **Build me a section** opens the AI copilot, a chat panel where you type in **Ask the copilot…**. The **Ask AI** button on the page opens it too. Check the page after you use it.
+
+</Step>
+<Step title="Arrange and change what's on the page">
+
+- Click a block on the page to select it. Its fields show in the **Block** tab.
+- Each block has a handle ⠿ (tooltip: *Drag to reorder*), ⊕ (tooltip: *Duplicate*) and ✕ (tooltip: *Delete*).
+- Click the empty space in a section to select the section. A bar appears on it with ⠿ (tooltip: *Drag to reorder*), ⊕ (tooltip: *Duplicate section*) and ✕ (tooltip: *Delete section*). From a selected block, **Section settings** at the bottom of the **Block** tab selects its section.
+- With a section selected, the **Block** tab shows its settings: **Section layout**, **Appearance** (**Background**, **Spacing**, **Align columns**), **Background image** for a **Photo** background, **Responsive**, **Link name** and **Actions**. A button on the page can link to a section by its **Link name**, as #name.
+- To hide something on phones, tick **Hide on phone** under **Visibility** for a block, or **Hide section on phone** for a section.
+- The **Outline** tab lists the page header, every section and the blocks in it. Click one to select it.
+- To undo, press Ctrl+Z (Cmd+Z on a Mac). To redo, press Ctrl+Shift+Z (Cmd+Shift+Z). This doesn't work while you're typing in a field.
+
+<Callout type="warn">
+Deleting a block or a section happens at once, without asking. Undo it straight away with Ctrl+Z or Cmd+Z. After you reload the page or leave the editor, you can't undo it.
+</Callout>
+
+</Step>
+<Step title="Set the colours">
+
+On the **Page** tab, the **Theme** panel has two colours. **Dark** must be dark enough for white text on it. **Accent** must stand out against **Dark**.
+
+As you change a colour, the panel checks it:
+
+- ✓ and a number, such as ✓ 8.2 : 1, means it passes.
+- *Too light for white text* or *Doesn't stand out on the dark colour* means it fails. A **Use #…** button offers the nearest colour that passes.
+
+**Reset** goes back to BISO's own colours.
+
+The line under **Theme** says what the colours affect:
+
+- **Applies to this page** for a page with no department.
+- **Applies to all** followed by the department's name and **pages**, for example **Applies to all Demo Events pages**, for a page with a department. When you publish, the colours become the department's. All of its pages, and its standard page on biso.no, use them.
+
+While a colour fails, the editor stops: the top bar reads **Not saved: theme colours fail the contrast check**, and you can't publish, switch language or use the back arrow. Fix the colour, or choose **Reset**.
+
+</Step>
+<Step title="Preview the page">
+
+Above the page:
+
+- **Preview** hides the editing controls, so you see the page as visitors will. **Edit** brings them back.
+- The three screen buttons (tooltips: *Desktop*, *Tablet*, *Mobile*) show the page at that width.
+
+The preview shows your draft. Live blocks show the events, roles or news there are now.
+
+</Step>
+<Step title="Write the other language">
+
+The **NO** and **EN** buttons above the page switch language. A **+** after a language means it has no draft yet (tooltip: *Norwegian (empty)* or *English (empty)*).
+
+You can write the other language in two ways:
+
+- Choose its button and build it yourself. It starts with an empty page header and no sections.
+- Choose **Translate to EN** (or **Translate to NO**). AI translates the language you have open, saves the result as the other language's draft, and switches to it. It translates the text and leaves links, pictures, emails, prices and numbers as they are. If the other language already has content, you're asked **Replace translated draft?** first. Choose **Replace** or **Cancel**. You see **Translated Norwegian to English**, or **Translation failed**.
+
+A translation isn't published until you publish that language. Read it through first.
+
+The **Auto-translate** switch in the top bar does more (tooltip: *Translate Norwegian to English after publish*, or the other way round). With it on, each time you publish, the other language is translated, saved over its draft and published, without asking. It's off each time you open the editor.
+
+</Step>
+<Step title="Publish">
+
+Choose **Publish** at the top right (tooltip: *Publish to biso.no*). It publishes the language you have open. Any change still waiting to save is saved first.
+
+You see one of these:
+
+- **Page published to biso.no**.
+- **Page published. Translation queued.** when **Auto-translate** is on.
+- **Published, but the department colours couldn't be updated. Try publishing again.** The page is live, but the colours weren't copied to the department. Publish again.
+- **Your latest changes couldn't be saved, so nothing was published.** Wait until the top bar no longer shows **Error**, then try again.
+
+Once the page is live, the button reads **Publish changes** (tooltip: *Publish the latest edits to biso.no*). Your changes after that stay in the draft until you choose it.
+
+Then switch to the other language with **NO** or **EN** and publish that too.
+
+To take a language off biso.no, open it and choose **Unpublish** (tooltip: *Take this page off biso.no*). You see **Page unpublished**. The draft is kept.
+
+If **Publish** is greyed out with the tooltip *The page colours fail the contrast check. Fix them in Page settings to publish.*, fix the colours first.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- Your draft saves itself about a second after each change. The top bar shows **Saving…**, then **Saved**. **Error** means the last save failed. If you try to close the tab while a save is waiting or has failed, the browser asks you to confirm.
+- When you publish, that language of the page goes live at biso.no/ followed by its address. The admin tells biso.no to refresh. If biso.no can't be reached, nobody is told, and the page can take a little longer to appear.
+- Nobody gets an email or a notification when a page is published.
+- For a page with a department, its colours become the department's colours when you publish.
+- With **Auto-translate** on, the other language is translated and published in the background after you publish. If anyone changes, publishes or unpublishes either language before it's done, it stops without telling you. **Translation queued.** doesn't mean it worked, so open the other language later and check it.
+- Saves, publishes, unpublishes and deletions are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- The page at biso.no/ followed by its address, in their language, as it was when that language was last published.
+- Only languages that are live. A visitor reading biso.no in English gets page not found if the page isn't live in English. biso.no doesn't show the Norwegian page instead.
+- The title in the browser tab, followed by "| BISO".
+- Every visitor can see a published page. There's no setting for members only.
+- Drafts and archived pages aren't shown on biso.no.
+- Live blocks show what biso.no has now, such as the department's upcoming events. A live block with nothing in it is left out.
+- On a phone, anything marked **Hide on phone** isn't shown. A section is hidden too when every block in it is hidden.
+
+## Common mistakes
+
+- Thinking your changes are live. After the first publish, changes stay in the draft until you choose **Publish changes**.
+- Publishing one language only. Visitors who read biso.no in the other language get page not found. Publish both, or check that one language is enough.
+- Taking the button's word for which language is live. **Publish changes** and **Unpublish** show in both languages as soon as one is live, even in a language that has never been published. In **Sider** (Pages), **Published** only means at least one language is live. Look at biso.no in each language to be sure.
+- Leaving **Auto-translate** on when the other language was written by hand. Publishing replaces it with a machine translation and publishes that.
+- Leaving the address as `uten-navn`. Set **Shared slug** before you publish.
+- Expecting to go back to the last live version. Publishing replaces the live copy, and the earlier one isn't kept. To undo a published change, change the draft back and publish again.
+- Using **Slett side** (Delete page) to hide a page for a while. Use **Unpublish** in each language instead.
+- Changing the colours on a department's page. When you publish, they change every page the department has.
+- Closing the tab while the top bar shows **Saving…** or **Error**. Wait for **Saved**.
+- Waiting for someone to approve the page. There's no approval step for pages: **Publish** puts the page live.
+
+<Callout type="warn">
+**Slett side** (Delete page) in **Sider** (Pages) asks **Delete page?** once, then takes the page off biso.no in every language at once. The page stays in the list as **Archived**. There's no button to restore it: to bring it back, open it and choose **Publish** in each language.
+</Callout>
