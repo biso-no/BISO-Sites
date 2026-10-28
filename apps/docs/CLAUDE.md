@@ -126,6 +126,21 @@ It warns on a PR. It never fails it. It warns when:
 - `covers` is malformed;
 - a changed page has `covers: []` but is not on the narrative allow-list.
 
+## Sign-in
+
+Docs reuses the admin's Microsoft sign-in and only ever reads its session
+cookie (`lib/auth/viewer.ts`, exposed as `GET /api/viewer`, `no-store`). Docs
+never sets or clears cookies and never uses `createAdminClient`.
+
+- `APPWRITE_SESSION_COOKIE=a_session_biso_admin` is required. Unset, the shared
+  client falls back to `a_session_biso`, which is Appwrite's own cookie, not
+  the admin's. Docs is read-only here, so there is no collision, but nobody
+  would be recognised.
+- Also needed: `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT`.
+- `NEXT_PUBLIC_ADMIN_URL` is the admin's origin, used for sign-in links.
+- Locally the admin cookie is host-only on `localhost` and ignores ports, so
+  docs on :3002 receives it after signing in on :3001.
+
 ## Commands
 
 Run from the repo root with `--filter=docs`, or from `apps/docs/`.
