@@ -1,7 +1,6 @@
 "use client";
 
-import { cn } from "@repo/ui/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signInHref } from "@/lib/auth/sign-in-link";
 import { type PrivateResult, requestPrivate } from "@/lib/private/batcher";
 import type { PrivateName } from "@/lib/private/registry";
@@ -34,6 +33,16 @@ export function PrivateView({
   result,
 }: PrivateViewProps) {
   const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+      }
+    },
+    []
+  );
 
   if (result === null) {
     return (
@@ -62,7 +71,10 @@ export function PrivateView({
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timer.current) {
+        clearTimeout(timer.current);
+      }
+      timer.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Copying is a convenience; the value stays selectable.
     }
@@ -70,11 +82,7 @@ export function PrivateView({
 
   return (
     <span>
-      <span
-        className={cn(
-          "whitespace-pre-wrap break-words rounded-sm bg-fd-muted px-1.5 py-0.5 text-fd-foreground"
-        )}
-      >
+      <span className="whitespace-pre-wrap break-words rounded-sm bg-fd-muted px-1.5 py-0.5 text-fd-foreground">
         {value}
       </span>
       <button

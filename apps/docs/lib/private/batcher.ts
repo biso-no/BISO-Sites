@@ -72,20 +72,30 @@ export const fetchPrivateBatch: FetchBatch = async (names) => {
   if (!response.ok) {
     return {};
   }
-  const data = (await response.json()) as
-    | { state: "ok"; values: Partial<Record<PrivateName, string>> }
-    | { state: "signed-out" | "forbidden" | "unavailable" };
+  const data = (await response.json()) as {
+    state?: unknown;
+    values?: Record<string, unknown>;
+  } | null;
   const out: Partial<Record<PrivateName, PrivateResult>> = {};
   for (const name of names) {
-    if (data.state !== "ok") {
-      out[name] = { state: data.state };
-      continue;
-    }
-    const value = data.values[name];
-    out[name] =
-      typeof value === "string" ? { state: "ok", value } : UNAVAILABLE;
+    out[name] = resultFor(data, name);
   }
   return out;
 };
+
+function resultFor(
+  data: { state?: unknown; values?: Record<string, unknown> } | null,
+  name: PrivateName
+): PrivateResult {
+  const state = data?.state;
+  if (state === "signed-out" || state === "forbidden") {
+    return { state };
+  }
+  if (state === "ok") {
+    const value = data?.values?.[name];
+    return typeof value === "string" ? { state: "ok", value } : UNAVAILABLE;
+  }
+  return UNAVAILABLE;
+}
 
 export const requestPrivate = createPrivateBatcher(fetchPrivateBatch);

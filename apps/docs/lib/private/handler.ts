@@ -19,8 +19,11 @@ function json(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: NO_STORE });
 }
 
-function parseNames(url: string): PrivateName[] | null {
-  const raw = new URL(url).searchParams.get("names") ?? "";
+export function parseNames(
+  raw: string,
+  max = MAX_PRIVATE_NAMES,
+  isKnown: (name: string) => boolean = isPrivateName
+): PrivateName[] | null {
   const names = [
     ...new Set(
       raw
@@ -29,10 +32,29 @@ function parseNames(url: string): PrivateName[] | null {
         .filter(Boolean)
     ),
   ];
-  if (names.length === 0 || names.length > MAX_PRIVATE_NAMES) {
+  if (names.length === 0 || names.length > max) {
     return null;
   }
-  return names.every(isPrivateName) ? (names as PrivateName[]) : null;
+  return names.every(isKnown) ? (names as PrivateName[]) : null;
+}
+
+async function readValues(
+  names: PrivateName[],
+  getSource: PrivateHandlerDeps["getSource"]
+): Promise<PrivateResponse> {
+  const source = getSource();
+  if (!source) {
+    return { state: "unavailable" };
+  }
+  const found = await source.get(names);
+  const values: Partial<Record<PrivateName, string>> = {};
+  for (const name of names) {
+    const value = found[name];
+    if (typeof value === "string") {
+      values[name] = value;
+    }
+  }
+  return { state: "ok", values };
 }
 
 /**
@@ -44,12 +66,19 @@ export function createPrivateHandler({
   getViewer,
 }: PrivateHandlerDeps) {
   return async function handle(request: Request): Promise<Response> {
-    const names = parseNames(request.url);
+    const names = parseNames(
+      new URL(request.url).searchParams.get("names") ?? ""
+    );
     if (!names) {
       return json({ error: "Invalid names" }, 400);
     }
 
-    const viewer = await getViewer();
+    let viewer: Viewer;
+    try {
+      viewer = await getViewer();
+    } catch {
+      return json({ state: "unavailable" } satisfies PrivateResponse);
+    }
     if (!viewer.signedIn) {
       return json({ state: "signed-out" } satisfies PrivateResponse);
     }
@@ -58,21 +87,14 @@ export function createPrivateHandler({
     }
 
     try {
-      const source = getSource();
-      if (!source) {
-        return json({ state: "unavailable" } satisfies PrivateResponse);
-      }
-      const found = await source.get(names);
-      const values: Partial<Record<PrivateName, string>> = {};
-      for (const name of names) {
-        const value = found[name];
-        if (typeof value === "string") {
-          values[name] = value;
-        }
-      }
-      return json({ state: "ok", values } satisfies PrivateResponse);
-    } catch {
-      // Config errors and source failures look the same to the reader.
+      return json(await readValues(names, getSource));
+    } catch (error) {
+      // Config errors and source failures look the same to the reader. Log the
+      // name and message only: never values or tokens.
+      console.error(
+        "[docs] private source unavailable:",
+        error instanceof Error ? `${error.name}: ${error.message}` : "unknown"
+      );
       return json({ state: "unavailable" } satisfies PrivateResponse);
     }
   };
