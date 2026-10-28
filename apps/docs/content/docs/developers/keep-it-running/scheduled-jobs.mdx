@@ -1,6 +1,6 @@
 ---
 title: Scheduled jobs
-description: Every job that runs on a timer or an event, what it does and what breaks when it stops, the webhooks between BISO and outside services, and the endpoints nothing calls.
+description: Every job that runs on a timer or an event, what it does and what breaks when it stops, the webhooks between BISO and outside services, and the job-like endpoints that nothing schedules.
 covers:
   - functions/scheduled-dispatch/**
   - functions/content-notifier/**
@@ -54,7 +54,7 @@ This page lists everything that runs without someone pressing a button, and ever
 
 - Appwrite runs it every 5 minutes (`*/5 * * * *`). The schedule is set in the console. `packages/api/appwrite.config.json` keeps a copy.
 - Each run sends a `POST` to every target URL set on the function, all at the same time, with the header `x-cron-secret`. A target whose variable is empty is skipped.
-- Each target compares that header with its own `CRON_SECRET`, so the value must be the same on the function and on web, admin and api. A different value gets `401`. If `CRON_SECRET` is missing on admin or api, the target answers `500`.
+- Each target compares that header with its own `CRON_SECRET`, so the value must be the same on scheduled-dispatch, content-notifier, web, admin and api. A different value gets `401`. If `CRON_SECRET` is missing on admin, api or content-notifier, or on the website in production, the target answers `500`.
 - Each call gets 30 seconds (`CRON_TIMEOUT_MS`). Order reconciliation and expense posting get 300 seconds. To change one target's limit, set `<VARIABLE>_TIMEOUT_MS`, for example `ORDERS_RECONCILE_URL_TIMEOUT_MS`.
 - The function's own timeout limits the whole run. It's 330 seconds in the console. The repo copy says 60, but the console value is the real one. Keep it above the longest target limit.
 - The run answers `200` when every call worked and `502` when any failed. A `2xx` reply still counts as failed if its body has `ok: false`, `success: false` or a `failed` count above 0.
@@ -70,18 +70,18 @@ Which targets are set in production is only in the console, under the function's
 | `ANNOUNCEMENTS_DISPATCH_URL` | admin `POST /api/announcements/dispatch` | Sends scheduled announcements whose time has passed | Scheduled announcements never go out |
 | `JOBS_PUBLISH_SCHEDULED_URL` | admin `POST /api/recruitment/publish-scheduled` | Publishes vacancies whose publish time has passed | Scheduled vacancies stay unpublished |
 | `TURNOVER_RETENTION_STOP_URL` | admin `POST /api/it/turnover/stop-retention` | Stops Azure Automation retention runs after their 7-day hold, and retries failed stops | Retention runs from a board turnover stay open |
-| `ORDERS_RECONCILE_URL` | api `POST /api/cron/reconcile-orders` | Re-checks payments still pending after 10 minutes with Vipps or Stripe, retries missing 24SevenOffice ledger postings, resolves pending refunds, and retries membership fulfilment | An order whose payment webhook was missed stays pending: stock isn't reduced and revenue isn't posted. Pending refunds stay pending, and membership invoices stay missing. |
+| `ORDERS_RECONCILE_URL` | api `POST /api/cron/reconcile-orders` | Re-checks payments still pending after 10 minutes with Vipps or Stripe, resolves pending refunds, and retries membership fulfilment. When the feature flag `shop_ledger_posting` is on, it also retries missing 24SevenOffice ledger postings. | An order whose payment webhook was missed stays pending: stock isn't reduced and revenue isn't posted. Pending refunds stay pending, and membership invoices stay missing. |
 | `EXPENSES_POST_PENDING_URL` | api `POST /api/expenses/post-pending` | Posts approved reimbursements to the 24SevenOffice ledger. Does nothing unless the feature flag `expenses_ledger_posting` is on. | With the flag on, approved reimbursements aren't posted |
 | `TICKSTER_SYNC_URL` | api `POST /api/tickster/sync` | Imports Tickster ticket buyers into `event_attendees` | Attendee lists stop updating |
 | `TICKSTER_EVENTS_SYNC_URL` | api `POST /api/tickster/events/sync` | Copies the events BISO publishes on Tickster into `events` | New Tickster events don't appear on the website or in the app |
 | `DEPARTURES_SYNC_URL` | api `POST /api/departures/sync` | Refreshes public-transport departures from Entur | Departures in the app go stale |
 | `MEMBER_PASS_CLEANUP_URL` | api `POST /api/cron/cleanup-member-pass` | Deletes member-pass scan logs after 90 days, and scanner links 30 days after they expired | That data is kept longer than the stated retention |
 | `RECRUITMENT_RETENTION_CLEANUP_URL` | api `POST /api/cron/cleanup-recruitment` | Deletes job applications, with their résumé, answers and interviews, and candidate profiles, once their 180-day retention has passed | Applicant data outlives the retention BISO promises |
-| `RESERVATIONS_CLEANUP_URL` | web `POST /api/cron/cleanup-reservations` | Deletes expired cart reservations, which hold stock for 10 minutes | Held stock isn't released |
+| `RESERVATIONS_CLEANUP_URL` | web `POST /api/cron/cleanup-reservations` | Deletes expired cart reservations, which hold stock for 10 minutes | Expired reservation rows pile up in `cart_reservations`. Stock isn't affected, because availability already ignores expired holds. |
 
 Two things to know about the targets:
 
-- **A target fails on every run if the feature behind it isn't set up.** The Tickster syncs answer `500` without their Tickster variables, and the retention stop answers `500` without `AZURE_RETENTION_STOP_WEBHOOK_URL`. Leave a target's variable empty until the feature is configured.
+- **A target fails on every run if the feature behind it isn't set up.** The ticket-buyer sync answers `500` without `TICKSTER_API_KEY` and `TICKSTER_EOG_CODE`, the event sync without `TICKSTER_API_KEY`, and the retention stop without `AZURE_RETENTION_STOP_WEBHOOK_URL`. Leave a target's variable empty until the feature is configured.
 - **There are two order-reconciliation routes.** The api route is the current one. The website still has a deprecated copy at the same path, `/api/cron/reconcile-orders`. Check that `ORDERS_RECONCILE_URL` points at `api.biso.no`. Running both does no harm, because every payment update claims the order first.
 
 ### Check that it's working
@@ -102,9 +102,11 @@ In the console, open **Functions**, then scheduled-dispatch, then **Executions**
 | No `start` line | The deployment never ran the code | Check the build log, the entrypoint and the runtime |
 | `CRON_SECRET is not configured` | The function has no `CRON_SECRET` | Set it on the function |
 | `configured=[]` or `nothing to do` | No target URL is set | Set the target variables |
-| `FAIL … -> 401` | The target's `CRON_SECRET` differs from the function's | Set the same value on both, then redeploy |
-| `FAIL … -> 500` | The target's app is missing a setting | Open the body in the log line. It names the setting, for example `CRON_SECRET is not configured`. |
-| `FAIL … -> no-response: request aborted` | The target took longer than its limit | Raise its `<VARIABLE>_TIMEOUT_MS`, and keep the function timeout above it |
+| `FAIL <NAME> <URL> -> 401 (…ms): …` | The target's `CRON_SECRET` differs from the function's | Set the same value on both, then redeploy as in [Redeploy without shipping new code](/developers/keep-it-running/deploying#redeploy-without-shipping-new-code) |
+| `FAIL <NAME> <URL> -> 500 (…ms): …` | The target answered with an error: a missing setting, or the job itself failed | Read the body at the end of the log line, then the target app's logs |
+| `FAIL <NAME> <URL> -> 200 (…ms): {"ok":false…}` | The target answered `200` but its body reports a failure, for example `ok: false` or a `failed` count above 0 | Read the body, then the target app's logs |
+| `FAIL <NAME> <URL> -> no-response (…ms): request aborted after …` | The target took longer than its limit | Raise its `<VARIABLE>_TIMEOUT_MS`, and keep the function timeout above it |
+| `FAIL <NAME> <URL> -> no-response (…ms):` followed by any other error | The function couldn't reach the target: the app is down, or the URL is wrong | Check the target app's `/api/health`, and the URL in the function's variables |
 | `uncaught error` | An unexpected error | The stack trace in **Errors** points at the cause |
 
 ### Run a job by hand
@@ -123,12 +125,16 @@ curl -X POST https://api.biso.no/api/cron/reconcile-orders -H "Authorization: Be
 
 Both run the real job against production, the same as the next scheduled run would.
 
+A run started through the domain may be cut off after 30 seconds, which is Appwrite's limit for domain executions (`functions/scheduled-dispatch/README.md`). Order reconciliation and expense posting can take up to 300 seconds, so call those two directly.
+
 ### Add a job
 
 1. Write the endpoint in the app that owns the work. Check `CRON_SECRET` from `x-cron-secret` or `Authorization: Bearer` with `safeSecretCompare` from `@repo/shared/utils/secrets`, as the existing targets do.
 2. Add the new variable name to `TARGET_ENV_VARS` in `functions/scheduled-dispatch/src/main.ts`. The function only reads the names in that list.
-3. Deploy the app, then the function. See [Deploying](/developers/keep-it-running/deploying#scheduled-dispatch).
-4. Set the new variable on the function in the console, and add it to `functions/scheduled-dispatch/.env.example`.
+3. Deploy the app. See [Deploying](/developers/keep-it-running/deploying).
+4. Set the new variable on scheduled-dispatch in the console, and add it to `functions/scheduled-dispatch/.env.example`.
+5. Deploy the function. If you set the variable after deploying it, redeploy it.
+6. Check the next run. Its `configured=[…]` line lists the new name, and its result line shows `OK`.
 
 ## content-notifier
 
@@ -179,9 +185,11 @@ A missed Vipps or Stripe webhook isn't lost as long as `ORDERS_RECONCILE_URL` is
 
 The Azure Automation URLs carry their own token. Treat them as secrets.
 
-## Endpoints nothing calls
+## Endpoints with no schedule
+
+These look like scheduled jobs, but nothing runs them on a timer.
 
 - **api `/api/cleanup-anon-users`** deletes anonymous Appwrite users with no email, not verified, and not updated for 14 days. The only schedule for it is in `apps/api/vercel.json`, and Vercel's cron doesn't run on Appwrite. scheduled-dispatch has no target for it, so anonymous users pile up. The website only creates them when a visitor uses the cart. To schedule it, add a target as described in [Add a job](#add-a-job), and expect the first run to delete a backlog.
 - **api `/api/admin/account-turnover`** and its `/bulk` route post to `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL`. Nothing in the repo calls them. The admin's board turnover uses the retention webhooks above instead.
-- **web `/api/cron/reconcile-orders`** is deprecated. Delete it, and the `/api/checkout/return` forwarder, once `ORDERS_RECONCILE_URL` points at the api.
+- **web `/api/cron/reconcile-orders`** is deprecated. It runs only if `ORDERS_RECONCILE_URL` still points at the website. Delete it, and the `/api/checkout/return` forwarder, once that variable points at the api.
 - **admin `POST /api/units/sync`** copies departments from 24SevenOffice. It isn't scheduled. A global admin runs it with the sync button on the admin's departments page when 24SevenOffice's chart of departments changes.

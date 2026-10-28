@@ -88,7 +88,14 @@ The first time you deploy, open each Site's settings and write down what you fin
 
 ### Environment variables and builds
 
-Next.js copies every `NEXT_PUBLIC_*` value into the build. Set those on the Site before you deploy, and deploy again after you change one. The other variables are read while the app runs. [Secrets and environment](/developers/keep-it-running/secrets-and-environment) lists them all.
+Next.js copies every `NEXT_PUBLIC_*` value into the build. Set those on the Site before you deploy, and redeploy after you change one, as below. The other variables are read while the app runs. [Secrets and environment](/developers/keep-it-running/secrets-and-environment) lists them all.
+
+### Redeploy without shipping new code
+
+After you change a variable or rotate a secret, you redeploy. A new deployment of `main` also ships every commit on `main` that isn't live yet. To avoid that:
+
+- **Rebuild the live deployment.** Appwrite can rebuild an existing deployment from its original code with the current settings (`createDuplicateDeployment` for Sites and functions in the Appwrite API). Use that on the active deployment. The repo doesn't record whether the console has a button for it, so look on the deployment in the console, or call the API. Then check that the new build is the active one.
+- **Or check `main` first.** Each Git deployment records its commit. Compare the active deployment's commit with the latest commit on `main`. If they differ, you're shipping those commits too, so run the checks in [Before you deploy](#before-you-deploy) first.
 
 ### Notes per app
 
@@ -136,6 +143,7 @@ Its README says it is deployed through the console's Git integration, and that t
 | Runtime | `bun-1.0`. Bun runs the TypeScript directly, so there's no build step. |
 | Schedule | `*/5 * * * *` (every 5 minutes) |
 | Timeout | 330 seconds in the console. `appwrite.config.json` says 60, but the console value is the real one. |
+| Execute access | `any`, so it can be started through its domain. The code then checks `CRON_SECRET`. |
 | Scopes | None. It only makes HTTP calls. |
 | Variables | `CRON_SECRET` and the target URLs. See [Scheduled jobs](/developers/keep-it-running/scheduled-jobs). |
 
@@ -205,12 +213,12 @@ A GitHub workflow is planned. It needs:
 - **An Appwrite API key** for the production project, stored as a GitHub secret. The old workflow called it `APPWRITE_API_KEY`. Give the key only the scopes it uses: `sites.read` and `sites.write` to create and activate Site deployments, plus `functions.read` and `functions.write` if it also deploys functions.
 - **Where to deploy.** The old workflow read the GitHub variables `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `ADMIN_SITE_ID`, `API_SITE_ID`, `DOCS_SITE_ID` and `WEB_SITE_ID`. Nobody knows whether they still exist in the repository's settings.
 - **The apps' environment variables, if it builds the apps itself.** `next build` copies the `NEXT_PUBLIC_*` values into the build, so a build in GitHub needs them. A build that Appwrite runs uses the Site's own variables.
-- **Full git history, for the docs' "last updated" dates.** Docs works these out with `git log` when it's built (`apps/docs/source.config.ts`), and `apps/docs/lib/git-dates.ts` hides every date when the clone is shallow. The Appwrite build counts as shallow, so production docs show no dates. To get them, build docs in the workflow from a checkout with `fetch-depth: 0`. If the workflow asks Appwrite to build from Git instead, as the old one did, Appwrite does its own checkout and the dates stay hidden.
+- **Full git history, for the docs' "last updated" dates.** Docs works these out with `git log` when it's built (`apps/docs/source.config.ts`), and `apps/docs/lib/git-dates.ts` hides every date when the clone is shallow. The Appwrite build is probably a shallow clone. The owner doesn't know for sure, and production docs show no dates. To get them, build docs in the workflow from a checkout with `fetch-depth: 0`. If the workflow asks Appwrite to build from Git instead, as the old one did, Appwrite does its own checkout and the dates stay hidden.
 - **The checks.** Run `bun run check-types` and the tests, so that CI checks something before production.
 
 ## The BISO app
 
-The app is in the BISO-Flutter repository. Its version is the `version:` line in `pubspec.yaml`, in the form `1.2.3+45`, and the Android build fails if it doesn't look like that. Raise the build number after the `+` before every release. Nothing raises it for you.
+The app is in the BISO-Flutter repository. Its version is the `version:` line in `pubspec.yaml`, in the form `1.2.3+45`, and the Android build fails if it doesn't look like that. Raise the build number after the `+` before every push to `main`, because every push uploads a build to Google Play, and before every iOS release. Nothing raises it for you.
 
 ### Android
 
