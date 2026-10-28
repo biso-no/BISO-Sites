@@ -56,7 +56,7 @@ export const taskGroups: TaskGroup[] = [
       },
       {
         title: "Shortlist or archive a candidate",
-        href: "/guide/recruitment/review-applications#steps",
+        href: "/guide/recruitment/review-applications#shortlist-or-archive-a-candidate",
       },
       {
         title: "Send a booking link",

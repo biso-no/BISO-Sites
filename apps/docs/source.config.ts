@@ -7,6 +7,7 @@ import {
 import lastModified from "fumadocs-mdx/plugins/last-modified";
 import { z } from "zod";
 import { createGitDateLookup } from "./lib/git-dates";
+import { remarkStepIds } from "./lib/step-ids";
 
 const gitDates = createGitDateLookup(
   (args) =>
@@ -33,5 +34,8 @@ export const docs = defineDocs({
 });
 
 export default defineConfig({
+  // An array lands after Fumadocs' own heading plugin, so step ids can avoid
+  // heading ids.
+  mdxOptions: { remarkPlugins: [remarkStepIds] },
   plugins: [lastModified({ versionControl: gitDates })],
 });
