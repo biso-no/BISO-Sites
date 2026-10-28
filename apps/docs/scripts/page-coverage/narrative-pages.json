@@ -1,5 +1,7 @@
 [
   "apps/docs/content/docs/guide/index.mdx",
   "apps/docs/content/docs/developers/index.mdx",
-  "apps/docs/content/docs/developers/start-here/if-youre-hiring-someone.mdx"
+  "apps/docs/content/docs/developers/start-here/if-youre-hiring-someone.mdx",
+  "apps/docs/content/docs/developers/reference/design-decisions.mdx",
+  "apps/docs/content/docs/developers/reference/history.mdx"
 ]

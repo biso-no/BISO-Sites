@@ -1,0 +1,85 @@
+---
+title: History
+description: How the platform got here, with dates. The WordPress site it replaced, the move to Next.js and Appwrite, and the major rebuilds, taken from the git history and the design records.
+covers: []
+---
+
+Read this to understand why the code looks the way it does: why there's a WordPress import tool, why some columns and routes nobody uses are still around, and which parts are new. The dates come from the git history of BISO-Sites and from the design records in `docs/superpowers/specs/`. A date is the day the work was committed or merged into `main`. That isn't always the day it went live, because deploys are manual and the repo doesn't record them.
+
+The repo starts on 31 October 2025. For anything earlier, it holds only what the code itself shows.
+
+## Before this repo: WordPress
+
+`biso.no` used to be a WordPress site. The evidence is in this repo:
+
+- A plan committed with the first code in this repo, `apps/web/docs/public-site-parity.md`, tracked which pages of "the legacy WordPress site (biso.no)" the new website still lacked.
+- The WordPress import design of 18 August 2026 surveyed the live site. It ran WooCommerce for the shop, with 56 products, the WP Job Openings plugin for vacancies, with 121 of them, Polylang for Norwegian and English, and The Events Calendar, which held no events.
+- Shop orders were booked into 24SevenOffice by hand once a month, from a WordPress export (`2026-09-11-finago-shop-ledger-posting-design.md`).
+- The benefit lists on the new website were first copied from the WordPress site into text fields on `campus_data` (`2026-10-21-benefits-studio-design.md`).
+
+The repo doesn't record when the WordPress site was built or how long it ran.
+
+## October 2025: the monorepo starts
+
+On 31 October 2025 the repo was created from Turborepo's starter. The same day, a Next.js website was brought in: `apps/web` with about 430 files, plus `packages/api`, an early `packages/editor` and a larger `packages/ui`. That website already read and wrote Appwrite through `@repo/api` in 68 of its source files, and a Vipps SDK was among its dependencies. It had been built before, somewhere else, and its earlier history isn't in this repo. A script from that commit imported vacancies from the WordPress site's API into Appwrite.
+
+## November 2025 to January 2026: the admin, the api and the first integrations
+
+- **4 November 2025.** Vipps checkout in a new `@repo/payment` package.
+- **12 November 2025.** The admin app, with the Puck page builder. By 21 November it had pages in several languages and a draft and publish flow.
+- **15 November 2025.** The docs moved to Fumadocs.
+- **17 November 2025.** `@repo/i18n`, for the Norwegian and English texts.
+- **28 November 2025.** `apps/api`, a separate Next.js app that serves only API routes. The Vipps webhook moved there first.
+- **29 November 2025.** `@repo/ai`, starting with an assistant in the admin.
+- **10 December 2025.** `@repo/connectors`, starting with unit boards from Microsoft Graph.
+- **14 January 2026.** The 24SevenOffice integration.
+- **17 and 18 January 2026.** A page editor with an AI copilot, still built on Puck.
+- **19 January 2026.** `@repo/shared`, for logic the apps share.
+
+## April to July 2026: towards launch
+
+- **5 April 2026.** Shared dependency versions moved into one catalogue in the root `package.json`. The first GitHub workflows arrived the same day: one per app, each asking Appwrite to deploy the pushed commit to its Site. Later that day they were merged into one `deploy-production.yml`.
+- **24 April 2026.** Governing documents from SharePoint.
+- **18 May 2026.** Microsoft 365 user management on the admin's IT pages.
+- **19 and 20 May 2026.** The in-house page editor, built in a separate repository, moved into this one as `@repo/editor`.
+- **27 and 28 May 2026.** A round of audits of the admin, the website and recruitment, and the root `CLAUDE.md`.
+- **1 and 3 June 2026.** AI features across the admin, and the scheduled-dispatch function with scheduled announcements.
+- **8 June 2026.** Puck was removed from the dependencies. The `puck_document` column on `page_translations` is what's left of it.
+- **16 June 2026.** The AI fix for Microsoft departments, and HR as its own recruitment role.
+- **17 June 2026.** The website stopped creating anonymous sessions on page views and dropped its middleware.
+- **24 to 30 June 2026.** A webshop overhaul, expense claims posted to the ledger with approvals in Teams, preparation for the website's launch, guided tours in the admin, and Umami analytics.
+- **2 July 2026.** The board turnover for role accounts, with the 7-day retention run in Azure.
+- **8 and 9 July 2026.** Checkout hardening, a production-readiness review, the shorter admin menu with ⌘K, and recruitment hardening.
+
+## August and September 2026: content, money and the new website
+
+- **11 to 13 August 2026.** The news studio, the content-permissions design, translation after saving, membership purchase on the website, and the website's session cookie renamed to `a_session_biso_web`.
+- **18 August 2026.** The WordPress import tool, `packages/wp-import`, was written. On that day `biso.no` was still WordPress, and the tool's default WordPress address already assumed the old site would move to another hostname. It was merged on 7 September. The repo doesn't record the day the new website took over `biso.no`.
+- **24 to 27 August 2026.** On-brand page blocks, and department unit pages.
+- **31 August and 2 September 2026.** The website redesign: its spec in `docs/redesign/01-design-spec.md`, then a full rebuild of `apps/web` on the `redesign/apps-web` branch.
+- **7 to 15 September 2026.** Server-side lists in the admin and on the website, order refunds, and every paid shop order posted to the ledger.
+- **17 September 2026.** The GitHub deploy workflow was deleted, in commit `3872261c`. Since then the owner has deployed by hand in the Appwrite console. See [Deploying](/developers/keep-it-running/deploying#why-pushing-to-main-doesnt-deploy).
+- **18 September 2026.** The member pass, with Apple Wallet and Google Wallet.
+- **29 and 30 September 2026.** The member-roster-sync function, the membership plans synced from 24SevenOffice, membership status worked out by the api, and an automated Claude Code review on pull requests.
+
+## October 2026
+
+- **1 October.** Governing documents with version history, stored in SharePoint.
+- **15 October.** BI student sign-in on the website, the Museo brand fonts, project hubs, and a batch of fixes to recruitment and the page editor.
+- **19 October.** BI sign-in and recruitment in the BISO app.
+- **21 October.** The push notification overhaul, with the content-notifier function and 50 topics.
+- **22 October.** The benefits studio, the app update prompt, and the move of every AI feature from OpenAI to Anthropic.
+- **27 October.** The page editor redesign was merged. It brought the website redesign into `main` with it. The docs rework started the same day.
+- **28 October.** Event sign-ups (RSVP).
+
+## The BISO app
+
+The app is in a separate repository, BISO-Flutter, and its history isn't covered here. The app update design of 21 October 2026 says an earlier app, written in TypeScript, had an update prompt that the Flutter app lacked. [The mobile app](/developers/change-it/the-mobile-app) describes the app as it is now.
+
+## What the history explains
+
+- **Puck is gone**, but the `puck_document` and `draft_document` columns are still in the schema. Pages now use `draft_doc` and `published_doc`.
+- **The WordPress era** left `packages/wp-import`, three api routes that still read `biso.no/wp-json`, and the WooCommerce variables. See [Events and content sources](/developers/reference/events-and-content-sources#wordpress-and-woocommerce).
+- **The deleted deploy workflow** can still be read with `git show 3872261c^:.github/workflows/deploy-production.yml`, and the GitHub variables it used may still exist. See [What a deploy workflow needs](/developers/keep-it-running/deploying#what-a-deploy-workflow-needs).
+- **The move from OpenAI to Anthropic** is recent, so some code, tests and READMEs still mention OpenAI. See [Leftovers](/developers/reference/ai#leftovers).
+- **Some code was written for Vercel.** `apps/api/vercel.json` holds a cron schedule that Appwrite never runs, and `VERCEL_ENV` still counts as production. See [Known limitations](/developers/reference/known-limitations#leftovers).

@@ -88,6 +88,10 @@ export const PRIVATE_VALUES = {
     description:
       "Who owns the Better Stack account, which email it is registered under, and who receives its alerts.",
   },
+  "security-issues-tracker": {
+    description:
+      "Where the owner keeps the list of open security issues, such as a private GitHub security advisory list or an Infisical note, and who to ask for access. Never the issues themselves.",
+  },
 } as const satisfies Record<string, PrivateValueEntry>;
 
 export type PrivateName = keyof typeof PRIVATE_VALUES;
