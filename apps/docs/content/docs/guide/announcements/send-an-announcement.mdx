@@ -1,0 +1,139 @@
+---
+title: Send an announcement
+description: How to write a push announcement in Communications, choose who gets it, send it now or at a set time, and follow it up afterwards.
+who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Campus leaders send to their own campus."
+covers:
+  - apps/admin/src/app/(portal)/communications/**
+  - apps/admin/src/app/(portal)/_actions/announcements.ts
+  - apps/admin/src/app/(portal)/_actions/composer.ts
+  - apps/admin/src/lib/announcements/**
+  - apps/admin/src/lib/notifications/topic-subscribers.ts
+  - apps/admin/src/app/api/announcements/dispatch/route.ts
+  - apps/admin/src/app/_components/content-translation-controls.tsx
+  - packages/shared/utils/push-dispatch.ts
+  - packages/shared/utils/notification-topics.ts
+  - functions/scheduled-dispatch/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Kommunikasjon** (Communications) in your sidebar, under **Innhold** (Content). Only global admins and campus leaders have it. See [How notifications reach students](/guide/announcements#who-can-send-what).
+- Everything in **Kommunikasjon** (Communications) is in English whatever your admin language, so this page names its labels in English.
+- Check whether you need an announcement at all. A new event, article or job sends its own notification when it goes live, if its switch is on.
+- Decide who should get it. **Everyone at a campus** reaches every student with notifications on. Use it only for things every student there needs.
+- If the announcement is about an event, an article or a job, it must be published before you can link it.
+- A push can't be called back once it's sent.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Start an announcement">
+
+Open **Innhold** (Content) and choose **Kommunikasjon** (Communications). The page lists announcements, newest first, 20 a page. **All**, **Manual** and **Automatic** at the top filter the list. Automatic notifications from events, news and jobs are tagged **Automatic**.
+
+Choose **New announcement**.
+
+To message a logistics group for an event, choose **Message** on the group's card instead. See [Run the event](/guide/events/run-the-event#message-a-group-global-admins-and-campus-leaders).
+
+The composer has four steps in a rail across the top: **What**, **Message**, **Who** and **Check & send**. Click any of them, or move with **Continue** and **Back** at the bottom. If **Continue** is greyed out, point at it to see what's missing. The rail says **Unsaved** while you have changes that aren't saved. The previews on the right show how it looks on a phone and in the app's inbox.
+
+</Step>
+<Step title="Say what it's about">
+
+On **What** ("What is this about?"), choose a type:
+
+- **General**: an update from BISO
+- **Event**, **News** or **Job**: about one event, article or position, which you must link
+- **Trip**: travel information, with an optional link to an event
+- **Urgent**: delivered with priority
+
+For **Event**, **News** and **Job**, search in **Which event?**, **Which article?** or **Which position?** and choose the item. It must be published: a draft shows in the list, but you can't save with it. Linking fills in the title and the text from the item, where you haven't typed anything yet, and you see **✓ Title and text filled in from the event. Edit freely.** It can also set the audience to the students who follow that topic for the item's campus. Students who tap the notification open the item.
+
+Then fill in **Title** (*A headline students can't miss…*). **EN** and **NO** switch the language. You need a title in at least one language.
+
+</Step>
+<Step title="Write the message">
+
+On **Message** ("The message."), write the text for the language you have open. It's optional. Keep it short: a push shows only the first line or two.
+
+Write both languages if you can. Each student gets the language that matches their app or profile, or the other one if only one is written. See the next step for translating.
+
+</Step>
+<Step title="Choose who gets it">
+
+On **Who** ("Who should get it?"), choose one:
+
+- **Everyone at a campus** ("Every student with notifications on. Use sparingly."). Then choose the campus. Global admins can also choose **All campuses**. For campus leaders it's greyed out: **Only national admins can send to every campus.**
+- **Students who follow a topic** ("Only students who chose to follow it in the app"). Choose the campus, then the topic: **Events**, **Jobs**, **News** or **Shop**.
+- **Specific people** ("Search by name or email"). Type at least two letters and choose each person.
+- **A group from an event** ("e.g. everyone on Bus 2 of the Trondheim trip"). Choose the event, then the group. Campus leaders can choose groups on their own campus's events.
+
+The box under the cards shows the reach, for example **About 412 phones**. It counts phones, not students: a student with two phones counts twice, and gets it on both. If it reads **Reach unavailable right now**, the count couldn't be loaded. You can still send.
+
+**Sent on behalf of** ("Leave empty to send as BISO") records which department the announcement belongs to. It doesn't change what students see.
+
+</Step>
+<Step title="Check and send">
+
+On **Check & send** ("Have a last look."), check the summary rows **What**, **Who**, **Languages** and **Timing**. **Edit** on a row goes back to that step.
+
+1. **When**: **Send now**, or **Schedule** with **Date and time (Oslo time)**.
+2. If you choose **Send now** between 22:00 and 08:00 Oslo time, you see **It's late. Students may be asleep.** with **Send at 08:00 instead**. That switches to **Schedule** at 08:00. You can still send now. **Urgent** announcements don't get this offer.
+3. **How it arrives**: **Push + inbox** sends a notification to the phone and puts the message in the app's inbox. **Inbox only** puts it in the inbox without a notification.
+4. To fill in the other language, choose **Generate English** (or **Generate Norwegian**) in the **AI translation** card. If the other language already has text, you see **The destination already has content. Click Generate again to replace it.** Read the result before you send. Or switch on **Auto-translate** at the bottom: it translates when you send, and delivers once the translation is done.
+5. Choose **Send**, or **Schedule send** for a set time.
+
+For **Everyone at a campus** you're asked first: **Send to everyone at Bergen?**, or **Send to every student?** for all campuses, with how many phones it reaches. Choose **Send** to go ahead or **Cancel**. Other audiences aren't asked.
+
+You see **Announcement sent**, or **Announcement scheduled** for a set time.
+
+To keep working on it later, choose **Save draft** at the bottom instead. You see **Draft saved**.
+
+</Step>
+<Step title="Follow up">
+
+In the list, each announcement shows its status: **DRAFT**, **SCHEDULED**, **SENT** or **FAILED**.
+
+- **FAILED**: choose **Review & send** to open it on **Check & send**, and send it again.
+- **SCHEDULED**: to send it at once, choose **Review & send**, then **Send now** and **Send**. To stop it, delete it.
+- **SENT**: it can't be sent again. The composer reads **This notification has already been sent.** You can still correct the text and save it, which changes what the inbox shows. It doesn't send a new notification.
+- To delete an announcement, choose the bin icon, then **Confirm**. You see **Announcement deleted**.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- **Send now** goes out straight away. A scheduled announcement goes out at its time, up to about five minutes late, at night too.
+- With **Auto-translate** on, the announcement goes out once the translation is done. You see **Announcement saved; translation and delivery queued**.
+- The list shows **SENT** once the admin has handed it over for delivery. It doesn't confirm that each phone got it.
+- Students also find it in the app's inbox, unless it's deleted.
+- No email is sent.
+- Sends, schedules and deletions are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- A notification on their phone with the title and the start of the message, in their language, unless you chose **Inbox only**.
+- The message in the BISO app's inbox. Students see announcements for their campus or for everyone, topic announcements only for topics they follow, and messages sent to them or their group. They only see messages sent after they created their profile.
+- Tapping it opens the linked event, article or job, or the message itself.
+- **Urgent** announcements are delivered with high priority.
+- A deleted announcement disappears from the inbox. A notification that already reached a phone stays there.
+
+## Common mistakes
+
+- Choosing **Everyone at a campus** when **Students who follow a topic** would do. Everyone reaches students who have chosen not to follow anything.
+- Linking a draft. The composer refuses to save with it. Publish the item first.
+- Sending late at night. Announcements aren't held back. Choose **Send at 08:00 instead** unless it can't wait.
+- Expecting **Save draft** to cancel a scheduled announcement. It stays scheduled. Delete it.
+- Correcting a sent announcement and expecting students to be told. Nothing is sent again. Send a new announcement.
+- Expecting delete to recall a notification. It only removes the message from the inbox.
+
+<Callout type="warn">
+**Send** can't be undone, and **Everyone at a campus** reaches every student with notifications on at that campus. Check **Who** and **Timing** before you send.
+</Callout>
