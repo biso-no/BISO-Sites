@@ -99,7 +99,6 @@ not one set up for an app.
    | `APPWRITE_API_KEY` | the same as `DOCS_APPWRITE_API_KEY` |
    | `APPWRITE_SESSION_COOKIE` | `a_session_biso_admin` |
    | `NEXT_PUBLIC_BASE_URL` | `http://localhost:3001` |
-   | `BENEFITS_EDITOR_EMAILS` | `anders.moen@example.org`, the seeded benefits editor (the admin reads this allow-list to give the `benefitseditor` role) |
 
    and start the admin from its own folder:
 
@@ -205,12 +204,12 @@ are what gives each user their role:
 | Ingrid Berg | National, Operations Unit | Global admin |
 | Lars Johansen | Oslo, Demo Events | Department member |
 | Marit Dahl | Oslo, Ledelsen Oslo | Campus leader (campus admin) for Oslo |
-| Anders Moen | Oslo | Benefits editor, only when `BENEFITS_EDITOR_EMAILS` holds his email (step 5) |
+| Anders Moen | Oslo | Seeded as the benefits editor, but can't hold that role in the docs project (see below) |
 
 The HR team must be called "HR": the admin finds the HR role by that name.
 
-The benefits editor role is not given by a team. The admin checks the
-allow-list and also that the account has a Microsoft sign-in with that email.
-A user made by the seed has no Microsoft sign-in, so Anders Moen cannot get
-the role in the docs project. No shot uses him: the benefits shots are taken
-as the global admin.
+The benefits editor role is not given by a team. The admin gives it only to
+an account that has a Microsoft sign-in whose email is in
+`BENEFITS_EDITOR_EMAILS`. A user made by the seed has no Microsoft sign-in, so
+the seeded Anders Moen exists but can't hold the role in the docs project.
+The benefits shots are taken as the global admin.
