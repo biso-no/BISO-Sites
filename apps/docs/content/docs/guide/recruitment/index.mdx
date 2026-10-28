@@ -53,7 +53,7 @@ The pages after this one follow the round in the same order: [Publish a vacancy]
 
 ## Statuses
 
-Each application has one status. On the **Pipeline** tab of the applications workspace, the status is the column the candidate sits in. The student sees their status on biso.no, on **Mine søknader** (My applications), under different names.
+Each application has one status. On the **Pipeline** tab of the applications workspace, the status is the column the candidate sits in. The student sees their status on biso.no and in the app, on **Mine søknader** (My applications), under different names.
 
 | What you see | What it means | Where it can go next | What the applicant sees |
 |---|---|---|---|
@@ -62,6 +62,8 @@ Each application has one status. On the **Pipeline** tab of the applications wor
 | **Interview** | The candidate is in the interview round. | **Shortlist**, **Offer** or **Archived** | **Intervju** (Interview) |
 | **Offer** | You're offering the candidate the role. You send the offer yourself. | Nowhere. This is final. | **Tilbud** (Accepted) |
 | **Archived** | The candidate isn't going further this round. | Nowhere. This is final. | **Ikke valgt** (Not selected) |
+
+The app uses the same names, except **Sendt** (Submitted) for **Applied** and **Akseptert** (Accepted) for **Offer**.
 
 <Mermaid chart={`flowchart LR
   applied[Applied] --> shortlist[Shortlist]
@@ -85,7 +87,7 @@ Each application has one status. On the **Pipeline** tab of the applications wor
 - Screens each new application with AI, once, when auto-screen is on. If a candidate's match score shows "—" (tooltip: *Not screened*), that application has no screening, and there's no way to run it. Turning auto-screen on later doesn't screen the applications you already have. If auto-screen is on and every new application shows "—", tell IT.
 - Sends calendar invites when you schedule an interview in the dialog. The candidate and the panel get an Outlook invite with a Teams meeting when the location is Teams or Hybrid. The invite comes from the mailbox of the first selected person in the panel list. The candidate also moves to **Interview**. If the admin can't reach Outlook, the interview is still saved and a warning tells you that no invite was sent. Then send the time to the candidate and the panel yourself.
 - Sends the same kind of invite, with a Teams meeting, when a candidate books a time through a booking link. If the invite can't be sent, the booking is still saved, the link is used up, and the candidate is told **BISO-teamet sender deg møtedetaljene på e-post.** (The BISO team will send you the meeting details by email.) Nothing tells you, so check the **Interviews** tab after you send a link.
-- Shows each applicant their current status on biso.no.
+- Shows each applicant their current status on biso.no and in the app.
 - Deletes applications when their storage time ends.
 
 ## What you do yourself

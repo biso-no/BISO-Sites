@@ -62,7 +62,7 @@ Each card shows the candidate's name, their match score, the AI summary and thre
 Above the board:
 
 - The search box (*Search candidates, skills, email…*) finds candidates by name, email or a must-have qualification the AI found.
-- The sort menu starts on **Newest first**. You can also choose **Oldest first**, **Name A–Z**, **AI match** or **Interview score**.
+- The sort menu starts on **Newest first**. You can also choose **Oldest first**, **Name A–Z**, **AI match** or **Interview score**. **Interview score** leaves the candidates newest first, because the board doesn't read scorecards. To compare interviews, read the **Scorecards** box in each candidate's panel.
 - **Starred only** shows only starred candidates.
 - The two icons at the right switch between the board (tooltip: *Board*) and a list (tooltip: *List*).
 
@@ -116,14 +116,14 @@ When you've read an application, move the candidate to **Shortlist** to take the
 
 There are two ways to move one candidate.
 
-**Drag the card** to another column on the board. The status changes at once. There's no dialog and no email draft. Dropping a card on **Offer** or **Archived** is final. There's no confirmation, and the student sees the new status at once. If the move isn't allowed, the card stays where it was and you see a message such as **Can't move Kari straight to interview.** Dragging works only on the board.
+**Drag the card** to another column on the board. The status changes at once. There's no dialog and no email draft. Dropping a card on **Offer** or **Archived** is final. There's no confirmation, and the student sees the new status at once. If the move isn't allowed, the card stays where it was and you see a message such as **Can't move Ola straight to interview.** Dragging works only on the board.
 
 **Use Advance** when you also want an email draft:
 
 1. Choose the arrow icon on the card (tooltip: *Advance stage*), or **Advance** in the candidate's panel. The **Advance candidate** dialog opens.
 2. The dialog shows the current status and a suggested new one. From **Applied** it suggests **Shortlist**, and from **Shortlist** it suggests **Interview**. From **Interview** it suggests **Shortlist**, which is a move back, so choose **Offer** yourself if that's what you mean. To archive instead, choose **Archived** in the row of statuses.
 3. **Draft a candidate notification email** is ticked. The dialog shows **Drafting with AI…**, then a subject and text you can edit. Untick the box if you don't want a draft.
-4. Check and adjust the draft. It's in Norwegian and uses only the candidate's name and the vacancy title. The draft for **Shortlist** thanks the candidate for completing an interview round, so rewrite it for a candidate who hasn't had an interview. If you see **Failed to draft:** and a reason, write the email yourself.
+4. Check and adjust the draft. It's in Norwegian and uses only the candidate's name and the vacancy title. The drafter is set to sign off in English with **Best regards, BISO HR**, so change the sign-off to fit. The draft for **Shortlist** thanks the candidate for completing an interview round, so rewrite it for a candidate who hasn't had an interview. If you see **Failed to draft:** and a reason, write the email yourself.
 5. Choose **Copy** to copy the subject and text. Do this before the next step, because the dialog closes when the move is done and the draft goes with it. Pressing Esc also closes the dialog and loses the draft.
 6. Choose **Move to Shortlist** or **Move to Archived**.
 7. Paste the draft into your email and send it yourself. The system sends nothing.
@@ -156,7 +156,7 @@ In the drafts panel:
 1. The type of email is at the top: **You're shortlisted**, **Schedule interview**, **Not this round** or **Offer letter**. When you switch type, all the drafts are written again, and any edits you made are lost.
 2. Each candidate shows **Drafted**, **Failed** or **…**. Click a name to read and edit their draft.
 3. Only the first 25 candidates get a draft. The rest keep **…** and get none, so select 25 or fewer at a time.
-4. Each draft uses the candidate's name and the vacancy title. Check and adjust every draft before sending. The **You're shortlisted** draft thanks the candidate for completing an interview round, so rewrite it for candidates who haven't had one.
+4. Each draft is in Norwegian and uses the candidate's name and the vacancy title. The drafter is set to sign off in English with **Best regards, BISO HR**. Check and adjust every draft before sending. The **You're shortlisted** draft thanks the candidate for completing an interview round, so rewrite it for candidates who haven't had one.
 5. **Copy all drafts** copies one block for each candidate marked **Drafted** or **Failed**, with **To:**, **Subject:** and the text. A failed draft gives a block with an empty subject and text, so delete those. Send each one as its own email.
 
 Copy the drafts before you close the panel with the X or Esc. They aren't saved.
@@ -183,7 +183,7 @@ When two or more candidates have a match of 90 or more, the **AI noticed** box a
 
 ## What happens next
 
-- The student sees the new status on biso.no straight away, on **Mine søknader** (My applications). See [What the student sees](#what-the-student-sees).
+- The student sees the new status on biso.no and in the app straight away, on **Mine søknader** (My applications). See [What the student sees](#what-the-student-sees).
 - No email goes out when you move a candidate, whether you drag, use **Advance** or use **Move stage**. The candidate gets only the emails you send yourself.
 - If auto-screen is on, each new application is screened when it arrives. Screening never moves anyone, so new applications always land in **Applied**.
 - Next, [book interviews](/guide/recruitment/book-interviews) with the candidates on your shortlist. When you schedule an interview for a candidate in the scheduling dialog, the system moves them to **Interview** itself.
@@ -191,7 +191,7 @@ When two or more candidates have a match of 90 or more, the **AI noticed** box a
 
 ## What the student sees
 
-The student sees each of their applications on biso.no, on **Mine søknader** (My applications), with a status label. The label changes as soon as you move the candidate. No email or notification goes with it.
+The student sees each of their applications on biso.no and in the app, on **Mine søknader** (My applications), with a status label. The label changes as soon as you move the candidate. No email or notification goes with it.
 
 | Status in the workspace | What the student sees |
 |---|---|
@@ -201,6 +201,7 @@ The student sees each of their applications on biso.no, on **Mine søknader** (M
 | **Offer** | **Tilbud** (Accepted) |
 | **Archived** | **Ikke valgt** (Not selected) |
 
+- The app shows the same labels, except **Sendt** (Submitted) for **Applied** and **Akseptert** (Accepted) for **Offer**.
 - A student you archive sees **Ikke valgt** (Not selected) as soon as you archive them. Send your email right away.
 - The student doesn't see the match score, the AI summary, your notes or your stars.
 

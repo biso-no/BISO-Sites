@@ -37,6 +37,10 @@ export const readingPaths: ReadingPath[] = [
         href: "/guide/recruitment/review-applications",
       },
       { title: "Book interviews", href: "/guide/recruitment/book-interviews" },
+      {
+        title: "Make offers, reject, and finish the round",
+        href: "/guide/recruitment/make-offers-and-close",
+      },
     ],
   },
 ];

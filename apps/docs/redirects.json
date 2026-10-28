@@ -25,6 +25,10 @@
     "source": "/docs/admin-handbook/signing-in",
     "destination": "/guide/start-here/sign-in"
   },
+  {
+    "source": "/docs/admin-handbook/notifications",
+    "destination": "/guide/start-here/sign-in"
+  },
   { "source": "/docs/admin-handbook/:path*", "destination": "/guide" },
   { "source": "/docs/public-website/:path*", "destination": "/developers" },
   { "source": "/docs/architecture/:path*", "destination": "/developers" },

@@ -42,6 +42,12 @@ test("specific rule beats the section fallback", () => {
   ).toBe("/guide/recruitment/publish-a-vacancy");
 });
 
+test("the old notifications page goes to the bell step's page", () => {
+  expect(matchRedirect("/docs/admin-handbook/notifications", rules)).toBe(
+    "/guide/start-here/sign-in"
+  );
+});
+
 test("section root without a sub-path", () => {
   expect(matchRedirect("/docs/handover", rules)).toBe("/developers");
 });
