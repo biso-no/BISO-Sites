@@ -1,0 +1,125 @@
+---
+title: Accounting (24SevenOffice)
+description: How the platform uses 24SevenOffice, also called Finago, for membership checks, membership invoices, ledger postings, reimbursements, the member roster and departments. What fails and how, and why there's no safe way to test against it.
+covers:
+  - packages/connectors/src/24sevenoffice/**
+  - packages/shared/utils/finago-*
+  - packages/shared/utils/membership-status.ts
+  - packages/shared/utils/membership-fulfilment.ts
+  - packages/shared/utils/membership-gate.ts
+  - packages/shared/utils/order-settlement.ts
+  - apps/api/src/lib/membership-status-cache.ts
+  - apps/api/src/app/api/membership/route.ts
+  - apps/api/src/lib/expense-posting.ts
+  - apps/api/src/app/api/expenses/post-pending/route.ts
+  - apps/api/src/app/api/expenses/submit/route.ts
+  - apps/admin/src/app/(portal)/shop/accounting/**
+  - apps/admin/src/lib/finago/**
+  - apps/admin/src/app/api/units/sync/route.ts
+  - apps/admin/src/app/api/expenses/ledger-accounts/sync/route.ts
+  - apps/admin/src/lib/member-pass/membership-lookup.ts
+  - apps/web/src/lib/actions/membership.ts
+  - packages/api/scripts/reset-stranded-finago-posting.ts
+---
+
+Read this before you change anything that reads from or writes to 24SevenOffice, BISO's accounting system, which the code also calls Finago. It's the source of truth for who is a member, and it receives the platform's invoices and ledger postings. So a bug here can invoice a student twice or put wrong numbers in BISO's books. Every call goes to 24SevenOffice's production service, and there's no test company, so read [Test it safely](#test-it-safely) before you run anything.
+
+## Accounts
+
+Who owns the 24SevenOffice account: <Private name="account-owners" label="Account owners" />
+
+## Two APIs
+
+The connector in `packages/connectors/src/24sevenoffice/` talks to two separate 24SevenOffice APIs with separate credentials.
+
+| API | Used for | Variables | Sign-in |
+|---|---|---|---|
+| SOAP | Membership checks, customers, categories, membership invoices, products and departments | `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD` | A session token, kept for 23 hours in the `auth_tokens` table of the `24so` database (`auth.ts`) |
+| REST | Ledger postings for shop sales, refunds and reimbursements, file uploads, the chart of accounts, and departments | `TFSO_REST_CLIENT_ID`, `TFSO_REST_CLIENT_SECRET`, `TFSO_REST_ORG_ID` | An OAuth token, kept in memory until shortly before it expires (`rest/auth.ts`) |
+
+Both addresses are written into the code: `api.24sevenoffice.com` for SOAP (`client.ts`) and `rest.api.24sevenoffice.com/v1` for REST (`rest/client.ts`). No variable points them anywhere else. Reimbursement postings also need `TFSO_EXPENSE_TRANSACTION_TYPE_NUMBER`, `TFSO_SUPPLIER_DEBT_ACCOUNT`, `TFSO_DEPARTMENT_DIMENSION_TYPE` and `TFSO_CAMPUS_DIMENSION_TYPE`. All of them are listed under [24SevenOffice](/developers/keep-it-running/secrets-and-environment#24sevenoffice) in Secrets and environment. `TFSO_PASSWORD` is an account password with only one value at a time, so read the rotation notes there before you change it.
+
+## What uses it
+
+| Feature | Runs in | Writes to 24SevenOffice | Code |
+|---|---|---|---|
+| [Membership checks](#membership-checks) | api, admin's scanner | No | `packages/shared/utils/membership-status.ts`, `apps/api/src/lib/membership-status-cache.ts` |
+| [Membership purchases](#membership-purchases) | api | Yes: customer, category, invoice | `packages/shared/utils/membership-fulfilment.ts` |
+| [Shop sales and refunds](#shop-sales-and-refunds) | api, admin | Yes: ledger postings | `packages/shared/utils/finago-order-posting.ts`, `packages/shared/utils/finago-refund-reverser.ts` |
+| [Reimbursements](#reimbursements) | api | Yes: ledger postings and files | `apps/api/src/lib/expense-posting.ts` |
+| [Roster, plans and departments](#roster-plans-and-departments) | member-roster-sync, admin | No | `functions/member-roster-sync/`, `apps/admin/src/app/api/units/sync/route.ts`, `apps/admin/src/lib/finago/` |
+
+## Membership checks
+
+**What it does.** A student is a member while they're in a 24SevenOffice customer category that matches a row in `memberships`, between that row's start and end dates. The api looks up the student's categories by student number, with a 3-second limit (`MEMBERSHIP_FINAGO_TIMEOUT_MS`), and keeps the answer for 60 seconds. The website and the app ask the api's `/api/membership`, and never call 24SevenOffice themselves. The admin's member-pass scanner does its own check, with its own 60-second cache (`apps/admin/src/lib/member-pass/membership-lookup.ts`).
+
+**When it fails.** A failed or slow lookup is never cached as "not a member".
+
+- Across the website, the student is shown as a non-member for that page view. The site-wide read gives up after 2 seconds (`apps/web/src/lib/actions/membership.ts`).
+- The membership page shows **Vi kan ikke sjekke medlemskapet ditt akkurat nå** (We can't check your membership right now) and offers no plans, so nobody pays twice for the same period.
+- The member pass shows **Kan ikke bekrefte akkurat nå** (Can't verify right now).
+
+## Membership purchases
+
+**What it does.** When a membership order is paid ([Payments](/developers/reference/payments#how-a-payment-flows)), the api creates or updates the student's customer in 24SevenOffice, puts them in the plan's category, and posts an invoice. The customer is found by the student's BI `employeeId` ([BI directory](/developers/reference/microsoft#bi-directory)), so a student without one can't buy. A membership order is never also posted as a shop sale. After fulfilment, the api drops the student's cached status, so the new membership shows straight away.
+
+**When it fails.** The buyer has paid, but the membership doesn't show yet. Order reconciliation retries fulfilment on each run ([Scheduled jobs](/developers/keep-it-running/scheduled-jobs#what-it-calls)). If 24SevenOffice may already have the invoice when the error comes, the order is marked `fulfilling` and left alone for a person to check, so nothing is invoiced twice. Look for these in the api's logs:
+
+- `[Membership] Fulfilment attempted for order <id>; leaving marker for manual recovery:`
+- `[Membership] Order <id> was invoiced in Finago as <invoice> but recording it failed; reconcile manually.`
+- `[Membership] Order <id> has no usable BI identity; manual follow-up required.`
+
+Check the order and the invoice in 24SevenOffice before you change anything by hand.
+
+Membership plans also depend on 24SevenOffice: before each season, next season's products and categories must exist there. See [Membership seasons](/developers/keep-it-running/yearly-calendar#membership-seasons).
+
+## Shop sales and refunds
+
+**What it does.** Each paid shop order is posted to the ledger as one voucher, against the sales type of each product. This only happens while ledger posting is switched on. A global admin or campus admin sets it up in the admin under **Regnskap for nettbutikken** (Shop accounting), at `/shop/accounting`. That page holds the sales types, the voucher settings, the chart of accounts synced from 24SevenOffice, and the **Automatisk bokføring** (Automatic posting) switch, which sets the `shop_ledger_posting` flag. It's off by default, and it refuses to switch on until the settings, the sales types and their accounts are complete. While it's off, paid orders wait, and they're posted once it's on. A refund made in the admin reverses the order's posting.
+
+**When it fails.** Buyers notice nothing. The order stays without a posting:
+
+- If something is missing in the settings, the order is released and posted on a later run, once the settings are fixed. The api logs `[Finago] Order <id> not posted yet: <reason>`.
+- If the call to 24SevenOffice fails, the voucher may already exist there. So the order keeps the marker `posting` in `finago_transaction_id`, and nothing posts it again by itself. The api logs `[Finago] Post attempted for order <id>; leaving marker for manual recovery:`.
+
+To recover an order left with the marker, use the script in `packages/api`. It refuses unless 24SevenOffice has no transaction line that mentions the order. It runs as a dry run unless you add `--apply`:
+
+```bash
+cd packages/api
+bun run finago:reset-stranded-posting -- <order id>
+bun run finago:reset-stranded-posting -- <order id> --apply
+```
+
+It reads its settings from `apps/admin/.env.local`, so it works on whichever Appwrite project that file names. Check the file first.
+
+## Reimbursements
+
+**What it does.** The feature flag `expenses_ledger_posting` decides how a submitted reimbursement reaches accounting. It's off by default.
+
+- **Off:** the api emails the cover sheet and receipts to the student and to accounting, through Appwrite Messaging. Accounting's inbox is the Appwrite user named in `INVOICE_USER_ID`. See [Messaging and wallets](/developers/reference/messaging-and-wallet#appwrite-messaging-email).
+- **On:** the reimbursement goes through an approval chain in Teams and email ([Teams approval bot](/developers/reference/microsoft#teams-approval-bot)). Once approved, scheduled-dispatch's `EXPENSES_POST_PENDING_URL` target posts it to the ledger, with one PDF of the cover sheet and the receipts attached.
+
+**When it fails.** With the flag off and `INVOICE_USER_ID` unset, every submission fails. With it on, a posting that fails, or one that was interrupted, gets the status `failed` and is never posted again by itself, because 24SevenOffice may already have it. Check in 24SevenOffice before you post it by hand.
+
+## Roster, plans and departments
+
+These read from 24SevenOffice and write only to Appwrite.
+
+- **The member roster and the plans.** The member-roster-sync function copies the membership products into `memberships` and rebuilds `member_roster` every night. Staff can also run it with **Oppdater nå** (Refresh now) on the admin's members page. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#member-roster-sync) has the details. When it fails, the page shows **Siste oppdatering feilet** (Last refresh failed), and new plans don't go on sale.
+- **Departments.** A global admin presses the sync button on the admin's departments page, which calls `POST /api/units/sync`. It copies 24SevenOffice's departments into `departments`, and picks each one's campus from its department number.
+- **The chart of accounts.** The shop accounting page and `POST /api/expenses/ledger-accounts/sync` copy the accounts and VAT codes into `ledger_accounts`.
+
+## Test it safely
+
+There's no safe way to test against 24SevenOffice. Every address in the connector is the production service, no test company is recorded, and nothing marks an order as a test. So:
+
+- **Leave every `TFSO_*` variable unset** in your own project and on your machine. The features above then fail cleanly, with the messages on this page.
+- **Never pay for an order with real `TFSO_*` values set,** even in Vipps or Stripe test mode. A test membership becomes a real invoice to a real student, and a test shop order becomes a real ledger posting once posting is on.
+- **Reads change nothing in 24SevenOffice,** such as a membership check, the roster sync or a department sync. They still need the production credentials, and they write what they read into whichever Appwrite project you point them at. Don't run member-roster-sync from your machine against production ([Scheduled jobs](/developers/keep-it-running/scheduled-jobs#member-roster-sync) says why).
+
+The logic around 24SevenOffice has unit tests that need no network:
+
+```bash
+cd packages/connectors && bun run test
+cd packages/shared && bun run test
+```

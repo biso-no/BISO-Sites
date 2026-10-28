@@ -1,0 +1,104 @@
+---
+title: AI
+description: Which features use Anthropic's models and where, the kill switches, the OpenAI key that only switches job screening on, the code and settings left over from earlier AI work, and how to test without spending BISO's credit.
+covers:
+  - packages/ai/**
+  - packages/editor/src/ai/**
+  - apps/admin/src/app/api/assistant/route.ts
+  - apps/admin/src/app/api/page-editor/ai/**
+  - apps/admin/src/lib/content-translation.server.ts
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-ai.ts
+  - apps/admin/src/app/(portal)/_actions/it-remediation.ts
+  - apps/api/src/app/api/expenses/ocr/route.ts
+  - apps/api/src/app/api/expenses/summary/route.ts
+  - apps/api/src/app/api/recruitment/applications/route.ts
+  - apps/web/src/app/actions/jobs.ts
+  - packages/shared/recruitment/apply.ts
+  - packages/i18n/scripts/translate.ts
+  - packages/wp-import/src/transform/locale.ts
+---
+
+Read this before you add or change an AI feature, or when one stops working. Every AI feature in the apps runs on Anthropic's models, through the Vercel AI SDK. The model choice lives in one file, `packages/ai/src/models.ts`. OpenAI is called only by the one-off WordPress import, and Pinecone isn't used at all. [AI features fail](/developers/keep-it-running/when-things-break#ai-features-fail) is the runbook for a live problem.
+
+## Account and cost
+
+BISO has a non-profit Team plan with Anthropic, which comes with about USD 160 of credit a month. Every call from every app, and from your machine if you use BISO's key, spends that credit.
+
+Who owns the Anthropic account: <Private name="account-owners" label="Account owners" />
+
+## Models
+
+`packages/ai/src/models.ts` defines two tiers:
+
+| Tier | Model | Export | Used for |
+|---|---|---|---|
+| Balanced | `claude-sonnet-5-5` | `balancedModel` | Tool loops, multi-step work, and judgements a person will act on |
+| Fast | `claude-haiku-5-5` | `fastModel` | Translation, short drafts, matching names, summaries |
+
+`resolveModel()` turns a tier name, or an exact model id, into a model. To move to a newer model, change the ids in `MODEL_IDS`, then try every feature in the table below.
+
+`apps/admin/src/lib/content-translation.test.ts` still expects an old model id and fails today. [Local setup](/developers/change-it/local-setup#tests) lists it as a known failure.
+
+## Where AI is used
+
+| Feature | App | Tier | Code |
+|---|---|---|---|
+| Page editor AI chat | admin | Balanced | `apps/admin/src/app/api/page-editor/ai/chat/route.ts`, with tools in `packages/editor/src/ai/` |
+| Admin assistant | admin | Balanced for chat, fast for drafts | `apps/admin/src/app/api/assistant/route.ts`, `packages/ai/src/assistant/` |
+| Translating content | admin | Fast | `apps/admin/src/lib/content-translation.server.ts` |
+| AI help on events and vacancies | admin | Fast | `apps/admin/src/app/(portal)/_actions/events.ts`, `apps/admin/src/app/(portal)/_actions/jobs.ts` |
+| Recruitment AI | admin | Both | `apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-ai.ts` |
+| Department audit of Microsoft users | admin | Fast | `apps/admin/src/app/(portal)/_actions/it-remediation.ts`, `packages/ai/src/server/department-resolver.ts` |
+| Reading receipts | api | Balanced | `apps/api/src/app/api/expenses/ocr/route.ts` |
+| Summarising an expense | api | Fast | `apps/api/src/app/api/expenses/summary/route.ts` |
+| Screening job applications | web, api | Balanced | `packages/ai/src/server/recruitment-screener.ts`, called from `packages/shared/recruitment/apply.ts` |
+
+Applications sent from the website are screened by the web Site. Applications sent from the app go through `apps/api/src/app/api/recruitment/applications/route.ts` and are screened by the api Site.
+
+## Settings
+
+- **`ANTHROPIC_API_KEY`** on the admin, the api and the website. The owner sets it in the Appwrite console. The AI SDK reads it by itself, so it's in no `.env.example` and named nowhere in the code.
+- **`OPENAI_API_KEY`** switches job-application screening on. Screening runs only when it's set, and then runs on Anthropic and never sends the key anywhere (`isAutoScreened` in `packages/shared/recruitment/apply.ts`). Any value works.
+
+[AI](/developers/keep-it-running/secrets-and-environment#ai) in Secrets and environment lists both.
+
+## Kill switches
+
+A global admin can turn two AI features off under **Innstillinger** (Settings), then **Funksjonsbrytere** (Feature flags), without a deploy:
+
+| Flag | Default | When off |
+|---|---|---|
+| `ai_admin_copilot` | On | The assistant is hidden, and its endpoint answers `403` with `The AI assistant is currently disabled.` |
+| `expenses_ocr` | On | Receipt reading answers `403` with `Receipt scanning is currently disabled`. Students can still fill in the form by hand. |
+
+Receipt reading is also off whenever the whole reimbursements module (`expenses_module`) is off.
+
+## What users see when it fails
+
+- An AI feature in the admin shows an error, and the Site's log shows Anthropic's error, such as `authentication_error` or `rate_limit_error`. The runbook has a table of them.
+- Receipt reading fails, and the student fills in the form by hand.
+- A job application is saved without an AI score. The log says `AI screening failed for application <id>:`. If `OPENAI_API_KEY` is unset, screening is skipped without a log line.
+
+## Test it safely
+
+Anthropic has no test mode, so every call costs credit, from whichever key you use.
+
+- **Use your own key for development,** not the production one. Ask the account owner for a separate key, so it can be revoked when your work ends and its spend can be told apart.
+- **Point the apps at your own Appwrite project** ([Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project)). AI features that save their results, such as screening and the assistant's actions, then write only there.
+- **Use made-up data,** such as the screenshot seed, never real applicants or receipts. Screening sends the application's text to Anthropic. It first removes emails, links, phone numbers and similar, but `packages/shared/utils/screening-anonymizer.ts` calls that best effort.
+- **Run the unit tests.** They use a mock model where they need one, and make no calls to Anthropic:
+
+  ```bash
+  cd packages/ai && bun run test
+  cd packages/editor && bun run test
+  ```
+
+## Leftovers
+
+These look like AI integrations but do nothing, or less than their names suggest. Leave them, or remove them in a clean-up.
+
+- **OpenAI in the apps.** `apps/admin`, `apps/api` and `packages/ai` list `@ai-sdk/openai` as a dependency, but only test mocks in the admin refer to it. `apps/web/CLAUDE.md` still says receipt reading uses OpenAI. It uses Anthropic, in the api.
+- **The translation script.** `bun run translate` in `packages/i18n` refuses to start without `OPENAI_API_KEY`, but translates with Anthropic's fast model, so it needs `ANTHROPIC_API_KEY` too.
+- **The WordPress import** is the only code that calls OpenAI. `bun run load --apply` in `packages/wp-import` translates with `gpt-5-nano` and needs a real `OPENAI_API_KEY`. See [Events and content sources](/developers/reference/events-and-content-sources#wordpress-and-woocommerce).
+- **Pinecone.** `PINECONE_API_KEY` and `PINECONE_INDEX_NAME` are in `turbo.json` and three `.env.example` files, and `packages/ai/src/utils/vector-store.types.ts` describes a vector store, but no code uses Pinecone or any vector store.
+- **Unused exports of `@repo/ai`.** No app imports `@repo/ai/config`, `@repo/ai/prompts` or `@repo/ai/utils`, though `packages/ai/README.md` shows the first two. `document-utils.ts` in the last one still reads `NEXTAUTH_URL`.
