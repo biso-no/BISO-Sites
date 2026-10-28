@@ -79,6 +79,21 @@ describe("docsAccessFromTeams", () => {
     ).toBe("globaladmin");
   });
 
+  it("does not grant handover by name alone", () => {
+    expect(
+      docsAccessFromTeams([{ $id: "other", name: "docs-handover" }])
+    ).toBeNull();
+  });
+
+  it("grants campusadmin via the sg-app-dept id path", () => {
+    expect(
+      docsAccessFromTeams([
+        team("Oslo", "c1"),
+        { $id: "sg-app-dept-ledelsenoslo", name: "Ledelsen Oslo" },
+      ])
+    ).toBe("campusadmin");
+  });
+
   it("returns null with no teams", () => {
     expect(docsAccessFromTeams([])).toBeNull();
   });
@@ -93,57 +108,21 @@ describe("docsAccessFromTeams", () => {
   });
 });
 
-describe("drift against admin role derivation", () => {
-  const root = join(import.meta.dir, "../../../..");
-  const read = (p: string) => readFileSync(join(root, p), "utf8");
-  const hint =
-    "Admin role derivation changed. Update apps/docs/lib/auth/access.ts to mirror it, then update this test.";
+describe("drift against the admin team parser", () => {
+  const file = "apps/admin/src/lib/authorization-team-memberships.ts";
+  const src = readFileSync(join(import.meta.dir, "../../../..", file), "utf8");
+  const hint = `${file} changed. Update the team parser in apps/docs/lib/auth/access.ts to mirror it, then update this test.`;
 
-  const expectations: [string, string[]][] = [
-    [
-      "apps/admin/src/lib/authorization-team-memberships.ts",
-      [
-        '"SG-App-Campus-"',
-        '"SG-App-Dept-"',
-        '"sg-app-dept-"',
-        "CAMPUS_NAME_TO_ID[team.name] !== undefined",
-      ],
-    ],
-    [
-      "packages/shared/utils/team-roles.ts",
-      [
-        '"National"',
-        '"Operations Unit"',
-        '"OperationsUnit"',
-        "Ledelsen ",
-        "Ledelsen",
-        '"Oslo"',
-        '"Bergen"',
-        '"Stavanger"',
-        '"Trondheim"',
-        "([a-z])([A-Z])",
-      ],
-    ],
-    [
-      "apps/admin/src/lib/roles.ts",
-      [
-        'GLOBAL_ADMIN: "globaladmin"',
-        'CAMPUS_ADMIN: "campusadmin"',
-        "SG-App-Campus-National + SG-App-Dept-OperationsUnit",
-        "SG-App-Campus-{City} + SG-App-Dept-Ledelsen{City}",
-      ],
-    ],
+  const needles = [
+    '"SG-App-Campus-"',
+    '"SG-App-Dept-"',
+    '$id.startsWith("sg-app-dept-")',
+    "CAMPUS_NAME_TO_ID[team.name] !== undefined",
   ];
 
-  for (const [file, needles] of expectations) {
-    it(`still contains the mirrored rules in ${file}`, () => {
-      const src = read(file);
-      for (const needle of needles) {
-        if (!src.includes(needle)) {
-          throw new Error(`${hint} Missing in ${file}: ${needle}`);
-        }
-      }
-      expect(true).toBe(true);
+  for (const needle of needles) {
+    it(`still contains ${needle}`, () => {
+      expect(src.includes(needle), `${hint} Missing: ${needle}`).toBe(true);
     });
   }
 });
