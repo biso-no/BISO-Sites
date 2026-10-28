@@ -28,7 +28,7 @@ Read this before you change a shared package, or before you import something new
 | [`@repo/ui`](#repoui) | Shared React components and CSS | web, admin, docs, `@repo/tours` |
 | [`@repo/connectors`](#repoconnectors) | Clients for Microsoft, 24SevenOffice, SharePoint, the Teams bot, Tickster and SMTP | admin, api, web, member-roster-sync, `@repo/shared` |
 | [`@repo/payment`](#repopayment) | Vipps MobilePay and Stripe | api, admin, and one deprecated web route |
-| [`@repo/ai`](#repoai) | The Anthropic models, the admin assistant and the AI helpers | admin, api, web, `@repo/i18n`'s translation script |
+| [`@repo/ai`](#repoai) | The Anthropic models, the admin assistant and the AI helpers | admin, api, web, docs, `@repo/i18n`'s translation script |
 | [`@repo/i18n`](#repoi18n) | Locales and the Norwegian and English message files | web, admin, api |
 | [`@repo/tours`](#repotours) | The engine for the admin's guided tours | admin |
 | [`@repo/wp-import`](#repowp-import) | The one-off import from the old WordPress site | Nobody. You run it by hand. |
@@ -191,7 +191,7 @@ AI on the Vercel AI SDK: the two Anthropic models, the admin assistant and its t
 
 **Sharp edges**
 
-- **`ANTHROPIC_API_KEY` appears nowhere in the code.** The AI library reads it by itself, so no `.env.example` lists it. See [AI](/developers/reference/ai).
+- **The package never reads `ANTHROPIC_API_KEY`.** The AI library reads it by itself. Only docs names it, to switch its assistant on, and only `apps/docs/.env.example` lists it. See [AI](/developers/reference/ai).
 - **Don't trust `README.md`.** No app imports `@repo/ai/config`, `@repo/ai/prompts` or `@repo/ai/utils`, though the README shows them. It also shows entry points that don't exist, such as `@repo/ai/provider`, `@repo/ai/hooks/use-assistant` and `@repo/ai/tools/navigation`. The `exports` in `package.json` are the real list.
 - **`@ai-sdk/openai` is still a dependency.** The models moved from OpenAI to Anthropic on 22 October 2026. In the apps, only test mocks in the admin still refer to OpenAI's package. See [Leftovers](/developers/reference/ai#leftovers).
 

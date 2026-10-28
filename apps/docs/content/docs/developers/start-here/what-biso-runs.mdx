@@ -87,7 +87,7 @@ To keep it readable, the diagram leaves out these calls:
 | BI (the school) | Student sign-in on the website and in the app, through helper routes on the API, and the student's id from BI's directory. | `apps/api/src/app/api/auth`, `packages/connectors/src/azure/bi-directory.ts` |
 | Vipps MobilePay and Stripe | Payments in the shop and for memberships. The code supports both providers. | `packages/payment`, `apps/api/src/app/api/payment` |
 | 24SevenOffice (Finago) | Membership checks, the member roster, departments and ledger postings. | `packages/connectors/src/24sevenoffice` |
-| Anthropic | The AI features in the admin, the API and the website. | `packages/ai` |
+| Anthropic | The AI features in the admin, the API and the website, and the docs assistant. | `packages/ai` |
 | Firebase Cloud Messaging | Push notifications to the app, sent through Appwrite. | The BISO-Flutter repo |
 | Apple Wallet and Google Wallet | The member pass. | `packages/shared/member-pass` |
 | SMTP relay | Email to people who aren't Appwrite users, such as whistleblowing contacts and page-form inboxes. | `packages/connectors/src/email` |

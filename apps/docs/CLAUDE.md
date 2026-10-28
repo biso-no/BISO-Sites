@@ -217,6 +217,8 @@ Docs:
 - `INFISICAL_SITE_URL`, `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`,
   `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_SECRET_PATH`
 - `DOCS_PRIVATE_FAKE_FILE` and `DOCS_PRIVATE_ALLOW_FAKE`: fake source only
+- The assistant's `ANTHROPIC_API_KEY`, `DOCS_ASSISTANT_MODEL` and
+  `DOCS_ASSISTANT_DAILY_LIMIT`: see "Assistant" below.
 
 `apps/docs/.env.example` lists these names without values.
 
@@ -358,13 +360,225 @@ The developer pages use `<Private>`, and `REQUIRE_REGISTRY_USAGE` is `true` in
 page. The only exception is a kit-only name, which no page may use. When you add
 a registry entry, use it in a page in the same change, or the test fails.
 
+## Assistant
+
+The docs answer questions from their own pages. A reader asks from the
+landing's field, or from **Ask about this page** at the foot of a page's
+**On this page** rail. Below 1280px the rail becomes a popover, opened from
+the bar under the header that shows the page's title, with the button at its
+foot. Pages with no headings have no rail, so they have no button. The answer
+opens in a panel: a 480px sheet on the right from 768px, full screen below.
+
+Code: `app/api/ask/route.ts`, `lib/assistant/`, `components/assistant/` and
+`components/landing/ask-field.tsx`. The model comes from `@repo/ai`
+(`resolveModel` in `packages/ai/src/models.ts`). Never import an Anthropic SDK
+directly.
+
+The search dialog has no "Ask the assistant" item. In fumadocs-ui 16.7.10 the
+dialog's footer slot renders outside the dialog, so an item there would mean
+forking the dialog. The landing field and the page button cover asking.
+
+### How it works
+
+1. `POST /api/ask` takes `{ question, pageUrl? }` and checks the request and
+   the limits below before anything else.
+2. **Search.** The question runs through the same Orama index as the search
+   dialog (`lib/assistant/search.ts`) for the top 20 hits. The page being read
+   is added if the search missed it.
+3. **Sources.** Each page goes in whole, as the processed Markdown from
+   `getLLMText` in `lib/source.ts`. A page is never cut. The page being read
+   goes first, then the rest by rank, skipping any page that would take the
+   total over 120,000 characters, up to 6 pages. The page being read is kept
+   even if it alone is over.
+4. **The placeholder.** Every `<Private …/>` in the page text becomes
+   `[private detail, shown only to signed-in staff]` before anything is sent
+   (`redactPrivate` in `lib/assistant/retrieve.ts`). The assistant never reads
+   the private source, signed in or not. `lib/assistant/retrieve.test.ts` fails
+   if the assistant code or the route imports `lib/private`.
+5. **No pages, no call.** If the search finds no page, the route answers
+   "I couldn't answer that. Try the docs search instead." without calling the
+   model.
+6. **Answer.** Otherwise it makes one streamed call with the system prompt in
+   `lib/assistant/prompt.ts`. The prompt says: answer only from the numbered
+   sources, cite each claim as `[n]`, say so in one sentence when the sources
+   don't cover the question, use numbered steps for how-to questions, start a
+   line with `Watch out:` only for a pitfall a source states, write in English
+   and name admin buttons as the sources do. The question goes in a
+   `<question>` tag and is treated as a reader's question, never as
+   instructions.
+7. **Sources in the panel.** The answer is plain text. The `X-Docs-Sources`
+   header lists each source's number, title and url. The panel renders
+   paragraphs, numbered lists, bold, `[n]` citations and `Watch out:` lines as
+   React elements, never as HTML (`components/assistant/answer-text.tsx`), and
+   lists the cited pages under **Pages used**. A source becomes a link only if
+   its url is a docs page path (`components/assistant/site-path.ts`).
+8. **When it goes wrong.** A refusal, an answer cut off at the output cap or an
+   error partway through ends with the "I couldn't answer that" line. An error
+   before any text is a `502`, and the panel says "The assistant couldn't
+   answer right now. Try the search instead."
+
+Closing the panel aborts the request, and the route passes the abort on to
+the model call, so an abandoned answer stops being generated.
+
+### Env vars
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | Unset: the assistant is off | Switches the assistant on. The AI SDK reads it for the call. The route only checks that it's set. |
+| `DOCS_ASSISTANT_MODEL` | `balanced` | `balanced` is Claude Sonnet 5.5, `fast` is Claude Haiku 5.5. Any other value is sent to Anthropic as a model id. |
+| `DOCS_ASSISTANT_DAILY_LIMIT` | `400` | Questions a day, per server instance. An unset, empty or non-numeric value means 400. |
+
+All three are read on each request, so they aren't in `turbo.json`.
+`apps/docs/.env.example` lists them without values. In production, set them on
+the docs Site in the Appwrite console, then redeploy without shipping new code.
+
+Don't leave `DOCS_ASSISTANT_MODEL` set to an empty value, as a copy of
+`.env.example` does. The route's `??` keeps the empty string, and
+`resolveModel` reads it as no model and picks `fast`. Delete the line to get
+the default.
+
+### Limits
+
+Both counters are per server instance and held in memory
+(`lib/assistant/limits.ts`). A restart or a redeploy resets them.
+
+- **8 questions per visitor per 10 minutes.** This stops one person using the
+  docs as a free chatbot. The visitor is a SHA-256 hash of the first address
+  in `x-forwarded-for`. With no such header, every visitor shares the key
+  `unknown`, and the whole site gets 8 questions per 10 minutes.
+- **A daily total**, `DOCS_ASSISTANT_DAILY_LIMIT`, counted per UTC day. It caps
+  the spend, whatever the visitor key. `0` refuses every question but leaves
+  the entry points showing, so switch the assistant off with the key instead.
+- **At most 10,000 visitors are tracked.** Past that, new visitors are refused
+  until older entries are 10 minutes old. This keeps the memory bounded.
+- Over a limit the route answers `429` with `{ "error": "rate_limited" }`, and
+  the panel says "You've asked a lot of questions. Try again in a few
+  minutes." It says the same when the daily total is reached.
+- **Input.** A body over 4 KB, a question over 500 characters after trimming,
+  or a `pageUrl` that isn't a docs page gets `400`.
+- **Each call.** At most 120,000 characters of sources (about 30,000 tokens)
+  from at most 6 pages, and 1,200 output tokens, which include the model's
+  thinking. Reasoning is set to `low`. There are no retries, and a call stops
+  after 60 seconds.
+
+Whether a visitor can choose their own key depends on the proxy in front of
+docs. If it appends to an `x-forwarded-for` the client sent, instead of
+replacing it, the first address is whatever the client put there. Then the
+per-visitor limit can be got round, and the daily total is the limit that
+holds.
+
+### What a question costs
+
+At the caps, one question sends about 30,000 tokens of sources (120,000
+characters at roughly 4 characters a token) plus about 500 for the prompt and
+the question, and gets back at most 1,200 tokens.
+
+| Model | Input | Output | Per question, at most | 400 questions |
+| --- | --- | --- | --- | --- |
+| Sonnet 5.5 (`balanced`), $2 / $10 per million tokens | 30,500 × $2 / 1M ≈ $0.061 | 1,200 × $10 / 1M = $0.012 | About $0.07 | About $29 |
+| Haiku 5.5 (`fast`), $0.10 / $0.50 per million tokens | 30,500 × $0.10 / 1M ≈ $0.003 | 1,200 × $0.50 / 1M = $0.0006 | About $0.004 | About $1.50 |
+
+Most questions use fewer pages than the cap, so they cost less. A question
+that finds no page costs nothing. The assistant spends from the same Anthropic
+credit as the admin, the api and the website: about USD 160 a month. On
+Sonnet at the caps, the whole credit would pay for about 2,200 questions a
+month, about 70 a day, if nothing else used it. A full daily total every day
+would cost about $880 a month on Sonnet, more than five times the credit. If
+spend climbs, lower `DOCS_ASSISTANT_DAILY_LIMIT` or switch to `fast`.
+
+These are Anthropic's list prices in October 2026, and they change. Check
+Anthropic's pricing page before you rely on them.
+
+### Switch it off
+
+Unset `ANTHROPIC_API_KEY` on the docs Site and redeploy. `GET /api/ask` then
+answers `{ "enabled": false }`, `POST /api/ask` answers `503`
+`{ "error": "disabled" }`, the ask entry points disappear and the landing
+field is the search button again. The browser asks `GET /api/ask` once when
+the site loads in a tab, so entry points stay hidden until it says yes, and a
+failed check leaves them hidden. Nothing else on the site changes.
+
+### Change the model
+
+Set `DOCS_ASSISTANT_MODEL=fast` for Haiku 5.5, or remove it for the default,
+Sonnet 5.5. Then redeploy and ask the three test questions below again. The
+default is `balanced`, chosen over `fast` because the worst failure is a
+confident wrong answer. To move both tiers to newer models, change
+`MODEL_IDS` in `packages/ai/src/models.ts`. That changes every app.
+
+### Nothing is stored
+
+- The route logs nothing: not the question, not the answer and not errors.
+  Its `onError` handler does nothing, because the default one logs the error,
+  which can carry the request.
+- Every response from `/api/ask` is `Cache-Control: no-store`.
+- The browser holds the current answer in React state only. Nothing goes in
+  storage, and a reload clears it.
+- The server holds, in memory, each visitor's hashed key with the times of
+  their questions in the last 10 minutes, and the day's count.
+- The question and the source pages go to Anthropic to be answered. They go
+  nowhere else.
+
+### Owner steps
+
+These need the owner. Nothing here is done by code.
+
+1. In the Appwrite console, set `ANTHROPIC_API_KEY` on the docs Site. Use a
+   key of its own, so it can be revoked without touching the other apps and
+   its spend can be told apart. Leave `DOCS_ASSISTANT_MODEL` and
+   `DOCS_ASSISTANT_DAILY_LIMIT` unset for the defaults.
+2. Redeploy docs without shipping new code.
+3. Confirm the proxy in front of docs sets `x-forwarded-for`. Otherwise every
+   visitor shares one key. A free way to check: on the landing, ask a made-up
+   word that matches no page, such as `qzxv`, nine times. Those questions
+   find no page, so the model isn't called. The ninth gets the limit message.
+   Then ask once from another network, such as a phone on mobile data. If
+   that is refused too, the visitor's address isn't reaching docs.
+4. Ask three test questions:
+   - One the docs answer: on the landing, "How do I publish a vacancy?"
+     Expect numbered steps with `[n]` citations, and Publish a vacancy under
+     **Pages used**.
+   - One they don't: "How do I book a group room at BI?" Expect one sentence
+     saying the docs don't cover it, pointing to the search, and no steps.
+   - One on a page with a private detail: on Getting access
+     (`/developers/start-here/getting-access`), use **Ask about this page**:
+     "What is the Infisical address?" Expect the placeholder wording, or a
+     sentence that the detail is private, and no address. Ask it signed in
+     too: the answer must still hold no value.
+5. A few days later, check the key's usage in Anthropic's console against the
+   estimate above.
+
+### When it fails
+
+- **No ask field on the landing and no button on pages.** Open `/api/ask` in
+  the browser. `{ "enabled": false }` means the running Site has no key: set
+  it and redeploy. A page with no headings never has the button.
+- **Every question gets "The assistant couldn't answer right now".** The call
+  fails before any text (`502`). The route logs nothing, so check the key and
+  the account's billing, limits and credit in Anthropic's console. "AI
+  features fail" in
+  `content/docs/developers/keep-it-running/when-things-break.mdx` lists
+  Anthropic's errors.
+- **Everyone gets "You've asked a lot of questions".** Either the daily total
+  is reached, or every visitor shares one key because `x-forwarded-for` isn't
+  set (step 3 above). The total resets at midnight UTC or on a redeploy.
+
+### Checking the UI without spending
+
+Run docs with any non-empty key, such as `ANTHROPIC_API_KEY=test`, and never
+submit a question. A submitted question would go to Anthropic. To see an
+answer, intercept `/api/ask` in the browser, for example with Playwright's
+`page.route`, and return a canned text answer with an `X-Docs-Sources` header:
+a URI-encoded JSON array of `{ n, title, url }`. Don't add a scratch page to
+the repo for it. The unit tests use `ai/test` mock models and make no calls.
+
 ## Commands
 
 Run from the repo root with `--filter=docs`, or from `apps/docs/`.
 
 ```bash
 bun run dev --filter=docs          # next dev on :3002
-bun run test --filter=docs         # bun test: landing links, redirects, coverage check, brand guard
+bun run test --filter=docs         # bun test: landing links, redirects, coverage check, brand guard, assistant
 bun run check-types --filter=docs  # fumadocs-mdx && tsc --noEmit. Required before merging
 bun run build --filter=docs        # next build
 ```

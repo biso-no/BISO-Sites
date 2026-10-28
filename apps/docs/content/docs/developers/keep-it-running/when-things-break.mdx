@@ -23,6 +23,7 @@ covers:
   - packages/connectors/src/azure/graph-client.ts
   - apps/docs/components/private.tsx
   - apps/docs/lib/private/infisical.ts
+  - apps/docs/app/api/ask/route.ts
   - WEB_APP_APPWRITE_INCIDENT_AUDIT.md
 ---
 
@@ -280,7 +281,7 @@ Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and 
 
    | Log shows | What it means |
    |---|---|
-   | `Anthropic API key is missing` | `ANTHROPIC_API_KEY` isn't set on that Site. It's in no `.env.example`, because the AI library reads it by itself. |
+   | `Anthropic API key is missing` | `ANTHROPIC_API_KEY` isn't set on that Site. It's in no `.env.example` of these three apps, because the AI library reads it by itself. |
    | `authentication_error` (`401`) | The key is wrong, revoked or expired. |
    | `billing_error` (`402`) | Something is wrong with billing at Anthropic. |
    | `rate_limit_error` (`429`), or `invalid_request_error` (`400`) about a spend limit | Too many requests, or a spend limit or the month's spend cap has been reached. BISO's plan comes with about USD 160 of credit a month. |
@@ -296,6 +297,8 @@ Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and 
 - **Missing or wrong key:** set `ANTHROPIC_API_KEY` on the Site, as in [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret), and redeploy without shipping new code. The owner sets it on the admin, the api and the website.
 - **Billing, limits or credit:** check usage and billing in Anthropic's console. Who owns the account: <Private name="account-owners" label="Account owners" />.
 - **Screening skipped:** set `OPENAI_API_KEY` on the web and api Sites. Any non-empty value switches screening on. The Sites never send it anywhere, so no OpenAI account is needed. The lasting fix is a small code change: make `isAutoScreened` check `ANTHROPIC_API_KEY` instead.
+
+The docs assistant logs nothing, not even Anthropic's error. If it fails, check the key and the account in Anthropic's console, and see the "When it fails" checks under "Assistant" in `apps/docs/CLAUDE.md`.
 
 ## After an incident
 

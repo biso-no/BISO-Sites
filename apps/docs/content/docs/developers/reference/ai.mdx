@@ -1,8 +1,12 @@
 ---
 title: AI
-description: Which features use Anthropic's models and where, the kill switches, the OpenAI key that only switches job screening on, the code and settings left over from earlier AI work, and how to test without spending BISO's credit.
+description: Which features use Anthropic's models and where, the docs assistant and what it costs, the kill switches, the OpenAI key that only switches job screening on, the code and settings left over from earlier AI work, and how to test without spending BISO's credit.
 covers:
   - packages/ai/**
+  - apps/docs/app/api/ask/**
+  - apps/docs/lib/assistant/**
+  - apps/docs/components/assistant/**
+  - apps/docs/components/landing/ask-field.tsx
   - packages/editor/src/ai/**
   - apps/admin/src/app/api/assistant/route.ts
   - apps/admin/src/app/api/page-editor/ai/**
@@ -22,7 +26,7 @@ Read this before you add or change an AI feature, or when one stops working. Eve
 
 ## Account and cost
 
-BISO pays Anthropic for what the apps use. Its non-profit Team plan comes with about USD 160 of credit a month.
+BISO pays Anthropic for what the apps use. Its non-profit Team plan comes with about USD 160 of credit a month. The [docs assistant](#the-docs-assistant) spends from the same credit, at up to about USD 0.07 a question.
 
 Who owns the Anthropic account: <Private name="account-owners" label="Account owners" />
 
@@ -52,15 +56,17 @@ Who owns the Anthropic account: <Private name="account-owners" label="Account ow
 | Reading receipts | api | Balanced | `apps/api/src/app/api/expenses/ocr/route.ts` |
 | Summarising an expense | api | Fast | `apps/api/src/app/api/expenses/summary/route.ts` |
 | Screening job applications | web, api | Balanced | `packages/ai/src/server/recruitment-screener.ts`, called from `packages/shared/recruitment/apply.ts` |
+| [Docs assistant](#the-docs-assistant) | docs | Balanced, or fast with `DOCS_ASSISTANT_MODEL=fast` | `apps/docs/app/api/ask/route.ts`, `apps/docs/lib/assistant/` |
 
 Applications sent from the website are screened by the web Site. Applications sent from the app go through `apps/api/src/app/api/recruitment/applications/route.ts` and are screened by the api Site.
 
 ## Settings
 
-- **`ANTHROPIC_API_KEY`** on the admin, the api and the website. The owner sets it in the Appwrite console. The AI SDK reads it by itself, so it's in no `.env.example` and named nowhere in the code.
+- **`ANTHROPIC_API_KEY`** on the admin, the api, the website and docs. The owner sets it in the Appwrite console. The AI SDK reads it by itself. Only docs names it: its ask route checks that it's set, to switch the assistant on, and `apps/docs/.env.example` lists it. The other apps' `.env.example` files don't.
 - **`OPENAI_API_KEY`** switches job-application screening on. Screening runs only when it's set, and then runs on Anthropic and never sends the key anywhere (`isAutoScreened` in `packages/shared/recruitment/apply.ts`). Any value works.
+- **`DOCS_ASSISTANT_MODEL`** and **`DOCS_ASSISTANT_DAILY_LIMIT`** on docs. See [The docs assistant](#the-docs-assistant).
 
-[AI](/developers/keep-it-running/secrets-and-environment#ai) in Secrets and environment lists both.
+[AI](/developers/keep-it-running/secrets-and-environment#ai) in Secrets and environment lists them all.
 
 ## Kill switches
 
@@ -73,11 +79,38 @@ A global admin can turn two AI features off under **Innstillinger** (Settings), 
 
 Receipt reading is also off whenever the whole reimbursements module (`expenses_module`) is off.
 
+The docs assistant has no flag. Unset `ANTHROPIC_API_KEY` on docs and redeploy to switch it off. The rest of docs keeps working.
+
 ## What users see when it fails
 
 - An AI feature in the admin shows an error, and the Site's log shows Anthropic's error, such as `authentication_error` or `rate_limit_error`. The runbook has a table of them.
 - Receipt reading fails, and the student fills in the form by hand.
 - A job application is saved without an AI score. The log says `AI screening failed for application <id>:`. If `OPENAI_API_KEY` is unset, screening is skipped without a log line.
+- The docs assistant says "The assistant couldn't answer right now. Try the search instead." It logs nothing, not even Anthropic's error, so check the key and the account in Anthropic's console.
+
+## The docs assistant
+
+Readers of these docs can ask a question on the landing page, or with **Ask about this page** at the foot of a page's contents. The assistant searches the docs, sends up to six whole pages and the question to Anthropic in one call, and streams back a short answer that cites the pages it used. When the pages don't cover the question, its instructions tell it to say so in one sentence and point to the search. `apps/docs/CLAUDE.md` is the runbook: how it works step by step, the owner's steps before it goes live, and what to check when it fails.
+
+- **What it sends.** Public page text only. Every private detail is replaced with `[private detail, shown only to signed-in staff]` first, whether or not the reader is signed in, and the assistant code never reads the private source.
+- **What it keeps.** Nothing. The question, the answer and any error are never logged or stored.
+- **Model.** `DOCS_ASSISTANT_MODEL` picks the tier: `balanced` (Sonnet 5.5) when unset, or `fast` (Haiku 5.5). Balanced was chosen over fast because the worst failure is a confident wrong answer.
+- **Limits.** 8 questions per visitor per 10 minutes, and `DOCS_ASSISTANT_DAILY_LIMIT` questions a day (default 400). Each server instance counts in memory, so a restart or a redeploy resets both. Visitors are told apart by the first address in `x-forwarded-for`, so the owner must confirm that the proxy in front of docs sets it. Otherwise every visitor shares one count. Questions are capped at 500 characters and request bodies at 4 KB.
+- **Off switch.** With no `ANTHROPIC_API_KEY` on docs there is no assistant: the ask field and the page buttons disappear, and the landing field is a search button again.
+- **Known gap.** The search dialog has no item for asking. Fumadocs 16.7.10 renders the dialog's footer outside the dialog, and adding one would mean forking it. The landing field and the page button cover asking.
+
+### What a question costs
+
+Each call sends at most 120,000 characters of sources, about 30,000 tokens at roughly 4 characters a token, plus about 500 tokens of instructions and question. It gets back at most 1,200 tokens, the model's thinking included.
+
+| Model | Input at most | Output at most | Per question | At 400 questions a day |
+|---|---|---|---|---|
+| Sonnet 5.5 (`balanced`): USD 2 in, USD 10 out, per million tokens | 30,500 × 2 / 1M ≈ USD 0.061 | 1,200 × 10 / 1M = USD 0.012 | About USD 0.07 | About USD 29 a day |
+| Haiku 5.5 (`fast`): USD 0.10 in, USD 0.50 out, per million tokens | 30,500 × 0.10 / 1M ≈ USD 0.003 | 1,200 × 0.50 / 1M = USD 0.0006 | About USD 0.004 | About USD 1.50 a day |
+
+Most questions use fewer pages, so they cost less, and a question that finds no page costs nothing. On Sonnet at the caps, the monthly credit of about USD 160 would pay for about 2,200 questions if nothing else used it. Reaching the daily limit every day would cost about USD 880 a month. If the spend climbs, lower `DOCS_ASSISTANT_DAILY_LIMIT` or set `DOCS_ASSISTANT_MODEL=fast`.
+
+These are Anthropic's list prices in October 2026, and they change. Check Anthropic's pricing page before you rely on them.
 
 ## Test it safely
 
@@ -91,7 +124,10 @@ Anthropic has no test mode, so every call is paid for, whichever key you use.
   ```bash
   cd packages/ai && bun run test
   cd packages/editor && bun run test
+  cd apps/docs && bun run test
   ```
+
+- **Check the docs assistant's screens without a real key.** Run docs with `ANTHROPIC_API_KEY=test` and don't submit a question. To see an answer, intercept `/api/ask` in the browser, for example with Playwright's `page.route`, and return a canned answer. `apps/docs/CLAUDE.md` says what the response looks like.
 
 ## Leftovers
 
