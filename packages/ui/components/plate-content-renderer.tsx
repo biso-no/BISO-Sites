@@ -10,7 +10,10 @@ export function PlateContentRenderer({ value, className }: PlateContentRendererP
   if (!value) return null;
 
   const trimmed = value.trim();
-  const articleClass = `prose dark:prose-invert max-w-none ${className ?? ''}`;
+  // `wrap-anywhere`: authored text can hold a token with no break in it, like a
+  // pasted tracking URL, which otherwise runs out of its column and across the
+  // page. Tables keep normal wrapping so a wide one still scrolls whole.
+  const articleClass = `prose dark:prose-invert max-w-none wrap-anywhere [&_table]:wrap-normal ${className ?? ''}`;
 
   // Raw HTML path (Job Studio Editor stores HTML strings)
   if (trimmed.startsWith('<')) {
