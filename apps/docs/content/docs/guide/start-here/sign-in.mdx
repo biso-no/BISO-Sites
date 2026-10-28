@@ -1,7 +1,7 @@
 ---
 title: Sign in and find your way
 description: How to sign in to the BISO admin, where you land, and how to find what your role lets you use.
-who: "Everyone with a BISO admin role: global admins, campus admins, HR (campus and National), department members and benefits managers"
+who: "Everyone with a BISO admin role: global admins (National + Operations Unit), campus leaders (Ledelsen on your campus), HR (campus and National), department members and benefits editors"
 covers:
   - apps/admin/src/app/(auth)/auth/**
   - apps/admin/src/components/login.tsx
@@ -34,7 +34,7 @@ covers:
 ## Before you start
 
 - You need a BISO Microsoft account.
-- The account must be in the BISO group for your campus and the group for your department. These groups give you your role. Benefits managers get their access from the benefits editors list instead.
+- The account must be in the BISO group for your campus and the group for your department. These groups give you your role. Benefits editors get their access from the benefits editors list instead.
 - If you don't have an account, you're missing a group, or you need to be added to the benefits editors list, ask IT (the global admins). In the admin, only global admins can create accounts and change groups.
 </BeforeYouStart>
 
@@ -56,10 +56,10 @@ If the sign-in page shows **Innlogging mislyktes. Prøv igjen eller kontakt supp
 
 Where you land depends on your role:
 
-- Global admins and campus admins land on **Oversikt** (Overview), the dashboard.
+- Global admins and campus leaders land on **Oversikt** (Overview), the dashboard.
 - Everyone else lands on the first item in their sidebar. For HR and department members that is **Sider** (Pages). To get to recruitment, open **Innhold** (Content) and choose **Stillinger** (Jobs).
 
-Near the top of the sidebar, a box shows your campus with your role under it. For HR and department members, the role is your department's name, for example **HR**. Campus admins see **Campusadministrator** (Campus Admin) and their campus. Global admins see **Global administrator** (Global Admin), and benefits managers see **Fordelsansvarlig** (Benefits manager).
+Near the top of the sidebar, a box shows your campus with your role under it. For HR and department members, the role is your department's name, for example **HR**. Campus leaders (Ledelsen on your campus) are shown as **Campusadministrator** (Campus Admin), with their campus. Global admins see **Global administrator** (Global Admin), and benefits editors are shown as **Fordelsansvarlig** (Benefits manager).
 
 Global admins can click the campus box to show one campus or all of them. For everyone else the box only shows your own campus.
 
@@ -74,9 +74,9 @@ The sidebar shows only what your role can open. Groups such as **Innhold** (Cont
 |---|---|
 | Department member | **Innhold** (Content) with **Sider** (Pages), **Nyheter** (News) and **Arrangementer** (Events). **Produkter** (Products). **Organisasjon** (Organization) with **Avdelinger** (Departments) and **Dokumenter** (Documents). |
 | HR or National HR | The same, plus **Stillinger** (Jobs) under **Innhold** (Content). |
-| Campus admin | **Oversikt** (Overview), **Innboks** (Inbox) and **Medlemmer** (Members). Under **Innhold** (Content), the department items plus **Kommunikasjon** (Communications), **Fordeler** (Benefits) and **Gjennomgå utkast** (Review Drafts). **Produkter** (Products), **Regnskap** (Accounting) and **Organisasjon** (Organization). **System** with **IT** and **Aktivitet** (Activity). |
+| Campus leader | **Oversikt** (Overview), **Innboks** (Inbox) and **Medlemmer** (Members). Under **Innhold** (Content), the department items plus **Kommunikasjon** (Communications), **Fordeler** (Benefits) and **Gjennomgå utkast** (Review Drafts). **Produkter** (Products), **Regnskap** (Accounting) and **Organisasjon** (Organization). **System** with **IT** and **Aktivitet** (Activity). |
 | Global admin | Everything, including **Stillinger** (Jobs), **Analyse** (Analytics) and the whole **System** group. |
-| Benefits manager | **Fordeler** (Benefits), plus anything your department gives you. |
+| Benefits editor | **Fordeler** (Benefits), plus anything your department gives you. |
 
 Only HR and global admins see **Stillinger** (Jobs).
 
@@ -98,7 +98,7 @@ The bell at the top right opens **Notifications**. The panel is in English.
 
 It lists active notices. Choosing a notice marks it as read and opens its link, if it has one. **Mark all read** marks them all. The admin remembers what you've read only in this browser, so on another computer the notices show as unread again.
 
-Global admins and campus admins see two tabs, **Notices** and **Pending**. **Pending** lists draft jobs, events and news.
+Global admins and campus leaders see two tabs, **Notices** and **Pending**. **Pending** lists draft jobs, events and news.
 
 The bell never tells you about new job applications. HR and global admins see them in each vacancy's applications: in **Stillinger** (Jobs), choose the people icon on the vacancy's row.
 
@@ -124,7 +124,7 @@ Choose the sign-out icon at the bottom right of the sidebar, next to your role. 
 ## Common mistakes
 
 - Signing in with a personal Microsoft account. The admin gives you access from the BISO groups of the account you sign in with. A personal account isn't in those groups, so it gets no access. If Microsoft lets it through, you see **Du må være logget inn for å se denne siden** (You must be signed in to view this page). Open a private (incognito) window and sign in there with your BISO account. Your normal window stays signed in to the other account, so keep using the private window, or clear the admin's cookies in your normal window and sign in again.
-- Being shown **Du må være logget inn for å se denne siden** (You must be signed in to view this page) right after you signed in. First check that you signed in with your BISO account. If you did, the admin found no BISO campus or department group for it (or, for a benefits manager, no place on the benefits editors list). Ask IT to check your groups. Then open the admin in a private (incognito) window and sign in there. You need the private window because this page has no sign-out button, and **Logg inn** (Sign in) brings you straight back to it. After that, the admin also works in your normal window when you reload it.
+- Being shown **Du må være logget inn for å se denne siden** (You must be signed in to view this page) right after you signed in. First check that you signed in with your BISO account. If you did, the admin found no BISO campus or department group for it (or, for a benefits editor, no place on the benefits editors list). Ask IT to check your groups. Then open the admin in a private (incognito) window and sign in there. You need the private window because this page has no sign-out button, and **Logg inn** (Sign in) brings you straight back to it. After that, the admin also works in your normal window when you reload it.
 - Waiting for a new role to show up. The admin reads your groups only when you sign in. If IT changes your groups while you're signed in, sign out and sign in again.
 - Expecting a link to open after you sign in. If you open a link to an admin page while signed out, you land on your start page after sign-in. Open the link again.
 - Using a phone. On a narrow screen the sidebar and the quick search bar are hidden. Use a computer, or make the browser window wider.

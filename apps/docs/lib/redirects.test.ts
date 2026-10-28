@@ -42,9 +42,9 @@ test("specific rule beats the section fallback", () => {
   ).toBe("/guide/recruitment/publish-a-vacancy");
 });
 
-test("the old notifications page goes to the bell step's page", () => {
+test("the old notifications page goes to the bell step", () => {
   expect(matchRedirect("/docs/admin-handbook/notifications", rules)).toBe(
-    "/guide/start-here/sign-in"
+    "/guide/start-here/sign-in#open-the-notification-bell"
   );
 });
 

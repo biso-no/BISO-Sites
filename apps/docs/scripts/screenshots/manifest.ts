@@ -261,8 +261,7 @@ const CONTENT_SHOTS: Shot[] = [
   }),
   shot({
     afterStep: "Start a product",
-    caption:
-      "The shop catalogue with one published product and one waiting for approval.",
+    caption: "The shop catalogue with one published product and one draft.",
     id: "shop-catalogue",
     page: `${GUIDE}/shop/add-a-product.mdx`,
     role: "globaladmin",

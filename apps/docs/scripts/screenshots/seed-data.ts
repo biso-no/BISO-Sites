@@ -343,7 +343,9 @@ const USERS: SeedUser[] = [
     teamIds: [TEAM.oslo, TEAM.ledelsenOslo],
   },
   {
-    // The role comes from BENEFITS_EDITOR_EMAILS (see README.md), not a team.
+    // Marked as the benefits editor, but has no role in the docs project:
+    // the admin gives that role only to a Microsoft sign-in listed in
+    // BENEFITS_EDITOR_EMAILS, which a seeded user can't have (README.md).
     email: "anders.moen@example.org",
     id: USER.anders,
     name: "Anders Moen",
@@ -1245,7 +1247,7 @@ export const DRAFT_NEWS_ID = "docs-news-quiz-recap";
 export const OPEN_EVENT_ID = "docs-event-spring-quiz";
 export const MEMBERS_EVENT_ID = "docs-event-members-night";
 export const PUBLISHED_PRODUCT_ID = "docs-product-tote-bag";
-export const PENDING_PRODUCT_ID = "docs-product-hoodie";
+export const DRAFT_PRODUCT_ID = "docs-product-hoodie";
 export const PAID_ORDER_ID = "docs-order-paid";
 export const REFUNDED_ORDER_ID = "docs-order-refunded";
 /** The department whose own page the department shots open. */
@@ -1686,9 +1688,7 @@ function productRow(input: {
   memberPrice: number;
   price: number;
   slug: string;
-  status:
-    | WebshopProductsStatus.PENDING_APPROVAL
-    | WebshopProductsStatus.PUBLISHED;
+  status: WebshopProductsStatus.DRAFT | WebshopProductsStatus.PUBLISHED;
   stock: number;
   text: Record<"en" | "no", LocaleText>;
 }): SeedRow {
@@ -1746,21 +1746,20 @@ function shopRows(): SeedRow[] {
     }),
     productRow({
       day: 22,
-      id: PENDING_PRODUCT_ID,
+      id: DRAFT_PRODUCT_ID,
       memberPrice: 350,
       price: 450,
       slug: "hoodie",
-      status: WebshopProductsStatus.PENDING_APPROVAL,
+      status: WebshopProductsStatus.DRAFT,
       stock: 25,
       text: {
         en: {
-          description:
-            "A navy hoodie. Waiting for a campus leader to approve it.",
+          description: "A navy hoodie with the Demo Events logo.",
           short: "Navy hoodie.",
           title: "Hoodie",
         },
         no: {
-          description: "En marineblå hettegenser. Venter på godkjenning.",
+          description: "En marineblå hettegenser med logoen til Demo Events.",
           short: "Marineblå hettegenser.",
           title: "Hettegenser",
         },

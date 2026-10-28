@@ -52,11 +52,11 @@ Choose the **Driftshelse** (Operations health) tab. The page only reads. It show
 A status only says whether a setting exists. It doesn't test the service. Two rows need care:
 
 - **Vipps MobilePay** checks a fallback set of Vipps settings on the admin. The settings checkout normally uses are under **Betaling** (Payments), so check those instead.
-- **Scheduler secrets** counts two old settings that IT leaves empty. So **Ufullstendig** (Incomplete) with **2 mangler** (2 missing) is normal there.
+- **Scheduler secrets** counts two old settings that the developers leave empty. So **Ufullstendig** (Incomplete) with **2 mangler** (2 missing) is normal there.
 
-The **Driftshåndbok** (Runbook) links point to pages that don't exist. If a service looks wrong, tell IT.
+The **Driftshåndbok** (Runbook) links point to pages that don't exist. If a service looks wrong, tell the developers (see the [developer docs](/developers)).
 
-**Påkrevde team** (Required teams) checks that the teams the admin needs exist. It shows **Alle påkrevde team finnes** (All required teams present), or how many are missing, with each one listed. If it shows **Kunne ikke laste team-helse. Sjekk Appwrite-tilkobling.** (Could not load team health. Check Appwrite connectivity.), the check couldn't run. If a team is missing or the check couldn't run, tell IT.
+**Påkrevde team** (Required teams) checks that the teams the admin needs exist. It shows **Alle påkrevde team finnes** (All required teams present), or how many are missing, with each one listed. If it shows **Kunne ikke laste team-helse. Sjekk Appwrite-tilkobling.** (Could not load team health. Check Appwrite connectivity.), the check couldn't run. If a team is missing or the check couldn't run, tell the developers.
 
 The page doesn't check 24SevenOffice, email sending, Stripe or the AI services.
 
@@ -73,9 +73,9 @@ The switches are in three groups: **Refusjoner** (Reimbursements), **Nettbutikkb
 | **Receipt scanning (AI/OCR)** | On | Fills in a reimbursement from a photo of the receipt. Off: only scanning stops. Typing in by hand still works. |
 | **Direct ledger posting (24SO + Teams approval)** | Off | On: each submitted reimbursement goes to approvers in Teams and by email, and is posted to 24SevenOffice. Off: reimbursements are emailed to accounting. Agree it with whoever keeps BISO's accounts before you change it. |
 | **Vipps checkout** | On | Vipps at checkout, for the shop and for membership. Off: Vipps is hidden, and refused if someone tries it. |
-| **Stripe (card) checkout** | Off | Card payment at checkout. Switch it on only when IT says Stripe is set up. |
+| **Stripe (card) checkout** | Off | Card payment at checkout. Switch it on only when the developers say Stripe is set up. |
 | **Webshop → Finago ledger posting** | Off | Don't use this switch. Shop posting is switched on and off on the accounting page. See [Switch posting on](/guide/shop/accounting#switch-posting-on). |
-| **Admin AI copilot** | On | The BISO Assistant in the admin. Off: it's hidden for everyone. |
+| **Admin AI copilot** | On | The BISO Assistant in the admin. Off: the assistant and its row in quick search are gone for everyone. The sidebar button stays but opens nothing. |
 
 Click a switch to change it. There's no confirmation. It moves at once, and you see **Bryter oppdatert** (Flag updated). If the change couldn't be saved, you see an error, such as **Kunne ikke oppdatere bryter** (Failed to update flag), and the switch moves back.
 
@@ -105,7 +105,7 @@ The old value is replaced, and you can't read it back.
 
 The button that changes the mode is on the tab that isn't active: **Sett Live som aktiv** (Set Live as active) or **Sett Test som aktiv** (Set Test as active). It takes effect at once, with no confirmation. It can't be chosen until every value in that set is filled in, and shows **Legg til de manglende hemmelighetene først** (Add the missing secrets first). The active tab says **Aktiv — brukes i kassen når denne leverandøren er på.** (Active — used at checkout while this provider is on.)
 
-On the Vipps card, **Registrer webhook** (Register webhook) tells Vipps where to send payment updates for the active mode, and stores the key that comes back. You see **Vipps-webhook registrert** (Vipps webhook registered). Choose it again after a change of mode or of merchant serial number. Stripe has no such button. IT sets up its webhook in Stripe.
+On the Vipps card, **Registrer webhook** (Register webhook) tells Vipps where to send payment updates for the active mode, and stores the key that comes back. You see **Vipps-webhook registrert** (Vipps webhook registered). Choose it again after a change of mode or of merchant serial number. Stripe has no such button. The developers set up its webhook in Stripe.
 
 </Step>
 <Step title="Set app version rules">

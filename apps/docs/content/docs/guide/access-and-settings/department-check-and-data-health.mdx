@@ -58,7 +58,7 @@ Each tab has a line under it saying what to do. A tab with nothing in it says **
 </Step>
 <Step title="Apply the safe fixes">
 
-In **Trygg** (Safe), each row is a department the AI wants to move accounts into. It shows that department, how many accounts, such as **4 brukere** (4 users), and what will be written, such as **Setter avdeling → …, kontor → …** (Sets department → …, office → …). The accounts and their current values aren't listed. The tab's help text asks you to look through the members, but the screen doesn't show them.
+In **Trygg** (Safe), each row is a department the AI wants to move accounts into. It shows that department, how many accounts, such as **4 brukere** (4 users), and what will be written, such as **Setter avdeling → …, kontor → …** (Sets department → …, office → …). The accounts and their current values aren't listed.
 
 <Callout type="warn">
 Applying overwrites the department and office location of every account in the group, in Microsoft, at once. There's no undo, and the old values aren't kept anywhere. Apply only when you're sure every account in the group belongs in that department.
@@ -66,7 +66,7 @@ Applying overwrites the department and office location of every account in the g
 
 Before you apply, check each row. You can only judge from the department, the office and the number of accounts. A large count for a small department is a sign that something is wrong.
 
-**Bruk alle trygge rettelser** (Apply all safe fixes) applies every row in the tab at once. You can't leave a row out. If any row looks wrong, don't choose it. Tell IT.
+**Bruk alle trygge rettelser** (Apply all safe fixes) applies every row in the tab at once. You can't leave a row out. If any row looks wrong, don't choose it. Tell the developers (see the [developer docs](/developers)).
 
 If every row looks right, choose **Bruk alle trygge rettelser** (Apply all safe fixes). You see how it went, such as **18 oppdatert, 0 feilet** (18 updated, 0 failed).
 
@@ -139,6 +139,6 @@ If nothing is wrong, you see **Ingen datafeil funnet** (No data issues found).
 - Looking here for who did what. It's a clean-up tool. The log is **Aktivitet** (Activity).
 - Choosing **Deaktiver valgte** (Deactivate selected) without going through the list. Every inactive account starts ticked. Untick the ones you want to keep first.
 - Applying a **Gjennomgang** (Review) row without reading its reason. The AI wasn't sure about these, and the old values aren't kept.
-- Choosing **Bruk alle trygge rettelser** (Apply all safe fixes) when one row looks wrong. It applies every row, and you can't see or restore the accounts it changed. Tell IT instead.
+- Choosing **Bruk alle trygge rettelser** (Apply all safe fixes) when one row looks wrong. It applies every row, and you can't see or restore the accounts it changed. Tell the developers instead.
 - Fixing a department in 24SevenOffice and expecting it to show at once. Run **Sync units** first.
 - Working from an old result. The saved result can be weeks old. Check **Sist generert** (Last generated), and run the analysis again if accounts have changed since.

@@ -33,7 +33,7 @@
   },
   {
     "source": "/docs/admin-handbook/notifications",
-    "destination": "/guide/start-here/sign-in"
+    "destination": "/guide/start-here/sign-in#open-the-notification-bell"
   },
   {
     "source": "/docs/admin-handbook/activity",
@@ -53,7 +53,7 @@
   },
   {
     "source": "/docs/admin-handbook/campus-context",
-    "destination": "/guide/start-here/sign-in#find-your-way-in-the-sidebar"
+    "destination": "/guide/start-here/sign-in#see-where-you-land"
   },
   {
     "source": "/docs/admin-handbook/dashboard",

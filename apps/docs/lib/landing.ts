@@ -1,7 +1,7 @@
 /**
- * What the landing links to below the hero. Both lists grow as guide pages land, and an
- * empty list renders nothing. Each stage appends to them as its guide pages
- * land; `landing.test.ts` checks that every href resolves to a real page.
+ * What the landing links to below the hero. Each stage appends to both lists
+ * as its guide pages land, and an empty list renders nothing.
+ * `landing.test.ts` checks that every href resolves to a real page.
  */
 
 export interface LandingLink {
@@ -48,6 +48,10 @@ export const readingPaths: ReadingPath[] = [
     steps: [
       { title: "Sign in and find your way", href: "/guide/start-here/sign-in" },
       { title: "How pages and news work", href: "/guide/pages-and-news" },
+      {
+        title: "Department pages",
+        href: "/guide/pages-and-news/department-pages",
+      },
       { title: "Edit a page", href: "/guide/pages-and-news/edit-a-page" },
       { title: "Publish news", href: "/guide/pages-and-news/publish-news" },
       { title: "Create an event", href: "/guide/events/create-an-event" },
@@ -133,6 +137,24 @@ export const readingPaths: ReadingPath[] = [
 
 export const taskGroups: TaskGroup[] = [
   {
+    title: "Start here",
+    href: "/guide/start-here/sign-in",
+    tasks: [
+      {
+        title: "Open the notification bell",
+        href: "/guide/start-here/sign-in#open-the-notification-bell",
+      },
+      {
+        title: "Ask the BISO Assistant",
+        href: "/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone",
+      },
+      {
+        title: "Approve or reject a request",
+        href: "/guide/start-here/inbox-and-approvals#approve-or-reject-a-request",
+      },
+    ],
+  },
+  {
     title: "Recruitment",
     href: "/guide/recruitment",
     tasks: [
@@ -151,24 +173,6 @@ export const taskGroups: TaskGroup[] = [
       {
         title: "Make an offer",
         href: "/guide/recruitment/make-offers-and-close",
-      },
-    ],
-  },
-  {
-    title: "Start here",
-    href: "/guide/start-here/sign-in",
-    tasks: [
-      {
-        title: "Open the notification bell",
-        href: "/guide/start-here/sign-in#open-the-notification-bell",
-      },
-      {
-        title: "Ask the BISO Assistant",
-        href: "/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone",
-      },
-      {
-        title: "Approve or reject a request",
-        href: "/guide/start-here/inbox-and-approvals#approve-or-reject-a-request",
       },
     ],
   },

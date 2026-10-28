@@ -1,7 +1,7 @@
 ---
 title: Scan member passes
 description: How to check member passes at the door in the admin, make and revoke guest scanner links for guards, and give or revoke scanner access in the BISO app.
-who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Both can scan any member's pass. Campus leaders make guest links and give scanner access for their own campus only."
+who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Campus leaders make guest links and give scanner access for their own campus only."
 covers:
   - apps/admin/src/app/(portal)/members/page.tsx
   - apps/admin/src/app/(portal)/members/scan/**
@@ -77,7 +77,7 @@ If the scan itself fails, a red banner shows **Noe gikk galt. Prøv igjen.** (So
 Choose **Medlemmer** (Members), then **Gjesteskanner-lenker** (Guest scanner links). The page says **Gi vakter en skanner uten konto. Lenkene utløper automatisk og kan trekkes tilbake.** (Give event security a scanner without an account. Links expire automatically and can be revoked.)
 
 1. **Navn** (Label): a name the guards see at the top of their scanner, for example *Demo Events – dør 1*. Up to 120 characters.
-2. **Campus**: global admins can choose **Alle campuser** (All campuses), which is their default, or one campus. Campus leaders choose one of their own campuses. The campus decides who can see and revoke the link. It doesn't limit whose passes can be scanned: the link checks any BISO member's pass.
+2. **Campus**: global admins can choose **Alle campuser** (All campuses), which is their default, or one campus. Campus leaders choose one of their own campuses. The campus decides who can see and revoke the link.
 3. **Gyldig til** (Valid until): the date and time the link stops working. It starts at 6 hours from now. A link lasts at most 48 hours. If you choose a later time, the link still stops 48 hours after you make it. Set it to the end of the guards' shift.
 4. Choose **Lag lenke** (Create link).
 
@@ -129,7 +129,7 @@ In **Legg til skanner** (Add scanner):
 
 1. **E-post** (Email): the address the person will sign in to the BISO app with. Check it carefully before you go on.
 2. **Navn (valgfritt)** (Name (optional)), for example *Ola Hansen*. Up to 120 characters.
-3. **Campus**: global admins can also choose **Alle campuser** (All campuses). Campus leaders choose one of their own campuses. As with guest links, the campus decides who can manage the access. It doesn't limit whose passes can be scanned.
+3. **Campus**: global admins can also choose **Alle campuser** (All campuses). Campus leaders choose one of their own campuses. As with guest links, the campus decides who can manage the access.
 4. **Sluttdato (valgfritt)** (End date (optional)): when the access ends. With no end date, the access lasts until someone revokes it. Set an end date unless the person will scan for BISO until further notice.
 5. Choose **Gi tilgang og send invitasjon** (Give access and send invitation).
 
@@ -193,7 +193,6 @@ To remove an end date, revoke the access and add the person again with no end da
 - Accepting a pass in the app or on biso.no without checking the day's colour. A screenshot from another day can have a different colour.
 - Closing the page before copying a new guest link. It can't be shown again. Revoke that link and make a new one.
 - Setting **Gyldig til** (Valid until) days ahead. A link never lasts more than 48 hours. Make a new one for each event.
-- Thinking a link or access for one campus only lets that campus's members in. It checks any BISO member's pass.
 - Sharing a guest link in a group chat or a public place. Send it only to the people who will scan.
 - Typing the wrong email address for scanner access. The invitation can't be called back. Revoke that access at once, then add the right address.
 - Revoking a link or access by mistake. It can't be undone. Make a new link, or add the person again.

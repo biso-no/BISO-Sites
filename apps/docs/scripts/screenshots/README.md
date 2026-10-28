@@ -6,7 +6,7 @@ appears in them, and no Microsoft sign-in is needed.
 
 | File | What it does |
 |------|--------------|
-| `seed-data.ts` | The made-up data: one campus (Oslo), the HR and Demo Events departments, six staff users, two vacancies, eight applicants across every status, two interviews and one scorecard. It also holds one published and one draft page and news item, two events (one members-only, with three RSVPs), two products (one awaiting approval), a paid and a refunded order, three roster members, one benefit with its partner and an invented code (`DEMO10`, kept in the private codes table), one sent announcement and two Varsling contacts. Every email ends in `@example.org`. |
+| `seed-data.ts` | The made-up data: one campus (Oslo), the HR and Demo Events departments, six staff users, two vacancies, eight applicants across every status, two interviews and one scorecard. It also holds one published and one draft page and news item, two events (one members-only, with three RSVPs), two products (one published, one draft), a paid and a refunded order, three roster members, one benefit with its partner and an invented code (`DEMO10`, kept in the private codes table), one sent announcement and two Varsling contacts. Every email ends in `@example.org`. |
 | `schema.ts` | Writes a tables-only copy of the schema with the docs project's id, for the Appwrite CLI to push. |
 | `seed.ts` | Writes the seed to the docs project: users, teams, memberships and rows. Safe to run again. |
 | `manifest.ts` | The shots: admin route, the guide page, the step it follows, size and caption. |

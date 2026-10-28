@@ -403,7 +403,7 @@ test("staff rows grant access only to the recruitment staff teams", () => {
   expect(published?.permissions).toContain('read("any")');
 });
 
-test("each staff user's teams give exactly the intended role", () => {
+test("each staff user's teams give exactly the intended role, and the benefits editor's give none", () => {
   const teamById = new Map(seed.teams.map((team) => [team.id, team]));
   for (const user of seed.users) {
     const teams = user.teamIds.map((id) => {
@@ -448,7 +448,9 @@ test("each staff user's teams give exactly the intended role", () => {
       expect(isGlobalAdmin).toBe(true);
       expect(isHr).toBe(false);
     } else if (user.role === "benefitseditor") {
-      // The role comes from BENEFITS_EDITOR_EMAILS, not from any team.
+      // No team gives this role. The admin gives it only to a Microsoft
+      // sign-in listed in BENEFITS_EDITOR_EMAILS, which a seeded user can't
+      // have, so in the docs project this user has no role (README.md).
       expect(departmentNames).toEqual([]);
       expect(isHr).toBe(false);
       expect(isGlobalAdmin).toBe(false);
@@ -584,9 +586,9 @@ test("holds two events: a members-only one with exactly three RSVPs", () => {
   expect(rowsOf("event_rsvps")).toHaveLength(MEMBERS_ONLY_RSVP_COUNT);
 });
 
-test("holds two products, one awaiting approval", () => {
+test("holds two products, one published and one draft", () => {
   expect(statusesOf("webshop_products")).toEqual([
-    WebshopProductsStatus.PENDING_APPROVAL,
+    WebshopProductsStatus.DRAFT,
     WebshopProductsStatus.PUBLISHED,
   ]);
 });

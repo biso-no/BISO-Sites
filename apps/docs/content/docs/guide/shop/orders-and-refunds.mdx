@@ -153,12 +153,12 @@ What happens in 24SevenOffice depends on whether the order was posted before the
 |---|---|---|
 | Already posted: **Regnskap** (Ledger) shows a transaction id | Full or partial | A reversal voucher is posted by itself, with the comment *Refusjon nettbutikk* and the order number. |
 | Not posted yet | Full | The order is never posted. Nothing is booked for the sale or the refund. |
-| Not posted yet | Partial | The order is never posted automatically. Book the net sale, the total minus the refunds, in 24SevenOffice by hand. Then ask IT to record that voucher's transaction id on the order. |
+| Not posted yet | Partial | The order is never posted automatically. Book the net sale, the total minus the refunds, in 24SevenOffice by hand. Then give that voucher's transaction id to the developers, and ask them to set it as the order's 24SevenOffice transaction id in the database (see the [developer docs](/developers/reference/accounting#shop-sales-and-refunds)). |
 | A membership | Full or partial | No reversal. Credit the invoice in 24SevenOffice by hand. |
 | A free order, or one from the old WordPress shop | Any | Nothing. It was never posted. |
 
 - The reversal credits the clearing account for Vipps or Stripe and takes the amount back from each revenue account, with the same VAT code and department as the sale. It uses the clearing account set on **Regnskap** (Accounting) today, even if the sale was posted against an older one.
-- If posting is switched on, a refund of an order that isn't posted yet shows this note in the refund history: **Order not yet posted to Finago at refund time, so no reversal was posted. Automatic posting holds orders with refunds for manual booking of the net sale.** After a full refund the net sale is 0 kr, so there's nothing to book.
+- If posting is switched on, a refund of an order that isn't posted yet shows this note in the refund history (Finago is 24SevenOffice): **Order not yet posted to Finago at refund time, so no reversal was posted. Automatic posting holds orders with refunds for manual booking of the net sale.** After a full refund the net sale is 0 kr, so there's nothing to book.
 - A note starting **The order's Finago posting was in progress or unknown at refund time** means the reversal wasn't posted. Post it in 24SevenOffice by hand once the order's posting is settled.
 - A note ending **Post it manually in 24SO.** means the same: post the reversal by hand.
 - A note starting **Ledger reversal failed** means the reversal may or may not have reached 24SevenOffice. First look in 24SevenOffice for a voucher with *Refusjon nettbutikk* and the order number. Post the reversal by hand only if there isn't one.

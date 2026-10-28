@@ -57,7 +57,7 @@ A global admin opens **IT** in the admin, opens the role account, and chooses **
 5. Records a job in the `m365_turnover_jobs` table, then calls `AZURE_RETENTION_START_WEBHOOK_URL` to start a 7-day retention run in Azure Automation. The run is meant to clear the previous holder's Teams history. Whether the runbook does that isn't in the repo.
 6. Seven days later, scheduled-dispatch's `TURNOVER_RETENTION_STOP_URL` target calls `AZURE_RETENTION_STOP_WEBHOOK_URL` to stop the run. A stop that fails is tried again on every run until it works.
 
-The rename always happens first. If steps 2 to 4, or the start call in step 5, fail, the turnover still completes, and the dialog lists what failed under **Krever manuell oppfølging:** (Needs manual follow-up). The account's IT page has separate actions to reset MFA, end sign-in sessions and reset the password, so redo a failed step there. A retention run that didn't start has to be started in Azure.
+The rename always happens first. If steps 2 to 4, or the start call in step 5, fail, the turnover still completes. The dialog shows each failure as a separate toast at the top of the screen, in English, such as **Session revocation failed:**, **Password reset failed:** or **MFA reset failed for**, followed by the reason. The toasts disappear after a few seconds, and pointing at them keeps them open. Nothing lists them later, so note each one as it appears. The account's IT page has separate actions to reset MFA, end sign-in sessions and reset the password, so redo a failed step there. A retention run that didn't start has to be started in Azure.
 
 If recording the job fails, the dialog shows an error instead. By then the rename, the MFA reset, the sign-out and the password reset have already happened, and the temporary password is lost. Reset the password again from the account's IT page to get a new one, and start the retention run in Azure by hand.
 
@@ -98,7 +98,7 @@ A job in `m365_turnover_jobs` has one of these states:
 ### After each turnover
 
 - [ ] Straight after the turnover, before you hand over the temporary password, open the role account's user in the Appwrite console and delete its sessions. The turnover doesn't end them.
-- [ ] Do every step the dialog listed under **Krever manuell oppfølging:** (Needs manual follow-up).
+- [ ] Redo, on the account's IT page, every part that a toast said had failed. Ask the global admin who ran the turnover which toasts they saw. See [Hand over a role account](/guide/access-and-settings/hand-over-a-role-account#read-the-messages).
 - [ ] The job's row in `m365_turnover_jobs` says `retention_active`. Seven days later it says `completed`.
 - [ ] In the Azure portal, the runbook's job history shows a start job, and a stop job a week later.
 
