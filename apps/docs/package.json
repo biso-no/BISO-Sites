@@ -9,6 +9,9 @@
     "lint": "biome lint .",
     "test": "bun test",
     "check-types": "fumadocs-mdx && tsc --noEmit",
+    "screenshots:schema": "bun scripts/screenshots/schema.ts",
+    "screenshots:seed": "bun scripts/screenshots/seed.ts",
+    "screenshots:capture": "bun scripts/screenshots/capture.ts",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
@@ -26,6 +29,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@repo/api": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@types/bun": "catalog:",
@@ -33,6 +37,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "playwright": "^1.64.1",
     "postcss": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
