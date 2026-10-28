@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findLeaks } from "./private-leak-check";
+import { evaluate, findLeaks } from "./private-leak-check";
 
 let dir: string;
 
@@ -44,4 +44,10 @@ test("reports every sentinel per file and none when clean", () => {
 
 test("returns nothing for a missing directory", () => {
   expect(findLeaks(join(dir, "nope"), ["AAA"])).toEqual([]);
+});
+
+test("evaluate passes only with no leaks and the marker present", () => {
+  expect(evaluate([], true).ok).toBe(true);
+  expect(evaluate([], false).ok).toBe(false);
+  expect(evaluate([{ file: "f", sentinel: "s" }], true).ok).toBe(false);
 });

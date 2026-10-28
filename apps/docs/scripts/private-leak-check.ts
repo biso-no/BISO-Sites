@@ -3,7 +3,13 @@
  *
  * Builds docs with a fake value source holding random sentinels and a fixture
  * page that uses every registry name, then scans `.next` for the sentinels.
- * Exits non-zero on any leak or build failure. Run: bun run check:private-leaks
+ * Exits non-zero on any leak, build failure, or if the fixture was not built.
+ *
+ * It deletes apps/docs/.next first and overwrites it with a production build,
+ * so stop `bun run dev` before running it. Afterwards `.source` may hold a stale
+ * fixture entry until the next `fumadocs-mdx` run (check-types or postinstall).
+ *
+ * Run: bun run check:private-leaks
  */
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -28,6 +34,8 @@ const FIXTURE = join(
   "developers",
   "__leak-check.mdx"
 );
+
+const FIXTURE_MARKER = "LEAKCHECK-FIXTURE-MARKER";
 
 export interface Leak {
   file: string;
@@ -68,6 +76,26 @@ export function findLeaks(dir: string, sentinels: string[]): Leak[] {
   return leaks;
 }
 
+/**
+ * Decides the outcome. A check only counts if the fixture really was built, so
+ * a missing marker fails even when no sentinel was found.
+ */
+export function evaluate(
+  leaks: Leak[],
+  markerFound: boolean
+): { ok: boolean; problems: string[] } {
+  const problems: string[] = [];
+  if (!markerFound) {
+    problems.push(
+      "The fixture marker is not in the build output, so the fixture page was not built and the check proves nothing."
+    );
+  }
+  for (const { file } of leaks) {
+    problems.push(`A private value was found in ${file}`);
+  }
+  return { ok: problems.length === 0, problems };
+}
+
 function fixtureSource(names: string[]): string {
   const lines = names.map(
     (name) => `- <Private name="${name}" label="${name}" />`
@@ -79,12 +107,24 @@ function fixtureSource(names: string[]): string {
     "covers: []",
     "---",
     "",
+    FIXTURE_MARKER,
+    "",
     ...lines,
     "",
   ].join("\n");
 }
 
+function removeFixture(): void {
+  rmSync(FIXTURE, { force: true });
+}
+
 function run(): number {
+  if (existsSync(FIXTURE)) {
+    console.error(
+      `${FIXTURE} already exists, probably from an interrupted run. Delete it and run again.`
+    );
+    return 1;
+  }
   const names = Object.keys(PRIVATE_VALUES);
   const sentinelByName = new Map(
     names.map((name) => [name, `LEAKCHECK-${randomUUID()}`])
@@ -92,6 +132,13 @@ function run(): number {
   const tmp = mkdtempSync(join(tmpdir(), "docs-leak-check-"));
   const fakeFile = join(tmp, "values.json");
   writeFileSync(fakeFile, JSON.stringify(Object.fromEntries(sentinelByName)));
+
+  const onSignal = (signal: NodeJS.Signals) => {
+    removeFixture();
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  };
+  process.on("SIGINT", onSignal);
+  process.on("SIGTERM", onSignal);
 
   try {
     writeFileSync(FIXTURE, fixtureSource(names));
@@ -120,20 +167,25 @@ function run(): number {
       [...sentinelByName].map(([name, sentinel]) => [sentinel, name])
     );
     const leaks = findLeaks(BUILD_DIR, [...nameBySentinel.keys()]);
-    if (leaks.length > 0) {
-      for (const { file, sentinel } of leaks) {
-        console.error(
-          `LEAK: value of "${nameBySentinel.get(sentinel)}" found in ${file}`
-        );
+    for (const { file, sentinel } of leaks) {
+      console.error(
+        `LEAK: value of "${nameBySentinel.get(sentinel)}" found in ${file}`
+      );
+    }
+    const markerFound = findLeaks(BUILD_DIR, [FIXTURE_MARKER]).length > 0;
+    const { ok, problems } = evaluate(leaks, markerFound);
+    if (!ok) {
+      for (const problem of problems) {
+        console.error(problem);
       }
       return 1;
     }
     console.log(
-      `No leaks: ${names.length} sentinels, none found under ${BUILD_DIR}.`
+      `No leaks: ${names.length} sentinels, none found under ${BUILD_DIR}. Fixture marker found, so the fixture was built.`
     );
     return 0;
   } finally {
-    rmSync(FIXTURE, { force: true });
+    removeFixture();
     rmSync(tmp, { recursive: true, force: true });
   }
 }

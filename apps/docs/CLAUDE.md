@@ -162,7 +162,9 @@ account, where the servers live, the emergency kit. A page names them with
   "Your account doesn't have access to this.", or "This couldn't be loaded
   right now. Try again later."
 - Values are served only by `GET /api/private` (`no-store`) and never appear in
-  static HTML, the RSC payload, the search index or `llms-full.txt`.
+  static HTML, the RSC payload or `llms-full.txt`. The search index is built
+  per request by `/api/search`, so the leak check does not scan it. Values stay
+  out of it by design, because they are never in page source.
 
 ### Who can see values
 
@@ -174,7 +176,10 @@ account, where the servers live, the emergency kit. A page names them with
   consultants by hand in the Appwrite console. Nothing is automatic.
 - Nobody else, including plain department members and HR.
 
-This must match `apps/admin/src/lib/roles.ts`. A drift test pins it.
+Access uses the shared role helpers from `@repo/shared/utils/team-roles`
+(`lib/auth/access.ts`). A drift test in `lib/auth/access.test.ts` pins only the
+admin team-name parser, so check `apps/admin/src/lib/roles.ts` by hand if the
+rules change.
 
 ### Env vars
 
@@ -232,9 +237,16 @@ These need the owner. Nothing here is done by code.
 cd apps/docs && bun run check:private-leaks
 ```
 
-It builds docs with random fake values and a temporary page using every
-registry name, scans `.next` for those values, and removes the page even if the
-build fails. It exits non-zero on a leak. Run it after changing anything in
+It deletes `apps/docs/.next` first and overwrites it with a production build,
+so stop `bun run dev` before running it. It builds docs with random fake values
+and a temporary page using every registry name, scans `.next` for those values,
+and requires a marker from that page to appear in the output, so a build that
+skipped the page fails instead of passing. The page is removed even if the
+build fails or you press Ctrl+C. If a run was killed hard and left
+`content/docs/developers/__leak-check.mdx` behind, delete it. The check refuses
+to start while it exists. `.source` may keep a stale entry for the page until
+the next `fumadocs-mdx` run (`check-types` or `postinstall`). It exits non-zero
+on a leak. Run it after changing anything in
 `lib/private/` or how `<Private>` renders.
 
 ### Stage 3b
