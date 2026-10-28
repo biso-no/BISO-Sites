@@ -83,6 +83,33 @@ export function AnswerPanelView({ answer }: { answer: AnswerState }) {
   );
 }
 
+/** Fumadocs' search buttons: the full field and the icon one. */
+const SEARCH_TRIGGER = "[data-search-full], [data-search]";
+
+/**
+ * Where focus goes when the panel closes: back to whatever asked, or, when
+ * that has left the page (an input in the search dialog, say), to the search
+ * button on screen. No opener means a link was followed, and focus stays
+ * where the new page puts it.
+ */
+export function returnFocusTarget(
+  opener: HTMLElement | null,
+  root: ParentNode
+): HTMLElement | null {
+  if (!opener) {
+    return null;
+  }
+  if (opener.isConnected) {
+    return opener;
+  }
+  for (const trigger of root.querySelectorAll<HTMLElement>(SEARCH_TRIGGER)) {
+    if (trigger.getClientRects().length > 0) {
+      return trigger;
+    }
+  }
+  return null;
+}
+
 /** A plain left click on a link, which navigates in this tab. */
 function followsLink(event: MouseEvent<HTMLElement>): boolean {
   const { target } = event;
@@ -100,7 +127,7 @@ interface AnswerPanelProps {
   onFollowLink: () => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
-  /** Where focus goes back to on close, if it is still on the page. */
+  /** What asked the question; null once a link in the panel is followed. */
   returnFocusTo: RefObject<HTMLElement | null>;
 }
 
@@ -128,10 +155,7 @@ export function AnswerPanel({
           // Nothing opened this through a Radix trigger, so Radix would leave
           // focus on <body>. Send it back to whatever asked the question.
           event.preventDefault();
-          const opener = returnFocusTo.current;
-          if (opener?.isConnected) {
-            opener.focus();
-          }
+          returnFocusTarget(returnFocusTo.current, document)?.focus();
         }}
         overlayClassName={OVERLAY_CLASS}
         showCloseButton={false}
@@ -145,7 +169,9 @@ export function AnswerPanel({
             <p className="mb-2 font-bold text-[11.5px] text-ink-accent uppercase tracking-[0.08em]">
               You asked
             </p>
-            <SheetTitle className="line-clamp-4 break-words font-bold font-display text-ink text-xl leading-tight">
+            {/* A question can run to 500 characters: past 40% of the screen
+                the header scrolls rather than hiding the rest. */}
+            <SheetTitle className="max-h-[40dvh] overflow-y-auto break-words font-bold font-display text-ink text-xl leading-tight">
               {answer?.question}
             </SheetTitle>
           </div>

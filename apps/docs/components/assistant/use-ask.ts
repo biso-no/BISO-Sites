@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { sitePath } from "./site-path";
 
 export interface AnswerSource {
   n: number;
@@ -34,23 +35,22 @@ interface RequestOptions {
 /** The route's own limit, checked here too so a long question costs no request. */
 const MAX_QUESTION_CHARS = 500;
 
-function isSource(value: unknown): value is AnswerSource {
+/** One header entry, with its url resolved to a path on this site, or null. */
+function toSource(value: unknown): AnswerSource | null {
   if (typeof value !== "object" || value === null) {
-    return false;
+    return null;
   }
   const { n, title, url } = value as Record<string, unknown>;
-  return (
-    Number.isInteger(n) &&
-    typeof title === "string" &&
-    typeof url === "string" &&
-    url.startsWith("/") &&
-    !url.startsWith("//")
-  );
+  if (!(Number.isInteger(n) && typeof title === "string")) {
+    return null;
+  }
+  const path = typeof url === "string" ? sitePath(url) : null;
+  return path === null ? null : { n: n as number, title, url: path };
 }
 
 /**
- * Reads `X-Docs-Sources`. Only same-site paths are kept, so a source can
- * never become a link to another site or a `javascript:` URL.
+ * Reads `X-Docs-Sources`. Only urls that resolve to this site are kept, so a
+ * source can never become a link to another origin or a `javascript:` URL.
  */
 export function parseSources(header: string | null): AnswerSource[] {
   if (!header) {
@@ -66,8 +66,8 @@ export function parseSources(header: string | null): AnswerSource[] {
     return [];
   }
   return parsed
-    .filter(isSource)
-    .map(({ n, title, url }) => ({ n, title, url }));
+    .map(toSource)
+    .filter((source): source is AnswerSource => source !== null);
 }
 
 function errorFor(status: number): AnswerError {
@@ -147,34 +147,43 @@ export async function requestAnswer(
   }
 }
 
-/**
- * Streams one answer at a time. A new question aborts the one before it, and
- * `cancel` aborts the current one, as the panel does when it closes.
- */
-export function useAsk(): {
-  answer: AnswerState | null;
+interface Asker {
   ask: (question: string, pageUrl?: string) => void;
   cancel: () => void;
-} {
+}
+
+/**
+ * Runs one answer at a time. A new question aborts the one before it, and
+ * `cancel` aborts the current one, as the panel does when it closes.
+ */
+export function createAsker(
+  onUpdate: (answer: AnswerState) => void,
+  fetcher?: typeof fetch
+): Asker {
+  let current: AbortController | null = null;
+  return {
+    ask(question, pageUrl) {
+      current?.abort();
+      const controller = new AbortController();
+      current = controller;
+      requestAnswer(
+        { question, pageUrl },
+        { fetcher, onUpdate, signal: controller.signal }
+      );
+    },
+    cancel() {
+      current?.abort();
+      current = null;
+    },
+  };
+}
+
+/** `createAsker` as a hook: its answer is state, and unmounting cancels. */
+export function useAsk(): Asker & { answer: AnswerState | null } {
   const [answer, setAnswer] = useState<AnswerState | null>(null);
-  const current = useRef<AbortController | null>(null);
+  const [asker] = useState(() => createAsker(setAnswer));
 
-  const cancel = useCallback(() => {
-    current.current?.abort();
-    current.current = null;
-  }, []);
+  useEffect(() => () => asker.cancel(), [asker]);
 
-  const ask = useCallback((question: string, pageUrl?: string) => {
-    current.current?.abort();
-    const controller = new AbortController();
-    current.current = controller;
-    requestAnswer(
-      { question, pageUrl },
-      { onUpdate: setAnswer, signal: controller.signal }
-    );
-  }, []);
-
-  useEffect(() => () => current.current?.abort(), []);
-
-  return { answer, ask, cancel };
+  return { answer, ask: asker.ask, cancel: asker.cancel };
 }

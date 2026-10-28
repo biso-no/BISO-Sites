@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { type AnswerState, parseSources, requestAnswer } from "./use-ask";
+import {
+  type AnswerState,
+  createAsker,
+  parseSources,
+  requestAnswer,
+} from "./use-ask";
 
 const SOURCES = [{ n: 1, title: "Book interviews", url: "/guide/book" }];
 
@@ -143,4 +148,51 @@ test("a bad sources header gives no sources", () => {
       ])
     )
   ).toEqual(SOURCES);
+});
+
+test("only same-origin paths are kept as sources", () => {
+  for (const url of [
+    "/\\evil.test/x",
+    "/\t/evil.test/x",
+    "/\n/evil.test",
+    "//evil.test",
+    "https://evil.test",
+  ]) {
+    expect(parseSources(header([{ n: 1, title: "Off site", url }]))).toEqual(
+      []
+    );
+  }
+  expect(
+    parseSources(header([{ n: 1, title: "Here", url: "/guide/a?b=1#c" }]))
+  ).toEqual([{ n: 1, title: "Here", url: "/guide/a?b=1#c" }]);
+});
+
+function hangingFetch(signals: AbortSignal[]): typeof fetch {
+  return ((_: RequestInfo, init?: RequestInit) => {
+    const signal = init?.signal as AbortSignal;
+    signals.push(signal);
+    return new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () =>
+        reject(new DOMException("Aborted", "AbortError"))
+      );
+    });
+  }) as unknown as typeof fetch;
+}
+
+test("a new question aborts the one before it", () => {
+  const signals: AbortSignal[] = [];
+  const asker = createAsker(() => undefined, hangingFetch(signals));
+  asker.ask("First?");
+  asker.ask("Second?");
+  expect(signals.map((s) => s.aborted)).toEqual([true, false]);
+});
+
+test("cancel aborts the current question, as closing or unmounting does", () => {
+  const signals: AbortSignal[] = [];
+  const updates: AnswerState[] = [];
+  const asker = createAsker((u) => updates.push(u), hangingFetch(signals));
+  asker.ask("First?");
+  asker.cancel();
+  expect(signals[0]?.aborted).toBe(true);
+  expect(updates.map((u) => u.status)).toEqual(["thinking"]);
 });

@@ -4,7 +4,7 @@
 @import "../../../packages/ui/styles/globals.css";
 @import "../../../packages/ui/styles/biso-surface.css";
 
-@source "../../../../packages/ui/**/*.{ts,tsx}";
+@source "../../../packages/ui/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 @source "../components/**/*.{ts,tsx}";
 

@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ANSWER_ERRORS, AnswerPanelView } from "./answer-panel";
+import {
+  ANSWER_ERRORS,
+  AnswerPanelView,
+  returnFocusTarget,
+} from "./answer-panel";
 import type { AnswerState } from "./use-ask";
 
 const SOURCES = [
@@ -77,4 +81,32 @@ test("each error has its own copy", () => {
   expect(ANSWER_ERRORS.failed).toBe(
     "The assistant couldn't answer right now. Try the search instead."
   );
+});
+
+function element(props: { isConnected?: boolean; visible?: boolean }) {
+  return {
+    isConnected: props.isConnected ?? true,
+    getClientRects: () => (props.visible === false ? [] : [{}]),
+  } as unknown as HTMLElement;
+}
+
+function page(...triggers: HTMLElement[]): ParentNode {
+  return { querySelectorAll: () => triggers } as unknown as ParentNode;
+}
+
+test("focus goes back to the opener while it is on the page", () => {
+  const opener = element({});
+  expect(returnFocusTarget(opener, page(element({})))).toBe(opener);
+});
+
+test("focus falls back to the visible search button when the opener is gone", () => {
+  const hidden = element({ visible: false });
+  const shown = element({});
+  expect(
+    returnFocusTarget(element({ isConnected: false }), page(hidden, shown))
+  ).toBe(shown);
+});
+
+test("no opener means focus stays where the new page puts it", () => {
+  expect(returnFocusTarget(null, page(element({})))).toBeNull();
 });

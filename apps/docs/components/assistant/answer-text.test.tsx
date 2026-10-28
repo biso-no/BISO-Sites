@@ -10,6 +10,9 @@ const SOURCES = [
 const SOURCE_2_LINK = /<a[^>]*href="\/guide\/recruitment\/book"[^>]*>\[2\]/;
 const LIST_ITEM = /<li/g;
 const BOLD_JOBS = /<strong[^>]*>Jobs<\/strong>/;
+const SR_ONLY = /<span class="sr-only">[^<]*<\/span>/g;
+const TAG = /<[^>]+>/g;
+const LINK_OPEN = /<a /g;
 const WARN_CALLOUT =
   /<div class="[^"]*border-sun[^"]*">([\s\S]*?)<\/div><\/div>/;
 
@@ -68,6 +71,31 @@ test("a grouped citation links each source", () => {
   const out = html("Both apply [1, 2].");
   expect(out).toContain('href="/guide/recruitment"');
   expect(out).toContain('href="/guide/recruitment/book"');
+});
+
+function visibleText(out: string): string {
+  return out.replace(SR_ONLY, "").replace(TAG, "");
+}
+
+test("a group keeps its commas and an unmatched number stays text", () => {
+  const out = html("Both [1, 9].");
+  expect(visibleText(out)).toBe("Both\u00a0[1, 9].");
+  expect(out.match(LINK_OPEN)).toHaveLength(1);
+});
+
+test("a repeated number in a group links once", () => {
+  const out = html("Twice [2, 2].");
+  expect(out.match(LINK_OPEN)).toHaveLength(1);
+  expect(out).toMatch(SOURCE_2_LINK);
+});
+
+test("a source that resolves to another origin is never linked", () => {
+  const offSite = [{ n: 1, title: "Off", url: "/\\evil.test/x" }];
+  const out = renderToStaticMarkup(
+    <AnswerText sources={offSite} text="See [1]." />
+  );
+  expect(out).not.toContain("<a");
+  expect(citedSources("See [1].", offSite)).toEqual([]);
 });
 
 test("cited sources are those cited, or all when none are", () => {

@@ -1,6 +1,7 @@
 import { Callout } from "components/callout";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { sitePath } from "./site-path";
 import type { AnswerSource } from "./use-ask";
 
 type Block =
@@ -22,8 +23,9 @@ const INLINE = /\*\*(.+?)\*\*|\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g;
 const CITATION = /\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/g;
 const LIST_SEPARATOR = /\s*,\s*/;
 
-const CITE_CLASS =
-  "whitespace-nowrap rounded-sm font-bold text-[0.85em] text-fd-primary no-underline hover:underline focus-visible:outline-2 focus-visible:outline-fd-ring focus-visible:outline-offset-2";
+const CITE_TEXT = "whitespace-nowrap font-bold text-[0.85em] text-fd-primary";
+const CITE_LINK =
+  "rounded-sm no-underline hover:underline focus-visible:outline-2 focus-visible:outline-fd-ring focus-visible:outline-offset-2";
 
 /**
  * Splits the answer into paragraphs, numbered lists and warnings. A numbered
@@ -77,31 +79,88 @@ function parseBlocks(text: string): Block[] {
   return blocks;
 }
 
+/** The numbers in `1, 3` or `2`, each once, in order. */
 function citationNumbers(group: string): number[] {
-  return group.split(LIST_SEPARATOR).map(Number);
+  return [...new Set(group.split(LIST_SEPARATOR).map(Number))];
 }
 
+function citationLink(
+  source: AnswerSource,
+  label: string,
+  className: string,
+  key: string
+): ReactNode {
+  return (
+    <Link
+      className={className}
+      href={source.url}
+      key={key}
+      title={source.title}
+    >
+      {label}
+      <span className="sr-only">{` ${source.title}`}</span>
+    </Link>
+  );
+}
+
+/** Joins neighbouring strings, so the markup has no empty text separators. */
+function joinText(parts: ReactNode[]): ReactNode[] {
+  const joined: ReactNode[] = [];
+  for (const part of parts) {
+    const last = joined.at(-1);
+    if (typeof part === "string" && typeof last === "string") {
+      joined[joined.length - 1] = last + part;
+    } else {
+      joined.push(part);
+    }
+  }
+  return joined;
+}
+
+/**
+ * `[2]` becomes one link. A group like `[1, 3]` stays one bracket with its
+ * commas, and each number links to its source. A number with no source stays
+ * text.
+ */
 function citations(
   group: string,
   byNumber: Map<number, AnswerSource>,
   key: string
-): ReactNode[] {
-  return citationNumbers(group).map((n) => {
-    const source = byNumber.get(n);
-    if (!source) {
-      return `[${n}]`;
+): ReactNode {
+  const numbers = citationNumbers(group);
+  const linked = numbers.filter((n) => byNumber.has(n));
+  if (linked.length === 0) {
+    return `[${group}]`;
+  }
+  const only = numbers.length === 1 ? byNumber.get(linked[0] ?? 0) : undefined;
+  if (only) {
+    return citationLink(only, `[${only.n}]`, `${CITE_TEXT} ${CITE_LINK}`, key);
+  }
+  const parts: ReactNode[] = ["["];
+  for (const [i, n] of numbers.entries()) {
+    if (i > 0) {
+      parts.push(", ");
     }
-    return (
-      <Link
-        className={CITE_CLASS}
-        href={source.url}
-        key={`${key}-${n}`}
-        title={source.title}
-      >
-        {`[${n}]`}
-        <span className="sr-only">{` ${source.title}`}</span>
-      </Link>
+    const source = byNumber.get(n);
+    parts.push(
+      source
+        ? citationLink(source, String(n), CITE_LINK, `${key}-${n}`)
+        : String(n)
     );
+  }
+  parts.push("]");
+  return (
+    <span className={CITE_TEXT} key={key}>
+      {joinText(parts)}
+    </span>
+  );
+}
+
+/** Only sources whose url stays on this site, with that url resolved. */
+function safeSources(sources: AnswerSource[]): AnswerSource[] {
+  return sources.flatMap((source) => {
+    const url = sitePath(source.url);
+    return url === null ? [] : [{ ...source, url }];
   });
 }
 
@@ -131,7 +190,7 @@ function inline(
       if (typeof before === "string" && before.endsWith(" ")) {
         nodes[nodes.length - 1] = `${before.slice(0, -1)} `;
       }
-      nodes.push(...citations(group, byNumber, `${key}-c${start}`));
+      nodes.push(citations(group, byNumber, `${key}-c${start}`));
     }
     at = start + match[0].length;
   }
@@ -152,7 +211,10 @@ function lines(
   ]);
 }
 
-/** The sources an answer cites as `[n]`, or every source when it cites none. */
+/**
+ * The sources an answer cites as `[n]`, or every source when it cites none.
+ * A source whose url would leave this site is dropped.
+ */
 export function citedSources(
   text: string,
   sources: AnswerSource[]
@@ -163,8 +225,9 @@ export function citedSources(
       cited.add(n);
     }
   }
-  const used = sources.filter((source) => cited.has(source.n));
-  return used.length > 0 ? used : sources;
+  const safe = safeSources(sources);
+  const used = safe.filter((source) => cited.has(source.n));
+  return used.length > 0 ? used : safe;
 }
 
 /**
@@ -179,7 +242,11 @@ export function AnswerText({
   text: string;
   sources: AnswerSource[];
 }) {
-  const byNumber = new Map(sources.map((source) => [source.n, source]));
+  // Checked here as well as in `parseSources`, so this component is safe
+  // whatever its caller passes.
+  const byNumber = new Map(
+    safeSources(sources).map((source) => [source.n, source])
+  );
 
   return (
     <div className="text-[15px] leading-relaxed [&>:first-child]:mt-0 [&>:last-child]:mb-0">

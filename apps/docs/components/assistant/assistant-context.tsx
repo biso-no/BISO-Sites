@@ -15,7 +15,12 @@ import { AnswerPanel } from "./answer-panel";
 import { useAsk } from "./use-ask";
 
 interface Assistant {
-  /** Ask the docs. Opens the answer panel; does nothing while disabled. */
+  /**
+   * Ask the docs. Opens the answer panel; does nothing while disabled.
+   * `pageUrl` must be a docs page's own url (`page.url`), never `/`: the route
+   * answers 400 for any path that isn't a page, and the panel would then show
+   * the question-length message. Leave it out on the landing.
+   */
   ask: (question: string, pageUrl?: string) => void;
   /** False until `GET /api/ask` says otherwise, so entry points start hidden. */
   enabled: boolean;
@@ -45,6 +50,9 @@ function isEnabled(body: unknown): boolean {
 export function AssistantProvider({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
+  // Read by `ask` without making it depend on `open`, so the context value
+  // doesn't change, and every consumer re-render, on each open and close.
+  const isOpen = useRef(false);
   const { answer, ask: start, cancel } = useAsk();
   const opener = useRef<HTMLElement | null>(null);
   const pathname = usePathname();
@@ -61,6 +69,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const close = useCallback(() => {
+    isOpen.current = false;
     setOpen(false);
     cancel();
   }, [cancel]);
@@ -82,14 +91,15 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       if (!(enabled && question.trim())) {
         return;
       }
-      if (!open) {
+      if (!isOpen.current) {
         const active = document.activeElement;
         opener.current = active instanceof HTMLElement ? active : null;
       }
+      isOpen.current = true;
       setOpen(true);
       start(question, pageUrl);
     },
-    [enabled, open, start]
+    [enabled, start]
   );
 
   const onOpenChange = useCallback(
