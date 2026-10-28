@@ -54,11 +54,11 @@ On 31 October 2025 the repo was created from Turborepo's starter. The same day, 
 ## August and September 2026: content, money and the new website
 
 - **11 to 13 August 2026.** The news studio, the content-permissions design, translation after saving, membership purchase on the website, and the website's session cookie renamed to `a_session_biso_web`.
-- **18 August 2026.** The WordPress import tool, `packages/wp-import`, was written. On that day `biso.no` was still WordPress, and the tool's default WordPress address already assumed the old site would move to another hostname. It was merged on 7 September. The repo doesn't record the day the new website took over `biso.no`.
+- **18 August 2026.** The WordPress import tool, `packages/wp-import`, was written. On that day `biso.no` was still WordPress, and the tool read from it. By 7 September, when it was merged, its default address had changed to the hostname the old WordPress site moved to. The repo doesn't record the day the new website took over `biso.no`.
 - **24 to 27 August 2026.** On-brand page blocks, and department unit pages.
 - **31 August and 2 September 2026.** The website redesign: its spec in `docs/redesign/01-design-spec.md`, then a full rebuild of `apps/web` on the `redesign/apps-web` branch.
 - **7 to 15 September 2026.** Server-side lists in the admin and on the website, order refunds, and every paid shop order posted to the ledger.
-- **17 September 2026.** The GitHub deploy workflow was deleted, in commit `3872261c`. Since then the owner has deployed by hand in the Appwrite console. See [Deploying](/developers/keep-it-running/deploying#why-pushing-to-main-doesnt-deploy).
+- **17 September 2026.** The GitHub deploy workflow was deleted, in commit `3872261c`. Today the owner deploys by hand in the Appwrite console. See [Deploying](/developers/keep-it-running/deploying#why-pushing-to-main-doesnt-deploy).
 - **18 September 2026.** The member pass, with Apple Wallet and Google Wallet.
 - **29 and 30 September 2026.** The member-roster-sync function, the membership plans synced from 24SevenOffice, membership status worked out by the api, and an automated Claude Code review on pull requests.
 
@@ -66,7 +66,7 @@ On 31 October 2025 the repo was created from Turborepo's starter. The same day, 
 
 - **1 October.** Governing documents with version history, stored in SharePoint.
 - **15 October.** BI student sign-in on the website, the Museo brand fonts, project hubs, and a batch of fixes to recruitment and the page editor.
-- **19 October.** BI sign-in and recruitment in the BISO app.
+- **19 October.** The api and website side of BI sign-in and recruitment for the BISO app. The app's own changes are in BISO-Flutter.
 - **21 October.** The push notification overhaul, with the content-notifier function and 50 topics.
 - **22 October.** The benefits studio, the app update prompt, and the move of every AI feature from OpenAI to Anthropic.
 - **27 October.** The page editor redesign was merged. It brought the website redesign into `main` with it. The docs rework started the same day.

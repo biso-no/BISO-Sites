@@ -123,14 +123,14 @@ Shared React components built on Radix and Tailwind, the Plate.js rich-text edit
 | `@repo/ui/hooks/*` | Hooks, such as `use-list-params` and `use-mobile` |
 | `@repo/ui/styles/globals.css` | Tailwind set-up and the shared type styles |
 
-`styles/biso-surface.css` holds the colour and font tokens. It isn't in the exports: the website, the admin and docs import it from their own stylesheets by relative path, and the website imports `globals.css` the same way.
+`styles/biso-surface.css` holds the colour and font tokens. It isn't in the exports: the website, the admin and docs import it from their own stylesheets by relative path, and all three import `globals.css` the same way.
 
 **Sharp edges**
 
 - **Biome skips it.** `biome.jsonc` force-ignores `packages/ui/*`, yet the package's own `lint` script runs `biome lint .`, so `bun run lint` fails here. See [Lint and format](/developers/change-it/local-setup#lint-and-format).
 - **Its tests never run.** It has two test files and no `test` script.
 - **`ts_errors.txt` and `check-types.log` are old.** They're committed type-check output from April 2026 that lists Plate.js type errors. `bun run check-types` in `packages/ui` passes today. Ignore both files, or delete them.
-- **Two sets of tokens live here.** `biso-surface.css` defines the older `.biso-surface` palette and the 2026 redesign's `.biso-surface-v2`. The website mounts both, because some of its components still read the old one, and the admin mounts only the old one (`apps/web/src/app/layout.tsx`). New website code uses the redesign's tokens only, as the "Design system" section of `apps/web/CLAUDE.md` says.
+- **Two sets of tokens live here.** `biso-surface.css` defines the older `.biso-surface` palette and the 2026 redesign's `.biso-surface-v2`. The website and docs put both classes on `<html>` (`apps/web/src/app/layout.tsx`, `apps/docs/app/layout.tsx`), because some website components still read the old one. The admin's own screens use neither. Its page-editor canvas puts both on its frame (`packages/editor/src/components/editor-shell/canvas/index.tsx`), so the editor previews the website's look. So a change to either set shows on the website, in docs and in the editor canvas. The comments in `apps/web/src/app/layout.tsx` and `biso-surface.css` that say the admin mounts only `.biso-surface` are out of date. New website code uses the redesign's tokens only, as the "Design system" section of `apps/web/CLAUDE.md` says.
 
 ## `@repo/connectors`
 
