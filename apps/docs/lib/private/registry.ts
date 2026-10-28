@@ -7,7 +7,11 @@
  */
 export interface PrivateValueEntry {
   description: string;
-  /** Shown only inside the emergency kit, never on an ordinary page. */
+  /**
+   * Reserved for the offline emergency kit. `/api/private` never serves a
+   * kit-only name and no page may use one. The entry exists so the name is
+   * taken and its description says what the kit holds.
+   */
   kitOnly?: boolean;
 }
 
@@ -37,7 +41,7 @@ export const PRIVATE_VALUES = {
   },
   "emergency-kit-contents": {
     description:
-      "The full contents of the emergency kit: every account and recovery step in one block.",
+      "The checklist of what the offline emergency kit must contain — item names only, never the credentials themselves; the kit's contents are kept offline by the administration leader.",
     kitOnly: true,
   },
   "docs-handover-team": {
@@ -66,6 +70,16 @@ export type PrivateName = keyof typeof PRIVATE_VALUES;
 
 export function isPrivateName(name: string): name is PrivateName {
   return Object.hasOwn(PRIVATE_VALUES, name);
+}
+
+export function isKitOnly(name: PrivateName): boolean {
+  const entry: PrivateValueEntry = PRIVATE_VALUES[name];
+  return entry.kitOnly === true;
+}
+
+/** A name `/api/private` may serve: in the registry and not kit-only. */
+export function isServableName(name: string): name is PrivateName {
+  return isPrivateName(name) && !isKitOnly(name);
 }
 
 /** The most names one request may ask for. */

@@ -102,6 +102,19 @@ describe("GET /api/private", () => {
     expect(calls).toEqual([]);
   });
 
+  it("rejects kit-only names with 400, alone or with others", async () => {
+    const { handler, calls } = setup(allowed, okSource);
+    for (const n of [
+      "emergency-kit-contents",
+      "account-owners,emergency-kit-contents",
+    ]) {
+      const res = await handler(request(n));
+      expect(res.status).toBe(400);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+    }
+    expect(calls).toEqual([]);
+  });
+
   it("says unavailable when the viewer lookup throws", async () => {
     const handler = createPrivateHandler({
       getViewer: () => Promise.reject(new Error("boom")),
@@ -127,6 +140,11 @@ describe("parseNames", () => {
     expect(parseNames("n1,n1,n1", 1, known) as unknown).toEqual(["n1"]);
     expect(parseNames(",", 3, known) as unknown).toBeNull();
     expect(parseNames("n1,x", 3, known) as unknown).toBeNull();
+  });
+  it("rejects kit-only names by default", () => {
+    expect(parseNames("emergency-kit-contents")).toBeNull();
+    expect(parseNames("account-owners,emergency-kit-contents")).toBeNull();
+    expect(parseNames("account-owners")).toEqual(["account-owners"]);
   });
   it("uses a cap of 20 by default", () => {
     const real = Array.from({ length: 21 }, (_, i) => `n${i}`).join(",");

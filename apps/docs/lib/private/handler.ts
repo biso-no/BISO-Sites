@@ -1,5 +1,9 @@
 import type { Viewer } from "@/lib/auth/viewer";
-import { isPrivateName, MAX_PRIVATE_NAMES, type PrivateName } from "./registry";
+import {
+  isServableName,
+  MAX_PRIVATE_NAMES,
+  type PrivateName,
+} from "./registry";
 import type { PrivateValueSource } from "./types";
 
 export type PrivateResponse =
@@ -19,10 +23,15 @@ function json(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: NO_STORE });
 }
 
+/**
+ * The requested names, or `null` (a 400) when there are none, too many, or any
+ * is unknown or kit-only. Kit-only names are never served: the emergency kit
+ * is kept offline.
+ */
 export function parseNames(
   raw: string,
   max = MAX_PRIVATE_NAMES,
-  isKnown: (name: string) => boolean = isPrivateName
+  isKnown: (name: string) => boolean = isServableName
 ): PrivateName[] | null {
   const names = [
     ...new Set(

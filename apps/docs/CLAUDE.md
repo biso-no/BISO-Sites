@@ -144,8 +144,8 @@ never sets or clears cookies and never uses `createAdminClient`.
 ## Private details
 
 Some facts are too sensitive for a public repo and a static site: who owns an
-account, where the servers live, the emergency kit. A page names them with
-`<Private>`, and the reader's browser fetches the value after sign-in.
+account, where the servers live, who can recover access. A page names them
+with `<Private>`, and the reader's browser fetches the value after sign-in.
 
 ```mdx
 <Private name="server-access" label="Server access" />
@@ -156,6 +156,10 @@ account, where the servers live, the emergency kit. A page names them with
   the owner what to store under that key, so write it for them.
 - Values never go in a page, the registry, a test or a screenshot. They live in
   Infisical (production) or a local JSON file (development).
+- Kit-only entries (`kitOnly: true`, today `emergency-kit-contents`) are never
+  served. `/api/private` answers 400 for them and a test fails if a page uses
+  one. The entry only reserves the name and describes the checklist. The kit
+  itself is kept offline by the administration leader.
 - `label` is optional text shown with the value.
 - A page always renders. A reader sees the value, or one of three messages:
   "Sign in with your BISO admin account to see this." (with a sign-in link),
@@ -214,7 +218,8 @@ run on a `*.biso.no` host, or the browser never sends the cookie to docs.
 
 ### Local development
 
-Use the fake source. The file maps registry names to made-up values:
+Use the fake source. The file maps registry names to made-up values. Keep it
+outside the repo:
 
 ```json
 {
@@ -223,9 +228,22 @@ Use the fake source. The file maps registry names to made-up values:
 }
 ```
 
-```bash
-DOCS_PRIVATE_SOURCE=fake DOCS_PRIVATE_FAKE_FILE=/path/to/values.json bun run dev --filter=docs
-```
+Turbo runs tasks in strict env mode, and the `dev` task in `turbo.json`
+declares no env vars. So `bun run dev --filter=docs` drops variables you set
+in the shell, such as `DOCS_PRIVATE_SOURCE` and `APPWRITE_SESSION_COOKIE`.
+Use one of these instead:
+
+- Put the vars in `apps/docs/.env.local`. Next.js reads that file itself, so
+  it works with `bun run dev --filter=docs` too. It is gitignored
+  (`.env*.local` in `apps/docs/.gitignore`).
+- Or run from inside `apps/docs`, which skips turbo:
+
+  ```bash
+  cd apps/docs
+  export APPWRITE_SESSION_COOKIE=a_session_biso_admin
+  export DOCS_PRIVATE_SOURCE=fake DOCS_PRIVATE_FAKE_FILE=/path/to/values.json
+  bun run dev
+  ```
 
 Locally the admin cookie is host-only on `localhost` and ignores ports, so sign
 in on :3001 and docs on :3002 sees you. The fake source is refused when
@@ -233,15 +251,15 @@ in on :3001 and docs on :3002 sees you. The fake source is refused when
 
 ### Owner actions
 
-These need the owner. Nothing here is done by code.
+These need the owner. Nothing here is done by code. Do them in this order.
 
-1. Create an Infisical folder for docs values and a read-only machine identity
-   scoped to that folder. Put its details in the `INFISICAL_*` vars above.
-2. Set the docs Appwrite site env: the vars listed under Docs.
-3. Create the Appwrite team with id `docs-handover`.
-4. Set `NEXT_PUBLIC_DOCS_URL` on the admin and rebuild the admin.
-5. Set `NEXT_PUBLIC_ADMIN_URL` on docs.
-6. Confirm that each team id docs trusts exists in the production Appwrite
+1. Create the `docs-handover` team in the Appwrite console, with the custom
+   id `docs-handover`. Do this first, before any private-source env is set,
+   so nobody else can create a team with that id and own it. Then check the
+   team's members in the console: nobody should be in it, and nobody should
+   be its owner, until you add someone. If a team with the id `docs-handover`
+   already exists and you didn't create it, delete it and create it again.
+2. Confirm that each team id docs trusts exists in the production Appwrite
    project: `sg-app-campus-national`, `sg-app-dept-operationsunit`,
    `sg-app-campus-oslo`, `sg-app-campus-bergen`, `sg-app-campus-stavanger`,
    `sg-app-campus-trondheim`, `sg-app-dept-ledelsenoslo`,
@@ -255,6 +273,11 @@ These need the owner. Nothing here is done by code.
    check that setup by hand for any `sg-app-dept-*` team you create. If real
    admins sit in legacy teams with other ids, they won't get docs access until
    they are in the teams above.
+3. Create an Infisical folder for docs values and a read-only machine identity
+   scoped to that folder. Put its details in the `INFISICAL_*` vars above.
+4. Set the docs Appwrite site env: the vars listed under Docs.
+5. Set `NEXT_PUBLIC_DOCS_URL` on the admin and rebuild the admin.
+6. Set `NEXT_PUBLIC_ADMIN_URL` on docs.
 
 ### Leak check
 

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PRIVATE_VALUES } from "./registry";
+import {
+  isKitOnly,
+  isPrivateName,
+  isServableName,
+  PRIVATE_VALUES,
+} from "./registry";
 import { scanPrivateUsages } from "./scan";
 
 /**
@@ -76,12 +81,36 @@ describe("private registry", () => {
     }
   });
 
+  it("is never asked for a kit-only name by a page", () => {
+    const { names } = scanContent();
+    const kitNames = [...names].filter(
+      (name) => isPrivateName(name) && isKitOnly(name)
+    );
+    expect(kitNames).toEqual([]);
+  });
+
+  it("keeps the emergency kit name reserved but never servable", () => {
+    expect(isPrivateName("emergency-kit-contents")).toBe(true);
+    expect(isKitOnly("emergency-kit-contents")).toBe(true);
+    expect(isServableName("emergency-kit-contents")).toBe(false);
+  });
+
+  it("serves every other known name, and no unknown one", () => {
+    for (const name of Object.keys(PRIVATE_VALUES)) {
+      if (isPrivateName(name) && !isKitOnly(name)) {
+        expect(isServableName(name)).toBe(true);
+      }
+    }
+    expect(isServableName("nope")).toBe(false);
+    expect(isServableName("__proto__")).toBe(false);
+  });
+
   it.if(REQUIRE_REGISTRY_USAGE)(
     "is used by pages for every non-kit entry",
     () => {
       const { names } = scanContent();
-      for (const [name, entry] of Object.entries(PRIVATE_VALUES)) {
-        if (!("kitOnly" in entry && entry.kitOnly === true)) {
+      for (const name of Object.keys(PRIVATE_VALUES)) {
+        if (isServableName(name)) {
           expect(names.has(name)).toBe(true);
         }
       }
