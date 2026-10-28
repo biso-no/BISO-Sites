@@ -14,6 +14,8 @@ Each is a Fumadocs root folder with its own sidebar. The landing page at `/`
 is coded, not MDX. Its links live in `lib/landing.ts`, and a test checks that
 every href resolves to a page.
 
+`GO-LIVE.md` is the owner's ordered checklist for putting docs live at `docs.biso.no`.
+
 Old URLs are redirected through `redirects.json`. Rules there are
 `{ source, destination }` only. `next.config.mjs` serves all of them as
 temporary (307) redirects, so don't add a `permanent` key. The first matching
