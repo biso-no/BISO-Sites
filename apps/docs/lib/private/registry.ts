@@ -37,7 +37,7 @@ export const PRIVATE_VALUES = {
   },
   "admin-leader-contact": {
     description:
-      "The current leader of the admin team: name and a way to reach them.",
+      "The current administration leader, who keeps the emergency kit: name and a way to reach them.",
   },
   "emergency-kit-contents": {
     description:
@@ -50,7 +50,7 @@ export const PRIVATE_VALUES = {
   },
   "account-owners": {
     description:
-      "Who owns each shared BISO account (domain, email, social media), one line per account.",
+      "Who owns each shared BISO account, one line per account: the domain, email and social media, and every outside service the platform uses that has no entry of its own here, such as Umami, Anthropic, 24SevenOffice, Vipps and Firebase.",
   },
   "apple-developer-account": {
     description:
@@ -62,7 +62,27 @@ export const PRIVATE_VALUES = {
   },
   "azure-app-registration": {
     description:
-      "Where the Azure app registration for BISO sign-in lives and who is its owner.",
+      "Where the Azure app registrations BISO uses live (sign-in, Microsoft Graph, SharePoint, the Teams bot) and who owns each.",
+  },
+  "microsoft-tenant-admins": {
+    description:
+      "Who the administrators of BISO's Microsoft tenant are, and how to reach them. They create Microsoft accounts outside the admin, for example a consultant's account with no SG-App group.",
+  },
+  "github-org": {
+    description:
+      "Who the owners of the BISO GitHub organisation are, and how to reach them. They invite collaborators to BISO-Sites and BISO-Flutter.",
+  },
+  "infisical-admins": {
+    description:
+      "Who the Infisical admins are today, and how to reach them. They invite new users to BISO's Infisical project.",
+  },
+  "appwrite-console-admins": {
+    description:
+      "Who can invite people to BISO's Appwrite console (the owners of its organisation), and how to reach them.",
+  },
+  "better-stack-account": {
+    description:
+      "Who owns the Better Stack account, which email it is registered under, and who receives its alerts.",
   },
 } as const satisfies Record<string, PrivateValueEntry>;
 

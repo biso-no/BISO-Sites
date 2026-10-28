@@ -1,0 +1,74 @@
+---
+title: Your first day
+description: What to read and in what order, the access to ask for, and the first things you can do without putting production at risk.
+covers:
+  - packages/api/server-env.ts
+  - packages/api/client.ts
+  - apps/*/.env.example
+  - apps/docs/scripts/screenshots/README.md
+  - apps/admin/src/lib/authorization-team-memberships.ts
+  - apps/api/src/lib/admin-auth.ts
+  - lefthook.yml
+  - .github/workflows/**
+---
+
+Read this on your first day with the BISO platform, whether you're a consultant or a new hire. It gives the reading order, the access to ask for, and the first things you can do safely. The platform runs on one production server, and the repo has no staging environment, so be careful with anything that talks to Appwrite.
+
+## Reading order
+
+The sidebar lists the developer area in reading order. Work through it like this:
+
+1. **Start here.** Read this page, then [What BISO runs](/developers/start-here/what-biso-runs) and [Getting access](/developers/start-here/getting-access). [If you're hiring someone](/developers/start-here/if-youre-hiring-someone) is for the BISO board. It tells them what to give you.
+2. **Keep it running.** Deploying, scheduled jobs, secrets, monitoring, backups, what to do when things break, and the yearly calendar. Read the pages on deploying and on when things break before you change anything live.
+3. **Change it.** Local setup, code layout, data model, auth and roles, common changes, and the mobile app. Read local setup before you run an app.
+4. **Reference.** The outside services, the shared packages, design decisions, known limitations and history. Look things up when you need them.
+
+## Access checklist
+
+Ask for these in this order. [Getting access](/developers/start-here/getting-access) says who grants each one and how.
+
+- [ ] A BISO Microsoft account and a place in the `docs-handover` team. When that's done, the three values below show instead of a sign-in message.
+- [ ] GitHub: an invite to BISO-Sites and BISO-Flutter.
+- [ ] Infisical: <Private name="infisical-url" label="Infisical" />
+- [ ] The Appwrite console: <Private name="appwrite-console-url" label="Appwrite console" />
+- [ ] The server: <Private name="server-access" label="Server access" />
+
+## First safe things to do
+
+### Clone the code and type-check it
+
+You need Bun 1.3.1. npm and pnpm don't work with this repo, because its workspaces and shared `catalog:` versions need Bun.
+
+```bash
+git clone https://github.com/biso-no/BISO-Sites.git
+cd BISO-Sites
+bun install
+bun run check-types
+```
+
+None of this talks to Appwrite. It worked when Turbo's summary reports every task as successful.
+
+### Read what BISO runs
+
+[What BISO runs](/developers/start-here/what-biso-runs) shows every part of the platform, where it runs, and where its code lives.
+
+### Run the apps against a non-production Appwrite project
+
+<Callout type="warn">
+If `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` are unset, the apps silently use the production Appwrite project. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
+</Callout>
+
+The repo doesn't record a non-production project, so make your own. You need access to the Appwrite console for this.
+
+1. Follow steps 1 to 3 in `apps/docs/scripts/screenshots/README.md`. They create a separate project on the same server, push the tables to it from a temporary copy of the schema, and make an API key. File buckets and messaging topics aren't copied, so uploads and push won't work in that project.
+2. Never run `appwrite push` from `packages/api`. Its config names the production project.
+3. In `apps/<app>/.env.local`, set `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT` and `APPWRITE_API_KEY` to your project's values. Each app's `.env.example` lists the other variable names, though a few are missing.
+
+### Look at the known issues
+
+The owner keeps the current issues list outside the repo, and the GitHub issue tracker is empty. Ask the owner for the list if you can. These are the issues to know on day one:
+
+- **Roles come from team names.** The admin and the API derive roles from Appwrite team names, and any signed-in user can create a team with any name. This is a known critical issue that the owner will fix. Until then, don't rely on admin roles to protect data. The docs site checks exact team ids instead (`apps/docs/lib/auth/access.ts`).
+- **Unset Appwrite settings mean production**, as described above.
+- **Deploys are manual.** The owner deploys each app by hand in the Appwrite console. Pushing to `main` deploys nothing. A GitHub workflow is planned.
+- **Nothing checks your changes for you.** CI runs no tests, lint or type-check, and the lefthook pre-commit hook is off (every line of `lefthook.yml` is commented out). Run `bun run check-types` and `bun run check` yourself before you deploy.
