@@ -8,6 +8,24 @@ const URL_SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const STEP_TITLE = /<Step\s+title="([^"]+)"/g;
 const HEADING = /^#{1,6}\s+(.+?)\s*$/gm;
 const GUIDE_PAGE = /^apps\/docs\/content\/docs\/.+\.mdx$/;
+/** Screens fed by Graph, Umami, SharePoint or 24SevenOffice: never shot. */
+const OUTSIDE_SERVICE_ROUTES = [
+  "/it/users",
+  "/analytics",
+  "/documents",
+  "/shop/accounting",
+  "/it/expense-approvals",
+];
+/** The guide's area folders from the platform-guide pages. */
+const AREA_FOLDERS = [
+  "pages-and-news",
+  "departments-and-documents",
+  "events",
+  "announcements",
+  "shop",
+  "members-and-benefits",
+  "access-and-settings",
+];
 const NEEDED_SCREENS: [string, RegExp][] = [
   ["jobs list", /^\/jobs $/],
   ["vacancy editor", /^\/jobs\/[^/?]+ $/],
@@ -90,5 +108,47 @@ test("covers the screens the recruitment guide needs", () => {
 test("only the sign-in shot runs signed out", () => {
   for (const shot of SHOTS) {
     expect(Boolean(shot.signedOut)).toBe(shot.route.startsWith("/auth/"));
+  }
+});
+
+test("no shot is taken of an outside-service screen", () => {
+  for (const shot of SHOTS) {
+    const path = shot.route.split("?")[0];
+    for (const prefix of OUTSIDE_SERVICE_ROUTES) {
+      const isOutside = path === prefix || path.startsWith(`${prefix}/`);
+      if (isOutside) {
+        throw new Error(`${shot.id}: ${shot.route} needs an outside service`);
+      }
+    }
+  }
+});
+
+test("every area folder has at least one shot", () => {
+  for (const folder of AREA_FOLDERS) {
+    const covered = SHOTS.some((shot) =>
+      shot.page.includes(`/guide/${folder}/`)
+    );
+    if (!covered) {
+      throw new Error(`No shot in the ${folder} area`);
+    }
+  }
+});
+
+test("a shot's page lives in the folder its route belongs to", () => {
+  const owners: [string, string][] = [
+    ["/pages", "pages-and-news"],
+    ["/news", "pages-and-news"],
+    ["/events", "events"],
+    ["/shop", "shop"],
+    ["/benefits", "members-and-benefits"],
+    ["/members", "members-and-benefits"],
+    ["/communications", "announcements"],
+  ];
+  for (const shot of SHOTS) {
+    for (const [prefix, folder] of owners) {
+      if (shot.route === prefix || shot.route.startsWith(`${prefix}/`)) {
+        expect(shot.page).toContain(`/guide/${folder}/`);
+      }
+    }
   }
 });

@@ -6,7 +6,7 @@ appears in them, and no Microsoft sign-in is needed.
 
 | File | What it does |
 |------|--------------|
-| `seed-data.ts` | The made-up data: one campus (Oslo), the HR and Demo Events departments, four staff users, two vacancies, eight applicants across every status, two interviews and one scorecard. Every email ends in `@example.org`. |
+| `seed-data.ts` | The made-up data: one campus (Oslo), the HR and Demo Events departments, six staff users, two vacancies, eight applicants across every status, two interviews and one scorecard. It also holds one published and one draft page and news item, two events (one members-only, with three RSVPs), two products (one awaiting approval), a paid and a refunded order, three roster members, one benefit with its partner and an invented code (`DEMO10`, kept in the private codes table), one sent announcement and two Varsling contacts. Every email ends in `@example.org`. |
 | `schema.ts` | Writes a tables-only copy of the schema with the docs project's id, for the Appwrite CLI to push. |
 | `seed.ts` | Writes the seed to the docs project: users, teams, memberships and rows. Safe to run again. |
 | `manifest.ts` | The shots: admin route, the guide page, the step it follows, size and caption. |
@@ -99,6 +99,7 @@ not one set up for an app.
    | `APPWRITE_API_KEY` | the same as `DOCS_APPWRITE_API_KEY` |
    | `APPWRITE_SESSION_COOKIE` | `a_session_biso_admin` |
    | `NEXT_PUBLIC_BASE_URL` | `http://localhost:3001` |
+   | `BENEFITS_EDITOR_EMAILS` | `anders.moen@example.org`, the seeded benefits editor (the admin reads this allow-list to give the `benefitseditor` role) |
 
    and start the admin from its own folder:
 
@@ -166,8 +167,8 @@ not one set up for an app.
 ## What the scripts write
 
 - `seed.ts`: the staff users, the teams `sg-app-campus-oslo`,
-  `sg-app-campus-national`, `sg-app-dept-hr`, `sg-app-dept-operationsunit` and
-  `sg-app-dept-demoevents`, each user's memberships (it removes any other
+  `sg-app-campus-national`, `sg-app-dept-hr`, `sg-app-dept-operationsunit`,
+  `sg-app-dept-demoevents` and `sg-app-dept-ledelsenoslo`, each user's memberships (it removes any other
   role-team membership a seeded user has), and the rows in `seed-data.ts`.
 - `capture.ts`: each signed-in user's language preference, one session per
   role (deleted at the end), and the PNG files in the screenshot folder. The
@@ -178,6 +179,12 @@ not one set up for an app.
 Nothing is written anywhere else.
 
 ## Screens that need outside services
+
+Some screens are only an outside service, so the guide's pages for them have
+text-only steps and `manifest.ts` has no shot of them: IT users and audit
+(Microsoft Graph), analytics (Umami), documents (SharePoint), shop accounting
+and expense approvals (24SevenOffice). `manifest.test.ts` fails if a shot's
+route starts with one of those paths.
 
 The schedule dialog reads Outlook calendars only when you choose **Check
 availability**, and booking links are made only on **Generate booking link**.
@@ -197,5 +204,13 @@ are what gives each user their role:
 | Kari Nordmann, Per Olsen | Oslo, HR | HR for Oslo |
 | Ingrid Berg | National, Operations Unit | Global admin |
 | Lars Johansen | Oslo, Demo Events | Department member |
+| Marit Dahl | Oslo, Ledelsen Oslo | Campus leader (campus admin) for Oslo |
+| Anders Moen | Oslo | Benefits editor, only when `BENEFITS_EDITOR_EMAILS` holds his email (step 5) |
 
 The HR team must be called "HR": the admin finds the HR role by that name.
+
+The benefits editor role is not given by a team. The admin checks the
+allow-list and also that the account has a Microsoft sign-in with that email.
+A user made by the seed has no Microsoft sign-in, so Anders Moen cannot get
+the role in the docs project. No shot uses him: the benefits shots are taken
+as the global admin.

@@ -143,7 +143,7 @@ async function main(): Promise<void> {
   write(`Wrote ${seed.rows.length} rows and ${seed.teams.length} teams.`);
   write("Staff users:");
   for (const user of seed.users) {
-    write(`  ${user.id}  ${user.role.padEnd(11)}  ${user.name}`);
+    write(`  ${user.id}  ${user.role.padEnd(14)}  ${user.name}`);
   }
 }
 

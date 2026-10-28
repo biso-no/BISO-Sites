@@ -12,13 +12,31 @@
  */
 import { Permission, Role } from "@repo/api";
 import {
+  type Announcements,
+  AnnouncementsAudienceType,
+  AnnouncementsSource,
+  AnnouncementsStatus,
+  type BenefitCodes,
+  type BenefitPartners,
   type Campus,
+  type CampusBenefits,
+  CampusBenefitsKind,
+  CampusBenefitsRedemptionType,
+  CampusBenefitsSection,
+  CampusBenefitsStatus,
   type CandidateProfiles,
   CandidateProfilesEmbeddingStatus,
   type ContentTranslations,
   ContentTranslationsContentType,
   ContentTranslationsLocale,
   type Departments,
+  type Events,
+  EventsCategory,
+  EventsCoverPattern,
+  EventsLocationMode,
+  EventsPricingMode,
+  EventsPublishMode,
+  EventsStatus,
   type JobApplicationAnswers,
   JobApplicationAnswersAnswerType,
   type JobApplications,
@@ -33,8 +51,31 @@ import {
   JobInterviewsStatus,
   type Jobs,
   JobsStatus,
+  type MemberRoster,
+  type News,
+  NewsStatus,
+  type OrderItems,
+  type OrderRefunds,
+  OrderRefundsCurrency,
+  OrderRefundsProvider,
+  OrderRefundsStatus,
+  type Orders,
+  OrdersCurrency,
+  OrdersStatus,
+  type Pages,
+  PagesStatus,
+  PagesVisibility,
+  type PageTranslations,
+  PageTranslationsLocale,
   type TourProgress,
   TourProgressStatus,
+  type Users,
+  UsersLocale,
+  type VarslingSettings,
+  type WebshopProducts,
+  WebshopProductsCoverPattern,
+  WebshopProductsInventoryMode,
+  WebshopProductsStatus,
 } from "@repo/api/types/appwrite";
 import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
 import {
@@ -63,11 +104,31 @@ function at(day: number, hour = 0, minute = 0): string {
   ).toISOString();
 }
 
-export type StaffRole = "hr" | "globaladmin" | "department";
+export type StaffRole =
+  | "hr"
+  | "globaladmin"
+  | "department"
+  | "campusadmin"
+  | "benefitseditor";
 
 export type SeedTableId =
   | "campus"
   | "departments"
+  | "user"
+  | "pages"
+  | "news"
+  | "events"
+  | "event_rsvps"
+  | "webshop_products"
+  | "orders"
+  | "order_items"
+  | "order_refunds"
+  | "member_roster"
+  | "benefit_partners"
+  | "campus_benefits"
+  | "benefit_codes"
+  | "announcements"
+  | "varsling_settings"
   | "jobs"
   | "candidate_profiles"
   | "job_applications"
@@ -135,7 +196,11 @@ type CampusInput = Columns<Campus>;
 type DepartmentInput = Pick<
   Columns<Departments>,
   "Id" | "Name" | "abbreviation" | "active" | "campus_id"
->;
+> &
+  Partial<Pick<Columns<Departments>, "slug" | "type">>;
+/** The columns the schema requires, and any others the screen shows. */
+type Fill<T, Required extends keyof Columns<T>> = Pick<Columns<T>, Required> &
+  Partial<Omit<Columns<T>, Required>>;
 type TranslationInput = Pick<
   Columns<ContentTranslations>,
   | "additional_fields"
@@ -195,15 +260,18 @@ export const DRAFT_JOB_ID = "docs-job-social-media";
 const TEAM = {
   demoEvents: "sg-app-dept-demoevents",
   hr: "sg-app-dept-hr",
+  ledelsenOslo: "sg-app-dept-ledelsenoslo",
   national: "sg-app-campus-national",
   operations: "sg-app-dept-operationsunit",
   oslo: "sg-app-campus-oslo",
 } as const;
 
 const USER = {
+  anders: "docs-user-anders",
   ingrid: "docs-user-ingrid",
   kari: "docs-user-kari",
   lars: "docs-user-lars",
+  marit: "docs-user-marit",
   per: "docs-user-per",
 } as const;
 
@@ -233,6 +301,7 @@ const TEAMS: SeedTeam[] = [
   { id: TEAM.hr, name: "HR" },
   { id: TEAM.operations, name: "Operations Unit" },
   { id: TEAM.demoEvents, name: "Demo Events" },
+  { id: TEAM.ledelsenOslo, name: "Ledelsen Oslo" },
 ];
 
 const USERS: SeedUser[] = [
@@ -264,6 +333,22 @@ const USERS: SeedUser[] = [
     name: "Lars Johansen",
     role: "department",
     teamIds: [TEAM.oslo, TEAM.demoEvents],
+  },
+  {
+    // roles.ts: the campus team plus the Ledelsen team of the same city.
+    email: "marit.dahl@example.org",
+    id: USER.marit,
+    name: "Marit Dahl",
+    role: "campusadmin",
+    teamIds: [TEAM.oslo, TEAM.ledelsenOslo],
+  },
+  {
+    // The role comes from BENEFITS_EDITOR_EMAILS (see README.md), not a team.
+    email: "anders.moen@example.org",
+    id: USER.anders,
+    name: "Anders Moen",
+    role: "benefitseditor",
+    teamIds: [TEAM.oslo],
   },
 ];
 
@@ -1108,6 +1193,9 @@ function organisationRows(): SeedRow[] {
     abbreviation: "DE",
     active: true,
     campus_id: CAMPUS_ID,
+    // The address of the department's own page: units/oslo/demo-events.
+    slug: "demo-events",
+    type: "society",
   };
   return [
     row("campus", CAMPUS_ID, campus, []),
@@ -1144,6 +1232,756 @@ function tourRows(): SeedRow[] {
   });
 }
 
+// ---------------------------------------------------------------------------
+// The rest of the guide: pages, news, events, the shop, members, benefits,
+// communications and the settings screens. Same made-up Oslo and "Demo
+// Events" as above; every person is invented and every address is example.org.
+// ---------------------------------------------------------------------------
+
+export const PUBLISHED_PAGE_ID = "docs-page-volunteer-guide";
+export const DRAFT_PAGE_ID = "docs-page-spring-social";
+export const PUBLISHED_NEWS_ID = "docs-news-welcome-week";
+export const DRAFT_NEWS_ID = "docs-news-quiz-recap";
+export const OPEN_EVENT_ID = "docs-event-spring-quiz";
+export const MEMBERS_EVENT_ID = "docs-event-members-night";
+export const PUBLISHED_PRODUCT_ID = "docs-product-tote-bag";
+export const PENDING_PRODUCT_ID = "docs-product-hoodie";
+export const PAID_ORDER_ID = "docs-order-paid";
+export const REFUNDED_ORDER_ID = "docs-order-refunded";
+/** The department whose own page the department shots open. */
+export const DEMO_EVENTS_DEPARTMENT_ID = EVENTS_DEPARTMENT_ID;
+
+const BENEFIT_ID = "docs-benefit-demo-cafe";
+const PARTNER_ID = "docs-partner-demo-cafe";
+/** An invented code. It lives only in `benefit_codes`, never on the public row. */
+const BENEFIT_CODE = "DEMO10";
+const ANNOUNCEMENT_ID = "docs-announcement-welcome";
+const MEMBERSHIP_ID = "docs-membership-student";
+const ROSTER_SYNC_RUN_ID = "docs-sync-run-1";
+
+/** People who are members: on the roster, and the three RSVPs. */
+const MEMBERS = [
+  {
+    companyId: 900_001,
+    email: "nora.vik@example.org",
+    key: "nora",
+    name: "Nora Vik",
+  },
+  {
+    companyId: 900_002,
+    email: "henrik.moe@example.org",
+    key: "henrik",
+    name: "Henrik Moe",
+  },
+  {
+    companyId: 900_003,
+    email: "silje.aas@example.org",
+    key: "silje",
+    name: "Silje Aas",
+  },
+] as const;
+
+const memberProfileId = (key: string) => `docs-member-${key}`;
+
+/** Published content is public; a draft is left to the admin's service key. */
+function contentPermissions(status: string): string[] {
+  return status === "published" ? [Permission.read(Role.any())] : [];
+}
+
+function stamps(createdDay: number, updatedDay = createdDay): Timestamps {
+  return { $createdAt: at(createdDay, 9), $updatedAt: at(updatedDay, 10) };
+}
+
+interface LocaleText {
+  description: string;
+  short?: string;
+  title: string;
+}
+
+/** Both languages of one piece of content, as the admin writes them. */
+function bothLanguages(input: {
+  additionalFields?: (text: LocaleText) => Record<string, unknown>;
+  contentId: string;
+  contentType: ContentTranslationsContentType;
+  en: LocaleText;
+  no: LocaleText;
+  permissions: string[];
+}): TranslationInput[] {
+  const translation = (
+    locale: ContentTranslationsLocale,
+    text: LocaleText
+  ): TranslationInput => ({
+    $id: `docs-tr-${input.contentId}-${locale}`,
+    $permissions: input.permissions,
+    additional_fields: input.additionalFields
+      ? JSON.stringify(input.additionalFields(text))
+      : null,
+    content_id: input.contentId,
+    content_type: input.contentType,
+    description: text.description,
+    locale,
+    short_description: text.short ?? null,
+    title: text.title,
+  });
+  return [
+    translation(ContentTranslationsLocale.NO, input.no),
+    translation(ContentTranslationsLocale.EN, input.en),
+  ];
+}
+
+/**
+ * Ownership as the admin writes it: relationship ids plus the scalar copies
+ * (`department_id`, on the tables that have one; the legacy `departmentId` on
+ * products holds four characters, so the seed leaves it out).
+ */
+interface OwnedBy {
+  campus: string;
+  campus_id: string;
+  department: string | null;
+}
+interface OwnedByWithScalar extends OwnedBy {
+  department_id: string | null;
+}
+const ownedByDemoEvents = (): OwnedBy => ({
+  campus: CAMPUS_ID,
+  campus_id: CAMPUS_ID,
+  department: EVENTS_DEPARTMENT_ID,
+});
+const ownedByDemoEventsWithScalar = (): OwnedByWithScalar => ({
+  ...ownedByDemoEvents(),
+  department_id: EVENTS_DEPARTMENT_ID,
+});
+
+type WithTranslations<T> = T & { translation_refs: TranslationInput[] };
+
+/** The people the members-only event's RSVPs are looked up from. */
+function profileRows(): SeedRow[] {
+  return MEMBERS.map((member) => {
+    const data: Fill<Users, never> = {
+      campus_id: CAMPUS_ID,
+      email: member.email,
+      isActive: true,
+      locale: UsersLocale.EN,
+      name: member.name,
+    };
+    return row("user", memberProfileId(member.key), data, []);
+  });
+}
+
+// --- Pages -----------------------------------------------------------------
+
+interface PageText {
+  description: string;
+  lede: string;
+  title: string;
+}
+
+/** A page in the editor's document format (`PageDoc`, version 2). */
+function pageDocument(
+  text: PageText,
+  slug: string,
+  status: "draft" | "published"
+): string {
+  return JSON.stringify({
+    header: {
+      buttons: [],
+      crumbs: [],
+      eyebrow: "Demo Events",
+      lede: text.lede,
+      title: text.title,
+      variant: "plain",
+    },
+    meta: {
+      campus: CAMPUS_ID,
+      department: EVENTS_DEPARTMENT_ID,
+      description: text.description,
+      slug,
+      status,
+      title: text.title,
+    },
+    sections: [],
+    version: 2,
+  });
+}
+
+type PageTranslationInput = Fill<PageTranslations, "page_id" | "title"> & {
+  $id: string;
+  $permissions: string[];
+};
+
+function pageRow(input: {
+  day: number;
+  id: string;
+  slug: string;
+  status: PagesStatus.DRAFT | PagesStatus.PUBLISHED;
+  text: Record<"en" | "no", PageText>;
+}): SeedRow {
+  const published = input.status === PagesStatus.PUBLISHED;
+  const permissions = contentPermissions(input.status);
+  const translation = (
+    locale: PageTranslationsLocale,
+    text: PageText
+  ): PageTranslationInput => {
+    const document = pageDocument(text, input.slug, input.status);
+    return {
+      $id: `docs-tr-${input.id}-${locale}`,
+      $permissions: permissions,
+      description: text.description,
+      draft_doc: document,
+      is_published: published,
+      locale,
+      page_id: input.id,
+      published_at: published ? at(input.day, 10) : null,
+      published_doc: published ? document : null,
+      title: text.title,
+    };
+  };
+  const data: Fill<Pages, never> &
+    Timestamps &
+    OwnedByWithScalar & { translation_refs: PageTranslationInput[] } = {
+    ...stamps(input.day, input.day + 1),
+    ...ownedByDemoEventsWithScalar(),
+    slug: input.slug,
+    status: input.status,
+    translation_refs: [
+      translation(PageTranslationsLocale.NO, input.text.no),
+      translation(PageTranslationsLocale.EN, input.text.en),
+    ],
+    visibility: PagesVisibility.PUBLIC,
+  };
+  return row("pages", input.id, data, permissions);
+}
+
+function pageRows(): SeedRow[] {
+  return [
+    pageRow({
+      day: 3,
+      id: PUBLISHED_PAGE_ID,
+      slug: "volunteer-guide",
+      status: PagesStatus.PUBLISHED,
+      text: {
+        en: {
+          description: "How Demo Events volunteers plan an evening.",
+          lede: "Everything a new volunteer needs for the first month.",
+          title: "Volunteer guide",
+        },
+        no: {
+          description: "Slik planlegger frivillige i Demo Events en kveld.",
+          lede: "Alt en ny frivillig trenger den første måneden.",
+          title: "Veiledning for frivillige",
+        },
+      },
+    }),
+    pageRow({
+      day: 6,
+      id: DRAFT_PAGE_ID,
+      slug: "spring-social",
+      status: PagesStatus.DRAFT,
+      text: {
+        en: {
+          description: "A draft for the spring social.",
+          lede: "Dates and tickets to come.",
+          title: "Spring social",
+        },
+        no: {
+          description: "Et utkast til vårfesten.",
+          lede: "Datoer og billetter kommer.",
+          title: "Vårfest",
+        },
+      },
+    }),
+  ];
+}
+
+// --- News ------------------------------------------------------------------
+
+const NEWS_AUTHOR = "Kari Nordmann";
+
+function newsRow(input: {
+  day: number;
+  id: string;
+  slug: string;
+  status: NewsStatus.DRAFT | NewsStatus.PUBLISHED;
+  text: Record<"en" | "no", LocaleText>;
+}): SeedRow {
+  const permissions = contentPermissions(input.status);
+  const data: WithTranslations<
+    Fill<News, "campus_id" | "status"> & Timestamps & OwnedByWithScalar
+  > = {
+    ...stamps(input.day, input.day + 1),
+    ...ownedByDemoEventsWithScalar(),
+    author: NEWS_AUTHOR,
+    notify_push: false,
+    slug: input.slug,
+    status: input.status,
+    sticky: false,
+    translation_refs: bothLanguages({
+      additionalFields: () => ({ author: NEWS_AUTHOR, category: "general" }),
+      contentId: input.id,
+      contentType: ContentTranslationsContentType.NEWS,
+      en: input.text.en,
+      no: input.text.no,
+      permissions,
+    }),
+  };
+  return row("news", input.id, data, permissions);
+}
+
+function newsRows(): SeedRow[] {
+  return [
+    newsRow({
+      day: 8,
+      id: PUBLISHED_NEWS_ID,
+      slug: "welcome-week",
+      status: NewsStatus.PUBLISHED,
+      text: {
+        en: {
+          description:
+            "<p>Welcome week starts on Monday. Come by the Demo Events stand.</p>",
+          title: "Welcome week starts Monday",
+        },
+        no: {
+          description:
+            "<p>Fadderuken starter på mandag. Kom innom standen til Demo Events.</p>",
+          title: "Fadderuken starter mandag",
+        },
+      },
+    }),
+    newsRow({
+      day: 12,
+      id: DRAFT_NEWS_ID,
+      slug: "quiz-recap",
+      status: NewsStatus.DRAFT,
+      text: {
+        en: {
+          description:
+            "<p>A recap of the spring quiz, still being written.</p>",
+          title: "Spring quiz recap",
+        },
+        no: {
+          description: "<p>Oppsummering av vårquizen, under arbeid.</p>",
+          title: "Oppsummering av vårquizen",
+        },
+      },
+    }),
+  ];
+}
+
+// --- Events ----------------------------------------------------------------
+
+function eventRow(input: {
+  day: number;
+  id: string;
+  memberOnly: boolean;
+  slug: string;
+  startDay: number;
+  text: Record<"en" | "no", LocaleText>;
+}): SeedRow {
+  const permissions = contentPermissions(EventsStatus.PUBLISHED);
+  const data: WithTranslations<
+    Fill<Events, "campus_id" | "status"> & Timestamps & OwnedByWithScalar
+  > = {
+    ...stamps(input.day, input.day + 1),
+    ...ownedByDemoEventsWithScalar(),
+    capacity: 80,
+    category: EventsCategory.SOCIAL,
+    contact_email: "kari.nordmann@example.org",
+    contact_name: "Kari Nordmann",
+    contact_role: "Demo Events, Oslo",
+    cover_pattern: EventsCoverPattern.DOTTED,
+    end_date: at(input.startDay, 21),
+    location: "Demo Hall, Oslo",
+    location_mode: EventsLocationMode.PHYSICAL,
+    member_only: input.memberOnly,
+    notify_push: false,
+    pricing_mode: EventsPricingMode.FREE,
+    publish_mode: EventsPublishMode.NOW,
+    registration_deadline: at(input.startDay - 1, 12),
+    slug: input.slug,
+    start_date: at(input.startDay, 18),
+    status: EventsStatus.PUBLISHED,
+    tags: ["Social"],
+    translation_refs: bothLanguages({
+      additionalFields: (text) => ({ short_description: text.short ?? null }),
+      contentId: input.id,
+      contentType: ContentTranslationsContentType.EVENT,
+      en: input.text.en,
+      no: input.text.no,
+      permissions,
+    }),
+    waitlist: false,
+  };
+  return row("events", input.id, data, permissions);
+}
+
+/** `event_rsvps` has no generated type; the columns are in appwrite.config.json. */
+interface EventRsvpInput {
+  event_id: string;
+  status: "going" | "maybe" | "not_going";
+  user_id: string;
+}
+
+function rsvpRows(): SeedRow[] {
+  return MEMBERS.map((member, index) => {
+    const data: EventRsvpInput = {
+      event_id: MEMBERS_EVENT_ID,
+      status: index === MEMBERS.length - 1 ? "maybe" : "going",
+      user_id: memberProfileId(member.key),
+    };
+    return row("event_rsvps", `docs-rsvp-${member.key}`, data, [
+      Permission.read(Role.user(memberProfileId(member.key))),
+    ]);
+  });
+}
+
+function eventRows(): SeedRow[] {
+  return [
+    eventRow({
+      day: 15,
+      id: OPEN_EVENT_ID,
+      memberOnly: false,
+      slug: "spring-quiz",
+      startDay: 120,
+      text: {
+        en: {
+          description: "<p>A pub quiz for everyone. Teams of four.</p>",
+          short: "A pub quiz for everyone.",
+          title: "Spring quiz",
+        },
+        no: {
+          description: "<p>En pubquiz for alle. Lag på fire.</p>",
+          short: "En pubquiz for alle.",
+          title: "Vårquiz",
+        },
+      },
+    }),
+    eventRow({
+      day: 16,
+      id: MEMBERS_EVENT_ID,
+      memberOnly: true,
+      slug: "members-night",
+      startDay: 135,
+      text: {
+        en: {
+          description: "<p>An evening for members only, with food.</p>",
+          short: "An evening for members only.",
+          title: "Members' night",
+        },
+        no: {
+          description: "<p>En kveld bare for medlemmer, med mat.</p>",
+          short: "En kveld bare for medlemmer.",
+          title: "Medlemskveld",
+        },
+      },
+    }),
+    ...rsvpRows(),
+  ];
+}
+
+// --- Shop ------------------------------------------------------------------
+
+function productRow(input: {
+  day: number;
+  id: string;
+  memberPrice: number;
+  price: number;
+  slug: string;
+  status:
+    | WebshopProductsStatus.PENDING_APPROVAL
+    | WebshopProductsStatus.PUBLISHED;
+  stock: number;
+  text: Record<"en" | "no", LocaleText>;
+}): SeedRow {
+  const permissions = contentPermissions(input.status);
+  const data: WithTranslations<
+    Fill<WebshopProducts, "campus_id" | "regular_price" | "slug" | "status"> &
+      Timestamps &
+      OwnedBy
+  > = {
+    ...stamps(input.day, input.day + 1),
+    ...ownedByDemoEvents(),
+    category: "Merch",
+    cover_pattern: WebshopProductsCoverPattern.DOTTED,
+    inventory_mode: WebshopProductsInventoryMode.TRACKED,
+    member_only: false,
+    member_price: input.memberPrice,
+    regular_price: input.price,
+    slug: input.slug,
+    status: input.status,
+    stock: input.stock,
+    translation_refs: bothLanguages({
+      contentId: input.id,
+      contentType: ContentTranslationsContentType.PRODUCT,
+      en: input.text.en,
+      no: input.text.no,
+      permissions,
+    }),
+    unlisted: false,
+  };
+  return row("webshop_products", input.id, data, permissions);
+}
+
+function shopRows(): SeedRow[] {
+  return [
+    productRow({
+      day: 20,
+      id: PUBLISHED_PRODUCT_ID,
+      memberPrice: 90,
+      price: 120,
+      slug: "tote-bag",
+      status: WebshopProductsStatus.PUBLISHED,
+      stock: 40,
+      text: {
+        en: {
+          description: "A canvas tote bag with the Demo Events logo.",
+          short: "Canvas tote bag.",
+          title: "Tote bag",
+        },
+        no: {
+          description: "En handlenett i bomull med logoen til Demo Events.",
+          short: "Handlenett i bomull.",
+          title: "Handlenett",
+        },
+      },
+    }),
+    productRow({
+      day: 22,
+      id: PENDING_PRODUCT_ID,
+      memberPrice: 350,
+      price: 450,
+      slug: "hoodie",
+      status: WebshopProductsStatus.PENDING_APPROVAL,
+      stock: 25,
+      text: {
+        en: {
+          description:
+            "A navy hoodie. Waiting for a campus leader to approve it.",
+          short: "Navy hoodie.",
+          title: "Hoodie",
+        },
+        no: {
+          description: "En marineblå hettegenser. Venter på godkjenning.",
+          short: "Marineblå hettegenser.",
+          title: "Hettegenser",
+        },
+      },
+    }),
+  ];
+}
+
+interface OrderSeed {
+  buyerEmail: string;
+  buyerName: string;
+  day: number;
+  id: string;
+  quantity: number;
+  status: OrdersStatus.PAID | OrdersStatus.REFUNDED;
+}
+
+const TOTE_BAG_PRICE = 120;
+
+function orderRowsFor(order: OrderSeed): SeedRow[] {
+  const total = TOTE_BAG_PRICE * order.quantity;
+  const refunded = order.status === OrdersStatus.REFUNDED;
+  const orderData: Fill<Orders, "currency" | "subtotal" | "total"> &
+    Timestamps = {
+    ...stamps(order.day),
+    buyer_email: order.buyerEmail,
+    buyer_name: order.buyerName,
+    campus_id: CAMPUS_ID,
+    currency: OrdersCurrency.NOK,
+    discount_total: 0,
+    membership_applied: false,
+    payment_provider: "vipps",
+    refunded_at: refunded ? at(order.day + 2, 14) : null,
+    refunded_total: refunded ? total : 0,
+    status: order.status,
+    subtotal: total,
+    total,
+  };
+  const itemData: Fill<OrderItems, never> & { order: string; product: string } =
+    {
+      line_total: total,
+      name: "Tote bag",
+      order: order.id,
+      product: PUBLISHED_PRODUCT_ID,
+      product_type: "product",
+      quantity: order.quantity,
+      unit_price: TOTE_BAG_PRICE,
+    };
+  const rows = [
+    row("orders", order.id, orderData, []),
+    row("order_items", `${order.id}-item`, itemData, []),
+  ];
+  if (refunded) {
+    const refund: Fill<OrderRefunds, "amount"> & { order: string } = {
+      amount: total,
+      created_by: USER.ingrid,
+      created_by_name: "Ingrid Berg",
+      currency: OrderRefundsCurrency.NOK,
+      order: order.id,
+      provider: OrderRefundsProvider.VIPPS,
+      reason: "Bought the wrong size",
+      restock: true,
+      status: OrderRefundsStatus.SUCCEEDED,
+    };
+    rows.push(row("order_refunds", `${order.id}-refund`, refund, []));
+  }
+  return rows;
+}
+
+function orderRows(): SeedRow[] {
+  return [
+    ...orderRowsFor({
+      buyerEmail: "mari.solberg@example.org",
+      buyerName: "Mari Solberg",
+      day: 30,
+      id: PAID_ORDER_ID,
+      quantity: 2,
+      status: OrdersStatus.PAID,
+    }),
+    ...orderRowsFor({
+      buyerEmail: "tobias.lund@example.org",
+      buyerName: "Tobias Lund",
+      day: 31,
+      id: REFUNDED_ORDER_ID,
+      quantity: 1,
+      status: OrdersStatus.REFUNDED,
+    }),
+  ];
+}
+
+// --- Members and benefits --------------------------------------------------
+
+type RosterInput = Fill<
+  MemberRoster,
+  | "company_id"
+  | "expiry_date"
+  | "membership_id"
+  | "membership_name"
+  | "name"
+  | "sync_run_id"
+>;
+
+function rosterRows(): SeedRow[] {
+  return MEMBERS.map((member, index) => {
+    const data: RosterInput = {
+      campus_id: CAMPUS_ID,
+      company_id: member.companyId,
+      email: member.email,
+      expiry_date: `2027-0${index + 6}-30`,
+      invoiced_at: at(2),
+      membership_id: MEMBERSHIP_ID,
+      membership_name: "Demo student membership",
+      name: member.name,
+      sync_run_id: ROSTER_SYNC_RUN_ID,
+    };
+    return row("member_roster", `docs-roster-${member.key}`, data, []);
+  });
+}
+
+function benefitRows(): SeedRow[] {
+  const partner: Fill<BenefitPartners, "name"> = {
+    campus_id: CAMPUS_ID,
+    description_en: "A coffee shop near campus.",
+    description_nb: "En kaffebar i nærheten av campus.",
+    is_active: true,
+    name: "Demo Cafe",
+    website_url: "https://example.org/demo-cafe",
+  };
+  // The code is not on this row: the admin keeps it in `benefit_codes`,
+  // which nobody can read.
+  const benefit: Fill<
+    CampusBenefits,
+    "campus_id" | "status" | "title_en" | "title_nb"
+  > &
+    OwnedBy = {
+    campus: CAMPUS_ID,
+    campus_id: CAMPUS_ID,
+    department: null,
+    description_en: "Ten percent off your coffee. Show the code at the till.",
+    description_nb: "Ti prosent rabatt på kaffen. Vis koden i kassen.",
+    is_featured: false,
+    is_member_only: true,
+    kind: CampusBenefitsKind.OFFER,
+    partner_id: PARTNER_ID,
+    partner_name: "Demo Cafe",
+    publish_start: at(5),
+    redemption_type: CampusBenefitsRedemptionType.CODE,
+    redemption_value: null,
+    section: CampusBenefitsSection.MEMBER,
+    sort_order: 0,
+    status: CampusBenefitsStatus.PUBLISHED,
+    teaser_en: "10% off coffee",
+    teaser_nb: "10 % rabatt på kaffe",
+    title_en: "Ten percent off coffee",
+    title_nb: "Ti prosent rabatt på kaffe",
+    updated_by: USER.anders,
+  };
+  const code: Fill<BenefitCodes, "benefit_id" | "value"> = {
+    benefit_id: BENEFIT_ID,
+    updated_by: USER.anders,
+    value: BENEFIT_CODE,
+  };
+  return [
+    row("benefit_partners", PARTNER_ID, partner, [Permission.read(Role.any())]),
+    row("campus_benefits", BENEFIT_ID, benefit, [Permission.read(Role.any())]),
+    row("benefit_codes", BENEFIT_ID, code, []),
+  ];
+}
+
+// --- Communications and settings -------------------------------------------
+
+function announcementRows(): SeedRow[] {
+  const data: Fill<Announcements, "title_en"> & Timestamps & OwnedBy = {
+    ...stamps(25),
+    ...ownedByDemoEvents(),
+    audience_type: AnnouncementsAudienceType.BROADCAST,
+    body_en: "Welcome week starts on Monday. Come by the Demo Events stand.",
+    body_no: "Fadderuken starter på mandag. Kom innom standen til Demo Events.",
+    category: "general",
+    created_by: USER.ingrid,
+    push: true,
+    sent_at: at(25, 10),
+    source: AnnouncementsSource.MANUAL,
+    status: AnnouncementsStatus.SENT,
+    title_en: "Welcome week starts Monday",
+    title_no: "Fadderuken starter mandag",
+  };
+  return [row("announcements", ANNOUNCEMENT_ID, data, [])];
+}
+
+type VarslingInput = Fill<
+  VarslingSettings,
+  "campus_id" | "email" | "role_name"
+>;
+
+function varslingRows(): SeedRow[] {
+  const contacts: [string, VarslingInput][] = [
+    [
+      "docs-varsling-hr",
+      {
+        campus_id: CAMPUS_ID,
+        email: "varsling.hr@example.org",
+        is_active: true,
+        role_name: "HR lead (demo)",
+        sort_order: 1,
+      },
+    ],
+    [
+      "docs-varsling-campus",
+      {
+        campus_id: CAMPUS_ID,
+        email: "varsling.campus@example.org",
+        is_active: true,
+        role_name: "Head of campus (demo)",
+        sort_order: 2,
+      },
+    ],
+  ];
+  return contacts.map(([id, data]) => row("varsling_settings", id, data, []));
+}
+
 export function buildSeedData(): SeedData {
   return {
     baseDate: BASE_DATE,
@@ -1153,9 +1991,21 @@ export function buildSeedData(): SeedData {
       ...vacancies(),
       ...applicantRows(),
       ...interviewRows(),
+      ...profileRows(),
+      ...pageRows(),
+      ...newsRows(),
+      ...eventRows(),
+      ...shopRows(),
+      ...orderRows(),
+      ...rosterRows(),
+      ...benefitRows(),
+      ...announcementRows(),
+      ...varslingRows(),
       ...tourRows(),
     ],
     sessionUsers: {
+      benefitseditor: USER.anders,
+      campusadmin: USER.marit,
       department: USER.lars,
       globaladmin: USER.ingrid,
       hr: USER.kari,
