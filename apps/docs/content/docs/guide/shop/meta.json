@@ -1,0 +1,4 @@
+{
+  "title": "Shop and orders",
+  "pages": ["index", "add-a-product", "orders-and-refunds", "accounting"]
+}

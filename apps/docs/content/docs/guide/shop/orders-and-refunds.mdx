@@ -1,0 +1,185 @@
+---
+title: Orders and refunds
+description: How campus leaders and global admins find a shop order, read it, and refund it in full or in part, and what each refund does in 24SevenOffice.
+who: "Global admins (National + Operations Unit), and campus leaders (Ledelsen on your campus) for orders on their campus. Department members don't see orders."
+covers:
+  - apps/admin/src/app/(portal)/shop/page.tsx
+  - apps/admin/src/app/(portal)/shop/_components/orders-tab.tsx
+  - apps/admin/src/app/(portal)/shop/_components/order-row.tsx
+  - apps/admin/src/app/(portal)/shop/_components/orders-export.ts
+  - apps/admin/src/app/(portal)/shop/_components/shop-studio-chrome.tsx
+  - apps/admin/src/app/(portal)/shop/_components/shop-studio-dashboard.tsx
+  - apps/admin/src/app/(portal)/shop/_components/shop-studio-pills.tsx
+  - apps/admin/src/app/(portal)/shop/orders/**
+  - apps/admin/src/app/(portal)/_actions/order-refunds.ts
+  - apps/admin/src/app/(portal)/_actions/shop.ts
+  - apps/admin/src/app/(portal)/_actions/shop-export.ts
+  - apps/admin/src/lib/shop/order-detail.ts
+  - packages/shared/utils/order-refunds.ts
+  - packages/shared/utils/order-refunds-pure.ts
+  - packages/shared/utils/finago-order-posting.ts
+  - packages/shared/utils/finago-refund-reverser.ts
+  - packages/payment/src/refunds.ts
+  - apps/api/src/app/api/cron/reconcile-orders/route.ts
+  - apps/web/src/app/(public)/shop/order/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Only global admins and campus leaders see orders. Campus leaders see orders for their own campus. Global admins see every campus, or the one they picked in the campus box. An order with no campus is only visible to global admins.
+- Department members who sell products don't see orders. If they need to know what has sold, they ask a campus leader.
+- Nothing tells you when an order comes in. There's no email or notification. Check the list.
+- Only a paid order can be refunded. The money goes back the way the buyer paid, through Vipps or Stripe.
+- A refund can't be undone, and the button has no confirmation step. Agree the amount with the buyer, then check it before you press the button.
+- Every order in the list is handled as a real sale, whatever payment mode it was paid in. Posting and refunds treat them all the same.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the orders">
+
+Choose **Produkter** (Products) in the sidebar, then the **Bestillinger** (Orders) tab. Once it's open, the tab's number shows how many orders are waiting, **Avventer** (Pending) and **Autorisert** (Authorized) together. When none are waiting, it shows the total.
+
+Four counts sit at the top:
+
+- **Bestillinger** (Orders): every order that matches your search, product and dates.
+- **Betalt omsetning** (Paid revenue): the totals of all orders marked **Betalt** (Paid) added up. A partly refunded order counts in full, and a fully refunded order doesn't count. It isn't your income after refunds.
+- **Betalt** (Paid) and **Avventer** (Pending).
+
+The status chips below don't change these counts. The counts read up to 5000 orders. Past that, the total shows **5000+**. Narrow the dates to get an exact number.
+
+What each status means is on [How the shop works](/guide/shop#order-statuses).
+
+</Step>
+<Step title="Find an order">
+
+- Search with **Søk i bestillinger...** (Search orders...). It finds the buyer's name or email, or the whole order number. Type the order number without the #.
+- Choose a status chip: **Alle** (All), **Betalt** (Paid), **Autorisert** (Authorized), **Avventer** (Pending), **Feilet** (Failed) or **Refundert** (Refunded). There's no chip for **Kansellert** (Cancelled) or **Delvis refundert** (Partially refunded). Cancelled orders are under **Alle** (All). Partly refunded orders are under **Betalt** (Paid).
+- Narrow by product with **Filtrer på produkt** (Filter by product), and by date with **Fra dato** (From date) and **Til dato** (To date). Once you've picked one, **Tøm** (Clear) removes the product and date filters. With a product picked, the list shows at most 500 orders and says so. Export the CSV to see them all.
+
+You can also find an order with quick search, by the buyer's name or email. See [Everyday tools](/guide/start-here/everyday-tools#find-things-with-quick-search-everyone).
+
+Each row shows the order number and date, the buyer's name and email, a **Medlem** (Member) tag when a member discount was used, the first item and how many more, the total, and the status. The external-link icon opens the payment provider's receipt, when there is one.
+
+To download the orders that match your filters, choose **Eksporter bestillinger** (Export orders). The CSV file has one row for each order line, up to 20,000 rows, with the buyers' names, emails and phone numbers. Keep it somewhere only the people who need it can see.
+
+</Step>
+<Step title="Read the order">
+
+Choose the arrow at the end of the row. The order's page is headed with its number, for example **Bestilling #6720a1b2c3d4e5f6a7b8** (Order #6720a1b2c3d4e5f6a7b8), and the line under it says when it was placed and by whom.
+
+- **Bestillingslinjer** (Order lines): each item with its quantity, price and variant, and the buyer's answers to any checkout questions. Under them are **Delsum** (Subtotal), **Rabatt** (Discount), **Totalt** (Total) and, after a refund, **Refundert** (Refunded).
+- **Kunde** (Customer): **Navn** (Name), **E-post** (Email) and **Telefon** (Phone), and **Medlemsrabatt** (Member discount) when one was used.
+- **Bestillingsdetaljer** (Order details): **Betalingsmetode** (Payment method), the payment references **Sesjon** (Session) and **Betalingsintensjon** (Payment intent), **Regnskap** (Ledger), and for a membership **Faktura** (Invoice). When there's a receipt, the row **Åpne Vipps-kvittering** (Open Vipps receipt) links to it with **Vis full bestilling** (View full order). The row has that name whichever provider was used.
+- **Refusjonshistorikk** (Refund history): every refund so far. See the last step.
+
+**Regnskap** (Ledger) tells you what has reached 24SevenOffice:
+
+| It shows | What it means |
+|---|---|
+| A transaction id | The order is posted to 24SevenOffice. |
+| — | Not posted yet. |
+| `membership` | A membership, booked as an invoice. The invoice number is under **Faktura** (Invoice). |
+| `zero-total` | A free order. It's never posted. |
+| `wordpress-import` | An order from the old WordPress shop. It's never posted. |
+| `posting` | Posting started, but 24SevenOffice didn't confirm it. Nothing tries again by itself. If it still says `posting` after a few minutes, ask IT. |
+
+</Step>
+<Step title="Refund an order">
+
+The **Refusjon** (Refund) panel is on the order's page. It starts with how much is left to refund, for example **249 kr av 498 kr kan fortsatt refunderes** (249 kr of 498 kr still refundable).
+
+1. Choose how to refund:
+   - **Per vare** (By item), the default. Type how many of each line to refund. You can't go above what's left on a line. The amount is worked out for you.
+   - **Per beløp** (By amount). Type the amount in **Beløp (NOK)** (Amount (NOK)), for example for a goodwill refund.
+2. Write a reason in **Årsak** (Reason) if you want. It's optional, up to 500 characters, and only staff see it.
+3. With **Per vare** (By item), tick **Legg de refunderte varene tilbake på lager** (Return the refunded items to stock) if the items are coming back and can be sold again. It only changes products with **Tracked** stock. A refund **Per beløp** (By amount) never returns anything to stock.
+4. Check the amount on the button. Then choose **Refunder** (Refund) followed by the amount, for example **Refunder 249 kr** (Refund 249 kr). It goes through at once. While it runs, it reads **Refunderer…** (Refunding…). When it's done, you see **Refunderte 249 kr.** (Refunded 249 kr.).
+
+To refund the whole order, refund everything that's left. Anything less is a partial refund, and you can refund more of the same order later, up to what's left.
+
+<Callout type="warn">
+A refund can't be undone. The money leaves BISO as soon as the provider accepts it, and there's no confirmation step. Check the lines and the amount before you choose **Refunder** (Refund).
+</Callout>
+
+For a membership, the panel adds: **Dette er et medlemskapskjøp, ført som faktura i 24SO. Refusjonen betaler tilbake pengene, men fakturaen må krediteres manuelt i 24SO.** (This is a membership purchase, booked as a 24SO invoice. The refund returns the money, but the invoice needs a credit note in 24SO.) See What happens next.
+
+If the panel shows one line of text instead of the form, the order can't be refunded here:
+
+- **Denne ordren har ingen betalingsleverandør, så det er ingenting å refundere.** (This order has no payment provider, so there is nothing to refund.)
+- **Kun en oppgjort (betalt) ordre kan refunderes. En autorisert reservasjon bør heller kanselleres i Vipps.** (Only a settled (paid) order can be refunded. An authorized reservation should be cancelled in Vipps instead.)
+- **Denne ordren er refundert i sin helhet.** (This order has been refunded in full.)
+
+If the refund fails, a message in English shows under the button:
+
+- **That is more than the amount still refundable on this order.** or **One of those lines has already been refunded.**: someone else has refunded part of the order. Reload the page.
+- **Another refund on this order is already in progress. Try again in a moment.**
+- **The payment provider rejected the refund.**, followed by the provider's own message. Nothing was refunded.
+- **Vipps is not configured** or **Stripe is not configured**: tell IT.
+- **Failed to refund this order.**: reload the page and look at **Refusjonshistorikk** (Refund history) before you try again. An old order from before order lines were kept can only be refunded **Per beløp** (By amount).
+
+</Step>
+<Step title="Check the refund history">
+
+**Refusjonshistorikk** (Refund history) lists each refund, newest first: the amount, the date, then a status word in English, who made it, the reason and the lines.
+
+- `succeeded`: the money has gone back.
+- `pending`: the provider accepted the refund but hasn't finished it. This can happen with Stripe. It still counts against what's left to refund, and a scheduled check settles it later. Don't refund again.
+- `failed`: the provider refused it. Its amount can be refunded again.
+
+A note in English under a refund means something has to be done by hand in 24SevenOffice. What happens next explains each one.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- The money goes back the way the buyer paid, through Vipps or Stripe.
+- A full refund changes the order to **Refundert** (Refunded). A partial refund leaves it **Betalt** (Paid), shown as **Delvis refundert** (Partially refunded).
+- If you ticked **Legg de refunderte varene tilbake på lager** (Return the refunded items to stock), the quantity goes back into stock once. It can't be taken back from the screen.
+- BISO sends the buyer no email about the refund. Tell them yourself.
+- The refund is written to the activity log.
+
+What happens in 24SevenOffice depends on whether the order was posted before the refund. Look at **Regnskap** (Ledger) on the order's page.
+
+| The order | Refund | In 24SevenOffice |
+|---|---|---|
+| Already posted: **Regnskap** (Ledger) shows a transaction id | Full or partial | A reversal voucher is posted by itself, with the comment *Refusjon nettbutikk* and the order number. |
+| Not posted yet | Full | The order is never posted. Nothing is booked for the sale or the refund. |
+| Not posted yet | Partial | The order is never posted automatically. Book the net sale, the total minus the refunds, in 24SevenOffice by hand. Then ask IT to record that voucher's transaction id on the order. |
+| A membership | Full or partial | No reversal. Credit the invoice in 24SevenOffice by hand. |
+| A free order, or one from the old WordPress shop | Any | Nothing. It was never posted. |
+
+- The reversal credits the clearing account for Vipps or Stripe and takes the amount back from each revenue account, with the same VAT code and department as the sale. It uses the clearing account set on **Regnskap** (Accounting) today, even if the sale was posted against an older one.
+- If posting is switched on, a refund of an order that isn't posted yet shows this note in the refund history: **Order not yet posted to Finago at refund time, so no reversal was posted. Automatic posting holds orders with refunds for manual booking of the net sale.** After a full refund the net sale is 0 kr, so there's nothing to book.
+- A note starting **The order's Finago posting was in progress or unknown at refund time** means the reversal wasn't posted. Post it in 24SevenOffice by hand once the order's posting is settled.
+- A note starting **Ledger reversal failed**, or one ending **Post it manually in 24SO.**, means the same: post the reversal by hand.
+- In every case the buyer gets the money back. Only the bookkeeping is left to you.
+- Refunding a membership doesn't end it. The student stays in the plan's customer category in 24SevenOffice, and stays a member, until someone removes them there.
+- A payment taken while a provider was in Test mode is handled like any other: posted, and reversed on refund.
+</WhatHappensNext>
+
+## What the student sees
+
+- The money comes back the way they paid, through Vipps or Stripe.
+- On their order page on biso.no, a fully refunded order shows **Refundert** (Refunded). A partly refunded order still shows **Betalt** (Paid).
+- They don't see the reason you wrote, the refund history or anything about 24SevenOffice.
+- BISO doesn't email them about the refund.
+
+## Common mistakes
+
+- Typing the wrong amount. **Refunder** (Refund) goes through at once, and it can't be undone.
+- Refunding **Per beløp** (By amount) for items that came back. Nothing goes back to stock. Use **Per vare** (By item) and tick the stock box.
+- Searching for an order number with the # in front. Type the number alone.
+- Reading **Betalt omsetning** (Paid revenue) as income after refunds. It counts partly refunded orders in full.
+- Looking for partly refunded orders under their own chip. They're under **Betalt** (Paid), with the **Delvis refundert** (Partially refunded) pill.
+- Trying to refund an **Autorisert** (Authorized) order. It can't be refunded here. Cancel the reservation in Vipps instead.
+- Refunding again while a refund says `pending`. It still holds its share of the amount. Wait for it to settle.
+- Forgetting the work in 24SevenOffice after a partial refund of an unposted order, or after any membership refund. Nothing reminds you.
+- Expecting a membership refund to end the membership. Remove the student's plan in 24SevenOffice too.
+- Treating an order paid in Test mode as not real. It's posted to 24SevenOffice and reversed like any other.
