@@ -1,0 +1,12 @@
+{
+  "title": "Access and settings",
+  "pages": [
+    "index",
+    "manage-users",
+    "hand-over-a-role-account",
+    "department-check-and-data-health",
+    "expense-approvals",
+    "varsling",
+    "system-settings"
+  ]
+}

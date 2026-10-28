@@ -1,0 +1,92 @@
+---
+title: Fix expense approval issues
+description: How global admins find reimbursements whose approver couldn't be found or reached, fix the approver's department, resend an approval and mark an issue as resolved.
+who: "Global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/it/expense-approvals/**
+  - apps/admin/src/app/(portal)/_actions/expense-approval-issues.ts
+  - apps/api/src/lib/expense-approval.ts
+  - apps/api/src/lib/expense-approver-resolution.ts
+  - packages/shared/utils/expense-approvers.ts
+  - apps/api/src/app/api/expenses/resend-approval/**
+  - apps/api/src/app/api/expenses/submit/route.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- This list matters only while the feature flag **Direct ledger posting (24SO + Teams approval)** is on. Then each reimbursement a student submits goes to one or more approvers, who approve it in Teams or by email, and is posted to 24SevenOffice. While the flag is off, reimbursements are emailed to accounting instead, and no new issues are recorded. See [System settings](/guide/access-and-settings/system-settings#switch-a-feature-flag).
+- Approvers are BISO role accounts in Microsoft 365, and the reimbursements end up in 24SevenOffice. You can't see either from this guide, so the steps are text only.
+- On the Oslo campus, a department's financial manager approves first, then the campus controller. Ledelsen Oslo, the other campuses and National have no department step.
+- The admin finds a department's approver by looking in Microsoft for accounts whose **Avdeling** (Department) is that department. It then picks the role account whose login address starts with `financ`, for the financial manager. When the student who submitted says they're the department's financial manager, it looks for `manag` (the leader) and then `deput` (the deputy) instead.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the approval issues">
+
+Open **System**, choose **IT**, then the **Godkjenningsavvik** (Approval issues) tab. The page is headed **Godkjenningsavvik for refusjoner** (Reimbursement approval issues).
+
+The list shows up to 200 issues, open ones first, then the newest. The columns are **Avdeling** (Department), **Campus**, **Søkt rolle** (Sought role), **Årsak** (Reason), **Opprettet** (Created) and **Status**, which is **Åpen** (Open) or **Løst** (Resolved).
+
+If there are none, you see **Ingen avvik** (No approval issues).
+
+</Step>
+<Step title="Read the reason">
+
+**Årsak** (Reason) is in English. It tells you which kind of issue it is:
+
+- It starts **No finance mailbox found** or **No manager mailbox found**, or reads **Expense has no department set.** The admin couldn't find the department's approver. Go to the next step.
+- It starts **Could not notify**. The approver was found, but the message asking them to approve couldn't be delivered. Go to [Resend the approval](#resend-the-approval).
+
+**Søkt rolle** (Sought role) shows which approver was wanted, as a code such as `finance`, `manager` or `controller`.
+
+</Step>
+<Step title="Fix a missing approver">
+
+The department's approver account doesn't have the department in **Avdeling** (Department), or doesn't exist.
+
+1. Choose **Brukere** (Users), and find the department's financial manager role account. If **Søkt rolle** (Sought role) says `manager`, find the leader's or the deputy's account instead.
+2. Open it, set **Avdeling** (Department) to the department named in the issue, exactly, and choose **Lagre profil** (Save profile). See [Change an account's details](/guide/access-and-settings/manage-users#change-an-accounts-details-global-admins).
+3. If the department has no such account, it needs one. See [Create a user](/guide/access-and-settings/manage-users#create-a-user-global-admins).
+4. Go back to **Godkjenningsavvik** (Approval issues) and choose **Marker som løst** (Mark resolved) on the issue.
+
+</Step>
+<Step title="Resend the approval">
+
+An open issue whose reason starts **Could not notify** has **Send varsel på nytt** (Resend notification). Choose it.
+
+The approver gets a new approval link, in Teams if possible and by email. You see **Godkjenningsvarsel sendt på nytt** (Approval notification re-sent), and the issue is marked **Løst** (Resolved).
+
+If it fails, you see the reason, or **Kunne ikke sende godkjenningsvarselet på nytt** (Could not resend the approval notification). While **Direct ledger posting (24SO + Teams approval)** is off, it's always refused with `expenses_ledger_posting disabled`.
+
+</Step>
+<Step title="Mark an issue as resolved">
+
+Choose **Marker som løst** (Mark resolved). You see **Avviket er markert som løst** (Issue marked as resolved), and the status changes to **Løst** (Resolved).
+
+This only changes the status. It doesn't check that the department was fixed, and it doesn't send the reimbursement anywhere. A resolved issue can't be opened again.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- An issue is recorded on its own when a reimbursement is submitted and its department approver can't be found, or when an approver can't be sent their approval link.
+- A reimbursement whose department approver couldn't be found doesn't wait for you. It skips that step and goes to the campus controller. Fixing the department helps the reimbursements that come after it.
+- A reimbursement whose approver couldn't be reached waits at that step until you choose **Send varsel på nytt** (Resend notification).
+- Nobody is told about a new issue. Open the tab now and then to check.
+- Marking an issue as resolved and resending are written to the activity log with your email.
+</WhatHappensNext>
+
+## Common mistakes
+
+- Marking an issue as resolved before fixing the account. Nothing checks it, so the next reimbursement from that department hits the same problem.
+- Expecting **Marker som løst** (Mark resolved) to send the reimbursement on. It only changes the status.
+- Setting the department on the student who submitted. Set it on the department's approver role account.
+- Choosing a department with a similar name. The admin looks for the exact department name shown in the issue.
+- Leaving a **Could not notify** issue open. That reimbursement waits until you resend.

@@ -1,0 +1,136 @@
+---
+title: Department check and data health
+description: How global admins use the department check in IT to correct the department and office on BISO's Microsoft accounts and disable accounts nobody uses, and how they find department faults to fix in 24SevenOffice.
+who: "Global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/it/users/audit/**
+  - apps/admin/src/app/(portal)/it/users/_components/remediation-client.tsx
+  - apps/admin/src/app/(portal)/_actions/it-remediation.ts
+  - apps/admin/src/lib/it/remediation-bucketing.ts
+  - apps/admin/src/lib/it/email-classify.ts
+  - apps/admin/src/lib/it/department-matching.ts
+  - apps/admin/src/lib/it/inactivity.ts
+  - apps/admin/src/app/(portal)/it/data-health/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- The **Avdelingskontroll** (Department audit) tab isn't a log of what people did in the admin. That's the activity log. See [Everyday tools](/guide/start-here/everyday-tools#check-the-activity-log-global-admins-and-campus-leaders).
+- The department check compares the **Avdeling** (Department) and **Kontorsted** (Office location) of every licensed Microsoft account with BISO's list of departments. That list is copied from 24SevenOffice. If departments have changed there, run **Sync units** first. See [New and closed departments](/guide/departments-and-documents#new-and-closed-departments).
+- Both tabs read from Microsoft 365 and 24SevenOffice, so the steps are text only.
+- The check uses an AI service to suggest a department for each account. For each account it sends only the first part of the email address, the office location and an internal reference number. It doesn't send names. The AI can only pick a department that's on BISO's list.
+- Every fix you apply is written to Microsoft at once.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the department check">
+
+Open **System**, choose **IT**, then the **Avdelingskontroll** (Department audit) tab. The page is headed **Avdelingsrevisjon** (Department audit).
+
+</Step>
+<Step title="Run the analysis">
+
+The first time, the page says **Ingen analyse ennå** (No analysis yet). Choose **Kjør analyse** (Run analysis).
+
+The analysis reads every licensed account, so it can take a few minutes. Wait on the page until the results show.
+
+The result is saved, so it's still there when you come back. The page shows when it was made, **Sist generert** (Last generated), and a summary such as **12 grupper trenger oppfølging · 340 av 380 brukere er korrekte** (12 groups need attention · 340 of 380 users compliant). Disabled accounts are left out.
+
+To start again from fresh data, choose **Kjør analyse på nytt** (Re-run analysis). The new result replaces the old one.
+
+</Step>
+<Step title="Read the five tabs">
+
+The results are split into five tabs, each with a count:
+
+- **Trygg** (Safe): high-confidence matches.
+- **Gjennomgang** (Review): the AI suggested a department but wasn't sure.
+- **Manuell** (Manual): accounts the AI couldn't place, such as personal or national mailboxes.
+- **Inaktiv** (Inactive): accounts nobody has signed in to for 6 months or more.
+- **Nedlagt** (Closed): accounts in a department that's closed or inactive.
+
+Each tab has a line under it saying what to do. A tab with nothing in it says **Alt i orden** (All clear).
+
+</Step>
+<Step title="Apply the safe fixes">
+
+In **Trygg** (Safe), each row is a group of accounts that share a department value. It shows the value they have now, or **(tom avdeling)** (blank department), how many accounts there are, such as **4 brukere** (4 users), and what will be written, such as **Setter avdeling → …, kontor → …** (Sets department → …, office → …).
+
+Read every group. Then choose **Bruk alle trygge rettelser** (Apply all safe fixes). It applies every group in the tab at once. You see how it went, such as **18 oppdatert, 0 feilet** (18 updated, 0 failed).
+
+You can't leave a group out. If one looks wrong, apply them all, then correct those accounts by hand on their pages under **Brukere** (Users). See [Change an account's details](/guide/access-and-settings/manage-users#change-an-accounts-details-global-admins).
+
+</Step>
+<Step title="Confirm the review groups">
+
+In **Gjennomgang** (Review), each group shows the AI's reason next to the count. The AI's suggestion is already chosen in **Velg avdeling** (Select department).
+
+Check it. To pick another department, open **Velg avdeling** (Select department) and search in **Søk avdelinger…** (Search departments…). Then choose **Bruk** (Apply) on that group. The group shows **Oppdatert** (Updated) when every account in it was updated.
+
+</Step>
+<Step title="Place the manual accounts">
+
+In **Manuell** (Manual), each row is one account, with its name, login address and the AI's reason. Choose a department in **Velg avdeling** (Select department), then **Bruk** (Apply).
+
+</Step>
+<Step title="Deal with closed departments">
+
+**Nedlagt** (Closed) lists groups of accounts whose department is closed or inactive. There's no button here. The tab says **Brukere i en nedlagt eller inaktiv avdeling. Flytt dem i 24SO.** (Users in a closed or inactive department (e.g. nedlagt). Reassign them in 24SO.)
+
+</Step>
+<Step title="Disable accounts nobody uses">
+
+**Inaktiv** (Inactive) lists licensed accounts that are switched on but that nobody has signed in to for 6 months or more. An account that has never been used counts from the day it was made. Room, equipment and shared mailboxes are left out. If Microsoft doesn't provide sign-in data, this tab is empty.
+
+Each row shows the name, the login address, and **Sist innlogget** (Last sign-in) with a date, or **Aldri innlogget** (Never signed in).
+
+Every account in the list starts ticked. Untick each account you want to keep. **Velg alle** (Select all) ticks them all again, and **Fjern valg** (Clear) unticks them all.
+
+To disable the ticked accounts, choose **Deaktiver valgte** (Deactivate selected), which shows how many are ticked. The button changes to ask you to confirm, such as **Deaktiver 3 valgte? Klikk for å bekrefte** (Disable 3 selected? Click to confirm). Choose it again. You see how it went, such as **3 deaktivert, 0 feilet** (3 disabled, 0 failed).
+
+To disable one account, choose **Deaktiver** (Disable) on its row, then **Klikk for å bekrefte** (Click to confirm). The row then shows **Deaktivert** (Disabled).
+
+A disabled account can't sign in to Microsoft. It keeps its licences and groups. To switch it back on, see [Disable or enable an account](/guide/access-and-settings/manage-users#disable-or-enable-an-account-global-admins).
+
+</Step>
+<Step title="Check department data health">
+
+Choose the **24SO datakvalitet** (24SO data health) tab. It lists departments in BISO's department list that have a fault, with the columns **Avdeling** (Department), **Campus** and **Feil** (Issues). Each name is shown in quotes, so you can see a space at the end. The faults are:
+
+- **Mellomrom på slutten** (Trailing space): the name ends with a space.
+- **Duplikatnavn** (Duplicate name): two departments have the same name.
+- **Aktiv men merket nedlagt** (Active but marked nedlagt): the name says the department is closed, but it's still active.
+
+There's no button to fix them here. Fix each one in 24SevenOffice. Then run **Sync units** on **Avdelinger** (Departments) to copy the change, and open this tab again.
+
+If nothing is wrong, you see **Ingen datafeil funnet** (No data issues found).
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- **Bruk** (Apply) and **Bruk alle trygge rettelser** (Apply all safe fixes) write the department, and the campus that goes with it as the office location, to each Microsoft account at once. The old values aren't kept.
+- If some accounts fail, the ones that worked stay changed. An account that was disabled after the analysis is skipped and counted as failed.
+- The accounts you fix or disable leave the saved result. Everything else stays until you run the analysis again.
+- A new **Kontorsted** (Office location) also changes which campus leaders can see the account. A new **Avdeling** (Department) also changes who can approve that department's reimbursements, if the account is one of its approvers. See [Fix expense approval issues](/guide/access-and-settings/expense-approvals).
+- Disabling an account stops its Microsoft sign-in at once.
+- Nobody is emailed or notified.
+- The analysis, each fix and each account you disable are written to the activity log with your email.
+- **24SO datakvalitet** (24SO data health) only reads. It changes nothing.
+</WhatHappensNext>
+
+## Common mistakes
+
+- Looking here for who did what. This is a clean-up tool, not a log. Use **Aktivitet** (Activity).
+- Choosing **Deaktiver valgte** (Deactivate selected) without going through the list. Every inactive account starts ticked. Untick the ones you want to keep first.
+- Applying a **Gjennomgang** (Review) suggestion without checking it. The AI wasn't sure about these.
+- Choosing **Bruk alle trygge rettelser** (Apply all safe fixes) without reading the groups. It applies every one, and the old values aren't kept.
+- Fixing a department in 24SevenOffice and expecting it to show at once. Run **Sync units** first.
+- Working from an old result. The saved result can be weeks old. Check **Sist generert** (Last generated), and run the analysis again if accounts have changed since.
