@@ -18,11 +18,15 @@ Every script reads its settings through `config.ts` first. It stops when:
 
 - `DOCS_APPWRITE_PROJECT` is not set;
 - `DOCS_APPWRITE_PROJECT` is the production project (the `projectId` in
-  `packages/api/appwrite.config.json`);
+  `packages/api/appwrite.config.json`), in any case and with any spaces
+  around it;
 - `DOCS_APPWRITE_PROJECT` equals `APPWRITE_PROJECT_ID`,
   `NEXT_PUBLIC_APPWRITE_PROJECT` or `NEXT_PUBLIC_APPWRITE_PROJECT_ID` in the
-  shell, or `DOCS_APPWRITE_API_KEY` equals `APPWRITE_API_KEY`;
-- `DOCS_ADMIN_URL` points at the production domain.
+  shell.
+
+`seed.ts` and `capture.ts` also stop when `DOCS_APPWRITE_API_KEY` equals
+`APPWRITE_API_KEY`, or when `DOCS_ADMIN_URL` points at the production domain.
+`schema.ts` reads no key, so it can run before you make one.
 
 So run the scripts from a shell that has only the `DOCS_*` variables below,
 not one set up for an app.
@@ -47,7 +51,8 @@ not one set up for an app.
 2. **Push the schema.** Log the Appwrite CLI in to the server
    (`appwrite login`, with `--endpoint` set to the same endpoint as
    `DOCS_APPWRITE_ENDPOINT` for a self-hosted server). Then, from
-   `apps/docs`, with `DOCS_APPWRITE_ENDPOINT` and `DOCS_APPWRITE_PROJECT` set:
+   `apps/docs`, with `DOCS_APPWRITE_ENDPOINT` and `DOCS_APPWRITE_PROJECT` set
+   (no API key yet, that comes in step 3):
 
    ```bash
    bun run screenshots:schema
@@ -130,6 +135,14 @@ not one set up for an app.
    interviews won't appear in that grid. The shots use the lists on that tab,
    not the grid. The "days since applied" on each card also depends on the
    day you capture.
+
+   The vacancy deadlines are fixed too: 14 January 2027 for the published
+   vacancy and 29 January 2027 for the draft (`PUBLISHED_DEADLINE` and
+   `DRAFT_DEADLINE` in `seed-data.ts`). Capture before 15 January 2027.
+   After that, **Stillinger** (Jobs) shows the published vacancy past its
+   deadline, with **Frist passert** (Past deadline). To capture later, move
+   both deadlines forward and seed again. Before then, the days left on the
+   jobs list depend on the day you capture.
 
 7. **Add the images to the guide.** For each shot in `manifest.ts`, open its
    `page` and add a `<Screenshot>` after the content of the `<Step>` named in

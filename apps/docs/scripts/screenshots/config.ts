@@ -87,14 +87,11 @@ function readAdminUrl(env: Env): string {
 }
 
 /**
- * Reads and checks the screenshot settings. Pass the shell's env as it was
- * before anything changed it, so the guard sees the developer's real settings.
- *
- * Throws when a required value is missing, when the docs project is the
- * production project, or when it equals the project or key the apps are set
- * up with in this shell.
+ * The docs project's id, checked against production. Throws when it is
+ * missing, when it is the production project, or when it equals the project
+ * the apps are set up with in this shell.
  */
-export function readScreenshotConfig(env: Env): ScreenshotConfig {
+function readDocsProjectId(env: Env): string {
   const projectId = required(env, "DOCS_APPWRITE_PROJECT");
 
   if (sameProject(projectId, readProductionProjectId())) {
@@ -109,6 +106,35 @@ export function readScreenshotConfig(env: Env): ScreenshotConfig {
       );
     }
   }
+  return projectId;
+}
+
+/** Where `schema.ts` points the schema copy. It needs no API key. */
+export interface SchemaConfig {
+  endpoint: string;
+  projectId: string;
+}
+
+/**
+ * Reads and checks the settings `schema.ts` needs: the endpoint and the docs
+ * project, with the same production guard as `readScreenshotConfig`. The key
+ * isn't read, because the schema step runs before the key exists.
+ */
+export function readSchemaConfig(env: Env): SchemaConfig {
+  const projectId = readDocsProjectId(env);
+  return { endpoint: required(env, "DOCS_APPWRITE_ENDPOINT"), projectId };
+}
+
+/**
+ * Reads and checks the screenshot settings. Pass the shell's env as it was
+ * before anything changed it, so the guard sees the developer's real settings.
+ *
+ * Throws when a required value is missing, when the docs project is the
+ * production project, or when it equals the project or key the apps are set
+ * up with in this shell.
+ */
+export function readScreenshotConfig(env: Env): ScreenshotConfig {
+  const projectId = readDocsProjectId(env);
 
   const endpoint = required(env, "DOCS_APPWRITE_ENDPOINT");
   const apiKey = required(env, "DOCS_APPWRITE_API_KEY");

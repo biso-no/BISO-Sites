@@ -10,11 +10,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  REPO_ROOT,
-  readScreenshotConfig,
-  type ScreenshotConfig,
-} from "./config";
+import { REPO_ROOT, readSchemaConfig, type SchemaConfig } from "./config";
 
 export interface DocsSchemaConfig {
   endpoint: string;
@@ -28,7 +24,7 @@ const PROJECT_NAME = "BISO docs screenshots";
 
 export function buildDocsSchemaConfig(
   source: Record<string, unknown>,
-  config: ScreenshotConfig
+  config: SchemaConfig
 ): DocsSchemaConfig {
   const { tables, tablesDB } = source;
   if (!(Array.isArray(tables) && Array.isArray(tablesDB))) {
@@ -46,7 +42,8 @@ export function buildDocsSchemaConfig(
 }
 
 function main(): void {
-  const config = readScreenshotConfig({ ...process.env });
+  // Only the endpoint and the project: the API key is made after this step.
+  const config = readSchemaConfig({ ...process.env });
   const source = JSON.parse(
     readFileSync(join(REPO_ROOT, "packages/api/appwrite.config.json"), "utf8")
   ) as Record<string, unknown>;
