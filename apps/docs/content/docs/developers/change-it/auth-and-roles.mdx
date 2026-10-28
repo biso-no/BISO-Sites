@@ -1,0 +1,218 @@
+---
+title: Auth and roles
+description: How people sign in to the admin, the website, the API, the BISO app and these docs, how the admin turns Microsoft groups into roles and scope, the cookie rules on biso.no, and the known problems with roles.
+covers:
+  - apps/admin/src/lib/server.ts
+  - apps/admin/src/app/(auth)/auth/**
+  - apps/admin/src/app/(portal)/layout.tsx
+  - apps/admin/src/app/(editor)/layout.tsx
+  - apps/admin/src/lib/m365-sync.ts
+  - apps/admin/src/lib/authorization.ts
+  - apps/admin/src/lib/authorization-team-memberships.ts
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/api-auth.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - apps/admin/src/lib/content-authorization.ts
+  - apps/admin/src/lib/benefit-access.ts
+  - apps/admin/src/lib/documents/access.ts
+  - packages/shared/utils/team-roles.ts
+  - apps/web/src/lib/server.ts
+  - apps/web/src/app/(auth)/auth/**
+  - apps/web/src/app/(protected)/layout.tsx
+  - apps/web/src/lib/cookie-prefs.ts
+  - apps/web/src/lib/anon-session.ts
+  - apps/web/src/lib/auth-utils.ts
+  - apps/web/src/lib/api-client.ts
+  - apps/api/src/lib/auth.ts
+  - apps/api/src/lib/admin-auth.ts
+  - apps/api/src/lib/allowed-origins.ts
+  - apps/api/src/app/api/auth/**
+  - packages/api/server.ts
+  - apps/docs/lib/auth/**
+---
+
+Read this before you change sign-in, roles, cookies, or anything that decides who may see or change data. It goes through each app in turn, then the cookie rules on `biso.no`, then the known problems. The admin's roles have a critical flaw that the owner will fix. Read [Known issues](#known-issues) before you rely on a role to protect anything.
+
+## Who signs in where
+
+| App | Who | How they sign in | Session |
+|---|---|---|---|
+| Admin, `admin.biso.no` | Staff | Microsoft, through Appwrite's Microsoft sign-in | Cookie `a_session_biso_admin` |
+| Website, `biso.no` | Students and visitors | A BI student account, or a sign-in link sent by email. A visitor gets an anonymous session only when a feature needs one. | Cookie `a_session_biso_web` |
+| API, `api.biso.no` | The website and the BISO app | None of its own | An Appwrite JWT in each request |
+| BISO app | Students | A BI student account, or a sign-in link sent by email | Kept by the Appwrite SDK on the phone |
+| Docs | Staff and consultants | The admin's sign-in | Reads the admin's cookie |
+
+Every one of these is an Appwrite account in the same project. The schema file sets the project's session length to one year (`duration: 31536000` in `packages/api/appwrite.config.json`). To end someone's sessions at once, delete them on the user's page in the Appwrite console.
+
+## The admin
+
+### How staff sign in
+
+1. The sign-in page calls `signInWithAzure()` in `apps/admin/src/lib/server.ts`. It asks Appwrite for a Microsoft sign-in URL with the service key. The return address is `NEXT_PUBLIC_BASE_URL` followed by `/auth/oauth`. The admin refuses to start without that variable. Before it redirects, it expires any `a_session_biso` cookie. [Cookies on biso.no](#cookies-on-bisono) explains why.
+2. The person signs in with Microsoft. The Microsoft sign-in secret is set on Appwrite's Microsoft provider in the console. It isn't an environment variable.
+3. Appwrite sends them to `/auth/oauth` (`apps/admin/src/app/(auth)/auth/oauth/route.ts`). The route creates the session, then waits for `syncM365Permissions()` to copy the person's Microsoft groups into Appwrite teams. If the sync fails, the route logs `M365 Sync Failed:` and the person is signed in with the teams they already had.
+4. The route sets the `a_session_biso_admin` cookie and sends the person on.
+
+The admin has no sign-in link by email. `apps/admin/CLAUDE.md` still describes `signInWithMagicLink()` and an `/auth/callback` route. Neither exists: `(auth)/auth` holds only `login` and `oauth`.
+
+### Microsoft groups become Appwrite teams
+
+`syncM365Permissions()` in `apps/admin/src/lib/m365-sync.ts` runs at each admin sign-in, and at no other time:
+
+- It reads the Microsoft access token that Appwrite stored on the person's Microsoft identity. Without one, it skips the group sync without a word.
+- It asks Microsoft Graph for the person's groups through `/me/transitiveMemberOf`, so groups inside groups count.
+- It keeps only groups whose names start with `SG-App-Campus-` or `SG-App-Dept-`.
+- Each group becomes an Appwrite team. The team id is the group's name in lower case, so `SG-App-Dept-OperationsUnit` becomes `sg-app-dept-operationsunit`. The team name drops the prefix and splits the words: `Operations Unit`.
+- It creates any team that doesn't exist yet and adds the person as a `member`. When it creates a department team, it also gives that team rights on the matching `departments` rows, and the HR team gets `create` on the recruitment tables. [Data model](/developers/change-it/data-model#live-permissions-can-drift-from-the-file) has the details.
+- It removes the person from any `sg-app-campus-*` or `sg-app-dept-*` team whose group they're no longer in. It never touches other teams.
+
+[Getting access](/developers/start-here/getting-access#microsoft-account) lists which groups give which role.
+
+### Roles
+
+`getUserAuthContext()` in `apps/admin/src/lib/authorization.ts` works out every role. It runs with the person's own session and reads their account and up to 200 of their teams. Then `parseTeamMemberships()` in `authorization-team-memberships.ts` sorts the teams:
+
+- **Campus teams** are teams named `National`, `Oslo`, `Bergen`, `Trondheim` or `Stavanger`, or `SG-App-Campus-` followed by one of those.
+- **Department teams** are teams whose id starts with `sg-app-dept-` or whose name starts with `SG-App-Dept-`.
+- Every other team is ignored.
+
+The roles come from those lists (`packages/shared/utils/team-roles.ts`, `apps/admin/src/lib/roles.ts`):
+
+| Role | Who gets it |
+|---|---|
+| `globaladmin` | Members of the `National` campus team and the `Operations Unit` department team |
+| `campusadmin` | Members of a city's campus team and that city's `Ledelsen <City>` team. They manage that city. |
+| `hradmin` | Members of `National` and the HR department team |
+| `hr` | Members of the HR department team |
+| `benefitseditor` | People whose email is in `BENEFITS_EDITOR_EMAILS`, and only if that email is on their Microsoft identity |
+| `department` | Anyone in at least one department team. It counts as a role in the menu rules. |
+
+Two more rules:
+
+- Appwrite user labels are never used for roles.
+- Members of the `sg-app-dept-controlcommittee` team get a global admin's reach for governing documents only, through `documentAccessContext()` in `apps/admin/src/lib/documents/access.ts`. That check uses the team id.
+
+If Appwrite is down or times out, `getUserAuthContext()` throws, and the person sees an error. Any other failure counts as signed out.
+
+### Where access is checked
+
+The admin has no middleware. Each layout, page, server action and route handler checks access itself:
+
+| Check | Where it's used | What it does |
+|---|---|---|
+| `requireAdminAccess()` | The `(portal)` and `(editor)` layouts | No session: sends the person to sign in. Signed in, but in no campus or department team and not a benefits editor: shows the 401 page. |
+| `requireNavAccess(navKey)` | The top of each page | Global admins always pass. Anyone else needs a role listed for that key in `NAV_ACCESS` in `roles.ts`, or gets a 404. |
+| `requireAuth()` | Server actions | Sends the person to sign in if there's no session. It checks no role, so the action must check scope itself. |
+| `requireApiAuth()`, `requireApiGlobalAdmin()`, `requireApiAccountingAdmin()` | Route handlers (`apps/admin/src/lib/api-auth.ts`) | Answer 401 or 403 instead of redirecting. |
+
+`(protected)/profile` uses a different pair, `getLoggedInUser()` and `unauthorized()`. A new top-level route folder outside these groups must add its own check.
+
+`NAV_ACCESS` also decides what the sidebar shows. [Common changes](/developers/change-it/common-changes#add-an-admin-menu-item-with-role-access) shows how to add an item.
+
+### Campus and department scope
+
+The admin writes content with the service key, which ignores Appwrite's row permissions. So these checks in code are what keep a campus or a department to its own rows (`apps/admin/src/lib/utils/authorization.ts`, `apps/admin/src/lib/content-authorization.ts`):
+
+- **Lists.** `applyScopeQueries(ctx, fields)` returns the filters for a list. Tables that link rows to a campus and department through relationships use `applyContentRelationshipScopeQueries(ctx)` instead. A global admin gets no filter, or the campus picked in the campus switcher, which is kept in the `admin_campus_ctx` cookie. A campus admin gets their campuses. A department member gets their campus and their department. Anyone else gets a filter that matches nothing, so a list comes back empty instead of showing every row.
+- **Single rows.** `hasRowAccess()` says whether the person may see a row.
+- **Writes.** `assertWriteAccess()` throws unless the person may write to that campus and department. `assertPublishAccess()` is the same check today. `assertContentOwnership()` treats the campus and department ids sent from the browser as untrusted. It re-reads the department and checks that it belongs to the chosen campus.
+
+`listPages` and `publishPageAction` in `apps/admin/src/app/(portal)/_actions/pages.ts` show the pattern. A new list action without these filters shows every campus's rows.
+
+## The website
+
+### How students sign in
+
+- **BI student accounts.** `signInWithBiStudent()` in `apps/web/src/lib/server.ts` starts Appwrite's `oidc` sign-in with the scopes `openid`, `email` and `profile`. Appwrite returns the student to `/auth/oauth`. That route creates the session, copies the student number (`syncBiStudentIdentityAfterSignIn` from `@repo/shared/utils/bi-identity-sync`), sets `a_session_biso_web`, and expires the old `a_session_biso` cookie.
+- **Sign-in links by email.** `signInWithMagicLink()` sends a link back to `/auth/callback`. It refuses addresses that end in `@biso.no`. Asking for a link creates an Appwrite account if none exists for that email, and that account has no Microsoft identity. Appwrite's Microsoft sign-in then can't attach to it, so that person could never sign in to the admin.
+
+BI sign-in depends on the API. In the Appwrite console, the BI provider's discovery address points at the API's `/api/auth/bi-oidc/openid-configuration`. That route serves the discovery document for BI's tenant, from `BI_OIDC_WELL_KNOWN_URL`, with the user-info address swapped for the API's `/api/auth/bi-userinfo`. With Microsoft's own user-info address, Appwrite refuses to attach a BI sign-in to an existing account with the same email.
+
+### Anonymous sessions
+
+The website has no middleware and creates no session when someone views a page. `ensureAnonymousSession()` in `apps/web/src/lib/anon-session.ts` creates an anonymous session only when an action needs one, today in cart reservations and orders. Its cookie lasts 30 days. Call it first in any new action that writes rows the visitor must own.
+
+### Who counts as signed in
+
+An anonymous session passes `account.get()`, so that call alone doesn't prove anything. A person counts as signed in when they have an email, or a real name and a verified email (`isAuthenticatedAccount()` in `apps/web/src/lib/auth-utils.ts`). Use the same rule for any new check.
+
+The `(protected)` pages call `getLoggedInUser()`. With no signed-in person they show the 401 page. A person with no profile row goes to `/onboarding?required=1`.
+
+## The API
+
+`apps/api` has no sign-in of its own. A caller sends an Appwrite JWT:
+
+```http
+Authorization: Bearer <Appwrite JWT>
+```
+
+`createAuthenticatedClient(req)` in `apps/api/src/lib/auth.ts` passes it to `createSessionClient(jwt)`, so Appwrite's permissions apply as that person. Without the header, the client falls back to a session cookie. The member-pass routes read only the header and answer `401` with `not_authenticated` without it.
+
+Where callers get the JWT:
+
+- **The website.** The `createJWT` server action calls `createSessionJwt()` in `packages/api/server.ts`. That mints the token with the service key's `users.createJWT`, for the caller's own account and session only. It takes no user id, on purpose. The browser keeps the token for 14 minutes (`apps/web/src/lib/api-client.ts`). The expense pages use it, and checkout sends one from the server.
+- **The BISO app** calls `account.createJWT()` itself. See [The BISO app](#the-biso-app).
+
+`apps/api/src/proxy.ts` adds CORS headers to `/api/*`. It allows credentials and the `Authorization` and `Cookie` headers from the origins in `apps/api/src/lib/allowed-origins.ts`. In production those are `biso.no` and `admin.biso.no`, plus `web.biso.no` and `public.biso.no`, which aren't live. Outside production, `localhost` ports 3000 to 3002 are added.
+
+The routes under `/api/admin/*` work out roles with `getAdminScope(req)` in `apps/api/src/lib/admin-auth.ts`. It reads team names in its own way, which is looser than the admin's. See [Known issues](#known-issues).
+
+## The BISO app
+
+The app signs in with the Appwrite Flutter SDK, which keeps the session on the phone.
+
+- **BI student accounts.** The app opens Appwrite's `oidc` sign-in in a private browser sheet, which comes back to the app on the `appwrite-callback-biso` scheme. It then calls the API's `/api/auth/bi-sync` to copy the student number.
+- **Sign-in links by email.** The link points at `https://biso.no/auth/verify`, which opens the app. If it opens in a browser instead, the website's `/auth/verify` page offers a `biso://auth/verify` link and doesn't use the token itself.
+- **API calls** carry a JWT from `account.createJWT()`. The app reuses each token for 10 minutes, because Appwrite allows only 100 new JWTs per account per hour.
+
+[The mobile app](/developers/change-it/the-mobile-app) has the rest.
+
+## These docs
+
+Docs reuse the admin's Microsoft sign-in, so they need no Microsoft setup of their own. They only read the `a_session_biso_admin` cookie. They never set or clear a cookie and never use the service key. Because they read the admin's cookie, docs must run on a `biso.no` subdomain, with `APPWRITE_SESSION_COOKIE=a_session_biso_admin`.
+
+Private values are shown only to members of exact team ids: `sg-app-campus-national` with `sg-app-dept-operationsunit`, a city's campus team with its `sg-app-dept-ledelsen<city>` team, or `docs-handover` (`apps/docs/lib/auth/access.ts`). Team names are ignored. The full rules, and the owner's set-up steps, are in the "Sign-in" and "Private details" sections of `apps/docs/CLAUDE.md`.
+
+## Cookies on biso.no
+
+| Cookie | Set by | What it holds |
+|---|---|---|
+| `a_session_biso_admin` | Admin | The admin session. Docs read it too. |
+| `admin_campus_ctx` | Admin | The campus a global admin picked in the switcher, by name |
+| `a_session_biso_web` | Website | The website session, signed in or anonymous |
+| `a_session_biso` | Nothing now | The website's old session cookie. The website still reads it and expires it. |
+| `NEXT_LOCALE`, `campusId` | Website | The visitor's language and campus |
+
+In production, session cookies are set on `.biso.no` with `Secure` and `SameSite=None`. Locally they have no domain, so they belong to `localhost` on every port.
+
+Rules that have broken production before:
+
+- **Never name a session cookie `a_session_biso`.** That's Appwrite's own cookie name for the project `biso`. Appwrite runs on a `biso.no` subdomain, so the browser sends a `.biso.no` cookie with that name to Appwrite too, including on the sign-in callback. Appwrite then treats the website visitor as the account signing in, and admin sign-in failed with `409 user_already_exists`. The website stopped writing it. The admin still expires it before each Microsoft sign-in.
+- **Set `APPWRITE_SESSION_COOKIE` on every app that reads a session.** Unset, `packages/api` reads `a_session_biso`. The website refuses to start unless it's `a_session_biso_web`, and the admin unless it's `a_session_biso_admin`. Docs and the API don't check.
+- **Expire a `.biso.no` cookie with the same domain.** Use `cookies().set(name, "", expiredSessionCookieOptions())` from `apps/web/src/lib/cookie-prefs.ts`. `cookies().delete(name)` leaves out the domain, so in production it does nothing.
+- **Every `biso.no` subdomain gets the admin session.** The browser sends `a_session_biso_admin` to every `*.biso.no` host. Host only BISO's own sites on `biso.no` subdomains.
+
+## Known issues
+
+### Roles come from team names, which anyone can create
+
+This is a known critical issue, and the owner will fix it.
+
+**What's wrong.** The admin and the API work out roles from Appwrite team names. In the admin, `parseTeamMemberships()` counts a team as the `National` campus, or as a department, by its name (`apps/admin/src/lib/authorization-team-memberships.ts`). The role rules in `packages/shared/utils/team-roles.ts` then match names such as `Operations Unit`. In the API, `getAdminScope()` reads every team name through `normalizeTeamName()`. But any signed-in Appwrite user, anonymous sessions included, can create a team with any name and become its owner.
+
+**Why it matters.** A team name proves nothing about a person's Microsoft groups. So no admin role can be trusted to protect data until this is fixed. That covers publishing on the website, orders, IT user management in Microsoft, and the API's admin routes.
+
+**The fix.** Check exact team ids, the way docs do in `apps/docs/lib/auth/access.ts`. The M365 sync creates each team with a known id, and once a team with that id exists nobody else can create another. The Control Committee check already works this way. Before you switch, make sure each team id you trust exists in production and has no owner and no members outside the matching Microsoft group. "Owner actions" in `apps/docs/CLAUDE.md` lists the ids and how to check them.
+
+### The API's admin routes go further than the admin
+
+`getAdminScope()` treats any team that isn't a campus as a department. For someone who isn't a global or campus admin, it treats every campus they belong to as one they manage. So `POST /api/admin/users`, which creates Microsoft accounts in BISO's tenant, accepts a plain campus member for their own campus. Neither the website nor the admin calls the `/api/admin/*` routes. Fix this together with the issue above.
+
+### Group changes reach the admin only at the next sign-in
+
+The sync runs only when someone signs in to the admin. When a person is removed from a Microsoft group, they keep the matching team, and its role, until they next sign in. A session can last a year. When someone leaves, remove their `sg-app-*` team memberships and delete their sessions in the Appwrite console. [Getting access](/developers/start-here/getting-access#when-the-work-ends) has the full order.
+
+### The role-account turnover leaves Appwrite sessions open
+
+The board turnover on the admin's **IT** page (`triggerM365Turnover` in `apps/admin/src/app/(portal)/_actions/it-turnover.ts`) ends the role account's Microsoft sign-in sessions. It doesn't end its Appwrite sessions. If the previous holder signed in to the admin with that account, they stay signed in, with its roles. Delete those sessions by hand straight after each turnover, as in [After each turnover](/developers/keep-it-running/yearly-calendar#after-each-turnover).
