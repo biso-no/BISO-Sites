@@ -63,8 +63,8 @@ None of this talks to Appwrite. It worked when Turbo's summary reports every tas
 
 The repo has no local Appwrite and no staging project, so make an Appwrite project of your own before you run anything. [Local setup](/developers/change-it/local-setup) has the full steps and the usual first-run failures. In short:
 
-1. Create your own project and make an API key in it, as steps 1 to 3 of `apps/docs/scripts/screenshots/README.md` describe. Never run `appwrite push` from `packages/api`: its config names the production project.
-2. Create `apps/<app>/.env.local` for each app you run, with your project's `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT` and `APPWRITE_API_KEY`. The website needs `APPWRITE_SESSION_COOKIE=a_session_biso_web`. The admin needs `APPWRITE_SESSION_COOKIE=a_session_biso_admin` and `NEXT_PUBLIC_BASE_URL=http://localhost:3001`.
+1. Create your own project, push the tables to it and make an API key in it, as steps 1 to 3 of `apps/docs/scripts/screenshots/README.md` describe. Never run `appwrite push` from `packages/api`: its config names the production project.
+2. For each app you run, copy `apps/<app>/.env.example` to `apps/<app>/.env.local`, then fill in your project's `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT` and `APPWRITE_API_KEY`. The website needs `APPWRITE_SESSION_COOKIE=a_session_biso_web` and the admin `APPWRITE_SESSION_COOKIE=a_session_biso_admin`. Their templates already hold those values. The admin also needs `NEXT_PUBLIC_BASE_URL=http://localhost:3001`.
 3. Start one app from the repo root, for example `bun run dev --filter=admin`. Don't set the values with `export` instead: Turbo drops shell variables that a task doesn't declare, apart from `NEXT_PUBLIC_*` ones.
 4. Check that it worked. The admin prints no `Falling back to production Appwrite defaults` line, and `/api/health/ready` on the website, the admin or the API answers `{"status":"ready", …}`.
 

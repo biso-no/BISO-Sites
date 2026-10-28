@@ -28,7 +28,7 @@ Read this before you add a table or a column, write a query, or change who can r
 | `app` | App | 98. Everything the apps use. Queries name it as the database id, for example `db.getRow<Users>("app", "user", user.$id)`. |
 | `24so` | Finago | 2: `departments` and `auth_tokens`. The 24SevenOffice connector keeps its login token in `auth_tokens`. |
 
-Both databases have a table called `departments`, so the type generator would produce two `Departments` types. `bun run types:generate` renames the second one. See [Types](#types).
+Both databases have a table called `departments`. The committed types have one `Departments` type, for the `app` table, and none for the `24so` one. See [Types](#types).
 
 The same file also defines four storage buckets (`media`, `documents`, `expenses` and `resumes`), the `scheduled-dispatch` function, and 50 messaging topics for push notifications: one for each kind of notice (general, news, events, jobs and shop), each campus or all of BISO, and each language.
 
@@ -71,7 +71,7 @@ The admin sets a content row's permissions from its status:
 - a published row gets `read("any")`, so anyone can read it;
 - a draft, archived or unpublished row gets no permissions, so only the service key can read it.
 
-This works only when row security is on and the table itself grants no read. A table-level `read("any")` lets anyone read every row, whatever the row's own permissions say. The checked-in schema doesn't meet that for every content table yet: see [Known issues](#known-issues).
+This works only when row security is on and the table itself grants no read. A table-level `read("any")` lets anyone read every row, whatever the row's own permissions say. The schema file gives several content tables that grant: see [Known issues](#known-issues).
 
 The code also has a members-only variant that gives read access to a `biso-members` team. That team isn't used, so ignore it. Teams mirrored from Microsoft groups (`sg-app-*`) never go into a content row's permissions, so those permissions don't change when the groups do (`packages/api/page-builder.ts`, `buildContentRowPermissions` in `apps/admin/src/lib/utils.ts`).
 
@@ -94,7 +94,7 @@ Some operational tables still give access to whole teams at table level. For exa
 `packages/api/appwrite-config.test.ts` and `appwrite-config-permissions.test.ts` read `appwrite.config.json` and fail when:
 
 - a table or bucket grants `create("any")` or `create("users")`. The one allowed exception is `create("users")` on `user`, because the BISO app may still rely on it;
-- anything grants access to a team called `admin`;
+- a table grants access to a team called `admin`;
 - the `resumes` or `expenses` bucket has no list of allowed file types, or allows files of 100 MB or more.
 
 ### Live permissions can drift from the file
@@ -103,8 +103,9 @@ Signing in to the admin can change permissions. When the Microsoft group sync cr
 
 ## Known issues
 
-- **Draft pages.** `pages` and `page_translations` have row security off and a table-level `read("any")` in the checked-in schema. That doesn't match the rule above. The owner knows and is fixing it. Don't try to fix it by running the content-permission cutover on its own: it removes table-level permissions but leaves row security as it is, so with row security off, guests couldn't read any page at all.
-- **The schema file may be out of date for content tables.** It still shows table-level `read("any")` and `create` grants for some `sg-app-dept-*` teams on the content tables, such as `news` and `events`. The content-permissions design removes those grants, and while a table keeps its `read("any")`, its row permissions don't limit who can read it. A cutover script removes them (`bun run cutover:content-permissions` in `packages/api`; dry run unless you add `-- --apply`). The repo doesn't show whether it has run against production. The script reads `apps/admin/.env.local`, so check which project that file names before you run it.
+- **Content tables grant read to anyone at table level in the schema file.** `appwrite.config.json` gives a table-level `read("any")` to `news`, `events`, `jobs`, `documents`, `document_versions`, `content_translations` and `campus_benefits`, which have row security on, and to `pages`, `page_translations` and `webshop_products`, which have row security off. While that grant stands, anyone can read every row in those tables, drafts included, whatever the row's own permissions say. Most of these tables also grant `create` to some `sg-app-dept-*` teams. The repo doesn't record whether the live tables match the file. Check each table's permissions in the Appwrite console.
+- **Draft pages.** For pages, the rule is that only published pages are publicly readable. In the schema file, `pages` and `page_translations` have row security off and a table-level `read("any")`, which doesn't match that rule. The owner will fix it later.
+- **Don't apply the content-permission cutover.** `packages/api/scripts/cutover-content-permissions.ts` removes every table-level permission from ten content tables at once and leaves row security as it is. `pages`, `page_translations` and `webshop_products` have row security off, so after it the website couldn't read any page, and neither the website nor the BISO app could read shop products. Don't apply it until row security is on for those three tables. That is the owner's call. By default the script is a dry run: it lists what it would remove and changes nothing. It reads `apps/admin/.env.local`, so check which project that file names first.
 - **A failing schema test.** `packages/api/benefits-schema.test.ts` expects `campus_benefits` to have no table-level permissions, so that benefits are readable only through their rows. The checked-in schema gives the table `read("any")`, and the test fails.
 
 ## Types
@@ -130,7 +131,15 @@ cd packages/api
 bun run types:generate
 ```
 
-The script runs `appwrite types -l ts ./types`, renames the CLI's `appwrite.d.ts` to `appwrite.ts`, and renames two `24so` types so they don't clash with `app` types: `24SevenOfficeAuthTokens` becomes `TwentyFourSevenOfficeAuthTokens`, and the second `Departments` becomes `TwentyFourSevenOfficeDepartments`. Don't run the bare CLI command, even though the root `CLAUDE.md`, the app `CLAUDE.md` files and the comment at the top of `appwrite.ts` quote it. It skips the file rename and both type renames.
+The script does three things:
+
+1. It runs `appwrite types -l ts ./types`.
+2. It renames the CLI's `appwrite.d.ts` to `appwrite.ts`.
+3. It renames `24SevenOfficeAuthTokens` to `TwentyFourSevenOfficeAuthTokens`. The CLI names that type after the unused `app` table `24so_tokens` ("24 Seven Office Auth tokens"), and a TypeScript type name can't start with a digit. The `24so` table `auth_tokens` comes out as `AuthTokens` and isn't renamed.
+
+The script also tries to rename a second `Departments` type, for the `24so` table, to `TwentyFourSevenOfficeDepartments`. Today's CLI output has no second `Departments`, so that step changes nothing.
+
+Don't run the bare CLI command, even though the root `CLAUDE.md`, the app `CLAUDE.md` files and the comment at the top of `appwrite.ts` quote it. Without the renames, `24SevenOfficeAuthTokens` breaks `check-types`, and `appwrite.d.ts` is left behind.
 
 It worked when `packages/api/types/appwrite.ts` has your change, no `appwrite.d.ts` is left in `packages/api/types`, and `bun run check-types` passes.
 

@@ -32,7 +32,7 @@ Read this before you run any of the apps on your machine. It covers the tools to
 
   It worked when the second command prints `1.3.1`.
 - **Node 22 or later.** `package.json` asks for it in `engines`.
-- **The Appwrite CLI**, to create your own project and to generate types. It isn't a repo dependency, so install it yourself, for example with `bun add -g appwrite-cli`.
+- **The Appwrite CLI**, to push the tables to your own project and to generate types. You create the project itself in the Appwrite console. The CLI isn't a repo dependency, so install it yourself, for example with `bun add -g appwrite-cli`.
 - **Access to the Appwrite console**, to create your project. [Getting access](/developers/start-here/getting-access) says how to get it.
 
 ## Install
@@ -71,12 +71,12 @@ Three things catch people out:
 ## Point the apps at your own Appwrite project
 
 <Callout type="warn">
-`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset or empty, that value silently becomes the production one (`packages/api/server-env.ts`, `packages/api/client.ts`). Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local file.
+`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset or empty, that value silently becomes the production one (`packages/api/server-env.ts`, `packages/api/client.ts`). Server code tries `APPWRITE_ENDPOINT` and `APPWRITE_PROJECT_ID` first, but the browser reads only the `NEXT_PUBLIC_*` names, so set those. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local file.
 </Callout>
 
 The repo has no local Appwrite (no Docker Compose file) and doesn't record a non-production project. Make your own on the same server:
 
-1. Follow steps 1 to 3 in `apps/docs/scripts/screenshots/README.md`. They create a separate project, push the tables to it from a temporary copy of the schema, and make an API key. The copy has no buckets, functions or messaging topics, so file uploads, functions and push don't work in that project.
+1. Follow steps 1 to 3 in `apps/docs/scripts/screenshots/README.md`. You create a separate project in the console, push the tables to it with the CLI from a temporary copy of the schema, and make an API key. The copy has no buckets, functions or messaging topics, so file uploads, functions and push don't work in that project. The key gets only the scopes the screenshot scripts need: reading and writing users, teams and rows, and reading databases and tables. That includes `users.read`, which `/api/health/ready` needs. Add scopes to the key when you work on something that needs more.
 2. Never run `appwrite push` from `packages/api`. Its `appwrite.config.json` names the production project.
 3. Put your project's values in each app's `.env.local`, next to the session cookie names above:
 

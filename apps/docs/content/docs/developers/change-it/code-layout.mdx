@@ -56,7 +56,7 @@ The table in the root `CLAUDE.md` leaves out `@repo/tours`, `@repo/wp-import` an
 ### How the apps use the packages
 
 - **Packages ship TypeScript source, with no build output.** Each app compiles them through `transpilePackages` in its `next.config`. To use another `@repo/*` package in an app, add it to the app's `package.json` as `"workspace:*"` and to that list.
-- **Each package's `build` script is `tsc --noEmit`.** `build` depends on `^build`, so `turbo run build` type-checks every package an app uses before the app's own `next build`.
+- **Most packages' `build` script is `tsc --noEmit`.** `build` depends on `^build`, so `turbo run build` type-checks those packages before the app's own `next build`. `packages/editor` and `packages/wp-import` have no `build` script, and `packages/typescript-config` only prints a message. The app's `next build` still checks the editor files it imports.
 - **`@/*` points at two folders in the admin and the website.** In both, it resolves to the app's `src/*` first and then to `packages/editor/src/*`, and the editor uses `@/` internally. So a new `@/foo` file can hide an editor file with the same path, or the other way round.
 
 ## Turbo tasks
@@ -102,7 +102,7 @@ The table in the root `CLAUDE.md` leaves out `@repo/tours`, `@repo/wp-import` an
 ## Conventions that matter
 
 - **Server first.** Use Server Components and server actions by default. Mark a file `"use client"` only when it needs state, effects or browser APIs.
-- **All Appwrite access goes through `@repo/api`.** Use `createSessionClient()` for the signed-in user (Appwrite's row permissions apply), `createAdminClient()` for the service key (it bypasses them), and `createPublicClient()` for a guest client with no cookie, which is safe inside `"use cache"`. Outside `packages/api`, only one-off scripts in `packages/shared/scripts` and `packages/wp-import` import the Appwrite SDKs directly.
+- **All Appwrite access goes through `@repo/api`.** Use `createSessionClient()` for the signed-in user (Appwrite's row permissions apply), `createAdminClient()` for the service key (it bypasses them), and `createPublicClient()` for a guest client with no cookie, which is safe inside `"use cache"`. Outside `packages/api`, only one-off scripts in `packages/shared/scripts`, `packages/wp-import` and one script in the root `scripts/` folder import the Appwrite SDKs directly.
 - **Never import `@repo/api/server` from a client component.** `packages/api/server.ts` starts with `"use server"`, so every export, `createAdminClient` included, is a server action. Imported into a client component, they could be called from the browser. Nothing does this today.
 - **A `"use server"` file may export only async functions.** Exporting a constant or a plain function breaks the build, and `check-types` doesn't notice. Put shared constants and helpers in a plain module.
 - **The website's cached readers throw.** A function marked `"use cache"` in `apps/web/src/lib/data/` must throw on failure, never return an empty list. A caught failure inside it would be cached for the whole cache window. Handle the error where you call it.
