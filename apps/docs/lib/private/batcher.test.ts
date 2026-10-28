@@ -46,7 +46,6 @@ describe("private batcher windows", () => {
       return okAll(names);
     });
     const names = Array.from({ length: 25 }, (_, i) => `n${i}`);
-    // biome-ignore lint/suspicious/noExplicitAny: synthetic names
     await Promise.all(names.map((n) => request(n as any)));
     expect(calls.map((c) => c.length)).toEqual([20, 5]);
   });
