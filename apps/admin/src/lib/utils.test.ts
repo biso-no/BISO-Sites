@@ -109,6 +109,21 @@ describe("sanitizeRedirectTarget", () => {
     expect(sanitizeRedirectTarget("")).toBe("/");
   });
 
+  test("rejects control characters and whitespace in relative paths", () => {
+    for (const bad of [
+      "/%09/evil.com",
+      "%2F%09%2Fevil.com",
+      "/\t/evil.com",
+      "/\t\\evil.com",
+      "/%09%5Cevil.com",
+      "/%0A/evil.com",
+      "/%0D/evil.com",
+      "/%00",
+    ]) {
+      expect(sanitizeRedirectTarget(bad)).toBe("/");
+    }
+  });
+
   test("accepts the docs origin with path and query preserved", () => {
     const url = "https://docs.biso.no/it/guide?a=1%202#top";
     expect(sanitizeRedirectTarget(url)).toBe(url);
@@ -130,6 +145,8 @@ describe("sanitizeRedirectTarget", () => {
       "http://docs.biso.no/x",
       "https://docs.biso.no:8443/x",
       "javascript:alert(1)",
+      "https://docs.biso.no/x%00",
+      "https://docs.biso.no/x%0Ay",
     ]) {
       expect(sanitizeRedirectTarget(bad)).toBe("/");
     }

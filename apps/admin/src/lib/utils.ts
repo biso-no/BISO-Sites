@@ -34,6 +34,11 @@ export const isProd =
   process.env.VERCEL_ENV === "production" ||
   process.env.NODE_ENV === "production";
 
+// C0 controls and DEL (tab, CR, LF among them): browsers strip tabs/newlines from URLs, so
+// "/\t/evil.com" would become "//evil.com".
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching them is the point
+const CONTROL_OR_SPACE = /[\u0000-\u001f\u007f]/;
+
 const PLAIN_ABSOLUTE_URL = /^https?:\/\/[^\s\\@]*$/i;
 
 /**
@@ -69,16 +74,19 @@ export function sanitizeRedirectTarget(
   if (!input) {
     return "/";
   }
-  // The docs site is the one cross-origin target allowed. Check the raw value
-  // first so a docs URL whose query holds %-escapes is returned unchanged.
-  if (isDocsUrl(input)) {
-    return input;
-  }
   let decoded: string;
   try {
     decoded = decodeURIComponent(input);
   } catch {
     return "/";
+  }
+  if (CONTROL_OR_SPACE.test(decoded)) {
+    return "/";
+  }
+  // The docs site is the one cross-origin target allowed. Check the raw value
+  // first so a docs URL whose query holds %-escapes is returned unchanged.
+  if (isDocsUrl(input)) {
+    return input;
   }
   if (isDocsUrl(decoded)) {
     return decoded;

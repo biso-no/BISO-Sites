@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export interface ViewerInfo {
@@ -44,7 +45,12 @@ export function ViewerStatusView({
   const name = firstName(viewer.name);
   return (
     <span className="flex items-center gap-2 px-2 text-[13px] text-paper md:text-sm">
-      {name ? <span>{name}</span> : null}
+      {name ? (
+        <span>
+          <span className="sr-only">Signed in as </span>
+          {name}
+        </span>
+      ) : null}
       {viewer.canSeePrivate ? (
         <span className="rounded border border-paper px-1.5 py-0.5 text-[11px] leading-none">
           Private details on
@@ -58,14 +64,20 @@ export function ViewerStatusView({
 export function ViewerStatus() {
   const [viewer, setViewer] = useState<ViewerInfo | null>(null);
   const [currentUrl, setCurrentUrl] = useState("");
+  const pathname = usePathname();
   const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+
+  // The header persists across client navigations: keep the return URL current.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger
+  useEffect(() => {
+    setCurrentUrl(window.location.href);
+  }, [pathname]);
 
   useEffect(() => {
     if (!adminUrl) {
       return;
     }
     const controller = new AbortController();
-    setCurrentUrl(window.location.href);
     fetch("/api/viewer", { cache: "no-store", signal: controller.signal })
       .then((response) => (response.ok ? response.json() : null))
       .then((data: ViewerInfo | null) => setViewer(data))

@@ -47,6 +47,7 @@ test("signed in shows the first name and no private marker", () => {
       viewer={{ signedIn: true, name: "Kari Nordmann", canSeePrivate: false }}
     />
   );
+  expect(html).toContain("Signed in as");
   expect(html).toContain("Kari");
   expect(html).not.toContain("Nordmann");
   expect(html).not.toContain("Private details on");
