@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { signInHref } from "@/lib/auth/sign-in-link";
 
 export interface ViewerInfo {
   canSeePrivate: boolean;
@@ -9,7 +10,6 @@ export interface ViewerInfo {
   signedIn: boolean;
 }
 
-const TRAILING_SLASHES = /\/+$/;
 const WHITESPACE = /\s+/;
 
 const LINK_CLASS =
@@ -34,7 +34,7 @@ export function ViewerStatusView({
   }
 
   if (!viewer.signedIn) {
-    const href = `${adminUrl.replace(TRAILING_SLASHES, "")}/auth/login?redirectTo=${encodeURIComponent(currentUrl)}`;
+    const href = signInHref(adminUrl, currentUrl);
     return (
       <a className={LINK_CLASS} href={href}>
         Sign in
