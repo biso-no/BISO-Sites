@@ -101,9 +101,11 @@
       "name": "docs",
       "version": "0.0.0",
       "dependencies": {
+        "@repo/ai": "workspace:*",
         "@repo/api": "workspace:*",
         "@repo/shared": "workspace:*",
         "@repo/ui": "workspace:*",
+        "ai": "catalog:",
         "fumadocs-core": "catalog:",
         "fumadocs-mdx": "catalog:",
         "fumadocs-ui": "catalog:",

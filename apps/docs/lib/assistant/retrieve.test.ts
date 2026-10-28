@@ -73,12 +73,15 @@ test("selectSources respects maxSources", () => {
   expect(out).toHaveLength(2);
 });
 
-test("the assistant code never imports the private source", () => {
-  for (const file of readdirSync(import.meta.dir)) {
-    if (!file.endsWith(".ts") || file.endsWith(".test.ts")) {
-      continue;
+test("the assistant code and the ask route never import the private source", () => {
+  const dirs = [import.meta.dir, join(import.meta.dir, "../../app/api/ask")];
+  for (const dir of dirs) {
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith(".ts") || file.endsWith(".test.ts")) {
+        continue;
+      }
+      const text = readFileSync(join(dir, file), "utf8");
+      expect(text, file).not.toMatch(PRIVATE_IMPORT);
     }
-    const text = readFileSync(join(import.meta.dir, file), "utf8");
-    expect(text, file).not.toMatch(PRIVATE_IMPORT);
   }
 });
