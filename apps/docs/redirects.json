@@ -1,6 +1,30 @@
 [
   { "source": "/docs", "destination": "/" },
   { "source": "/docs/getting-started/:path*", "destination": "/" },
+  {
+    "source": "/docs/admin-handbook/jobs",
+    "destination": "/guide/recruitment"
+  },
+  {
+    "source": "/docs/admin-handbook/jobs/creating-vacancies",
+    "destination": "/guide/recruitment/publish-a-vacancy"
+  },
+  {
+    "source": "/docs/admin-handbook/jobs/applications-workspace",
+    "destination": "/guide/recruitment/review-applications"
+  },
+  {
+    "source": "/docs/admin-handbook/jobs/ai-screening",
+    "destination": "/guide/recruitment/review-applications"
+  },
+  {
+    "source": "/docs/admin-handbook/jobs/interviews-and-booking",
+    "destination": "/guide/recruitment/book-interviews"
+  },
+  {
+    "source": "/docs/admin-handbook/signing-in",
+    "destination": "/guide/start-here/sign-in"
+  },
   { "source": "/docs/admin-handbook/:path*", "destination": "/guide" },
   { "source": "/docs/public-website/:path*", "destination": "/developers" },
   { "source": "/docs/architecture/:path*", "destination": "/developers" },

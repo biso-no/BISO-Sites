@@ -32,8 +32,14 @@ test("no chains or loops", () => {
 
 test("deep path and trailing slash", () => {
   expect(
-    matchRedirect("/docs/admin-handbook/jobs/creating-vacancies/", rules)
+    matchRedirect("/docs/admin-handbook/events/creating-events/", rules)
   ).toBe("/guide");
+});
+
+test("specific rule beats the section fallback", () => {
+  expect(
+    matchRedirect("/docs/admin-handbook/jobs/creating-vacancies/", rules)
+  ).toBe("/guide/recruitment/publish-a-vacancy");
 });
 
 test("section root without a sub-path", () => {
