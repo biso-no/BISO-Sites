@@ -1,0 +1,110 @@
+---
+title: Code layout
+description: The monorepo's apps, packages and functions, how Turbo runs tasks across them, where to find things, and the conventions that matter.
+covers:
+  - package.json
+  - turbo.json
+  - biome.jsonc
+  - apps/*/next.config.*
+  - apps/admin/tsconfig.json
+  - apps/web/tsconfig.json
+  - apps/api/src/proxy.ts
+  - packages/*/package.json
+  - functions/*/package.json
+  - packages/api/server.ts
+---
+
+Read this to find your way around the repo before you change anything, and come back to it when a Turbo task behaves oddly. BISO-Sites is one Bun workspace with four Next.js apps, eleven shared packages and three Appwrite functions. Turbo runs their scripts. The BISO app lives in a separate repo, BISO-Flutter.
+
+## The workspace
+
+`package.json` declares three workspace folders: `apps/*`, `packages/*` and `functions/*`. Shared dependency versions are set once, in the root `catalog` block (React, Next.js, TypeScript, the Appwrite SDKs and more), and each workspace refers to them as `"<pkg>": "catalog:"`. Internal packages are referenced as `"@repo/<name>": "workspace:*"`.
+
+### Apps
+
+| App | Port | What it is |
+|---|---|---|
+| `apps/web` | 3000 | The public website at `biso.no`. Next.js App Router with `cacheComponents` on. |
+| `apps/admin` | 3001 | The staff CMS at `admin.biso.no`. Route groups `(auth)`, `(portal)`, `(editor)`, `(protected)` and `(scan)`. It has no middleware: each route-group layout, server action and route handler checks access itself. |
+| `apps/docs` | 3002 | This site, built with Fumadocs. Pages are in `content/docs/guide` and `content/docs/developers`. `legacy/` holds the old pages and isn't built. |
+| `apps/api` | 3003 | A Next.js app that serves only route handlers, under `src/app/api/*`, for the website and the BISO app. `src/proxy.ts` adds CORS headers to `/api/*`. |
+
+All four build with `output: "standalone"`, traced from the repo root. [Deploying](/developers/keep-it-running/deploying) says how that output reaches Appwrite.
+
+### Packages
+
+| Package | Folder | What it holds |
+|---|---|---|
+| `@repo/api` | `packages/api` | All Appwrite access: the server and browser clients, the page editor's draft and publish flow, the schema (`appwrite.config.json`) and the generated row types. See [Data model](/developers/change-it/data-model). |
+| `@repo/editor` | `packages/editor` | The in-house block page editor and the renderer the website uses. |
+| `@repo/shared` | `packages/shared` | Logic more than one app needs: membership, ledger postings to 24SevenOffice, team roles, unit visibility, the member pass and recruitment. |
+| `@repo/ui` | `packages/ui` | Shared React components (Radix, Tailwind, Plate.js editor kits) and the shared CSS. |
+| `@repo/connectors` | `packages/connectors` | Outside services: Microsoft Graph and BI's directory, 24SevenOffice, SharePoint, the Teams bot, Tickster and email. |
+| `@repo/payment` | `packages/payment` | Vipps MobilePay and Stripe, refunds and reconciliation. Mostly used by `apps/api`. |
+| `@repo/ai` | `packages/ai` | AI SDK setup, the Anthropic models, prompts, the admin assistant's tools and server helpers such as the recruitment screener. |
+| `@repo/i18n` | `packages/i18n` | Locales (`no` and `en`, default `no`) and the message files in `messages/no` and `messages/en`. |
+| `@repo/tours` | `packages/tours` | Guided tours in the admin. |
+| `@repo/wp-import` | `packages/wp-import` | A one-off command-line import from the old WordPress site into Appwrite. |
+| `@repo/typescript-config` | `packages/typescript-config` | Shared `tsconfig` presets. |
+
+The table in the root `CLAUDE.md` leaves out `@repo/tours`, `@repo/wp-import` and the `functions/` folder.
+
+### Functions
+
+`functions/` holds the three Appwrite Functions: `scheduled-dispatch`, `content-notifier` and `member-roster-sync`. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs) says what each one does.
+
+### How the apps use the packages
+
+- **Packages ship TypeScript source, with no build output.** Each app compiles them through `transpilePackages` in its `next.config`. To use another `@repo/*` package in an app, add it to the app's `package.json` as `"workspace:*"` and to that list.
+- **Each package's `build` script is `tsc --noEmit`.** `build` depends on `^build`, so `turbo run build` type-checks every package an app uses before the app's own `next build`.
+- **`@/*` points at two folders in the admin and the website.** In both, it resolves to the app's `src/*` first and then to `packages/editor/src/*`, and the editor uses `@/` internally. So a new `@/foo` file can hide an editor file with the same path, or the other way round.
+
+## Turbo tasks
+
+| Task | Set-up in `turbo.json` | Note |
+|---|---|---|
+| `build` | Depends on `^build`. Lists its env vars, reads `.env` and `.env.*` as inputs, and caches `.next` and `dist`. | The deploy scripts (`bun run build:<app>:appwrite`) run it too. |
+| `check-types` | Depends on `_transit` | Required before merging. |
+| `_transit` | Depends on `^_transit` | Runs nothing. See below. |
+| `dev` | Not cached, persistent | Declares no env vars. |
+| `test` | Not cached, no dependencies | |
+| `lint`, `fix` | No dependencies | No workspace has a `fix` script, so `bun run fix` does nothing. |
+
+### Gotchas
+
+- **Strict env mode.** `turbo.json` doesn't set `envMode`, so Turbo's default, strict mode, applies. A task sees only the variables it declares, plus `NEXT_PUBLIC_*` ones, which Turbo adds for Next.js apps by itself. Everything else in your shell is dropped. That's why local values belong in `.env.local`, which Next.js reads itself: see [Local setup](/developers/change-it/local-setup#env-files).
+- **The build env allow-list.** `tasks.build.env` lists about 80 variable names. If `next build` needs a variable that isn't `NEXT_PUBLIC_*` and isn't on that list, the build never sees it, and that includes the builds the deploy scripts run. When you add a variable that the build reads, add its name to the list.
+- **`_transit` doesn't order anything.** No workspace has a `_transit` script, so the task runs nothing. It's Turbo's "transit node" pattern: every `check-types` runs in parallel, while each one's cache key still changes when a package it depends on changes. The root `CLAUDE.md` says it makes package type-checks run before app type-checks. It doesn't. Keep it anyway: without it, a cached `check-types` wouldn't notice changes in the packages an app uses.
+- **The remote cache is off** (`remoteCache.enabled: false`). Only your machine's local cache is used, so another person's build never replays on yours.
+
+## Where things live
+
+| To find | Look in |
+|---|---|
+| An admin screen | `apps/admin/src/app/(portal)/<area>` |
+| Admin server actions | `apps/admin/src/app/(portal)/_actions/` |
+| Admin roles and menu access (`NAV_ACCESS`) | `apps/admin/src/lib/roles.ts`, `apps/admin/src/lib/authorization.ts` |
+| The Microsoft group sync | `apps/admin/src/lib/m365-sync.ts` |
+| The page editor | `apps/admin/src/app/(editor)` for the screen, `packages/editor/src` for the editor, `packages/editor/src/blocks` for the blocks |
+| Website pages | `apps/web/src/app/(public)`, `(protected)` and `(auth)` |
+| Website server actions | `apps/web/src/app/actions/` and `apps/web/src/lib/actions/` |
+| Website cached data readers | `apps/web/src/lib/data/` |
+| Website components | `apps/web/src/components/<feature>`, with the redesign's building blocks in `apps/web/src/components/ui` |
+| API routes and their helpers | `apps/api/src/app/api/<area>`, `apps/api/src/lib/` |
+| Endpoints the scheduled jobs call | `apps/api/src/app/api/cron/`, plus a few in web and admin. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#what-it-calls) lists them. |
+| The schema and the row types | `packages/api/appwrite.config.json`, `packages/api/types/appwrite.ts` |
+| Text in Norwegian and English | `packages/i18n/messages/no/`, `packages/i18n/messages/en/` |
+| One-off maintenance scripts | `packages/api/scripts/`, `packages/shared/scripts/`. They use `apps/admin/.env.local`, so check which project it names first. |
+| Design records and implementation plans | `docs/superpowers/specs/`, `docs/superpowers/plans/` |
+| CI | `.github/workflows/` |
+| Lint and format rules | `biome.jsonc` |
+
+## Conventions that matter
+
+- **Server first.** Use Server Components and server actions by default. Mark a file `"use client"` only when it needs state, effects or browser APIs.
+- **All Appwrite access goes through `@repo/api`.** Use `createSessionClient()` for the signed-in user (Appwrite's row permissions apply), `createAdminClient()` for the service key (it bypasses them), and `createPublicClient()` for a guest client with no cookie, which is safe inside `"use cache"`. Outside `packages/api`, only one-off scripts in `packages/shared/scripts` and `packages/wp-import` import the Appwrite SDKs directly.
+- **Never import `@repo/api/server` from a client component.** `packages/api/server.ts` starts with `"use server"`, so every export, `createAdminClient` included, is a server action. Imported into a client component, they could be called from the browser. Nothing does this today.
+- **A `"use server"` file may export only async functions.** Exporting a constant or a plain function breaks the build, and `check-types` doesn't notice. Put shared constants and helpers in a plain module.
+- **The website's cached readers throw.** A function marked `"use cache"` in `apps/web/src/lib/data/` must throw on failure, never return an empty list. A caught failure inside it would be cached for the whole cache window. Handle the error where you call it.
+- **Biome is the formatter and linter.** `biome.jsonc` extends Ultracite's presets and relaxes a few rules: barrel files are allowed, and namespace imports, `any` and unused variables are warnings, not errors. [Local setup](/developers/change-it/local-setup#lint-and-format) says how to run it.
+- **Update the docs with the code.** When you change code, update the docs page whose `covers` matches it, or add one. `apps/docs/CLAUDE.md` has the rules.

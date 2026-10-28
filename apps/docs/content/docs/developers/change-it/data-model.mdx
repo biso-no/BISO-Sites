@@ -1,0 +1,149 @@
+---
+title: Data model
+description: The two Appwrite databases and their tables by area, the key relationships, how rows get their permissions, and how to regenerate the types.
+covers:
+  - packages/api/appwrite.config.json
+  - packages/api/types/**
+  - packages/api/package.json
+  - packages/api/write.ts
+  - packages/api/page-builder.ts
+  - packages/api/content-permission-cutover.ts
+  - packages/api/scripts/cutover-content-permissions.ts
+  - packages/api/appwrite-config.test.ts
+  - packages/api/appwrite-config-permissions.test.ts
+  - packages/api/benefits-schema.test.ts
+  - apps/admin/src/lib/content-authorization.ts
+  - apps/admin/src/lib/team-provisioning.ts
+  - apps/admin/src/lib/campus-constants.ts
+---
+
+Read this before you add a table or a column, write a query, or change who can read something. All of BISO's data lives in one Appwrite project. The schema is checked in as `packages/api/appwrite.config.json`, and the row types generated from it are in `packages/api/types/appwrite.ts`. The apps reach Appwrite only through `@repo/api` ([Code layout](/developers/change-it/code-layout#conventions-that-matter) has the clients).
+
+## Databases, buckets and topics
+
+`appwrite.config.json` defines two databases with 100 tables between them:
+
+| Database id | Name | Tables |
+|---|---|---|
+| `app` | App | 98. Everything the apps use. Queries name it as the database id, for example `db.getRow<Users>("app", "user", user.$id)`. |
+| `24so` | Finago | 2: `departments` and `auth_tokens`. The 24SevenOffice connector keeps its login token in `auth_tokens`. |
+
+Both databases have a table called `departments`, so the type generator would produce two `Departments` types. `bun run types:generate` renames the second one. See [Types](#types).
+
+The same file also defines four storage buckets (`media`, `documents`, `expenses` and `resumes`), the `scheduled-dispatch` function, and 50 messaging topics for push notifications: one for each kind of notice (general, news, events, jobs and shop), each campus or all of BISO, and each language.
+
+## Tables by area
+
+These are the main tables in `app`.
+
+| Area | Tables | Notes |
+|---|---|---|
+| People | `user`, `public_profiles`, `student_id`, `tour_progress` | `user` holds one profile row per Appwrite account, with the account's `$id` as its row id. It holds the campus, departments, student id, BI ids and language. |
+| Campuses and units | `campus`, `campus_data`, `campus_metadata`, `departments`, `department_board`, `department_socials`, `partners`, `funding_programs` | Campus ids are fixed strings: Oslo `1`, Bergen `2`, Trondheim `3`, Stavanger `4`, National `5`. `departments` mirrors the 24SevenOffice chart of accounts, so `active` doesn't mean public. The website also filters with `isPublicUnit` from `@repo/shared/utils/unit-visibility`. |
+| Content | `pages`, `page_translations`, `news`, `events`, `documents`, `document_versions`, `content_translations`, `announcements`, `form_submissions`, `notices`, `event_attendees`, `event_segments`, `segment_members`, `large_event`, `large_event_item` | `pages` and `page_translations` hold the block editor's pages. |
+| Jobs and recruitment | `jobs`, `job_applications`, `job_application_answers`, `candidate_profiles`, `job_interviews`, `job_interview_participants`, `job_interview_scorecards`, `recruitment_booking_tokens` | Applicants' personal data. See [Permissions](#permissions). |
+| Shop and payments | `webshop_products`, `product_variations`, `product_custom_fields`, `cart_reservations`, `cart_field_answers`, `orders`, `order_items`, `order_item_field_answers`, `order_refunds`, `order_refund_lines`, `sales_types`, `shop_settings`, `payment_settings`, `payments` | `orders.status` is `pending`, `authorized`, `paid`, `cancelled`, `failed` or `refunded`. Orders also carry lock columns (`transition_lock`, `finago_posting_lock`, `membership_fulfilment_lock`, `refund_lock`). The scheduled order reconciliation, for example, skips an order while its `finago_posting_lock` is set. |
+| Membership and member pass | `memberships`, `member_roster`, `membership_texts`, `member_pass_scanners`, `member_pass_scanner_links`, `member_pass_scans` | `memberships` is the plan catalogue. `member_roster` is a display-only copy, rebuilt every night from 24SevenOffice. 24SevenOffice, not Appwrite, decides who is a member. |
+| Benefits | `campus_benefits`, `benefit_partners`, `benefit_codes`, `benefit_reveals`, `benefit_interactions` | Every benefit is one `campus_benefits` row, with a `section` of `member`, `career`, `social`, `safety` or `business`. |
+| Expenses | `expense`, `expense_attachments`, `expense_approvals`, `expense_approval_issues`, `expense_cost_types`, `ledger_accounts` | |
+| Notifications | `content_notifications`, `user_notifications` | `announcements` (under Content) holds manual and automatic pushes. `content_notifications` has one row per content item. `user_notifications` keeps each user's read and cleared state. |
+| Operations | `audit_logs`, `approval_requests`, `m365_turnover_jobs`, `m365_remediation_snapshot`, `feature_flags`, `varsling_settings`, `app_versions`, `page_view_events` | `audit_logs` has no permissions at all, so only the service key can read it. |
+| Transport | `departures`, `stop_places` | Public-transport departures from Entur, kept by the API for the BISO app (`apps/api/src/lib/entur-departures.ts`). |
+
+No code in this repo uses 17 of the tables: `subs`, `content_entries`, `content_entry_locales`, `content_templates`, `content_template_versions`, `dashboard_metrics`, `24so_tokens`, `site_pages`, `typing_indicators`, `chats`, `chat_messages`, `product_favorites`, `campus_data_translations`, `bug_reports`, `tax_codes`, `saved_jobs` and `followed_units`. The BISO app uses some of them, such as `chats`, `chat_messages`, `typing_indicators`, `product_favorites` and `saved_jobs`. Search BISO-Flutter before you remove any table.
+
+## Key relationships
+
+- **Who owns a content row.** `news`, `events`, `jobs`, `pages`, `webshop_products`, `campus_benefits`, `announcements` and `documents` each have a `campus` and a `department` relationship column. Those are the owner. The tables also keep a plain `campus_id`, and `news`, `events`, `jobs` and `pages` a `department_id`, from before the relationships existed. The admin's access checks use the relationships, and fall back to the plain columns only when a caller asks for that (`apps/admin/src/lib/content-authorization.ts`). When you write a content row, set the relationships and the plain columns to the same ids, as `packages/api/page-builder.ts` does.
+- **People.** A `user` row links to many `departments`, to a `campus`, and to one `student_id` row.
+- **Translations.** `news`, `events` and `webshop_products` link to `content_translations` through `translation_refs`. `jobs` and `departments` use `translations`, and `campus_benefits` uses `contentTranslations`. A unique index allows one `content_translations` row per content type, content id and language. Pages use `page_translations` instead, with one row per page and language (also a unique index). The editor's JSON is in its `draft_doc` and `published_doc` columns. The older `puck_document` and `draft_document` columns are still in the schema, but nothing reads or writes them.
+- **Recruitment.** A job has applications. Each application has a candidate profile, answers and interviews, and each interview has participants and scorecards.
+- **Shop.** An order has order items, each pointing at a product and a variation, with answers to the product's custom fields. Refunds belong to an order and have refund lines, each pointing at an order item.
+
+## Permissions
+
+In Appwrite, each table has its own permissions and a row-security switch. A table-level permission covers every row in the table. A row's own permissions only count when row security is on. BISO uses four patterns.
+
+### Content rows: visibility only
+
+The admin sets a content row's permissions from its status:
+
+- a published row gets `read("any")`, so anyone can read it;
+- a draft, archived or unpublished row gets no permissions, so only the service key can read it.
+
+This works only when row security is on and the table itself grants no read. A table-level `read("any")` lets anyone read every row, whatever the row's own permissions say. The checked-in schema doesn't meet that for every content table yet: see [Known issues](#known-issues).
+
+The code also has a members-only variant that gives read access to a `biso-members` team. That team isn't used, so ignore it. Teams mirrored from Microsoft groups (`sg-app-*`) never go into a content row's permissions, so those permissions don't change when the groups do (`packages/api/page-builder.ts`, `buildContentRowPermissions` in `apps/admin/src/lib/utils.ts`).
+
+For pages, the rule is: **only published pages are publicly readable.**
+
+### Writing content: the admin decides
+
+Staff don't write content rows with their own session. The admin checks the user's role and campus in code, then writes with the service key (`createAdminClient`). The content-permissions design calls the admin "the only authoring boundary". So the admin's own checks are what stop someone editing another campus's content. Keep them on every new action.
+
+### Recruitment: Operations Unit and HR only
+
+The seven recruitment tables (`job_applications`, `job_application_answers`, `candidate_profiles`, `job_interviews`, `job_interview_participants`, `job_interview_scorecards`, `recruitment_booking_tokens`) give only `create`, and only to the `sg-app-dept-operationsunit` and `sg-app-dept-hr` teams. Each row then gets read, update and delete for those two teams. `packages/api/appwrite-config-permissions.test.ts` fails if the schema file grants anything else.
+
+### Operational tables: team grants
+
+Some operational tables still give access to whole teams at table level. For example, `orders` is readable by Operations Unit and by the four `sg-app-dept-ledelsen*` teams. Other tables are service-only: `audit_logs` has no permissions at all, and `benefit_codes` has no table-level permissions while the admin writes each code row with none (`apps/admin/src/app/(portal)/_actions/benefits.ts`).
+
+### What the schema tests enforce
+
+`packages/api/appwrite-config.test.ts` and `appwrite-config-permissions.test.ts` read `appwrite.config.json` and fail when:
+
+- a table or bucket grants `create("any")` or `create("users")`. The one allowed exception is `create("users")` on `user`, because the BISO app may still rely on it;
+- anything grants access to a team called `admin`;
+- the `resumes` or `expenses` bucket has no list of allowed file types, or allows files of 100 MB or more.
+
+### Live permissions can drift from the file
+
+Signing in to the admin can change permissions. When the Microsoft group sync creates the team for a new `SG-App-Dept-*` group, it gives that team update and delete rights on the matching `departments` rows. For the HR team, it adds `create` on the recruitment tables (`apps/admin/src/lib/m365-sync.ts`, `apps/admin/src/lib/team-provisioning.ts`). So the live project can differ from `appwrite.config.json`. Check the Appwrite console when the two must match.
+
+## Known issues
+
+- **Draft pages.** `pages` and `page_translations` have row security off and a table-level `read("any")` in the checked-in schema. That doesn't match the rule above. The owner knows and is fixing it. Don't try to fix it by running the content-permission cutover on its own: it removes table-level permissions but leaves row security as it is, so with row security off, guests couldn't read any page at all.
+- **The schema file may be out of date for content tables.** It still shows table-level `read("any")` and `create` grants for some `sg-app-dept-*` teams on the content tables, such as `news` and `events`. The content-permissions design removes those grants, and while a table keeps its `read("any")`, its row permissions don't limit who can read it. A cutover script removes them (`bun run cutover:content-permissions` in `packages/api`; dry run unless you add `-- --apply`). The repo doesn't show whether it has run against production. The script reads `apps/admin/.env.local`, so check which project that file names before you run it.
+- **A failing schema test.** `packages/api/benefits-schema.test.ts` expects `campus_benefits` to have no table-level permissions, so that benefits are readable only through their rows. The checked-in schema gives the table `read("any")`, and the test fails.
+
+## Types
+
+`packages/api/types/appwrite.ts` holds a type for every table's row and every enum. Use them as the type parameter on every read:
+
+```ts
+import { createSessionClient } from "@repo/api/server";
+import type { Pages } from "@repo/api/types/appwrite";
+
+const { db } = await createSessionClient();
+const page = await db.getRow<Pages>("app", "pages", pageId);
+```
+
+For writes to a table with relationship columns, use `createTypedRow` and `updateTypedRow` from `@repo/api/write`, with an input type from `packages/api/types/inputs.ts`. The generated types describe a relationship as the whole related row, which is wrong for input: on write, Appwrite takes the related row or just its id. `inputs.ts` is written by hand.
+
+The `db` from every server client returns plain objects, so rows can be passed from a Server Component to a Client Component.
+
+### Regenerate the types
+
+```bash
+cd packages/api
+bun run types:generate
+```
+
+The script runs `appwrite types -l ts ./types`, renames the CLI's `appwrite.d.ts` to `appwrite.ts`, and renames two `24so` types so they don't clash with `app` types: `24SevenOfficeAuthTokens` becomes `TwentyFourSevenOfficeAuthTokens`, and the second `Departments` becomes `TwentyFourSevenOfficeDepartments`. Don't run the bare CLI command, even though the root `CLAUDE.md`, the app `CLAUDE.md` files and the comment at the top of `appwrite.ts` quote it. It skips the file rename and both type renames.
+
+It worked when `packages/api/types/appwrite.ts` has your change, no `appwrite.d.ts` is left in `packages/api/types`, and `bun run check-types` passes.
+
+## Schema changes and what never to hand-edit
+
+Never edit these by hand:
+
+- `packages/api/types/appwrite.ts`: regenerate it.
+- `apps/*/next-env.d.ts`: Next.js writes it.
+- `apps/web/appwrite.json` and `apps/web/database.json`: old stubs. The real schema is in `packages/api`.
+
+`appwrite.config.json` is also listed as "do not touch" in the root `CLAUDE.md`, because the Appwrite CLI writes it: the rule there is to change the schema in Appwrite and regenerate the file. In practice, schema changes have been made by editing it in a reviewed pull request, with the owner's approval. The owner then runs `appwrite push tables` from `packages/api`, runs `bun run types:generate`, and commits the new types.
+
+<Callout type="warn">
+`appwrite push` from `packages/api` changes the production project, because that is the project the file names. Push only with the owner's approval. If the CLI offers to recreate or delete an existing column, stop: recreating a column wipes it on every row. Make that change by hand in the console instead.
+</Callout>

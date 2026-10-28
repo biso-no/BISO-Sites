@@ -23,7 +23,7 @@ The sidebar lists the four sections in reading order. Work through them like thi
 
 1. **Start here.** Read this page, then [What BISO runs](/developers/start-here/what-biso-runs) and [Getting access](/developers/start-here/getting-access). The section opens with [If you're hiring someone](/developers/start-here/if-youre-hiring-someone), which is for the BISO board. Skim it to see what they'll give you.
 2. **Keep it running.** Deploying, scheduled jobs, secrets, monitoring, backups, what to do when things break, and the yearly calendar. Read the pages on deploying and on when things break before you change anything live.
-3. **Change it.** Local setup, code layout, data model, auth and roles, common changes, and the mobile app. Read local setup before you run an app.
+3. **Change it.** Local setup, code layout, data model, auth and roles, common changes, and the mobile app. Read [Local setup](/developers/change-it/local-setup) before you run an app.
 4. **Reference.** The outside services, the shared packages, design decisions, known limitations and history. Look things up when you need them.
 
 ## Access checklist
@@ -58,41 +58,17 @@ None of this talks to Appwrite. It worked when Turbo's summary reports every tas
 ### Run the apps against a non-production Appwrite project
 
 <Callout type="warn">
-`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset, that value silently becomes the production one. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
+`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset or empty, that value silently becomes the production one. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
 </Callout>
 
-The repo doesn't record a non-production project, so make your own. You need access to the Appwrite console for this.
+The repo has no local Appwrite and no staging project, so make an Appwrite project of your own before you run anything. [Local setup](/developers/change-it/local-setup) has the full steps and the usual first-run failures. In short:
 
-1. Follow steps 1 to 3 in `apps/docs/scripts/screenshots/README.md`. They create a separate project on the same server, push the tables to it from a temporary copy of the schema, and make an API key. File buckets and messaging topics aren't copied, so uploads and push won't work in that project.
-2. Never run `appwrite push` from `packages/api`. Its config names the production project.
-3. Create `apps/<app>/.env.local` for each app you run, with your project's values:
+1. Create your own project and make an API key in it, as steps 1 to 3 of `apps/docs/scripts/screenshots/README.md` describe. Never run `appwrite push` from `packages/api`: its config names the production project.
+2. Create `apps/<app>/.env.local` for each app you run, with your project's `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT` and `APPWRITE_API_KEY`. The website needs `APPWRITE_SESSION_COOKIE=a_session_biso_web`. The admin needs `APPWRITE_SESSION_COOKIE=a_session_biso_admin` and `NEXT_PUBLIC_BASE_URL=http://localhost:3001`.
+3. Start one app from the repo root, for example `bun run dev --filter=admin`. Don't set the values with `export` instead: Turbo drops shell variables that a task doesn't declare, apart from `NEXT_PUBLIC_*` ones.
+4. Check that it worked. The admin prints no `Falling back to production Appwrite defaults` line, and `/api/health/ready` on the website, the admin or the API answers `{"status":"ready", …}`.
 
-   | Variable | Value |
-   |---|---|
-   | `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Your server's endpoint, ending in `/v1` |
-   | `NEXT_PUBLIC_APPWRITE_PROJECT` | Your project's id |
-   | `APPWRITE_API_KEY` | The key you made in your project |
-
-   The website and the admin refuse to start without these as well:
-
-   | App | Variable | Value |
-   |---|---|---|
-   | web | `APPWRITE_SESSION_COOKIE` | `a_session_biso_web` |
-   | web | `APPWRITE_SESSION_COOKIE_FALLBACK` | `a_session_biso`. Optional: without it the website prints a warning. |
-   | admin | `APPWRITE_SESSION_COOKIE` | `a_session_biso_admin` |
-   | admin | `NEXT_PUBLIC_BASE_URL` | `http://localhost:3001` |
-
-   The API has no start-up checks. Each app's `.env.example` lists the other variable names, though a few are missing.
-4. Start one app from the repo root, for example the admin:
-
-   ```bash
-   bun run dev --filter=admin
-   ```
-
-   Next.js reads `.env.local` itself, so its values reach the app. Don't set them with `export` instead: Turbo drops shell variables that a task doesn't declare, apart from `NEXT_PUBLIC_*` ones, and `dev` declares none.
-5. Check that it worked. The terminal shows `Ready` and the app's address: web on port 3000, admin on 3001, docs on 3002, api on 3003. `/api/health` on that address answers `{"status":"ok", …}`. The admin prints no `Falling back to production Appwrite defaults` line.
-
-This gets the apps running. Signing in also needs the sign-in providers set up in your project, such as Microsoft for the admin, which these steps don't cover.
+This gets the apps running. Signing in also needs the sign-in providers set up in your project, such as Microsoft for the admin.
 
 ### Look at the known issues
 
