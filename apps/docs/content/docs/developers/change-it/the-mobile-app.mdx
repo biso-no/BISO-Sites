@@ -59,7 +59,7 @@ Anything that needs a check on the server or a secret goes through `https://api.
 | Expenses | `/api/expenses/draft`, `/submit`, `/summary`, `/attachments` and `/ocr` |
 | Recruitment | `/api/recruitment/applications` |
 | Notifications | `/api/notifications/read`, `/api/notifications/clear` |
-| Events | The RSVP route for one event |
+| Events | `/api/events/<id>/rsvp`: `GET` for the counts and the student's own answer, `POST` to save or clear the answer |
 | Units | `/api/campus/<campusId>/<departmentId>/board` |
 | Settings | `/api/config` |
 

@@ -12,6 +12,8 @@ covers:
   - packages/api/appwrite-config.test.ts
   - packages/api/appwrite-config-permissions.test.ts
   - packages/api/benefits-schema.test.ts
+  - packages/api/event-rsvps-schema.test.ts
+  - packages/shared/utils/event-rsvp.ts
   - apps/admin/src/lib/content-authorization.ts
   - apps/admin/src/lib/team-provisioning.ts
   - apps/admin/src/lib/campus-constants.ts
@@ -21,11 +23,11 @@ Read this before you add a table or a column, write a query, or change who can r
 
 ## Databases, buckets and topics
 
-`appwrite.config.json` defines two databases with 100 tables between them:
+`appwrite.config.json` defines two databases with 101 tables between them:
 
 | Database id | Name | Tables |
 |---|---|---|
-| `app` | App | 98. Everything the apps use. Queries name it as the database id, for example `db.getRow<Users>("app", "user", user.$id)`. |
+| `app` | App | 99. Everything the apps use. Queries name it as the database id, for example `db.getRow<Users>("app", "user", user.$id)`. |
 | `24so` | Finago | 2: `departments` and `auth_tokens`. The 24SevenOffice connector keeps its login token in `auth_tokens`. |
 
 Both databases have a table called `departments`. The committed types have one `Departments` type, for the `app` table, and none for the `24so` one. See [Types](#types).
@@ -40,7 +42,7 @@ These are the main tables in `app`.
 |---|---|---|
 | People | `user`, `public_profiles`, `student_id`, `tour_progress` | `user` holds one profile row per Appwrite account, with the account's `$id` as its row id. It holds the campus, departments, student id, BI ids and language. |
 | Campuses and units | `campus`, `campus_data`, `campus_metadata`, `departments`, `department_board`, `department_socials`, `partners`, `funding_programs` | Campus ids are fixed strings: Oslo `1`, Bergen `2`, Trondheim `3`, Stavanger `4`, National `5`. `departments` mirrors the 24SevenOffice chart of accounts, so `active` doesn't mean public. The website also filters with `isPublicUnit` from `@repo/shared/utils/unit-visibility`. |
-| Content | `pages`, `page_translations`, `news`, `events`, `documents`, `document_versions`, `content_translations`, `announcements`, `form_submissions`, `notices`, `event_attendees`, `event_segments`, `segment_members`, `large_event`, `large_event_item` | `pages` and `page_translations` hold the block editor's pages. |
+| Content | `pages`, `page_translations`, `news`, `events`, `documents`, `document_versions`, `content_translations`, `announcements`, `form_submissions`, `notices`, `event_attendees`, `event_rsvps`, `event_segments`, `segment_members`, `large_event`, `large_event_item` | `pages` and `page_translations` hold the block editor's pages. `event_rsvps` holds students' answers to an event (`going`, `maybe` or `not_going`), one per student per event. It has no table-level permissions. The website and the api write each answer with the service key, and the row's only permission is read for the student who answered (`packages/shared/utils/event-rsvp.ts`). |
 | Jobs and recruitment | `jobs`, `job_applications`, `job_application_answers`, `candidate_profiles`, `job_interviews`, `job_interview_participants`, `job_interview_scorecards`, `recruitment_booking_tokens` | Applicants' personal data. See [Permissions](#permissions). |
 | Shop and payments | `webshop_products`, `product_variations`, `product_custom_fields`, `cart_reservations`, `cart_field_answers`, `orders`, `order_items`, `order_item_field_answers`, `order_refunds`, `order_refund_lines`, `sales_types`, `shop_settings`, `payment_settings`, `payments` | `orders.status` is `pending`, `authorized`, `paid`, `cancelled`, `failed` or `refunded`. Orders also carry lock columns (`transition_lock`, `finago_posting_lock`, `membership_fulfilment_lock`, `refund_lock`). The scheduled order reconciliation, for example, skips an order while its `finago_posting_lock` is set. |
 | Membership and member pass | `memberships`, `member_roster`, `membership_texts`, `member_pass_scanners`, `member_pass_scanner_links`, `member_pass_scans` | `memberships` is the plan catalogue. `member_roster` is a display-only copy, rebuilt every night from 24SevenOffice. 24SevenOffice, not Appwrite, decides who is a member. |
@@ -110,7 +112,7 @@ Signing in to the admin can change permissions. When the Microsoft group sync cr
 
 ## Types
 
-`packages/api/types/appwrite.ts` holds a type for every table's row and every enum. Use them as the type parameter on every read:
+`packages/api/types/appwrite.ts` holds a type for every table's row and every enum, except `event_rsvps`. That table was added to the schema file after the types were last generated, so it has no type, and the RSVP code declares its own row shapes (`packages/shared/utils/event-rsvp.ts`). Use the types as the type parameter on every read:
 
 ```ts
 import { createSessionClient } from "@repo/api/server";
