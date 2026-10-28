@@ -14,6 +14,7 @@ covers:
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-ai.ts
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-workspace.ts
   - apps/admin/src/app/(portal)/_actions/jobs.ts
+  - apps/admin/src/app/(portal)/_actions/interviews.ts
   - apps/admin/src/app/(portal)/jobs/[id]/page.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/_components/job-studio-editor.tsx
   - apps/admin/src/app/(portal)/jobs/_components/job-studio-dashboard.tsx
@@ -24,6 +25,7 @@ covers:
   - packages/ai/src/server/recruitment-emails.ts
   - apps/api/src/app/api/cron/cleanup-recruitment/**
   - apps/web/src/app/actions/jobs.ts
+  - apps/web/src/app/actions/booking.ts
   - apps/web/src/lib/data/queries.ts
   - apps/web/src/app/(protected)/applications/**
   - packages/i18n/messages/*/applications.json
@@ -48,7 +50,7 @@ The applications workspace is in English whatever your admin language, so this p
 Only a candidate in **Interview** can move to **Offer**. If the person you've chosen is in **Shortlist**, move them to **Interview** first.
 
 1. On **Stillinger** (Jobs), choose the people icon on the vacancy's row. On a computer, the row's icons appear when you point at the row.
-2. Choose the arrow icon on the candidate's card (tooltip: *Advance stage*), or **Advance** in their panel. The **Advance candidate** dialog opens.
+2. Choose the arrow icon on the candidate's card (tooltip: *Advance stage*), or **Advance** in the candidate's panel. The **Advance candidate** dialog opens.
 3. From **Interview**, the dialog starts on **Shortlist**, which is a move back. In the row of statuses, choose **Offer**.
 4. The box **Draft the offer email (only once HR has approved the offer)** is unticked. Tick it to get a draft. The dialog shows **Drafting with AI…**, then a subject and text you can edit.
 5. Check and adjust the draft:
@@ -68,7 +70,7 @@ The **Suggested next steps** list in the dialog is a reminder. None of it happen
 </Step>
 <Step title="Send the offer yourself">
 
-Paste the draft into a new email and send it to the candidate. Their email address is at the top of their panel. The system sends nothing.
+Paste the draft into a new email and send it to the candidate. Their email address is at the top of the candidate's panel. The system sends nothing.
 
 Once the candidate is in **Offer**, their **Activity** list shows **Offer sent** and **Awaiting signature**, and the **Offers out** counter at the top says **Signature pending**. Those appear for everyone in **Offer**, whether or not you've emailed them. The admin doesn't track emails, replies or signatures, so keep track of the candidate's answer yourself.
 
@@ -77,13 +79,13 @@ Once the candidate is in **Offer**, their **Activity** list shows **Offer sent**
 
 Everyone you don't offer the role to goes to **Archived**, and each of them should hear from you. Use this step for a few candidates. For many, use the next step.
 
-1. Choose the arrow icon on the candidate's card (tooltip: *Advance stage*), or **Advance** in their panel.
+1. Choose the arrow icon on the candidate's card (tooltip: *Advance stage*), or **Advance** in the candidate's panel.
 2. In the row of statuses, choose **Archived**.
 3. **Draft a candidate notification email** is ticked. The draft is in Norwegian. It tells the candidate they weren't selected and thanks them for applying. Like the offer draft, it uses only their name and the vacancy title, so check and adjust it.
 4. Choose **Copy**, then **Move to Archived**.
 5. Paste the draft into an email and send it yourself.
 
-If the candidate has an interview booked for a later time, archiving doesn't cancel it. The interview stays booked, and the calendar invite stays with the candidate and the panel. Tell them it's off.
+If the candidate has an interview booked for a later time, archiving doesn't cancel it. The interview stays booked, and the calendar invite stays with the candidate and the panel. Tell the candidate and the panel that it's off. A booking link you sent the candidate also keeps working until it's used or expires, so tell them it no longer applies.
 
 </Step>
 <Step title="Archive the rest at once">
@@ -91,7 +93,7 @@ If the candidate has an interview booked for a later time, archiving doesn't can
 With many candidates left, draft their emails first and then move them together. Keep to this order, because **Move stage** clears your ticks.
 
 1. Tick the candidates. On the board, tick the box on each card. In the list (tooltip: *List*), the **Stage** column shows each candidate's status, and the box in the header ticks every candidate shown.
-2. Untick anyone in **Offer** and anyone you've already written to. Otherwise they get a **Not this round** draft too.
+2. Untick anyone in **Offer** and anyone you've already archived and written to. Otherwise they get a **Not this round** draft too.
 3. Keep to 25 or fewer. Only the first 25 get a draft.
 4. In the bar, choose **Archive**. This opens the drafts panel with **Not this round** selected. It doesn't archive anyone.
 5. Each candidate shows **Drafted**, **Failed** or **…**. Click a name to read and edit their draft. Don't switch the type of email at the top after you've edited, because all the drafts are written again and your edits are lost.
@@ -99,10 +101,10 @@ With many candidates left, draft their emails first and then move them together.
 7. Close the drafts panel with the X. Your ticks are still there.
 8. Open **Move stage** in the bar and choose **Archived**.
 
-You then see one of these:
+You may see these messages:
 
-- A message such as **Successfully moved 6 candidates.** They're all in **Archived**.
-- **Some candidates could not be moved to rejected.** A ticked candidate in **Offer** can't be archived. The others still move.
+- **Some candidates could not be moved to rejected.** A ticked candidate in **Offer** can't be archived. The others still move, and one of the messages below may follow.
+- A message such as **Successfully moved 6 candidates.** Those candidates are now in **Archived**. When only one candidate moves, there's no message, so check the **Archived** column.
 - A message such as **Moved 3/4 candidates. 1 failed.** The failed ones stay where they were, so try them again.
 
 Repeat for the next group. The number on the **Pipeline** tab and **In pipeline** at the top count the candidates still in **Applied**, **Shortlist** or **Interview**. When they read 0, every candidate is in **Offer** or **Archived**.
@@ -131,6 +133,7 @@ Ending the round doesn't change or delete any application. You can still open th
 - The student sees their new status on biso.no as soon as you move them. Nothing else tells them. They get only the emails you send.
 - Nobody can move a candidate out of **Offer** or **Archived**. The admin refuses the move for everyone, global admins included.
 - Interviews you've booked stay booked, with their calendar invites. The admin has no way to cancel them.
+- A booking link you sent still works until it's used or expires, 14 days after you made it. That holds even after you move the candidate to **Offer** or **Archived**, the deadline passes, or you take the vacancy offline. If they use it, an interview is booked and the panel gets an invite. The admin can't cancel the link, so tell the candidate it no longer applies.
 - At the deadline, or when you choose **Save Draft**, the vacancy leaves biso.no and the app, and new applications are refused. After **Save Draft**, the workspace header shows **draft** where it said **Live**.
 - Each application has a delete date, set when the student applied. It's 180 days after the vacancy's deadline, or 180 days after the student applied if the vacancy had no deadline. Taking the vacancy offline or changing the deadline later doesn't move the date.
 - After that date, the system deletes the application with its CV, cover letter, answers and interviews.
@@ -149,7 +152,7 @@ On biso.no, on **Mine søknader** (My applications):
 - The label changes as soon as you move them, with no email or notification. A student you archive can see **Ikke valgt** (Not selected) before your email arrives, so send it right away.
 - The application stays on the page, with **Lagres til** (Stored until) and its delete date. Once the application is deleted, it's no longer listed.
 - **Se vervet** (View vacancy) on the application opens the vacancy's page. Once the deadline has passed or you've taken the vacancy offline, that page shows page not found.
-- An interview booked for a later time still shows under **Kommende intervju** (Upcoming interview), even after you archive the candidate.
+- An interview booked for a later time still shows under **Kommende intervju** (Upcoming interview), even after you archive the candidate. That includes one they book through an unused booking link after you archive them.
 
 ## Common mistakes
 
@@ -161,4 +164,4 @@ On biso.no, on **Mine søknader** (My applications):
 - Choosing **Move to**, or pressing Esc, before you copy the draft. The dialog closes and the draft is lost. To draft again, tick the candidate, choose **AI-personalize email ★** in the bar and pick the type of email.
 - Reading **Offer sent** or **Signature pending** as a sign that something went out. They show for everyone in **Offer**. The system sends no offers.
 - Waiting for the vacancy to close by itself when it has no deadline. It stays on biso.no and in the app, taking applications, until you choose **Save Draft**.
-- Archiving a candidate who still has an interview booked, and not telling them. The interview and the invites stay. Tell the candidate and the panel.
+- Archiving a candidate who still has an interview booked or an unused booking link, and not telling them. The interview and the invites stay, and the link still books an interview until it's used or expires. Tell the candidate, and the panel if an interview is booked, that it's off.
