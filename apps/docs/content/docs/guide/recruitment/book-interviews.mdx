@@ -1,0 +1,248 @@
+---
+title: Book interviews
+description: How to book an interview in the BISO admin, by picking a time yourself or by sending the candidate a booking link, and how to fill in the scorecard afterwards.
+who: "HR team members (for their own campus), National HR, and global admins (Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/tabs/interviews-tab.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/schedule-modal.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/scorecard-modal.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/advance-stage-modal.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/candidate-drawer.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-workspace.ts
+  - apps/admin/src/app/(portal)/_actions/interviews.ts
+  - apps/admin/src/app/(portal)/_actions/jobs.ts
+  - apps/admin/src/lib/recruitment.ts
+  - apps/admin/src/lib/recruitment-booking.ts
+  - apps/admin/src/lib/schedule-dates.ts
+  - packages/connectors/src/azure/recruitment-scheduling.ts
+  - packages/shared/recruitment/booking-slots.ts
+  - packages/shared/recruitment/apply.ts
+  - packages/shared/types/recruitment.ts
+  - apps/web/src/app/(public)/recruitment/**
+  - apps/web/src/app/actions/booking.ts
+  - apps/web/src/app/(protected)/applications/**
+  - packages/i18n/messages/*/jobs.json
+  - packages/i18n/messages/*/applications.json
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- The candidate is on your shortlist. See [Review applications](/guide/recruitment/review-applications).
+- You know who sits on the panel. Only HR members appear in the panel list. Anyone else, such as the department's leader, gets no invite from the system, so send them the time yourself.
+- You've agreed who on the panel writes the scorecard. See [After the interview: fill in the scorecard](#after-the-interview-fill-in-the-scorecard).
+</BeforeYouStart>
+
+## Two ways to book
+
+The applications workspace is in English whatever your admin language, so this page names its labels in English.
+
+| | Pick a time for them | Let them pick (booking link) |
+|---|---|---|
+| Who picks the time | You | The candidate, on a page on biso.no |
+| The candidate's status | The dialog moves them to **Interview** | You move them to **Interview** before you make the link |
+| Round | 1, 2 or 3 | Always saved as round 1 |
+| Place | **Teams**, **Nydalen** or **Hybrid** | Teams |
+| How the candidate hears | An Outlook invite | An email you write with the link, then an Outlook invite when they book |
+
+## Pick a time for them (schedule)
+
+<Steps>
+<Step title="Open the scheduling dialog">
+
+Open the vacancy's applications. Then either:
+
+- choose the calendar icon on the candidate's card (tooltip: *Schedule interview*), or
+- open the candidate's panel and choose **Schedule**.
+
+The **Schedule an interview** dialog opens.
+
+</Step>
+<Step title="Set the round, length, place and panel">
+
+Set these before you check the panel's calendars:
+
+- **Round**: 1, 2 or 3. It starts at the candidate's current interview round, or at 1 if they have none. For a second interview, choose 2.
+- **Duration**: **30m**, **45m** or **60m**. It starts at **45m**.
+- **Location**: **Teams**, **Nydalen** or **Hybrid**. It starts at **Teams**. **Teams** and **Hybrid** get a Teams meeting. **Nydalen** is the only in-person place you can choose. For an interview in person anywhere else, send the candidate the place yourself.
+- **Panel**: the HR members who can sit on the panel, shown by first name. The first two with an email are selected when the dialog opens. Click a name to add or remove them. A greyed-out name has no email and can't be selected. For a National vacancy, tick **Include HR from other campuses** to see HR from the other campuses too.
+
+The invite goes out from the mailbox of the selected person who comes first in the panel list.
+
+</Step>
+<Step title="Pick a time">
+
+The grid shows the next six weekdays, starting today, with start times from 9:00 to 16:00. You can only book a time inside this grid.
+
+1. Choose **Check availability**. The admin reads the selected people's Outlook calendars. The hours when everyone is free turn green.
+2. Click a cell. It gets a tick.
+
+You can pick any cell, green or not. The admin doesn't stop you from booking a time when someone on the panel is busy. If you change the length or the panel, choose **Check availability** again.
+
+You may see one of these under the grid:
+
+- **Select at least one panelist with an email first.** Select at least one person on the panel.
+- **Calendar is not connected, so availability cannot be checked.** The admin can't reach Outlook. You can still book, but no invite will go out, so you'll send the time yourself.
+- **Some panelists' calendars could not be read; free slots may be incomplete.** Check the time with the panel before you book.
+- **No slot where the whole panel is free in the next 14 days.** Try a shorter interview or a smaller panel, or agree a time with the panel.
+
+</Step>
+<Step title="Send the invite">
+
+Choose **Send invite for** followed by the time you picked, for example **Send invite for Tue 3 10:00**. Until you pick a time, the button says **Pick a slot**.
+
+The dialog closes and a message tells you what happened. Go by this message. The note at the bottom of the dialog is there before anything is sent.
+
+- **Interview scheduled and invites sent.** The candidate and the panel have an Outlook invite.
+- A warning that contains **The interview was saved** means no invite went out. Send the time to the candidate and the panel yourself, and tell IT.
+
+The candidate moves to **Interview**. From **Applied** they go through **Shortlist** on the way. A candidate already in **Interview** stays there. If you see **Interview saved, but the candidate could not be moved to**, the interview is booked but the status didn't change, so move the candidate to **Interview** yourself.
+
+The interview now shows on the **Interviews** tab under **Scheduled & proposed**. If it doesn't, reload the page.
+
+</Step>
+</Steps>
+
+To change the time, choose **Reschedule** next to the interview on the **Interviews** tab. It opens the same dialog and books a second interview with a new invite. The first interview and its invite stay, and the admin has no way to cancel them. Tell the candidate and the panel which time counts.
+
+## Let them pick (booking link)
+
+The candidate picks a time on a booking page on biso.no. You make the link in the admin and email it to the candidate yourself. Only candidates in **Interview** can get a link, so move the candidate first.
+
+<Steps>
+<Step title="Move the candidate to Interview">
+
+Drag the candidate's card to the **Interview** column, or choose **Advance** and then **Move to Interview**. See [Review applications](/guide/recruitment/review-applications) for both. A candidate in **Applied** goes to **Shortlist** first.
+
+If you use **Advance**, keep **Draft a candidate notification email** ticked to get an interview-invite draft. Copy it before you choose **Move to Interview**. The draft has no link, so you'll add the booking link to it.
+
+The student sees **Intervju** (Interview) on biso.no as soon as you move them, so send the link soon after.
+
+</Step>
+<Step title="Make the booking link">
+
+1. Open the **Interviews** tab.
+2. Find **Send a booking link**. In **Candidate**, choose the candidate. Only candidates in **Interview** are listed. If it says **No candidate in the interview stage**, go back to the first step.
+3. Under **Panel**, tick the people who will sit on the panel. The first two with an email are ticked when the tab opens. The invite will come from the ticked person who comes first in the list.
+4. Choose the length: **30 min**, **45 min** or **60 min**. It starts at **30 min**.
+5. Choose **Generate booking link**.
+
+The link appears above the button. Choose the copy icon next to it (tooltip: *Copy*).
+
+The admin doesn't keep the link. Once you leave the tab, you can't see it again. If you lose it before you send it, make a new one. Each link you make works on its own, so send the candidate only one.
+
+If you see an error instead of a link, tell IT.
+
+</Step>
+<Step title="Email the link to the candidate">
+
+The system doesn't send the link. Write to the candidate from your own email. Their address is at the top of their panel. Paste the link into the draft from the first step, or write your own email.
+
+Tell the candidate that the link works once, and only for 14 days.
+
+</Step>
+<Step title="Check the booking">
+
+Nothing tells you when the candidate books. Open the **Interviews** tab and reload the page.
+
+A booking shows under **Scheduled & proposed** as **Round 1** with the date. Booking doesn't change the candidate's status. They stay in **Interview**.
+
+- If the line shows **Teams** after the date, the Teams meeting was made and the candidate and the panel have the invite.
+- If it doesn't, the candidate has no Teams link, and the booking page told them that the BISO team will email the meeting details. Send the candidate and the panel the time and a meeting link yourself.
+
+The line shows the date but not the time. The **Panel calendar** above it marks the hour the interview starts in. Bookings can start on the hour or the half hour, so confirm the exact time with the candidate when you write.
+
+</Step>
+</Steps>
+
+## After the interview: fill in the scorecard
+
+The scorecard opens only from **Pending scorecards** on the **Interviews** tab. That list shows the interviews of candidates who have no scorecard yet. Once one scorecard is in for a candidate, that candidate leaves the list the next time the page loads, for every round. The admin has no other place to open a scorecard for them, so agree who writes it. To give the panel's shared view, write it together.
+
+People on the interview's panel can submit a scorecard, and so can National HR and global admins. Anyone else sees **Forbidden** when they submit.
+
+<Steps>
+<Step title="Open the scorecard">
+
+1. Open the **Interviews** tab.
+2. Under **Pending scorecards**, find the candidate and the round, and choose **Write**. The button is dark once the interview time has passed.
+
+The **Scorecard — Round 1** dialog opens, with the round number of that interview.
+
+</Step>
+<Step title="Rate the candidate and submit">
+
+1. Rate each area from 1 to 5 stars: **Communication**, **Relevant skills**, **Culture add**, **Initiative** and **Problem-solving**. You can leave an area unrated. The bottom of the dialog shows **Overall** with the average of the areas you rated, rounded to a whole number.
+2. Under **Strengths**, write what stood out.
+3. Under **Open questions / concerns**, write what you'd want to look into further.
+4. Choose a recommendation: **Strong hire**, **Hire**, **Need more info**, **No hire** or **Strong no-hire**.
+5. Choose **Submit scorecard**. It works once you've rated at least one area and chosen a recommendation.
+
+</Step>
+</Steps>
+
+Everyone who can open the vacancy's applications can read the scorecard. It's in the **Scorecards** box at the side of the candidate's panel. The box shows the overall score, the recommendation, the stars and **Strengths**. It doesn't show **Open questions / concerns**, so tell the panel about those yourself.
+
+The scorecard doesn't move the candidate. When you've decided, move them to **Offer** or **Archived**, or back to **Shortlist**.
+
+<WhatHappensNext>
+
+## What happens next
+
+When you book in the scheduling dialog:
+
+- The interview is saved with the candidate and the panel.
+- For **Teams** or **Hybrid**, a Teams meeting is made.
+- The candidate and the panel get an Outlook invite from the mailbox of the first selected person in the panel list.
+- The candidate moves to **Interview**.
+- If the admin can't reach Outlook, the interview is still saved, but no invite goes out. The warning tells you so.
+
+When you make a booking link:
+
+- The link works for 14 days from when you made it, and only once.
+- It offers times in those 14 days: every 30 minutes between 09:00 and 17:00 Oslo time on weekdays, at least two hours ahead, when everyone on the link's panel is free.
+- If the panel's calendars can't all be read, the page may offer times when someone is busy. It then tells the candidate that the team will confirm the time. Check booked times with the panel.
+
+When the candidate books:
+
+- The interview is saved as round 1, on Teams, with the panel you ticked.
+- A Teams meeting is made, and the candidate and the panel get an Outlook invite from the first ticked person in the panel list.
+- The link is used up. The candidate's status doesn't change.
+- If the invite can't be sent, the booking is still saved and the link is still used up. Nothing tells you. Check the **Interviews** tab, as in the last booking-link step.
+
+After a scorecard is submitted:
+
+- It shows in the candidate's panel.
+- The **Interview score** sort on the **Pipeline** tab orders candidates by the average overall score of their scorecards.
+- Nobody moves, and nothing is sent.
+</WhatHappensNext>
+
+## What the student sees
+
+**The booking page.** The link opens a page on biso.no headed **Velg et intervjutidspunkt** (Pick an interview slot), with a greeting by name. The student doesn't need to sign in. The times are grouped by day, with the note **Alle tider er norsk tid.** (All times are Norwegian time.) They pick a time and choose **Bekreft intervjutidspunkt** (Confirm interview slot). Then they see **Tiden er booket!** (You're booked!) with the time and length, and one of these:
+
+- **En kalenderinvitasjon med Teams-lenken er på vei til** followed by their email (A calendar invite with the Teams link is on its way to …), when the invite went out.
+- **BISO-teamet sender deg møtedetaljene på e-post.** (The BISO team will send you the meeting details by email.), when it didn't. You then send the details yourself.
+
+If no times are free, the page says **Ingen ledige tider i dette tidsrommet. Ta kontakt med BISO-teamet.** (No slots available in this window. Please contact the BISO team.)
+
+A used or expired link shows **Bookinglenken er ikke gyldig** (Booking link unavailable) and the reason in English, **This booking link has already been used.** or **This booking link has expired.** It ends with **Ta kontakt med din BISO-kontakt for en ny lenke.** (Reach out to your BISO contact for a fresh link.)
+
+**The invite.** An Outlook invite, sent from a panel member's mailbox to the email on the application. It's titled with the candidate's name and the round, for example **Kari Nordmann — Round 1**. The text is one line in English, **Interview with BISO.**, or **Interview with BISO, booked through your booking link.** for a booking. For Teams and Hybrid it adds **Join the Teams meeting:** and the link. Anything else the candidate needs to know, such as the room or what to prepare, you send yourself.
+
+**Mine søknader (My applications).** The status shows **Intervju** (Interview) from the moment the candidate is in **Interview**. Under the application, a box shows **Kommende intervju** (Upcoming interview) with the interview's title, the date and time in Oslo time, the place and, when there's a Teams meeting, **Bli med i møtet** (Join meeting). It shows the earliest interview that hasn't started yet. After a **Reschedule**, it can show the old time until that time has passed.
+
+The student doesn't see the panel, the scorecards or the recommendation.
+
+## Common mistakes
+
+- Trying to make a booking link before the candidate is in **Interview**. They aren't in the **Candidate** list. Move them first.
+- Sending a link that has expired or been used. A link works once, for 14 days from when you made it. If a candidate says the link doesn't work, make a new one and send it.
+- Waiting for an email about a booking. Nothing tells you. Check the **Interviews** tab.
+- Using the bulk **Schedule** button to book. It only drafts interview-invite emails. It books nothing.
+- Using a booking link for a second round. Bookings are always saved as round 1. Use the scheduling dialog and choose round 2.
+- Expecting **Reschedule** to move the interview. It books a second one with a new invite, and the first one stays. Tell everyone which time counts.
+- Going by the note at the bottom of the scheduling dialog. Check the message you get after you send the invite.
+- Leaving each panel member to write their own scorecard. After the first one is in, the candidate leaves **Pending scorecards**, and the admin has no other place to open a scorecard for them.
+- Writing concerns only in **Open questions / concerns**. They're saved but not shown in the candidate's panel.
