@@ -34,7 +34,9 @@ const render = (props: Partial<Parameters<typeof EventRsvp>[0]> = {}): string =>
 
 const BUTTON = /<button/g;
 const PRESSED = /aria-pressed="true"/g;
-const PRESSED_MAYBE = /aria-pressed="true"[^>]*>rsvp\.maybe</;
+const BUTTON_TAG = /<button[^>]*>/g;
+const PRESSED_MAYBE =
+  /aria-pressed="true"[^>]*>(?:(?!<\/button>).)*rsvp\.maybe</;
 
 describe("EventRsvp", () => {
   it("signed-in student sees three answers with theirs pressed", () => {
@@ -43,6 +45,21 @@ describe("EventRsvp", () => {
     expect(html.match(PRESSED)).toHaveLength(1);
     expect(html).toMatch(PRESSED_MAYBE);
     expect(html).toContain("rsvp.goingCount2 · rsvp.maybeCount1");
+  });
+
+  it("answers are outlined in the action colour, and the chosen one is filled", () => {
+    // The first version outlined them in the 1.2:1 edge hairline, and on the
+    // card they read as plain text.
+    const html = render({ initial: summary({ mine: "going" }) });
+    const buttons = html.match(BUTTON_TAG) ?? [];
+    expect(buttons).toHaveLength(3);
+    for (const tag of buttons) {
+      expect(tag).toContain("border-action");
+      expect(tag).not.toContain("border-edge");
+    }
+    expect(buttons.filter((tag) => tag.includes("bg-action"))).toEqual(
+      buttons.filter((tag) => tag.includes('aria-pressed="true"'))
+    );
   });
 
   it("signed-out visitor sees the sign-in link", () => {
