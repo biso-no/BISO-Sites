@@ -1,3 +1,9 @@
+import { VarslingForm } from "@/components/safety/varsling-form";
+import { CardGrid } from "@/components/ui/card-grid";
+import { PageHeader } from "@/components/ui/page-header";
+import { Prose } from "@/components/ui/prose";
+import { Section } from "@/components/ui/section";
+import { SectionHeading } from "@/components/ui/section-heading";
 import {
   AlertTriangle,
   Check,
@@ -7,14 +13,8 @@ import {
   Shield,
 } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { VarslingForm } from "@/components/safety/varsling-form";
-import { CardGrid } from "@/components/ui/card-grid";
-import { PageHeader } from "@/components/ui/page-header";
-import { Prose } from "@/components/ui/prose";
-import { Section } from "@/components/ui/section";
-import { SectionHeading } from "@/components/ui/section-heading";
+import Link from "next/link";
 
 const INFO_CARDS = [
   { key: "harassment", Icon: AlertTriangle },
@@ -28,6 +28,7 @@ const RULE_KEYS = [
   "rules.2",
   "rules.3",
   "rules.4",
+  "rules.5",
 ] as const;
 const CONTACT_KEYS = ["contacts.0", "contacts.1", "contacts.2"] as const;
 const PRIVACY_KEYS = ["points.0", "points.1", "points.2", "points.3"] as const;
