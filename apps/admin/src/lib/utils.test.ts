@@ -1,8 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Permission, Role } from "@repo/api";
 import {
   buildContentRowPermissions,
   buildContentTranslationPermissions,
+  sanitizeRedirectTarget,
 } from "./utils";
 
 const MUTATION_PATTERN = /(create|update|delete)\(/;
@@ -82,5 +83,62 @@ describe("buildContentTranslationPermissions", () => {
       writeTeams: ["sg-app-dept-marketing"],
     });
     expect(permissions).toEqual([Permission.read(Role.any())]);
+  });
+});
+
+describe("sanitizeRedirectTarget", () => {
+  const original = process.env.NEXT_PUBLIC_DOCS_URL;
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_DOCS_URL = "https://docs.biso.no";
+  });
+  afterEach(() => {
+    if (original === undefined) {
+      Reflect.deleteProperty(process.env, "NEXT_PUBLIC_DOCS_URL");
+    } else {
+      process.env.NEXT_PUBLIC_DOCS_URL = original;
+    }
+  });
+
+  test("keeps relative paths and rejects unsafe relative forms", () => {
+    expect(sanitizeRedirectTarget("/pages/1?x=2")).toBe("/pages/1?x=2");
+    expect(sanitizeRedirectTarget("%2Fpages%2F1")).toBe("/pages/1");
+    expect(sanitizeRedirectTarget("//evil.com")).toBe("/");
+    expect(sanitizeRedirectTarget("/\\evil.com")).toBe("/");
+    expect(sanitizeRedirectTarget("https://evil.com")).toBe("/");
+    expect(sanitizeRedirectTarget(null)).toBe("/");
+    expect(sanitizeRedirectTarget("")).toBe("/");
+  });
+
+  test("accepts the docs origin with path and query preserved", () => {
+    const url = "https://docs.biso.no/it/guide?a=1%202#top";
+    expect(sanitizeRedirectTarget(url)).toBe(url);
+    expect(sanitizeRedirectTarget(encodeURIComponent(url))).toBe(url);
+    expect(sanitizeRedirectTarget("https://docs.biso.no")).toBe(
+      "https://docs.biso.no"
+    );
+  });
+
+  test("rejects lookalike and malformed docs URLs", () => {
+    for (const bad of [
+      "https://docs.biso.no.evil.com/x",
+      "https://docs.biso.no@evil.com/",
+      "https://evil.com@docs.biso.no/",
+      "//docs.biso.no/x",
+      "https:/docs.biso.no",
+      "https:\\\\docs.biso.no",
+      "https://docs.biso.no\\@evil.com",
+      "http://docs.biso.no/x",
+      "https://docs.biso.no:8443/x",
+      "javascript:alert(1)",
+    ]) {
+      expect(sanitizeRedirectTarget(bad)).toBe("/");
+    }
+  });
+
+  test("accepts no absolute URL when the env var is unset or invalid", () => {
+    Reflect.deleteProperty(process.env, "NEXT_PUBLIC_DOCS_URL");
+    expect(sanitizeRedirectTarget("https://docs.biso.no/x")).toBe("/");
+    process.env.NEXT_PUBLIC_DOCS_URL = "not a url";
+    expect(sanitizeRedirectTarget("https://docs.biso.no/x")).toBe("/");
   });
 });

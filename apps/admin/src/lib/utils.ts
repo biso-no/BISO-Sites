@@ -34,8 +34,27 @@ export const isProd =
   process.env.VERCEL_ENV === "production" ||
   process.env.NODE_ENV === "production";
 
+const PLAIN_ABSOLUTE_URL = /^https?:\/\/[^\s\\@]*$/i;
+
 /**
- * Restrict post-auth redirect targets to same-site relative paths.
+ * True when `value` is a plain absolute http(s) URL whose origin exactly equals
+ * the origin of `NEXT_PUBLIC_DOCS_URL`. Unset or invalid env: always false.
+ */
+function isDocsUrl(value: string): boolean {
+  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL;
+  if (!(docsUrl && PLAIN_ABSOLUTE_URL.test(value))) {
+    return false;
+  }
+  try {
+    return new URL(value).origin === new URL(docsUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Restrict post-auth redirect targets to same-site relative paths, plus
+ * absolute URLs on the docs origin (`NEXT_PUBLIC_DOCS_URL`).
  *
  * Accepts a `redirectTo` value from a query parameter (typically URL-encoded
  * once already) and returns either a safe relative path beginning with a
@@ -50,11 +69,19 @@ export function sanitizeRedirectTarget(
   if (!input) {
     return "/";
   }
+  // The docs site is the one cross-origin target allowed. Check the raw value
+  // first so a docs URL whose query holds %-escapes is returned unchanged.
+  if (isDocsUrl(input)) {
+    return input;
+  }
   let decoded: string;
   try {
     decoded = decodeURIComponent(input);
   } catch {
     return "/";
+  }
+  if (isDocsUrl(decoded)) {
+    return decoded;
   }
   // Must be a same-site path. Reject absolute URLs and protocol-relative or
   // backslash-prefixed paths that browsers treat as cross-origin.

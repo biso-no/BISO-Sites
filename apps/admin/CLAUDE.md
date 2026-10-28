@@ -32,6 +32,7 @@ handler. Any new top-level route segment must add its own auth check.
 - Session cookie: `a_session_biso_admin` (set via `APPWRITE_SESSION_COOKIE`).
   Cookie attributes branch on `isProd` (`lib/utils.ts`): `sameSite: "none"` and
   `domain: ".biso.no"` in prod, `lax` + `localhost` otherwise.
+- `NEXT_PUBLIC_DOCS_URL` lets `sanitizeRedirectTarget` accept post-login redirects to the docs origin only (exact origin match).
 - Sign-in flows in `src/lib/server.ts`:
   - `signInWithAzure()` → Microsoft OAuth via `account.createOAuth2Token`, lands
     on `(auth)/auth/oauth/route.ts`, which **awaits** `syncM365Permissions()`

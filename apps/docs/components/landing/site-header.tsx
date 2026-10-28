@@ -1,3 +1,4 @@
+import { ViewerStatus } from "components/viewer-status";
 import {
   FullSearchTrigger,
   SearchTrigger,
@@ -42,6 +43,7 @@ export function SiteHeader() {
           </nav>
           <SearchTrigger className="-me-1.5 p-2 md:hidden" />
           <ThemeSwitch className="ms-4 max-md:hidden" />
+          <ViewerStatus />
         </div>
       </div>
     </header>
