@@ -189,6 +189,14 @@ describe("trusted team ids follow the M365 sync's id rule", () => {
     }
   });
 
+  it("still reads the team name from the group's displayName", () => {
+    const needle = 'const name = group.displayName || "";';
+    expect(
+      src.includes(needle),
+      `${hint} The sync no longer reads group.displayName as the source of the name. Missing: ${needle}`
+    ).toBe(true);
+  });
+
   it("still syncs only SG-App-Campus- and SG-App-Dept- groups", () => {
     const needle =
       'name.startsWith("SG-App-Campus-") || name.startsWith("SG-App-Dept-")';

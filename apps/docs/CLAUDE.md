@@ -290,6 +290,13 @@ These need the owner. Nothing here is done by code. Do them in this order.
    check that setup by hand for any `sg-app-dept-*` team you create. If real
    admins sit in legacy teams with other ids, they won't get docs access until
    they are in the teams above.
+   For each of the 10 ids, also check in the console that the team has no
+   owner and no members you can't account for. The M365 sync only ever adds
+   `member` (`apps/admin/src/lib/m365-sync.ts`), so an owner means someone
+   created the team by hand. If so, delete the team and recreate it with the
+   exact id and the sync's name, then redo the department-team setup. Don't
+   use the IT team-health view for this check: it lowercases ids
+   (`normalizeId` in `apps/admin/src/lib/team-health.ts`). Use the console.
 3. Create an Infisical folder for docs values and a read-only machine identity
    scoped to that folder. Put its details in the `INFISICAL_*` vars above.
 4. Set the docs Appwrite site env: the vars listed under Docs.
