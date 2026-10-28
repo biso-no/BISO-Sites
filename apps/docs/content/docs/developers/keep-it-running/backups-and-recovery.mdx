@@ -116,7 +116,7 @@ So:
 
 1. Check the health endpoints and the sites, as in [After a deploy, check](/developers/keep-it-running/deploying#after-a-deploy-check).
 2. Redo every secret change and console change made since the backup.
-3. Make a test payment, to prove the payment credentials can be read.
+3. Prove the payment credentials can be read. Buy a cheap product in the shop with the provider on **Live**, then refund it in the admin under **Refusjon** (Refund) on the order's page, at `/shop/orders/<id>`. If shop ledger posting is on, the sale is posted to 24SevenOffice and the refund posts a reversal; if it's off, nothing reaches 24SevenOffice, but once posting is switched on the refunded order is held back for booking by hand. Don't use a membership for this: its refund needs a credit note made by hand in 24SevenOffice. Don't switch the provider to **Test** either: see [Payments](/developers/reference/payments#credentials-the-payment_settings-table).
 4. Open the next scheduled-dispatch execution. It should end with `"failed":0`.
 5. Press **Oppdater nå** (Refresh now) on the members page.
 6. Compare payments at Vipps and Stripe with the `orders` table for the lost window.

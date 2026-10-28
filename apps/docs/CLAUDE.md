@@ -290,22 +290,22 @@ These need the owner. Nothing here is done by code. Do them in this order.
    check that setup by hand for any `sg-app-dept-*` team you create. If real
    admins sit in legacy teams with other ids, they won't get docs access until
    they are in the teams above.
-   Also remove stray members by hand: anyone in `docs-handover`, or in one of
-   the admin teams above, who is not in the matching Entra group. The sync only
-   prunes the memberships of the user who is signing in, and only for teams it
-   manages (`isAzureSyncedTeamId` in `apps/admin/src/lib/m365-sync.ts`). It
-   never removes someone who doesn't sign in, and it never touches
-   `docs-handover`.
    For each of the 10 ids, also check in the console that the team has no
-   owner and no members who aren't in the matching `SG-App-*` group in
-   Microsoft Entra. The M365 sync only ever adds `member`
+   owner and no stray members. The M365 sync only ever adds `member`
    (`apps/admin/src/lib/m365-sync.ts`), so an owner means someone created the
    team by hand. If so, delete the team and recreate it with the exact id and
    name below, then redo the department-team setup. The next admin sign-in
-   sync re-adds each person as a `member`, so don't add members by hand. The
-   sync's name is the group name without its `SG-App-Campus-` or
-   `SG-App-Dept-` prefix, with a space before each inner capital
-   (`sanitizeTeamName` and `expandDeptName` in
+   sync re-adds each person as a `member`, so don't add members by hand. A
+   stray member is anyone who isn't in the matching `SG-App-*` group in
+   Microsoft Entra. Remove stray members by hand, and do the same in
+   `docs-handover` for anyone who shouldn't have docs access. The sync won't
+   do it for you: it only prunes the memberships of the user who is signing
+   in, and only for teams it manages (`isAzureSyncedTeamId` in
+   `apps/admin/src/lib/m365-sync.ts`). It never removes someone who doesn't
+   sign in, and it never touches `docs-handover`. The sync's name is the group
+   name without its `SG-App-Campus-` or `SG-App-Dept-` prefix, with a space
+   before each inner capital (`sanitizeTeamName` in
+   `apps/admin/src/lib/m365-sync.ts`, which calls `expandDeptName` in
    `apps/admin/src/lib/campus-constants.ts`):
 
    | Id | Name |
@@ -351,7 +351,7 @@ the next `fumadocs-mdx` run (`check-types` or `postinstall`). It exits non-zero
 on a leak. Run it after changing anything in
 `lib/private/` or how `<Private>` renders.
 
-### Stage 3b
+### Registry usage
 
 The developer pages use `<Private>`, and `REQUIRE_REGISTRY_USAGE` is `true` in
 `lib/private/registry.test.ts`. Every registry name must be used by at least one

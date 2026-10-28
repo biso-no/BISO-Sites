@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { use, useEffect, useId, useState } from "react";
+import { type CSSProperties, use, useEffect, useId, useState } from "react";
 
 export function Mermaid({ chart }: { chart: string }) {
   const [mounted, setMounted] = useState(false);
@@ -94,8 +94,50 @@ function MermaidContent({ chart }: { chart: string }) {
     })
   );
 
+  return <MermaidFrame bindFunctions={bindFunctions} svg={svg} />;
+}
+
+/**
+ * In a narrow column a diagram may not shrink below this share of its natural
+ * size, which keeps Mermaid's 16 px labels at 12 px or more.
+ */
+export const MIN_SCALE_IN_NARROW_COLUMNS = 0.75;
+
+/** The width of the root `<svg>`'s viewBox, ignoring any nested viewBox. */
+const ROOT_VIEWBOX_WIDTH =
+  /^\s*<svg\b[^>]*?\sviewBox="\s*-?[\d.]+[\s,]+-?[\d.]+[\s,]+([\d.]+)/;
+
+/** A diagram's natural width in px, read from its viewBox. */
+export function naturalWidth(svg: string): number | null {
+  const match = ROOT_VIEWBOX_WIDTH.exec(svg);
+  const width = match ? Number.parseFloat(match[1]) : Number.NaN;
+  return Number.isFinite(width) && width > 0 ? width : null;
+}
+
+/**
+ * Mermaid sizes the SVG to `width="100%"` with its natural width as
+ * `max-width`, so in a wide column it fits the column as before. When the
+ * frame is narrower than 42rem (a phone, or a tablet with the sidebar open),
+ * the SVG also gets a `min-width` and scrolls sideways inside the frame. The
+ * frame's inline-size containment keeps the page itself from widening.
+ */
+export function MermaidFrame({
+  svg,
+  bindFunctions,
+}: {
+  svg: string;
+  bindFunctions?: (element: Element) => void;
+}) {
+  const width = naturalWidth(svg);
+  const style = width
+    ? ({
+        "--mermaid-min-width": `${Math.round(width * MIN_SCALE_IN_NARROW_COLUMNS)}px`,
+      } as CSSProperties)
+    : undefined;
+
   return (
     <div
+      className="@container overflow-x-auto overscroll-x-contain @max-2xl:[&>svg]:min-w-(--mermaid-min-width)"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid returns SVG for trusted docs content.
       dangerouslySetInnerHTML={{ __html: svg }}
       ref={(container) => {
@@ -103,6 +145,7 @@ function MermaidContent({ chart }: { chart: string }) {
           bindFunctions?.(container);
         }
       }}
+      style={style}
     />
   );
 }

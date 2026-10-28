@@ -40,12 +40,20 @@
     "destination": "/guide"
   },
   {
+    "source": "/docs/public-website/authentication-and-sessions",
+    "destination": "/developers/change-it/auth-and-roles#the-website"
+  },
+  {
+    "source": "/docs/public-website/shop-and-checkout",
+    "destination": "/developers/reference/payments"
+  },
+  {
     "source": "/docs/public-website/:path*",
     "destination": "/developers"
   },
   {
     "source": "/docs/architecture/api-service",
-    "destination": "/developers/change-it/code-layout#apps"
+    "destination": "/developers/change-it/auth-and-roles#the-api"
   },
   {
     "source": "/docs/architecture/apps",

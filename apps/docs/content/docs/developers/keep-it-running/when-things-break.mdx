@@ -174,6 +174,8 @@ The page is misleading. The person is signed in, but they're in no campus or dep
 
 1. **The server.** In the Webdock account, check that the server is running: <Private name="server-provider-account" label="Webdock account" />.
 2. **Get onto the server:** <Private name="server-access" label="Server access" />.
+
+   If you don't have these two saved, you can't fetch them now: Infisical is down with the server, and so is docs once it runs on Appwrite. Ask the administration leader for the [emergency kit](/developers/start-here/if-youre-hiring-someone#the-emergency-kit): <Private name="admin-leader-contact" label="Administration leader" />. Afterwards, change every credential you used from it, and update the kit.
 3. **The containers.** Appwrite runs in Docker. List every container and look for any that's stopped or restarting:
 
    ```bash
@@ -226,7 +228,7 @@ If the server or its data can't be saved, see [Backups and recovery](/developers
 
 **Check**
 
-1. If Appwrite is down as well, the server is the problem. Go to [Appwrite is down](#appwrite-is-down).
+1. If Appwrite is down as well, the server is the problem. Go to [Appwrite is down](#appwrite-is-down). You can't fetch the server access from Infisical now, so if you don't have it saved, ask the administration leader for the [emergency kit](/developers/start-here/if-youre-hiring-someone#the-emergency-kit): <Private name="admin-leader-contact" label="Administration leader" />.
 2. On the server, list the containers with `docker ps -a`, find Infisical's, and read its log with `docker logs --tail 200 <container>`.
 
 **Fix**
