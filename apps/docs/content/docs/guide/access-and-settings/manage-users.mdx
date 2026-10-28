@@ -59,7 +59,7 @@ Choose **Opprett bruker** (Create user). You see **Microsoft 365 user created**,
 
 The form stays filled in after the account is made. Don't choose **Opprett bruker** (Create user) again. Choose **Back** to go to the list.
 
-The admin also puts the new account in two groups: the `SG-App-` group for the campus and the one for the department. So the person gets admin access for that department when they first sign in to the admin. Don't create an account here for someone who shouldn't have admin access, such as an outside consultant. IT's way to do that is in [Getting access](/developers/start-here/getting-access#microsoft-account).
+The admin also puts the new account in two groups: the `SG-App-` group for the campus and the one for the department. So the person gets the admin role those groups give when they first sign in to the admin. Check the campus and department carefully: Ledelsen on a city campus gives campus leader access, and Operations Unit on National gives global admin access. Don't create an account here for someone who shouldn't have admin access, such as an outside consultant. IT's way to do that is in [Getting access](/developers/start-here/getting-access#microsoft-account).
 
 If you see **Required Microsoft 365 security group not found:** followed by a group name, or **Microsoft 365 user was created, but the Appwrite profile sync failed. Manual cleanup is required before retrying.**, the account was made but its setup wasn't finished. Don't try again. Ask IT to finish it by hand.
 
@@ -82,6 +82,10 @@ Choose **Lagre profil** (Save profile). You see **Profil oppdatert** (Profile up
 In **Profil** (Profile), set **Account status** to **Disabled** or **Enabled**. A field headed **Risikokontroller** (Risk controls) appears, with the hint **Endring av kontostatus er høy risiko. Skriv bekreftelsesordet som vises for å fortsette.** (Changing account status is high risk. Type the shown confirmation word to continue.)
 
 Type `DISABLE` or `ENABLE`, in capitals, as the field shows. Then choose **Lagre profil** (Save profile).
+
+<Callout type="warn">
+Disabling locks the person out of Microsoft at once. Check the name and login address at the top of the page before you save.
+</Callout>
 
 A disabled account can't sign in to Microsoft. Its licences and groups stay, so you can enable it again the same way.
 
@@ -122,6 +126,10 @@ The **Risikokontroller** (Risk controls) box has three password and sign-in acti
 - **Tving passordbytte ved neste innlogging** (Force password reset at next sign-in), for someone who knows their password but should change it. Their current password keeps working until they do.
 - **Tilbakekall alle sesjoner** (Revoke all sign-in sessions), to sign the person out of their Microsoft apps straight away. It can't be undone.
 
+<Callout type="warn">
+**Generer midlertidig passord** (Generate temporary password) replaces the person's password at once, and the old one can't be brought back. Check the name and login address at the top of the page before you confirm.
+</Callout>
+
 The top of the same box has **Start overgang** (Trigger turnover). It's for role accounts only. See [Hand over a role account](/guide/access-and-settings/hand-over-a-role-account).
 
 </Step>
@@ -146,5 +154,8 @@ The top of the same box has **Start overgang** (Trigger turnover). It's for role
 - Retrying after **Manual cleanup is required before retrying**. The account already exists. Ask IT to finish it.
 - Expecting a group change to show up in the admin at once. The person must sign out and sign in again.
 - Removing a licence to tidy up. It cuts the person off from every service that comes with it, at once.
-- Choosing **Tilbakekall alle sesjoner** (Revoke all sign-in sessions) or **Tilbakestill MFA** (Reset MFA) on the wrong account. Neither can be undone. Check the name and login address at the top of the page first.
+- Choosing **Generer midlertidig passord** (Generate temporary password), **Tilbakekall alle sesjoner** (Revoke all sign-in sessions) or **Tilbakestill MFA** (Reset MFA) on the wrong account. None can be undone. Check the name and login address at the top of the page first.
+- Disabling the wrong account. The person is locked out of Microsoft at once. Set it back to **Enabled** with `ENABLE`.
 - Leaving **Kontorsted** (Office location) empty. Campus leaders then can't see the account.
+- Creating an account you didn't need. There's no way to delete an account in the admin. Ask IT.
+- Choosing **Overfør til denne brukeren** (Transfer to this user) without checking who has the address now. It takes the address off the other person's mailbox at once, with no confirmation.

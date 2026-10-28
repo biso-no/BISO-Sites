@@ -56,18 +56,9 @@ Fill in:
 While it runs, you can't close the box. Wait for it to finish.
 
 </Step>
-<Step title="Copy the temporary password">
-
-When it's done, the box shows **Midlertidig passord for rollekontoen** (Temporary password for the role account), with **Konto** (Account) and **Midlertidig passord** (Temporary password).
-
-Choose **Kopier** (Copy). You see **Passord kopiert** (Password copied). If you see **Kunne ikke kopiere — merk og kopier passordet manuelt.** (Could not copy — select and copy the password manually.), select the password and copy it yourself.
-
-The password is shown once. Keep it safe until you give it to the new holder. Then choose **Ferdig** (Done).
-
-</Step>
 <Step title="Read the messages">
 
-Messages show at the edge of the screen and disappear after a while. Read them before they go, and note any warning. They aren't kept anywhere you can see later.
+As soon as it finishes, messages appear at the top of the screen, at the same time as the password box. Each one disappears after a few seconds, and more may follow. Point at them to keep them open. Read and note every message before you do anything else, even before you copy the password. They aren't kept anywhere you can see later.
 
 - **Overgang fullført for** (Turnover complete for) the new name, with **Oppbevaringskjøringen stopper automatisk** (Retention run stops automatically on) and a date. The handover went through.
 - **Kontoen ble overført, men oppbevaringskjøringen startet ikke — sjekk advarslene.** (Account handed over, but the retention run did not start — check the warnings.) The account was handed over, but the retention run that clears the old holder's Teams history may not have started. Tell IT, with the warnings you saw.
@@ -81,6 +72,15 @@ Messages show at the edge of the screen and disappear after a while. Read them b
 If the password step failed, the box closes without showing a password.
 
 If you see a red error and no password, reload the account's page and check its name. If it still shows the old holder's name, nothing changed, and you can try again. If it shows the new holder's name, the handover went through, but its password is lost. Make a new one with **Generer midlertidig passord** (Generate temporary password), and tell IT so they can check the retention run.
+
+</Step>
+<Step title="Copy the temporary password">
+
+If the handover set a password, the box shows **Midlertidig passord for rollekontoen** (Temporary password for the role account), with **Konto** (Account) and **Midlertidig passord** (Temporary password). It stays open until you close it.
+
+Choose **Kopier** (Copy). You see **Passord kopiert** (Password copied). If you see **Kunne ikke kopiere — merk og kopier passordet manuelt.** (Could not copy — select and copy the password manually.), select the password and copy it yourself.
+
+The password is shown once. Keep it safe until you give it to the new holder. Then choose **Ferdig** (Done).
 
 </Step>
 <Step title="Ask IT to sign the old holder out of the admin">
@@ -110,7 +110,7 @@ The handover does this, at once, in Microsoft 365:
 It doesn't:
 
 - change the login address, the account's groups or its licences. The new holder gets the same access the account had, including its role in the admin when they sign in.
-- email or notify anyone. Not the old holder, not the new one and not IT. You give the password yourself.
+- email or notify anyone. Nobody is told, so you give the password yourself.
 - keep a copy of the old name you can restore with one click. A global admin can type the old name back on the account's page, but removed sign-in methods and the old password are gone.
 
 The handover is written to the activity log with your email.
@@ -121,6 +121,6 @@ The handover is written to the activity log with your email.
 - Running a handover on a person's own account. Only use it on a shared role account. Check the heading and login address before you choose **Start overgang** (Trigger turnover).
 - Running it a second time to fix a failed part. It starts again from the top: it locks out the new holder and starts another retention run. Redo only the part that failed, on the account's page.
 - Choosing **Ferdig** (Done) before copying the password. It isn't shown again. Make a new one with **Generer midlertidig passord** (Generate temporary password).
-- Letting the warnings disappear unread. They're the only record of what failed.
+- Copying the password before reading the messages. They disappear within seconds, and they're the only record of what failed.
 - Forgetting to ask IT to sign the old holder out of the admin.
 - Giving the password over an open channel. The box asks you to share it over a secure channel.

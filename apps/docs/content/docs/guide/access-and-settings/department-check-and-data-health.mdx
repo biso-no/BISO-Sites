@@ -19,7 +19,7 @@ covers:
 
 - The **Avdelingskontroll** (Department audit) tab isn't a log of what people did in the admin. That's the activity log. See [Everyday tools](/guide/start-here/everyday-tools#check-the-activity-log-global-admins-and-campus-leaders).
 - The department check compares the **Avdeling** (Department) and **Kontorsted** (Office location) of every licensed Microsoft account with BISO's list of departments. That list is copied from 24SevenOffice. If departments have changed there, run **Sync units** first. See [New and closed departments](/guide/departments-and-documents#new-and-closed-departments).
-- Both tabs read from Microsoft 365 and 24SevenOffice, so the steps are text only.
+- The department check reads Microsoft 365, and both tabs read BISO's department list, so the steps are text only.
 - The check uses an AI service to suggest a department for each account. For each account it sends only the first part of the email address, the office location and an internal reference number. It doesn't send names. The AI can only pick a department that's on BISO's list.
 - Every fix you apply is written to Microsoft at once.
 </BeforeYouStart>
@@ -58,18 +58,26 @@ Each tab has a line under it saying what to do. A tab with nothing in it says **
 </Step>
 <Step title="Apply the safe fixes">
 
-In **Trygg** (Safe), each row is a group of accounts that share a department value. It shows the value they have now, or **(tom avdeling)** (blank department), how many accounts there are, such as **4 brukere** (4 users), and what will be written, such as **Setter avdeling → …, kontor → …** (Sets department → …, office → …).
+In **Trygg** (Safe), each row is a department the AI wants to move accounts into. It shows that department, how many accounts, such as **4 brukere** (4 users), and what will be written, such as **Setter avdeling → …, kontor → …** (Sets department → …, office → …). The accounts and their current values aren't listed. The tab's help text asks you to look through the members, but the screen doesn't show them.
 
-Read every group. Then choose **Bruk alle trygge rettelser** (Apply all safe fixes). It applies every group in the tab at once. You see how it went, such as **18 oppdatert, 0 feilet** (18 updated, 0 failed).
+<Callout type="warn">
+Applying overwrites the department and office location of every account in the group, in Microsoft, at once. There's no undo, and the old values aren't kept anywhere. Apply only when you're sure every account in the group belongs in that department.
+</Callout>
 
-You can't leave a group out. If one looks wrong, apply them all, then correct those accounts by hand on their pages under **Brukere** (Users). See [Change an account's details](/guide/access-and-settings/manage-users#change-an-accounts-details-global-admins).
+Before you apply, check each row. You can only judge from the department, the office and the number of accounts. A large count for a small department is a sign that something is wrong.
+
+**Bruk alle trygge rettelser** (Apply all safe fixes) applies every row in the tab at once. You can't leave a row out. If any row looks wrong, don't choose it. Tell IT.
+
+If every row looks right, choose **Bruk alle trygge rettelser** (Apply all safe fixes). You see how it went, such as **18 oppdatert, 0 feilet** (18 updated, 0 failed).
 
 </Step>
 <Step title="Confirm the review groups">
 
-In **Gjennomgang** (Review), each group shows the AI's reason next to the count. The AI's suggestion is already chosen in **Velg avdeling** (Select department).
+In **Gjennomgang** (Review), each row is a department the AI suggested but wasn't sure of. It shows that department, how many accounts, and the AI's reason. As in **Trygg** (Safe), the accounts and their current values aren't listed. The suggestion is already chosen in **Velg avdeling** (Select department).
 
-Check it. To pick another department, open **Velg avdeling** (Select department) and search in **Søk avdelinger…** (Search departments…). Then choose **Bruk** (Apply) on that group. The group shows **Oppdatert** (Updated) when every account in it was updated.
+**Bruk** (Apply) writes the chosen department, and its campus as the office location, to every account in the row. The same warning applies: there's no undo, and the old values aren't kept. Apply a row only when the reason convinces you that every account in it belongs in the department you've chosen. If you're not sure, leave the row.
+
+To pick another department, open **Velg avdeling** (Select department) and search in **Søk avdelinger…** (Search departments…). Then choose **Bruk** (Apply) on that row. The row shows **Oppdatert** (Updated) when every account in it was updated.
 
 </Step>
 <Step title="Place the manual accounts">
@@ -128,9 +136,9 @@ If nothing is wrong, you see **Ingen datafeil funnet** (No data issues found).
 
 ## Common mistakes
 
-- Looking here for who did what. This is a clean-up tool, not a log. Use **Aktivitet** (Activity).
+- Looking here for who did what. It's a clean-up tool. The log is **Aktivitet** (Activity).
 - Choosing **Deaktiver valgte** (Deactivate selected) without going through the list. Every inactive account starts ticked. Untick the ones you want to keep first.
-- Applying a **Gjennomgang** (Review) suggestion without checking it. The AI wasn't sure about these.
-- Choosing **Bruk alle trygge rettelser** (Apply all safe fixes) without reading the groups. It applies every one, and the old values aren't kept.
+- Applying a **Gjennomgang** (Review) row without reading its reason. The AI wasn't sure about these, and the old values aren't kept.
+- Choosing **Bruk alle trygge rettelser** (Apply all safe fixes) when one row looks wrong. It applies every row, and you can't see or restore the accounts it changed. Tell IT instead.
 - Fixing a department in 24SevenOffice and expecting it to show at once. Run **Sync units** first.
 - Working from an old result. The saved result can be weeks old. Check **Sist generert** (Last generated), and run the analysis again if accounts have changed since.

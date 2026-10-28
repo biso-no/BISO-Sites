@@ -38,7 +38,8 @@ If there are none, you see **Ingen avvik** (No approval issues).
 
 **Årsak** (Reason) is in English. It tells you which kind of issue it is:
 
-- It starts **No finance mailbox found** or **No manager mailbox found**, or reads **Expense has no department set.** The admin couldn't find the department's approver. Go to the next step.
+- It starts **No finance mailbox found** or **No manager mailbox found**. The admin couldn't find the department's approver. Go to the next step.
+- It reads **Expense has no department set.** There's no approver account to fix. The reimbursement went to the campus controller. Mark the issue as resolved, as in [Mark an issue as resolved](#mark-an-issue-as-resolved).
 - It starts **Could not notify**. The approver was found, but the message asking them to approve couldn't be delivered. Go to [Resend the approval](#resend-the-approval).
 
 **Søkt rolle** (Sought role) shows which approver was wanted, as a code such as `finance`, `manager` or `controller`.
@@ -60,7 +61,7 @@ An open issue whose reason starts **Could not notify** has **Send varsel på nyt
 
 The approver gets a new approval link, in Teams if possible and by email. You see **Godkjenningsvarsel sendt på nytt** (Approval notification re-sent), and the issue is marked **Løst** (Resolved).
 
-If it fails, you see the reason, or **Kunne ikke sende godkjenningsvarselet på nytt** (Could not resend the approval notification). While **Direct ledger posting (24SO + Teams approval)** is off, it's always refused with `expenses_ledger_posting disabled`.
+If it fails, you see an English message with the reason. While **Direct ledger posting (24SO + Teams approval)** is off, it's always `expenses_ledger_posting disabled`.
 
 </Step>
 <Step title="Mark an issue as resolved">
