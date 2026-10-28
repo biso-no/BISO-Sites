@@ -4,7 +4,13 @@
 @import "../../../packages/ui/styles/globals.css";
 @import "../../../packages/ui/styles/biso-surface.css";
 
-@source "../../../packages/ui/**/*.{ts,tsx}";
+/*
+ * Only the @repo/ui files docs imports, not the whole package: scanning all
+ * of it builds every utility the admin and web use. When docs imports another
+ * @repo/ui component, add its file here.
+ */
+@source "../../../packages/ui/components/ui/sheet.tsx";
+@source "../../../packages/ui/lib/utils.ts";
 @source "../**/*.{ts,tsx}";
 @source "../components/**/*.{ts,tsx}";
 
