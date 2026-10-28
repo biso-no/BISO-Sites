@@ -8,7 +8,7 @@ interface CalloutProps {
   title?: string;
   /**
    * `info`, `warn` or `error`. The older names `warning` and `danger` still
-   * work, so pages moved over from legacy/ render unchanged.
+   * work, so older pages render unchanged.
    */
   type?: CalloutType | "warning" | "danger";
 }

@@ -26,7 +26,7 @@ Read this to find your way around the repo before you change anything, and come 
 |---|---|---|
 | `apps/web` | 3000 | The public website at `biso.no`. Next.js App Router with `cacheComponents` on. |
 | `apps/admin` | 3001 | The staff CMS at `admin.biso.no`. Route groups `(auth)`, `(portal)`, `(editor)`, `(protected)` and `(scan)`. It has no middleware: each route-group layout, server action and route handler checks access itself. |
-| `apps/docs` | 3002 | This site, built with Fumadocs. Pages are in `content/docs/guide` and `content/docs/developers`. `legacy/` holds the old pages and isn't built. |
+| `apps/docs` | 3002 | This site, built with Fumadocs. Pages are in `content/docs/guide` and `content/docs/developers`. |
 | `apps/api` | 3003 | A Next.js app that serves only route handlers, under `src/app/api/*`, for the website and the BISO app. `src/proxy.ts` adds CORS headers to `/api/*`. |
 
 All four build with `output: "standalone"`, traced from the repo root. [Deploying](/developers/keep-it-running/deploying) says how that output reaches Appwrite.

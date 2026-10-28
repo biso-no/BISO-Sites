@@ -14,15 +14,12 @@ Each is a Fumadocs root folder with its own sidebar. The landing page at `/`
 is coded, not MDX. Its links live in `lib/landing.ts`, and a test checks that
 every href resolves to a page.
 
-`legacy/` holds the old pages. It is not built. It is often wrong, so use it
-as source material only, and check everything against the code. It is deleted
-in the final stage of the rework.
-
 Old URLs are redirected through `redirects.json`. Rules there are
 `{ source, destination }` only. `next.config.mjs` serves all of them as
 temporary (307) redirects, so don't add a `permanent` key. The first matching
 rule wins, so put specific rules above the section fallbacks. If you move or
-rename a page, add a redirect. The tests fail on redirect chains.
+rename a page, add a redirect. The tests fail on redirect chains. `legacy-urls.json` is a frozen list of the
+old site's URLs, and the redirect tests check that every one of them resolves.
 
 ## Front matter
 
