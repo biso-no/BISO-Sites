@@ -1,0 +1,194 @@
+---
+title: Partners and membership texts
+description: How to add, end and delete the partners behind BISO benefits, manage the partner logos on biso.no, and edit the texts that say what membership gives.
+who: "Partners and logos: global admins (National + Operations Unit) and benefits editors, on every campus and Hele BISO, and campus leaders (Ledelsen on your campus), on their own campus. Membership texts: global admins and benefits editors only."
+covers:
+  - apps/admin/src/app/(portal)/benefits/partners/**
+  - apps/admin/src/app/(portal)/benefits/texts/**
+  - apps/admin/src/app/(portal)/benefits/_components/benefit-board-page.tsx
+  - apps/admin/src/app/(portal)/_actions/benefit-partners.ts
+  - apps/admin/src/app/(portal)/_actions/site-logos.ts
+  - apps/admin/src/app/(portal)/_actions/membership-texts.ts
+  - apps/admin/src/lib/benefit-access.ts
+  - packages/shared/utils/membership-texts.ts
+  - packages/shared/utils/benefit-visibility.ts
+  - apps/web/src/lib/data/benefits.ts
+  - apps/web/src/lib/data/membership-texts.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Fordeler** (Benefits) under **Innhold** (Content) in your sidebar. [How membership and benefits work](/guide/members-and-benefits#who-can-use-members-and-benefits) shows who can edit which campus.
+- **Partnere** (Partners) has two separate lists:
+  - **Tilbudspartnere** (Offer partners): the businesses behind the benefits.
+  - **Logoer på nettsiden** (Logos on the website): the partner logos shown on biso.no.
+
+  A logo on biso.no isn't an offer partner, and an offer partner isn't shown in the logo list. Add a business to each list it belongs in.
+- Partners hold no discount codes. A code belongs to each benefit. See [Publish a benefit](/guide/members-and-benefits/publish-a-benefit).
+- A partner's website and a logo's link must start with https://. Have the logo as an image file to upload.
+- Only global admins and benefits editors can edit the membership texts. Campus leaders don't have **Tekster** (Texts).
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the partners page">
+
+Open **Innhold** (Content), choose **Fordeler** (Benefits), then **Partnere** (Partners). The page is headed **Partnere** (Partners). The small label above it, **Fordeler** (Benefits), takes you back to the board.
+
+It has two tabs: **Tilbudspartnere** (Offer partners), which opens first, and **Logoer på nettsiden** (Logos on the website).
+
+</Step>
+<Step title="Find an offer partner">
+
+On **Tilbudspartnere** (Offer partners):
+
+- Choose **Alle** (All) or a campus in the row of campus buttons.
+- Switch on **Vis avsluttede** (Show ended) to include partners whose partnership has ended. They're hidden by default.
+
+Each partner's card shows its logo, name and campus, **Avsluttet** (Ended) if the partnership has ended, and its offers, each with its status. A partner with no offers says **Ingen tilbud ennå** (No offers yet). Cards are sorted by name.
+
+On a card:
+
+- **+ Nytt tilbud** (+ New offer) opens a new member benefit with this partner already chosen. It's there on partners you can edit whose partnership hasn't ended.
+- **Endre** (Edit) opens the partner. You see **Vis** (View) instead when you can only look, for example a campus leader looking at a **Hele BISO** (All of BISO) partner.
+
+</Step>
+<Step title="Add or change an offer partner">
+
+Choose **+ Ny partner** (+ New partner), or **Endre** (Edit) on a card. Fill in:
+
+1. **Navn** (Name), up to 200 characters.
+2. **Nettside** (Website), if you want. It must start with https://.
+3. **Logo**: upload the logo, if you have one.
+4. **Campus**: you can only choose a campus you can edit. A benefit can only use a partner on its own campus or on **Hele BISO** (All of BISO). So put a partner that has offers on several campuses on **Hele BISO** (All of BISO).
+5. **Kort beskrivelse** (Short description), in Norwegian and English, if you want. Up to 1,000 characters each.
+
+Choose **Lagre** (Save). You see **Lagret** (Saved).
+
+If something is wrong, you see one of these:
+
+- **Skriv inn navnet på partneren.** (Enter the partner's name.)
+- **Nettsiden må starte med https://** (The website must start with https://)
+- **Logoen må være en https-adresse.** (The logo must be an https address.)
+- **Partneren har tilbud på en annen campus.** (This partner has offers on another campus.): you moved the partner to a campus where some of its offers aren't. Move it to **Hele BISO** (All of BISO), or leave it where it was.
+
+</Step>
+<Step title="End or restart a partnership">
+
+When a partnership stops, end it instead of deleting the partner. Open the partner and choose **Avslutt samarbeid** (End partnership). You're asked **Avslutte samarbeidet med …?** (End the partnership with …?), with the partner's name. The box says how many of its offers disappear from the website at once, and that the partner and its offers stay under **Vis avsluttede** (Show ended). Confirm.
+
+You see **Samarbeidet er avsluttet** (The partnership has ended). Every published offer from this partner now shows **Avsluttet** (Ended) and leaves biso.no and the app. The offers keep their own settings and codes.
+
+To start again, open the partner and choose **Start samarbeidet igjen** (Restart partnership). You see **Samarbeidet er i gang igjen** (The partnership is active again). Its published offers come back, as long as their dates still allow it.
+
+These buttons wait while you have unsaved changes in the panel, with the note **Lagre eller forkast endringene først.** (Save or discard your changes first.) Save first.
+
+</Step>
+<Step title="Delete a partner for good">
+
+Open the partner and choose **Slett for godt** (Delete permanently). You're asked **Slette … for godt?** (Delete … permanently?), with the partner's name. The box lists every offer that will be deleted with it: **Dette sletter også disse tilbudene, og det kan ikke angres:** (This also deletes these offers, and it cannot be undone:). Confirm only if you mean to delete them all.
+
+You see **Slettet** (Deleted).
+
+<Callout type="warn">
+Deleting a partner also deletes every one of its offers and their discount codes, for good. To stop a partnership for now, choose **Avslutt samarbeid** (End partnership) instead.
+</Callout>
+
+If you see **Kunne ikke slette partneren. Prøv igjen.** (Couldn't delete the partner. Try again.), some of the offers may already be deleted. Open the partner again to see what's left, and try again.
+
+If the partner has offers on a campus you can't edit, you can't delete it. Ask a global admin or a benefits editor.
+
+</Step>
+<Step title="Manage the logos on biso.no">
+
+Choose the **Logoer på nettsiden** (Logos on the website) tab. It says **Vises på forsiden, «Om oss» og på sider der noen har lagt inn en partnerblokk. Dra for å endre rekkefølgen.** (Shown on the front page, "About us" and on pages where someone has added a partner block. Drag to change the order.)
+
+There's one group for each campus you can see. **Hele BISO — slik ser det ut på forsiden** (All of BISO — this is how it looks on the front page) comes first.
+
+- To add a logo, choose **+ Ny logo** (+ New logo), or **+ Legg til** (+ Add) in a group. Fill in **Navn** (Name), up to 128 characters, **Lenke** (Link) if you want one, starting with https://, and **Logo**. Choose the **Campus** and **Lagre** (Save).
+- To change a logo, click it. **Klikk en logo for å bytte bilde, navn eller lenke — eller fjerne den.** (Click a logo to change the image, name or link, or to remove it.)
+- To change the order, drag the logos within a group.
+- To remove a logo, click it and choose **Fjern logo** (Remove logo). You're asked **Fjerne … fra nettsiden?** (Remove … from the website?), with its name. Confirm.
+
+If you see **Skriv inn navnet på bedriften.** (Enter the company's name.) or **Last opp en logo.** (Upload a logo.), fill in that field. If you see **Kunne ikke lagre rekkefølgen. Prøv igjen.** (Could not save the order. Try again.), reload the page and drag again.
+
+Campus leaders see **Bare administratorer kan endre logoene for hele BISO.** (Only administrators can change the logos for all of BISO.) on the **Hele BISO** (All of BISO) logos.
+
+<Callout type="warn">
+**Fjern logo** (Remove logo) deletes the logo for good. To show it again, add it again.
+</Callout>
+
+</Step>
+<Step title="Edit the membership texts (global admins and benefits editors)">
+
+On the benefits board, choose **Tekster** (Texts). The page is headed **Tekster om medlemskap** (Membership texts): **Punktlistene som forteller hva medlemskapet gir, rundt om på nettsiden.** (The bullet lists that say what membership gives, around the website.)
+
+There's one card for each place on biso.no:
+
+| Card | Where it shows |
+|---|---|
+| **Forsiden – «Bli med»** (Home page - Join) | The "Bli med" box on the biso.no front page |
+| **Medlemskapskortene** (Membership cards) | The plan cards in the member portal, biso.no/member |
+| **Låst innhold i medlemsportalen** (Locked content in the member portal) | The locked part of the member portal, biso.no/member |
+| **Velkomstflyten** (Welcome flow) | The welcome flow, biso.no/onboarding |
+| **Nettbutikken – medlemsboksen** (Web shop - member box) | The member box on product pages in the shop |
+| **For bedrifter** (For businesses) | biso.no/business |
+| **Business Hotspot** | biso.no/business-hotspot |
+
+Each card shows **Vises på** (Shown on) and the address, and **Se på nettsiden** (View on the website), which opens that page on biso.no. A card that has never been saved says **Ikke lagret ennå – viser nettsidens standardtekst** (Not saved yet – showing the website's default text) and shows the website's own lines.
+
+Each card is a list of lines, up to 12:
+
+- Each line needs a Norwegian title, up to 200 characters. On **For bedrifter** (For businesses) a line also has a text, up to 500 characters.
+- The English title and text can be left empty. The heading over them says **Engelsk – oversettes automatisk** (English – translated automatically) while empty and **Engelsk – egen tekst** (English – own text) once you type. **La stå tomt, så oversettes den norske teksten automatisk når du lagrer.** (Leave empty and the Norwegian text is translated automatically when you save.)
+- **+ Legg til linje** (+ Add line) adds a line. **Fjern** (Remove) takes one out. Drag lines to change their order.
+
+Choose **Lagre** (Save) on the card. Each card is saved on its own, and **Lagre** (Save) only works once you've changed something. You see **Lagret** (Saved).
+
+Before saving, the card checks the lines: **Legg til minst ett punkt.** (Add at least one item.), **Maks 12 punkter.** (At most 12 items.), **Skriv en tittel.** (Write a title.), **Maks 200 tegn.** (At most 200 characters.) and **Maks 500 tegn.** (At most 500 characters.) If the save fails, the message comes from the server and is in Norwegian, whatever your admin language.
+
+</Step>
+<Step title="Reset a membership text">
+
+A saved card has **Tilbakestill til standard** (Reset to default). You're asked **Tilbakestille «…»?** (Reset "…"?), with the card's name, and **Nettsiden går tilbake til standardteksten. Endringene dine slettes.** (The website goes back to the default text. Your changes are deleted.) Choose **Tilbakestill** (Reset), or **Avbryt** (Cancel).
+
+You see **Tilbakestilt** (Reset).
+
+<Callout type="warn">
+Resetting deletes every saved line on that card, in both languages, for good. Saving also deletes any line you removed from the card.
+</Callout>
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- biso.no is told to update after each change. If it doesn't answer, it catches up within a few minutes.
+- Ending a partnership takes its published offers off biso.no and the app at once. Restarting it brings them back, if their dates allow.
+- When you save a membership text, each empty English line is translated from the Norwegian. If the translation fails, the Norwegian text is used for English too. Check the English on biso.no afterwards.
+- No push notification and no email go out about partners, logos or membership texts.
+- Changes to partners, logos and membership texts are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- A benefit shows its partner on biso.no and in the app.
+- When a partnership ends, its offers disappear from biso.no and the app.
+- The logos show on the biso.no front page, on "Om oss" (About us), on campus pages and on pages with a partner block, in the order you set.
+- The membership texts show in the places listed in the table, in the student's language. A card that has never been saved shows the website's own text.
+
+## Common mistakes
+
+- Looking for discount codes on the partners page. Codes belong to each benefit.
+- Adding a business to **Logoer på nettsiden** (Logos on the website) and expecting it in the partner list for benefits, or the other way round. They're separate lists.
+- Putting a partner with offers on several campuses on one campus. Benefits on other campuses can't use it. Put it on **Hele BISO** (All of BISO).
+- Deleting a partner whose partnership has ended. Its offers and codes go too. Use **Avslutt samarbeid** (End partnership).
+- Pressing **Avslutt samarbeid** (End partnership) while you have unsaved changes. The button waits. Save or discard first.
+- Choosing **Tilbakestill til standard** (Reset to default) to undo one line. It deletes all the saved lines on the card.
+- Removing a line and saving. The line is deleted.
+- Looking for **Tekster** (Texts) as a campus leader. Ask a global admin or a benefits editor.

@@ -1,0 +1,201 @@
+---
+title: Scan member passes
+description: How to check member passes at the door in the admin, make and revoke guest scanner links for guards, and give or revoke scanner access in the BISO app.
+who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Both can scan any member's pass. Campus leaders make guest links and give scanner access for their own campus only."
+covers:
+  - apps/admin/src/app/(portal)/members/page.tsx
+  - apps/admin/src/app/(portal)/members/scan/**
+  - apps/admin/src/app/(scan)/scan/**
+  - apps/admin/src/components/member-pass-scanner/**
+  - apps/admin/src/app/(portal)/_actions/member-pass.ts
+  - apps/admin/src/app/(portal)/_actions/member-pass-scanners.ts
+  - apps/admin/src/lib/member-pass/**
+  - apps/admin/next.config.ts
+  - packages/shared/member-pass/**
+  - packages/shared/utils/member-pass.ts
+  - packages/shared/utils/member-pass-slots.ts
+  - apps/api/src/app/api/member-pass/**
+  - apps/api/src/lib/member-pass/**
+  - apps/web/src/components/member-pass/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Medlemmer** (Members) in your sidebar. Only global admins and campus leaders have it.
+- Use a phone or tablet with a camera, and allow the camera when the browser asks. Only the scanner pages ask for it.
+- You need an internet connection. Every scan checks with 24SevenOffice whether the person is a member right now.
+- If the scanner says **Skanning av medlemskort er ikke satt opp.** (Pass scanning is not configured.), tell IT.
+- Pick the right way to scan:
+  - Scan yourself in the admin, if you're a global admin or a campus leader.
+  - Make a guest scanner link for guards at one event. It works in a phone's browser with no account, for up to 48 hours.
+  - Give scanner access to someone outside BISO who scans in the BISO app. They sign in to the app with an email address you give access to.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Scan passes in the admin">
+
+Choose **Medlemmer** (Members) in the sidebar, then **Skann medlemskort** (Scan passes).
+
+The camera fills the screen. At the top it says **Skann medlemskort** (Scan member passes) and **Hold kameraet mot medlemskortet.** (Point the camera at a member's pass.) On the right is a badge with the day's colour, such as **Blå** (Blue).
+
+While the camera starts, you see **Starter kamera…** (Starting camera…). If the browser blocks the camera, you see **Kameraet er utilgjengelig. Gi tilgang til kameraet og last inn på nytt.** (Camera unavailable. Allow camera access and reload.) Allow the camera in the browser's settings, then reload the page.
+
+Hold the camera to the member's pass. The pass can be in the BISO app, on biso.no or in Apple Wallet or Google Wallet. For a pass in the app or on biso.no, check that its colour matches the badge on your screen. Wallet passes don't show the colour.
+
+</Step>
+<Step title="Read the result">
+
+The result fills the screen in a colour, and the phone vibrates. Under the result you see what the scan found: the member's name, the reason for a red result, the plan, and **Gyldig til** (Valid until) with a date. At the bottom it says **Trykk for å skanne neste kort** (Tap to scan the next pass). Tap the screen, or wait 3 seconds.
+
+| Colour | Result | What it means |
+|---|---|---|
+| Green | **Gyldig medlem** (Valid member) | An active member. |
+| Orange | **Allerede skannet for 40s siden** (Already scanned 40s ago), with the real number of seconds | The same member was let through less than 10 minutes ago, on this scanner or another one. |
+| Amber | **Wallet-kort — sjekk legitimasjon** (Wallet pass — check ID) | An active member with an Apple Wallet pass. Check the person's ID against the name on the screen. |
+| Red | **Ikke gyldig** (Not valid), with a reason | The pass doesn't show an active membership. See the reasons below. |
+| Grey | **Kunne ikke sjekke — prøv igjen** (Couldn't check — try again) | The membership couldn't be checked just now. Scan again. |
+
+The reasons under **Ikke gyldig** (Not valid):
+
+- **Ikke et BISO-kort** (Not a BISO pass): the code isn't from a BISO pass.
+- **Gammel kode — be personen åpne kortet på nytt** (Old code — ask them to open the pass again): the code is too old, for example from a screenshot. Ask them to open the pass again and scan the new code.
+- **Medlemskapet har utløpt** (Membership has ended).
+- **Ikke medlem** (Not a member).
+- **Ingen tilkoblet studentkonto** (No linked student account): the BISO account has no student number linked, so the membership can't be looked up.
+
+Once a pass has been scanned, the scanner ignores the same member while the pass stays in view. To scan them again, move the pass away for 20 seconds.
+
+If the scan itself fails, a red banner shows **Noe gikk galt. Prøv igjen.** (Something went wrong. Try again.) Scan again.
+
+</Step>
+<Step title="Make a guest scanner link">
+
+Choose **Medlemmer** (Members), then **Gjesteskanner-lenker** (Guest scanner links). The page says **Gi vakter en skanner uten konto. Lenkene utløper automatisk og kan trekkes tilbake.** (Give event security a scanner without an account. Links expire automatically and can be revoked.)
+
+1. **Navn** (Label): a name the guards see at the top of their scanner, for example *Demo Events – dør 1*. Up to 120 characters.
+2. **Campus**: global admins can choose **Alle campuser** (All campuses), which is their default, or one campus. Campus leaders choose one of their own campuses. The campus decides who can see and revoke the link. It doesn't limit whose passes can be scanned: the link checks any BISO member's pass.
+3. **Gyldig til** (Valid until): the date and time the link stops working. It starts at 6 hours from now. A link lasts at most 48 hours. If you choose a later time, the link still stops 48 hours after you make it. Set it to the end of the guards' shift.
+4. Choose **Lag lenke** (Create link).
+
+An amber box shows the link with **Lenken er laget — kopier den nå, den vises bare én gang.** (Link created — copy it now, it is shown only once.) Choose **Kopier lenke** (Copy link). You see **Kopiert** (Copied).
+
+Send the link only to the people who will scan with it. Make one link for each door or team, so you can revoke one without stopping the others.
+
+If something is wrong, you see one of these:
+
+- **Skriv inn et navn.** (Enter a label.)
+- **Velg et tidspunkt fram i tid (maks 48 timer).** (Choose a time in the future (max 48 hours).): the time you chose has passed or isn't a valid time.
+- **Du kan bare lage lenker for din egen campus.** (You can only create links for your own campus.)
+- **Noe gikk galt. Prøv igjen.** (Something went wrong. Try again.)
+
+</Step>
+<Step title="Check what the guards see">
+
+The guard opens the link on their phone and allows the camera. They don't sign in and need no account.
+
+- They get a black, full-screen scanner. At the top it shows the link's name, **Hold kameraet mot medlemskortet.** (Point the camera at a member's pass.) and the day's colour. The browser tab says *BISO scanner*.
+- It gives the same results as your scanner, with the member's name, plan and **Gyldig til** (Valid until). It never shows a student number or an email address.
+- The link opens only the scanner. It doesn't open the members list or any other part of the admin.
+- On a phone that isn't signed in to the admin, the scanner is in Norwegian.
+- If one link scans a lot of passes in a short time, a red banner shows **For mange skanninger — vent litt.** (Too many scans — wait a moment.) Wait a few seconds and scan again.
+
+When the link has run out or been revoked, opening it shows **Denne skannerlenken er ikke gyldig** (This scanner link is not valid) and **Den har utløpt eller blitt trukket tilbake. Be BISO om en ny lenke.** (It has expired or been revoked. Ask BISO staff for a new link.) If it's revoked while the scanner is open, the next scan shows a red banner: **Denne skannerlenken er ikke lenger gyldig.** (This scanner link is no longer valid.)
+
+</Step>
+<Step title="Revoke a guest scanner link">
+
+On **Gjesteskanner-lenker** (Guest scanner links), the list **Aktive lenker** (Active links) shows each link that still works: its name and **Utløper** (Expires) with the date and time. The soonest to run out comes first. Campus leaders see the links for their own campuses.
+
+Choose **Trekk tilbake** (Revoke) on the link's row. There's no confirmation. You see **Lenken er trukket tilbake** (Link revoked), and the link leaves the list. It stops working at the next scan.
+
+If the list is empty, it says **Ingen aktive lenker.** (No active links.)
+
+<Callout type="warn">
+**Trekk tilbake** (Revoke) acts at once, with no confirmation, and can't be undone. The guards' scanner stops working. To let them scan again, make a new link.
+</Callout>
+
+Revoke a link when the event is over, or as soon as it's been sent to the wrong person.
+
+</Step>
+<Step title="Give someone scanner access in the BISO app">
+
+Choose **Medlemmer** (Members), then **Skannertilgang** (Scanner access). The page says **La personer utenfor BISO skanne medlemskort i BISO-appen. De logger inn med e-postadressen du skriver inn her.** (Let people outside BISO scan member passes in the BISO app. They sign in with the email address you enter here.)
+
+In **Legg til skanner** (Add scanner):
+
+1. **E-post** (Email): the address the person will sign in to the BISO app with. Check it carefully before you go on.
+2. **Navn (valgfritt)** (Name (optional)), for example *Ola Hansen*. Up to 120 characters.
+3. **Campus**: global admins can also choose **Alle campuser** (All campuses). Campus leaders choose one of their own campuses. As with guest links, the campus decides who can manage the access. It doesn't limit whose passes can be scanned.
+4. **Sluttdato (valgfritt)** (End date (optional)): when the access ends. With no end date, the access lasts until someone revokes it. Set an end date unless the person will scan for BISO until further notice.
+5. Choose **Gi tilgang og send invitasjon** (Give access and send invitation).
+
+You see **Tilgang gitt og invitasjon sendt.** (Access given and invitation sent.) The invitation email is in Norwegian and English. It tells the person to install the BISO app, sign in with exactly that email address using a code they get by email, and open **Utforsk** (Explore) → **Skann medlemskap** (Scan memberships).
+
+If you see **Tilgangen er lagret, men invitasjonen ble ikke sendt — sjekk SMTP-innstillingene.** (Access saved, but the invitation was not sent — check SMTP settings.), the access is saved, but no email went out. Tell IT. You can also send the person the three steps above yourself.
+
+If the same email address already has access on the same campus, adding it again updates that access. An empty end date then keeps the end date it had.
+
+Other messages:
+
+- **Skriv inn en gyldig e-postadresse.** (Enter a valid email address.)
+- **Navnet kan ha høyst 120 tegn.** (Name must be 120 characters or fewer.)
+- **Velg en sluttdato fram i tid.** (Choose an end date in the future.)
+- **Du kan bare gi tilgang for din egen campus.** (You can only give access for your own campus.)
+
+</Step>
+<Step title="Resend or revoke scanner access">
+
+On **Skannertilgang** (Scanner access), the list **Personer med skannertilgang** (People with scanner access) shows the columns **Navn** (Name), **E-post** (Email), **Campus**, **Gitt av** (Granted by), **Sluttdato** (End date), **Status**, **Sist invitert** (Last invited) and **Handlinger** (Actions).
+
+- **Status** is **Aktiv** (Active), **Utløpt** (Expired) or **Trukket tilbake** (Revoked).
+- **Sluttdato** (End date) says **Ingen sluttdato** (No end date) when there's none. **Sist invitert** (Last invited) says **Ikke sendt** (Not sent) when no email has gone out.
+
+Rows with **Aktiv** (Active) have two buttons:
+
+- **Send invitasjon på nytt** (Resend invitation) sends the email again. You see **Invitasjonen er sendt på nytt.** (Invitation sent again.)
+- **Trekk tilbake** (Revoke) ends the access at once, with no confirmation. You see **Tilgangen er trukket tilbake.** (Access revoked.)
+
+<Callout type="warn">
+Revoking scanner access can't be undone. To give the person access again, add them again with **Gi tilgang og send invitasjon** (Give access and send invitation). That sends a new invitation.
+</Callout>
+
+To remove an end date, revoke the access and add the person again with no end date. Expired and revoked rows have no buttons. If you see **Denne tilgangen er avsluttet. Legg til personen på nytt i stedet.** (This access has ended. Add the person again instead.), the access has already ended, so add the person again.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- Every scan is saved with its result and the scanner it came from, whether that's you, a guest link or the app.
+- A guest link stops working at its **Gyldig til** (Valid until) time, or at the next scan after you revoke it.
+- Scanner access ends by itself at its end date, and its status changes to **Utløpt** (Expired). Revoked access stops at the person's next scan in the app.
+- No email goes out when scanner access is revoked or runs out. Tell the person yourself.
+- Members aren't told when their pass is scanned.
+- Giving, resending and revoking scanner access are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- The member shows their pass: **Medlemskort** (Member pass) in the BISO app, the pass in the member portal on biso.no, or a Wallet pass. The pass on biso.no says **Vis denne skjermen til personalet. Koden endres hvert 30. sekund.** (Show this screen to staff. The code changes every 30 seconds.) and shows the day's colour.
+- In the app, a student who isn't a member sees **Du er ikke medlem** (You're not a member), and one whose membership has ended sees **Medlemskapet ditt er utløpt** (Your membership has ended).
+- A person with scanner access opens **Utforsk** (Explore) → **Skann medlemskap** (Scan memberships) in the app. The screen shows **Tilgang til** (Access until) with the end of their access. Without access, they see **Du har ikke tilgang til å skanne. Be BISO om en invitasjon.** (You don't have scanning access. Ask BISO staff for an invitation.)
+- The app scanner gives the same results as the admin scanner.
+
+## Common mistakes
+
+- Letting someone through on amber without checking their ID against the name on the screen.
+- Accepting a pass in the app or on biso.no without checking the day's colour. A screenshot from another day can have a different colour.
+- Closing the page before copying a new guest link. It can't be shown again. Revoke that link and make a new one.
+- Setting **Gyldig til** (Valid until) days ahead. A link never lasts more than 48 hours. Make a new one for each event.
+- Thinking a link or access for one campus only lets that campus's members in. It checks any BISO member's pass.
+- Sharing a guest link in a group chat or a public place. Send it only to the people who will scan.
+- Typing the wrong email address for scanner access. The invitation can't be called back. Revoke that access at once, then add the right address.
+- Revoking a link or access by mistake. It can't be undone. Make a new link, or add the person again.
+- Leaving scanner access with no end date for a one-off event. Set an end date, or revoke it after the event.
+- Using the members list to check someone at the door. Scan their pass. The list can be behind.
