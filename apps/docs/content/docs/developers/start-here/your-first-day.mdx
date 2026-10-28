@@ -5,6 +5,9 @@ covers:
   - packages/api/server-env.ts
   - packages/api/client.ts
   - apps/*/.env.example
+  - apps/web/src/instrumentation.ts
+  - apps/admin/src/instrumentation.ts
+  - functions/scheduled-dispatch/README.md
   - apps/docs/scripts/screenshots/README.md
   - apps/admin/src/lib/authorization-team-memberships.ts
   - apps/api/src/lib/admin-auth.ts
@@ -16,9 +19,9 @@ Read this on your first day with the BISO platform, whether you're a consultant 
 
 ## Reading order
 
-The sidebar lists the developer area in reading order. Work through it like this:
+The sidebar lists the four sections in reading order. Work through them like this:
 
-1. **Start here.** Read this page, then [What BISO runs](/developers/start-here/what-biso-runs) and [Getting access](/developers/start-here/getting-access). [If you're hiring someone](/developers/start-here/if-youre-hiring-someone) is for the BISO board. It tells them what to give you.
+1. **Start here.** Read this page, then [What BISO runs](/developers/start-here/what-biso-runs) and [Getting access](/developers/start-here/getting-access). The section opens with [If you're hiring someone](/developers/start-here/if-youre-hiring-someone), which is for the BISO board. Skim it to see what they'll give you.
 2. **Keep it running.** Deploying, scheduled jobs, secrets, monitoring, backups, what to do when things break, and the yearly calendar. Read the pages on deploying and on when things break before you change anything live.
 3. **Change it.** Local setup, code layout, data model, auth and roles, common changes, and the mobile app. Read local setup before you run an app.
 4. **Reference.** The outside services, the shared packages, design decisions, known limitations and history. Look things up when you need them.
@@ -55,20 +58,47 @@ None of this talks to Appwrite. It worked when Turbo's summary reports every tas
 ### Run the apps against a non-production Appwrite project
 
 <Callout type="warn">
-If `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` are unset, the apps silently use the production Appwrite project. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
+`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset, that value silently becomes the production one. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
 </Callout>
 
 The repo doesn't record a non-production project, so make your own. You need access to the Appwrite console for this.
 
 1. Follow steps 1 to 3 in `apps/docs/scripts/screenshots/README.md`. They create a separate project on the same server, push the tables to it from a temporary copy of the schema, and make an API key. File buckets and messaging topics aren't copied, so uploads and push won't work in that project.
 2. Never run `appwrite push` from `packages/api`. Its config names the production project.
-3. In `apps/<app>/.env.local`, set `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT` and `APPWRITE_API_KEY` to your project's values. Each app's `.env.example` lists the other variable names, though a few are missing.
+3. Create `apps/<app>/.env.local` for each app you run, with your project's values:
+
+   | Variable | Value |
+   |---|---|
+   | `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Your server's endpoint, ending in `/v1` |
+   | `NEXT_PUBLIC_APPWRITE_PROJECT` | Your project's id |
+   | `APPWRITE_API_KEY` | The key you made in your project |
+
+   The website and the admin refuse to start without these as well:
+
+   | App | Variable | Value |
+   |---|---|---|
+   | web | `APPWRITE_SESSION_COOKIE` | `a_session_biso_web` |
+   | web | `APPWRITE_SESSION_COOKIE_FALLBACK` | `a_session_biso`. Optional: without it the website prints a warning. |
+   | admin | `APPWRITE_SESSION_COOKIE` | `a_session_biso_admin` |
+   | admin | `NEXT_PUBLIC_BASE_URL` | `http://localhost:3001` |
+
+   The API has no start-up checks. Each app's `.env.example` lists the other variable names, though a few are missing.
+4. Start one app from the repo root, for example the admin:
+
+   ```bash
+   bun run dev --filter=admin
+   ```
+
+   Next.js reads `.env.local` itself, so its values reach the app. Don't set them with `export` instead: Turbo drops shell variables that a task doesn't declare, and `dev` declares none.
+5. Check that it worked. The terminal shows `Ready` and the app's address: web on port 3000, admin on 3001, docs on 3002, api on 3003. `/api/health` on that address answers `{"status":"ok", …}`. The admin prints no `Falling back to production Appwrite defaults` line.
+
+This gets the apps running. Signing in also needs the sign-in providers set up in your project, such as Microsoft for the admin, which these steps don't cover.
 
 ### Look at the known issues
 
-The owner keeps the current issues list outside the repo, and the GitHub issue tracker is empty. Ask the owner for the list if you can. These are the issues to know on day one:
+The owner keeps the current issues list outside the repo. The GitHub issue tracker isn't used for this. Ask the owner for the list if you can. These are the issues to know on day one:
 
-- **Roles come from team names.** The admin and the API derive roles from Appwrite team names, and any signed-in user can create a team with any name. This is a known critical issue that the owner will fix. Until then, don't rely on admin roles to protect data. The docs site checks exact team ids instead (`apps/docs/lib/auth/access.ts`).
+- **Admin roles aren't safe yet.** Admin roles can currently be granted in a way that isn't safe. The issue is tracked, the owner plans to fix it, and it must be fixed before anyone relies on admin roles to protect data.
 - **Unset Appwrite settings mean production**, as described above.
-- **Deploys are manual.** The owner deploys each app by hand in the Appwrite console. Pushing to `main` deploys nothing. A GitHub workflow is planned.
-- **Nothing checks your changes for you.** CI runs no tests, lint or type-check, and the lefthook pre-commit hook is off (every line of `lefthook.yml` is commented out). Run `bun run check-types` and `bun run check` yourself before you deploy.
+- **Deploys are manual.** The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy the apps, and a GitHub workflow is planned. The functions are set up through the console's Git integration, so check each function's deployment settings in the console before you push function code.
+- **Nothing checks your changes for you.** CI runs no tests, lint or type-check, and the lefthook pre-commit hook is off (every line of `lefthook.yml` is commented out). Run `bun run check-types` yourself before you deploy, and lint the files you changed with `bun x ultracite check <paths>`. The repo-wide `bun run check` currently reports about 150 errors that were already there.

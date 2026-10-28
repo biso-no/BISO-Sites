@@ -3,6 +3,8 @@ title: What BISO runs
 description: Every part of the platform on one page, where each part runs, and where its code lives.
 covers:
   - functions/*/package.json
+  - functions/*/README.md
+  - functions/scheduled-dispatch/src/main.ts
   - packages/api/server-env.ts
   - apps/api/src/lib/allowed-origins.ts
   - packages/connectors/package.json
@@ -41,7 +43,7 @@ This page is the map of the platform. Read it before you change anything, and co
   web --> data
   admin --> data
   api --> data
-  fns -->|"every 5 min"| api
+  fns -->|"scheduled-dispatch, every 5 min"| api
   web --> outside
   admin --> outside
   api --> outside
@@ -50,7 +52,14 @@ This page is the map of the platform. Read it before you change anything, and co
   browser -.-> umami`}
 />
 
-The diagram leaves out a few calls to keep it readable. The admin also calls the API, and the scheduler also calls the website and the admin.
+To keep it readable, the diagram leaves out these calls:
+
+- The admin calls the API, and asks the website to refresh its cache after some saves.
+- scheduled-dispatch also calls the website, the admin and content-notifier.
+- Browsers call the API directly from some expense pages.
+- Appwrite itself calls Firebase to send push, and BI and Microsoft for sign-in.
+- The docs read private details from Infisical, and the signed-in reader from Appwrite.
+- Vipps, Stripe and the Teams bot call the API back.
 
 ## Components
 
@@ -89,8 +98,8 @@ The diagram leaves out a few calls to keep it readable. The admin also calls the
 
 - **One server carries almost everything.** If Appwrite is down, the website, the admin, the API and the functions stop, and the BISO app can't load data. Infisical runs on the same server, so if the server itself is down, Infisical is down too. The administration leader's emergency kit covers that case.
 - **Backups.** Webdock backs up the whole server every night, encryption keys included. Nobody has reported testing a restore.
-- **Unset Appwrite settings mean production.** If `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` are unset, the web apps fall back to the production project (`packages/api/server-env.ts`).
+- **Unset Appwrite settings mean production.** `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back one at a time. If either is unset, the web apps silently use the production value for it (`packages/api/server-env.ts`).
 
 ## How code gets to production
 
-The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy the apps, and no GitHub workflow builds or tests them. A deploy workflow is planned. The app is different: in the BISO-Flutter repo, each push to `main` builds Android and uploads it to Google Play's internal track, and iOS is built by hand with `flutter build ipa --release`.
+The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy the apps, and no GitHub workflow builds or tests them. A deploy workflow is planned. The functions are set up through the console's Git integration, so check each function's deployment settings in the console before you push function code. The BISO app is different: in the BISO-Flutter repo, each push to `main` builds Android and uploads it to Google Play's internal track, and iOS is built by hand with `flutter build ipa --release`.

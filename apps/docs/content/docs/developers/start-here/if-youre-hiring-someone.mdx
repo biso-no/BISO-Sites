@@ -9,7 +9,7 @@ This page is for the BISO board. Read it when you need someone to look after the
 ## What BISO owns
 
 - **The code.** It's stored on GitHub in two repositories. BISO-Sites holds the website, the admin, the API and these docs. BISO-Flutter holds the app. Both are public, so anyone can read the code, but only people BISO invites can change it.
-- **The server.** BISO rents one Linux server from Webdock. It runs Appwrite, which stores all the data and runs the website, the admin and the API. It also runs Infisical, the password safe the developers use. Webdock backs up the whole server every night.
+- **The server.** BISO rents one Linux server from Webdock. It runs Appwrite, which stores all the data and runs the website, the admin and the API. It also runs Infisical, the password safe the developers use. Webdock backs up the whole server every night, but nobody has reported testing a restore from that backup.
 - **The domain.** `biso.no` and the addresses under it: `admin.biso.no`, `api.biso.no`, and `docs.biso.no` once these docs move there.
 - **The app store listings.** The BISO app is in Apple's App Store and on Google Play, under BISO's own developer accounts.
 - **The accounts.** Microsoft (staff accounts and sign-in to the admin), Apple and Google (the app stores), Webdock (the server), GitHub (the code), and the services the platform uses for payments, accounting, AI and alerts. [Getting access](/developers/start-here/getting-access) lists them all.
@@ -54,6 +54,6 @@ Ask them to read [Your first day](/developers/start-here/your-first-day) and wor
 
 ## A serious known issue
 
-There is one serious security issue that is already known. The admin and the API check what each person is allowed to do in a way that can be fooled. Someone who knows how could get access in the admin that they shouldn't have. The issue is tracked, and the platform's current owner plans to fix it.
+There is one serious security issue that is already known. Admin roles can currently be granted in a way that isn't safe. The issue is tracked, and the platform's current owner plans to fix it. It must be fixed before BISO relies on admin roles to keep sensitive data safe.
 
-Until it's fixed, don't rely on admin roles to keep sensitive data safe. If it's still open when you hire someone, make fixing it one of their first jobs.
+If it's still open when you hire someone, make fixing it one of their first jobs.

@@ -8,6 +8,7 @@ covers:
   - apps/admin/src/app/(auth)/auth/oauth/route.ts
   - apps/admin/src/lib/m365-sync.ts
   - apps/admin/src/app/(portal)/_actions/it-users.ts
+  - apps/admin/src/lib/it-permission-rules.ts
   - packages/shared/utils/team-roles.ts
 ---
 
@@ -29,7 +30,7 @@ You sign in to the admin, and through it to these docs, with a BISO Microsoft ac
 
 Who creates accounts: <Private name="microsoft-tenant-admins" label="Microsoft tenant administrators" />
 
-**For a consultant**, a tenant administrator creates a BISO account in the Microsoft Entra admin centre and adds it to no `SG-App-*` group. Don't create the account on the admin's IT page. That page always adds a new account to one `SG-App-Campus-*` group and one `SG-App-Dept-*` group, and those groups give admin roles that can publish content.
+**For a consultant**, a tenant administrator creates a BISO account in the Microsoft Entra admin centre and adds it to no `SG-App-*` group. Don't create the account on the admin's IT page. That page always adds a new account to one `SG-App-Campus-*` group and one `SG-App-Dept-*` group, and those groups give admin roles that can publish content. If the account was already made there, a global admin can remove both groups on the same page. That's enough if the person hasn't signed in to the admin yet. If they have, also remove their `sg-app-*` team memberships in the Appwrite console.
 
 **For an in-house hire who needs an admin role**, a global admin adds them to the right groups on the admin's IT page. Only global admins can change groups there. The admin copies a person's `SG-App-*` groups into Appwrite teams each time they sign in, so a change takes effect at their next sign-in.
 
@@ -52,7 +53,7 @@ To let a consultant in:
 1. The consultant gets a BISO Microsoft account, as described above.
 2. The consultant opens a docs page with a private value and chooses **Sign in** next to "Sign in with your BISO admin account to see this." On the admin's sign-in page they choose **Logg inn med BISO-konto** (Sign in with BISO account) and sign in with Microsoft. This creates their Appwrite account.
 3. They land back on the docs page, which now says "Your account doesn't have access to this." If they land on an admin page saying they have no access, that's fine too. Either way the account exists. The consultant sends the email address they signed in with to a global admin.
-4. The global admin opens the production project in the Appwrite console, opens the `docs-handover` team, and adds that account as a member. Don't give it the `owner` role: a team owner can add other people.
+4. The global admin opens the production project in the Appwrite console, opens the `docs-handover` team, and adds that account as a member. Don't give it the `owner` role: a team owner can add other people. Then check that the team's members match the list above and that nobody in it holds `owner`.
 5. The consultant reloads the docs page. The private values now show.
 
 To remove someone, delete their membership of the team in the console.
@@ -121,13 +122,12 @@ The platform also uses outside services such as Umami, Anthropic, 24SevenOffice,
 
 ## When the work ends
 
-Remove each of these from the person who is leaving:
+Removing someone from a Microsoft group doesn't take their admin roles away straight away. The admin only updates a person's Appwrite teams when they next sign in, and Appwrite sessions last a year. So remove access in this order:
 
-- their membership of the `docs-handover` team
-- their Infisical user
-- their membership of BISO's organisation in the Appwrite console
-- their server access and their Webdock access
-- their GitHub collaborator access
-- their Microsoft account, if it was made for them
+1. On the admin's IT page, remove the person from their `SG-App-*` groups.
+2. In the Appwrite console, in the production project, remove their memberships of `sg-app-*` teams and of `docs-handover`.
+3. In the same project, delete the user's sessions, or block the user.
+4. Remove their Infisical user, their membership of BISO's organisation in the Appwrite console, their server and Webdock access, and their GitHub collaborator access.
+5. If a Microsoft account was made for them, disable or delete it.
 
 Go through this list again at each August board turnover.
