@@ -14,6 +14,7 @@ covers:
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/email-draft-default.ts
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/bulk-email-composer.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/compare-view.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/schedule-modal.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/tabs/settings-tab.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/_components/job-studio-editor.tsx
   - apps/admin/src/app/(portal)/_actions/jobs.ts
@@ -78,7 +79,7 @@ The panel has five tabs:
 - **Documents**: the cover letter and CV, shown in the panel. **Download** saves a copy.
 - **Answers**: the candidate's answers to your extra questions.
 - **Interviews**: the candidate's interviews, once any are booked.
-- **Notes**: type a note and choose **Save note**. Everyone who can open this vacancy's applications can read it.
+- **Notes**: one shared note per candidate. Add to the existing text and choose **Save note**. Saving replaces what's stored, and the box shows the note as it was when you opened the page. If colleagues may have written since, reload the page first. Everyone who can open this vacancy's applications can read the note.
 
 To mark a candidate, choose the star next to their name (tooltip: *Star candidate*). The star is saved on the application, so everyone who opens this vacancy's applications sees it. **Starred only** above the board then shows just the starred candidates.
 
@@ -115,15 +116,15 @@ When you've read an application, move the candidate to **Shortlist** to take the
 
 There are two ways to move one candidate.
 
-**Drag the card** to another column on the board. The status changes at once. There's no dialog and no email draft. If the move isn't allowed, the card stays where it was and you see a message such as **Can't move Kari straight to interview.** Dragging works only on the board.
+**Drag the card** to another column on the board. The status changes at once. There's no dialog and no email draft. Dropping a card on **Offer** or **Archived** is final. There's no confirmation, and the student sees the new status at once. If the move isn't allowed, the card stays where it was and you see a message such as **Can't move Kari straight to interview.** Dragging works only on the board.
 
 **Use Advance** when you also want an email draft:
 
 1. Choose the arrow icon on the card (tooltip: *Advance stage*), or **Advance** in the candidate's panel. The **Advance candidate** dialog opens.
-2. The dialog shows the move from the current status to the next one. From **Applied** that's **Shortlist**. To archive instead, choose **Archived** in the row of statuses.
+2. The dialog shows the current status and a suggested new one. From **Applied** it suggests **Shortlist**, and from **Shortlist** it suggests **Interview**. From **Interview** it suggests **Shortlist**, which is a move back, so choose **Offer** yourself if that's what you mean. To archive instead, choose **Archived** in the row of statuses.
 3. **Draft a candidate notification email** is ticked. The dialog shows **Drafting with AI…**, then a subject and text you can edit. Untick the box if you don't want a draft.
 4. Check and adjust the draft. It's in Norwegian and uses only the candidate's name and the vacancy title. The draft for **Shortlist** thanks the candidate for completing an interview round, so rewrite it for a candidate who hasn't had an interview. If you see **Failed to draft:** and a reason, write the email yourself.
-5. Choose **Copy** to copy the subject and text. Do this before the next step, because the dialog closes when the move is done and the draft goes with it.
+5. Choose **Copy** to copy the subject and text. Do this before the next step, because the dialog closes when the move is done and the draft goes with it. Pressing Esc also closes the dialog and loses the draft.
 6. Choose **Move to Shortlist** or **Move to Archived**.
 7. Paste the draft into your email and send it yourself. The system sends nothing.
 
@@ -138,7 +139,11 @@ For a candidate in **Offer** or **Archived**, the dialog says **No further stage
 2. A bar appears with the number selected, for example **3 selected**.
 3. Open **Move stage** and choose the status.
 
-Only the candidates who can make that move are moved. If some can't, you see **Some candidates could not be moved to** followed by the status's internal name, for example *rejected* for **Archived**. The others still move. When more than one moves, you see a message such as **Successfully moved 4 candidates.** If some fail to save, you see a message such as **Moved 3/4 candidates. 1 failed.**, and those stay where they were.
+Only the candidates who can make that move are moved.
+
+- If some candidates can't make that move, you see **Some candidates could not be moved to** followed by the status's internal name, for example *rejected* for **Archived**. The others still move.
+- When more than one candidate moves, you see a message such as **Successfully moved 4 candidates.**
+- If some moves fail to save, you see a message such as **Moved 3/4 candidates. 1 failed.** Those candidates stay where they were.
 
 Moving candidates this way sends no email. The other buttons in the bar draft emails. They don't change anyone's status:
 
@@ -148,13 +153,13 @@ Moving candidates this way sends no email. The other buttons in the bar draft em
 
 In the drafts panel:
 
-1. The type of email is at the top: **You're shortlisted**, **Schedule interview**, **Not this round** or **Offer letter**. When you switch type, the drafts are written again.
+1. The type of email is at the top: **You're shortlisted**, **Schedule interview**, **Not this round** or **Offer letter**. When you switch type, all the drafts are written again, and any edits you made are lost.
 2. Each candidate shows **Drafted**, **Failed** or **…**. Click a name to read and edit their draft.
 3. Only the first 25 candidates get a draft. The rest keep **…** and get none, so select 25 or fewer at a time.
 4. Each draft uses the candidate's name and the vacancy title. Check and adjust every draft before sending. The **You're shortlisted** draft thanks the candidate for completing an interview round, so rewrite it for candidates who haven't had one.
-5. **Copy all drafts** copies every finished draft, each with **To:**, **Subject:** and the text. Send each one as its own email.
+5. **Copy all drafts** copies one block for each candidate marked **Drafted** or **Failed**, with **To:**, **Subject:** and the text. A failed draft gives a block with an empty subject and text, so delete those. Send each one as its own email.
 
-Copy the drafts before you close the panel. They aren't saved.
+Copy the drafts before you close the panel with the X or Esc. They aren't saved.
 
 </Step>
 <Step title="Compare candidates">
@@ -165,9 +170,9 @@ Copy the drafts before you close the panel. They aren't saved.
 
 The view shows the candidates side by side, headed with the vacancy title, for example **Who fits Treasurer best?** Each column shows the match score, **Stage**, **Source**, **Skills**, **Strengths**, **Gaps** and **Summary**. At the top, an AI verdict names the candidate it thinks fits best, and that column is marked **AI pick**. While it's working, it says **Analysing candidates…**.
 
-The verdict uses only each candidate's match score, strengths, gaps, status, source and days since applying. It doesn't read the CV or cover letter. If the AI can't answer, the verdict names the candidate with the highest match score. Treat it as one more opinion.
+The verdict uses each candidate's full name, match score, strengths, gaps, status, source and days since applying. It doesn't read the CV or cover letter. If the AI can't answer, the verdict names the candidate with the highest match score. Treat it as one more opinion.
 
-From here, **Advance** opens the move dialog for a candidate. **Back to pipeline** closes the view.
+From here, **Advance** opens the move dialog for a candidate, and **Schedule** opens the scheduling dialog. Either one closes the compare view, so you land back on the board when you're done. **Back to pipeline** closes the view.
 
 When two or more candidates have a match of 90 or more, the **AI noticed** box above the board has a **Compare top** button. It opens this view with the top three.
 
@@ -206,7 +211,7 @@ The student sees each of their applications on biso.no, on **Mine søknader** (M
 - Using the bulk **Archive** button to archive. It only drafts **Not this round** emails. To archive several candidates, use **Move stage** and choose **Archived**.
 - Archiving too early. **Archived** and **Offer** are final, and nobody can leave them. If you're unsure about a candidate, leave them in **Applied** or **Shortlist**. A candidate in **Interview** can go back to **Shortlist**.
 - Trying to move a candidate from **Applied** straight to **Interview**. They go through **Shortlist** first.
-- Choosing **Move to** before you copy the draft. The dialog closes and the draft is lost. If that happens, tick the candidate and use **AI-personalize email ★** or **Archive** in the bar to draft again.
+- Choosing **Move to**, or pressing Esc, before you copy the draft. The dialog closes and the draft is lost. If that happens, tick the candidate and use **AI-personalize email ★** or **Archive** in the bar to draft again.
 - Selecting more than 25 candidates for bulk email. Only the first 25 get a draft.
 - Sending a draft as it is. Drafts use only the candidate's name and the vacancy title, and the **You're shortlisted** draft is written for after an interview. Read and adjust each one.
 - Writing a note you wouldn't want colleagues to read. Everyone who can open the vacancy's applications sees the same notes.
