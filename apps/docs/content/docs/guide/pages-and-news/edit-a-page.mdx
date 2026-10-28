@@ -117,7 +117,7 @@ Point at a block in the list to see what it's for. To add it, drag it onto the p
 
 Then fill in the block's fields in the **Block** tab on the right. Some blocks need more:
 
-- **Live from BISO** blocks fill themselves from biso.no, such as your department's events, open roles or news. Under **Data source**, **Department** is set to **This page's department**, which follows the page's **Dept**. You can pick another department instead. On biso.no, a live block with nothing to show is left out.
+- **Live from BISO** blocks fill themselves from biso.no, such as your department's events, open roles or news. On **Events feed**, **Open roles**, **News feed** and **Shop**, **Department** under **Data source** is set to **This page's department**, which follows the page's **Dept**. Global admins and campus leaders can pick another department instead. On biso.no, a live block with nothing to show is left out.
 - **Signup form** and **Multi-step form** have a **Submission** setting. **Save to admin** sends the answers to the admin's inbox (see [Inbox and approvals](/guide/start-here/inbox-and-approvals)). **Email** sends them to the **Recipient**, which must be a @biso.no address. Any other address is refused, and nothing is sent.
 - Images, logos and files: choose **↑ Upload**, or paste a link that starts with https://.
 - In a **Rich text** block, select some text to get **Bold**, **Italic**, **Link** and **Remove formatting**.
@@ -178,7 +178,7 @@ You can write the other language in two ways:
 - Choose its button and build it yourself. It starts with an empty page header and no sections.
 - Choose **Translate to EN** (or **Translate to NO**). AI translates the language you have open, saves the result as the other language's draft, and switches to it. It translates the text and leaves links, pictures, emails, prices and numbers as they are. If the other language already has content, you're asked **Replace translated draft?** first. Choose **Replace** or **Cancel**. You see **Translated Norwegian to English**, or **Translation failed**.
 
-A translation isn't published until you publish that language. Read it through first.
+A translation isn't published until you publish that language. Read it through first, and check people's names, roles and addresses too, for example in a **Team grid** or **Contact** block.
 
 The **Auto-translate** switch in the top bar does more (tooltip: *Translate Norwegian to English after publish*, or the other way round). With it on, each time you publish, the other language is translated, saved over its draft and published, without asking. It's off each time you open the editor.
 
@@ -196,7 +196,7 @@ You see one of these:
 
 Once the page is live, the button reads **Publish changes** (tooltip: *Publish the latest edits to biso.no*). Your changes after that stay in the draft until you choose it.
 
-Then switch to the other language with **NO** or **EN** and publish that too.
+Then switch to the other language with **NO** or **EN** and publish that too. Once one language is live, the button reads **Publish changes** in both languages, even in one that has never been published, so choose **Publish changes** there.
 
 To take a language off biso.no, open it and choose **Unpublish** (tooltip: *Take this page off biso.no*). You see **Page unpublished**. The draft is kept.
 
@@ -232,14 +232,14 @@ If **Publish** is greyed out with the tooltip *The page colours fail the contras
 - Thinking your changes are live. After the first publish, changes stay in the draft until you choose **Publish changes**.
 - Publishing one language only. Visitors who read biso.no in the other language get page not found. Publish both, or check that one language is enough.
 - Taking the button's word for which language is live. **Publish changes** and **Unpublish** show in both languages as soon as one is live, even in a language that has never been published. In **Sider** (Pages), **Published** only means at least one language is live. Look at biso.no in each language to be sure.
-- Leaving **Auto-translate** on when the other language was written by hand. Publishing replaces it with a machine translation and publishes that.
+- Leaving **Auto-translate** on when the other language was written by hand. Publishing replaces it with a machine translation and publishes that. On a page with a **Team grid** or **Contact** block, people's names, roles and addresses go through the translation too, and go live unread.
 - Leaving the address as `uten-navn`. Set **Shared slug** before you publish.
 - Expecting to go back to the last live version. Publishing replaces the live copy, and the earlier one isn't kept. To undo a published change, change the draft back and publish again.
-- Using **Slett side** (Delete page) to hide a page for a while. Use **Unpublish** in each language instead.
+- Using the bin icon (**Slett side**, Delete page) to hide a page for a while. Use **Unpublish** in each live language instead.
 - Changing the colours on a department's page. When you publish, they change every page the department has.
 - Closing the tab while the top bar shows **Saving…** or **Error**. Wait for **Saved**.
 - Waiting for someone to approve the page. There's no approval step for pages: **Publish** puts the page live.
 
 <Callout type="warn">
-**Slett side** (Delete page) in **Sider** (Pages) asks **Delete page?** once, then takes the page off biso.no in every language at once. The page stays in the list as **Archived**. There's no button to restore it: to bring it back, open it and choose **Publish** in each language.
+The bin icon on a row in **Sider** (Pages) shows when you point at the row. Its name is **Slett side** (Delete page). It asks **Delete page?** once, then takes the page off biso.no in every language at once. The page stays in the list as **Archived**. There's no button to restore it: to bring it back, open it and publish each language again.
 </Callout>
