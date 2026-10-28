@@ -12,7 +12,7 @@ covers:
 ## Before you start
 
 - Only global admins have **Analyse** (Analytics) in the sidebar.
-- The figures come from Umami, the analytics service BISO runs on its own server. The admin fetches them when you open the page. Nothing is stored in BISO.
+- The figures come from Umami, the analytics service BISO runs on its own server. The admin fetches them when you open the page. BISO doesn't save them. The admin only holds them for 5 minutes.
 - They cover the public site, biso.no, and nothing else. Days follow Oslo time.
 </BeforeYouStart>
 
@@ -64,7 +64,7 @@ Three lists show the top 10 for the period. Each entry has a bar, scaled to the 
 
 **Medlemmer** (Members) is headed **Identifiserte medlemmer rangert etter besøk** (Identified members ranked by visits). It names up to 12 people who were signed in on biso.no, with the most visits first. Each row shows their visits and views, for example **5 besøk · 23 visninger** (5 visits · 23 views).
 
-The list looks only at the 30 busiest sessions in the period, so it shows the most active people. It isn't a list of every member who visited.
+The list looks at only a small sample of sessions, so it isn't every member who visited, and it can miss people who were active earlier in the period.
 
 Each name comes from the person's BISO account. If the account has no name, the list shows the first part of their email address. If the account can't be found, it shows **Unknown**.
 
@@ -87,8 +87,8 @@ Students never see this page. When they're signed in on biso.no, their visits ar
 
 ## Common mistakes
 
-- Reading zeros as no visitors. If the admin can't reach Umami, every tile shows 0, the bounce rate shows 0%, and every list shows its empty text. There's no error message. If a period you know was busy shows nothing, check that Umami is running.
-- Reading **Medlemmer** (Members) as every member who visited. It shows the most active people among the 30 busiest sessions.
+- Reading zeros as no visitors. If the admin can't reach Umami, every tile shows 0, the bounce rate shows 0%, and every list shows its empty text. There's no error message. If a period you know was busy shows nothing, ask IT to check Umami.
+- Reading **Medlemmer** (Members) as every member who visited. It's built from a small sample of sessions.
 - Reading **Topphendelser** (Top events) as BISO events. They're actions on the site, such as starting a checkout.
 - Looking for app or admin traffic. The page covers biso.no only.
 - Expecting a visit to show at once. Allow about 5 minutes.

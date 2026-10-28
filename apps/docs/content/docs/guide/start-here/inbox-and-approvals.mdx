@@ -13,6 +13,12 @@ covers:
   - apps/admin/src/lib/campus-constants.ts
   - apps/web/src/app/api/form/submit/route.ts
   - packages/editor/src/components/editor-shell/inspector/submission-fields.tsx
+  - apps/web/src/lib/form-submit.ts
+  - apps/admin/src/app/(portal)/layout.tsx
+  - apps/admin/src/app/api/assistant/route.ts
+  - packages/ai/src/assistant/tools/content.ts
+  - packages/shared/utils/content-notifications.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
 ---
 
 <BeforeYouStart>
@@ -22,12 +28,12 @@ covers:
 - Only global admins and campus leaders have **Innboks** (Inbox) in the sidebar.
 - The inbox holds two kinds of work:
   - Form submissions are answers that visitors send through a form on a published biso.no page. Only forms set to **Save to admin** in the page editor reach the inbox. A form set to **Email** sends its answers to a @biso.no address and never shows up here.
-  - Approval requests ask for an event, news item, job, benefit, document or product to be published. They come only from the BISO Assistant. When someone asks it to publish an item their role can't publish, it offers to send a request. No editor has a button that sends one. See [Ask the BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone).
-- Nothing tells you when something new arrives. There's no email, push, Teams message or notification in the bell. Check the red number on **Innboks** (Inbox) in the sidebar. It updates each time a page loads.
+  - Approval requests come only from the BISO Assistant. When someone asks it to do something their role can't do, it offers to send a request. Most ask for an event, news item, job, benefit, document or product to be published. Not every request can be approved: see the last step. No editor has a button that sends one. See [Ask the BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone).
+- Nothing tells you when something new arrives. There's no email, push, Teams message or notification in the bell. Check the red number on **Innboks** (Inbox) in the sidebar. It's counted when the admin loads and doesn't change while you move between pages. Reload the page to update it. The tabs inside **Innboks** (Inbox) show the current counts each time you open it.
 - What you see depends on your role:
   - Global admins see every submission and every request, or one campus's if they've picked a campus in the campus box.
   - Campus leaders see requests for their own campus. Requests for jobs, and for National or no campus, go to the global admins.
-  - Campus leaders see a form's submissions only when the form is on a page for their campus and the form's **Team** setting in the page editor names a team they're in, such as their campus's Ledelsen team. Answers from every other form reach the global admins only.
+  - Campus leaders see a form's submissions only when the form is on a page for their campus and the form's **Team** setting in the page editor names a team they're in, such as their campus's Ledelsen team. Only the **Multi-step form** block has a **Team** setting. Answers from every other form reach the global admins only.
 </BeforeYouStart>
 
 ## Steps
@@ -48,14 +54,14 @@ You can also choose **Approvals** or **Form Submissions** in quick search.
 
 The submissions screens are in English whatever your admin language, so this step names their labels in English.
 
-1. Choose the **Skjemainnsendinger** (Form Submissions) tab. The page is headed **Form Submissions** and lists one row per form, with the most recent first. Each row shows:
+1. Choose the **Skjemainnsendinger** (Form Submissions) tab. The page is headed **Form Submissions** and lists one row per form topic, with the most recent first. Forms with the same **Topic** in the page editor share a row. A form with no topic is listed under its heading. Each row shows:
    - the form's heading
    - a count such as **3 new** when some submissions are new
    - how many there are and when the last one came in, for example **12 submissions · Last received** and a date
    - the campus number, when the page belongs to a campus: 1 is Oslo, 2 Bergen, 3 Trondheim, 4 Stavanger and 5 National
 
    Archived submissions aren't counted in this list. If nothing has come in yet, you see **No submissions yet.**
-2. Choose a form to see its submissions. The heading is the form's heading, and **All forms** takes you back. Submissions are listed 25 to a page, newest first, with **Prev** and **Next** at the bottom. Every status is listed here, archived ones too.
+2. Choose a row to see its submissions. The heading is the form's heading, the line under it gives the topic, and **All forms** takes you back. Submissions are listed 25 to a page, newest first, with **Prev** and **Next** at the bottom. Every status is listed here, archived ones too.
 3. Each row shows the status (**New**, **Read**, **Actioned** or **Archived**), the first answer in the form and when it came in. New submissions have a light blue background.
 4. Choose the eye icon on a row to open the submission. All the answers show in a table. Each answer is labelled with the form field's name as it was set in the page editor, which can differ from the question the visitor saw.
 
@@ -92,10 +98,10 @@ Deleting a submission is permanent. There's no undo, and the visitor's answers a
    - the request's code as its title, for example `events.publish`
    - the date it was sent, and **Pending**
    - **Anmodet av** (Requested by): the email of the person who asked
-   - **Type**: the kind of item, for example `event`
-   - a few details, usually **domain** and **id**
+   - **Type**: the kind of item, for example **Event**
+   - a few details, usually **Domain** and **Id**
 
-   The card doesn't name the item or link to it. To check the item before you decide, ask the person under **Anmodet av** (Requested by) which item it is. You can also open it from its details. In your browser's address bar, type admin.biso.no/ followed by the **domain**, a slash and the **id**. For an event, that's `admin.biso.no/events/` and then the id.
+   The card doesn't name the item or link to it. To check it, copy the value after **Id**. Open a new tab and go to admin.biso.no/ followed by the value after **Domain**, a slash and the id. For an event, that's `admin.biso.no/events/` and then the id. If the card has no **Domain** or **Id**, or the page isn't found, ask the person under **Anmodet av** (Requested by) which item it is.
 
 3. To publish the item, choose **Godkjenn** (Approve). It goes live at once, with no confirmation. You see **Forespørsel godkjent** (Request approved), and the card disappears. You can only approve items on a campus you're allowed to publish for.
 
@@ -103,7 +109,11 @@ Deleting a submission is permanent. There's no undo, and the visitor's answers a
 
    The reason is saved with the request, but no screen shows it and nobody is sent it. Tell the person who asked yourself, and say why.
 
-If something goes wrong, you see **Kunne ikke godkjenne forespørselen** (Failed to approve request) or **Kunne ikke avvise forespørselen** (Failed to reject request), without a reason. It can mean that someone else has already decided the request, or that the item is on a campus you can't publish for. Reload the page. If the card has gone, someone else has dealt with it.
+Only a request whose code is `events.publish`, `news.publish`, `jobs.publish`, `benefits.publish`, `documents.publish` or `shop.publish` can be approved. For any other code, such as `events.update` or `pages.publish`, **Godkjenn** (Approve) always fails. Reject it with a reason and tell the person. A product request also fails if the product isn't ready to sell, for example if its sales type has been switched off.
+
+If something goes wrong, you see **Kunne ikke godkjenne forespørselen** (Failed to approve request) or **Kunne ikke avvise forespørselen** (Failed to reject request), without a reason. Check the code first: a request that can't be approved fails every time. Otherwise it can mean that someone else has already decided the request, or that the item is on a campus you can't publish for. Reload the page. If the card has gone, someone else has dealt with it.
+
+If rejecting fails, the reason you wrote is cleared. Open **Avvis** (Reject) again and rewrite it.
 
 <Callout type="warn">
 **Godkjenn** (Approve) publishes the item on biso.no at once, and the request can't be reopened. Check the item before you approve.
@@ -116,7 +126,7 @@ If something goes wrong, you see **Kunne ikke godkjenne forespørselen** (Failed
 
 ## What happens next
 
-- Approving publishes the item on biso.no at once. For an event, news item or job, its automatic push notification may follow, depending on the item's own notification setting.
+- Approving publishes the item on biso.no at once. For an event, news item or job, its automatic push notification follows if the item's **Notify students when published** setting is on. Items the assistant created have it switched on, so approving an event, news item or job usually sends its push. Switch it off in the item's editor and save first if you don't want one.
 - Approved and rejected requests leave the list for good. No screen shows them again, and they can't be reopened. To take an approved item offline, unpublish it in its own editor.
 - Nobody is told about your decision. The person who asked gets no email, push or notification. Tell them yourself.
 - After a rejection, the person who asked has to ask the assistant again to send a new request.
@@ -132,11 +142,13 @@ If something goes wrong, you see **Kunne ikke godkjenne forespørselen** (Failed
 
 ## Common mistakes
 
-- Waiting for a notification. Nothing tells you about new submissions or requests. Check the red number on **Innboks** (Inbox).
+- Waiting for a notification. Nothing tells you about new submissions or requests. Check the red number on **Innboks** (Inbox), and reload the page first, because the number doesn't change while you move between pages.
 - Expecting the person who asked to see your reason for rejecting. Nobody sees it. Tell them yourself.
 - Approving without checking the item. The card doesn't name it, and **Godkjenn** (Approve) publishes at once.
 - Deleting a submission you meant to archive. Deleting can't be undone.
 - Expecting **Mark Archived** to hide a submission everywhere. It leaves the list of forms, but it's still on the form's page.
 - Expecting a submission to be marked **Read** when you open it. Mark it yourself.
 - Looking in the inbox for answers from a form set to **Email**. They go only to the email address set on the form.
-- A campus leader missing a form's submissions. You see them only when the form is on a page for your campus and its **Team** setting names a team you're in. Ask whoever edits the page to set it.
+- A campus leader missing a form's submissions. You see them only when the form is on a page for your campus and its **Team** setting names a team you're in. **Team** takes a team id. Ask the global admins for the right team id to put in **Team**.
+- A global admin with a campus picked in the campus box missing requests or submissions. Those for National, or with no campus, are hidden. Choose **Alle campuser** (All Campuses) to see them all.
+- Retrying **Godkjenn** (Approve) on a request whose code doesn't end in `.publish`, or on a `pages.publish` request. It fails every time. Reject it with a reason.

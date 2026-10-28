@@ -20,6 +20,10 @@ covers:
   - packages/ai/src/assistant/**
   - apps/admin/src/app/(portal)/sidebar.tsx
   - apps/admin/src/app/(portal)/_components/admin-shell.tsx
+  - apps/admin/src/app/(portal)/layout.tsx
+  - apps/admin/src/lib/assistant-publish.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - packages/shared/utils/content-notifications.ts
 ---
 
 <BeforeYouStart>
@@ -56,9 +60,9 @@ The counts follow your campus. Campus leaders see their own campus. Global admin
 
 The **Activity** chart covers the **Last 14 days**, with **Events**, **News** and **Jobs** shown separately. It counts each day's entries in the activity log, such as an item being created or edited. It doesn't show how many items were published. It reads only the latest 200 log entries, so a busy fortnight is cut short.
 
-Under the chart, **Nylig aktivitet** (Recent Activity) lists the five latest entries in the activity log. **Se all aktivitet** (View all activity) opens the full log. The chart and this list include every campus.
+Under the chart, **Nylig aktivitet** (Recent Activity) lists the five latest entries in the activity log. **Se all aktivitet** (View all activity) opens the full log.
 
-The overview doesn't show the inbox. New form submissions and waiting requests are counted in the red number on **Innboks** (Inbox) in the sidebar. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
+The overview doesn't show the inbox. New form submissions and waiting requests are counted in the red number on **Innboks** (Inbox) in the sidebar. That number is counted when the admin loads and doesn't change while you move between pages, so reload the page to update it. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
 
 </Step>
 <Step title="Review drafts (global admins and campus leaders)">
@@ -80,7 +84,7 @@ To publish the draft, choose **Godkjenn** (Approve). It goes live at once, with 
 
 If a draft isn't ready, leave it. It stays a draft, and stays in this list, until someone approves it or publishes it from its editor.
 
-Campus leaders also see draft jobs for their campus here. **Stillinger** (Jobs) is only for HR and global admins, so for campus leaders the link icon on a job opens a page that isn't found. Leave job drafts to HR and the global admins.
+Draft jobs show here too. Leave them to HR and the global admins, who handle them in **Stillinger** (Jobs).
 
 The notification bell's **Pending** tab also lists draft jobs, events and news. See [Sign in and find your way](/guide/start-here/sign-in#open-the-notification-bell).
 
@@ -102,7 +106,7 @@ The log lists actions taken in the admin, newest first. Each row shows:
 
 Change how many rows you see with **Per side** (Per page) at the bottom.
 
-The log covers every campus. Campus leaders see entries from all campuses, and the campus box doesn't change what a global admin sees here.
+Use the log to check who did something and when. Find the row by its date and time, then read the action and the type of item.
 
 You can't search, filter or export the log, and you can't open a row for more detail.
 
@@ -122,8 +126,8 @@ Move with the arrow keys and press Enter to open what's highlighted. Esc closes 
 With nothing typed, you see:
 
 - **Recent**: the last five admin pages and items you opened. They're kept in this browser, so another computer has its own list.
-- **Navigate**: the admin pages your role can open. A few aren't here: **Medlemmer** (Members), **Regnskap** (Accounting), **Varsling** (Whistleblowing) and **Appversjoner** (App versions). Use the sidebar for those. Some names differ from the sidebar: **Shop** is **Produkter** (Products), **Drafts** is **Gjennomgå utkast** (Review Drafts) and **IT Console** is **IT**.
-- **Create**: new items in the areas your role can open. That's **New Event** and **New News Article**, plus **New Job Posting** for HR and global admins. Each opens the editor for a new item.
+- **Navigate**: the admin pages your role can open. A few aren't here: **Medlemmer** (Members), **Regnskap** (Accounting), **Varsling** (Whistleblowing) and **Appversjoner** (App versions). Use the sidebar for those. Some names differ from the sidebar: **Shop** is **Produkter** (Products), **Drafts** is **Gjennomgå utkast** (Review Drafts), **IT Console** is **IT** and **Payment settings** is **Betaling** (Payments).
+- **Create**, if your role can create content: **New Event** and **New News Article**, plus **New Job Posting** for HR and global admins. Each opens the editor for a new item.
 - **Account**: **Sign Out**.
 
 Global admins also get **Switch campus: Oslo**, **Switch campus: Bergen**, **Switch campus: Trondheim**, **Switch campus: Stavanger** and **Switch campus: All campuses**. They do the same as the campus box in the sidebar.
@@ -157,6 +161,8 @@ When it opens a page for you, the admin goes there straight away, and the chat s
 
 In the job editor and the event editor, the assistant can fill in the form on your screen. It doesn't save. Check the fields, then save yourself.
 
+Jobs, events and news that the assistant creates have **Notify students when published** switched on. When one is published, students who follow that topic in the app usually get one notification. To stop it, open the item's editor, switch off **Notify students when published** and save, before it's published.
+
 Before it creates, changes, publishes or deletes anything, the assistant is set up to show you a card and wait for your choice:
 
 - New content gets a draft card with **NO** and **EN** tabs. **Edit** lets you change the title and text. **Approve & save** goes ahead, and the X drops it.
@@ -164,7 +170,7 @@ Before it creates, changes, publishes or deletes anything, the assistant is set 
 
 Read each card before you choose.
 
-If you ask it to publish something your role can't publish on that campus, the item stays a draft, or is saved as one, and the assistant shows an **Approval required** card. Choose **Send approval request** to send a request, or the X to drop it. The request goes to the inbox of the campus leaders for the item's campus. Requests for jobs, and for National or no campus, go to the global admins. Global admins can see every request.
+If you ask it to do something your role can't do on that campus, the assistant can show an **Approval required** card. When you asked it to publish, the item stays a draft, or is saved as one. The card's title says what's being asked, for example **Events → Publish**. Only publishing an event, news item, job, benefit, document or product can be approved. Any other request, such as **Events → Update** or **Pages → Publish**, can only be rejected, so drop it with the X and ask a campus leader or a global admin to make the change. For a publishing request, choose **Send approval request** to send it. The request goes to the inbox of the campus leaders for the item's campus. Requests for jobs, and for National or no campus, go to the global admins. Global admins can see every request.
 
 Nobody is told about the request, and you aren't told when it's decided. When it's approved, the item is published, so check the item in its own list. If it's rejected, the item stays as it was, and nothing in the admin tells you why. Ask the approvers. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
 
@@ -182,7 +188,7 @@ If **Spør BISO Assistant** (Ask BISO Assistant) opens nothing and quick search 
 ## What happens next
 
 - None of these tools sends an email, a push or a Teams message of its own.
-- Approving a draft publishes it on biso.no at once. Events and news show on the biso.no lists, and jobs on biso.no/jobs. For an event, news item or job, its automatic push notification may follow, depending on the item's own notification setting.
+- Approving a draft publishes it on biso.no at once. Events and news show on the biso.no lists, and jobs on biso.no/jobs. For an event, news item or job, its automatic push notification follows if the item's **Notify students when published** setting is on. It's on for items the assistant creates, so switch it off in the item's editor and save first if you don't want a push.
 - Approving a draft is written to the activity log with your email.
 - An approval request sent from the assistant waits in the approvers' inbox. Nobody gets a message about it.
 </WhatHappensNext>
@@ -197,7 +203,6 @@ Students and members never see these tools. They see what comes out of them: a d
 - Reading **Kommende arrangementer** (Upcoming Events) as events still to come. It counts every published event, past ones included.
 - Trusting a 0 on the overview. A count that couldn't be loaded shows 0. Reload the page if a number looks wrong.
 - Approving a draft to see how it looks. **Godkjenn** (Approve) publishes it at once. Open it with the link icon instead. To take a published item offline again, unpublish it in its own editor.
-- Expecting the activity log to show only your campus. It shows actions on every campus.
 - Losing an assistant conversation. Reloading or closing the admin clears it. Copy anything you need first.
 - Choosing **Confirm** or **Delete** on an assistant card without reading it. A deletion can't be undone.
 - Looking for a member or a form submission in quick search. Use **Medlemmer** (Members) or **Innboks** (Inbox).
