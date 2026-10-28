@@ -8,6 +8,9 @@ covers:
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/scorecard-modal.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/advance-stage-modal.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/candidate-drawer.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/recruit-shell.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/view-model.ts
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/pipeline/candidate-card.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-workspace.ts
   - apps/admin/src/app/(portal)/_actions/interviews.ts
   - apps/admin/src/app/(portal)/_actions/jobs.ts
@@ -31,7 +34,6 @@ covers:
 
 - The candidate is on your shortlist. See [Review applications](/guide/recruitment/review-applications).
 - You know who sits on the panel. Only HR members appear in the panel list. Anyone else, such as the department's leader, gets no invite from the system, so send them the time yourself.
-- You've agreed who on the panel writes the scorecard. See [After the interview: fill in the scorecard](#after-the-interview-fill-in-the-scorecard).
 </BeforeYouStart>
 
 ## Two ways to book
@@ -65,7 +67,7 @@ Set these before you check the panel's calendars:
 
 - **Round**: 1, 2 or 3. It starts at the candidate's current interview round, or at 1 if they have none. For a second interview, choose 2.
 - **Duration**: **30m**, **45m** or **60m**. It starts at **45m**.
-- **Location**: **Teams**, **Nydalen** or **Hybrid**. It starts at **Teams**. **Teams** and **Hybrid** get a Teams meeting. **Nydalen** is the only in-person place you can choose. For an interview in person anywhere else, send the candidate the place yourself.
+- **Location**: **Teams**, **Nydalen** or **Hybrid**. It starts at **Teams**. **Teams** and **Hybrid** get a Teams meeting. **Nydalen** is the only in-person place you can choose. The place you choose is written in the Outlook invite and on the student's **Mine søknader** (My applications). For an interview in person on another campus, choose **Hybrid** and tell the candidate where to come. **Nydalen** would name the wrong place.
 - **Panel**: the HR members who can sit on the panel, shown by first name. The first two with an email are selected when the dialog opens. Click a name to add or remove them. A greyed-out name has no email and can't be selected. For a National vacancy, tick **Include HR from other campuses** to see HR from the other campuses too.
 
 The invite goes out from the mailbox of the selected person who comes first in the panel list.
@@ -73,7 +75,7 @@ The invite goes out from the mailbox of the selected person who comes first in t
 </Step>
 <Step title="Pick a time">
 
-The grid shows the next six weekdays, starting today, with start times from 9:00 to 16:00. You can only book a time inside this grid.
+The grid shows six weekdays, starting today, or on Monday if today is a weekend. Start times run from 9:00 to 16:00. You can only book a time inside this grid. Hours that have already passed today can still be picked, so don't pick one.
 
 1. Choose **Check availability**. The admin reads the selected people's Outlook calendars. The hours when everyone is free turn green.
 2. Click a cell. It gets a tick.
@@ -92,7 +94,7 @@ You may see one of these under the grid:
 
 Choose **Send invite for** followed by the time you picked, for example **Send invite for Tue 3 10:00**. Until you pick a time, the button says **Pick a slot**.
 
-The dialog closes and a message tells you what happened. Go by this message. The note at the bottom of the dialog is there before anything is sent.
+The dialog closes and a message tells you what happened. Go by this message. The note at the bottom of the dialog doesn't tell you whether the invite went out.
 
 - **Interview scheduled and invites sent.** The candidate and the panel have an Outlook invite.
 - A warning that contains **The interview was saved** means no invite went out. Send the time to the candidate and the panel yourself, and tell IT.
@@ -132,7 +134,7 @@ The link appears above the button. Choose the copy icon next to it (tooltip: *Co
 
 The admin doesn't keep the link. Once you leave the tab, you can't see it again. If you lose it before you send it, make a new one. Each link you make works on its own, so send the candidate only one.
 
-If you see an error instead of a link, tell IT.
+If you see **Select at least one panelist with an email.**, tick someone under **Panel**. If you see **Pick a candidate in the interview stage first.**, choose a candidate in **Candidate**. For any other error instead of a link, tell IT.
 
 </Step>
 <Step title="Email the link to the candidate">
@@ -158,7 +160,7 @@ The line shows the date but not the time. The **Panel calendar** above it marks 
 
 ## After the interview: fill in the scorecard
 
-The scorecard opens only from **Pending scorecards** on the **Interviews** tab. That list shows the interviews of candidates who have no scorecard yet. Once one scorecard is in for a candidate, that candidate leaves the list the next time the page loads, for every round. The admin has no other place to open a scorecard for them, so agree who writes it. To give the panel's shared view, write it together.
+Open the scorecard from **Pending scorecards** on the **Interviews** tab. Each person on the panel writes their own. If you submit again for the same interview, your earlier scorecard is replaced. The form starts empty each time, so fill it in fully. The interview stays in **Pending scorecards** after scorecards are in, so check the **Scorecards** box in the candidate's panel to see what's been written. The box doesn't say who wrote each scorecard.
 
 People on the interview's panel can submit a scorecard, and so can National HR and global admins. Anyone else sees **Forbidden** when they submit.
 
@@ -182,7 +184,7 @@ The **Scorecard — Round 1** dialog opens, with the round number of that interv
 </Step>
 </Steps>
 
-Everyone who can open the vacancy's applications can read the scorecard. It's in the **Scorecards** box at the side of the candidate's panel. The box shows the overall score, the recommendation, the stars and **Strengths**. It doesn't show **Open questions / concerns**, so tell the panel about those yourself.
+Everyone who can open the vacancy's applications can read the scorecard. It's in the **Scorecards** box at the side of the candidate's panel. The box shows the overall score, the recommendation, the stars and the strengths text. It doesn't show **Open questions / concerns**, so tell the panel about those yourself.
 
 The scorecard doesn't move the candidate. When you've decided, move them to **Offer** or **Archived**, or back to **Shortlist**.
 
@@ -214,7 +216,6 @@ When the candidate books:
 After a scorecard is submitted:
 
 - It shows in the candidate's panel.
-- The **Interview score** sort on the **Pipeline** tab orders candidates by the average overall score of their scorecards.
 - Nobody moves, and nothing is sent.
 </WhatHappensNext>
 
@@ -238,11 +239,10 @@ The student doesn't see the panel, the scorecards or the recommendation.
 ## Common mistakes
 
 - Trying to make a booking link before the candidate is in **Interview**. They aren't in the **Candidate** list. Move them first.
-- Sending a link that has expired or been used. A link works once, for 14 days from when you made it. If a candidate says the link doesn't work, make a new one and send it.
+- Sending a link that has expired or been used. A link works once, for 14 days from when you made it. If a candidate says the link doesn't work, check **Scheduled & proposed** first. A used link usually means they've already booked, and a new link would let them book a second time. If they haven't booked, make a new link and send it.
 - Waiting for an email about a booking. Nothing tells you. Check the **Interviews** tab.
 - Using the bulk **Schedule** button to book. It only drafts interview-invite emails. It books nothing.
 - Using a booking link for a second round. Bookings are always saved as round 1. Use the scheduling dialog and choose round 2.
 - Expecting **Reschedule** to move the interview. It books a second one with a new invite, and the first one stays. Tell everyone which time counts.
 - Going by the note at the bottom of the scheduling dialog. Check the message you get after you send the invite.
-- Leaving each panel member to write their own scorecard. After the first one is in, the candidate leaves **Pending scorecards**, and the admin has no other place to open a scorecard for them.
 - Writing concerns only in **Open questions / concerns**. They're saved but not shown in the candidate's panel.
