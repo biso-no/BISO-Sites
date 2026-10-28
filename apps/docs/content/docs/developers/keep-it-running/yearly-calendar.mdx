@@ -38,6 +38,7 @@ Find each of these once, write it on this page, and add it to the list above:
 - [ ] the new end date of the "BISO Sites" Azure secret, which the owner is rolling at the end of October 2026
 - [ ] the end dates of the other Azure secrets
 - [ ] the end dates of the two Azure Automation webhooks
+- [ ] the end date of the BI sign-in's client secret, and who owns its app registration in BI's tenant. Neither is in the repo. Find them in the Azure portal and add them under [Azure app secrets](#azure-app-secrets).
 
 ## The August board turnover
 
@@ -146,11 +147,12 @@ Where each app registration lives, and who owns it: <Private name="azure-app-reg
 |---|---|
 | The admin's Microsoft sign-in secret, set in Appwrite's Microsoft sign-in provider | Probably 5 March 2027. Check the exact date in the Azure portal: the owner noted it as 3/5/2027, and the portal may show dates in US format. |
 | The "BISO Sites" registration's secret | Not recorded. The owner is rolling it at the end of October 2026. Write its new end date here. |
+| The BI sign-in's client secret, set on Appwrite's `oidc` provider. Its app registration is in BI's tenant. | Not recorded in the repo, and neither is who owns the registration. Find both in the Azure portal and write them here. |
 | The secrets behind `AZURE_GRAPH_CLIENT_SECRET`, `AZURE_CLIENT_SECRET`, `SHAREPOINT_CLIENT_SECRET`, `BI_AZURE_CLIENT_SECRET` and `TEAMS_BOT_APP_PASSWORD` | Not recorded. Open each registration's **Certificates & secrets** in the Azure portal and write the dates here. |
 
 Renew each secret a few weeks early. An app registration can hold two secrets at once, so you can switch to the new one before the old one stops working.
 
-- For the sign-in secret, follow the fix in [An Azure secret has expired](/developers/keep-it-running/when-things-break#an-azure-secret-has-expired).
+- For the admin's and the BI sign-in secrets, follow the fix in [An Azure secret has expired](/developers/keep-it-running/when-things-break#an-azure-secret-has-expired).
 - For the rest, follow [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret). Which variables hold the "BISO Sites" secret isn't recorded. Find them as in [Azure secrets](/developers/keep-it-running/secrets-and-environment#azure-secrets).
 
 [An Azure secret has expired](/developers/keep-it-running/when-things-break#an-azure-secret-has-expired) lists what breaks when each one runs out.

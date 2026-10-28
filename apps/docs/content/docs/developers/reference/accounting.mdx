@@ -115,7 +115,7 @@ There's no safe way to test against 24SevenOffice. Every address in the connecto
 
 - **Leave every `TFSO_*` variable unset** in your own project and on your machine. The features above then fail cleanly, with the messages on this page.
 - **Never pay for an order with real `TFSO_*` values set,** even in Vipps or Stripe test mode. A test membership becomes a real invoice to a real student, and a test shop order becomes a real ledger posting once posting is on.
-- **Reads change nothing in 24SevenOffice,** such as a membership check, the roster sync or a department sync. They still need the production credentials, and they write what they read into whichever Appwrite project you point them at. Don't run member-roster-sync from your machine against production ([Scheduled jobs](/developers/keep-it-running/scheduled-jobs#member-roster-sync) says why).
+- **Reads change nothing in 24SevenOffice,** such as a membership check, the roster sync or a department sync. They still need the production credentials: get them from the account owner for the session, and don't keep them in `.env.local` afterwards. They also write what they read into whichever Appwrite project you point them at. Don't run member-roster-sync from your machine against production ([Scheduled jobs](/developers/keep-it-running/scheduled-jobs#member-roster-sync) says why).
 
 The logic around 24SevenOffice has unit tests that need no network:
 

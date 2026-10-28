@@ -60,7 +60,7 @@ Sign-in links by email, on the website and in the app, are sent by Appwrite itse
 
 **When it fails.** While `expenses_ledger_posting` is off and `INVOICE_USER_ID` is unset, every reimbursement submission fails before anything is sent. A message Appwrite accepted but couldn't deliver shows under **Messaging**, then **Messages**, in the console, with its errors.
 
-**Test it safely.** Your own project has no email provider until you add one. Add one with your own mailbox or a test service, and make `INVOICE_USER_ID` a user in your project.
+**Test it safely.** Your own project has no email provider until you add one. Add one with your own mailbox or a test service, and make `INVOICE_USER_ID` a user in your project. The reimbursement emails also need the `expenses` storage bucket, because the cover sheet is stored there first. The schema copy in [Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project) has no buckets, so create it in your project.
 
 ## Push
 

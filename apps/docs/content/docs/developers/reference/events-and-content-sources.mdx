@@ -91,10 +91,11 @@ The api's `/api/config` still reports `events_source: "wordpress"`, `jobs_source
 
 All three syncs only read from the outside service, so you can run them on your machine against your own Appwrite project ([Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project)). They write only to that project.
 
-1. Put the variables in `apps/api/.env.local`, with a `CRON_SECRET` of your own. For Tickster, ask the account owner for the API key. For Entur, add a few rows to `stop_places` first.
-2. Start the api, then call the sync:
+1. Put the variables in `apps/api/.env.local`, with a `CRON_SECRET` of your own. For Tickster, ask the account owner for the API key. It's a production credential, so get it for the session, and don't keep it in `.env.local` afterwards. For Entur, add a few rows to `stop_places` first.
+2. Start the api, then call the sync, with the same `CRON_SECRET` in your shell:
 
    ```bash
+   export CRON_SECRET=<the value in apps/api/.env.local>
    curl -X POST http://localhost:3003/api/departures/sync -H "x-cron-secret: $CRON_SECRET"
    curl -X POST http://localhost:3003/api/tickster/events/sync -H "x-cron-secret: $CRON_SECRET"
    ```

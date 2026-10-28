@@ -86,7 +86,8 @@ The repo has no local Appwrite (no Docker Compose file) and doesn't record a non
    | `NEXT_PUBLIC_APPWRITE_PROJECT` | Your project's id |
    | `APPWRITE_API_KEY` | The key you made in your project |
    | `NEXT_PUBLIC_BASE_URL` | The app's own address, for example `http://localhost:3001` for the admin |
-   | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:3003`, on the website and the admin |
+   | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:3003`, on the website, the admin and the api |
+   | `NEXT_PUBLIC_WEB_BASE_URL` | `http://localhost:3000`, on the api. Without it, the api falls back to `NEXT_PUBLIC_BASE_URL`, its own address, and sends buyers there instead of to the website. Without `NEXT_PUBLIC_API_BASE_URL` on the api, its checkout answers `500` with `Payment service is misconfigured`. |
 
 4. Start the app and check it, as described under [Run the apps](#run-the-apps).
 

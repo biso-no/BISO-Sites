@@ -22,7 +22,7 @@ Read this before you add or change an AI feature, or when one stops working. Eve
 
 ## Account and cost
 
-BISO has a non-profit Team plan with Anthropic, which comes with about USD 160 of credit a month. Every call from every app, and from your machine if you use BISO's key, spends that credit.
+BISO pays Anthropic for what the apps use. Its non-profit Team plan comes with about USD 160 of credit a month.
 
 Who owns the Anthropic account: <Private name="account-owners" label="Account owners" />
 
@@ -81,7 +81,7 @@ Receipt reading is also off whenever the whole reimbursements module (`expenses_
 
 ## Test it safely
 
-Anthropic has no test mode, so every call costs credit, from whichever key you use.
+Anthropic has no test mode, so every call is paid for, whichever key you use.
 
 - **Use your own key for development,** not the production one. Ask the account owner for a separate key, so it can be revoked when your work ends and its spend can be told apart.
 - **Point the apps at your own Appwrite project** ([Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project)). AI features that save their results, such as screening and the assistant's actions, then write only there.

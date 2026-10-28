@@ -52,9 +52,9 @@ The secrets of these registrations expire, and nothing in the code warns before 
 
 **Code.** `signInWithAzure()` in `apps/admin/src/lib/server.ts`, the return route `apps/admin/src/app/(auth)/auth/oauth/route.ts`, and the group sync in `apps/admin/src/lib/m365-sync.ts`.
 
-**Credentials.** The client id and secret are set on the Microsoft provider in the Appwrite console. They aren't variables. The secret probably expires on 5 March 2027.
+**Credentials.** The client id and secret are set on the Microsoft provider in the Appwrite console. They aren't variables. The secret probably expires on 5 March 2027: check the exact date in the Azure portal.
 
-**When it fails.** Staff land back on the sign-in page under **Innlogging mislyktes. Prøv igjen eller kontakt support.** (Sign-in failed. Please try again or contact support.) If only the group sync fails, they're signed in anyway, with the teams they had before. [Sign-in to the admin fails](/developers/keep-it-running/when-things-break#sign-in-to-the-admin-fails) is the runbook.
+**When it fails.** Staff land back on the sign-in page under **Innlogging mislyktes. Prøv igjen eller kontakt support.** (Sign-in failed. Please try again or contact support.) If only the group sync fails, they're signed in anyway, with their teams as the sync left them. The sync removes old teams before it adds new ones, so a failure halfway can leave some removed ([Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in)). [Sign-in to the admin fails](/developers/keep-it-running/when-things-break#sign-in-to-the-admin-fails) is the runbook.
 
 **Test it safely.** Your own Appwrite project, as in [Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project), has no Microsoft provider until you add one. The screenshot scripts show a way round it: they make staff users and sign them in with the project's API key ([Signing in](/developers/change-it/local-setup#signing-in)). The sync has unit tests in `apps/admin/src/lib/m365-sync.test.ts`.
 
@@ -78,10 +78,10 @@ The secrets of these registrations expire, and nothing in the code warns before 
 **When it fails.**
 
 - The IT user list shows the error in its place, for example `Missing Microsoft Graph server credentials`. The api's approver lookup fails with the same message.
-- A booked interview is still saved, but no Teams meeting or Outlook invite goes out. The website logs `[Booking] Calendar invite failed:`. Without the variables, the booking page also offers times without checking the panel's calendars.
+- A booked interview is still saved, but no Teams meeting or Outlook invite goes out. If the Graph call fails, the website logs `[Booking] Calendar invite failed:`. With the variables missing, nothing is logged, and the booking page also offers times without checking the panel's calendars.
 - Staff sign-in doesn't use this registration, so an expired Graph secret never stops anyone signing in.
 
-**Test it safely.** No test tenant is recorded, so every Graph call with this registration acts on BISO's real accounts. Pages that only read, such as the user search, change nothing. Never test anything that writes: creating a user, changing groups, resetting MFA or running a turnover changes a real person's account. The unit tests are in `packages/connectors/src/azure/*.test.ts` and `apps/admin/src/lib/it/`.
+**Test it safely.** No test tenant is recorded, so every Graph call with this registration acts on BISO's real accounts. Pages that only read, such as the user search, change nothing. Never test anything that writes. Creating a user, changing groups, resetting MFA or running a turnover changes a real person's account. Booking an interview, on a local website or with the admin's interview tools, creates a real Teams meeting and sends real Outlook invites to the panel and the candidate. Even the read-only pages use production credentials: get them from the account owner for the session, and don't keep them in `.env.local` afterwards. The unit tests are in `packages/connectors/src/azure/*.test.ts` and `apps/admin/src/lib/it/`.
 
 ## Unit boards
 
@@ -93,7 +93,7 @@ The secrets of these registrations expire, and nothing in the code warns before 
 
 **When it fails.** Unit pages show no board. With a variable missing, the api logs `Missing Azure credentials in environment variables`.
 
-**Test it safely.** The route only reads, so running it from a local api with the real variables changes nothing in Microsoft. It still reads real staff names, emails and photos, so keep what it returns off screenshots and out of issues.
+**Test it safely.** The route only reads, so running it from a local api with the real variables changes nothing in Microsoft. It still reads real staff names, emails and photos, so keep what it returns off screenshots and out of issues. It also uses production credentials: get them from the account owner for the session, and don't keep them in `.env.local` afterwards.
 
 ## SharePoint
 
@@ -135,7 +135,10 @@ The secrets of these registrations expire, and nothing in the code warns before 
 
 **Variables.** `AZURE_RETENTION_START_WEBHOOK_URL` and `AZURE_RETENTION_STOP_WEBHOOK_URL` on the admin. Each URL carries its own token, so treat it as a secret. `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL` on the api belongs to an older route that nothing calls.
 
-**When it fails.** The turnover still renames the account. The job in `m365_turnover_jobs` is left as `retention_start_failed` or `stop_failed`, and the dialog lists what failed under **Krever manuell oppfølging:** (Needs manual follow-up).
+**When it fails.**
+
+- If the start fails, the turnover still renames the account. The job in `m365_turnover_jobs` is left as `retention_start_failed`, and the dialog lists it under **Krever manuell oppfølging:** (Needs manual follow-up).
+- If the stop fails 7 days later, the job shows `stop_failed`, and every scheduled-dispatch run tries the stop again.
 
 **Test it safely.** There's no safe end-to-end test. A turnover renames a real Microsoft account, resets its MFA and sets a new password, so never run one to test. The state rules have unit tests in `apps/admin/src/lib/it/turnover.test.ts`.
 
@@ -158,7 +161,7 @@ The secrets of these registrations expire, and nothing in the code warns before 
 - The website's sign-in page shows **Vi kunne ikke logge deg inn med BI. Prøv igjen, eller bruk en innloggingslenke.** (We could not sign you in with BI. Please try again, or use a login link.)
 - Without `BI_OIDC_WELL_KNOWN_URL`, the discovery route answers `500` with `not_configured` and logs `[bi-oidc] BI_OIDC_WELL_KNOWN_URL is not configured`. If Microsoft can't be reached, it answers `502`.
 
-**Test it safely.** There's no safe end-to-end test. A comment in `packages/shared/utils/bi-identity-sync.ts` says account linking can't be tried from `localhost` and only works against a real deployment. The routes have unit tests next to them in `apps/api/src/app/api/auth/`, and the website's side is tested in `apps/web/src/lib/bi-login.test.ts`. `BI_DEV_STUDENT_EMAIL_OVERRIDE` exists for testing on a deployment, but it lets one address claim a student's identity, so read its warning in [Secrets and environment](/developers/keep-it-running/secrets-and-environment#bi-sign-in) first.
+**Test it safely.** There's no safe end-to-end test. A comment in `packages/shared/utils/bi-identity-sync.ts` says account linking can't be tried from `localhost` and only works against a real deployment. The routes have unit tests next to them in `apps/api/src/app/api/auth/`, and the website's side is tested in `apps/web/src/lib/bi-login.test.ts`. Don't use `BI_DEV_STUDENT_EMAIL_OVERRIDE` to test: production is the only deployment, and the override lets one address claim a student's identity there ([Secrets and environment](/developers/keep-it-running/secrets-and-environment#bi-sign-in)).
 
 ## BI directory
 

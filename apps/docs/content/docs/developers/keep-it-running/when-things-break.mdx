@@ -119,10 +119,10 @@ The page is misleading. The person is signed in, but they're in no campus or dep
 
 1. **The api.** Checkout runs there. Check `https://api.biso.no/api/health` and `/api/health/ready`.
 2. **The `payment_settings` table.** As a global admin, open **Innstillinger** (Settings), then **Betaling** (Payments), at `/settings/payments`. For the provider that fails:
-   - **Aktiv modus** (Active mode) must be **Live** in production. A provider whose mode was never set counts as test.
-   - The active mode's credentials must show **Klar** (Ready). Vipps needs the client id, client secret, subscription key and merchant serial number. Stripe needs its secret key.
+   - **Aktiv modus** (Active mode) must be **Live** in production, because an order paid in test mode still settles into BISO's real 24SevenOffice books. A provider whose mode was never set counts as test.
+   - The active mode's credentials must show **Klar** (Ready). Vipps needs the client id, client secret, subscription key and merchant serial number. Stripe needs its secret key and its webhook secret.
    - The page never shows the values. If you suspect one is wrong, enter it again.
-3. **The variables.** The api uses `VIPPS_*` or `STRIPE_*` on its Site only when the active mode's set is **Ufullstendig** (Incomplete), or the provider has no row. With no row, the api logs `[payment/credentials] vipps row not found in DB — falling back to env`, or the same for Stripe. While the table's set is complete, changing the variables does nothing.
+3. **The variables.** The api uses `VIPPS_*` on its Site only when the active Vipps set is **Ufullstendig** (Incomplete), or the provider has no row. It uses `STRIPE_*` only when the active mode has no Stripe secret key in the table, or there's no row. So for Stripe, **Ufullstendig** can mean only the webhook secret is missing: the api still uses the table's secret key, setting `STRIPE_*` changes nothing, and Stripe's webhooks fail their signature check until you enter the webhook secret on the page. With no row, the api logs `[payment/credentials] vipps row not found in DB — falling back to env`, or the same for Stripe. While the table's set is complete, changing the variables does nothing.
 4. **The webhooks.** A Vipps callback that answers `401` with `Invalid webhook signature` means the stored webhook secret doesn't match Vipps. For Stripe, the api logs `[payment/stripe/callback] signature check failed:` when the webhook secret in the table doesn't match the endpoint's signing secret in Stripe's dashboard.
 5. **Orders stuck as `pending`.** Order reconciliation re-checks them after 10 minutes, if scheduled-dispatch's `ORDERS_RECONCILE_URL` is set and points at `api.biso.no`. Check its line in the latest scheduled-dispatch run.
 6. **After a server restore or an Appwrite reinstall.** If the credentials in the table can't be read, the encryption key changed. See [The encryption keys](/developers/keep-it-running/backups-and-recovery#the-encryption-keys).
@@ -247,6 +247,7 @@ Never change Infisical's `ENCRYPTION_KEY`. Infisical's self-hosting documentatio
 | The admin's **IT** pages fail, and interview invitations aren't sent | `AZURE_GRAPH_CLIENT_SECRET` | admin, api, web |
 | The unit boards on the website show nobody | `AZURE_CLIENT_SECRET` | api |
 | Governing documents don't open | `SHAREPOINT_CLIENT_SECRET` | web, admin, api |
+| Every BI sign-in fails, on the website and in the app. The website's sign-in page says **Vi kunne ikke logge deg inn med BI. Prøv igjen, eller bruk en innloggingslenke.** (We could not sign you in with BI. Please try again, or use a login link.) | The BI sign-in's client secret, if its app registration in BI's tenant uses one. Its end date isn't recorded. | The Appwrite console, in the `oidc` provider |
 | A BI sign-in doesn't fill in the student id, so membership purchase is blocked | `BI_AZURE_CLIENT_SECRET` | web, api |
 | Expense approvals don't reach Teams | `TEAMS_BOT_APP_PASSWORD` | api |
 
@@ -264,6 +265,7 @@ Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and 
   2. In the Appwrite console, open the production project's **Auth** settings, then the Microsoft provider, paste the new secret and save. Nothing needs redeploying.
   3. Sign in to the admin to check it works.
   4. Store the secret in Infisical, write its end date in the [Yearly calendar](/developers/keep-it-running/yearly-calendar#azure-app-secrets), and delete the old secret in Azure.
+- **The BI sign-in secret:** the same steps, on the app registration in BI's tenant and the `oidc` provider in the console. Check by signing in to the website with BI.
 - **A secret held in variables:** follow [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret). Start with [Azure secrets](/developers/keep-it-running/secrets-and-environment#azure-secrets): one registration's secret can sit in several variables on several Sites. Write the new end date in the yearly calendar.
 
 ## AI features fail
