@@ -6,6 +6,7 @@ import { Callout } from "./components/callout";
 import { FileTree, FileTreeItem } from "./components/file-tree";
 import { Mermaid } from "./components/mdx/mermaid";
 import { Private } from "./components/private";
+import { RolePaths } from "./components/role-paths";
 import { Screenshot } from "./components/screenshot";
 import { Step, Steps } from "./components/steps";
 import { CodeTabs, Tabs } from "./components/tabs";
@@ -26,6 +27,7 @@ export const components: MDXComponents = {
   WhatHappensNext,
   Screenshot,
   Private,
+  RolePaths,
 };
 
 export function getMDXComponents(

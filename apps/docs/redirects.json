@@ -36,6 +36,110 @@
     "destination": "/guide/start-here/sign-in"
   },
   {
+    "source": "/docs/admin-handbook/activity",
+    "destination": "/guide/start-here/everyday-tools#check-the-activity-log-global-admins-and-campus-leaders"
+  },
+  {
+    "source": "/docs/admin-handbook/ai-assistant",
+    "destination": "/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone"
+  },
+  {
+    "source": "/docs/admin-handbook/approvals",
+    "destination": "/guide/start-here/inbox-and-approvals#approve-or-reject-a-request"
+  },
+  {
+    "source": "/docs/admin-handbook/benefits",
+    "destination": "/guide/members-and-benefits/publish-a-benefit"
+  },
+  {
+    "source": "/docs/admin-handbook/campus-context",
+    "destination": "/guide/start-here/sign-in#find-your-way-in-the-sidebar"
+  },
+  {
+    "source": "/docs/admin-handbook/dashboard",
+    "destination": "/guide/start-here/everyday-tools#read-the-overview-global-admins-and-campus-leaders"
+  },
+  {
+    "source": "/docs/admin-handbook/departments",
+    "destination": "/guide/departments-and-documents"
+  },
+  {
+    "source": "/docs/admin-handbook/documents",
+    "destination": "/guide/departments-and-documents/documents"
+  },
+  {
+    "source": "/docs/admin-handbook/drafts",
+    "destination": "/guide/start-here/everyday-tools#review-drafts-global-admins-and-campus-leaders"
+  },
+  {
+    "source": "/docs/admin-handbook/events",
+    "destination": "/guide/events"
+  },
+  {
+    "source": "/docs/admin-handbook/it-users",
+    "destination": "/guide/access-and-settings/manage-users"
+  },
+  {
+    "source": "/docs/admin-handbook/news",
+    "destination": "/guide/pages-and-news/publish-news"
+  },
+  {
+    "source": "/docs/admin-handbook/pages",
+    "destination": "/guide/pages-and-news"
+  },
+  {
+    "source": "/docs/admin-handbook/pages/ai-copilot",
+    "destination": "/guide/pages-and-news/edit-a-page"
+  },
+  {
+    "source": "/docs/admin-handbook/pages/blocks-reference",
+    "destination": "/guide/pages-and-news/edit-a-page#add-blocks"
+  },
+  {
+    "source": "/docs/admin-handbook/pages/creating-and-editing",
+    "destination": "/guide/pages-and-news/edit-a-page"
+  },
+  {
+    "source": "/docs/admin-handbook/pages/drafts-and-publishing",
+    "destination": "/guide/pages-and-news/edit-a-page#publish"
+  },
+  {
+    "source": "/docs/admin-handbook/pages/translations",
+    "destination": "/guide/pages-and-news/edit-a-page#write-the-other-language"
+  },
+  {
+    "source": "/docs/admin-handbook/roles-and-permissions",
+    "destination": "/guide/access-and-settings"
+  },
+  {
+    "source": "/docs/admin-handbook/settings",
+    "destination": "/guide/access-and-settings/system-settings"
+  },
+  {
+    "source": "/docs/admin-handbook/shop",
+    "destination": "/guide/shop"
+  },
+  {
+    "source": "/docs/admin-handbook/shop/approval-queue",
+    "destination": "/guide/shop#approval-requests-from-the-assistant"
+  },
+  {
+    "source": "/docs/admin-handbook/shop/checkout-and-payments",
+    "destination": "/guide/shop"
+  },
+  {
+    "source": "/docs/admin-handbook/shop/orders",
+    "destination": "/guide/shop/orders-and-refunds"
+  },
+  {
+    "source": "/docs/admin-handbook/shop/products",
+    "destination": "/guide/shop/add-a-product"
+  },
+  {
+    "source": "/docs/admin-handbook/submissions",
+    "destination": "/guide/start-here/inbox-and-approvals"
+  },
+  {
     "source": "/docs/admin-handbook/:path*",
     "destination": "/guide"
   },

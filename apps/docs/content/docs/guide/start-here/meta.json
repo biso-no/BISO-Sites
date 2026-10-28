@@ -1,4 +1,9 @@
 {
   "title": "Start here",
-  "pages": ["sign-in", "everyday-tools", "inbox-and-approvals"]
+  "pages": [
+    "pick-your-role",
+    "sign-in",
+    "everyday-tools",
+    "inbox-and-approvals"
+  ]
 }
