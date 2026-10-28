@@ -11,7 +11,7 @@ never write a value from these steps into it.
 
 ## 1. Before go-live: security fixes
 
-- [ ] **Fix every item tagged **[Before go-live]** in the private issues list.**
+- [ ] **Fix every item tagged "[Before go-live]" in the private issues list.**
   Done when: each of them is fixed on `main` and live in production.
 
 ## 2. Microsoft and Appwrite teams
