@@ -48,6 +48,34 @@ test("throws when the docs project is the production project", () => {
   ).toThrow("production");
 });
 
+test("throws for the production project in any case or with spaces", () => {
+  for (const variant of [
+    PRODUCTION_PROJECT.toUpperCase(),
+    `${PRODUCTION_PROJECT.charAt(0).toUpperCase()}${PRODUCTION_PROJECT.slice(1)}`,
+    `  ${PRODUCTION_PROJECT}  `,
+    ` ${PRODUCTION_PROJECT.toUpperCase()}\t`,
+  ]) {
+    expect(() =>
+      readScreenshotConfig({ ...DOCS_ENV, DOCS_APPWRITE_PROJECT: variant })
+    ).toThrow("production");
+  }
+});
+
+test("throws when an app project differs from the docs project only in case or spaces", () => {
+  expect(() =>
+    readScreenshotConfig({
+      ...DOCS_ENV,
+      NEXT_PUBLIC_APPWRITE_PROJECT: ` ${DOCS_ENV.DOCS_APPWRITE_PROJECT.toUpperCase()} `,
+    })
+  ).toThrow("NEXT_PUBLIC_APPWRITE_PROJECT");
+  expect(() =>
+    readScreenshotConfig({
+      ...DOCS_ENV,
+      APPWRITE_PROJECT_ID: DOCS_ENV.DOCS_APPWRITE_PROJECT.toUpperCase(),
+    })
+  ).toThrow("APPWRITE_PROJECT_ID");
+});
+
 test("throws when the docs project equals APPWRITE_PROJECT_ID", () => {
   expect(() =>
     readScreenshotConfig({

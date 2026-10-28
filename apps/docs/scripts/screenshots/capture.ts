@@ -91,28 +91,35 @@ function groupShots(shots: Shot[]): ShotGroup[] {
   return [...groups.values()];
 }
 
+interface MintedSession {
+  sessionId: string;
+  userId: string;
+}
+
 /**
  * Signs the context in as `userId`: sets the locale preference the admin
  * reads, mints a session with the server SDK and puts its secret in the
- * admin's session cookie for the admin's own host. Returns the session id so
- * it can be deleted afterwards.
+ * admin's session cookie for the admin's own host. The session is handed to
+ * `remember` as soon as it exists, before anything else can throw, so it is
+ * always deleted at the end.
  */
 async function signIn(
   client: DocsAdminClient,
   context: BrowserContext,
   config: ScreenshotConfig,
-  userId: string
-): Promise<string> {
+  userId: string,
+  remember: (session: MintedSession) => void
+): Promise<void> {
   const prefs = await client.users.getPrefs({ userId });
   await client.users.updatePrefs({
     prefs: { ...prefs, locale: ADMIN_LOCALE },
     userId,
   });
   const session = await client.users.createSession({ userId });
+  remember({ sessionId: session.$id, userId });
   await context.addCookies([
     adminSessionCookie(config.adminUrl, session.secret),
   ]);
-  return session.$id;
 }
 
 /** Skips the recruitment tour if it opens anyway (the seed marks it dismissed). */
@@ -178,7 +185,7 @@ async function main(): Promise<void> {
   const outDir = resolveOutDir(config);
   mkdirSync(outDir, { recursive: true });
 
-  const sessions: { sessionId: string; userId: string }[] = [];
+  const sessions: MintedSession[] = [];
   const results: ShotResult[] = [];
   const browser = await chromium.launch();
   try {
@@ -190,9 +197,13 @@ async function main(): Promise<void> {
       });
       try {
         if (group.role) {
-          const userId = seed.sessionUsers[group.role];
-          const sessionId = await signIn(client, context, config, userId);
-          sessions.push({ sessionId, userId });
+          await signIn(
+            client,
+            context,
+            config,
+            seed.sessionUsers[group.role],
+            (session) => sessions.push(session)
+          );
         }
         for (const shot of group.shots) {
           results.push(await takeShot(context, config, outDir, shot));
@@ -227,8 +238,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`Capture failed: ${message}\n`);
-  process.exitCode = 1;
-});
+// Only when run as a script: importing this file never starts a capture.
+if (import.meta.main) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`Capture failed: ${message}\n`);
+    process.exitCode = 1;
+  });
+}

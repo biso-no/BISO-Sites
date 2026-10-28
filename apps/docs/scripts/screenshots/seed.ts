@@ -147,8 +147,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`Seeding failed: ${message}\n`);
-  process.exitCode = 1;
-});
+// Only when run as a script: importing this file never starts a seed run.
+if (import.meta.main) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`Seeding failed: ${message}\n`);
+    process.exitCode = 1;
+  });
+}

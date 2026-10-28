@@ -84,8 +84,8 @@ not one set up for an app.
 5. **Start the admin against the docs project.** Next.js reads
    `apps/admin/.env.local` on start. Move that file (and any other
    `apps/admin/.env*` file with real values) out of the folder for the run,
-   so no production value or service secret is in reach. Then start the
-   admin in its own terminal with only these set:
+   so no production value or service secret is in reach. Then, in its own
+   terminal, set only these in the shell (for example with `export`):
 
    | Variable | Value |
    |----------|-------|
@@ -95,9 +95,17 @@ not one set up for an app.
    | `APPWRITE_SESSION_COOKIE` | `a_session_biso_admin` |
    | `NEXT_PUBLIC_BASE_URL` | `http://localhost:3001` |
 
+   and start the admin from its own folder:
+
    ```bash
-   bun run dev --filter=admin
+   cd apps/admin
+   bun run dev
    ```
+
+   That runs `next dev` on port 3001 with the shell's variables. Don't use
+   `bun run dev --filter=admin` from the repo root: it goes through Turbo,
+   which passes only the variables a task declares, so these settings never
+   reach the admin and it refuses to start.
 
    Leave the Microsoft (`AZURE_*`), OpenAI, SMTP, SharePoint and payment
    variables unset. None of the shots needs them, and without them the admin
@@ -116,6 +124,12 @@ not one set up for an app.
    signed-in user's language to Norwegian, as staff see the admin. The first
    visit to each screen compiles it in `next dev`, so the first run is slow.
    Run the seed again before a new capture to reset the data.
+
+   The seeded dates are fixed in September 2026. The **Panel calendar** on
+   the **Interviews** tab shows the weekdays from today, so the seeded
+   interviews won't appear in that grid. The shots use the lists on that tab,
+   not the grid. The "days since applied" on each card also depends on the
+   day you capture.
 
 7. **Add the images to the guide.** For each shot in `manifest.ts`, open its
    `page` and add a `<Screenshot>` after the content of the `<Step>` named in

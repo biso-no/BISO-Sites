@@ -47,6 +47,15 @@ export function readProductionProjectId(): string {
   return config.projectId;
 }
 
+/**
+ * Project ids compared the way a person would read them: trimmed and
+ * case-insensitive, so a different case or stray spaces can't slip past the
+ * guard.
+ */
+function sameProject(a: string | undefined, b: string): boolean {
+  return a?.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 function required(env: Env, key: string): string {
   const value = env[key]?.trim();
   if (!value) {
@@ -88,13 +97,13 @@ function readAdminUrl(env: Env): string {
 export function readScreenshotConfig(env: Env): ScreenshotConfig {
   const projectId = required(env, "DOCS_APPWRITE_PROJECT");
 
-  if (projectId === readProductionProjectId()) {
+  if (sameProject(projectId, readProductionProjectId())) {
     throw new Error(
       "DOCS_APPWRITE_PROJECT is the production project. The screenshot scripts only run against a docs-only project. Refusing to go on."
     );
   }
   for (const key of APP_PROJECT_ENV_KEYS) {
-    if (env[key]?.trim() === projectId) {
+    if (sameProject(env[key], projectId)) {
       throw new Error(
         `DOCS_APPWRITE_PROJECT equals ${key}. Run the scripts from a shell that isn't set up for an app. Refusing to go on.`
       );
