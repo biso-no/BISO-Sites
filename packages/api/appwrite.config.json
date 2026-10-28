@@ -8452,6 +8452,86 @@
             ]
         },
         {
+            "$id": "event_rsvps",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Event RSVPs",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "event_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "user_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "going",
+                        "maybe",
+                        "not_going"
+                    ]
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "uniq_event_user",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "event_id",
+                        "user_id"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_event_status",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "event_id",
+                        "status"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_user_id",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "user_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
             "$id": "event_attendees",
             "$permissions": [],
             "databaseId": "app",

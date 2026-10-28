@@ -1,7 +1,5 @@
 import { extractTextFromPdf } from "@repo/ai/server/pdf-text-extractor";
 import { screenApplication } from "@repo/ai/server/recruitment-screener";
-import { createAdminClient } from "@repo/api/server";
-import type { Users } from "@repo/api/types/appwrite";
 import { isAuthenticatedAppwriteUser } from "@repo/shared/recruitment";
 import {
   listApplicationsForApplicant,
@@ -10,11 +8,10 @@ import {
   runRecruitmentScreening,
   submitRecruitmentApplication,
 } from "@repo/shared/recruitment/apply";
-import { sanitizeStudentNumber } from "@repo/shared/utils/bi-student";
 import { after, type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
-import { getMembershipStatusForStudent } from "@/lib/membership-status-cache";
+import { isMemberByProfile } from "@/lib/member-by-profile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,10 +40,6 @@ function isOverBodyLimit(req: NextRequest): boolean {
   return Number.isFinite(declared) && declared > MAX_BODY_BYTES;
 }
 
-function isRowNotFound(error: unknown): boolean {
-  return (error as { code?: unknown } | null)?.code === 404;
-}
-
 /**
  * The caller behind the bearer token, when it is a real (non-anonymous)
  * account with an email — applications are filed under that email.
@@ -73,31 +66,6 @@ async function authenticatedApplicant(
   } catch {
     return null;
   }
-}
-
-/**
- * Live membership from the profile's BI student number, refreshed as the
- * membership route's `?refresh=1` is: a student who bought a membership a
- * moment ago must be able to apply at once. No student number, no member.
- */
-async function isMemberByProfile(userId: string): Promise<boolean> {
-  const { db } = await createAdminClient();
-  const profile = await db
-    .getRow<Users>("app", "user", userId)
-    .catch((error: unknown) => {
-      if (isRowNotFound(error)) {
-        return null;
-      }
-      throw error;
-    });
-  const studentNumber = sanitizeStudentNumber(profile?.student_id);
-  if (studentNumber === null) {
-    return false;
-  }
-  const status = await getMembershipStatusForStudent(studentNumber, {
-    refresh: true,
-  });
-  return status.isMember;
 }
 
 /**

@@ -1,6 +1,6 @@
 "use server";
 
-import { ID, Permission, Query, Role } from "@repo/api";
+import { ID, type Models, Permission, Query, Role } from "@repo/api";
 import { createAdminClient, type createSessionClient } from "@repo/api/server";
 import type {
   EventAttendees,
@@ -9,6 +9,10 @@ import type {
   SegmentMembers,
   Users,
 } from "@repo/api/types/appwrite";
+import {
+  EVENT_RSVPS_TABLE,
+  type EventRsvpStatus,
+} from "@repo/shared/utils/event-rsvp";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { getContentOwnership } from "@/lib/content-authorization";
@@ -551,6 +555,91 @@ export async function listAttendees(
   }
 
   return rows;
+}
+
+export interface EventRsvpEntry {
+  email: string | null;
+  name: string | null;
+  status: EventRsvpStatus;
+  updatedAt: string;
+  userId: string;
+}
+
+interface EventRsvpRow {
+  $id: string;
+  $updatedAt: string;
+  status: EventRsvpStatus;
+  user_id: string;
+}
+
+const RSVP_PAGE_SIZE = 200;
+const USER_LOOKUP_CHUNK = 100;
+
+export async function listEventRsvps(
+  eventId: string
+): Promise<EventRsvpEntry[]> {
+  const ctx = withNationalEventScope(await requireAuth());
+  const { db } = await createAdminClient();
+
+  const event = await loadScopedEvent(db, ctx, eventId);
+  if (!event) {
+    return [];
+  }
+
+  const rows: (EventRsvpRow & Models.Row)[] = [];
+  let cursor: string | null = null;
+
+  for (;;) {
+    const queries: string[] = [
+      Query.equal("event_id", eventId),
+      Query.orderAsc("$id"),
+      Query.limit(RSVP_PAGE_SIZE),
+    ];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+    const page = await db.listRows<EventRsvpRow & Models.Row>(
+      "app",
+      EVENT_RSVPS_TABLE,
+      queries
+    );
+    rows.push(...page.rows);
+    if (page.rows.length < RSVP_PAGE_SIZE) {
+      break;
+    }
+    cursor = page.rows.at(-1)?.$id ?? null;
+    if (!cursor) {
+      break;
+    }
+  }
+
+  const profiles = new Map<
+    string,
+    { email: string | null; name: string | null }
+  >();
+  const ids = [...new Set(rows.map((row) => row.user_id))];
+  for (let i = 0; i < ids.length; i += USER_LOOKUP_CHUNK) {
+    const chunk = ids.slice(i, i + USER_LOOKUP_CHUNK);
+    const page = await db.listRows<Users>("app", "user", [
+      Query.equal("$id", chunk),
+      Query.select(["$id", "name", "email"]),
+      Query.limit(USER_LOOKUP_CHUNK),
+    ]);
+    for (const profile of page.rows) {
+      profiles.set(profile.$id, {
+        email: profile.email ?? null,
+        name: profile.name ?? null,
+      });
+    }
+  }
+
+  return rows.map((row) => ({
+    email: profiles.get(row.user_id)?.email ?? null,
+    name: profiles.get(row.user_id)?.name ?? null,
+    status: row.status,
+    updatedAt: row.$updatedAt,
+    userId: row.user_id,
+  }));
 }
 
 // ---------------------------------------------------------------------------
