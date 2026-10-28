@@ -35,7 +35,7 @@ interface RequestOptions {
 /** The route's own limit, checked here too so a long question costs no request. */
 const MAX_QUESTION_CHARS = 500;
 
-/** One header entry, with its url resolved to a path on this site, or null. */
+/** One header entry, or null unless its url is a docs page path. */
 function toSource(value: unknown): AnswerSource | null {
   if (typeof value !== "object" || value === null) {
     return null;
@@ -49,8 +49,8 @@ function toSource(value: unknown): AnswerSource | null {
 }
 
 /**
- * Reads `X-Docs-Sources`. Only urls that resolve to this site are kept, so a
- * source can never become a link to another origin or a `javascript:` URL.
+ * Reads `X-Docs-Sources`. Only docs page paths are kept (see `sitePath`), so
+ * a source can never become a link to another origin or a `javascript:` URL.
  */
 export function parseSources(header: string | null): AnswerSource[] {
   if (!header) {

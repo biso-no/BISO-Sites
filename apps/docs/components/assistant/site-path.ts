@@ -1,40 +1,16 @@
-/** A stand-in origin: `.invalid` can never be a real host. */
-const BASE = "https://docs.invalid";
-
-const BACKSLASH = "\\";
-const LAST_CONTROL_CHAR = 0x1f;
-const DELETE_CHAR = 0x7f;
-
-function hasUnsafeChar(url: string): boolean {
-  if (url.includes(BACKSLASH)) {
-    return true;
-  }
-  for (const char of url) {
-    const code = char.charCodeAt(0);
-    if (code <= LAST_CONTROL_CHAR || code === DELETE_CHAR) {
-      return true;
-    }
-  }
-  return false;
-}
-
 /**
- * The url as a path on this site, or null when a browser could resolve it to
- * another origin. A plain prefix check isn't enough: browsers read `/\host`
- * as `//host` and drop tabs and newlines, so `/<TAB>/host` leaves the site.
+ * A docs page path: lowercase slugs between single slashes, and optionally a
+ * heading or step anchor, as in `/guide/shop/add-a-product#start-a-product`.
+ * The anchor also allows `_`, because a Fumadocs heading id keeps one from
+ * the heading's text (`#credentials-the-payment_settings-table`).
+ *
+ * An allowlist, so dot segments, double slashes, backslashes, control
+ * characters, percent-encoding, queries and absolute URLs can't get through.
+ * A browser would resolve several of those to another origin.
  */
+const DOCS_PATH = /^\/(?:[a-z0-9-]+(?:\/[a-z0-9-]+)*)?(?:#[a-z0-9_-]+)?$/;
+
+/** The url unchanged when it is a docs page path, otherwise null. */
 export function sitePath(url: string): string | null {
-  if (!url.startsWith("/") || hasUnsafeChar(url)) {
-    return null;
-  }
-  let resolved: URL;
-  try {
-    resolved = new URL(url, BASE);
-  } catch {
-    return null;
-  }
-  if (resolved.origin !== BASE) {
-    return null;
-  }
-  return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+  return DOCS_PATH.test(url) ? url : null;
 }

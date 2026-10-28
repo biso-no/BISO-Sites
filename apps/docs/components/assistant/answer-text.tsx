@@ -156,7 +156,7 @@ function citations(
   );
 }
 
-/** Only sources whose url stays on this site, with that url resolved. */
+/** Only sources whose url is a docs page path. */
 function safeSources(sources: AnswerSource[]): AnswerSource[] {
   return sources.flatMap((source) => {
     const url = sitePath(source.url);
@@ -213,7 +213,7 @@ function lines(
 
 /**
  * The sources an answer cites as `[n]`, or every source when it cites none.
- * A source whose url would leave this site is dropped.
+ * A source whose url isn't a docs page path is dropped.
  */
 export function citedSources(
   text: string,

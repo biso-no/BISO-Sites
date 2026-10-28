@@ -150,21 +150,37 @@ test("a bad sources header gives no sources", () => {
   ).toEqual(SOURCES);
 });
 
-test("only same-origin paths are kept as sources", () => {
-  for (const url of [
-    "/\\evil.test/x",
-    "/\t/evil.test/x",
-    "/\n/evil.test",
-    "//evil.test",
-    "https://evil.test",
-  ]) {
+/** Each of these is rejected; several resolve to another origin. */
+const NOT_DOCS_PATHS = [
+  "/\\evil.test/x",
+  "/\t/evil.test/x",
+  "/\n/evil.test",
+  "//evil.test",
+  "https://evil.test",
+  "javascript:alert(1)",
+  "/.//evil",
+  "/..//evil",
+  "/a/..//evil",
+  "/x/../..//evil.test/x",
+  "%2F%2Fevil",
+  "/a?b=1",
+];
+
+test("only docs page paths are kept as sources", () => {
+  for (const url of NOT_DOCS_PATHS) {
     expect(parseSources(header([{ n: 1, title: "Off site", url }]))).toEqual(
       []
     );
   }
-  expect(
-    parseSources(header([{ n: 1, title: "Here", url: "/guide/a?b=1#c" }]))
-  ).toEqual([{ n: 1, title: "Here", url: "/guide/a?b=1#c" }]);
+  for (const url of [
+    "/",
+    "/guide/shop",
+    "/guide/shop/add-a-product#start-a-product",
+  ]) {
+    expect(parseSources(header([{ n: 1, title: "Here", url }]))).toEqual([
+      { n: 1, title: "Here", url },
+    ]);
+  }
 });
 
 function hangingFetch(signals: AbortSignal[]): typeof fetch {

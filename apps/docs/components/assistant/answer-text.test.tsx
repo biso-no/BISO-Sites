@@ -89,13 +89,30 @@ test("a repeated number in a group links once", () => {
   expect(out).toMatch(SOURCE_2_LINK);
 });
 
-test("a source that resolves to another origin is never linked", () => {
-  const offSite = [{ n: 1, title: "Off", url: "/\\evil.test/x" }];
-  const out = renderToStaticMarkup(
-    <AnswerText sources={offSite} text="See [1]." />
-  );
-  expect(out).not.toContain("<a");
-  expect(citedSources("See [1].", offSite)).toEqual([]);
+/** Each of these is rejected; several resolve to another origin. */
+const NOT_DOCS_PATHS = [
+  "/\\evil.test/x",
+  "/\t/evil.test/x",
+  "/\n/evil.test",
+  "//evil.test",
+  "https://evil.test",
+  "javascript:alert(1)",
+  "/.//evil",
+  "/..//evil",
+  "/a/..//evil",
+  "/x/../..//evil.test/x",
+  "%2F%2Fevil",
+  "/a?b=1",
+];
+
+test("a source that isn't a docs page path is never linked", () => {
+  for (const url of NOT_DOCS_PATHS) {
+    const sources = [{ n: 1, title: "Off", url }];
+    expect(
+      renderToStaticMarkup(<AnswerText sources={sources} text="See [1]." />)
+    ).not.toContain("<a");
+    expect(citedSources("See [1].", sources)).toEqual([]);
+  }
 });
 
 test("cited sources are those cited, or all when none are", () => {
