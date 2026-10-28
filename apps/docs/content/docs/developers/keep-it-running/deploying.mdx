@@ -1,0 +1,275 @@
+---
+title: Deploying
+description: How each app and function gets to production today, how the BISO app reaches the stores, what to check after a deploy, and what a deploy workflow would need.
+covers:
+  - package.json
+  - apps/*/next.config.*
+  - apps/api/package.json
+  - apps/*/Dockerfile
+  - apps/*/src/app/api/health/**
+  - apps/docs/app/api/health/**
+  - functions/*/README.md
+  - functions/*/package.json
+  - apps/docs/lib/git-dates.ts
+  - apps/docs/source.config.ts
+  - .github/workflows/**
+---
+
+Read this before you ship a change to production, and again when a deploy goes wrong. It covers how the four web apps and the three Appwrite functions are built and deployed today, how the BISO app reaches the stores, and what to check afterwards. Deploys are manual, nothing in GitHub checks your code, and there is no staging environment, so run the checks on this page yourself.
+
+## How deploys work today
+
+- The four web apps (web, admin, api and docs) run as Sites in Appwrite. The owner deploys each one by hand in the Appwrite console.
+- Pushing to `main` doesn't deploy them. Nobody knows why yet. A GitHub deploy workflow is planned.
+- Nothing in GitHub builds, tests, lints or type-checks the apps. The two workflows in `.github/workflows/` are a Claude PR review and a docs coverage check that only warns.
+- There is no staging environment. A deploy goes straight to `biso.no`, `admin.biso.no` or `api.biso.no`.
+- The three functions are deployed from the console too, each with its own settings.
+- The BISO app ships differently: Android from CI, iOS by hand.
+
+| Part | Build | How it's deployed | Live at |
+|---|---|---|---|
+| web | `bun run build:web:appwrite` | By hand, Appwrite console | `biso.no` |
+| admin | `bun run build:admin:appwrite` | By hand, Appwrite console | `admin.biso.no` |
+| api | `bun run build:api:appwrite`, or the older `deploy:build` (check) | By hand, Appwrite console | `api.biso.no` |
+| docs | `bun run build:docs:appwrite` | Not deployed yet | `docs.biso.no`, planned |
+| scheduled-dispatch | `bun install`, no build step | Appwrite console, Git integration | Appwrite function |
+| content-notifier | A `bun build` bundle | Appwrite console | Appwrite function |
+| member-roster-sync | A `bun build` bundle | Appwrite console | Appwrite function |
+| Android app | GitHub Actions in BISO-Flutter | Each push to `main` goes to Google Play's internal track | Google Play |
+| iOS app | `flutter build ipa --release` on a Mac | Uploaded by hand | App Store |
+
+You need access to the Appwrite console to deploy. [Getting access](/developers/start-here/getting-access#appwrite-console) says who grants it.
+
+## Before you deploy
+
+CI checks nothing, so run these yourself, from the repo root, on the commit you're about to deploy. Merge it to `main` first: the Sites build the latest commit.
+
+```bash
+git switch main && git pull
+bun install
+bun run check-types
+bun x ultracite check <the files you changed>
+bun run test --filter=<app>
+bun run build --filter=<app>
+```
+
+- `bun run check-types` type-checks every app and package. It must pass.
+- Lint only the files you changed. The repo-wide `bun run check` already reports about 150 errors.
+- When this page was written, one admin test (`content translation service`) already failed. If a test fails, run the same test on `main` before you assume your change broke it.
+- Build with your own `apps/<app>/.env.local` in place, pointing at a non-production project, as in [Your first day](/developers/start-here/your-first-day#run-the-apps-against-a-non-production-appwrite-project).
+- Build the admin even if `check-types` passed. The build catches one rule `check-types` misses: a `"use server"` file may export only async functions.
+
+## Deploy a web app
+
+### What the build script does
+
+Each `build:<app>:appwrite` script in the root `package.json` does three things:
+
+1. It runs `turbo run build --filter=<app>`, which builds the shared packages the app needs and then runs `next build`.
+2. Every app sets `output: "standalone"` with `outputFileTracingRoot` at the repo root (each app's `next.config`), so Next.js writes a self-contained server to `apps/<app>/.next/standalone`.
+3. The script copies that to `.next/standalone` at the repo root, adds the app's `public/` folder and `.next/static`, and writes a `.next/standalone/server.js` that loads `apps/<app>/server.js`.
+
+The result is one folder, `.next/standalone`, whose entry point is `server.js`.
+
+### The Site settings live only in the console
+
+The repo doesn't record how each Site is built: not the install or build command, the output folder, the runtime, the root folder or the branch. `packages/api/appwrite.config.json` has no Sites section. The build scripts above are named for Appwrite, but only the console shows what each Site really runs.
+
+The first time you deploy, open each Site's settings and write down what you find. Add it to this page so the next person has it. For the api, check which script the Site runs: `apps/api/package.json` also has an older `deploy:build` script that lays the output out differently, with `server.js` at the top of the standalone folder.
+
+### Steps
+
+1. Run the checks in [Before you deploy](#before-you-deploy).
+2. Open the Appwrite console (<Private name="appwrite-console-url" label="Appwrite console" />), then BISO's production project, then **Sites**, then the app's Site.
+3. Start a new deployment of the latest commit on `main`.
+4. Watch the build log until it finishes. If the build fails, read the log, fix the problem on `main`, and deploy again.
+5. Check that the new deployment is the active one.
+6. Do the checks in [After a deploy, check](#after-a-deploy-check).
+
+### Environment variables and builds
+
+Next.js copies every `NEXT_PUBLIC_*` value into the build. Set those on the Site before you deploy, and deploy again after you change one. The other variables are read while the app runs. [Secrets and environment](/developers/keep-it-running/secrets-and-environment) lists them all.
+
+### Notes per app
+
+- **web** refuses to start unless `APPWRITE_SESSION_COOKIE` is `a_session_biso_web`.
+- **admin** refuses to start without `APPWRITE_API_KEY` and `NEXT_PUBLIC_BASE_URL`, and unless `APPWRITE_SESSION_COOKIE` is `a_session_biso_admin`.
+- **api** has no start-up check. A missing variable shows up only when a route needs it.
+- **docs** isn't live yet. Before its first deploy, do the "Owner actions" in `apps/docs/CLAUDE.md`. It must run on a `*.biso.no` host, or the browser never sends it the admin's session cookie.
+
+### Don't use the Dockerfiles
+
+`apps/web/Dockerfile` and `apps/api/Dockerfile` are out of date. They copy `bun.lockb`, but the repo uses `bun.lock`, and they expect build output the monorepo build doesn't produce. `apps/admin/Dockerfile` follows the monorepo layout, but nothing uses it.
+
+### Roll back
+
+A Site keeps its earlier deployments, and one of them is the active one. To roll back, make the last good deployment active again in the console, then do the checks below. The deleted deploy workflow did the same through the API: it built each commit as an inactive deployment and then made it active with `sites.updateSiteDeployment`. An old deployment keeps the `NEXT_PUBLIC_*` values it was built with.
+
+## Deploy a function
+
+The three functions live in `functions/`. Each one's README lists its console settings. The console is the source of truth. The repo keeps a copy of only scheduled-dispatch's settings, in `packages/api/appwrite.config.json`.
+
+Redeploy a function when you change its folder. content-notifier and member-roster-sync also bundle shared packages when they're built, so redeploy them after changes to `packages/api` or `packages/shared`, and member-roster-sync after changes to `packages/connectors` as well. scheduled-dispatch uses no shared packages.
+
+Never set `APPWRITE_*` variables on a function. Appwrite passes each run its own key, scoped to the function's settings.
+
+### What to check in the console
+
+For each function, open it in the console and compare these with its README. If they differ, update the README.
+
+- where the code comes from: a connected Git repository and branch, or an upload
+- root directory, build command, entrypoint and runtime
+- schedule, timeout and events
+- scopes and execute access
+- variables
+- whether execution logging is on
+
+### scheduled-dispatch
+
+Its README says it is deployed through the console's Git integration, and that the console settings are the source of truth.
+
+| Setting | Value |
+|---|---|
+| Root directory | The repo root |
+| Build command | `cd functions/scheduled-dispatch && bun install` |
+| Entrypoint | `functions/scheduled-dispatch/src/main.ts` |
+| Runtime | `bun-1.0`. Bun runs the TypeScript directly, so there's no build step. |
+| Schedule | `*/5 * * * *` (every 5 minutes) |
+| Timeout | 330 seconds in the console. `appwrite.config.json` says 60, but the console value is the real one. |
+| Scopes | None. It only makes HTTP calls. |
+| Variables | `CRON_SECRET` and the target URLs. See [Scheduled jobs](/developers/keep-it-running/scheduled-jobs). |
+
+Keep the timeout above 300 seconds. Two of its targets, order reconciliation and expense posting, are allowed 300 seconds each (`functions/scheduled-dispatch/src/main.ts`). Appwrite allows at most 900.
+
+Don't run `appwrite push` for this function from `packages/api`. The config there would set the timeout back to 60 seconds, and it names the production project.
+
+After a deploy, open the next execution under the function's **Executions**. A healthy run logs a `start trigger=schedule` line and ends with `done` and `"failed":0`.
+
+### content-notifier
+
+Its README lists the settings under "Console setup (not in code)". It doesn't say how the code reaches Appwrite, so check in the console whether the function is connected to the repo, and to which branch.
+
+| Setting | Value |
+|---|---|
+| Root directory | The repo root, because it uses the shared packages |
+| Build command | `bun install --filter content-notifier && bun run --cwd functions/content-notifier bundle && rm -rf node_modules` |
+| Entrypoint | `functions/content-notifier/dist/main.js` |
+| Runtime | Bun |
+| Events | `databases.app.tables.events.rows.*`, `databases.app.tables.news.rows.*`, `databases.app.tables.jobs.rows.*` |
+| Execute access | `any`, so scheduled-dispatch can call its domain |
+| Scopes | `rows.read`, `rows.write`, `messages.write`, `executions.read` |
+| Timeout | 120 seconds. No schedule. |
+| Variables | `CRON_SECRET`, and optionally `NOTIFY_DELAY_MINUTES` (default 3) |
+| Domain | Its domain is set as `CONTENT_NOTIFIER_URL` on scheduled-dispatch |
+
+After a deploy, save a news item in the admin. An execution with the trigger `event` should appear, and it shouldn't answer 400.
+
+If you ever have to create it from scratch, follow the "Go-live order" in `functions/content-notifier/README.md`. It writes a lock for everything already published first. Without that, editing old content sends students a push about it.
+
+### member-roster-sync
+
+Its README also lists the settings under "Console setup (not in code)" and doesn't say how the code reaches Appwrite. Check that in the console, along with the real schedule and timeout.
+
+| Setting | Value |
+|---|---|
+| Root directory | The repo root |
+| Build command | `bun install --filter member-roster-sync && bun run --cwd functions/member-roster-sync bundle && rm -rf node_modules` |
+| Entrypoint | `functions/member-roster-sync/dist/main.js` |
+| Runtime | Bun |
+| Schedule | Nightly. The README suggests `0 3 * * *`. |
+| Timeout | At least 600 seconds. A run takes about 2 minutes. |
+| Execute access | None. The admin starts runs with its own API key. |
+| Scopes | `rows.read`, `rows.write`, `executions.read` |
+| Variables | `TFSO_APP_ID`, `TFSO_USERNAME`, `TFSO_PASSWORD` |
+
+The admin needs `MEMBER_ROSTER_FUNCTION_ID` set to this function's id, and the admin's API key needs the `executions.read` and `executions.write` scopes.
+
+After a deploy, open the admin's members page (`/members`) and press **Oppdater nå** (Refresh now). After a couple of minutes the status line says **Sist oppdatert** (Last refreshed) with the new time.
+
+## Why pushing to main doesn't deploy
+
+The owner doesn't know why. If you want to fix it, start with each Site's Git settings in the console: which repository is connected, which branch it deploys, and whether it deploys on push.
+
+Until 17 September 2026 the repo had a GitHub deploy workflow. It was deleted in commit `3872261c`. Read it with:
+
+```bash
+git show 3872261c^:.github/workflows/deploy-production.yml
+```
+
+On each push to `main` it found the affected apps with `turbo query affected`, linted and type-checked them, and asked Appwrite to build that commit through the Git integration as an inactive deployment. When the build was ready and the commit was still the newest on `main`, it made the deployment active. Pull requests got inactive preview deployments. Nothing replaces those previews today.
+
+## What a deploy workflow needs
+
+A GitHub workflow is planned. It needs:
+
+- **An Appwrite API key** for the production project, stored as a GitHub secret. The old workflow called it `APPWRITE_API_KEY`. Give the key only the scopes it uses: `sites.read` and `sites.write` to create and activate Site deployments, plus `functions.read` and `functions.write` if it also deploys functions.
+- **Where to deploy.** The old workflow read the GitHub variables `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `ADMIN_SITE_ID`, `API_SITE_ID`, `DOCS_SITE_ID` and `WEB_SITE_ID`. Nobody knows whether they still exist in the repository's settings.
+- **The apps' environment variables, if it builds the apps itself.** `next build` copies the `NEXT_PUBLIC_*` values into the build, so a build in GitHub needs them. A build that Appwrite runs uses the Site's own variables.
+- **Full git history, for the docs' "last updated" dates.** Docs works these out with `git log` when it's built (`apps/docs/source.config.ts`), and `apps/docs/lib/git-dates.ts` hides every date when the clone is shallow. The Appwrite build counts as shallow, so production docs show no dates. To get them, build docs in the workflow from a checkout with `fetch-depth: 0`. If the workflow asks Appwrite to build from Git instead, as the old one did, Appwrite does its own checkout and the dates stay hidden.
+- **The checks.** Run `bun run check-types` and the tests, so that CI checks something before production.
+
+## The BISO app
+
+The app is in the BISO-Flutter repository. Its version is the `version:` line in `pubspec.yaml`, in the form `1.2.3+45`, and the Android build fails if it doesn't look like that. Raise the build number after the `+` before every release. Nothing raises it for you.
+
+### Android
+
+`.github/workflows/build.yml` in BISO-Flutter runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.2 and Java 17, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then creates a GitHub release with the APK. Its release notes say the app was "deployed to both app stores", but only Android is uploaded. Pull requests get tests and a debug build only.
+
+Moving a release from the internal track to production is done by hand in the Google Play Console (<Private name="google-play-account" label="Google Play account" />).
+
+The signing key and Play upload use the GitHub secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS` and `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`.
+
+### iOS
+
+iOS is built by hand on a Mac. Nothing in GitHub builds it.
+
+1. Raise the version in `pubspec.yaml`.
+2. Build:
+
+   ```bash
+   flutter build ipa --release
+   ```
+
+3. Upload the `.ipa` from `build/ios/ipa/` to App Store Connect, for example with Apple's Transporter app.
+
+You need access to BISO's Apple Developer account (<Private name="apple-developer-account" label="Apple Developer account" />) for signing and for App Store Connect. The repo also has fastlane lanes in `ios/fastlane/Fastfile` and an Xcode Cloud setup. iOS doesn't ship through either of them today.
+
+### After a release
+
+To nudge people off old versions, raise the minimum or recommended version in the admin under settings, app versions (`/settings/app-versions`). The app reads these from the API's `/api/config`.
+
+## After a deploy, check
+
+### Health endpoints
+
+```bash
+curl -s https://biso.no/api/health
+curl -s https://admin.biso.no/api/health
+curl -s https://api.biso.no/api/health
+```
+
+Each answers `200` with `{"status":"ok","timestamp":"…","environment":"production"}`. That only shows the app is running. It checks nothing else.
+
+```bash
+curl -s https://biso.no/api/health/ready
+curl -s https://admin.biso.no/api/health/ready
+curl -s https://api.biso.no/api/health/ready
+```
+
+Each lists one Appwrite user with the app's API key, with a 3-second limit.
+
+- `200` with `{"status":"ready","latencyMs":…}`: the app reached Appwrite with its key.
+- `503` with `{"status":"error",…}`: it didn't. Check `APPWRITE_API_KEY` and the Appwrite variables on that Site, then whether Appwrite itself is up.
+
+Every `ready` call costs a Site execution and an Appwrite request, so don't point an uptime monitor at it every few seconds.
+
+Docs has `/api/health` only. Once it's live, check `https://docs.biso.no/api/health`.
+
+### Then check by hand
+
+- **web:** open `https://biso.no` and a page that loads data, such as the events list.
+- **admin:** sign in, and open a page you changed.
+- **Any app:** if a Site doesn't start, read its logs in the console for a `[web]` or `[admin]` start-up error. They name the variable that's wrong.
+- **Scheduled jobs:** most of scheduled-dispatch's targets are on the apps. After deploying an app, open the next scheduled-dispatch execution and check that every target shows `OK`. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working) explains the log.
+- **Functions:** do the check under each function above.

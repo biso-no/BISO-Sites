@@ -31,6 +31,10 @@ export const PRIVATE_VALUES = {
   "infisical-url": {
     description: "The link to BISO's Infisical project, as a full link.",
   },
+  "infisical-layout": {
+    description:
+      "How BISO's Infisical project is organised: which environment and folder holds the production values for each app (web, admin, api, docs) and each Appwrite function, so a developer knows where to read or update a value.",
+  },
   "infisical-admin-recovery": {
     description:
       "Who can recover Infisical admin access if the current admins are gone, and how to reach them.",
@@ -62,7 +66,7 @@ export const PRIVATE_VALUES = {
   },
   "azure-app-registration": {
     description:
-      "Where the Azure app registrations BISO uses live (sign-in, Microsoft Graph, SharePoint, the Teams bot) and who owns each.",
+      "Where the Azure app registrations BISO uses live (sign-in, Microsoft Graph, SharePoint, the Teams bot, and the app that reads BI's student directory) and who owns each.",
   },
   "microsoft-tenant-admins": {
     description:
