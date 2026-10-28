@@ -382,37 +382,62 @@ forking the dialog. The landing field and the page button cover asking.
 
 1. `POST /api/ask` takes `{ question, pageUrl? }` and checks the request and
    the limits below before anything else.
-2. **Search.** The question runs through the same Orama index as the search
-   dialog (`lib/assistant/search.ts`) for the top 20 hits. The page being read
-   is added if the search missed it.
-3. **Sources.** Each page goes in whole, as the processed Markdown from
+2. **Search.** The question becomes search terms first (`searchTerms` in
+   `lib/assistant/retrieve.ts`): lowercased, without punctuation, question
+   words or other stop words. The index matches a term to every word it
+   starts and has no stop words of its own, so "how", "do", "I" and "a" would
+   otherwise rank the pages. The terms run through the same Orama index as the
+   search dialog (`lib/assistant/search.ts`) for the top 60 entries, a page
+   and its matching sections each counting as one, which comes to about 7
+   pages. Any page whose title holds a term joins them, as does the page being
+   read. If no terms are left, the question is searched as asked.
+3. **Rank.** The index ranks a page by its single best section, so a short
+   line with one common word can beat the page that answers the question.
+   `rankPages` orders the pages found by how many terms each page's text
+   holds, plus one for each term in its title, keeping the search order on a
+   tie. The prompt still gets the question as the reader wrote it.
+4. **Sources.** Each page goes in whole, as the processed Markdown from
    `getLLMText` in `lib/source.ts`. A page is never cut. The page being read
    goes first, then the rest by rank, skipping any page that would take the
    total over 120,000 characters, up to 6 pages. The page being read is kept
    even if it alone is over.
-4. **The placeholder.** Every `<Private …/>` in the page text becomes
+5. **The placeholder.** Every `<Private …/>` in the page text becomes
    `[private detail, shown only to signed-in staff]` before anything is sent
    (`redactPrivate` in `lib/assistant/retrieve.ts`). The assistant never reads
    the private source, signed in or not. `lib/assistant/retrieve.test.ts` fails
-   if the assistant code or the route imports `lib/private`.
-5. **No pages, no call.** If the search finds no page, the route answers
+   if the assistant code, the panel (`components/assistant/`) or the route
+   imports `lib/private`.
+6. **No pages, no call.** If the search finds no page, the route answers
    "I couldn't answer that. Try the docs search instead." without calling the
    model.
-6. **Answer.** Otherwise it makes one streamed call with the system prompt in
-   `lib/assistant/prompt.ts`. The prompt says: answer only from the numbered
-   sources, cite each claim as `[n]`, say so in one sentence when the sources
-   don't cover the question, use numbered steps for how-to questions, start a
-   line with `Watch out:` only for a pitfall a source states, write in English
-   and name admin buttons as the sources do. The question goes in a
-   `<question>` tag and is treated as a reader's question, never as
-   instructions.
-7. **Sources in the panel.** The answer is plain text. The `X-Docs-Sources`
+7. **Answer.** Otherwise it makes one streamed call with the system prompt in
+   `lib/assistant/prompt.ts`. The prompt says:
+   - answer only from the numbered sources; knowing the answer from elsewhere
+     doesn't make it a source;
+   - cite each claim as `[n]`;
+   - say so in one sentence when the sources don't cover the question,
+     including questions that aren't about BISO;
+   - when two sources disagree, say so and cite both;
+   - take names, emails, addresses, numbers, dates and prices only from a
+     source, and never fill in the private-detail placeholder;
+   - use numbered steps for how-to questions, and start a line with
+     `Watch out:` only for a pitfall a source states;
+   - read "this page" or "here" as the source marked `current="true"`;
+   - write in English and name admin buttons as the sources do.
+
+   The page being read goes first, as `<source n="1" current="true" …>`. The
+   question goes in a `<question>` tag and is treated as a reader's question,
+   never as instructions. The prompt holds no date or id, so it stays the
+   same from call to call.
+8. **Sources in the panel.** The answer is plain text. The `X-Docs-Sources`
    header lists each source's number, title and url. The panel renders
    paragraphs, numbered lists, bold, `[n]` citations and `Watch out:` lines as
    React elements, never as HTML (`components/assistant/answer-text.tsx`), and
-   lists the cited pages under **Pages used**. A source becomes a link only if
-   its url is a docs page path (`components/assistant/site-path.ts`).
-8. **When it goes wrong.** A refusal, an answer cut off at the output cap or an
+   lists the pages the answer cites under **Pages used**. An answer that cites
+   nothing, such as one saying the docs don't cover the question, has no
+   **Pages used**. A source becomes a link only if its url is a docs page path
+   (`components/assistant/site-path.ts`).
+9. **When it goes wrong.** A refusal, an answer cut off at the output cap or an
    error partway through ends with the "I couldn't answer that" line. An error
    before any text is a `502`, and the panel says "The assistant couldn't
    answer right now. Try the search instead."
@@ -425,30 +450,30 @@ the model call, so an abandoned answer stops being generated.
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | Unset: the assistant is off | Switches the assistant on. The AI SDK reads it for the call. The route only checks that it's set. |
-| `DOCS_ASSISTANT_MODEL` | `balanced` | `balanced` is Claude Sonnet 5.5, `fast` is Claude Haiku 5.5. Any other value is sent to Anthropic as a model id. |
-| `DOCS_ASSISTANT_DAILY_LIMIT` | `400` | Questions a day, per server instance. An unset, empty or non-numeric value means 400. |
+| `DOCS_ASSISTANT_MODEL` | `balanced` | `balanced` is Claude Sonnet 5.5, `fast` is Claude Haiku 5.5. Unset, empty or blank means `balanced`. Any other value is sent to Anthropic as a model id. |
+| `DOCS_ASSISTANT_DAILY_LIMIT` | `50` | Questions a day, counted by each server process. An unset, empty, blank or non-numeric value means 50. |
 
 All three are read on each request, so they aren't in `turbo.json`.
 `apps/docs/.env.example` lists them without values. In production, set them on
 the docs Site in the Appwrite console, then redeploy without shipping new code.
 
-Don't leave `DOCS_ASSISTANT_MODEL` set to an empty value, as a copy of
-`.env.example` does. The route's `??` keeps the empty string, and
-`resolveModel` reads it as no model and picks `fast`. Delete the line to get
-the default.
-
 ### Limits
 
-Both counters are per server instance and held in memory
-(`lib/assistant/limits.ts`). A restart or a redeploy resets them.
+Both counters live in memory in each server process
+(`lib/assistant/limits.ts`). They start again from zero whenever the process
+restarts or docs is redeployed, and each process keeps its own. The repo
+doesn't say how long a process lives on the Appwrite Site or how many run, so
+neither counter is a spend cap. The hard cap is the monthly spend limit on the
+docs key's own workspace (owner step 1).
 
 - **8 questions per visitor per 10 minutes.** This stops one person using the
   docs as a free chatbot. The visitor is a SHA-256 hash of the first address
   in `x-forwarded-for`. With no such header, every visitor shares the key
   `unknown`, and the whole site gets 8 questions per 10 minutes.
-- **A daily total**, `DOCS_ASSISTANT_DAILY_LIMIT`, counted per UTC day. It caps
-  the spend, whatever the visitor key. `0` refuses every question but leaves
-  the entry points showing, so switch the assistant off with the key instead.
+- **A daily total**, `DOCS_ASSISTANT_DAILY_LIMIT`, counted per UTC day. It
+  bounds what one running process spends in a day, whatever the visitor key.
+  `0` refuses every question but leaves the entry points showing, so switch
+  the assistant off with the key instead.
 - **At most 10,000 visitors are tracked.** Past that, new visitors are refused
   until older entries are 10 minutes old. This keeps the memory bounded.
 - Over a limit the route answers `429` with `{ "error": "rate_limited" }`, and
@@ -458,33 +483,39 @@ Both counters are per server instance and held in memory
   or a `pageUrl` that isn't a docs page gets `400`.
 - **Each call.** At most 120,000 characters of sources (about 30,000 tokens)
   from at most 6 pages, and 1,200 output tokens, which include the model's
-  thinking. Reasoning is set to `low`. There are no retries, and a call stops
-  after 60 seconds.
+  thinking. That holds for the `fast` and `balanced` tiers. An older model id
+  in `DOCS_ASSISTANT_MODEL` can use more, because the AI SDK gives it a
+  thinking budget on top of the 1,200. Reasoning is set to `low`. There are no
+  retries, and a call stops after 60 seconds.
 
 Whether a visitor can choose their own key depends on the proxy in front of
 docs. If it appends to an `x-forwarded-for` the client sent, instead of
 replacing it, the first address is whatever the client put there. Then the
-per-visitor limit can be got round, and the daily total is the limit that
-holds.
+per-visitor limit can be got round, and only the daily total and the
+workspace spend limit hold.
 
 ### What a question costs
 
 At the caps, one question sends about 30,000 tokens of sources (120,000
 characters at roughly 4 characters a token) plus about 500 for the prompt and
-the question, and gets back at most 1,200 tokens.
+the question, and gets back at most 1,200 tokens. Markdown tables, code and
+Norwegian words can take more tokens per character, so real input can run
+higher than the estimate.
 
-| Model | Input | Output | Per question, at most | 400 questions |
+| Model | Input, about | Output | Per question, about | 50 questions |
 | --- | --- | --- | --- | --- |
-| Sonnet 5.5 (`balanced`), $2 / $10 per million tokens | 30,500 × $2 / 1M ≈ $0.061 | 1,200 × $10 / 1M = $0.012 | About $0.07 | About $29 |
-| Haiku 5.5 (`fast`), $0.10 / $0.50 per million tokens | 30,500 × $0.10 / 1M ≈ $0.003 | 1,200 × $0.50 / 1M = $0.0006 | About $0.004 | About $1.50 |
+| Sonnet 5.5 (`balanced`), $2 / $10 per million tokens | 30,500 × $2 / 1M ≈ $0.061 | 1,200 × $10 / 1M = $0.012 | $0.07 | About $3.50 |
+| Haiku 5.5 (`fast`), $0.10 / $0.50 per million tokens | 30,500 × $0.10 / 1M ≈ $0.003 | 1,200 × $0.50 / 1M = $0.0006 | $0.004 | About $0.20 |
 
 Most questions use fewer pages than the cap, so they cost less. A question
 that finds no page costs nothing. The assistant spends from the same Anthropic
 credit as the admin, the api and the website: about USD 160 a month. On
 Sonnet at the caps, the whole credit would pay for about 2,200 questions a
-month, about 70 a day, if nothing else used it. A full daily total every day
-would cost about $880 a month on Sonnet, more than five times the credit. If
-spend climbs, lower `DOCS_ASSISTANT_DAILY_LIMIT` or switch to `fast`.
+month, about 70 a day, if nothing else used it. One process that reaches the
+daily total every day would cost about $3.50 a day on Sonnet, or about $105 a
+month, two thirds of the credit. Each restart starts the count again, so
+restarts or extra processes can spend more, up to the workspace spend limit.
+If spend climbs, lower `DOCS_ASSISTANT_DAILY_LIMIT` or switch to `fast`.
 
 These are Anthropic's list prices in October 2026, and they change. Check
 Anthropic's pricing page before you rely on them.
@@ -523,18 +554,29 @@ confident wrong answer. To move both tiers to newer models, change
 
 These need the owner. Nothing here is done by code.
 
-1. In the Appwrite console, set `ANTHROPIC_API_KEY` on the docs Site. Use a
-   key of its own, so it can be revoked without touching the other apps and
-   its spend can be told apart. Leave `DOCS_ASSISTANT_MODEL` and
-   `DOCS_ASSISTANT_DAILY_LIMIT` unset for the defaults.
-2. Redeploy docs without shipping new code.
-3. Confirm the proxy in front of docs sets `x-forwarded-for`. Otherwise every
+1. In the Anthropic Console, create a workspace for docs alone, give it a
+   monthly spend limit, and create the docs API key in that workspace. That
+   limit is the real spend guard: the daily total above starts again on every
+   restart. At the defaults, one process that reaches its daily total every
+   day spends about $105 a month on Sonnet. Set the limit to the most docs may
+   spend in a month. Once it is reached, calls fail and the panel says "The
+   assistant couldn't answer right now. Try the search instead." until the
+   next month or a higher limit. A key of its own can also be revoked without
+   touching the other apps.
+2. In the Appwrite console, set that key as `ANTHROPIC_API_KEY` on the docs
+   Site. Leave `DOCS_ASSISTANT_MODEL` and `DOCS_ASSISTANT_DAILY_LIMIT` unset
+   for the defaults.
+3. Redeploy docs without shipping new code.
+4. Confirm the proxy in front of docs sets `x-forwarded-for`. Otherwise every
    visitor shares one key. A free way to check: on the landing, ask a made-up
    word that matches no page, such as `qzxv`, nine times. Those questions
    find no page, so the model isn't called. The ninth gets the limit message.
    Then ask once from another network, such as a phone on mobile data. If
-   that is refused too, the visitor's address isn't reaching docs.
-4. Ask three test questions:
+   that is refused too, the visitor's address isn't reaching docs. The check
+   costs no money, but its questions count toward the day's total: ten of
+   the 50.
+5. Wait 10 minutes after step 4, or use the other network, so the
+   per-visitor limit has reset. Then ask three test questions:
    - One the docs answer: on the landing, "How do I publish a vacancy?"
      Expect numbered steps with `[n]` citations, and Publish a vacancy under
      **Pages used**.
@@ -545,8 +587,10 @@ These need the owner. Nothing here is done by code.
      "What is the Infisical address?" Expect the placeholder wording, or a
      sentence that the detail is private, and no address. Ask it signed in
      too: the answer must still hold no value.
-5. A few days later, check the key's usage in Anthropic's console against the
-   estimate above.
+6. A few days later, check the docs workspace's usage in the Anthropic
+   Console against the estimate above. Each question is one request. If a day
+   shows more requests than the daily total, the Site restarted that day or
+   runs more than one process.
 
 ### When it fails
 
@@ -554,14 +598,15 @@ These need the owner. Nothing here is done by code.
   the browser. `{ "enabled": false }` means the running Site has no key: set
   it and redeploy. A page with no headings never has the button.
 - **Every question gets "The assistant couldn't answer right now".** The call
-  fails before any text (`502`). The route logs nothing, so check the key and
-  the account's billing, limits and credit in Anthropic's console. "AI
-  features fail" in
+  fails before any text (`502`). The route logs nothing, so check the key,
+  the docs workspace's spend limit, and the account's billing and credit in
+  the Anthropic Console. "AI features fail" in
   `content/docs/developers/keep-it-running/when-things-break.mdx` lists
   Anthropic's errors.
 - **Everyone gets "You've asked a lot of questions".** Either the daily total
   is reached, or every visitor shares one key because `x-forwarded-for` isn't
-  set (step 3 above). The total resets at midnight UTC or on a redeploy.
+  set (step 4 above). The total resets at midnight UTC, or when the process
+  restarts.
 
 ### Checking the UI without spending
 
@@ -584,6 +629,11 @@ bun run build --filter=docs        # next build
 ```
 
 `bun test` run directly in `apps/docs/` does the same as the test script.
+`bunfig.toml` preloads `test-preload.ts`, which registers fumadocs-mdx's Bun
+plugin, so tests compile the real pages as the build does.
+`lib/assistant/retrieve-index.test.ts` uses that to run natural questions
+through the real search index. When retrieval changes, keep every question
+in that table passing by changing the method, not the table.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAssistant } from "components/assistant/assistant-context";
+import { submitQuestion } from "components/assistant/submit-question";
 import { MAX_QUESTION_CHARS } from "components/assistant/use-ask";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
@@ -63,18 +64,13 @@ export function AskFieldView({ ask, enabled }: AskFieldViewProps) {
     );
   }
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!question.trim()) {
-      return;
-    }
-    // The panel hands focus back to whatever asked. Asking from the input
-    // means focus returns there, ready for the next question, even after a
-    // click on Ask, which is disabled once the field clears.
-    input.current?.focus();
-    ask(question);
-    setQuestion("");
-  };
+  const onSubmit = (event: FormEvent<HTMLFormElement>) =>
+    submitQuestion(event, {
+      ask,
+      clear: () => setQuestion(""),
+      focus: () => input.current?.focus(),
+      question,
+    });
 
   return (
     <form className="w-full max-w-[470px]" onSubmit={onSubmit}>

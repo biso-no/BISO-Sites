@@ -1,4 +1,6 @@
 export interface Source {
+  /** The page the reader is on, when they asked from it. */
+  current?: true;
   n: number;
   text: string;
   title: string;
@@ -10,13 +12,32 @@ export const PRIVATE_PLACEHOLDER =
 
 const MAX_SOURCES = 6;
 const MAX_CHARS = 120_000;
-const SEARCH_LIMIT = 20;
+// Fumadocs' own default. The limit counts a page and each of its matching
+// sections, so 60 entries come to about 7 pages, enough to fill 6 sources.
+const SEARCH_LIMIT = 60;
 
 // Paired tags first so their bodies go too, then any self-closing tag.
 const PRIVATE_PAIRED = /<Private\b(?:[^>]*[^/>])?>[\s\S]*?<\/Private>/g;
 const PRIVATE_SELF_CLOSING = /<Private\b[^>]*\/>/g;
 const HASH_OR_QUERY = /[#?].*$/;
 const TRAILING_SLASH = /(.)\/$/;
+
+// Orama's English splitter: a word keeps letters, digits, _, ' and -.
+const WORD_SPLIT = /[^a-z0-9àèéìòóù_'-]+/;
+const POSSESSIVE = /'s$/;
+const EDGE_MARKS = /^['-]+|['-]+$/g;
+const WHITESPACE = /\s+/;
+
+// The index matches a term to every word it starts, with no stop words of
+// its own, so "how", "do", "i" and "a" would rank pages on their own.
+const STOP_WORDS = new Set(
+  `a about am an and any anyone anything are as at be been being by can could
+  did do does done everyone everything for from had has have he her here his
+  how i if in into is it its may me might must my of on or our shall she
+  should so some someone something than that the their them then there these
+  they this those to us was we were what when where which who whom whose why
+  will with would you your`.split(WHITESPACE)
+);
 
 export function redactPrivate(text: string): string {
   return text
@@ -63,7 +84,62 @@ export function selectSources(
     used += page.text.length;
   }
 
-  return picked.map((page, i) => ({ ...page, n: i + 1 }));
+  return picked.map((page, i) =>
+    page === current
+      ? { ...page, n: i + 1, current: true }
+      : { ...page, n: i + 1 }
+  );
+}
+
+/** Lowercased words, split as the index splits them, with no possessive 's. */
+function words(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(WORD_SPLIT)
+    .map((word) => word.replace(POSSESSIVE, "").replace(EDGE_MARKS, ""))
+    .filter((word) => word.length > 1);
+}
+
+/**
+ * The words of a question worth searching for: no question words, stop words
+ * or punctuation, each once. The prompt still gets the question as asked.
+ */
+export function searchTerms(question: string): string[] {
+  return [...new Set(words(question).filter((word) => !STOP_WORDS.has(word)))];
+}
+
+/** How many terms start a word in `text`, the way the index matches them. */
+function termsIn(text: string, terms: string[]): number {
+  const found = new Set(words(text));
+  return terms.filter((term) => {
+    for (const word of found) {
+      if (word.startsWith(term)) {
+        return true;
+      }
+    }
+    return false;
+  }).length;
+}
+
+/**
+ * Orders pages found for `terms`, best first. A page scores one for each term
+ * in its text and one more for each term in its title; ties keep the order
+ * the pages came in. The index ranks a page by its single best section, so a
+ * short line elsewhere that holds one common term can outrank the page that
+ * answers the question.
+ */
+export function rankPages<T extends RankedPage>(
+  pages: T[],
+  terms: string[]
+): T[] {
+  return pages
+    .map((page, order) => ({
+      page,
+      order,
+      score: termsIn(page.text, terms) + termsIn(page.title, terms),
+    }))
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .map(({ page }) => page);
 }
 
 function normalizeUrl(url: string): string {
@@ -81,15 +157,28 @@ export async function retrieveSources(
     import("lib/source"),
   ]);
 
+  const pages = source.getPages();
   const pagesByUrl = new Map(
-    source.getPages().map((page) => [normalizeUrl(page.url), page])
+    pages.map((page) => [normalizeUrl(page.url), page])
   );
 
-  const hits = await searchApi.search(question, { limit: SEARCH_LIMIT });
+  const terms = searchTerms(question);
+  const hits = await searchApi.search(
+    terms.length > 0 ? terms.join(" ") : question,
+    { limit: SEARCH_LIMIT }
+  );
   const urls: string[] = [];
   for (const hit of hits) {
     const url = normalizeUrl(hit.url);
     if (!urls.includes(url)) {
+      urls.push(url);
+    }
+  }
+  // The index holds each title as an entry of its own, but a page whose title
+  // names a term can still fall below the cut. Those pages join the rest.
+  for (const page of pages) {
+    const url = normalizeUrl(page.url);
+    if (!urls.includes(url) && termsIn(page.data.title, terms) > 0) {
       urls.push(url);
     }
   }
@@ -98,18 +187,19 @@ export async function retrieveSources(
     urls.push(current);
   }
 
-  const ranked: RankedPage[] = [];
+  const found: RankedPage[] = [];
   for (const url of urls) {
     const page = pagesByUrl.get(url);
     if (!page) {
       continue;
     }
-    ranked.push({
+    found.push({
       url: normalizeUrl(page.url),
       title: page.data.title,
       text: redactPrivate(await getLLMText(page)),
     });
   }
+  const ranked = rankPages(found, terms);
 
   return selectSources(ranked, {
     currentUrl: current,

@@ -94,21 +94,22 @@ Readers of these docs can ask a question on the landing page, or with **Ask abou
 
 - **What it sends.** Public page text only. Every private detail is replaced with `[private detail, shown only to signed-in staff]` first, whether or not the reader is signed in, and the assistant code never reads the private source.
 - **What it keeps.** Nothing. The question, the answer and any error are never logged or stored.
-- **Model.** `DOCS_ASSISTANT_MODEL` picks the tier: `balanced` (Sonnet 5.5) when unset, or `fast` (Haiku 5.5). Balanced was chosen over fast because the worst failure is a confident wrong answer.
-- **Limits.** 8 questions per visitor per 10 minutes, and `DOCS_ASSISTANT_DAILY_LIMIT` questions a day (default 400). Each server instance counts in memory, so a restart or a redeploy resets both. Visitors are told apart by the first address in `x-forwarded-for`, so the owner must confirm that the proxy in front of docs sets it. Otherwise every visitor shares one count. Questions are capped at 500 characters and request bodies at 4 KB.
+- **What it lists.** Under **Pages used**, the pages the answer cites. An answer that cites none, such as one saying the docs don't cover the question, lists none.
+- **Model.** `DOCS_ASSISTANT_MODEL` picks the tier: `balanced` (Sonnet 5.5) when unset or empty, or `fast` (Haiku 5.5). Balanced was chosen over fast because the worst failure is a confident wrong answer.
+- **Limits.** 8 questions per visitor per 10 minutes, and `DOCS_ASSISTANT_DAILY_LIMIT` questions a day (default 50). Both counts live in memory in each server process and start again when it restarts or redeploys, so the daily total isn't a spend cap. The hard cap is the monthly spend limit on the docs key's own workspace in the Anthropic Console, which the owner sets before go-live. Visitors are told apart by the first address in `x-forwarded-for`, so the owner must confirm that the proxy in front of docs sets it. Otherwise every visitor shares one count. If the proxy appends to an `x-forwarded-for` the client sent instead of replacing it, a visitor can choose their own key and get round the per-visitor limit. Then only the daily total and the spend limit hold. Questions are capped at 500 characters and request bodies at 4 KB.
 - **Off switch.** With no `ANTHROPIC_API_KEY` on docs there is no assistant: the ask field and the page buttons disappear, and the landing field is a search button again.
 - **Known gap.** The search dialog has no item for asking. Fumadocs 16.7.10 renders the dialog's footer outside the dialog, and adding one would mean forking it. The landing field and the page button cover asking.
 
 ### What a question costs
 
-Each call sends at most 120,000 characters of sources, about 30,000 tokens at roughly 4 characters a token, plus about 500 tokens of instructions and question. It gets back at most 1,200 tokens, the model's thinking included.
+Each call sends at most 120,000 characters of sources, about 30,000 tokens at roughly 4 characters a token, plus about 500 tokens of instructions and question. Markdown tables, code and Norwegian words can take more tokens per character, so real input can run higher. It gets back at most 1,200 tokens, the model's thinking included. That holds for the `fast` and `balanced` tiers. An older model id in `DOCS_ASSISTANT_MODEL` can use more, because the AI SDK gives it a thinking budget on top of the 1,200.
 
-| Model | Input at most | Output at most | Per question | At 400 questions a day |
+| Model | Input, about | Output at most | Per question, about | At 50 questions a day |
 |---|---|---|---|---|
-| Sonnet 5.5 (`balanced`): USD 2 in, USD 10 out, per million tokens | 30,500 × 2 / 1M ≈ USD 0.061 | 1,200 × 10 / 1M = USD 0.012 | About USD 0.07 | About USD 29 a day |
-| Haiku 5.5 (`fast`): USD 0.10 in, USD 0.50 out, per million tokens | 30,500 × 0.10 / 1M ≈ USD 0.003 | 1,200 × 0.50 / 1M = USD 0.0006 | About USD 0.004 | About USD 1.50 a day |
+| Sonnet 5.5 (`balanced`): USD 2 in, USD 10 out, per million tokens | 30,500 × 2 / 1M ≈ USD 0.061 | 1,200 × 10 / 1M = USD 0.012 | USD 0.07 | About USD 3.50 a day |
+| Haiku 5.5 (`fast`): USD 0.10 in, USD 0.50 out, per million tokens | 30,500 × 0.10 / 1M ≈ USD 0.003 | 1,200 × 0.50 / 1M = USD 0.0006 | USD 0.004 | About USD 0.20 a day |
 
-Most questions use fewer pages, so they cost less, and a question that finds no page costs nothing. On Sonnet at the caps, the monthly credit of about USD 160 would pay for about 2,200 questions if nothing else used it. Reaching the daily limit every day would cost about USD 880 a month. If the spend climbs, lower `DOCS_ASSISTANT_DAILY_LIMIT` or set `DOCS_ASSISTANT_MODEL=fast`.
+Most questions use fewer pages, so they cost less, and a question that finds no page costs nothing. On Sonnet at the caps, the monthly credit of about USD 160 would pay for about 2,200 questions if nothing else used it. One server process that reaches the daily total every day would cost about USD 105 a month. Each restart starts the count again, so restarts or extra processes can spend more. The workspace spend limit stops that. If the spend climbs, lower `DOCS_ASSISTANT_DAILY_LIMIT` or set `DOCS_ASSISTANT_MODEL=fast`.
 
 These are Anthropic's list prices in October 2026, and they change. Check Anthropic's pricing page before you rely on them.
 

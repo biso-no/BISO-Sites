@@ -1,23 +1,25 @@
 const VISITOR_LIMIT = 8;
 const VISITOR_WINDOW_MS = 10 * 60 * 1000;
-const DEFAULT_DAILY_LIMIT = 400;
+const DEFAULT_DAILY_LIMIT = 50;
 // Keys come from the client, so the map is pruned and has a hard size cap.
 const PRUNE_ABOVE = 1000;
 const PRUNE_EVERY_MS = 1000;
 const MAX_VISITORS = 10_000;
 
-// Per server instance, in memory. Enough to stop a free chatbot, not a quota.
+// Per server process, in memory, and reset when it restarts. Enough to stop a
+// free chatbot, not a spend cap: the docs key's workspace limit is that.
 const hits = new Map<string, number[]>();
 let lastPrune = 0;
 
 let dailyDay = "";
 let dailyCount = 0;
 
+// Unset, empty, blank or not a number: the default. `Number("  ")` is 0, so
+// a blank value is checked before it is parsed.
 function dailyLimit(): number {
-  const parsed = Number(process.env.DOCS_ASSISTANT_DAILY_LIMIT);
-  return process.env.DOCS_ASSISTANT_DAILY_LIMIT && Number.isFinite(parsed)
-    ? parsed
-    : DEFAULT_DAILY_LIMIT;
+  const raw = process.env.DOCS_ASSISTANT_DAILY_LIMIT?.trim();
+  const parsed = Number(raw);
+  return raw && Number.isFinite(parsed) ? parsed : DEFAULT_DAILY_LIMIT;
 }
 
 function prune(nowMs: number): void {

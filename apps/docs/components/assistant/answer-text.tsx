@@ -212,8 +212,9 @@ function lines(
 }
 
 /**
- * The sources an answer cites as `[n]`, or every source when it cites none.
- * A source whose url isn't a docs page path is dropped.
+ * The sources an answer cites as `[n]`, and only those: an answer that cites
+ * nothing, such as "the docs don't cover that", drew on no page. A source
+ * whose url isn't a docs page path is dropped.
  */
 export function citedSources(
   text: string,
@@ -225,9 +226,7 @@ export function citedSources(
       cited.add(n);
     }
   }
-  const safe = safeSources(sources);
-  const used = safe.filter((source) => cited.has(source.n));
-  return used.length > 0 ? used : safe;
+  return safeSources(sources).filter((source) => cited.has(source.n));
 }
 
 /**

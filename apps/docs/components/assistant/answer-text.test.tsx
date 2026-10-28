@@ -115,10 +115,8 @@ test("a source that isn't a docs page path is never linked", () => {
   }
 });
 
-test("cited sources are those cited, or all when none are", () => {
+test("cited sources are only those cited, and none when nothing is", () => {
   expect(citedSources("Do it [2].", SOURCES).map((s) => s.n)).toEqual([2]);
-  expect(citedSources("No citations.", SOURCES).map((s) => s.n)).toEqual([
-    1, 2,
-  ]);
-  expect(citedSources("Only [7].", SOURCES).map((s) => s.n)).toEqual([1, 2]);
+  expect(citedSources("No citations.", SOURCES)).toEqual([]);
+  expect(citedSources("Only [7].", SOURCES)).toEqual([]);
 });

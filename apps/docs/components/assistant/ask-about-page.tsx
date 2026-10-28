@@ -3,6 +3,7 @@
 import { MessageCircleQuestionMarkIcon } from "lucide-react";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { useAssistant } from "./assistant-context";
+import { submitQuestion } from "./submit-question";
 import { MAX_QUESTION_CHARS } from "./use-ask";
 
 interface AskAboutPageViewProps {
@@ -39,17 +40,13 @@ export function AskAboutPageView({ ask, enabled, url }: AskAboutPageViewProps) {
     return null;
   }
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!question.trim()) {
-      return;
-    }
-    // Ask from the input, so the panel hands focus back there for the next
-    // question, even after a click on Ask, which is disabled once it clears.
-    input.current?.focus();
-    ask(question, url);
-    setQuestion("");
-  };
+  const onSubmit = (event: FormEvent<HTMLFormElement>) =>
+    submitQuestion(event, {
+      ask: (typed) => ask(typed, url),
+      clear: () => setQuestion(""),
+      focus: () => input.current?.focus(),
+      question,
+    });
 
   return (
     <div className="mt-3 border-fd-border border-t pt-3 pb-3 text-sm">

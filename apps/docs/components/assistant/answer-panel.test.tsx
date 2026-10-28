@@ -38,11 +38,21 @@ test("Pages used lists only the cited sources when there are citations", () => {
   expect(pages).not.toContain("How recruitment works");
 });
 
-test("Pages used lists every source when nothing is cited", () => {
-  const pages = pagesUsed(view({ text: "The docs don't cover that." }));
-  for (const source of SOURCES) {
-    expect(pages).toContain(source.title);
-    expect(pages).toContain(`href="${source.url}"`);
+test("Pages used links each cited source", () => {
+  const pages = pagesUsed(view({ text: "Open it [1, 3]." }));
+  for (const source of [SOURCES[0], SOURCES[2]]) {
+    expect(pages).toContain(source?.title ?? "");
+    expect(pages).toContain(`href="${source?.url}"`);
+  }
+});
+
+test("Pages used is left out when the answer cites nothing", () => {
+  for (const text of [
+    "The docs don't cover that. Try the docs search.",
+    "I couldn't answer that. Try the docs search instead.",
+    "Only [7].",
+  ]) {
+    expect(view({ text })).not.toContain("Pages used");
   }
 });
 

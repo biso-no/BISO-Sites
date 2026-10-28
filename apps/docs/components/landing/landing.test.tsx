@@ -11,6 +11,9 @@ const INPUT_ID = /<input[^>]*id="([^"]+)"/;
 const ASK_LABEL = /<label[^>]*>Ask a question or search<\/label>/;
 const ASK_BUTTON = /<button[^>]*type="submit"[^>]*>Ask<\/button>/;
 const ASK_BUTTON_DISABLED = /<button[^>]*disabled=""[^>]*>Ask<\/button>/;
+const ONE_FORM = /<form[\s\S]*<\/form>/;
+const FORM_OPEN = /<form/g;
+const TEXT_INPUT = /<input[^>]*type="text"/;
 const GROUP_LINK = /<a[^>]*href="\/guide\/recruitment"[^>]*>Recruitment/;
 const TASK_LINK =
   /<a[^>]*href="\/guide\/recruitment\/publish"[^>]*>Publish a vacancy/;
@@ -77,6 +80,16 @@ test("with the assistant on, the ask field is a labelled input and an Ask button
   expect(html).toMatch(ASK_BUTTON);
   expect(html).toContain(">Search instead<");
   expect(html).not.toContain('aria-label="Search the docs"');
+});
+
+test("Enter in the ask input submits: the input and Ask share one form", () => {
+  const html = renderToStaticMarkup(
+    <AskFieldView ask={() => undefined} enabled />
+  );
+  const form = html.match(ONE_FORM)?.[0] ?? "";
+  expect(html.match(FORM_OPEN)).toHaveLength(1);
+  expect(form).toMatch(TEXT_INPUT);
+  expect(form).toMatch(ASK_BUTTON);
 });
 
 test("the Ask button starts disabled, with nothing typed", () => {

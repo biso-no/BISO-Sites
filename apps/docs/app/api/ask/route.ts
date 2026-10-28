@@ -25,7 +25,8 @@ const TRAILING_SLASH = /(.)\/$/;
 
 interface AskDeps {
   enabled: boolean;
-  model: LanguageModel;
+  /** Called only once there is a question to answer and pages to answer from. */
+  model: () => LanguageModel;
   retrieve: typeof retrieveSources;
 }
 
@@ -209,7 +210,7 @@ export async function handleAsk(
       });
     }
     const result = streamText({
-      model: deps.model,
+      model: deps.model(),
       instructions: SYSTEM_PROMPT,
       prompt: buildUserMessage(input.question, sources),
       reasoning: "low",
@@ -249,6 +250,11 @@ export async function handleAsk(
   }
 }
 
+/** The model tier or id to use: unset, empty or blank means `balanced`. */
+export function modelSetting(value: string | undefined): string {
+  return value?.trim() || "balanced";
+}
+
 export function GET(): Response {
   return json({ enabled: isEnabled() }, 200);
 }
@@ -256,7 +262,7 @@ export function GET(): Response {
 export function POST(req: Request): Promise<Response> {
   return handleAsk(req, {
     enabled: isEnabled(),
-    model: resolveModel(process.env.DOCS_ASSISTANT_MODEL ?? "balanced"),
+    model: () => resolveModel(modelSetting(process.env.DOCS_ASSISTANT_MODEL)),
     retrieve: retrieveSources,
   });
 }

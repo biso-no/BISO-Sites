@@ -40,6 +40,25 @@ test("the daily limit trips and resets the next UTC day", () => {
   expect(checkLimits("d-4", t + 86_400_000)).toBe("ok");
 });
 
+test("with no setting the daily limit is 50", () => {
+  const t = DAY - 86_400_000 * 60;
+  for (let i = 0; i < 50; i++) {
+    expect(checkLimits(`n-${i}`, t)).toBe("ok");
+  }
+  expect(checkLimits("n-50", t)).toBe("daily");
+});
+
+test("an empty, blank or non-numeric daily limit means the default", () => {
+  for (const [offset, value] of ["", "   ", "lots"].entries()) {
+    process.env.DOCS_ASSISTANT_DAILY_LIMIT = value;
+    const t = DAY - 86_400_000 * (70 + offset);
+    for (let i = 0; i < 50; i++) {
+      expect(checkLimits(`b-${offset}-${i}`, t)).toBe("ok");
+    }
+    expect(checkLimits(`b-${offset}-50`, t)).toBe("daily");
+  }
+});
+
 test("old visitor keys are pruned once the map is large", () => {
   process.env.DOCS_ASSISTANT_DAILY_LIMIT = "1000000";
   const t = DAY - 86_400_000 * 30;

@@ -1,8 +1,16 @@
-import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  expect,
+  spyOn,
+  test,
+} from "bun:test";
 import { MockLanguageModelV4, simulateReadableStream } from "ai/test";
 import { SYSTEM_PROMPT } from "lib/assistant/prompt";
 import { PRIVATE_PLACEHOLDER, type Source } from "lib/assistant/retrieve";
-import { handleAsk, POST } from "./route";
+import { handleAsk, modelSetting, POST } from "./route";
 
 const SOURCES: Source[] = [
   {
@@ -46,6 +54,17 @@ function model(opts?: {
   });
 }
 
+/** The text of the one user message the model was sent. */
+function userMessage(m: MockLanguageModelV4): string {
+  const user = m.doStreamCalls[0]?.prompt.find((msg) => msg.role === "user");
+  if (!user || typeof user.content === "string") {
+    return "";
+  }
+  return user.content
+    .map((part) => (part.type === "text" ? part.text : ""))
+    .join("");
+}
+
 function post(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request("http://docs.test/api/ask", {
     method: "POST",
@@ -57,12 +76,26 @@ function post(body: unknown, headers: Record<string, string> = {}): Request {
 let ip = 0;
 const retrieve = async () => SOURCES;
 function deps(m = model(), enabled = true) {
-  return { model: m, retrieve, enabled };
+  return { model: () => m, retrieve, enabled };
 }
 function fresh(body: unknown) {
   ip += 1;
   return post(body, { "x-forwarded-for": `10.0.0.${ip}` });
 }
+
+// These tests share one day's count with every other test file, so the daily
+// limit is set out of the way here. `limits.test.ts` covers it.
+const dailyLimit = process.env.DOCS_ASSISTANT_DAILY_LIMIT;
+beforeAll(() => {
+  process.env.DOCS_ASSISTANT_DAILY_LIMIT = "1000000";
+});
+afterAll(() => {
+  if (dailyLimit === undefined) {
+    Reflect.deleteProperty(process.env, "DOCS_ASSISTANT_DAILY_LIMIT");
+  } else {
+    process.env.DOCS_ASSISTANT_DAILY_LIMIT = dailyLimit;
+  }
+});
 
 const logs: ReturnType<typeof spyOn>[] = [];
 beforeEach(() => {
@@ -85,6 +118,32 @@ test("a disabled assistant returns 503 disabled", async () => {
   expect(m.doStreamCalls).toHaveLength(0);
 });
 
+test("the model is resolved only once there is a question to answer", async () => {
+  let resolved = 0;
+  const lazy = (enabled: boolean, found: Source[] = SOURCES) => ({
+    enabled,
+    model: () => {
+      resolved += 1;
+      return model();
+    },
+    retrieve: async () => found,
+  });
+  await handleAsk(fresh({ question: "hi" }), lazy(false));
+  await handleAsk(fresh({ question: " " }), lazy(true));
+  await (await handleAsk(fresh({ question: "hi" }), lazy(true, []))).text();
+  expect(resolved).toBe(0);
+  await (await handleAsk(fresh({ question: "hi" }), lazy(true))).text();
+  expect(resolved).toBe(1);
+});
+
+test("DOCS_ASSISTANT_MODEL unset, empty or blank means balanced", () => {
+  for (const value of [undefined, "", "   "]) {
+    expect(modelSetting(value)).toBe("balanced");
+  }
+  expect(modelSetting("fast")).toBe("fast");
+  expect(modelSetting(" claude-sonnet-5-5 ")).toBe("claude-sonnet-5-5");
+});
+
 test("an empty or 501-character question returns 400", async () => {
   const m = model();
   for (const question of ["   ", "x".repeat(501), 5]) {
@@ -101,7 +160,7 @@ test("a 500-character question is accepted", async () => {
   await res.text();
 });
 
-test("a body over the cap is refused by content-length and by bytes read", async () => {
+test("a body over the cap is refused by the bytes read, with or without a stream", async () => {
   const m = model();
   const big = JSON.stringify({ question: "x", pad: "y".repeat(5000) });
   const declared = post(
@@ -138,6 +197,27 @@ test("a body over the cap is refused by content-length and by bytes read", async
   expect(m.doStreamCalls).toHaveLength(0);
 });
 
+test("a declared content-length over the cap is refused before the body is read", async () => {
+  const m = model();
+  // The body itself is small and valid, so only the declared length can
+  // refuse it. Bun's Request sets no content-length of its own.
+  const body = JSON.stringify({ question: "hi" });
+  const declared = (length: number, ip4: string) =>
+    post(
+      { question: "hi" },
+      { "content-length": String(length), "x-forwarded-for": ip4 }
+    );
+  expect(declared(5000, "7.7.7.5").headers.get("content-length")).toBe("5000");
+  expect((await handleAsk(declared(5000, "7.7.7.5"), deps(m))).status).toBe(
+    400
+  );
+  expect(m.doStreamCalls).toHaveLength(0);
+
+  const honest = await handleAsk(declared(body.length, "7.7.7.6"), deps(m));
+  expect(honest.status).toBe(200);
+  await honest.text();
+});
+
 test("a body that is not JSON content-type is refused", async () => {
   const req = new Request("http://docs.test/api/ask", {
     method: "POST",
@@ -150,7 +230,7 @@ test("a body that is not JSON content-type is refused", async () => {
 test("no sources means the note and no model call", async () => {
   const m = model();
   const res = await handleAsk(fresh({ question: "hi" }), {
-    model: m,
+    model: () => m,
     retrieve: async () => [],
     enabled: true,
   });
@@ -257,6 +337,39 @@ test("an ok request streams text with sources and no-store", async () => {
   expect(call?.maxOutputTokens).toBe(1200);
   expect(call?.reasoning).toBe("low");
   expect(call?.temperature).toBeUndefined();
+});
+
+test("the page being read is marked current in the prompt, and only then", async () => {
+  const pageUrl = "/guide/recruitment/publish-a-vacancy";
+  const echo = async (_question: string, current?: string) =>
+    current
+      ? [{ ...(SOURCES[0] as Source), url: current, current: true as const }]
+      : SOURCES;
+
+  const onPage = model();
+  const res = await handleAsk(
+    fresh({ question: "Who can do this?", pageUrl }),
+    {
+      enabled: true,
+      model: () => onPage,
+      retrieve: echo,
+    }
+  );
+  await res.text();
+  expect(userMessage(onPage)).toContain(
+    `<source n="1" current="true" title="Create a vacancy" url="${pageUrl}">`
+  );
+
+  const landing = model();
+  await (
+    await handleAsk(fresh({ question: "Who can do this?" }), {
+      enabled: true,
+      model: () => landing,
+      retrieve: echo,
+    })
+  ).text();
+  expect(userMessage(landing)).toContain('<source n="1" title=');
+  expect(userMessage(landing)).not.toContain("current=");
 });
 
 test("a model error before any text returns 502 failed", async () => {

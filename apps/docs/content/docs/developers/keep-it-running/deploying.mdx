@@ -102,7 +102,7 @@ After you change a variable or rotate a secret, you redeploy. A new deployment o
 - **web** refuses to start unless `APPWRITE_SESSION_COOKIE` is `a_session_biso_web`.
 - **admin** refuses to start without `APPWRITE_API_KEY` and `NEXT_PUBLIC_BASE_URL`, and unless `APPWRITE_SESSION_COOKIE` is `a_session_biso_admin`.
 - **api** has no start-up check. A missing variable shows up only when a route needs it.
-- **docs** isn't live yet. Before its first deploy, do the "Owner actions" in `apps/docs/CLAUDE.md`. It must run on a `*.biso.no` host, or the browser never sends it the admin's session cookie.
+- **docs** isn't live yet. Before its first deploy, do the "Owner actions" in `apps/docs/CLAUDE.md`, and the "Owner steps" under "Assistant" there before you switch the assistant on. It must run on a `*.biso.no` host, or the browser never sends it the admin's session cookie.
 
 ### Don't use the Dockerfiles
 
