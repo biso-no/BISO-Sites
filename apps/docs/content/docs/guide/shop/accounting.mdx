@@ -14,7 +14,6 @@ covers:
   - packages/shared/utils/order-refunds.ts
   - apps/api/src/app/api/cron/reconcile-orders/route.ts
   - apps/api/src/lib/checkout-pricing.ts
-  - apps/admin/src/app/(portal)/settings/feature-flags/actions.ts
   - packages/shared/utils/feature-flags.ts
 ---
 
@@ -113,14 +112,15 @@ It's off until someone switches it on. Before you do, check:
 - **Bilag** (Voucher) is saved.
 - There's at least one sales type with **Aktiv** (Active) ticked, and no more than 100.
 - Every active sales type's account, and both clearing accounts, are in the last sync and active in 24SevenOffice. Revenue accounts also need a VAT code.
+- Paid orders that someone has already booked by hand in 24SevenOffice will be posted again unless their voucher's transaction id is recorded on the order. Agree with whoever keeps BISO's accounts which waiting orders are already booked, and ask IT to record those transaction ids first.
 - Paid orders that were refunded in part before posting was on are never posted automatically. Find them under **Bestillinger** (Orders): choose **Betalt** (Paid) and look for the **Delvis refundert** (Partially refunded) pill. Book their net sale by hand. See [Orders and refunds](/guide/shop/orders-and-refunds#what-happens-next).
 
-Then choose **Slå på bokføring** (Switch posting on). You see **Lagret** (Saved). If something is missing, it stays off, and you see **Save the posting settings and add at least one active sales type before switching posting on**, or a message starting **Sync accounts from Finago first** that lists each account to fix.
+Then choose **Slå på bokføring** (Switch posting on). Switch posting on only with this button. It checks the settings first. You see **Lagret** (Saved). If something is missing, it stays off, and you see **Save the posting settings and add at least one active sales type before switching posting on**, a message starting **Sync accounts from Finago first** that lists each account to fix, or, with more than 100 active sales types, a message asking you to deactivate unused ones.
 
 To stop posting, choose **Slå av bokføring** (Switch posting off).
 
 <Callout type="warn">
-Switching posting on posts every paid shop order that's waiting, however old it is, a batch at a time. Switching it off again stops new postings, but vouchers already in 24SevenOffice stay there. Correct them in 24SevenOffice by hand.
+Switching posting on posts every paid shop order that's waiting, however old it is, a batch at a time. Each voucher is dated the day it's posted, not the day of the order, so old sales land in the current period. An order already booked by hand in 24SevenOffice is booked again, unless its transaction id was recorded on the order first. Agree with whoever keeps BISO's accounts which orders are already booked before you switch it on. Switching it off again stops new postings, but vouchers already in 24SevenOffice stay there. Correct them in 24SevenOffice by hand.
 </Callout>
 
 </Step>
@@ -153,9 +153,8 @@ Posting doesn't check whether a payment provider is in Test mode. A payment take
 
 ## Common mistakes
 
-- Switching posting on before the books are ready for every paid order that's waiting. It posts them all.
+- Switching posting on without checking the paid orders that are waiting. It posts them all, however old, dated the day they're posted. Any that were already booked by hand are booked a second time.
 - Expecting **Slå av bokføring** (Switch posting off) to remove vouchers. It only stops new ones.
-- Switching posting on under **System** → **Funksjonsbrytere** (Feature flags), where it's called *Webshop → Finago ledger posting*. That switch doesn't check that the settings are ready. Use **Slå på bokføring** (Switch posting on) on this page.
 - Changing a setting for your own campus only. Everything on this page applies to every campus.
 - Changing a clearing account and expecting posted orders to move. They stay where they were booked.
 - Adding an account in 24SevenOffice and not syncing. It isn't in **Inntektskonto** (Revenue account) until you choose **Synk kontoer fra Finago** (Sync accounts from Finago).

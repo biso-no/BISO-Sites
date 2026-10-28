@@ -54,6 +54,11 @@ Then:
 - To create a product, choose **Legg til produkt** (Add Product).
 - To change a product, choose its name or the pencil icon on its row.
 - To go back to the draft you edited last, choose **Fortsett redigering** (Resume editor) on the **Fortsett der du slapp** (Pick up where you left off) card.
+- To delete a product, choose the bin icon on its row (tooltip: *Slett produkt* (Delete product)). It changes to **Bekreft** (Confirm). Choose it again to delete. You see **Produkt slettet** (Product deleted). Clicking anywhere else cancels.
+
+<Callout type="warn">
+Deleting a product removes it and both languages for good, with no undo. Orders that include it keep their lines. To take a product out of the shop for now, open it and choose **Save draft** instead.
+</Callout>
 
 The editor has five steps: **Essentials**, **Description**, **Pricing & Options**, **Photos & Visibility** and **Review**. Move with **Continue** and **← Back** at the bottom. **Save draft** is there on every step. The phone on the right previews the product as you go.
 
@@ -61,7 +66,7 @@ The editor has five steps: **Essentials**, **Description**, **Pricing & Options*
 <Step title="Fill in Essentials">
 
 - The name, at the top (*Product name…*). **NO** and **EN** above it switch the language you're writing in. You need a name in at least one language.
-- The address line under the name. For a new product it follows the Norwegian name as you type. Choose **Edit** to write it yourself, using only lowercase letters, numbers and hyphens. Once the product is saved, changing the name doesn't change the address. The product's page is biso.no/shop/ followed by the address. The editor doesn't check whether another product already uses it, so make it your own.
+- The address line under the name. For a new product it follows the Norwegian name as you type. Choose **Edit** to write it yourself, using only lowercase letters, numbers and hyphens. Once the product is saved, changing the name doesn't change the address. The line reads biso.no/ followed by the campus and /shop/, but the product's real page is biso.no/shop/ followed by the address, with no campus in it. The editor doesn't check whether another product already uses it, so make it your own.
 - **Teaser** (*One sentence that sells the product…*), up to 140 characters.
 - **Category**: **Apparel**, **Tickets**, **Drinkware**, **Stationery**, **Stickers**, **Books** or **Other**.
 - **Department**: the department that sells the product. If you're in one department, it's filled in and locked. If you're in several, choose one of yours. Campus leaders and global admins can choose any department on the campus.
@@ -135,6 +140,8 @@ The **Status** selector on **Review** (**Draft**, **Pending**, **Published**, **
 
 With **Auto-translate** on, the message ends with **Translation queued.** A new product takes you back to the list once it's saved.
 
+Nobody has to approve a product. **Publish** puts it in the shop at once, for department members too. Approval requests only come from the BISO Assistant. See [Approval requests from the assistant](/guide/shop#approval-requests-from-the-assistant).
+
 If the save fails, the message says why. The most common ones:
 
 - **Choose a department before publishing** or **Choose a sales type before publishing**: fill in **Department** or **Sales type** on **Essentials**.
@@ -181,8 +188,5 @@ If the save fails, the message says why. The most common ones:
 - Expecting the required marks on **Teaser** and **Category** to stop a save. Fill them in yourself.
 - Adding a **Dropdown** question without options. The save fails.
 - Looking for a way to create a membership. Plans and prices come from 24SevenOffice.
+- Waiting for an approval after **Publish**. There isn't one. The product is live at once.
 - Deleting a product you meant to hide. Choose **Save draft** instead.
-
-<Callout type="warn">
-The bin icon on a product's row in **Katalog** (Catalogue) (tooltip: *Slett produkt* (Delete product)) changes to **Bekreft** (Confirm) on the first click. The second click deletes the product and both languages for good, with no undo. You see **Produkt slettet** (Product deleted). Orders that include it keep their lines. Clicking anywhere else cancels.
-</Callout>

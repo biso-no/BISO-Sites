@@ -69,7 +69,7 @@ To download the orders that match your filters, choose **Eksporter bestillinger*
 </Step>
 <Step title="Read the order">
 
-Choose the arrow at the end of the row. The order's page is headed with its number, for example **Bestilling #6720a1b2c3d4e5f6a7b8** (Order #6720a1b2c3d4e5f6a7b8), and the line under it says when it was placed and by whom.
+Choose the arrow at the end of the row. Screen readers call it **Vis ordre** (View order). The order's page is headed with its number, for example **Bestilling #6720a1b2c3d4e5f6a7b8** (Order #6720a1b2c3d4e5f6a7b8), and the line under it says when it was placed and by whom.
 
 - **Bestillingslinjer** (Order lines): each item with its quantity, price and variant, and the buyer's answers to any checkout questions. Under them are **Delsum** (Subtotal), **Rabatt** (Discount), **Totalt** (Total) and, after a refund, **Refundert** (Refunded).
 - **Kunde** (Customer): **Navn** (Name), **E-post** (Email) and **Telefon** (Phone), and **Medlemsrabatt** (Member discount) when one was used.
@@ -105,21 +105,22 @@ To refund the whole order, refund everything that's left. Anything less is a par
 A refund can't be undone. The money leaves BISO as soon as the provider accepts it, and there's no confirmation step. Check the lines and the amount before you choose **Refunder** (Refund).
 </Callout>
 
-For a membership, the panel adds: **Dette er et medlemskapskjøp, ført som faktura i 24SO. Refusjonen betaler tilbake pengene, men fakturaen må krediteres manuelt i 24SO.** (This is a membership purchase, booked as a 24SO invoice. The refund returns the money, but the invoice needs a credit note in 24SO.) See What happens next.
+For a membership, the panel adds: **Dette er et medlemskapskjøp, ført som faktura i 24SO. Refusjonen betaler tilbake pengene, men fakturaen må krediteres manuelt i 24SO.** (This is a membership purchase, booked as a 24SO invoice. The refund returns the money, but the invoice needs a credit note in 24SO — that is not automatic.) See What happens next.
 
-If the panel shows one line of text instead of the form, the order can't be refunded here:
+If the panel shows a short message instead of the form, the order can't be refunded here. Under the message, it may say how much has been refunded so far.
 
 - **Denne ordren har ingen betalingsleverandør, så det er ingenting å refundere.** (This order has no payment provider, so there is nothing to refund.)
 - **Kun en oppgjort (betalt) ordre kan refunderes. En autorisert reservasjon bør heller kanselleres i Vipps.** (Only a settled (paid) order can be refunded. An authorized reservation should be cancelled in Vipps instead.)
 - **Denne ordren er refundert i sin helhet.** (This order has been refunded in full.)
 
-If the refund fails, a message in English shows under the button:
+If the refund fails, a message in English shows under the button. The most common ones:
 
 - **That is more than the amount still refundable on this order.** or **One of those lines has already been refunded.**: someone else has refunded part of the order. Reload the page.
 - **Another refund on this order is already in progress. Try again in a moment.**
 - **The payment provider rejected the refund.**, followed by the provider's own message. Nothing was refunded.
 - **Vipps is not configured** or **Stripe is not configured**: tell IT.
-- **Failed to refund this order.**: reload the page and look at **Refusjonshistorikk** (Refund history) before you try again. An old order from before order lines were kept can only be refunded **Per beløp** (By amount).
+- **Failed to refund this order.**: reload the page and look at **Refusjonshistorikk** (Refund history) before you try again. If the newest refund there is `pending` with a note starting **Outcome unknown**, don't refund again. Ask IT, as in the next step. An old order from before order lines were kept can only be refunded **Per beløp** (By amount).
+- Any other message, such as **This order has no Vipps payment to refund** or **You do not have access to this campus's orders.**: tell IT.
 
 </Step>
 <Step title="Check the refund history">
@@ -127,10 +128,11 @@ If the refund fails, a message in English shows under the button:
 **Refusjonshistorikk** (Refund history) lists each refund, newest first: the amount, the date, then a status word in English, who made it, the reason and the lines.
 
 - `succeeded`: the money has gone back.
-- `pending`: the provider accepted the refund but hasn't finished it. This can happen with Stripe. It still counts against what's left to refund, and a scheduled check settles it later. Don't refund again.
-- `failed`: the provider refused it. Its amount can be refunded again.
+- `pending` with no note under it: Stripe has accepted the refund but hasn't finished it. It still counts against what's left to refund, and a scheduled check settles it later. Don't refund again.
+- `pending` with a note starting **Outcome unknown**: BISO got no answer from Vipps or Stripe, so the money may or may not have gone back. Nothing settles it by itself, and it keeps holding its share of what's left to refund. Don't refund again. Ask IT to check it in the payment provider's dashboard.
+- `failed`: the provider refused the refund, or later reported that it didn't complete. The note under it gives the reason. Nothing reached 24SevenOffice, and its amount can be refunded again.
 
-A note in English under a refund means something has to be done by hand in 24SevenOffice. What happens next explains each one.
+Only the notes listed under [What happens next](#what-happens-next) mean work by hand in 24SevenOffice. A note on a `pending` or `failed` refund never does.
 
 </Step>
 </Steps>
@@ -158,7 +160,8 @@ What happens in 24SevenOffice depends on whether the order was posted before the
 - The reversal credits the clearing account for Vipps or Stripe and takes the amount back from each revenue account, with the same VAT code and department as the sale. It uses the clearing account set on **Regnskap** (Accounting) today, even if the sale was posted against an older one.
 - If posting is switched on, a refund of an order that isn't posted yet shows this note in the refund history: **Order not yet posted to Finago at refund time, so no reversal was posted. Automatic posting holds orders with refunds for manual booking of the net sale.** After a full refund the net sale is 0 kr, so there's nothing to book.
 - A note starting **The order's Finago posting was in progress or unknown at refund time** means the reversal wasn't posted. Post it in 24SevenOffice by hand once the order's posting is settled.
-- A note starting **Ledger reversal failed**, or one ending **Post it manually in 24SO.**, means the same: post the reversal by hand.
+- A note ending **Post it manually in 24SO.** means the same: post the reversal by hand.
+- A note starting **Ledger reversal failed** means the reversal may or may not have reached 24SevenOffice. First look in 24SevenOffice for a voucher with *Refusjon nettbutikk* and the order number. Post the reversal by hand only if there isn't one.
 - In every case the buyer gets the money back. Only the bookkeeping is left to you.
 - Refunding a membership doesn't end it. The student stays in the plan's customer category in 24SevenOffice, and stays a member, until someone removes them there.
 - A payment taken while a provider was in Test mode is handled like any other: posted, and reversed on refund.
@@ -179,7 +182,7 @@ What happens in 24SevenOffice depends on whether the order was posted before the
 - Reading **Betalt omsetning** (Paid revenue) as income after refunds. It counts partly refunded orders in full.
 - Looking for partly refunded orders under their own chip. They're under **Betalt** (Paid), with the **Delvis refundert** (Partially refunded) pill.
 - Trying to refund an **Autorisert** (Authorized) order. It can't be refunded here. Cancel the reservation in Vipps instead.
-- Refunding again while a refund says `pending`. It still holds its share of the amount. Wait for it to settle.
+- Refunding again while a refund says `pending`. It still holds its share of the amount. Wait for it to settle, or ask IT if its note starts **Outcome unknown**.
+- Posting a reversal in 24SevenOffice for a `pending` or `failed` refund. Its money hasn't gone back, or may not have, and nothing was booked.
 - Forgetting the work in 24SevenOffice after a partial refund of an unposted order, or after any membership refund. Nothing reminds you.
 - Expecting a membership refund to end the membership. Remove the student's plan in 24SevenOffice too.
-- Treating an order paid in Test mode as not real. It's posted to 24SevenOffice and reversed like any other.
