@@ -57,9 +57,13 @@ Some data refills itself from other systems after a restore:
 
 ## The encryption keys
 
-Appwrite encrypts sensitive data with a key in its own server settings, `_APP_OPENSSL_KEY_V1`. Appwrite's documentation says to keep that key secret and back it up. In BISO's data, the Vipps and Stripe credentials in the `payment_settings` table are encrypted columns. Restore the database under a different key and those values can't be read, so checkout and the payment webhooks fail until you enter every credential again on the admin's payment settings page (`/settings/payments`).
+Appwrite encrypts sensitive data with a key in its own server settings, `_APP_OPENSSL_KEY_V1`. Appwrite's documentation says the key protects secret data such as webhooks, passwords, user sessions and stored files, and says to keep it secret and back it up. Restore Appwrite's data under a different key and none of that can be read. For BISO that means:
 
-Infisical has its own key, `ENCRYPTION_KEY` in its server settings. Without the same key, Infisical can't read the credentials it stores.
+- **Payment credentials.** The Vipps and Stripe credentials in the `payment_settings` table are encrypted columns. Checkout and the payment webhooks fail until you enter every credential again on the admin's payment settings page (`/settings/payments`).
+- **Files.** The `documents` and `resumes` buckets have encryption switched on (`packages/api/appwrite.config.json`). Their files can't be read, and unlike the credentials, nobody can type them in again.
+- **Appwrite's own secrets**, such as user sessions.
+
+Infisical has its own key, `ENCRYPTION_KEY` in its server settings, which Infisical's self-hosting documentation lists as required. Without the same key, Infisical can't read the credentials it stores.
 
 A restore of the whole server brings both keys back with everything else. The danger is a partial rebuild: moving the database to a new server, or reinstalling Appwrite or Infisical with a fresh configuration. Copy the old key into the new setup before you start either service.
 
@@ -103,8 +107,8 @@ So:
 
 - [ ] A backup from last night exists and can be restored.
 - [ ] Appwrite starts, its console opens, and the production project shows the data from the day before: recent orders, pages and users.
-- [ ] Files open from each bucket: an image from `media`, a file from `documents`, a receipt from `expenses` and a CV from `resumes`.
-- [ ] The Vipps and Stripe values in the `payment_settings` table can be read. That proves `_APP_OPENSSL_KEY_V1` came back with the data.
+- [ ] Files open from each bucket: an image from `media`, a file from `documents`, a receipt from `expenses` and a CV from `resumes`. The `documents` and `resumes` files are encrypted, so opening them also proves that `_APP_OPENSSL_KEY_V1` came back with the data.
+- [ ] The Vipps and Stripe values in the `payment_settings` table can be read, for the same reason.
 - [ ] Infisical starts, you can sign in, and you can read a stored credential.
 - [ ] You wrote down how long the restore took, what was missing, and the date of the test, on this page.
 

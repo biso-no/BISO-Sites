@@ -33,7 +33,7 @@ When you take over, open the account and check two things:
   - `https://docs.biso.no/api/health`, once docs is live
 - **The alerts reach you.** Add yourself, and remove anyone who no longer works on the platform.
 
-A check on `/api/health` costs almost nothing. If you also check `/api/health/ready`, keep a few minutes between checks: each one costs a Site execution and an Appwrite request.
+Every check costs something. A check on `/api/health` costs one Site execution. A check on `/api/health/ready` also costs an Appwrite request. Keep a few minutes between checks.
 
 ## Umami
 

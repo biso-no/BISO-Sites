@@ -144,17 +144,18 @@ The page is misleading. The person is signed in, but they're in no campus or dep
 1. **The time.** An automatic push waits 3 minutes after the item goes live (`NOTIFY_DELAY_MINUTES`). Nothing automatic goes out between 22:00 and 08:00, Oslo time. It waits for the morning.
 2. **Whether Appwrite got a message.** In the console, open **Messaging**, then **Messages**, and find the time of the push.
    - **No message:** the sending side never asked Appwrite. Go to step 3.
-   - **Status `failed`, or delivery errors:** Appwrite tried and the push provider refused. Go to step 4.
+   - **Status `failed`:** Appwrite tried and the push provider refused the whole message. Read its delivery errors, then go to step 4.
+   - **Sent, with some delivery errors:** that's normal. Phones that removed the app or got a new push token leave old targets behind, and pushes to those fail. Read the errors anyway, in case they point at the provider.
    - **Sent, but delivered to nobody:** no phone is subscribed to that audience.
 3. **The sending side.**
-   - **Automatic push:** find the item's row in `content_notifications`. `sent` means the push was handed to Appwrite, so go back to step 2. `pending` means it isn't due yet, or no dispatch pass has run. `cancelled` means the item stopped being eligible. `skipped` means it was already published when the function went live. Then read content-notifier's executions, and the `CONTENT_NOTIFIER_URL` line in the latest scheduled-dispatch run. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#content-notifier) explains both.
+   - **Automatic push:** find the item's row in `content_notifications`. `sent` means a dispatch pass took the item and tried to push it. If Messaging has no message from that time, the push failed after the lock was marked: read that pass's content-notifier execution errors for `Failed to send announcement push:` or `Push for announcement … failed`. A `sent` lock is never tried again, so if the push still matters, send it by hand from **Kommunikasjon** (Communications). `pending` means it isn't due yet, or no dispatch pass has run. `cancelled` means the item stopped being eligible. `skipped` means it was already published when the function went live. Then read content-notifier's executions, and the `CONTENT_NOTIFIER_URL` line in the latest scheduled-dispatch run. [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#content-notifier) explains both.
    - **Scheduled announcement:** read the `ANNOUNCEMENTS_DISPATCH_URL` line in the latest scheduled-dispatch run.
    - **Sent now from the admin:** look for `Failed to send announcement push:` in the admin's logs.
 4. **The push provider.** In the console, open **Messaging**, then **Providers**. The FCM provider with the id `push` must exist and be enabled. The app registers each phone against that id (`kFcmProviderId` in BISO-Flutter's `lib/data/services/notification_service.dart`), so never replace it with a provider under another id. Its credential is a Firebase service account JSON.
 
 **Fix**
 
-- **The provider refuses:** create a new key for the service account in the Firebase project's settings, and paste the JSON into the `push` provider.
+- **The provider refuses with a credential error:** create a new key for the service account in the Firebase project's settings, paste the JSON into the `push` provider, check that a push arrives, then delete the old key in Firebase. Don't replace the key because of errors for single phones.
 - **Dispatch isn't running:** fix scheduled-dispatch, as in [Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working). Pending automatic pushes go out at the next pass that works.
 
 ## Scheduled jobs stopped
@@ -173,11 +174,13 @@ The page is misleading. The person is signed in, but they're in no campus or dep
 
 1. **The server.** In the Webdock account, check that the server is running: <Private name="server-provider-account" label="Webdock account" />.
 2. **Get onto the server:** <Private name="server-access" label="Server access" />.
-3. **The containers.** Appwrite runs in Docker. Its containers have names starting with `appwrite`, such as `appwrite`, `appwrite-mariadb`, `appwrite-redis` and `appwrite-traefik`. Look for any that are stopped or restarting:
+3. **The containers.** Appwrite runs in Docker. List every container and look for any that's stopped or restarting:
 
    ```bash
-   docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep appwrite
+   docker ps -a --format 'table {{.Names}}\t{{.Status}}'
    ```
+
+   In Appwrite's standard install, the names include `appwrite`, `appwrite-mariadb`, `appwrite-redis` and `appwrite-traefik`, and `openruntimes-executor` (hostname `exc1`). The executor runs every Site and function, so if it's down, all of them are. The names come from Appwrite's install and can differ between versions: you may also see `exc1` or `orchestrator` as container names.
 
 4. **Disk and memory.** A full disk stops Appwrite from writing.
 
@@ -202,7 +205,7 @@ The page is misleading. The person is signed in, but they're in no campus or dep
    docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' appwrite
    ```
 
-2. If the disk is full, free space first.
+2. If the disk is full, free space first. Removing unused Docker images with `docker image prune` is safe, and so is deleting old log files you no longer need. Never delete Docker volumes: they hold Appwrite's data. Don't run `docker volume prune`, or any prune command with `--volumes`.
 3. From that folder, start what's stopped. If that doesn't help, restart everything:
 
    ```bash
@@ -211,7 +214,7 @@ The page is misleading. The person is signed in, but they're in no campus or dep
    ```
 
    An older install may use `docker-compose` instead of `docker compose`.
-4. If the log shows the worker signs from August 2026, follow the first steps in the incident audit: raise `_APP_WORKER_PER_CORE` in Appwrite's `.env`, then run `docker compose up -d`. During that incident, taking the web Site offline stopped the trouble at once. Then find out what's calling Appwrite so often.
+4. If the log shows the worker signs from August 2026, follow the first steps in the incident audit: raise `_APP_WORKER_PER_CORE` in Appwrite's `.env`, then run `docker compose up -d`. During that incident, deleting the web Site in the console stopped the trouble at once. Treat that as a last resort: deleting a Site also deletes its settings, variables and domain, so write them down first. To bring the website back, create the Site again with them and deploy, as in [Deploying](/developers/keep-it-running/deploying#deploy-a-web-app). Then find out what's calling Appwrite so often.
 5. Never change `_APP_OPENSSL_KEY_V1` in that `.env`. Appwrite needs the same key to read what it has encrypted. See [The encryption keys](/developers/keep-it-running/backups-and-recovery#the-encryption-keys).
 6. When Appwrite is back, run [First checks](#first-checks), and check that scheduled-dispatch runs again.
 
@@ -232,7 +235,7 @@ If the server or its data can't be saved, see [Backups and recovery](/developers
 - **Infisical runs, but nobody who can sign in is left:** <Private name="infisical-admin-recovery" label="Infisical recovery" />
 - **It can't be brought back, and something urgent needs a credential:** ask the administration leader for the emergency kit: <Private name="admin-leader-contact" label="Administration leader" />. Afterwards, change every credential you used from it, and update the kit.
 
-Never change Infisical's `ENCRYPTION_KEY`. Without the same key, Infisical can't read what it stores.
+Never change Infisical's `ENCRYPTION_KEY`. Infisical's self-hosting documentation lists it as required, and without the same key Infisical can't read what it stores.
 
 ## An Azure secret has expired
 
@@ -288,7 +291,7 @@ Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and 
 
 - **Missing or wrong key:** set `ANTHROPIC_API_KEY` on the Site, as in [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret), and redeploy without shipping new code. The owner sets it on the admin, the api and the website.
 - **Billing, limits or credit:** check usage and billing in Anthropic's console. Who owns the account: <Private name="account-owners" label="Account owners" />.
-- **Screening skipped:** set `OPENAI_API_KEY` on the web and api Sites. The lasting fix is a small code change: make `isAutoScreened` check `ANTHROPIC_API_KEY` instead.
+- **Screening skipped:** set `OPENAI_API_KEY` on the web and api Sites. Any non-empty value switches screening on. The Sites never send it anywhere, so no OpenAI account is needed. The lasting fix is a small code change: make `isAutoScreened` check `ANTHROPIC_API_KEY` instead.
 
 ## After an incident
 

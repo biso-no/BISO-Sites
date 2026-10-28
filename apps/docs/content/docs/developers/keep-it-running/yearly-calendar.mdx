@@ -25,7 +25,7 @@ This page lists the work that comes round every year, with every date that's kno
 - [ ] **August:** check that the app meets Google Play's target Android version by 31 August. See [Google Play](#google-play).
 - [ ] **September, in 2027:** renew the Apple Wallet "BISO Membership Pass" certificate before 17 October 2027. See [Apple](#apple).
 - [ ] **November:** make sure next spring's membership products exist in 24SevenOffice.
-- [ ] **Every two months:** check the TLS certificates. See [Domain and certificates](#domain-and-certificates).
+- [ ] **Every month:** check the TLS certificates. See [Domain and certificates](#domain-and-certificates).
 - [ ] **Once a year:** test a restore, as in [Backups and recovery](/developers/keep-it-running/backups-and-recovery#test-a-restore).
 
 ### Dates nobody has recorded yet
@@ -35,7 +35,7 @@ Find each of these once, write it on this page, and add it to the list above:
 - [ ] when the Apple Developer membership renews
 - [ ] anything due on the Google Play account
 - [ ] when the `biso.no` domain name renews
-- [ ] the new end date of the "BISO Sites" Azure secret, which the owner renewed in October 2026
+- [ ] the new end date of the "BISO Sites" Azure secret, which the owner is rolling at the end of October 2026
 - [ ] the end dates of the other Azure secrets
 - [ ] the end dates of the two Azure Automation webhooks
 
@@ -47,16 +47,18 @@ A new board takes over every August. People leave and join, and accounts that be
 
 This is for role accounts: Microsoft accounts that belong to a position and pass from one holder to the next. It was added in July 2026.
 
-A global admin opens **IT** in the admin, opens the role account, and chooses **Start overgang** (Trigger turnover). They enter the new holder's first and last name, type the account's login address to confirm, and choose **Kjør overgang** (Run turnover). The admin then:
+A global admin opens **IT** in the admin, opens the role account, and chooses **Start overgang** (Trigger turnover). The button shows on every user's IT page, not only on role accounts. Run on a person's own account, it renames that person's account and locks them out, so check which account you've opened. They enter the new holder's first and last name, type the account's login address to confirm, and choose **Kjør overgang** (Run turnover). The admin then:
 
 1. Renames the account to the new holder. The login address stays the same.
 2. Removes every sign-in method that Microsoft allows it to remove, so the new holder sets up their own MFA.
-3. Signs the account out everywhere.
+3. Ends the account's Microsoft sign-in sessions. It doesn't end its Appwrite sessions: if the previous holder signed in to the admin with this account, that session stays valid for up to a year, with the account's teams. Delete it yourself, as in [After each turnover](#after-each-turnover).
 4. Sets a temporary password and shows it once. Give it to the new holder over a secure channel. They change it at their first sign-in.
-5. Records a job in the `m365_turnover_jobs` table, then calls `AZURE_RETENTION_START_WEBHOOK_URL` to start a 7-day retention run in Azure Automation. The run clears the previous holder's Teams history.
+5. Records a job in the `m365_turnover_jobs` table, then calls `AZURE_RETENTION_START_WEBHOOK_URL` to start a 7-day retention run in Azure Automation. The run is meant to clear the previous holder's Teams history. Whether the runbook does that isn't in the repo.
 6. Seven days later, scheduled-dispatch's `TURNOVER_RETENTION_STOP_URL` target calls `AZURE_RETENTION_STOP_WEBHOOK_URL` to stop the run. A stop that fails is tried again on every run until it works.
 
-The rename always happens first. If steps 2 to 5 fail, the turnover still completes, and the dialog lists what failed under **Krever manuell oppfølging:** (Needs manual follow-up). The account's IT page has separate actions to reset MFA, sign the account out and reset the password, so redo a failed step there. A retention run that didn't start has to be started in Azure.
+The rename always happens first. If steps 2 to 4, or the start call in step 5, fail, the turnover still completes, and the dialog lists what failed under **Krever manuell oppfølging:** (Needs manual follow-up). The account's IT page has separate actions to reset MFA, end sign-in sessions and reset the password, so redo a failed step there. A retention run that didn't start has to be started in Azure.
+
+If recording the job fails, the dialog shows an error instead. By then the rename, the MFA reset, the sign-out and the password reset have already happened, and the temporary password is lost. Reset the password again from the account's IT page to get a new one, and start the retention run in Azure by hand.
 
 A job in `m365_turnover_jobs` has one of these states:
 
@@ -69,7 +71,7 @@ A job in `m365_turnover_jobs` has one of these states:
 
 ### What isn't in the repo
 
-- **The Azure Automation runbook.** A PowerShell runbook in Azure receives the two webhooks and creates, starts and stops the retention policy. It isn't in the repo, and nothing in the repo shows whether it exists or works. The two webhook URLs exist only as variables on the admin's Site.
+- **The Azure Automation runbook.** A PowerShell runbook in Azure receives the two webhooks and creates, starts and stops the retention policy. It isn't in the repo, and nothing in the repo shows whether it exists or works. The two webhook URLs are kept as variables on the admin's Site, and in Infisical with the other credentials.
 - **The owner's plan, against the code.** The plan is that the admin calls the runbook for each leaving user, and that the runbook creates and starts a retention policy, stops it after 7 days, and resets MFA and the password. In the code, the admin resets MFA and the password itself, through Microsoft Graph. It sends the runbook only this, with `"stop"` as the action for the stop:
 
   ```json
@@ -94,6 +96,8 @@ A job in `m365_turnover_jobs` has one of these states:
 
 ### After each turnover
 
+- [ ] Straight after the turnover, before you hand over the temporary password, open the role account's user in the Appwrite console and delete its sessions. The turnover doesn't end them.
+- [ ] Do every step the dialog listed under **Krever manuell oppfølging:** (Needs manual follow-up).
 - [ ] The job's row in `m365_turnover_jobs` says `retention_active`. Seven days later it says `completed`.
 - [ ] In the Azure portal, the runbook's job history shows a start job, and a stop job a week later.
 
@@ -141,7 +145,7 @@ Where each app registration lives, and who owns it: <Private name="azure-app-reg
 | Secret | Ends |
 |---|---|
 | The admin's Microsoft sign-in secret, set in Appwrite's Microsoft sign-in provider | Probably 5 March 2027. Check the exact date in the Azure portal: the owner noted it as 3/5/2027, and the portal may show dates in US format. |
-| The "BISO Sites" registration's secret | Not recorded. The owner renewed it in October 2026. Write its new end date here. |
+| The "BISO Sites" registration's secret | Not recorded. The owner is rolling it at the end of October 2026. Write its new end date here. |
 | The secrets behind `AZURE_GRAPH_CLIENT_SECRET`, `AZURE_CLIENT_SECRET`, `SHAREPOINT_CLIENT_SECRET`, `BI_AZURE_CLIENT_SECRET` and `TEAMS_BOT_APP_PASSWORD` | Not recorded. Open each registration's **Certificates & secrets** in the Azure portal and write the dates here. |
 
 Renew each secret a few weeks early. An app registration can hold two secrets at once, so you can switch to the new one before the old one stops working.
@@ -163,9 +167,9 @@ After replacing one, set the new URL on the admin's Site and in Infisical, then 
 
 ### Domain and certificates
 
-The owner lists the domain certificates among the yearly renewals. On 28 October 2026, `biso.no`, `admin.biso.no` and `api.biso.no` had Let's Encrypt certificates, issued on 7 and 8 September and ending on 6 and 7 December 2026. Certificates that last 90 days are renewed automatically. The repo doesn't record what renews them. Appwrite issues certificates for custom domains itself, so it's most likely Appwrite.
+The owner lists the domain certificates among the yearly renewals. On 28 October 2026, `biso.no`, `admin.biso.no` and `api.biso.no` had Let's Encrypt certificates, issued on 7 and 8 September and ending on 6 and 7 December 2026. Let's Encrypt certificates currently last 90 days, so they're renewed automatically. Let's Encrypt is making them shorter: 64 days from 10 February 2027, and 45 days from February 2028. The repo doesn't record what renews them. Appwrite issues certificates for custom domains itself, so it's most likely Appwrite.
 
-Check the end dates every two months:
+Check the end dates every month:
 
 ```bash
 for host in biso.no admin.biso.no api.biso.no; do
@@ -174,7 +178,7 @@ for host in biso.no admin.biso.no api.biso.no; do
 done
 ```
 
-Each `notAfter` date should keep moving forward. If one is less than two weeks away, automatic renewal has stopped, so find out why before it runs out. Add `docs.biso.no` to the loop once docs is live.
+Each `notAfter` date should keep moving forward. If one ends before your next check, a month away, find out whether renewal is working before it runs out. Add `docs.biso.no` to the loop once docs is live.
 
 When the domain name `biso.no` renews, and with whom, isn't recorded. Who owns the domain is listed under <Private name="account-owners" label="Account owners" />.
 
@@ -186,7 +190,7 @@ The plans come from 24SevenOffice:
 
 - Each plan is a 24SevenOffice product. Its name sets its dates, so it must contain the season and year, for example `BISO Membership fall 2027`. A product whose name has no season and year is skipped.
 - Each plan length (semester, year and three years) has one product for each season it starts in.
-- Each product needs a customer category with exactly the same name. Only categories with "BISO Membership" in their name are matched.
+- Each product needs a customer category with the same name. The match ignores upper and lower case and spaces at either end. Only categories with "BISO Membership" in their name are matched.
 - member-roster-sync copies the products into the `memberships` table every night. Nothing else fills that table, and it decides what's for sale.
 
 So, twice a year:
