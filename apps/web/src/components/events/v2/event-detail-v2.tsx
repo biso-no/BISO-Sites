@@ -1,5 +1,6 @@
 import type { Events } from "@repo/api/types/appwrite";
 import { EventsLocationMode } from "@repo/api/types/appwrite";
+import type { EventRsvpSummary } from "@repo/shared/utils/event-rsvp";
 import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
 import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
@@ -33,6 +34,7 @@ import {
   isPastEvent,
   pickContent,
 } from "./event-fields";
+import { EventRsvp } from "./event-rsvp";
 import { TicketLink } from "./ticket-link";
 
 /**
@@ -64,6 +66,8 @@ export interface EventDetailV2Props {
   /** Signed-in member: member pricing applies and the notice confirms access. */
   isMember: boolean;
   locale: string;
+  /** The viewer's RSVP state; `null` when answers are closed or unreadable. */
+  rsvp?: { signedIn: boolean; summary: EventRsvpSummary | null } | null;
   /** Offer "already a member? sign in" — only to signed-out visitors. */
   showSignIn: boolean;
 }
@@ -218,12 +222,40 @@ function priceLabel(event: Events, t: EventsTranslator): string {
   return t("infoCards.price");
 }
 
+function RsvpBlock({
+  event,
+  hasTicket,
+  isMember,
+  rsvp,
+}: {
+  event: Events;
+  hasTicket: boolean;
+  isMember: boolean;
+  rsvp: EventDetailV2Props["rsvp"];
+}) {
+  if (!rsvp?.summary?.open) {
+    return null;
+  }
+  const eventPath = getEventHref(event) ?? "/events";
+  return (
+    <EventRsvp
+      canRespond={rsvp.signedIn && (!event.member_only || isMember)}
+      eventId={event.$id}
+      hasTicket={hasTicket}
+      initial={rsvp.summary}
+      signedIn={rsvp.signedIn}
+      signInHref={`/auth/login?redirectTo=${encodeURIComponent(eventPath)}`}
+    />
+  );
+}
+
 async function ActionCard({
   collectionCount,
   event,
   intlLocale,
   isMember,
   priceCopy,
+  rsvp,
   showSignIn,
 }: {
   collectionCount: number;
@@ -231,6 +263,7 @@ async function ActionCard({
   intlLocale: string;
   isMember: boolean;
   priceCopy: PriceCopy;
+  rsvp: EventDetailV2Props["rsvp"];
   showSignIn: boolean;
 }) {
   const t = await getTranslations("events");
@@ -337,6 +370,13 @@ async function ActionCard({
           />
         </div>
       ) : null}
+
+      <RsvpBlock
+        event={event}
+        hasTicket={Boolean(registration.ticketUrl)}
+        isMember={isMember}
+        rsvp={rsvp}
+      />
 
       {contactEmail ? (
         <div className="mt-5 border-edge border-t pt-5">
@@ -448,6 +488,7 @@ export async function EventDetailV2({
   collectionEvents,
   isMember,
   locale,
+  rsvp,
   showSignIn,
 }: EventDetailV2Props) {
   const [t, tCommon, tNav] = await Promise.all([
@@ -540,6 +581,7 @@ export async function EventDetailV2({
                 intlLocale={intlLocale}
                 isMember={isMember}
                 priceCopy={priceCopy}
+                rsvp={rsvp}
                 showSignIn={showSignIn}
               />
 

@@ -103,6 +103,7 @@ async function mount(canMessage: boolean): Promise<TestElement> {
         canMessage,
         eventId: "e1",
         eventTitle: "Trondheim trip",
+        rsvps: [],
         segments: [bus],
       })
     );

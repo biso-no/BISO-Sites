@@ -146,5 +146,16 @@
     "joinOnline": "Delta digitalt",
     "tags": "Temaer",
     "translationFallback": "Denne beskrivelsen finnes bare på engelsk."
+  },
+  "rsvp": {
+    "title": "Blir du med?",
+    "going": "Kommer",
+    "maybe": "Kanskje",
+    "notGoing": "Kommer ikke",
+    "goingCount": "{count} kommer",
+    "maybeCount": "{count} kanskje",
+    "signIn": "Logg inn for å svare",
+    "ticketHint": "Du får ikke billett ved å svare her.",
+    "saveFailed": "Kunne ikke lagre svaret. Prøv igjen."
   }
 }

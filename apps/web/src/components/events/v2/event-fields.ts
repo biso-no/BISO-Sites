@@ -232,3 +232,18 @@ export function formatEventTimeRange(
   const from = formatEventTime(start, locale);
   return end ? `${from} – ${formatEventTime(end, locale)}` : from;
 }
+
+/** The non-zero RSVP counts for the count line, going first. */
+export function rsvpCountParts(counts: {
+  going: number;
+  maybe: number;
+}): { count: number; key: "goingCount" | "maybeCount" }[] {
+  const parts: { count: number; key: "goingCount" | "maybeCount" }[] = [];
+  if (counts.going > 0) {
+    parts.push({ count: counts.going, key: "goingCount" });
+  }
+  if (counts.maybe > 0) {
+    parts.push({ count: counts.maybe, key: "maybeCount" });
+  }
+  return parts;
+}

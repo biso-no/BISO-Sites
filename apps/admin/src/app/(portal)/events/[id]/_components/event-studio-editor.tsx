@@ -83,6 +83,11 @@ import {
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
 import { describePushAudience } from "./event-studio-push";
+import {
+  memberPriceProblem,
+  ticketLinkSummary,
+  ticketUrlProblem,
+} from "./event-ticket-fields";
 
 /* -------------------------------------------------------------------------- */
 /*                              Brand + constants                             */
@@ -2540,6 +2545,49 @@ function NotifyCard({
   );
 }
 
+function TicketLinkField({
+  onChange,
+  value,
+}: {
+  onChange: (value: string | null) => void;
+  value: string | null;
+}) {
+  const ticketProblem = ticketUrlProblem(value);
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        marginBottom: 22,
+      }}
+    >
+      <FieldLabel help="Shown as a Get tickets button">
+        <Link2 size={12} /> Ticket link
+      </FieldLabel>
+      <input
+        aria-describedby={ticketProblem ? "ev-ticket-url-problem" : undefined}
+        aria-invalid={ticketProblem ? true : undefined}
+        aria-label="Ticket link"
+        inputMode="url"
+        onChange={(event) => onChange(event.target.value.trim() || null)}
+        placeholder="https://secure.tickster.com/…"
+        style={fieldInputStyle()}
+        type="url"
+        value={value ?? ""}
+      />
+      {ticketProblem && (
+        <span
+          id="ev-ticket-url-problem"
+          style={{ color: BRAND.claret, fontSize: 11.5 }}
+        >
+          {ticketProblem}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function TicketsStep({
   canNotifyNational,
   event,
@@ -2575,6 +2623,7 @@ function TicketsStep({
   const memberPrice = values.member_price ?? 0;
   const memberSavings = Math.max(0, price - memberPrice);
   const estTake = Math.round(price * (values.capacity ?? 0) * 0.7);
+  const priceProblem = memberPriceProblem(values.price, values.member_price);
 
   return (
     <div>
@@ -2598,8 +2647,9 @@ function TicketsStep({
             maxWidth: "50ch",
           }}
         >
-          Free events skip Stripe entirely. Paid events route through the
-          existing BISO Webshop and apply member pricing automatically.
+          Where people get tickets or sign up goes in the ticket link: the event
+          page shows it as a Get tickets button. BISO sells no event tickets
+          itself, so a paid event needs one.
         </p>
       </div>
 
@@ -2613,14 +2663,14 @@ function TicketsStep({
       >
         <ToggleCard
           active={isFree}
-          description="No payment. Sign-ups are first-come, first-served. Best for socials, talks and casual mixers."
+          description="No payment. Add a sign-up link below if people need to register. Best for socials, talks and casual mixers."
           icon={<Sparkles size={14} />}
           onClick={() => set("pricing_mode", EventsPricingMode.FREE)}
           title="Free"
         />
         <ToggleCard
           active={!isFree}
-          description="Routes through the BISO Webshop. Members get the member price; everyone else pays the regular price."
+          description="Shows the regular and member price. Add the ticket link below, where people buy, such as Tickster."
           icon={<Save size={14} />}
           onClick={() => set("pricing_mode", EventsPricingMode.PAID)}
           title="Paid ticket"
@@ -2731,6 +2781,11 @@ function TicketsStep({
               NOK · 0 = same as regular
             </span>
           </div>
+          {priceProblem && (
+            <div role="alert" style={{ color: BRAND.claret, fontSize: 11.5 }}>
+              {priceProblem}
+            </div>
+          )}
           <div
             style={{
               background: BRAND.paper2,
@@ -2745,6 +2800,11 @@ function TicketsStep({
           </div>
         </div>
       )}
+
+      <TicketLinkField
+        onChange={(value) => set("ticket_url", value)}
+        value={values.ticket_url ?? null}
+      />
 
       <div style={{ display: "grid", gap: 18, gridTemplateColumns: "1fr 1fr" }}>
         <ToggleCard
@@ -2956,6 +3016,11 @@ function ReviewStep({
           values.pricing_mode === EventsPricingMode.FREE
             ? "Free"
             : `${formatNOK(values.price)} · ${formatNOK(values.member_price)} for members`,
+        step: 3,
+      },
+      {
+        label: "Ticket link",
+        value: ticketLinkSummary(values.ticket_url),
         step: 3,
       },
       {
