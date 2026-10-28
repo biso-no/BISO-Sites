@@ -51,7 +51,7 @@ Every one of these is an Appwrite account in the same project. The schema file s
 
 1. The sign-in page calls `signInWithAzure()` in `apps/admin/src/lib/server.ts`. It asks Appwrite for a Microsoft sign-in URL with the service key. The return address is `NEXT_PUBLIC_BASE_URL` followed by `/auth/oauth`. The admin refuses to start without that variable. Before it redirects, it expires any `a_session_biso` cookie. [Cookies on biso.no](#cookies-on-bisono) explains why.
 2. The person signs in with Microsoft. The Microsoft sign-in secret is set on Appwrite's Microsoft provider in the console. It isn't an environment variable.
-3. Appwrite sends them to `/auth/oauth` (`apps/admin/src/app/(auth)/auth/oauth/route.ts`). The route creates the session, then waits for `syncM365Permissions()` to copy the person's Microsoft groups into Appwrite teams. If the sync fails, the route logs `M365 Sync Failed:` and the person is signed in with the teams they already had.
+3. Appwrite sends them to `/auth/oauth` (`apps/admin/src/app/(auth)/auth/oauth/route.ts`). The route creates the session, then waits for `syncM365Permissions()` to copy the person's Microsoft groups into Appwrite teams. If the sync fails, it logs `M365 Sync Failed:`, the route logs `M365 permission sync failed during OAuth callback:`, and the person is signed in anyway, with their teams as the sync left them. The sync removes old memberships before it adds new ones, so a failure halfway can leave some teams removed and others not yet added.
 4. The route sets the `a_session_biso_admin` cookie and sends the person on.
 
 The admin has no sign-in link by email. `apps/admin/CLAUDE.md` still describes `signInWithMagicLink()` and an `/auth/callback` route. Neither exists: `(auth)/auth` holds only `login` and `oauth`.
@@ -64,7 +64,7 @@ The admin has no sign-in link by email. `apps/admin/CLAUDE.md` still describes `
 - It asks Microsoft Graph for the person's groups through `/me/transitiveMemberOf`, so groups inside groups count.
 - It keeps only groups whose names start with `SG-App-Campus-` or `SG-App-Dept-`.
 - Each group becomes an Appwrite team. The team id is the group's name in lower case, so `SG-App-Dept-OperationsUnit` becomes `sg-app-dept-operationsunit`. The team name drops the prefix and splits the words: `Operations Unit`.
-- It creates any team that doesn't exist yet and adds the person as a `member`. When it creates a department team, it also gives that team rights on the matching `departments` rows, and the HR team gets `create` on the recruitment tables. [Data model](/developers/change-it/data-model#live-permissions-can-drift-from-the-file) has the details.
+- It creates any team that doesn't exist yet and adds the person as a `member`. When it creates a department team, it also gives that team rights on the matching `departments` rows. On every sync, it makes sure the HR team has `create` on the recruitment tables. [Data model](/developers/change-it/data-model#live-permissions-can-drift-from-the-file) has the details.
 - It removes the person from any `sg-app-campus-*` or `sg-app-dept-*` team whose group they're no longer in. It never touches other teams.
 
 [Getting access](/developers/start-here/getting-access#microsoft-account) lists which groups give which role.
@@ -151,12 +151,12 @@ Authorization: Bearer <Appwrite JWT>
 
 Where callers get the JWT:
 
-- **The website.** The `createJWT` server action calls `createSessionJwt()` in `packages/api/server.ts`. That mints the token with the service key's `users.createJWT`, for the caller's own account and session only. It takes no user id, on purpose. The browser keeps the token for 14 minutes (`apps/web/src/lib/api-client.ts`). The expense pages use it, and checkout sends one from the server.
+- **The website.** The `createJWT` server action calls `createSessionJwt()` in `packages/api/server.ts`. That mints the token with the service key's `users.createJWT`, for the caller's own account and session only. It takes no user id, on purpose. The browser reuses each token for about 13 minutes of its 15 (`apps/web/src/lib/api-client.ts`). The expense pages use it, and checkout sends one from the server.
 - **The BISO app** calls `account.createJWT()` itself. See [The BISO app](#the-biso-app).
 
 `apps/api/src/proxy.ts` adds CORS headers to `/api/*`. It allows credentials and the `Authorization` and `Cookie` headers from the origins in `apps/api/src/lib/allowed-origins.ts`. In production those are `biso.no` and `admin.biso.no`, plus `web.biso.no` and `public.biso.no`, which aren't live. Outside production, `localhost` ports 3000 to 3002 are added.
 
-The routes under `/api/admin/*` work out roles with `getAdminScope(req)` in `apps/api/src/lib/admin-auth.ts`. It reads team names in its own way, which is looser than the admin's. See [Known issues](#known-issues).
+The API's admin routes work out roles with `getAdminScope(req)` in `apps/api/src/lib/admin-auth.ts`. It reads team names in its own way, which is looser than the admin's. See [Known issues](#known-issues).
 
 ## The BISO app
 
@@ -207,7 +207,7 @@ This is a known critical issue, and the owner will fix it.
 
 ### The API's admin routes go further than the admin
 
-`getAdminScope()` treats any team that isn't a campus as a department. For someone who isn't a global or campus admin, it treats every campus they belong to as one they manage. So `POST /api/admin/users`, which creates Microsoft accounts in BISO's tenant, accepts a plain campus member for their own campus. Neither the website nor the admin calls the `/api/admin/*` routes. Fix this together with the issue above.
+`getAdminScope()` in `apps/api/src/lib/admin-auth.ts` treats any team that isn't a campus as a department. For someone who is neither a global nor a campus admin, `computeManagedCampusNames()` treats every campus they belong to as one they manage. The API's admin routes that act on Microsoft accounts trust this scope, so a plain campus member gets more reach there than the admin gives them. Nothing in the website or the admin calls these routes. Fix this together with the issue above.
 
 ### Group changes reach the admin only at the next sign-in
 

@@ -19,6 +19,11 @@ covers:
   - packages/editor/src/editor/operations.ts
   - packages/editor/src/editor/sanitize-doc.ts
   - packages/editor/src/editor/page-feeds.ts
+  - packages/editor/src/editor/use-auto-feed.ts
+  - packages/editor/src/ai/prompt.ts
+  - packages/shared/utils/page-feeds.ts
+  - apps/admin/src/app/api/pages/**
+  - apps/web/src/app/api/pages/**
   - packages/editor/src/blocks/index.ts
   - packages/editor/src/blocks/registry.ts
   - packages/editor/src/blocks/types.ts
@@ -30,7 +35,7 @@ covers:
   - turbo.json
 ---
 
-Use these recipes for the changes you'll make most often. Each one lists the files to touch, in order, and the checks that prove it worked. Nothing in CI runs tests, lint or a type-check, so run the checks yourself. [Local setup](/developers/change-it/local-setup#type-check-lint-and-format) has the commands and the two test suites that already fail.
+Use these recipes for the changes you'll make most often. Each one lists the files to touch, in order, and the checks that prove it worked. Nothing in CI runs tests, lint or a type-check, so run the checks yourself. [Local setup](/developers/change-it/local-setup#type-check-lint-and-format) has the commands, and its [Tests](/developers/change-it/local-setup#tests) section names the two suites that already fail.
 
 ## Add a page to the website
 
@@ -106,12 +111,20 @@ Each block lives in `packages/editor/src/blocks/<type>/`, and the folder name mu
 4. Import the folder in `packages/editor/src/blocks/index.ts`.
 5. Add an example of the block to the website's design-system fixture, `apps/web/src/app/(public)/design-system/page-blocks/fixture.ts`.
 
-The palette, the AI's list of block types and the website's renderer all read the registry, so they pick the new block up without other changes.
+The palette, the AI's list of block types and the website's renderer all read the registry, so they pick the new block up by themselves. The page assistant's instructions don't: `packages/editor/src/ai/prompt.ts` lists the blocks and their prop paths by hand. Add your block's props there if the assistant should fill it in.
 
 Two kinds of block need more:
 
 - **A block that renders HTML.** Only `text` blocks are cleaned of unsafe HTML, in `sanitizeBlock()` in `packages/editor/src/editor/sanitize-doc.ts`. Every other prop is shown as plain text. If your block renders HTML, add it there.
-- **A block that shows Appwrite data**, like `events` or `news`. It needs a feed: a `PageFeedKind` in `packages/editor/src/editor/page-feeds.ts` if none of the existing ones fits, and a matching case in `apps/web/src/lib/data/page-feeds.ts`, which loads the rows on the server. Follow the `events` block.
+- **A block that shows Appwrite data**, like `events`, `news` or `partners`. It needs a feed. Follow the `partners` block, in this order:
+  1. In the block's `render.tsx`, read the rows with `useAutoFeed()` from `packages/editor/src/editor/use-auto-feed.ts`. Give it the key from `pageFeedKey()` and the address `/api/pages/<kind>`.
+  2. Add a branch for the new block type to `requestForBlock()` in `packages/editor/src/editor/page-feeds.ts`, returning the same key. It returns nothing for a type it doesn't know, so without the branch the website never asks for the block's rows.
+  3. If none of the existing `PageFeedKind` values fits, add one in that file, then:
+     - add a reader to `packages/shared/utils/page-feeds.ts`;
+     - add a cached reader to `apps/web/src/lib/data/public-content.ts`, and a `case` for it in `readFeed()` in `apps/web/src/lib/data/page-feeds.ts`. The type-check fails until the `case` is there;
+     - add `apps/web/src/app/api/pages/<kind>/route.ts`. The block fetches it in the browser when the server's read failed;
+     - add `apps/admin/src/app/api/pages/<kind>/route.ts`, built on `apps/admin/src/app/api/pages/_lib/feed.ts`. The editor's preview fetches it, and without it the block stays empty in the editor.
+  4. If the block needs rows to render in the design-system fixture, add them to `PAGE_BLOCKS_FEEDS` in the same `fixture.ts`.
 
 Check:
 
@@ -141,7 +154,7 @@ The schema is `packages/api/appwrite.config.json`. Schema changes have been made
    bun run test --filter=@repo/api
    ```
 
-   `appwrite-config.test.ts` and `appwrite-config-permissions.test.ts` check the permissions, indexes and buckets in the file.
+   `appwrite-config.test.ts` and `appwrite-config-permissions.test.ts` check the permissions, indexes and buckets in the file. `benefits-schema.test.ts` fails today on a known problem, so any other failure is yours.
 3. The owner pushes the change with `appwrite push tables` from `packages/api`. That changes production. If the CLI offers to recreate or delete an existing column, stop: recreating a column wipes it on every row.
 4. Regenerate the types and commit `packages/api/types/appwrite.ts`:
 
@@ -159,10 +172,10 @@ It worked when `bun run check-types` passes and the new table or column shows in
 
 1. Add the name, with no value, to the `.env.example` of each app that reads it.
 2. Read it with `process.env.NAME` in server code only. Only names that start with `NEXT_PUBLIC_` reach the browser, and `next build` copies their values into the build. Never put a secret in one.
-3. If `next build` reads the variable, add its name to `tasks.build.env` in `turbo.json`. Turbo runs in strict mode, so a build can't see a name that isn't on that list, unless it starts with `NEXT_PUBLIC_`. A variable read only while the app runs works without it.
+3. Add the name to `tasks.build.env` in `turbo.json`. Turbo runs in strict mode, so without it `next build` can't see the value. Names that start with `NEXT_PUBLIC_` are passed on without being listed.
 4. If the admin can't work without the variable, add it to `REQUIRED_ENV` in `apps/admin/src/instrumentation.ts`. The admin then refuses to start without it. The other apps have no such list.
 5. Put a value in your own `.env.local`.
-6. Before you deploy, put the value in Infisical and on each Site that needs it in the Appwrite console. A `NEXT_PUBLIC_*` value needs a new build. Then add the name to the [list of variables](/developers/keep-it-running/secrets-and-environment#all-variables-by-service).
+6. Before you deploy, put the value in Infisical and on each Site or function that needs it in the Appwrite console. A `NEXT_PUBLIC_*` value needs a new build. Then add the name to the [list of variables](/developers/keep-it-running/secrets-and-environment#all-variables-by-service).
 
 There's no shared list or schema of variables in code, so nothing tells you a value is missing until the code that reads it runs. [Secrets and environment](/developers/keep-it-running/secrets-and-environment#build-time-and-run-time) explains when a change takes effect.
 
@@ -185,13 +198,15 @@ Don't use `bun run translate` in `packages/i18n` to add a string. It sends whole
 2. In `apps/admin/src/lib/nav-tree.ts`, add `leaf("<labelKey>", "<navKey>", "/<path>", Icon)` to `NAV_TREE`, either at the top level or in a group's `children`. The icon comes from `lucide-react`.
 3. Add the label as `nav.<labelKey>` in both `packages/i18n/messages/no/adminPortal.json` and `packages/i18n/messages/en/adminPortal.json`.
 4. Start the page with `await requireNavAccess("<navKey>")`. Hiding the menu item doesn't stop anyone opening the address.
-5. Update `apps/admin/src/lib/roles.test.ts` and `apps/admin/src/lib/nav-tree.test.ts`. They spell out what each role sees, so they fail until you do.
+5. Add a case for the new item to `apps/admin/src/lib/roles.test.ts` and `apps/admin/src/lib/nav-tree.test.ts`. Their existing cases fail only if the item changes what a tested role sees, so they won't remind you.
 
 Check:
 
 ```bash
 bun run test --filter=admin
 ```
+
+`content-translation.test.ts` fails today on a known problem, so any other failure is yours.
 
 Roles come from team names today, which is a known critical issue. See [Auth and roles](/developers/change-it/auth-and-roles#roles-come-from-team-names-which-anyone-can-create) before you rely on a role to protect a page.
 

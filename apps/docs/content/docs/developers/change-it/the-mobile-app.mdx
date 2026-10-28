@@ -13,6 +13,11 @@ covers:
   - apps/api/src/app/api/payment/**
   - apps/api/src/app/api/expenses/**
   - apps/api/src/app/api/notifications/**
+  - apps/api/src/app/api/shop/**
+  - apps/api/src/app/api/benefits/**
+  - apps/api/src/app/api/recruitment/**
+  - apps/api/src/app/api/campus/**
+  - apps/api/src/app/api/events/**
   - packages/shared/utils/app-versions.ts
   - packages/shared/utils/checkout-return.ts
   - apps/admin/src/app/(portal)/settings/app-versions/**
@@ -38,7 +43,7 @@ The addresses are written into `lib/core/constants/app_constants.dart`: the prod
 
 ### Appwrite, directly
 
-The app reads many tables straight from Appwrite with the person's own session, such as events, news, jobs, products and departments. It writes a few, such as chat messages, and uses Appwrite Realtime for chat. So Appwrite's table and row permissions are all that stand between the app and the data. A permission change in `packages/api/appwrite.config.json` can break the app as well as the website. One example: the `user` table still grants `create("users")`, and `packages/api/appwrite-config.test.ts` allows it as a known exception because the app may rely on it. Check the app before you remove it.
+The app reads many tables straight from Appwrite with the person's own session, such as events, news, jobs, products and departments. It writes a few, such as chat messages, and uses Appwrite Realtime for chat. So Appwrite's table and row permissions are all that stand between the app and the data. A permission change in `packages/api/appwrite.config.json` can break the app as well as the website. One example: the schema file no longer gives the `user` table `create("users")`, and `appwrite-config-permissions.test.ts` checks that it's gone. A comment in `appwrite-config.test.ts` says the live table still had that grant on 2026-08-11, and the test allows it as an exception because the app might rely on it. The repo doesn't record whether the live table matches the file now. The app's code on `main` only reads the `user` table. If the live table still has the grant, a push of this file may remove it, so check the table in the console first.
 
 ### The API
 
@@ -125,7 +130,7 @@ The app has no settings for another environment, so a local run signs in to prod
 ## Known issues
 
 - **The AI chat has no server.** The chat screen calls `/api/public-assistant` on the API (`lib/data/services/ai_chat_service.dart`). `apps/api` has no such route, so every message fails. The screen's route, `/ai-chat`, is registered in `lib/main.dart`, but nothing in the app links to it.
-- **The Xcode Cloud set-up isn't used.** A workflow manifest (`ios/Runner.xcodeproj/xcshareddata/xcodecloud/manifest.json`) and `ios/ci_scripts/ci_post_clone.sh` are in the repo, but iOS isn't built there. The script's default Flutter version, 3.32.8, is older than the 3.47.2 that the Android build pins, which its comment says the dependencies need. The fastlane lanes in `ios/fastlane/` aren't the release path either. Delete them, or fix them when the planned GitHub Action is built.
+- **The Xcode Cloud set-up isn't used.** A workflow manifest (`ios/Runner.xcodeproj/xcshareddata/xcodecloud/manifest.json`) and `ios/ci_scripts/ci_post_clone.sh` are in the repo, but iOS isn't built there. The script's default Flutter version, 3.32.8, is older than the 3.47.2 that the Android build pins, which the Android workflow's comment says the dependencies need. The fastlane lanes in `ios/fastlane/` aren't the release path either. Delete them, or fix them when the planned GitHub Action is built.
 - **Every build talks to production.** There's no build setting for another Appwrite project or API. See [Run it locally](#run-it-locally).
 - **Email sign-in has no staff check.** The website refuses sign-in links for `@biso.no` addresses, because a link to an address with no Appwrite account creates one with no Microsoft identity, and that person can then never sign in to the admin. The app sends links to any address. Ask staff to sign in to the admin before they use the app with a `@biso.no` address.
 - **The GitHub release notes overstate.** Each release made on `main` says it was "deployed to both app stores". Only Android is uploaded, and only to the internal track.
