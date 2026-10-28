@@ -1,1 +1,4 @@
-{ "title": "Recruitment", "pages": ["index", "publish-a-vacancy"] }
+{
+  "title": "Recruitment",
+  "pages": ["index", "publish-a-vacancy", "review-applications"]
+}
