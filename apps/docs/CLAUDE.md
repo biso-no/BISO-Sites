@@ -290,6 +290,12 @@ These need the owner. Nothing here is done by code. Do them in this order.
    check that setup by hand for any `sg-app-dept-*` team you create. If real
    admins sit in legacy teams with other ids, they won't get docs access until
    they are in the teams above.
+   Also remove stray members by hand: anyone in `docs-handover`, or in one of
+   the admin teams above, who is not in the matching Entra group. The sync only
+   prunes the memberships of the user who is signing in, and only for teams it
+   manages (`isAzureSyncedTeamId` in `apps/admin/src/lib/m365-sync.ts`). It
+   never removes someone who doesn't sign in, and it never touches
+   `docs-handover`.
    For each of the 10 ids, also check in the console that the team has no
    owner and no members who aren't in the matching `SG-App-*` group in
    Microsoft Entra. The M365 sync only ever adds `member`
@@ -347,8 +353,10 @@ on a leak. Run it after changing anything in
 
 ### Stage 3b
 
-Pages do not use `<Private>` yet. When they do, flip `REQUIRE_REGISTRY_USAGE`
-to `true` in `lib/private/registry.test.ts` so every registry name must be used.
+The developer pages use `<Private>`, and `REQUIRE_REGISTRY_USAGE` is `true` in
+`lib/private/registry.test.ts`. Every registry name must be used by at least one
+page. The only exception is a kit-only name, which no page may use. When you add
+a registry entry, use it in a page in the same change, or the test fails.
 
 ## Commands
 

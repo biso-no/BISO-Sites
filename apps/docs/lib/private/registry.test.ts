@@ -9,11 +9,8 @@ import {
 } from "./registry";
 import { scanPrivateUsages } from "./scan";
 
-/**
- * Stage 3b flips this to `true` once the handover pages exist, so that every
- * non-kit registry entry must be used by at least one page.
- */
-export const REQUIRE_REGISTRY_USAGE = false;
+/** Every non-kit registry entry must be used by at least one page. */
+export const REQUIRE_REGISTRY_USAGE = true;
 
 const CONTENT = join(import.meta.dir, "../../content");
 

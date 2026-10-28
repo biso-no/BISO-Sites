@@ -43,6 +43,28 @@ export const readingPaths: ReadingPath[] = [
       },
     ],
   },
+  {
+    role: "Developer or consultant",
+    steps: [
+      {
+        title: "If you're hiring someone",
+        href: "/developers/start-here/if-youre-hiring-someone",
+      },
+      {
+        title: "Your first day",
+        href: "/developers/start-here/your-first-day",
+      },
+      {
+        title: "What BISO runs",
+        href: "/developers/start-here/what-biso-runs",
+      },
+      { title: "Deploying", href: "/developers/keep-it-running/deploying" },
+      {
+        title: "When things break",
+        href: "/developers/keep-it-running/when-things-break",
+      },
+    ],
+  },
 ];
 
 export const taskGroups: TaskGroup[] = [

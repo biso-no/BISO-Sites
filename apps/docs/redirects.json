@@ -1,6 +1,12 @@
 [
-  { "source": "/docs", "destination": "/" },
-  { "source": "/docs/getting-started/:path*", "destination": "/" },
+  {
+    "source": "/docs",
+    "destination": "/"
+  },
+  {
+    "source": "/docs/getting-started/:path*",
+    "destination": "/"
+  },
   {
     "source": "/docs/admin-handbook/jobs",
     "destination": "/guide/recruitment"
@@ -29,12 +35,260 @@
     "source": "/docs/admin-handbook/notifications",
     "destination": "/guide/start-here/sign-in"
   },
-  { "source": "/docs/admin-handbook/:path*", "destination": "/guide" },
-  { "source": "/docs/public-website/:path*", "destination": "/developers" },
-  { "source": "/docs/architecture/:path*", "destination": "/developers" },
-  { "source": "/docs/developing/:path*", "destination": "/developers" },
-  { "source": "/docs/packages/:path*", "destination": "/developers" },
-  { "source": "/docs/integrations/:path*", "destination": "/developers" },
-  { "source": "/docs/operations/:path*", "destination": "/developers" },
-  { "source": "/docs/handover/:path*", "destination": "/developers" }
+  {
+    "source": "/docs/admin-handbook/:path*",
+    "destination": "/guide"
+  },
+  {
+    "source": "/docs/public-website/:path*",
+    "destination": "/developers"
+  },
+  {
+    "source": "/docs/architecture/api-service",
+    "destination": "/developers/change-it/code-layout#apps"
+  },
+  {
+    "source": "/docs/architecture/apps",
+    "destination": "/developers/change-it/code-layout#apps"
+  },
+  {
+    "source": "/docs/architecture/auth-and-roles",
+    "destination": "/developers/change-it/auth-and-roles"
+  },
+  {
+    "source": "/docs/architecture/campus-and-department-scoping",
+    "destination": "/developers/change-it/auth-and-roles#campus-and-department-scope"
+  },
+  {
+    "source": "/docs/architecture/data-model",
+    "destination": "/developers/change-it/data-model"
+  },
+  {
+    "source": "/docs/architecture/editor-architecture",
+    "destination": "/developers/reference/packages#repoeditor"
+  },
+  {
+    "source": "/docs/architecture/monorepo",
+    "destination": "/developers/change-it/code-layout"
+  },
+  {
+    "source": "/docs/architecture/overview",
+    "destination": "/developers/start-here/what-biso-runs"
+  },
+  {
+    "source": "/docs/architecture/packages",
+    "destination": "/developers/reference/packages"
+  },
+  {
+    "source": "/docs/architecture/pages-publish-flow",
+    "destination": "/developers/reference/packages#repoeditor"
+  },
+  {
+    "source": "/docs/architecture/translations",
+    "destination": "/developers/change-it/common-changes#add-a-translation-string"
+  },
+  {
+    "source": "/docs/developing/adding-a-route",
+    "destination": "/developers/change-it/common-changes"
+  },
+  {
+    "source": "/docs/developing/adding-a-server-action",
+    "destination": "/developers/change-it/common-changes#add-a-server-action"
+  },
+  {
+    "source": "/docs/developing/adding-an-editor-block",
+    "destination": "/developers/change-it/common-changes#add-an-editor-block"
+  },
+  {
+    "source": "/docs/developing/conventions",
+    "destination": "/developers/change-it/code-layout#conventions-that-matter"
+  },
+  {
+    "source": "/docs/developing/daily-workflow",
+    "destination": "/developers/change-it/local-setup"
+  },
+  {
+    "source": "/docs/developing/i18n",
+    "destination": "/developers/change-it/common-changes#add-a-translation-string"
+  },
+  {
+    "source": "/docs/developing/local-setup",
+    "destination": "/developers/change-it/local-setup"
+  },
+  {
+    "source": "/docs/developing/testing",
+    "destination": "/developers/change-it/local-setup#tests"
+  },
+  {
+    "source": "/docs/developing/troubleshooting",
+    "destination": "/developers/change-it/local-setup#common-first-run-failures"
+  },
+  {
+    "source": "/docs/developing/working-with-appwrite",
+    "destination": "/developers/change-it/data-model"
+  },
+  {
+    "source": "/docs/handover/design-decisions",
+    "destination": "/developers/reference/design-decisions"
+  },
+  {
+    "source": "/docs/handover/domains-and-hosting",
+    "destination": "/developers/start-here/what-biso-runs"
+  },
+  {
+    "source": "/docs/handover/history",
+    "destination": "/developers/reference/history"
+  },
+  {
+    "source": "/docs/handover/known-limitations",
+    "destination": "/developers/reference/known-limitations"
+  },
+  {
+    "source": "/docs/handover/ownership-and-accounts",
+    "destination": "/developers/start-here/if-youre-hiring-someone#who-holds-the-keys"
+  },
+  {
+    "source": "/docs/handover/third-party-accounts",
+    "destination": "/developers/start-here/getting-access"
+  },
+  {
+    "source": "/docs/handover/working-with-consultants",
+    "destination": "/developers/start-here/if-youre-hiring-someone#what-to-give-a-consultant-on-day-one"
+  },
+  {
+    "source": "/docs/integrations/24sevenoffice",
+    "destination": "/developers/reference/accounting"
+  },
+  {
+    "source": "/docs/integrations/anthropic",
+    "destination": "/developers/reference/ai"
+  },
+  {
+    "source": "/docs/integrations/openai",
+    "destination": "/developers/reference/ai"
+  },
+  {
+    "source": "/docs/integrations/pinecone",
+    "destination": "/developers/reference/ai"
+  },
+  {
+    "source": "/docs/integrations/appwrite",
+    "destination": "/developers/change-it/data-model"
+  },
+  {
+    "source": "/docs/integrations/azure-ad",
+    "destination": "/developers/reference/microsoft#staff-sign-in"
+  },
+  {
+    "source": "/docs/integrations/entur",
+    "destination": "/developers/reference/events-and-content-sources#entur"
+  },
+  {
+    "source": "/docs/integrations/microsoft-graph",
+    "destination": "/developers/reference/microsoft#microsoft-graph"
+  },
+  {
+    "source": "/docs/integrations/sharepoint",
+    "destination": "/developers/reference/microsoft#sharepoint"
+  },
+  {
+    "source": "/docs/integrations/stripe",
+    "destination": "/developers/reference/payments"
+  },
+  {
+    "source": "/docs/integrations/vipps-mobilepay",
+    "destination": "/developers/reference/payments"
+  },
+  {
+    "source": "/docs/integrations/tickster",
+    "destination": "/developers/reference/events-and-content-sources#tickster"
+  },
+  {
+    "source": "/docs/operations/backups-and-recovery",
+    "destination": "/developers/keep-it-running/backups-and-recovery"
+  },
+  {
+    "source": "/docs/operations/cron-and-scheduled-tasks",
+    "destination": "/developers/keep-it-running/scheduled-jobs"
+  },
+  {
+    "source": "/docs/operations/deployment",
+    "destination": "/developers/keep-it-running/deploying"
+  },
+  {
+    "source": "/docs/operations/environment-variables",
+    "destination": "/developers/keep-it-running/secrets-and-environment#all-variables-by-service"
+  },
+  {
+    "source": "/docs/operations/incident-response",
+    "destination": "/developers/keep-it-running/when-things-break"
+  },
+  {
+    "source": "/docs/operations/monitoring-and-health",
+    "destination": "/developers/keep-it-running/monitoring-and-health"
+  },
+  {
+    "source": "/docs/operations/secrets-and-keys",
+    "destination": "/developers/keep-it-running/secrets-and-environment"
+  },
+  {
+    "source": "/docs/packages/ai",
+    "destination": "/developers/reference/packages#repoai"
+  },
+  {
+    "source": "/docs/packages/api",
+    "destination": "/developers/reference/packages#repoapi"
+  },
+  {
+    "source": "/docs/packages/connectors",
+    "destination": "/developers/reference/packages#repoconnectors"
+  },
+  {
+    "source": "/docs/packages/editor",
+    "destination": "/developers/reference/packages#repoeditor"
+  },
+  {
+    "source": "/docs/packages/i18n",
+    "destination": "/developers/reference/packages#repoi18n"
+  },
+  {
+    "source": "/docs/packages/payment",
+    "destination": "/developers/reference/packages#repopayment"
+  },
+  {
+    "source": "/docs/packages/shared",
+    "destination": "/developers/reference/packages#reposhared"
+  },
+  {
+    "source": "/docs/packages/typescript-config",
+    "destination": "/developers/reference/packages#repotypescript-config"
+  },
+  {
+    "source": "/docs/packages/ui",
+    "destination": "/developers/reference/packages#repoui"
+  },
+  {
+    "source": "/docs/architecture/:path*",
+    "destination": "/developers"
+  },
+  {
+    "source": "/docs/developing/:path*",
+    "destination": "/developers"
+  },
+  {
+    "source": "/docs/packages/:path*",
+    "destination": "/developers"
+  },
+  {
+    "source": "/docs/integrations/:path*",
+    "destination": "/developers"
+  },
+  {
+    "source": "/docs/operations/:path*",
+    "destination": "/developers"
+  },
+  {
+    "source": "/docs/handover/:path*",
+    "destination": "/developers"
+  }
 ]
