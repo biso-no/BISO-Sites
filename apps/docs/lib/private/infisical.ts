@@ -3,7 +3,7 @@ import {
   type PrivateEnv,
   PrivateSourceUnavailable,
   type PrivateValueSource,
-} from "./source";
+} from "./types";
 
 const CACHE_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 3000;
@@ -71,10 +71,19 @@ export function createInfisicalSource(
     return body.accessToken;
   }
 
-  async function load(): Promise<Map<string, string>> {
+  let inflight: Promise<Map<string, string>> | null = null;
+
+  function load(): Promise<Map<string, string>> {
     if (values && values.expires > now()) {
-      return values.map;
+      return Promise.resolve(values.map);
     }
+    inflight ??= fetchAll().finally(() => {
+      inflight = null;
+    });
+    return inflight;
+  }
+
+  async function fetchAll(): Promise<Map<string, string>> {
     const accessToken = await login();
     const query = new URLSearchParams({
       projectId: env.INFISICAL_PROJECT_ID ?? "",

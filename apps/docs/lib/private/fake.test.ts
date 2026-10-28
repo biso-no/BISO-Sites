@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFakeSource } from "./fake";
-import { PrivateSourceUnavailable } from "./source";
+import { PrivateSourceUnavailable } from "./types";
 
 describe("createFakeSource", () => {
   it("reads values from its file", async () => {

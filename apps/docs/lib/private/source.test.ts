@@ -1,4 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { getPrivateSource } from "./source";
 
 const full = {
@@ -18,7 +21,12 @@ describe("getPrivateSource", () => {
   });
 
   it("returns a source for fake and infisical", () => {
-    expect(getPrivateSource({ DOCS_PRIVATE_SOURCE: "fake" })).not.toBeNull();
+    expect(
+      getPrivateSource({
+        DOCS_PRIVATE_SOURCE: "fake",
+        DOCS_PRIVATE_FAKE_FILE: "/x.json",
+      })
+    ).not.toBeNull();
     expect(getPrivateSource(full)).not.toBeNull();
   });
 
@@ -33,5 +41,33 @@ describe("getPrivateSource", () => {
 
   it("rejects unknown values", () => {
     expect(() => getPrivateSource({ DOCS_PRIVATE_SOURCE: "x" })).toThrow();
+  });
+
+  it("requires the fake file", () => {
+    expect(() => getPrivateSource({ DOCS_PRIVATE_SOURCE: "fake" })).toThrow(
+      "DOCS_PRIVATE_FAKE_FILE"
+    );
+  });
+
+  it("reads the fake file through getPrivateSource", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "fake-")), "v.json");
+    writeFileSync(file, JSON.stringify({ A: "1" }));
+    const source = getPrivateSource({
+      DOCS_PRIVATE_SOURCE: "fake",
+      DOCS_PRIVATE_FAKE_FILE: file,
+    });
+    expect(await source?.get(["A"])).toEqual({ A: "1" });
+  });
+
+  it("refuses fake in production unless allowed", () => {
+    const env = {
+      DOCS_PRIVATE_SOURCE: "fake",
+      DOCS_PRIVATE_FAKE_FILE: "/x.json",
+      NODE_ENV: "production",
+    };
+    expect(() => getPrivateSource(env)).toThrow("DOCS_PRIVATE_ALLOW_FAKE");
+    expect(
+      getPrivateSource({ ...env, DOCS_PRIVATE_ALLOW_FAKE: "1" })
+    ).not.toBeNull();
   });
 });

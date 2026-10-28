@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createInfisicalSource } from "./infisical";
-import { PrivateSourceUnavailable } from "./source";
+import { PrivateSourceUnavailable } from "./types";
 
 const env = {
   INFISICAL_SITE_URL: "https://infisical.test/",
@@ -14,13 +14,13 @@ const env = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status });
 
-function makeFetch(secretsStatus = 200) {
+function makeFetch(secretsStatus = 200, expiresIn = 7200) {
   const calls: { url: string; init?: RequestInit }[] = [];
   const impl = ((url: string, init?: RequestInit) => {
     calls.push({ url, init });
     if (url.includes("/universal-auth/login")) {
       return Promise.resolve(
-        json({ accessToken: "tok", expiresIn: 7200, tokenType: "Bearer" })
+        json({ accessToken: "tok", expiresIn, tokenType: "Bearer" })
       );
     }
     return Promise.resolve(
@@ -89,5 +89,37 @@ describe("createInfisicalSource", () => {
     await expect(source.get(["A"])).rejects.toBeInstanceOf(
       PrivateSourceUnavailable
     );
+  });
+
+  it("shares one login and fetch between concurrent cold gets", async () => {
+    const { impl, calls } = makeFetch();
+    const source = createInfisicalSource(env, impl);
+    await Promise.all([source.get(["A"]), source.get(["A"])]);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("logs in again after a short-lived token expires", async () => {
+    const { impl, calls } = makeFetch(200, 60);
+    let t = 0;
+    const source = createInfisicalSource(env, impl, { now: () => t });
+    await source.get(["A"]);
+    t = 5 * 60 * 1000 + 1;
+    await source.get(["A"]);
+    const logins = calls.filter((c) => c.url.includes("/universal-auth/login"));
+    expect(logins).toHaveLength(2);
+  });
+
+  it("only ever logs in or lists secrets", async () => {
+    const { impl, calls } = makeFetch();
+    const source = createInfisicalSource(env, impl);
+    await source.get(["A"]);
+    for (const { url, init } of calls) {
+      const { pathname } = new URL(url);
+      const ok =
+        (init?.method === "POST" &&
+          pathname === "/api/v1/auth/universal-auth/login") ||
+        (init?.method === "GET" && pathname === "/api/v4/secrets");
+      expect(ok).toBe(true);
+    }
   });
 });

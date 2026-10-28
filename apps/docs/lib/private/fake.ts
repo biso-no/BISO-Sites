@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
-import { PrivateSourceUnavailable, type PrivateValueSource } from "./source";
+import { PrivateSourceUnavailable, type PrivateValueSource } from "./types";
 
 const fileSchema = z.record(z.string(), z.string());
 

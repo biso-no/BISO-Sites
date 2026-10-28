@@ -1,16 +1,12 @@
 import { createFakeSource } from "./fake";
 import { createInfisicalSource } from "./infisical";
+import type { PrivateEnv, PrivateValueSource } from "./types";
 
-export interface PrivateValueSource {
-  get(names: string[]): Promise<Record<string, string | undefined>>;
-}
-
-export class PrivateSourceUnavailable extends Error {
-  constructor(message = "The private value source is unavailable") {
-    super(message);
-    this.name = "PrivateSourceUnavailable";
-  }
-}
+export {
+  type PrivateEnv,
+  PrivateSourceUnavailable,
+  type PrivateValueSource,
+} from "./types";
 
 export const INFISICAL_ENV_VARS = [
   "INFISICAL_SITE_URL",
@@ -21,14 +17,22 @@ export const INFISICAL_ENV_VARS = [
   "INFISICAL_SECRET_PATH",
 ] as const;
 
-export type PrivateEnv = Record<string, string | undefined>;
-
 export function getPrivateSource(env: PrivateEnv): PrivateValueSource | null {
   const choice = (env.DOCS_PRIVATE_SOURCE ?? "none").trim() || "none";
   if (choice === "none") {
     return null;
   }
   if (choice === "fake") {
+    if (env.NODE_ENV === "production" && env.DOCS_PRIVATE_ALLOW_FAKE !== "1") {
+      throw new Error(
+        "DOCS_PRIVATE_SOURCE=fake is refused in production unless DOCS_PRIVATE_ALLOW_FAKE=1"
+      );
+    }
+    if (!env.DOCS_PRIVATE_FAKE_FILE) {
+      throw new Error(
+        "DOCS_PRIVATE_SOURCE=fake requires DOCS_PRIVATE_FAKE_FILE"
+      );
+    }
     return createFakeSource(env.DOCS_PRIVATE_FAKE_FILE);
   }
   if (choice === "infisical") {
