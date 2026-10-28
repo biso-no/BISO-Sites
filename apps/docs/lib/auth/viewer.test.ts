@@ -23,7 +23,23 @@ describe("getViewer", () => {
     expect(viewer).toEqual({ signedIn: true, name: "Ada", access: null });
   });
 
-  test("a global admin's teams give globaladmin", async () => {
+  test("a global admin's team ids give globaladmin", async () => {
+    const viewer = await getViewer({
+      loadAccount: () => Promise.resolve({ name: "Ada" }),
+      loadTeams: () =>
+        Promise.resolve([
+          { $id: "sg-app-campus-national", name: "National" },
+          { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+        ]),
+    });
+    expect(viewer).toEqual({
+      signedIn: true,
+      name: "Ada",
+      access: "globaladmin",
+    });
+  });
+
+  test("teams that only copy the admin names give no access", async () => {
     const viewer = await getViewer({
       loadAccount: () => Promise.resolve({ name: "Ada" }),
       loadTeams: () =>
@@ -32,11 +48,7 @@ describe("getViewer", () => {
           { $id: "b", name: "SG-App-Dept-OperationsUnit" },
         ]),
     });
-    expect(viewer).toEqual({
-      signedIn: true,
-      name: "Ada",
-      access: "globaladmin",
-    });
+    expect(viewer).toEqual({ signedIn: true, name: "Ada", access: null });
   });
 
   test("never uses the admin client or sets cookies", () => {

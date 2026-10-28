@@ -168,18 +168,29 @@ account, where the servers live, the emergency kit. A page names them with
 
 ### Who can see values
 
-- Global admins: members of the National campus team and the OperationsUnit
-  department team.
-- Campus admins: members of a campus team plus the matching `Ledelsen{City}`
-  team.
-- The `docs-handover` Appwrite team. A global admin adds and removes
-  consultants by hand in the Appwrite console. Nothing is automatic.
-- Nobody else, including plain department members and HR.
+Docs is deliberately stricter than the admin: it trusts only exact team ids
+created by the M365 sync, because names can be created by anyone. Any
+signed-in Appwrite user, even an anonymous one, can create a team with any
+name and a custom id of their choice. So `lib/auth/access.ts` ignores team
+names and checks ids only.
 
-Access uses the shared role helpers from `@repo/shared/utils/team-roles`
-(`lib/auth/access.ts`). A drift test in `lib/auth/access.test.ts` pins only the
-admin team-name parser, so check `apps/admin/src/lib/roles.ts` by hand if the
-rules change.
+The sync builds each team id by lowercasing the Microsoft group's display
+name (`sanitizeTeamId` in `apps/admin/src/lib/m365-sync.ts`), so
+`SG-App-Dept-OperationsUnit` becomes `sg-app-dept-operationsunit`.
+
+- Global admins: members of both `sg-app-campus-national` and
+  `sg-app-dept-operationsunit`.
+- Campus admins: members of a city's campus team and that city's Ledelsen
+  team, for example `sg-app-campus-oslo` and `sg-app-dept-ledelsenoslo`. The
+  cities are Oslo, Bergen, Stavanger and Trondheim (`CAMPUS_CITY_NAMES` in
+  `@repo/shared/utils/team-roles`).
+- The `docs-handover` team. A global admin adds and removes consultants by
+  hand in the Appwrite console. Nothing is automatic.
+- Nobody else, including plain department members, HR, and anyone whose team
+  only has the right name.
+
+`lib/auth/access.test.ts` pins the sync's id rule and checks the city list.
+If the sync changes how it builds ids, that test fails and points back here.
 
 ### Env vars
 
@@ -230,6 +241,20 @@ These need the owner. Nothing here is done by code.
 3. Create the Appwrite team with id `docs-handover`.
 4. Set `NEXT_PUBLIC_DOCS_URL` on the admin and rebuild the admin.
 5. Set `NEXT_PUBLIC_ADMIN_URL` on docs.
+6. Confirm that each team id docs trusts exists in the production Appwrite
+   project: `sg-app-campus-national`, `sg-app-dept-operationsunit`,
+   `sg-app-campus-oslo`, `sg-app-campus-bergen`, `sg-app-campus-stavanger`,
+   `sg-app-campus-trondheim`, `sg-app-dept-ledelsenoslo`,
+   `sg-app-dept-ledelsenbergen`, `sg-app-dept-ledelsenstavanger` and
+   `sg-app-dept-ledelsentrondheim`. Pre-create any that are missing, with the
+   custom id exactly as listed, so nobody else can claim the id. Name each one
+   as the sync would (`National`, `Operations Unit`, `Oslo`, `Ledelsen Oslo`),
+   because the admin still reads names. The sync adds members to an existing
+   team, but it skips its one-time setup for new department teams
+   (`grantDeptTeamAccess` in `apps/admin/src/lib/team-provisioning.ts`), so
+   check that setup by hand for any `sg-app-dept-*` team you create. If real
+   admins sit in legacy teams with other ids, they won't get docs access until
+   they are in the teams above.
 
 ### Leak check
 

@@ -1,69 +1,68 @@
 /**
  * Who may see private details in the docs.
  *
- * The role rules (National + Operations Unit -> globaladmin, {City} campus +
- * Ledelsen {City} -> campusadmin) come from the shared helpers the admin also
- * uses. Only the team parser is mirrored here, because the admin's copy lives
- * in apps/admin/src/lib/authorization-team-memberships.ts and imports
- * admin-only modules. The drift test in access.test.ts pins that parser.
+ * Access is decided by exact team `$id`s only. Team names are ignored: any
+ * signed-in Appwrite user, even an anonymous one, can create a team with any
+ * name and a free custom id, and own it. So a name like "SG-App-Campus-National"
+ * proves nothing.
+ *
+ * The ids below are the ones the M365 sync creates. It builds each team id by
+ * lowercasing the Microsoft group's display name (`sanitizeTeamId` in
+ * apps/admin/src/lib/m365-sync.ts), so "SG-App-Dept-OperationsUnit" becomes
+ * "sg-app-dept-operationsunit". Once a team with one of these ids exists,
+ * nobody else can create another with the same id.
+ *
+ * Docs is deliberately stricter than the admin, which still derives roles from
+ * team names. The test in access.test.ts pins the sync's id rule.
  */
-import {
-  expandDepartmentName,
-  getManagedCampuses,
-  isNationalOperations,
-  KNOWN_CAMPUS_NAMES,
-} from "@repo/shared/utils/team-roles";
 
 export type DocsAccess = "globaladmin" | "campusadmin" | "docs-handover" | null;
 
 export const DOCS_HANDOVER_TEAM_ID = "docs-handover";
 
-const CAMPUS_PREFIX = "SG-App-Campus-";
-const DEPT_PREFIX = "SG-App-Dept-";
-const DEPT_ID_PREFIX = "sg-app-dept-";
+/** National campus + Operations Unit department. */
+export const GLOBAL_ADMIN_TEAM_IDS = {
+  campus: "sg-app-campus-national",
+  department: "sg-app-dept-operationsunit",
+} as const;
+
+/** One pair per city: the campus team + that city's Ledelsen team. */
+export const CAMPUS_ADMIN_TEAM_IDS = [
+  { campus: "sg-app-campus-oslo", department: "sg-app-dept-ledelsenoslo" },
+  { campus: "sg-app-campus-bergen", department: "sg-app-dept-ledelsenbergen" },
+  {
+    campus: "sg-app-campus-stavanger",
+    department: "sg-app-dept-ledelsenstavanger",
+  },
+  {
+    campus: "sg-app-campus-trondheim",
+    department: "sg-app-dept-ledelsentrondheim",
+  },
+] as const;
 
 interface Team {
   $id: string;
+  /** Never read. Kept so callers can pass Appwrite teams as they come. */
   name: string;
 }
 
-function parseTeams(teams: readonly Team[]): {
-  campuses: string[];
-  departments: string[];
-} {
-  const campuses: string[] = [];
-  const departments: string[] = [];
-
-  for (const team of teams) {
-    if (KNOWN_CAMPUS_NAMES.has(team.name)) {
-      campuses.push(team.name);
-    } else if (team.name.startsWith(CAMPUS_PREFIX)) {
-      const campus = team.name.replace(CAMPUS_PREFIX, "").trim();
-      if (KNOWN_CAMPUS_NAMES.has(campus)) {
-        campuses.push(campus);
-      }
-    } else if (team.$id.startsWith(DEPT_ID_PREFIX)) {
-      departments.push(team.name);
-    } else if (team.name.startsWith(DEPT_PREFIX)) {
-      departments.push(
-        expandDepartmentName(team.name.replace(DEPT_PREFIX, ""))
-      );
-    }
-  }
-
-  return { campuses, departments };
+function hasPair(
+  ids: ReadonlySet<string>,
+  pair: { campus: string; department: string }
+): boolean {
+  return ids.has(pair.campus) && ids.has(pair.department);
 }
 
 export function docsAccessFromTeams(teams: readonly Team[]): DocsAccess {
-  const { campuses, departments } = parseTeams(teams);
+  const ids = new Set(teams.map((team) => team.$id));
 
-  if (isNationalOperations(campuses, departments)) {
+  if (hasPair(ids, GLOBAL_ADMIN_TEAM_IDS)) {
     return "globaladmin";
   }
-  if (getManagedCampuses(campuses, departments).length > 0) {
+  if (CAMPUS_ADMIN_TEAM_IDS.some((pair) => hasPair(ids, pair))) {
     return "campusadmin";
   }
-  if (teams.some((team) => team.$id === DOCS_HANDOVER_TEAM_ID)) {
+  if (ids.has(DOCS_HANDOVER_TEAM_ID)) {
     return "docs-handover";
   }
   return null;
