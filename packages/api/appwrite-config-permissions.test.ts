@@ -155,3 +155,68 @@ describe("content tables are readable only through row permissions", () => {
     expect(findContentTable("campus_benefits")?.$permissions).toEqual([]);
   });
 });
+
+describe("Microsoft team sync records", () => {
+  interface SyncTable {
+    $id: string;
+    $permissions: string[];
+    columns: {
+      array: boolean;
+      key: string;
+      required: boolean;
+      size?: number;
+      type: string;
+    }[];
+    databaseId: string;
+    enabled: boolean;
+    rowSecurity: boolean;
+  }
+
+  function findSyncTable(): SyncTable | undefined {
+    const config = JSON.parse(
+      readFileSync(join(import.meta.dirname, "appwrite.config.json"), "utf8")
+    ) as { tables: SyncTable[] };
+    return config.tables.find(
+      (candidate) =>
+        candidate.databaseId === "app" && candidate.$id === "m365_team_sync"
+    );
+  }
+
+  test("m365_team_sync is service-only with row security", () => {
+    const table = findSyncTable();
+
+    expect(table).toBeDefined();
+    expect(table?.enabled).toBe(true);
+    expect(table?.rowSecurity).toBe(true);
+    expect(table?.$permissions).toEqual([]);
+  });
+
+  test("m365_team_sync holds the team ids and the sync time", () => {
+    const columns = findSyncTable()?.columns.map(
+      ({ array, key, required, size, type }) => ({
+        array,
+        key,
+        required,
+        size,
+        type,
+      })
+    );
+
+    expect(columns).toEqual([
+      {
+        array: true,
+        key: "team_ids",
+        required: false,
+        size: 128,
+        type: "string",
+      },
+      {
+        array: false,
+        key: "synced_at",
+        required: false,
+        size: undefined,
+        type: "datetime",
+      },
+    ]);
+  });
+});

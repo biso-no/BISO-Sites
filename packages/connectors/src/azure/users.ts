@@ -5,7 +5,9 @@ import {
   isRemovableAuthenticationMethod,
   PASSWORD_AUTHENTICATION_METHOD,
 } from "./authentication-methods";
-import { createGraphClient } from "./index";
+// From graph-client, not ./index: the index also loads server-only modules,
+// and Bun scripts (backfill-m365-team-sync) load this file outside Next.
+import { createGraphClient } from "./graph-client";
 
 export {
   getAuthenticationMethodPath,
@@ -130,6 +132,12 @@ export interface GraphUserSearchOptions {
   // campus — BISO maps campus.name onto the M365 officeLocation attribute.
   // Users with no officeLocation are excluded: the scope fails closed.
   officeLocations?: string[];
+}
+
+/** One page of a Graph directory-object list, e.g. `transitiveMemberOf`. */
+interface GraphDirectoryObjectPage {
+  "@odata.nextLink"?: string;
+  value?: { displayName?: unknown }[];
 }
 
 export interface LicensedUsersResult {
@@ -803,6 +811,36 @@ export class GraphUserService {
             )
           : [],
       }));
+  }
+
+  /**
+   * Display names of every group a user belongs to, directly or through
+   * nested groups, following @odata.nextLink. The same read the M365 sign-in
+   * sync makes (`/me/transitiveMemberOf?$select=id,displayName`), for a given
+   * user with the app's own credentials.
+   */
+  async listTransitiveGroupNames(userId: string): Promise<string[]> {
+    const names: string[] = [];
+    try {
+      let page: GraphDirectoryObjectPage = await this.client
+        .api(`/users/${encodeGraphPathSegment(userId)}/transitiveMemberOf`)
+        .select("id,displayName")
+        .get();
+      for (;;) {
+        for (const item of page.value ?? []) {
+          if (typeof item.displayName === "string") {
+            names.push(item.displayName);
+          }
+        }
+        const nextLink = page["@odata.nextLink"];
+        if (!nextLink) {
+          return names;
+        }
+        page = await this.client.api(nextLink).get();
+      }
+    } catch (error) {
+      throw normalizeGraphError(error);
+    }
   }
 
   /**

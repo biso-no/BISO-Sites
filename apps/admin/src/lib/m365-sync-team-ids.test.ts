@@ -7,7 +7,12 @@ import {
   HR_TEAM_IDS,
   LEDELSEN_TEAM_IDS,
   OPERATIONS_UNIT_TEAM_ID,
+  SYNCED_GROUP_PREFIXES,
+  syncedTeamIdForGroup,
 } from "@repo/shared/utils/team-roles";
+
+/** A bare `name.startsWith("…")` test, as in `parseAzureGroups`. */
+const GROUP_PREFIX_TEST = /(?<![.\w])name\.startsWith\("([^"]+)"\)/g;
 
 /** `sanitizeTeamId` in m365-sync.ts: returns its argument, lowercased. */
 const SANITIZE_TEAM_ID =
@@ -44,6 +49,41 @@ describe("trusted team ids follow the M365 sync's id rule", () => {
     const needle =
       'name.startsWith("SG-App-Campus-") || name.startsWith("SG-App-Dept-")';
     expect(src.includes(needle), `${hint} Missing: ${needle}`).toBe(true);
+  });
+
+  it("agrees with syncedTeamIdForGroup on which groups become teams", () => {
+    const syncPrefixes = [...src.matchAll(GROUP_PREFIX_TEST)].map(
+      (match) => match[1]
+    );
+    expect(syncPrefixes, hint).toEqual([...SYNCED_GROUP_PREFIXES]);
+  });
+
+  it("agrees with syncedTeamIdForGroup on the id of each group", () => {
+    for (const group of [
+      "SG-App-Campus-National",
+      "SG-App-Campus-Oslo",
+      "SG-App-Dept-OperationsUnit",
+      "SG-App-Dept-HRUnit",
+      "SG-App-Dept-LedelsenTrondheim",
+    ]) {
+      expect(syncedTeamIdForGroup(group), hint).toBe(syncedId(group));
+    }
+    for (const group of ["SG-App-Role-Admin", "Everyone", "sg-app-dept-x"]) {
+      expect(syncedTeamIdForGroup(group), hint).toBeNull();
+    }
+  });
+
+  it("still records the team ids it computed for the user", () => {
+    const recordHint =
+      "Admin and the API keep an sg-app team only when its id is in the user's m365_team_sync record, which syncM365Permissions writes from expectedTeamIds.";
+    for (const needle of [
+      "teamsToSync.map((g) => sanitizeTeamId(g.name))",
+      "team_ids: [...expectedTeamIds],",
+    ]) {
+      expect(src.includes(needle), `${recordHint} Missing: ${needle}`).toBe(
+        true
+      );
+    }
   });
 
   it("gives every campus team its group's synced id", () => {

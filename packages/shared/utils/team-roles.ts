@@ -13,6 +13,10 @@
  * sync creates; it lowercases the Microsoft group's display name
  * (`sanitizeTeamId` in apps/admin/src/lib/m365-sync.ts), so
  * "SG-App-Dept-OperationsUnit" becomes "sg-app-dept-operationsunit".
+ *
+ * Callers first drop every `sg-app-*` team the sync didn't record for the user
+ * (`keepSyncedTeams` with the user's `m365_team_sync` row), so a team only
+ * counts when the user's Microsoft groups produced its id.
  */
 
 export const CAMPUS_CITY_NAMES = [
@@ -46,6 +50,24 @@ export const LEDELSEN_TEAM_IDS: Readonly<Record<CampusCity, string>> = {
 
 export const DEPARTMENT_TEAM_ID_PREFIX = "sg-app-dept-";
 
+/**
+ * Microsoft group name prefixes the M365 sync turns into teams
+ * (`parseAzureGroups` in apps/admin/src/lib/m365-sync.ts).
+ */
+export const SYNCED_GROUP_PREFIXES = [
+  "SG-App-Campus-",
+  "SG-App-Dept-",
+] as const;
+
+/**
+ * Service-only table with one row per user, keyed by the Appwrite user id. Its
+ * `team_ids` column holds the team ids the M365 sync last computed from the
+ * user's Microsoft groups.
+ */
+export const M365_TEAM_SYNC_TABLE_ID = "m365_team_sync";
+
+const SYNCED_TEAM_ID_PREFIX = "sg-app-";
+
 /** Expand a camelCase team name: "OperationsUnit" -> "Operations Unit". */
 export function expandDepartmentName(name: string): string {
   return name.replace(/([a-z])([A-Z])/g, "$1 $2").trim();
@@ -54,6 +76,32 @@ export function expandDepartmentName(name: string): string {
 export interface TeamRef {
   $id: string;
   name: string;
+}
+
+/**
+ * The team id the M365 sync gives a Microsoft group: its display name,
+ * lowercased, for campus and department groups. Null for any other group.
+ */
+export function syncedTeamIdForGroup(displayName: string): string | null {
+  return SYNCED_GROUP_PREFIXES.some((prefix) => displayName.startsWith(prefix))
+    ? displayName.toLowerCase()
+    : null;
+}
+
+/**
+ * Keep an `sg-app-*` team only when its id is in the user's sync record (the
+ * ids the M365 sync computed from their Microsoft groups). Teams outside the
+ * `sg-app-` id space, such as `biso-members`, pass through untouched. With no
+ * record, pass an empty set: every `sg-app-*` team is dropped.
+ */
+export function keepSyncedTeams<T extends TeamRef>(
+  teams: readonly T[],
+  syncedTeamIds: ReadonlySet<string>
+): T[] {
+  return teams.filter(
+    (team) =>
+      !team.$id.startsWith(SYNCED_TEAM_ID_PREFIX) || syncedTeamIds.has(team.$id)
+  );
 }
 
 export interface TeamIdRoles {

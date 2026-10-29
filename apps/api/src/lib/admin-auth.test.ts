@@ -1,4 +1,4 @@
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { canManageCampus, getAdminScope } from "./admin-auth";
@@ -10,6 +10,26 @@ vi.mock("@repo/api/server", () => ({
 }));
 
 const mockedCreateSessionClient = vi.mocked(createSessionClient);
+const mockedCreateAdminClient = vi.mocked(createAdminClient);
+const getRow = vi.fn();
+
+const notFound = () =>
+  Object.assign(new Error("Row with the requested ID could not be found."), {
+    code: 404,
+  });
+
+/** The caller's m365_team_sync record; `null` means there is none. */
+function mockSyncRecord(teamIds: string[] | null): void {
+  getRow.mockReset();
+  if (teamIds === null) {
+    getRow.mockRejectedValue(notFound());
+  } else {
+    getRow.mockResolvedValue({ $id: "admin-user-1", team_ids: teamIds });
+  }
+  mockedCreateAdminClient.mockResolvedValue({
+    db: { getRow },
+  } as unknown as Awaited<ReturnType<typeof createAdminClient>>);
+}
 
 function requestWithJwt(): NextRequest {
   return {
@@ -17,15 +37,22 @@ function requestWithJwt(): NextRequest {
   } as NextRequest;
 }
 
+/**
+ * By default the caller is a synced user: their record lists every team they
+ * are in. Pass `record` to describe another record, or `null` for none.
+ */
 function mockSessionClient({
   labels = [],
+  record,
   teams = [],
   userId = "admin-user-1",
 }: {
   labels?: string[];
+  record?: string[] | null;
   teams?: { $id: string; name: string }[];
   userId?: string;
 }): void {
+  mockSyncRecord(record === undefined ? teams.map((t) => t.$id) : record);
   mockedCreateSessionClient.mockResolvedValue({
     account: {
       get: vi.fn().mockResolvedValue({ $id: userId, labels }),
@@ -41,6 +68,7 @@ function mockSessionClient({
 describe("getAdminScope", () => {
   beforeEach(() => {
     mockedCreateSessionClient.mockReset();
+    mockedCreateAdminClient.mockReset();
   });
 
   it("does not grant global admin from Appwrite labels alone", async () => {
@@ -141,6 +169,83 @@ describe("getAdminScope", () => {
       managedDepartmentNames: [],
       userId: "admin-user-1",
     });
+  });
+
+  it("reads the caller's own sync record with the admin client", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-oslo", name: "Oslo" }],
+    });
+
+    await getAdminScope(requestWithJwt());
+
+    expect(getRow).toHaveBeenCalledWith(
+      "app",
+      "m365_team_sync",
+      "admin-user-1"
+    );
+  });
+
+  it("does not grant global admin when the caller has no sync record", async () => {
+    mockSessionClient({
+      record: null,
+      teams: [
+        { $id: "sg-app-campus-national", name: "National" },
+        { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope).toEqual({
+      canManageAnyCampus: false,
+      isCampusAdmin: false,
+      isGlobalAdmin: false,
+      managedCampusNames: [],
+      managedDepartmentNames: [],
+      userId: "admin-user-1",
+    });
+  });
+
+  it("grants global admin only when the record lists both teams", async () => {
+    const teams = [
+      { $id: "sg-app-campus-national", name: "National" },
+      { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+    ];
+
+    mockSessionClient({ teams, record: ["sg-app-campus-national"] });
+    expect((await getAdminScope(requestWithJwt()))?.isGlobalAdmin).toBe(false);
+
+    mockSessionClient({
+      teams,
+      record: ["sg-app-dept-operationsunit", "sg-app-campus-national"],
+    });
+    expect((await getAdminScope(requestWithJwt()))?.isGlobalAdmin).toBe(true);
+  });
+
+  it("drops a department team the record doesn't list", async () => {
+    mockSessionClient({
+      record: [],
+      teams: [
+        { $id: "sg-app-dept-marketing", name: "Marketing" },
+        { $id: "biso-members", name: "BISO Members" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope?.managedDepartmentNames).toEqual([]);
+  });
+
+  it("rethrows a failed sync record read", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const outage = Object.assign(new Error("service unavailable"), {
+      code: 503,
+    });
+    getRow.mockRejectedValue(outage);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toBe(outage);
   });
 
   it("returns null when Appwrite rejects the session with 401", async () => {

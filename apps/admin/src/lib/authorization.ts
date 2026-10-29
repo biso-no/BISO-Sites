@@ -1,8 +1,13 @@
 "use server";
 
-import { Query } from "@repo/api";
+import { type Models, Query } from "@repo/api";
+import { orNullIfNotFound } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
+import {
+  keepSyncedTeams,
+  M365_TEAM_SYNC_TABLE_ID,
+} from "@repo/shared/utils/team-roles";
 import { cookies } from "next/headers";
 import { notFound, redirect, unauthorized } from "next/navigation";
 import { cache } from "react";
@@ -52,6 +57,25 @@ async function hasMicrosoftEditorIdentity(account: {
   }
 }
 
+/** A `m365_team_sync` row, written by `syncM365Permissions`. */
+type M365TeamSyncRow = Models.Row & {
+  synced_at?: string | null;
+  team_ids?: string[] | null;
+};
+
+/**
+ * The team ids the M365 sync recorded for this user, read with the service
+ * key (the table has no permissions). No record means no synced teams: an
+ * empty set. Any other failure propagates like the other Appwrite reads.
+ */
+async function loadSyncedTeamIds(userId: string): Promise<Set<string>> {
+  const { db } = await createAdminClient();
+  const record = await orNullIfNotFound(
+    db.getRow<M365TeamSyncRow>("app", M365_TEAM_SYNC_TABLE_ID, userId)
+  );
+  return new Set(record?.team_ids ?? []);
+}
+
 /**
  * Resolve team-derived department names (e.g. "Operations Unit") to the
  * Appwrite Departments row $ids stored on content rows' `department_id` column.
@@ -83,7 +107,9 @@ async function resolveDepartmentIds(
  * Get the current user's authorization context by fetching their team memberships.
  * Teams are created during M365 OAuth sync with the lowercased group display
  * name as id (e.g. "sg-app-campus-oslo"). Roles come from those ids only; team
- * names never grant a role.
+ * names never grant a role. An sg-app-* team only counts when its id is in the
+ * user's m365_team_sync record, which the sync writes from their Microsoft
+ * groups; without a record the user has no sg-app-* teams.
  *
  * Role derivation logic:
  * - National + OperationsUnit → "globaladmin" role
@@ -100,9 +126,14 @@ export const getUserAuthContext = cache(
     try {
       const { account, teams } = await createSessionClient();
       const user = await account.get();
-      const teamMemberships = await teams.list([Query.limit(200)]);
+      const [teamMemberships, syncedTeamIds] = await Promise.all([
+        teams.list([Query.limit(200)]),
+        loadSyncedTeamIds(user.$id),
+      ]);
 
-      const parsed = parseTeamMemberships(teamMemberships.teams);
+      const parsed = parseTeamMemberships(
+        keepSyncedTeams(teamMemberships.teams, syncedTeamIds)
+      );
       const { managedCampuses } = parsed;
       const roles = [...parsed.roles];
       if (

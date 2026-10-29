@@ -3,8 +3,12 @@ import {
   CAMPUS_CITY_NAMES,
   CAMPUS_TEAM_IDS,
   expandDepartmentName,
+  keepSyncedTeams,
   LEDELSEN_TEAM_IDS,
+  M365_TEAM_SYNC_TABLE_ID,
   rolesFromTeams,
+  SYNCED_GROUP_PREFIXES,
+  syncedTeamIdForGroup,
 } from "./team-roles";
 
 describe("expandDepartmentName", () => {
@@ -135,5 +139,78 @@ describe("rolesFromTeams", () => {
       isNationalHr: false,
       managedCampuses: [],
     });
+  });
+});
+
+describe("syncedTeamIdForGroup", () => {
+  it("lowercases campus and department group names", () => {
+    expect(syncedTeamIdForGroup("SG-App-Dept-OperationsUnit")).toBe(
+      "sg-app-dept-operationsunit"
+    );
+    expect(syncedTeamIdForGroup("SG-App-Campus-Oslo")).toBe(
+      "sg-app-campus-oslo"
+    );
+  });
+
+  it("returns null for groups the sync doesn't turn into teams", () => {
+    expect(syncedTeamIdForGroup("SG-App-Role-Admin")).toBeNull();
+    expect(syncedTeamIdForGroup("Marketing")).toBeNull();
+    expect(syncedTeamIdForGroup("sg-app-dept-marketing")).toBeNull();
+    expect(syncedTeamIdForGroup("")).toBeNull();
+  });
+
+  it("covers exactly the campus and department prefixes", () => {
+    expect([...SYNCED_GROUP_PREFIXES]).toEqual([
+      "SG-App-Campus-",
+      "SG-App-Dept-",
+    ]);
+  });
+});
+
+describe("keepSyncedTeams", () => {
+  const team = ($id: string, name = "Any name") => ({ $id, name });
+  const marketing = team("sg-app-dept-oslmarketing", "OSL Marketing");
+  const members = team("biso-members", "BISO Members");
+  const handover = team("docs-handover", "Docs handover");
+
+  it("drops an sg-app team whose id isn't in the record", () => {
+    expect(
+      keepSyncedTeams([marketing, members, handover], new Set<string>())
+    ).toEqual([members, handover]);
+  });
+
+  it("keeps an sg-app team whose id is in the record", () => {
+    expect(
+      keepSyncedTeams(
+        [marketing, members, handover],
+        new Set(["sg-app-dept-oslmarketing"])
+      )
+    ).toEqual([marketing, members, handover]);
+  });
+
+  it("drops every sg-app team when there is no record", () => {
+    const kept = keepSyncedTeams(
+      [
+        team("sg-app-campus-national"),
+        team("sg-app-dept-operationsunit"),
+        team("sg-app-role-admin"),
+      ],
+      new Set()
+    );
+    expect(kept).toEqual([]);
+    expect(rolesFromTeams(kept).isGlobalAdmin).toBe(false);
+  });
+
+  it("matches ids exactly", () => {
+    expect(
+      keepSyncedTeams(
+        [team("sg-app-campus-oslo")],
+        new Set(["SG-App-Campus-Oslo", "sg-app-campus-oslo "])
+      )
+    ).toEqual([]);
+  });
+
+  it("names the service-only record table", () => {
+    expect(M365_TEAM_SYNC_TABLE_ID).toBe("m365_team_sync");
   });
 });
