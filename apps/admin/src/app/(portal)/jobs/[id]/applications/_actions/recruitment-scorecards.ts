@@ -7,11 +7,11 @@ const SCORECARD_PAGE_LIMIT = 500;
 
 /** Minimal slice of the session `db` the loader needs. */
 interface ScorecardDb {
-  listRows(
+  listRows<T extends { $id: string }>(
     databaseId: string,
     tableId: string,
     queries?: string[]
-  ): Promise<{ rows: unknown[] }>;
+  ): Promise<{ rows: T[] }>;
 }
 
 /**
@@ -27,15 +27,30 @@ export async function loadScorecardsForInterviews(
   for (let i = 0; i < interviewIds.length; i += INTERVIEW_ID_CHUNK) {
     const chunk = interviewIds.slice(i, i + INTERVIEW_ID_CHUNK);
     try {
-      const response = await db.listRows(
-        DATABASE_ID,
-        "job_interview_scorecards",
-        [Query.equal("interview_id", chunk), Query.limit(SCORECARD_PAGE_LIMIT)]
-      );
-      for (const scorecard of response.rows as JobInterviewScorecards[]) {
-        const list = map.get(scorecard.application_id) ?? [];
-        list.push(scorecard);
-        map.set(scorecard.application_id, list);
+      let cursor: string | undefined;
+      while (true) {
+        const queries = [
+          Query.equal("interview_id", chunk),
+          Query.orderAsc("$id"),
+          Query.limit(SCORECARD_PAGE_LIMIT),
+        ];
+        if (cursor) {
+          queries.push(Query.cursorAfter(cursor));
+        }
+        const { rows } = await db.listRows<JobInterviewScorecards>(
+          DATABASE_ID,
+          "job_interview_scorecards",
+          queries
+        );
+        for (const scorecard of rows) {
+          const list = map.get(scorecard.application_id) ?? [];
+          list.push(scorecard);
+          map.set(scorecard.application_id, list);
+        }
+        if (rows.length < SCORECARD_PAGE_LIMIT) {
+          break;
+        }
+        cursor = rows.at(-1)?.$id;
       }
     } catch (error) {
       console.error("Failed to load interview scorecards for the board", error);

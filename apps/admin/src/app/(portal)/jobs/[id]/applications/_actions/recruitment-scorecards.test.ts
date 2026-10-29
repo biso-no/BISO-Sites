@@ -5,7 +5,12 @@ function makeDb(impl: (queries: string[]) => { rows: unknown[] }) {
   const listRows = mock(
     async (_db: string, _table: string, queries: string[]) => impl(queries)
   );
-  return { db: { listRows }, listRows };
+  return {
+    db: { listRows } as unknown as Parameters<
+      typeof loadScorecardsForInterviews
+    >[0],
+    listRows,
+  };
 }
 
 describe("loadScorecardsForInterviews", () => {
@@ -32,6 +37,24 @@ describe("loadScorecardsForInterviews", () => {
     const { db, listRows } = makeDb(() => ({ rows: [] }));
     await loadScorecardsForInterviews(db, ids);
     expect(listRows).toHaveBeenCalledTimes(3);
+  });
+
+  test("pages through a chunk with more scorecards than one page", async () => {
+    const full = Array.from({ length: 500 }, (_, i) => ({
+      $id: `s${String(i).padStart(4, "0")}`,
+      application_id: "a1",
+    }));
+    const tail = [{ $id: "s9999", application_id: "a2" }];
+    let call = 0;
+    const { db, listRows } = makeDb(() => {
+      call += 1;
+      return { rows: call === 1 ? full : tail };
+    });
+    const map = await loadScorecardsForInterviews(db, ["i1"]);
+    expect(listRows).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(listRows.mock.calls[1]?.[2])).toContain("s0499");
+    expect(map.get("a1")).toHaveLength(500);
+    expect(map.get("a2")).toHaveLength(1);
   });
 
   test("makes no query without interviews", async () => {
