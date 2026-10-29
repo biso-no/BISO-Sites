@@ -1,0 +1,95 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { UserAuthContext } from "@/lib/authorization";
+
+const db = {
+  getRow: mock(),
+  listRows: mock(),
+  updateRow: mock(),
+};
+
+const adminCtx = {
+  activeCampusId: undefined,
+  campusNames: [],
+  campusTeamIds: [],
+  departmentNames: [],
+  departmentTeamIds: [],
+  email: null,
+  managedCampusIds: [],
+  managedCampuses: [],
+  name: null,
+  resolvedCampusIds: [],
+  resolvedDepartmentIds: [],
+  roles: ["globaladmin"],
+  userId: "user-1",
+} as UserAuthContext;
+
+mock.module("@repo/api/server", () => ({
+  createAdminClient: mock(async () => ({ db })),
+  createSessionClient: mock(async () => ({ db })),
+}));
+mock.module("@/lib/authorization", () => ({
+  requireAuth: mock(async () => adminCtx),
+}));
+mock.module("next/cache", () => ({
+  revalidatePath: mock(() => undefined),
+}));
+mock.module("./audit-log", () => ({
+  logAuditEvent: mock(async () => undefined),
+}));
+
+const { approveDraft } = await import("./drafts");
+
+beforeEach(() => {
+  db.getRow.mockReset();
+  db.listRows.mockReset();
+  db.updateRow.mockReset();
+  db.updateRow.mockResolvedValue({});
+  db.listRows.mockResolvedValue({ rows: [], total: 0 });
+});
+
+describe("approveDraft", () => {
+  test("publishing an event sets public read on the row and its translations", async () => {
+    db.getRow.mockResolvedValue({
+      $id: "event-1",
+      campus: { $id: "campus-oslo" },
+      member_only: true,
+      status: "draft",
+      translation_refs: [{ $id: "tr-no" }, "tr-en"],
+    });
+
+    const result = await approveDraft("event-1", "event");
+
+    expect(result).toEqual({ data: true });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "events",
+      "event-1",
+      { status: "published" },
+      ['read("any")']
+    );
+    for (const id of ["tr-no", "tr-en"]) {
+      expect(db.updateRow).toHaveBeenCalledWith(
+        "app",
+        "content_translations",
+        id,
+        {},
+        ['read("any")']
+      );
+    }
+  });
+
+  test("approving a news draft changes only the status", async () => {
+    db.getRow.mockResolvedValue({
+      $id: "news-1",
+      campus: { $id: "campus-oslo" },
+      status: "draft",
+    });
+
+    await approveDraft("news-1", "news");
+
+    expect(db.updateRow).toHaveBeenCalledTimes(1);
+    expect(db.updateRow).toHaveBeenCalledWith("app", "news", "news-1", {
+      status: "published",
+    });
+  });
+});

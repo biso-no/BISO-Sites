@@ -1,3 +1,4 @@
+import { benefitReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import type { BenefitFormValues } from "@/app/(portal)/_actions/schemas";
 import { benefitEndIso, benefitStartIso } from "./benefit-dates";
 
@@ -44,7 +45,7 @@ export function benefitSecretValue(values: BenefitFormValues): string | null {
 }
 
 export function benefitRowPermissions(status: string): string[] {
-  return status === "published" ? ['read("any")'] : [];
+  return benefitReadPermissions(status);
 }
 
 /**

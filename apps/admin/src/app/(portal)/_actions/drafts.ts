@@ -8,6 +8,7 @@ import type {
   Jobs,
   News,
 } from "@repo/api/types/appwrite";
+import { eventReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import {
@@ -143,6 +144,55 @@ export async function listDrafts(): Promise<DraftItem[]> {
   return drafts;
 }
 
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/**
+ * Publish an event draft: the row and each of its translation rows become
+ * world-readable together with the status change.
+ */
+async function publishEventReadAccess(
+  db: AdminDb,
+  id: string,
+  row: Jobs | Events | News
+): Promise<void> {
+  const readPermissions = eventReadPermissions("published");
+  await db.updateRow(
+    "app",
+    "events",
+    id,
+    { status: "published" },
+    readPermissions
+  );
+
+  const refs = (row as Events).translation_refs ?? [];
+  let translationIds = refs.map((ref) =>
+    typeof ref === "string" ? ref : ref.$id
+  );
+  if (translationIds.length === 0) {
+    const found = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "event"),
+        Query.equal("content_id", id),
+        Query.limit(10),
+      ]
+    );
+    translationIds = found.rows.map((translation) => translation.$id);
+  }
+  await Promise.all(
+    translationIds.map((translationId) =>
+      db.updateRow(
+        "app",
+        "content_translations",
+        translationId,
+        {},
+        readPermissions
+      )
+    )
+  );
+}
+
 export async function approveDraft(id: string, type: "job" | "event" | "news") {
   const ctx = await requireAuth();
 
@@ -164,7 +214,11 @@ export async function approveDraft(id: string, type: "job" | "event" | "news") {
     const ownership = getContentOwnership(row, { legacyFallback: true });
     assertPublishAccess(ctx, ownership.campus, ownership.department);
 
-    await db.updateRow("app", table, id, { status: "published" });
+    if (type === "event") {
+      await publishEventReadAccess(db, id, row);
+    } else {
+      await db.updateRow("app", table, id, { status: "published" });
+    }
 
     await logAuditEvent(ctx, "draft_approved", {
       resourceId: id,
