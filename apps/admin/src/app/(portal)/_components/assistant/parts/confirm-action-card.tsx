@@ -1,12 +1,17 @@
 "use client";
 
 import { AlertTriangle, CheckCircle } from "lucide-react";
+import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { MONO_STACK, STUDIO } from "../../studio";
 
 interface ConfirmActionCardProps {
   actionLabel: string;
   danger?: boolean;
   description: string;
+  /** Extra lines under the description, e.g. each changed field */
+  details?: string[];
+  /** Buttons can't be used, e.g. a later message has moved past the card */
+  disabled?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   /** If true, show the result instead of the prompt */
@@ -17,15 +22,26 @@ interface ToolCallSummary {
   actionLabel: string;
   danger: boolean;
   description: string;
+  /** One line per detail; never cut short, only each value is */
+  details: string[];
 }
 
+/** Titles of rows that earlier tool results in the conversation returned, by row id. */
+export type KnownTitles = ReadonlyMap<string, string>;
+
 const MAX_SHOWN_CHARS = 80;
-const MAX_SHOWN_FIELDS = 6;
+const MAX_TITLE_SCAN_DEPTH = 6;
+const TITLE_FIELDS = ["title_no", "title_en", "title", "name"] as const;
+const NO_TITLES: KnownTitles = new Map();
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function nonEmpty(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function shown(value: unknown): string {
@@ -38,100 +54,245 @@ function shown(value: unknown): string {
     : text;
 }
 
-function describeChanges(payload: Record<string, unknown>): string {
-  const entries = Object.entries(payload);
-  if (entries.length === 0) {
-    return "No fields change.";
+function orNone(value: unknown): string {
+  return value === undefined || value === null || value === ""
+    ? "none"
+    : shown(value);
+}
+
+/** A readable name for a row: its title, or for an approval request what it asks for. */
+function titleOf(record: Record<string, unknown>): string | null {
+  for (const field of TITLE_FIELDS) {
+    const title = nonEmpty(record[field]);
+    if (title) {
+      return title;
+    }
   }
-  const lines = entries
-    .slice(0, MAX_SHOWN_FIELDS)
-    .map(([field, value]) => `${field}: ${shown(value)}`);
-  const more = entries.length - MAX_SHOWN_FIELDS;
-  return `Changes ${lines.join("; ")}${more > 0 ? ` (+${more} more)` : ""}.`;
+  const action = nonEmpty(record.action);
+  const resourceType = nonEmpty(record.resource_type);
+  if (action && resourceType) {
+    const requester = nonEmpty(record.requester_email);
+    return `${action} (${resourceType})${requester ? `, asked by ${requester}` : ""}`;
+  }
+  return null;
+}
+
+function collectTitles(
+  value: unknown,
+  depth: number,
+  titles: Map<string, string>
+) {
+  if (depth > MAX_TITLE_SCAN_DEPTH || typeof value !== "object" || !value) {
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectTitles(item, depth + 1, titles);
+    }
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  const id = nonEmpty(record.$id) ?? nonEmpty(record.id);
+  const title = titleOf(record);
+  if (id && title) {
+    titles.set(id, title);
+  }
+  for (const nested of Object.values(record)) {
+    collectTitles(nested, depth + 1, titles);
+  }
+}
+
+/** Titles by row id from every finished tool result in the conversation; later results win. */
+export function collectKnownTitles(
+  messages: ReadonlyArray<{ parts?: readonly unknown[] }>
+): Map<string, string> {
+  const titles = new Map<string, string>();
+  for (const message of messages) {
+    for (const part of message.parts ?? []) {
+      const record = asRecord(part);
+      if (
+        typeof record.type === "string" &&
+        record.type.startsWith("tool-") &&
+        record.state === "output-available"
+      ) {
+        collectTitles(record.output, 0, titles);
+      }
+    }
+  }
+  return titles;
+}
+
+/**
+ * Only cards in the newest message can still be answered: the server ignores
+ * an answer to a card that a later message has moved past.
+ */
+export function isAnswerableMessage(
+  messages: ReadonlyArray<{ role: string }>,
+  index: number
+): boolean {
+  return index === messages.length - 1 && messages[index]?.role === "assistant";
+}
+
+function campusLabel(campusId: unknown): string {
+  const id =
+    nonEmpty(campusId) ??
+    (typeof campusId === "number" ? String(campusId) : null);
+  if (!id) {
+    return "none";
+  }
+  const name = CAMPUS_ID_TO_NAME[id];
+  return name ? `${name} (${id})` : id;
+}
+
+/** `"Title" (jobs abc)` when a title is known, else `jobs abc`. */
+function itemLine(
+  input: Record<string, unknown>,
+  knownTitles: KnownTitles
+): string {
+  const id = shown(input.id);
+  const target = `${shown(input.domain)} ${id}`;
+  const title = titleOf(input) ?? knownTitles.get(id);
+  return title ? `"${shown(title)}" (${target})` : target;
+}
+
+function requestLine(
+  input: Record<string, unknown>,
+  knownTitles: KnownTitles
+): string {
+  const id = shown(input.requestId);
+  const title = titleOf(input) ?? knownTitles.get(id);
+  return title ? `"${shown(title)}" (request ${id})` : `Request ${id}`;
 }
 
 function describeCreate(input: Record<string, unknown>): ToolCallSummary {
   const payload = asRecord(input.payload);
-  const title = shown(
-    payload.title_no ?? payload.title_en ?? payload.title ?? payload.name ?? ""
-  );
+  const title = titleOf(payload);
   const publish = input.publish === true;
   return {
     actionLabel: publish
       ? `Create and publish ${shown(input.domain)}`
       : `Create ${shown(input.domain)} draft`,
     danger: false,
-    description: `${title ? `"${title}". ` : ""}${
+    description: `${title ? `"${shown(title)}". ` : ""}${
       publish ? "It goes live right away." : "It is saved as a draft."
     }`,
+    details: [
+      `Campus: ${campusLabel(input.campusId ?? payload.campus_id ?? payload.campusId)}`,
+      `Department: ${orNone(input.departmentId ?? payload.department_id ?? payload.department)}`,
+      `Publishes now: ${publish ? "yes" : "no"}`,
+    ],
+  };
+}
+
+function describeUpdate(
+  input: Record<string, unknown>,
+  knownTitles: KnownTitles
+): ToolCallSummary {
+  const entries = Object.entries(asRecord(input.payload));
+  const item = itemLine(input, knownTitles);
+  return {
+    actionLabel: `Update ${shown(input.domain)}`,
+    danger: false,
+    description:
+      entries.length === 0
+        ? `${item}. No fields change.`
+        : `${item}. Changes ${entries.length} ${
+            entries.length === 1 ? "field" : "fields"
+          }:`,
+    details: entries.map(([field, value]) => `${field}: ${shown(value)}`),
+  };
+}
+
+function describeM365User(input: Record<string, unknown>): ToolCallSummary {
+  return {
+    actionLabel: "Create Microsoft 365 user",
+    danger: false,
+    description: `${shown(input.firstName)} ${shown(input.lastName)} (${shown(input.upnPrefix)}@biso.no).`,
+    details: [
+      `Department: ${orNone(input.department)}`,
+      `Campus: ${orNone(input.campus)}`,
+      `Job title: ${orNone(input.jobTitle)}`,
+      `Manager: ${orNone(input.manager)}`,
+    ],
+  };
+}
+
+function describeRejection(
+  input: Record<string, unknown>,
+  knownTitles: KnownTitles
+): ToolCallSummary {
+  return {
+    actionLabel: "Reject request",
+    danger: false,
+    description: `${requestLine(input, knownTitles)}.`,
+    details: [`Reason: ${nonEmpty(input.reason) ?? "none"}`],
   };
 }
 
 /**
  * What a confirmed assistant tool call will do, built from the call's real
- * tool name and input rather than from text the model wrote.
+ * tool name and input rather than from text the model wrote. Titles come from
+ * the input or from earlier tool results; the id is always shown.
  */
 export function describeToolCall(
   toolName: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  knownTitles: KnownTitles = NO_TITLES
 ): ToolCallSummary {
-  const target = `${shown(input.domain)} ${shown(input.id)}`;
   switch (toolName) {
     case "createContent":
       return describeCreate(input);
     case "updateContent":
-      return {
-        actionLabel: `Update ${target}`,
-        danger: false,
-        description: describeChanges(asRecord(input.payload)),
-      };
+      return describeUpdate(input, knownTitles);
     case "publishContent":
       return {
-        actionLabel: `Publish ${target}`,
+        actionLabel: `Publish ${shown(input.domain)}`,
         danger: false,
-        description: "It goes live on the site.",
+        description: `${itemLine(input, knownTitles)}. It goes live on the site.`,
+        details: [],
       };
     case "deleteContent":
       return {
-        actionLabel: `Delete ${target}`,
+        actionLabel: `Delete ${shown(input.domain)}`,
         danger: true,
-        description: "This can't be undone.",
+        description: `${itemLine(input, knownTitles)}. This can't be undone.`,
+        details: [],
       };
     case "approveRequest":
       return {
         actionLabel: "Approve request",
         danger: false,
-        description: `Approves request ${shown(input.requestId)}.`,
+        description: `${requestLine(input, knownTitles)}.`,
+        details: [],
       };
     case "rejectRequest":
-      return {
-        actionLabel: "Reject request",
-        danger: false,
-        description: `Rejects request ${shown(input.requestId)}. Reason: ${shown(input.reason)}`,
-      };
+      return describeRejection(input, knownTitles);
     case "createM365User":
-      return {
-        actionLabel: "Create Microsoft 365 user",
-        danger: false,
-        description: `${shown(input.firstName)} ${shown(input.lastName)} (${shown(input.upnPrefix)}@biso.no), ${shown(input.department)}, ${shown(input.campus)}.`,
-      };
+      return describeM365User(input);
     case "toggleFeatureFlag":
       return {
         actionLabel: `Turn ${input.enabled === true ? "on" : "off"} feature flag`,
         danger: false,
         description: `Flag: ${shown(input.flagKey)}.`,
+        details: [],
       };
     default:
       return {
         actionLabel: `Run ${toolName}`,
         danger: false,
-        description: shown(input),
+        description: "With these inputs:",
+        details: Object.entries(input).map(
+          ([field, value]) => `${field}: ${shown(value)}`
+        ),
       };
   }
 }
 
 interface ToolApprovalCardProps {
+  /** False once a later message has moved past this card */
+  answerable: boolean;
   input: Record<string, unknown>;
+  knownTitles: KnownTitles;
   onRespond: (approved: boolean) => void;
   /** Set once the user has answered */
   result?: { confirmed: boolean };
@@ -140,20 +301,25 @@ interface ToolApprovalCardProps {
 
 /** Confirmation card the server requires before an assistant write runs. */
 export function ToolApprovalCard({
+  answerable,
   input,
+  knownTitles,
   onRespond,
   result,
   toolName,
 }: ToolApprovalCardProps) {
-  const { actionLabel, danger, description } = describeToolCall(
+  const { actionLabel, danger, description, details } = describeToolCall(
     toolName,
-    input
+    input,
+    knownTitles
   );
   return (
     <ConfirmActionCard
       actionLabel={actionLabel}
       danger={danger}
       description={description}
+      details={details}
+      disabled={!answerable}
       onCancel={() => onRespond(false)}
       onConfirm={() => onRespond(true)}
       result={result}
@@ -165,6 +331,8 @@ export function ConfirmActionCard({
   actionLabel,
   danger,
   description,
+  details,
+  disabled = false,
   onCancel,
   onConfirm,
   result,
@@ -228,9 +396,29 @@ export function ConfirmActionCard({
         {description}
       </p>
 
+      {details && details.length > 0 && (
+        <ul
+          className="-mt-2 mb-4 list-disc space-y-0.5 pl-4 text-[12px] leading-5"
+          style={{ color: STUDIO.ink2 }}
+        >
+          {details.map((detail) => (
+            <li className="break-words" key={detail}>
+              {detail}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {disabled && (
+        <p className="mb-3 text-[11px]" style={{ color: STUDIO.ink3 }}>
+          This card is no longer active. Ask again to make this change.
+        </p>
+      )}
+
       <div className="flex gap-2">
         <button
-          className="flex-1 rounded-lg py-2 text-center font-medium text-xs transition"
+          className="flex-1 rounded-lg py-2 text-center font-medium text-xs transition disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={disabled}
           onClick={onConfirm}
           style={{
             background: danger ? STUDIO.claret : STUDIO.ink,
@@ -241,7 +429,8 @@ export function ConfirmActionCard({
           {danger ? "Delete" : "Confirm"}
         </button>
         <button
-          className="rounded-lg px-3 py-2 text-xs transition"
+          className="rounded-lg px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={disabled}
           onClick={onCancel}
           style={{
             background: "rgba(26,24,20,0.06)",

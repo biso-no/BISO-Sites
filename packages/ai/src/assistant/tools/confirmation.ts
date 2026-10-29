@@ -7,19 +7,46 @@ import type {
 } from "ai";
 
 /**
- * Assistant tools that change data. Each one runs only after the signed-in
- * user confirms that exact call on the card the chat shows for it.
+ * Server tools that only read. Every other tool with a server `execute` is
+ * gated: it runs only after the signed-in user confirms that exact call on the
+ * card the chat shows for it. A new tool is gated until it is listed here.
  */
-export const CONFIRMED_TOOL_NAMES: ReadonlySet<string> = new Set([
-  "approveRequest",
-  "createContent",
-  "createM365User",
-  "deleteContent",
-  "publishContent",
-  "rejectRequest",
-  "toggleFeatureFlag",
-  "updateContent",
+export const READ_ONLY_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "draftBilingualContent",
+  "getAnalyticsSummary",
+  "getContent",
+  "getDashboardStats",
+  "getFeatureFlags",
+  "getInboxCounts",
+  "getM365UserProfile",
+  "getOpsHealth",
+  "getOrderSummary",
+  "listPendingApprovals",
+  "lookupCustomer",
+  "searchContent",
+  "searchM365Users",
+  "searchOrders",
 ]);
+
+/**
+ * Whether a call to this tool needs the user's confirmation. Client tools
+ * (no `execute`) never run on the server, so they are not gated.
+ */
+export function needsConfirmation(
+  toolName: string,
+  tool: { execute?: unknown } | undefined
+): boolean {
+  return (
+    typeof tool?.execute === "function" && !READ_ONLY_TOOL_NAMES.has(toolName)
+  );
+}
+
+function ownTool(
+  tools: ToolSet | undefined,
+  toolName: string
+): ToolSet[string] | undefined {
+  return tools && Object.hasOwn(tools, toolName) ? tools[toolName] : undefined;
+}
 
 /** Appended to each confirmed tool's description for the model. */
 export const CONFIRMED_BY_CARD =
@@ -60,10 +87,13 @@ type ConfirmationCheck = { ok: true } | { ok: false; reason: string };
 export interface ConfirmationGate {
   /** Pass to `streamText` as `experimental_toolApprovalSecret`. */
   approvalSecret: string;
-  /** Wraps every confirmed tool so it refuses to run without a valid confirmation. */
+  /** Wraps every gated tool so it refuses to run without a valid confirmation. */
   guardTools: <T extends ToolSet>(tools: T) => T;
   /** Pass to `streamText` as `toolApproval`. */
-  toolApproval: (options: { toolCall: ToolCallLike }) => ToolApprovalStatus;
+  toolApproval: (options: {
+    toolCall: ToolCallLike;
+    tools: ToolSet | undefined;
+  }) => ToolApprovalStatus;
 }
 
 /** JSON with object keys sorted, so the same input always gives the same text. */
@@ -221,7 +251,7 @@ export function createConfirmationGate(
     const guarded: ToolSet = { ...tools };
     for (const [toolName, original] of Object.entries(tools)) {
       const execute = original.execute;
-      if (!(CONFIRMED_TOOL_NAMES.has(toolName) && execute)) {
+      if (!(execute && needsConfirmation(toolName, original))) {
         continue;
       }
       guarded[toolName] = {
@@ -248,8 +278,10 @@ export function createConfirmationGate(
   return {
     approvalSecret,
     guardTools,
-    toolApproval: ({ toolCall }) => {
-      if (!CONFIRMED_TOOL_NAMES.has(toolCall.toolName)) {
+    toolApproval: ({ toolCall, tools }) => {
+      if (
+        !needsConfirmation(toolCall.toolName, ownTool(tools, toolCall.toolName))
+      ) {
         return;
       }
       const issuedAt = now();

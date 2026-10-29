@@ -24,22 +24,25 @@ export const clientTools = {
   }),
 
   /**
-   * Ask the user to confirm an action before executing it.
-   * The client renders a confirmation card; on confirm/cancel addToolResult
-   * returns { confirmed: true } or { confirmed: false }.
+   * Ask the user a yes/no question about a step that doesn't change data.
+   * Writes get their own server-issued card instead. The client renders a
+   * card; on confirm/cancel addToolResult returns { confirmed: true } or
+   * { confirmed: false }.
    */
   confirmAction: tool({
     description:
-      "Render a confirmation card for a step that no tool confirms by itself. Don't use it before createContent, updateContent, publishContent, deleteContent, approveRequest, rejectRequest, createM365User or toggleFeatureFlag: calling those shows the user their own confirmation card, and they run only after the user confirms.",
+      "Ask the user a yes/no question before a step that doesn't change data. Never use it before a tool that changes data: those show the user their own confirmation card for the exact call and run only after the user confirms.",
     inputSchema: z.object({
       actionLabel: z
         .string()
-        .describe("Short label, e.g. 'Publish job posting'"),
+        .describe("Short label, e.g. 'Replace the form text'"),
       description: z.string().describe("What will happen, shown to the user."),
       danger: z
         .boolean()
         .optional()
-        .describe("True for destructive actions (delete, disable user)."),
+        .describe(
+          "True when the step discards something, e.g. unsaved form text."
+        ),
     }),
   }),
 

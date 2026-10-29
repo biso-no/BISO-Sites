@@ -7,7 +7,7 @@ import {
 } from "ai";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createApprovalRequest } from "@/app/(portal)/_actions/approvals";
 import type { UserRolesForClient } from "@/lib/authorization";
 import { resolveApproverTeamId } from "@/lib/campus-constants";
@@ -16,6 +16,9 @@ import { fillFormFieldsWithDelay, getActiveFormSchemaId } from "./form-bridge";
 import { ApprovalRequestCard } from "./parts/approval-request-card";
 import {
   ConfirmActionCard,
+  collectKnownTitles,
+  isAnswerableMessage,
+  type KnownTitles,
   ToolApprovalCard,
 } from "./parts/confirm-action-card";
 import { DraftPreviewCard } from "./parts/draft-preview-card";
@@ -92,7 +95,12 @@ type AddToolOutput = (params: {
   toolCallId: string;
 }) => void;
 
-type RespondToToolApproval = (approvalId: string, approved: boolean) => void;
+interface ToolApprovalContext {
+  /** False for cards in any message but the newest assistant message */
+  answerable: boolean;
+  knownTitles: KnownTitles;
+  respond: (approvalId: string, approved: boolean) => void;
+}
 
 /** Tool-call states in which the server is waiting on, or has had, the user's answer. */
 const TOOL_APPROVAL_STATES = new Set([
@@ -160,17 +168,19 @@ function renderConfirmPart(
 function renderToolApprovalPart(
   tp: ToolPartRecord,
   key: number,
-  respond: RespondToToolApproval
+  context: ToolApprovalContext
 ) {
   const approval = tp.approval;
   const answered = tp.state !== "approval-requested";
   return (
     <ToolApprovalCard
+      answerable={context.answerable}
       input={tp.input ?? {}}
       key={key}
+      knownTitles={context.knownTitles}
       onRespond={(approved) => {
-        if (approval) {
-          respond(approval.id, approved);
+        if (approval && context.answerable) {
+          context.respond(approval.id, approved);
         }
       }}
       result={
@@ -379,7 +389,7 @@ function renderToolPart(
   addResult: AddToolOutput,
   approvalResults: Record<string, { error?: string; submitted: boolean }>,
   setApprovalResults: SetApprovalResults,
-  respondToToolApproval: RespondToToolApproval
+  toolApproval: ToolApprovalContext
 ) {
   const toolName = getToolName(tp.type);
   const toolCallId = tp.toolCallId ?? "";
@@ -388,7 +398,7 @@ function renderToolPart(
   const resolved = tp.state === "output-available";
 
   if (tp.approval && TOOL_APPROVAL_STATES.has(tp.state ?? "")) {
-    return renderToolApprovalPart(tp, key, respondToToolApproval);
+    return renderToolApprovalPart(tp, key, toolApproval);
   }
   if (toolName === "navigate") {
     return renderNavigatePart(inputData, key);
@@ -532,6 +542,7 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+  const knownTitles = useMemo(() => collectKnownTitles(messages), [messages]);
 
   // Auto-submit a prompt handed off from the command palette
   useEffect(() => {
@@ -717,8 +728,13 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
             </div>
           )}
 
-          {messages.map((message) => {
+          {messages.map((message, messageIndex) => {
             const isUser = message.role === "user";
+            const toolApproval: ToolApprovalContext = {
+              answerable: isAnswerableMessage(messages, messageIndex),
+              knownTitles,
+              respond: respondToToolApproval,
+            };
             return (
               <div
                 className={`mb-4 flex ${isUser ? "justify-end" : "justify-start"}`}
@@ -776,7 +792,7 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
                             addToolOutput,
                             approvalResults,
                             setApprovalResults,
-                            respondToToolApproval
+                            toolApproval
                           );
                         }
                         return null;

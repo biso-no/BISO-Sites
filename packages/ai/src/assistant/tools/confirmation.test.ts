@@ -5,16 +5,22 @@ import {
   type ModelMessage,
   readUIMessageStream,
   streamText,
+  type ToolSet,
+  tool,
   toUIMessageStream,
   type UIMessage,
 } from "ai";
 import { convertArrayToReadableStream, MockLanguageModelV4 } from "ai/test";
+import { z } from "zod";
 import { buildAssistantCapabilities } from "../authz";
 import type { AssistantActionDeps } from "../types";
+import { clientTools } from "./client-tools";
 import {
   CONFIRMATION_TTL_MS,
   type ConfirmationGate,
   createConfirmationGate,
+  needsConfirmation,
+  READ_ONLY_TOOL_NAMES,
 } from "./confirmation";
 import { buildAssistantTools } from "./index";
 
@@ -503,5 +509,106 @@ describe("assistant write confirmation", () => {
       },
     ]);
     expect(partTypes).not.toContain("tool-approval-request");
+  });
+});
+
+/** Calls a tool's execute the way the SDK does, with no confirmation in the messages. */
+function executeUnconfirmed(tools: ToolSet, toolName: string) {
+  const execute = tools[toolName]?.execute;
+  if (!execute) {
+    throw new Error(`${toolName} has no execute`);
+  }
+  return execute(
+    {},
+    { context: undefined, messages: [], toolCallId: `call-${toolName}` }
+  );
+}
+
+describe("which tools are gated", () => {
+  test("every server tool is either listed read-only or gated", async () => {
+    const calls: DepCall[] = [];
+    const gate = gateFor("user-a", { now: T0 }, new Map());
+    const tools = buildAssistantTools(GLOBAL_ADMIN, recordingDeps(calls), gate);
+    const gated: string[] = [];
+
+    for (const [toolName, candidate] of Object.entries(tools)) {
+      const approval = gate.toolApproval({
+        toolCall: { input: {}, toolCallId: `call-${toolName}`, toolName },
+        tools,
+      });
+      if (typeof candidate.execute !== "function") {
+        // Client tools run in the browser and are never gated.
+        expect(approval).toBeUndefined();
+        continue;
+      }
+      if (READ_ONLY_TOOL_NAMES.has(toolName)) {
+        expect(approval).toBeUndefined();
+        continue;
+      }
+      gated.push(toolName);
+      expect(approval).toMatchObject({ type: "user-approval" });
+      expect(await executeUnconfirmed(tools, toolName)).toMatchObject({
+        confirmationRequired: true,
+        success: false,
+      });
+    }
+
+    expect(calls).toEqual([]);
+    expect(gated.sort()).toEqual([
+      "approveRequest",
+      "createContent",
+      "createM365User",
+      "deleteContent",
+      "publishContent",
+      "rejectRequest",
+      "toggleFeatureFlag",
+      "updateContent",
+    ]);
+    // The read-only list names only tools that exist and run on the server.
+    for (const toolName of READ_ONLY_TOOL_NAMES) {
+      expect(typeof tools[toolName]?.execute).toBe("function");
+    }
+  });
+
+  test("a new server tool is gated until it is listed read-only", async () => {
+    const ran: unknown[] = [];
+    const gate = gateFor("user-a", { now: T0 }, new Map());
+    const archiveEverything = tool({
+      description: "A tool added later",
+      execute: (input) => {
+        ran.push(input);
+        return Promise.resolve({ success: true });
+      },
+      inputSchema: z.object({}),
+    });
+    const tools = gate.guardTools({ archiveEverything });
+
+    expect(needsConfirmation("archiveEverything", archiveEverything)).toBe(
+      true
+    );
+    expect(needsConfirmation("navigate", clientTools.navigate)).toBe(false);
+    expect(needsConfirmation("searchContent", { execute: () => null })).toBe(
+      false
+    );
+
+    const result = streamText({
+      experimental_toolApprovalSecret: gate.approvalSecret,
+      messages: [USER_ASKS],
+      model: toolCallModel("call-new", "archiveEverything", {}),
+      onError: () => undefined,
+      stopWhen: isStepCount(3),
+      toolApproval: gate.toolApproval,
+      tools,
+    });
+    const partTypes: string[] = [];
+    for await (const part of result.fullStream) {
+      partTypes.push(part.type);
+    }
+
+    expect(partTypes).toContain("tool-approval-request");
+    expect(await executeUnconfirmed(tools, "archiveEverything")).toMatchObject({
+      confirmationRequired: true,
+    });
+    expect(ran).toEqual([]);
   });
 });
