@@ -136,7 +136,8 @@ export type SeedTableId =
   | "job_interviews"
   | "job_interview_participants"
   | "job_interview_scorecards"
-  | "tour_progress";
+  | "tour_progress"
+  | "m365_team_sync";
 
 export interface SeedRow {
   data: Record<string, unknown>;
@@ -290,10 +291,11 @@ const TOUR_VERSION = 1;
 // ---------------------------------------------------------------------------
 
 /**
- * Team names are what the admin's role logic reads
- * (`parseTeamMemberships()` and `isHrDepartment()`): campus teams must be
- * named after a campus, and the HR team must be named "HR". The made-up unit
- * is the "Demo Events" department.
+ * The admin's role logic reads exact team ids (`rolesFromTeams()`); a
+ * department's name only counts when it matches its id, so each name below is
+ * the id's name ("HR" for `sg-app-dept-hr`). A team also counts only when its
+ * id is in the user's `m365_team_sync` row, which `syncRows()` seeds. The
+ * made-up unit is the "Demo Events" department.
  */
 const TEAMS: SeedTeam[] = [
   { id: TEAM.oslo, name: "Oslo" },
@@ -353,6 +355,23 @@ const USERS: SeedUser[] = [
     teamIds: [TEAM.oslo],
   },
 ];
+
+/**
+ * One `m365_team_sync` row per staff user, keyed by the user id like the
+ * admin's reader (`loadSyncedTeamIds()`). Without it the admin drops every
+ * `sg-app-*` team and the user has no role. The table has no permissions: only
+ * the service key reads it.
+ */
+function syncRows(): SeedRow[] {
+  return USERS.map((user) =>
+    row(
+      "m365_team_sync",
+      user.id,
+      { synced_at: BASE_DATE, team_ids: [...user.teamIds] },
+      []
+    )
+  );
+}
 
 function userById(id: string): SeedUser {
   const user = USERS.find((entry) => entry.id === id);
@@ -2001,6 +2020,7 @@ export function buildSeedData(): SeedData {
       ...announcementRows(),
       ...varslingRows(),
       ...tourRows(),
+      ...syncRows(),
     ],
     sessionUsers: {
       benefitseditor: USER.anders,

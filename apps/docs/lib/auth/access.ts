@@ -12,8 +12,11 @@
  * "sg-app-dept-operationsunit". Once a team with one of these ids exists,
  * nobody else can create another with the same id.
  *
- * Docs is deliberately stricter than the admin, which still derives roles from
- * team names. The test in access.test.ts pins the sync's id rule.
+ * The admin and the API use exact ids too, and count an `sg-app-*` team only
+ * when its id is in the user's saved list in the `m365_team_sync` table, which
+ * the sync writes at each Microsoft sign-in. Docs doesn't read that table: it
+ * trusts a fixed list of ids plus `docs-handover`. The test in access.test.ts
+ * pins the sync's id rule.
  */
 
 export type DocsAccess = "globaladmin" | "campusadmin" | "docs-handover" | null;

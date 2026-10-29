@@ -168,7 +168,8 @@ not one set up for an app.
 - `seed.ts`: the staff users, the teams `sg-app-campus-oslo`,
   `sg-app-campus-national`, `sg-app-dept-hr`, `sg-app-dept-operationsunit`,
   `sg-app-dept-demoevents` and `sg-app-dept-ledelsenoslo`, each user's memberships (it removes any other
-  role-team membership a seeded user has), and the rows in `seed-data.ts`.
+  role-team membership a seeded user has), and the rows in `seed-data.ts`,
+  including one `m365_team_sync` row per staff user.
 - `capture.ts`: each signed-in user's language preference, one session per
   role (deleted at the end), and the PNG files in the screenshot folder. The
   seed marks the recruitment tour as dismissed. If the tour opens anyway,
@@ -196,7 +197,9 @@ Real sign-in goes through Microsoft, which also syncs the user's groups into
 Appwrite teams. `capture.ts` skips that: it creates a session for the seeded
 user with the server SDK and sets the admin's session cookie,
 `a_session_biso_admin`, for the admin's own host. The seeded team memberships
-are what gives each user their role:
+and each user's `m365_team_sync` row (the saved team list the real sync writes
+at sign-in) are what give each user their role. The admin counts a team only
+when its id is in that list:
 
 | User | Teams | Role in the admin |
 |------|-------|-------------------|
@@ -206,7 +209,8 @@ are what gives each user their role:
 | Marit Dahl | Oslo, Ledelsen Oslo | Campus leader (campus admin) for Oslo |
 | Anders Moen | Oslo | Seeded as the benefits editor, but can't hold that role in the docs project (see below) |
 
-The HR team must be called "HR": the admin finds the HR role by that name.
+The admin reads exact team ids, so the ids and the names in `seed-data.ts` must
+stay as they are: a department name only counts when it matches its id.
 
 The benefits editor role is not given by a team. The admin gives it only to
 an account that has a Microsoft sign-in whose email is in

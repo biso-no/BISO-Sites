@@ -22,9 +22,10 @@ import {
   recruitmentVacancyMetadataSchema,
 } from "@repo/shared/types/recruitment";
 import {
-  getManagedCampuses,
-  isNationalOperations,
-  KNOWN_CAMPUS_NAMES,
+  CAMPUS_TEAM_IDS,
+  keepSyncedTeams,
+  LEDELSEN_TEAM_IDS,
+  rolesFromTeams,
 } from "@repo/shared/utils/team-roles";
 import {
   BASE_DATE,
@@ -99,7 +100,6 @@ const BI_EMAIL = /@(?:[a-z0-9-]+\.)*bi\.no\b/i;
 const CAMPUS_TEAM_TEMPLATE =
   /`sg-app-campus-\$\{campusName\.toLowerCase\(\)\.replace\(/;
 const TOUR_DEFINITION = /return \{ id: "([^"]+)", version: (\d+)/;
-const HR_DEPARTMENT_KEYS = new Set(["hr", "hrunit"]);
 const NEW_STAFF_ROLES: StaffRole[] = ["campusadmin", "benefitseditor"];
 const BENEFIT_CODE = "DEMO10";
 const MEMBERS_ONLY_RSVP_COUNT = 3;
@@ -403,61 +403,66 @@ test("staff rows grant access only to the recruitment staff teams", () => {
   expect(published?.permissions).toContain('read("any")');
 });
 
-test("each staff user's teams give exactly the intended role, and the benefits editor's give none", () => {
-  const teamById = new Map(seed.teams.map((team) => [team.id, team]));
+test("each staff user's saved teams give exactly the intended role, and the benefits editor's give none", () => {
+  const teamById = new Map(
+    seed.teams.map((team) => [team.id, { $id: team.id, name: team.name }])
+  );
+  const syncRowByUser = new Map(
+    rowsOf("m365_team_sync").map((entry) => [entry.rowId, entry])
+  );
+  expect(syncRowByUser.size).toBe(seed.users.length);
   for (const user of seed.users) {
-    const teams = user.teamIds.map((id) => {
+    // The membership list is what Appwrite returns for the user's teams.
+    const memberships = user.teamIds.map((id) => {
       const team = teamById.get(id);
       if (!team) {
         throw new Error(`${user.id}: unknown team ${id}`);
       }
       return team;
     });
-    // Mirrors parseTeamMemberships() in apps/admin/src/lib/authorization-team-memberships.ts.
-    const campusNames = teams
-      .filter((team) => KNOWN_CAMPUS_NAMES.has(team.name))
-      .map((team) => team.name);
-    const departmentNames = teams
-      .filter((team) => team.id.startsWith("sg-app-dept-"))
-      .map((team) => team.name);
-    expect(campusNames.length + departmentNames.length).toBe(teams.length);
+    // The same read as loadSyncedTeamIds() in apps/admin/src/lib/authorization.ts.
+    const saved = syncRowByUser.get(user.id);
+    expect(saved?.permissions).toEqual([]);
+    const syncedIds = new Set(saved?.data.team_ids as string[]);
+    expect([...syncedIds].sort()).toEqual([...user.teamIds].sort());
 
-    // Mirrors isHrDepartment() in apps/admin/src/lib/recruitment.ts.
-    const isHr = departmentNames.some((name) =>
-      HR_DEPARTMENT_KEYS.has(name.replace(/\s+/g, "").toLowerCase())
-    );
-    const isGlobalAdmin = isNationalOperations(campusNames, departmentNames);
-    const managed = getManagedCampuses(campusNames, departmentNames);
+    // Without the saved list every sg-app-* team is dropped: no role at all.
+    expect(keepSyncedTeams(memberships, new Set())).toEqual([]);
 
-    expect(campusNames.length).toBe(1);
+    // The same helpers as getUserAuthContext() and parseTeamMemberships().
+    const roles = rolesFromTeams(keepSyncedTeams(memberships, syncedIds));
+
+    const campus = user.role === "globaladmin" ? "National" : "Oslo";
+    expect(roles.campusNames).toEqual([campus]);
+    expect(roles.campusTeamIds).toEqual([CAMPUS_TEAM_IDS[campus]]);
     if (user.role === "campusadmin") {
-      // Campus team plus the Ledelsen team of the same city (roles.ts).
-      expect(campusNames).toEqual(["Oslo"]);
-      expect(departmentNames).toEqual(["Ledelsen Oslo"]);
-      expect(managed).toEqual(["Oslo"]);
-      expect(isHr).toBe(false);
-      expect(isGlobalAdmin).toBe(false);
+      // Campus team plus the Ledelsen team of the same city.
+      expect(roles.departmentTeamIds).toEqual([LEDELSEN_TEAM_IDS.Oslo]);
+      expect(roles.departmentNames).toEqual(["Ledelsen Oslo"]);
+      expect(roles.managedCampuses).toEqual(["Oslo"]);
+      expect(roles.isHr).toBe(false);
+      expect(roles.isGlobalAdmin).toBe(false);
       continue;
     }
-    expect(managed).toEqual([]);
+    expect(roles.managedCampuses).toEqual([]);
+    expect(roles.isNationalHr).toBe(false);
     if (user.role === "hr") {
-      expect(isHr).toBe(true);
-      expect(isGlobalAdmin).toBe(false);
-      expect(campusNames).toEqual(["Oslo"]);
+      expect(roles.isHr).toBe(true);
+      expect(roles.isGlobalAdmin).toBe(false);
     } else if (user.role === "globaladmin") {
-      expect(isGlobalAdmin).toBe(true);
-      expect(isHr).toBe(false);
+      expect(roles.isGlobalAdmin).toBe(true);
+      expect(roles.isHr).toBe(false);
     } else if (user.role === "benefitseditor") {
       // No team gives this role. The admin gives it only to a Microsoft
       // sign-in listed in BENEFITS_EDITOR_EMAILS, which a seeded user can't
       // have, so in the docs project this user has no role (README.md).
-      expect(departmentNames).toEqual([]);
-      expect(isHr).toBe(false);
-      expect(isGlobalAdmin).toBe(false);
+      expect(roles.departmentTeamIds).toEqual([]);
+      expect(roles.isHr).toBe(false);
+      expect(roles.isGlobalAdmin).toBe(false);
     } else {
-      expect(departmentNames.length).toBeGreaterThan(0);
-      expect(isHr).toBe(false);
-      expect(isGlobalAdmin).toBe(false);
+      expect(roles.departmentNames).toEqual(["Demo Events"]);
+      expect(roles.isHr).toBe(false);
+      expect(roles.isGlobalAdmin).toBe(false);
     }
   }
 });

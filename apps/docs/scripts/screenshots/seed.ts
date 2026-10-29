@@ -17,7 +17,11 @@ import {
   type SeedUser,
 } from "./seed-data";
 
-/** Memberships in these teams decide admin roles; the seed owns them. */
+/**
+ * Memberships in these teams decide admin roles; the seed owns them. A team
+ * only counts for a user when its id is in their `m365_team_sync` row, which
+ * the seed rows include.
+ */
 const ROLE_TEAM_PREFIXES = ["sg-app-campus-", "sg-app-dept-"] as const;
 const MEMBER_ROLE = "member";
 
