@@ -309,10 +309,10 @@ function toCreateContentContext(
   ctx: UserAuthContext
 ): AssistantCreateContentContext {
   const parsed = input as AssistantCreateContentInput;
-  const payloadCampusId =
-    parsed.campusId ??
-    getStringValue(parsed.payload.campus_id) ??
-    getStringValue(parsed.payload.campusId);
+  const payloadCampusId = resolveConfirmedCampusId(
+    parsed.campusId,
+    parsed.payload
+  );
   const createDraftForApproval =
     Boolean(parsed.publish) &&
     !canPublishContent(ctx, parsed.domain, payloadCampusId);
