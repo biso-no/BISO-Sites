@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatDescriptionKept,
+  formatRestoredTitle,
   migratePageDrafts,
   type PageDraftMigrationDb,
 } from "./page-draft-migration";
@@ -223,7 +225,7 @@ describe("migratePageDrafts", () => {
       ],
     });
     const report = await migratePageDrafts(db, { apply: true });
-    expect(report.restoredTitles).toEqual(["t1"]);
+    expect(report.restoredTitles.map((r) => r.rowId)).toEqual(["t1"]);
     expect(writes[0]?.data).toMatchObject({
       draft_doc: "{}",
       title: "Unpublished title",
@@ -234,6 +236,48 @@ describe("migratePageDrafts", () => {
       title: "Published title",
       description: "Published desc",
     });
+  });
+
+  it("reports before and after text for each restore", async () => {
+    const { db } = makeDb({
+      page_translations: [
+        translation("t1", {
+          locale: "en",
+          is_published: true,
+          published_doc: doc("Published title", "Published desc"),
+          title: "Unpublished title",
+          description: "Unpublished desc",
+          draft_doc: "{}",
+        }),
+      ],
+    });
+    const report = await migratePageDrafts(db, { apply: false });
+    expect(report.restoredTitles).toEqual([
+      {
+        rowId: "t1",
+        locale: "en",
+        before: { title: "Unpublished title", description: "Unpublished desc" },
+        after: { title: "Published title", description: "Published desc" },
+      },
+    ]);
+  });
+
+  it("lists published rows whose description has no published counterpart", async () => {
+    const { db } = makeDb({
+      page_translations: [
+        translation("t1", {
+          locale: "no",
+          is_published: true,
+          published_doc: doc("Published title"),
+          title: "Other",
+          description: "Row desc",
+        }),
+      ],
+    });
+    const report = await migratePageDrafts(db, { apply: false });
+    expect(report.descriptionKept).toEqual([
+      { rowId: "t1", locale: "no", description: "Row desc" },
+    ]);
   });
 
   it("keeps an existing draft's text and still restores the row", async () => {
@@ -248,7 +292,7 @@ describe("migratePageDrafts", () => {
       ],
     });
     const report = await migratePageDrafts(db, { apply: true });
-    expect(report.restoredTitles).toEqual(["t1"]);
+    expect(report.restoredTitles.map((r) => r.rowId)).toEqual(["t1"]);
     expect(report.cleared).toEqual([]);
     expect(writes).toEqual([
       {
@@ -383,5 +427,26 @@ describe("migratePageDrafts", () => {
     expect(report.skipped.map((s) => s.rowId)).toEqual(["t1", "t2"]);
     expect(report.created).toEqual([]);
     expect(report.cleared).toEqual([]);
+  });
+});
+
+describe("report formatting", () => {
+  it("prints locale and before/after, cutting descriptions at 120 characters", () => {
+    const long = "x".repeat(130);
+    const lines = formatRestoredTitle({
+      rowId: "t1",
+      locale: "en",
+      before: { title: "Old", description: long },
+      after: { title: "New", description: null },
+    });
+    expect(lines[0]).toBe("  restore t1 (en)");
+    expect(lines[1]).toBe("    title: Old → New");
+    expect(lines[2]).toBe(`    description: ${"x".repeat(120)}… → (none)`);
+  });
+
+  it("marks a kept description", () => {
+    expect(
+      formatDescriptionKept({ rowId: "t2", locale: "no", description: "Hei" })
+    ).toBe("  t2 (no): description kept (no published description): Hei");
   });
 });

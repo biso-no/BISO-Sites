@@ -21,6 +21,18 @@ import {
  * leaves that row's columns untouched; the remaining rows continue.
  */
 
+export interface TitleAndDescription {
+  description: string | null;
+  title: string | null;
+}
+
+export interface RestoredTitle {
+  after: TitleAndDescription;
+  before: TitleAndDescription;
+  locale: string;
+  rowId: string;
+}
+
 export interface PageDraftMigrationReport {
   /**
    * Translation rows whose legacy draft columns are (or would be) cleared. In
@@ -30,9 +42,15 @@ export interface PageDraftMigrationReport {
   cleared: string[];
   /** Draft rows (by id) that are (or would be) created. */
   created: string[];
+  /**
+   * Published rows that are (or would be) planned for migration, whose
+   * published document has no description but whose row has one. The row's
+   * description stays as it is.
+   */
+  descriptionKept: { description: string; locale: string; rowId: string }[];
   errors: { message: string; rowId?: string; tableId: string }[];
   /** Published rows whose title/description are (or would be) restored. */
-  restoredTitles: string[];
+  restoredTitles: RestoredTitle[];
   /** A read failed, so apply wrote nothing. */
   scanFailed: boolean;
   scanned: number;
@@ -70,6 +88,9 @@ export interface PageDraftMigrationDb {
 interface PlannedRow {
   clearsLegacy: boolean;
   createData: Record<string, unknown> | null;
+  descriptionKept: string | null;
+  locale: string;
+  restoredTitle: RestoredTitle | null;
   restores: boolean;
   rowId: string;
   update: Record<string, unknown>;
@@ -160,6 +181,46 @@ function seededDraftDoc(row: MigrationRow): string | null {
   return pageDocToJson({ ...doc, meta });
 }
 
+function textOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function describeRestore(
+  row: MigrationRow,
+  restored: Record<string, string>
+): RestoredTitle | null {
+  if (Object.keys(restored).length === 0) {
+    return null;
+  }
+  const before = {
+    title: textOrNull(row.title),
+    description: textOrNull(row.description),
+  };
+  return {
+    rowId: row.$id,
+    locale: textOrNull(row.locale) ?? "",
+    before,
+    after: {
+      title: restored.title ?? before.title,
+      description: restored.description ?? before.description,
+    },
+  };
+}
+
+/** The row's description when a published row has one the document lacks. */
+function keptDescription(row: MigrationRow): string | null {
+  if (row.is_published !== true) {
+    return null;
+  }
+  const meta = jsonToPageDoc(
+    typeof row.published_doc === "string" ? row.published_doc : null
+  )?.meta;
+  const description = textOrNull(row.description);
+  return !nonEmpty(meta?.description, DESCRIPTION_MAX) && description?.trim()
+    ? description
+    : null;
+}
+
 function planRow(
   row: MigrationRow,
   existingDrafts: ReadonlySet<string>
@@ -174,6 +235,9 @@ function planRow(
     !existingDrafts.has(row.$id) && (row.draft_doc != null || isRestored);
   return {
     rowId: row.$id,
+    restoredTitle: describeRestore(row, restored),
+    descriptionKept: keptDescription(row),
+    locale: textOrNull(row.locale) ?? "",
     restores: isRestored,
     clearsLegacy: holdsDraft,
     createData: needsDraftRow
@@ -237,17 +301,29 @@ async function scanAll(
   return plan;
 }
 
+function keptEntry(planned: PlannedRow) {
+  return {
+    rowId: planned.rowId,
+    locale: planned.locale,
+    description: planned.descriptionKept ?? "",
+  };
+}
+
 /** Dry run: report what the plan would do. */
 function reportPlan(plan: PlannedRow[], report: PageDraftMigrationReport) {
-  for (const { rowId, createData, clearsLegacy, restores } of plan) {
+  for (const planned of plan) {
+    const { rowId, createData, clearsLegacy, restoredTitle } = planned;
+    if (planned.descriptionKept !== null) {
+      report.descriptionKept.push(keptEntry(planned));
+    }
     if (createData) {
       report.created.push(rowId);
     }
     if (clearsLegacy) {
       report.cleared.push(rowId);
     }
-    if (restores) {
-      report.restoredTitles.push(rowId);
+    if (restoredTitle) {
+      report.restoredTitles.push(restoredTitle);
     }
   }
 }
@@ -281,8 +357,11 @@ async function applyPlan(
       if (row.clearsLegacy) {
         report.cleared.push(row.rowId);
       }
-      if (row.restores) {
-        report.restoredTitles.push(row.rowId);
+      if (row.restoredTitle) {
+        report.restoredTitles.push(row.restoredTitle);
+      }
+      if (row.descriptionKept !== null) {
+        report.descriptionKept.push(keptEntry(row));
       }
     } catch (error) {
       report.errors.push({
@@ -301,6 +380,7 @@ export async function migratePageDrafts(
   const report: PageDraftMigrationReport = {
     cleared: [],
     created: [],
+    descriptionKept: [],
     errors: [],
     restoredTitles: [],
     scanFailed: false,
@@ -315,4 +395,31 @@ export async function migratePageDrafts(
     await applyPlan(db, plan, report);
   }
   return report;
+}
+
+const DESCRIPTION_PREVIEW_MAX = 120;
+
+function preview(value: string | null): string {
+  if (value === null) {
+    return "(none)";
+  }
+  return value.length > DESCRIPTION_PREVIEW_MAX
+    ? `${value.slice(0, DESCRIPTION_PREVIEW_MAX)}…`
+    : value;
+}
+
+/** Report lines for one restore: row id, locale, and the before → after text. */
+export function formatRestoredTitle(entry: RestoredTitle): string[] {
+  return [
+    `  restore ${entry.rowId} (${entry.locale})`,
+    `    title: ${preview(entry.before.title)} → ${preview(entry.after.title)}`,
+    `    description: ${preview(entry.before.description)} → ${preview(entry.after.description)}`,
+  ];
+}
+
+/** Report line for a row whose description stays (no published description). */
+export function formatDescriptionKept(
+  entry: PageDraftMigrationReport["descriptionKept"][number]
+): string {
+  return `  ${entry.rowId} (${entry.locale}): description kept (no published description): ${preview(entry.description)}`;
 }

@@ -14,7 +14,11 @@
  *   bun run migrate:page-drafts -- --apply
  */
 import { Client, TablesDB } from "node-appwrite";
-import { migratePageDrafts } from "../utils/page-draft-migration";
+import {
+  formatDescriptionKept,
+  formatRestoredTitle,
+  migratePageDrafts,
+} from "../utils/page-draft-migration";
 
 const endpoint =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ?? process.env.APPWRITE_ENDPOINT;
@@ -61,8 +65,16 @@ for (const id of report.cleared) {
   console.log(`  cleared ${id}`);
 }
 console.log(`Titles ${verb}restored: ${report.restoredTitles.length}`);
-for (const id of report.restoredTitles) {
-  console.log(`  restored title/description ${id}`);
+for (const entry of report.restoredTitles) {
+  for (const line of formatRestoredTitle(entry)) {
+    console.log(line);
+  }
+}
+if (report.descriptionKept.length > 0) {
+  console.log(`Descriptions kept: ${report.descriptionKept.length}`);
+  for (const entry of report.descriptionKept) {
+    console.log(formatDescriptionKept(entry));
+  }
 }
 for (const entry of report.skipped) {
   console.log(`  SKIPPED ${entry.rowId}: ${entry.reason}`);
