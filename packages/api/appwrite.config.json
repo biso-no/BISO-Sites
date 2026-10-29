@@ -4290,8 +4290,6 @@
         {
             "$id": "feature_flags",
             "$permissions": [
-                "read(\"team:alumni_admins\")",
-                "update(\"team:alumni_admins\")",
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "read(\"team:sg-app-dept-operationsunit\")",
                 "update(\"team:sg-app-dept-operationsunit\")",
