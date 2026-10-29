@@ -428,6 +428,48 @@ export async function submitScorecard(
   }
 }
 
+const TOKEN_PAGE_SIZE = 100;
+
+/**
+ * The application's links that are neither used nor expired. Only the indexed
+ * application_id is queried; the rest is filtered here.
+ */
+async function openBookingTokens(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  applicationId: string,
+  nowIso: string
+): Promise<RecruitmentBookingTokens[]> {
+  const open: RecruitmentBookingTokens[] = [];
+  let cursor: string | null = null;
+  while (true) {
+    const queries = [
+      Query.equal("application_id", applicationId),
+      Query.orderAsc("$id"),
+      Query.limit(TOKEN_PAGE_SIZE),
+    ];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+    const page = await db.listRows<RecruitmentBookingTokens>(
+      DATABASE_ID,
+      "recruitment_booking_tokens",
+      queries
+    );
+    for (const row of page.rows) {
+      if (!row.consumed_at && row.expires_at > nowIso) {
+        open.push(row);
+      }
+    }
+    if (page.rows.length < TOKEN_PAGE_SIZE) {
+      return open;
+    }
+    cursor = page.rows.at(-1)?.$id ?? null;
+    if (!cursor) {
+      return open;
+    }
+  }
+}
+
 export async function createBookingToken(
   values: RecruitmentBookingProposeInput
 ): Promise<{ data?: { token: string; url: string }; error?: string }> {
@@ -472,16 +514,7 @@ export async function createBookingToken(
 
     // Links already out for this candidate stop working once a new one exists.
     const nowIso = new Date().toISOString();
-    const earlier = await db.listRows<RecruitmentBookingTokens>(
-      DATABASE_ID,
-      "recruitment_booking_tokens",
-      [
-        Query.equal("application_id", input.application_id),
-        Query.isNull("consumed_at"),
-        Query.greaterThan("expires_at", nowIso),
-        Query.limit(100),
-      ]
-    );
+    const earlier = await openBookingTokens(db, input.application_id, nowIso);
 
     const issued = issueBookingToken();
     const ttlDays =
@@ -511,13 +544,21 @@ export async function createBookingToken(
       buildRecruitmentStaffRowPermissions()
     );
 
-    for (const row of earlier.rows) {
-      await db.updateRow<RecruitmentBookingTokens>(
-        DATABASE_ID,
-        "recruitment_booking_tokens",
-        row.$id,
-        { expires_at: nowIso }
-      );
+    // A failure here must not stop the new link from being returned.
+    for (const row of earlier) {
+      try {
+        await db.updateRow<RecruitmentBookingTokens>(
+          DATABASE_ID,
+          "recruitment_booking_tokens",
+          row.$id,
+          { expires_at: nowIso }
+        );
+      } catch (error) {
+        console.error(
+          `[Booking] Could not expire earlier link ${row.$id}:`,
+          error
+        );
+      }
     }
 
     await logAuditEvent(ctx, "recruitment.booking.issue", {
@@ -620,6 +661,12 @@ export async function revokeBookingToken(
       tokenId
     );
     await assertApplicationAccess(db, ctx, token.application_id);
+    if (token.consumed_at) {
+      return { error: "This link has already been used to book." };
+    }
+    if (new Date(token.expires_at).getTime() <= Date.now()) {
+      return { error: "This link has already expired." };
+    }
     await db.updateRow<RecruitmentBookingTokens>(
       DATABASE_ID,
       "recruitment_booking_tokens",

@@ -302,9 +302,23 @@ describe("recruitment interview actions", () => {
 
   test("a new link expires the application's earlier open links", async () => {
     db.getRow.mockResolvedValue(applicationWithJob);
+    const future = new Date(Date.now() + 86_400_000).toISOString();
     db.listRows.mockResolvedValue({
-      rows: [{ $id: "old-1" }, { $id: "old-2" }],
-      total: 2,
+      rows: [
+        { $id: "old-1", consumed_at: null, expires_at: future },
+        { $id: "old-2", consumed_at: null, expires_at: future },
+        {
+          $id: "used",
+          consumed_at: "2026-01-01T00:00:00.000Z",
+          expires_at: future,
+        },
+        {
+          $id: "dead",
+          consumed_at: null,
+          expires_at: "2020-01-01T00:00:00.000Z",
+        },
+      ],
+      total: 4,
     });
 
     const result = await createBookingToken(bookingInput);
@@ -319,6 +333,59 @@ describe("recruitment interview actions", () => {
         Date.now()
       );
     }
+  });
+
+  test("finds earlier links by application only and pages with a cursor", async () => {
+    db.getRow.mockResolvedValue(applicationWithJob);
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const page = Array.from({ length: 100 }, (_, i) => ({
+      $id: `t-${i}`,
+      consumed_at: null,
+      expires_at: future,
+    }));
+    db.listRows
+      .mockResolvedValueOnce({ rows: page, total: 101 })
+      .mockResolvedValueOnce({
+        rows: [{ $id: "t-100", consumed_at: null, expires_at: future }],
+        total: 101,
+      });
+
+    const result = await createBookingToken(bookingInput);
+
+    expect(result.error).toBeUndefined();
+    const sent = db.listRows.mock.calls.map((call) => JSON.stringify(call[2]));
+    expect(sent).toHaveLength(2);
+    for (const query of sent) {
+      expect(query).toContain("application_id");
+      expect(query).not.toContain("consumed_at");
+      expect(query).not.toContain("expires_at");
+    }
+    expect(sent[1]).toContain("cursorAfter");
+    expect(sent[1]).toContain("t-99");
+    expect(
+      db.updateRow.mock.calls.filter(
+        (call) => call[1] === "recruitment_booking_tokens"
+      )
+    ).toHaveLength(101);
+  });
+
+  test("still returns the new link when expiring an earlier one fails", async () => {
+    db.getRow.mockResolvedValue(applicationWithJob);
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    db.listRows.mockResolvedValue({
+      rows: [
+        { $id: "old-1", consumed_at: null, expires_at: future },
+        { $id: "old-2", consumed_at: null, expires_at: future },
+      ],
+      total: 2,
+    });
+    db.updateRow.mockRejectedValueOnce(new Error("boom"));
+
+    const result = await createBookingToken(bookingInput);
+
+    expect(result.error).toBeUndefined();
+    expect(result.data?.url).toContain("booking-token");
+    expect(db.updateRow).toHaveBeenCalledTimes(2);
   });
 
   test("lists an application's links without the hash", async () => {
@@ -366,7 +433,12 @@ describe("recruitment interview actions", () => {
   test("revokes a link by expiring it, and records it", async () => {
     db.getRow.mockImplementation(async (_d: string, table: string) =>
       table === "recruitment_booking_tokens"
-        ? { $id: "tok-1", application_id: "application-1" }
+        ? {
+            $id: "tok-1",
+            application_id: "application-1",
+            consumed_at: null,
+            expires_at: "2099-01-01T00:00:00.000Z",
+          }
         : applicationWithJob
     );
 
@@ -389,7 +461,12 @@ describe("recruitment interview actions", () => {
   test("does not revoke a link without interview write access", async () => {
     db.getRow.mockImplementation(async (_d: string, table: string) =>
       table === "recruitment_booking_tokens"
-        ? { $id: "tok-1", application_id: "application-1" }
+        ? {
+            $id: "tok-1",
+            application_id: "application-1",
+            consumed_at: null,
+            expires_at: "2099-01-01T00:00:00.000Z",
+          }
         : applicationWithJob
     );
     assertInterviewWriteAccess.mockImplementation(() => {
@@ -399,6 +476,26 @@ describe("recruitment interview actions", () => {
     const result = await revokeBookingToken("tok-1");
 
     expect(result.error).toBe("Forbidden");
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  test("does not revoke a link that is already used or expired", async () => {
+    for (const token of [
+      {
+        consumed_at: "2026-01-01T00:00:00.000Z",
+        expires_at: "2099-01-01T00:00:00.000Z",
+      },
+      { consumed_at: null, expires_at: "2020-01-01T00:00:00.000Z" },
+    ]) {
+      db.getRow.mockImplementation(async (_d: string, table: string) =>
+        table === "recruitment_booking_tokens"
+          ? { $id: "tok-1", application_id: "application-1", ...token }
+          : applicationWithJob
+      );
+      const result = await revokeBookingToken("tok-1");
+      expect(result.error).toBeDefined();
+    }
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(logAuditEvent).not.toHaveBeenCalled();
   });
