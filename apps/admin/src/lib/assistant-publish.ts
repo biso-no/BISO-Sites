@@ -4,6 +4,7 @@ import { publishBenefit } from "@/lib/benefit-publish";
 import { ROLES } from "@/lib/roles";
 
 const BENEFITS_DOMAIN = "benefits";
+const JOBS_DOMAIN = "jobs";
 
 /** Publishes a benefit with fresh permissions (published -> read("any")). */
 export function publishBenefitContent(id: string) {
@@ -41,6 +42,10 @@ export function canPublishContent(
 ): boolean {
   if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
     return true;
+  }
+  if (domain === JOBS_DOMAIN) {
+    // Recruitment stays with recruiters: campus admins never publish vacancies.
+    return ctx.roles.includes(ROLES.HR) || ctx.roles.includes(ROLES.HR_ADMIN);
   }
   if (domain === BENEFITS_DOMAIN && ctx.roles.includes(ROLES.BENEFITS_EDITOR)) {
     return true;

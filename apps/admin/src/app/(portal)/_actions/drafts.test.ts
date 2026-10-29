@@ -7,6 +7,7 @@ const db = {
   updateRow: mock(),
 };
 
+let currentCtx: UserAuthContext;
 const adminCtx = {
   activeCampusId: undefined,
   campusNames: [],
@@ -28,7 +29,25 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ db })),
 }));
 mock.module("@/lib/authorization", () => ({
-  requireAuth: mock(async () => adminCtx),
+  requireAuth: mock(async () => currentCtx),
+}));
+// Other suites replace this module process-wide, so pin the pieces the draft
+// actions use: the vacancy gate refuses everyone but recruiters.
+const assertVacancyWrite = mock(
+  (scope: { isGlobalAdmin: boolean; isCampusAdmin: boolean }) => {
+    if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+      throw new Error("Forbidden");
+    }
+  }
+);
+mock.module("@/lib/recruitment", () => ({
+  assertRecruitmentVacancyWriteAccess: assertVacancyWrite,
+  buildJobRowPermissions: mock(() => ['read("any")']),
+  loadRecruitmentLookups: mock(async () => ({})),
+  toRecruitmentAdminScope: mock((ctx: UserAuthContext) => ({
+    isCampusAdmin: ctx.roles.includes("hr"),
+    isGlobalAdmin: ctx.roles.includes("globaladmin"),
+  })),
 }));
 mock.module("next/cache", () => ({
   revalidatePath: mock(() => undefined),
@@ -37,9 +56,10 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { approveDraft } = await import("./drafts");
+const { approveDraft, listDrafts, rejectDraft } = await import("./drafts");
 
 beforeEach(() => {
+  currentCtx = adminCtx;
   db.getRow.mockReset();
   db.listRows.mockReset();
   db.updateRow.mockReset();
@@ -131,5 +151,63 @@ describe("approveDraft", () => {
         'read("team:sg-app-dept-hr")',
       ]
     );
+  });
+});
+
+const campusAdminCtx = {
+  ...adminCtx,
+  managedCampusIds: ["campus-oslo"],
+  managedCampuses: ["Oslo"],
+  resolvedCampusIds: ["campus-oslo"],
+  roles: ["campusadmin"],
+} as UserAuthContext;
+
+describe("vacancy drafts stay with recruiters", () => {
+  test("a campus admin's draft queue lists no jobs", async () => {
+    currentCtx = campusAdminCtx;
+
+    await listDrafts();
+
+    const tables = db.listRows.mock.calls.map((call) => call[1]);
+    expect(tables).not.toContain("jobs");
+    expect(tables).toContain("events");
+    expect(tables).toContain("news");
+  });
+
+  test("a global admin's draft queue lists jobs", async () => {
+    await listDrafts();
+
+    const tables = db.listRows.mock.calls.map((call) => call[1]);
+    expect(tables).toContain("jobs");
+  });
+
+  test("a campus admin cannot approve a job draft", async () => {
+    currentCtx = campusAdminCtx;
+    db.getRow.mockResolvedValue({
+      $id: "job-1",
+      campus: { $id: "campus-oslo" },
+      campus_id: "campus-oslo",
+      department_id: null,
+      status: "draft",
+    });
+
+    const result = await approveDraft("job-1", "job");
+
+    expect(result).toEqual({ error: "Forbidden" });
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("a campus admin cannot reject a job draft", async () => {
+    currentCtx = campusAdminCtx;
+    db.getRow.mockResolvedValue({
+      $id: "job-1",
+      campus_id: "campus-oslo",
+      department_id: null,
+      status: "draft",
+    });
+
+    const result = await rejectDraft("job-1", "job", "no");
+
+    expect(result).toEqual({ error: "Forbidden" });
   });
 });

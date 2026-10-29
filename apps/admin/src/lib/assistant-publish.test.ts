@@ -127,3 +127,20 @@ describe("benefitUpdateFromAssistant", () => {
     }
   });
 });
+
+describe("canPublishContent for jobs", () => {
+  test("HR and global admins publish vacancies directly", () => {
+    for (const roles of [["hr"], ["hradmin"], ["globaladmin"]]) {
+      expect(canPublishContent(ctx({ roles }), "jobs", "c1")).toBe(true);
+    }
+  });
+
+  test("a campus admin's vacancy publish needs approval", () => {
+    const campusAdmin = ctx({
+      managedCampusIds: ["c1"],
+      roles: ["campusadmin"],
+    });
+    expect(canPublishContent(campusAdmin, "jobs", "c1")).toBe(false);
+    expect(canPublishContent(campusAdmin, "news", "c1")).toBe(true);
+  });
+});

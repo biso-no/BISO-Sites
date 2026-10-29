@@ -115,6 +115,7 @@ describe("draft discovery boundary", () => {
   });
 
   test("jobs stay on the scalar scope so legacy vacancies remain visible", async () => {
+    currentCtx = { ...departmentCtx, roles: ["hr"] };
     await listDrafts();
 
     // Recruitment is outside the relationship-canonical content set, and the

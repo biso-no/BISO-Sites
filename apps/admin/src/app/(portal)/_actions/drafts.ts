@@ -16,7 +16,13 @@ import {
   getContentOwnership,
 } from "@/lib/content-authorization";
 import { restampTranslationReads } from "@/lib/content-translation-reads";
-import { buildJobRowPermissions } from "@/lib/recruitment";
+import {
+  assertRecruitmentVacancyWriteAccess,
+  buildJobRowPermissions,
+  loadRecruitmentLookups,
+  toRecruitmentAdminScope,
+} from "@/lib/recruitment";
+import { hasNavAccess } from "@/lib/roles";
 import { buildContentRowPermissions } from "@/lib/utils";
 import {
   applyScopeQueries,
@@ -49,13 +55,20 @@ export async function listDrafts(): Promise<DraftItem[]> {
 
   const drafts: DraftItem[] = [];
 
-  // Fetch draft jobs
-  const jobsResponse = await db.listRows<Jobs>("app", "jobs", [
-    Query.equal("status", "draft"),
-    Query.orderDesc("$updatedAt"),
-    Query.limit(50),
-    ...jobScopeQueries,
-  ]);
+  // Vacancies are listed for recruiters only.
+  const canSeeJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
+  const jobsResponse = canSeeJobs
+    ? await db.listRows<Jobs>("app", "jobs", [
+        Query.equal("status", "draft"),
+        Query.orderDesc("$updatedAt"),
+        Query.limit(50),
+        ...jobScopeQueries,
+      ])
+    : { rows: [] as Jobs[], total: 0 };
 
   // Fetch draft events
   const eventsResponse = await db.listRows<Events>("app", "events", [
@@ -235,6 +248,14 @@ export async function approveDraft(id: string, type: "job" | "event" | "news") {
     const row = await db.getRow<Jobs | Events | News>("app", table, id);
     const ownership = getContentOwnership(row, { legacyFallback: true });
     assertPublishAccess(ctx, ownership.campus, ownership.department);
+    if (type === "job") {
+      const lookups = await loadRecruitmentLookups(db);
+      assertRecruitmentVacancyWriteAccess(
+        toRecruitmentAdminScope(ctx),
+        lookups,
+        row as Jobs
+      );
+    }
 
     if (type === "event") {
       await publishEventReadAccess(db, id, row);
@@ -268,6 +289,24 @@ export async function rejectDraft(
     !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
   ) {
     return { error: "Unauthorized: only admins can reject drafts" };
+  }
+
+  if (type === "job") {
+    try {
+      const { db } = await createAdminClient();
+      const row = await db.getRow<Jobs>("app", "jobs", id);
+      const lookups = await loadRecruitmentLookups(db);
+      assertRecruitmentVacancyWriteAccess(
+        toRecruitmentAdminScope(ctx),
+        lookups,
+        row
+      );
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error ? error.message : "Failed to reject draft",
+      };
+    }
   }
 
   // Keep as draft but optionally log the rejection

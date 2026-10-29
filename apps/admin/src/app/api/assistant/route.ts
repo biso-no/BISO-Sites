@@ -62,6 +62,7 @@ import {
   deleteJob,
   getJob,
   listJobs,
+  setJobStatus,
   updateJob,
 } from "@/app/(portal)/_actions/jobs";
 import {
@@ -349,6 +350,10 @@ async function publishCreatedContent(
     await publishBookableProduct(db, id);
     return;
   }
+  if (context.domain === "jobs") {
+    // Recruitment-scoped status change, never a bare status write.
+    return await publishJobVacancy(id);
+  }
   if (context.domain === "benefits") {
     // Goes through setBenefitStatus so the row's permissions are rewritten
     // (published -> read("any")); a bare status update leaves them stale.
@@ -359,6 +364,14 @@ async function publishCreatedContent(
     return;
   }
   await publishStatusDomain(context.domain, table, id);
+}
+
+async function publishJobVacancy(id: string) {
+  const result = await setJobStatus(id, "published");
+  if (result.error !== undefined) {
+    throw new Error(result.error);
+  }
+  return { data: id };
 }
 
 async function publishStatusDomain(
@@ -592,6 +605,9 @@ function buildDeps(
       }
       if (domain === "benefits") {
         return await publishBenefitContent(id);
+      }
+      if (domain === "jobs") {
+        return await publishJobVacancy(id);
       }
       // All other domains: targeted status update via session client.
       // Appwrite row-level security enforces the user's write permissions.

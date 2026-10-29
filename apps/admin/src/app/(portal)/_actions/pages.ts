@@ -60,6 +60,7 @@ import {
   isDepartmentTheme,
   themeSaveError,
 } from "@/lib/page-theme-publish";
+import { hasNavAccess } from "@/lib/roles";
 import {
   assertProjectPageSave,
   assertUnitPageBindingUnchanged,
@@ -108,13 +109,22 @@ export async function getDashboardStats() {
   const { db } = await createSessionClient();
 
   const scopeFilter = applyScopeQueries(ctx);
+  // Vacancy counts are for recruiters only.
+  const canSeeJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
+  const skipped = Promise.resolve({ total: 0 });
 
   const [jobsRes, eventsRes, newsRes, draftsRes] = await Promise.allSettled([
-    db.listRows("app", "jobs", [
-      Query.equal("status", "published"),
-      Query.limit(1),
-      ...scopeFilter,
-    ]),
+    canSeeJobs
+      ? db.listRows("app", "jobs", [
+          Query.equal("status", "published"),
+          Query.limit(1),
+          ...scopeFilter,
+        ])
+      : skipped,
     db.listRows("app", "events", [
       Query.equal("status", "published"),
       Query.limit(1),
@@ -125,11 +135,13 @@ export async function getDashboardStats() {
       Query.limit(1),
       ...scopeFilter,
     ]),
-    db.listRows("app", "jobs", [
-      Query.equal("status", "draft"),
-      Query.limit(1),
-      ...scopeFilter,
-    ]),
+    canSeeJobs
+      ? db.listRows("app", "jobs", [
+          Query.equal("status", "draft"),
+          Query.limit(1),
+          ...scopeFilter,
+        ])
+      : skipped,
   ]);
 
   return {
