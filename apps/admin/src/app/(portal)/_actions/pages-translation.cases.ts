@@ -205,6 +205,7 @@ mock.module("server-only", () => ({}));
 const clearPageThemeSpy = mock(async (_id: string) => undefined);
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
+  archivePage: mock(async () => undefined),
   clearPageTheme: clearPageThemeSpy,
   getPageById: mock(async () => null),
   getPageEditorById: getPageEditorByIdSpy,

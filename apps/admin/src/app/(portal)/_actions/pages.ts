@@ -2,6 +2,7 @@
 
 import { Query } from "@repo/api";
 import {
+  archivePage,
   PAGE_LOCALES,
   type PageDoc,
   type PageEditorLoadResult,
@@ -947,7 +948,7 @@ export async function deletePageAction(id: string) {
     );
     requireProjectHubAccess(page, ctx.roles);
 
-    await db.updateRow("app", "pages", id, { status: "archived" });
+    await archivePage(db, id);
     await logAuditEvent(ctx, "page_deleted", {
       resourceId: id,
       resourceType: "page",

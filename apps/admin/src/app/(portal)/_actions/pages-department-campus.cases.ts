@@ -120,8 +120,10 @@ const getPageEditorById = mock((id: string) => {
 });
 
 mock.module("server-only", () => ({}));
+const archivePage = mock(async (..._args: unknown[]) => undefined);
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
+  archivePage,
   clearPageTheme: mock(async () => undefined),
   getPageById: mock(async () => null),
   getPageEditorById,
@@ -241,9 +243,7 @@ describe("the Winter Games board without the National campus team", () => {
     test(`${who}: archives it`, async () => {
       currentCtx = ctx();
       await deletePageAction("pw");
-      expect(adminDb.updateRow).toHaveBeenCalledWith("app", "pages", "pw", {
-        status: "archived",
-      });
+      expect(archivePage).toHaveBeenCalledWith(adminDb, "pw");
     });
   }
 });

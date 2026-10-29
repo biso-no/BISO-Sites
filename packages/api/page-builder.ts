@@ -20,7 +20,7 @@ const MEMBERS_TEAM = "biso-members";
  *  - anything else (draft/archived, unpublished translation) → no
  *    permissions; the row is service-only.
  */
-function buildPageRowPermissions(opts: {
+export function buildPageRowPermissions(opts: {
   isPublished: boolean;
   audience: "public" | "members";
 }): string[] {
@@ -33,7 +33,9 @@ function buildPageRowPermissions(opts: {
     : [Permission.read(Role.any())];
 }
 
-function pageAudience(visibility: PagesVisibility): "public" | "members" {
+export function pageAudience(
+  visibility: PagesVisibility
+): "public" | "members" {
   return visibility === PagesVisibility.AUTHENTICATED ? "members" : "public";
 }
 
@@ -850,4 +852,43 @@ export async function unpublishPage({
     },
     draftPermissions
   );
+}
+
+/**
+ * Archive a page: the row becomes `archived` and, like its translations, drops
+ * every permission so only the service key can read it. Translation data is
+ * left as it is.
+ */
+export async function archivePage(
+  db: PageDatabase,
+  pageId: string
+): Promise<void> {
+  await db.updateRow(
+    "app",
+    "pages",
+    pageId,
+    { status: PagesStatus.ARCHIVED },
+    []
+  );
+
+  let cursor: string | undefined;
+  for (;;) {
+    const res = await db.listRows<PageTranslations>(
+      "app",
+      "page_translations",
+      [
+        Query.equal("page_id", pageId),
+        Query.limit(TRANSLATION_ROWS_LIMIT),
+        ...(cursor ? [Query.cursorAfter(cursor)] : []),
+      ]
+    );
+    for (const translation of res.rows) {
+      await db.updateRow("app", "page_translations", translation.$id, {}, []);
+    }
+    const last = res.rows.at(-1);
+    if (!last || res.rows.length < TRANSLATION_ROWS_LIMIT) {
+      return;
+    }
+    cursor = last.$id;
+  }
 }

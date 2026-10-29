@@ -15,6 +15,7 @@ vi.mock("./server", () => ({
 }));
 
 import {
+  archivePage,
   clearPageTheme,
   getPage,
   getPageEditorById,
@@ -917,5 +918,60 @@ describe("unpublishPage", () => {
     expect(db.updateRow.mock.calls.find((c) => c[1] === "pages")?.[3]).toEqual({
       status: "draft",
     });
+  });
+});
+
+describe("archivePage", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("archives the page and removes the read permission from it and every translation", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "tr-no" }, { $id: "tr-en" }],
+    });
+
+    await archivePage(db as never, "page-1");
+
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "pages",
+      "page-1",
+      { status: "archived" },
+      []
+    );
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "page_translations",
+      "tr-no",
+      {},
+      []
+    );
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "page_translations",
+      "tr-en",
+      {},
+      []
+    );
+    expect(db.updateRow).toHaveBeenCalledTimes(3);
+  });
+
+  it("reaches translations beyond the first page of results", async () => {
+    const first = Array.from({ length: 25 }, (_, i) => ({ $id: `tr-${i}` }));
+    db.listRows
+      .mockResolvedValueOnce({ rows: first })
+      .mockResolvedValueOnce({ rows: [{ $id: "tr-last" }] });
+
+    await archivePage(db as never, "page-1");
+
+    expect(db.updateRow).toHaveBeenCalledTimes(27);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "page_translations",
+      "tr-last",
+      {},
+      []
+    );
   });
 });

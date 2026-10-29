@@ -94,6 +94,7 @@ const pbGetPageEditorByIdSpy = mock(async (): Promise<unknown> => null);
 mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
   PAGE_LOCALES: ["no", "en"],
+  archivePage: mock(async () => undefined),
   clearPageTheme: mock(async () => undefined),
   getPageById: mock(async () => null),
   getPageEditorById: pbGetPageEditorByIdSpy,
