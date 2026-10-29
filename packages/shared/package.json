@@ -23,6 +23,7 @@
     "backfill:notification-locks": "bun --env-file=../../apps/admin/.env.local scripts/backfill-content-notification-locks.ts",
     "migrate:benefits": "bun --env-file=../../apps/admin/.env.local scripts/migrate-benefits.ts",
     "clear:legacy-benefit-codes": "bun --env-file=../../apps/admin/.env.local scripts/clear-legacy-benefit-codes.ts",
+    "backfill:scorecard-interviews": "bun --env-file=../../apps/admin/.env.local scripts/backfill-scorecard-interviews.ts",
     "reconcile:row-permissions": "bun --env-file=../../apps/admin/.env.local scripts/reconcile-row-permissions.ts",
     "migrate:page-drafts": "bun --env-file=../../apps/admin/.env.local scripts/migrate-page-drafts.ts",
     "backfill:m365-team-sync": "bun --env-file=../../apps/admin/.env.local scripts/backfill-m365-team-sync.ts"
