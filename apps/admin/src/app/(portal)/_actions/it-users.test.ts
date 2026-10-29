@@ -45,13 +45,18 @@ mock.module("@/lib/it/graph", () => ({
   })),
 }));
 
+let campusScope: string[] | null = null;
+
 mock.module("@/lib/it-permissions", () => ({
   requireItPermission: mock(async () => ctx),
-  requireItScopedPermission: mock(async () => ({ campusScope: null, ctx })),
+  requireItScopedPermission: mock(async () => ({ campusScope, ctx })),
 }));
+
+const { isWithinCampusScope } = await import("@/lib/it/tenant-guard");
 
 mock.module("@/lib/it/tenant-guard", () => ({
   getAllowedTenantUser: mock(),
+  isWithinCampusScope,
 }));
 
 mock.module("next/cache", () => ({
@@ -66,6 +71,7 @@ const { createM365User } = await import("./it-users");
 
 describe("createM365User", () => {
   beforeEach(() => {
+    campusScope = null;
     db.createRow.mockReset();
     db.listRows.mockReset();
     graph.addUserToGroup.mockReset();
@@ -76,8 +82,11 @@ describe("createM365User", () => {
     db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
       if (tableId === "campus") {
         return {
-          rows: [{ $id: "1", name: "Oslo" }],
-          total: 1,
+          rows: [
+            { $id: "1", name: "Oslo" },
+            { $id: "2", name: "Bergen" },
+          ],
+          total: 2,
         };
       }
       if (tableId === "departments") {
@@ -89,8 +98,14 @@ describe("createM365User", () => {
               active: true,
               campus_id: "1",
             },
+            {
+              $id: "dept-bergen-marketing",
+              Name: "Marketing",
+              active: true,
+              campus_id: "2",
+            },
           ],
-          total: 1,
+          total: 2,
         };
       }
       return { rows: [], total: 0 };
@@ -145,5 +160,47 @@ describe("createM365User", () => {
       isActive: true,
       name: "Ada Lovelace",
     });
+  });
+
+  const bergenInput = {
+    accountEnabled: true,
+    campusId: "2",
+    departmentId: "dept-bergen-marketing",
+    forceChangePasswordNextSignIn: true,
+    givenName: "Ada",
+    surname: "Lovelace",
+    userPrincipalName: "ada.lovelace@biso.no",
+  };
+
+  test("refuses a campus admin creating a user outside their campuses", async () => {
+    campusScope = ["Oslo"];
+
+    const result = await createM365User(bergenInput);
+
+    expect(result.error).toBe(
+      "You can only create users in a campus you manage."
+    );
+    expect(graph.createUser).not.toHaveBeenCalled();
+  });
+
+  test("lets a campus admin create a user in a campus they manage", async () => {
+    campusScope = ["Oslo"];
+
+    const result = await createM365User({
+      ...bergenInput,
+      campusId: "1",
+      departmentId: "dept-operations",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(graph.createUser).toHaveBeenCalledTimes(1);
+    expect(graph.addUserToGroup).toHaveBeenCalledTimes(2);
+  });
+
+  test("lets a global admin create a user in any campus", async () => {
+    const result = await createM365User(bergenInput);
+
+    expect(result.error).toBeUndefined();
+    expect(graph.createUser).toHaveBeenCalledTimes(1);
   });
 });

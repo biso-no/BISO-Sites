@@ -3,6 +3,7 @@ import {
   getAllowedTenantUser,
   isAllowedTenantUser,
   isWithinCampusScope,
+  scopeItLookupOptions,
 } from "./tenant-guard";
 
 const ANOTHER_CAMPUS_ERROR = /another campus/i;
@@ -109,5 +110,28 @@ describe("getAllowedTenantUser", () => {
         ["Oslo"]
       )
     ).rejects.toThrow(UNLICENSED_ERROR);
+  });
+});
+
+describe("scopeItLookupOptions", () => {
+  const options = {
+    campuses: [
+      { id: "1", name: "Oslo", officeLocation: "Oslo" },
+      { id: "2", name: "Bergen", officeLocation: "Bergen" },
+    ],
+    departments: [
+      { campusId: "1", id: "d1", name: "Marketing" },
+      { campusId: "2", id: "d2", name: "Events" },
+    ],
+  };
+
+  test("keeps everything for a global admin", () => {
+    expect(scopeItLookupOptions(options, null)).toEqual(options);
+  });
+
+  test("keeps only the managed campuses and their departments", () => {
+    const scoped = scopeItLookupOptions(options, ["oslo"]);
+    expect(scoped.campuses.map((c) => c.id)).toEqual(["1"]);
+    expect(scoped.departments.map((d) => d.id)).toEqual(["d1"]);
   });
 });
