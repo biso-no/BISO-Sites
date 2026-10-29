@@ -57,11 +57,13 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { restampTranslationReads } from "@/lib/content-translation-reads";
 import { resolveJobPublication } from "@/lib/job-publication";
 import {
   buildDuplicateSlugCandidates,
   buildDuplicateVacancyInput,
 } from "@/lib/job-reuse";
+import { resolveJobStatusTransition } from "@/lib/job-status-transition";
 import {
   applyDescriptionMerge,
   computeJobTranslationMemory,
@@ -1310,6 +1312,79 @@ export async function deleteJob(id: string) {
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to delete job",
+    };
+  }
+}
+
+/**
+ * Closes a live vacancy or reopens a closed one. The row keeps its content;
+ * only the status, any armed schedule and the read permissions change, and the
+ * translations are restamped to match.
+ */
+export async function setJobStatus(
+  id: string,
+  target: "closed" | "published"
+): Promise<
+  | { data: "closed" | "published"; deadlinePassed?: boolean; error?: never }
+  | { data?: never; error: string }
+> {
+  const ctx = await requireAuth();
+
+  try {
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(sessionDb);
+    const visible = await getRecruitmentJobById(sessionDb, id);
+
+    if (!visible) {
+      return { error: "Vacancy not found" };
+    }
+
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visible);
+    const vacancy = (await getRecruitmentJobById(adminDb, id)) ?? visible;
+
+    const transition = resolveJobStatusTransition({
+      applicationDeadline: vacancy.application_deadline,
+      currentStatus: vacancy.status,
+      target: target === "closed" ? JobsStatus.CLOSED : JobsStatus.PUBLISHED,
+    });
+    if (transition.error !== undefined) {
+      return { error: transition.error };
+    }
+
+    const audience = vacancy.metadata.audience ?? "public";
+    await adminDb.updateRow(
+      "app",
+      "jobs",
+      id,
+      { scheduled_publish_at: null, status: target },
+      buildJobRowPermissions(audience, target)
+    );
+    await restampTranslationReads(adminDb, "job", id, target);
+
+    await logAuditEvent(
+      ctx,
+      target === "closed"
+        ? "recruitment.vacancy.close"
+        : "recruitment.vacancy.reopen",
+      {
+        payload: { status: target },
+        resourceId: id,
+        resourceType: "job",
+      }
+    );
+
+    revalidatePath("/jobs");
+    revalidatePath(`/jobs/${id}`);
+    return target === "closed"
+      ? { data: "closed" }
+      : { data: "published", deadlinePassed: transition.warnDeadlinePassed };
+  } catch (error) {
+    unstable_rethrow(error);
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to update the vacancy",
     };
   }
 }

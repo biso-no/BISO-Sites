@@ -443,6 +443,12 @@
       "duplicateHint": "Dupliser for en ny runde",
       "duplicateSuccess": "Kopi opprettet som nytt utkast",
       "duplicateError": "Kunne ikke lage kopien. Prøv igjen om litt.",
+      "closeConfirm": "Stenge denne stillingen? Den forsvinner fra den offentlige siden og tar ikke imot nye søknader. Eksisterende søknader beholdes.",
+      "reopenConfirm": "Åpne denne stillingen igjen? Den blir synlig på den offentlige siden igjen.",
+      "closeSuccess": "Stillingen er stengt",
+      "reopenSuccess": "Stillingen er åpnet igjen",
+      "reopenDeadlinePassed": "Stillingen er åpnet igjen, men søknadsfristen har gått ut. Flytt fristen så folk kan søke.",
+      "statusError": "Kunne ikke oppdatere stillingen. Prøv igjen om litt.",
       "confirmDelete": "Bekreft sletting",
       "kpi": {
         "openPositions": "Åpne stillinger",

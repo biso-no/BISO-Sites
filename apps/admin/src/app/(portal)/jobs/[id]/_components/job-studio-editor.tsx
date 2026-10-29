@@ -1124,6 +1124,19 @@ export function JobStudioEditor({
     submit(JobsStatus.PUBLISHED);
   }
 
+  function handleSaveDraft() {
+    if (
+      job?.status === JobsStatus.PUBLISHED &&
+      // biome-ignore lint/suspicious/noAlert: Same confirmation pattern as the other studio prompts.
+      !window.confirm(
+        "This vacancy is live. Saving it as a draft takes it offline and it disappears from the public site. Continue?"
+      )
+    ) {
+      return;
+    }
+    submit(JobsStatus.DRAFT);
+  }
+
   async function submit(status: JobsStatus) {
     if (isSaving || isPublishing) {
       return;
@@ -1226,7 +1239,7 @@ export function JobStudioEditor({
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm transition hover:border-[#3DA9E0]/50"
               disabled={isBusy}
-              onClick={() => submit(JobsStatus.DRAFT)}
+              onClick={handleSaveDraft}
               type="button"
             >
               <Save size={15} />
@@ -2380,7 +2393,7 @@ export function JobStudioEditor({
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm disabled:opacity-60"
               disabled={isBusy}
-              onClick={() => submit(JobsStatus.DRAFT)}
+              onClick={handleSaveDraft}
               type="button"
             >
               <Save size={15} />
