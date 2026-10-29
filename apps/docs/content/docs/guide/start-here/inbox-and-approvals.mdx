@@ -10,6 +10,7 @@ covers:
   - apps/admin/src/app/(portal)/_actions/approval-execution.ts
   - apps/admin/src/app/(portal)/_components/status-badge.tsx
   - apps/admin/src/app/(portal)/_components/assistant/parts/approval-request-card.tsx
+  - apps/admin/src/app/(portal)/_components/assistant/parts/confirm-action-card.tsx
   - apps/admin/src/lib/campus-constants.ts
   - apps/web/src/app/api/form/submit/route.ts
   - packages/editor/src/components/editor-shell/inspector/submission-fields.tsx
@@ -17,6 +18,7 @@ covers:
   - apps/admin/src/app/(portal)/layout.tsx
   - apps/admin/src/app/api/assistant/route.ts
   - packages/ai/src/assistant/tools/content.ts
+  - packages/ai/src/assistant/tools/approvals.ts
   - packages/shared/utils/content-notifications.ts
   - apps/admin/src/lib/notify-toggle-copy.ts
 ---
@@ -28,7 +30,7 @@ covers:
 - Only global admins and campus leaders have **Innboks** (Inbox) in the sidebar.
 - The inbox holds two kinds of work:
   - Form submissions are answers that visitors send through a form on a published biso.no page. Only forms set to **Save to admin** in the page editor reach the inbox. A form set to **Email** sends its answers to a @biso.no address and never shows up here.
-  - Approval requests come only from the BISO Assistant. When someone who isn't a global admin or a campus leader for that campus asks it to publish, it offers to send a request. That includes department members publishing their own department's items, which they can do in the editor without a request. It also offers one when someone asks for a change their role can't make. Most ask for an event, news item, job, benefit, document or product to be published. Not every request can be approved: see the last step. No editor has a button that sends one. See [Ask the BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone).
+  - Approval requests come only from the BISO Assistant. When someone asks it to publish an item they can't publish themselves, it offers to send a request. That includes department members publishing their own department's items, which they can do in the editor without a request. It also offers one when someone asks for a change their role can't make. Most ask for an event, news item, benefit, document or product to be published. HR and global admins publish vacancies themselves. Not every request can be approved: see the last step. No editor has a button that sends one. See [Ask the BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone).
 - Nothing tells you when something new arrives. There's no email, push, Teams message or notification in the bell. Check the red number on **Innboks** (Inbox) in the sidebar. It's counted when the admin loads and doesn't change while you move between pages. Reload the page to update it. The tabs inside **Innboks** (Inbox) show the current counts each time you open it.
 - What you see depends on your role:
   - Global admins see every submission and every request, or one campus's if they've picked a campus in the campus box.
@@ -114,6 +116,8 @@ Only a request whose code is `events.publish`, `news.publish`, `jobs.publish`, `
 If something goes wrong, you see **Kunne ikke godkjenne forespørselen** (Failed to approve request) or **Kunne ikke avvise forespørselen** (Failed to reject request), without a reason. Check the code first: a request that can't be approved fails every time. Otherwise it can mean that someone else has already decided the request, or that the item is on a campus you can't publish for. Reload the page. If the card has gone, someone else has dealt with it.
 
 If rejecting fails, the reason you wrote is cleared. Open **Avvis** (Reject) again and rewrite it.
+
+You can also ask the BISO Assistant to approve or reject a request. It shows an **Approve request** or **Reject request** card that names the request, and for a rejection the **Reason**. Nothing happens until you choose **Confirm** on the card. See [Ask the BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone).
 
 <Callout type="warn">
 **Godkjenn** (Approve) publishes the item on biso.no at once, and the request can't be reopened. Check the item before you approve.

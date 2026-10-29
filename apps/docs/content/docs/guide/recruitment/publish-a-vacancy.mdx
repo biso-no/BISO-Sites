@@ -15,6 +15,7 @@ covers:
   - apps/admin/src/app/api/recruitment/publish-scheduled/**
   - apps/admin/src/lib/job-publication.ts
   - apps/admin/src/lib/job-reuse.ts
+  - apps/admin/src/lib/job-status-transition.ts
   - apps/admin/src/lib/notify-toggle-copy.ts
   - apps/admin/src/lib/oslo-date.ts
   - packages/shared/types/recruitment.ts
@@ -51,7 +52,9 @@ covers:
 
 The vacancy editor is in English whatever your admin language, so this page names its labels in English. Its six steps sit in a rail across the top: **Essentials**, **Description**, **Logistics**, **Screening**, **Visibility** and **Review**. Click any of them, or move with **Continue** and **Back** at the bottom. You don't have to go in order.
 
-Once the vacancy has a title and a description, save as you go with **Save Draft** at the bottom. A draft is visible only to staff. On a computer, **Save Draft** and **Publish** are also at the top right on every step. On a vacancy that's already live, **Save Draft** takes it offline. To save changes to a live vacancy, use **Publish**.
+Once the vacancy has a title and a description, save as you go with **Save Draft** at the bottom. A draft is visible only to staff. On a computer, **Save Draft** and **Publish** are also at the top right on every step.
+
+On a vacancy that's already live, **Save Draft** takes it offline. The editor asks first: **This vacancy is live. Saving it as a draft takes it offline and it disappears from the public site. Continue?** To save changes to a live vacancy and keep it live, use **Publish**. On a closed vacancy, **Publish** reopens it.
 
 <Steps>
 <Step title="Start a new vacancy, or copy last year's">
@@ -148,7 +151,7 @@ To fill in the other language with AI, use the **AI translation** card. On the *
 
 You can also switch on **Auto-translate** at the top of the editor on a computer. Then, after each save or publish, the other language is translated in the background.
 
-Choose **Publish** (or **Schedule**) at the bottom right. You see **Stilling publisert** (Job published), or **Scheduled to publish** with the time in Oslo time.
+Choose **Publish** (or **Schedule**) at the bottom right. You see **Stilling publisert** (Job published), or **Scheduled to publish** with the time in Oslo time. If you reopen a closed vacancy this way and its deadline has passed, you also see **Vacancy published, but its application deadline has passed. Move the deadline so people can apply.** Set a new **Application deadline** on **Logistics** and publish again, or nobody can apply.
 
 If something is missing, a red box **Fix these before saving:** lists each problem. Click one to go to its step. If the save fails, your changes stay in the form, so try again in a moment.
 
@@ -165,7 +168,7 @@ If something is missing, a red box **Fix these before saving:** lists each probl
 - The notification is sent only once. To see where it is, open the vacancy and go to **Visibility**. Until it's sent, the card reads **Notification on its way** ("within a few minutes"), or **Notification scheduled** with the time it goes out. After that it reads **Students were notified**. To stop one that hasn't gone out, click the card and save with **Publish**.
 - No email goes to students. The notification is in the app only.
 - Applications arrive in the vacancy's applications (see [Review applications](/guide/recruitment/review-applications)): in **Stillinger** (Jobs), choose the people icon on its row. Nothing tells you when one arrives, so check.
-- When the deadline passes, the vacancy leaves biso.no and the app, and nobody else can apply. There is no close button. The list still shows **Publisert** (Published), with **Frist passert** (Past deadline).
+- When the deadline passes, the vacancy leaves biso.no and the app, and nobody else can apply. The list still shows **Publisert** (Published), with **Frist passert** (Past deadline). To stop applications before the deadline, close the vacancy. See [End the round](/guide/recruitment/make-offers-and-close#end-the-round).
 </WhatHappensNext>
 
 ## What the student sees
@@ -176,13 +179,13 @@ If something is missing, a red box **Fix these before saving:** lists each probl
 - The app lists the vacancy until its deadline passes. In the app, a members-only vacancy's page shows a members-only badge.
 - Students must sign in to apply. Signed-out visitors see **Logg inn for å søke** (Sign in to apply) instead of the form. The form asks for contact details, your extra questions, a cover letter as a PDF, and a CV if you required one.
 - Everyone can read a members-only vacancy. A signed-in student who isn't a member sees **Dette vervet er kun åpent for BISO-medlemmer. Bli medlem for å søke.** (This position is open to BISO members only. Become a member to apply.) and a **Bli medlem** (Become a member) button instead of the form. Membership is checked again when they send the application. In the app, membership is looked up from the BI student number on the student's profile, so a student without one can't apply to a members-only vacancy.
-- After the deadline, the vacancy is gone from the list, and its page shows page not found.
+- After the deadline, or once you close the vacancy, it's gone from the list, and its page shows page not found.
 
 ## Common mistakes
 
-- Forgetting the deadline. Without one, the vacancy stays on biso.no and in the app, and keeps taking applications, until you take it offline. A copy starts with no deadline, so set one every time.
+- Forgetting the deadline. Without one, the vacancy stays on biso.no and in the app, and keeps taking applications, until you close it. A copy starts with no deadline, so set one every time.
 - Copying a vacancy and forgetting the notification. A copy starts with **Notify students when published** off. If the copy is already live, turn on **Notify students now** and save with **Publish**.
-- Choosing **Save Draft** on a live vacancy. It takes the vacancy offline at once, with no warning. To change a live vacancy and keep it live, save with **Publish**.
+- Confirming **Save Draft** on a live vacancy when you only meant to save changes. It takes the vacancy offline. To change a live vacancy and keep it live, save with **Publish**.
 - Choosing **Save Draft** on a scheduled vacancy. That cancels the schedule. Save it with **Schedule** again.
 - Expecting **Push to inboxes** or **Friday newsletter** to send something. They're saved with the vacancy, but they don't do anything. No inbox message or newsletter goes out.
 - Rewriting an old vacancy for a new round. Its text and dates are overwritten, and if it still has applications, the new applicants land in the same list as the old ones. Copy it instead, as in the first step.

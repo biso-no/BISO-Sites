@@ -22,6 +22,7 @@ covers:
   - apps/admin/src/app/(portal)/_components/admin-shell.tsx
   - apps/admin/src/app/(portal)/layout.tsx
   - apps/admin/src/lib/assistant-publish.ts
+  - apps/admin/src/lib/assistant-campus.ts
   - apps/admin/src/lib/notify-toggle-copy.ts
   - packages/shared/utils/content-notifications.ts
 ---
@@ -47,14 +48,14 @@ The heading reads **God dag, Admin** (Good day, Admin). It says "Admin" for ever
 - **Gjennomgå utkast** (Review Drafts) opens the drafts list. See the next step.
 - **Opprett side** (Create Page) opens **Sider** (Pages).
 
-Below the heading are four counts. Each one links to its area and is marked **Åpne arbeidsområde** (Open workspace).
+Below the heading are the counts. Each one links to its area and is marked **Åpne arbeidsområde** (Open workspace). Global admins see four. Campus leaders see three, because vacancies belong to HR and the global admins.
 
 | Count | What it counts | Where it links |
 |---|---|---|
-| **Åpne stillinger** (Open Jobs) | Published jobs | **Stillinger** (Jobs), which only global admins and HR can open |
+| **Åpne stillinger** (Open Jobs) | Published jobs. Global admins only. | **Stillinger** (Jobs) |
 | **Kommende arrangementer** (Upcoming Events) | Every published event, past ones included | **Arrangementer** (Events) |
 | **Publiserte artikler** (Published Articles) | Published news | **Nyheter** (News) |
-| **Ventende utkast** (Pending Drafts) | Draft jobs only | **Gjennomgå utkast** (Review Drafts) |
+| **Ventende utkast** (Pending Drafts) | The drafts in **Gjennomgå utkast** (Review Drafts): draft events and news, plus draft jobs for global admins | **Gjennomgå utkast** (Review Drafts) |
 
 The counts follow your campus. Campus leaders see their own campus. Global admins see all campuses, or the one they picked in the campus box at the top of the sidebar. A count that can't be loaded shows 0, with no error message.
 
@@ -69,7 +70,7 @@ The overview doesn't show the inbox. New form submissions and waiting requests a
 
 Open **Innhold** (Content) and choose **Gjennomgå utkast** (Review Drafts), or choose **Gjennomgå utkast** (Review Drafts) on the overview. The heading shows how many are waiting, for example **4 ventende** (4 pending).
 
-The list holds draft jobs, events and news for your campus. Global admins see all campuses, or the one they picked in the campus box. The list takes up to 50 of each type, most recently edited first. Pages, products, benefits and documents never appear here.
+The list holds draft events and news for your campus. Global admins also see draft jobs, and they see all campuses, or the one they picked in the campus box. The list takes up to 50 of each type, most recently edited first. Pages, products, benefits and documents never appear here.
 
 Each card shows:
 
@@ -84,7 +85,7 @@ To publish the draft, choose **Godkjenn** (Approve). It goes live at once, with 
 
 If a draft isn't ready, leave it. It stays a draft, and stays in this list, until someone approves it or publishes it from its editor.
 
-Draft jobs show here too. Leave them to HR and the global admins, who handle them in **Stillinger** (Jobs).
+Campus leaders don't see draft jobs here. HR and the global admins handle vacancies in **Stillinger** (Jobs).
 
 The notification bell's **Pending** tab also lists draft jobs, events and news. See [Sign in and find your way](/guide/start-here/sign-in#open-the-notification-bell).
 
@@ -153,7 +154,7 @@ A panel titled **BISO Assistant** slides in from the right. Close it with the X 
 
 An empty panel shows **What can I help with?** and a few suggestions for your role. Choose a suggestion to send it, or type in **Ask BISO Assistant…**. Press Enter to send, and Shift+Enter for a new line. A message can be up to 2,000 characters.
 
-What the assistant can do depends on your role. It can search and read the content you have access to, and take you to pages. Global admins and campus leaders get more, such as approving requests.
+What the assistant can do depends on your role. It can search and read the content you have access to, and take you to pages. Global admins and campus leaders get more, such as approving requests. Only HR and global admins can work with vacancies through the assistant. For everyone else it has no vacancy tools.
 
 When it opens a page for you, the admin goes there straight away, and the chat shows a note of where it went. The conversation stays while you move around the admin. If you reload or close the page, it's gone.
 
@@ -161,14 +162,16 @@ In the job editor and the event editor, the assistant can fill in the form on yo
 
 Jobs, events and news that the assistant creates have **Notify students when published** switched on. When one is published, students who follow that topic in the app usually get one notification. To stop it, open the item's editor, switch off **Notify students when published** and save, before it's published. [How notifications reach students](/guide/announcements) explains who gets it and when.
 
-Before it creates, changes, publishes or deletes anything, the assistant is set up to show you a card and wait for your choice:
+The assistant can't create, change, publish or delete anything until you confirm it. Each change gets its own card, and the admin makes the change only after you choose **Confirm** on that card, or the red **Delete** for a deletion. **Cancel** drops it.
 
-- New content gets a draft card with **NO** and **EN** tabs. **Edit** lets you change the title and text. **Approve & save** goes ahead, and the X drops it.
-- Other changes get a card with **Confirm**, or a red **Delete** for a deletion, and **Cancel**.
+- New content first gets a draft card with **NO** and **EN** tabs. **Edit** lets you change the title and text, **Approve & save** accepts the text, and the X drops it. The assistant then shows a confirm card for saving the item.
+- The confirm card's title says what will happen, for example **Create events draft**, **Create and publish news**, **Update events**, **Publish jobs** or **Delete news**.
+- The card lists every field the change will write. A card for new content starts with **Campus**, **Department** and **Publishes now**, and for an event, news item or job, **Push notification: yes**. A card for a change names the item and lists each field that changes.
+- A long value is cut short on the card. Choose **Show full value:** with the field's name to read all of it.
 
-Read each card before you choose.
+Read every line before you choose. Only the cards in the assistant's latest message can be answered. Older cards read **This card is no longer active. Ask again to make this change.** A card works once, and the change isn't made if you confirm more than 10 minutes after the card appeared. Then ask again. Once you've answered, the card shrinks to a line saying the change was confirmed, or **Cancelled**.
 
-If you ask it to publish and you aren't a global admin, or a campus leader for the item's campus, it can save the item as a draft, or leave it as one, and show an **Approval required** card. That happens for department members' own items too. You don't need a request for those: open the item in its editor and publish it there. Benefits editors can publish benefits through the assistant without a request. The assistant also shows the card when you ask for a change your role can't make.
+If you ask it to publish something you can't publish yourself, you still confirm the change on its card first. The item is then saved as a draft, or left as one, and the assistant shows an **Approval required** card. For a new item, the confirm card still says **Publishes now: yes**, but the item is saved as a draft. That happens for department members' own items too. You don't need a request for those: open the item in its editor and publish it there. Benefits editors can publish benefits through the assistant without a request, and HR and global admins can publish vacancies without one. The assistant also shows the **Approval required** card when you ask for a change your role can't make.
 
 The card's title says what's being asked, for example **Events → Publish**. Only publishing an event, news item, job, benefit, document or product can be approved. Any other request, such as **Events → Update** or **Pages → Publish**, can only be rejected, so drop it with the X. Then ask a campus leader or a global admin to make the change, or make the change yourself in the item's editor, if you can. For a publishing request, choose **Send approval request** to send it. The request goes to the inbox of the campus leaders for the item's campus. Requests for jobs, and for National or no campus, go to the global admins. Global admins can see every request.
 
@@ -199,10 +202,9 @@ Students and members never see these tools. They see what comes out of them: a d
 
 ## Common mistakes
 
-- Reading **Ventende utkast** (Pending Drafts) on the overview as all drafts. It counts draft jobs only. Open **Gjennomgå utkast** (Review Drafts) to see draft events and news too.
 - Reading **Kommende arrangementer** (Upcoming Events) as events still to come. It counts every published event, past ones included.
 - Trusting a 0 on the overview. A count that couldn't be loaded shows 0. Reload the page if a number looks wrong.
 - Approving a draft to see how it looks. **Godkjenn** (Approve) publishes it at once. Open it with the link icon instead. To take a published item offline again, unpublish it in its own editor.
 - Losing an assistant conversation. Reloading or closing the admin clears it. Copy anything you need first.
-- Choosing **Confirm** or **Delete** on an assistant card without reading it. A deletion can't be undone.
+- Choosing **Confirm** or **Delete** on an assistant card without reading every line. The card lists exactly what will be written, including the campus and whether the item goes live. A deletion can't be undone.
 - Looking for a member or a form submission in quick search. Use **Medlemmer** (Members) or **Innboks** (Inbox).

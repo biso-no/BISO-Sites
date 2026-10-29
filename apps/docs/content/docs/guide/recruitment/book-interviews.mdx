@@ -12,6 +12,7 @@ covers:
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/view-model.ts
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/pipeline/candidate-card.tsx
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-workspace.ts
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-scorecards.ts
   - apps/admin/src/app/(portal)/_actions/interviews.ts
   - apps/admin/src/app/(portal)/_actions/jobs.ts
   - apps/admin/src/lib/recruitment.ts
@@ -19,6 +20,7 @@ covers:
   - apps/admin/src/lib/schedule-dates.ts
   - packages/connectors/src/azure/recruitment-scheduling.ts
   - packages/shared/recruitment/booking-slots.ts
+  - packages/shared/recruitment/booking-link.ts
   - packages/shared/recruitment/apply.ts
   - packages/shared/types/recruitment.ts
   - apps/web/src/app/(public)/recruitment/**
@@ -26,6 +28,7 @@ covers:
   - apps/web/src/app/(protected)/applications/**
   - packages/i18n/messages/*/jobs.json
   - packages/i18n/messages/*/applications.json
+  - packages/i18n/messages/*/adminPortal.json
 ---
 
 <BeforeYouStart>
@@ -38,12 +41,12 @@ covers:
 
 ## Two ways to book
 
-The applications workspace is in English whatever your admin language, so this page names its labels in English.
+The applications workspace is mostly in English whatever your admin language, so this page names most of its labels in English. The few labels that follow your language are given in Norwegian, with the English in brackets.
 
 | | Pick a time for them | Let them pick (booking link) |
 |---|---|---|
 | Who picks the time | You | The candidate, on a page on biso.no |
-| The candidate's status | The dialog moves them to **Interview** | You move them to **Interview** before you make the link |
+| The candidate's status | The dialog moves them to **Interview** | You move them to **Interview** before you make the link, and the link works only while they stay there |
 | Round | 1, 2 or 3 | Always saved as round 1 |
 | Place | **Teams**, **Nydalen** or **Hybrid** | Teams |
 | How the candidate hears | An Outlook invite | An email you write with the link, then an Outlook invite when they book |
@@ -97,7 +100,7 @@ Choose **Send invite for** followed by the time you picked, for example **Send i
 The dialog closes and a message tells you what happened. Go by this message. The note at the bottom of the dialog doesn't tell you whether the invite went out.
 
 - **Interview scheduled and invites sent.** The candidate and the panel have an Outlook invite.
-- A warning that contains **The interview was saved** means no invite went out. Send the time to the candidate and the panel yourself, and tell IT.
+- A warning that contains **The interview was saved** means no invite went out. The interview shows **Invitasjon ikke sendt** (Invite not sent) on the **Interviews** tab. Send the time to the candidate and the panel yourself, and tell IT.
 
 The candidate moves to **Interview**. From **Applied** they go through **Shortlist** on the way. A candidate already in **Interview** stays there. If you see **Interview saved, but the candidate could not be moved to**, the interview is booked but the status didn't change, so move the candidate to **Interview** yourself.
 
@@ -110,14 +113,14 @@ To change the time, choose **Reschedule** next to the interview on the **Intervi
 
 ## Let them pick (booking link)
 
-The candidate picks a time on a booking page on biso.no. You make the link in the admin and email it to the candidate yourself. Only candidates in **Interview** can get a link, so move the candidate first.
+The candidate picks a time on a booking page on biso.no. You make the link in the admin and email it to the candidate yourself. Only candidates in **Interview** can get a link, so move the candidate first. The link works only while the candidate stays in **Interview**.
 
 <Steps>
 <Step title="Move the candidate to Interview">
 
 Drag the candidate's card to the **Interview** column, or choose **Advance** and then **Move to Interview**. See [Review applications](/guide/recruitment/review-applications) for both. A candidate in **Applied** goes to **Shortlist** first.
 
-If you use **Advance**, keep **Draft a candidate notification email** ticked to get an interview-invite draft. Copy it before you choose **Move to Interview**. The draft has no link, so you'll add the booking link to it.
+If you use **Advance**, choose **Draft email with AI** to get an interview-invite draft. Copy it before you choose **Move to Interview**. The draft has no link, so you'll add the booking link to it.
 
 The student sees **Intervju** (Interview) on biso.no and in the app as soon as you move them, so send the link soon after.
 
@@ -132,9 +135,9 @@ The student sees **Intervju** (Interview) on biso.no and in the app as soon as y
 
 The link appears above the button. Choose the copy icon next to it (tooltip: *Copy*).
 
-The admin doesn't keep the link. Once you leave the tab, you can't see it again. If you lose it before you send it, make a new one. Each link you make works on its own, so send the candidate only one.
+The admin doesn't keep the link. Once you leave the tab, you can't see it again. If you lose it before you send it, make a new one. A new link replaces the old one: any earlier link for the same candidate stops working.
 
-If you see **Select at least one panelist with an email.**, tick someone under **Panel**. If you see **Pick a candidate in the interview stage first.**, choose a candidate in **Candidate**. For any other error instead of a link, tell IT.
+If you see **Select at least one panelist with an email.**, tick someone under **Panel**. If you see **Pick a candidate in the interview stage first.** or **Booking links can only be sent to candidates in the interview stage.**, choose a candidate who is in **Interview**, and reload the page if someone has just moved them. For any other error instead of a link, tell IT.
 
 </Step>
 <Step title="Email the link to the candidate">
@@ -151,16 +154,27 @@ Nothing tells you when the candidate books. Open the **Interviews** tab and relo
 A booking shows under **Scheduled & proposed** as **Round 1** with the date. Booking doesn't change the candidate's status. They stay in **Interview**.
 
 - If the line shows **Teams** after the date, the Teams meeting was made and the candidate and the panel have the invite.
-- If it doesn't, the candidate has no Teams link, and the booking page told them that the BISO team will email the meeting details. Send the candidate and the panel the time and a meeting link yourself.
+- If it shows **Invitasjon ikke sendt** (Invite not sent), no invite went out and the candidate has no Teams link. The booking page told them that the BISO team will email the meeting details. The person who made the link is also sent an email with the subject **Interview invite not sent:** followed by the candidate's name. Send the candidate and the panel the time and a meeting link yourself.
 
 The line shows the date but not the time. The **Panel calendar** above it marks the hour the interview starts in. Bookings can start on the hour or the half hour, so confirm the exact time with the candidate when you write.
+
+</Step>
+<Step title="See or revoke the candidate's links">
+
+1. On the **Interviews** tab, under **Send a booking link**, choose the candidate in **Candidate**.
+2. **Links sent to this candidate** lists every link made for them, newest first. Each one shows **Active**, **Booked** or **Expired**, and **Created** with the date it was made. An active link also shows when it expires.
+3. To stop an active link, choose **Revoke** next to it. It stops working at once and shows **Expired**. A candidate who opens it is told that the link has expired.
+
+You can't revoke a link that has been used or has expired. A revoked link can't be turned back on, so make a new one if the candidate still needs to book.
 
 </Step>
 </Steps>
 
 ## After the interview: fill in the scorecard
 
-Open the scorecard from **Pending scorecards** on the **Interviews** tab. Each person on the panel writes their own. If you submit again for the same interview, your earlier scorecard is replaced. The form starts empty each time, so fill it in fully. The interview stays in **Pending scorecards** after scorecards are in, so check the **Scorecards** box in the candidate's panel to see what's been written. The box doesn't say who wrote each scorecard.
+Open the scorecard from **Pending scorecards** on the **Interviews** tab. It lists the interviews of each candidate who has no scorecard yet. Once a scorecard for a candidate is in, that candidate's interviews leave the list the next time the page loads, a later round included. **Write** in that list is the only way to open the scorecard. So agree before the interview who on the panel writes it, and give that person your views.
+
+The form starts empty each time, so fill it in fully. To see what's been written, check the **Scorecards** box in the candidate's panel. The box doesn't say who wrote each scorecard.
 
 People on the interview's panel can submit a scorecard, and so can National HR and global admins. Anyone else sees **Forbidden** when they submit.
 
@@ -186,6 +200,8 @@ The **Scorecard — Round 1** dialog opens, with the round number of that interv
 
 Everyone who can open the vacancy's applications can read the scorecard. It's in the **Scorecards** box at the side of the candidate's panel. The box shows the overall score, the recommendation, the stars and the strengths text. It doesn't show **Open questions / concerns**, so tell the panel about those yourself.
 
+The board uses scorecards too. The candidate's **Activity** list shows **Scorecard submitted**, and **Interview score** in the sort menu puts the candidates with the highest average overall score first.
+
 The scorecard doesn't move the candidate. When you've decided, move them to **Offer** or **Archived**, or back to **Shortlist**. See [Make offers, reject, and finish the round](/guide/recruitment/make-offers-and-close).
 
 <WhatHappensNext>
@@ -198,11 +214,12 @@ When you book in the scheduling dialog:
 - For **Teams** or **Hybrid**, a Teams meeting is made.
 - The candidate and the panel get an Outlook invite from the mailbox of the first selected person in the panel list.
 - The candidate moves to **Interview**.
-- If the admin can't reach Outlook, the interview is still saved, but no invite goes out. The warning tells you so.
+- If the admin can't reach Outlook, the interview is still saved, but no invite goes out. The warning tells you so, and the interview shows **Invitasjon ikke sendt** (Invite not sent) on the **Interviews** tab.
 
 When you make a booking link:
 
-- The link works for 14 days from when you made it, and only once.
+- The link works for 14 days from when you made it, and only once. It stops working sooner if you move the candidate out of **Interview**, make a new link for them, or revoke it.
+- It shows under **Links sent to this candidate** as **Active**.
 - It offers times in those 14 days: every 30 minutes between 09:00 and 17:00 Oslo time on weekdays, at least two hours ahead, when everyone on the link's panel is free.
 - If the panel's calendars can't all be read, the page may offer times when someone is busy. It then tells the candidate that the team will confirm the time. Check booked times with the panel.
 
@@ -211,11 +228,12 @@ When the candidate books:
 - The interview is saved as round 1, on Teams, with the panel you ticked.
 - A Teams meeting is made, and the candidate and the panel get an Outlook invite from the first ticked person in the panel list.
 - The link is used up. The candidate's status doesn't change.
-- If the invite can't be sent, the booking is still saved and the link is still used up. Nothing tells you. Check the **Interviews** tab, as in the last booking-link step.
+- If the invite can't be sent, the booking is still saved and the link is still used up. The interview shows **Invitasjon ikke sendt** (Invite not sent) on the **Interviews** tab, and the person who made the link is sent an email about it.
 
 After a scorecard is submitted:
 
-- It shows in the candidate's panel.
+- It shows in the candidate's panel and counts in the **Interview score** sort.
+- The next time the page loads, the candidate's interviews leave **Pending scorecards**.
 - Nobody moves, and nothing is sent.
 </WhatHappensNext>
 
@@ -228,7 +246,7 @@ After a scorecard is submitted:
 
 If no times are free, the page says **Ingen ledige tider i dette tidsrommet. Ta kontakt med BISO-teamet.** (No slots available in this window. Please contact the BISO team.)
 
-A used or expired link shows **Bookinglenken er ikke gyldig** (Booking link unavailable) and the reason in English, **This booking link has already been used.** or **This booking link has expired.** It ends with **Ta kontakt med din BISO-kontakt for en ny lenke.** (Reach out to your BISO contact for a fresh link.)
+A used or expired link shows **Bookinglenken er ikke gyldig** (Booking link unavailable) and the reason in English, **This booking link has already been used.** or **This booking link has expired.** A link you've revoked or replaced, or a link for a candidate who is no longer in **Interview**, also shows **This booking link has expired.** The page ends with **Ta kontakt med din BISO-kontakt for en ny lenke.** (Reach out to your BISO contact for a fresh link.)
 
 **The invite.** An Outlook invite, sent from a panel member's mailbox to the email on the application. It's titled with the candidate's name and the round, for example **Jonas Dahl — Round 1**. The text is one line in English, **Interview with BISO.**, or **Interview with BISO, booked through your booking link.** for a booking. For Teams and Hybrid it adds **Join the Teams meeting:** and the link. Anything else the candidate needs to know, such as the room or what to prepare, you send yourself.
 
@@ -239,9 +257,11 @@ The student doesn't see the panel, the scorecards or the recommendation.
 ## Common mistakes
 
 - Trying to make a booking link before the candidate is in **Interview**. They aren't in the **Candidate** list. Move them first.
-- Sending a link that has expired or been used. A link works once, for 14 days from when you made it. If a candidate says the link doesn't work, check **Scheduled & proposed** first. A used link usually means they've already booked, and a new link would let them book a second time. If they haven't booked, make a new link and send it.
-- Waiting for an email about a booking. Nothing tells you. Check the **Interviews** tab.
-- Using the bulk **Schedule** button to book. It only drafts interview-invite emails. It books nothing.
+- Sending a link that has expired or been used. A link works once, for 14 days from when you made it. If a candidate says the link doesn't work, check **Scheduled & proposed** and **Links sent to this candidate** first. A used link usually means they've already booked, and a new link would let them book a second time. If they haven't booked and are still in **Interview**, make a new link and send it.
+- Moving a candidate out of **Interview** before they've booked. Their link doesn't work while they're out of **Interview**, and a candidate in **Offer** or **Archived** can't go back.
+- Waiting for an email about a booking. Nothing tells you when a booking goes through. Check the **Interviews** tab.
+- Using **Lag utkast til invitasjoner** (Draft invite emails) in the bar to book. It only drafts interview-invite emails. It books nothing.
+- Waiting for each person on the panel to write a scorecard. Once the first scorecard for a candidate is in, their interviews leave **Pending scorecards**. Agree who writes it.
 - Using a booking link for a second round. Bookings are always saved as round 1. Use the scheduling dialog and choose round 2.
 - Expecting **Reschedule** to move the interview. It books a second one with a new invite, and the first one stays. Tell everyone which time counts.
 - Going by the note at the bottom of the scheduling dialog. Check the message you get after you send the invite.
