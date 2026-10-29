@@ -10,8 +10,8 @@
  * Special pseudo-role:
  * - "department" → User belongs to at least one sg-app-dept-* team
  *
- * SG-App-Role-* groups (finance, hr, pr, controller) are no longer used.
- * All access is derived from campus + department team membership.
+ * Role-named teams (finance, pr, controller) are no longer used.
+ * All access is derived from campus + department team ids.
  */
 
 // Roles computed from campus + department team combinations
@@ -23,7 +23,7 @@ export const ROLES = {
   BENEFITS_EDITOR: "benefitseditor", // Email allow-list (BENEFITS_EDITOR_EMAILS)
 } as const;
 
-// Pseudo-role for any user with at least one SG-App-Dept-* membership
+// Pseudo-role for any user with at least one recorded sg-app-dept-* team id
 export const DEPARTMENT_ROLE = "department" as const;
 
 /**

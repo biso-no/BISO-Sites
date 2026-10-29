@@ -87,7 +87,7 @@ try {
   );
   if (apply) {
     console.error(
-      "Records written before the failure stay. Run it again to finish."
+      "Nothing was written: records are written only after the whole scan succeeds. Run it again."
     );
   }
   process.exit(1);
