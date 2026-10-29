@@ -252,3 +252,140 @@ describe("reconcileRowPermissions", () => {
     expect(updates.some((u) => u.rowId === "orphan")).toBe(false);
   });
 });
+
+const OU = 'read("team:sg-app-dept-operationsunit")';
+const HR = 'read("team:sg-app-dept-hr")';
+const CREATE_X = 'create("team:x")';
+
+function translationFixture(translations: Row[]): Record<string, Row[]> {
+  return {
+    pages: [],
+    page_translations: [],
+    campus_benefits: [
+      { $id: "ben-pub", $permissions: [ANY], status: "published" },
+      { $id: "ben-draft", $permissions: [], status: "draft" },
+    ],
+    events: [
+      { $id: "ev-pub", $permissions: [ANY], status: "published" },
+      { $id: "ev-draft", $permissions: [], status: "draft" },
+    ],
+    news: [
+      { $id: "n-pub", $permissions: [], status: "published" },
+      { $id: "n-draft", $permissions: [], status: "draft" },
+    ],
+    webshop_products: [
+      { $id: "pr-pub", $permissions: [], status: "published" },
+      { $id: "pr-draft", $permissions: [], status: "draft" },
+    ],
+    jobs: [
+      { $id: "j-pub", $permissions: [], status: "published" },
+      { $id: "j-draft", $permissions: [], status: "draft" },
+    ],
+    content_translations: translations,
+  };
+}
+
+const tr = (
+  id: string,
+  contentType: string,
+  contentId: string,
+  permissions: string[] = []
+): Row => ({
+  $id: id,
+  $permissions: permissions,
+  content_type: contentType,
+  content_id: contentId,
+});
+
+describe("content_translations", () => {
+  it("applies the read rule per content type", async () => {
+    const { db, updates } = makeDb(
+      translationFixture([
+        tr("t-ev", "event", "ev-pub"),
+        tr("t-ev-d", "event", "ev-draft", [ANY]),
+        tr("t-ben", "memberBenefit", "ben-pub"),
+        tr("t-ben-d", "memberBenefit", "ben-draft", [ANY]),
+        tr("t-news", "news", "n-pub"),
+        tr("t-prod", "product", "pr-pub"),
+        tr("t-dept", "department", "any-dept"),
+      ])
+    );
+    await reconcileRowPermissions(db, { apply: true });
+    const perms = (id: string) =>
+      updates.find((u) => u.rowId === id)?.permissions;
+    expect(perms("t-ev")).toEqual([ANY]);
+    expect(perms("t-ev-d")).toEqual([]);
+    expect(perms("t-ben")).toEqual([ANY]);
+    expect(perms("t-ben-d")).toEqual([]);
+    expect(perms("t-news")).toEqual([ANY]);
+    expect(perms("t-prod")).toEqual([ANY]);
+    expect(perms("t-dept")).toEqual([ANY]);
+  });
+
+  it("gives job translations staff reads, and public read only when published", async () => {
+    const { db, updates } = makeDb(
+      translationFixture([
+        tr("t-j-pub", "job", "j-pub"),
+        tr("t-j-draft", "job", "j-draft", [ANY]),
+      ])
+    );
+    await reconcileRowPermissions(db, { apply: true });
+    const pub = updates.find((u) => u.rowId === "t-j-pub")?.permissions ?? [];
+    const draft =
+      updates.find((u) => u.rowId === "t-j-draft")?.permissions ?? [];
+    expect([...pub].sort()).toEqual([ANY, HR, OU].sort());
+    expect([...draft].sort()).toEqual([HR, OU].sort());
+  });
+
+  it("strips public read from a news translation of a draft", async () => {
+    const { db, updates } = makeDb(
+      translationFixture([tr("t-n", "news", "n-draft", [ANY])])
+    );
+    await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toEqual([
+      { tableId: "content_translations", rowId: "t-n", permissions: [] },
+    ]);
+  });
+
+  it("skips translations with a missing parent, page or unknown type", async () => {
+    const { db, updates } = makeDb(
+      translationFixture([
+        tr("t-miss", "news", "gone", [ANY]),
+        tr("t-page", "page", "p1", [ANY]),
+        tr("t-odd", "mystery", "x", [ANY]),
+      ])
+    );
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(report.skipped.map((s) => s.rowId)).toEqual([
+      "t-miss",
+      "t-page",
+      "t-odd",
+    ]);
+    expect(updates).toEqual([]);
+  });
+
+  it("keeps non-read permissions", async () => {
+    const { db, updates } = makeDb(
+      translationFixture([
+        tr("t-keep", "news", "n-draft", [ANY, UPDATE_X, CREATE_X]),
+      ])
+    );
+    await reconcileRowPermissions(db, { apply: true });
+    expect(updates[0]?.permissions.sort()).toEqual([CREATE_X, UPDATE_X]);
+  });
+
+  it.each([
+    "news",
+    "webshop_products",
+    "jobs",
+  ])("writes nothing when the %s scan fails", async (failing) => {
+    const { db, updates } = makeDb(
+      translationFixture([tr("t-n", "news", "n-draft", [ANY])]),
+      [],
+      (tableId) => tableId === failing
+    );
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toEqual([]);
+    expect(report.errors.map((e) => e.tableId)).toContain(failing);
+  });
+});

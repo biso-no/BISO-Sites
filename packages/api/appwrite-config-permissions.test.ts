@@ -130,6 +130,7 @@ describe("content tables are readable only through row permissions", () => {
     "pages",
     "page_translations",
     "events",
+    "content_translations",
   ] as const;
 
   function findContentTable(tableId: string) {

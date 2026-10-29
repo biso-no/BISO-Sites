@@ -4,6 +4,8 @@ import type { PagesVisibility } from "@repo/api/types/appwrite";
 import {
   benefitReadPermissions,
   eventReadPermissions,
+  type TranslationContentType,
+  translationReadPermissions,
 } from "./content-read-permissions";
 
 /**
@@ -24,7 +26,11 @@ export type ReconcileTableId =
   | "campus_benefits"
   | "pages"
   | "page_translations"
-  | "events";
+  | "events"
+  | "content_translations"
+  | "news"
+  | "webshop_products"
+  | "jobs";
 
 export interface PageParent {
   status: string;
@@ -76,7 +82,27 @@ const TABLE_ORDER: ReconcileTableId[] = [
   "page_translations",
   "campus_benefits",
   "events",
+  "content_translations",
 ];
+
+/** Parent tables whose statuses are loaded for translations but not reconciled. */
+const STATUS_ONLY_TABLES: ReconcileTableId[] = [
+  "news",
+  "webshop_products",
+  "jobs",
+];
+
+/** Parent table per translation `content_type`; `null` means no status needed. */
+const TRANSLATION_PARENT: Record<string, ReconcileTableId | null> = {
+  event: "events",
+  memberBenefit: "campus_benefits",
+  news: "news",
+  product: "webshop_products",
+  job: "jobs",
+  department: null,
+};
+
+type ParentStatuses = Map<ReconcileTableId, Map<string, string>>;
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -85,7 +111,11 @@ function asString(value: unknown): string {
 export function desiredReadPermissions(
   tableId: ReconcileTableId,
   row: Record<string, unknown>,
-  pages: ReadonlyMap<string, PageParent>
+  pages: ReadonlyMap<string, PageParent>,
+  statuses: ReadonlyMap<
+    ReconcileTableId,
+    ReadonlyMap<string, string>
+  > = new Map()
 ): string[] {
   switch (tableId) {
     case "events":
@@ -106,6 +136,20 @@ export function desiredReadPermissions(
         isPublished: row.is_published === true && parent.status === "published",
         audience: pageAudience(parent.visibility as PagesVisibility),
       });
+    }
+    case "content_translations": {
+      const contentType = asString(row.content_type);
+      const table = TRANSLATION_PARENT[contentType];
+      if (table === undefined) {
+        return [];
+      }
+      const status = table
+        ? (statuses.get(table)?.get(asString(row.content_id)) ?? null)
+        : null;
+      return translationReadPermissions(
+        contentType as TranslationContentType,
+        status
+      );
     }
     default:
       return [];
@@ -155,10 +199,26 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function translationSkipReason(
+  row: ReconcileRow,
+  statuses: ParentStatuses
+): string | null {
+  const contentType = asString(row.content_type);
+  const table = TRANSLATION_PARENT[contentType];
+  if (table === undefined) {
+    return `content type not reconciled: ${contentType || "(none)"}`;
+  }
+  if (table && !statuses.get(table)?.has(asString(row.content_id))) {
+    return `parent ${contentType} not found`;
+  }
+  return null;
+}
+
 function planRow(
   tableId: ReconcileTableId,
   row: ReconcileRow,
   pages: ReadonlyMap<string, PageParent>,
+  statuses: ParentStatuses,
   report: ReconcileReport
 ): void {
   if (tableId === "page_translations" && !pages.has(asString(row.page_id))) {
@@ -169,10 +229,17 @@ function planRow(
     });
     return;
   }
+  if (tableId === "content_translations") {
+    const reason = translationSkipReason(row, statuses);
+    if (reason) {
+      report.skipped.push({ tableId, rowId: row.$id, reason });
+      return;
+    }
+  }
   const before = row.$permissions ?? [];
   const after = mergeReadPermissions(
     before,
-    desiredReadPermissions(tableId, row, pages)
+    desiredReadPermissions(tableId, row, pages, statuses)
   );
   if (!sameSet(before, after)) {
     report.changes.push({ tableId, rowId: row.$id, before, after });
@@ -182,7 +249,22 @@ function planRow(
 /** Phase 1: read-only scan of every table; computes all changes. */
 async function scanAll(db: ReconcileDb, report: ReconcileReport) {
   const pages = new Map<string, PageParent>();
+  const statuses: ParentStatuses = new Map();
+  for (const tableId of STATUS_ONLY_TABLES) {
+    const ids = new Map<string, string>();
+    statuses.set(tableId, ids);
+    try {
+      for await (const row of scanTable(db, tableId)) {
+        report.scanned[tableId] += 1;
+        ids.set(row.$id, asString(row.status));
+      }
+    } catch (error) {
+      report.errors.push({ tableId, message: errorMessage(error) });
+    }
+  }
   for (const tableId of TABLE_ORDER) {
+    const ids = new Map<string, string>();
+    statuses.set(tableId, ids);
     try {
       for await (const row of scanTable(db, tableId)) {
         report.scanned[tableId] += 1;
@@ -192,7 +274,8 @@ async function scanAll(db: ReconcileDb, report: ReconcileReport) {
             visibility: asString(row.visibility),
           });
         }
-        planRow(tableId, row, pages, report);
+        ids.set(row.$id, asString(row.status));
+        planRow(tableId, row, pages, statuses, report);
       }
     } catch (error) {
       report.errors.push({ tableId, message: errorMessage(error) });
@@ -227,9 +310,13 @@ export async function reconcileRowPermissions(
     skipped: [],
     scanned: {
       campus_benefits: 0,
+      content_translations: 0,
       events: 0,
+      jobs: 0,
+      news: 0,
       page_translations: 0,
       pages: 0,
+      webshop_products: 0,
     },
   };
 

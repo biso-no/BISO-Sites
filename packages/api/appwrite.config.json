@@ -10617,7 +10617,6 @@
             "$id": "content_translations",
             "$permissions": [
                 "create(\"team:sg-app-dept-operationsunit\")",
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
                 "create(\"team:sg-app-dept-ledelsentrondheim\")",
