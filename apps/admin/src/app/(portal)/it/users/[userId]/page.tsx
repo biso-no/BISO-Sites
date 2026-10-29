@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { isTurnoverTarget } from "@/lib/it/turnover-target";
 import {
   getCurrentItPermissions,
   requireItPagePermission,
@@ -66,6 +67,7 @@ export default async function M365UserDetailPage({
       <UserDetailClient
         authMethods={authMethods.data}
         groups={groups.data ?? []}
+        isTurnoverTarget={isTurnoverTarget(user.data.userPrincipalName)}
         labels={{
           advancedTodo: t("advancedTodo"),
           addAlias: t("addAlias"),
