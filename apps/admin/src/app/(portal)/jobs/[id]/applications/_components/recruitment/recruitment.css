@@ -3512,6 +3512,12 @@
 }
 
 /* ---------- Toast ---------- */
+.pl-toast.pl-toast-offer {
+  bottom: 88px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .pl-toast {
   position: fixed;
   bottom: 24px;

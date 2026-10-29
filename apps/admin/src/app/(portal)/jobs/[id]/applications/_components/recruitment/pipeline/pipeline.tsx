@@ -330,9 +330,10 @@ export function Pipeline() {
       />
 
       {draftOfferIds.length > 0 ? (
-        <div className="pl-toast" role="status">
-          {t("bulkArchived", { count: draftOfferIds.length })}{" "}
+        <div className="pl-toast pl-toast-offer" role="status">
+          <span>{t("bulkArchived", { count: draftOfferIds.length })}</span>
           <button
+            className="bb-act"
             onClick={() => {
               actions.openEmail(draftOfferIds, "reject");
               setDraftOfferIds([]);
@@ -340,8 +341,12 @@ export function Pipeline() {
             type="button"
           >
             {t("bulkDraftRejections")}
-          </button>{" "}
-          <button onClick={() => setDraftOfferIds([])} type="button">
+          </button>
+          <button
+            className="bb-act"
+            onClick={() => setDraftOfferIds([])}
+            type="button"
+          >
             {t("bulkDismiss")}
           </button>
         </div>

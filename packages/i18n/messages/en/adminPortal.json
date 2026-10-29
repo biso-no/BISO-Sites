@@ -432,7 +432,7 @@
       "bulkArchive": "Archive",
       "bulkDraftRejections": "Draft rejection emails",
       "bulkDismiss": "Dismiss",
-      "bulkArchived": "Archived {count} candidates.",
+      "bulkArchived": "{count, plural, one {Archived # candidate.} other {Archived # candidates.}}",
       "inviteNotSent": "Invite not sent",
       "eyebrow": "BISO recruitment studio",
       "titleAccent": "this term.",

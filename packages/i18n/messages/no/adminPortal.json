@@ -432,7 +432,7 @@
       "bulkArchive": "Arkiver",
       "bulkDraftRejections": "Lag utkast til avslag",
       "bulkDismiss": "Lukk",
-      "bulkArchived": "Arkiverte {count} kandidater.",
+      "bulkArchived": "{count, plural, one {Arkiverte # kandidat.} other {Arkiverte # kandidater.}}",
       "inviteNotSent": "Invitasjon ikke sendt",
       "eyebrow": "BISO rekrutteringsstudio",
       "titleAccent": "dette semesteret.",
