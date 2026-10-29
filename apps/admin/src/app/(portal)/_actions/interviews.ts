@@ -503,12 +503,12 @@ export async function createBookingToken(
     if (
       !isBookingLinkUsable({
         applicationStatus: application.status,
-        jobStatus: job.status,
+        hasJob: true,
       })
     ) {
       return {
         error:
-          "Booking links can only be sent to candidates in the interview stage on an open vacancy.",
+          "Booking links can only be sent to candidates in the interview stage.",
       };
     }
 

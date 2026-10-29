@@ -92,7 +92,8 @@ async function loadToken(
 
 /**
  * Loads the application and vacancy behind a token and refuses the link when
- * the candidate is no longer in the interview stage or the vacancy is closed.
+ * the candidate is no longer in the interview stage. A closed vacancy does not
+ * matter: interviews are booked after the deadline.
  * The refusal reads like an expired link and says nothing about the candidate.
  */
 async function loadBookableApplication(
@@ -106,12 +107,12 @@ async function loadBookableApplication(
     record.application_id
   );
   const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
-    Query.select([...jobSelect, "status"]),
+    Query.select(jobSelect),
   ]);
   if (
     !isBookingLinkUsable({
       applicationStatus: application.status,
-      jobStatus: job.status,
+      hasJob: Boolean(job),
     })
   ) {
     return { error: BOOKING_LINK_UNAVAILABLE_MESSAGE };

@@ -425,18 +425,10 @@ describe("recruitment booking actions", () => {
     expect(db.createRow).not.toHaveBeenCalled();
   });
 
-  it("refuses a link once the vacancy is closed", async () => {
+  it("still serves a link when the vacancy is closed", async () => {
     mockHappyPath({ jobStatus: "closed" });
-    expect(await getBookingContext("booking-token")).toEqual({
-      error: "This booking link has expired.",
-    });
-
-    mockHappyPath({ jobStatus: "closed" });
-    expect(
-      await confirmBookingSlot("booking-token", "2027-07-01T10:00:00.000Z")
-    ).toEqual({ error: "This booking link has expired." });
-    expect(db.incrementRowColumn).not.toHaveBeenCalled();
-    expect(db.createRow).not.toHaveBeenCalled();
+    const context = await getBookingContext("booking-token");
+    expect(context).not.toHaveProperty("error");
   });
 
   it("rejects a token whose atomic claim was already taken", async () => {

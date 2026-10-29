@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { JobInterviewParticipantsRole } from "@repo/api/types/appwrite";
 import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
 
@@ -286,18 +293,22 @@ describe("recruitment interview actions", () => {
     window_to: "2026-07-01T17:00:00.000Z",
   };
 
-  test("does not issue a link for a candidate outside the interview stage or a closed vacancy", async () => {
+  test("does not issue a link for a candidate outside the interview stage", async () => {
     db.getRow.mockResolvedValue({ ...applicationWithJob, status: "rejected" });
     const rejected = await createBookingToken(bookingInput);
     expect(rejected.error).toBeDefined();
+    expect(createdRowCall("recruitment_booking_tokens")).toBeUndefined();
+  });
 
+  test("issues a link for an interview-stage candidate on a closed vacancy", async () => {
     db.getRow.mockResolvedValue({
       ...applicationWithJob,
       job: { ...applicationWithJob.job, status: "closed" },
     });
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
     const closed = await createBookingToken(bookingInput);
-    expect(closed.error).toBeDefined();
-    expect(createdRowCall("recruitment_booking_tokens")).toBeUndefined();
+    expect(closed.error).toBeUndefined();
+    expect(createdRowCall("recruitment_booking_tokens")).toBeDefined();
   });
 
   test("a new link expires the application's earlier open links", async () => {
@@ -380,12 +391,17 @@ describe("recruitment interview actions", () => {
       total: 2,
     });
     db.updateRow.mockRejectedValueOnce(new Error("boom"));
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {
+      // The failure is logged on purpose; keep it out of the test output.
+    });
 
     const result = await createBookingToken(bookingInput);
 
     expect(result.error).toBeUndefined();
     expect(result.data?.url).toContain("booking-token");
     expect(db.updateRow).toHaveBeenCalledTimes(2);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   test("lists an application's links without the hash", async () => {
