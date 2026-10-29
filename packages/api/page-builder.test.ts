@@ -458,6 +458,54 @@ describe("page builder", () => {
     );
   });
 
+  it("keeps the published document when the draft row has no document", async () => {
+    db.listRows
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            $id: "tr-no",
+            locale: "no",
+            published_doc: '{"live":true}',
+            draft_doc: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ $id: "page-1", visibility: "public" }],
+      });
+    db.getRow.mockResolvedValueOnce({
+      $id: "tr-no",
+      draft_doc: null,
+      title: "T",
+      description: null,
+    });
+
+    await publishPage({ id: "page-1", updateParentStatus: false });
+
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "page_translations",
+      "tr-no",
+      expect.objectContaining({ published_doc: '{"live":true}' }),
+      expect.any(Array)
+    );
+  });
+
+  it("refuses to publish when there is neither a draft nor a published document", async () => {
+    db.listRows
+      .mockResolvedValueOnce({
+        rows: [{ $id: "tr-no", locale: "no", draft_doc: null }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ $id: "page-1", visibility: "public" }],
+      });
+
+    await expect(
+      publishPage({ id: "page-1", updateParentStatus: false })
+    ).rejects.toThrow("Nothing to publish for no");
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
   it("restores the read on other published locales when the page goes live again", async () => {
     db.listRows.mockImplementation((_db: string, table: string) => {
       if (table === "pages") {

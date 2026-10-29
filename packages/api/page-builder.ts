@@ -968,13 +968,18 @@ export async function publishPage({
     audience: pageAudience(visibility),
   });
   const draft = storedDraft(translation, draftRow);
+  // Never replace a live page with an empty document.
+  const publishedDoc = draft.draftDoc || translation.published_doc;
+  if (!publishedDoc) {
+    throw new Error(`Nothing to publish for ${locale}`);
+  }
 
   await db.updateRow(
     "app",
     "page_translations",
     translation.$id,
     {
-      published_doc: draft.draftDoc,
+      published_doc: publishedDoc,
       title: draft.title,
       description: draft.description,
       is_published: true,
