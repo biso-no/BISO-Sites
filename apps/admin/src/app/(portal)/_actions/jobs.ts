@@ -1390,6 +1390,63 @@ export async function setJobStatus(
 }
 
 /**
+ * Publish a draft vacancy: recruitment-scoped, draft only. Closing and
+ * reopening stay with `setJobStatus`.
+ */
+export async function publishJobDraft(
+  id: string
+): Promise<{ data: string; error?: never } | { data?: never; error: string }> {
+  const ctx = await requireAuth();
+
+  try {
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(sessionDb);
+    const visible = await getRecruitmentJobById(sessionDb, id);
+
+    if (!visible) {
+      return { error: "Vacancy not found" };
+    }
+
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visible);
+    const vacancy = (await getRecruitmentJobById(adminDb, id)) ?? visible;
+
+    if (vacancy.status !== JobsStatus.DRAFT) {
+      return { error: "Only a draft vacancy can be published." };
+    }
+
+    const audience = vacancy.metadata.audience ?? "public";
+    await adminDb.updateRow(
+      "app",
+      "jobs",
+      id,
+      { scheduled_publish_at: null, status: "published" },
+      buildJobRowPermissions(audience, "published")
+    );
+    await restampTranslationReads(adminDb, "job", id, "published");
+
+    await logAuditEvent(ctx, "recruitment.vacancy.publish", {
+      payload: { status: "published" },
+      resourceId: id,
+      resourceType: "job",
+    });
+
+    revalidatePath("/jobs");
+    revalidatePath(`/jobs/${id}`);
+    return { data: id };
+  } catch (error) {
+    unstable_rethrow(error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to publish the vacancy",
+    };
+  }
+}
+
+/**
  * Applications received for a vacancy. The studio uses it to warn HR off
  * rewriting a past round in place (see `describeJobReuse`).
  */

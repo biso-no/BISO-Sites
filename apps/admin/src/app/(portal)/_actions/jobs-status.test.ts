@@ -33,7 +33,7 @@ mock.module("@/lib/recruitment", () => ({
 mock.module("next/cache", () => ({ revalidatePath: revalidate }));
 mock.module("./audit-log", () => ({ logAuditEvent: audit }));
 
-const { setJobStatus } = await import("./jobs");
+const { publishJobDraft, setJobStatus } = await import("./jobs");
 
 function jobRow(overrides: Record<string, unknown>) {
   const row = {
@@ -175,5 +175,53 @@ describe("setJobStatus", () => {
     expect(await setJobStatus("nope", "closed")).toEqual({
       error: "Vacancy not found",
     });
+  });
+});
+
+describe("publishJobDraft", () => {
+  test("publishes a draft with public read, restamped translations and audit", async () => {
+    jobRow({ status: "draft" });
+
+    const result = await publishJobDraft("job-1");
+
+    expect(result).toEqual({ data: "job-1" });
+    expect(access).toHaveBeenCalled();
+    const [, table, id, data, perms] = adminDb.updateRow.mock.calls[0] as [
+      string,
+      string,
+      string,
+      Record<string, unknown>,
+      string[],
+    ];
+    expect([table, id]).toEqual(["jobs", "job-1"]);
+    expect(data).toEqual({ scheduled_publish_at: null, status: "published" });
+    expect(perms).toContain('read("any")');
+    expect(
+      adminDb.updateRow.mock.calls.some((c) => c[1] === "content_translations")
+    ).toBe(true);
+    expect(audit.mock.calls[0]?.[1]).toBe("recruitment.vacancy.publish");
+  });
+
+  test("refuses a vacancy that is not a draft", async () => {
+    for (const status of ["published", "closed"]) {
+      jobRow({ status });
+      const result = await publishJobDraft("job-1");
+      expect(result).toEqual({
+        error: "Only a draft vacancy can be published.",
+      });
+    }
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
+  });
+
+  test("a caller without vacancy access is refused and nothing is written", async () => {
+    jobRow({ status: "draft" });
+    access.mockImplementation(() => {
+      throw new Error("Forbidden");
+    });
+
+    const result = await publishJobDraft("job-1");
+
+    expect(result).toEqual({ error: "Forbidden" });
+    expect(adminDb.updateRow).not.toHaveBeenCalled();
   });
 });

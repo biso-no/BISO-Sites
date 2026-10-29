@@ -53,6 +53,14 @@ export function canPublishContent(
   return Boolean(campusId && ctx.managedCampusIds.includes(campusId));
 }
 
+/**
+ * Vacancies are created already published when the caller may publish, so the
+ * create step is the publish; every other domain publishes in a second step.
+ */
+export function createdContentNeedsPublish(domain: string): boolean {
+  return domain !== JOBS_DOMAIN;
+}
+
 export function assistantRoleSummary(ctx: UserAuthContext): string {
   if (ctx.roles.includes(ROLES.GLOBAL_ADMIN)) {
     return "Global admin (full access to all campuses)";

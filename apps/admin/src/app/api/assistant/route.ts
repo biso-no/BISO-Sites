@@ -62,7 +62,7 @@ import {
   deleteJob,
   getJob,
   listJobs,
-  setJobStatus,
+  publishJobDraft,
   updateJob,
 } from "@/app/(portal)/_actions/jobs";
 import {
@@ -92,6 +92,7 @@ import {
   assistantRoleSummary,
   benefitUpdateFromAssistant,
   canPublishContent,
+  createdContentNeedsPublish,
   dropBenefitDepartment,
   publishBenefitContent,
   withoutBenefitCode,
@@ -330,7 +331,13 @@ async function publishCreatedContent(
   context: AssistantCreateContentContext,
   result: unknown
 ) {
-  if (!(context.publish && !context.createDraftForApproval)) {
+  if (
+    !(
+      context.publish &&
+      !context.createDraftForApproval &&
+      createdContentNeedsPublish(context.domain)
+    )
+  ) {
     return;
   }
   const id = resultDataId(result);
@@ -367,7 +374,7 @@ async function publishCreatedContent(
 }
 
 async function publishJobVacancy(id: string) {
-  const result = await setJobStatus(id, "published");
+  const result = await publishJobDraft(id);
   if (result.error !== undefined) {
     throw new Error(result.error);
   }

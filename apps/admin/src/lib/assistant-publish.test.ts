@@ -10,6 +10,7 @@ mock.module("@/lib/benefit-publish", () => ({ publishBenefit }));
 const {
   assistantRoleSummary,
   canPublishContent,
+  createdContentNeedsPublish,
   dropBenefitDepartment,
   publishBenefitContent,
   benefitUpdateFromAssistant,
@@ -142,5 +143,12 @@ describe("canPublishContent for jobs", () => {
     });
     expect(canPublishContent(campusAdmin, "jobs", "c1")).toBe(false);
     expect(canPublishContent(campusAdmin, "news", "c1")).toBe(true);
+  });
+});
+
+describe("createdContentNeedsPublish", () => {
+  test("a created vacancy is already live, other domains publish after create", () => {
+    expect(createdContentNeedsPublish("jobs")).toBe(false);
+    expect(createdContentNeedsPublish("news")).toBe(true);
   });
 });

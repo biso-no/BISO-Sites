@@ -197,6 +197,27 @@ describe("vacancy drafts stay with recruiters", () => {
     expect(db.updateRow).not.toHaveBeenCalled();
   });
 
+  test("a global admin can approve a job draft", async () => {
+    db.getRow.mockResolvedValue({
+      $id: "job-1",
+      campus: { $id: "campus-oslo" },
+      campus_id: "campus-oslo",
+      department_id: null,
+      status: "draft",
+    });
+
+    const result = await approveDraft("job-1", "job");
+
+    expect(result).toEqual({ data: true });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "jobs",
+      "job-1",
+      { status: "published" },
+      expect.any(Array)
+    );
+  });
+
   test("a campus admin cannot reject a job draft", async () => {
     currentCtx = campusAdminCtx;
     db.getRow.mockResolvedValue({
