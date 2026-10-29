@@ -1,9 +1,11 @@
 import { Query } from "@repo/api";
+import { GraphUserService } from "@repo/connectors/azure/users";
 import { describe, expect, it, vi } from "vitest";
 import {
   backfillM365TeamSync,
   type M365TeamSyncDeps,
   microsoftIdentities,
+  noUserHasTeamIds,
   teamSyncRecordStore,
 } from "./m365-team-sync-backfill";
 
@@ -121,15 +123,56 @@ describe("backfillM365TeamSync", () => {
 
   it("writes nothing for a user with no record and no synced groups", async () => {
     const { deps, writeRecord } = makeDeps({
-      identities: [{ userId: "u", providerUid: "g" }],
-      groups: { g: ["Everyone"] },
-      records: { u: null },
+      identities: [
+        { userId: "u", providerUid: "g" },
+        { userId: "admin", providerUid: "g-admin" },
+      ],
+      groups: { g: ["Everyone"], "g-admin": ["SG-App-Campus-Oslo"] },
+      records: { u: null, admin: ["sg-app-campus-oslo"] },
     });
 
     const report = await backfillM365TeamSync(deps, { apply: true });
 
     expect(writeRecord).not.toHaveBeenCalled();
     expect(report.changes).toEqual([]);
+    expect(report.usersWithTeamIds).toBe(1);
+    expect(report.writesHeld).toBe(false);
+  });
+
+  it("writes nothing when no scanned user maps to any team id", async () => {
+    const { deps, writeRecord } = makeDeps({
+      identities: [
+        { userId: "a", providerUid: "g-a" },
+        { userId: "b", providerUid: "g-b" },
+      ],
+      groups: { "g-a": [], "g-b": ["Everyone"] },
+      records: { a: ["sg-app-campus-oslo"], b: null },
+    });
+
+    const report = await backfillM365TeamSync(deps, { apply: true });
+
+    expect(writeRecord).not.toHaveBeenCalled();
+    expect(report.scanned).toBe(2);
+    expect(report.usersWithTeamIds).toBe(0);
+    expect(report.writesHeld).toBe(true);
+    expect(noUserHasTeamIds(report)).toBe(true);
+    // Still listed, so the owner sees what would have been emptied.
+    expect(report.changes).toEqual([
+      { userId: "a", before: ["sg-app-campus-oslo"], after: [] },
+    ]);
+  });
+
+  it("a dry run reports the same condition without holding anything", async () => {
+    const { deps } = makeDeps({
+      identities: [{ userId: "a", providerUid: "g-a" }],
+      groups: { "g-a": [] },
+      records: { a: ["sg-app-campus-oslo"] },
+    });
+
+    const report = await backfillM365TeamSync(deps, { apply: false });
+
+    expect(noUserHasTeamIds(report)).toBe(true);
+    expect(report.writesHeld).toBe(false);
   });
 
   it("a Graph failure skips that user and the next one is still written", async () => {
@@ -189,6 +232,79 @@ describe("backfillM365TeamSync", () => {
 
     expect(report.scanned).toBe(1);
     expect(writeRecord.mock.calls).toEqual([["u", ["sg-app-campus-oslo"]]]);
+  });
+});
+
+describe("noUserHasTeamIds", () => {
+  it("is true only when users were scanned and none maps to a team id", () => {
+    expect(noUserHasTeamIds({ scanned: 0, usersWithTeamIds: 0 })).toBe(false);
+    expect(noUserHasTeamIds({ scanned: 3, usersWithTeamIds: 0 })).toBe(true);
+    expect(noUserHasTeamIds({ scanned: 3, usersWithTeamIds: 1 })).toBe(false);
+  });
+});
+
+describe("backfill with Graph group names it can't read", () => {
+  const GROUP = "#microsoft.graph.group";
+
+  /** A Graph client answering `transitiveMemberOf` per user from `pages`. */
+  function graphService(pages: Record<string, unknown>): GraphUserService {
+    const service = new GraphUserService("tenant", "client", "secret");
+    Reflect.set(service, "client", {
+      api: (path: string) => {
+        const request = {
+          get: async () => {
+            await Promise.resolve();
+            return pages[path];
+          },
+          select: () => request,
+        };
+        return request;
+      },
+    });
+    return service;
+  }
+
+  it("skips a user whose groups come back unnamed and still writes the next", async () => {
+    const graph = graphService({
+      "/users/g-1/transitiveMemberOf": {
+        value: [{ "@odata.type": GROUP, id: "group-1", displayName: null }],
+      },
+      "/users/g-2/transitiveMemberOf": {
+        value: [
+          {
+            "@odata.type": GROUP,
+            id: "group-2",
+            displayName: "SG-App-Campus-Oslo",
+          },
+        ],
+      },
+    });
+    const writeRecord = vi.fn(async () => {
+      await Promise.resolve();
+    });
+
+    const report = await backfillM365TeamSync(
+      {
+        async *listMicrosoftIdentities() {
+          await Promise.resolve();
+          yield { userId: "u1", providerUid: "g-1" };
+          yield { userId: "u2", providerUid: "g-2" };
+        },
+        groupNamesFor: (providerUid) =>
+          graph.listTransitiveGroupNames(providerUid),
+        readRecord: async () => {
+          await Promise.resolve();
+          return ["sg-app-campus-national"];
+        },
+        writeRecord,
+      },
+      { apply: true }
+    );
+
+    expect(report.errors).toHaveLength(1);
+    expect(report.errors[0].userId).toBe("u1");
+    expect(report.errors[0].message).toContain("GroupMember.Read.All");
+    expect(writeRecord.mock.calls).toEqual([["u2", ["sg-app-campus-oslo"]]]);
   });
 });
 

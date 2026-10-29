@@ -11,7 +11,9 @@ import { M365_TEAM_SYNC_TABLE_ID, syncedTeamIdForGroup } from "./team-roles";
  * sign-in.
  *
  * Each record describes only its own user's groups, so a failure for one user
- * is reported and that user is skipped; the rest still run. Safe to re-run.
+ * is reported and that user is skipped; the rest still run. Every user is
+ * scanned before anything is written, and nothing is written when no scanned
+ * user maps to any team id (`noUserHasTeamIds`). Safe to re-run.
  */
 
 const DATABASE_ID = "app";
@@ -42,6 +44,21 @@ export interface M365TeamSyncReport {
   changes: M365TeamSyncChange[];
   errors: { message: string; userId: string }[];
   scanned: number;
+  /** Scanned users whose groups produced at least one team id. */
+  usersWithTeamIds: number;
+  /** Apply was asked for, but nothing was written (`noUserHasTeamIds`). */
+  writesHeld: boolean;
+}
+
+/**
+ * True when users were scanned but none of them maps to any team id. At least
+ * the admins are in SG-App groups, so this almost always means the group names
+ * couldn't be read (a missing Graph permission), not that nobody has a team.
+ */
+export function noUserHasTeamIds(
+  report: Pick<M365TeamSyncReport, "scanned" | "usersWithTeamIds">
+): boolean {
+  return report.scanned > 0 && report.usersWithTeamIds === 0;
 }
 
 function errorMessage(error: unknown): string {
@@ -75,8 +92,15 @@ export async function backfillM365TeamSync(
   deps: M365TeamSyncDeps,
   options: { apply: boolean }
 ): Promise<M365TeamSyncReport> {
-  const report: M365TeamSyncReport = { changes: [], errors: [], scanned: 0 };
+  const report: M365TeamSyncReport = {
+    changes: [],
+    errors: [],
+    scanned: 0,
+    usersWithTeamIds: 0,
+    writesHeld: false,
+  };
   const seen = new Set<string>();
+  const pending: M365TeamSyncChange[] = [];
 
   for await (const { userId, providerUid } of deps.listMicrosoftIdentities()) {
     // The sign-in sync reads a user's first Microsoft identity; do the same.
@@ -96,19 +120,30 @@ export async function backfillM365TeamSync(
       continue;
     }
 
-    if (sameTeamIds(before, after)) {
-      continue;
+    if (after.length > 0) {
+      report.usersWithTeamIds += 1;
     }
+    if (!sameTeamIds(before, after)) {
+      pending.push({ userId, before, after });
+    }
+  }
 
-    if (options.apply) {
+  // Emptying every record is never right: hold all writes instead.
+  report.writesHeld = options.apply && noUserHasTeamIds(report);
+
+  for (const change of pending) {
+    if (options.apply && !report.writesHeld) {
       try {
-        await deps.writeRecord(userId, after);
+        await deps.writeRecord(change.userId, change.after);
       } catch (error) {
-        report.errors.push({ userId, message: errorMessage(error) });
+        report.errors.push({
+          userId: change.userId,
+          message: errorMessage(error),
+        });
         continue;
       }
     }
-    report.changes.push({ userId, before, after });
+    report.changes.push(change);
   }
 
   return report;

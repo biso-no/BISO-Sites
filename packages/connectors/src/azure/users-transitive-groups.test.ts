@@ -35,6 +35,8 @@ function serviceWith(client: ReturnType<typeof fakeGraph>): GraphUserService {
   return service;
 }
 
+const GROUP = "#microsoft.graph.group";
+
 describe("GraphUserService.listTransitiveGroupNames", () => {
   test("follows @odata.nextLink and returns every display name", async () => {
     const next =
@@ -42,13 +44,28 @@ describe("GraphUserService.listTransitiveGroupNames", () => {
     const graph = fakeGraph({
       "/users/graph-1/transitiveMemberOf": {
         value: [
-          { id: "1", displayName: "SG-App-Campus-Oslo" },
-          { id: "2", displayName: null },
+          { "@odata.type": GROUP, id: "1", displayName: "SG-App-Campus-Oslo" },
+          {
+            "@odata.type": "#microsoft.graph.directoryRole",
+            id: "2",
+            displayName: null,
+          },
+          {
+            "@odata.type": "#microsoft.graph.administrativeUnit",
+            id: "4",
+            displayName: null,
+          },
         ],
         "@odata.nextLink": next,
       },
       [next]: {
-        value: [{ id: "3", displayName: "SG-App-Dept-Marketing" }],
+        value: [
+          {
+            "@odata.type": GROUP,
+            id: "3",
+            displayName: "SG-App-Dept-Marketing",
+          },
+        ],
       },
     });
 
@@ -60,6 +77,53 @@ describe("GraphUserService.listTransitiveGroupNames", () => {
       next,
     ]);
     expect(graph.selects).toEqual(["id,displayName"]);
+  });
+
+  test("fails when a group comes back without its name", async () => {
+    // What Graph answers when the app can read users but not groups: 200 OK,
+    // each group with only @odata.type and id.
+    const graph = fakeGraph({
+      "/users/graph-1/transitiveMemberOf": {
+        value: [
+          { "@odata.type": GROUP, id: "1", displayName: "SG-App-Campus-Oslo" },
+          { "@odata.type": GROUP, id: "group-2", displayName: null },
+        ],
+      },
+    });
+
+    const result = serviceWith(graph).listTransitiveGroupNames("graph-1");
+
+    await expect(result).rejects.toThrow("group-2");
+    await expect(result).rejects.toThrow("GroupMember.Read.All");
+  });
+
+  test("fails when an unnamed object has no type", async () => {
+    const graph = fakeGraph({
+      "/users/graph-1/transitiveMemberOf": {
+        value: [{ id: "x", displayName: null }],
+      },
+    });
+
+    await expect(
+      serviceWith(graph).listTransitiveGroupNames("graph-1")
+    ).rejects.toThrow("Directory.Read.All");
+  });
+
+  test("fails when an unnamed group is on a later page", async () => {
+    const next = "https://graph.microsoft.com/v1.0/page-2";
+    const graph = fakeGraph({
+      "/users/graph-1/transitiveMemberOf": {
+        value: [
+          { "@odata.type": GROUP, id: "1", displayName: "SG-App-Campus-Oslo" },
+        ],
+        "@odata.nextLink": next,
+      },
+      [next]: { value: [{ "@odata.type": GROUP, id: "2" }] },
+    });
+
+    await expect(
+      serviceWith(graph).listTransitiveGroupNames("graph-1")
+    ).rejects.toThrow("GroupMember.Read.All");
   });
 
   test("encodes the user id in the path", async () => {

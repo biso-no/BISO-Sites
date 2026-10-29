@@ -7,6 +7,11 @@
  * deploy the admin and API builds that read the record. Deploying first leaves
  * every admin without access until they sign in with Microsoft again.
  *
+ * The Graph app must be able to read group names (GroupMember.Read.All or
+ * Directory.Read.All). Without that, users whose groups come back unnamed are
+ * reported as errors, and when no user maps to any team id nothing is written
+ * and the script exits 1.
+ *
  * Usage (from packages/shared):
  *   bun run backfill:m365-team-sync            # dry run
  *   bun run backfill:m365-team-sync -- --apply
@@ -17,6 +22,7 @@ import {
   backfillM365TeamSync,
   type M365TeamSyncReport,
   microsoftIdentities,
+  noUserHasTeamIds,
   teamSyncRecordStore,
 } from "../utils/m365-team-sync-backfill";
 
@@ -90,17 +96,33 @@ try {
 const showIds = (ids: string[] | null) =>
   ids === null ? "(no record)" : `[${ids.join(", ")}]`;
 
+const wrote = apply && !report.writesHeld;
 console.log(`Microsoft users scanned: ${report.scanned}`);
-console.log(`${apply ? "Written" : "Would write"}: ${report.changes.length}`);
+console.log(`Users with SG-App team ids: ${report.usersWithTeamIds}`);
+console.log(`${wrote ? "Written" : "Would write"}: ${report.changes.length}`);
 for (const change of report.changes) {
   console.log(
     `  ${change.userId}: ${showIds(change.before)} → ${showIds(change.after)}`
   );
 }
+
+let failed = false;
 if (report.errors.length > 0) {
+  failed = true;
   console.error(`ERRORS (users skipped): ${report.errors.length}`);
   for (const entry of report.errors) {
     console.error(`  ${entry.userId}: ${entry.message}`);
   }
+}
+if (noUserHasTeamIds(report)) {
+  failed = true;
+  console.error(
+    `WARNING: none of the ${report.scanned} scanned Microsoft users maps to any SG-App team id. The Graph app most likely can't read group names: give it the GroupMember.Read.All or Directory.Read.All application permission and run again.`
+  );
+  if (report.writesHeld) {
+    console.error("Nothing was written.");
+  }
+}
+if (failed) {
   process.exit(1);
 }

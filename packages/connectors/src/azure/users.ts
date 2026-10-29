@@ -134,10 +134,49 @@ export interface GraphUserSearchOptions {
   officeLocations?: string[];
 }
 
+/**
+ * An item of a Graph directory-object list. Graph always sends the
+ * `@odata.type` annotation on these polymorphic lists, even with `$select`.
+ */
+interface GraphDirectoryObject {
+  "@odata.type"?: unknown;
+  displayName?: unknown;
+  id?: unknown;
+}
+
 /** One page of a Graph directory-object list, e.g. `transitiveMemberOf`. */
 interface GraphDirectoryObjectPage {
   "@odata.nextLink"?: string;
-  value?: { displayName?: unknown }[];
+  value?: GraphDirectoryObject[];
+}
+
+const GRAPH_GROUP_TYPE = "#microsoft.graph.group";
+
+/**
+ * The display names in a directory-object list. When the app may not read an
+ * object type, Graph still answers 200 but sends those objects with only
+ * `@odata.type` and `id` (other properties null). A group, or an object of
+ * unknown type, without a name therefore means the names can't be read: fail
+ * rather than return a short list. Other unnamed objects (directory roles,
+ * administrative units) are skipped.
+ */
+function directoryObjectNames(
+  items: readonly GraphDirectoryObject[]
+): string[] {
+  const names: string[] = [];
+  for (const item of items) {
+    if (typeof item.displayName === "string") {
+      names.push(item.displayName);
+      continue;
+    }
+    const type = item["@odata.type"];
+    if (typeof type !== "string" || type === GRAPH_GROUP_TYPE) {
+      throw new Error(
+        `Microsoft Graph returned group ${String(item.id ?? "(no id)")} without a display name. The app registration likely lacks the GroupMember.Read.All or Directory.Read.All application permission.`
+      );
+    }
+  }
+  return names;
 }
 
 export interface LicensedUsersResult {
@@ -818,29 +857,30 @@ export class GraphUserService {
    * nested groups, following @odata.nextLink. The same read the M365 sign-in
    * sync makes (`/me/transitiveMemberOf?$select=id,displayName`), for a given
    * user with the app's own credentials.
+   *
+   * Throws when a group comes back without its name: with only User.Read.All
+   * Graph answers 200 but hides group names, and a silent empty list would
+   * look like "no groups".
    */
   async listTransitiveGroupNames(userId: string): Promise<string[]> {
-    const names: string[] = [];
+    const items: GraphDirectoryObject[] = [];
     try {
       let page: GraphDirectoryObjectPage = await this.client
         .api(`/users/${encodeGraphPathSegment(userId)}/transitiveMemberOf`)
         .select("id,displayName")
         .get();
       for (;;) {
-        for (const item of page.value ?? []) {
-          if (typeof item.displayName === "string") {
-            names.push(item.displayName);
-          }
-        }
+        items.push(...(page.value ?? []));
         const nextLink = page["@odata.nextLink"];
         if (!nextLink) {
-          return names;
+          break;
         }
         page = await this.client.api(nextLink).get();
       }
     } catch (error) {
       throw normalizeGraphError(error);
     }
+    return directoryObjectNames(items);
   }
 
   /**
