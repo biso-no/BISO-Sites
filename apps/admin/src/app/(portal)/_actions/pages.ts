@@ -77,6 +77,7 @@ import {
 } from "@/lib/utils/authorization";
 import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
+import { countDrafts } from "./drafts";
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
   const ctx = await requireAuth();
@@ -135,13 +136,9 @@ export async function getDashboardStats() {
       Query.limit(1),
       ...scopeFilter,
     ]),
-    canSeeJobs
-      ? db.listRows("app", "jobs", [
-          Query.equal("status", "draft"),
-          Query.limit(1),
-          ...scopeFilter,
-        ])
-      : skipped,
+    // Same scope as the /drafts queue: vacancies for recruiters, plus events
+    // and news for everyone.
+    countDrafts().then((total) => ({ total })),
   ]);
 
   return {

@@ -40,6 +40,42 @@ export interface DraftItem {
   updatedAt: string;
 }
 
+/**
+ * How many drafts the caller's /drafts queue holds, counted in the same scope
+ * `listDrafts` uses: vacancies for recruiters, events and news for everyone.
+ */
+export async function countDrafts(): Promise<number> {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const contentScope = applyContentRelationshipScopeQueries(ctx);
+  const canSeeJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
+  const count = async (
+    table: "events" | "jobs" | "news",
+    scope: string[]
+  ): Promise<number> => {
+    try {
+      const res = await db.listRows("app", table, [
+        Query.equal("status", "draft"),
+        Query.limit(1),
+        ...scope,
+      ]);
+      return res.total ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+  const [jobs, events, news] = await Promise.all([
+    canSeeJobs ? count("jobs", applyScopeQueries(ctx)) : 0,
+    count("events", contentScope),
+    count("news", contentScope),
+  ]);
+  return jobs + events + news;
+}
+
 export async function listDrafts(): Promise<DraftItem[]> {
   const ctx = await requireAuth();
   // Private admin read: the service client bypasses row security, so the

@@ -56,7 +56,9 @@ mock.module("./audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { approveDraft, listDrafts, rejectDraft } = await import("./drafts");
+const { approveDraft, countDrafts, listDrafts, rejectDraft } = await import(
+  "./drafts"
+);
 
 beforeEach(() => {
   currentCtx = adminCtx;
@@ -172,6 +174,27 @@ describe("vacancy drafts stay with recruiters", () => {
     expect(tables).not.toContain("jobs");
     expect(tables).toContain("events");
     expect(tables).toContain("news");
+  });
+
+  test("a campus admin's draft count covers events and news, not jobs", async () => {
+    currentCtx = campusAdminCtx;
+    db.listRows.mockImplementation(async (_db: string, table: string) => ({
+      rows: [],
+      total: { events: 2, jobs: 9, news: 3 }[table] ?? 0,
+    }));
+
+    expect(await countDrafts()).toBe(5);
+    const tables = db.listRows.mock.calls.map((call) => call[1]);
+    expect(tables).not.toContain("jobs");
+  });
+
+  test("a global admin's draft count includes jobs", async () => {
+    db.listRows.mockImplementation(async (_db: string, table: string) => ({
+      rows: [],
+      total: { events: 2, jobs: 9, news: 3 }[table] ?? 0,
+    }));
+
+    expect(await countDrafts()).toBe(14);
   });
 
   test("a global admin's draft queue lists jobs", async () => {
