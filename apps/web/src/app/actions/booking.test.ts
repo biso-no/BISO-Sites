@@ -14,8 +14,29 @@ const db = vi.hoisted(() => {
   };
 });
 
+const users = vi.hoisted(() => ({ get: vi.fn() }));
+const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
+const deferred = vi.hoisted(() => ({
+  callbacks: [] as Array<() => unknown>,
+}));
+
+vi.mock("next/server", () => ({
+  after: (callback: () => unknown) => {
+    deferred.callbacks.push(callback);
+  },
+}));
+
+async function flushDeferred(): Promise<void> {
+  const callbacks = deferred.callbacks.splice(0);
+  await Promise.all(callbacks.map((callback) => callback()));
+}
+
 vi.mock("@repo/api/server", () => ({
-  createAdminClient: vi.fn(async () => ({ db })),
+  createAdminClient: vi.fn(async () => ({ db, users })),
+}));
+
+vi.mock("@repo/connectors/email", () => ({
+  sendEmail: (...args: unknown[]) => mail.sendEmail(...args),
 }));
 
 const graph = vi.hoisted(() => ({
@@ -59,6 +80,8 @@ const tokenRow = {
 };
 
 function mockHappyPath({
+  applicationStatus = "interview",
+  jobStatus = "published",
   overlappingInterviews = [] as Array<{ $id: string }>,
 } = {}) {
   db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
@@ -79,6 +102,7 @@ function mockHappyPath({
       applicant_email: "candidate@example.com",
       applicant_name: "Candidate Person",
       job_id: "job-1",
+      status: applicationStatus,
     })
     .mockResolvedValueOnce({
       $id: "job-1",
@@ -86,6 +110,7 @@ function mockHappyPath({
       campus_id: "campus-oslo",
       department: { Name: "HR" },
       department_id: "dept-hr",
+      status: jobStatus,
     });
 }
 
@@ -116,6 +141,11 @@ describe("recruitment booking actions", () => {
     db.updateRow.mockResolvedValue({});
     db.incrementRowColumn.mockResolvedValue({ claim_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({ claim_lock: 0 });
+    deferred.callbacks.length = 0;
+    users.get.mockReset();
+    users.get.mockResolvedValue({ email: "hr@biso.no" });
+    mail.sendEmail.mockReset();
+    mail.sendEmail.mockResolvedValue({ accepted: ["hr@biso.no"] });
     graph.busy = [];
     graph.client = {};
     graph.schedule.mockReset();
@@ -136,6 +166,7 @@ describe("recruitment booking actions", () => {
         applicant_email: "c@x.no",
         applicant_name: "C",
         job_id: "job-1",
+        status: "interview",
       })
       .mockResolvedValueOnce({
         $id: "job-1",
@@ -217,6 +248,125 @@ describe("recruitment booking actions", () => {
     });
   });
 
+  it("tells the token's owner and writes an audit row when no invite could be sent", async () => {
+    mockHappyPath();
+    graph.client = null;
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T10:00:00.000Z"
+    );
+
+    expect("data" in result && result.data.invited).toBe(false);
+    await flushDeferred();
+    expect(users.get).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "hr-user-1" })
+    );
+    expect(mail.sendEmail).toHaveBeenCalledTimes(1);
+    const mailArgs = mail.sendEmail.mock.calls[0][0] as {
+      html: string;
+      text: string;
+      to: string;
+    };
+    expect(mailArgs.to).toBe("hr@biso.no");
+    expect(mailArgs.text).toContain("Candidate Person");
+    expect(mailArgs.text).toContain("/jobs/job-1/applications");
+    const audit = db.createRow.mock.calls.find(
+      (call: unknown[]) => call[1] === "audit_logs"
+    );
+    expect(audit?.[3]).toEqual(
+      expect.objectContaining({
+        action: "recruitment.booking.invite_failed",
+        actor_id: "system:booking",
+        resource_type: "job_interview",
+      })
+    );
+  });
+
+  it("does not alert anyone when the invite went out", async () => {
+    mockHappyPath();
+
+    await confirmBookingSlot("booking-token", "2027-07-01T10:00:00.000Z");
+    await flushDeferred();
+
+    expect(mail.sendEmail).not.toHaveBeenCalled();
+    expect(
+      db.createRow.mock.calls.some(
+        (call: unknown[]) => call[1] === "audit_logs"
+      )
+    ).toBe(false);
+  });
+
+  it("keeps the booking when the alert itself fails", async () => {
+    mockHappyPath();
+    graph.client = null;
+    mail.sendEmail.mockRejectedValue(new Error("smtp down"));
+    users.get.mockRejectedValue(new Error("no such user"));
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T10:00:00.000Z"
+    );
+
+    await flushDeferred();
+    expect(result).toEqual({
+      data: {
+        interview_id: expect.any(String),
+        invited: false,
+        starts_at: "2027-07-01T10:00:00.000Z",
+      },
+    });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "recruitment_booking_tokens",
+      "token-row-1",
+      expect.objectContaining({ consumed_at: expect.any(String) })
+    );
+  });
+
+  it("keeps the booking when the alert's audit write fails", async () => {
+    mockHappyPath();
+    graph.client = null;
+    const base = db.createRow.getMockImplementation();
+    db.createRow.mockImplementation(async (...args: unknown[]) => {
+      if (args[1] === "audit_logs") {
+        throw new Error("audit down");
+      }
+      return await (base as (...a: unknown[]) => Promise<unknown>)(...args);
+    });
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T10:00:00.000Z"
+    );
+
+    await flushDeferred();
+    expect("data" in result).toBe(true);
+    expect(mail.sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the booking and consumes the token even if the alert would hang", async () => {
+    mockHappyPath();
+    graph.client = null;
+    mail.sendEmail.mockReturnValue(new Promise(() => undefined));
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T10:00:00.000Z"
+    );
+
+    expect("data" in result && result.data.invited).toBe(false);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "recruitment_booking_tokens",
+      "token-row-1",
+      expect.objectContaining({ consumed_at: expect.any(String) })
+    );
+    // The alert is only queued; nothing was sent before the response.
+    expect(deferred.callbacks).toHaveLength(1);
+    expect(mail.sendEmail).not.toHaveBeenCalled();
+  });
+
   it("refuses a slot outside office hours even if it is inside the window", async () => {
     mockHappyPath();
 
@@ -256,6 +406,29 @@ describe("recruitment booking actions", () => {
         column: "claim_lock",
       })
     );
+  });
+
+  it("refuses a link once the candidate has left the interview stage", async () => {
+    for (const applicationStatus of ["rejected", "accepted", "reviewed"]) {
+      mockHappyPath({ applicationStatus });
+      const context = await getBookingContext("booking-token");
+      expect(context).toEqual({ error: "This booking link has expired." });
+
+      mockHappyPath({ applicationStatus });
+      const confirmed = await confirmBookingSlot(
+        "booking-token",
+        "2027-07-01T10:00:00.000Z"
+      );
+      expect(confirmed).toEqual({ error: "This booking link has expired." });
+    }
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("still serves a link when the vacancy is closed", async () => {
+    mockHappyPath({ jobStatus: "closed" });
+    const context = await getBookingContext("booking-token");
+    expect(context).not.toHaveProperty("error");
   });
 
   it("rejects a token whose atomic claim was already taken", async () => {

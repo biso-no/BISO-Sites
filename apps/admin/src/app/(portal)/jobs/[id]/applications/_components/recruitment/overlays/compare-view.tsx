@@ -55,15 +55,22 @@ export function CompareView({
     winnerId: string | null;
   } | null>(null);
 
-  useEffect(() => {
-    let active = true;
+  const [synthesising, setSynthesising] = useState(false);
+
+  // The verdict is a model call about these candidates, so it runs on a click.
+  const requestSynthesis = () => {
+    setSynthesising(true);
     generateComparisonSynthesis(jobId, job.titleEn, selected.map(toSummary))
-      .then((result) => active && setSynthesis(result))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [jobId, job.titleEn, selected]);
+      .then(setSynthesis)
+      .catch(() => undefined)
+      .finally(() => setSynthesising(false));
+  };
+
+  // A different selection makes an earlier verdict stale.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on selection change
+  useEffect(() => {
+    setSynthesis(null);
+  }, [ids]);
 
   const sharedSkills = useMemo(() => {
     if (selected.length === 0) {
@@ -155,7 +162,19 @@ export function CompareView({
           <span className="cmp-synth-tag">
             <Sparkles size={13} /> AI synthesis · v4.2
           </span>
-          <p>{synthesis ? synthesis.verdict : "Analysing candidates…"}</p>
+          <p>
+            {synthesis
+              ? synthesis.verdict
+              : "Ask the AI for a verdict. Names and contact details are removed before it sees anything."}
+          </p>
+          <button
+            className="btn-ghost"
+            disabled={synthesising || selected.length < 2}
+            onClick={requestSynthesis}
+            type="button"
+          >
+            {synthesising ? "Analysing candidates…" : "Get AI verdict"}
+          </button>
         </div>
 
         <div

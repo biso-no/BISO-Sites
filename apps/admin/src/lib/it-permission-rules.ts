@@ -35,12 +35,13 @@ export const IT_PERMISSIONS: M365Permission[] = [
 ];
 
 /**
- * Read-only per-user permissions a campus admin holds, scoped to the campuses
- * they manage. Every mutating operation and all tenant-wide tooling stays
- * global-admin only.
+ * Permissions a campus admin holds, scoped to the campuses they manage: read
+ * access plus creating users in those campuses. Every other mutation and all
+ * tenant-wide tooling stays global-admin only.
  */
 const CAMPUS_ADMIN_PERMISSIONS = new Set<M365Permission>([
   "it.users.view",
+  "it.users.create",
   "it.users.viewSecurity",
 ]);
 

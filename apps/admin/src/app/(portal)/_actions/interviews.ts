@@ -8,6 +8,7 @@ import type {
   JobInterviewScorecards,
   JobInterviews,
   Jobs,
+  RecruitmentBookingTokens,
 } from "@repo/api/types/appwrite";
 import {
   JobInterviewParticipantsResponseStatus,
@@ -27,6 +28,7 @@ import {
   scheduleInterviewOnGraph,
 } from "@repo/connectors/azure/recruitment-scheduling";
 import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
+import { isBookingLinkUsable } from "@repo/shared/recruitment/booking-link";
 import { availableSlots } from "@repo/shared/recruitment/booking-slots";
 import {
   RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS,
@@ -56,9 +58,11 @@ const TRAILING_SLASH_RE = /\/$/;
 const APPLICATION_JOB_SELECT = [
   "$id",
   "job_id",
+  "status",
   "applicant_name",
   "applicant_email",
   "job.$id",
+  "job.status",
   "job.campus_id",
   "job.department_id",
 ] as const;
@@ -368,6 +372,7 @@ export async function submitScorecard(
       application_id: interview.application_id,
       concerns: input.concerns ?? null,
       criteria: JSON.stringify(input.criteria),
+      interview: input.interview_id,
       interview_id: input.interview_id,
       interviewer_user_id: ctx.userId,
       overall_score: input.overall_score,
@@ -423,6 +428,48 @@ export async function submitScorecard(
   }
 }
 
+const TOKEN_PAGE_SIZE = 100;
+
+/**
+ * The application's links that are neither used nor expired. Only the indexed
+ * application_id is queried; the rest is filtered here.
+ */
+async function openBookingTokens(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  applicationId: string,
+  nowIso: string
+): Promise<RecruitmentBookingTokens[]> {
+  const open: RecruitmentBookingTokens[] = [];
+  let cursor: string | null = null;
+  while (true) {
+    const queries = [
+      Query.equal("application_id", applicationId),
+      Query.orderAsc("$id"),
+      Query.limit(TOKEN_PAGE_SIZE),
+    ];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+    const page = await db.listRows<RecruitmentBookingTokens>(
+      DATABASE_ID,
+      "recruitment_booking_tokens",
+      queries
+    );
+    for (const row of page.rows) {
+      if (!row.consumed_at && row.expires_at > nowIso) {
+        open.push(row);
+      }
+    }
+    if (page.rows.length < TOKEN_PAGE_SIZE) {
+      return open;
+    }
+    cursor = page.rows.at(-1)?.$id ?? null;
+    if (!cursor) {
+      return open;
+    }
+  }
+}
+
 export async function createBookingToken(
   values: RecruitmentBookingProposeInput
 ): Promise<{ data?: { token: string; url: string }; error?: string }> {
@@ -453,6 +500,22 @@ export async function createBookingToken(
       department_id: job.department_id,
     });
 
+    if (
+      !isBookingLinkUsable({
+        applicationStatus: application.status,
+        hasJob: true,
+      })
+    ) {
+      return {
+        error:
+          "Booking links can only be sent to candidates in the interview stage.",
+      };
+    }
+
+    // Links already out for this candidate stop working once a new one exists.
+    const nowIso = new Date().toISOString();
+    const earlier = await openBookingTokens(db, input.application_id, nowIso);
+
     const issued = issueBookingToken();
     const ttlDays =
       input.expires_in_days ?? RECRUITMENT_BOOKING_TOKEN_DEFAULT_TTL_DAYS;
@@ -481,6 +544,23 @@ export async function createBookingToken(
       buildRecruitmentStaffRowPermissions()
     );
 
+    // A failure here must not stop the new link from being returned.
+    for (const row of earlier) {
+      try {
+        await db.updateRow<RecruitmentBookingTokens>(
+          DATABASE_ID,
+          "recruitment_booking_tokens",
+          row.$id,
+          { expires_at: nowIso }
+        );
+      } catch (error) {
+        console.error(
+          `[Booking] Could not expire earlier link ${row.$id}:`,
+          error
+        );
+      }
+    }
+
     await logAuditEvent(ctx, "recruitment.booking.issue", {
       payload: {
         application_id: input.application_id,
@@ -503,6 +583,108 @@ export async function createBookingToken(
         error instanceof Error
           ? error.message
           : "Failed to issue booking token",
+    };
+  }
+}
+
+export interface BookingTokenSummary {
+  consumed_at: string | null;
+  created_at: string;
+  expires_at: string;
+  id: string;
+}
+
+async function assertApplicationAccess(
+  db: Awaited<ReturnType<typeof createSessionClient>>["db"],
+  ctx: UserAuthContext,
+  applicationId: string
+): Promise<void> {
+  const scope = toRecruitmentAdminScope(ctx);
+  const lookups = await loadRecruitmentLookups(db);
+  const application = await db.getRow<JobApplications>(
+    DATABASE_ID,
+    "job_applications",
+    applicationId,
+    [Query.select([...APPLICATION_JOB_SELECT])]
+  );
+  const job = application.job as Jobs | null;
+  if (!job) {
+    throw new Error("Vacancy not found");
+  }
+  assertInterviewWriteAccess(scope, lookups, {
+    campus_id: job.campus_id,
+    department_id: job.department_id,
+  });
+}
+
+export async function listBookingTokens(
+  applicationId: string
+): Promise<{ data?: BookingTokenSummary[]; error?: string }> {
+  const ctx = await requireAuth();
+  try {
+    const { db } = await createSessionClient();
+    await assertApplicationAccess(db, ctx, applicationId);
+    const result = await db.listRows<RecruitmentBookingTokens>(
+      DATABASE_ID,
+      "recruitment_booking_tokens",
+      [
+        Query.equal("application_id", applicationId),
+        Query.orderDesc("$createdAt"),
+        Query.limit(50),
+      ]
+    );
+    return {
+      data: result.rows.map((row) => ({
+        consumed_at: row.consumed_at ?? null,
+        created_at: row.$createdAt,
+        expires_at: row.expires_at,
+        id: row.$id,
+      })),
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to list booking links",
+    };
+  }
+}
+
+export async function revokeBookingToken(
+  tokenId: string
+): Promise<{ data?: { id: string }; error?: string }> {
+  const ctx = await requireAuth();
+  try {
+    const { db } = await createSessionClient();
+    const token = await db.getRow<RecruitmentBookingTokens>(
+      DATABASE_ID,
+      "recruitment_booking_tokens",
+      tokenId
+    );
+    await assertApplicationAccess(db, ctx, token.application_id);
+    if (token.consumed_at) {
+      return { error: "This link has already been used to book." };
+    }
+    if (new Date(token.expires_at).getTime() <= Date.now()) {
+      return { error: "This link has already expired." };
+    }
+    await db.updateRow<RecruitmentBookingTokens>(
+      DATABASE_ID,
+      "recruitment_booking_tokens",
+      tokenId,
+      { expires_at: new Date().toISOString() }
+    );
+    await logAuditEvent(ctx, "recruitment.booking.revoke", {
+      payload: { application_id: token.application_id },
+      resourceId: tokenId,
+      resourceType: "recruitment_booking_token",
+    });
+    return { data: { id: tokenId } };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to revoke booking link",
     };
   }
 }

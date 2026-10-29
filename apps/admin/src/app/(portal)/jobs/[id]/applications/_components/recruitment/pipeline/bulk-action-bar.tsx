@@ -1,8 +1,10 @@
 "use client";
 
 import { Archive, CalendarPlus, Mail, MoveRight, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRecruitment } from "../recruitment-context";
 import { RECRUITMENT_STAGES, type RecruitmentStageId } from "../view-model";
+import { runBulkArchive } from "./bulk-actions";
 
 export function BulkActionBar({
   selectedIds,
@@ -14,6 +16,7 @@ export function BulkActionBar({
   selectedIds: string[];
 }) {
   const { actions } = useRecruitment();
+  const t = useTranslations("adminPortal.jobs.studio");
   const count = selectedIds.length;
   if (count === 0) {
     return null;
@@ -27,7 +30,7 @@ export function BulkActionBar({
         onClick={() => actions.openEmail(selectedIds, "schedule")}
         type="button"
       >
-        <CalendarPlus size={13} /> Schedule
+        <CalendarPlus size={13} /> {t("bulkDraftInvites")}
       </button>
       <label className="bb-move">
         <MoveRight size={13} /> Move stage
@@ -61,10 +64,10 @@ export function BulkActionBar({
       </button>
       <button
         className="bb-act"
-        onClick={() => actions.openEmail(selectedIds, "reject")}
+        onClick={() => runBulkArchive(onMoveStage)}
         type="button"
       >
-        <Archive size={13} /> Archive
+        <Archive size={13} /> {t("bulkArchive")}
       </button>
       <button
         className="bb-close"

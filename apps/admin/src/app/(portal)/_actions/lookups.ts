@@ -6,7 +6,7 @@ import type { Campus, Departments, SalesTypes } from "@repo/api/types/appwrite";
 import { requireAuth } from "@/lib/authorization";
 import { isHrDepartment } from "@/lib/recruitment";
 
-const HR_DEPARTMENT_NAMES = ["HR", "HR Unit", "HRUnit"];
+const HR_DEPARTMENT_NAMES = ["HR"];
 
 export async function listCampuses(): Promise<Campus[]> {
   await requireAuth();
@@ -60,13 +60,10 @@ export async function listJobDepartmentsForCampus(
   const canManageAnyCampus =
     ctx.roles.includes("globaladmin") ||
     ctx.roles.includes("hradmin") ||
-    (isHrDepartment(ctx.departmentNames) &&
-      ctx.campusNames.includes("National"));
+    (ctx.roles.includes("hr") && ctx.campusNames.includes("National"));
   const canManageCampus =
     canManageAnyCampus ||
-    ((ctx.roles.includes("hr") ||
-      ctx.roles.includes("campusadmin") ||
-      isHrDepartment(ctx.departmentNames)) &&
+    ((ctx.roles.includes("hr") || ctx.roles.includes("campusadmin")) &&
       (ctx.resolvedCampusIds.includes(campusId) ||
         ctx.managedCampusIds.includes(campusId)));
 

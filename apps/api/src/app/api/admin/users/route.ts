@@ -122,6 +122,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Validate Graph credentials
     if (
       !(
@@ -147,6 +151,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const input = parseResult.data;
+    if (input.additionalGroupIds.length > 0 && !scope.isGlobalAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const jwt = extractJwtFromRequest(request);
     const { db } = await createSessionClient(jwt);
     const { db: adminDb } = await createAdminClient();

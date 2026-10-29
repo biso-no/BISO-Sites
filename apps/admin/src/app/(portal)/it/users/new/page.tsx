@@ -1,11 +1,16 @@
 import { getTranslations } from "next-intl/server";
-import { requireItPagePermission } from "@/lib/it-permissions";
+import { scopeItLookupOptions } from "@/lib/it/tenant-guard";
+import {
+  getItCampusScope,
+  requireItPagePermission,
+} from "@/lib/it-permissions";
 import { listItLookupOptions } from "../../../_actions/it-users";
 import { PageHeader } from "../../../_components/page-header";
 import { CreateUserClient } from "../_components/create-user-client";
 
 export default async function NewM365UserPage() {
-  await requireItPagePermission("it.users.create");
+  const ctx = await requireItPagePermission("it.users.create");
+  const campusScope = getItCampusScope(ctx);
 
   const t = await getTranslations("adminPortal.it.users");
   const lookups = await listItLookupOptions();
@@ -39,7 +44,10 @@ export default async function NewM365UserPage() {
             temporaryPassword: t("temporaryPassword"),
             userPrincipalName: t("fields.userPrincipalName"),
           }}
-          options={lookups.data ?? { campuses: [], departments: [] }}
+          options={scopeItLookupOptions(
+            lookups.data ?? { campuses: [], departments: [] },
+            campusScope
+          )}
         />
       )}
     </div>

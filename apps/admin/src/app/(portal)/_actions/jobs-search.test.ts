@@ -4,6 +4,18 @@ import { Query } from "@repo/api";
 const realRecruitment = await import("@/lib/recruitment");
 
 const db = { listRows: mock() };
+// Service-key client: answers `$id` lookups from the rows the session saw, so
+// translations the session cannot read can be supplied here instead.
+const adminRows = new Map<string, unknown>();
+const adminDb = {
+  listRows: mock((_db: string, _table: string, queries: string[]) => {
+    const ids = queries
+      .map((q) => JSON.parse(q) as { attribute?: string; values: string[] })
+      .find((q) => q.attribute === "$id")?.values;
+    const rows = (ids ?? []).flatMap((id) => adminRows.get(id) ?? []);
+    return Promise.resolve({ rows, total: rows.length });
+  }),
+};
 
 let scope = {
   canManageAnyCampus: false,
@@ -15,7 +27,7 @@ let scope = {
 };
 
 mock.module("@repo/api/server", () => ({
-  createAdminClient: mock(async () => ({ db })),
+  createAdminClient: mock(async () => ({ db: adminDb })),
   createSessionClient: mock(async () => ({ db })),
 }));
 mock.module("@/lib/authorization", () => ({
@@ -42,7 +54,7 @@ const { listJobApplications, listJobs } = await import("./jobs");
 const SCOPE = Query.equal("campus.$id", ["1"]);
 
 function jobRow(id: string, title: string, status = "published") {
-  return {
+  const row = {
     $createdAt: "2026-01-01T00:00:00.000Z",
     $id: id,
     $updatedAt: "2026-01-01T00:00:00.000Z",
@@ -55,6 +67,8 @@ function jobRow(id: string, title: string, status = "published") {
     status,
     translations: [{ $id: `${id}-no`, locale: "no", title }],
   };
+  adminRows.set(id, row);
+  return row;
 }
 
 type ListRowsArgs = [string, string, string[]];
@@ -68,6 +82,7 @@ function callsFor(tableId: string): string[][] {
 describe("listJobs search", () => {
   beforeEach(() => {
     db.listRows.mockReset();
+    adminRows.clear();
     scope = { ...scope, canManageAnyCampus: false };
   });
 
@@ -112,6 +127,20 @@ describe("listJobs search", () => {
     expect(result.rows.map((row) => row.$id)).toEqual(["b"]);
     expect(result.counts.all).toBe(2);
     expect(result.counts.draft).toBe(1);
+  });
+
+  test("fills in translations the session cannot read from the service key", async () => {
+    const hidden = { ...jobRow("job-x", "Markedsansvarlig", "draft") };
+    // The session sees the vacancy but none of its translations.
+    db.listRows.mockResolvedValueOnce({
+      rows: [{ ...hidden, translations: [] }],
+      total: 1,
+    });
+
+    const result = await listJobs({ search: "markeds" });
+
+    expect(result.rows.map((row) => row.$id)).toEqual(["job-x"]);
+    expect(adminDb.listRows).toHaveBeenCalled();
   });
 
   test("pages and counts in Appwrite when not searching", async () => {

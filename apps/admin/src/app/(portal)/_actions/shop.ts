@@ -549,11 +549,11 @@ async function syncProductCustomFields(
  * bypassed by calling the API directly.
  *
  * Be clear about what this does and does not change TODAY: nothing. Both
- * `webshop_products` and `content_translations` still carry a table-level
- * `read("any")`, and Appwrite's row security is additive — a row is readable if
- * the table grants it OR the row does — so the old
- * `read("team:<members>")` row ACL never actually hid a product or its title
- * from anyone. The only thing that hid members-only products was the
+ * `webshop_products` still carries a table-level `read("any")` (translation
+ * rows carry their own read, see `translationReadPermissions`), and Appwrite's
+ * row security is additive — a row is readable if the table grants it OR the
+ * row does — so the old `read("team:<members>")` row ACL never actually hid a
+ * product from anyone. The only thing that hid members-only products was the
  * client-side filter in `shop-list-client.tsx`, now deleted.
  *
  * This is written for the day those table-level grants are removed (see

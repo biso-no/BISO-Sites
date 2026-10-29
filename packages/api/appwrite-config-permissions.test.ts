@@ -182,3 +182,214 @@ describe("team grants in table and bucket permissions", () => {
     );
   });
 });
+
+describe("content tables are readable only through row permissions", () => {
+  const CONTENT_TABLES = [
+    "campus_benefits",
+    "pages",
+    "page_translations",
+    "events",
+    "content_translations",
+  ] as const;
+
+  function findContentTable(tableId: string) {
+    return loadAppwriteConfig().tables.find(
+      (candidate) => candidate.databaseId === "app" && candidate.$id === tableId
+    );
+  }
+
+  test("row security is on and no table-level read grant remains", () => {
+    for (const tableId of CONTENT_TABLES) {
+      const table = findContentTable(tableId);
+
+      expect(table, tableId).toBeDefined();
+      expect(table?.rowSecurity, tableId).toBe(true);
+      const readGrants = (table?.$permissions ?? []).filter((permission) =>
+        permission.startsWith("read(")
+      );
+      expect(readGrants, tableId).toEqual([]);
+    }
+  });
+
+  test("campus_benefits has no table-level permissions", () => {
+    expect(findContentTable("campus_benefits")?.$permissions).toEqual([]);
+  });
+});
+
+describe("Microsoft team sync records", () => {
+  interface SyncTable {
+    $id: string;
+    $permissions: string[];
+    columns: {
+      array: boolean;
+      key: string;
+      required: boolean;
+      size?: number;
+      type: string;
+    }[];
+    databaseId: string;
+    enabled: boolean;
+    rowSecurity: boolean;
+  }
+
+  function findSyncTable(): SyncTable | undefined {
+    const config = JSON.parse(
+      readFileSync(join(import.meta.dirname, "appwrite.config.json"), "utf8")
+    ) as { tables: SyncTable[] };
+    return config.tables.find(
+      (candidate) =>
+        candidate.databaseId === "app" && candidate.$id === "m365_team_sync"
+    );
+  }
+
+  test("m365_team_sync is service-only with row security", () => {
+    const table = findSyncTable();
+
+    expect(table).toBeDefined();
+    expect(table?.enabled).toBe(true);
+    expect(table?.rowSecurity).toBe(true);
+    expect(table?.$permissions).toEqual([]);
+  });
+
+  test("m365_team_sync holds the team ids and the sync time", () => {
+    const columns = findSyncTable()?.columns.map(
+      ({ array, key, required, size, type }) => ({
+        array,
+        key,
+        required,
+        size,
+        type,
+      })
+    );
+
+    expect(columns).toEqual([
+      {
+        array: true,
+        key: "team_ids",
+        required: false,
+        size: 128,
+        type: "string",
+      },
+      {
+        array: false,
+        key: "synced_at",
+        required: false,
+        size: undefined,
+        type: "datetime",
+      },
+    ]);
+  });
+});
+
+describe("page drafts", () => {
+  interface DraftColumn {
+    array: boolean;
+    elements?: string[];
+    format?: string;
+    key: string;
+    required: boolean;
+    size?: number;
+    type: string;
+  }
+
+  interface DraftTable {
+    $id: string;
+    $permissions: string[];
+    columns: DraftColumn[];
+    databaseId: string;
+    enabled: boolean;
+    indexes: { columns: string[]; key: string; type: string }[];
+    rowSecurity: boolean;
+  }
+
+  function findDraftTable(): DraftTable | undefined {
+    const config = JSON.parse(
+      readFileSync(join(import.meta.dirname, "appwrite.config.json"), "utf8")
+    ) as { tables: DraftTable[] };
+    return config.tables.find(
+      (candidate) =>
+        candidate.databaseId === "app" && candidate.$id === "page_drafts"
+    );
+  }
+
+  test("page_drafts is service-only with row security", () => {
+    const table = findDraftTable();
+
+    expect(table).toBeDefined();
+    expect(table?.enabled).toBe(true);
+    expect(table?.rowSecurity).toBe(true);
+    expect(table?.$permissions).toEqual([]);
+  });
+
+  test("page_drafts holds a translation's draft document, title and description", () => {
+    const columns = findDraftTable()?.columns.map(
+      ({ array, elements, format, key, required, size, type }) => ({
+        array,
+        elements,
+        format,
+        key,
+        required,
+        size,
+        type,
+      })
+    );
+
+    expect(columns).toEqual([
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "page_id",
+        required: true,
+        size: 50,
+        type: "string",
+      },
+      {
+        array: false,
+        elements: ["no", "en"],
+        format: "enum",
+        key: "locale",
+        required: true,
+        size: undefined,
+        type: "string",
+      },
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "draft_doc",
+        required: false,
+        size: undefined,
+        type: "mediumtext",
+      },
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "title",
+        required: false,
+        size: 200,
+        type: "string",
+      },
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "description",
+        required: false,
+        size: 4000,
+        type: "string",
+      },
+    ]);
+  });
+
+  test("page_drafts is indexed by page", () => {
+    expect(
+      findDraftTable()?.indexes.map(({ columns, key, type }) => ({
+        columns,
+        key,
+        type,
+      }))
+    ).toEqual([{ columns: ["page_id"], key: "page_drafts_page", type: "key" }]);
+  });
+});

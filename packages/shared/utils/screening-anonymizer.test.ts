@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { anonymizeScreeningText } from "./screening-anonymizer";
+import {
+  anonymizeScreeningText,
+  fillCandidatePlaceholder,
+  redactNameWithLabel,
+} from "./screening-anonymizer";
 
 describe("anonymizeScreeningText", () => {
   it("returns null for missing text", () => {
@@ -96,5 +100,78 @@ describe("anonymizeScreeningText", () => {
     ).toBe(
       "Intern at Equinor ([link]). Stack: Node.js/React, Next.js. Mail [email]"
     );
+  });
+});
+
+describe("redactNameWithLabel", () => {
+  it("replaces every name token with the given label", () => {
+    expect(
+      redactNameWithLabel(
+        "Is Kari Nordmann stronger than Nordmann's peers? Kari thinks so.",
+        "Kari Nordmann",
+        "Candidate 2"
+      )
+    ).toBe(
+      "Is Candidate 2 stronger than Candidate 2's peers? Candidate 2 thinks so."
+    );
+  });
+
+  it("only matches whole words", () => {
+    expect(redactNameWithLabel("Ola and Olaf", "Ola", "Candidate 1")).toBe(
+      "Candidate 1 and Olaf"
+    );
+  });
+
+  it("matches in any case and the possessive, but not inside other words", () => {
+    expect(
+      redactNameWithLabel(
+        "ola, OLa, OLA and Olas CV; not Karianne",
+        "Ola Berg",
+        "Candidate 1"
+      )
+    ).toBe(
+      "Candidate 1, Candidate 1, Candidate 1 and Candidate 1 CV; not Karianne"
+    );
+    expect(redactNameWithLabel("Karianne, kari", "Kari", "Candidate 2")).toBe(
+      "Karianne, Candidate 2"
+    );
+  });
+
+  it("redacts every part of a hyphenated first name", () => {
+    const result = redactNameWithLabel(
+      "is anne strong? what about Anne Marie and anne-marie",
+      "Anne-Marie Lie",
+      "Candidate 1"
+    );
+    expect(result).toBe(
+      "is Candidate 1 strong? what about Candidate 1 and Candidate 1"
+    );
+    expect(result).not.toMatch(/anne|marie|lie/i);
+  });
+
+  it("leaves the screener's case-sensitive behaviour alone", () => {
+    expect(
+      anonymizeScreeningText("mark the date", { candidateName: "Mark" })
+    ).toBe("mark the date");
+  });
+});
+
+describe("fillCandidatePlaceholder", () => {
+  it("puts the first name back for every placeholder", () => {
+    expect(
+      fillCandidatePlaceholder(
+        "Hi [Candidate],\n\nThanks, [Candidate].",
+        "Kari Nordmann"
+      )
+    ).toBe("Hi Kari,\n\nThanks, Kari.");
+  });
+
+  it("also fills lower-case and Norwegian placeholder variants", () => {
+    expect(
+      fillCandidatePlaceholder(
+        "[candidate] [Kandidat] [kandidat] [Kandidaten] [CANDIDATE]",
+        "Kari Nordmann"
+      )
+    ).toBe("Kari Kari Kari Kari Kari");
   });
 });

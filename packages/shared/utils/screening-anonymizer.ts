@@ -54,13 +54,15 @@ const STREET_ADDRESS_PATTERN =
 // A postcode + place directly after a redacted address, e.g. "0484 Oslo".
 const TRAILING_POSTCODE_PATTERN = /(\[address\]),?\s*\d{4}\s+\p{Lu}[\p{L}-]+/gu;
 
-const REPEATED_PLACEHOLDER_PATTERN = /\[Candidate\](?:\s+\[Candidate\])+/g;
-
 const REGEX_SPECIAL_CHARACTERS = /[.*+?^${}()|[\]\\]/g;
 
 const NAME_SEPARATOR_PATTERN = /[\s,]+/;
 
 const MIN_NAME_TOKEN_LENGTH = 2;
+
+const WHITESPACE_RUN_PATTERN = / /g;
+
+const CANDIDATE_PLACEHOLDER_PATTERN = /\[(?:candidate|kandidat|kandidaten)\]/giu;
 
 const EMAIL_PARTS_PATTERN = /([\p{L}\p{N}._%+-]+)@([\p{L}\p{N}.-]+)/gu;
 
@@ -123,19 +125,101 @@ function buildNamePattern(token: string): RegExp {
   );
 }
 
-function redactName(text: string, name: string): string {
-  const tokens = name
+/**
+ * Whole-word, case-insensitive match of a name token, including the
+ * Norwegian possessive ("Olas"). For free text typed by a recruiter, where
+ * names arrive in any casing.
+ */
+function buildLooseNamePattern(token: string): RegExp {
+  // A space in the token (the space-joined form of a hyphenated name) matches
+  // any run of whitespace.
+  const body = escapeRegex(token).replace(WHITESPACE_RUN_PATTERN, "\\s+");
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])${body}(?:s)?(?![\\p{L}\\p{N}])`,
+    "giu"
+  );
+}
+
+/**
+ * Every form a name token can be written in. "Anne-Marie" also appears as
+ * "Anne Marie", "Anne" and "Marie", so each of those is matched too.
+ */
+function looseNameForms(token: string): string[] {
+  if (!token.includes("-")) {
+    return [token];
+  }
+  const parts = token
+    .split("-")
+    .filter((part) => part.length >= MIN_NAME_TOKEN_LENGTH);
+  return [token, token.split("-").join(" "), ...parts];
+}
+
+function redactNameWith(
+  text: string,
+  name: string,
+  replacement: string,
+  loose = false
+): string {
+  const baseTokens = name
     .split(NAME_SEPARATOR_PATTERN)
     .map((token) => token.trim())
-    .filter((token) => token.length >= MIN_NAME_TOKEN_LENGTH)
-    // Longest first so "Anne-Marie" is replaced before "Anne".
-    .sort((a, b) => b.length - a.length);
+    .filter((token) => token.length >= MIN_NAME_TOKEN_LENGTH);
+  // Longest first so "Anne-Marie" is replaced before "Anne".
+  const tokens = [
+    ...new Set(
+      loose ? baseTokens.flatMap((token) => looseNameForms(token)) : baseTokens
+    ),
+  ].sort((a, b) => b.length - a.length);
 
   let result = text;
   for (const token of tokens) {
-    result = result.replace(buildNamePattern(token), CANDIDATE_PLACEHOLDER);
+    const pattern = loose
+      ? buildLooseNamePattern(token)
+      : buildNamePattern(token);
+    result = result.replace(pattern, () => replacement);
   }
-  return result.replace(REPEATED_PLACEHOLDER_PATTERN, CANDIDATE_PLACEHOLDER);
+  const repeated = new RegExp(
+    `${escapeRegex(replacement)}(?:\\s+${escapeRegex(replacement)})+`,
+    "g"
+  );
+  return result.replace(repeated, () => replacement);
+}
+
+function redactName(text: string, name: string): string {
+  return redactNameWith(text, name, CANDIDATE_PLACEHOLDER);
+}
+
+/**
+ * Replaces every token of `name` in `text` with `label` (e.g. "Candidate 3"),
+ * so several candidates in one prompt stay distinguishable without their
+ * names being sent. Matching is case-insensitive and word-bounded, and covers
+ * the possessive ("Olas"), because the text is typed by a recruiter. Screening
+ * text keeps the stricter `anonymizeScreeningText` behaviour.
+ */
+export function redactNameWithLabel(
+  text: string,
+  name: string,
+  label: string
+): string {
+  return redactNameWith(text, name, label, true);
+}
+
+/** First name of a full applicant name, as used when greeting them. */
+export function firstNameOf(name: string | null | undefined): string {
+  return (name ?? "").trim().split(NAME_SEPARATOR_PATTERN)[0] ?? "";
+}
+
+/**
+ * Puts the candidate's first name back where an email draft holds the
+ * `[Candidate]` placeholder, in any casing and in its Norwegian forms
+ * (`[Kandidat]`, `[Kandidaten]`). An empty name leaves nothing in its place.
+ */
+export function fillCandidatePlaceholder(
+  text: string,
+  name: string | null | undefined
+): string {
+  const first = firstNameOf(name);
+  return text.replace(CANDIDATE_PLACEHOLDER_PATTERN, () => first);
 }
 
 function redactLiteral(text: string, value: string): string {

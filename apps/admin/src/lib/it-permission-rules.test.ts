@@ -45,14 +45,14 @@ describe("getItPermissions", () => {
     expect(Object.values(permissions).every(Boolean)).toBe(true);
   });
 
-  test("campus admin gets read-only access, never a mutation", () => {
+  test("campus admin may view and create users, never another mutation", () => {
     const permissions = getItPermissions(osloCampusAdmin);
 
     expect(permissions["it.users.view"]).toBe(true);
     expect(permissions["it.users.viewSecurity"]).toBe(true);
+    expect(permissions["it.users.create"]).toBe(true);
 
     for (const permission of [
-      "it.users.create",
       "it.users.editProfile",
       "it.users.disable",
       "it.users.manageAliases",
@@ -77,6 +77,7 @@ describe("getItPermissions", () => {
   test("a campus admin with no managed campus gets nothing", () => {
     const unscoped = context({ roles: ["campusadmin"], managedCampuses: [] });
     expect(getItPermissions(unscoped)["it.users.view"]).toBe(false);
+    expect(getItPermissions(unscoped)["it.users.create"]).toBe(false);
   });
 
   test("a plain department member gets nothing", () => {

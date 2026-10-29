@@ -8,12 +8,22 @@ import type {
   Jobs,
   News,
 } from "@repo/api/types/appwrite";
+import { eventReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import {
   applyContentRelationshipScopeQueries,
   getContentOwnership,
 } from "@/lib/content-authorization";
+import { restampTranslationReads } from "@/lib/content-translation-reads";
+import {
+  assertRecruitmentVacancyWriteAccess,
+  buildJobRowPermissions,
+  loadRecruitmentLookups,
+  toRecruitmentAdminScope,
+} from "@/lib/recruitment";
+import { hasNavAccess } from "@/lib/roles";
+import { buildContentRowPermissions } from "@/lib/utils";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -28,6 +38,42 @@ export interface DraftItem {
   title: string;
   type: "job" | "event" | "news";
   updatedAt: string;
+}
+
+/**
+ * How many drafts the caller's /drafts queue holds, counted in the same scope
+ * `listDrafts` uses: vacancies for recruiters, events and news for everyone.
+ */
+export async function countDrafts(): Promise<number> {
+  const ctx = await requireAuth();
+  const { db } = await createAdminClient();
+  const contentScope = applyContentRelationshipScopeQueries(ctx);
+  const canSeeJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
+  const count = async (
+    table: "events" | "jobs" | "news",
+    scope: string[]
+  ): Promise<number> => {
+    try {
+      const res = await db.listRows("app", table, [
+        Query.equal("status", "draft"),
+        Query.limit(1),
+        ...scope,
+      ]);
+      return res.total ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+  const [jobs, events, news] = await Promise.all([
+    canSeeJobs ? count("jobs", applyScopeQueries(ctx)) : 0,
+    count("events", contentScope),
+    count("news", contentScope),
+  ]);
+  return jobs + events + news;
 }
 
 export async function listDrafts(): Promise<DraftItem[]> {
@@ -45,13 +91,20 @@ export async function listDrafts(): Promise<DraftItem[]> {
 
   const drafts: DraftItem[] = [];
 
-  // Fetch draft jobs
-  const jobsResponse = await db.listRows<Jobs>("app", "jobs", [
-    Query.equal("status", "draft"),
-    Query.orderDesc("$updatedAt"),
-    Query.limit(50),
-    ...jobScopeQueries,
-  ]);
+  // Vacancies are listed for recruiters only.
+  const canSeeJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
+  const jobsResponse = canSeeJobs
+    ? await db.listRows<Jobs>("app", "jobs", [
+        Query.equal("status", "draft"),
+        Query.orderDesc("$updatedAt"),
+        Query.limit(50),
+        ...jobScopeQueries,
+      ])
+    : { rows: [] as Jobs[], total: 0 };
 
   // Fetch draft events
   const eventsResponse = await db.listRows<Events>("app", "events", [
@@ -143,6 +196,74 @@ export async function listDrafts(): Promise<DraftItem[]> {
   return drafts;
 }
 
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/**
+ * Publish an event draft: the row and each of its translation rows become
+ * world-readable together with the status change.
+ */
+async function publishEventReadAccess(
+  db: AdminDb,
+  id: string,
+  row: Jobs | Events | News
+): Promise<void> {
+  const readPermissions = eventReadPermissions("published");
+  await db.updateRow(
+    "app",
+    "events",
+    id,
+    { status: "published" },
+    readPermissions
+  );
+
+  const refs = (row as Events).translation_refs ?? [];
+  let translationIds = refs.map((ref) =>
+    typeof ref === "string" ? ref : ref.$id
+  );
+  if (translationIds.length === 0) {
+    const found = await db.listRows<ContentTranslations>(
+      "app",
+      "content_translations",
+      [
+        Query.equal("content_type", "event"),
+        Query.equal("content_id", id),
+        Query.limit(10),
+      ]
+    );
+    translationIds = found.rows.map((translation) => translation.$id);
+  }
+  await Promise.all(
+    translationIds.map((translationId) =>
+      db.updateRow(
+        "app",
+        "content_translations",
+        translationId,
+        {},
+        readPermissions
+      )
+    )
+  );
+}
+
+async function publishJobOrNewsDraft(
+  db: AdminDb,
+  type: "job" | "news",
+  id: string
+): Promise<void> {
+  const rowPermissions =
+    type === "job"
+      ? buildJobRowPermissions("public", "published")
+      : buildContentRowPermissions({ audience: "public", status: "published" });
+  await db.updateRow(
+    "app",
+    type === "job" ? "jobs" : "news",
+    id,
+    { status: "published" },
+    rowPermissions
+  );
+  await restampTranslationReads(db, type, id, "published");
+}
+
 export async function approveDraft(id: string, type: "job" | "event" | "news") {
   const ctx = await requireAuth();
 
@@ -163,8 +284,20 @@ export async function approveDraft(id: string, type: "job" | "event" | "news") {
     const row = await db.getRow<Jobs | Events | News>("app", table, id);
     const ownership = getContentOwnership(row, { legacyFallback: true });
     assertPublishAccess(ctx, ownership.campus, ownership.department);
+    if (type === "job") {
+      const lookups = await loadRecruitmentLookups(db);
+      assertRecruitmentVacancyWriteAccess(
+        toRecruitmentAdminScope(ctx),
+        lookups,
+        row as Jobs
+      );
+    }
 
-    await db.updateRow("app", table, id, { status: "published" });
+    if (type === "event") {
+      await publishEventReadAccess(db, id, row);
+    } else {
+      await publishJobOrNewsDraft(db, type, id);
+    }
 
     await logAuditEvent(ctx, "draft_approved", {
       resourceId: id,
@@ -192,6 +325,24 @@ export async function rejectDraft(
     !(ctx.roles.includes("globaladmin") || ctx.roles.includes("campusadmin"))
   ) {
     return { error: "Unauthorized: only admins can reject drafts" };
+  }
+
+  if (type === "job") {
+    try {
+      const { db } = await createAdminClient();
+      const row = await db.getRow<Jobs>("app", "jobs", id);
+      const lookups = await loadRecruitmentLookups(db);
+      assertRecruitmentVacancyWriteAccess(
+        toRecruitmentAdminScope(ctx),
+        lookups,
+        row
+      );
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error ? error.message : "Failed to reject draft",
+      };
+    }
   }
 
   // Keep as draft but optionally log the rejection

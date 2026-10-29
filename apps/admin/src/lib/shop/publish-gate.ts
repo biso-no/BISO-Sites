@@ -1,5 +1,6 @@
 import type { Models } from "@repo/api";
 import type { createSessionClient } from "@repo/api/server";
+import { restampTranslationReads } from "@/lib/content-translation-reads";
 import { assertProductBookable } from "./sales-type";
 
 /**
@@ -43,4 +44,5 @@ export async function publishBookableProduct(
   await db.updateRow("app", "webshop_products", productId, {
     status: "published",
   });
+  await restampTranslationReads(db, "product", productId, "published");
 }

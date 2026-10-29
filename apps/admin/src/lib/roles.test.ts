@@ -118,3 +118,12 @@ describe("canManageAccounting", () => {
     ).toBe(true);
   });
 });
+
+describe("portal.jobs gates the overview's vacancy card and stats", () => {
+  test("recruiters see it, campus admins and department members do not", () => {
+    expect(hasNavAccess("portal.jobs", ["hr"], true)).toBe(true);
+    expect(hasNavAccess("portal.jobs", ["globaladmin"], true)).toBe(true);
+    expect(hasNavAccess("portal.jobs", ["campusadmin"], true)).toBe(false);
+    expect(hasNavAccess("portal.jobs", [], true)).toBe(false);
+  });
+});

@@ -63,6 +63,7 @@ import {
   deleteJob,
   getJob,
   listJobs,
+  publishJobDraft,
   updateJob,
 } from "@/app/(portal)/_actions/jobs";
 import {
@@ -76,6 +77,7 @@ import {
   getDashboardStats,
   getPageById,
   listPages,
+  publishPageAction,
 } from "@/app/(portal)/_actions/pages";
 import {
   createProduct,
@@ -92,9 +94,15 @@ import {
   assistantRoleSummary,
   benefitUpdateFromAssistant,
   canPublishContent,
+  createdContentNeedsPublish,
   publishBenefitContent,
   withoutBenefitCode,
 } from "@/lib/assistant-publish";
+import {
+  type AssistantPublishResult,
+  authorisePublishRow,
+  publishAssistantStatusContent,
+} from "@/lib/assistant-status-publish";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { checkIntegrationHealth } from "@/lib/integration-health";
@@ -338,7 +346,13 @@ async function publishCreatedContent(
   context: AssistantCreateContentContext,
   result: unknown
 ) {
-  if (!(context.publish && !context.createDraftForApproval)) {
+  if (
+    !(
+      context.publish &&
+      !context.createDraftForApproval &&
+      createdContentNeedsPublish(context.domain)
+    )
+  ) {
     return;
   }
   const id = resultDataId(result);
@@ -358,6 +372,8 @@ async function publishCreatedContent(
     await publishBookableProduct(db, id);
     return;
   }
+  // Vacancies never get here: createdContentNeedsPublish is false for jobs, and
+  // they publish through the recruitment path in updateContent.
   if (context.domain === "benefits") {
     // Goes through setBenefitStatus so the row's permissions are rewritten
     // (published -> read("any")); a bare status update leaves them stale.
@@ -367,8 +383,28 @@ async function publishCreatedContent(
   if (!table) {
     return;
   }
-  const { db } = await createSessionClient();
-  await db.updateRow("app", table, id, { status: "published" });
+  await publishStatusDomain(context.domain, table, id);
+}
+
+async function publishJobVacancy(id: string) {
+  const result = await publishJobDraft(id);
+  if (result.error !== undefined) {
+    throw new Error(result.error);
+  }
+  return { data: id };
+}
+
+async function publishStatusDomain(
+  domain: string,
+  table: string,
+  id: string
+): Promise<AssistantPublishResult | undefined> {
+  const { db: sessionDb } = await createSessionClient();
+  return await publishAssistantStatusContent(domain, table, id, {
+    getAdminDb: async () => (await createAdminClient()).db,
+    publishPage: publishPageAction,
+    sessionDb,
+  });
 }
 
 async function createAssistantContent(
@@ -593,6 +629,9 @@ function buildDeps(
       if (domain === "benefits") {
         return await publishBenefitContent(id);
       }
+      if (domain === "jobs") {
+        return await publishJobVacancy(id);
+      }
       // All other domains: targeted status update via session client.
       // Appwrite row-level security enforces the user's write permissions.
       const table = DOMAIN_PUBLISH_TABLE[domain];
@@ -600,8 +639,10 @@ function buildDeps(
         throw new Error(`Publish not supported for domain: ${domain}`);
       }
       const { db } = await createSessionClient();
-      const row = await db.getRow<GenericRow>("app", table, id);
-      assertPublishAccess(ctx, getStringValue(row.campus_id));
+      await authorisePublishRow(domain, {
+        readRow: () => db.getRow<GenericRow>("app", table, id),
+        assertAccess: (campusId) => assertPublishAccess(ctx, campusId),
+      });
       if (domain === "shop") {
         // Same gate and the same admin-client requirement as
         // `publishCreatedContent` above — only after `assertPublishAccess`
@@ -610,8 +651,8 @@ function buildDeps(
         await publishBookableProduct(adminDb, id);
         return { data: id };
       }
-      await db.updateRow("app", table, id, { status: "published" });
-      return { data: id };
+      const published = await publishStatusDomain(domain, table, id);
+      return published ? { data: id, ...published } : { data: id };
     },
 
     // -------------------------------------------------------------------------

@@ -59,8 +59,8 @@ export function hasPageContent(doc: PageDoc): boolean {
  * ownership. The page body, generateMetadata and the form endpoint MUST share
  * it, or they can disagree about what the page is.
  *
- * `pages` and `page_translations` have table-level `read("any")`, so a guest
- * client can read an unpublished draft row; `getPage` returns the translation
+ * `pages` and `page_translations` rows carry their own read permissions, so a guest
+ * client can only read rows that were published; `getPage` returns the translation
  * even without a published document. Checking ownership alone would leak a
  * draft's title into `<head>` while the body falls back to the default view.
  *
