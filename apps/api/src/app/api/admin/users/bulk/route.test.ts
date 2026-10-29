@@ -97,4 +97,34 @@ describe("POST /api/admin/users/bulk", () => {
     expect(response.status).toBe(403);
     expect(mocks.GraphUserService).not.toHaveBeenCalled();
   });
+
+  it("lets a global admin add extra groups past the gates", async () => {
+    mocks.getAdminScope.mockResolvedValue({
+      ...baseScope,
+      canManageAnyCampus: true,
+      isGlobalAdmin: true,
+    });
+    const POST = await loadPost();
+
+    const response = await POST(
+      post({ users: [{ ...row, additionalGroupIds: ["g1"] }] })
+    );
+
+    expect(response.status).not.toBe(403);
+    expect(mocks.GraphUserService).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a campus admin without extra groups past the role gate", async () => {
+    mocks.getAdminScope.mockResolvedValue({
+      ...baseScope,
+      isCampusAdmin: true,
+      managedCampusNames: ["Oslo"],
+    });
+    const POST = await loadPost();
+
+    const response = await POST(post({ users: [row] }));
+
+    expect(response.status).not.toBe(403);
+    expect(mocks.GraphUserService).toHaveBeenCalledTimes(1);
+  });
 });

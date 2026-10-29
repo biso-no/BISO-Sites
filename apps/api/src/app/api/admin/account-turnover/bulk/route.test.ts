@@ -36,8 +36,8 @@ function post() {
   }) as never;
 }
 
-async function loadPost() {
-  vi.stubEnv("AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL", "");
+async function loadPost(webhookUrl = "") {
+  vi.stubEnv("AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL", webhookUrl);
   vi.resetModules();
   return (await import("./route")).POST;
 }
@@ -59,7 +59,7 @@ describe("POST /api/admin/account-turnover/bulk", () => {
       isCampusAdmin: true,
       managedCampusNames: ["Oslo"],
     });
-    const POST = await loadPost();
+    const POST = await loadPost("https://hooks.example/turnover");
 
     const response = await POST(post());
 
@@ -69,7 +69,7 @@ describe("POST /api/admin/account-turnover/bulk", () => {
 
   it("refuses a department member", async () => {
     mocks.getAdminScope.mockResolvedValue({ ...baseScope });
-    const POST = await loadPost();
+    const POST = await loadPost("https://hooks.example/turnover");
 
     const response = await POST(post());
 
