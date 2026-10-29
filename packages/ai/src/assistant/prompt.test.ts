@@ -28,4 +28,30 @@ describe("assistant system prompt", () => {
     // That sentence is the only place the prompt names confirmAction.
     expect(prompt.split("confirmAction").length - 1).toBe(1);
   });
+
+  test("job tools are offered only to recruiters, with no approval route", () => {
+    const campusAdminPrompt = buildAssistantSystemPrompt({
+      activeCampus: null,
+      activeFormSchemaId: null,
+      capabilities: buildAssistantCapabilities({
+        hasDepartmentMembership: true,
+        isCampusAdmin: true,
+        roles: ["campusadmin"],
+      }),
+      currentPath: "/",
+      locale: "en",
+      roleSummary: "Campus admin",
+      scopeSummary: "Manages campuses: Oslo",
+      user: { email: "campus@example.com", name: "Campus" },
+    });
+
+    expect(campusAdminPrompt).toContain(
+      "Only offer job tools when the capabilities below list `jobs`."
+    );
+    expect(campusAdminPrompt).not.toContain("jobs:");
+    expect(promptWithForm()).toContain("jobs:publish");
+    expect(campusAdminPrompt).not.toContain(
+      "routes to campus management or HR"
+    );
+  });
 });
