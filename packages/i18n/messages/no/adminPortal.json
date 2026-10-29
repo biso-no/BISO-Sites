@@ -428,6 +428,7 @@
       "reopen": "Åpne igjen"
     },
     "studio": {
+      "inviteNotSent": "Invitasjon ikke sendt",
       "eyebrow": "BISO rekrutteringsstudio",
       "titleAccent": "dette semesteret.",
       "description": "Opprett, gjennomgå og publiser studentrettede roller med BISOs visuelle system, samtidig som hver utlysning knyttes til campus- og avdelingstilgang.",

@@ -482,6 +482,7 @@ export async function getRecruitmentWorkspace(
       candidateName: nameByApp.get(interview.application_id) ?? "Candidate",
       endsAt: interview.ends_at,
       id: interview.$id,
+      inviteSent: Boolean(interview.outlook_event_id),
       panel: (interviewData.participantsByInterview.get(interview.$id) ?? [])
         .filter((p) => p.role === JobInterviewParticipantsRole.INTERVIEWER)
         .map((p) => initials(p.display_name ?? p.email)),

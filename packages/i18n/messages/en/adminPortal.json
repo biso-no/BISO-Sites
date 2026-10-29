@@ -428,6 +428,7 @@
       "reopen": "Reopen"
     },
     "studio": {
+      "inviteNotSent": "Invite not sent",
       "eyebrow": "BISO recruitment studio",
       "titleAccent": "this term.",
       "description": "Create, review, and publish student-facing roles with the BISO visual system while keeping each posting tied to campus and department access.",

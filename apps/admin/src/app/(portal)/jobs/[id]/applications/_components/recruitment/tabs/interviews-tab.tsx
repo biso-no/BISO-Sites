@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarDays, Check, Copy, Link2, Video } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -19,6 +20,7 @@ import { useRecruitment } from "../recruitment-context";
 import {
   cx,
   formatShortDate,
+  interviewInviteMissing,
   type PendingScorecard,
   type WorkspaceInterview,
 } from "../view-model";
@@ -65,6 +67,7 @@ export function InterviewsTab({
   pendingScorecards: PendingScorecard[];
 }) {
   const { panel, candidates, actions } = useRecruitment();
+  const t = useTranslations("adminPortal.jobs.studio");
   const primaryPanel = panel.filter((member) => member.scope === "primary");
   const days = useMemo(buildDays, []);
   const [duration, setDuration] = useState(30);
@@ -251,6 +254,11 @@ export function InterviewsTab({
                         {formatShortDate(interview.startsAt)}
                         {interview.teams ? " · Teams" : ""}
                       </span>
+                      {interviewInviteMissing(interview) ? (
+                        <span className="iv-row-sub" role="status">
+                          {t("inviteNotSent")}
+                        </span>
+                      ) : null}
                     </div>
                     <span className="iv-panel">
                       {interview.panel.map((member) => (
