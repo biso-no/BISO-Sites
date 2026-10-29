@@ -54,6 +54,7 @@ const logAuditEvent = mock(
 
 mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
+  PAGE_DRAFTS_TABLE_ID: "page_drafts",
   PAGE_LOCALES: ["no", "en"],
   archivePage: mock(async () => undefined),
   getPageById: mock(async () => null),

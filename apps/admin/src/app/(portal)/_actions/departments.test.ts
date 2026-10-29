@@ -84,6 +84,7 @@ mock.module("@/lib/authorization", () => ({
 // outside a react-server build.
 mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
+  PAGE_DRAFTS_TABLE_ID: "page_drafts",
   PAGE_LOCALES: ["no", "en"],
   archivePage: mock(async () => undefined),
   clearPageTheme: mock(async () => undefined),

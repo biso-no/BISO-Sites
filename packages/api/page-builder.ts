@@ -413,14 +413,14 @@ export async function getPage(
 
 export async function getPageById(
   id: string,
-  locale: PageEditorLocale = "no",
-  dbOverride?: PageDatabase
+  locale: PageEditorLocale,
+  db: PageDatabase
 ): Promise<{
   row: Pages;
   translation: PageTranslations | null;
   doc: PageDoc | null;
 } | null> {
-  const result = await getPageEditorById(id, dbOverride);
+  const result = await getPageEditorById(id, db);
   if (!result) {
     return null;
   }
@@ -459,14 +459,13 @@ type PageDatabase = Awaited<ReturnType<typeof createSessionClient>>["db"];
 
 /**
  * The page and every locale's draft and published document, for the editor.
- * The draft table is service-only, so pass the admin client's `db`.
+ * The draft table is service-only and reads from a session client come back
+ * empty, so the caller passes the admin client's `db`; there is no default.
  */
 export async function getPageEditorById(
   id: string,
-  dbOverride?: PageDatabase
+  db: PageDatabase
 ): Promise<PageEditorLoadResult | null> {
-  const db = dbOverride ?? (await createSessionClient()).db;
-
   const [res, drafts] = await Promise.all([
     db.listRows<Pages>("app", "pages", [
       Query.equal("$id", id),

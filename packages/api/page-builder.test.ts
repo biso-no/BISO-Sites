@@ -171,7 +171,7 @@ describe("page builder", () => {
       ],
     });
 
-    const result = await getPageEditorById("page-1");
+    const result = await getPageEditorById("page-1", db);
 
     expect(db.listRows).toHaveBeenCalledWith(
       "app",
@@ -1396,7 +1396,7 @@ describe("page drafts live in their own table", () => {
       ],
     });
 
-    const result = await getPageEditorById("page-1");
+    const result = await getPageEditorById("page-1", db);
 
     const draftLists = db.listRows.mock.calls.filter(
       (call) => call[1] === PAGE_DRAFTS_TABLE_ID
@@ -1451,7 +1451,7 @@ describe("page drafts live in their own table", () => {
       page_drafts: [draftRow("no", edited)],
     });
 
-    const result = await getPageById("page-1", "no");
+    const result = await getPageById("page-1", "no", db);
 
     expect(result?.doc?.sections).toEqual([]);
     expect(result?.doc?.meta.title).toBe("Utkast");

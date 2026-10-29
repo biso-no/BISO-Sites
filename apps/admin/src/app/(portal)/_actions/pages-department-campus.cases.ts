@@ -122,6 +122,7 @@ const getPageEditorById = mock((id: string) => {
 mock.module("server-only", () => ({}));
 const archivePage = mock(async (..._args: unknown[]) => undefined);
 mock.module("@repo/api/page-builder", () => ({
+  PAGE_DRAFTS_TABLE_ID: "page_drafts",
   PAGE_LOCALES: ["no", "en"],
   archivePage,
   clearPageTheme: mock(async () => undefined),

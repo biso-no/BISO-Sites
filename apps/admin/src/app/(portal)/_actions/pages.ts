@@ -53,6 +53,7 @@ import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
+import { withDraftTitles } from "@/lib/page-draft-titles";
 import { pickSharedMeta } from "@/lib/page-shared-meta";
 import {
   departmentThemeUpdate,
@@ -98,7 +99,8 @@ export async function listPages(opts?: { status?: string; campusId?: string }) {
   queries.push(...applyContentRelationshipScopeQueries(ctx));
 
   const response = await db.listRows<Pages>("app", "pages", queries);
-  return response.rows;
+  // Titles edited since the last publish live on the draft rows.
+  return await withDraftTitles(db, response.rows);
 }
 
 export async function getDashboardStats() {
@@ -727,10 +729,15 @@ function isSamePageDocument(a: PageDoc | null, b: PageDoc | null): boolean {
 
 type AdminDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
-/** One `page_translations` row, as the auto-translation guard compares it. */
+/**
+ * One locale's draft and publish state, as the auto-translation guard
+ * compares it: the draft row's `updatedAt` moves on every draft save, and
+ * `isPublished` and `publishedAt` on every publish and unpublish.
+ */
 interface TranslationRowState {
   document: PageDoc | null;
   isPublished: boolean;
+  publishedAt: string | null;
   updatedAt: string | null;
 }
 
@@ -755,6 +762,7 @@ async function readTranslationRows(
       document:
         translation.draftDocument ?? translation.publishedDocument ?? null,
       isPublished: translation.isPublished,
+      publishedAt: translation.publishedAt ?? null,
       updatedAt: translation.updatedAt ?? null,
     };
   };
@@ -774,6 +782,7 @@ function isSameTranslationRow(
   }
   return (
     before.isPublished === after.isPublished &&
+    before.publishedAt === after.publishedAt &&
     before.updatedAt === after.updatedAt &&
     isSamePageDocument(before.document, after.document)
   );
@@ -881,7 +890,8 @@ async function translatePublishedPage({
       sourcePublishStands(beforePublish, publishedPageVersion) &&
       target &&
       target.updatedAt === saved.updatedAt &&
-      target.isPublished === (translationRows.target?.isPublished ?? false)
+      target.isPublished === (translationRows.target?.isPublished ?? false) &&
+      target.publishedAt === (translationRows.target?.publishedAt ?? null)
     )
   ) {
     return;
