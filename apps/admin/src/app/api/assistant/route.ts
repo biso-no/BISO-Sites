@@ -357,10 +357,8 @@ async function publishCreatedContent(
     await publishBookableProduct(db, id);
     return;
   }
-  if (context.domain === "jobs") {
-    // Recruitment-scoped status change, never a bare status write.
-    return await publishJobVacancy(id);
-  }
+  // Vacancies never get here: createdContentNeedsPublish is false for jobs, and
+  // they publish through the recruitment path in updateContent.
   if (context.domain === "benefits") {
     // Goes through setBenefitStatus so the row's permissions are rewritten
     // (published -> read("any")); a bare status update leaves them stale.

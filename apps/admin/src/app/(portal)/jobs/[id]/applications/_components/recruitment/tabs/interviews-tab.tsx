@@ -1,6 +1,13 @@
 "use client";
 
-import { CalendarDays, Check, Copy, Link2, Video } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  Copy,
+  Link2,
+  TriangleAlert,
+  Video,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -255,7 +262,8 @@ export function InterviewsTab({
                         {interview.teams ? " · Teams" : ""}
                       </span>
                       {interviewInviteMissing(interview) ? (
-                        <span className="iv-row-sub" role="status">
+                        <span className="iv-row-sub iv-row-warn" role="status">
+                          <TriangleAlert aria-hidden="true" size={12} />
                           {t("inviteNotSent")}
                         </span>
                       ) : null}

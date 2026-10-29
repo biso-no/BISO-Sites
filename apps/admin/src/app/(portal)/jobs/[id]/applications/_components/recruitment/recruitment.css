@@ -312,6 +312,13 @@
 .snap .delta.warn {
   color: var(--gold);
 }
+.iv-row-sub.iv-row-warn {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-weight: 600;
+  color: var(--gold);
+}
 .snap.alert .val {
   color: var(--claret);
 }

@@ -169,9 +169,9 @@ export async function askRecruitmentAssistant(input: {
       ),
       // Provider-side retention follows the Anthropic account's data
       // settings, not a per-request option.
-      // Every field is required: OpenAI's strict structured outputs reject a
-      // schema whose `properties` are not all listed in `required`, which is
-      // what `.optional()` / `.default()` produce. Empty arrays are allowed.
+      // Every field is required, so the model always returns the whole shape.
+      // `.optional()` / `.default()` would make a field droppable. Empty arrays
+      // are allowed.
       schema: z.object({
         reply: z.string(),
         citedLabels: z

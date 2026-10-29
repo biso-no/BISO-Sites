@@ -33,7 +33,7 @@ export interface ScreenApplicationInput {
     cover_letter: string | null;
     current_role?: string | null;
   };
-  /** Optional model override; defaults to the balanced tier (gpt-5.6-terra). */
+  /** Optional model override; defaults to the balanced tier (Claude Sonnet). */
   model?: string;
   /** Plaintext resume content — extract before calling. */
   resumeText?: string | null;
