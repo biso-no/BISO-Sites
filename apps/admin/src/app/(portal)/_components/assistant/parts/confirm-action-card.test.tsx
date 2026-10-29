@@ -75,6 +75,16 @@ describe("tool approval card summary", () => {
     expect(html).toContain("Frivillig");
   });
 
+  test("a create skips a blank campus_id and shows the campusId alias the route writes", () => {
+    const summary = describeToolCall("createContent", {
+      domain: "jobs",
+      payload: { campus_id: "", campusId: "3" },
+      publish: false,
+    });
+
+    expect(summary.details).toContain("Campus: Trondheim (3)");
+  });
+
   test("a create with no campus or department says so", () => {
     const summary = describeToolCall("createContent", {
       domain: "shop",

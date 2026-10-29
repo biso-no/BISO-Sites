@@ -88,6 +88,7 @@ import {
 } from "@/app/(portal)/_actions/shop";
 import { getLocale } from "@/app/actions/locale";
 import { requireApiAuth } from "@/lib/api-auth";
+import { resolveConfirmedCampusId } from "@/lib/assistant-campus";
 import { buildAssistantOrderSearchQueries } from "@/lib/assistant-order-search";
 import {
   applyConfirmedCreateFacts,
@@ -96,7 +97,6 @@ import {
   canPublishContent,
   createdContentNeedsPublish,
   publishBenefitContent,
-  resolveConfirmedCampusId,
   withoutBenefitCode,
 } from "@/lib/assistant-publish";
 import {

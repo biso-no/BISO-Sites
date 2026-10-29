@@ -2,6 +2,7 @@
 
 import { READ_ONLY_TOOL_NAMES } from "@repo/ai/assistant/read-only-tools";
 import { AlertTriangle, CheckCircle } from "lucide-react";
+import { resolveConfirmedCampusId } from "@/lib/assistant-campus";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { MONO_STACK, STUDIO } from "../../studio";
 
@@ -215,7 +216,7 @@ function describeCreate(input: Record<string, unknown>): ToolCallSummary {
   const publish = input.publish === true;
   const longValues: LongValue[] = [];
   const details = [
-    `Campus: ${campusLabel(input.campusId ?? payload.campus_id ?? payload.campusId)}`,
+    `Campus: ${campusLabel(resolveConfirmedCampusId(input.campusId, payload))}`,
     `Department: ${orNone(input.departmentId ?? payload.department_id ?? payload.department)}`,
     `Publishes now: ${publish ? "yes" : "no"}`,
   ];

@@ -1,4 +1,5 @@
 import "server-only";
+import { resolveConfirmedCampusId } from "@/lib/assistant-campus";
 import type { UserAuthContext } from "@/lib/authorization";
 import { publishBenefit } from "@/lib/benefit-publish";
 import { ROLES } from "@/lib/roles";
@@ -26,22 +27,6 @@ export function dropBenefitDepartment(
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-/**
- * The campus a create confirmation card shows, in the order the card reads it:
- * the confirmed campus, then the payload's `campus_id`, then its `campusId`
- * alias. Every create path writes this value.
- */
-export function resolveConfirmedCampusId(
-  confirmedCampusId: string | undefined,
-  payload: Record<string, unknown>
-): string | null {
-  return (
-    confirmedCampusId ??
-    stringOrNull(payload.campus_id) ??
-    stringOrNull(payload.campusId)
-  );
 }
 
 /**
