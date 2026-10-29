@@ -178,11 +178,13 @@ with `<Private>`, and the reader's browser fetches the value after sign-in.
 
 ### Who can see values
 
-Docs is deliberately stricter than the admin: it trusts only exact team ids
-created by the M365 sync, because names can be created by anyone. Any
-signed-in Appwrite user, even an anonymous one, can create a team with any
-name and a custom id of their choice. So `lib/auth/access.ts` ignores team
-names and checks ids only.
+Docs trusts only exact team ids created by the M365 sync, because names can be
+created by anyone. Any signed-in Appwrite user, even an anonymous one, can
+create a team with any name and a custom id of their choice. So
+`lib/auth/access.ts` ignores team names and checks ids only. The admin and
+the API use exact ids too (`rolesFromTeams` in
+`packages/shared/utils/team-roles.ts`), and also need the id in the user's
+`m365_team_sync` row. Docs doesn't read that table.
 
 The sync builds each team id by lowercasing the Microsoft group's display
 name (`sanitizeTeamId` in `apps/admin/src/lib/m365-sync.ts`), so
@@ -286,7 +288,8 @@ These need the owner. Nothing here is done by code. Do them in this order.
    `sg-app-dept-ledelsentrondheim`. Pre-create any that are missing, with the
    custom id exactly as listed, so nobody else can claim the id. Name each one
    as the sync would (`National`, `Operations Unit`, `Oslo`, `Ledelsen Oslo`),
-   because the admin still reads names. The sync adds members to an existing
+   because the admin uses a department team's name to find its department
+   rows when the name matches the id. The sync adds members to an existing
    team, but it skips its one-time setup for new department teams
    (`grantDeptTeamAccess` in `apps/admin/src/lib/team-provisioning.ts`), so
    check that setup by hand for any `sg-app-dept-*` team you create. If real

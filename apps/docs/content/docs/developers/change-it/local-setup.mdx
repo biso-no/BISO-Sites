@@ -13,7 +13,6 @@ covers:
   - apps/web/vitest.config.ts
   - apps/api/vitest.config.ts
   - apps/admin/src/lib/content-translation.test.ts
-  - packages/api/benefits-schema.test.ts
   - lefthook.yml
   - biome.jsonc
   - apps/docs/scripts/screenshots/README.md
@@ -95,9 +94,9 @@ Your project starts with empty tables, so expect empty lists. Step 6 of the same
 
 ### Signing in
 
-- The admin signs staff in with Microsoft only, through the Microsoft provider in Appwrite. Your project needs that provider set up before sign-in works, and the steps above don't cover it. After sign-in, roles come from team memberships. A user with no role team gets the 401 page, not the sign-in page.
+- The admin signs staff in with Microsoft only, through the Microsoft provider in Appwrite. Your project needs that provider set up before sign-in works, and the steps above don't cover it. After sign-in, roles come from team memberships, and a `sg-app-*` team counts only when its id is also in the user's row in `m365_team_sync`, which the sign-in writes ([Auth and roles](/developers/change-it/auth-and-roles#the-saved-team-list)). A user with no role team gets the 401 page, not the sign-in page.
 - The website signs students in with BI (Appwrite's `oidc` provider) or a magic link. Your project needs those set up too.
-- The screenshot scripts show a way round Microsoft. `seed.ts` creates made-up staff users and their teams, one of them a global admin. `capture.ts` creates a session for each one with the API key and sets the admin's session cookie in the browser it drives.
+- The screenshot scripts show a way round Microsoft. `seed.ts` creates made-up staff users, their teams and each one's `m365_team_sync` row, one of them a global admin. `capture.ts` creates a session for each one with the API key and sets the admin's session cookie in the browser it drives.
 
 ## Run the apps
 
@@ -174,7 +173,7 @@ In a Vitest workspace, always use `bun run test`. A bare `bun test` starts Bun's
 
 Things to know when a test fails:
 
-- **Two suites fail today on known problems.** `apps/admin/src/lib/content-translation.test.ts` expects an old AI model id (`gpt-5.6-luna`) and gets `claude-haiku-5-5`. `packages/api/benefits-schema.test.ts` expects `campus_benefits` to have no table-level permissions, and the checked-in schema gives it `read("any")` ([Data model](/developers/change-it/data-model#known-issues) explains). Every other suite passes, so any other failure is new.
+- **One suite fails today on a known problem.** `apps/admin/src/lib/content-translation.test.ts` expects an old AI model id (`gpt-5.6-luna`) and gets `claude-haiku-5-5`. Every other suite passes, so any other failure is new.
 - **Many tests read source files** to enforce conventions, such as the website's colour tokens and motion rules or the editor's registry. If one fails after your change, read the test. It names the rule.
 - **Admin tests that mock modules** live in `*.cases.ts` files. Bun's module mocks leak between files, so a runner test starts each case file in its own `bun test` process. A new `*.cases.ts` file runs only once you add it to a runner's `CASE_FILES` list, for example in `apps/admin/src/app/(portal)/_actions/content-translation-actions.test.ts`.
 
@@ -212,7 +211,7 @@ The website also warns when `APPWRITE_SESSION_COOKIE_FALLBACK` isn't `a_session_
 
 **Symptom:** you're signed in, and the admin shows its 401 page.
 
-**Check:** your user's teams in your project. The admin gives roles only through teams, as described in [Signing in](#signing-in).
+**Check:** your user's teams in your project, and your row in `m365_team_sync`. The admin gives roles only through teams whose ids are in that row, as described in [Signing in](#signing-in).
 
 ### Pages hang, then fail with a timeout
 

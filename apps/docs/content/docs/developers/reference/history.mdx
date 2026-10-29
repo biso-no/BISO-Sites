@@ -71,6 +71,7 @@ On 31 October 2025 the repo was created from Turborepo's starter. The same day, 
 - **22 October.** The benefits studio, the app update prompt, and the move of every AI feature from OpenAI to Anthropic.
 - **27 October.** The page editor redesign was merged. It brought the website redesign into `main` with it. The docs rework started the same day.
 - **28 October.** Event sign-ups (RSVP).
+- **29 October.** Admin roles from exact team ids and the saved team list in `m365_team_sync`, read permissions carried by each page, event, benefit and translation row, page drafts in their own `page_drafts` table, and fixes to recruitment, the admin and the expense approvers.
 
 ## The BISO app
 
@@ -78,7 +79,7 @@ The app is in a separate repository, BISO-Flutter, and its history isn't covered
 
 ## What the history explains
 
-- **Puck is gone**, but the `puck_document` and `draft_document` columns are still in the schema. Pages now use `draft_doc` and `published_doc`.
+- **Puck is gone**, but the `puck_document` and `draft_document` columns are still in the schema, next to the older `draft_doc`. Pages now keep their drafts in `page_drafts` and the live page in `published_doc`.
 - **The WordPress era** left `packages/wp-import`, three api routes that still read `biso.no/wp-json`, and the WooCommerce variables. See [Events and content sources](/developers/reference/events-and-content-sources#wordpress-and-woocommerce).
 - **The deleted deploy workflow** can still be read with `git show 3872261c^:.github/workflows/deploy-production.yml`, and the GitHub variables it used may still exist. See [What a deploy workflow needs](/developers/keep-it-running/deploying#what-a-deploy-workflow-needs).
 - **The move from OpenAI to Anthropic** is recent, so some code, tests and READMEs still mention OpenAI. See [Leftovers](/developers/reference/ai#leftovers).

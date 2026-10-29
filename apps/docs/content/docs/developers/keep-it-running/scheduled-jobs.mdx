@@ -190,6 +190,6 @@ The Azure Automation URLs carry their own token. Treat them as secrets.
 These look like scheduled jobs, but nothing runs them on a timer.
 
 - **api `/api/cleanup-anon-users`** deletes anonymous Appwrite users with no email, not verified, and not updated for 14 days. The only schedule for it is in `apps/api/vercel.json`, and Vercel's cron doesn't run on Appwrite. scheduled-dispatch has no target for it, so anonymous users pile up. The website only creates them when a visitor uses the cart. To schedule it, add a target as described in [Add a job](#add-a-job), and expect the first run to delete a backlog.
-- **api `/api/admin/account-turnover`** and its `/bulk` route post to `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL`. Nothing in the repo calls them. The admin's board turnover uses the retention webhooks above instead.
+- **api `/api/admin/account-turnover`** and its `/bulk` route post to `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL`. Both need a global admin. Nothing in the repo calls them. The admin's board turnover uses the retention webhooks above instead.
 - **web `/api/cron/reconcile-orders`** is deprecated. It runs only if `ORDERS_RECONCILE_URL` still points at the website. Delete it, and the `/api/checkout/return` forwarder, once that variable points at the api.
 - **admin `POST /api/units/sync`** copies departments from 24SevenOffice. It isn't scheduled. A global admin runs it with the sync button on the admin's departments page when 24SevenOffice's chart of departments changes.

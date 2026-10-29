@@ -35,7 +35,7 @@ covers:
   - turbo.json
 ---
 
-Use these recipes for the changes you'll make most often. Each one lists the files to touch, in order, and the checks that prove it worked. Nothing in CI runs tests, lint or a type-check, so run the checks yourself. [Local setup](/developers/change-it/local-setup#type-check-lint-and-format) has the commands, and its [Tests](/developers/change-it/local-setup#tests) section names the two suites that already fail.
+Use these recipes for the changes you'll make most often. Each one lists the files to touch, in order, and the checks that prove it worked. Nothing in CI runs tests, lint or a type-check, so run the checks yourself. [Local setup](/developers/change-it/local-setup#type-check-lint-and-format) has the commands, and its [Tests](/developers/change-it/local-setup#tests) section names the one suite that already fails.
 
 ## Add a page to the website
 
@@ -71,7 +71,7 @@ Several tests read the source: `styles.test.ts`, `motion.test.ts` and `redesign-
 ### In the admin
 
 1. Put it in `apps/admin/src/app/(portal)/_actions/<area>.ts`, or in an `actions.ts` next to the page. The file starts with `"use server"`.
-2. Export only async functions from that file. Types are fine. A constant or a plain function breaks the build, and the type-check doesn't notice. Put shared constants and helpers in a plain module under `apps/admin/src/lib/`.
+2. Export only async functions from that file. Types are fine. A constant or a plain function breaks the build, and the type-check doesn't notice. Put shared constants and helpers in a plain module under `apps/admin/src/lib/`. A helper that other server code calls, but the browser must never reach, goes in a module that starts with `import "server-only"` and not `"use server"`. `_actions/audit-log.ts` and `lib/team-provisioning.ts` work this way, and `apps/admin/src/lib/server-only-modules.test.ts` checks them.
 3. Start the action with `const ctx = await requireAuth();`. It checks for a session and nothing else, so the next step matters.
 4. Limit what the person can reach:
    - For a list, add `applyScopeQueries(ctx, fields)` from `@/lib/utils/authorization` to the query, or `applyContentRelationshipScopeQueries(ctx)` from `@/lib/content-authorization` for tables that link to a campus and department through relationships.
@@ -154,7 +154,7 @@ The schema is `packages/api/appwrite.config.json`. Schema changes have been made
    bun run test --filter=@repo/api
    ```
 
-   `appwrite-config.test.ts` and `appwrite-config-permissions.test.ts` check the permissions, indexes and buckets in the file. `benefits-schema.test.ts` fails today on a known problem, so any other failure is yours.
+   `appwrite-config.test.ts` and `appwrite-config-permissions.test.ts` check the permissions, indexes and buckets in the file. They all pass today, so any failure is yours. A new team grant fails until you add the team id to the list in `appwrite-config-permissions.test.ts`.
 3. The owner pushes the change with `appwrite push tables` from `packages/api`. That changes production. If the CLI offers to recreate or delete an existing column, stop: recreating a column wipes it on every row.
 4. Regenerate the types and commit `packages/api/types/appwrite.ts`:
 
@@ -207,8 +207,6 @@ bun run test --filter=admin
 ```
 
 `content-translation.test.ts` fails today on a known problem, so any other failure is yours.
-
-Roles come from team names today, which is a known critical issue. See [Auth and roles](/developers/change-it/auth-and-roles#roles-come-from-team-names-which-anyone-can-create) before you rely on a role to protect a page.
 
 ## Refresh the website after an admin save
 

@@ -6,6 +6,8 @@ covers:
   - packages/connectors/src/sharepoint/**
   - packages/connectors/src/teams-bot/**
   - apps/admin/src/lib/it/graph.ts
+  - apps/admin/src/lib/it-permission-rules.ts
+  - apps/admin/src/app/(portal)/_actions/it-users.ts
   - apps/admin/src/lib/documents/sharepoint-mapping.ts
   - apps/admin/src/app/(portal)/_actions/documents.ts
   - apps/admin/src/app/(portal)/_actions/interviews.ts
@@ -48,13 +50,13 @@ The secrets of these registrations expire, and nothing in the code warns before 
 
 ## Staff sign-in
 
-**What it does.** Staff sign in to the admin with their BISO Microsoft account, through Appwrite's Microsoft provider. At each sign-in, the admin copies the person's `SG-App-*` groups into Appwrite teams, using the person's own Microsoft token. Docs reuse the admin's session. [Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in) has the whole flow.
+**What it does.** Staff sign in to the admin with their BISO Microsoft account, through Appwrite's Microsoft provider. At each sign-in, the admin copies the person's `SG-App-*` groups into Appwrite teams, and saves the list of them in `m365_team_sync`, using the person's own Microsoft token. Docs reuse the admin's session. [Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in) has the whole flow.
 
 **Code.** `signInWithAzure()` in `apps/admin/src/lib/server.ts`, the return route `apps/admin/src/app/(auth)/auth/oauth/route.ts`, and the group sync in `apps/admin/src/lib/m365-sync.ts`.
 
 **Credentials.** The client id and secret are set on the Microsoft provider in the Appwrite console. They aren't variables. The secret probably expires on 5 March 2027: check the exact date in the Azure portal.
 
-**When it fails.** Staff land back on the sign-in page under **Innlogging mislyktes. Prøv igjen eller kontakt support.** (Sign-in failed. Please try again or contact support.) If only the group sync fails, they're signed in anyway, with their teams as the sync left them. The sync removes old teams before it adds new ones, so a failure halfway can leave some removed ([Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in)). [Sign-in to the admin fails](/developers/keep-it-running/when-things-break#sign-in-to-the-admin-fails) is the runbook.
+**When it fails.** Staff land back on the sign-in page under **Innlogging mislyktes. Prøv igjen eller kontakt support.** (Sign-in failed. Please try again or contact support.) If only the group sync fails, they're signed in anyway, with their teams and saved team list as the sync left them. A failure halfway can leave the two out of step until the next sign-in ([Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in)). [Sign-in to the admin fails](/developers/keep-it-running/when-things-break#sign-in-to-the-admin-fails) is the runbook.
 
 **Test it safely.** Your own Appwrite project, as in [Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project), has no Microsoft provider until you add one. The screenshot scripts show a way round it: they make staff users and sign them in with the project's API key ([Signing in](/developers/change-it/local-setup#signing-in)). The sync has unit tests in `apps/admin/src/lib/m365-sync.test.ts`.
 
@@ -65,7 +67,12 @@ The secrets of these registrations expire, and nothing in the code warns before 
 - the admin's **IT** pages: finding, creating and changing Microsoft accounts and their groups, resetting MFA, ending sign-in sessions, the board turnover, and the department audit at `/it/users/audit`
 - interview scheduling: the panel's free and busy times, the Teams meeting and the Outlook invite, from the admin's interview tools and from the website's booking page
 - finding who approves an expense, in the api
-- the API's admin routes for Microsoft accounts. Read the [known issues](/developers/change-it/auth-and-roles#known-issues) before you rely on them.
+- the API's admin routes for Microsoft accounts, which nothing in the website or the admin calls ([The API](/developers/change-it/auth-and-roles#the-api))
+- `backfill:m365-team-sync`, which reads every staff user's groups to write their saved team list. For that the registration needs the `GroupMember.Read.All` or `Directory.Read.All` application permission ([The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list)).
+
+On the IT pages, global admins may do everything. Campus admins may look up accounts and create new ones, only in the campuses they manage. Everything else, the board turnover included, is for global admins ([Microsoft accounts on the IT page](/developers/change-it/auth-and-roles#microsoft-accounts-on-the-it-page)).
+
+**Campus mail lists.** The admin, and the API's user routes, set a new account's Office field (`officeLocation`) to its campus name, and the IT page's profile form changes it when someone moves campus (`apps/admin/src/app/(portal)/_actions/it-users.ts`). The owner decided on 29 October 2026 to make each campus's mail list, and the national one, a dynamic distribution group in Exchange Online that filters on that field. A new account then joins its campus list within 24 hours, and a move of campus moves the list. That set-up lives in Exchange, not in the repo, so check it in the Exchange admin centre. The Office values must match the campus names in Appwrite's `campus` table, so check the lists if a campus is ever renamed.
 
 **Code.** `packages/connectors/src/azure/`: `graph-client.ts`, `users.ts`, `authentication-methods.ts`, `calendar.ts` and `recruitment-scheduling.ts`. The admin builds its client in `apps/admin/src/lib/it/graph.ts`. Interview scheduling is called from `apps/admin/src/app/(portal)/_actions/interviews.ts` and `apps/web/src/app/actions/booking.ts`.
 
@@ -78,7 +85,7 @@ The secrets of these registrations expire, and nothing in the code warns before 
 **When it fails.**
 
 - The IT user list shows the error in its place, for example `Missing Microsoft Graph server credentials`. The api's approver lookup fails with the same message.
-- A booked interview is still saved, but no Teams meeting or Outlook invite goes out. If the Graph call fails, the website logs `[Booking] Calendar invite failed:`. With the variables missing, nothing is logged, and the booking page also offers times without checking the panel's calendars.
+- A booked interview is still saved, but no Teams meeting or Outlook invite goes out. If the Graph call fails, the website logs `[Booking] Calendar invite failed:`. With the variables missing, nothing is logged, and the booking page also offers times without checking the panel's calendars. Either way, after a booking without an invite the website emails the staff member who made the booking link, writes a `recruitment.booking.invite_failed` row to `audit_logs`, and the interview shows **Invitasjon ikke sendt** (Invite not sent) on the admin's recruitment board. That email needs `SMTP_HOST` and `SMTP_FROM` on the website. If it can't be sent, the website logs `[Booking] Could not alert staff about a failed invite:`.
 - Staff sign-in doesn't use this registration, so an expired Graph secret never stops anyone signing in.
 
 **Test it safely.** No test tenant is recorded, so every Graph call with this registration acts on BISO's real accounts. Pages that only read, such as the user search, change nothing. Never test anything that writes. Creating a user, changing groups, resetting MFA or running a turnover changes a real person's account. Booking an interview, on a local website or with the admin's interview tools, creates a real Teams meeting and sends real Outlook invites to the panel and the candidate. Even the read-only pages use production credentials: get them from the account owner for the session, and don't keep them in `.env.local` afterwards. The unit tests are in `packages/connectors/src/azure/*.test.ts` and `apps/admin/src/lib/it/`.

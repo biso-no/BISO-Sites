@@ -29,7 +29,7 @@ BISO publishes some of its events on Tickster, and sells their tickets there. Tw
 
 ### Events sync
 
-**What it does.** Copies the events BISO publishes on Tickster into `events` and `content_translations`, so they show on the website and in the app next to events made in the admin. It runs one search per campus by organiser name, by default `by:"BISO Oslo"`, `by:"BISO Bergen"` and so on, and gives each event that campus. Each event gets a row id worked out from its Tickster id, so a run updates rows instead of adding copies.
+**What it does.** Copies the events BISO publishes on Tickster into `events` and `content_translations`, so they show on the website and in the app next to events made in the admin. It runs one search per campus by organiser name, by default `by:"BISO Oslo"`, `by:"BISO Bergen"` and so on, and gives each event that campus. Each event gets a row id worked out from its Tickster id, so a run updates rows instead of adding copies. The event row and its translations get the same read rule as an event made in the admin: readable by everyone once published or cancelled, and by nobody but the service key before that (`eventReadPermissions` in `packages/shared/utils/content-read-permissions.ts`). Operations Unit can also update and delete them.
 
 **Code.** `apps/api/src/lib/tickster-events-sync.ts` and the route `POST /api/tickster/events/sync`. The Tickster client is `packages/connectors/src/tickster/events-client.ts`.
 

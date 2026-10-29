@@ -48,7 +48,7 @@ All Appwrite access goes through this package: the server, guest and browser cli
 | `@repo/api/server` | `createSessionClient()`, `createAdminClient()`, `createPublicClient()` and `createSessionJwt()`. Server only. |
 | `@repo/api/server-env` | The Appwrite endpoint and project id, with their fallbacks |
 | `@repo/api/client` | The browser client, from the `appwrite` SDK |
-| `@repo/api/errors` | `isNotFound()`, `orNullIfNotFound()` and `appwriteErrorStatus()`. They tell "the row doesn't exist" apart from "the call failed". |
+| `@repo/api/errors` | `isNotFound()`, `orNullIfNotFound()`, `isRowNotFound()`, `orNullIfRowNotFound()` and `appwriteErrorStatus()`. They tell "the row doesn't exist" apart from "the call failed". The `Row` pair also treats a missing table or database as a failure, not as "no row". |
 | `@repo/api/file` | `InputFile`, for uploads from the server |
 | `@repo/api/page-builder` | Page drafts, publishing, and the permissions on page rows |
 | `@repo/api/storage` | The storage link builders on their own |
@@ -75,16 +75,35 @@ Plain TypeScript modules that more than one app needs. They cover membership sta
 | `@repo/shared/utils/*` | One import per file in `utils/`, for example `@repo/shared/utils/team-roles` |
 | `@repo/shared/types/*` | Shared types, such as recruitment and user management |
 | `@repo/shared/member-pass/*` | The member pass, scanning, scanner grants and the wallet passes |
-| `@repo/shared/recruitment` | Recruitment helpers. `/recruitment/apply`, `/recruitment/booking-slots` and `/recruitment/application-documents` are separate entry points. |
+| `@repo/shared/recruitment` | Recruitment helpers. `/recruitment/apply`, `/recruitment/booking-slots`, `/recruitment/booking-link` and `/recruitment/application-documents` are separate entry points. |
 
 It depends on `@repo/api` and `@repo/connectors`, so importing it can pull both into a bundle.
 
 **Sharp edges**
 
 - **Some files are server only.** Six files import `server-only`: the wallet-pass modules in `member-pass/`, `recruitment/apply.ts` and `utils/bi-identity-sync.ts`. Importing one of them into a client component fails the build, so check the top of a file before you use it in the browser.
-- **The admin's roles are worked out here from team names**, in `utils/team-roles.ts`. That's the critical issue described in [Roles come from team names](/developers/change-it/auth-and-roles#roles-come-from-team-names-which-anyone-can-create).
-- **The scripts write to whatever `apps/admin/.env.local` names.** The `lockdown:*`, `backfill:*`, `migrate:benefits` and `clear:legacy-benefit-codes` scripts in `packages/shared/scripts/` read that file and use `node-appwrite` directly. Check which project the file names before you run one.
+- **Roles are worked out here, for the admin and the API both.** `utils/team-roles.ts` holds the trusted team ids, `keepSyncedTeams()` and `rolesFromTeams()`. Change a role rule there and both apps follow. [Auth and roles](/developers/change-it/auth-and-roles#roles) explains them.
+- **The scripts write to whatever `apps/admin/.env.local` names.** The `lockdown:*`, `backfill:*`, `migrate:*`, `reconcile:*` and `clear:legacy-benefit-codes` scripts in `packages/shared/scripts/` read that file and use `node-appwrite` directly. Check which project the file names before you run one. [Maintenance scripts](#maintenance-scripts) covers the newest four.
 - **Its tests run on Vitest.** Run them with `bun run test`. A bare `bun test` starts Bun's own runner, which ignores the Vitest config. See [Tests](/developers/change-it/local-setup#tests).
+
+### Maintenance scripts
+
+Four scripts came with the fixes merged on 29 October 2026. Run each from `packages/shared`. Each one is a dry run by default: it prints `Mode: dry-run`, the endpoint and the project, then what it would change, and writes nothing. Add `-- --apply` to write. Each exits with a non-zero code when anything failed.
+
+```bash
+cd packages/shared
+bun run reconcile:row-permissions              # dry run
+bun run reconcile:row-permissions -- --apply   # writes
+```
+
+| Script | What it does | When to run it |
+|---|---|---|
+| `backfill:m365-team-sync` | Writes each Microsoft user's `m365_team_sync` row from their current Microsoft groups, as the sign-in sync would. It needs the Graph app registration, with `GroupMember.Read.All` or `Directory.Read.All`. If no user maps to any team, it writes nothing and exits with `1`, which usually means that permission is missing. | In a new project before the admin and the API are deployed, or after many group changes. [The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list) has the details. |
+| `reconcile:row-permissions` | Rewrites the read entries on existing rows of `pages`, `page_translations`, `campus_benefits`, `events` and `content_translations` to what the code writes now. It reads `news`, `webshop_products`, `jobs` and `departments` only for the status that translations follow. Update and delete entries are kept, and each row is checked again just before it's written. | After a change to the read rules in [Data model](/developers/change-it/data-model#content-rows-visibility-only). Apply it only while nobody is editing content, then run a dry run again: it should report 0 changes. Never run it together with `cutover:content-permissions`. |
+| `migrate:page-drafts` | Moves page drafts out of the old columns on `page_translations` (`draft_doc`, `puck_document`, `draft_document`) into `page_drafts`, and empties those columns. It never overwrites an existing draft row. A published translation that holds an unpublished title or description gets the published value back, and the newer one moves to the draft. The dry run lists each title it would restore. | Once, after deploying the code that reads drafts from `page_drafts`, while nobody is editing pages. Then run a dry run again: it should find nothing left to do. |
+| `backfill:scorecard-interviews` | Sets the `interview` link on interview scorecards that only have an `interview_id`, so the recruitment board and the retention clean-up find them. Scorecards whose interview no longer exists are listed as orphans, and never changed or deleted. | Once, for scorecards made before the link existed. Delete orphans by hand if you want them gone. |
+
+`reconcile:row-permissions`, `migrate:page-drafts` and `backfill:scorecard-interviews` write nothing at all if any read fails during their scan. `backfill:m365-team-sync` writes nothing if it can't list the Microsoft identities. If only some people's groups can't be read, it skips those people and writes the rest.
 
 ## `@repo/editor`
 
@@ -183,6 +202,7 @@ AI on the Vercel AI SDK: the two Anthropic models, the admin assistant and its t
 |---|---|
 | `@repo/ai/models` | `balancedModel` and `fastModel`. The one place the apps' models are chosen. |
 | `@repo/ai/assistant`, `/assistant/types`, `/assistant/tools` | The admin assistant |
+| `@repo/ai/assistant/read-only-tools` | `READ_ONLY_TOOL_NAMES`: the assistant tools that may run without the user's confirmation. See [AI](/developers/reference/ai#the-admin-assistant). |
 | `@repo/ai/server/recruitment-screener` | Scores job applications |
 | `@repo/ai/server/recruitment-emails` | Drafts recruitment emails |
 | `@repo/ai/server/department-resolver` | Matches Microsoft users to departments for the admin's IT audit |

@@ -83,7 +83,7 @@ The table in the root `CLAUDE.md` leaves out `@repo/tours`, `@repo/wp-import` an
 |---|---|
 | An admin screen | `apps/admin/src/app/(portal)/<area>` |
 | Admin server actions | `apps/admin/src/app/(portal)/_actions/` |
-| Admin roles and menu access (`NAV_ACCESS`) | `apps/admin/src/lib/roles.ts`, `apps/admin/src/lib/authorization.ts` |
+| Admin roles and menu access (`NAV_ACCESS`) | `apps/admin/src/lib/roles.ts`, `apps/admin/src/lib/authorization.ts`. The team-id rules the admin and the API share are in `packages/shared/utils/team-roles.ts`. |
 | The Microsoft group sync | `apps/admin/src/lib/m365-sync.ts` |
 | The page editor | `apps/admin/src/app/(editor)` for the screen, `packages/editor/src` for the editor, `packages/editor/src/blocks` for the blocks |
 | Website pages | `apps/web/src/app/(public)`, `(protected)` and `(auth)` |

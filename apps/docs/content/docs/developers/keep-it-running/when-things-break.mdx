@@ -99,18 +99,22 @@ If the `message` mentions `AADSTS7000222` or `invalid_client`, or if every new s
 
 ### Signed in, but "401 · Tilgang nektet"
 
-The page is misleading. The person is signed in, but they're in no campus or department team, and the admin lets nobody in without one unless they're a benefits editor (`requireAdminAccess` in `apps/admin/src/lib/authorization.ts`). The M365 sync puts people in those teams from their `SG-App-*` groups.
+The page is misleading. The person is signed in, but no campus or department team counts for them, and the admin lets nobody in without one unless they're a benefits editor (`requireAdminAccess` in `apps/admin/src/lib/authorization.ts`). A team counts only when the person is a member and its id is in their saved team list, their row in `m365_team_sync`. The M365 sync writes both from their `SG-App-*` groups at each sign-in ([Auth and roles](/developers/change-it/auth-and-roles#the-saved-team-list)).
 
 **Check**
 
 1. In Microsoft Entra, or on the admin's **IT** page, check that the person is in the right `SG-App-*` groups. [Getting access](/developers/start-here/getting-access#microsoft-account) lists which groups give which role.
-2. In the admin's logs, look for `M365 Sync Failed:` at the time they signed in. Each sign-in copies the person's groups to their Appwrite teams. If that fails, they're signed in with the teams they had before. The error after it includes Microsoft Graph's answer.
+2. In the admin's logs, look for `M365 Sync Failed:` at the time they signed in. Each sign-in copies the person's groups to their Appwrite teams and saved list. If that fails, they're signed in with what they had before, or partly updated. The error after it includes Microsoft Graph's answer.
 3. In the Appwrite console, open the user and check their `sg-app-*` team memberships.
+4. In the `m365_team_sync` table, open the row whose id is the user's id. Its `team_ids` must hold the same `sg-app-*` ids. With no row, the person has no role at all.
 
 **Fix**
 
 1. Add the missing groups on the admin's **IT** page. Only global admins can change groups there.
 2. Make the person sign in again, because the groups are copied only at sign-in. The 401 page has no way to sign out. Either the person clears their browser's cookies for `biso.no`, or you delete their sessions in the Appwrite console.
+3. If many people have no row in `m365_team_sync`, run `backfill:m365-team-sync` instead of asking each one to sign in again ([The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list)).
+
+If every admin page fails with an error instead, and the admin logs `[getUserAuthContext] Appwrite outage detected:`, check that the `m365_team_sync` table exists in the project. The admin treats a missing table as an outage. Otherwise go to [Appwrite is down](#appwrite-is-down).
 
 ## Payments fail
 
@@ -254,7 +258,7 @@ Never change Infisical's `ENCRYPTION_KEY`. Infisical's self-hosting documentatio
 | A BI sign-in doesn't fill in the student id, so membership purchase is blocked | `BI_AZURE_CLIENT_SECRET` | web, api |
 | Expense approvals don't reach Teams | `TEAMS_BOT_APP_PASSWORD` | api |
 
-Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and none of these secrets (`apps/admin/src/lib/m365-sync.ts`). So an expired Graph secret doesn't stop staff from signing in or getting their roles.
+Copying groups to teams at sign-in uses the person's own Microsoft sign-in, and none of these secrets (`apps/admin/src/lib/m365-sync.ts`). So an expired Graph secret doesn't stop staff from signing in or getting their roles. It does stop `backfill:m365-team-sync`, which reads groups with the Graph registration.
 
 **Check**
 

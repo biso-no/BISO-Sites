@@ -1,6 +1,6 @@
 ---
 title: AI
-description: Which features use Anthropic's models and where, the docs assistant and what it costs, the kill switches, the OpenAI key that only switches job screening on, the code and settings left over from earlier AI work, and how to test without spending BISO's credit.
+description: Which features use Anthropic's models and where, how the admin assistant's writes are confirmed, the docs assistant and what it costs, the kill switches, the OpenAI key that only switches job screening on, the code and settings left over from earlier AI work, and how to test without spending BISO's credit.
 covers:
   - packages/ai/**
   - apps/docs/app/api/ask/**
@@ -9,9 +9,11 @@ covers:
   - apps/docs/components/landing/ask-field.tsx
   - packages/editor/src/ai/**
   - apps/admin/src/app/api/assistant/route.ts
+  - apps/admin/src/app/(portal)/_components/assistant/parts/confirm-action-card.tsx
   - apps/admin/src/app/api/page-editor/ai/**
   - apps/admin/src/lib/content-translation.server.ts
   - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-ai.ts
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/recruitment-ai-prompts.ts
   - apps/admin/src/app/(portal)/_actions/it-remediation.ts
   - apps/api/src/app/api/expenses/ocr/route.ts
   - apps/api/src/app/api/expenses/summary/route.ts
@@ -59,6 +61,17 @@ Who owns the Anthropic account: <Private name="account-owners" label="Account ow
 | [Docs assistant](#the-docs-assistant) | docs | Balanced, or fast with `DOCS_ASSISTANT_MODEL=fast` | `apps/docs/app/api/ask/route.ts`, `apps/docs/lib/assistant/` |
 
 Applications sent from the website are screened by the web Site. Applications sent from the app go through `apps/api/src/app/api/recruitment/applications/route.ts` and are screened by the api Site.
+
+Recruitment AI never sends a candidate's name. It sends each candidate as a label, `Candidate 1`, `Candidate 2` and so on, with contact details removed, and puts first names back into the answer afterwards (`recruitment-ai-prompts.ts`, next to `recruitment-ai.ts`).
+
+## The admin assistant
+
+The assistant reads and changes content for the signed-in staff member, within their roles (`packages/ai/src/assistant/authz.ts`). Vacancies are open to it only for HR and global admins. A tool that changes data runs only after the person confirms that exact call on the card the chat shows for it:
+
+- The card is built from the call's real tool name and input, never from text the model wrote, and shows the fields the call will write (`apps/admin/src/app/(portal)/_components/assistant/parts/confirm-action-card.tsx`).
+- The server checks the click before the tool runs: the same user, the exact call and its input, and within 10 minutes (`createConfirmationGate` in `packages/ai/src/assistant/tools/confirmation.ts`). A call without a valid confirmation answers `Not run:` with the reason, and changes nothing.
+- Every tool with a server `execute` is gated, unless its name is in `READ_ONLY_TOOL_NAMES` (`packages/ai/src/assistant/tools/read-only-tools.ts`). A new tool is gated until you add it there, so add only tools that change nothing.
+- The confirmations are signed with keys derived from `APPWRITE_API_KEY`. Without that variable, the assistant answers `503` with `The AI assistant is not configured.`
 
 ## Settings
 

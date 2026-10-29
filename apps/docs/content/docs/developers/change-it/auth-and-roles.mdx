@@ -1,6 +1,6 @@
 ---
 title: Auth and roles
-description: How people sign in to the admin, the website, the API, the BISO app and these docs, how the admin turns Microsoft groups into roles and scope, the cookie rules on biso.no, and the known problems with roles.
+description: How people sign in to the admin, the website, the API, the BISO app and these docs, how Microsoft groups become roles through exact team ids and the saved team list, who may change Microsoft accounts, the cookie rules on biso.no, and the known issues.
 covers:
   - apps/admin/src/lib/server.ts
   - apps/admin/src/app/(auth)/auth/**
@@ -15,7 +15,12 @@ covers:
   - apps/admin/src/lib/content-authorization.ts
   - apps/admin/src/lib/benefit-access.ts
   - apps/admin/src/lib/documents/access.ts
+  - apps/admin/src/lib/it-permission-rules.ts
+  - apps/admin/src/lib/it/tenant-guard.ts
+  - apps/admin/src/lib/it/turnover-target.ts
   - packages/shared/utils/team-roles.ts
+  - packages/shared/utils/m365-team-sync-backfill.ts
+  - packages/shared/scripts/backfill-m365-team-sync.ts
   - apps/web/src/lib/server.ts
   - apps/web/src/app/(auth)/auth/**
   - apps/web/src/app/(protected)/layout.tsx
@@ -25,13 +30,14 @@ covers:
   - apps/web/src/lib/api-client.ts
   - apps/api/src/lib/auth.ts
   - apps/api/src/lib/admin-auth.ts
+  - apps/api/src/app/api/admin/**
   - apps/api/src/lib/allowed-origins.ts
   - apps/api/src/app/api/auth/**
   - packages/api/server.ts
   - apps/docs/lib/auth/**
 ---
 
-Read this before you change sign-in, roles, cookies, or anything that decides who may see or change data. It goes through each app in turn, then the cookie rules on `biso.no`, then the known problems. The admin's roles have a critical flaw that the owner will fix. Read [Known issues](#known-issues) before you rely on a role to protect anything.
+Read this before you change sign-in, roles, cookies, or anything that decides who may see or change data. It goes through each app in turn, then the cookie rules on `biso.no`, then the known issues.
 
 ## Who signs in where
 
@@ -51,8 +57,8 @@ Every one of these is an Appwrite account in the same project. The schema file s
 
 1. The sign-in page calls `signInWithAzure()` in `apps/admin/src/lib/server.ts`. It asks Appwrite for a Microsoft sign-in URL with the service key. The return address is `NEXT_PUBLIC_BASE_URL` followed by `/auth/oauth`. The admin refuses to start without that variable. Before it redirects, it expires any `a_session_biso` cookie. [Cookies on biso.no](#cookies-on-bisono) explains why.
 2. The person signs in with Microsoft. The Microsoft sign-in secret is set on Appwrite's Microsoft provider in the console. It isn't an environment variable.
-3. Appwrite sends them to `/auth/oauth` (`apps/admin/src/app/(auth)/auth/oauth/route.ts`). The route creates the session, then waits for `syncM365Permissions()` to copy the person's Microsoft groups into Appwrite teams. If the sync fails, it logs `M365 Sync Failed:`, the route logs `M365 permission sync failed during OAuth callback:`, and the person is signed in anyway, with their teams as the sync left them. The sync removes old memberships before it adds new ones, so a failure halfway can leave some teams removed and others not yet added.
-4. The route sets the `a_session_biso_admin` cookie and sends the person on.
+3. Appwrite sends them to `/auth/oauth` (`apps/admin/src/app/(auth)/auth/oauth/route.ts`). The route creates the session, then waits for `syncM365Permissions()` to copy the person's Microsoft groups into Appwrite teams and save their team list. If the sync fails, it logs `M365 Sync Failed:`, the route logs `M365 permission sync failed during OAuth callback:`, and the person is signed in anyway, with their teams and saved list as the sync left them. The sync saves the list first, then removes old memberships, then adds new ones. A failure halfway can leave the list and the memberships out of step until the person signs in again.
+4. The route sets the `a_session_biso_admin` cookie and sends the person to the `redirectTo` address, once `sanitizeRedirectTarget()` in `apps/admin/src/lib/utils.ts` has checked it. It accepts a path on the admin, or an address on the docs origin from `NEXT_PUBLIC_DOCS_URL`. Anything else, including a value with a control character, goes to `/`.
 
 The admin has no sign-in link by email. `apps/admin/CLAUDE.md` still describes `signInWithMagicLink()` and an `/auth/callback` route. Neither exists: `(auth)/auth` holds only `login` and `oauth`.
 
@@ -60,40 +66,81 @@ The admin has no sign-in link by email. `apps/admin/CLAUDE.md` still describes `
 
 `syncM365Permissions()` in `apps/admin/src/lib/m365-sync.ts` runs at each admin sign-in, and at no other time:
 
+- If the IT page made the person's account, it first moves the profile row that the IT page created under their Microsoft id onto their Appwrite user id (`reconcileM365Profile`).
 - It reads the Microsoft access token that Appwrite stored on the person's Microsoft identity. Without one, it skips the group sync without a word.
 - It asks Microsoft Graph for the person's groups through `/me/transitiveMemberOf`, so groups inside groups count.
 - It keeps only groups whose names start with `SG-App-Campus-` or `SG-App-Dept-`.
 - Each group becomes an Appwrite team. The team id is the group's name in lower case, so `SG-App-Dept-OperationsUnit` becomes `sg-app-dept-operationsunit`. The team name drops the prefix and splits the words: `Operations Unit`.
-- It creates any team that doesn't exist yet and adds the person as a `member`. When it creates a department team, it also gives that team rights on the matching `departments` rows. On every sync, it makes sure the HR team has `create` on the recruitment tables. [Data model](/developers/change-it/data-model#live-permissions-can-drift-from-the-file) has the details.
+- It saves those team ids as the person's team list, in the `m365_team_sync` table. [The saved team list](#the-saved-team-list) explains it.
 - It removes the person from any `sg-app-campus-*` or `sg-app-dept-*` team whose group they're no longer in. It never touches other teams.
+- It creates any team that doesn't exist yet and adds the person as a `member`. When it creates a department team, it also gives that team rights on the matching `departments` rows. Whenever it adds someone to the HR team, it makes sure that team has `create` on the recruitment tables. [Data model](/developers/change-it/data-model#live-permissions-can-drift-from-the-file) has the details.
 
 [Getting access](/developers/start-here/getting-access#microsoft-account) lists which groups give which role.
 
 ### Roles
 
-`getUserAuthContext()` in `apps/admin/src/lib/authorization.ts` works out every role. It runs with the person's own session and reads their account and up to 200 of their teams. Then `parseTeamMemberships()` in `authorization-team-memberships.ts` sorts the teams:
+`getUserAuthContext()` in `apps/admin/src/lib/authorization.ts` works out every role. It runs with the person's own session and reads their account and up to 200 of their teams. With the service key, it also reads their row in `m365_team_sync`. Then:
 
-- **Campus teams** are teams named `National`, `Oslo`, `Bergen`, `Trondheim` or `Stavanger`, or `SG-App-Campus-` followed by one of those.
-- **Department teams** are teams whose id starts with `sg-app-dept-` or whose name starts with `SG-App-Dept-`.
+1. `keepSyncedTeams()` drops every team whose id starts with `sg-app-`, unless that id is in the person's saved list. Other teams, such as `docs-handover`, pass through. With no row, every `sg-app-*` team is dropped.
+2. `rolesFromTeams()` works out the roles from the ids that are left. It never reads a team's name to give a role.
+
+Both functions are in `packages/shared/utils/team-roles.ts`, and the API uses the same two ([The API](#the-api)). `parseTeamMemberships()` in `apps/admin/src/lib/authorization-team-memberships.ts` turns the result into the admin's role names from `apps/admin/src/lib/roles.ts`.
+
+`rolesFromTeams()` sorts the teams by id:
+
+- **Campus teams** are exactly `sg-app-campus-national`, `sg-app-campus-oslo`, `sg-app-campus-bergen`, `sg-app-campus-stavanger` and `sg-app-campus-trondheim` (`CAMPUS_TEAM_IDS`).
+- **Department teams** are teams whose id starts with `sg-app-dept-`. The admin uses a department team's name to find the department's rows, but only when the name matches the id the sync would give it, such as `Operations Unit` for `sg-app-dept-operationsunit`. With any other name, the team still counts as a department team, with no department name.
 - Every other team is ignored.
 
-The roles come from those lists (`packages/shared/utils/team-roles.ts`, `apps/admin/src/lib/roles.ts`):
-
-| Role | Who gets it |
+| Role | Team ids |
 |---|---|
-| `globaladmin` | Members of the `National` campus team and the `Operations Unit` department team |
-| `campusadmin` | Members of a city's campus team and that city's `Ledelsen <City>` team. They manage that city. |
-| `hradmin` | Members of `National` and the HR department team |
-| `hr` | Members of the HR department team |
-| `benefitseditor` | People whose email is in `BENEFITS_EDITOR_EMAILS`, and only if that email is on their Microsoft identity |
-| `department` | Anyone in at least one department team. It counts as a role in the menu rules. |
+| `globaladmin` | `sg-app-campus-national` and `sg-app-dept-operationsunit` |
+| `campusadmin` | `sg-app-campus-<city>` and `sg-app-dept-ledelsen<city>`, for Oslo, Bergen, Stavanger or Trondheim. They manage that city. |
+| `hradmin` | `sg-app-campus-national` and `sg-app-dept-hr` |
+| `hr` | `sg-app-dept-hr`, from the Microsoft group `SG-App-Dept-HR`. No other group gives HR. |
+| `benefitseditor` | People whose email is in `BENEFITS_EDITOR_EMAILS`, and only if that email is on their Microsoft identity. No team is involved. |
+| `department` | Anyone with at least one department team. It counts as a role in the menu rules. |
 
 Two more rules:
 
 - Appwrite user labels are never used for roles.
-- Members of the `sg-app-dept-controlcommittee` team get a global admin's reach for governing documents only, through `documentAccessContext()` in `apps/admin/src/lib/documents/access.ts`. That check uses the team id.
+- Members of the `sg-app-dept-controlcommittee` team get a global admin's reach for governing documents only, through `documentAccessContext()` in `apps/admin/src/lib/documents/access.ts`. That check uses the team id, after the same saved-list filter.
 
-If Appwrite is down or times out, `getUserAuthContext()` throws, and the person sees an error. Any other failure counts as signed out.
+If Appwrite is down or times out, `getUserAuthContext()` throws, and the person sees an error. It throws too if the `m365_team_sync` table is missing, and logs `[getUserAuthContext] Appwrite outage detected:`. Any other failure counts as signed out.
+
+### The saved team list
+
+Each row in `m365_team_sync` belongs to one person. Its row id is their Appwrite user id, `team_ids` holds the team ids their Microsoft groups gave at their last sign-in, and `synced_at` holds the time. The table and its rows have no permissions, so only the service key can read or write them.
+
+A team counts towards a role only when the person is a member and its id is in their list. So a membership that the sync didn't create from the person's own groups gives no role. That covers a team made by hand, and a member added by hand in the console.
+
+The sync writes the row at each Microsoft sign-in. To write rows for people who already have Microsoft identities, without waiting for them to sign in, run the backfill from `packages/shared`:
+
+```bash
+cd packages/shared
+bun run backfill:m365-team-sync              # dry run: lists each change
+bun run backfill:m365-team-sync -- --apply   # writes the rows
+```
+
+- It reads `apps/admin/.env.local`, so check which project that file names first. It prints the endpoint, project and Microsoft tenant before it starts.
+- It reads each person's groups with the Microsoft Graph app registration (`AZURE_GRAPH_*`, or the older `AZURE_TENANT_ID`, `AZURE_APP_ID` and `SHAREPOINT_CLIENT_SECRET`). That app needs the `GroupMember.Read.All` or `Directory.Read.All` application permission.
+- A person whose groups can't be read is listed as an error and skipped. The script then exits with `1`.
+- If nobody it scanned maps to any `SG-App-*` team, it writes nothing and exits with `1`. That almost always means the Graph app can't read group names.
+- It's safe to run again: it only writes rows that differ.
+
+In a new or rebuilt project, push the table and run the backfill before you deploy the admin and the API. Otherwise every admin has no role until they sign in with Microsoft again.
+
+Every team id the code trusts must exist in production, with no owner and no members outside its Microsoft group. "Owner actions" in `apps/docs/CLAUDE.md` lists the ids and how to check them.
+
+### Microsoft accounts on the IT page
+
+The admin's **IT** pages change real Microsoft accounts through Microsoft Graph ([Microsoft](/developers/reference/microsoft#microsoft-graph)). `getItPermissions()` in `apps/admin/src/lib/it-permission-rules.ts` decides who may do what:
+
+- **Global admins** may do everything, on any account.
+- **Campus admins** may look up accounts and their security details, and create accounts, only in the campuses they manage. An account's campus is its Office field (`officeLocation`, checked by `isWithinCampusScope` in `apps/admin/src/lib/it/tenant-guard.ts`). When a campus admin creates an account, its campus must be one they manage, its department must belong to that campus, and its manager must be in one of their campuses (`createM365User` in `apps/admin/src/app/(portal)/_actions/it-users.ts`).
+- Everything else needs a global admin, such as changing an account's profile, manager, groups, licences, MFA, password or sessions, disabling it, and the board turnover.
+
+The board turnover takes only accounts on the tenant domain, `biso.no` (`isTurnoverTarget` in `apps/admin/src/lib/it/turnover-target.ts`, from `M365_DOMAIN`). The **Start overgang** (Trigger turnover) button shows only for those accounts, and the global admin must type the account's login address to confirm. [The August board turnover](/developers/keep-it-running/yearly-calendar#the-august-board-turnover) has the whole flow.
 
 ### Where access is checked
 
@@ -156,7 +203,15 @@ Where callers get the JWT:
 
 `apps/api/src/proxy.ts` adds CORS headers to `/api/*`. It allows credentials and the `Authorization` and `Cookie` headers from the origins in `apps/api/src/lib/allowed-origins.ts`. In production those are `biso.no` and `admin.biso.no`, plus `web.biso.no` and `public.biso.no`, which aren't live. Outside production, `localhost` ports 3000 to 3002 are added.
 
-The API's admin routes work out roles with `getAdminScope(req)` in `apps/api/src/lib/admin-auth.ts`. It reads team names in its own way, which is looser than the admin's. See [Known issues](#known-issues).
+The API's admin routes, under `apps/api/src/app/api/admin/`, work out roles with `getAdminScope(req)` in `apps/api/src/lib/admin-auth.ts`. It reads the caller's teams and their `m365_team_sync` row, and uses the same `keepSyncedTeams()` and `rolesFromTeams()` as the admin. A global admin may act on any campus, and a campus admin on the campuses they manage. Anyone else gets only their department names: being in a campus team alone gives no scope. If Appwrite fails, or the service key can't read the saved list, the routes answer `500` instead of `401`.
+
+| Route | Who may call it |
+|---|---|
+| `POST /api/admin/users` and `POST /api/admin/users/bulk` | A campus admin, for a campus they manage, or a global admin. Adding extra group ids needs a global admin. |
+| `POST /api/admin/account-turnover` and `/bulk` | Global admins only |
+| `GET /api/admin/users`, `/campuses` and `/departments` | Any signed-in caller, limited to the campuses they manage |
+
+Nothing in the website or the admin calls these routes.
 
 ## The BISO app
 
@@ -172,7 +227,7 @@ The app signs in with the Appwrite Flutter SDK, which keeps the session on the p
 
 Docs reuse the admin's Microsoft sign-in, so they need no Microsoft setup of their own. They only read the `a_session_biso_admin` cookie. They never set or clear a cookie and never use the service key. Because they read the admin's cookie, docs must run on a `biso.no` subdomain, with `APPWRITE_SESSION_COOKIE=a_session_biso_admin`.
 
-Private values are shown only to members of exact team ids: `sg-app-campus-national` with `sg-app-dept-operationsunit`, a city's campus team with its `sg-app-dept-ledelsen<city>` team, or `docs-handover` (`apps/docs/lib/auth/access.ts`). Team names are ignored. The full rules, and the owner's set-up steps, are in the "Sign-in" and "Private details" sections of `apps/docs/CLAUDE.md`.
+Private values are shown only to members of exact team ids: `sg-app-campus-national` with `sg-app-dept-operationsunit`, a city's campus team with its `sg-app-dept-ledelsen<city>` team, or `docs-handover` (`apps/docs/lib/auth/access.ts`). Team names are ignored. Unlike the admin, docs doesn't read the `m365_team_sync` row: it trusts that fixed list of ids. The full rules, and the owner's set-up steps, are in the "Sign-in" and "Private details" sections of `apps/docs/CLAUDE.md`.
 
 ## Cookies on biso.no
 
@@ -195,23 +250,11 @@ Rules that have broken production before:
 
 ## Known issues
 
-### Roles come from team names, which anyone can create
-
-This is a known critical issue, and the owner will fix it.
-
-**What's wrong.** The admin and the API work out roles from Appwrite team names. In the admin, `parseTeamMemberships()` counts a team as the `National` campus, or as a department, by its name (`apps/admin/src/lib/authorization-team-memberships.ts`). The role rules in `packages/shared/utils/team-roles.ts` then match names such as `Operations Unit`. In the API, `getAdminScope()` reads every team name through `normalizeTeamName()`. But any signed-in Appwrite user, anonymous sessions included, can create a team with any name and become its owner.
-
-**Why it matters.** A team name proves nothing about a person's Microsoft groups. So no admin role can be trusted to protect data until this is fixed. That covers publishing on the website, orders, IT user management in Microsoft, and the API's admin routes.
-
-**The fix.** Check exact team ids, the way docs do in `apps/docs/lib/auth/access.ts`. The M365 sync creates each team with a known id, and once a team with that id exists nobody else can create another. The Control Committee check already works this way. Before you switch, make sure each team id you trust exists in production and has no owner and no members outside the matching Microsoft group. "Owner actions" in `apps/docs/CLAUDE.md` lists the ids and how to check them.
-
-### The API's admin routes go further than the admin
-
-`getAdminScope()` in `apps/api/src/lib/admin-auth.ts` treats any team that isn't a campus as a department. For someone who is neither a global nor a campus admin, `computeManagedCampusNames()` treats every campus they belong to as one they manage. The API's admin routes that act on Microsoft accounts trust this scope, so a plain campus member gets more reach there than the admin gives them. Nothing in the website or the admin calls these routes. Fix this together with the issue above.
-
 ### Group changes reach the admin only at the next sign-in
 
-The sync runs only when someone signs in to the admin. When a person is removed from a Microsoft group, they keep the matching team, and its role, until they next sign in. A session can last a year. When someone leaves, remove their `sg-app-*` team memberships and delete their sessions in the Appwrite console. [Getting access](/developers/start-here/getting-access#when-the-work-ends) has the full order.
+The sync runs only when someone signs in to the admin with Microsoft. When a person is removed from a Microsoft group, they keep the matching team, and its id in their saved list, until they next sign in. So they keep the role in the admin and the API until then, and a session can last a year. When someone leaves, delete their row in `m365_team_sync`, remove their `sg-app-*` team memberships, and delete their sessions in the Appwrite console. [Getting access](/developers/start-here/getting-access#when-the-work-ends) has the full order.
+
+After many group changes at once, such as the August turnover, `backfill:m365-team-sync` brings every saved list in line with the current groups ([The saved team list](#the-saved-team-list)). It skips anyone whose Microsoft account it can't read, such as a deleted one, so delete those rows by hand.
 
 ### The role-account turnover leaves Appwrite sessions open
 

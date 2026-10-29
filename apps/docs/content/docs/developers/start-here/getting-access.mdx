@@ -30,14 +30,16 @@ You sign in to the admin, and through it to these docs, with a BISO Microsoft ac
 
 Who creates accounts: <Private name="microsoft-tenant-admins" label="Microsoft tenant administrators" />
 
-**For a consultant**, a tenant administrator creates a BISO account in the Microsoft Entra admin centre and adds it to no `SG-App-*` group. Don't create the account on the admin's IT page. That page always adds a new account to one `SG-App-Campus-*` group and one `SG-App-Dept-*` group, and those groups give admin roles that can publish content. If the account was already made there, a global admin can remove both groups on the same page. That's enough if the person hasn't signed in to the admin yet. If they have, also remove their `sg-app-*` team memberships in the Appwrite console.
+**For a consultant**, a tenant administrator creates a BISO account in the Microsoft Entra admin centre and adds it to no `SG-App-*` group. Don't create the account on the admin's IT page. That page always adds a new account to one `SG-App-Campus-*` group and one `SG-App-Dept-*` group, and those groups give admin roles that can publish content. If the account was already made there, a global admin can remove both groups on the same page. That's enough if the person hasn't signed in to the admin yet. If they have, also remove their `sg-app-*` team memberships in the Appwrite console, and delete their row in the `m365_team_sync` table (the row id is their Appwrite user id).
 
-**For an in-house hire who needs an admin role**, a global admin adds them to the right groups on the admin's IT page. Only global admins can change groups there. The admin copies a person's `SG-App-*` groups into Appwrite teams each time they sign in, so a change takes effect at their next sign-in.
+**For an in-house hire who needs an admin role**, a global admin adds them to the right groups on the admin's IT page. Only global admins can change groups there. A campus admin can create a new account on that page too, only in a campus they manage, and it gets that campus's group and a department group. The admin copies a person's `SG-App-*` groups into Appwrite teams, and saves the list of them, each time they sign in, so a change takes effect at their next sign-in. [Auth and roles](/developers/change-it/auth-and-roles#roles) explains how the roles are worked out.
 
 | Role | Groups |
 |---|---|
 | Global admin | `SG-App-Campus-National` and `SG-App-Dept-OperationsUnit` |
 | Campus admin | `SG-App-Campus-<City>` and `SG-App-Dept-Ledelsen<City>`, for Oslo, Bergen, Stavanger or Trondheim |
+| HR | `SG-App-Dept-HR`. No other group gives HR. |
+| National HR | `SG-App-Campus-National` and `SG-App-Dept-HR` |
 | Department member | A campus group and a department group |
 
 ## The docs handover team
@@ -122,12 +124,13 @@ The platform also uses outside services such as Umami, Anthropic, 24SevenOffice,
 
 ## When the work ends
 
-Removing someone from a Microsoft group doesn't take their admin roles away straight away. The admin only updates a person's Appwrite teams when they next sign in, and Appwrite sessions last a year. So remove access in this order:
+Removing someone from a Microsoft group doesn't take their admin roles away straight away. The admin only updates a person's Appwrite teams and their saved team list when they next sign in, and Appwrite sessions last a year. So remove access in this order:
 
 1. On the admin's IT page, remove the person from their `SG-App-*` groups.
-2. In the Appwrite console, in the production project, remove their memberships of `sg-app-*` teams and of `docs-handover`.
-3. In the same project, delete the user's sessions, or block the user.
-4. Remove their Infisical user, their membership of BISO's organisation in the Appwrite console, their server and Webdock access, and their GitHub collaborator access.
-5. If a Microsoft account was made for them, disable or delete it.
+2. In the Appwrite console, in the production project, delete the person's row in the `m365_team_sync` table. The row id is their Appwrite user id. Without that row, the admin and the API give them no role. Re-running `backfill:m365-team-sync` also brings the row in line with their groups, but it skips anyone whose Microsoft account it can't read.
+3. In the same project, remove their memberships of `sg-app-*` teams and of `docs-handover`.
+4. Delete the user's sessions, or block the user.
+5. Remove their Infisical user, their membership of BISO's organisation in the Appwrite console, their server and Webdock access, and their GitHub collaborator access.
+6. If a Microsoft account was made for them, disable or delete it.
 
 Go through this list again at each August board turnover.

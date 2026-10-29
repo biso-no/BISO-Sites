@@ -9,6 +9,12 @@ covers:
   - packages/api/page-builder.ts
   - packages/api/content-permission-cutover.ts
   - packages/api/scripts/cutover-content-permissions.ts
+  - packages/shared/utils/content-read-permissions.ts
+  - packages/shared/utils/row-permission-reconcile.ts
+  - packages/shared/scripts/reconcile-row-permissions.ts
+  - packages/shared/utils/page-draft-migration.ts
+  - packages/shared/scripts/migrate-page-drafts.ts
+  - apps/admin/src/lib/content-translation-reads.ts
   - packages/api/appwrite-config.test.ts
   - packages/api/appwrite-config-permissions.test.ts
   - packages/api/benefits-schema.test.ts
@@ -23,11 +29,11 @@ Read this before you add a table or a column, write a query, or change who can r
 
 ## Databases, buckets and topics
 
-`appwrite.config.json` defines two databases with 101 tables between them:
+`appwrite.config.json` defines two databases with 103 tables between them:
 
 | Database id | Name | Tables |
 |---|---|---|
-| `app` | App | 99. Everything the apps use. Queries name it as the database id, for example `db.getRow<Users>("app", "user", user.$id)`. |
+| `app` | App | 101. Everything the apps use. Queries name it as the database id, for example `db.getRow<Users>("app", "user", user.$id)`. |
 | `24so` | Finago | 2: `departments` and `auth_tokens`. The 24SevenOffice connector keeps its login token in `auth_tokens`. |
 
 Both databases have a table called `departments`. The committed types have one `Departments` type, for the `app` table, and none for the `24so` one. See [Types](#types).
@@ -42,14 +48,14 @@ These are the main tables in `app`.
 |---|---|---|
 | People | `user`, `public_profiles`, `student_id`, `tour_progress` | `user` holds one profile row per Appwrite account, with the account's `$id` as its row id. It holds the campus, departments, student id, BI ids and language. |
 | Campuses and units | `campus`, `campus_data`, `campus_metadata`, `departments`, `department_board`, `department_socials`, `partners`, `funding_programs` | Campus ids are fixed strings: Oslo `1`, Bergen `2`, Trondheim `3`, Stavanger `4`, National `5`. `departments` mirrors the 24SevenOffice chart of accounts, so `active` doesn't mean public. The website also filters with `isPublicUnit` from `@repo/shared/utils/unit-visibility`. |
-| Content | `pages`, `page_translations`, `news`, `events`, `documents`, `document_versions`, `content_translations`, `announcements`, `form_submissions`, `notices`, `event_attendees`, `event_rsvps`, `event_segments`, `segment_members`, `large_event`, `large_event_item` | `pages` and `page_translations` hold the block editor's pages. `event_rsvps` holds students' answers to an event (`going`, `maybe` or `not_going`), one per student per event. It has no table-level permissions. The website and the api write each answer with the service key, and the row's only permission is read for the student who answered (`packages/shared/utils/event-rsvp.ts`). |
+| Content | `pages`, `page_translations`, `page_drafts`, `news`, `events`, `documents`, `document_versions`, `content_translations`, `announcements`, `form_submissions`, `notices`, `event_attendees`, `event_rsvps`, `event_segments`, `segment_members`, `large_event`, `large_event_item` | `pages` and `page_translations` hold the block editor's published pages, and `page_drafts` holds the drafts. `event_rsvps` holds students' answers to an event (`going`, `maybe` or `not_going`), one per student per event. It has no table-level permissions. The website and the api write each answer with the service key, and the row's only permission is read for the student who answered (`packages/shared/utils/event-rsvp.ts`). |
 | Jobs and recruitment | `jobs`, `job_applications`, `job_application_answers`, `candidate_profiles`, `job_interviews`, `job_interview_participants`, `job_interview_scorecards`, `recruitment_booking_tokens` | Applicants' personal data. See [Permissions](#permissions). |
 | Shop and payments | `webshop_products`, `product_variations`, `product_custom_fields`, `cart_reservations`, `cart_field_answers`, `orders`, `order_items`, `order_item_field_answers`, `order_refunds`, `order_refund_lines`, `sales_types`, `shop_settings`, `payment_settings`, `payments` | `orders.status` is `pending`, `authorized`, `paid`, `cancelled`, `failed` or `refunded`. Orders also carry lock columns (`transition_lock`, `finago_posting_lock`, `membership_fulfilment_lock`, `refund_lock`). The scheduled order reconciliation, for example, skips an order while its `finago_posting_lock` is set. |
 | Membership and member pass | `memberships`, `member_roster`, `membership_texts`, `member_pass_scanners`, `member_pass_scanner_links`, `member_pass_scans` | `memberships` is the plan catalogue. `member_roster` is a display-only copy, rebuilt every night from 24SevenOffice. 24SevenOffice, not Appwrite, decides who is a member. |
 | Benefits | `campus_benefits`, `benefit_partners`, `benefit_codes`, `benefit_reveals`, `benefit_interactions` | Every benefit is one `campus_benefits` row, with a `section` of `member`, `career`, `social`, `safety` or `business`. |
 | Expenses | `expense`, `expense_attachments`, `expense_approvals`, `expense_approval_issues`, `expense_cost_types`, `ledger_accounts` | |
 | Notifications | `content_notifications`, `user_notifications` | `announcements` (under Content) holds manual and automatic pushes. `content_notifications` has one row per content item. `user_notifications` keeps each user's read and cleared state. |
-| Operations | `audit_logs`, `approval_requests`, `m365_turnover_jobs`, `m365_remediation_snapshot`, `feature_flags`, `varsling_settings`, `app_versions`, `page_view_events` | `audit_logs` has no permissions at all, so only the service key can read it. |
+| Operations | `audit_logs`, `approval_requests`, `m365_turnover_jobs`, `m365_remediation_snapshot`, `m365_team_sync`, `feature_flags`, `varsling_settings`, `app_versions`, `page_view_events` | `audit_logs` has no permissions at all, so only the service key can read it. `m365_team_sync` holds each staff user's saved team list, which the admin and the API check before they give a role ([Auth and roles](/developers/change-it/auth-and-roles#the-saved-team-list)). It has no permissions either. |
 | Transport | `departures`, `stop_places` | Public-transport departures from Entur, kept by the API for the BISO app (`apps/api/src/lib/entur-departures.ts`). |
 
 No code in this repo uses 17 of the tables: `subs`, `content_entries`, `content_entry_locales`, `content_templates`, `content_template_versions`, `dashboard_metrics`, `24so_tokens`, `site_pages`, `typing_indicators`, `chats`, `chat_messages`, `product_favorites`, `campus_data_translations`, `bug_reports`, `tax_codes`, `saved_jobs` and `followed_units`. The BISO app uses some of them, such as `chats`, `chat_messages`, `typing_indicators`, `product_favorites` and `saved_jobs`. Search BISO-Flutter before you remove any table.
@@ -58,7 +64,8 @@ No code in this repo uses 17 of the tables: `subs`, `content_entries`, `content_
 
 - **Who owns a content row.** `news`, `events`, `jobs`, `pages`, `webshop_products`, `campus_benefits`, `announcements` and `documents` each have a `campus` and a `department` relationship column. Those are the owner. The tables also keep a plain `campus_id`, and `news`, `events`, `jobs` and `pages` a `department_id`, from before the relationships existed. The admin's access checks use the relationships, and fall back to the plain columns only when a caller asks for that (`apps/admin/src/lib/content-authorization.ts`). When you write a content row, set the relationships and the plain columns to the same ids, as `packages/api/page-builder.ts` does.
 - **People.** A `user` row links to many `departments`, to a `campus`, and to one `student_id` row.
-- **Translations.** `news`, `events` and `webshop_products` link to `content_translations` through `translation_refs`. `jobs` and `departments` use `translations`, and `campus_benefits` uses `contentTranslations`. A unique index allows one `content_translations` row per content type, content id and language. Pages use `page_translations` instead, with one row per page and language (also a unique index). The editor's JSON is in its `draft_doc` and `published_doc` columns. The older `puck_document` and `draft_document` columns are still in the schema, but nothing reads or writes them.
+- **Translations.** `news`, `events` and `webshop_products` link to `content_translations` through `translation_refs`. `jobs` and `departments` use `translations`, and `campus_benefits` uses `contentTranslations`. A unique index allows one `content_translations` row per content type, content id and language. Pages use `page_translations` instead, with one row per page and language (also a unique index).
+- **Page drafts.** A `page_translations` row holds only what's live: `published_doc`, the title and the description. Each translation's draft (the editor's JSON, title and description) is in `page_drafts`, in the row whose id is the translation row's id. A save writes the draft row and leaves the translation row as it is. `publishPage` in `packages/api/page-builder.ts` copies the draft onto the translation row, and refuses with `Nothing to publish for <locale>` rather than replace a live page with an empty document. The old draft columns on `page_translations`, `draft_doc`, `puck_document` and `draft_document`, are left from before: `migrate:page-drafts` moves what they hold into `page_drafts` and empties them ([Packages](/developers/reference/packages#maintenance-scripts)). Until it has run, the editor falls back to a translation's `draft_doc` when it has no draft row.
 - **Recruitment.** A job has applications. Each application has a candidate profile, answers and interviews, and each interview has participants and scorecards.
 - **Shop.** An order has order items, each pointing at a product and a variation, with answers to the product's custom fields. Refunds belong to an order and have refund lines, each pointing at an order item.
 
@@ -68,14 +75,30 @@ In Appwrite, each table has its own permissions and a row-security switch. A tab
 
 ### Content rows: visibility only
 
-The admin sets a content row's permissions from its status:
+The admin sets a content row's read permission from its status:
 
 - a published row gets `read("any")`, so anyone can read it;
-- a draft, archived or unpublished row gets no permissions, so only the service key can read it.
+- a draft, archived or unpublished row gets no read, so only the service key can read it.
 
-This works only when row security is on and the table itself grants no read. A table-level `read("any")` lets anyone read every row, whatever the row's own permissions say. The schema file gives several content tables that grant: see [Known issues](#known-issues).
+Pages get theirs from `buildPageRowPermissions()` in `packages/api/page-builder.ts`, and news, products and documents from `buildContentRowPermissions()` in `apps/admin/src/lib/utils.ts`. Events and benefits have their own rules in `packages/shared/utils/content-read-permissions.ts`:
 
-The code also has a members-only variant that gives read access to a `biso-members` team. That team isn't used, so ignore it. Teams mirrored from Microsoft groups (`sg-app-*`) never go into a content row's permissions, so those permissions don't change when the groups do (`packages/api/page-builder.ts`, `buildContentRowPermissions` in `apps/admin/src/lib/utils.ts`).
+- an event is readable by everyone when it's published or cancelled (`eventReadPermissions`). Members-only events are no exception: the flag limits who can join, not who can see. Events copied from Tickster follow the same rule.
+- a benefit is readable by everyone when it's published (`benefitReadPermissions`).
+
+Translation rows in `content_translations` carry their own read, which follows their parent's type and status (`translationReadPermissions`):
+
+| Parent | Translation readable by everyone when the parent is |
+|---|---|
+| Event | Published or cancelled |
+| News, product or benefit | Published |
+| Job | Published. Operations Unit and HR can always read it. |
+| Department | Always |
+
+So any code that publishes or unpublishes a parent must then call `restampTranslationReads()` from `apps/admin/src/lib/content-translation-reads.ts`. It rewrites the read entries of every translation of that item and keeps the rest.
+
+This works only when row security is on and the table itself grants no read. A table-level `read("any")` lets anyone read every row, whatever the row's own permissions say. `pages`, `page_translations`, `events`, `campus_benefits` and `content_translations` have row security on and no table-level read, and `packages/api/appwrite-config-permissions.test.ts` fails if that changes. Some other content tables still grant read at table level: see [Known issues](#known-issues).
+
+Pages still have a members-only variant, which gives read access to a `biso-members` team instead of everyone. That team isn't used, so ignore it. Apart from two fixed grants, no team mirrored from a Microsoft group (`sg-app-*`) goes into a content row's permissions, so those permissions don't change when the groups do. The two are read for Operations Unit and HR on job translations, and update and delete for Operations Unit on events copied from Tickster.
 
 For pages, the rule is: **only published pages are publicly readable.**
 
@@ -89,7 +112,7 @@ The seven recruitment tables (`job_applications`, `job_application_answers`, `ca
 
 ### Operational tables: team grants
 
-Some operational tables still give access to whole teams at table level. For example, `orders` is readable by Operations Unit and by the four `sg-app-dept-ledelsen*` teams. Other tables are service-only: `audit_logs` has no permissions at all, and `benefit_codes` has no table-level permissions while the admin writes each code row with none (`apps/admin/src/app/(portal)/_actions/benefits.ts`).
+Some operational tables still give access to whole teams at table level. For example, `orders` is readable by Operations Unit and by the four `sg-app-dept-ledelsen*` teams. `feature_flags` gives write access to Operations Unit only. Other tables are service-only: `audit_logs` has no permissions at all, `benefit_codes` has no table-level permissions while the admin writes each code row with none (`apps/admin/src/app/(portal)/_actions/benefits.ts`), and `m365_team_sync` and `page_drafts` have none on the table or on their rows.
 
 ### What the schema tests enforce
 
@@ -97,22 +120,26 @@ Some operational tables still give access to whole teams at table level. For exa
 
 - a table or bucket grants `create("any")` or `create("users")`. The one allowed exception is `create("users")` on `user`, because the BISO app may still rely on it;
 - a table grants access to a team called `admin`;
+- a table or bucket grants anything to a team id that isn't on the test's list: `sg-app-campus-national`, `sg-app-dept-operationsunit`, `sg-app-dept-hr` and the four `sg-app-dept-ledelsen*` teams. The list must also hold no id that nothing grants to;
+- `pages`, `page_translations`, `events`, `campus_benefits` or `content_translations` has row security off or a table-level read;
+- `m365_team_sync` or `page_drafts` has row security off or any permission;
 - the `resumes` or `expenses` bucket has no list of allowed file types, or allows files of 100 MB or more.
 
 ### Live permissions can drift from the file
 
 Signing in to the admin can change permissions. When the Microsoft group sync creates the team for a new `SG-App-Dept-*` group, it gives that team update and delete rights on the matching `departments` rows. For the HR team, it adds `create` on the recruitment tables (`apps/admin/src/lib/m365-sync.ts`, `apps/admin/src/lib/team-provisioning.ts`). So the live project can differ from `appwrite.config.json`. Check the Appwrite console when the two must match.
 
+Rows keep the permissions they were written with. When the rules above change, rows written before keep their old read until something writes them again. `reconcile:row-permissions` in `packages/shared` rewrites the read entries on existing rows of `pages`, `page_translations`, `campus_benefits`, `events` and `content_translations` to what the code writes now. [Packages](/developers/reference/packages#maintenance-scripts) has how to run it.
+
 ## Known issues
 
-- **Content tables grant read to anyone at table level in the schema file.** `appwrite.config.json` gives a table-level `read("any")` to `news`, `events`, `jobs`, `documents`, `document_versions`, `content_translations` and `campus_benefits`, which have row security on, and to `pages`, `page_translations` and `webshop_products`, which have row security off. While that grant stands, anyone can read every row in those tables, drafts included, whatever the row's own permissions say. Most of these tables also grant `create` to some `sg-app-dept-*` teams. The repo doesn't record whether the live tables match the file. Check each table's permissions in the Appwrite console.
-- **Draft pages.** For pages, the rule is that only published pages are publicly readable. In the schema file, `pages` and `page_translations` have row security off and a table-level `read("any")`, which doesn't match that rule. The owner will fix it later.
-- **Don't apply the content-permission cutover.** `packages/api/scripts/cutover-content-permissions.ts` removes every table-level permission from ten content tables at once and leaves row security as it is. `pages`, `page_translations` and `webshop_products` have row security off, so after it the website couldn't read any page, and neither the website nor the BISO app could read shop products. Don't apply it until row security is on for those three tables. That is the owner's call. By default the script is a dry run: it lists what it would remove and changes nothing. It reads `apps/admin/.env.local`, so check which project that file names first.
-- **A failing schema test.** `packages/api/benefits-schema.test.ts` expects `campus_benefits` to have no table-level permissions, so that benefits are readable only through their rows. The checked-in schema gives the table `read("any")`, and the test fails.
+- **Some content tables still grant read to anyone at table level.** `appwrite.config.json` gives a table-level `read("any")` to `news`, `jobs`, `documents` and `document_versions`, which have row security on, and to `webshop_products`, which has row security off. While that grant stands, anyone can read every row in those tables through the API, drafts included, whatever the row's own permissions say. Their translations follow the parent's status, so a draft's translated text stays hidden, but the parent row doesn't. Most of these tables also grant `create` to some `sg-app-dept-*` teams. The repo doesn't record whether the live tables match the file. Check each table's permissions in the Appwrite console.
+- **Don't apply the content-permission cutover.** `packages/api/scripts/cutover-content-permissions.ts` removes every table-level permission, `create` grants included, from ten content tables at once. It refuses any table whose live row security is off, and reports it as an error. In the schema file, `pages` and `page_translations` now have row security on, and `webshop_products` still doesn't. Don't apply it: that stays the owner's call, and it must never run together with `reconcile:row-permissions`. By default the script is a dry run: it lists what it would remove and changes nothing. It reads `apps/admin/.env.local`, so check which project that file names first.
+- **Saving a draft changes a published page's address and owner at once.** `savePageDraft` in `packages/api/page-builder.ts` writes the slug, campus and department to the `pages` row on every save. On a published page, a change to any of them takes effect before anyone publishes.
 
 ## Types
 
-`packages/api/types/appwrite.ts` holds a type for every table's row and every enum, except possibly `event_rsvps`. Check that `packages/api/types/appwrite.ts` has an `EventRsvps` type. If it's missing, regenerate the types. Until then the RSVP code declares its own row shapes (`packages/shared/utils/event-rsvp.ts`). Use the types as the type parameter on every read:
+`packages/api/types/appwrite.ts` holds a type for every table's row and every enum, except three tables added after the types were last generated: `event_rsvps`, `m365_team_sync` and `page_drafts`. Regenerate the types to add them. Until then the code declares its own row shapes: in `packages/shared/utils/event-rsvp.ts`, as `M365TeamSyncRow` in `apps/admin/src/lib/authorization.ts` and `apps/api/src/lib/admin-auth.ts`, and as `PageDraftRow` in `packages/api/page-builder.ts`. Use the types as the type parameter on every read:
 
 ```ts
 import { createSessionClient } from "@repo/api/server";

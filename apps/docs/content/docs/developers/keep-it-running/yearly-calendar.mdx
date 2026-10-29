@@ -4,6 +4,7 @@ description: Everything that comes round once a year, with the known dates. The 
 covers:
   - apps/admin/src/app/(portal)/_actions/it-turnover.ts
   - apps/admin/src/lib/it/turnover.ts
+  - apps/admin/src/lib/it/turnover-target.ts
   - apps/admin/src/app/api/it/turnover/stop-retention/route.ts
   - apps/admin/src/app/(portal)/it/users/_components/turnover-dialog.tsx
   - apps/admin/src/lib/it-permission-rules.ts
@@ -48,7 +49,7 @@ A new board takes over every August. People leave and join, and accounts that be
 
 This is for role accounts: Microsoft accounts that belong to a position and pass from one holder to the next. It was added in July 2026.
 
-A global admin opens **IT** in the admin, opens the role account, and chooses **Start overgang** (Trigger turnover). The button shows on every user's IT page, not only on role accounts. Run on a person's own account, it renames that person's account and locks them out, so check which account you've opened. They enter the new holder's first and last name, type the account's login address to confirm, and choose **Kjør overgang** (Run turnover). The admin then:
+Only a global admin can run it. They open **IT** in the admin, open the role account, and choose **Start overgang** (Trigger turnover). The button shows only for accounts on the tenant domain, `biso.no` (`isTurnoverTarget` in `apps/admin/src/lib/it/turnover-target.ts`), and the action refuses any other account. Nothing tells a role account apart from a person's own `biso.no` account, though. Run on a person's own account, it renames that account and locks them out, so check which account you've opened. They enter the new holder's first and last name, type the account's login address to confirm, and choose **Kjør overgang** (Run turnover). The admin then:
 
 1. Renames the account to the new holder. The login address stays the same.
 2. Removes every sign-in method that Microsoft allows it to remove, so the new holder sets up their own MFA.
@@ -86,7 +87,7 @@ A job in `m365_turnover_jobs` has one of these states:
   ```
 
 - **Personal accounts.** The turnover only hands on role accounts. When a person with their own account leaves, no retention run starts. The account's IT page has separate actions for that, such as disabling the account.
-- **An older route that nothing uses.** The api's `/api/admin/account-turnover` and its `/bulk` route post to `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL` with a different payload. Nothing in the repo calls them.
+- **An older route that nothing uses.** The api's `/api/admin/account-turnover` and its `/bulk` route post to `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL` with a different payload. Both need a global admin. Nothing in the repo calls them.
 
 ### Before August
 
@@ -104,12 +105,14 @@ A job in `m365_turnover_jobs` has one of these states:
 
 ### Access to add and remove
 
-New board members who need admin roles get `SG-App-*` groups from a global admin on the admin's **IT** page. [Getting access](/developers/start-here/getting-access#microsoft-account) shows which groups give which role. A change takes effect at the person's next sign-in.
+New board members who need admin roles get `SG-App-*` groups from a global admin on the admin's **IT** page. A campus admin can also create new accounts there for their own campus. [Getting access](/developers/start-here/getting-access#microsoft-account) shows which groups give which role. A change takes effect at the person's next sign-in.
+
+Once the groups are right in Microsoft, you can bring every saved team list in line at once with `bun run backfill:m365-team-sync` in `packages/shared`: a dry run first, then `-- --apply` ([The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list)).
 
 For everyone who leaves, follow [When the work ends](/developers/start-here/getting-access#when-the-work-ends). In short:
 
 1. Remove their `SG-App-*` groups on the admin's **IT** page.
-2. In the Appwrite console, remove their `sg-app-*` team memberships and their place in `docs-handover`, and delete their sessions. Removing the groups isn't enough on its own: the admin updates a person's teams only when they next sign in, and Appwrite sessions last a year.
+2. In the Appwrite console, delete their row in `m365_team_sync`, remove their `sg-app-*` team memberships and their place in `docs-handover`, and delete their sessions. Removing the groups isn't enough on its own: the admin updates a person's teams and saved team list only when they next sign in, and Appwrite sessions last a year.
 3. Remove their Infisical user, their membership of BISO's organisation in the Appwrite console, their server and Webdock access, and their GitHub collaborator access.
 
 Then check the people and owners behind the platform:
