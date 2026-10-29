@@ -96,6 +96,7 @@ import {
   canPublishContent,
   createdContentNeedsPublish,
   publishBenefitContent,
+  resolveConfirmedCampusId,
   withoutBenefitCode,
 } from "@/lib/assistant-publish";
 import {
@@ -467,9 +468,10 @@ async function createJobContent(
   campusId?: string,
   departmentId?: string
 ) {
+  const resolvedCampusId = resolveConfirmedCampusId(campusId, payload);
   let campus: number | undefined;
-  if (campusId) {
-    campus = Number.parseInt(campusId, 10);
+  if (resolvedCampusId) {
+    campus = Number.parseInt(resolvedCampusId, 10);
   } else if (typeof payload.campus === "number") {
     campus = payload.campus;
   }
@@ -480,7 +482,7 @@ async function createJobContent(
     description_en: String(payload.description_en ?? ""),
     slug: String(payload.slug ?? payload.slugSuggestion ?? ""),
     status: status as "draft" | "published",
-    campus_id: campusId ?? String(payload.campus_id ?? ""),
+    campus_id: resolvedCampusId ?? "",
     campus,
     department_id: departmentId ?? (payload.department_id as string) ?? null,
     department: departmentId ?? (payload.department as string) ?? null,

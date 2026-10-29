@@ -14,6 +14,7 @@ const {
   createdContentNeedsPublish,
   dropBenefitDepartment,
   publishBenefitContent,
+  resolveConfirmedCampusId,
   benefitUpdateFromAssistant,
   withoutBenefitCode,
 } = await import("./assistant-publish");
@@ -196,5 +197,26 @@ describe("createdContentNeedsPublish", () => {
   test("a created vacancy is already live, other domains publish after create", () => {
     expect(createdContentNeedsPublish("jobs")).toBe(false);
     expect(createdContentNeedsPublish("news")).toBe(true);
+  });
+});
+
+describe("resolveConfirmedCampusId", () => {
+  test("prefers the confirmed campus over anything in the payload", () => {
+    expect(
+      resolveConfirmedCampusId("1", { campus_id: "2", campusId: "3" })
+    ).toBe("1");
+  });
+
+  test("falls back to campus_id, then the campusId alias the card shows", () => {
+    expect(resolveConfirmedCampusId(undefined, { campus_id: "2" })).toBe("2");
+    expect(resolveConfirmedCampusId(undefined, { campusId: "3" })).toBe("3");
+    expect(
+      resolveConfirmedCampusId(undefined, { campus_id: "2", campusId: "3" })
+    ).toBe("2");
+  });
+
+  test("returns null when no campus is given", () => {
+    expect(resolveConfirmedCampusId(undefined, {})).toBeNull();
+    expect(resolveConfirmedCampusId(undefined, { campus_id: "" })).toBeNull();
   });
 });

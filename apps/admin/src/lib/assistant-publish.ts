@@ -29,6 +29,22 @@ function stringOrNull(value: unknown): string | null {
 }
 
 /**
+ * The campus a create confirmation card shows, in the order the card reads it:
+ * the confirmed campus, then the payload's `campus_id`, then its `campusId`
+ * alias. Every create path writes this value.
+ */
+export function resolveConfirmedCampusId(
+  confirmedCampusId: string | undefined,
+  payload: Record<string, unknown>
+): string | null {
+  return (
+    confirmedCampusId ??
+    stringOrNull(payload.campus_id) ??
+    stringOrNull(payload.campusId)
+  );
+}
+
+/**
  * The facts a create confirmation card shows are the ones the route writes:
  * status from the confirmed publish choice, campus and department from the
  * resolved values. Anything the model put in the payload for those fields is
@@ -43,10 +59,7 @@ export function applyConfirmedCreateFacts(
     status: "draft" | "published";
   }
 ): Record<string, unknown> {
-  const campusId =
-    confirmed.campusId ??
-    stringOrNull(payload.campus_id) ??
-    stringOrNull(payload.campusId);
+  const campusId = resolveConfirmedCampusId(confirmed.campusId, payload);
   const departmentId =
     confirmed.departmentId ??
     stringOrNull(payload.department_id) ??
