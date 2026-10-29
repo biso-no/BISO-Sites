@@ -1075,8 +1075,7 @@
         {
             "$id": "expense",
             "$permissions": [
-                "read(\"team:sg-app-dept-operationsunit\")",
-                "read(\"team:finance\")"
+                "read(\"team:sg-app-dept-operationsunit\")"
             ],
             "databaseId": "app",
             "name": "Expenses",
@@ -3057,8 +3056,7 @@
         {
             "$id": "expense_approvals",
             "$permissions": [
-                "read(\"team:sg-app-dept-operationsunit\")",
-                "read(\"team:finance\")"
+                "read(\"team:sg-app-dept-operationsunit\")"
             ],
             "databaseId": "app",
             "name": "Expense Approvals",
@@ -3817,8 +3815,7 @@
         {
             "$id": "ledger_accounts",
             "$permissions": [
-                "read(\"team:sg-app-dept-operationsunit\")",
-                "read(\"team:finance\")"
+                "read(\"team:sg-app-dept-operationsunit\")"
             ],
             "databaseId": "app",
             "name": "Ledger Accounts",
@@ -5437,8 +5434,7 @@
         {
             "$id": "expense_approval_issues",
             "$permissions": [
-                "read(\"team:sg-app-dept-operationsunit\")",
-                "read(\"team:finance\")"
+                "read(\"team:sg-app-dept-operationsunit\")"
             ],
             "databaseId": "app",
             "name": "Expense Approval Issues",

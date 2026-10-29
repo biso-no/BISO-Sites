@@ -128,7 +128,6 @@ describe("team grants in table permissions", () => {
   const TEAM_GRANT = /team:([^"\\)/]+)/g;
   const ALLOWED_TEAM_IDS = new Set([
     "biso-members",
-    "finance",
     "sg-app-campus-national",
     "sg-app-dept-hr",
     "sg-app-dept-ledelsenbergen",
