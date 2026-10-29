@@ -16,6 +16,20 @@ const db = vi.hoisted(() => {
 
 const users = vi.hoisted(() => ({ get: vi.fn() }));
 const mail = vi.hoisted(() => ({ sendEmail: vi.fn() }));
+const deferred = vi.hoisted(() => ({
+  callbacks: [] as Array<() => unknown>,
+}));
+
+vi.mock("next/server", () => ({
+  after: (callback: () => unknown) => {
+    deferred.callbacks.push(callback);
+  },
+}));
+
+async function flushDeferred(): Promise<void> {
+  const callbacks = deferred.callbacks.splice(0);
+  await Promise.all(callbacks.map((callback) => callback()));
+}
 
 vi.mock("@repo/api/server", () => ({
   createAdminClient: vi.fn(async () => ({ db, users })),
@@ -127,6 +141,7 @@ describe("recruitment booking actions", () => {
     db.updateRow.mockResolvedValue({});
     db.incrementRowColumn.mockResolvedValue({ claim_lock: 1 });
     db.decrementRowColumn.mockResolvedValue({ claim_lock: 0 });
+    deferred.callbacks.length = 0;
     users.get.mockReset();
     users.get.mockResolvedValue({ email: "hr@biso.no" });
     mail.sendEmail.mockReset();
@@ -243,6 +258,7 @@ describe("recruitment booking actions", () => {
     );
 
     expect("data" in result && result.data.invited).toBe(false);
+    await flushDeferred();
     expect(users.get).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "hr-user-1" })
     );
@@ -271,6 +287,7 @@ describe("recruitment booking actions", () => {
     mockHappyPath();
 
     await confirmBookingSlot("booking-token", "2027-07-01T10:00:00.000Z");
+    await flushDeferred();
 
     expect(mail.sendEmail).not.toHaveBeenCalled();
     expect(
@@ -291,6 +308,7 @@ describe("recruitment booking actions", () => {
       "2027-07-01T10:00:00.000Z"
     );
 
+    await flushDeferred();
     expect(result).toEqual({
       data: {
         interview_id: expect.any(String),
@@ -322,8 +340,31 @@ describe("recruitment booking actions", () => {
       "2027-07-01T10:00:00.000Z"
     );
 
+    await flushDeferred();
     expect("data" in result).toBe(true);
     expect(mail.sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the booking and consumes the token even if the alert would hang", async () => {
+    mockHappyPath();
+    graph.client = null;
+    mail.sendEmail.mockReturnValue(new Promise(() => undefined));
+
+    const result = await confirmBookingSlot(
+      "booking-token",
+      "2027-07-01T10:00:00.000Z"
+    );
+
+    expect("data" in result && result.data.invited).toBe(false);
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "recruitment_booking_tokens",
+      "token-row-1",
+      expect.objectContaining({ consumed_at: expect.any(String) })
+    );
+    // The alert is only queued; nothing was sent before the response.
+    expect(deferred.callbacks).toHaveLength(1);
+    expect(mail.sendEmail).not.toHaveBeenCalled();
   });
 
   it("refuses a slot outside office hours even if it is inside the window", async () => {

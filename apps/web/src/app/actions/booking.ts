@@ -37,6 +37,7 @@ import {
   type RecruitmentBookingPanelMember,
   recruitmentBookingConfirmSchema,
 } from "@repo/shared/types/recruitment";
+import { after } from "next/server";
 
 const SECRET = process.env.RECRUITMENT_BOOKING_SECRET;
 const TIMEZONE = "Europe/Oslo";
@@ -563,22 +564,26 @@ export async function confirmBookingSlot(
       application.applicant_email,
       panel
     );
-    if (!invited) {
-      await alertInviteFailed(db, users, {
-        candidateName: application.applicant_name,
-        creatorUserId: record.created_by_user_id ?? null,
-        interviewId: interview.$id,
-        job,
-        startsAt: start.toISOString(),
-      });
-    }
-
     await db.updateRow<RecruitmentBookingTokens>(
       "app",
       "recruitment_booking_tokens",
       record.$id,
       { consumed_at: new Date().toISOString(), interview_id: interview.$id }
     );
+
+    // After the response, so a slow mail relay never holds up the candidate
+    // or the token update above.
+    if (!invited) {
+      after(() =>
+        alertInviteFailed(db, users, {
+          candidateName: application.applicant_name,
+          creatorUserId: record.created_by_user_id ?? null,
+          interviewId: interview.$id,
+          job,
+          startsAt: start.toISOString(),
+        })
+      );
+    }
 
     return {
       data: {
