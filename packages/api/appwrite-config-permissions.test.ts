@@ -220,3 +220,116 @@ describe("Microsoft team sync records", () => {
     ]);
   });
 });
+
+describe("page drafts", () => {
+  interface DraftColumn {
+    array: boolean;
+    elements?: string[];
+    format?: string;
+    key: string;
+    required: boolean;
+    size?: number;
+    type: string;
+  }
+
+  interface DraftTable {
+    $id: string;
+    $permissions: string[];
+    columns: DraftColumn[];
+    databaseId: string;
+    enabled: boolean;
+    indexes: { columns: string[]; key: string; type: string }[];
+    rowSecurity: boolean;
+  }
+
+  function findDraftTable(): DraftTable | undefined {
+    const config = JSON.parse(
+      readFileSync(join(import.meta.dirname, "appwrite.config.json"), "utf8")
+    ) as { tables: DraftTable[] };
+    return config.tables.find(
+      (candidate) =>
+        candidate.databaseId === "app" && candidate.$id === "page_drafts"
+    );
+  }
+
+  test("page_drafts is service-only with row security", () => {
+    const table = findDraftTable();
+
+    expect(table).toBeDefined();
+    expect(table?.enabled).toBe(true);
+    expect(table?.rowSecurity).toBe(true);
+    expect(table?.$permissions).toEqual([]);
+  });
+
+  test("page_drafts holds a translation's draft document, title and description", () => {
+    const columns = findDraftTable()?.columns.map(
+      ({ array, elements, format, key, required, size, type }) => ({
+        array,
+        elements,
+        format,
+        key,
+        required,
+        size,
+        type,
+      })
+    );
+
+    expect(columns).toEqual([
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "page_id",
+        required: true,
+        size: 50,
+        type: "string",
+      },
+      {
+        array: false,
+        elements: ["no", "en"],
+        format: "enum",
+        key: "locale",
+        required: true,
+        size: undefined,
+        type: "string",
+      },
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "draft_doc",
+        required: false,
+        size: undefined,
+        type: "mediumtext",
+      },
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "title",
+        required: false,
+        size: 200,
+        type: "string",
+      },
+      {
+        array: false,
+        elements: undefined,
+        format: undefined,
+        key: "description",
+        required: false,
+        size: 4000,
+        type: "string",
+      },
+    ]);
+  });
+
+  test("page_drafts is indexed by page", () => {
+    expect(
+      findDraftTable()?.indexes.map(({ columns, key, type }) => ({
+        columns,
+        key,
+        type,
+      }))
+    ).toEqual([{ columns: ["page_id"], key: "page_drafts_page", type: "key" }]);
+  });
+});

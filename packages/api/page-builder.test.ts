@@ -18,7 +18,9 @@ import {
   archivePage,
   clearPageTheme,
   getPage,
+  getPageById,
   getPageEditorById,
+  PAGE_DRAFTS_TABLE_ID,
   type PageDoc,
   publishPage,
   savePageDraft,
@@ -60,6 +62,74 @@ const doc: PageDoc = {
   version: 2,
 };
 
+type Row = Record<string, unknown>;
+
+/** A selected column that could carry a draft: a wildcard or a draft column. */
+const DRAFT_OR_WILDCARD_COLUMN = /\*|draft_doc|puck_document|draft_document/;
+
+/** Appwrite's answer for a row that does not exist. */
+function rowNotFound(): Error {
+  return Object.assign(new Error("Row with the requested ID was not found."), {
+    code: 404,
+    type: "row_not_found",
+  });
+}
+
+/** The `equal` filters of a request, as `[attribute, values]`. */
+function equalFilters(queries: string[]): [string, unknown[]][] {
+  return queries.flatMap((query) => {
+    const parsed = JSON.parse(query) as {
+      attribute?: string;
+      method: string;
+      values?: unknown[];
+    };
+    return parsed.method === "equal" && parsed.attribute
+      ? [[parsed.attribute, parsed.values ?? []] as [string, unknown[]]]
+      : [];
+  });
+}
+
+/**
+ * Answer `listRows` and `getRow` from these rows, by table. A list honours
+ * its `equal` filters; a missing row is Appwrite's 404.
+ */
+function seedTables(tables: Partial<Record<string, Row[]>>) {
+  db.listRows.mockImplementation(
+    async (_db: string, table: string, queries: string[] = []) => ({
+      rows: (tables[table] ?? []).filter((row) =>
+        equalFilters(queries).every(([attribute, values]) =>
+          values.includes(row[attribute])
+        )
+      ),
+    })
+  );
+  db.getRow.mockImplementation((_db: string, table: string, id: string) => {
+    const row = (tables[table] ?? []).find((candidate) => candidate.$id === id);
+    return row ? Promise.resolve(row) : Promise.reject(rowNotFound());
+  });
+}
+
+/** Every write to one table, in call order per write method. */
+function writesTo(table: string) {
+  return [
+    ...db.updateRow.mock.calls,
+    ...db.upsertRow.mock.calls,
+    ...db.createRow.mock.calls,
+  ]
+    .filter((call) => call[1] === table)
+    .map(([, , rowId, data, permissions]) => ({ data, permissions, rowId }));
+}
+
+/** A write echoes the row id, stamped with the table it went to. */
+function echoWrites() {
+  const echo = async (_db: string, table: string, id: string) => ({
+    $id: id,
+    $updatedAt: `${table}@v2`,
+  });
+  db.upsertRow.mockImplementation(echo);
+  db.updateRow.mockImplementation(echo);
+}
+
 describe("page builder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,6 +137,11 @@ describe("page builder", () => {
     // lookups used to derive row permissions). `mockResolvedValueOnce` queued
     // in individual tests still takes precedence over this default.
     db.listRows.mockResolvedValue({ rows: [] });
+    // Default for an un-queued upsert, e.g. the draft row written after the
+    // page and translation rows a test queues.
+    db.upsertRow.mockImplementation(
+      async (_db: string, _table: string, id: string) => ({ $id: id })
+    );
   });
 
   it("loads editor pages with translation relationship rows selected", async () => {
@@ -294,14 +369,14 @@ describe("page builder", () => {
       expect.any(Array)
     );
     expect(db.upsertRow).toHaveBeenNthCalledWith(
-      2,
+      3,
       "app",
-      "page_translations",
-      expect.any(String),
+      PAGE_DRAFTS_TABLE_ID,
+      "tr-no",
       expect.objectContaining({
         draft_doc: expect.stringContaining('"slug":"shared-slug-2"'),
       }),
-      expect.any(Array)
+      []
     );
   });
 
@@ -413,10 +488,7 @@ describe("page builder", () => {
     );
   });
 
-  it("updates an existing locale translation instead of creating a duplicate", async () => {
-    db.upsertRow.mockImplementation(
-      async (_db: string, _table: string, id: string) => ({ $id: id })
-    );
+  it("updates the existing locale's draft instead of creating a duplicate translation", async () => {
     // existing translation lookup (no team lookups remain)
     db.listRows.mockResolvedValueOnce({
       rows: [{ $id: "tr-no", is_published: false }],
@@ -429,14 +501,15 @@ describe("page builder", () => {
       ctx,
     });
 
-    expect(db.updateRow).toHaveBeenCalledWith(
+    expect(db.upsertRow).toHaveBeenCalledTimes(1);
+    expect(db.upsertRow).toHaveBeenCalledWith(
       "app",
-      "page_translations",
+      PAGE_DRAFTS_TABLE_ID,
       "tr-no",
-      expect.objectContaining({ title: "Hei" })
+      expect.objectContaining({ title: "Hei" }),
+      []
     );
     expect(result.translationId).toBe("tr-no");
-    expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
   });
 
@@ -488,7 +561,9 @@ describe("page builder", () => {
       })
       // existing translation lookup
       .mockResolvedValueOnce({ rows: [] });
-    db.upsertRow.mockResolvedValueOnce({ $id: "tr-en", $updatedAt: "v-1" });
+    db.upsertRow
+      .mockResolvedValueOnce({ $id: "tr-en", $updatedAt: "v-1" })
+      .mockResolvedValueOnce({ $id: "tr-en", $updatedAt: "v-2" });
 
     const result = await savePageTranslationDraft({
       doc: {
@@ -499,11 +574,13 @@ describe("page builder", () => {
       locale: "en",
     });
 
-    // The row version this write produced: auto-translation checks nobody
-    // wrote the locale after it before publishing.
-    expect(result).toEqual({ translationId: "tr-en", updatedAt: "v-1" });
-    expect(db.upsertRow).toHaveBeenCalledTimes(1);
-    expect(db.upsertRow).toHaveBeenCalledWith(
+    // The draft row's version this write produced: auto-translation checks
+    // nobody wrote the locale's draft after it before publishing.
+    expect(result).toEqual({ translationId: "tr-en", updatedAt: "v-2" });
+    expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).toHaveBeenCalledTimes(2);
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      1,
       "app",
       "page_translations",
       expect.any(String),
@@ -514,6 +591,14 @@ describe("page builder", () => {
         title: "Hello",
       }),
       expect.any(Array)
+    );
+    expect(db.upsertRow).toHaveBeenNthCalledWith(
+      2,
+      "app",
+      PAGE_DRAFTS_TABLE_ID,
+      "tr-en",
+      expect.objectContaining({ locale: "en", title: "Hello" }),
+      []
     );
   });
 });
@@ -538,15 +623,18 @@ describe("saving a draft never writes the publish state", () => {
     vi.resetAllMocks();
   });
 
-  /** The keys a write sets, and whether it passed permissions. */
+  /**
+   * The keys a write to `pages` or `page_translations` sets, and whether it
+   * passed permissions. The draft table holds no publish state.
+   */
   const writes = () =>
-    [...db.updateRow.mock.calls, ...db.upsertRow.mock.calls].map(
-      ([, table, , data, permissions]) => ({
+    [...db.updateRow.mock.calls, ...db.upsertRow.mock.calls]
+      .filter(([, table]) => table !== PAGE_DRAFTS_TABLE_ID)
+      .map(([, table, , data, permissions]) => ({
         keys: Object.keys(data as object),
         permissions,
         table,
-      })
-    );
+      }));
 
   it("a save racing a publish leaves the page published", async () => {
     // Read before the publish landed: the translation was not live yet.
@@ -561,12 +649,14 @@ describe("saving a draft never writes the publish state", () => {
       ctx,
     });
 
-    const page = writes().find((w) => w.table === "pages");
-    expect(page?.keys).not.toContain("status");
-    expect(page?.permissions).toBeUndefined();
-    const translation = writes().find((w) => w.table === "page_translations");
-    expect(translation?.keys).not.toContain("is_published");
-    expect(translation?.permissions).toBeUndefined();
+    // The ownership update is the only write outside the draft table.
+    expect(writes()).toEqual([
+      {
+        keys: expect.not.arrayContaining(["status"]),
+        permissions: undefined,
+        table: "pages",
+      },
+    ]);
   });
 
   it("a save racing an unpublish leaves the locale unpublished", async () => {
@@ -598,7 +688,7 @@ describe("saving a draft never writes the publish state", () => {
         rows: [{ $id: "tr-en", is_published: true, locale: "en" }],
       });
 
-    db.updateRow.mockResolvedValueOnce({ $id: "tr-en", $updatedAt: "v-2" });
+    db.upsertRow.mockResolvedValueOnce({ $id: "tr-en", $updatedAt: "v-2" });
 
     const result = await savePageTranslationDraft({
       doc: { ...doc, meta: { ...doc.meta, title: "Hello" } },
@@ -607,13 +697,8 @@ describe("saving a draft never writes the publish state", () => {
     });
 
     expect(result).toEqual({ translationId: "tr-en", updatedAt: "v-2" });
-    expect(writes()).toEqual([
-      {
-        keys: expect.not.arrayContaining(["is_published"]),
-        permissions: undefined,
-        table: "page_translations",
-      },
-    ]);
+    // The live row is not written at all: the draft went to its own table.
+    expect(writes()).toEqual([]);
   });
 });
 
@@ -634,124 +719,175 @@ const SHARED_PURPLE: Partial<PageDoc["meta"]> = {
   theme: PURPLE,
 };
 
-/**
- * The translation rows a page lists; a re-read of one by id returns it as
- * listed (nothing changed meanwhile) unless a test says otherwise.
- */
-function listTranslations(rows: Record<string, unknown>[]) {
-  db.listRows.mockResolvedValueOnce({ rows });
-  db.getRow.mockImplementation(
-    async (_db: string, _table: string, id: string) =>
-      rows.find((row) => row.$id === id)
-  );
+/** A translation row with no draft of its own on it. */
+function translationRow(locale: "no" | "en", fields: Row = {}): Row {
+  return {
+    $id: `tr-${locale}`,
+    $updatedAt: `tr-${locale}@v1`,
+    description: locale === "no" ? "Beskrivelse" : "Hello text",
+    draft_doc: null,
+    locale,
+    page_id: "page-1",
+    published_doc: null,
+    title: locale === "no" ? "Hei" : "Hello",
+    ...fields,
+  };
+}
+
+/** A locale's row in the draft table, holding `document`. */
+function draftRow(
+  locale: "no" | "en",
+  document: PageDoc,
+  fields: Row = {}
+): Row {
+  return {
+    $id: `tr-${locale}`,
+    $updatedAt: `draft-${locale}@v1`,
+    description: document.meta.description ?? null,
+    draft_doc: JSON.stringify(document),
+    locale,
+    page_id: "page-1",
+    title: document.meta.title,
+    ...fields,
+  };
+}
+
+/** The drafts written, with their documents parsed. */
+function draftWrites() {
+  return writesTo(PAGE_DRAFTS_TABLE_ID).map((write) => ({
+    ...write,
+    document: JSON.parse(
+      (write.data as { draft_doc: string }).draft_doc
+    ) as PageDoc,
+  }));
 }
 
 describe("syncSharedDraftMeta", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    db.getRow.mockReset();
+    vi.resetAllMocks();
+    echoWrites();
   });
 
-  it("writes the shared meta into every other locale's existing draft, and nothing else", async () => {
-    const en = withMeta({ title: "Hello", theme: GREEN });
-    listTranslations([
-      { $id: "tr-no", draft_doc: JSON.stringify(doc), locale: "no" },
-      { $id: "tr-en", draft_doc: JSON.stringify(en), locale: "en" },
-    ]);
+  it("writes the shared meta into every other locale's draft row, and nothing else", async () => {
+    const en = withMeta({
+      title: "Hello",
+      description: "Hello text",
+      theme: GREEN,
+    });
+    seedTables({
+      page_translations: [translationRow("no"), translationRow("en")],
+      page_drafts: [draftRow("no", doc), draftRow("en", en)],
+    });
 
     await syncSharedDraftMeta({
       id: "page-1",
       locale: "no",
-      meta: {
-        campus: "os",
-        department: "dept-1",
-        slug: "shared-slug",
-        status: "draft",
-        theme: PURPLE,
-      },
+      meta: SHARED_PURPLE,
     });
 
-    expect(db.updateRow).toHaveBeenCalledTimes(1);
-    const [, table, rowId, data, permissions] = db.updateRow.mock.calls[0];
-    expect(table).toBe("page_translations");
-    expect(rowId).toBe("tr-en");
-    // Permissions are left as they are.
-    expect(permissions).toBeUndefined();
-    expect(Object.keys(data)).toEqual(["draft_doc"]);
-    const written = JSON.parse(data.draft_doc) as PageDoc;
-    expect(written.meta.theme).toEqual(PURPLE);
-    expect(written.meta.title).toBe("Hello");
-    expect(written.meta.campus).toBe("os");
-    expect(written.sections).toEqual(en.sections);
+    expect(writesTo("page_translations")).toEqual([]);
+    const [write, ...others] = draftWrites();
+    expect(others).toEqual([]);
+    expect(write.rowId).toBe("tr-en");
+    // The draft table is service-only.
+    expect(write.permissions).toEqual([]);
+    expect(write.data).toEqual({
+      description: "Hello text",
+      draft_doc: expect.any(String),
+      locale: "en",
+      page_id: "page-1",
+      title: "Hello",
+    });
+    expect(write.document.meta.theme).toEqual(PURPLE);
+    expect(write.document.meta.title).toBe("Hello");
+    expect(write.document.meta.campus).toBe("os");
+    expect(write.document.sections).toEqual(en.sections);
+  });
+
+  it("moves a legacy draft into the draft table, with the row's title and description, and leaves the row alone", async () => {
+    seedTables({
+      page_translations: [
+        translationRow("no"),
+        translationRow("en", {
+          draft_doc: JSON.stringify(withMeta({ title: "Hello", theme: GREEN })),
+        }),
+      ],
+    });
+
+    await syncSharedDraftMeta({
+      id: "page-1",
+      locale: "no",
+      meta: SHARED_PURPLE,
+    });
+
+    expect(writesTo("page_translations")).toEqual([]);
+    const [write, ...others] = draftWrites();
+    expect(others).toEqual([]);
+    expect(write).toMatchObject({
+      data: {
+        description: "Hello text",
+        locale: "en",
+        page_id: "page-1",
+        title: "Hello",
+      },
+      permissions: [],
+      rowId: "tr-en",
+    });
+    expect(write.document.meta.theme).toEqual(PURPLE);
+    expect(write.document.meta.title).toBe("Hello");
   });
 
   it("removes a shared field that is undefined, keeps null", async () => {
-    listTranslations([
-      {
-        $id: "tr-en",
-        draft_doc: JSON.stringify(withMeta({ theme: GREEN })),
-        locale: "en",
-      },
-    ]);
+    seedTables({
+      page_translations: [translationRow("en")],
+      page_drafts: [draftRow("en", withMeta({ theme: GREEN }))],
+    });
     await syncSharedDraftMeta({
       id: "page-1",
       locale: "no",
       meta: { ...doc.meta, theme: undefined },
     });
-    const absent = JSON.parse(db.updateRow.mock.calls[0][3].draft_doc);
-    expect("theme" in absent.meta).toBe(false);
+    expect("theme" in draftWrites()[0].document.meta).toBe(false);
 
-    db.updateRow.mockClear();
-    listTranslations([
-      {
-        $id: "tr-en",
-        draft_doc: JSON.stringify(withMeta({ theme: GREEN })),
-        locale: "en",
-      },
-    ]);
+    db.upsertRow.mockClear();
     await syncSharedDraftMeta({
       id: "page-1",
       locale: "no",
       meta: { ...doc.meta, theme: null },
     });
-    expect(JSON.parse(db.updateRow.mock.calls[0][3].draft_doc).meta.theme).toBe(
-      null
-    );
+    expect(draftWrites()[0].document.meta.theme).toBe(null);
   });
 
-  it("creates no translation row and rewrites no draft that already matches", async () => {
-    listTranslations([
-      { $id: "tr-no", draft_doc: JSON.stringify(doc), locale: "no" },
+  it("creates no row and rewrites no draft that already matches", async () => {
+    seedTables({
+      page_translations: [translationRow("no"), translationRow("en")],
       // A translation with no draft of its own is left alone.
-      { $id: "tr-en", draft_doc: null, locale: "en" },
-    ]);
+      page_drafts: [draftRow("no", doc)],
+    });
     await syncSharedDraftMeta({ id: "page-1", locale: "no", meta: doc.meta });
-    expect(db.updateRow).not.toHaveBeenCalled();
 
-    listTranslations([
-      { $id: "tr-en", draft_doc: JSON.stringify(withMeta({})), locale: "en" },
-    ]);
+    seedTables({
+      page_translations: [translationRow("en")],
+      page_drafts: [draftRow("en", withMeta({}))],
+    });
     await syncSharedDraftMeta({ id: "page-1", locale: "no", meta: doc.meta });
+
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.createRow).not.toHaveBeenCalled();
   });
 
-  it("re-reads the draft before writing, and merges into what another tab wrote meanwhile", async () => {
-    const listed = {
-      $id: "tr-en",
-      $updatedAt: "2026-10-23T10:00:00.000Z",
-      draft_doc: JSON.stringify(withMeta({ title: "Hello", theme: GREEN })),
-      locale: "en",
-    };
-    const newer = {
-      ...listed,
-      $updatedAt: "2026-10-23T10:00:01.000Z",
-      draft_doc: JSON.stringify(
-        withMeta({ title: "Hello from the other tab", theme: GREEN })
-      ),
-    };
-    listTranslations([listed]);
+  it("re-reads the draft row before writing, and merges into what another tab wrote meanwhile", async () => {
+    const listed = draftRow("en", withMeta({ title: "Hello", theme: GREEN }));
+    const newer = draftRow(
+      "en",
+      withMeta({ title: "Hello from the other tab", theme: GREEN }),
+      { $updatedAt: "draft-en@v2" }
+    );
+    seedTables({
+      page_translations: [translationRow("en")],
+      page_drafts: [listed],
+    });
     db.getRow.mockResolvedValue(newer);
 
     await syncSharedDraftMeta({
@@ -760,31 +896,28 @@ describe("syncSharedDraftMeta", () => {
       meta: SHARED_PURPLE,
     });
 
-    expect(db.getRow).toHaveBeenCalledWith("app", "page_translations", "tr-en");
-    expect(db.updateRow).toHaveBeenCalledTimes(1);
-    const written = JSON.parse(db.updateRow.mock.calls[0][3].draft_doc);
+    expect(db.getRow).toHaveBeenCalledWith(
+      "app",
+      PAGE_DRAFTS_TABLE_ID,
+      "tr-en"
+    );
+    const [write, ...others] = draftWrites();
+    expect(others).toEqual([]);
     // The newer content is kept, with the shared meta merged in.
-    expect(written.meta.title).toBe("Hello from the other tab");
-    expect(written.meta.theme).toEqual(PURPLE);
+    expect(write.document.meta.title).toBe("Hello from the other tab");
+    expect(write.document.meta.theme).toEqual(PURPLE);
+    expect(write.data).toMatchObject({ title: "Hello from the other tab" });
   });
 
-  it("writes nothing, and warns, when the draft changes again before the retry", async () => {
-    const listed = {
-      $id: "tr-en",
-      $updatedAt: "2026-10-23T10:00:00.000Z",
-      draft_doc: JSON.stringify(withMeta({ title: "Hello", theme: GREEN })),
-      locale: "en",
-    };
-    listTranslations([listed]);
+  it("writes nothing, and warns, when the draft row changes again before the retry", async () => {
+    const listed = draftRow("en", withMeta({ title: "Hello", theme: GREEN }));
+    seedTables({
+      page_translations: [translationRow("en")],
+      page_drafts: [listed],
+    });
     db.getRow
-      .mockResolvedValueOnce({
-        ...listed,
-        $updatedAt: "2026-10-23T10:00:01.000Z",
-      })
-      .mockResolvedValueOnce({
-        ...listed,
-        $updatedAt: "2026-10-23T10:00:02.000Z",
-      });
+      .mockResolvedValueOnce({ ...listed, $updatedAt: "draft-en@v2" })
+      .mockResolvedValueOnce({ ...listed, $updatedAt: "draft-en@v3" });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     await syncSharedDraftMeta({
@@ -794,53 +927,71 @@ describe("syncSharedDraftMeta", () => {
     });
 
     expect(db.getRow).toHaveBeenCalledTimes(2);
+    expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 
-  it("writes once when the draft is unchanged since it was listed", async () => {
-    listTranslations([
-      {
-        $id: "tr-en",
-        $updatedAt: "2026-10-23T10:00:00.000Z",
-        draft_doc: JSON.stringify(withMeta({ theme: GREEN })),
-        locale: "en",
-      },
-    ]);
+  it("writes once when the draft row is unchanged since it was listed", async () => {
+    seedTables({
+      page_translations: [translationRow("en")],
+      page_drafts: [draftRow("en", withMeta({ theme: GREEN }))],
+    });
     await syncSharedDraftMeta({
       id: "page-1",
       locale: "no",
       meta: SHARED_PURPLE,
     });
     expect(db.getRow).toHaveBeenCalledTimes(1);
-    expect(db.updateRow).toHaveBeenCalledTimes(1);
+    expect(draftWrites()).toHaveLength(1);
+  });
+
+  it("checks a legacy draft against its translation row's version", async () => {
+    seedTables({
+      page_translations: [
+        translationRow("en", {
+          draft_doc: JSON.stringify(withMeta({ theme: GREEN })),
+        }),
+      ],
+    });
+
+    await syncSharedDraftMeta({
+      id: "page-1",
+      locale: "no",
+      meta: SHARED_PURPLE,
+    });
+
+    expect(db.getRow).toHaveBeenCalledWith(
+      "app",
+      PAGE_DRAFTS_TABLE_ID,
+      "tr-en"
+    );
+    expect(db.getRow).toHaveBeenCalledWith("app", "page_translations", "tr-en");
+    expect(draftWrites()).toHaveLength(1);
   });
 });
 
 describe("clearPageTheme", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    echoWrites();
   });
 
   it("strips meta.theme from every locale's draft and published doc, leaving the rest", async () => {
-    const themed = withMeta({ theme: PURPLE });
-    const reset = withMeta({ theme: null });
-    db.listRows.mockResolvedValueOnce({
-      rows: [
-        {
-          $id: "tr-no",
-          draft_doc: JSON.stringify(themed),
-          locale: "no",
-          published_doc: JSON.stringify(reset),
-        },
-        {
-          $id: "tr-en",
+    seedTables({
+      page_translations: [
+        translationRow("no", {
+          // A legacy copy the draft row supersedes.
+          draft_doc: JSON.stringify(withMeta({ title: "Stale", theme: GREEN })),
+          published_doc: JSON.stringify(withMeta({ theme: null })),
+        }),
+        translationRow("en", {
+          description: null,
           draft_doc: JSON.stringify(withMeta({ title: "Hello", theme: GREEN })),
-          locale: "en",
-          published_doc: null,
-        },
+        }),
       ],
+      page_drafts: [draftRow("no", withMeta({ theme: PURPLE }))],
     });
 
     await clearPageTheme("page-1");
@@ -850,40 +1001,48 @@ describe("clearPageTheme", () => {
       "page_translations",
       expect.arrayContaining([expect.stringContaining("page_id")])
     );
-    expect(db.updateRow).toHaveBeenCalledTimes(2);
-    const byRow = Object.fromEntries(
-      db.updateRow.mock.calls.map((call) => [call[2], call])
+    // Published documents stay on the translation row, without permissions.
+    const translationWrites = writesTo("page_translations");
+    expect(translationWrites).toHaveLength(1);
+    const [published] = translationWrites;
+    expect(published.rowId).toBe("tr-no");
+    expect(published.permissions).toBeUndefined();
+    expect(Object.keys(published.data as object)).toEqual(["published_doc"]);
+    const noPublished = JSON.parse(
+      (published.data as { published_doc: string }).published_doc
     );
-    const no = byRow["tr-no"];
-    expect(no[4]).toBeUndefined();
-    expect(Object.keys(no[3]).sort()).toEqual(["draft_doc", "published_doc"]);
-    const noDraft = JSON.parse(no[3].draft_doc);
-    const noPublished = JSON.parse(no[3].published_doc);
-    expect("theme" in noDraft.meta).toBe(false);
     expect("theme" in noPublished.meta).toBe(false);
-    expect(noDraft).toEqual(doc);
     expect(noPublished).toEqual(doc);
 
-    const en = byRow["tr-en"];
-    expect(Object.keys(en[3])).toEqual(["draft_doc"]);
-    const enDraft = JSON.parse(en[3].draft_doc);
-    expect("theme" in enDraft.meta).toBe(false);
-    expect(enDraft.meta.title).toBe("Hello");
+    // Drafts go to the draft table: the draft row's, and the legacy one.
+    const byRow = Object.fromEntries(
+      draftWrites().map((write) => [write.rowId, write])
+    );
+    expect(Object.keys(byRow).sort()).toEqual(["tr-en", "tr-no"]);
+    expect("theme" in byRow["tr-no"].document.meta).toBe(false);
+    expect(byRow["tr-no"].document).toEqual(doc);
+    expect(byRow["tr-no"].permissions).toEqual([]);
+    expect("theme" in byRow["tr-en"].document.meta).toBe(false);
+    expect(byRow["tr-en"].document.meta.title).toBe("Hello");
+    expect(byRow["tr-en"].data).toMatchObject({
+      description: null,
+      locale: "en",
+      page_id: "page-1",
+      title: "Hello",
+    });
   });
 
   it("rewrites nothing when no document holds a theme", async () => {
-    db.listRows.mockResolvedValueOnce({
-      rows: [
-        {
-          $id: "tr-no",
-          draft_doc: JSON.stringify(doc),
-          locale: "no",
-          published_doc: JSON.stringify(doc),
-        },
+    seedTables({
+      page_translations: [
+        translationRow("no", { published_doc: JSON.stringify(doc) }),
+        translationRow("en", { draft_doc: JSON.stringify(doc) }),
       ],
+      page_drafts: [draftRow("no", doc)],
     });
     await clearPageTheme("page-1");
     expect(db.updateRow).not.toHaveBeenCalled();
+    expect(db.upsertRow).not.toHaveBeenCalled();
   });
 });
 
@@ -1003,5 +1162,331 @@ describe("archivePage", () => {
       {},
       []
     );
+  });
+});
+
+/**
+ * A published translation row is world-readable, so unpublished work lives
+ * in the service-only draft table, keyed by the translation row's id, and
+ * reaches the translation row only when the locale is published. Drafts saved
+ * before the table existed still sit in the row's `draft_doc` until they are
+ * migrated, so reads fall back to it.
+ */
+describe("page drafts live in their own table", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    echoWrites();
+  });
+
+  /** A draft that differs from what the row holds: no sections. */
+  const edited = { ...withMeta({ title: "Utkast" }), sections: [] };
+
+  it("a draft save on a published locale goes to the draft table and never touches the row", async () => {
+    seedTables({
+      page_translations: [
+        translationRow("no", {
+          description: "Live text",
+          is_published: true,
+          published_doc: JSON.stringify(withMeta({ title: "Live" })),
+          title: "Live",
+        }),
+      ],
+    });
+
+    const result = await savePageDraft({
+      id: "page-1",
+      doc,
+      locale: "no",
+      ctx,
+    });
+
+    expect(writesTo(PAGE_DRAFTS_TABLE_ID)).toEqual([
+      {
+        data: {
+          description: "Beskrivelse",
+          draft_doc: JSON.stringify(doc),
+          locale: "no",
+          page_id: "page-1",
+          title: "Hei",
+        },
+        permissions: [],
+        rowId: "tr-no",
+      },
+    ]);
+    expect(writesTo("page_translations")).toEqual([]);
+    expect(result).toEqual({
+      pageId: "page-1",
+      slug: "shared-slug",
+      translationId: "tr-no",
+    });
+  });
+
+  it("a draft save drops a legacy draft_doc from the row, and only once the draft row holds the draft", async () => {
+    seedTables({
+      pages: [{ $id: "page-1" }],
+      page_translations: [
+        translationRow("en", {
+          draft_doc: JSON.stringify(withMeta({ title: "Old" })),
+          is_published: true,
+        }),
+      ],
+    });
+
+    const result = await savePageTranslationDraft({
+      doc: withMeta({ title: "Hello" }),
+      id: "page-1",
+      locale: "en",
+    });
+
+    expect(writesTo("page_translations")).toEqual([
+      { data: { draft_doc: null }, permissions: undefined, rowId: "tr-en" },
+    ]);
+    expect(writesTo(PAGE_DRAFTS_TABLE_ID)).toHaveLength(1);
+    expect(db.upsertRow.mock.invocationCallOrder[0]).toBeLessThan(
+      db.updateRow.mock.invocationCallOrder[0]
+    );
+    // The version a caller compares against is the draft row's.
+    expect(result).toEqual({
+      translationId: "tr-en",
+      updatedAt: `${PAGE_DRAFTS_TABLE_ID}@v2`,
+    });
+  });
+
+  it("a draft save for a locale with no row creates it unpublished without the draft, and the draft row under its id", async () => {
+    seedTables({ pages: [{ $id: "page-1" }] });
+    const hello = withMeta({ title: "Hello" });
+
+    const result = await savePageTranslationDraft({
+      doc: hello,
+      id: "page-1",
+      locale: "en",
+    });
+
+    const [created, ...others] = writesTo("page_translations");
+    expect(others).toEqual([]);
+    expect(created.data).toEqual(
+      expect.objectContaining({
+        description: "Beskrivelse",
+        is_published: false,
+        locale: "en",
+        page_id: "page-1",
+        title: "Hello",
+      })
+    );
+    expect(created.data).not.toHaveProperty("draft_doc");
+    expect(created.permissions).toEqual([]);
+    expect(writesTo(PAGE_DRAFTS_TABLE_ID)).toEqual([
+      {
+        data: {
+          description: "Beskrivelse",
+          draft_doc: JSON.stringify(hello),
+          locale: "en",
+          page_id: "page-1",
+          title: "Hello",
+        },
+        permissions: [],
+        rowId: created.rowId,
+      },
+    ]);
+    expect(result).toEqual({
+      translationId: created.rowId,
+      updatedAt: `${PAGE_DRAFTS_TABLE_ID}@v2`,
+    });
+  });
+
+  it("publishing copies the draft row's document, title and description to the translation row", async () => {
+    const draftJson = JSON.stringify(edited);
+    seedTables({
+      pages: [{ $id: "page-1", visibility: "public" }],
+      page_translations: [
+        translationRow("no", { description: "Old text", title: "Old" }),
+      ],
+      page_drafts: [
+        draftRow("no", edited, { description: "Utkasttekst", title: "Utkast" }),
+      ],
+    });
+
+    await publishPage({
+      id: "page-1",
+      locale: "no",
+      updateParentStatus: false,
+    });
+
+    expect(writesTo("page_translations")).toEqual([
+      {
+        data: {
+          description: "Utkasttekst",
+          is_published: true,
+          published_at: expect.any(String),
+          published_doc: draftJson,
+          title: "Utkast",
+        },
+        permissions: ['read("any")'],
+        rowId: "tr-no",
+      },
+    ]);
+  });
+
+  it("publishing a locale with no draft row falls back to the legacy draft_doc and the row's own title", async () => {
+    const legacyJson = JSON.stringify(withMeta({ title: "Legacy" }));
+    seedTables({
+      pages: [{ $id: "page-1", visibility: "public" }],
+      page_translations: [
+        translationRow("no", {
+          description: "Legacy text",
+          draft_doc: legacyJson,
+          title: "Legacy",
+        }),
+      ],
+    });
+
+    await publishPage({
+      id: "page-1",
+      locale: "no",
+      updateParentStatus: false,
+    });
+
+    expect(writesTo("page_translations")).toEqual([
+      {
+        data: expect.objectContaining({
+          description: "Legacy text",
+          is_published: true,
+          published_doc: legacyJson,
+          title: "Legacy",
+        }),
+        permissions: ['read("any")'],
+        rowId: "tr-no",
+      },
+    ]);
+  });
+
+  it("the editor loads a locale's draft row, and falls back to the legacy columns without one", async () => {
+    seedTables({
+      pages: [
+        {
+          $id: "page-1",
+          slug: "shared-slug",
+          status: "published",
+          visibility: "public",
+          department_id: "dept-1",
+          campus_id: "os",
+          translation_refs: [
+            translationRow("no", {
+              description: "Live text",
+              draft_doc: JSON.stringify(withMeta({ title: "Stale" })),
+              is_published: true,
+              published_at: "2026-10-01T00:00:00.000Z",
+              published_doc: JSON.stringify(withMeta({ title: "Live" })),
+              title: "Live",
+            }),
+            translationRow("en", {
+              description: null,
+              draft_doc: JSON.stringify(withMeta({ title: "Hello" })),
+              is_published: false,
+              published_at: null,
+            }),
+          ],
+        },
+      ],
+      page_drafts: [
+        draftRow("no", edited, {
+          $updatedAt: "draft-no@v3",
+          description: "Utkasttekst",
+        }),
+      ],
+    });
+
+    const result = await getPageEditorById("page-1");
+
+    const draftLists = db.listRows.mock.calls.filter(
+      (call) => call[1] === PAGE_DRAFTS_TABLE_ID
+    );
+    expect(draftLists).toHaveLength(1);
+    expect(draftLists[0][2]).toEqual(
+      expect.arrayContaining([expect.stringContaining('"page_id"')])
+    );
+
+    const no = result?.translations.no;
+    expect(no).toMatchObject({
+      description: "Utkasttekst",
+      id: "tr-no",
+      isPublished: true,
+      title: "Utkast",
+      updatedAt: "draft-no@v3",
+    });
+    expect(no?.draftDocument?.sections).toEqual([]);
+    expect(no?.draftDocument?.meta.title).toBe("Utkast");
+    expect(no?.draftDocument?.meta.description).toBe("Utkasttekst");
+    // The published document keeps the title it was published with.
+    expect(no?.publishedDocument?.meta.title).toBe("Live");
+    expect(no?.publishedDocument?.meta.description).toBe("Live text");
+
+    const en = result?.translations.en;
+    expect(en).toMatchObject({
+      id: "tr-en",
+      title: "Hello",
+      updatedAt: "tr-en@v1",
+    });
+    expect(en?.description).toBeUndefined();
+    expect(en?.draftDocument?.meta.title).toBe("Hello");
+    expect(en?.draftDocument?.sections).toEqual(doc.sections);
+  });
+
+  it("getPageById serves the draft row's document when nothing is published", async () => {
+    seedTables({
+      pages: [
+        {
+          $id: "page-1",
+          slug: "shared-slug",
+          status: "draft",
+          visibility: "public",
+          department_id: "dept-1",
+          translation_refs: [
+            translationRow("no", {
+              draft_doc: JSON.stringify(withMeta({ title: "Stale" })),
+            }),
+          ],
+        },
+      ],
+      page_drafts: [draftRow("no", edited)],
+    });
+
+    const result = await getPageById("page-1", "no");
+
+    expect(result?.doc?.sections).toEqual([]);
+    expect(result?.doc?.meta.title).toBe("Utkast");
+    expect(result?.translation?.title).toBe("Utkast");
+  });
+
+  it("the public read never fetches a draft", async () => {
+    seedTables({});
+
+    await getPage("shared-slug", "no");
+
+    expect(
+      db.listRows.mock.calls.some((call) => call[1] === PAGE_DRAFTS_TABLE_ID)
+    ).toBe(false);
+    const [, table, queries] = db.listRows.mock.calls[0] as [
+      string,
+      string,
+      string[],
+    ];
+    expect(table).toBe("pages");
+    const select = queries
+      .map((query) => JSON.parse(query) as { method: string; values: string[] })
+      .find((query) => query.method === "select");
+    expect(select?.values).toEqual(
+      expect.arrayContaining([
+        "translation_refs.$id",
+        "translation_refs.locale",
+        "translation_refs.is_published",
+        "translation_refs.published_doc",
+        "translation_refs.title",
+        "translation_refs.description",
+      ])
+    );
+    for (const column of select?.values ?? []) {
+      expect(column).not.toMatch(DRAFT_OR_WILDCARD_COLUMN);
+    }
   });
 });
