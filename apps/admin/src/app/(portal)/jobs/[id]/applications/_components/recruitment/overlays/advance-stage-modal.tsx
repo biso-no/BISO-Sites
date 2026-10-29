@@ -71,9 +71,11 @@ export function AdvanceStageModal({
   const [target, setTarget] = useState<JobApplicationsStatus | null>(
     forward ?? null
   );
+  // The draft is only requested on a click; opening the modal sends nothing.
   const [includeEmail, setIncludeEmail] = useState(() =>
     draftsEmailByDefault(forward ?? null)
   );
+  const [requestCount, setRequestCount] = useState(0);
   const [email, setEmail] = useState<{ subject: string; body: string } | null>(
     null
   );
@@ -84,7 +86,7 @@ export function AdvanceStageModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!(includeEmail && target)) {
+    if (!(includeEmail && target) || requestCount === 0) {
       return;
     }
     const stage = EMAIL_STAGE_BY_STATUS[target];
@@ -101,7 +103,7 @@ export function AdvanceStageModal({
         setEmailError(null);
       }
     });
-  }, [candidate.id, includeEmail, target]);
+  }, [candidate.id, includeEmail, target, requestCount]);
 
   if (!target) {
     return (
@@ -157,9 +159,9 @@ export function AdvanceStageModal({
       footer={
         <>
           <span className="m-foot-note">
-            {includeEmail
+            {email
               ? "AI drafted the email — copy it into your mail client to send. Nothing is sent by the system."
-              : "No email will be drafted, and nothing is sent to the candidate."}
+              : "No email is drafted until you ask, and nothing is sent to the candidate."}
           </span>
           <div className="m-foot-actions">
             <button className="btn-ghost" onClick={onClose} type="button">
@@ -201,6 +203,9 @@ export function AdvanceStageModal({
               onClick={() => {
                 setTarget(status);
                 setIncludeEmail(draftsEmailByDefault(status));
+                setRequestCount(0);
+                setEmail(null);
+                setEmailError(null);
               }}
               type="button"
             >
@@ -210,16 +215,25 @@ export function AdvanceStageModal({
         </div>
       ) : null}
 
-      <label className="adv-email-toggle">
-        <input
-          checked={includeEmail}
-          onChange={(event) => setIncludeEmail(event.target.checked)}
-          type="checkbox"
-        />
-        {draftEmailLabel(target)}
-      </label>
+      <div className="adv-email-toggle">
+        <button
+          className="btn-ghost"
+          disabled={loadingEmail || !EMAIL_STAGE_BY_STATUS[target]}
+          onClick={() => {
+            setIncludeEmail(true);
+            setRequestCount((count) => count + 1);
+          }}
+          type="button"
+        >
+          Draft email with AI
+        </button>
+        <span className="m-foot-note">
+          {draftEmailLabel(target)}. The name and contact details are removed
+          before the AI sees anything.
+        </span>
+      </div>
 
-      {includeEmail ? (
+      {includeEmail && requestCount > 0 ? (
         <div className="adv-email">
           <EmailDraftBlock
             copied={copied}

@@ -18,7 +18,7 @@ function badgeLabel(draft: BulkEmailDraft | undefined): string {
   if (draft) {
     return "Drafted";
   }
-  return "…";
+  return "Not drafted";
 }
 
 const INTENTS: { id: EmailIntent; label: string }[] = [
@@ -41,6 +41,7 @@ export function BulkEmailComposer({
   const [intent, setIntent] = useState<EmailIntent>(initialIntent);
   const [drafts, setDrafts] = useState<Map<string, BulkEmailDraft>>(new Map());
   const [loading, startLoad] = useTransition();
+  const [requested, setRequested] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(ids[0] ?? null);
   const [copiedAll, setCopiedAll] = useState(false);
 
@@ -48,7 +49,8 @@ export function BulkEmailComposer({
     .map((id) => candidates.find((candidate) => candidate.id === id))
     .filter(Boolean);
 
-  useEffect(() => {
+  // Drafting is a model call per candidate, so it starts on request only.
+  const draftAll = () => {
     startLoad(async () => {
       const result = await draftBulkCandidateEmails(ids, intent);
       const map = new Map<string, BulkEmailDraft>();
@@ -56,8 +58,9 @@ export function BulkEmailComposer({
         map.set(draft.id, draft);
       }
       setDrafts(map);
+      setRequested(true);
     });
-  }, [ids, intent]);
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -124,7 +127,11 @@ export function BulkEmailComposer({
           <button
             className={cx("email-intent", intent === option.id && "on")}
             key={option.id}
-            onClick={() => setIntent(option.id)}
+            onClick={() => {
+              setIntent(option.id);
+              setDrafts(new Map());
+              setRequested(false);
+            }}
             type="button"
           >
             {option.label}
@@ -135,7 +142,15 @@ export function BulkEmailComposer({
       <div className="email-summary">
         {loading
           ? "Drafting a unique email for each candidate…"
-          : `${readyCount} of ${ids.length} drafts ready · personalized from each candidate's strengths.`}
+          : `${readyCount} of ${ids.length} drafts ready. Names and contact details are removed before the AI sees anything.`}
+        <button
+          className="btn-ghost"
+          disabled={loading}
+          onClick={draftAll}
+          type="button"
+        >
+          {requested ? "Draft again" : "Draft emails with AI"}
+        </button>
       </div>
 
       <div className="email-list scroll">

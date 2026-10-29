@@ -12,6 +12,14 @@ import {
   loadRecruitmentLookups,
   toRecruitmentAdminScope,
 } from "@/lib/recruitment";
+import {
+  type AssistantCandidate,
+  buildAssistantPrompt,
+  buildComparePrompt,
+  buildLabelMap,
+  idsForLabels,
+  restoreLabels,
+} from "./recruitment-ai-prompts";
 
 const EMAIL_STAGE_BY_INTENT: Record<
   string,
@@ -62,18 +70,7 @@ export async function draftBulkCandidateEmails(
 // Shared candidate summary contract used by the AI surfaces
 // ---------------------------------------------------------------------------
 
-export interface AssistantCandidate {
-  days: number;
-  gaps: string[];
-  id: string;
-  name: string;
-  score: number | null;
-  skills: string[];
-  source: string | null;
-  stage: string;
-  strengths: string[];
-  summary: string | null;
-}
+export type { AssistantCandidate } from "./recruitment-ai-prompts";
 
 async function assertJobReviewable(jobId: string): Promise<void> {
   const ctx = await getUserAuthContext();
@@ -91,41 +88,6 @@ async function assertJobReviewable(jobId: string): Promise<void> {
     campus_id: vacancy.campus_id,
     department_id: vacancy.department_id,
   });
-}
-
-function describeCandidates(candidates: AssistantCandidate[]): string {
-  return candidates
-    .map(
-      (candidate) =>
-        `- ${candidate.name} | stage=${candidate.stage} | match=${
-          candidate.score ?? "n/a"
-        } | ${candidate.days}d in pipeline | source=${
-          candidate.source ?? "unknown"
-        } | strengths: ${candidate.strengths.join("; ") || "—"} | gaps: ${
-          candidate.gaps.join("; ") || "—"
-        }`
-    )
-    .join("\n");
-}
-
-function matchNamesToIds(
-  names: string[],
-  candidates: AssistantCandidate[]
-): string[] {
-  const ids: string[] = [];
-  for (const name of names) {
-    const lower = name.toLowerCase();
-    const match = candidates.find(
-      (candidate) =>
-        candidate.name.toLowerCase() === lower ||
-        candidate.name.toLowerCase().includes(lower) ||
-        lower.includes(candidate.name.split(" ")[0].toLowerCase())
-    );
-    if (match && !ids.includes(match.id)) {
-      ids.push(match.id);
-    }
-  }
-  return ids;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,20 +115,18 @@ export async function generateComparisonSynthesis(
   try {
     const { object } = await generateObject({
       model: balancedModel,
-      prompt: `You are a hiring copilot comparing candidates for "${jobTitle}".
-Write a 2-3 sentence verdict on who fits best and the key trade-off.
-Reference candidates by first name. Pick a single winner.
-
-Candidates:
-${describeCandidates(candidates)}`,
+      prompt: buildComparePrompt(jobTitle, candidates),
       schema: z.object({
         verdict: z.string(),
-        winnerName: z.string(),
+        winnerLabel: z.string(),
       }),
+      // Applicant data must not be retained on the provider's side.
+      providerOptions: { openai: { store: false } },
     });
-    const winner = matchNamesToIds([object.winnerName], candidates)[0] ?? null;
+    const winner =
+      idsForLabels([object.winnerLabel], buildLabelMap(candidates))[0] ?? null;
     return {
-      verdict: object.verdict,
+      verdict: restoreLabels(object.verdict, candidates),
       winnerId: winner ?? fallbackWinner?.id ?? null,
     };
   } catch {
@@ -202,51 +162,43 @@ export async function askRecruitmentAssistant(input: {
     const { object } = await generateObject({
       model: fastModel,
       reasoning: "low",
-      prompt: `You are the recruitment pipeline copilot for the vacancy "${input.jobTitle}".
-Answer the recruiter's question using ONLY the candidate data below.
-Be concise (max 4 sentences). Reference candidates by first name.
-List the first names of any candidates you cite in "citedNames".
-Suggest at most 2 follow-up actions the recruiter could take, choosing a kind:
-- "compare" (compare specific candidates side by side)
-- "email" (draft emails to candidates)
-- "schedule" (schedule an interview)
-- "none" (no action)
-For each action set "candidateNames" to the relevant first names.
-
-Candidate data:
-${describeCandidates(input.candidates)}
-
-Recruiter question: ${input.message}`,
+      prompt: buildAssistantPrompt(
+        input.jobTitle,
+        input.message,
+        input.candidates
+      ),
+      providerOptions: { openai: { store: false } },
       // Every field is required: OpenAI's strict structured outputs reject a
       // schema whose `properties` are not all listed in `required`, which is
       // what `.optional()` / `.default()` produce. Empty arrays are allowed.
       schema: z.object({
         reply: z.string(),
-        citedNames: z
+        citedLabels: z
           .array(z.string())
-          .describe("First names cited in the reply; [] if none"),
+          .describe("Candidate labels cited in the reply; [] if none"),
         actions: z
           .array(
             z.object({
               kind: z.enum(["compare", "email", "schedule", "none"]),
               label: z.string(),
-              candidateNames: z
+              candidateLabels: z
                 .array(z.string())
-                .describe("Relevant first names; [] if none"),
+                .describe("Relevant candidate labels; [] if none"),
             })
           )
           .describe("At most 2 follow-up actions; [] if none"),
       }),
     });
 
+    const labelMap = buildLabelMap(input.candidates);
     return {
       actions: object.actions.map((action) => ({
-        ids: matchNamesToIds(action.candidateNames, input.candidates),
+        ids: idsForLabels(action.candidateLabels, labelMap),
         kind: action.kind,
-        label: action.label,
+        label: restoreLabels(action.label, input.candidates),
       })),
-      citationIds: matchNamesToIds(object.citedNames, input.candidates),
-      reply: object.reply,
+      citationIds: idsForLabels(object.citedLabels, labelMap),
+      reply: restoreLabels(object.reply, input.candidates),
     };
   } catch {
     return {

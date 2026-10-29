@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { anonymizeScreeningText } from "./screening-anonymizer";
+import {
+  anonymizeScreeningText,
+  fillCandidatePlaceholder,
+  redactNameWithLabel,
+} from "./screening-anonymizer";
 
 describe("anonymizeScreeningText", () => {
   it("returns null for missing text", () => {
@@ -96,5 +100,36 @@ describe("anonymizeScreeningText", () => {
     ).toBe(
       "Intern at Equinor ([link]). Stack: Node.js/React, Next.js. Mail [email]"
     );
+  });
+});
+
+describe("redactNameWithLabel", () => {
+  it("replaces every name token with the given label", () => {
+    expect(
+      redactNameWithLabel(
+        "Is Kari Nordmann stronger than Nordmann's peers? Kari thinks so.",
+        "Kari Nordmann",
+        "Candidate 2"
+      )
+    ).toBe(
+      "Is Candidate 2 stronger than Candidate 2's peers? Candidate 2 thinks so."
+    );
+  });
+
+  it("only matches whole words", () => {
+    expect(redactNameWithLabel("Ola and Olaf", "Ola", "Candidate 1")).toBe(
+      "Candidate 1 and Olaf"
+    );
+  });
+});
+
+describe("fillCandidatePlaceholder", () => {
+  it("puts the first name back for every placeholder", () => {
+    expect(
+      fillCandidatePlaceholder(
+        "Hi [Candidate],\n\nThanks, [Candidate].",
+        "Kari Nordmann"
+      )
+    ).toBe("Hi Kari,\n\nThanks, Kari.");
   });
 });

@@ -34,6 +34,10 @@ import {
   serializeRecruitmentApplicationReviewMetadata,
   serializeRecruitmentVacancyMetadata,
 } from "@repo/shared/types/recruitment";
+import {
+  anonymizeScreeningText,
+  fillCandidatePlaceholder,
+} from "@repo/shared/utils/screening-anonymizer";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
@@ -1847,12 +1851,13 @@ export async function draftRecruitmentEmail(
     const { draftCandidateEmail } = await import(
       "@repo/ai/server/recruitment-emails"
     );
+    // The model never sees the applicant's name or contact details: HR notes
+    // are scrubbed and the draft carries `[Candidate]` for the first name.
     const draft = await draftCandidateEmail({
-      application: {
-        applicant_email: application.applicant_email,
-        applicant_name: application.applicant_name,
-      },
-      context: options.context ?? null,
+      context: anonymizeScreeningText(options.context, {
+        candidateName: application.applicant_name,
+        extraIdentifiers: [application.applicant_email],
+      }),
       locale: options.locale ?? "no",
       stage: options.stage,
       tone: options.tone ?? "warm",
@@ -1868,7 +1873,15 @@ export async function draftRecruitmentEmail(
       resourceType: "job_application",
     });
 
-    return { data: { body: draft.body, subject: draft.subject } };
+    return {
+      data: {
+        body: fillCandidatePlaceholder(draft.body, application.applicant_name),
+        subject: fillCandidatePlaceholder(
+          draft.subject,
+          application.applicant_name
+        ),
+      },
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to draft email",

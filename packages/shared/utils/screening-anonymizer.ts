@@ -54,8 +54,6 @@ const STREET_ADDRESS_PATTERN =
 // A postcode + place directly after a redacted address, e.g. "0484 Oslo".
 const TRAILING_POSTCODE_PATTERN = /(\[address\]),?\s*\d{4}\s+\p{Lu}[\p{L}-]+/gu;
 
-const REPEATED_PLACEHOLDER_PATTERN = /\[Candidate\](?:\s+\[Candidate\])+/g;
-
 const REGEX_SPECIAL_CHARACTERS = /[.*+?^${}()|[\]\\]/g;
 
 const NAME_SEPARATOR_PATTERN = /[\s,]+/;
@@ -123,7 +121,11 @@ function buildNamePattern(token: string): RegExp {
   );
 }
 
-function redactName(text: string, name: string): string {
+function redactNameWith(
+  text: string,
+  name: string,
+  replacement: string
+): string {
   const tokens = name
     .split(NAME_SEPARATOR_PATTERN)
     .map((token) => token.trim())
@@ -133,9 +135,47 @@ function redactName(text: string, name: string): string {
 
   let result = text;
   for (const token of tokens) {
-    result = result.replace(buildNamePattern(token), CANDIDATE_PLACEHOLDER);
+    result = result.replace(buildNamePattern(token), () => replacement);
   }
-  return result.replace(REPEATED_PLACEHOLDER_PATTERN, CANDIDATE_PLACEHOLDER);
+  const repeated = new RegExp(
+    `${escapeRegex(replacement)}(?:\\s+${escapeRegex(replacement)})+`,
+    "g"
+  );
+  return result.replace(repeated, () => replacement);
+}
+
+function redactName(text: string, name: string): string {
+  return redactNameWith(text, name, CANDIDATE_PLACEHOLDER);
+}
+
+/**
+ * Replaces every token of `name` in `text` with `label` (e.g. "Candidate 3"),
+ * so several candidates in one prompt stay distinguishable without their
+ * names being sent.
+ */
+export function redactNameWithLabel(
+  text: string,
+  name: string,
+  label: string
+): string {
+  return redactNameWith(text, name, label);
+}
+
+/** First name of a full applicant name, as used when greeting them. */
+export function firstNameOf(name: string | null | undefined): string {
+  return (name ?? "").trim().split(NAME_SEPARATOR_PATTERN)[0] ?? "";
+}
+
+/**
+ * Puts the candidate's first name back where an email draft holds the
+ * `[Candidate]` placeholder. An empty name leaves nothing in its place.
+ */
+export function fillCandidatePlaceholder(
+  text: string,
+  name: string | null | undefined
+): string {
+  const first = firstNameOf(name);
+  return text.split(CANDIDATE_PLACEHOLDER).join(first);
 }
 
 function redactLiteral(text: string, value: string): string {
