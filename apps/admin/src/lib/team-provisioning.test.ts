@@ -20,6 +20,8 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ db: getMockDb() })),
 }));
 
+mock.module("server-only", () => ({}));
+
 const { grantTeamRecruitmentAccess } = await import("./team-provisioning");
 
 const RESTRICTED_RECRUITMENT_TABLES = [

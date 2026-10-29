@@ -5,6 +5,8 @@ mock.module("@repo/api/server", () => ({
   createSessionClient: mock(async () => ({ db: {} })),
 }));
 
+mock.module("server-only", () => ({}));
+
 const { reconcileM365Profile } = await import("./m365-sync");
 
 function makeDb() {
