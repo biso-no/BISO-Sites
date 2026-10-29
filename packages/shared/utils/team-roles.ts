@@ -39,7 +39,7 @@ export const CAMPUS_TEAM_IDS: Readonly<Record<CampusName, string>> = {
 
 export const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
 
-export const HR_TEAM_IDS = ["sg-app-dept-hr", "sg-app-dept-hrunit"] as const;
+export const HR_TEAM_IDS = ["sg-app-dept-hr"] as const;
 
 export const LEDELSEN_TEAM_IDS: Readonly<Record<CampusCity, string>> = {
   Oslo: "sg-app-dept-ledelsenoslo",

@@ -63,7 +63,7 @@ describe("trusted team ids follow the M365 sync's id rule", () => {
       "SG-App-Campus-National",
       "SG-App-Campus-Oslo",
       "SG-App-Dept-OperationsUnit",
-      "SG-App-Dept-HRUnit",
+      "SG-App-Dept-HR",
       "SG-App-Dept-LedelsenTrondheim",
     ]) {
       expect(syncedTeamIdForGroup(group), hint).toBe(syncedId(group));
@@ -101,10 +101,7 @@ describe("trusted team ids follow the M365 sync's id rule", () => {
       syncedId("SG-App-Dept-OperationsUnit")
     );
     const hrIds: string[] = [...HR_TEAM_IDS];
-    expect(hrIds).toEqual([
-      syncedId("SG-App-Dept-HR"),
-      syncedId("SG-App-Dept-HRUnit"),
-    ]);
+    expect(hrIds).toEqual([syncedId("SG-App-Dept-HR")]);
   });
 
   it("gives every city's Ledelsen team its synced id", () => {

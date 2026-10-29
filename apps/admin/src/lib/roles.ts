@@ -19,7 +19,7 @@ export const ROLES = {
   GLOBAL_ADMIN: "globaladmin", // sg-app-campus-national + sg-app-dept-operationsunit
   CAMPUS_ADMIN: "campusadmin", // sg-app-dept-ledelsen{city} + sg-app-campus-{city}
   HR_ADMIN: "hradmin", // sg-app-campus-national + an HR team id
-  HR: "hr", // Membership in sg-app-dept-hr or sg-app-dept-hrunit
+  HR: "hr", // Membership in sg-app-dept-hr
   BENEFITS_EDITOR: "benefitseditor", // Email allow-list (BENEFITS_EDITOR_EMAILS)
 } as const;
 

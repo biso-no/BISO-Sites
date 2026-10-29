@@ -31,12 +31,11 @@ describe("isHrDepartment", () => {
     expect(isHrDepartment(["HR"])).toBe(true);
     expect(isHrDepartment(["hr"])).toBe(true);
     expect(isHrDepartment([" Hr "])).toBe(true);
-    expect(isHrDepartment(["HR Unit"])).toBe(true);
-    expect(isHrDepartment(["HRUnit"])).toBe(true);
     expect(isHrDepartment(["Marketing", "HR"])).toBe(true);
   });
   test("does not match non-HR departments", () => {
     expect(isHrDepartment(["Marketing"])).toBe(false);
+    expect(isHrDepartment(["HRUnit"])).toBe(false);
     expect(isHrDepartment([])).toBe(false);
   });
 });

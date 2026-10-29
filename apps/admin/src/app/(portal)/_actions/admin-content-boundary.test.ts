@@ -242,10 +242,7 @@ describe("department lookup boundary", () => {
       "app",
       "departments",
       expect.arrayContaining([
-        Query.or([
-          Query.equal("campus_id", "1"),
-          Query.equal("Name", ["HR", "HR Unit", "HRUnit"]),
-        ]),
+        Query.or([Query.equal("campus_id", "1"), Query.equal("Name", ["HR"])]),
       ])
     );
   });

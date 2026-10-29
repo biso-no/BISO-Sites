@@ -123,7 +123,7 @@ describe("rolesFromTeams", () => {
       ]).isNationalHr
     ).toBe(true);
     expect(rolesFromTeams([team("sg-app-dept-hrunit", "HRUnit")]).isHr).toBe(
-      true
+      false
     );
     expect(rolesFromTeams([team(randomId(), "HR")]).isHr).toBe(false);
   });

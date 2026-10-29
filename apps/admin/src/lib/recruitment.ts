@@ -42,19 +42,15 @@ interface DbClient {
 }
 
 const HR_DEPARTMENT_KEY = "hr";
-const HR_UNIT_DEPARTMENT_KEY = "hrunit";
 
 /**
  * HR is the recruitment-gatekeeper department. Detected by normalizing the
- * clean team name to "hr" (the suffix behind the `sg-app-dept-hr` team) or
- * "hrunit" ("HR Unit" / "HRUnit").
+ * clean team name to "hr" (the suffix behind the `sg-app-dept-hr` team).
  */
 export function isHrDepartment(departmentNames: string[]): boolean {
   return departmentNames.some((name) => {
     const normalized = name.replace(/\s+/g, "").toLowerCase();
-    return (
-      normalized === HR_DEPARTMENT_KEY || normalized === HR_UNIT_DEPARTMENT_KEY
-    );
+    return normalized === HR_DEPARTMENT_KEY;
   });
 }
 

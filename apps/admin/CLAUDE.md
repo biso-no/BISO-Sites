@@ -45,7 +45,7 @@ handler. Any new top-level route segment must add its own auth check.
   - `sg-app-campus-national` + `sg-app-dept-operationsunit` → `globaladmin`
   - `sg-app-campus-<city>` + `sg-app-dept-ledelsen<city>` → `campusadmin` (with
     managed campus list)
-  - `sg-app-dept-hr` / `sg-app-dept-hrunit` → `hr`, with National → `hradmin`
+  - `sg-app-dept-hr` → `hr`, with National → `hradmin`
   - Any recorded `sg-app-dept-*` team → the `department` pseudo-role
   - A `sg-app-*` team counts only when its id is in the user's `m365_team_sync`
     record, which `syncM365Permissions` writes at each Microsoft sign-in

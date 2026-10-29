@@ -6,7 +6,7 @@ import type { Campus, Departments, SalesTypes } from "@repo/api/types/appwrite";
 import { requireAuth } from "@/lib/authorization";
 import { isHrDepartment } from "@/lib/recruitment";
 
-const HR_DEPARTMENT_NAMES = ["HR", "HR Unit", "HRUnit"];
+const HR_DEPARTMENT_NAMES = ["HR"];
 
 export async function listCampuses(): Promise<Campus[]> {
   await requireAuth();
