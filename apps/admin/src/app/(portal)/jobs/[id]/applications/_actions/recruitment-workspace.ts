@@ -50,6 +50,7 @@ import {
   type WorkspaceJob,
   type WorkspaceKpis,
 } from "../_components/recruitment/view-model";
+import { loadScorecardsForInterviews } from "./recruitment-scorecards";
 
 const DATABASE_ID = "app";
 const BOARD_LIMIT = 500;
@@ -426,28 +427,6 @@ async function loadJobInterviews(
   };
 }
 
-async function loadScorecards(
-  db: Db,
-  jobId: string
-): Promise<Map<string, JobInterviewScorecards[]>> {
-  const map = new Map<string, JobInterviewScorecards[]>();
-  try {
-    const response = await db.listRows<JobInterviewScorecards>(
-      DATABASE_ID,
-      "job_interview_scorecards",
-      [Query.equal("interview.job_id", jobId), Query.limit(BOARD_LIMIT)]
-    );
-    for (const scorecard of response.rows) {
-      const list = map.get(scorecard.application_id) ?? [];
-      list.push(scorecard);
-      map.set(scorecard.application_id, list);
-    }
-  } catch {
-    // Relationship-aware query may not be supported; scorecards degrade to empty.
-  }
-  return map;
-}
-
 export async function getRecruitmentWorkspace(
   jobId: string
 ): Promise<RecruitmentWorkspaceData | null> {
@@ -465,7 +444,7 @@ export async function getRecruitmentWorkspace(
     department_id: vacancy.department_id,
   });
 
-  const [applicationsResponse, interviewData, scorecardsByApp, reviewerResult] =
+  const [applicationsResponse, interviewData, reviewerResult] =
     await Promise.all([
       db.listRows<JobApplications>(DATABASE_ID, "job_applications", [
         Query.select([...APPLICATION_BOARD_SELECT]),
@@ -474,12 +453,16 @@ export async function getRecruitmentWorkspace(
         Query.limit(BOARD_LIMIT),
       ]),
       loadJobInterviews(db, jobId),
-      loadScorecards(db, jobId),
       listRecruitmentReviewers(jobId).catch(() => ({
         allowOtherCampuses: false,
         data: [],
       })),
     ]);
+
+  const scorecardsByApp = await loadScorecardsForInterviews(
+    db,
+    interviewData.interviews.map((interview) => interview.$id)
+  );
 
   const candidates = applicationsResponse.rows.map((application) =>
     mapCandidate(

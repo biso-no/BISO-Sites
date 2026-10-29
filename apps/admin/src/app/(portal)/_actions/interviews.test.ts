@@ -195,6 +195,45 @@ describe("recruitment interview actions", () => {
     );
   });
 
+  test("links new and updated scorecards to their interview", async () => {
+    db.getRow.mockResolvedValue({
+      $id: "interview-1",
+      application_id: "application-1",
+      participants: [
+        {
+          role: JobInterviewParticipantsRole.INTERVIEWER,
+          user_id: "user-1",
+        },
+      ],
+    });
+    const input = {
+      concerns: null,
+      criteria: [],
+      interview_id: "interview-1",
+      overall_score: 4,
+      private_notes: null,
+      recommendation: "hire" as const,
+      strengths: "Clear communication.",
+    };
+
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
+    await submitScorecard(input);
+    expect(createdRowCall("job_interview_scorecards")?.[3]).toMatchObject({
+      interview: "interview-1",
+      interview_id: "interview-1",
+    });
+
+    db.listRows.mockResolvedValue({ rows: [{ $id: "sc-1" }], total: 1 });
+    await submitScorecard(input);
+    const update = db.updateRow.mock.calls.find(
+      (call) => call[1] === "job_interview_scorecards"
+    );
+    expect(update?.[3]).toMatchObject({
+      interview: "interview-1",
+      interview_id: "interview-1",
+    });
+  });
+
   test("stamps issued booking tokens with recruitment staff permissions", async () => {
     db.getRow.mockResolvedValue(applicationWithJob);
 

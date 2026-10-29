@@ -368,6 +368,7 @@ export async function submitScorecard(
       application_id: interview.application_id,
       concerns: input.concerns ?? null,
       criteria: JSON.stringify(input.criteria),
+      interview: input.interview_id,
       interview_id: input.interview_id,
       interviewer_user_id: ctx.userId,
       overall_score: input.overall_score,
