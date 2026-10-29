@@ -3,18 +3,10 @@
 import { Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
-import {
-  getManagedCampuses,
-  isNationalHR,
-  isNationalOperations,
-} from "@repo/shared/utils/team-roles";
 import { cookies } from "next/headers";
 import { notFound, redirect, unauthorized } from "next/navigation";
 import { cache } from "react";
-import {
-  parseTeamMemberships,
-  type TeamParseResult,
-} from "./authorization-team-memberships";
+import { parseTeamMemberships } from "./authorization-team-memberships";
 import {
   hasVerifiedBenefitEditorIdentity,
   isBenefitEditorEmail,
@@ -24,15 +16,15 @@ import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
 
 /**
- * User authorization context containing their teams and roles parsed from
- * Azure AD Security Groups (SG-App-Campus-*, SG-App-Dept-*)
+ * User authorization context containing their teams and roles derived from
+ * the synced SG-App team ids (sg-app-campus-*, sg-app-dept-*)
  */
 export interface UserAuthContext {
   activeCampusId?: string; // Numeric campus_id if global admin has set a campus filter
   campusNames: string[]; // Parsed campus names (e.g., "National", "Oslo")
-  campusTeamIds: string[]; // Azure GUIDs for SG-App-Campus-* teams
-  departmentNames: string[]; // Parsed department names (e.g., "OperationsUnit", "LedelsenOslo")
-  departmentTeamIds: string[]; // Azure GUIDs for SG-App-Dept-* teams
+  campusTeamIds: string[]; // Ids of synced sg-app-campus-* teams
+  departmentNames: string[]; // Department names bound to their team id (e.g., "Operations Unit")
+  departmentTeamIds: string[]; // Ids of synced sg-app-dept-* teams
   email: string | null;
   managedCampuses: string[]; // Campus names this user manages (for campus admins)
   managedCampusIds: string[]; // Numeric campus_id values for managedCampuses
@@ -58,42 +50,6 @@ async function hasMicrosoftEditorIdentity(account: {
   } catch {
     return false;
   }
-}
-
-/**
- * Derive additional roles from team memberships.
- * Labels are no longer used for role derivation — only SG-App team membership matters.
- */
-function deriveRoles(parsed: TeamParseResult): {
-  roles: string[];
-  managedCampuses: string[];
-} {
-  const roles = [...parsed.roles];
-
-  const isNatOps = isNationalOperations(
-    parsed.campusNames,
-    parsed.departmentNames
-  );
-
-  const isNatHR = isNationalHR(parsed.campusNames, parsed.departmentNames);
-
-  if (isNatOps && !roles.includes("globaladmin")) {
-    roles.push("globaladmin");
-  }
-
-  if (isNatHR && !roles.includes("hradmin")) {
-    roles.push("hradmin");
-  }
-
-  const managedCampuses = getManagedCampuses(
-    parsed.campusNames,
-    parsed.departmentNames
-  );
-  if (managedCampuses.length > 0 && !roles.includes("campusadmin")) {
-    roles.push("campusadmin");
-  }
-
-  return { roles, managedCampuses };
 }
 
 /**
@@ -125,7 +81,9 @@ async function resolveDepartmentIds(
 
 /**
  * Get the current user's authorization context by fetching their team memberships.
- * Teams are created during M365 OAuth sync with Azure AD group GUIDs as IDs.
+ * Teams are created during M365 OAuth sync with the lowercased group display
+ * name as id (e.g. "sg-app-campus-oslo"). Roles come from those ids only; team
+ * names never grant a role.
  *
  * Role derivation logic:
  * - National + OperationsUnit → "globaladmin" role
@@ -145,7 +103,8 @@ export const getUserAuthContext = cache(
       const teamMemberships = await teams.list([Query.limit(200)]);
 
       const parsed = parseTeamMemberships(teamMemberships.teams);
-      const { roles, managedCampuses } = deriveRoles(parsed);
+      const { managedCampuses } = parsed;
+      const roles = [...parsed.roles];
       if (
         isBenefitEditorEmail(user.email) &&
         !roles.includes(ROLES.BENEFITS_EDITOR) &&

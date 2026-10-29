@@ -84,11 +84,12 @@ describe("admin authorization team parsing", () => {
       { $id: "biso-members", name: "BISO Members" },
       { $id: "sg-app-dept-hr", name: "HR" },
       { $id: "legacy-guid", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "x", name: "Oslo" },
       { $id: "sg-app-campus-oslo", name: "Oslo" },
     ]);
 
-    expect(parsed.departmentTeamIds).toEqual(["sg-app-dept-hr", "legacy-guid"]);
-    expect(parsed.departmentNames).toEqual(["HR", "Operations Unit"]);
+    expect(parsed.departmentTeamIds).toEqual(["sg-app-dept-hr"]);
+    expect(parsed.departmentNames).toEqual(["HR"]);
     expect(parsed.campusTeamIds).toEqual(["sg-app-campus-oslo"]);
     expect(parsed.campusNames).toEqual(["Oslo"]);
   });
@@ -97,10 +98,13 @@ describe("admin authorization team parsing", () => {
     const hr = parseTeamMemberships([{ $id: "sg-app-dept-hr", name: "HR" }]);
     expect(hr.roles).toContain("hr");
 
-    const spaced = parseTeamMemberships([
-      { $id: "sg-app-dept-hr", name: " h r " },
+    const renamed = parseTeamMemberships([
+      { $id: "sg-app-dept-hr", name: "Renamed" },
     ]);
-    expect(spaced.roles).toContain("hr");
+    expect(renamed.roles).toContain("hr");
+
+    const userMade = parseTeamMemberships([{ $id: "user-made", name: "HR" }]);
+    expect(userMade.roles).not.toContain("hr");
 
     const marketing = parseTeamMemberships([
       { $id: "sg-app-dept-marketing", name: "Marketing" },
@@ -108,9 +112,49 @@ describe("admin authorization team parsing", () => {
     expect(marketing.roles).not.toContain("hr");
 
     const opsUnit = parseTeamMemberships([
-      { $id: "legacy-guid", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
     ]);
     expect(opsUnit.roles).not.toContain("hr");
+  });
+
+  test("user-created teams with copied names grant no admin access", async () => {
+    teams.list.mockResolvedValue({
+      teams: [
+        { $id: "u1", name: "SG-App-Campus-National" },
+        { $id: "u2", name: "SG-App-Dept-OperationsUnit" },
+        { $id: "u3", name: "Oslo" },
+        { $id: "u4", name: "Ledelsen Oslo" },
+      ],
+    });
+
+    const roles = await getUserRolesForClient();
+
+    expect(roles.isGlobalAdmin).toBe(false);
+    expect(roles.isCampusAdmin).toBe(false);
+    expect(roles.campusNames).toEqual([]);
+    expect(roles.departmentNames).toEqual([]);
+    expect(roles.roles).toEqual([]);
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
+  });
+
+  test("synced ids grant global and campus admin", async () => {
+    teams.list.mockResolvedValue({
+      teams: [
+        { $id: "sg-app-campus-national", name: "National" },
+        { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+      ],
+    });
+    expect((await getUserRolesForClient()).isGlobalAdmin).toBe(true);
+
+    teams.list.mockResolvedValue({
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        { $id: "sg-app-dept-ledelsenoslo", name: "Ledelsen Oslo" },
+      ],
+    });
+    const campus = await getUserRolesForClient();
+    expect(campus.isCampusAdmin).toBe(true);
+    expect(campus.managedCampuses).toEqual(["Oslo"]);
   });
 });
 
