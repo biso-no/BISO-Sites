@@ -121,10 +121,23 @@ function buildNamePattern(token: string): RegExp {
   );
 }
 
+/**
+ * Whole-word, case-insensitive match of a name token, including the
+ * Norwegian possessive ("Olas"). For free text typed by a recruiter, where
+ * names arrive in any casing.
+ */
+function buildLooseNamePattern(token: string): RegExp {
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])${escapeRegex(token)}(?:s)?(?![\\p{L}\\p{N}])`,
+    "giu"
+  );
+}
+
 function redactNameWith(
   text: string,
   name: string,
-  replacement: string
+  replacement: string,
+  loose = false
 ): string {
   const tokens = name
     .split(NAME_SEPARATOR_PATTERN)
@@ -135,7 +148,10 @@ function redactNameWith(
 
   let result = text;
   for (const token of tokens) {
-    result = result.replace(buildNamePattern(token), () => replacement);
+    const pattern = loose
+      ? buildLooseNamePattern(token)
+      : buildNamePattern(token);
+    result = result.replace(pattern, () => replacement);
   }
   const repeated = new RegExp(
     `${escapeRegex(replacement)}(?:\\s+${escapeRegex(replacement)})+`,
@@ -151,14 +167,16 @@ function redactName(text: string, name: string): string {
 /**
  * Replaces every token of `name` in `text` with `label` (e.g. "Candidate 3"),
  * so several candidates in one prompt stay distinguishable without their
- * names being sent.
+ * names being sent. Matching is case-insensitive and word-bounded, and covers
+ * the possessive ("Olas"), because the text is typed by a recruiter. Screening
+ * text keeps the stricter `anonymizeScreeningText` behaviour.
  */
 export function redactNameWithLabel(
   text: string,
   name: string,
   label: string
 ): string {
-  return redactNameWith(text, name, label);
+  return redactNameWith(text, name, label, true);
 }
 
 /** First name of a full applicant name, as used when greeting them. */

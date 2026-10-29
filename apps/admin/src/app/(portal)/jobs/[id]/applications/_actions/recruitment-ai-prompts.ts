@@ -66,17 +66,26 @@ export function restoreLabels(
   });
 }
 
-function scrub(text: string, candidate: AssistantCandidate): string {
-  return anonymizeScreeningText(text, { candidateName: candidate.name }) ?? "";
+// Free text about one candidate can name another ("stronger than Kari"), so
+// every board candidate's name is replaced, not only the subject's own.
+function scrub(
+  text: string,
+  candidate: AssistantCandidate,
+  candidates: AssistantCandidate[]
+): string {
+  const own = anonymizeScreeningText(text, { candidateName: candidate.name });
+  return labelNames(own ?? "", candidates);
 }
 
 export function describeCandidates(candidates: AssistantCandidate[]): string {
   return candidates
     .map((candidate, index) => {
       const strengths = candidate.strengths.map((item) =>
-        scrub(item, candidate)
+        scrub(item, candidate, candidates)
       );
-      const gaps = candidate.gaps.map((item) => scrub(item, candidate));
+      const gaps = candidate.gaps.map((item) =>
+        scrub(item, candidate, candidates)
+      );
       return `- ${candidateLabel(index)} | stage=${candidate.stage} | match=${
         candidate.score ?? "n/a"
       } | ${candidate.days}d in pipeline | source=${
@@ -88,12 +97,9 @@ export function describeCandidates(candidates: AssistantCandidate[]): string {
     .join("\n");
 }
 
-/** Replaces any candidate name in the recruiter's text with its label. */
-export function pseudonymiseMessage(
-  message: string,
-  candidates: AssistantCandidate[]
-): string {
-  let result = message;
+/** Replaces any board candidate's name in `text` with that candidate's label. */
+function labelNames(text: string, candidates: AssistantCandidate[]): string {
+  let result = text;
   // Full names first, so a surname shared by several candidates cannot turn
   // "Ola Berg" into the label of someone else.
   candidates.forEach((candidate, index) => {
@@ -108,7 +114,15 @@ export function pseudonymiseMessage(
   candidates.forEach((candidate, index) => {
     result = redactNameWithLabel(result, candidate.name, candidateLabel(index));
   });
-  return anonymizeScreeningText(result) ?? "";
+  return result;
+}
+
+/** Labels candidate names in the recruiter's text and strips contact details. */
+export function pseudonymiseMessage(
+  message: string,
+  candidates: AssistantCandidate[]
+): string {
+  return anonymizeScreeningText(labelNames(message, candidates)) ?? "";
 }
 
 export function buildComparePrompt(

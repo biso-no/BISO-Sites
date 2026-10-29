@@ -121,6 +121,27 @@ describe("redactNameWithLabel", () => {
       "Candidate 1 and Olaf"
     );
   });
+
+  it("matches in any case and the possessive, but not inside other words", () => {
+    expect(
+      redactNameWithLabel(
+        "ola, OLa, OLA and Olas CV; not Karianne",
+        "Ola Berg",
+        "Candidate 1"
+      )
+    ).toBe(
+      "Candidate 1, Candidate 1, Candidate 1 and Candidate 1 CV; not Karianne"
+    );
+    expect(redactNameWithLabel("Karianne, kari", "Kari", "Candidate 2")).toBe(
+      "Karianne, Candidate 2"
+    );
+  });
+
+  it("leaves the screener's case-sensitive behaviour alone", () => {
+    expect(
+      anonymizeScreeningText("mark the date", { candidateName: "Mark" })
+    ).toBe("mark the date");
+  });
 });
 
 describe("fillCandidatePlaceholder", () => {

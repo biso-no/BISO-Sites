@@ -31,8 +31,8 @@ export async function draftCandidateEmail(
     schema: recruitmentAiEmailDraftSchema,
     instructions: RECRUITMENT_EMAIL_SYSTEM_PROMPT,
     reasoning: "low",
-    // Applicant data must not be retained on the provider's side beyond the call.
-    providerOptions: { openai: { store: false } },
+    // Provider-side retention follows the Anthropic account's data settings,
+    // not a per-request option.
   });
   return result.object;
 }

@@ -120,8 +120,8 @@ export async function generateComparisonSynthesis(
         verdict: z.string(),
         winnerLabel: z.string(),
       }),
-      // Applicant data must not be retained on the provider's side.
-      providerOptions: { openai: { store: false } },
+      // Provider-side retention follows the Anthropic account's data
+      // settings, not a per-request option.
     });
     const winner =
       idsForLabels([object.winnerLabel], buildLabelMap(candidates))[0] ?? null;
@@ -167,7 +167,8 @@ export async function askRecruitmentAssistant(input: {
         input.message,
         input.candidates
       ),
-      providerOptions: { openai: { store: false } },
+      // Provider-side retention follows the Anthropic account's data
+      // settings, not a per-request option.
       // Every field is required: OpenAI's strict structured outputs reject a
       // schema whose `properties` are not all listed in `required`, which is
       // what `.optional()` / `.default()` produce. Empty arrays are allowed.

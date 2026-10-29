@@ -3,7 +3,9 @@ import {
   buildAssistantPrompt,
   buildComparePrompt,
   buildLabelMap,
+  describeCandidates,
   idsForLabels,
+  pseudonymiseMessage,
   restoreLabels,
 } from "./recruitment-ai-prompts";
 
@@ -19,6 +21,9 @@ const candidates = Array.from({ length: 12 }, (_, index) => ({
   strengths: index === 0 ? ["Zorblax leads teams (zorb@example.com)"] : [],
   summary: null,
 }));
+
+const BOARD_NAMES = /ola|nordmann|kari|hansen/i;
+const FIRST_NAMES = /ola|kari/i;
 
 describe("recruitment AI prompts", () => {
   test("compare prompt carries labels and no candidate name", () => {
@@ -59,5 +64,59 @@ describe("recruitment AI prompts", () => {
     expect(restoreLabels("Candidate 99 wins", candidates)).toBe(
       "Candidate 99 wins"
     );
+  });
+
+  describe("names typed by the recruiter in any case", () => {
+    const board = [
+      {
+        ...candidates[0],
+        id: "a",
+        name: "Ola Nordmann",
+        gaps: [],
+        strengths: [],
+      },
+      {
+        ...candidates[1],
+        id: "b",
+        name: "Kari Hansen",
+        gaps: [],
+        strengths: [],
+      },
+      {
+        ...candidates[2],
+        id: "c",
+        name: "Karianne Berg",
+        gaps: [],
+        strengths: [],
+      },
+    ];
+
+    test("lowercase, possessive and mixed-case names are redacted", () => {
+      const out = pseudonymiseMessage(
+        "is ola better than kari? Olas CV vs OLa and KARI's",
+        board
+      );
+      expect(out).not.toMatch(FIRST_NAMES);
+      expect(out).toContain("is Candidate 1 better than Candidate 2?");
+      expect(out).toContain("Candidate 1 CV vs Candidate 1 and Candidate 2's");
+    });
+
+    test("a token inside another word is not redacted", () => {
+      const out = pseudonymiseMessage("what about Karianne and Olaf", board);
+      expect(out).toBe("what about Candidate 3 and Olaf");
+      expect(out).not.toContain("2anne");
+    });
+
+    test("strengths and gaps never carry another candidate's name", () => {
+      const withText = board.map((c, i) => ({
+        ...c,
+        strengths: i === 0 ? ["Stronger than kari on sales"] : [],
+        gaps: i === 1 ? ["Weaker than Ola Nordmann"] : [],
+      }));
+      const out = describeCandidates(withText);
+      expect(out).not.toMatch(BOARD_NAMES);
+      expect(out).toContain("Stronger than Candidate 2 on sales");
+      expect(out).toContain("Weaker than Candidate 1");
+    });
   });
 });

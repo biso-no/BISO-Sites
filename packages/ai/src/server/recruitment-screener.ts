@@ -157,8 +157,8 @@ export async function screenApplication(
     prompt: buildPrompt(input),
     schema: recruitmentAiScreeningOutputSchema,
     instructions: SYSTEM_PROMPT,
-    // Applicant data must not be retained on OpenAI's side beyond the call.
-    providerOptions: { openai: { store: false } },
+    // Provider-side retention follows the Anthropic account's data settings,
+    // not a per-request option.
   });
 
   // Metadata is stamped here rather than asked of the model — it cannot know
