@@ -12,6 +12,12 @@ import {
  * once table-level read access is removed, each row's own permissions decide
  * who can see it. Only `read(...)` entries are replaced; other permissions on
  * a row are kept.
+ *
+ * Two phases: every table is scanned read-only first; nothing is written if
+ * any scan failed. Page translations are scanned right after pages, but apply
+ * should still run while nobody is editing content, followed by a second dry
+ * run that should report 0 changes. Translations whose parent page is not found
+ * are reported as skipped and never changed.
  */
 
 export type ReconcileTableId =
@@ -36,6 +42,7 @@ export interface ReconcileReport {
   changes: ReconcileChange[];
   errors: { message: string; rowId?: string; tableId: ReconcileTableId }[];
   scanned: Record<ReconcileTableId, number>;
+  skipped: { reason: string; rowId: string; tableId: ReconcileTableId }[];
 }
 
 interface ReconcileRow {
@@ -66,8 +73,8 @@ const READ_PREFIX = "read(";
 
 const TABLE_ORDER: ReconcileTableId[] = [
   "pages",
-  "campus_benefits",
   "page_translations",
+  "campus_benefits",
   "events",
 ];
 
@@ -148,59 +155,33 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function reconcileRow(
-  db: ReconcileDb,
+function planRow(
   tableId: ReconcileTableId,
   row: ReconcileRow,
   pages: ReadonlyMap<string, PageParent>,
-  report: ReconcileReport,
-  apply: boolean
-): Promise<void> {
+  report: ReconcileReport
+): void {
+  if (tableId === "page_translations" && !pages.has(asString(row.page_id))) {
+    report.skipped.push({
+      tableId,
+      rowId: row.$id,
+      reason: "parent page not found",
+    });
+    return;
+  }
   const before = row.$permissions ?? [];
   const after = mergeReadPermissions(
     before,
     desiredReadPermissions(tableId, row, pages)
   );
-  if (sameSet(before, after)) {
-    return;
-  }
-  report.changes.push({ tableId, rowId: row.$id, before, after });
-  if (!apply) {
-    return;
-  }
-  try {
-    await db.updateRow({
-      databaseId: DATABASE_ID,
-      tableId,
-      rowId: row.$id,
-      data: {},
-      permissions: after,
-    });
-  } catch (error) {
-    report.errors.push({
-      tableId,
-      rowId: row.$id,
-      message: errorMessage(error),
-    });
+  if (!sameSet(before, after)) {
+    report.changes.push({ tableId, rowId: row.$id, before, after });
   }
 }
 
-export async function reconcileRowPermissions(
-  db: ReconcileDb,
-  options: { apply: boolean }
-): Promise<ReconcileReport> {
-  const report: ReconcileReport = {
-    changes: [],
-    errors: [],
-    scanned: {
-      campus_benefits: 0,
-      events: 0,
-      page_translations: 0,
-      pages: 0,
-    },
-  };
+/** Phase 1: read-only scan of every table; computes all changes. */
+async function scanAll(db: ReconcileDb, report: ReconcileReport) {
   const pages = new Map<string, PageParent>();
-
   for (const tableId of TABLE_ORDER) {
     try {
       for await (const row of scanTable(db, tableId)) {
@@ -211,12 +192,52 @@ export async function reconcileRowPermissions(
             visibility: asString(row.visibility),
           });
         }
-        await reconcileRow(db, tableId, row, pages, report, options.apply);
+        planRow(tableId, row, pages, report);
       }
     } catch (error) {
       report.errors.push({ tableId, message: errorMessage(error) });
     }
   }
+}
 
+/** Phase 2: write the planned changes; a failed update does not stop the rest. */
+async function applyChanges(db: ReconcileDb, report: ReconcileReport) {
+  for (const { tableId, rowId, after } of report.changes) {
+    try {
+      await db.updateRow({
+        databaseId: DATABASE_ID,
+        tableId,
+        rowId,
+        data: {},
+        permissions: after,
+      });
+    } catch (error) {
+      report.errors.push({ tableId, rowId, message: errorMessage(error) });
+    }
+  }
+}
+
+export async function reconcileRowPermissions(
+  db: ReconcileDb,
+  options: { apply: boolean }
+): Promise<ReconcileReport> {
+  const report: ReconcileReport = {
+    changes: [],
+    errors: [],
+    skipped: [],
+    scanned: {
+      campus_benefits: 0,
+      events: 0,
+      page_translations: 0,
+      pages: 0,
+    },
+  };
+
+  await scanAll(db, report);
+  // Nothing is written unless every scan succeeded: a partial page list would
+  // make translations look orphaned.
+  if (options.apply && report.errors.length === 0) {
+    await applyChanges(db, report);
+  }
   return report;
 }

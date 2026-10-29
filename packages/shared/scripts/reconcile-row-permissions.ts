@@ -31,6 +31,11 @@ const apply = process.argv.includes("--apply");
 console.log(`Mode: ${apply ? "APPLY" : "dry-run"}`);
 console.log(`Endpoint: ${endpoint}`);
 console.log(`Project: ${project}`);
+if (apply) {
+  console.log(
+    "Run apply while nobody is editing content, then run a dry run again: it should report 0 changes."
+  );
+}
 
 const client = new Client()
   .setEndpoint(endpoint)
@@ -51,7 +56,13 @@ for (const change of report.changes) {
     `  ${change.tableId} ${change.rowId}: [${change.before.join(", ")}] → [${change.after.join(", ")}]`
   );
 }
+for (const entry of report.skipped) {
+  console.log(`  SKIPPED ${entry.tableId} ${entry.rowId}: ${entry.reason}`);
+}
 if (report.errors.length > 0) {
+  if (apply) {
+    console.error("A scan failed, so nothing was written.");
+  }
   console.error(`ERRORS: ${report.errors.length}`);
   for (const entry of report.errors) {
     console.error(

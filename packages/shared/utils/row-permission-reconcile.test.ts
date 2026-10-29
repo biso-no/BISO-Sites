@@ -107,10 +107,19 @@ function readQueryOptions(queries: string[] | undefined) {
   return { limit, after };
 }
 
-function makeDb(tables: Record<string, Row[]>, failIds: string[] = []) {
+function makeDb(
+  tables: Record<string, Row[]>,
+  failIds: string[] = [],
+  failList: (tableId: string, callNo: number) => boolean = () => false
+) {
+  const calls: Record<string, number> = {};
   const updates: Update[] = [];
   const db = {
     listRows: (params: { tableId: string; queries?: string[] }) => {
+      calls[params.tableId] = (calls[params.tableId] ?? 0) + 1;
+      if (failList(params.tableId, calls[params.tableId] as number)) {
+        return Promise.reject(new Error("list failed"));
+      }
       const rows = tables[params.tableId] ?? [];
       const { limit, after } = readQueryOptions(params.queries);
       const start = after ? rows.findIndex((r) => r.$id === after) + 1 : 0;
@@ -200,5 +209,46 @@ describe("reconcileRowPermissions", () => {
       rowId: "b1",
     });
     expect(updates).toHaveLength(4);
+  });
+
+  it("writes nothing when a later pages listing fails", async () => {
+    const { db, updates } = makeDb(
+      fixture(),
+      [],
+      (tableId, callNo) => tableId === "pages" && callNo === 2
+    );
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toEqual([]);
+    expect(report.errors).toHaveLength(1);
+    expect(report.errors[0]?.tableId).toBe("pages");
+  });
+
+  it("writes nothing on any table when the events scan fails", async () => {
+    const { db, updates } = makeDb(
+      fixture(),
+      [],
+      (tableId) => tableId === "events"
+    );
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toEqual([]);
+    expect(report.errors.map((e) => e.tableId)).toEqual(["events"]);
+  });
+
+  it("skips translations with an unknown parent page", async () => {
+    const tables = fixture();
+    tables.page_translations = [
+      { $id: "orphan", $permissions: [ANY], is_published: true, page_id: "zz" },
+    ];
+    const { db, updates } = makeDb(tables);
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(report.skipped).toEqual([
+      {
+        tableId: "page_translations",
+        rowId: "orphan",
+        reason: "parent page not found",
+      },
+    ]);
+    expect(report.changes.some((c) => c.rowId === "orphan")).toBe(false);
+    expect(updates.some((u) => u.rowId === "orphan")).toBe(false);
   });
 });
