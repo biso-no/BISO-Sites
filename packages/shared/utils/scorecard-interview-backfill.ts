@@ -57,13 +57,23 @@ const PAGE_SIZE = 100;
 const INTERVIEWS = "job_interviews";
 const SCORECARDS = "job_interview_scorecards";
 
+// The relationship is selected explicitly: Appwrite does not return it unless
+// asked, and a scorecard that is already linked must not be planned again.
+const SELECT_BY_TABLE: Record<string, string[]> = {
+  [INTERVIEWS]: ["$id"],
+  [SCORECARDS]: ["$id", "interview_id", "interview.$id"],
+};
+
 async function* scanTable(
   db: ScorecardBackfillDb,
   tableId: string
 ): AsyncGenerator<BackfillRow> {
   let cursor: string | undefined;
   while (true) {
-    const queries = [Query.limit(PAGE_SIZE)];
+    const queries = [
+      Query.select(SELECT_BY_TABLE[tableId] ?? ["*"]),
+      Query.limit(PAGE_SIZE),
+    ];
     if (cursor) {
       queries.push(Query.cursorAfter(cursor));
     }
@@ -90,12 +100,15 @@ function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-/** The relationship can come back as an id or as an expanded row. */
+/** The relationship can come back as an id or as a row carrying `$id`. */
 function hasRelationship(value: unknown): boolean {
   if (typeof value === "string") {
     return value.length > 0;
   }
-  return typeof value === "object" && value !== null;
+  if (typeof value === "object" && value !== null) {
+    return asString((value as { $id?: unknown }).$id).length > 0;
+  }
+  return false;
 }
 
 /** Phase 1: read-only scan; computes links and orphans. */

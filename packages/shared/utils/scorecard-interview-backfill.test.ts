@@ -70,6 +70,27 @@ describe("backfillScorecardInterviews", () => {
     expect(report.errors).toEqual([]);
   });
 
+  it("selects the relationship explicitly so linked scorecards are recognised", async () => {
+    const { db, listRows } = makeDb({
+      job_interviews: interviews,
+      job_interview_scorecards: [
+        { $id: "s1", interview_id: "i1", interview: { $id: "i1" } },
+      ],
+    });
+    const report = await backfillScorecardInterviews(db, { apply: false });
+    expect(report.links).toEqual([]);
+    const selects = listRows.mock.calls.map((call) => {
+      const select = (call[0].queries ?? [])
+        .map((q) => JSON.parse(q))
+        .find((q) => q.method === "select");
+      return [call[0].tableId, select?.values];
+    });
+    expect(selects).toEqual([
+      ["job_interviews", ["$id"]],
+      ["job_interview_scorecards", ["$id", "interview_id", "interview.$id"]],
+    ]);
+  });
+
   it("reports scorecards whose interview is gone as orphans and leaves them alone", async () => {
     const { db, updateRow } = makeDb({
       job_interviews: interviews,
