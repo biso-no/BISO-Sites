@@ -7,6 +7,7 @@ covers:
   - apps/admin/src/lib/utils/authorization.ts
   - apps/admin/src/lib/content-authorization.ts
   - apps/admin/src/lib/assistant-publish.ts
+  - packages/ai/src/assistant/tools/confirmation.ts
   - apps/admin/src/app/(portal)/shop/page.tsx
   - apps/admin/src/app/(portal)/shop/shop-view-params.ts
   - apps/admin/src/app/(portal)/shop/_components/**
@@ -64,7 +65,7 @@ The catalogue also has the chips **Venter på godkjenning** (Pending Approval) a
 
 ### Approval requests from the assistant
 
-The only way a product gets an approval request is through the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone). If you ask it to publish a product and you aren't a campus leader for the product's campus or a global admin, it saves the product as a draft and shows an **Approval required** card. You can then send a request. It goes to the campus leaders for the product's campus. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
+The only way a product gets an approval request is through the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone). If you ask it to publish a product and you aren't a campus leader for the product's campus or a global admin, you still confirm it on the assistant's card first. It then saves the product as a draft and shows an **Approval required** card. You can then send a request. It goes to the campus leaders for the product's campus. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
 
 While the request waits, the product stays **Utkast** (Draft). It isn't counted under **Venter på godkjenning** (Pending Approval). Approving the request publishes it. The approval fails if the product has no department, or if it has no active sales type.
 

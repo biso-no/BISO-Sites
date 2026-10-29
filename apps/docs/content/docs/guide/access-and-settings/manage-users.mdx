@@ -1,7 +1,7 @@
 ---
 title: Manage Microsoft users
-description: How global admins find, create and change BISO's Microsoft accounts in IT, change their groups, and reset their password or two-step sign-in, and what campus leaders can see.
-who: "Global admins (National + Operations Unit). Campus leaders (Ledelsen on your campus) can find and open the accounts on their own campus, read-only."
+description: How global admins find, create and change BISO's Microsoft accounts in IT, change their groups, and reset their password or two-step sign-in, and what campus leaders can see and create.
+who: "Global admins (National + Operations Unit). Campus leaders (Ledelsen on your campus) can find, open and create accounts on their own campus, but can't change an account once it's made."
 covers:
   - apps/admin/src/app/(portal)/it/page.tsx
   - apps/admin/src/app/(portal)/it/layout.tsx
@@ -25,7 +25,7 @@ covers:
 ## Before you start
 
 - Every change on this page is made in Microsoft 365 at once. You can't see Microsoft from this guide, so the steps are text only.
-- Only global admins can change anything. Campus leaders can do the first step on their own campus and read an account, nothing more. See [Campus leaders in IT](/guide/access-and-settings#campus-leaders-in-it).
+- Only global admins can change an account. Campus leaders can find and read the accounts on their own campus, and create new ones there. See [Campus leaders in IT](/guide/access-and-settings#campus-leaders-in-it).
 - IT shows only licensed accounts on BISO's own domain. Guests, and shared mailboxes without a licence, aren't listed and can't be opened.
 - An account's groups decide its role in the admin. See [Where roles come from](/guide/access-and-settings#where-roles-come-from).
 - Most labels in an account's **Profil** (Profile) section are in English whatever your admin language. This page gives them as the screen shows them.
@@ -45,7 +45,7 @@ Each row shows the name, email, department, job title, office, **Last sign-in:**
 If nothing matches, you see **Ingen Microsoft 365-brukere funnet** (No Microsoft 365 users found). If Microsoft can't be reached, a red box with Microsoft's error message shows instead of the list. Try again later, and tell the developers if it stays (see the [developer docs](/developers)).
 
 </Step>
-<Step title="Create a user (global admins)">
+<Step title="Create a user (global admins and campus leaders)">
 
 Choose **Opprett bruker** (Create user) above the list. Fill in:
 
@@ -53,7 +53,7 @@ Choose **Opprett bruker** (Create user) above the list. Fill in:
 - **Brukerprinsipalnavn** (User principal name): the login address. Leave it empty and the admin makes one from the first and last name, as firstname.lastname on BISO's domain. A typed address must end in BISO's own domain, or you see **User principal name must use @biso.no.**
 - **E-postalias** (Mail nickname) and **Stillingstittel** (Job title), if you want them.
 - **Konto aktivert** (Account enabled): **Enabled** unless you want the account switched off for now.
-- **Campus**, then **Avdeling** (Department). Both are required. Choose the campus first: the department list shows only that campus's departments.
+- **Campus**, then **Avdeling** (Department). Both are required. Choose the campus first: the department list shows only that campus's departments. Campus leaders see only their own campus in **Campus**, so they can only create accounts there.
 
 Choose **Opprett bruker** (Create user). You see **Microsoft 365 user created**, and the **Midlertidig passord** (Temporary password) box shows the new password. It's shown once. Click it to copy it, and give it to the person over a secure channel. They must change it the first time they sign in.
 
@@ -130,7 +130,7 @@ The **Risikokontroller** (Risk controls) box has three password and sign-in acti
 **Generer midlertidig passord** (Generate temporary password) replaces the person's password at once, and the old one can't be brought back. Check the name and login address at the top of the page before you confirm.
 </Callout>
 
-The top of the same box has **Start overgang** (Trigger turnover). It's for role accounts only. See [Hand over a role account](/guide/access-and-settings/hand-over-a-role-account).
+The top of the same box has **Start overgang** (Trigger turnover), on accounts whose login address ends in @biso.no. It's for role accounts only. See [Hand over a role account](/guide/access-and-settings/hand-over-a-role-account).
 
 </Step>
 </Steps>

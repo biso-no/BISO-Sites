@@ -1,6 +1,6 @@
 ---
 title: How access works
-description: Where admin roles come from, who can use IT and the System pages, what campus leaders can see in IT, who to ask for access, and what the system does on its own.
+description: Where admin roles come from, who can use IT and the System pages, what campus leaders can see and create in IT, who to ask for access, and what the system does on its own.
 covers:
   - apps/admin/src/lib/roles.ts
   - apps/admin/src/lib/nav-tree.ts
@@ -19,7 +19,7 @@ covers:
 
 This area of the admin decides who gets in and what they can do. It's mostly for IT, which in this guide means the global admins. When a page asks you to tell the developers, it means whoever runs the platform behind the admin, as described in the [developer docs](/developers). It covers:
 
-- **IT**, where global admins manage BISO's Microsoft accounts: creating people, changing their groups, resetting passwords and handing over role accounts.
+- **IT**, where global admins manage BISO's Microsoft accounts: creating people, changing their groups, resetting passwords and handing over role accounts. Campus leaders can create accounts there for their own campus.
 - The rest of the **System** group in the sidebar: **Aktivitet** (Activity), **Varsling** (Whistleblowing), **Driftshelse** (Operations health), **Funksjonsbrytere** (Feature flags), **Appversjoner** (App versions), **Betaling** (Payments) and **Innstillinger** (Settings).
 
 The activity log is covered in [Everyday tools](/guide/start-here/everyday-tools#check-the-activity-log-global-admins-and-campus-leaders).
@@ -45,7 +45,7 @@ Your role in the admin comes from the BISO Microsoft account you sign in with. I
 
 | Page | Global admins (National + Operations Unit) | Campus leaders (Ledelsen on your campus) | Everyone else |
 |---|---|---|---|
-| **IT**, the **Brukere** (Users) tab | Every account, and every change | Accounts on your own campus, read-only | No |
+| **IT**, the **Brukere** (Users) tab | Every account, and every change | Accounts on your own campus: read them, and create new ones | No |
 | **IT**, the **Avdelingskontroll** (Department audit), **24SO datakvalitet** (24SO data health) and **Godkjenningsavvik** (Approval issues) tabs | Yes | No | No |
 | Handing over a role account | Yes | No | No |
 | **Aktivitet** (Activity) | Yes | Yes | No |
@@ -56,12 +56,13 @@ Opening a page your role can't use shows a page-not-found error.
 
 ## Campus leaders in IT
 
-Campus leaders have **IT** under **System** in the sidebar, with read-only access to their own campus:
+Campus leaders have **IT** under **System** in the sidebar, limited to their own campus. They can read accounts and create new ones, but can't change an account once it's made:
 
 - The list shows only accounts whose **Kontorsted** (Office location) is your campus. A line above the list reads **Filtrert til ditt campus** (Filtered to your campus), followed by the campus name. Accounts with no office location aren't shown.
 - You can open an account and read its profile, aliases, manager, groups, licences and sign-in methods. Every field is greyed out, and there are no buttons to change anything.
 - The **Risikokontroller** (Risk controls) box reads **No risk controls available for your permission level.**
-- There's no **Opprett bruker** (Create user) button, and you see only the users list, with no tabs.
+- **Opprett bruker** (Create user) makes a new account on your campus. **Campus** offers only your campus, and **Avdeling** (Department) only its departments. See [Create a user](/guide/access-and-settings/manage-users#create-a-user-global-admins-and-campus-leaders).
+- You see only the users list, with no tabs.
 
 To change anything about an account, ask a global admin.
 
@@ -69,7 +70,8 @@ To change anything about an account, ask a global admin.
 
 | You need | Ask |
 |---|---|
-| A BISO Microsoft account, or a role in the admin | A global admin (IT) |
+| A new BISO Microsoft account | A campus leader on your campus, or a global admin (IT) |
+| A role in the admin, or a change to your groups | A global admin (IT) |
 | A new password, or your two-step sign-in (MFA) reset | A global admin (IT) |
 | To become a benefits editor | IT, who keep the benefits editor list |
 | A change to an account on your campus | A global admin. Campus leaders can look, but not change. |

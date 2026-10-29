@@ -4,7 +4,11 @@ description: How global admins pass a shared role account, such as a leader's or
 who: "Global admins (National + Operations Unit)"
 covers:
   - apps/admin/src/app/(portal)/it/users/_components/turnover-dialog.tsx
+  - apps/admin/src/app/(portal)/it/users/_components/turnover-gate.ts
   - apps/admin/src/app/(portal)/it/users/_components/user-detail-client.tsx
+  - apps/admin/src/app/(portal)/it/users/[userId]/page.tsx
+  - apps/admin/src/lib/it/turnover-target.ts
+  - apps/admin/src/lib/it-permission-rules.ts
   - apps/admin/src/app/(portal)/_actions/it-turnover.ts
   - apps/admin/src/lib/it/turnover.ts
   - apps/admin/src/app/api/it/turnover/stop-retention/route.ts
@@ -20,7 +24,7 @@ Only run a handover on a shared role account: one that belongs to a position and
 </Callout>
 
 - A role account is a BISO Microsoft account that belongs to a position, such as a department leader or a financial manager, not to a person. Most handovers happen at the August board change.
-- Know the role account's login address, and the new holder's first and last name.
+- Know the role account's login address, and the new holder's first and last name. The login address must end in @biso.no. The handover isn't offered on any other account.
 - The handover runs in Microsoft 365, so the steps are text only.
 - Agree a secure way to give the new holder their password, such as in person.
 - When a person with their own account leaves, don't use this. Use the other actions on their account instead, such as disabling it. See [Manage Microsoft users](/guide/access-and-settings/manage-users).
@@ -38,7 +42,7 @@ Check the heading and the login address under it. They must be the position's ac
 </Step>
 <Step title="Start the handover">
 
-In the **Risikokontroller** (Risk controls) box, choose the red **Start overgang** (Trigger turnover).
+In the **Risikokontroller** (Risk controls) box, choose the red **Start overgang** (Trigger turnover). It's only there on accounts whose login address ends in @biso.no.
 
 A box headed **Overgang av rollekonto** (Role account turnover) opens. It explains that the login address stays the same, only the name changes, and the previous holder loses access. Under **Dette vil:** (This will:) it lists what happens. Read it.
 

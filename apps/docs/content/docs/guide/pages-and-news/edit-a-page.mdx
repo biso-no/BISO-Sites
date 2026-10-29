@@ -65,13 +65,15 @@ A new page isn't stored until you make your first change.
 
 Choose the **Page** tab on the right. Under **Page settings**:
 
-- **Title** and **Description** belong to the language you have open. biso.no shows the title in the browser tab, as the title followed by "| BISO". It uses the first 160 characters of the description as the page's summary for search engines.
+- **Title** and **Description** belong to the language you have open. biso.no shows the title in the browser tab, as the title followed by "| BISO". It uses the first 160 characters of the description as the page's summary for search engines. Both are part of the draft, so a change reaches biso.no when you publish that language.
 - **Shared slug** is the page's address after biso.no/. It's the same in both languages. A new page starts with `uten-navn` (or `untitled-page` in English), so change it. The editor doesn't check what you type: use lowercase letters, numbers and hyphens, with a slash between levels, as in `about/history`.
   - If a new page's address is already taken, the editor adds "-2" to it, or "-3" and so on.
   - Changing an existing page's address to one that's taken fails, and the top bar shows **Error**.
   - Addresses that start with `units/` or `projects/` are kept for department and project pages. A page can't be saved there.
 - **Campus.** Global admins choose a campus, or **— National (no campus) —**. Campus leaders choose one of their campuses. Department members see their own campus and can't change it. Changing the campus clears **Dept** if that department isn't on the new campus.
 - **Dept** is the department the page belongs to. Each one is listed with its name and the first 8 characters of its id. If you're a department member in one department, the page is tied to it when it's first saved. If you're in several, choose one, or the page can't be saved.
+
+On a page that's already live, change **Shared slug**, **Campus** or **Dept** only when you're ready to publish, and choose **Publish changes** straight after.
 
 The **Theme** panel is further down this tab. See the colours step below.
 
@@ -193,8 +195,9 @@ You see one of these:
 - **Page published. Translation queued.** when **Auto-translate** is on.
 - **Published, but the department colours couldn't be updated. Try publishing again.** The page is live, but the colours weren't copied to the department. Publish again.
 - **Your latest changes couldn't be saved, so nothing was published.** Wait until the top bar no longer shows **Error**, then try again.
+- **Save this language before publishing**. The language couldn't be saved first, so nothing was published. Wait until the top bar shows **Saved**, then try again.
 
-Once the page is live, the button reads **Publish changes** (tooltip: *Publish the latest edits to biso.no*). Your changes after that stay in the draft until you choose it.
+Once the page is live, the button reads **Publish changes** (tooltip: *Publish the latest edits to biso.no*). Your changes to the content, title and description after that stay in the draft until you choose it. If a language has no saved draft, publishing keeps its live copy as it is instead of emptying it.
 
 Then switch to the other language with **NO** or **EN** and publish that too. Once one language is live, the button reads **Publish changes** in both languages, even in one that has never been published, so choose **Publish changes** there.
 
@@ -229,7 +232,7 @@ If **Publish** is greyed out with the tooltip *The page colours fail the contras
 
 ## Common mistakes
 
-- Thinking your changes are live. After the first publish, changes stay in the draft until you choose **Publish changes**.
+- Thinking your changes are live. After the first publish, changes to the content, title and description stay in the draft until you choose **Publish changes**.
 - Publishing one language only. Visitors who read biso.no in the other language get page not found. Publish both, or check that one language is enough.
 - Taking the button's word for which language is live. **Publish changes** and **Unpublish** show in both languages as soon as one is live, even in a language that has never been published. In **Sider** (Pages), **Published** only means at least one language is live. Look at biso.no in each language to be sure.
 - Leaving **Auto-translate** on when the other language was written by hand. Publishing replaces it with a machine translation and publishes that. On a page with a **Team grid** or **Contact** block, people's names, roles and addresses go through the translation too, and go live unread.
@@ -241,5 +244,5 @@ If **Publish** is greyed out with the tooltip *The page colours fail the contras
 - Waiting for someone to approve the page. There's no approval step for pages: **Publish** puts the page live.
 
 <Callout type="warn">
-The bin icon on a row in **Sider** (Pages) shows when you point at the row. Its name is **Slett side** (Delete page). It asks **Delete page?** once, then takes the page off biso.no in every language at once. The page stays in the list as **Archived**. There's no button to restore it: to bring it back, open it and publish each language again.
+The bin icon on a row in **Sider** (Pages) shows when you point at the row. Its name is **Slett side** (Delete page). It asks **Delete page?** once, then takes the page off biso.no in every language at once. The page stays in the list as **Archived**. There's no button to restore it: to bring it back, open it and publish it. Every language that was live when you deleted it comes back too.
 </Callout>
