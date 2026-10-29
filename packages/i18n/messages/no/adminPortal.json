@@ -428,6 +428,11 @@
       "reopen": "Åpne igjen"
     },
     "studio": {
+      "bulkDraftInvites": "Lag utkast til invitasjoner",
+      "bulkArchive": "Arkiver",
+      "bulkDraftRejections": "Lag utkast til avslag",
+      "bulkDismiss": "Lukk",
+      "bulkArchived": "Arkiverte {count} kandidater.",
       "inviteNotSent": "Invitasjon ikke sendt",
       "eyebrow": "BISO rekrutteringsstudio",
       "titleAccent": "dette semesteret.",

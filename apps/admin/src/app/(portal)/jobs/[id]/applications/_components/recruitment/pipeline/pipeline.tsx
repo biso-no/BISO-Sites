@@ -3,6 +3,7 @@
 import { JobApplicationsStatus } from "@repo/api/types/appwrite";
 import { canTransitionRecruitmentApplicationStatus } from "@repo/shared/types/recruitment";
 import { ArrowUpDown, LayoutGrid, List, Search, Star } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { updateJobApplicationStatus } from "@/app/(portal)/_actions/jobs";
 import { useRecruitment } from "../recruitment-context";
@@ -14,6 +15,7 @@ import {
 } from "../view-model";
 import { AiInsights } from "./ai-insights";
 import { BulkActionBar } from "./bulk-action-bar";
+import { BULK_ARCHIVE_STAGE, movedIds } from "./bulk-actions";
 import { CandidateCard } from "./candidate-card";
 import { ListView } from "./list-view";
 import { PIPELINE_SORTS, type PipelineSortId, sortCandidates } from "./sort";
@@ -29,7 +31,9 @@ const STATUS_BY_STAGE: Record<RecruitmentStageId, JobApplicationsStatus> = {
 const STAGE_TOUR_ANCHORS = ["pipeline-stage-first", "pipeline-stage-next"];
 
 export function Pipeline() {
-  const { candidates, updateCandidate } = useRecruitment();
+  const { candidates, updateCandidate, actions } = useRecruitment();
+  const t = useTranslations("adminPortal.jobs.studio");
+  const [draftOfferIds, setDraftOfferIds] = useState<string[]>([]);
   const [mode, setMode] = useState<"kanban" | "list">("kanban");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<PipelineSortId>(PIPELINE_SORTS[0].id);
@@ -187,6 +191,15 @@ export function Pipeline() {
         )
       );
 
+      if (stage === BULK_ARCHIVE_STAGE) {
+        setDraftOfferIds(
+          movedIds(
+            valid.map((c) => c.id),
+            results
+          )
+        );
+      }
+
       const failures = results.filter((r) => r.status === "rejected");
       if (failures.length > 0) {
         for (let i = 0; i < results.length; i++) {
@@ -315,6 +328,24 @@ export function Pipeline() {
         onMoveStage={bulkMove}
         selectedIds={Array.from(selectedIds)}
       />
+
+      {draftOfferIds.length > 0 ? (
+        <div className="pl-toast" role="status">
+          {t("bulkArchived", { count: draftOfferIds.length })}{" "}
+          <button
+            onClick={() => {
+              actions.openEmail(draftOfferIds, "reject");
+              setDraftOfferIds([]);
+            }}
+            type="button"
+          >
+            {t("bulkDraftRejections")}
+          </button>{" "}
+          <button onClick={() => setDraftOfferIds([])} type="button">
+            {t("bulkDismiss")}
+          </button>
+        </div>
+      ) : null}
 
       {toast ? <div className="pl-toast">{toast}</div> : null}
     </div>
