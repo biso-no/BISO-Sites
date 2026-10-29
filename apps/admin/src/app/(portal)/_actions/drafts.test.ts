@@ -78,18 +78,58 @@ describe("approveDraft", () => {
     }
   });
 
-  test("approving a news draft changes only the status", async () => {
+  test("approving a news draft publishes it and restamps its translations", async () => {
     db.getRow.mockResolvedValue({
       $id: "news-1",
       campus: { $id: "campus-oslo" },
       status: "draft",
     });
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "tr-1", $permissions: [] }],
+      total: 1,
+    });
 
     await approveDraft("news-1", "news");
 
-    expect(db.updateRow).toHaveBeenCalledTimes(1);
-    expect(db.updateRow).toHaveBeenCalledWith("app", "news", "news-1", {
-      status: "published",
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "news",
+      "news-1",
+      { status: "published" },
+      ['read("any")']
+    );
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "tr-1",
+      {},
+      ['read("any")']
+    );
+  });
+
+  test("approving a job draft restamps translations with staff reads", async () => {
+    db.getRow.mockResolvedValue({
+      $id: "job-1",
+      campus: { $id: "campus-oslo" },
+      status: "draft",
     });
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "tr-1", $permissions: [] }],
+      total: 1,
+    });
+
+    await approveDraft("job-1", "job");
+
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "tr-1",
+      {},
+      [
+        'read("any")',
+        'read("team:sg-app-dept-operationsunit")',
+        'read("team:sg-app-dept-hr")',
+      ]
+    );
   });
 });

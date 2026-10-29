@@ -15,6 +15,9 @@ import {
   applyContentRelationshipScopeQueries,
   getContentOwnership,
 } from "@/lib/content-authorization";
+import { restampTranslationReads } from "@/lib/content-translation-reads";
+import { buildJobRowPermissions } from "@/lib/recruitment";
+import { buildContentRowPermissions } from "@/lib/utils";
 import {
   applyScopeQueries,
   assertPublishAccess,
@@ -193,6 +196,25 @@ async function publishEventReadAccess(
   );
 }
 
+async function publishJobOrNewsDraft(
+  db: AdminDb,
+  type: "job" | "news",
+  id: string
+): Promise<void> {
+  const rowPermissions =
+    type === "job"
+      ? buildJobRowPermissions("public", "published")
+      : buildContentRowPermissions({ audience: "public", status: "published" });
+  await db.updateRow(
+    "app",
+    type === "job" ? "jobs" : "news",
+    id,
+    { status: "published" },
+    rowPermissions
+  );
+  await restampTranslationReads(db, type, id, "published");
+}
+
 export async function approveDraft(id: string, type: "job" | "event" | "news") {
   const ctx = await requireAuth();
 
@@ -217,7 +239,7 @@ export async function approveDraft(id: string, type: "job" | "event" | "news") {
     if (type === "event") {
       await publishEventReadAccess(db, id, row);
     } else {
-      await db.updateRow("app", table, id, { status: "published" });
+      await publishJobOrNewsDraft(db, type, id);
     }
 
     await logAuditEvent(ctx, "draft_approved", {

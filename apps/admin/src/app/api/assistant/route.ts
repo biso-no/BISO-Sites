@@ -75,6 +75,7 @@ import {
   getDashboardStats,
   getPageById,
   listPages,
+  publishPageAction,
 } from "@/app/(portal)/_actions/pages";
 import {
   createProduct,
@@ -94,6 +95,7 @@ import {
   publishBenefitContent,
   withoutBenefitCode,
 } from "@/lib/assistant-publish";
+import { publishAssistantStatusContent } from "@/lib/assistant-status-publish";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { checkIntegrationHealth } from "@/lib/integration-health";
@@ -352,8 +354,20 @@ async function publishCreatedContent(
   if (!table) {
     return;
   }
-  const { db } = await createSessionClient();
-  await db.updateRow("app", table, id, { status: "published" });
+  await publishStatusDomain(context.domain, table, id);
+}
+
+async function publishStatusDomain(
+  domain: string,
+  table: string,
+  id: string
+): Promise<void> {
+  const { db: sessionDb } = await createSessionClient();
+  await publishAssistantStatusContent(domain, table, id, {
+    getAdminDb: async () => (await createAdminClient()).db,
+    publishPage: publishPageAction,
+    sessionDb,
+  });
 }
 
 async function createAssistantContent(
@@ -592,7 +606,7 @@ function buildDeps(
         await publishBookableProduct(adminDb, id);
         return { data: id };
       }
-      await db.updateRow("app", table, id, { status: "published" });
+      await publishStatusDomain(domain, table, id);
       return { data: id };
     },
 

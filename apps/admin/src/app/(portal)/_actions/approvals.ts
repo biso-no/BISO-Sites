@@ -33,6 +33,7 @@ import { createAdminClient, createSessionClient } from "@repo/api/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/authorization";
 import { publishBenefit } from "@/lib/benefit-publish";
+import { restampTranslationReads } from "@/lib/content-translation-reads";
 import type { ListParams, PaginatedResult } from "@/lib/list-params";
 import { paginationQueries } from "@/lib/list-queries";
 import { assertProductBookable } from "@/lib/shop/sales-type";
@@ -317,14 +318,37 @@ async function executeApprovalPublish(
     await adminDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
       status: "published",
     });
+    await restampTranslationReads(
+      adminDb,
+      "product",
+      plan.resourceId,
+      "published"
+    );
   } else {
     await sessionDb.updateRow(DATABASE_ID, plan.table, plan.resourceId, {
       status: "published",
     });
+    // Translation rows carry their own read; restamp them with the admin
+    // client now that `assertPublishAccess` has authorised this caller.
+    const translationType = APPROVAL_TRANSLATION_TYPES[plan.table];
+    if (translationType) {
+      const { db: adminDb } = await createAdminClient();
+      await restampTranslationReads(
+        adminDb,
+        translationType,
+        plan.resourceId,
+        "published"
+      );
+    }
   }
 
   revalidateApprovalPublishPaths(plan);
 }
+
+const APPROVAL_TRANSLATION_TYPES: Record<string, "news" | "job"> = {
+  jobs: "job",
+  news: "news",
+};
 
 function nonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;

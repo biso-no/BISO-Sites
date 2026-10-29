@@ -20,6 +20,12 @@ function fakeDb(rows: Record<string, unknown>) {
       }
       return Promise.resolve(row);
     }),
+    listRows: mock(() =>
+      Promise.resolve({
+        rows: [{ $id: "tr1", $permissions: [] }],
+        total: 1,
+      })
+    ),
     updateRow: mock(() => Promise.resolve(undefined)),
   };
 }
@@ -81,5 +87,12 @@ describe("publishBookableProduct", () => {
     expect(db.updateRow).toHaveBeenCalledWith("app", "webshop_products", "p1", {
       status: "published",
     });
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "tr1",
+      {},
+      ['read("any")']
+    );
   });
 });

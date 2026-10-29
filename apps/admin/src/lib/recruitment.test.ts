@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { translationReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import type { UserAuthContext } from "@/lib/authorization";
 import {
   buildJobRowPermissions,
@@ -147,5 +148,18 @@ describe("buildJobRowPermissions", () => {
     expect(perms).not.toContain('read("any")');
     expect(perms).not.toContain('read("team:biso-members")');
     expect(perms).toContain('read("team:sg-app-dept-hr")');
+  });
+});
+
+describe("translationReadPermissions agrees with buildJobTranslationPermissions", () => {
+  const readsOf = (permissions: string[]) =>
+    permissions.filter((entry) => entry.startsWith("read(")).sort();
+
+  test("published, draft and closed jobs", () => {
+    for (const status of ["published", "draft", "closed"]) {
+      expect(readsOf(translationReadPermissions("job", status))).toEqual(
+        readsOf(buildJobTranslationPermissions("public", status))
+      );
+    }
   });
 });
