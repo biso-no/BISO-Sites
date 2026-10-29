@@ -18,7 +18,8 @@
     "./server/department-resolver": "./src/server/department-resolver.ts",
     "./assistant": "./src/assistant/index.ts",
     "./assistant/types": "./src/assistant/types.ts",
-    "./assistant/tools": "./src/assistant/tools/index.ts"
+    "./assistant/tools": "./src/assistant/tools/index.ts",
+    "./assistant/read-only-tools": "./src/assistant/tools/read-only-tools.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

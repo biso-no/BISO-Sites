@@ -1,5 +1,6 @@
 "use client";
 
+import { READ_ONLY_TOOL_NAMES } from "@repo/ai/assistant/read-only-tools";
 import { AlertTriangle, CheckCircle } from "lucide-react";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { MONO_STACK, STUDIO } from "../../studio";
@@ -12,10 +13,17 @@ interface ConfirmActionCardProps {
   details?: string[];
   /** Buttons can't be used, e.g. a later message has moved past the card */
   disabled?: boolean;
+  /** Values the detail lines cut short, to read in full */
+  longValues?: LongValue[];
   onCancel: () => void;
   onConfirm: () => void;
   /** If true, show the result instead of the prompt */
   result?: { confirmed: boolean };
+}
+
+interface LongValue {
+  field: string;
+  value: string;
 }
 
 interface ToolCallSummary {
@@ -24,6 +32,8 @@ interface ToolCallSummary {
   description: string;
   /** One line per detail; never cut short, only each value is */
   details: string[];
+  /** Full text of each value a detail line cut short */
+  longValues: LongValue[];
 }
 
 /** Titles of rows that earlier tool results in the conversation returned, by row id. */
@@ -44,14 +54,28 @@ function nonEmpty(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function fullText(value: unknown): string {
+  return (typeof value === "string" ? value : JSON.stringify(value)) ?? "";
+}
+
 function shown(value: unknown): string {
-  const text = typeof value === "string" ? value : JSON.stringify(value);
-  if (text === undefined) {
-    return "";
-  }
+  const text = fullText(value);
   return text.length > MAX_SHOWN_CHARS
     ? `${text.slice(0, MAX_SHOWN_CHARS)}…`
     : text;
+}
+
+/** `field: value` with the value cut short; the full text goes to `longValues`. */
+function fieldLine(
+  field: string,
+  value: unknown,
+  longValues: LongValue[]
+): string {
+  const text = fullText(value);
+  if (text.length > MAX_SHOWN_CHARS) {
+    longValues.push({ field, value: text });
+  }
+  return `${field}: ${shown(value)}`;
 }
 
 function orNone(value: unknown): string {
@@ -102,7 +126,18 @@ function collectTitles(
   }
 }
 
-/** Titles by row id from every finished tool result in the conversation; later results win. */
+function isReadToolPart(type: unknown): boolean {
+  return (
+    typeof type === "string" &&
+    type.startsWith("tool-") &&
+    READ_ONLY_TOOL_NAMES.has(type.slice("tool-".length))
+  );
+}
+
+/**
+ * Titles by row id from finished results of read tools; later results win.
+ * Other tool outputs (client tools the model fills in) are not trusted.
+ */
 export function collectKnownTitles(
   messages: ReadonlyArray<{ parts?: readonly unknown[] }>
 ): Map<string, string> {
@@ -110,11 +145,7 @@ export function collectKnownTitles(
   for (const message of messages) {
     for (const part of message.parts ?? []) {
       const record = asRecord(part);
-      if (
-        typeof record.type === "string" &&
-        record.type.startsWith("tool-") &&
-        record.state === "output-available"
-      ) {
+      if (isReadToolPart(record.type) && record.state === "output-available") {
         collectTitles(record.output, 0, titles);
       }
     }
@@ -151,7 +182,7 @@ function itemLine(
 ): string {
   const id = shown(input.id);
   const target = `${shown(input.domain)} ${id}`;
-  const title = titleOf(input) ?? knownTitles.get(id);
+  const title = knownTitles.get(id);
   return title ? `"${shown(title)}" (${target})` : target;
 }
 
@@ -160,14 +191,42 @@ function requestLine(
   knownTitles: KnownTitles
 ): string {
   const id = shown(input.requestId);
-  const title = titleOf(input) ?? knownTitles.get(id);
+  const title = knownTitles.get(id);
   return title ? `"${shown(title)}" (request ${id})` : `Request ${id}`;
 }
+
+/** Payload fields the route replaces with the facts shown above them. */
+const CREATE_FACT_FIELDS = new Set([
+  "campus_id",
+  "campusId",
+  "department",
+  "department_id",
+  "departmentId",
+  "notify_push",
+  "status",
+]);
+
+/** Domains whose create always sends a push notification. */
+const PUSH_ON_CREATE_DOMAINS = new Set(["events", "jobs", "news"]);
 
 function describeCreate(input: Record<string, unknown>): ToolCallSummary {
   const payload = asRecord(input.payload);
   const title = titleOf(payload);
   const publish = input.publish === true;
+  const longValues: LongValue[] = [];
+  const details = [
+    `Campus: ${campusLabel(input.campusId ?? payload.campus_id ?? payload.campusId)}`,
+    `Department: ${orNone(input.departmentId ?? payload.department_id ?? payload.department)}`,
+    `Publishes now: ${publish ? "yes" : "no"}`,
+  ];
+  if (PUSH_ON_CREATE_DOMAINS.has(String(input.domain))) {
+    details.push("Push notification: yes");
+  }
+  for (const [field, value] of Object.entries(payload)) {
+    if (!CREATE_FACT_FIELDS.has(field)) {
+      details.push(fieldLine(field, value, longValues));
+    }
+  }
   return {
     actionLabel: publish
       ? `Create and publish ${shown(input.domain)}`
@@ -176,11 +235,8 @@ function describeCreate(input: Record<string, unknown>): ToolCallSummary {
     description: `${title ? `"${shown(title)}". ` : ""}${
       publish ? "It goes live right away." : "It is saved as a draft."
     }`,
-    details: [
-      `Campus: ${campusLabel(input.campusId ?? payload.campus_id ?? payload.campusId)}`,
-      `Department: ${orNone(input.departmentId ?? payload.department_id ?? payload.department)}`,
-      `Publishes now: ${publish ? "yes" : "no"}`,
-    ],
+    details,
+    longValues,
   };
 }
 
@@ -189,6 +245,7 @@ function describeUpdate(
   knownTitles: KnownTitles
 ): ToolCallSummary {
   const entries = Object.entries(asRecord(input.payload));
+  const longValues: LongValue[] = [];
   const item = itemLine(input, knownTitles);
   return {
     actionLabel: `Update ${shown(input.domain)}`,
@@ -199,7 +256,10 @@ function describeUpdate(
         : `${item}. Changes ${entries.length} ${
             entries.length === 1 ? "field" : "fields"
           }:`,
-    details: entries.map(([field, value]) => `${field}: ${shown(value)}`),
+    details: entries.map(([field, value]) =>
+      fieldLine(field, value, longValues)
+    ),
+    longValues,
   };
 }
 
@@ -214,6 +274,7 @@ function describeM365User(input: Record<string, unknown>): ToolCallSummary {
       `Job title: ${orNone(input.jobTitle)}`,
       `Manager: ${orNone(input.manager)}`,
     ],
+    longValues: [],
   };
 }
 
@@ -226,6 +287,7 @@ function describeRejection(
     danger: false,
     description: `${requestLine(input, knownTitles)}.`,
     details: [`Reason: ${nonEmpty(input.reason) ?? "none"}`],
+    longValues: [],
   };
 }
 
@@ -250,6 +312,7 @@ export function describeToolCall(
         danger: false,
         description: `${itemLine(input, knownTitles)}. It goes live on the site.`,
         details: [],
+        longValues: [],
       };
     case "deleteContent":
       return {
@@ -257,6 +320,7 @@ export function describeToolCall(
         danger: true,
         description: `${itemLine(input, knownTitles)}. This can't be undone.`,
         details: [],
+        longValues: [],
       };
     case "approveRequest":
       return {
@@ -264,6 +328,7 @@ export function describeToolCall(
         danger: false,
         description: `${requestLine(input, knownTitles)}.`,
         details: [],
+        longValues: [],
       };
     case "rejectRequest":
       return describeRejection(input, knownTitles);
@@ -275,16 +340,20 @@ export function describeToolCall(
         danger: false,
         description: `Flag: ${shown(input.flagKey)}.`,
         details: [],
+        longValues: [],
       };
-    default:
+    default: {
+      const longValues: LongValue[] = [];
       return {
         actionLabel: `Run ${toolName}`,
         danger: false,
         description: "With these inputs:",
-        details: Object.entries(input).map(
-          ([field, value]) => `${field}: ${shown(value)}`
+        details: Object.entries(input).map(([field, value]) =>
+          fieldLine(field, value, longValues)
         ),
+        longValues,
       };
+    }
   }
 }
 
@@ -308,11 +377,8 @@ export function ToolApprovalCard({
   result,
   toolName,
 }: ToolApprovalCardProps) {
-  const { actionLabel, danger, description, details } = describeToolCall(
-    toolName,
-    input,
-    knownTitles
-  );
+  const { actionLabel, danger, description, details, longValues } =
+    describeToolCall(toolName, input, knownTitles);
   return (
     <ConfirmActionCard
       actionLabel={actionLabel}
@@ -320,6 +386,7 @@ export function ToolApprovalCard({
       description={description}
       details={details}
       disabled={!answerable}
+      longValues={longValues}
       onCancel={() => onRespond(false)}
       onConfirm={() => onRespond(true)}
       result={result}
@@ -333,6 +400,7 @@ export function ConfirmActionCard({
   description,
   details,
   disabled = false,
+  longValues,
   onCancel,
   onConfirm,
   result,
@@ -407,6 +475,21 @@ export function ConfirmActionCard({
             </li>
           ))}
         </ul>
+      )}
+
+      {longValues && longValues.length > 0 && (
+        <div className="mb-4 space-y-1 text-[12px]">
+          {longValues.map(({ field, value }) => (
+            <details key={field} style={{ color: STUDIO.ink2 }}>
+              <summary className="cursor-pointer">
+                Show full value: {field}
+              </summary>
+              <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words">
+                {value}
+              </pre>
+            </details>
+          ))}
+        </div>
       )}
 
       {disabled && (

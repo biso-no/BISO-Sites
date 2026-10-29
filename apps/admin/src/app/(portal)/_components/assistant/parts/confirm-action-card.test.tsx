@@ -77,7 +77,7 @@ describe("tool approval card summary", () => {
 
   test("a create with no campus or department says so", () => {
     const summary = describeToolCall("createContent", {
-      domain: "news",
+      domain: "shop",
       payload: {},
       publish: false,
     });
@@ -87,6 +87,76 @@ describe("tool approval card summary", () => {
       "Department: none",
       "Publishes now: no",
     ]);
+  });
+
+  test("a create lists every payload field and the push line", () => {
+    const summary = describeToolCall("createContent", {
+      campusId: "1",
+      domain: "news",
+      payload: {
+        content_no: "Hei",
+        status: "published",
+        title_no: "Nyhet",
+        url: "https://example.com",
+      },
+      publish: false,
+    });
+
+    expect(summary.details).toContain("Push notification: yes");
+    expect(summary.details).toContain("content_no: Hei");
+    expect(summary.details).toContain("title_no: Nyhet");
+    expect(summary.details).toContain("url: https://example.com");
+    expect(summary.details).toContain("Publishes now: no");
+    expect(summary.details.join(" ")).not.toContain("published");
+  });
+
+  test("a create with no push notification does not claim one", () => {
+    const summary = describeToolCall("createContent", {
+      domain: "shop",
+      payload: { name: "Cap" },
+      publish: false,
+    });
+
+    expect(summary.details.join(" ")).not.toContain("Push notification");
+  });
+
+  test("a long value can be opened in full", () => {
+    const long = `${"y".repeat(200)}END`;
+    const html = renderCard("updateContent", {
+      domain: "news",
+      id: "n-1",
+      payload: { description_no: long, short: "ok" },
+    });
+
+    expect(html).toContain("Show full value: description_no");
+    expect(html).toContain(long);
+    expect(html).not.toContain("Show full value: short");
+  });
+
+  test("a short value gets no toggle", () => {
+    const html = renderCard("updateContent", {
+      domain: "news",
+      id: "n-1",
+      payload: { title_no: "Kort" },
+    });
+
+    expect(html).not.toContain("Show full value");
+  });
+
+  test("a client tool output does not set a card title", () => {
+    const titles = collectKnownTitles([
+      {
+        parts: [
+          {
+            output: { id: "job-1", title: "Looks harmless" },
+            state: "output-available",
+            type: "tool-showDraftPreview",
+          },
+        ],
+      },
+    ]);
+
+    expect(titles.has("job-1")).toBe(false);
   });
 
   test("a new M365 user shows job title and manager", () => {

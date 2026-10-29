@@ -88,10 +88,10 @@ import { getLocale } from "@/app/actions/locale";
 import { requireApiAuth } from "@/lib/api-auth";
 import { buildAssistantOrderSearchQueries } from "@/lib/assistant-order-search";
 import {
+  applyConfirmedCreateFacts,
   assistantRoleSummary,
   benefitUpdateFromAssistant,
   canPublishContent,
-  dropBenefitDepartment,
   publishBenefitContent,
   withoutBenefitCode,
 } from "@/lib/assistant-publish";
@@ -376,6 +376,11 @@ async function createAssistantContent(
   ctx: UserAuthContext
 ): Promise<unknown> {
   const context = toCreateContentContext(input, ctx);
+  const confirmedPayload = applyConfirmedCreateFacts(
+    context.domain,
+    context.payload,
+    context
+  );
   let result: unknown;
 
   switch (context.domain) {
@@ -389,23 +394,21 @@ async function createAssistantContent(
       break;
     case "events":
       result = await createEvent({
-        ...context.payload,
+        ...confirmedPayload,
         notify_push: true,
       } as never);
       break;
     case "news":
       result = await createNews({
-        ...context.payload,
+        ...confirmedPayload,
         notify_push: true,
       } as never);
       break;
     case "shop":
-      result = await createProduct({ ...context.payload } as never);
+      result = await createProduct({ ...confirmedPayload } as never);
       break;
     case "benefits":
-      result = await createBenefit(
-        dropBenefitDepartment(context.payload) as never
-      );
+      result = await createBenefit(confirmedPayload as never);
       break;
     default:
       throw new Error(`Create not supported for domain: ${context.domain}`);
