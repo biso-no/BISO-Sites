@@ -26,6 +26,10 @@ import {
   scheduleInterviewOnGraph,
 } from "@repo/connectors/azure/recruitment-scheduling";
 import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
+import {
+  BOOKING_LINK_UNAVAILABLE_MESSAGE,
+  isBookingLinkUsable,
+} from "@repo/shared/recruitment/booking-link";
 import { availableSlots } from "@repo/shared/recruitment/booking-slots";
 import {
   parseBookingPanel,
@@ -80,6 +84,35 @@ async function loadToken(
     return { error: "This booking link has expired." };
   }
   return { record };
+}
+
+/**
+ * Loads the application and vacancy behind a token and refuses the link when
+ * the candidate is no longer in the interview stage or the vacancy is closed.
+ * The refusal reads like an expired link and says nothing about the candidate.
+ */
+async function loadBookableApplication(
+  db: Db,
+  record: RecruitmentBookingTokens,
+  jobSelect: string[]
+): Promise<{ application: JobApplications; job: Jobs } | { error: string }> {
+  const application = await db.getRow<JobApplications>(
+    "app",
+    "job_applications",
+    record.application_id
+  );
+  const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
+    Query.select([...jobSelect, "status"]),
+  ]);
+  if (
+    !isBookingLinkUsable({
+      applicationStatus: application.status,
+      jobStatus: job.status,
+    })
+  ) {
+    return { error: BOOKING_LINK_UNAVAILABLE_MESSAGE };
+  }
+  return { application, job };
 }
 
 /**
@@ -140,14 +173,15 @@ export async function getBookingContext(
   }
   const { record } = loaded;
 
-  const application = await db.getRow<JobApplications>(
-    "app",
-    "job_applications",
-    record.application_id
-  );
-  const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
-    Query.select(["$id", "slug", "campus.name"]),
+  const bookable = await loadBookableApplication(db, record, [
+    "$id",
+    "slug",
+    "campus.name",
   ]);
+  if ("error" in bookable) {
+    return bookable;
+  }
+  const { application, job } = bookable;
   const { availabilityChecked, slots } = await bookingSlots(
     record,
     panelFromToken(record)
@@ -281,6 +315,18 @@ export async function confirmBookingSlot(
   const { record } = loaded;
   const panel = panelFromToken(record);
 
+  const bookable = await loadBookableApplication(db, record, [
+    "$id",
+    "campus_id",
+    "department_id",
+    "campus.name",
+    "department.$id",
+  ]);
+  if ("error" in bookable) {
+    return bookable;
+  }
+  const { application, job } = bookable;
+
   // The length comes from the token: the browser never decides it.
   const start = new Date(parsed.data.starts_at);
   const end = new Date(start.getTime() + record.duration_minutes * 60_000);
@@ -362,21 +408,6 @@ export async function confirmBookingSlot(
         };
       }
     }
-
-    const application = await db.getRow<JobApplications>(
-      "app",
-      "job_applications",
-      record.application_id
-    );
-    const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
-      Query.select([
-        "$id",
-        "campus_id",
-        "department_id",
-        "campus.name",
-        "department.$id",
-      ]),
-    ]);
 
     const typedJob = job as unknown as {
       campus_id: string;

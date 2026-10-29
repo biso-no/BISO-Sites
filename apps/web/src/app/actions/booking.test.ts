@@ -59,6 +59,8 @@ const tokenRow = {
 };
 
 function mockHappyPath({
+  applicationStatus = "interview",
+  jobStatus = "published",
   overlappingInterviews = [] as Array<{ $id: string }>,
 } = {}) {
   db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
@@ -79,6 +81,7 @@ function mockHappyPath({
       applicant_email: "candidate@example.com",
       applicant_name: "Candidate Person",
       job_id: "job-1",
+      status: applicationStatus,
     })
     .mockResolvedValueOnce({
       $id: "job-1",
@@ -86,6 +89,7 @@ function mockHappyPath({
       campus_id: "campus-oslo",
       department: { Name: "HR" },
       department_id: "dept-hr",
+      status: jobStatus,
     });
 }
 
@@ -136,6 +140,7 @@ describe("recruitment booking actions", () => {
         applicant_email: "c@x.no",
         applicant_name: "C",
         job_id: "job-1",
+        status: "interview",
       })
       .mockResolvedValueOnce({
         $id: "job-1",
@@ -256,6 +261,37 @@ describe("recruitment booking actions", () => {
         column: "claim_lock",
       })
     );
+  });
+
+  it("refuses a link once the candidate has left the interview stage", async () => {
+    for (const applicationStatus of ["rejected", "accepted", "reviewed"]) {
+      mockHappyPath({ applicationStatus });
+      const context = await getBookingContext("booking-token");
+      expect(context).toEqual({ error: "This booking link has expired." });
+
+      mockHappyPath({ applicationStatus });
+      const confirmed = await confirmBookingSlot(
+        "booking-token",
+        "2027-07-01T10:00:00.000Z"
+      );
+      expect(confirmed).toEqual({ error: "This booking link has expired." });
+    }
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  it("refuses a link once the vacancy is closed", async () => {
+    mockHappyPath({ jobStatus: "closed" });
+    expect(await getBookingContext("booking-token")).toEqual({
+      error: "This booking link has expired.",
+    });
+
+    mockHappyPath({ jobStatus: "closed" });
+    expect(
+      await confirmBookingSlot("booking-token", "2027-07-01T10:00:00.000Z")
+    ).toEqual({ error: "This booking link has expired." });
+    expect(db.incrementRowColumn).not.toHaveBeenCalled();
+    expect(db.createRow).not.toHaveBeenCalled();
   });
 
   it("rejects a token whose atomic claim was already taken", async () => {
