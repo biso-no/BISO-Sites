@@ -383,6 +383,36 @@ describe("page builder", () => {
     );
   });
 
+  it("restores the read on other published locales when the page goes live again", async () => {
+    db.listRows.mockImplementation((_db: string, table: string) => {
+      if (table === "pages") {
+        return Promise.resolve({
+          rows: [{ $id: "page-1", visibility: "public" }],
+        });
+      }
+      return Promise.resolve({
+        rows: [
+          { $id: "tr-en", draft_doc: "{}", locale: "en", is_published: false },
+          { $id: "tr-nb", locale: "nb", is_published: true },
+          { $id: "tr-draft", locale: "xx", is_published: false },
+        ],
+      });
+    });
+
+    await publishPage({ id: "page-1", locale: "en" });
+
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "page_translations",
+      "tr-nb",
+      {},
+      ['read("any")']
+    );
+    expect(db.updateRow.mock.calls.some((c) => c[2] === "tr-draft")).toBe(
+      false
+    );
+  });
+
   it("updates an existing locale translation instead of creating a duplicate", async () => {
     db.upsertRow.mockImplementation(
       async (_db: string, _table: string, id: string) => ({ $id: id })

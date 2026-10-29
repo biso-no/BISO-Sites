@@ -784,6 +784,53 @@ export async function publishPage({
       },
       publishedPermissions
     );
+    await grantReadToPublishedTranslations(
+      db,
+      id,
+      translation.$id,
+      publishedPermissions
+    );
+  }
+}
+
+/**
+ * Give every other translation of a page that is marked published the page's
+ * published read permissions, so a locale that was published before the page
+ * was archived is readable again once the page is live. Data is untouched.
+ */
+async function grantReadToPublishedTranslations(
+  db: PageDatabase,
+  pageId: string,
+  exceptId: string,
+  permissions: string[]
+): Promise<void> {
+  let cursor: string | undefined;
+  for (;;) {
+    const res = await db.listRows<PageTranslations>(
+      "app",
+      "page_translations",
+      [
+        Query.equal("page_id", pageId),
+        Query.limit(TRANSLATION_ROWS_LIMIT),
+        ...(cursor ? [Query.cursorAfter(cursor)] : []),
+      ]
+    );
+    for (const other of res.rows) {
+      if (other.$id !== exceptId && other.is_published === true) {
+        await db.updateRow(
+          "app",
+          "page_translations",
+          other.$id,
+          {},
+          permissions
+        );
+      }
+    }
+    const last = res.rows.at(-1);
+    if (!last || res.rows.length < TRANSLATION_ROWS_LIMIT) {
+      return;
+    }
+    cursor = last.$id;
   }
 }
 

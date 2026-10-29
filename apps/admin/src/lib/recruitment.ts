@@ -19,6 +19,7 @@ import {
 } from "@repo/shared/types/recruitment";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import type { UserAuthContext } from "@/lib/authorization";
+import { ROLES } from "@/lib/roles";
 
 export type { RecruitmentLookups } from "@repo/shared/recruitment";
 export {
@@ -68,7 +69,7 @@ export function isHrDepartment(departmentNames: string[]): boolean {
  */
 export function toRecruitmentAdminScope(ctx: UserAuthContext): AdminScope {
   const isActualGlobalAdmin = ctx.roles.includes("globaladmin");
-  const isHr = isHrDepartment(ctx.departmentNames);
+  const isHr = ctx.roles.includes(ROLES.HR);
   const isNational = ctx.campusNames.includes("National");
 
   if (isActualGlobalAdmin || (isHr && isNational)) {

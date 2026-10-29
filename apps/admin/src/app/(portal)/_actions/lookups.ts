@@ -60,13 +60,12 @@ export async function listJobDepartmentsForCampus(
   const canManageAnyCampus =
     ctx.roles.includes("globaladmin") ||
     ctx.roles.includes("hradmin") ||
-    (isHrDepartment(ctx.departmentNames) &&
+    (ctx.roles.includes("hr") &&
       ctx.campusNames.includes("National"));
   const canManageCampus =
     canManageAnyCampus ||
     ((ctx.roles.includes("hr") ||
-      ctx.roles.includes("campusadmin") ||
-      isHrDepartment(ctx.departmentNames)) &&
+      ctx.roles.includes("campusadmin")) &&
       (ctx.resolvedCampusIds.includes(campusId) ||
         ctx.managedCampusIds.includes(campusId)));
 

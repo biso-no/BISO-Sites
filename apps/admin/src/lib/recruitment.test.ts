@@ -50,7 +50,7 @@ describe("toRecruitmentAdminScope", () => {
 
   test("HR + National manages any campus", () => {
     const scope = toRecruitmentAdminScope(
-      ctx({ campusNames: ["National"], departmentNames: ["HR"] })
+      ctx({ campusNames: ["National"], roles: ["hr"] })
     );
     expect(scope.canManageAnyCampus).toBe(true);
     expect(scope.isGlobalAdmin).toBe(true);
@@ -59,7 +59,7 @@ describe("toRecruitmentAdminScope", () => {
 
   test("HR + single campus is a campus-scoped recruitment admin", () => {
     const scope = toRecruitmentAdminScope(
-      ctx({ campusNames: ["Oslo"], departmentNames: ["HR"] })
+      ctx({ campusNames: ["Oslo"], roles: ["hr"] })
     );
     expect(scope.canManageAnyCampus).toBe(false);
     expect(scope.isGlobalAdmin).toBe(false);
@@ -70,10 +70,26 @@ describe("toRecruitmentAdminScope", () => {
 
   test("HR + multiple campuses scopes to those campuses", () => {
     const scope = toRecruitmentAdminScope(
-      ctx({ campusNames: ["Oslo", "Bergen"], departmentNames: ["HR"] })
+      ctx({ campusNames: ["Oslo", "Bergen"], roles: ["hr"] })
     );
     expect(scope.isCampusAdmin).toBe(true);
     expect(scope.managedCampusNames).toEqual(["Oslo", "Bergen"]);
+  });
+
+  test("the hr role grants scope even when the synced HR team was renamed", () => {
+    const scope = toRecruitmentAdminScope(
+      ctx({ campusNames: ["Oslo"], departmentNames: [], roles: ["hr"] })
+    );
+    expect(scope.isCampusAdmin).toBe(true);
+    expect(scope.managedCampusNames).toEqual(["Oslo"]);
+  });
+
+  test("an HR-looking department name without the hr role grants nothing", () => {
+    const scope = toRecruitmentAdminScope(
+      ctx({ campusNames: ["National"], departmentNames: ["HR"], roles: [] })
+    );
+    expect(scope.canManageAnyCampus).toBe(false);
+    expect(scope.isCampusAdmin).toBe(false);
   });
 
   test("non-HR, non-global user gets no recruitment access", () => {
