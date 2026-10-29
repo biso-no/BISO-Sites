@@ -80,7 +80,8 @@ export async function triggerM365Turnover(
       };
     }
 
-    // Confirm the operator is repurposing the intended role account.
+    // The domain check above is the only eligibility rule, so make the operator
+    // confirm the account by typing its exact login address.
     if (
       parsed.confirmationUpn.trim().toLowerCase() !==
       user.userPrincipalName.toLowerCase()

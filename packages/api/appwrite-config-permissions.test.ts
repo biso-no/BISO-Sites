@@ -18,6 +18,7 @@ const EXPECTED_TABLE_PERMISSIONS = [
 ] as const;
 
 function loadAppwriteConfig(): {
+  buckets: Array<{ $id: string; $permissions: string[] }>;
   tables: Array<{
     $id: string;
     $permissions: string[];
@@ -124,10 +125,10 @@ describe("app versions table", () => {
   });
 });
 
-describe("team grants in table permissions", () => {
+describe("team grants in table and bucket permissions", () => {
   const TEAM_GRANT = /team:([^"\\)/]+)/g;
+  // Exactly the team ids that appear in a table or bucket permission today.
   const ALLOWED_TEAM_IDS = new Set([
-    "biso-members",
     "sg-app-campus-national",
     "sg-app-dept-hr",
     "sg-app-dept-ledelsenbergen",
@@ -151,14 +152,23 @@ describe("team grants in table permissions", () => {
     }
   });
 
-  test("every team id in a table permission is on the allow-list", () => {
-    for (const table of loadAppwriteConfig().tables) {
-      for (const teamId of teamIdsGranted(table)) {
-        expect(ALLOWED_TEAM_IDS.has(teamId), `${table.$id}: ${teamId}`).toBe(
+  test("every team id in a table or bucket permission is on the allow-list", () => {
+    const config = loadAppwriteConfig();
+    for (const resource of [...config.tables, ...config.buckets]) {
+      for (const teamId of teamIdsGranted(resource)) {
+        expect(ALLOWED_TEAM_IDS.has(teamId), `${resource.$id}: ${teamId}`).toBe(
           true
         );
       }
     }
+  });
+
+  test("the allow-list holds no team id that nothing grants to", () => {
+    const config = loadAppwriteConfig();
+    const granted = new Set(
+      [...config.tables, ...config.buckets].flatMap(teamIdsGranted)
+    );
+    expect([...ALLOWED_TEAM_IDS].sort()).toEqual([...granted].sort());
   });
 
   test("feature_flags grants only Operations Unit write access", () => {
