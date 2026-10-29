@@ -40,6 +40,10 @@ import {
 import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 import type { ContentNotificationState } from "@/lib/content-notification-state";
 import type { JobReuseSignals } from "@/lib/job-reuse";
+import {
+  publishDeadlineWarning,
+  saveDraftConfirmMessage,
+} from "@/lib/job-status-transition";
 import { defaultNotifyPush, notifyToggleCopy } from "@/lib/notify-toggle-copy";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
@@ -1112,6 +1116,17 @@ export function JobStudioEditor({
         ? `${successMessage} Translation queued.`
         : successMessage
     );
+    // Publishing a closed vacancy reopens it; say so when nobody can apply.
+    const deadlineWarning =
+      status === JobsStatus.PUBLISHED
+        ? publishDeadlineWarning({
+            applicationDeadline: form.application_deadline,
+            currentStatus: job?.status,
+          })
+        : null;
+    if (deadlineWarning) {
+      toast.warning(deadlineWarning);
+    }
   }
 
   /** Publish, but ask first when this looks like a past-round vacancy. */
@@ -1125,12 +1140,11 @@ export function JobStudioEditor({
   }
 
   function handleSaveDraft() {
+    const confirmMessage = saveDraftConfirmMessage(job?.status);
     if (
-      job?.status === JobsStatus.PUBLISHED &&
+      confirmMessage &&
       // biome-ignore lint/suspicious/noAlert: Same confirmation pattern as the other studio prompts.
-      !window.confirm(
-        "This vacancy is live. Saving it as a draft takes it offline and it disappears from the public site. Continue?"
-      )
+      !window.confirm(confirmMessage)
     ) {
       return;
     }
