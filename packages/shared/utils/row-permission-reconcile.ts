@@ -12,14 +12,24 @@ import {
  * Brings the read permissions on existing content rows in line with what the
  * current code writes. Rows written by older code can carry the wrong reads;
  * once table-level read access is removed, each row's own permissions decide
- * who can see it. Only `read(...)` entries are replaced; other permissions on
- * a row are kept.
+ * who can see it. Covers pages, page translations, campus benefits, events and
+ * content translations (events, member benefits, news, products, jobs and
+ * departments). Only `read(...)` entries are replaced; other permissions on a
+ * row are kept.
  *
- * Two phases: every table is scanned read-only first; nothing is written if
- * any scan failed. Page translations are scanned right after pages, but apply
- * should still run while nobody is editing content, followed by a second dry
- * run that should report 0 changes. Translations whose parent page is not found
- * are reported as skipped and never changed.
+ * Two phases: every table is scanned read-only first (news, products, jobs and
+ * departments are read only for their ids and statuses); nothing is written if
+ * any scan failed. Rows whose parent is not found, and translations of type
+ * `page` or an unknown type, are reported as skipped and never changed.
+ *
+ * Automated writers keep running while this does, so the apply phase does not
+ * trust the scan: right before each write it re-reads the row and its parent,
+ * recomputes the desired permissions and writes only if they still differ.
+ * A fresh result that differs from the planned one is written as the fresh
+ * value and listed under `revised`; a row that is already correct, or that has
+ * been deleted (or lost its parent) since the scan, is skipped and reported.
+ * Run it while nobody is editing content, then dry-run again: it should
+ * report 0 changes.
  */
 
 export type ReconcileTableId =
@@ -30,7 +40,8 @@ export type ReconcileTableId =
   | "content_translations"
   | "news"
   | "webshop_products"
-  | "jobs";
+  | "jobs"
+  | "departments";
 
 export interface PageParent {
   status: string;
@@ -47,6 +58,10 @@ export interface ReconcileChange {
 export interface ReconcileReport {
   changes: ReconcileChange[];
   errors: { message: string; rowId?: string; tableId: ReconcileTableId }[];
+  /** Changes whose fresh desired value differed from the planned one. */
+  revised: (ReconcileChange & { planned: string[] })[];
+  /** True when a scan failed; nothing is written in that case. */
+  scanFailed: boolean;
   scanned: Record<ReconcileTableId, number>;
   skipped: { reason: string; rowId: string; tableId: ReconcileTableId }[];
 }
@@ -59,6 +74,11 @@ interface ReconcileRow {
 
 /** Minimal slice of `TablesDB`, structurally satisfied by the real client. */
 export interface ReconcileDb {
+  getRow(params: {
+    databaseId: string;
+    tableId: string;
+    rowId: string;
+  }): Promise<ReconcileRow>;
   listRows(params: {
     databaseId: string;
     tableId: string;
@@ -90,16 +110,17 @@ const STATUS_ONLY_TABLES: ReconcileTableId[] = [
   "news",
   "webshop_products",
   "jobs",
+  "departments",
 ];
 
-/** Parent table per translation `content_type`; `null` means no status needed. */
-const TRANSLATION_PARENT: Record<string, ReconcileTableId | null> = {
+/** Parent table per translation `content_type`. */
+const TRANSLATION_PARENT: Record<string, ReconcileTableId | undefined> = {
   event: "events",
   memberBenefit: "campus_benefits",
   news: "news",
   product: "webshop_products",
   job: "jobs",
-  department: null,
+  department: "departments",
 };
 
 type ParentStatuses = Map<ReconcileTableId, Map<string, string>>;
@@ -143,9 +164,7 @@ export function desiredReadPermissions(
       if (table === undefined) {
         return [];
       }
-      const status = table
-        ? (statuses.get(table)?.get(asString(row.content_id)) ?? null)
-        : null;
+      const status = statuses.get(table)?.get(asString(row.content_id)) ?? null;
       return translationReadPermissions(
         contentType as TranslationContentType,
         status
@@ -208,7 +227,7 @@ function translationSkipReason(
   if (table === undefined) {
     return `content type not reconciled: ${contentType || "(none)"}`;
   }
-  if (table && !statuses.get(table)?.has(asString(row.content_id))) {
+  if (!statuses.get(table)?.has(asString(row.content_id))) {
     return `parent ${contentType} not found`;
   }
   return null;
@@ -283,10 +302,115 @@ async function scanAll(db: ReconcileDb, report: ReconcileReport) {
   }
 }
 
+function isNotFound(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === 404;
+}
+
+async function getRowOrNull(
+  db: ReconcileDb,
+  tableId: ReconcileTableId,
+  rowId: string
+): Promise<ReconcileRow | null> {
+  try {
+    return await db.getRow({ databaseId: DATABASE_ID, tableId, rowId });
+  } catch (error) {
+    if (isNotFound(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Re-reads the parent of a page or content translation and returns the single
+ * -entry lookups `desiredReadPermissions` needs, or the reason to skip.
+ */
+async function loadFreshParent(
+  db: ReconcileDb,
+  tableId: ReconcileTableId,
+  row: ReconcileRow
+): Promise<
+  | {
+      pages: Map<string, PageParent>;
+      skip?: undefined;
+      statuses: ParentStatuses;
+    }
+  | { skip: string }
+> {
+  const pages = new Map<string, PageParent>();
+  const statuses: ParentStatuses = new Map();
+  if (tableId === "page_translations") {
+    const pageId = asString(row.page_id);
+    const page = await getRowOrNull(db, "pages", pageId);
+    if (!page) {
+      return { skip: "parent page not found when applying" };
+    }
+    pages.set(pageId, {
+      status: asString(page.status),
+      visibility: asString(page.visibility),
+    });
+  }
+  if (tableId === "content_translations") {
+    const contentType = asString(row.content_type);
+    const parentTable = TRANSLATION_PARENT[contentType];
+    if (!parentTable) {
+      return {
+        skip: `content type not reconciled: ${contentType || "(none)"}`,
+      };
+    }
+    const contentId = asString(row.content_id);
+    const parent = contentId
+      ? await getRowOrNull(db, parentTable, contentId)
+      : null;
+    if (!parent) {
+      return { skip: `parent ${contentType} not found when applying` };
+    }
+    statuses.set(parentTable, new Map([[contentId, asString(parent.status)]]));
+  }
+  return { pages, statuses };
+}
+
 /** Phase 2: write the planned changes; a failed update does not stop the rest. */
 async function applyChanges(db: ReconcileDb, report: ReconcileReport) {
-  for (const { tableId, rowId, after } of report.changes) {
+  for (const change of report.changes) {
+    const { tableId, rowId } = change;
     try {
+      const fresh = await getRowOrNull(db, tableId, rowId);
+      if (!fresh) {
+        report.skipped.push({
+          tableId,
+          rowId,
+          reason: "row deleted since the scan",
+        });
+        continue;
+      }
+      const parent = await loadFreshParent(db, tableId, fresh);
+      if (parent.skip !== undefined) {
+        report.skipped.push({ tableId, rowId, reason: parent.skip });
+        continue;
+      }
+      const current = fresh.$permissions ?? [];
+      const after = mergeReadPermissions(
+        current,
+        desiredReadPermissions(tableId, fresh, parent.pages, parent.statuses)
+      );
+      if (sameSet(current, after)) {
+        report.skipped.push({
+          tableId,
+          rowId,
+          reason: "already correct when applying",
+        });
+        continue;
+      }
+      if (!sameSet(after, change.after)) {
+        report.revised.push({
+          tableId,
+          rowId,
+          before: current,
+          after,
+          planned: change.after,
+        });
+      }
       await db.updateRow({
         databaseId: DATABASE_ID,
         tableId,
@@ -307,10 +431,13 @@ export async function reconcileRowPermissions(
   const report: ReconcileReport = {
     changes: [],
     errors: [],
+    revised: [],
+    scanFailed: false,
     skipped: [],
     scanned: {
       campus_benefits: 0,
       content_translations: 0,
+      departments: 0,
       events: 0,
       jobs: 0,
       news: 0,
@@ -321,9 +448,10 @@ export async function reconcileRowPermissions(
   };
 
   await scanAll(db, report);
+  report.scanFailed = report.errors.length > 0;
   // Nothing is written unless every scan succeeded: a partial page list would
   // make translations look orphaned.
-  if (options.apply && report.errors.length === 0) {
+  if (options.apply && !report.scanFailed) {
     await applyChanges(db, report);
   }
   return report;

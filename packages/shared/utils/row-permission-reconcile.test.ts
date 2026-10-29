@@ -110,10 +110,14 @@ function readQueryOptions(queries: string[] | undefined) {
 function makeDb(
   tables: Record<string, Row[]>,
   failIds: string[] = [],
-  failList: (tableId: string, callNo: number) => boolean = () => false
+  failList: (tableId: string, callNo: number) => boolean = () => false,
+  // Runs once, just before the first row is re-read for apply: stands in for
+  // a writer changing content after the scan.
+  afterScan: () => void = () => undefined
 ) {
   const calls: Record<string, number> = {};
   const updates: Update[] = [];
+  let scanDone = false;
   const db = {
     listRows: (params: { tableId: string; queries?: string[] }) => {
       calls[params.tableId] = (calls[params.tableId] ?? 0) + 1;
@@ -127,6 +131,18 @@ function makeDb(
         rows: rows.slice(start, start + limit),
         total: rows.length,
       });
+    },
+    getRow: (params: { tableId: string; rowId: string }) => {
+      if (!scanDone) {
+        scanDone = true;
+        afterScan();
+      }
+      const row = (tables[params.tableId] ?? []).find(
+        (r) => r.$id === params.rowId
+      );
+      return row
+        ? Promise.resolve(row)
+        : Promise.reject(Object.assign(new Error("not found"), { code: 404 }));
     },
     updateRow: (params: {
       tableId: string;
@@ -265,6 +281,7 @@ function translationFixture(translations: Row[]): Record<string, Row[]> {
       { $id: "ben-pub", $permissions: [ANY], status: "published" },
       { $id: "ben-draft", $permissions: [], status: "draft" },
     ],
+    departments: [{ $id: "d1", $permissions: [] }],
     events: [
       { $id: "ev-pub", $permissions: [ANY], status: "published" },
       { $id: "ev-draft", $permissions: [], status: "draft" },
@@ -307,7 +324,7 @@ describe("content_translations", () => {
         tr("t-ben-d", "memberBenefit", "ben-draft", [ANY]),
         tr("t-news", "news", "n-pub"),
         tr("t-prod", "product", "pr-pub"),
-        tr("t-dept", "department", "any-dept"),
+        tr("t-dept", "department", "d1"),
       ])
     );
     await reconcileRowPermissions(db, { apply: true });
@@ -387,5 +404,108 @@ describe("content_translations", () => {
     const report = await reconcileRowPermissions(db, { apply: true });
     expect(updates).toEqual([]);
     expect(report.errors.map((e) => e.tableId)).toContain(failing);
+  });
+});
+
+describe("departments and scan flags", () => {
+  it("skips department translations with no or an unknown department", async () => {
+    const { db, updates } = makeDb(
+      translationFixture([
+        { ...tr("t-none", "department", "x", [ANY]), content_id: null },
+        tr("t-gone", "department", "zz", [ANY]),
+      ])
+    );
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(report.skipped.map((e) => e.rowId)).toEqual(["t-none", "t-gone"]);
+    expect(updates).toEqual([]);
+  });
+
+  it("writes nothing when the departments scan fails", async () => {
+    const { db, updates } = makeDb(
+      translationFixture([tr("t-n", "news", "n-draft", [ANY])]),
+      [],
+      (tableId) => tableId === "departments"
+    );
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toEqual([]);
+    expect(report.scanFailed).toBe(true);
+  });
+
+  it("flags update failures without calling them scan failures", async () => {
+    const { db } = makeDb(
+      translationFixture([tr("t-n", "news", "n-draft", [ANY])]),
+      ["t-n"]
+    );
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(report.scanFailed).toBe(false);
+    expect(report.errors).toHaveLength(1);
+  });
+});
+
+describe("apply re-checks rows before writing", () => {
+  it("does not strip a translation whose parent was published after the scan", async () => {
+    const tables = translationFixture([tr("t-n", "news", "n-draft", [ANY])]);
+    const { db, updates } = makeDb(tables, [], undefined, () => {
+      (tables.news as Row[])[1] = {
+        $id: "n-draft",
+        $permissions: [],
+        status: "published",
+      };
+    });
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(report.changes).toHaveLength(1);
+    expect(updates).toEqual([]);
+    expect(report.skipped).toEqual([
+      {
+        tableId: "content_translations",
+        rowId: "t-n",
+        reason: "already correct when applying",
+      },
+    ]);
+  });
+
+  it("writes the fresh value and reports it when the planned one is stale", async () => {
+    const tables = translationFixture([tr("t-j", "job", "j-draft", [ANY])]);
+    const { db, updates } = makeDb(tables, [], undefined, () => {
+      (tables.jobs as Row[])[1] = {
+        $id: "j-draft",
+        $permissions: [],
+        status: "published",
+      };
+      (tables.content_translations as Row[])[0] = tr("t-j", "job", "j-draft", [
+        UPDATE_X,
+      ]);
+    });
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toHaveLength(1);
+    expect([...(updates[0]?.permissions ?? [])].sort()).toEqual(
+      [ANY, HR, OU, UPDATE_X].sort()
+    );
+    expect(report.revised).toHaveLength(1);
+    expect(report.revised[0]?.planned.sort()).toEqual(
+      [HR, OU].sort()
+    );
+  });
+
+  it("skips a row deleted since the scan", async () => {
+    const tables = translationFixture([tr("t-n", "news", "n-draft", [ANY])]);
+    const { db, updates } = makeDb(tables, [], undefined, () => {
+      tables.content_translations = [];
+    });
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toEqual([]);
+    expect(report.skipped[0]?.reason).toBe("row deleted since the scan");
+  });
+
+  it("skips a translation whose parent was deleted since the scan", async () => {
+    const tables = translationFixture([tr("t-n", "news", "n-draft", [ANY])]);
+    const { db, updates } = makeDb(tables, [], undefined, () => {
+      tables.news = [];
+    });
+    const report = await reconcileRowPermissions(db, { apply: true });
+    expect(updates).toEqual([]);
+    expect(report.skipped[0]?.reason).toBe(
+      "parent news not found when applying"
+    );
   });
 });
