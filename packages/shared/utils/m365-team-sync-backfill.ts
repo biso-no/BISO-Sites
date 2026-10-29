@@ -1,5 +1,5 @@
 import { Query } from "@repo/api";
-import { orNullIfNotFound } from "@repo/api/errors";
+import { orNullIfRowNotFound } from "@repo/api/errors";
 import { M365_TEAM_SYNC_TABLE_ID, syncedTeamIdForGroup } from "./team-roles";
 
 /**
@@ -210,7 +210,7 @@ export function teamSyncRecordStore(
 ): Pick<M365TeamSyncDeps, "readRecord" | "writeRecord"> {
   return {
     readRecord: async (userId) => {
-      const row = await orNullIfNotFound(
+      const row = await orNullIfRowNotFound(
         db.getRow({
           databaseId: DATABASE_ID,
           tableId: M365_TEAM_SYNC_TABLE_ID,

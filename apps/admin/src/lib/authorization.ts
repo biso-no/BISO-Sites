@@ -1,7 +1,7 @@
 "use server";
 
 import { type Models, Query } from "@repo/api";
-import { orNullIfNotFound } from "@repo/api/errors";
+import { orNullIfRowNotFound } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Departments } from "@repo/api/types/appwrite";
 import {
@@ -70,7 +70,7 @@ type M365TeamSyncRow = Models.Row & {
  */
 async function loadSyncedTeamIds(userId: string): Promise<Set<string>> {
   const { db } = await createAdminClient();
-  const record = await orNullIfNotFound(
+  const record = await orNullIfRowNotFound(
     db.getRow<M365TeamSyncRow>("app", M365_TEAM_SYNC_TABLE_ID, userId)
   );
   return new Set(record?.team_ids ?? []);
@@ -188,6 +188,9 @@ export const getUserAuthContext = cache(
       const isOutage =
         (typeof err?.code === "number" && err.code >= 500) ||
         err?.type === "appwrite_timeout" ||
+        // A missing table or database is a backend/config failure, never "no record".
+        err?.type === "table_not_found" ||
+        err?.type === "database_not_found" ||
         err?.code === "ECONNREFUSED" ||
         err?.cause?.code === "ECONNREFUSED" ||
         (typeof err?.message === "string" &&

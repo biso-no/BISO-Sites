@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 
 /** What `createAdminClient()` resolves to; replaced per test. */
 let adminClient: Record<string, unknown> = { db: {} };
@@ -187,8 +195,16 @@ describe("syncM365Permissions records the user's synced team ids", () => {
       await Promise.resolve();
       throw failure;
     });
+    const errorLog = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
 
-    await expect(syncM365Permissions("user-1")).rejects.toBe(failure);
+    try {
+      await expect(syncM365Permissions("user-1")).rejects.toBe(failure);
+      expect(errorLog).toHaveBeenCalled();
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 
   test("writes nothing without a fresh Microsoft token", async () => {

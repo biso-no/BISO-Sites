@@ -363,7 +363,10 @@ describe("microsoftIdentities", () => {
 });
 
 describe("teamSyncRecordStore", () => {
-  const notFound = Object.assign(new Error("Row not found"), { code: 404 });
+  const notFound = Object.assign(new Error("Row not found"), {
+    code: 404,
+    type: "row_not_found",
+  });
 
   it("reads the record's team ids, or null when there is none", async () => {
     const getRow = vi
@@ -391,6 +394,19 @@ describe("teamSyncRecordStore", () => {
     });
 
     await expect(store.readRecord("u")).rejects.toBe(outage);
+  });
+
+  it("rethrows a 404 for a missing table", async () => {
+    const missingTable = Object.assign(new Error("Table not found"), {
+      code: 404,
+      type: "table_not_found",
+    });
+    const store = teamSyncRecordStore({
+      getRow: vi.fn().mockRejectedValue(missingTable),
+      upsertRow: vi.fn(),
+    });
+
+    await expect(store.readRecord("u")).rejects.toBe(missingTable);
   });
 
   it("writes a service-only row keyed by the user id", async () => {

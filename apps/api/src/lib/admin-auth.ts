@@ -1,6 +1,6 @@
 import "server-only";
 import { type Models, Query } from "@repo/api";
-import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
+import { appwriteErrorStatus, orNullIfRowNotFound } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import {
@@ -11,6 +11,7 @@ import {
 import type { NextRequest } from "next/server";
 
 const UNAUTHORIZED = 401;
+const FORBIDDEN = 403;
 
 /**
  * Extracts JWT from Authorization header (Bearer token)
@@ -36,10 +37,23 @@ type M365TeamSyncRow = Models.Row & {
  */
 async function loadSyncedTeamIds(userId: string): Promise<Set<string>> {
   const { db } = await createAdminClient();
-  const record = await orNullIfNotFound(
-    db.getRow<M365TeamSyncRow>("app", M365_TEAM_SYNC_TABLE_ID, userId)
-  );
-  return new Set(record?.team_ids ?? []);
+  try {
+    const record = await orNullIfRowNotFound(
+      db.getRow<M365TeamSyncRow>("app", M365_TEAM_SYNC_TABLE_ID, userId)
+    );
+    return new Set(record?.team_ids ?? []);
+  } catch (error) {
+    // This read uses the service key. A 401/403 here is a server fault, not
+    // the caller being signed out, so it must not be mistaken for one.
+    const status = appwriteErrorStatus(error);
+    if (status === UNAUTHORIZED || status === FORBIDDEN) {
+      throw new Error(
+        `Service key was refused reading the team sync record (HTTP ${status})`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
 }
 
 /**

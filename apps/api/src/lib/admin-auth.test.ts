@@ -1,6 +1,6 @@
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canManageCampus, getAdminScope } from "./admin-auth";
 
 vi.mock("server-only", () => ({}));
@@ -16,6 +16,7 @@ const getRow = vi.fn();
 const notFound = () =>
   Object.assign(new Error("Row with the requested ID could not be found."), {
     code: 404,
+    type: "row_not_found",
   });
 
 /** The caller's m365_team_sync record; `null` means there is none. */
@@ -69,6 +70,11 @@ describe("getAdminScope", () => {
   beforeEach(() => {
     mockedCreateSessionClient.mockReset();
     mockedCreateAdminClient.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("does not grant global admin from Appwrite labels alone", async () => {
@@ -246,6 +252,43 @@ describe("getAdminScope", () => {
     getRow.mockRejectedValue(outage);
 
     await expect(getAdminScope(requestWithJwt())).rejects.toBe(outage);
+  });
+
+  it("rethrows a 404 for a missing table instead of treating it as no record", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const missingTable = Object.assign(new Error("Table not found"), {
+      code: 404,
+      type: "table_not_found",
+    });
+    getRow.mockRejectedValue(missingTable);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toBe(missingTable);
+  });
+
+  it("rethrows a 401 from the record read (service key) instead of answering not signed in", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const keyFailure = Object.assign(new Error("bad key"), { code: 401 });
+    getRow.mockRejectedValue(keyFailure);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toMatchObject({
+      cause: keyFailure,
+    });
+  });
+
+  it("rethrows a 403 from the record read", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const forbidden = Object.assign(new Error("missing scope"), { code: 403 });
+    getRow.mockRejectedValue(forbidden);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toMatchObject({
+      cause: forbidden,
+    });
   });
 
   it("returns null when Appwrite rejects the session with 401", async () => {

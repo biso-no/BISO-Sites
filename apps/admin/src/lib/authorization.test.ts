@@ -1,4 +1,12 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 
 const account = {
   get: mock(),
@@ -30,7 +38,10 @@ function memberOf(
   db.getRow.mockReset();
   if (record === null) {
     db.getRow.mockRejectedValue(
-      Object.assign(new Error("Row not found"), { code: 404 })
+      Object.assign(new Error("Row not found"), {
+        code: 404,
+        type: "row_not_found",
+      })
     );
   } else {
     db.getRow.mockResolvedValue({ $id: "user-1", team_ids: record });
@@ -256,8 +267,35 @@ describe("teams the Microsoft sync recorded", () => {
       code: 503,
     });
     db.getRow.mockRejectedValue(outage);
+    const errorLog = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
 
-    await expect(getUserAuthContext()).rejects.toBe(outage);
+    try {
+      await expect(getUserAuthContext()).rejects.toBe(outage);
+      expect(errorLog).toHaveBeenCalled();
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
+
+  test("a missing table is an error, not an empty record", async () => {
+    memberOf([oslo]);
+    const missingTable = Object.assign(new Error("Table not found"), {
+      code: 404,
+      type: "table_not_found",
+    });
+    db.getRow.mockRejectedValue(missingTable);
+    const errorLog = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+
+    try {
+      await expect(getUserAuthContext()).rejects.toBe(missingTable);
+      expect(errorLog).toHaveBeenCalled();
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 });
 
