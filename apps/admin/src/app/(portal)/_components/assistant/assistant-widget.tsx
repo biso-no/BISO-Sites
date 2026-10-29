@@ -1,7 +1,10 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+} from "ai";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -11,7 +14,10 @@ import { resolveApproverTeamId } from "@/lib/campus-constants";
 import { MONO_STACK, SERIF_STACK, STUDIO } from "../studio";
 import { fillFormFieldsWithDelay, getActiveFormSchemaId } from "./form-bridge";
 import { ApprovalRequestCard } from "./parts/approval-request-card";
-import { ConfirmActionCard } from "./parts/confirm-action-card";
+import {
+  ConfirmActionCard,
+  ToolApprovalCard,
+} from "./parts/confirm-action-card";
 import { DraftPreviewCard } from "./parts/draft-preview-card";
 import { EntityResultCard } from "./parts/entity-result-card";
 import { NavigationChip } from "./parts/navigation-chip";
@@ -72,6 +78,7 @@ function getSuggestions(roles: UserRolesForClient): string[] {
 // ---------------------------------------------------------------------------
 
 interface ToolPartRecord {
+  approval?: { approved?: boolean; id: string };
   input?: Record<string, unknown>;
   output?: Record<string, unknown>;
   state?: string;
@@ -84,6 +91,15 @@ type AddToolOutput = (params: {
   tool: string;
   toolCallId: string;
 }) => void;
+
+type RespondToToolApproval = (approvalId: string, approved: boolean) => void;
+
+/** Tool-call states in which the server is waiting on, or has had, the user's answer. */
+const TOOL_APPROVAL_STATES = new Set([
+  "approval-requested",
+  "approval-responded",
+  "output-denied",
+]);
 
 type SetApprovalResults = React.Dispatch<
   React.SetStateAction<Record<string, { error?: string; submitted: boolean }>>
@@ -137,6 +153,35 @@ function renderConfirmPart(
         })
       }
       result={result}
+    />
+  );
+}
+
+function renderToolApprovalPart(
+  tp: ToolPartRecord,
+  key: number,
+  respond: RespondToToolApproval
+) {
+  const approval = tp.approval;
+  const answered = tp.state !== "approval-requested";
+  return (
+    <ToolApprovalCard
+      input={tp.input ?? {}}
+      key={key}
+      onRespond={(approved) => {
+        if (approval) {
+          respond(approval.id, approved);
+        }
+      }}
+      result={
+        answered
+          ? {
+              confirmed:
+                tp.state !== "output-denied" && approval?.approved === true,
+            }
+          : undefined
+      }
+      toolName={getToolName(tp.type)}
     />
   );
 }
@@ -333,7 +378,8 @@ function renderToolPart(
   key: number,
   addResult: AddToolOutput,
   approvalResults: Record<string, { error?: string; submitted: boolean }>,
-  setApprovalResults: SetApprovalResults
+  setApprovalResults: SetApprovalResults,
+  respondToToolApproval: RespondToToolApproval
 ) {
   const toolName = getToolName(tp.type);
   const toolCallId = tp.toolCallId ?? "";
@@ -341,6 +387,9 @@ function renderToolPart(
   const outputData = tp.output ?? {};
   const resolved = tp.state === "output-available";
 
+  if (tp.approval && TOOL_APPROVAL_STATES.has(tp.state ?? "")) {
+    return renderToolApprovalPart(tp, key, respondToToolApproval);
+  }
   if (toolName === "navigate") {
     return renderNavigatePart(inputData, key);
   }
@@ -414,8 +463,17 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
     return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, onOpen);
   }, []);
 
-  const { messages, sendMessage, status, addToolOutput } = useChat({
+  const {
+    messages,
+    sendMessage,
+    status,
+    addToolOutput,
+    addToolApprovalResponse,
+  } = useChat({
     transport: new DefaultChatTransport({ api: "/api/assistant" }),
+    // An answer on a write's confirmation card goes to the server at once;
+    // the server runs the write only after a confirm.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onToolCall: ({ toolCall }) => {
       const toolName = toolCall.toolName as string;
       const toolInput = (toolCall.input ?? {}) as Record<string, unknown>;
@@ -517,6 +575,19 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
         },
       }
     );
+  }
+
+  function respondToToolApproval(approvalId: string, approved: boolean) {
+    addToolApprovalResponse({
+      approved,
+      id: approvalId,
+      options: {
+        body: {
+          activeFormSchemaId: getActiveFormSchemaId(),
+          currentPath: pathname,
+        },
+      },
+    });
   }
 
   const suggestions = getSuggestions(roles);
@@ -704,7 +775,8 @@ export function AssistantWidget({ roles, user: _user }: AssistantWidgetProps) {
                             i,
                             addToolOutput,
                             approvalResults,
-                            setApprovalResults
+                            setApprovalResults,
+                            respondToToolApproval
                           );
                         }
                         return null;

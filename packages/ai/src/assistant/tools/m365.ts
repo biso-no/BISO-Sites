@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { AssistantActionDeps } from "../types";
+import { CONFIRMED_BY_CARD } from "./confirmation";
 
 export function buildM365Tools(deps: AssistantActionDeps) {
   return {
@@ -31,8 +32,7 @@ export function buildM365Tools(deps: AssistantActionDeps) {
     }),
 
     createM365User: tool({
-      description:
-        "Create a new Microsoft 365 user in the BISO tenant. Requires confirmation first. Only available to global admins.",
+      description: `Create a new Microsoft 365 user in the BISO tenant. Only available to global admins. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         firstName: z.string(),
         lastName: z.string(),

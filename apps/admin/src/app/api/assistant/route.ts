@@ -5,6 +5,7 @@ import {
   buildAssistantTools,
   chatModel,
 } from "@repo/ai/assistant";
+import { createConfirmationGate } from "@repo/ai/assistant/tools";
 import type { AssistantActionDeps } from "@repo/ai/assistant/types";
 import { ID, type Models, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
@@ -179,8 +180,20 @@ export async function POST(request: NextRequest) {
   // 6. Build deps — normalised interface over all server actions
   const deps = buildDeps(activeFormSchemaId, ctx);
 
-  // 7. Build permission-gated tool set
-  const tools = buildAssistantTools(capabilities, deps);
+  // 7. Build permission-gated tool set. Write tools run only after this user
+  //    confirms the exact call on its card, once, within a few minutes.
+  const confirmationSecret = process.env.APPWRITE_API_KEY;
+  if (!confirmationSecret) {
+    return NextResponse.json(
+      { error: "The AI assistant is not configured." },
+      { status: 503 }
+    );
+  }
+  const gate = createConfirmationGate({
+    secret: confirmationSecret,
+    userId: ctx.userId,
+  });
+  const tools = buildAssistantTools(capabilities, deps, gate);
 
   // 8. Build system prompt with full context
   const instructions = buildAssistantSystemPrompt({
@@ -200,6 +213,8 @@ export async function POST(request: NextRequest) {
     instructions,
     messages: await convertToModelMessages(messages),
     tools,
+    toolApproval: gate.toolApproval,
+    experimental_toolApprovalSecret: gate.approvalSecret,
     stopWhen: isStepCount(12),
   });
 

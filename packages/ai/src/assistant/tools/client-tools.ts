@@ -30,7 +30,7 @@ export const clientTools = {
    */
   confirmAction: tool({
     description:
-      "Render a confirmation card before executing a write action (update, delete, publish, M365). Always call this before any mutation that doesn't go through showDraftPreview.",
+      "Render a confirmation card for a step that no tool confirms by itself. Don't use it before createContent, updateContent, publishContent, deleteContent, approveRequest, rejectRequest, createM365User or toggleFeatureFlag: calling those shows the user their own confirmation card, and they run only after the user confirms.",
     inputSchema: z.object({
       actionLabel: z
         .string()
