@@ -107,6 +107,29 @@ describe("recruitment AI prompts", () => {
       expect(out).not.toContain("2anne");
     });
 
+    test("full names match longest first and only as whole words", () => {
+      const named = [
+        { ...candidates[0], id: "a", name: "Ola Berg" },
+        { ...candidates[1], id: "b", name: "Ola Bergersen" },
+        { ...candidates[2], id: "c", name: "Eva" },
+      ];
+      expect(pseudonymiseMessage("Ola Berg and Ola Bergersen", named)).toBe(
+        "Candidate 1 and Candidate 2"
+      );
+      expect(pseudonymiseMessage("the evaluation of Eva", named)).toBe(
+        "the evaluation of Candidate 3"
+      );
+    });
+
+    test("a hyphenated first name never reaches the model in parts", () => {
+      const named = [{ ...candidates[0], id: "a", name: "Anne-Marie Lie" }];
+      const out = pseudonymiseMessage(
+        "is anne strong? what about Anne Marie and anne-marie",
+        named
+      );
+      expect(out).not.toMatch(/anne|marie|lie/i);
+    });
+
     test("strengths and gaps never carry another candidate's name", () => {
       const withText = board.map((c, i) => ({
         ...c,

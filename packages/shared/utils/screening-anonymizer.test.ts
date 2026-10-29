@@ -137,6 +137,18 @@ describe("redactNameWithLabel", () => {
     );
   });
 
+  it("redacts every part of a hyphenated first name", () => {
+    const result = redactNameWithLabel(
+      "is anne strong? what about Anne Marie and anne-marie",
+      "Anne-Marie Lie",
+      "Candidate 1"
+    );
+    expect(result).toBe(
+      "is Candidate 1 strong? what about Candidate 1 and Candidate 1"
+    );
+    expect(result).not.toMatch(/anne|marie|lie/i);
+  });
+
   it("leaves the screener's case-sensitive behaviour alone", () => {
     expect(
       anonymizeScreeningText("mark the date", { candidateName: "Mark" })
@@ -152,5 +164,14 @@ describe("fillCandidatePlaceholder", () => {
         "Kari Nordmann"
       )
     ).toBe("Hi Kari,\n\nThanks, Kari.");
+  });
+
+  it("also fills lower-case and Norwegian placeholder variants", () => {
+    expect(
+      fillCandidatePlaceholder(
+        "[candidate] [Kandidat] [kandidat] [Kandidaten] [CANDIDATE]",
+        "Kari Nordmann"
+      )
+    ).toBe("Kari Kari Kari Kari Kari");
   });
 });

@@ -102,15 +102,21 @@ function labelNames(text: string, candidates: AssistantCandidate[]): string {
   let result = text;
   // Full names first, so a surname shared by several candidates cannot turn
   // "Ola Berg" into the label of someone else.
-  candidates.forEach((candidate, index) => {
-    const full = candidate.name.trim();
-    if (full) {
-      result = result.replace(
-        new RegExp(full.replace(REGEX_SPECIAL, "\\$&"), "giu"),
-        () => candidateLabel(index)
-      );
-    }
-  });
+  // Longest first, and only as whole words, so "Ola Berg" never eats the
+  // start of "Ola Bergersen" and "Eva" is left alone inside "evaluation".
+  const byLength = candidates
+    .map((candidate, index) => ({ full: candidate.name.trim(), index }))
+    .filter((entry) => entry.full)
+    .sort((a, b) => b.full.length - a.full.length);
+  for (const { full, index } of byLength) {
+    result = result.replace(
+      new RegExp(
+        `(?<![\\p{L}\\p{N}])${full.replace(REGEX_SPECIAL, "\\$&")}(?![\\p{L}\\p{N}])`,
+        "giu"
+      ),
+      () => candidateLabel(index)
+    );
+  }
   candidates.forEach((candidate, index) => {
     result = redactNameWithLabel(result, candidate.name, candidateLabel(index));
   });

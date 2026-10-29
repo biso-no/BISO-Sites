@@ -60,6 +60,10 @@ const NAME_SEPARATOR_PATTERN = /[\s,]+/;
 
 const MIN_NAME_TOKEN_LENGTH = 2;
 
+const WHITESPACE_RUN_PATTERN = / /g;
+
+const CANDIDATE_PLACEHOLDER_PATTERN = /\[(?:candidate|kandidat|kandidaten)\]/giu;
+
 const EMAIL_PARTS_PATTERN = /([\p{L}\p{N}._%+-]+)@([\p{L}\p{N}.-]+)/gu;
 
 // Captures the host and path of a URL. A bare host must end in a common TLD,
@@ -127,10 +131,27 @@ function buildNamePattern(token: string): RegExp {
  * names arrive in any casing.
  */
 function buildLooseNamePattern(token: string): RegExp {
+  // A space in the token (the space-joined form of a hyphenated name) matches
+  // any run of whitespace.
+  const body = escapeRegex(token).replace(WHITESPACE_RUN_PATTERN, "\\s+");
   return new RegExp(
-    `(?<![\\p{L}\\p{N}])${escapeRegex(token)}(?:s)?(?![\\p{L}\\p{N}])`,
+    `(?<![\\p{L}\\p{N}])${body}(?:s)?(?![\\p{L}\\p{N}])`,
     "giu"
   );
+}
+
+/**
+ * Every form a name token can be written in. "Anne-Marie" also appears as
+ * "Anne Marie", "Anne" and "Marie", so each of those is matched too.
+ */
+function looseNameForms(token: string): string[] {
+  if (!token.includes("-")) {
+    return [token];
+  }
+  const parts = token
+    .split("-")
+    .filter((part) => part.length >= MIN_NAME_TOKEN_LENGTH);
+  return [token, token.split("-").join(" "), ...parts];
 }
 
 function redactNameWith(
@@ -139,12 +160,16 @@ function redactNameWith(
   replacement: string,
   loose = false
 ): string {
-  const tokens = name
+  const baseTokens = name
     .split(NAME_SEPARATOR_PATTERN)
     .map((token) => token.trim())
-    .filter((token) => token.length >= MIN_NAME_TOKEN_LENGTH)
-    // Longest first so "Anne-Marie" is replaced before "Anne".
-    .sort((a, b) => b.length - a.length);
+    .filter((token) => token.length >= MIN_NAME_TOKEN_LENGTH);
+  // Longest first so "Anne-Marie" is replaced before "Anne".
+  const tokens = [
+    ...new Set(
+      loose ? baseTokens.flatMap((token) => looseNameForms(token)) : baseTokens
+    ),
+  ].sort((a, b) => b.length - a.length);
 
   let result = text;
   for (const token of tokens) {
@@ -186,14 +211,15 @@ export function firstNameOf(name: string | null | undefined): string {
 
 /**
  * Puts the candidate's first name back where an email draft holds the
- * `[Candidate]` placeholder. An empty name leaves nothing in its place.
+ * `[Candidate]` placeholder, in any casing and in its Norwegian forms
+ * (`[Kandidat]`, `[Kandidaten]`). An empty name leaves nothing in its place.
  */
 export function fillCandidatePlaceholder(
   text: string,
   name: string | null | undefined
 ): string {
   const first = firstNameOf(name);
-  return text.split(CANDIDATE_PLACEHOLDER).join(first);
+  return text.replace(CANDIDATE_PLACEHOLDER_PATTERN, () => first);
 }
 
 function redactLiteral(text: string, value: string): string {
