@@ -10,6 +10,7 @@ import {
   JobsStatus,
 } from "@repo/api/types/appwrite";
 import {
+  fetchRecruitmentJobsByIds,
   fetchRecruitmentListPage,
   fetchRecruitmentListRows,
   getRecruitmentJobById,
@@ -654,6 +655,27 @@ async function fetchAllScopedVacancies(
   }
 }
 
+/**
+ * Draft and closed vacancies keep their translations readable only by
+ * recruitment staff, so a session read of the `translations` relationship comes
+ * back empty for other editors. Call this only after the caller's access has
+ * been established: it re-reads the already-authorised vacancies with the
+ * service key so their titles and descriptions are present.
+ */
+async function withAdminTranslations(
+  vacancies: RecruitmentVacancy[]
+): Promise<RecruitmentVacancy[]> {
+  if (vacancies.length === 0) {
+    return vacancies;
+  }
+  const { db: adminDb } = await createAdminClient();
+  const full = await fetchRecruitmentJobsByIds(
+    adminDb,
+    vacancies.map((vacancy) => vacancy.$id)
+  );
+  return vacancies.map((vacancy) => full.get(vacancy.$id) ?? vacancy);
+}
+
 function countVacanciesByStatus(
   vacancies: RecruitmentVacancy[]
 ): JobStatusCounts {
@@ -748,8 +770,11 @@ export async function listJobs(opts?: {
   const start = (page - 1) * JOBS_PAGE_SIZE;
 
   if (search) {
-    const matches = (await fetchAllScopedVacancies(db, scopeQueries)).filter(
-      (vacancy) => vacancyMatchesSearch(vacancy, search)
+    const scoped = await withAdminTranslations(
+      await fetchAllScopedVacancies(db, scopeQueries)
+    );
+    const matches = scoped.filter((vacancy) =>
+      vacancyMatchesSearch(vacancy, search)
     );
     const filtered = status
       ? matches.filter((vacancy) => vacancy.status === status)
@@ -778,7 +803,7 @@ export async function listJobs(opts?: {
     counts,
     page,
     pageSize: JOBS_PAGE_SIZE,
-    rows: result.rows,
+    rows: await withAdminTranslations(result.rows),
     total: result.total,
   };
 }
@@ -795,7 +820,8 @@ export async function getJob(id: string) {
   }
 
   assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
-  return vacancy;
+  const { db: adminDb } = await createAdminClient();
+  return (await getRecruitmentJobById(adminDb, id)) ?? vacancy;
 }
 
 /**
@@ -1011,17 +1037,21 @@ export async function updateJob(
     const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(sessionDb);
-    const vacancy = await getRecruitmentJobById(sessionDb, id);
+    const visibleVacancy = await getRecruitmentJobById(sessionDb, id);
 
-    if (!vacancy) {
+    if (!visibleVacancy) {
       return { error: "Vacancy not found" };
     }
 
-    assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visibleVacancy);
     assertRecruitmentVacancyWriteAccess(scope, lookups, {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
+    // The session read may not include translations the caller cannot see;
+    // re-read with the service key now that access is confirmed.
+    const vacancy =
+      (await getRecruitmentJobById(adminDb, id)) ?? visibleVacancy;
     const publication = resolveJobPublication({
       currentStatus: vacancy.status,
       publicationMode: validated.data.publication_mode,
@@ -1064,7 +1094,7 @@ export async function updateJob(
           : (vacancy.interview_template ?? undefined),
     };
     const payload = await buildJobUpsertPayload(
-      sessionDb,
+      adminDb,
       id,
       data,
       translationPerms,
@@ -1324,12 +1354,13 @@ export async function duplicateJob(
     const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(sessionDb);
-    const source = await getRecruitmentJobById(sessionDb, id);
+    const visibleSource = await getRecruitmentJobById(sessionDb, id);
 
-    if (!source) {
+    if (!visibleSource) {
       return { error: "Vacancy not found" };
     }
-    assertRecruitmentVacancyWriteAccess(scope, lookups, source);
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visibleSource);
+    const source = (await getRecruitmentJobById(adminDb, id)) ?? visibleSource;
 
     // Slugs are globally unique, including drafts on campuses this user can't
     // read, so the availability check has to bypass row security.
@@ -1354,7 +1385,7 @@ export async function duplicateJob(
     const audience = data.audience ?? "members";
     const jobId = ID.unique();
     const payload = await buildJobUpsertPayload(
-      sessionDb,
+      adminDb,
       jobId,
       data,
       buildJobTranslationPermissions(audience, JobsStatus.DRAFT),
