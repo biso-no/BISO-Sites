@@ -1,7 +1,7 @@
 import { createSessionClient } from "@repo/api/server";
 import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getAdminScope } from "./admin-auth";
+import { canManageCampus, getAdminScope } from "./admin-auth";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/api/server", () => ({
@@ -23,7 +23,7 @@ function mockSessionClient({
   userId = "admin-user-1",
 }: {
   labels?: string[];
-  teams?: string[];
+  teams?: { $id: string; name: string }[];
   userId?: string;
 }): void {
   mockedCreateSessionClient.mockResolvedValue({
@@ -32,7 +32,7 @@ function mockSessionClient({
     },
     teams: {
       list: vi.fn().mockResolvedValue({
-        teams: teams.map((name) => ({ name })),
+        teams,
       }),
     },
   } as unknown as Awaited<ReturnType<typeof createSessionClient>>);
@@ -64,7 +64,10 @@ describe("getAdminScope", () => {
 
   it("grants global admin from National and Operations Unit teams", async () => {
     mockSessionClient({
-      teams: ["SG-App-Campus-National", "SG-App-Dept-OperationsUnit"],
+      teams: [
+        { $id: "sg-app-campus-national", name: "National" },
+        { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+      ],
     });
 
     const scope = await getAdminScope(requestWithJwt());
@@ -81,7 +84,10 @@ describe("getAdminScope", () => {
 
   it("keeps campus admin derivation team-based", async () => {
     mockSessionClient({
-      teams: ["SG-App-Campus-Oslo", "SG-App-Dept-LedelsenOslo"],
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        { $id: "sg-app-dept-ledelsenoslo", name: "Ledelsen Oslo" },
+      ],
     });
 
     const scope = await getAdminScope(requestWithJwt());
@@ -91,6 +97,47 @@ describe("getAdminScope", () => {
       isCampusAdmin: true,
       isGlobalAdmin: false,
       managedCampusNames: ["Oslo"],
+      managedDepartmentNames: [],
+      userId: "admin-user-1",
+    });
+  });
+
+  it("gives a department member no campus scope", async () => {
+    mockSessionClient({
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        { $id: "sg-app-dept-marketing", name: "Marketing" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope).toMatchObject({
+      canManageAnyCampus: false,
+      isCampusAdmin: false,
+      managedCampusNames: [],
+      managedDepartmentNames: ["Marketing"],
+    });
+    expect(scope && canManageCampus(scope, "Oslo")).toBe(false);
+  });
+
+  it("ignores user-created teams that copy admin names", async () => {
+    mockSessionClient({
+      teams: [
+        { $id: "u1", name: "SG-App-Campus-National" },
+        { $id: "u2", name: "SG-App-Dept-OperationsUnit" },
+        { $id: "u3", name: "Operations Unit" },
+        { $id: "u4", name: "National" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope).toEqual({
+      canManageAnyCampus: false,
+      isCampusAdmin: false,
+      isGlobalAdmin: false,
+      managedCampusNames: [],
       managedDepartmentNames: [],
       userId: "admin-user-1",
     });

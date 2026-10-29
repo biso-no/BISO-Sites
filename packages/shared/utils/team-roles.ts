@@ -46,99 +46,9 @@ export const LEDELSEN_TEAM_IDS: Readonly<Record<CampusCity, string>> = {
 
 export const DEPARTMENT_TEAM_ID_PREFIX = "sg-app-dept-";
 
-export const KNOWN_CAMPUS_NAMES = new Set<string>([
-  "National",
-  ...CAMPUS_CITY_NAMES,
-]);
-
 /** Expand a camelCase team name: "OperationsUnit" -> "Operations Unit". */
 export function expandDepartmentName(name: string): string {
   return name.replace(/([a-z])([A-Z])/g, "$1 $2").trim();
-}
-
-/**
- * Classify a raw team name as a campus or department team, stripping legacy
- * SG-App-* prefixes and expanding camelCase department names.
- */
-export function normalizeTeamName(name: string): {
-  kind: "campus" | "department";
-  value: string;
-} {
-  if (name.startsWith("SG-App-Campus-")) {
-    return {
-      kind: "campus",
-      value: name.replace("SG-App-Campus-", "").trim(),
-    };
-  }
-
-  if (name.startsWith("SG-App-Dept-")) {
-    return {
-      kind: "department",
-      value: expandDepartmentName(name.replace("SG-App-Dept-", "")),
-    };
-  }
-
-  if (KNOWN_CAMPUS_NAMES.has(name)) {
-    return { kind: "campus", value: name };
-  }
-
-  return { kind: "department", value: name.trim() };
-}
-
-/**
- * Global admin = member of the National campus team plus the Operations Unit
- * department team. Accepts both the expanded and camelCase department form.
- */
-export function isNationalOperations(
-  campusNames: readonly string[],
-  departmentNames: readonly string[]
-): boolean {
-  return (
-    campusNames.includes("National") &&
-    (departmentNames.includes("Operations Unit") ||
-      departmentNames.includes("OperationsUnit"))
-  );
-}
-
-/**
- * National HR = member of the National campus team plus the HR Unit department
- * team. Accepts both the expanded and camelCase department form.
- */
-export function isNationalHR(
-  campusNames: readonly string[],
-  departmentNames: readonly string[]
-): boolean {
-  return (
-    campusNames.includes("National") &&
-    (departmentNames.includes("HR") ||
-      departmentNames.includes("HRUnit") ||
-      departmentNames.includes("HR Unit"))
-  );
-}
-
-/**
- * Campus admin for a city = member of that city's campus team plus its
- * "Ledelsen" (leadership) department team. Accepts both "Ledelsen Oslo" and
- * the legacy "LedelsenOslo" form.
- */
-export function getManagedCampuses(
-  campusNames: readonly string[],
-  departmentNames: readonly string[]
-): string[] {
-  const managedCampuses: string[] = [];
-
-  for (const city of CAMPUS_CITY_NAMES) {
-    const hasCampus = campusNames.includes(city);
-    const hasManagement =
-      departmentNames.includes(`Ledelsen ${city}`) ||
-      departmentNames.includes(`Ledelsen${city}`);
-
-    if (hasCampus && hasManagement) {
-      managedCampuses.push(city);
-    }
-  }
-
-  return managedCampuses;
 }
 
 export interface TeamRef {

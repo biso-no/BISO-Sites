@@ -3,29 +3,10 @@ import { Query } from "@repo/api";
 import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
-import {
-  getManagedCampuses,
-  isNationalOperations,
-  normalizeTeamName,
-} from "@repo/shared/utils/team-roles";
+import { rolesFromTeams } from "@repo/shared/utils/team-roles";
 import type { NextRequest } from "next/server";
 
 const UNAUTHORIZED = 401;
-
-// Helper to reduce complexity
-function computeManagedCampusNames(
-  isGlobal: boolean,
-  managed: string[],
-  all: string[]
-): string[] {
-  if (isGlobal) {
-    return [];
-  }
-  if (managed.length > 0) {
-    return managed;
-  }
-  return all;
-}
 
 /**
  * Extracts JWT from Authorization header (Bearer token)
@@ -41,9 +22,14 @@ export function extractJwtFromRequest(req: NextRequest): string | undefined {
 /**
  * Get the authorization scope for the current admin user.
  * Implements the three-tier authorization model:
- * 1. National + OperationsUnit => manage ANY campus/department
- * 2. Campus-{X} + Ledelsen{X} => manage within campus X only
- * 3. Campus-{X} + Dept-{Y} => manage within that department only
+ * 1. Teams `sg-app-campus-national` + `sg-app-dept-operationsunit` => manage
+ *    ANY campus/department
+ * 2. Teams `sg-app-campus-{x}` + `sg-app-dept-ledelsen{x}` => manage within
+ *    campus x only
+ * 3. Any other `sg-app-dept-*` team => manage within that department only
+ *
+ * Roles come from exact team ids, never team names. Campus membership alone
+ * grants no scope.
  *
  * Resolves to `null` only when the caller is not authenticated (no session, or
  * Appwrite answered 401). Any other failure (outage, timeout, 5xx) is rethrown
@@ -58,41 +44,17 @@ export async function getAdminScope(
     const user = await account.get();
     const teamMemberships = await teams.list([Query.limit(200)]);
 
-    const campusNames: string[] = [];
-    const departmentNames: string[] = [];
-
-    // Parse team memberships
-    for (const team of teamMemberships.teams) {
-      const normalized = normalizeTeamName(team.name);
-      if (!normalized) {
-        continue;
-      }
-
-      if (normalized.kind === "campus") {
-        campusNames.push(normalized.value);
-      } else {
-        departmentNames.push(normalized.value);
-      }
-    }
-
-    // Check for global admin (National + Operations Unit)
-    const isGlobalAdmin = isNationalOperations(campusNames, departmentNames);
-
-    // Check for campus admin (Ledelsen{City} + Campus-{City})
-    const managedCampuses = getManagedCampuses(campusNames, departmentNames);
-
+    const roles = rolesFromTeams(teamMemberships.teams);
+    const { isGlobalAdmin } = roles;
+    const managedCampuses = roles.managedCampuses;
     const isCampusAdmin = managedCampuses.length > 0;
 
     return {
       userId: user.$id,
       canManageAnyCampus: isGlobalAdmin,
-      managedCampusNames: computeManagedCampusNames(
-        isGlobalAdmin,
-        managedCampuses,
-        campusNames
-      ),
+      managedCampusNames: isGlobalAdmin ? [] : managedCampuses,
       managedDepartmentNames:
-        isGlobalAdmin || isCampusAdmin ? [] : departmentNames,
+        isGlobalAdmin || isCampusAdmin ? [] : roles.departmentNames,
       isGlobalAdmin,
       isCampusAdmin,
     };
