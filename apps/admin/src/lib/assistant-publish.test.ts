@@ -8,6 +8,7 @@ mock.module("server-only", () => ({}));
 mock.module("@/lib/benefit-publish", () => ({ publishBenefit }));
 
 const {
+  applyConfirmedCreateFacts,
   assistantRoleSummary,
   canPublishContent,
   createdContentNeedsPublish,
@@ -126,6 +127,51 @@ describe("benefitUpdateFromAssistant", () => {
       expect(update).toEqual({ status: "draft" });
       expect(update).not.toHaveProperty("redemption_value");
     }
+  });
+});
+
+describe("applyConfirmedCreateFacts", () => {
+  test("a model-written status is replaced by the confirmed one", () => {
+    const payload = { status: "published", title_no: "x" };
+    expect(
+      applyConfirmedCreateFacts("events", payload, { status: "draft" }).status
+    ).toBe("draft");
+    expect(
+      applyConfirmedCreateFacts("news", {}, { status: "published" }).status
+    ).toBe("published");
+  });
+
+  test("a payload campus that differs from the confirmed one is overwritten", () => {
+    const result = applyConfirmedCreateFacts(
+      "news",
+      { campus_id: "2", campusId: "3", department: "d-x" },
+      { campusId: "1", departmentId: "dept-it", status: "draft" }
+    );
+    expect(result.campus_id).toBe("1");
+    expect(result.department_id).toBe("dept-it");
+    expect(result).not.toHaveProperty("campusId");
+    expect(result).not.toHaveProperty("department");
+  });
+
+  test("without confirmed values the payload's own are kept under the card's names", () => {
+    const result = applyConfirmedCreateFacts(
+      "shop",
+      { campusId: "4", department: "d-1" },
+      { status: "draft" }
+    );
+    expect(result.campus_id).toBe("4");
+    expect(result.department_id).toBe("d-1");
+  });
+
+  test("benefits carry no department", () => {
+    const result = applyConfirmedCreateFacts(
+      "benefits",
+      { department_id: "d-1" },
+      { campusId: "1", departmentId: "d-2", status: "draft" }
+    );
+    expect(result.campus_id).toBe("1");
+    expect(result.status).toBe("draft");
+    expect(result).not.toHaveProperty("department_id");
   });
 });
 

@@ -2,6 +2,7 @@ import { generateObject, tool } from "ai";
 import { z } from "zod";
 import { draftModel } from "../models";
 import type { AssistantActionDeps } from "../types";
+import { CONFIRMED_BY_CARD } from "./confirmation";
 
 const CONTENT_DOMAIN = z.enum([
   "jobs",
@@ -94,8 +95,7 @@ ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
      * Returns requiresApproval if the user lacks publish permission.
      */
     createContent: tool({
-      description:
-        "Save a new content entity to the database (after user has approved the draft via showDraftPreview). The entity is saved as a draft unless the user explicitly requested publish.",
+      description: `Save a new content entity to the database (after user has approved the draft via showDraftPreview). The entity is saved as a draft unless the user explicitly requested publish. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         domain: CONTENT_DOMAIN,
         payload: z
@@ -153,8 +153,7 @@ ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
      * Update an existing content entity.
      */
     updateContent: tool({
-      description:
-        "Update fields on an existing content entity. Only call after confirmAction has been approved.",
+      description: `Update fields on an existing content entity. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         domain: CONTENT_DOMAIN,
         id: z.string().describe("Entity $id"),
@@ -193,8 +192,7 @@ ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
      * Returns requiresApproval if the user lacks publish rights.
      */
     publishContent: tool({
-      description:
-        "Publish a content entity — sets status to 'published'. Only call after explicit user confirmation.",
+      description: `Publish a content entity — sets status to 'published'. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         domain: CONTENT_DOMAIN,
         id: z.string().describe("Entity $id"),
@@ -227,11 +225,10 @@ ${additionalContext ? `Additional context: ${additionalContext}` : ""}`,
     }),
 
     /**
-     * Delete a content entity (destructive — requires confirmAction with danger:true first).
+     * Delete a content entity (destructive; runs only after the user confirms its card).
      */
     deleteContent: tool({
-      description:
-        "Delete a content entity permanently. Only call after a confirmAction with danger:true has been approved. This is irreversible.",
+      description: `Delete a content entity permanently. This is irreversible. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         domain: CONTENT_DOMAIN,
         id: z.string().describe("Entity $id"),

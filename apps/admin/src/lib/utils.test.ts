@@ -3,6 +3,7 @@ import { Permission, Role } from "@repo/api";
 import {
   buildContentRowPermissions,
   buildContentTranslationPermissions,
+  sanitizeRedirectTarget,
 } from "./utils";
 
 const MUTATION_PATTERN = /(create|update|delete)\(/;
@@ -82,5 +83,39 @@ describe("buildContentTranslationPermissions", () => {
       writeTeams: ["sg-app-dept-marketing"],
     });
     expect(permissions).toEqual([Permission.read(Role.any())]);
+  });
+});
+
+describe("sanitizeRedirectTarget", () => {
+  test("keeps same-site paths unchanged", () => {
+    expect(sanitizeRedirectTarget("/pages?x=1")).toBe("/pages?x=1");
+    expect(sanitizeRedirectTarget("/events/42")).toBe("/events/42");
+  });
+
+  test("falls back to / for empty and cross-origin targets", () => {
+    for (const bad of [
+      "",
+      null,
+      undefined,
+      "https://evil.com",
+      "//evil.com",
+      "/\\evil.com",
+      "%2F%2Fevil.com",
+      "evil.com",
+    ]) {
+      expect(sanitizeRedirectTarget(bad)).toBe("/");
+    }
+  });
+
+  test("falls back to / when the target contains control characters", () => {
+    for (const bad of [
+      "/%09/evil.com",
+      "/%0a/evil.com",
+      "/%0d/evil.com",
+      "/\t/evil.com",
+      "/%7f/x",
+    ]) {
+      expect(sanitizeRedirectTarget(bad)).toBe("/");
+    }
   });
 });

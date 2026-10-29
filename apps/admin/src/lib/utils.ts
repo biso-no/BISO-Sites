@@ -34,6 +34,11 @@ export const isProd =
   process.env.VERCEL_ENV === "production" ||
   process.env.NODE_ENV === "production";
 
+// C0 controls and DEL (tab, CR and LF among them). Browsers drop tabs and newlines from
+// URLs, so "/\t/host" would otherwise be read as "//host".
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching them is the point
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+
 /**
  * Restrict post-auth redirect targets to same-site relative paths.
  *
@@ -54,6 +59,9 @@ export function sanitizeRedirectTarget(
   try {
     decoded = decodeURIComponent(input);
   } catch {
+    return "/";
+  }
+  if (CONTROL_CHARACTERS.test(decoded)) {
     return "/";
   }
   // Must be a same-site path. Reject absolute URLs and protocol-relative or

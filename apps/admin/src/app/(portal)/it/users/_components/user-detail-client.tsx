@@ -59,12 +59,14 @@ import {
   studioSurface,
 } from "../../../_components/studio";
 import { TurnoverDialog } from "./turnover-dialog";
+import { canShowTurnover } from "./turnover-gate";
 
 type ItPermissionMap = Record<M365Permission, boolean>;
 
 interface UserDetailClientProps {
   authMethods: M365AuthenticationMethodsSummary;
   groups: M365UserGroup[];
+  isTurnoverTarget: boolean;
   labels: {
     addAlias: string;
     addToGroup: string;
@@ -309,6 +311,7 @@ export function UserDetailClient({
   licenses,
   authMethods,
   options,
+  isTurnoverTarget,
   permissions,
   subscribedSkus,
   labels,
@@ -1688,7 +1691,10 @@ export function UserDetailClient({
           {/* Danger Zone */}
           <Section icon={<ShieldAlert size={16} />} title={labels.dangerZone}>
             <div className="space-y-3">
-              {permissions["it.users.turnover"] && (
+              {canShowTurnover(
+                permissions["it.users.turnover"],
+                isTurnoverTarget
+              ) && (
                 <div
                   className="rounded-xl p-3"
                   style={{

@@ -1,4 +1,5 @@
 import "server-only";
+import { resolveConfirmedCampusId } from "@/lib/assistant-campus";
 import type { UserAuthContext } from "@/lib/authorization";
 import { publishBenefit } from "@/lib/benefit-publish";
 import { ROLES } from "@/lib/roles";
@@ -22,6 +23,49 @@ export function dropBenefitDepartment(
     ...rest
   } = payload;
   return rest;
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * The facts a create confirmation card shows are the ones the route writes:
+ * status from the confirmed publish choice, campus and department from the
+ * resolved values. Anything the model put in the payload for those fields is
+ * replaced. Benefits have no department.
+ */
+export function applyConfirmedCreateFacts(
+  domain: string,
+  payload: Record<string, unknown>,
+  confirmed: {
+    campusId?: string;
+    departmentId?: string;
+    status: "draft" | "published";
+  }
+): Record<string, unknown> {
+  const campusId = resolveConfirmedCampusId(confirmed.campusId, payload);
+  const departmentId =
+    confirmed.departmentId ??
+    stringOrNull(payload.department_id) ??
+    stringOrNull(payload.department);
+  const {
+    campusId: _campusAlias,
+    department: _departmentAlias,
+    departmentId: _departmentIdAlias,
+    ...rest
+  } = payload;
+  const next: Record<string, unknown> = { ...rest, status: confirmed.status };
+  if (campusId) {
+    next.campus_id = campusId;
+  }
+  if (domain === BENEFITS_DOMAIN) {
+    return dropBenefitDepartment(next);
+  }
+  if (departmentId) {
+    next.department_id = departmentId;
+  }
+  return next;
 }
 
 /**

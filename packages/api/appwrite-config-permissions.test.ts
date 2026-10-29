@@ -18,6 +18,7 @@ const EXPECTED_TABLE_PERMISSIONS = [
 ] as const;
 
 function loadAppwriteConfig(): {
+  buckets: Array<{ $id: string; $permissions: string[] }>;
   tables: Array<{
     $id: string;
     $permissions: string[];
@@ -121,6 +122,64 @@ describe("app versions table", () => {
       [...(payments?.$permissions ?? [])].sort()
     );
     expect(table?.$permissions.join(" ")).not.toContain('read("any")');
+  });
+});
+
+describe("team grants in table and bucket permissions", () => {
+  const TEAM_GRANT = /team:([^"\\)/]+)/g;
+  // Exactly the team ids that appear in a table or bucket permission today.
+  const ALLOWED_TEAM_IDS = new Set([
+    "sg-app-campus-national",
+    "sg-app-dept-hr",
+    "sg-app-dept-ledelsenbergen",
+    "sg-app-dept-ledelsenoslo",
+    "sg-app-dept-ledelsenstavanger",
+    "sg-app-dept-ledelsentrondheim",
+    "sg-app-dept-operationsunit",
+  ]);
+
+  function teamIdsGranted(table: { $permissions: string[] }): string[] {
+    return table.$permissions.flatMap((permission) =>
+      [...permission.matchAll(TEAM_GRANT)].map((match) => match[1] as string)
+    );
+  }
+
+  test("no table grants anything to team:alumni_admins", () => {
+    for (const table of loadAppwriteConfig().tables) {
+      expect(table.$permissions.join(" "), table.$id).not.toContain(
+        "alumni_admins"
+      );
+    }
+  });
+
+  test("every team id in a table or bucket permission is on the allow-list", () => {
+    const config = loadAppwriteConfig();
+    for (const resource of [...config.tables, ...config.buckets]) {
+      for (const teamId of teamIdsGranted(resource)) {
+        expect(ALLOWED_TEAM_IDS.has(teamId), `${resource.$id}: ${teamId}`).toBe(
+          true
+        );
+      }
+    }
+  });
+
+  test("the allow-list holds no team id that nothing grants to", () => {
+    const config = loadAppwriteConfig();
+    const granted = new Set(
+      [...config.tables, ...config.buckets].flatMap(teamIdsGranted)
+    );
+    expect([...ALLOWED_TEAM_IDS].sort()).toEqual([...granted].sort());
+  });
+
+  test("feature_flags grants only Operations Unit write access", () => {
+    const table = loadAppwriteConfig().tables.find(
+      (candidate) => candidate.$id === "feature_flags"
+    );
+
+    expect(table).toBeDefined();
+    expect(new Set(teamIdsGranted(table ?? { $permissions: [] }))).toEqual(
+      new Set(["sg-app-dept-operationsunit"])
+    );
   });
 });
 
