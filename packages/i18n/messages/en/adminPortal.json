@@ -428,6 +428,12 @@
       "reopen": "Reopen"
     },
     "studio": {
+      "bulkDraftInvites": "Draft invite emails",
+      "bulkArchive": "Archive",
+      "bulkDraftRejections": "Draft rejection emails",
+      "bulkDismiss": "Dismiss",
+      "bulkArchived": "{count, plural, one {Archived # candidate.} other {Archived # candidates.}}",
+      "inviteNotSent": "Invite not sent",
       "eyebrow": "BISO recruitment studio",
       "titleAccent": "this term.",
       "description": "Create, review, and publish student-facing roles with the BISO visual system while keeping each posting tied to campus and department access.",
@@ -437,6 +443,12 @@
       "duplicateHint": "Duplicate for a new round",
       "duplicateSuccess": "Copy created as a new draft",
       "duplicateError": "Couldn't create the copy. Try again in a moment.",
+      "closeConfirm": "Close this vacancy? It disappears from the public site and no new applications are accepted. Existing applications stay.",
+      "reopenConfirm": "Reopen this vacancy? It goes live on the public site again.",
+      "closeSuccess": "Vacancy closed",
+      "reopenSuccess": "Vacancy reopened",
+      "reopenDeadlinePassed": "Vacancy reopened, but its application deadline has passed. Move the deadline so people can apply.",
+      "statusError": "Couldn't update the vacancy. Try again in a moment.",
       "confirmDelete": "Confirm delete",
       "kpi": {
         "openPositions": "Open positions",

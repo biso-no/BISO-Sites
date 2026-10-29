@@ -1,15 +1,52 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 
 const account = {
   get: mock(),
   listIdentities: mock(),
 };
 const db = {
+  getRow: mock(),
   listRows: mock(),
 };
 const teams = {
   list: mock(),
 };
+
+interface Team {
+  $id: string;
+  name: string;
+}
+
+/**
+ * The session user's teams and their m365_team_sync record. By default the
+ * user is synced: the record lists every team they are in. Pass `null` for a
+ * user with no record.
+ */
+function memberOf(
+  list: Team[],
+  record: string[] | null = list.map((t) => t.$id)
+): void {
+  teams.list.mockResolvedValue({ teams: list });
+  db.getRow.mockReset();
+  if (record === null) {
+    db.getRow.mockRejectedValue(
+      Object.assign(new Error("Row not found"), {
+        code: 404,
+        type: "row_not_found",
+      })
+    );
+  } else {
+    db.getRow.mockResolvedValue({ $id: "user-1", team_ids: record });
+  }
+}
 
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db })),
@@ -47,9 +84,8 @@ mock.module("next/navigation", () => ({
 const { parseTeamMemberships } = await import(
   "./authorization-team-memberships"
 );
-const { getUserRolesForClient, requireAdminAccess } = await import(
-  "./authorization"
-);
+const { getUserAuthContext, getUserRolesForClient, requireAdminAccess } =
+  await import("./authorization");
 const { hasNavAccess } = await import("./roles");
 
 describe("admin authorization team parsing", () => {
@@ -67,9 +103,7 @@ describe("admin authorization team parsing", () => {
   });
 
   test("plain membership teams do not grant department admin access", async () => {
-    teams.list.mockResolvedValue({
-      teams: [{ $id: "biso-members", name: "BISO Members" }],
-    });
+    memberOf([{ $id: "biso-members", name: "BISO Members" }]);
 
     const roles = await getUserRolesForClient();
 
@@ -84,11 +118,12 @@ describe("admin authorization team parsing", () => {
       { $id: "biso-members", name: "BISO Members" },
       { $id: "sg-app-dept-hr", name: "HR" },
       { $id: "legacy-guid", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "x", name: "Oslo" },
       { $id: "sg-app-campus-oslo", name: "Oslo" },
     ]);
 
-    expect(parsed.departmentTeamIds).toEqual(["sg-app-dept-hr", "legacy-guid"]);
-    expect(parsed.departmentNames).toEqual(["HR", "Operations Unit"]);
+    expect(parsed.departmentTeamIds).toEqual(["sg-app-dept-hr"]);
+    expect(parsed.departmentNames).toEqual(["HR"]);
     expect(parsed.campusTeamIds).toEqual(["sg-app-campus-oslo"]);
     expect(parsed.campusNames).toEqual(["Oslo"]);
   });
@@ -97,10 +132,13 @@ describe("admin authorization team parsing", () => {
     const hr = parseTeamMemberships([{ $id: "sg-app-dept-hr", name: "HR" }]);
     expect(hr.roles).toContain("hr");
 
-    const spaced = parseTeamMemberships([
-      { $id: "sg-app-dept-hr", name: " h r " },
+    const renamed = parseTeamMemberships([
+      { $id: "sg-app-dept-hr", name: "Renamed" },
     ]);
-    expect(spaced.roles).toContain("hr");
+    expect(renamed.roles).toContain("hr");
+
+    const userMade = parseTeamMemberships([{ $id: "user-made", name: "HR" }]);
+    expect(userMade.roles).not.toContain("hr");
 
     const marketing = parseTeamMemberships([
       { $id: "sg-app-dept-marketing", name: "Marketing" },
@@ -108,9 +146,156 @@ describe("admin authorization team parsing", () => {
     expect(marketing.roles).not.toContain("hr");
 
     const opsUnit = parseTeamMemberships([
-      { $id: "legacy-guid", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
     ]);
     expect(opsUnit.roles).not.toContain("hr");
+  });
+
+  test("user-created teams with copied names grant no admin access", async () => {
+    memberOf([
+      { $id: "u1", name: "SG-App-Campus-National" },
+      { $id: "u2", name: "SG-App-Dept-OperationsUnit" },
+      { $id: "u3", name: "Oslo" },
+      { $id: "u4", name: "Ledelsen Oslo" },
+    ]);
+
+    const roles = await getUserRolesForClient();
+
+    expect(roles.isGlobalAdmin).toBe(false);
+    expect(roles.isCampusAdmin).toBe(false);
+    expect(roles.campusNames).toEqual([]);
+    expect(roles.departmentNames).toEqual([]);
+    expect(roles.roles).toEqual([]);
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
+  });
+
+  test("synced ids grant global and campus admin", async () => {
+    memberOf([
+      { $id: "sg-app-campus-national", name: "National" },
+      { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+    ]);
+    expect((await getUserRolesForClient()).isGlobalAdmin).toBe(true);
+
+    memberOf([
+      { $id: "sg-app-campus-oslo", name: "Oslo" },
+      { $id: "sg-app-dept-ledelsenoslo", name: "Ledelsen Oslo" },
+    ]);
+    const campus = await getUserRolesForClient();
+    expect(campus.isCampusAdmin).toBe(true);
+    expect(campus.managedCampuses).toEqual(["Oslo"]);
+  });
+});
+
+describe("teams the Microsoft sync recorded", () => {
+  const oslo = { $id: "sg-app-campus-oslo", name: "Oslo" };
+  const oslMarketing = {
+    $id: "sg-app-dept-oslmarketing",
+    name: "OSL Marketing",
+  };
+  const national = { $id: "sg-app-campus-national", name: "National" };
+  const operationsUnit = {
+    $id: "sg-app-dept-operationsunit",
+    name: "Operations Unit",
+  };
+
+  beforeEach(() => {
+    account.get.mockReset();
+    db.listRows.mockReset();
+    teams.list.mockReset();
+    account.get.mockResolvedValue({
+      $id: "user-1",
+      email: "member@example.com",
+      name: "Member Person",
+    });
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
+  });
+
+  test("reads the caller's own record with the admin client", async () => {
+    memberOf([oslo]);
+
+    await getUserAuthContext();
+
+    expect(db.getRow).toHaveBeenCalledWith("app", "m365_team_sync", "user-1");
+  });
+
+  test("drops a department team the record doesn't list", async () => {
+    memberOf([oslo, oslMarketing], ["sg-app-campus-oslo"]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.departmentTeamIds).toEqual([]);
+    expect(ctx?.departmentNames).toEqual([]);
+    expect(ctx?.campusTeamIds).toEqual(["sg-app-campus-oslo"]);
+    expect(ctx?.campusNames).toEqual(["Oslo"]);
+  });
+
+  test("keeps every team the record lists", async () => {
+    memberOf([oslo, oslMarketing], ["sg-app-dept-oslmarketing", oslo.$id]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.departmentTeamIds).toEqual(["sg-app-dept-oslmarketing"]);
+    expect(ctx?.departmentNames).toEqual(["OSL Marketing"]);
+    expect(ctx?.campusNames).toEqual(["Oslo"]);
+  });
+
+  test("a user without a record gets no sg-app teams", async () => {
+    memberOf([oslo, oslMarketing, national, operationsUnit], null);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.campusTeamIds).toEqual([]);
+    expect(ctx?.campusNames).toEqual([]);
+    expect(ctx?.departmentTeamIds).toEqual([]);
+    expect(ctx?.roles).toEqual([]);
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
+  });
+
+  test("global admin teams the record doesn't list grant nothing", async () => {
+    memberOf([national, operationsUnit, oslo], [oslo.$id]);
+
+    const roles = await getUserRolesForClient();
+
+    expect(roles.isGlobalAdmin).toBe(false);
+    expect(roles.roles).not.toContain("globaladmin");
+    expect(roles.campusNames).toEqual(["Oslo"]);
+  });
+
+  test("an outage reading the record is not treated as no access", async () => {
+    memberOf([oslo]);
+    const outage = Object.assign(new Error("service unavailable"), {
+      code: 503,
+    });
+    db.getRow.mockRejectedValue(outage);
+    const errorLog = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+
+    try {
+      await expect(getUserAuthContext()).rejects.toBe(outage);
+      expect(errorLog).toHaveBeenCalled();
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
+
+  test("a missing table is an error, not an empty record", async () => {
+    memberOf([oslo]);
+    const missingTable = Object.assign(new Error("Table not found"), {
+      code: 404,
+      type: "table_not_found",
+    });
+    db.getRow.mockRejectedValue(missingTable);
+    const errorLog = spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+
+    try {
+      await expect(getUserAuthContext()).rejects.toBe(missingTable);
+      expect(errorLog).toHaveBeenCalled();
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 });
 
@@ -134,7 +319,7 @@ describe("benefits editor role", () => {
     teams.list.mockReset();
     db.listRows.mockReset();
     db.listRows.mockResolvedValue({ rows: [], total: 0 });
-    teams.list.mockResolvedValue({ teams: [] });
+    memberOf([]);
     account.get.mockResolvedValue({
       $id: "user-2",
       email: editorEmail,
@@ -168,9 +353,7 @@ describe("benefits editor role", () => {
 
   test("fails closed when listIdentities throws", async () => {
     account.listIdentities.mockRejectedValue(new Error("boom"));
-    teams.list.mockResolvedValue({
-      teams: [{ $id: "sg-app-dept-hr", name: "HR" }],
-    });
+    memberOf([{ $id: "sg-app-dept-hr", name: "HR" }]);
     const result = await getUserRolesForClient();
     expect(result.roles).not.toContain("benefitseditor");
     expect(result.roles).toContain("hr");

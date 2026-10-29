@@ -5,6 +5,7 @@ import {
   buildAssistantTools,
   chatModel,
 } from "@repo/ai/assistant";
+import { createConfirmationGate } from "@repo/ai/assistant/tools";
 import type { AssistantActionDeps } from "@repo/ai/assistant/types";
 import { ID, type Models, Query } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
@@ -62,6 +63,7 @@ import {
   deleteJob,
   getJob,
   listJobs,
+  publishJobDraft,
   updateJob,
 } from "@/app/(portal)/_actions/jobs";
 import {
@@ -75,6 +77,7 @@ import {
   getDashboardStats,
   getPageById,
   listPages,
+  publishPageAction,
 } from "@/app/(portal)/_actions/pages";
 import {
   createProduct,
@@ -85,15 +88,22 @@ import {
 } from "@/app/(portal)/_actions/shop";
 import { getLocale } from "@/app/actions/locale";
 import { requireApiAuth } from "@/lib/api-auth";
+import { resolveConfirmedCampusId } from "@/lib/assistant-campus";
 import { buildAssistantOrderSearchQueries } from "@/lib/assistant-order-search";
 import {
+  applyConfirmedCreateFacts,
   assistantRoleSummary,
   benefitUpdateFromAssistant,
   canPublishContent,
-  dropBenefitDepartment,
+  createdContentNeedsPublish,
   publishBenefitContent,
   withoutBenefitCode,
 } from "@/lib/assistant-publish";
+import {
+  type AssistantPublishResult,
+  authorisePublishRow,
+  publishAssistantStatusContent,
+} from "@/lib/assistant-status-publish";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { checkIntegrationHealth } from "@/lib/integration-health";
@@ -179,8 +189,20 @@ export async function POST(request: NextRequest) {
   // 6. Build deps — normalised interface over all server actions
   const deps = buildDeps(activeFormSchemaId, ctx);
 
-  // 7. Build permission-gated tool set
-  const tools = buildAssistantTools(capabilities, deps);
+  // 7. Build permission-gated tool set. Write tools run only after this user
+  //    confirms the exact call on its card, once, within a few minutes.
+  const confirmationSecret = process.env.APPWRITE_API_KEY;
+  if (!confirmationSecret) {
+    return NextResponse.json(
+      { error: "The AI assistant is not configured." },
+      { status: 503 }
+    );
+  }
+  const gate = createConfirmationGate({
+    secret: confirmationSecret,
+    userId: ctx.userId,
+  });
+  const tools = buildAssistantTools(capabilities, deps, gate);
 
   // 8. Build system prompt with full context
   const instructions = buildAssistantSystemPrompt({
@@ -200,6 +222,8 @@ export async function POST(request: NextRequest) {
     instructions,
     messages: await convertToModelMessages(messages),
     tools,
+    toolApproval: gate.toolApproval,
+    experimental_toolApprovalSecret: gate.approvalSecret,
     stopWhen: isStepCount(12),
   });
 
@@ -285,10 +309,10 @@ function toCreateContentContext(
   ctx: UserAuthContext
 ): AssistantCreateContentContext {
   const parsed = input as AssistantCreateContentInput;
-  const payloadCampusId =
-    parsed.campusId ??
-    getStringValue(parsed.payload.campus_id) ??
-    getStringValue(parsed.payload.campusId);
+  const payloadCampusId = resolveConfirmedCampusId(
+    parsed.campusId,
+    parsed.payload
+  );
   const createDraftForApproval =
     Boolean(parsed.publish) &&
     !canPublishContent(ctx, parsed.domain, payloadCampusId);
@@ -323,7 +347,13 @@ async function publishCreatedContent(
   context: AssistantCreateContentContext,
   result: unknown
 ) {
-  if (!(context.publish && !context.createDraftForApproval)) {
+  if (
+    !(
+      context.publish &&
+      !context.createDraftForApproval &&
+      createdContentNeedsPublish(context.domain)
+    )
+  ) {
     return;
   }
   const id = resultDataId(result);
@@ -343,6 +373,8 @@ async function publishCreatedContent(
     await publishBookableProduct(db, id);
     return;
   }
+  // Vacancies never get here: createdContentNeedsPublish is false for jobs, and
+  // they publish through the recruitment path in updateContent.
   if (context.domain === "benefits") {
     // Goes through setBenefitStatus so the row's permissions are rewritten
     // (published -> read("any")); a bare status update leaves them stale.
@@ -352,8 +384,28 @@ async function publishCreatedContent(
   if (!table) {
     return;
   }
-  const { db } = await createSessionClient();
-  await db.updateRow("app", table, id, { status: "published" });
+  await publishStatusDomain(context.domain, table, id);
+}
+
+async function publishJobVacancy(id: string) {
+  const result = await publishJobDraft(id);
+  if (result.error !== undefined) {
+    throw new Error(result.error);
+  }
+  return { data: id };
+}
+
+async function publishStatusDomain(
+  domain: string,
+  table: string,
+  id: string
+): Promise<AssistantPublishResult | undefined> {
+  const { db: sessionDb } = await createSessionClient();
+  return await publishAssistantStatusContent(domain, table, id, {
+    getAdminDb: async () => (await createAdminClient()).db,
+    publishPage: publishPageAction,
+    sessionDb,
+  });
 }
 
 async function createAssistantContent(
@@ -361,6 +413,11 @@ async function createAssistantContent(
   ctx: UserAuthContext
 ): Promise<unknown> {
   const context = toCreateContentContext(input, ctx);
+  const confirmedPayload = applyConfirmedCreateFacts(
+    context.domain,
+    context.payload,
+    context
+  );
   let result: unknown;
 
   switch (context.domain) {
@@ -374,23 +431,21 @@ async function createAssistantContent(
       break;
     case "events":
       result = await createEvent({
-        ...context.payload,
+        ...confirmedPayload,
         notify_push: true,
       } as never);
       break;
     case "news":
       result = await createNews({
-        ...context.payload,
+        ...confirmedPayload,
         notify_push: true,
       } as never);
       break;
     case "shop":
-      result = await createProduct({ ...context.payload } as never);
+      result = await createProduct({ ...confirmedPayload } as never);
       break;
     case "benefits":
-      result = await createBenefit(
-        dropBenefitDepartment(context.payload) as never
-      );
+      result = await createBenefit(confirmedPayload as never);
       break;
     default:
       throw new Error(`Create not supported for domain: ${context.domain}`);
@@ -413,9 +468,10 @@ async function createJobContent(
   campusId?: string,
   departmentId?: string
 ) {
+  const resolvedCampusId = resolveConfirmedCampusId(campusId, payload);
   let campus: number | undefined;
-  if (campusId) {
-    campus = Number.parseInt(campusId, 10);
+  if (resolvedCampusId) {
+    campus = Number.parseInt(resolvedCampusId, 10);
   } else if (typeof payload.campus === "number") {
     campus = payload.campus;
   }
@@ -426,7 +482,7 @@ async function createJobContent(
     description_en: String(payload.description_en ?? ""),
     slug: String(payload.slug ?? payload.slugSuggestion ?? ""),
     status: status as "draft" | "published",
-    campus_id: campusId ?? String(payload.campus_id ?? ""),
+    campus_id: resolvedCampusId ?? "",
     campus,
     department_id: departmentId ?? (payload.department_id as string) ?? null,
     department: departmentId ?? (payload.department as string) ?? null,
@@ -575,6 +631,9 @@ function buildDeps(
       if (domain === "benefits") {
         return await publishBenefitContent(id);
       }
+      if (domain === "jobs") {
+        return await publishJobVacancy(id);
+      }
       // All other domains: targeted status update via session client.
       // Appwrite row-level security enforces the user's write permissions.
       const table = DOMAIN_PUBLISH_TABLE[domain];
@@ -582,8 +641,10 @@ function buildDeps(
         throw new Error(`Publish not supported for domain: ${domain}`);
       }
       const { db } = await createSessionClient();
-      const row = await db.getRow<GenericRow>("app", table, id);
-      assertPublishAccess(ctx, getStringValue(row.campus_id));
+      await authorisePublishRow(domain, {
+        readRow: () => db.getRow<GenericRow>("app", table, id),
+        assertAccess: (campusId) => assertPublishAccess(ctx, campusId),
+      });
       if (domain === "shop") {
         // Same gate and the same admin-client requirement as
         // `publishCreatedContent` above — only after `assertPublishAccess`
@@ -592,8 +653,8 @@ function buildDeps(
         await publishBookableProduct(adminDb, id);
         return { data: id };
       }
-      await db.updateRow("app", table, id, { status: "published" });
-      return { data: id };
+      const published = await publishStatusDomain(domain, table, id);
+      return published ? { data: id, ...published } : { data: id };
     },
 
     // -------------------------------------------------------------------------

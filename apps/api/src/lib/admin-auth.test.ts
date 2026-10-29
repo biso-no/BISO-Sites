@@ -1,7 +1,7 @@
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getAdminScope } from "./admin-auth";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { canManageCampus, getAdminScope } from "./admin-auth";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/api/server", () => ({
@@ -10,6 +10,27 @@ vi.mock("@repo/api/server", () => ({
 }));
 
 const mockedCreateSessionClient = vi.mocked(createSessionClient);
+const mockedCreateAdminClient = vi.mocked(createAdminClient);
+const getRow = vi.fn();
+
+const notFound = () =>
+  Object.assign(new Error("Row with the requested ID could not be found."), {
+    code: 404,
+    type: "row_not_found",
+  });
+
+/** The caller's m365_team_sync record; `null` means there is none. */
+function mockSyncRecord(teamIds: string[] | null): void {
+  getRow.mockReset();
+  if (teamIds === null) {
+    getRow.mockRejectedValue(notFound());
+  } else {
+    getRow.mockResolvedValue({ $id: "admin-user-1", team_ids: teamIds });
+  }
+  mockedCreateAdminClient.mockResolvedValue({
+    db: { getRow },
+  } as unknown as Awaited<ReturnType<typeof createAdminClient>>);
+}
 
 function requestWithJwt(): NextRequest {
   return {
@@ -17,22 +38,29 @@ function requestWithJwt(): NextRequest {
   } as NextRequest;
 }
 
+/**
+ * By default the caller is a synced user: their record lists every team they
+ * are in. Pass `record` to describe another record, or `null` for none.
+ */
 function mockSessionClient({
   labels = [],
+  record,
   teams = [],
   userId = "admin-user-1",
 }: {
   labels?: string[];
-  teams?: string[];
+  record?: string[] | null;
+  teams?: { $id: string; name: string }[];
   userId?: string;
 }): void {
+  mockSyncRecord(record === undefined ? teams.map((t) => t.$id) : record);
   mockedCreateSessionClient.mockResolvedValue({
     account: {
       get: vi.fn().mockResolvedValue({ $id: userId, labels }),
     },
     teams: {
       list: vi.fn().mockResolvedValue({
-        teams: teams.map((name) => ({ name })),
+        teams,
       }),
     },
   } as unknown as Awaited<ReturnType<typeof createSessionClient>>);
@@ -41,6 +69,12 @@ function mockSessionClient({
 describe("getAdminScope", () => {
   beforeEach(() => {
     mockedCreateSessionClient.mockReset();
+    mockedCreateAdminClient.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("does not grant global admin from Appwrite labels alone", async () => {
@@ -64,7 +98,10 @@ describe("getAdminScope", () => {
 
   it("grants global admin from National and Operations Unit teams", async () => {
     mockSessionClient({
-      teams: ["SG-App-Campus-National", "SG-App-Dept-OperationsUnit"],
+      teams: [
+        { $id: "sg-app-campus-national", name: "National" },
+        { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+      ],
     });
 
     const scope = await getAdminScope(requestWithJwt());
@@ -81,7 +118,10 @@ describe("getAdminScope", () => {
 
   it("keeps campus admin derivation team-based", async () => {
     mockSessionClient({
-      teams: ["SG-App-Campus-Oslo", "SG-App-Dept-LedelsenOslo"],
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        { $id: "sg-app-dept-ledelsenoslo", name: "Ledelsen Oslo" },
+      ],
     });
 
     const scope = await getAdminScope(requestWithJwt());
@@ -93,6 +133,161 @@ describe("getAdminScope", () => {
       managedCampusNames: ["Oslo"],
       managedDepartmentNames: [],
       userId: "admin-user-1",
+    });
+  });
+
+  it("gives a department member no campus scope", async () => {
+    mockSessionClient({
+      teams: [
+        { $id: "sg-app-campus-oslo", name: "Oslo" },
+        { $id: "sg-app-dept-marketing", name: "Marketing" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope).toMatchObject({
+      canManageAnyCampus: false,
+      isCampusAdmin: false,
+      managedCampusNames: [],
+      managedDepartmentNames: ["Marketing"],
+    });
+    expect(scope && canManageCampus(scope, "Oslo")).toBe(false);
+  });
+
+  it("ignores user-created teams that copy admin names", async () => {
+    mockSessionClient({
+      teams: [
+        { $id: "u1", name: "SG-App-Campus-National" },
+        { $id: "u2", name: "SG-App-Dept-OperationsUnit" },
+        { $id: "u3", name: "Operations Unit" },
+        { $id: "u4", name: "National" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope).toEqual({
+      canManageAnyCampus: false,
+      isCampusAdmin: false,
+      isGlobalAdmin: false,
+      managedCampusNames: [],
+      managedDepartmentNames: [],
+      userId: "admin-user-1",
+    });
+  });
+
+  it("reads the caller's own sync record with the admin client", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-oslo", name: "Oslo" }],
+    });
+
+    await getAdminScope(requestWithJwt());
+
+    expect(getRow).toHaveBeenCalledWith(
+      "app",
+      "m365_team_sync",
+      "admin-user-1"
+    );
+  });
+
+  it("does not grant global admin when the caller has no sync record", async () => {
+    mockSessionClient({
+      record: null,
+      teams: [
+        { $id: "sg-app-campus-national", name: "National" },
+        { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope).toEqual({
+      canManageAnyCampus: false,
+      isCampusAdmin: false,
+      isGlobalAdmin: false,
+      managedCampusNames: [],
+      managedDepartmentNames: [],
+      userId: "admin-user-1",
+    });
+  });
+
+  it("grants global admin only when the record lists both teams", async () => {
+    const teams = [
+      { $id: "sg-app-campus-national", name: "National" },
+      { $id: "sg-app-dept-operationsunit", name: "Operations Unit" },
+    ];
+
+    mockSessionClient({ teams, record: ["sg-app-campus-national"] });
+    expect((await getAdminScope(requestWithJwt()))?.isGlobalAdmin).toBe(false);
+
+    mockSessionClient({
+      teams,
+      record: ["sg-app-dept-operationsunit", "sg-app-campus-national"],
+    });
+    expect((await getAdminScope(requestWithJwt()))?.isGlobalAdmin).toBe(true);
+  });
+
+  it("drops a department team the record doesn't list", async () => {
+    mockSessionClient({
+      record: [],
+      teams: [
+        { $id: "sg-app-dept-marketing", name: "Marketing" },
+        { $id: "biso-members", name: "BISO Members" },
+      ],
+    });
+
+    const scope = await getAdminScope(requestWithJwt());
+
+    expect(scope?.managedDepartmentNames).toEqual([]);
+  });
+
+  it("rethrows a failed sync record read", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const outage = Object.assign(new Error("service unavailable"), {
+      code: 503,
+    });
+    getRow.mockRejectedValue(outage);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toBe(outage);
+  });
+
+  it("rethrows a 404 for a missing table instead of treating it as no record", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const missingTable = Object.assign(new Error("Table not found"), {
+      code: 404,
+      type: "table_not_found",
+    });
+    getRow.mockRejectedValue(missingTable);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toBe(missingTable);
+  });
+
+  it("rethrows a 401 from the record read (service key) instead of answering not signed in", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const keyFailure = Object.assign(new Error("bad key"), { code: 401 });
+    getRow.mockRejectedValue(keyFailure);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toMatchObject({
+      cause: keyFailure,
+    });
+  });
+
+  it("rethrows a 403 from the record read", async () => {
+    mockSessionClient({
+      teams: [{ $id: "sg-app-campus-national", name: "National" }],
+    });
+    const forbidden = Object.assign(new Error("missing scope"), { code: 403 });
+    getRow.mockRejectedValue(forbidden);
+
+    await expect(getAdminScope(requestWithJwt())).rejects.toMatchObject({
+      cause: forbidden,
     });
   });
 

@@ -74,6 +74,7 @@ const departmentValues: AnnouncementFormValues = {
   title_no: null,
 };
 
+mock.module("server-only", () => ({}));
 mock.module("@repo/api/server", () => ({
   createAdminClient: mock(async () => ({ db, messaging: {}, users: {} })),
   createSessionClient: mock(async () => ({ db })),

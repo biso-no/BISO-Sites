@@ -9,6 +9,8 @@ import {
   Copy,
   Filter,
   Loader2,
+  Lock,
+  LockOpen,
   MapPin,
   Pencil,
   Play,
@@ -28,6 +30,7 @@ import {
   deleteJob,
   duplicateJob,
   type JobStatusCounts,
+  setJobStatus,
 } from "../../_actions/jobs";
 import { JOBS_PAGE_SIZE } from "../../_actions/schemas";
 import { PaginationBar } from "../../_components/pagination-bar";
@@ -343,6 +346,7 @@ function JobRow({
   onDelete,
   onDuplicate,
   onRequestDelete,
+  onSetStatus,
 }: {
   isConfirmingDelete: boolean;
   isDuplicating: boolean;
@@ -352,9 +356,11 @@ function JobRow({
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onRequestDelete: (id: string) => void;
+  onSetStatus: (id: string, target: "closed" | "published") => void;
 }) {
   const locale = normalizeLocale(useLocale());
   const t = useTranslations("adminPortal.jobs.studio");
+  const actions = useTranslations("adminPortal.jobs.actions");
   const common = useTranslations("adminPortal.common");
   const deadlineDays = daysUntil(job.application_deadline);
   return (
@@ -480,6 +486,38 @@ function JobRow({
             <Copy size={14} />
           )}
         </button>
+        {job.status === "published" && (
+          <button
+            aria-label={actions("close")}
+            className="grid h-8 w-8 place-items-center rounded-lg transition"
+            onClick={() => onSetStatus(job.$id, "closed")}
+            style={{
+              background: BRAND.paper2,
+              border: `0.5px solid ${BRAND.rule2}`,
+              color: BRAND.ink3,
+            }}
+            title={actions("close")}
+            type="button"
+          >
+            <Lock size={14} />
+          </button>
+        )}
+        {job.status === "closed" && (
+          <button
+            aria-label={actions("reopen")}
+            className="grid h-8 w-8 place-items-center rounded-lg transition"
+            onClick={() => onSetStatus(job.$id, "published")}
+            style={{
+              background: BRAND.paper2,
+              border: `0.5px solid ${BRAND.rule2}`,
+              color: BRAND.ink3,
+            }}
+            title={actions("reopen")}
+            type="button"
+          >
+            <LockOpen size={14} />
+          </button>
+        )}
         <button
           aria-label={isConfirmingDelete ? t("confirmDelete") : labels.delete}
           className="grid h-8 w-8 place-items-center rounded-lg transition"
@@ -549,6 +587,33 @@ export function JobStudioDashboard({
       }
       setPendingDeleteId(null);
       toast.success(t("deleteSuccess"));
+    });
+  }
+
+  function handleSetStatus(id: string, target: "closed" | "published") {
+    const message = ts(target === "closed" ? "closeConfirm" : "reopenConfirm");
+    // biome-ignore lint/suspicious/noAlert: Same confirmation pattern the job studio editor uses.
+    if (!window.confirm(message)) {
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const result = await setJobStatus(id, target);
+        if (result.error !== undefined) {
+          toast.error(result.error);
+          return;
+        }
+        if (target === "closed") {
+          toast.success(ts("closeSuccess"));
+        } else if (result.deadlinePassed) {
+          toast.warning(ts("reopenDeadlinePassed"));
+        } else {
+          toast.success(ts("reopenSuccess"));
+        }
+        router.refresh();
+      } catch {
+        toast.error(ts("statusError"));
+      }
     });
   }
 
@@ -817,6 +882,7 @@ export function JobStudioDashboard({
                 onDelete={handleDelete}
                 onDuplicate={handleDuplicate}
                 onRequestDelete={setPendingDeleteId}
+                onSetStatus={handleSetStatus}
               />
             ))}
           </>

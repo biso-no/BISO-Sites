@@ -17,6 +17,7 @@ import {
   RETENTION_RUN_DAYS,
   resetUserMfaMethods,
 } from "@/lib/it/turnover";
+import { isTurnoverTarget } from "@/lib/it/turnover-target";
 import { requireItPermission } from "@/lib/it-permissions";
 import { logAuditEvent } from "./audit-log";
 
@@ -71,7 +72,16 @@ export async function triggerM365Turnover(
     const graph = getGraphService();
     const user = await getAllowedTenantUser(graph, parsed.userId);
 
-    // Confirm the operator is repurposing the intended role account.
+    // Only accounts on the tenant domain may be handed over. Refuse before any
+    // Graph write.
+    if (!isTurnoverTarget(user.userPrincipalName)) {
+      return {
+        error: "Turnover is only available for accounts on the biso.no domain.",
+      };
+    }
+
+    // The domain check above is the only eligibility rule, so make the operator
+    // confirm the account by typing its exact login address.
     if (
       parsed.confirmationUpn.trim().toLowerCase() !==
       user.userPrincipalName.toLowerCase()

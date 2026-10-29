@@ -3,6 +3,7 @@ import type { AssistantActionDeps, AssistantCapabilities } from "../types";
 import { buildAnalyticsTools } from "./analytics";
 import { buildApprovalTools } from "./approvals";
 import { clientTools } from "./client-tools";
+import type { ConfirmationGate } from "./confirmation";
 import { buildContentTools } from "./content";
 import { buildM365Tools } from "./m365";
 import { buildOpsTools } from "./ops";
@@ -15,10 +16,13 @@ import { buildShopTools } from "./shop";
  * Only includes tools the user is permitted to use based on capabilities.
  * The deps object provides the actual server-action implementations
  * injected from apps/admin (keeping @repo/ai free of app dependencies).
+ * Write tools come back wrapped by `gate`: they run only after the user
+ * confirms that exact call on its card.
  */
 export function buildAssistantTools(
   capabilities: AssistantCapabilities,
-  deps: AssistantActionDeps
+  deps: AssistantActionDeps,
+  gate: ConfirmationGate
 ): ToolSet {
   // Client tools are always available (no execute — resolved on client)
   const tools: ToolSet = { ...clientTools };
@@ -65,9 +69,11 @@ export function buildAssistantTools(
     Object.assign(tools, buildAnalyticsTools(deps));
   }
 
-  return tools;
+  return gate.guardTools(tools);
 }
 
 export type { AssistantCapabilities } from "../types";
 // Re-export client tools for use in the widget's typed useChat hook
 export { clientTools } from "./client-tools";
+export type { ConfirmationGate } from "./confirmation";
+export { createConfirmationGate } from "./confirmation";

@@ -1,6 +1,4 @@
-import { expandDepartmentName } from "@repo/shared/utils/team-roles";
-import { CAMPUS_NAME_TO_ID } from "./campus-constants";
-import { isHrDepartment } from "./recruitment";
+import { rolesFromTeams, type TeamRef } from "@repo/shared/utils/team-roles";
 import { ROLES } from "./roles";
 
 export interface TeamParseResult {
@@ -8,51 +6,41 @@ export interface TeamParseResult {
   campusTeamIds: string[];
   departmentNames: string[];
   departmentTeamIds: string[];
+  managedCampuses: string[];
   roles: string[];
 }
 
 /**
- * Parse team memberships into categorized arrays. Non-SG-App teams such as
- * `biso-members` are ignored for admin role derivation; they must not become
- * the broad `department` pseudo-role.
+ * Parse team memberships into categorized arrays and derived roles. Everything
+ * comes from exact synced team ids (see `rolesFromTeams`); team names are only
+ * kept for display and scoping when bound to their id. Teams outside the
+ * SG-App id space, such as `biso-members`, are ignored.
  */
 export function parseTeamMemberships(
-  teams: Array<{ $id: string; name: string }>
+  teams: readonly TeamRef[]
 ): TeamParseResult {
-  const result: TeamParseResult = {
-    campusTeamIds: [],
-    campusNames: [],
-    departmentTeamIds: [],
-    departmentNames: [],
-    roles: [],
+  const derived = rolesFromTeams(teams);
+  const roles: string[] = [];
+
+  if (derived.isHr) {
+    roles.push(ROLES.HR);
+  }
+  if (derived.isGlobalAdmin) {
+    roles.push(ROLES.GLOBAL_ADMIN);
+  }
+  if (derived.isNationalHr) {
+    roles.push(ROLES.HR_ADMIN);
+  }
+  if (derived.managedCampuses.length > 0) {
+    roles.push(ROLES.CAMPUS_ADMIN);
+  }
+
+  return {
+    campusNames: [...derived.campusNames],
+    campusTeamIds: derived.campusTeamIds,
+    departmentNames: derived.departmentNames,
+    departmentTeamIds: derived.departmentTeamIds,
+    managedCampuses: [...derived.managedCampuses],
+    roles,
   };
-
-  for (const team of teams) {
-    if (CAMPUS_NAME_TO_ID[team.name] !== undefined) {
-      result.campusTeamIds.push(team.$id);
-      result.campusNames.push(team.name);
-    } else if (team.name.startsWith("SG-App-Campus-")) {
-      const campusName = team.name.replace("SG-App-Campus-", "").trim();
-      if (CAMPUS_NAME_TO_ID[campusName] !== undefined) {
-        result.campusTeamIds.push(team.$id);
-        result.campusNames.push(campusName);
-      }
-    } else if (team.$id.startsWith("sg-app-dept-")) {
-      result.departmentTeamIds.push(team.$id);
-      result.departmentNames.push(team.name);
-    } else if (team.name.startsWith("SG-App-Dept-")) {
-      result.departmentTeamIds.push(team.$id);
-      result.departmentNames.push(
-        expandDepartmentName(team.name.replace("SG-App-Dept-", ""))
-      );
-    }
-  }
-
-  // HR membership is a real role: recruitment surfaces gate on it instead of
-  // the broad department pseudo-role.
-  if (isHrDepartment(result.departmentNames)) {
-    result.roles.push(ROLES.HR);
-  }
-
-  return result;
 }

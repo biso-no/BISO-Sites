@@ -58,14 +58,25 @@ export default async function AdminPortalDashboard() {
   const allActivity =
     chartActivity.status === "fulfilled" ? chartActivity.value : [];
 
+  const canSeeJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    hasDepartmentMembership
+  );
+  const jobCards = canSeeJobs
+    ? [
+        {
+          color: STUDIO.sky,
+          href: "/jobs",
+          icon: Briefcase,
+          label: t("stats.jobs"),
+          value: statsData.jobs,
+        },
+      ]
+    : [];
+
   const statCards = [
-    {
-      color: STUDIO.sky,
-      href: "/jobs",
-      icon: Briefcase,
-      label: t("stats.jobs"),
-      value: statsData.jobs,
-    },
+    ...jobCards,
     {
       color: STUDIO.claret,
       href: "/events",

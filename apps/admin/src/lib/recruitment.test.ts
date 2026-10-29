@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { translationReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import type { UserAuthContext } from "@/lib/authorization";
 import {
   buildJobRowPermissions,
@@ -31,12 +32,11 @@ describe("isHrDepartment", () => {
     expect(isHrDepartment(["HR"])).toBe(true);
     expect(isHrDepartment(["hr"])).toBe(true);
     expect(isHrDepartment([" Hr "])).toBe(true);
-    expect(isHrDepartment(["HR Unit"])).toBe(true);
-    expect(isHrDepartment(["HRUnit"])).toBe(true);
     expect(isHrDepartment(["Marketing", "HR"])).toBe(true);
   });
   test("does not match non-HR departments", () => {
     expect(isHrDepartment(["Marketing"])).toBe(false);
+    expect(isHrDepartment(["HRUnit"])).toBe(false);
     expect(isHrDepartment([])).toBe(false);
   });
 });
@@ -50,7 +50,7 @@ describe("toRecruitmentAdminScope", () => {
 
   test("HR + National manages any campus", () => {
     const scope = toRecruitmentAdminScope(
-      ctx({ campusNames: ["National"], departmentNames: ["HR"] })
+      ctx({ campusNames: ["National"], roles: ["hr"] })
     );
     expect(scope.canManageAnyCampus).toBe(true);
     expect(scope.isGlobalAdmin).toBe(true);
@@ -59,7 +59,7 @@ describe("toRecruitmentAdminScope", () => {
 
   test("HR + single campus is a campus-scoped recruitment admin", () => {
     const scope = toRecruitmentAdminScope(
-      ctx({ campusNames: ["Oslo"], departmentNames: ["HR"] })
+      ctx({ campusNames: ["Oslo"], roles: ["hr"] })
     );
     expect(scope.canManageAnyCampus).toBe(false);
     expect(scope.isGlobalAdmin).toBe(false);
@@ -70,10 +70,26 @@ describe("toRecruitmentAdminScope", () => {
 
   test("HR + multiple campuses scopes to those campuses", () => {
     const scope = toRecruitmentAdminScope(
-      ctx({ campusNames: ["Oslo", "Bergen"], departmentNames: ["HR"] })
+      ctx({ campusNames: ["Oslo", "Bergen"], roles: ["hr"] })
     );
     expect(scope.isCampusAdmin).toBe(true);
     expect(scope.managedCampusNames).toEqual(["Oslo", "Bergen"]);
+  });
+
+  test("the hr role grants scope even when the synced HR team was renamed", () => {
+    const scope = toRecruitmentAdminScope(
+      ctx({ campusNames: ["Oslo"], departmentNames: [], roles: ["hr"] })
+    );
+    expect(scope.isCampusAdmin).toBe(true);
+    expect(scope.managedCampusNames).toEqual(["Oslo"]);
+  });
+
+  test("an HR-looking department name without the hr role grants nothing", () => {
+    const scope = toRecruitmentAdminScope(
+      ctx({ campusNames: ["National"], departmentNames: ["HR"], roles: [] })
+    );
+    expect(scope.canManageAnyCampus).toBe(false);
+    expect(scope.isCampusAdmin).toBe(false);
   });
 
   test("non-HR, non-global user gets no recruitment access", () => {
@@ -132,5 +148,18 @@ describe("buildJobRowPermissions", () => {
     expect(perms).not.toContain('read("any")');
     expect(perms).not.toContain('read("team:biso-members")');
     expect(perms).toContain('read("team:sg-app-dept-hr")');
+  });
+});
+
+describe("translationReadPermissions agrees with buildJobTranslationPermissions", () => {
+  const readsOf = (permissions: string[]) =>
+    permissions.filter((entry) => entry.startsWith("read(")).sort();
+
+  test("published, draft and closed jobs", () => {
+    for (const status of ["published", "draft", "closed"]) {
+      expect(readsOf(translationReadPermissions("job", status))).toEqual(
+        readsOf(buildJobTranslationPermissions("public", status))
+      );
+    }
   });
 });

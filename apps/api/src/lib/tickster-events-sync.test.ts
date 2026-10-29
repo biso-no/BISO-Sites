@@ -460,8 +460,14 @@ describe("syncTicksterEvents", () => {
     )?.[0];
     expect(eventCreate.data.status).toBe("draft");
     expect(eventCreate.permissions).not.toContain('read("any")');
+    expect(
+      eventCreate.permissions.some((p: string) => p.startsWith("read("))
+    ).toBe(false);
     expect(eventCreate.permissions).toContain(
-      'read("team:sg-app-dept-operationsunit")'
+      'update("team:sg-app-dept-operationsunit")'
+    );
+    expect(eventCreate.permissions).toContain(
+      'delete("team:sg-app-dept-operationsunit")'
     );
     const translation = createRow.mock.calls.find(
       ([args]) => args.tableId === "content_translations"
@@ -585,7 +591,13 @@ describe("syncTicksterEvents", () => {
         ([args]) => args.tableId === "events"
       )?.[0];
       expect(eventCreate.data.status).toBe("cancelled");
-      expect(eventCreate.permissions).not.toContain('read("any")');
+      expect(eventCreate.permissions[0]).toBe('read("any")');
+      expect(eventCreate.permissions).toContain(
+        'update("team:sg-app-dept-operationsunit")'
+      );
+      expect(eventCreate.permissions).toContain(
+        'delete("team:sg-app-dept-operationsunit")'
+      );
     });
 
     for (const state of [
@@ -655,8 +667,14 @@ describe("syncTicksterEvents", () => {
       ([args]) => args.tableId === "events"
     )?.[0];
     expect(eventUpdate.permissions).not.toContain('read("any")');
+    expect(
+      eventUpdate.permissions.some((p: string) => p.startsWith("read("))
+    ).toBe(false);
     expect(eventUpdate.permissions).toContain(
-      'read("team:sg-app-dept-operationsunit")'
+      'update("team:sg-app-dept-operationsunit")'
+    );
+    expect(eventUpdate.permissions).toContain(
+      'delete("team:sg-app-dept-operationsunit")'
     );
     const translationUpdate = updateRow.mock.calls.find(
       ([args]) => args.tableId === "content_translations"

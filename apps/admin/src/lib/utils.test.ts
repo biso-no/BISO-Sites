@@ -119,6 +119,7 @@ describe("sanitizeRedirectTarget", () => {
       "/%0A/evil.com",
       "/%0D/evil.com",
       "/%00",
+      "/%7f/x",
     ]) {
       expect(sanitizeRedirectTarget(bad)).toBe("/");
     }
@@ -157,5 +158,11 @@ describe("sanitizeRedirectTarget", () => {
     expect(sanitizeRedirectTarget("https://docs.biso.no/x")).toBe("/");
     process.env.NEXT_PUBLIC_DOCS_URL = "not a url";
     expect(sanitizeRedirectTarget("https://docs.biso.no/x")).toBe("/");
+  });
+
+  test("falls back to / for other cross-origin forms", () => {
+    for (const bad of [undefined, "%2F%2Fevil.com", "evil.com"]) {
+      expect(sanitizeRedirectTarget(bad)).toBe("/");
+    }
   });
 });

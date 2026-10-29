@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { AssistantActionDeps } from "../types";
+import { CONFIRMED_BY_CARD } from "./confirmation";
 
 export function buildSettingsTools(deps: AssistantActionDeps) {
   return {
@@ -27,8 +28,7 @@ export function buildSettingsTools(deps: AssistantActionDeps) {
     }),
 
     toggleFeatureFlag: tool({
-      description:
-        "Enable or disable a feature flag. Requires confirmAction first. Only available to global admins.",
+      description: `Enable or disable a feature flag. Only available to global admins. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         flagKey: z.string().describe("Feature flag identifier"),
         enabled: z.boolean().describe("True to enable, false to disable"),

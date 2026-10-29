@@ -39,6 +39,7 @@ export function buildAssistantCapabilities(
 ): AssistantCapabilities {
   const isGlobalAdmin = input.roles.includes("globaladmin");
   const isCampusAdmin = input.roles.includes("campusadmin");
+  const isHr = input.roles.includes("hr") || input.roles.includes("hradmin");
   const isBenefitsEditor = input.roles.includes("benefitseditor");
 
   // Content domains: all require portal nav access to be useful
@@ -55,7 +56,7 @@ export function buildAssistantCapabilities(
         isGlobalAdmin || isCampusAdmin || isBenefitsEditor ? "publish" : "none",
       documents: contentAccess,
       events: contentAccess,
-      jobs: contentAccess,
+      jobs: isGlobalAdmin || isHr ? "publish" : "none",
       news: contentAccess,
       pages: isGlobalAdmin || isCampusAdmin ? "publish" : "none",
       shop: isGlobalAdmin || isCampusAdmin ? "publish" : "none",

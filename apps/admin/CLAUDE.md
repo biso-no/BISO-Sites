@@ -40,10 +40,17 @@ handler. Any new top-level route segment must add its own auth check.
   - `signInWithMagicLink()` → magic URL, lands on `(auth)/auth/callback/route.ts`,
     which calls `syncM365Permissions()` best-effort.
 - Authorization (`src/lib/authorization.ts`, `src/lib/roles.ts`): roles are
-  derived from Appwrite **team memberships** synced from Azure AD security groups.
-  - `National + Operations Unit` → `globaladmin`
-  - `Ledelsen{City} + Campus-{City}` → `campusadmin` (with managed campus list)
-  - Any department team membership → the `department` pseudo-role
+  derived from exact Appwrite **team ids** synced from Azure AD security groups,
+  by `rolesFromTeams()` in `packages/shared/utils/team-roles.ts`. Never derive a
+  role from a team name.
+  - `sg-app-campus-national` + `sg-app-dept-operationsunit` → `globaladmin`
+  - `sg-app-campus-<city>` + `sg-app-dept-ledelsen<city>` → `campusadmin` (with
+    managed campus list)
+  - `sg-app-dept-hr` → `hr`, with National → `hradmin`
+  - Any recorded `sg-app-dept-*` team → the `department` pseudo-role
+  - A `sg-app-*` team counts only when its id is in the user's `m365_team_sync`
+    record, which `syncM365Permissions` writes at each Microsoft sign-in
+    (`keepSyncedTeams`).
   - `Control Committee` department membership → organisation-wide access to
     governing documents only, via `documentAccessContext()` in
     `src/lib/documents/access.ts`. Use that context for authorization inside
@@ -118,7 +125,13 @@ handler. Any new top-level route segment must add its own auth check.
 - **Translations data model**: most content tables have `translation_refs` →
   `content_translations` (or `page_translations` for pages). Building permission
   strings for translation rows goes through
-  `buildContentTranslationPermissions()` in `lib/utils.ts`.
+  `buildContentTranslationPermissions()` in `lib/utils.ts`. Translation rows
+  carry their own read by content type and parent status
+  (`translationReadPermissions` in `@repo/shared/utils/content-read-permissions`).
+  Any path that publishes or unpublishes a parent must restamp its translations
+  (`restampTranslationReads` in `apps/admin/src/lib/content-translation-reads.ts`).
+  Page drafts live in the service-only `page_drafts` table; never write draft
+  data to `page_translations`.
 - **Content scoping**: every content list action filters by `campus_id` based on
   the auth context — see `listPages` in `_actions/pages.ts` for the canonical
   pattern. New list actions must follow it or risk leaking data across campuses.

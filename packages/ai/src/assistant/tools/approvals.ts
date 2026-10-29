@@ -1,12 +1,12 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { AssistantActionDeps } from "../types";
+import { CONFIRMED_BY_CARD } from "./confirmation";
 
 export function buildApprovalTools(deps: AssistantActionDeps) {
   return {
     approveRequest: tool({
-      description:
-        "Approve a pending approval request. Only available to campus managers and global admins. Requires confirmAction first.",
+      description: `Approve a pending approval request. Only available to campus managers and global admins. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         requestId: z.string().describe("The approval_requests $id"),
       }),
@@ -28,8 +28,7 @@ export function buildApprovalTools(deps: AssistantActionDeps) {
     }),
 
     rejectRequest: tool({
-      description:
-        "Reject a pending approval request with a reason. Only available to campus managers and global admins. Requires confirmAction first.",
+      description: `Reject a pending approval request with a reason. Only available to campus managers and global admins. ${CONFIRMED_BY_CARD}`,
       inputSchema: z.object({
         requestId: z.string().describe("The approval_requests $id"),
         reason: z

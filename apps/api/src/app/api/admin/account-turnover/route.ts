@@ -26,6 +26,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!scope.isGlobalAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Validate webhook URL is configured
     if (!AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL) {
       return NextResponse.json(

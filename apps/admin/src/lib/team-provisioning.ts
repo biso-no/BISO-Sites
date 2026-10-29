@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";

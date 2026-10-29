@@ -13,6 +13,7 @@ import type {
 } from "@repo/api/types/appwrite";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import { applyContentRelationshipScopeQueries } from "@/lib/content-authorization";
+import { withDraftTitles } from "@/lib/page-draft-titles";
 import {
   buildHitHref,
   canSearchDepartments,
@@ -102,7 +103,9 @@ async function searchPages(
     Query.limit(LIMIT),
     ...applyContentRelationshipScopeQueries(ctx),
   ]);
-  return rows.rows.map((row) => ({
+  // The matched title is the published one; show the draft's when it has one.
+  const pages = await withDraftTitles(db, rows.rows);
+  return pages.map((row) => ({
     group: "pages" as const,
     href: buildHitHref("pages", row.$id),
     id: row.$id,

@@ -9,6 +9,7 @@ import type {
   TicksterEventsClient,
   TicksterVenue,
 } from "@repo/connectors/tickster";
+import { eventReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import { generateSlug } from "@repo/shared/utils/content-slug";
 
 /**
@@ -390,14 +391,13 @@ function resolveSaleState(
 
 function eventPermissions(status: string): string[] {
   const team = Role.team(OPERATIONS_TEAM_ID);
-  // Published rows are world-readable; drafts stay team-only so review-before-
-  // publish imports don't leak publicly through Appwrite (mirrors the
-  // status-aware admin permission model).
-  const read =
-    status === "published"
-      ? Permission.read(Role.any())
-      : Permission.read(team);
-  return [read, Permission.update(team), Permission.delete(team)];
+  // Read follows the publish status (published and cancelled are public, any
+  // other status has no read); the Operations Unit keeps update and delete.
+  return [
+    ...eventReadPermissions(status),
+    Permission.update(team),
+    Permission.delete(team),
+  ];
 }
 
 interface BuildEventArgs {

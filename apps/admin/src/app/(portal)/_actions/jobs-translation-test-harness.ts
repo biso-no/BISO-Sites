@@ -154,6 +154,7 @@ export const resetTranslationHarness = (): void => {
   afterSpy.mockClear();
   sessionDb.listRows.mockImplementation(async () => ({ rows: [], total: 0 }));
   translationRows.mockReset();
+  translationRows.mockImplementation(() => ({ rows: [], total: 0 }));
   adminDb.listRows.mockImplementation(
     (databaseId: string, tableId: string, queries?: string[]) =>
       tableId === "jobs"

@@ -54,7 +54,10 @@ type Locale = "no" | "en";
 interface StoredTranslation {
   draftDocument: PageDoc | null;
   isPublished: boolean;
+  /** When the locale was last published; a republish changes it. */
+  publishedAt?: string | null;
   publishedDocument: PageDoc | null;
+  /** The draft row's `$updatedAt`: only a draft save changes it. */
   updatedAt: string;
 }
 
@@ -90,7 +93,6 @@ function unpublishLocale(locale: Locale) {
   const translation = store.translations[locale];
   if (translation) {
     translation.isPublished = false;
-    translation.updatedAt = bump(locale);
   }
   const stillLive = Object.entries(store.translations).some(
     ([other, row]) => other !== locale && row?.isPublished
@@ -139,7 +141,7 @@ const publishPageSpy = mock(
     }
     translation.publishedDocument = translation.draftDocument;
     translation.isPublished = true;
-    translation.updatedAt = bump(locale);
+    translation.publishedAt = bump(locale);
     if (updateParentStatus) {
       store.status = "published";
       store.pageUpdatedAt = bump("page");
@@ -154,6 +156,7 @@ const saveTranslation = ({ doc, locale }: { doc: PageDoc; locale: Locale }) => {
   store.translations[locale] = {
     draftDocument: doc,
     isPublished: existing?.isPublished ?? false,
+    publishedAt: existing?.publishedAt ?? null,
     publishedDocument: existing?.publishedDocument ?? null,
     updatedAt,
   };
@@ -171,7 +174,14 @@ const loadEditor = () =>
       status: store.status,
       visibility: "public",
     },
-    translations: structuredClone(store.translations),
+    translations: structuredClone(
+      Object.fromEntries(
+        Object.entries(store.translations).map(([locale, row]) => [
+          locale,
+          { ...row, publishedAt: row?.publishedAt ?? null },
+        ])
+      )
+    ),
   });
 const getPageEditorByIdSpy = mock(loadEditor);
 const translatePageDocumentSpy = mock(
@@ -204,7 +214,9 @@ const db = {
 mock.module("server-only", () => ({}));
 const clearPageThemeSpy = mock(async (_id: string) => undefined);
 mock.module("@repo/api/page-builder", () => ({
+  PAGE_DRAFTS_TABLE_ID: "page_drafts",
   PAGE_LOCALES: ["no", "en"],
+  archivePage: mock(async () => undefined),
   clearPageTheme: clearPageThemeSpy,
   getPageById: mock(async () => null),
   getPageEditorById: getPageEditorByIdSpy,
@@ -492,7 +504,7 @@ describe("page auto-translation", () => {
       if (en) {
         en.isPublished = true;
         en.publishedDocument = en.draftDocument;
-        en.updatedAt = bump("en");
+        en.publishedAt = bump("en");
       }
       return Promise.resolve(translatedDocument);
     });
@@ -504,6 +516,41 @@ describe("page auto-translation", () => {
     expect(store.translations.en?.publishedDocument).toEqual(
       liveEnglishDocument
     );
+  });
+
+  test("a destination republished during the translation is not overwritten or republished", async () => {
+    liveInBothLocales();
+    translatePageDocumentSpy.mockImplementationOnce(() => {
+      // Unpublished and published again: still live, same draft, new publish.
+      const en = store.translations.en;
+      if (en) {
+        en.publishedAt = bump("en");
+      }
+      return Promise.resolve(translatedDocument);
+    });
+
+    await publishNorwegianWithTranslation();
+    await deferredTask?.();
+
+    expect(savePageTranslationDraftSpy).not.toHaveBeenCalled();
+    expect(operations).toEqual(["publish:no"]);
+  });
+
+  test("a destination republished between the draft save and the publish is not published again", async () => {
+    liveInBothLocales();
+    savePageTranslationDraftSpy.mockImplementationOnce(async (input) => {
+      const saved = await saveTranslation(input);
+      const en = store.translations.en;
+      if (en) {
+        en.publishedAt = bump("en");
+      }
+      return saved;
+    });
+
+    await publishNorwegianWithTranslation();
+    await deferredTask?.();
+
+    expect(operations).toEqual(["publish:no", "save:en"]);
   });
 
   test("skips the destination write when the source changes during translation", async () => {

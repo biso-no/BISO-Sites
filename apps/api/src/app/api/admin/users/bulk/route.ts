@@ -167,6 +167,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!(scope.isGlobalAdmin || scope.isCampusAdmin)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     if (
       !(
         AZURE_GRAPH_TENANT_ID &&
@@ -190,6 +194,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { users: usersToCreate } = parseResult.data;
+    const addsGroups = usersToCreate.some(
+      (user) => user.additionalGroupIds.length > 0
+    );
+    if (addsGroups && !scope.isGlobalAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const jwt = extractJwtFromRequest(request);
     const { db } = await createSessionClient(jwt);
     const { db: adminDb } = await createAdminClient();

@@ -38,10 +38,12 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { type Models, Query } from "@repo/api";
-import type {
-  PageAuthCtx,
-  PageEditorLocale,
-  PageDoc as StoredPageDoc,
+import {
+  PAGE_DRAFTS_TABLE_ID,
+  type PageAuthCtx,
+  type PageDraftRow,
+  type PageEditorLocale,
+  type PageDoc as StoredPageDoc,
 } from "@repo/api/page-builder";
 import type {
   Departments,
@@ -76,11 +78,11 @@ const PAGE_LOOKUP_LIMIT = 2;
 /** A page has one translation row per locale; this leaves room to see more. */
 const TRANSLATION_LOOKUP_LIMIT = 25;
 const PAGE_COLUMNS = ["$id", "slug", "department_id", "campus_id", "status"];
+const DRAFT_COLUMNS = ["$id", "draft_doc"];
 const TRANSLATION_COLUMNS = [
   "$id",
   "locale",
   "is_published",
-  "draft_doc",
   "published_doc",
   "title",
   "description",
@@ -344,6 +346,14 @@ async function readTranslations(
       Query.limit(TRANSLATION_LOOKUP_LIMIT),
     ]
   );
+  // Drafts live in the service-only draft table, keyed by the translation
+  // row's id.
+  const drafts = await db.listRows<PageDraftRow>("app", PAGE_DRAFTS_TABLE_ID, [
+    Query.equal("page_id", pageId),
+    Query.select(DRAFT_COLUMNS),
+    Query.limit(TRANSLATION_LOOKUP_LIMIT),
+  ]);
+  const draftById = new Map(drafts.rows.map((d) => [d.$id, d.draft_doc]));
   const translations: PageState["translations"] = {};
   const duplicates: SeedLocale[] = [];
   for (const row of found.rows) {
@@ -355,7 +365,7 @@ async function readTranslations(
     }
     translations[row.locale] = {
       description: row.description ?? null,
-      draft: row.draft_doc ?? null,
+      draft: draftById.get(row.$id) ?? null,
       isPublished: row.is_published,
       publishedHash: sha256(row.published_doc),
       publishedLength: row.published_doc?.length ?? 0,
@@ -420,16 +430,12 @@ function countBlocks(doc: PageDoc): number {
 
 /**
  * `doc` with the stored row's title and description in its meta. A draft
- * save writes the row's `title` and `description` columns from the
- * document's meta along with the draft (page-builder `writeTranslationDraft`,
- * through both `savePageDraft` and `savePageTranslationDraft`), and the public
- * page reads those two columns for its <title> and meta description whether
- * or not anything is published. Handing the stored values back leaves what
- * the live page shows exactly as it is.
- *
- * Hand-over: an ordinary draft save from the editor does change them, so
- * editing a published page's draft changes its live title and meta
- * description before anyone publishes.
+ * save writes the document and its meta title and description to the draft
+ * table (page-builder `writeTranslationDraft`, through both `savePageDraft`
+ * and `savePageTranslationDraft`) and leaves the translation row, which the
+ * public page reads for its <title> and meta description, as it is. Publishing
+ * the draft copies its title and description to that row, so the draft carries
+ * the stored values to keep what the live page shows after the publish.
  */
 function withStoredMeta(doc: PageDoc, stored: TranslationState): PageDoc {
   const { description: _seeded, ...meta } = doc.meta;

@@ -25,19 +25,27 @@ import {
   panelBusyIntervals,
   scheduleInterviewOnGraph,
 } from "@repo/connectors/azure/recruitment-scheduling";
+import { sendEmail } from "@repo/connectors/email";
 import { buildRecruitmentStaffRowPermissions } from "@repo/shared/recruitment";
+import {
+  BOOKING_LINK_UNAVAILABLE_MESSAGE,
+  isBookingLinkUsable,
+} from "@repo/shared/recruitment/booking-link";
 import { availableSlots } from "@repo/shared/recruitment/booking-slots";
 import {
   parseBookingPanel,
   type RecruitmentBookingPanelMember,
   recruitmentBookingConfirmSchema,
 } from "@repo/shared/types/recruitment";
+import { after } from "next/server";
 
 const SECRET = process.env.RECRUITMENT_BOOKING_SECRET;
 const TIMEZONE = "Europe/Oslo";
 /** A candidate may not book anything starting sooner than this. */
 const LEAD_TIME_MS = 2 * 60 * 60_000;
 const SLOT_STEP_MINUTES = 30;
+const DEFAULT_ADMIN_BASE_URL = "https://admin.biso.no";
+const TRAILING_SLASHES = /\/+$/;
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -80,6 +88,36 @@ async function loadToken(
     return { error: "This booking link has expired." };
   }
   return { record };
+}
+
+/**
+ * Loads the application and vacancy behind a token and refuses the link when
+ * the candidate is no longer in the interview stage. A closed vacancy does not
+ * matter: interviews are booked after the deadline.
+ * The refusal reads like an expired link and says nothing about the candidate.
+ */
+async function loadBookableApplication(
+  db: Db,
+  record: RecruitmentBookingTokens,
+  jobSelect: string[]
+): Promise<{ application: JobApplications; job: Jobs } | { error: string }> {
+  const application = await db.getRow<JobApplications>(
+    "app",
+    "job_applications",
+    record.application_id
+  );
+  const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
+    Query.select(jobSelect),
+  ]);
+  if (
+    !isBookingLinkUsable({
+      applicationStatus: application.status,
+      hasJob: Boolean(job),
+    })
+  ) {
+    return { error: BOOKING_LINK_UNAVAILABLE_MESSAGE };
+  }
+  return { application, job };
 }
 
 /**
@@ -140,14 +178,15 @@ export async function getBookingContext(
   }
   const { record } = loaded;
 
-  const application = await db.getRow<JobApplications>(
-    "app",
-    "job_applications",
-    record.application_id
-  );
-  const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
-    Query.select(["$id", "slug", "campus.name"]),
+  const bookable = await loadBookableApplication(db, record, [
+    "$id",
+    "slug",
+    "campus.name",
   ]);
+  if ("error" in bookable) {
+    return bookable;
+  }
+  const { application, job } = bookable;
   const { availabilityChecked, slots } = await bookingSlots(
     record,
     panelFromToken(record)
@@ -202,6 +241,92 @@ async function createParticipant(
     },
     buildRecruitmentStaffRowPermissions()
   );
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function jobTitleOf(job: Jobs): string {
+  const translations = (job as unknown as { translations?: unknown })
+    .translations;
+  if (Array.isArray(translations)) {
+    const titles = translations as { locale?: string; title?: string }[];
+    const preferred = titles.find((row) => row.locale === "no") ?? titles[0];
+    if (preferred?.title) {
+      return preferred.title;
+    }
+  }
+  return job.slug ?? "the vacancy";
+}
+
+/**
+ * Tell the person who issued the booking link that the interview was booked
+ * but no calendar invite went out, and leave an audit row. Never throws: the
+ * candidate's booking stands whether or not staff could be reached.
+ */
+async function alertInviteFailed(
+  db: Db,
+  users: { get: (args: { userId: string }) => Promise<{ email?: string }> },
+  details: {
+    candidateName: string;
+    creatorUserId: string | null;
+    interviewId: string;
+    job: Jobs;
+    startsAt: string;
+  }
+): Promise<void> {
+  const { candidateName, creatorUserId, interviewId, job, startsAt } = details;
+  const jobTitle = jobTitleOf(job);
+  const when = new Intl.DateTimeFormat("nb-NO", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: TIMEZONE,
+  }).format(new Date(startsAt));
+  const baseUrl = (
+    process.env.ADMIN_BASE_URL ?? DEFAULT_ADMIN_BASE_URL
+  ).replace(TRAILING_SLASHES, "");
+  const link = `${baseUrl}/jobs/${job.$id}/applications`;
+
+  let notified = false;
+  try {
+    if (!creatorUserId) {
+      throw new Error("The booking link has no owner to notify.");
+    }
+    const { email } = await users.get({ userId: creatorUserId });
+    if (!email) {
+      throw new Error("The booking link's owner has no email address.");
+    }
+    await sendEmail({
+      html: `<p>${escapeHtml(candidateName)} booked an interview for ${escapeHtml(jobTitle)} on ${escapeHtml(when)}, but the calendar invite could not be sent.</p><p>Please send the invite manually or contact the candidate.</p><p><a href="${escapeHtml(link)}">Open the applications</a></p>`,
+      subject: `Interview invite not sent: ${candidateName}`,
+      text: `${candidateName} booked an interview for ${jobTitle} on ${when}, but the calendar invite could not be sent.\n\nPlease send the invite manually or contact the candidate.\n\n${link}`,
+      to: email,
+    });
+    notified = true;
+  } catch (error) {
+    console.error(
+      "[Booking] Could not alert staff about a failed invite:",
+      error
+    );
+  }
+
+  try {
+    await db.createRow("app", "audit_logs", ID.unique(), {
+      action: "recruitment.booking.invite_failed",
+      actor_email: null,
+      actor_id: "system:booking",
+      payload: JSON.stringify({ notified, starts_at: startsAt }),
+      resource_id: interviewId,
+      resource_type: "job_interview",
+    });
+  } catch (error) {
+    console.error("[Booking] Audit write failed for a failed invite:", error);
+  }
 }
 
 /**
@@ -273,13 +398,28 @@ export async function confirmBookingSlot(
     return { error: "Invalid booking parameters." };
   }
 
-  const { db } = await createAdminClient();
+  const { db, users } = await createAdminClient();
   const loaded = await loadToken(db, token);
   if ("error" in loaded) {
     return loaded;
   }
   const { record } = loaded;
   const panel = panelFromToken(record);
+
+  const bookable = await loadBookableApplication(db, record, [
+    "$id",
+    "campus_id",
+    "department_id",
+    "campus.name",
+    "department.$id",
+    "slug",
+    "translations.title",
+    "translations.locale",
+  ]);
+  if ("error" in bookable) {
+    return bookable;
+  }
+  const { application, job } = bookable;
 
   // The length comes from the token: the browser never decides it.
   const start = new Date(parsed.data.starts_at);
@@ -363,21 +503,6 @@ export async function confirmBookingSlot(
       }
     }
 
-    const application = await db.getRow<JobApplications>(
-      "app",
-      "job_applications",
-      record.application_id
-    );
-    const job = await db.getRow<Jobs>("app", "jobs", application.job_id, [
-      Query.select([
-        "$id",
-        "campus_id",
-        "department_id",
-        "campus.name",
-        "department.$id",
-      ]),
-    ]);
-
     const typedJob = job as unknown as {
       campus_id: string;
       department_id: string | null;
@@ -440,13 +565,26 @@ export async function confirmBookingSlot(
       application.applicant_email,
       panel
     );
-
     await db.updateRow<RecruitmentBookingTokens>(
       "app",
       "recruitment_booking_tokens",
       record.$id,
       { consumed_at: new Date().toISOString(), interview_id: interview.$id }
     );
+
+    // After the response, so a slow mail relay never holds up the candidate
+    // or the token update above.
+    if (!invited) {
+      after(() =>
+        alertInviteFailed(db, users, {
+          candidateName: application.applicant_name,
+          creatorUserId: record.created_by_user_id ?? null,
+          interviewId: interview.$id,
+          job,
+          startsAt: start.toISOString(),
+        })
+      );
+    }
 
     return {
       data: {
