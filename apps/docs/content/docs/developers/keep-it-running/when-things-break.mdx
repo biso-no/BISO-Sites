@@ -106,7 +106,7 @@ The page is misleading. The person is signed in, but no campus or department tea
 1. In Microsoft Entra, or on the admin's **IT** page, check that the person is in the right `SG-App-*` groups. [Getting access](/developers/start-here/getting-access#microsoft-account) lists which groups give which role.
 2. In the admin's logs, look for `M365 Sync Failed:` at the time they signed in. Each sign-in copies the person's groups to their Appwrite teams and saved list. If that fails, they're signed in with what they had before, or partly updated. The error after it includes Microsoft Graph's answer.
 3. In the Appwrite console, open the user and check their `sg-app-*` team memberships.
-4. In the `m365_team_sync` table, open the row whose id is the user's id. Its `team_ids` must hold the same `sg-app-*` ids. With no row, the person has no role at all.
+4. In the `m365_team_sync` table, open the row whose id is the user's id. Its `team_ids` must hold the same `sg-app-*` ids. With no row, the person has no team role.
 
 **Fix**
 

@@ -107,7 +107,7 @@ A job in `m365_turnover_jobs` has one of these states:
 
 New board members who need admin roles get `SG-App-*` groups from a global admin on the admin's **IT** page. A campus admin can also create new accounts there for their own campus. [Getting access](/developers/start-here/getting-access#microsoft-account) shows which groups give which role. A change takes effect at the person's next sign-in.
 
-Once the groups are right in Microsoft, you can bring every saved team list in line at once with `bun run backfill:m365-team-sync` in `packages/shared`: a dry run first, then `-- --apply` ([The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list)).
+Once the groups are right in Microsoft, you can bring every saved team list in line at once with `bun run backfill:m365-team-sync` in `packages/shared`: a dry run first, then `-- --apply` ([The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list)). It takes removed roles away at once. It doesn't add team memberships, so new board members still get their roles at their next sign-in.
 
 For everyone who leaves, follow [When the work ends](/developers/start-here/getting-access#when-the-work-ends). In short:
 

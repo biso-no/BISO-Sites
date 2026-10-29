@@ -81,7 +81,7 @@ The admin has no sign-in link by email. `apps/admin/CLAUDE.md` still describes `
 
 `getUserAuthContext()` in `apps/admin/src/lib/authorization.ts` works out every role. It runs with the person's own session and reads their account and up to 200 of their teams. With the service key, it also reads their row in `m365_team_sync`. Then:
 
-1. `keepSyncedTeams()` drops every team whose id starts with `sg-app-`, unless that id is in the person's saved list. Other teams, such as `docs-handover`, pass through. With no row, every `sg-app-*` team is dropped.
+1. `keepSyncedTeams()` drops every team whose id starts with `sg-app-`, unless that id is in the person's saved list. Other teams, such as `docs-handover`, pass through. With no row, every `sg-app-*` team is dropped. So a person with no row has no team role, and the admin shows them the 401 page unless they're a benefits editor, until they sign in with Microsoft again or `backfill:m365-team-sync` writes their row.
 2. `rolesFromTeams()` works out the roles from the ids that are left. It never reads a team's name to give a role.
 
 Both functions are in `packages/shared/utils/team-roles.ts`, and the API uses the same two ([The API](#the-api)). `parseTeamMemberships()` in `apps/admin/src/lib/authorization-team-memberships.ts` turns the result into the admin's role names from `apps/admin/src/lib/roles.ts`.
@@ -110,9 +110,9 @@ If Appwrite is down or times out, `getUserAuthContext()` throws, and the person 
 
 ### The saved team list
 
-Each row in `m365_team_sync` belongs to one person. Its row id is their Appwrite user id, `team_ids` holds the team ids their Microsoft groups gave at their last sign-in, and `synced_at` holds the time. The table and its rows have no permissions, so only the service key can read or write them.
+Each row in `m365_team_sync` belongs to one person. Its row id is their Appwrite user id, `team_ids` holds the team ids their Microsoft groups gave at their last sign-in or the last backfill, and `synced_at` holds the time. The table and its rows have no permissions, so only the service key can read or write them.
 
-A team counts towards a role only when the person is a member and its id is in their list. So a membership that the sync didn't create from the person's own groups gives no role. That covers a team made by hand, and a member added by hand in the console.
+A team counts towards a role only when the person is a member and its id is in their list, and only the person's own Microsoft groups put an id in their list. So a team or a membership added by hand gives no role unless the person is in the matching group.
 
 The sync writes the row at each Microsoft sign-in. To write rows for people who already have Microsoft identities, without waiting for them to sign in, run the backfill from `packages/shared`:
 
@@ -127,10 +127,11 @@ bun run backfill:m365-team-sync -- --apply   # writes the rows
 - A person whose groups can't be read is listed as an error and skipped. The script then exits with `1`.
 - If nobody it scanned maps to any `SG-App-*` team, it writes nothing and exits with `1`. That almost always means the Graph app can't read group names.
 - It's safe to run again: it only writes rows that differ.
+- It writes only the saved list. It never adds or removes team memberships, so it can take a role away at once, but a person added to a new group still needs to sign in before they get its role.
 
 In a new or rebuilt project, push the table and run the backfill before you deploy the admin and the API. Otherwise every admin has no role until they sign in with Microsoft again.
 
-Every team id the code trusts must exist in production, with no owner and no members outside its Microsoft group. "Owner actions" in `apps/docs/CLAUDE.md` lists the ids and how to check them.
+Docs doesn't check the saved list ([These docs](#these-docs)), so every team id docs trusts must exist in production, with no owner and no members outside its Microsoft group. "Owner actions" in `apps/docs/CLAUDE.md` lists the ids and how to check them.
 
 ### Microsoft accounts on the IT page
 
@@ -210,6 +211,7 @@ The API's admin routes, under `apps/api/src/app/api/admin/`, work out roles with
 | `POST /api/admin/users` and `POST /api/admin/users/bulk` | A campus admin, for a campus they manage, or a global admin. Adding extra group ids needs a global admin. |
 | `POST /api/admin/account-turnover` and `/bulk` | Global admins only |
 | `GET /api/admin/users`, `/campuses` and `/departments` | Any signed-in caller, limited to the campuses they manage |
+| `GET /api/admin/admin-groups` | Any signed-in caller. It lists security groups from Graph for the caller, leaving out the `SG-App-Campus-*` and `SG-App-Dept-*` ones. |
 
 Nothing in the website or the admin calls these routes.
 
