@@ -8,10 +8,11 @@
  * carry `read("any")` like every other published product.
  *
  * THIS IS NOT URGENT, and running it will not change anything a visitor can
- * see. Both tables still carry a table-level `read("any")`, and Appwrite's row
- * security is additive — a row is readable if the table grants it OR the row
- * does — so the stale ACLs are inert today. This is insurance for the day the
- * table-level grants are removed (`packages/api/content-permission-cutover.ts`),
+ * see. `webshop_products` still carries a table-level `read("any")` (translation
+ * rows carry their own read, see `translationReadPermissions`), and Appwrite's
+ * row security is additive — a row is readable if the table grants it OR the
+ * row does — so the stale ACLs are inert today. This is insurance for the day
+ * the table-level grant is removed (`packages/api/content-permission-cutover.ts`),
  * at which point those rows would abruptly become members-only for real and
  * every members-only product would vanish from the shop.
  *

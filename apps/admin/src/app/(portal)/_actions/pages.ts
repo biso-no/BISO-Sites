@@ -512,8 +512,20 @@ export type PublishPageResult =
       translationQueued: boolean;
     };
 
-/** publishPage's message for a language with no translation row. */
+/**
+ * publishPage's messages for a language with no translation row, and for one
+ * whose row holds neither a draft nor a published document.
+ */
 const NO_TRANSLATION_TO_PUBLISH = "No translation found to publish";
+const NOTHING_TO_PUBLISH_PREFIX = "Nothing to publish";
+
+function isNotPublishable(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === NO_TRANSLATION_TO_PUBLISH ||
+      error.message.startsWith(NOTHING_TO_PUBLISH_PREFIX))
+  );
+}
 
 export async function publishPageAction(
   id: string,
@@ -556,7 +568,7 @@ export async function publishPageAction(
       await pbPublishPage({ id, locale: publishedLocale });
     } catch (e) {
       // Thrown before anything was written.
-      if (e instanceof Error && e.message === NO_TRANSLATION_TO_PUBLISH) {
+      if (isNotPublishable(e)) {
         return { missingTranslation: true };
       }
       throw e;

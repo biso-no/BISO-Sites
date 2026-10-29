@@ -124,7 +124,13 @@ handler. Any new top-level route segment must add its own auth check.
 - **Translations data model**: most content tables have `translation_refs` →
   `content_translations` (or `page_translations` for pages). Building permission
   strings for translation rows goes through
-  `buildContentTranslationPermissions()` in `lib/utils.ts`.
+  `buildContentTranslationPermissions()` in `lib/utils.ts`. Translation rows
+  carry their own read by content type and parent status
+  (`translationReadPermissions` in `@repo/shared/utils/content-read-permissions`).
+  Any path that publishes or unpublishes a parent must restamp its translations
+  (`restampTranslationReads` in `apps/admin/src/lib/content-translation-reads.ts`).
+  Page drafts live in the service-only `page_drafts` table; never write draft
+  data to `page_translations`.
 - **Content scoping**: every content list action filters by `campus_id` based on
   the auth context — see `listPages` in `_actions/pages.ts` for the canonical
   pattern. New list actions must follow it or risk leaking data across campuses.

@@ -95,7 +95,11 @@ import {
   publishBenefitContent,
   withoutBenefitCode,
 } from "@/lib/assistant-publish";
-import { publishAssistantStatusContent } from "@/lib/assistant-status-publish";
+import {
+  type AssistantPublishResult,
+  authorisePublishRow,
+  publishAssistantStatusContent,
+} from "@/lib/assistant-status-publish";
 import type { UserAuthContext } from "@/lib/authorization";
 import { CAMPUS_ID_TO_NAME } from "@/lib/campus-constants";
 import { checkIntegrationHealth } from "@/lib/integration-health";
@@ -361,9 +365,9 @@ async function publishStatusDomain(
   domain: string,
   table: string,
   id: string
-): Promise<void> {
+): Promise<AssistantPublishResult | undefined> {
   const { db: sessionDb } = await createSessionClient();
-  await publishAssistantStatusContent(domain, table, id, {
+  return await publishAssistantStatusContent(domain, table, id, {
     getAdminDb: async () => (await createAdminClient()).db,
     publishPage: publishPageAction,
     sessionDb,
@@ -596,8 +600,10 @@ function buildDeps(
         throw new Error(`Publish not supported for domain: ${domain}`);
       }
       const { db } = await createSessionClient();
-      const row = await db.getRow<GenericRow>("app", table, id);
-      assertPublishAccess(ctx, getStringValue(row.campus_id));
+      await authorisePublishRow(domain, {
+        readRow: () => db.getRow<GenericRow>("app", table, id),
+        assertAccess: (campusId) => assertPublishAccess(ctx, campusId),
+      });
       if (domain === "shop") {
         // Same gate and the same admin-client requirement as
         // `publishCreatedContent` above — only after `assertPublishAccess`
@@ -606,8 +612,8 @@ function buildDeps(
         await publishBookableProduct(adminDb, id);
         return { data: id };
       }
-      await publishStatusDomain(domain, table, id);
-      return { data: id };
+      const published = await publishStatusDomain(domain, table, id);
+      return published ? { data: id, ...published } : { data: id };
     },
 
     // -------------------------------------------------------------------------

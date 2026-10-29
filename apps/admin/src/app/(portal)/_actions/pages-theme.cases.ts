@@ -741,6 +741,16 @@ describe("publishing a language that has no stored draft", () => {
     expect(store.pages.get("page-a")?.translations.en).toBeUndefined();
   });
 
+  test("an empty language answers missingTranslation too, and writes nothing", async () => {
+    publishPage.mockImplementationOnce(() =>
+      Promise.reject(new Error("Nothing to publish for en"))
+    );
+    logAuditEvent.mockClear();
+    const result = await publishPageAction("page-a", "en");
+    expect(result).toEqual({ missingTranslation: true });
+    expect(logAuditEvent).not.toHaveBeenCalled();
+  });
+
   test("other publish failures still throw", async () => {
     publishPage.mockImplementationOnce(() =>
       Promise.reject(new Error("appwrite blip"))
