@@ -6,13 +6,14 @@ with its private details, and the docs assistant. Work top to bottom. Each
 step assumes the ones above it are done. Tick a step only when its "Done when"
 holds.
 
-Nothing here has been run against production yet. This repo is public, so
-never write a value from these steps into it.
+Section 1 is done. Nothing below it has been run against production yet. This
+repo is public, so never write a value from these steps into it.
 
 ## 1. Before go-live: security fixes
 
-- [ ] **Fix every item tagged "[Before go-live]" in the private issues list.**
-  Done when: each of them is fixed on `main` and live in production.
+- [x] **Fix every item tagged "[Before go-live]" in the private issues list.**
+  Done on 29 October 2026: each of them is fixed on `main` and live in
+  production.
 
 ## 2. Microsoft and Appwrite teams
 
@@ -36,7 +37,10 @@ view for these checks: it lowercases ids.
 - [ ] **Remove stray members.** In the 10 teams, a stray member is anyone who
   isn't in the matching `SG-App-*` group in Microsoft Entra. In
   `docs-handover`, it's anyone who shouldn't have docs access. The M365 sync
-  never removes them for you.
+  never removes them for you. The admin and the API ignore a stray member,
+  because they also check the person's saved team list (`m365_team_sync`).
+  Docs trusts membership in the fixed team ids alone, without that list, so
+  this step is what keeps a stray member away from the private values.
   Done when: every member of the 10 teams is in the matching Entra group, and
   `docs-handover` holds only people you added.
 
@@ -113,7 +117,9 @@ shell with only the `DOCS_*` variables set.
   `bun run screenshots:schema`, then `appwrite push tables --all` from the
   folder it prints (README step 2). Never push from `packages/api`.
   Done when: the CLI named the docs project before you confirmed, and the docs
-  project has the tables.
+  project has the tables, including `m365_team_sync` and `page_drafts`. Check
+  in the console that both exist. If you pushed before they were added, push
+  again.
 - [ ] **Create the API key** in the docs project with the scopes in README
   step 3.
   Done when: it's set as `DOCS_APPWRITE_API_KEY`.
@@ -136,14 +142,19 @@ shell with only the `DOCS_*` variables set.
 ## 6. Merge to main
 
 The Sites build the latest commit on `main`. The admin's half of docs sign-in
-(`NEXT_PUBLIC_DOCS_URL`) is only on this branch until it merges.
+(`NEXT_PUBLIC_DOCS_URL`) is only on this branch until it merges. `main` was
+merged into this branch at `0d7d032a` on 29 October 2026. If `main` has moved
+since, merge it into the branch again first.
 
 - [ ] **Merge `feat/docs-rework` into `main`**, then run
   [Before you deploy](content/docs/developers/keep-it-running/deploying.mdx#before-you-deploy)
   on `main`.
+  In `apps/admin`, also run `bun test src/lib/utils.test.ts`: the redirect
+  test must pass after the merge, because `sanitizeRedirectTarget` conflicted
+  last time.
   Done when: `bun run check-types`, `bun run test --filter=docs`,
-  `bun run build --filter=docs` and `bun run build --filter=admin` pass on
-  `main`.
+  `bun run build --filter=docs`, `bun run build --filter=admin` and the
+  redirect test pass on `main`.
 - [ ] **Run the [leak check](CLAUDE.md#leak-check)** on `main`, from
   `apps/docs`: `bun run check:private-leaks`. It deletes and rebuilds
   `apps/docs/.next`, so stop any docs dev server in that checkout first.

@@ -137,7 +137,8 @@ export type SeedTableId =
   | "job_interview_participants"
   | "job_interview_scorecards"
   | "tour_progress"
-  | "m365_team_sync";
+  | "m365_team_sync"
+  | "page_drafts";
 
 export interface SeedRow {
   data: Record<string, unknown>;
@@ -1436,19 +1437,36 @@ function pageRow(input: {
   slug: string;
   status: PagesStatus.DRAFT | PagesStatus.PUBLISHED;
   text: Record<"en" | "no", PageText>;
-}): SeedRow {
+}): SeedRow[] {
   const published = input.status === PagesStatus.PUBLISHED;
+  const drafts: SeedRow[] = [];
   const permissions = contentPermissions(input.status);
   const translation = (
     locale: PageTranslationsLocale,
     text: PageText
   ): PageTranslationInput => {
     const document = pageDocument(text, input.slug, input.status);
+    const translationId = `docs-tr-${input.id}-${locale}`;
+    // The editor reads a draft from `page_drafts`, in the row whose id is the
+    // translation's id. The translation row keeps only what is live.
+    drafts.push(
+      row(
+        "page_drafts",
+        translationId,
+        {
+          description: text.description,
+          draft_doc: document,
+          locale,
+          page_id: input.id,
+          title: text.title,
+        },
+        []
+      )
+    );
     return {
-      $id: `docs-tr-${input.id}-${locale}`,
+      $id: translationId,
       $permissions: permissions,
       description: text.description,
-      draft_doc: document,
       is_published: published,
       locale,
       page_id: input.id,
@@ -1470,12 +1488,12 @@ function pageRow(input: {
     ],
     visibility: PagesVisibility.PUBLIC,
   };
-  return row("pages", input.id, data, permissions);
+  return [row("pages", input.id, data, permissions), ...drafts];
 }
 
 function pageRows(): SeedRow[] {
   return [
-    pageRow({
+    ...pageRow({
       day: 3,
       id: PUBLISHED_PAGE_ID,
       slug: "volunteer-guide",
@@ -1493,7 +1511,7 @@ function pageRows(): SeedRow[] {
         },
       },
     }),
-    pageRow({
+    ...pageRow({
       day: 6,
       id: DRAFT_PAGE_ID,
       slug: "spring-social",

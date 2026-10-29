@@ -6,7 +6,7 @@ appears in them, and no Microsoft sign-in is needed.
 
 | File | What it does |
 |------|--------------|
-| `seed-data.ts` | The made-up data: one campus (Oslo), the HR and Demo Events departments, six staff users, two vacancies, eight applicants across every status, two interviews and one scorecard. It also holds one published and one draft page and news item, two events (one members-only, with three RSVPs), two products (one published, one draft), a paid and a refunded order, three roster members, one benefit with its partner and an invented code (`DEMO10`, kept in the private codes table), one sent announcement and two Varsling contacts. Every email ends in `@example.org`. |
+| `seed-data.ts` | The made-up data: one campus (Oslo), the HR and Demo Events departments, six staff users, two vacancies, eight applicants across every status, two interviews and one scorecard. It also holds one published and one draft page (with their drafts) and news item, two events (one members-only, with three RSVPs), two products (one published, one draft), a paid and a refunded order, three roster members, one benefit with its partner and an invented code (`DEMO10`, kept in the private codes table), one sent announcement and two Varsling contacts. Every email ends in `@example.org`. |
 | `schema.ts` | Writes a tables-only copy of the schema with the docs project's id, for the Appwrite CLI to push. |
 | `seed.ts` | Writes the seed to the docs project: users, teams, memberships and rows. Safe to run again. |
 | `manifest.ts` | The shots: admin route, the guide page, the step it follows, size and caption. |
@@ -169,7 +169,10 @@ not one set up for an app.
   `sg-app-campus-national`, `sg-app-dept-hr`, `sg-app-dept-operationsunit`,
   `sg-app-dept-demoevents` and `sg-app-dept-ledelsenoslo`, each user's memberships (it removes any other
   role-team membership a seeded user has), and the rows in `seed-data.ts`,
-  including one `m365_team_sync` row per staff user.
+  including one `m365_team_sync` row per staff user and one `page_drafts` row per
+  page translation (the editor's draft, as the admin saves it). Rows are
+  upserted, never deleted, so an old `m365_team_sync` row is replaced when a
+  user's teams change.
 - `capture.ts`: each signed-in user's language preference, one session per
   role (deleted at the end), and the PNG files in the screenshot folder. The
   seed marks the recruitment tour as dismissed. If the tour opens anyway,

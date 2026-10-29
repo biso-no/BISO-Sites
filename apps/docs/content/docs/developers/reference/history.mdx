@@ -79,7 +79,7 @@ The app is in a separate repository, BISO-Flutter, and its history isn't covered
 
 ## What the history explains
 
-- **Puck is gone**, but the `puck_document` and `draft_document` columns are still in the schema, next to the older `draft_doc`. Pages now keep their drafts in `page_drafts` and the live page in `published_doc`.
+- **Puck is gone**, but the `puck_document` and `draft_document` columns are still in the schema, and so is `draft_doc`, which `page_drafts` replaced. Pages now keep their drafts in `page_drafts` and the live page in `published_doc`.
 - **The WordPress era** left `packages/wp-import`, three api routes that still read `biso.no/wp-json`, and the WooCommerce variables. See [Events and content sources](/developers/reference/events-and-content-sources#wordpress-and-woocommerce).
 - **The deleted deploy workflow** can still be read with `git show 3872261c^:.github/workflows/deploy-production.yml`, and the GitHub variables it used may still exist. See [What a deploy workflow needs](/developers/keep-it-running/deploying#what-a-deploy-workflow-needs).
 - **The move from OpenAI to Anthropic** is recent, so some code, tests and READMEs still mention OpenAI. See [Leftovers](/developers/reference/ai#leftovers).

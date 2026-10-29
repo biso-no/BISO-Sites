@@ -548,7 +548,16 @@ test("holds one published and one draft page, and one of each news item", () => 
       expect(translation.is_published).toBe(
         row.data.status === PagesStatus.PUBLISHED
       );
-      const doc = JSON.parse(translation.draft_doc as string) as {
+      expect(translation.draft_doc ?? null).toBeNull();
+      const draft = rowsOf("page_drafts").find(
+        (entry) => entry.rowId === translation.$id
+      );
+      expect(draft?.permissions).toEqual([]);
+      expect(draft?.data.page_id).toBe(row.rowId);
+      expect(draft?.data.locale).toBe(translation.locale);
+      expect(draft?.data.title).toBe(translation.title);
+      expect(draft?.data.description).toBe(translation.description);
+      const doc = JSON.parse(draft?.data.draft_doc as string) as {
         meta: { slug: string; status: string };
         version: number;
       };

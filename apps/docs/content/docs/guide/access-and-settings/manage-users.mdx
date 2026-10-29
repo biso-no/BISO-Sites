@@ -14,6 +14,8 @@ covers:
   - apps/admin/src/app/(portal)/_actions/it-users.ts
   - apps/admin/src/lib/it/graph.ts
   - apps/admin/src/lib/it/tenant-guard.ts
+  - apps/admin/src/lib/it/turnover-target.ts
+  - apps/admin/src/app/(portal)/it/users/_components/turnover-gate.ts
   - apps/admin/src/lib/it/m365-config.ts
   - apps/admin/src/lib/it-permission-rules.ts
   - apps/admin/src/lib/it-permissions.ts
@@ -149,7 +151,7 @@ The top of the same box has **Start overgang** (Trigger turnover), on accounts w
 ## Common mistakes
 
 - Choosing **Opprett bruker** (Create user) a second time after the account was made. The form keeps your input, and a second try fails because the address is taken. Go **Back** to the list instead.
-- Choosing the department before the campus. Choose **Campus** first, then check **Avdeling** (Department) again before you create the account.
+- Choosing the department before the campus. Choose **Campus** first, then check **Avdeling** (Department) again before you create the account. Campus leaders can't change it afterwards; ask a global admin.
 - Closing the page before copying a temporary password. It isn't shown again. Choose **Generer midlertidig passord** (Generate temporary password) to make a new one.
 - Retrying after **Manual cleanup is required before retrying**. The account already exists. Ask the developers to finish it.
 - Expecting a group change to show up in the admin at once. The person must sign out and sign in again.
