@@ -123,3 +123,35 @@ describe("app versions table", () => {
     expect(table?.$permissions.join(" ")).not.toContain('read("any")');
   });
 });
+
+describe("content tables are readable only through row permissions", () => {
+  const CONTENT_TABLES = [
+    "campus_benefits",
+    "pages",
+    "page_translations",
+    "events",
+  ] as const;
+
+  function findContentTable(tableId: string) {
+    return loadAppwriteConfig().tables.find(
+      (candidate) => candidate.databaseId === "app" && candidate.$id === tableId
+    );
+  }
+
+  test("row security is on and no table-level read grant remains", () => {
+    for (const tableId of CONTENT_TABLES) {
+      const table = findContentTable(tableId);
+
+      expect(table, tableId).toBeDefined();
+      expect(table?.rowSecurity, tableId).toBe(true);
+      const readGrants = (table?.$permissions ?? []).filter((permission) =>
+        permission.startsWith("read(")
+      );
+      expect(readGrants, tableId).toEqual([]);
+    }
+  });
+
+  test("campus_benefits has no table-level permissions", () => {
+    expect(findContentTable("campus_benefits")?.$permissions).toEqual([]);
+  });
+});

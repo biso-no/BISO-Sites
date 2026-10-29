@@ -2638,9 +2638,7 @@
         },
         {
             "$id": "campus_benefits",
-            "$permissions": [
-                "read(\"any\")"
-            ],
+            "$permissions": [],
             "databaseId": "app",
             "name": "Campus Benefits",
             "enabled": true,
@@ -4160,7 +4158,6 @@
         {
             "$id": "page_translations",
             "$permissions": [
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
@@ -4170,7 +4167,7 @@
             "databaseId": "app",
             "name": "Page translations",
             "enabled": true,
-            "rowSecurity": false,
+            "rowSecurity": true,
             "columns": [
                 {
                     "key": "page_id",
@@ -6151,7 +6148,6 @@
         {
             "$id": "events",
             "$permissions": [
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
@@ -8320,7 +8316,6 @@
         {
             "$id": "pages",
             "$permissions": [
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
@@ -8330,7 +8325,7 @@
             "databaseId": "app",
             "name": "Pages",
             "enabled": true,
-            "rowSecurity": false,
+            "rowSecurity": true,
             "columns": [
                 {
                     "key": "status",

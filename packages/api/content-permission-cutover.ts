@@ -4,6 +4,9 @@
  * on individual rows (`read("any")` / member-team reads on published rows) and
  * authoring goes through the admin client behind application authorization.
  *
+ * Tables whose row security is off are refused: clearing their table
+ * permissions would leave every row unreadable, so they are reported as errors.
+ *
  * MUST NOT run before the admin build that authors through the admin client is
  * deployed — old session-client writes would stop working. The CLI wrapper is
  * dry-run by default for that reason.
@@ -65,6 +68,13 @@ export async function cutoverContentPermissions(
   for (const tableId of GENERAL_CONTENT_TABLES) {
     try {
       const table = await db.getTable({ databaseId: DATABASE_ID, tableId });
+      if (!table.rowSecurity) {
+        report.errors.push({
+          message: `Refusing to clear ${tableId}: row security is off, so rows would become unreadable`,
+          tableId,
+        });
+        continue;
+      }
       if (table.$permissions.length === 0) {
         report.unchanged.push(tableId);
         continue;

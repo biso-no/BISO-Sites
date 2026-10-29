@@ -113,4 +113,28 @@ describe("cutoverContentPermissions", () => {
     ]);
     expect(report.unchanged).toHaveLength(GENERAL_CONTENT_TABLES.length - 1);
   });
+
+  it("refuses a table whose row security is off", async () => {
+    db.getTable.mockImplementation(
+      async ({ tableId }: { tableId: string }) => ({
+        $id: tableId,
+        $permissions: ['read("any")'],
+        enabled: true,
+        name: `Table ${tableId}`,
+        rowSecurity: tableId !== "pages",
+      })
+    );
+
+    const report = await cutoverContentPermissions(db, { apply: true });
+
+    const touched = db.updateTable.mock.calls.map(
+      (call) => (call[0] as { tableId: string }).tableId
+    );
+    expect(touched).not.toContain("pages");
+    expect(touched).toHaveLength(GENERAL_CONTENT_TABLES.length - 1);
+    expect(report.errors).toHaveLength(1);
+    expect(report.errors[0]?.tableId).toBe("pages");
+    expect(report.errors[0]?.message).toContain("row security");
+    expect(report.changed.map((entry) => entry.tableId)).not.toContain("pages");
+  });
 });
