@@ -20,6 +20,7 @@ covers:
   - packages/shared/utils/content-notifications.ts
   - packages/connectors/src/azure/recruitment-scheduling.ts
   - packages/i18n/messages/*/applications.json
+  - packages/i18n/messages/*/adminPortal.json
   - apps/web/src/app/(public)/jobs/**
   - apps/web/src/app/(public)/recruitment/**
   - apps/web/src/app/(protected)/applications/**
@@ -40,7 +41,7 @@ The jobs list is in Norwegian unless your account is set to English. The vacancy
 - Global admins (National + Operations Unit) manage recruitment on every campus too.
 - Vacancies on the National campus are for National HR and global admins. Campus HR members can't open them.
 
-Nobody else has access. Campus admins (campus leaders) and members of other departments don't see **Stillinger** (Jobs) in the sidebar, and a link to a recruitment page shows them a page-not-found error. They don't see vacancies anywhere else either: **Gjennomgå utkast** (Review Drafts) and the overview leave vacancies out for them, and the BISO Assistant works with vacancies only for HR and global admins. If you're in HR and can't see **Stillinger** (Jobs), ask IT to check your groups.
+Nobody else has access. Campus admins (campus leaders) and members of other departments don't see **Stillinger** (Jobs) in the sidebar, and a link to a recruitment page shows them a page-not-found error. **Gjennomgå utkast** (Review Drafts) and the overview leave vacancies out for them, and the BISO Assistant works with vacancies only for HR and global admins. If you're in HR and can't see **Stillinger** (Jobs), ask IT to check your groups.
 
 ## The round from start to finish
 
@@ -90,8 +91,8 @@ The app uses the same names, except **Sendt** (Submitted) for **Applied** and **
 - Removes the vacancy from biso.no and the app when the deadline passes, and refuses new applications. The deadline is the end of the day you pick, Oslo time.
 - Screens each new application with AI, once, when auto-screen is on. Before the AI reads it, the candidate's name is replaced with a label and their contact details are removed. If a candidate's match score shows "—" (tooltip: *Not screened*), that application has no screening, and there's no way to run it. Turning auto-screen on later doesn't screen the applications you already have. If auto-screen is on and every new application shows "—", tell IT.
 - Sends calendar invites when you schedule an interview in the dialog. The candidate and the panel get an Outlook invite with a Teams meeting when the location is Teams or Hybrid. The invite comes from the mailbox of the first selected person in the panel list. The candidate also moves to **Interview**. If the admin can't reach Outlook, the interview is still saved and a warning tells you that no invite was sent. The interview then shows **Invitasjon ikke sendt** (Invite not sent) on the **Interviews** tab. Send the time to the candidate and the panel yourself.
-- Sends the same kind of invite, with a Teams meeting, when a candidate books a time through a booking link. If the invite can't be sent, the booking is still saved, the link is used up, and the candidate is told **BISO-teamet sender deg møtedetaljene på e-post.** (The BISO team will send you the meeting details by email.) The interview then shows **Invitasjon ikke sendt** (Invite not sent) on the **Interviews** tab, and the person who made the link is sent an email about it.
-- Stops a booking link when the candidate leaves **Interview**, when you make a new link for the same candidate, or when you revoke it.
+- Sends the same kind of invite, with a Teams meeting, when a candidate books a time through a booking link. If the invite can't be sent, the booking is still saved, the link is used up, and the candidate is told **BISO-teamet sender deg møtedetaljene på e-post.** (The BISO team will send you the meeting details by email.) The interview then shows **Invitasjon ikke sendt** (Invite not sent) on the **Interviews** tab, and the person who made the link should also get an email about it.
+- Stops a booking link when you make a new link for the same candidate or revoke it. A link also doesn't work while the candidate is out of **Interview**.
 - Shows each applicant their current status on biso.no and in the app.
 - Deletes applications when their storage time ends.
 
@@ -100,7 +101,7 @@ The app uses the same names, except **Sendt** (Submitted) for **Applied** and **
 - Check for new applications. Nothing tells you when one arrives: there's no email, and nothing shows in the notification bell.
 - Write every email to applicants. The system sends none when someone applies or when you change a status. The admin can draft an email with AI when you click to ask for one, and you copy it and send it from your own email. The AI never sees the candidate's name or contact details. It gets a label in place of the name, and the admin puts the candidate's first name back into the draft.
 - Move each candidate from status to status. The only move the system makes is to **Interview**, when you schedule an interview in the dialog. AI screening never moves anyone.
-- Send booking links. You create the link on the **Interviews** tab, copy it and send it to the candidate yourself. Only candidates already in **Interview** can get one, so move the candidate there first. A booking through the link doesn't change the status. If you move the candidate out of **Interview**, their link stops working.
+- Send booking links. You create the link on the **Interviews** tab, copy it and send it to the candidate yourself. Only candidates already in **Interview** can get one, so move the candidate there first. A booking through the link doesn't change the status. Their link doesn't work while the candidate is out of **Interview**. If you move them back, revoke the old link or make a new one.
 - Send the time and a meeting link yourself when an interview shows **Invitasjon ikke sendt** (Invite not sent) under **Scheduled & proposed** on the **Interviews** tab.
 - After each interview, move the candidate on to **Offer** or **Archived**, or back to **Shortlist**.
 - Archive several candidates at once with **Arkiver** (Archive) in the bar that appears when you tick them. It moves them at once, then offers to draft their emails. **Lag utkast til invitasjoner** (Draft invite emails) in the same bar only drafts emails. It books no interviews.
