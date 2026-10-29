@@ -48,6 +48,9 @@ const db = new TablesDB(client);
 const report = await migratePageDrafts(db, { apply });
 
 const verb = apply ? "" : "would be ";
+if (apply && report.scanFailed) {
+  console.error("A scan failed, so nothing was written.");
+}
 console.log(`page_translations scanned: ${report.scanned}`);
 console.log(`Draft rows ${verb}created: ${report.created.length}`);
 for (const id of report.created) {
@@ -61,10 +64,10 @@ console.log(`Titles ${verb}restored: ${report.restoredTitles.length}`);
 for (const id of report.restoredTitles) {
   console.log(`  restored title/description ${id}`);
 }
+for (const entry of report.skipped) {
+  console.log(`  SKIPPED ${entry.rowId}: ${entry.reason}`);
+}
 if (report.errors.length > 0) {
-  console.error(
-    "A failed scan writes nothing; a failed row is left untouched and the rest continue. Fix the cause and run again."
-  );
   console.error(`ERRORS: ${report.errors.length}`);
   for (const entry of report.errors) {
     console.error(

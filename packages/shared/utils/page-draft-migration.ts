@@ -1,5 +1,9 @@
 import { Query } from "@repo/api";
-import { jsonToPageDoc, PAGE_DRAFTS_TABLE_ID } from "@repo/api/page-builder";
+import {
+  jsonToPageDoc,
+  PAGE_DRAFTS_TABLE_ID,
+  pageDocToJson,
+} from "@repo/api/page-builder";
 
 /**
  * Moves page drafts out of `page_translations` into the service-only
@@ -18,14 +22,22 @@ import { jsonToPageDoc, PAGE_DRAFTS_TABLE_ID } from "@repo/api/page-builder";
  */
 
 export interface PageDraftMigrationReport {
-  /** Translation rows whose draft columns are (or would be) cleared. */
+  /**
+   * Translation rows whose legacy draft columns are (or would be) cleared. In
+   * apply mode, lists, `created`, `cleared` and `restoredTitles` hold only what
+   * was actually written.
+   */
   cleared: string[];
   /** Draft rows (by id) that are (or would be) created. */
   created: string[];
   errors: { message: string; rowId?: string; tableId: string }[];
   /** Published rows whose title/description are (or would be) restored. */
   restoredTitles: string[];
+  /** A read failed, so apply wrote nothing. */
+  scanFailed: boolean;
   scanned: number;
+  /** Rows with something to migrate that cannot get a draft row. */
+  skipped: { reason: string; rowId: string }[];
 }
 
 interface MigrationRow {
@@ -56,10 +68,11 @@ export interface PageDraftMigrationDb {
 }
 
 interface PlannedRow {
-  clear: Record<string, unknown> | null;
+  clearsLegacy: boolean;
   createData: Record<string, unknown> | null;
   restores: boolean;
   rowId: string;
+  update: Record<string, unknown>;
 }
 
 const DATABASE_ID = "app";
@@ -124,6 +137,29 @@ function restoredText(row: MigrationRow): Record<string, string> {
   return restored;
 }
 
+/**
+ * The document for a draft row created without one: the published document
+ * with the row's current title/description, so the draft is never empty.
+ */
+function seededDraftDoc(row: MigrationRow): string | null {
+  const published =
+    typeof row.published_doc === "string" ? row.published_doc : null;
+  const doc = jsonToPageDoc(published);
+  if (!doc) {
+    return published;
+  }
+  const meta = { ...doc.meta };
+  if (typeof row.title === "string" && row.title) {
+    meta.title = row.title;
+  }
+  if (typeof row.description === "string" && row.description) {
+    meta.description = row.description;
+  } else {
+    meta.description = undefined;
+  }
+  return pageDocToJson({ ...doc, meta });
+}
+
 function planRow(
   row: MigrationRow,
   existingDrafts: ReadonlySet<string>
@@ -139,16 +175,17 @@ function planRow(
   return {
     rowId: row.$id,
     restores: isRestored,
+    clearsLegacy: holdsDraft,
     createData: needsDraftRow
       ? {
           page_id: row.page_id,
           locale: row.locale,
-          draft_doc: row.draft_doc ?? null,
+          draft_doc: row.draft_doc ?? seededDraftDoc(row),
           title: row.title ?? null,
           description: row.description ?? null,
         }
       : null,
-    clear: {
+    update: {
       ...(holdsDraft
         ? { draft_doc: null, puck_document: null, draft_document: null }
         : {}),
@@ -182,14 +219,14 @@ async function scanAll(
       if (!planned) {
         continue;
       }
+      if (!(row.locale && row.page_id)) {
+        report.skipped.push({
+          rowId: row.$id,
+          reason: "missing locale or page_id, so no draft row can be created",
+        });
+        continue;
+      }
       plan.push(planned);
-      if (planned.createData) {
-        report.created.push(row.$id);
-      }
-      report.cleared.push(row.$id);
-      if (planned.restores) {
-        report.restoredTitles.push(row.$id);
-      }
     }
   } catch (error) {
     report.errors.push({
@@ -200,44 +237,59 @@ async function scanAll(
   return plan;
 }
 
-/** Phase 2: per row, create the draft first, then clear the columns. */
+/** Dry run: report what the plan would do. */
+function reportPlan(plan: PlannedRow[], report: PageDraftMigrationReport) {
+  for (const { rowId, createData, clearsLegacy, restores } of plan) {
+    if (createData) {
+      report.created.push(rowId);
+    }
+    if (clearsLegacy) {
+      report.cleared.push(rowId);
+    }
+    if (restores) {
+      report.restoredTitles.push(rowId);
+    }
+  }
+}
+
+/** Phase 2: per row, create the draft first, then update the translation. */
 async function applyPlan(
   db: PageDraftMigrationDb,
   plan: PlannedRow[],
   report: PageDraftMigrationReport
 ) {
-  for (const { rowId, createData, clear } of plan) {
-    const forget = (ids: string[]) => {
-      const at = ids.indexOf(rowId);
-      if (at !== -1) {
-        ids.splice(at, 1);
-      }
-    };
+  for (const row of plan) {
     let tableId = PAGE_DRAFTS_TABLE_ID;
     try {
-      if (createData) {
+      if (row.createData) {
         await db.createRow({
           databaseId: DATABASE_ID,
           tableId,
-          rowId,
-          data: createData,
+          rowId: row.rowId,
+          data: row.createData,
           permissions: [],
         });
+        report.created.push(row.rowId);
       }
       tableId = TRANSLATIONS_TABLE_ID;
       await db.updateRow({
         databaseId: DATABASE_ID,
         tableId,
-        rowId,
-        data: clear ?? {},
+        rowId: row.rowId,
+        data: row.update,
       });
-    } catch (error) {
-      report.errors.push({ tableId, rowId, message: errorMessage(error) });
-      forget(report.cleared);
-      forget(report.restoredTitles);
-      if (tableId === PAGE_DRAFTS_TABLE_ID) {
-        forget(report.created);
+      if (row.clearsLegacy) {
+        report.cleared.push(row.rowId);
       }
+      if (row.restores) {
+        report.restoredTitles.push(row.rowId);
+      }
+    } catch (error) {
+      report.errors.push({
+        tableId,
+        rowId: row.rowId,
+        message: errorMessage(error),
+      });
     }
   }
 }
@@ -251,10 +303,15 @@ export async function migratePageDrafts(
     created: [],
     errors: [],
     restoredTitles: [],
+    scanFailed: false,
     scanned: 0,
+    skipped: [],
   };
   const plan = await scanAll(db, report);
-  if (options.apply && report.errors.length === 0) {
+  report.scanFailed = report.errors.length > 0;
+  if (!options.apply) {
+    reportPlan(plan, report);
+  } else if (!report.scanFailed) {
     await applyPlan(db, plan, report);
   }
   return report;

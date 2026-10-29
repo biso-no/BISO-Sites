@@ -9,6 +9,7 @@ type Row = { $id: string } & Record<string, unknown>;
 interface Write {
   data: Record<string, unknown>;
   kind: "create" | "update";
+  permissions?: string[];
   rowId: string;
   tableId: string;
 }
@@ -32,6 +33,7 @@ function makeDb(
   tables: Record<string, Row[]>,
   options: {
     failCreate?: string[];
+    failUpdate?: string[];
     failList?: (tableId: string, callNo: number) => boolean;
   } = {}
 ) {
@@ -57,10 +59,14 @@ function makeDb(
         tableId: params.tableId,
         rowId: params.rowId,
         data: params.data,
+        permissions: params.permissions,
       });
       return Promise.resolve({});
     },
     updateRow: (params) => {
+      if (options.failUpdate?.includes(params.rowId)) {
+        return Promise.reject(new Error("update failed"));
+      }
       writes.push({
         kind: "update",
         tableId: params.tableId,
@@ -115,6 +121,7 @@ describe("migratePageDrafts", () => {
         kind: "create",
         tableId: "page_drafts",
         rowId: "t1",
+        permissions: [],
         data: {
           page_id: "p1",
           locale: "no",
@@ -218,6 +225,7 @@ describe("migratePageDrafts", () => {
     const report = await migratePageDrafts(db, { apply: true });
     expect(report.restoredTitles).toEqual(["t1"]);
     expect(writes[0]?.data).toMatchObject({
+      draft_doc: "{}",
       title: "Unpublished title",
       description: "Unpublished desc",
     });
@@ -241,6 +249,7 @@ describe("migratePageDrafts", () => {
     });
     const report = await migratePageDrafts(db, { apply: true });
     expect(report.restoredTitles).toEqual(["t1"]);
+    expect(report.cleared).toEqual([]);
     expect(writes).toEqual([
       {
         kind: "update",
@@ -292,6 +301,87 @@ describe("migratePageDrafts", () => {
     });
     const report = await migratePageDrafts(db, { apply: true });
     expect(writes).toEqual([]);
+    expect(report.cleared).toEqual([]);
+  });
+
+  it("seeds a title-only draft from the published document with the current title", async () => {
+    const { db, writes } = makeDb({
+      page_translations: [
+        translation("t1", {
+          is_published: true,
+          published_doc: doc("Published title", "Published desc"),
+          title: "Unpublished title",
+          description: "Unpublished desc",
+        }),
+      ],
+    });
+    await migratePageDrafts(db, { apply: true });
+    const created = writes[0]?.data as { draft_doc: string; title: string };
+    expect(created.title).toBe("Unpublished title");
+    const seeded = JSON.parse(created.draft_doc) as {
+      meta: { description: string; title: string };
+    };
+    expect(seeded.meta).toEqual({
+      title: "Unpublished title",
+      description: "Unpublished desc",
+    });
+  });
+
+  it("keeps a created draft in the report when the clearing update fails", async () => {
+    const { db, writes } = makeDb(
+      { page_translations: [translation("t1", { draft_doc: "{}" })] },
+      { failUpdate: ["t1"] }
+    );
+    const report = await migratePageDrafts(db, { apply: true });
+    expect(writes.map((w) => w.kind)).toEqual(["create"]);
+    expect(report.created).toEqual(["t1"]);
+    expect(report.cleared).toEqual([]);
+    expect(report.errors[0]).toMatchObject({
+      rowId: "t1",
+      tableId: "page_translations",
+    });
+  });
+
+  it("lists nothing as done and flags the scan when a read failed in apply mode", async () => {
+    const { db } = makeDb(
+      { page_translations: [translation("t1", { draft_doc: "{}" })] },
+      { failList: (tableId) => tableId === "page_drafts" }
+    );
+    const report = await migratePageDrafts(db, { apply: true });
+    expect(report.scanFailed).toBe(true);
+    expect(report.created).toEqual([]);
+    expect(report.cleared).toEqual([]);
+    expect(report.restoredTitles).toEqual([]);
+  });
+
+  it("lists only what was written in apply mode", async () => {
+    const { db } = makeDb(
+      {
+        page_translations: [
+          translation("t1", { draft_doc: "{}" }),
+          translation("t2", { draft_doc: "{}" }),
+        ],
+      },
+      { failCreate: ["t1"] }
+    );
+    const report = await migratePageDrafts(db, { apply: true });
+    expect(report.scanFailed).toBe(false);
+    expect(report.created).toEqual(["t2"]);
+    expect(report.cleared).toEqual(["t2"]);
+  });
+
+  it("skips rows without a locale or page and plans nothing for them", async () => {
+    const { db, writes } = makeDb({
+      page_translations: [
+        translation("t1", { draft_doc: "{}", locale: null }),
+        translation("t2", { draft_doc: "{}", page_id: null }),
+        translation("t3", { locale: null }),
+      ],
+    });
+    const report = await migratePageDrafts(db, { apply: true });
+    expect(writes).toEqual([]);
+    expect(report.skipped.map((s) => s.rowId)).toEqual(["t1", "t2"]);
+    expect(report.created).toEqual([]);
     expect(report.cleared).toEqual([]);
   });
 });
