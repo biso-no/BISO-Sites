@@ -753,6 +753,10 @@ export async function createM365User(input: M365CreateUserInput): Promise<
     const temporaryPassword = generateTemporaryPassword();
 
     const graph = getGraphService();
+    if (parsed.managerId) {
+      await getAllowedTenantUser(graph, parsed.managerId, campusScope);
+    }
+
     const graphUser = await graph.createUser({
       accountEnabled: parsed.accountEnabled,
       department: department.name,
@@ -768,7 +772,6 @@ export async function createM365User(input: M365CreateUserInput): Promise<
     });
 
     if (parsed.managerId) {
-      await getAllowedTenantUser(graph, parsed.managerId, campusScope);
       await graph.setManager(graphUser.id, parsed.managerId);
     }
 

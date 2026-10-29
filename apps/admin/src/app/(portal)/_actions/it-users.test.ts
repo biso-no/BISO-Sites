@@ -54,8 +54,10 @@ mock.module("@/lib/it-permissions", () => ({
 
 const { isWithinCampusScope } = await import("@/lib/it/tenant-guard");
 
+const getAllowedTenantUser = mock();
+
 mock.module("@/lib/it/tenant-guard", () => ({
-  getAllowedTenantUser: mock(),
+  getAllowedTenantUser,
   isWithinCampusScope,
 }));
 
@@ -78,6 +80,7 @@ describe("createM365User", () => {
     graph.createUser.mockReset();
     graph.findGroupByName.mockReset();
     graph.setManager.mockReset();
+    getAllowedTenantUser.mockReset();
 
     db.listRows.mockImplementation((_databaseId: string, tableId: string) => {
       if (tableId === "campus") {
@@ -202,5 +205,28 @@ describe("createM365User", () => {
 
     expect(result.error).toBeUndefined();
     expect(graph.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  test("checks the manager before creating the Microsoft account", async () => {
+    campusScope = ["Oslo"];
+    getAllowedTenantUser.mockRejectedValue(
+      new Error("You can only manage users in your own campuses.")
+    );
+
+    const result = await createM365User({
+      ...bergenInput,
+      campusId: "1",
+      departmentId: "dept-operations",
+      managerId: "bergen-manager",
+    });
+
+    expect(result.error).toBe(
+      "You can only manage users in your own campuses."
+    );
+    expect(getAllowedTenantUser).toHaveBeenCalledWith(graph, "bergen-manager", [
+      "Oslo",
+    ]);
+    expect(graph.createUser).not.toHaveBeenCalled();
+    expect(graph.setManager).not.toHaveBeenCalled();
   });
 });
