@@ -1,6 +1,7 @@
 import { Permission, Query, Role } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import { listAllUserMemberships } from "@repo/shared/utils/appwrite-memberships";
+import { M365_TEAM_SYNC_TABLE_ID } from "@repo/shared/utils/team-roles";
 import { expandDeptName } from "./campus-constants";
 import {
   grantDeptTeamAccess,
@@ -267,6 +268,20 @@ export async function syncM365Permissions(userId: string) {
     const { teamsToSync } = parseAzureGroups(azureGroups);
     const expectedTeamIds = new Set(
       teamsToSync.map((g) => sanitizeTeamId(g.name))
+    );
+
+    // Record the team ids this user's Microsoft groups produce. Admin and the
+    // API keep an sg-app-* team only when its id is in this record. No
+    // permissions: only the service key reads or writes it.
+    await db.upsertRow(
+      "app",
+      M365_TEAM_SYNC_TABLE_ID,
+      userId,
+      {
+        team_ids: [...expectedTeamIds],
+        synced_at: new Date().toISOString(),
+      },
+      []
     );
 
     // Reconcile: delete Azure-synced memberships that are no longer in Azure.

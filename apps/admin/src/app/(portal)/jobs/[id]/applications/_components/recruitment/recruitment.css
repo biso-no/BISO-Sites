@@ -312,6 +312,13 @@
 .snap .delta.warn {
   color: var(--gold);
 }
+.iv-row-sub.iv-row-warn {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-weight: 600;
+  color: var(--gold);
+}
 .snap.alert .val {
   color: var(--claret);
 }
@@ -3512,6 +3519,12 @@
 }
 
 /* ---------- Toast ---------- */
+.pl-toast.pl-toast-offer {
+  bottom: 88px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .pl-toast {
   position: fixed;
   bottom: 24px;

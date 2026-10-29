@@ -2638,9 +2638,7 @@
         },
         {
             "$id": "campus_benefits",
-            "$permissions": [
-                "read(\"any\")"
-            ],
+            "$permissions": [],
             "databaseId": "app",
             "name": "Campus Benefits",
             "enabled": true,
@@ -4160,7 +4158,6 @@
         {
             "$id": "page_translations",
             "$permissions": [
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
@@ -4170,7 +4167,7 @@
             "databaseId": "app",
             "name": "Page translations",
             "enabled": true,
-            "rowSecurity": false,
+            "rowSecurity": true,
             "columns": [
                 {
                     "key": "page_id",
@@ -6151,7 +6148,6 @@
         {
             "$id": "events",
             "$permissions": [
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
@@ -8320,7 +8316,6 @@
         {
             "$id": "pages",
             "$permissions": [
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-operationsunit\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
@@ -8330,7 +8325,7 @@
             "databaseId": "app",
             "name": "Pages",
             "enabled": true,
-            "rowSecurity": false,
+            "rowSecurity": true,
             "columns": [
                 {
                     "key": "status",
@@ -10622,7 +10617,6 @@
             "$id": "content_translations",
             "$permissions": [
                 "create(\"team:sg-app-dept-operationsunit\")",
-                "read(\"any\")",
                 "create(\"team:sg-app-dept-ledelsenoslo\")",
                 "create(\"team:sg-app-dept-ledelsenbergen\")",
                 "create(\"team:sg-app-dept-ledelsentrondheim\")",
@@ -12364,6 +12358,104 @@
                     "status": "available",
                     "columns": [
                         "benefit_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "m365_team_sync",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "M365 Team Sync",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "team_ids",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 128,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "synced_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "page_drafts",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Page Drafts",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "page_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "locale",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "no",
+                        "en"
+                    ]
+                },
+                {
+                    "key": "draft_doc",
+                    "type": "mediumtext",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "title",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "description",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 4000,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "page_drafts_page",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "page_id"
                     ],
                     "orders": [
                         "ASC"

@@ -50,6 +50,30 @@ export function isWithinCampusScope(
   );
 }
 
+// Narrows the campus/department pickers to the caller's campuses. `null`
+// (global admin) keeps everything.
+export function scopeItLookupOptions<
+  C extends { id: string; officeLocation: string },
+  D extends { campusId: string },
+>(
+  options: { campuses: C[]; departments: D[] },
+  campusScope: string[] | null
+): { campuses: C[]; departments: D[] } {
+  if (campusScope === null) {
+    return options;
+  }
+  const campuses = options.campuses.filter((campus) =>
+    isWithinCampusScope(campus, campusScope)
+  );
+  const campusIds = new Set(campuses.map((campus) => campus.id));
+  return {
+    campuses,
+    departments: options.departments.filter((department) =>
+      campusIds.has(department.campusId)
+    ),
+  };
+}
+
 // Loads a user by id and asserts it's an allowed tenant user inside the
 // caller's campus scope. Throws otherwise. Use before any Graph read or
 // mutation that takes a client-supplied user id — this is the chokepoint that

@@ -55,3 +55,39 @@ export async function orNullIfNotFound<T>(read: Promise<T>): Promise<T | null> {
     throw error;
   }
 }
+
+const ROW_NOT_FOUND_TYPES: ReadonlySet<string> = new Set([
+  "row_not_found",
+  "document_not_found",
+]);
+
+/**
+ * True only when Appwrite answered 404 because the row itself is missing.
+ * A 404 for a missing table or database (`table_not_found`,
+ * `database_not_found`, ...) is a configuration failure, not "no record".
+ */
+export function isRowNotFound(error: unknown): boolean {
+  if (!isNotFound(error)) {
+    return false;
+  }
+  const { type } = error as { type?: unknown };
+  return typeof type === "string" && ROW_NOT_FOUND_TYPES.has(type);
+}
+
+/**
+ * Like {@link orNullIfNotFound}, but only a missing row resolves to `null`.
+ * Every other failure, including a 404 for a missing table or database,
+ * is rethrown.
+ */
+export async function orNullIfRowNotFound<T>(
+  read: Promise<T>
+): Promise<T | null> {
+  try {
+    return await read;
+  } catch (error) {
+    if (isRowNotFound(error)) {
+      return null;
+    }
+    throw error;
+  }
+}

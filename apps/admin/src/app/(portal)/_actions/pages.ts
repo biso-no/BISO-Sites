@@ -2,6 +2,7 @@
 
 import { Query } from "@repo/api";
 import {
+  archivePage,
   PAGE_LOCALES,
   type PageDoc,
   type PageEditorLoadResult,
@@ -52,12 +53,14 @@ import {
   getPageTranslationSource,
   translatePageDocument,
 } from "@/lib/page-document-translation";
+import { withDraftTitles } from "@/lib/page-draft-titles";
 import { pickSharedMeta } from "@/lib/page-shared-meta";
 import {
   departmentThemeUpdate,
   isDepartmentTheme,
   themeSaveError,
 } from "@/lib/page-theme-publish";
+import { hasNavAccess } from "@/lib/roles";
 import {
   assertProjectPageSave,
   assertUnitPageBindingUnchanged,
@@ -74,6 +77,7 @@ import {
 } from "@/lib/utils/authorization";
 import { notifyWebsite } from "@/lib/web-revalidate";
 import { logAuditEvent } from "./audit-log";
+import { countDrafts } from "./drafts";
 
 export async function listPages(opts?: { status?: string; campusId?: string }) {
   const ctx = await requireAuth();
@@ -97,7 +101,8 @@ export async function listPages(opts?: { status?: string; campusId?: string }) {
   queries.push(...applyContentRelationshipScopeQueries(ctx));
 
   const response = await db.listRows<Pages>("app", "pages", queries);
-  return response.rows;
+  // Titles edited since the last publish live on the draft rows.
+  return await withDraftTitles(db, response.rows);
 }
 
 export async function getDashboardStats() {
@@ -105,13 +110,22 @@ export async function getDashboardStats() {
   const { db } = await createSessionClient();
 
   const scopeFilter = applyScopeQueries(ctx);
+  // Vacancy counts are for recruiters only.
+  const canSeeJobs = hasNavAccess(
+    "portal.jobs",
+    ctx.roles,
+    ctx.departmentTeamIds.length > 0
+  );
+  const skipped = Promise.resolve({ total: 0 });
 
   const [jobsRes, eventsRes, newsRes, draftsRes] = await Promise.allSettled([
-    db.listRows("app", "jobs", [
-      Query.equal("status", "published"),
-      Query.limit(1),
-      ...scopeFilter,
-    ]),
+    canSeeJobs
+      ? db.listRows("app", "jobs", [
+          Query.equal("status", "published"),
+          Query.limit(1),
+          ...scopeFilter,
+        ])
+      : skipped,
     db.listRows("app", "events", [
       Query.equal("status", "published"),
       Query.limit(1),
@@ -122,11 +136,9 @@ export async function getDashboardStats() {
       Query.limit(1),
       ...scopeFilter,
     ]),
-    db.listRows("app", "jobs", [
-      Query.equal("status", "draft"),
-      Query.limit(1),
-      ...scopeFilter,
-    ]),
+    // Same scope as the /drafts queue: vacancies for recruiters, plus events
+    // and news for everyone.
+    countDrafts().then((total) => ({ total })),
   ]);
 
   return {
@@ -509,8 +521,20 @@ export type PublishPageResult =
       translationQueued: boolean;
     };
 
-/** publishPage's message for a language with no translation row. */
+/**
+ * publishPage's messages for a language with no translation row, and for one
+ * whose row holds neither a draft nor a published document.
+ */
 const NO_TRANSLATION_TO_PUBLISH = "No translation found to publish";
+const NOTHING_TO_PUBLISH_PREFIX = "Nothing to publish";
+
+function isNotPublishable(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === NO_TRANSLATION_TO_PUBLISH ||
+      error.message.startsWith(NOTHING_TO_PUBLISH_PREFIX))
+  );
+}
 
 export async function publishPageAction(
   id: string,
@@ -553,7 +577,7 @@ export async function publishPageAction(
       await pbPublishPage({ id, locale: publishedLocale });
     } catch (e) {
       // Thrown before anything was written.
-      if (e instanceof Error && e.message === NO_TRANSLATION_TO_PUBLISH) {
+      if (isNotPublishable(e)) {
         return { missingTranslation: true };
       }
       throw e;
@@ -726,10 +750,15 @@ function isSamePageDocument(a: PageDoc | null, b: PageDoc | null): boolean {
 
 type AdminDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
-/** One `page_translations` row, as the auto-translation guard compares it. */
+/**
+ * One locale's draft and publish state, as the auto-translation guard
+ * compares it: the draft row's `updatedAt` moves on every draft save, and
+ * `isPublished` and `publishedAt` on every publish and unpublish.
+ */
 interface TranslationRowState {
   document: PageDoc | null;
   isPublished: boolean;
+  publishedAt: string | null;
   updatedAt: string | null;
 }
 
@@ -754,6 +783,7 @@ async function readTranslationRows(
       document:
         translation.draftDocument ?? translation.publishedDocument ?? null,
       isPublished: translation.isPublished,
+      publishedAt: translation.publishedAt ?? null,
       updatedAt: translation.updatedAt ?? null,
     };
   };
@@ -773,6 +803,7 @@ function isSameTranslationRow(
   }
   return (
     before.isPublished === after.isPublished &&
+    before.publishedAt === after.publishedAt &&
     before.updatedAt === after.updatedAt &&
     isSamePageDocument(before.document, after.document)
   );
@@ -880,7 +911,8 @@ async function translatePublishedPage({
       sourcePublishStands(beforePublish, publishedPageVersion) &&
       target &&
       target.updatedAt === saved.updatedAt &&
-      target.isPublished === (translationRows.target?.isPublished ?? false)
+      target.isPublished === (translationRows.target?.isPublished ?? false) &&
+      target.publishedAt === (translationRows.target?.publishedAt ?? null)
     )
   ) {
     return;
@@ -947,7 +979,7 @@ export async function deletePageAction(id: string) {
     );
     requireProjectHubAccess(page, ctx.roles);
 
-    await db.updateRow("app", "pages", id, { status: "archived" });
+    await archivePage(db, id);
     await logAuditEvent(ctx, "page_deleted", {
       resourceId: id,
       resourceType: "page",

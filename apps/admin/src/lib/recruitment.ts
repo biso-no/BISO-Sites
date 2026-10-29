@@ -19,6 +19,7 @@ import {
 } from "@repo/shared/types/recruitment";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import type { UserAuthContext } from "@/lib/authorization";
+import { ROLES } from "@/lib/roles";
 
 export type { RecruitmentLookups } from "@repo/shared/recruitment";
 export {
@@ -41,19 +42,15 @@ interface DbClient {
 }
 
 const HR_DEPARTMENT_KEY = "hr";
-const HR_UNIT_DEPARTMENT_KEY = "hrunit";
 
 /**
  * HR is the recruitment-gatekeeper department. Detected by normalizing the
- * clean team name to "hr" (the suffix behind the `sg-app-dept-hr` team) or
- * "hrunit" ("HR Unit" / "HRUnit").
+ * clean team name to "hr" (the suffix behind the `sg-app-dept-hr` team).
  */
 export function isHrDepartment(departmentNames: string[]): boolean {
   return departmentNames.some((name) => {
     const normalized = name.replace(/\s+/g, "").toLowerCase();
-    return (
-      normalized === HR_DEPARTMENT_KEY || normalized === HR_UNIT_DEPARTMENT_KEY
-    );
+    return normalized === HR_DEPARTMENT_KEY;
   });
 }
 
@@ -68,7 +65,7 @@ export function isHrDepartment(departmentNames: string[]): boolean {
  */
 export function toRecruitmentAdminScope(ctx: UserAuthContext): AdminScope {
   const isActualGlobalAdmin = ctx.roles.includes("globaladmin");
-  const isHr = isHrDepartment(ctx.departmentNames);
+  const isHr = ctx.roles.includes(ROLES.HR);
   const isNational = ctx.campusNames.includes("National");
 
   if (isActualGlobalAdmin || (isHr && isNational)) {

@@ -10,6 +10,7 @@ import {
   JobsStatus,
 } from "@repo/api/types/appwrite";
 import {
+  fetchRecruitmentJobsByIds,
   fetchRecruitmentListPage,
   fetchRecruitmentListRows,
   getRecruitmentJobById,
@@ -33,6 +34,10 @@ import {
   serializeRecruitmentApplicationReviewMetadata,
   serializeRecruitmentVacancyMetadata,
 } from "@repo/shared/types/recruitment";
+import {
+  anonymizeScreeningText,
+  fillCandidatePlaceholder,
+} from "@repo/shared/utils/screening-anonymizer";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
@@ -52,11 +57,13 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { restampTranslationReads } from "@/lib/content-translation-reads";
 import { resolveJobPublication } from "@/lib/job-publication";
 import {
   buildDuplicateSlugCandidates,
   buildDuplicateVacancyInput,
 } from "@/lib/job-reuse";
+import { resolveJobStatusTransition } from "@/lib/job-status-transition";
 import {
   applyDescriptionMerge,
   computeJobTranslationMemory,
@@ -654,6 +661,27 @@ async function fetchAllScopedVacancies(
   }
 }
 
+/**
+ * Draft and closed vacancies keep their translations readable only by
+ * recruitment staff, so a session read of the `translations` relationship comes
+ * back empty for other editors. Call this only after the caller's access has
+ * been established: it re-reads the already-authorised vacancies with the
+ * service key so their titles and descriptions are present.
+ */
+async function withAdminTranslations(
+  vacancies: RecruitmentVacancy[]
+): Promise<RecruitmentVacancy[]> {
+  if (vacancies.length === 0) {
+    return vacancies;
+  }
+  const { db: adminDb } = await createAdminClient();
+  const full = await fetchRecruitmentJobsByIds(
+    adminDb,
+    vacancies.map((vacancy) => vacancy.$id)
+  );
+  return vacancies.map((vacancy) => full.get(vacancy.$id) ?? vacancy);
+}
+
 function countVacanciesByStatus(
   vacancies: RecruitmentVacancy[]
 ): JobStatusCounts {
@@ -748,8 +776,11 @@ export async function listJobs(opts?: {
   const start = (page - 1) * JOBS_PAGE_SIZE;
 
   if (search) {
-    const matches = (await fetchAllScopedVacancies(db, scopeQueries)).filter(
-      (vacancy) => vacancyMatchesSearch(vacancy, search)
+    const scoped = await withAdminTranslations(
+      await fetchAllScopedVacancies(db, scopeQueries)
+    );
+    const matches = scoped.filter((vacancy) =>
+      vacancyMatchesSearch(vacancy, search)
     );
     const filtered = status
       ? matches.filter((vacancy) => vacancy.status === status)
@@ -778,7 +809,7 @@ export async function listJobs(opts?: {
     counts,
     page,
     pageSize: JOBS_PAGE_SIZE,
-    rows: result.rows,
+    rows: await withAdminTranslations(result.rows),
     total: result.total,
   };
 }
@@ -795,7 +826,8 @@ export async function getJob(id: string) {
   }
 
   assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
-  return vacancy;
+  const { db: adminDb } = await createAdminClient();
+  return (await getRecruitmentJobById(adminDb, id)) ?? vacancy;
 }
 
 /**
@@ -1011,17 +1043,21 @@ export async function updateJob(
     const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(sessionDb);
-    const vacancy = await getRecruitmentJobById(sessionDb, id);
+    const visibleVacancy = await getRecruitmentJobById(sessionDb, id);
 
-    if (!vacancy) {
+    if (!visibleVacancy) {
       return { error: "Vacancy not found" };
     }
 
-    assertRecruitmentVacancyWriteAccess(scope, lookups, vacancy);
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visibleVacancy);
     assertRecruitmentVacancyWriteAccess(scope, lookups, {
       campus_id: validated.data.campus_id,
       department_id: validated.data.department_id ?? null,
     });
+    // The session read may not include translations the caller cannot see;
+    // re-read with the service key now that access is confirmed.
+    const vacancy =
+      (await getRecruitmentJobById(adminDb, id)) ?? visibleVacancy;
     const publication = resolveJobPublication({
       currentStatus: vacancy.status,
       publicationMode: validated.data.publication_mode,
@@ -1064,7 +1100,7 @@ export async function updateJob(
           : (vacancy.interview_template ?? undefined),
     };
     const payload = await buildJobUpsertPayload(
-      sessionDb,
+      adminDb,
       id,
       data,
       translationPerms,
@@ -1281,6 +1317,136 @@ export async function deleteJob(id: string) {
 }
 
 /**
+ * Closes a live vacancy or reopens a closed one. The row keeps its content;
+ * only the status, any armed schedule and the read permissions change, and the
+ * translations are restamped to match.
+ */
+export async function setJobStatus(
+  id: string,
+  target: "closed" | "published"
+): Promise<
+  | { data: "closed" | "published"; deadlinePassed?: boolean; error?: never }
+  | { data?: never; error: string }
+> {
+  const ctx = await requireAuth();
+
+  try {
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(sessionDb);
+    const visible = await getRecruitmentJobById(sessionDb, id);
+
+    if (!visible) {
+      return { error: "Vacancy not found" };
+    }
+
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visible);
+    const vacancy = (await getRecruitmentJobById(adminDb, id)) ?? visible;
+
+    const transition = resolveJobStatusTransition({
+      applicationDeadline: vacancy.application_deadline,
+      currentStatus: vacancy.status,
+      target: target === "closed" ? JobsStatus.CLOSED : JobsStatus.PUBLISHED,
+    });
+    if (transition.error !== undefined) {
+      return { error: transition.error };
+    }
+
+    const audience = vacancy.metadata.audience ?? "public";
+    await adminDb.updateRow(
+      "app",
+      "jobs",
+      id,
+      { scheduled_publish_at: null, status: target },
+      buildJobRowPermissions(audience, target)
+    );
+    await restampTranslationReads(adminDb, "job", id, target);
+
+    await logAuditEvent(
+      ctx,
+      target === "closed"
+        ? "recruitment.vacancy.close"
+        : "recruitment.vacancy.reopen",
+      {
+        payload: { status: target },
+        resourceId: id,
+        resourceType: "job",
+      }
+    );
+
+    revalidatePath("/jobs");
+    revalidatePath(`/jobs/${id}`);
+    return target === "closed"
+      ? { data: "closed" }
+      : { data: "published", deadlinePassed: transition.warnDeadlinePassed };
+  } catch (error) {
+    unstable_rethrow(error);
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to update the vacancy",
+    };
+  }
+}
+
+/**
+ * Publish a draft vacancy: recruitment-scoped, draft only. Closing and
+ * reopening stay with `setJobStatus`.
+ */
+export async function publishJobDraft(
+  id: string
+): Promise<{ data: string; error?: never } | { data?: never; error: string }> {
+  const ctx = await requireAuth();
+
+  try {
+    const { db: sessionDb } = await createSessionClient();
+    const { db: adminDb } = await createAdminClient();
+    const scope = toRecruitmentAdminScope(ctx);
+    const lookups = await loadRecruitmentLookups(sessionDb);
+    const visible = await getRecruitmentJobById(sessionDb, id);
+
+    if (!visible) {
+      return { error: "Vacancy not found" };
+    }
+
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visible);
+    const vacancy = (await getRecruitmentJobById(adminDb, id)) ?? visible;
+
+    if (vacancy.status !== JobsStatus.DRAFT) {
+      return { error: "Only a draft vacancy can be published." };
+    }
+
+    const audience = vacancy.metadata.audience ?? "public";
+    await adminDb.updateRow(
+      "app",
+      "jobs",
+      id,
+      { scheduled_publish_at: null, status: "published" },
+      buildJobRowPermissions(audience, "published")
+    );
+    await restampTranslationReads(adminDb, "job", id, "published");
+
+    await logAuditEvent(ctx, "recruitment.vacancy.publish", {
+      payload: { status: "published" },
+      resourceId: id,
+      resourceType: "job",
+    });
+
+    revalidatePath("/jobs");
+    revalidatePath(`/jobs/${id}`);
+    return { data: id };
+  } catch (error) {
+    unstable_rethrow(error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to publish the vacancy",
+    };
+  }
+}
+
+/**
  * Applications received for a vacancy. The studio uses it to warn HR off
  * rewriting a past round in place (see `describeJobReuse`).
  */
@@ -1324,12 +1490,13 @@ export async function duplicateJob(
     const { db: adminDb } = await createAdminClient();
     const scope = toRecruitmentAdminScope(ctx);
     const lookups = await loadRecruitmentLookups(sessionDb);
-    const source = await getRecruitmentJobById(sessionDb, id);
+    const visibleSource = await getRecruitmentJobById(sessionDb, id);
 
-    if (!source) {
+    if (!visibleSource) {
       return { error: "Vacancy not found" };
     }
-    assertRecruitmentVacancyWriteAccess(scope, lookups, source);
+    assertRecruitmentVacancyWriteAccess(scope, lookups, visibleSource);
+    const source = (await getRecruitmentJobById(adminDb, id)) ?? visibleSource;
 
     // Slugs are globally unique, including drafts on campuses this user can't
     // read, so the availability check has to bypass row security.
@@ -1354,7 +1521,7 @@ export async function duplicateJob(
     const audience = data.audience ?? "members";
     const jobId = ID.unique();
     const payload = await buildJobUpsertPayload(
-      sessionDb,
+      adminDb,
       jobId,
       data,
       buildJobTranslationPermissions(audience, JobsStatus.DRAFT),
@@ -1816,12 +1983,13 @@ export async function draftRecruitmentEmail(
     const { draftCandidateEmail } = await import(
       "@repo/ai/server/recruitment-emails"
     );
+    // The model never sees the applicant's name or contact details: HR notes
+    // are scrubbed and the draft carries `[Candidate]` for the first name.
     const draft = await draftCandidateEmail({
-      application: {
-        applicant_email: application.applicant_email,
-        applicant_name: application.applicant_name,
-      },
-      context: options.context ?? null,
+      context: anonymizeScreeningText(options.context, {
+        candidateName: application.applicant_name,
+        extraIdentifiers: [application.applicant_email],
+      }),
       locale: options.locale ?? "no",
       stage: options.stage,
       tone: options.tone ?? "warm",
@@ -1837,7 +2005,15 @@ export async function draftRecruitmentEmail(
       resourceType: "job_application",
     });
 
-    return { data: { body: draft.body, subject: draft.subject } };
+    return {
+      data: {
+        body: fillCandidatePlaceholder(draft.body, application.applicant_name),
+        subject: fillCandidatePlaceholder(
+          draft.subject,
+          application.applicant_name
+        ),
+      },
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to draft email",

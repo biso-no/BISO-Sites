@@ -157,6 +157,7 @@ describe("approveRequest: shop products must be bookable", () => {
         return Promise.reject(sessionReadRefused(table));
       }
     );
+    db.listRows.mockResolvedValue({ rows: [], total: 0 });
     db.getRow.mockImplementation((_databaseId: string, table: string) => {
       if (table === "sales_types") {
         return salesType
@@ -262,6 +263,24 @@ describe("approveRequest: shop products must be bookable", () => {
       expect.objectContaining({ status: "approved" })
     );
   });
+
+  test("restamps the product translations after publishing", async () => {
+    mockRows({ salesType: { $id: "sales-type-1", active: true } });
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "tr-1", $permissions: [] }],
+      total: 1,
+    });
+
+    await approveRequest("req-1");
+
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "tr-1",
+      {},
+      ['read("any")']
+    );
+  });
 });
 
 describe("approveRequest: non-shop domains still write through the session client", () => {
@@ -312,6 +331,26 @@ describe("approveRequest: non-shop domains still write through the session clien
       "news",
       expect.anything(),
       expect.anything()
+    );
+  });
+
+  test("restamps the news translations through the admin client", async () => {
+    sessionDb.getRow.mockImplementation((_databaseId: string, table: string) =>
+      Promise.resolve(table === "approval_requests" ? newsRequest : newsRow)
+    );
+    db.listRows.mockResolvedValue({
+      rows: [{ $id: "tr-1", $permissions: [] }],
+      total: 1,
+    });
+
+    await approveRequest("req-news-1");
+
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "content_translations",
+      "tr-1",
+      {},
+      ['read("any")']
     );
   });
 });

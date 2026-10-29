@@ -10,6 +10,7 @@ import {
   EventsCollectionPricing,
   type EventsStatus,
 } from "@repo/api/types/appwrite";
+import { eventReadPermissions } from "@repo/shared/utils/content-read-permissions";
 import { generateObject } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -32,12 +33,6 @@ import {
 } from "@/lib/content-translation.server";
 import { withNationalEventScope } from "@/lib/event-scope";
 import { resolveNotifyPush } from "@/lib/notify-push-guard";
-import { loadRecruitmentLookups } from "@/lib/recruitment";
-import {
-  buildContentRowPermissions,
-  buildContentTranslationPermissions,
-  deriveContentRowTeams,
-} from "@/lib/utils";
 import {
   assertPublishAccess,
   assertWriteAccess,
@@ -282,12 +277,7 @@ function scheduleEventTranslation(input: {
       if (!isCurrentTranslationSource(input.source, currentSnapshot)) {
         return;
       }
-      const { translationPermissions } = await buildEventPermissions(db, {
-        campusId: input.campusId,
-        departmentId: input.departmentId,
-        memberOnly: input.memberOnly,
-        status: input.status,
-      });
+      const { translationPermissions } = buildEventPermissions(input.status);
 
       const targetLocale = getTargetLocale(input.sourceLocale);
       const currentTarget = currentTranslations.find(
@@ -375,39 +365,16 @@ function assertEventPublishTransitionAccess(
 }
 
 /**
- * Compute the row and translation $permissions for an event from its status,
- * member-only flag, and owning campus/department. Loads recruitment lookups
- * to derive team IDs.
+ * Row and translation $permissions for an event. Both follow the publish
+ * status: published and cancelled events are world-readable, anything else
+ * carries no read permission.
  */
-async function buildEventPermissions(
-  db: AdminDb,
-  opts: {
-    status: string;
-    memberOnly: boolean;
-    campusId: string | null;
-    departmentId: string | null;
-  }
-): Promise<{ rowPermissions: string[]; translationPermissions: string[] }> {
-  const lookups = await loadRecruitmentLookups(db);
-  const audience = opts.memberOnly ? "members" : "public";
-  const { campusTeam, deptTeam } = deriveContentRowTeams(lookups, {
-    campus_id: opts.campusId,
-    department_id: opts.departmentId,
-  });
-  return {
-    rowPermissions: buildContentRowPermissions({
-      status: opts.status,
-      audience,
-      campusTeam,
-      deptTeam,
-    }),
-    translationPermissions: buildContentTranslationPermissions({
-      audience,
-      status: opts.status,
-      writeTeams: deptTeam ? [deptTeam] : [],
-      readTeams: campusTeam ? [campusTeam] : [],
-    }),
-  };
+function buildEventPermissions(status: string): {
+  rowPermissions: string[];
+  translationPermissions: string[];
+} {
+  const read = eventReadPermissions(status);
+  return { rowPermissions: [...read], translationPermissions: [...read] };
 }
 
 function buildEventColumns(
@@ -610,12 +577,7 @@ export async function createEvent(
 
     const status = validated.data.status;
     const { rowPermissions, translationPermissions } =
-      await buildEventPermissions(db, {
-        status,
-        memberOnly: validated.data.member_only,
-        campusId: validated.data.campus_id,
-        departmentId: validated.data.department_id ?? null,
-      });
+      buildEventPermissions(status);
 
     const eventId = ID.unique();
     const event = await db.upsertRow(
@@ -708,13 +670,9 @@ export async function updateEvent(
     });
     assertEventPublishTransitionAccess(ctx, event, validated.data);
 
-    const { rowPermissions, translationPermissions } =
-      await buildEventPermissions(db, {
-        status: validated.data.status,
-        memberOnly: validated.data.member_only,
-        campusId: validated.data.campus_id,
-        departmentId: validated.data.department_id ?? null,
-      });
+    const { rowPermissions, translationPermissions } = buildEventPermissions(
+      validated.data.status
+    );
 
     const existingByLocale = await loadEventTranslationsByLocale(db, id);
     await db.upsertRow(
@@ -841,12 +799,7 @@ export async function publishEvent(id: string) {
     assertPublishAccess(ctx, ownership.campus, ownership.department);
 
     const { rowPermissions, translationPermissions } =
-      await buildEventPermissions(db, {
-        status: "published",
-        memberOnly: event.member_only,
-        campusId: ownership.campus,
-        departmentId: ownership.department,
-      });
+      buildEventPermissions("published");
 
     await db.updateRow(
       "app",

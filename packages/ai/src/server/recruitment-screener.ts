@@ -33,7 +33,7 @@ export interface ScreenApplicationInput {
     cover_letter: string | null;
     current_role?: string | null;
   };
-  /** Optional model override; defaults to the balanced tier (gpt-5.6-terra). */
+  /** Optional model override; defaults to the balanced tier (Claude Sonnet). */
   model?: string;
   /** Plaintext resume content — extract before calling. */
   resumeText?: string | null;
@@ -157,8 +157,8 @@ export async function screenApplication(
     prompt: buildPrompt(input),
     schema: recruitmentAiScreeningOutputSchema,
     instructions: SYSTEM_PROMPT,
-    // Applicant data must not be retained on OpenAI's side beyond the call.
-    providerOptions: { openai: { store: false } },
+    // Provider-side retention follows the Anthropic account's data settings,
+    // not a per-request option.
   });
 
   // Metadata is stamped here rather than asked of the model — it cannot know

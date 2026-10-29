@@ -38,7 +38,10 @@ import {
 } from "@repo/shared/types/user-management";
 import { revalidatePath } from "next/cache";
 import { getGraphService, M365_DOMAIN, toListItem } from "@/lib/it/graph";
-import { getAllowedTenantUser } from "@/lib/it/tenant-guard";
+import {
+  getAllowedTenantUser,
+  isWithinCampusScope,
+} from "@/lib/it/tenant-guard";
 import { resetUserMfaMethods } from "@/lib/it/turnover";
 import {
   requireItPermission,
@@ -734,6 +737,9 @@ export async function createM365User(input: M365CreateUserInput): Promise<
     if (!(campus && department)) {
       throw new Error("Selected campus and department are required.");
     }
+    if (!isWithinCampusScope(campus, campusScope)) {
+      throw new Error("You can only create users in a campus you manage.");
+    }
 
     const displayName = `${parsed.givenName} ${parsed.surname}`.trim();
     const userPrincipalName =
@@ -747,6 +753,10 @@ export async function createM365User(input: M365CreateUserInput): Promise<
     const temporaryPassword = generateTemporaryPassword();
 
     const graph = getGraphService();
+    if (parsed.managerId) {
+      await getAllowedTenantUser(graph, parsed.managerId, campusScope);
+    }
+
     const graphUser = await graph.createUser({
       accountEnabled: parsed.accountEnabled,
       department: department.name,
@@ -762,7 +772,6 @@ export async function createM365User(input: M365CreateUserInput): Promise<
     });
 
     if (parsed.managerId) {
-      await getAllowedTenantUser(graph, parsed.managerId, campusScope);
       await graph.setManager(graphUser.id, parsed.managerId);
     }
 

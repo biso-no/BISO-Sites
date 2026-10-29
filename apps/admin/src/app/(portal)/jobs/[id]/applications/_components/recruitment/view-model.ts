@@ -195,6 +195,8 @@ export interface WorkspaceInterview {
   candidateName: string;
   endsAt: string | null;
   id: string;
+  /** Whether a calendar event exists for the interview. */
+  inviteSent: boolean;
   panel: string[];
   round: number;
   startsAt: string | null;
@@ -350,3 +352,11 @@ export const STAGE_OF_STATUS: Record<string, RecruitmentStageId> = {
   accepted: "accepted",
   rejected: "rejected",
 };
+
+/** A scheduled interview with no calendar event: nobody has been invited. */
+export function interviewInviteMissing(interview: {
+  inviteSent: boolean;
+  status: string;
+}): boolean {
+  return interview.status === "scheduled" && !interview.inviteSent;
+}

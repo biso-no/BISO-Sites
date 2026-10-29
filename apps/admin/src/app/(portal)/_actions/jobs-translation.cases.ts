@@ -17,9 +17,8 @@ import {
 const PRIMARY_FAILED_WITH_REF = /^primary failed \(ref [0-9a-f]{8}\)$/;
 const NOTHING_SAVED_WITH_REF = /Nothing was saved.*\(ref [0-9a-f]{8}\)/;
 
-const { createJob, generateJobTranslationDraft, updateJob } = await import(
-  "./jobs"
-);
+const { createJob, generateJobTranslationDraft, getJob, updateJob } =
+  await import("./jobs");
 
 const jobValues: RecruitmentVacancyUpsertInput = {
   application_deadline: null,
@@ -368,7 +367,7 @@ describe("job writes", () => {
   };
 
   const stubStoredVacancy = () => {
-    sessionDb.getRow.mockImplementation(async () => ({
+    const stored = () => ({
       $createdAt: "2026-09-01T00:00:00.000Z",
       $id: "job-1",
       $updatedAt: "2026-09-01T00:00:00.000Z",
@@ -383,7 +382,11 @@ describe("job writes", () => {
       slug: "student-role",
       status: "draft",
       translations: [],
-    }));
+    });
+    // The caller is authorised against the session read; the full vacancy
+    // (with translations) is then re-read with the service key.
+    sessionDb.getRow.mockImplementation(async () => stored());
+    adminDb.getRow.mockImplementation(async () => stored());
   };
 
   const editorValues = () => {
@@ -419,6 +422,67 @@ describe("job writes", () => {
     expect(JSON.parse(payload.interview_template as string)).toEqual(
       storedTemplate
     );
+  });
+
+  test("reads translations with the service key and keeps their ids on save", async () => {
+    stubStoredVacancy();
+    const hidden = {
+      $id: "tr-no",
+      additional_fields: null,
+      locale: "no",
+    };
+    // Session reads of the translations relationship come back empty for a
+    // caller who is neither Operations Unit nor HR; only the service key
+    // sees them.
+    adminDb.getRow.mockImplementation(async () => ({
+      ...(await sessionDb.getRow()),
+      translations: [
+        {
+          ...hidden,
+          content_id: "job-1",
+          content_type: "job",
+          description: "Beskrivelse",
+          title: "Tittel",
+        },
+      ],
+    }));
+    translationRows.mockImplementation(() => ({ rows: [hidden], total: 1 }));
+
+    await updateJob("job-1", jobValues, { enabled: false, sourceLocale: "en" });
+
+    const payload = adminDb.upsertRow.mock.calls.at(-1)?.[3] as {
+      translations: { $id?: string; locale: string }[];
+    };
+    expect(payload.translations.find((t) => t.locale === "no")?.$id).toBe(
+      "tr-no"
+    );
+    const sessionTranslationReads = sessionDb.listRows.mock.calls.filter(
+      ([, table]) => table === "content_translations"
+    );
+    expect(sessionTranslationReads).toEqual([]);
+  });
+
+  test("getJob returns the translations the service key can read", async () => {
+    stubStoredVacancy();
+    adminDb.getRow.mockImplementation(async () => ({
+      ...(await sessionDb.getRow()),
+      translations: [
+        {
+          $id: "tr-no",
+          additional_fields: null,
+          content_id: "job-1",
+          content_type: "job",
+          description: "Beskrivelse",
+          locale: "no",
+          title: "Tittel",
+        },
+      ],
+    }));
+
+    const vacancy = await getJob("job-1");
+
+    expect(vacancy?.translations.map((t) => t.title)).toEqual(["Tittel"]);
+    expect(assertRecruitmentVacancyWriteAccessSpy).toHaveBeenCalled();
   });
 
   test("still writes questions when a caller sends them explicitly", async () => {
@@ -616,7 +680,7 @@ describe("job notify_push", () => {
   const savedPayload = () =>
     adminDb.upsertRow.mock.calls.at(-1)?.[3] as Record<string, unknown>;
   const stubVacancy = (campusId: string, notifyPush: boolean) => {
-    sessionDb.getRow.mockImplementation(async () => ({
+    const stored = () => ({
       $createdAt: "2026-09-01T00:00:00.000Z",
       $id: "job-1",
       $updatedAt: "2026-09-01T00:00:00.000Z",
@@ -632,7 +696,11 @@ describe("job notify_push", () => {
       slug: "student-role",
       status: "draft",
       translations: [],
-    }));
+    });
+    // The caller is authorised against the session read; the full vacancy
+    // (with translations) is then re-read with the service key.
+    sessionDb.getRow.mockImplementation(async () => stored());
+    adminDb.getRow.mockImplementation(async () => stored());
   };
 
   test("createJob writes the notify_push column, not metadata", async () => {

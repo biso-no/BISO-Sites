@@ -394,3 +394,53 @@ describe("event notify_push national guard", () => {
     expect(call?.[3]).toEqual(expect.objectContaining({ notify_push: false }));
   });
 });
+
+describe("event read permissions follow status", () => {
+  const PUBLIC_READ = ['read("any")'];
+
+  async function createWith(
+    status: EventsStatus,
+    memberOnly: boolean
+  ): Promise<{ row: unknown; translations: { $permissions: unknown }[] }> {
+    db.upsertRow.mockClear();
+    await createEvent({
+      ...departmentEventValues,
+      member_only: memberOnly,
+      status,
+    });
+    const call = db.upsertRow.mock.calls[0] as unknown[];
+    const data = call[3] as { translation_refs: { $permissions: unknown }[] };
+    return { row: call[4], translations: data.translation_refs };
+  }
+
+  test("a published members-only event is readable by anyone", async () => {
+    const { row, translations } = await createWith(
+      EventsStatus.PUBLISHED,
+      true
+    );
+    expect(row).toEqual(PUBLIC_READ);
+    expect(translations).toHaveLength(2);
+    for (const translation of translations) {
+      expect(translation.$permissions).toEqual(PUBLIC_READ);
+    }
+  });
+
+  test("a cancelled event stays readable by anyone", async () => {
+    const { row, translations } = await createWith(
+      EventsStatus.CANCELLED,
+      false
+    );
+    expect(row).toEqual(PUBLIC_READ);
+    for (const translation of translations) {
+      expect(translation.$permissions).toEqual(PUBLIC_READ);
+    }
+  });
+
+  test("a draft event has no read permission", async () => {
+    const { row, translations } = await createWith(EventsStatus.DRAFT, true);
+    expect(row).toEqual([]);
+    for (const translation of translations) {
+      expect(translation.$permissions).toEqual([]);
+    }
+  });
+});

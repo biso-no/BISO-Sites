@@ -1,7 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
-import { createSessionClient } from "@repo/api/server";
+import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type {
   AppNotices,
   ContentTranslations,
@@ -76,7 +76,9 @@ export async function fetchPendingItems(): Promise<PendingItem[]> {
       return [];
     }
 
-    const { db } = await createSessionClient();
+    // Drafts carry no read permission, so the session client cannot see them.
+    // The role gate above and the scope queries below are the boundary.
+    const { db } = await createAdminClient();
     const scopeQueries = applyScopeQueries(ctx);
     // events has no department_id column — scope it by campus only.
     const eventScopeQueries = applyScopeQueries(ctx, { departmentField: null });

@@ -54,7 +54,9 @@ const logAuditEvent = mock(
 
 mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
+  PAGE_DRAFTS_TABLE_ID: "page_drafts",
   PAGE_LOCALES: ["no", "en"],
+  archivePage: mock(async () => undefined),
   getPageById: mock(async () => null),
   clearPageTheme,
   getPageEditorById,
@@ -737,6 +739,16 @@ describe("publishing a language that has no stored draft", () => {
     expect(result).toEqual({ missingTranslation: true });
     expect(logAuditEvent).not.toHaveBeenCalled();
     expect(store.pages.get("page-a")?.translations.en).toBeUndefined();
+  });
+
+  test("an empty language answers missingTranslation too, and writes nothing", async () => {
+    publishPage.mockImplementationOnce(() =>
+      Promise.reject(new Error("Nothing to publish for en"))
+    );
+    logAuditEvent.mockClear();
+    const result = await publishPageAction("page-a", "en");
+    expect(result).toEqual({ missingTranslation: true });
+    expect(logAuditEvent).not.toHaveBeenCalled();
   });
 
   test("other publish failures still throw", async () => {

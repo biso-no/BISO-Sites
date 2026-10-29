@@ -2,27 +2,28 @@
  * Role constants and navigation access rules.
  * Single source of truth for authorization across the admin application.
  *
- * Roles are derived entirely from Azure AD Security Group combinations:
- * - SG-App-Campus-National + SG-App-Dept-OperationsUnit → "globaladmin"
- * - SG-App-Campus-{City} + SG-App-Dept-Ledelsen{City}  → "campusadmin"
+ * Roles are derived entirely from exact synced team ids (the lowercased
+ * Azure AD group name), never from team names:
+ * - sg-app-campus-national + sg-app-dept-operationsunit → "globaladmin"
+ * - sg-app-campus-{city} + sg-app-dept-ledelsen{city}  → "campusadmin"
  *
  * Special pseudo-role:
- * - "department" → User belongs to at least one SG-App-Dept-* group
+ * - "department" → User belongs to at least one sg-app-dept-* team
  *
- * SG-App-Role-* groups (finance, hr, pr, controller) are no longer used.
- * All access is derived from campus + department team membership.
+ * Role-named teams (finance, pr, controller) are no longer used.
+ * All access is derived from campus + department team ids.
  */
 
 // Roles computed from campus + department team combinations
 export const ROLES = {
-  GLOBAL_ADMIN: "globaladmin", // National + OperationsUnit
-  CAMPUS_ADMIN: "campusadmin", // Ledelsen{City} + Campus-{City}
-  HR_ADMIN: "hradmin", // National + HR
-  HR: "hr", // Membership in the HR department (normalized team name "hr")
+  GLOBAL_ADMIN: "globaladmin", // sg-app-campus-national + sg-app-dept-operationsunit
+  CAMPUS_ADMIN: "campusadmin", // sg-app-dept-ledelsen{city} + sg-app-campus-{city}
+  HR_ADMIN: "hradmin", // sg-app-campus-national + an HR team id
+  HR: "hr", // Membership in sg-app-dept-hr
   BENEFITS_EDITOR: "benefitseditor", // Email allow-list (BENEFITS_EDITOR_EMAILS)
 } as const;
 
-// Pseudo-role for any user with at least one SG-App-Dept-* membership
+// Pseudo-role for any user with at least one recorded sg-app-dept-* team id
 export const DEPARTMENT_ROLE = "department" as const;
 
 /**

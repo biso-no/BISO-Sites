@@ -64,7 +64,13 @@ const OWNERSHIP = [
   "department_id",
   "slug",
 ];
-const DRAFT_COLUMNS = ["description", "draft_doc", "title"];
+const DRAFT_COLUMNS = [
+  "description",
+  "draft_doc",
+  "locale",
+  "page_id",
+  "title",
+];
 
 interface FakePage {
   $id: string;
@@ -80,7 +86,6 @@ interface FakeTranslation {
   $id: string;
   $permissions: string[];
   description: string | null;
-  draft_doc: string | null;
   is_published: boolean;
   locale: WinterGamesLocale;
   page_id: string;
@@ -88,8 +93,20 @@ interface FakeTranslation {
   title: string;
 }
 
+/** A `page_drafts` row, keyed by its translation row's id. */
+interface FakeDraft {
+  $id: string;
+  $permissions: string[];
+  description: string | null;
+  draft_doc: string | null;
+  locale: WinterGamesLocale;
+  page_id: string;
+  title: string | null;
+}
+
 interface Seed {
   departments?: (typeof UNIT)[];
+  drafts?: FakeDraft[];
   pages?: FakePage[];
   translations?: FakeTranslation[];
 }
@@ -120,6 +137,7 @@ type Row = Record<string, unknown> & { $id: string };
 function makeDb(seed: Seed, { allowWrites }: { allowWrites: boolean }) {
   const tables: Record<string, Row[]> = {
     departments: structuredClone(seed.departments ?? [UNIT]),
+    page_drafts: structuredClone(seed.drafts ?? []) as unknown as Row[],
     page_translations: structuredClone(
       seed.translations ?? []
     ) as unknown as Row[],
@@ -197,6 +215,7 @@ function makeDb(seed: Seed, { allowWrites }: { allowWrites: boolean }) {
   };
   return {
     db,
+    drafts: tables.page_drafts as unknown as FakeDraft[],
     pages: tables.pages as unknown as FakePage[],
     translations: tables.page_translations as unknown as FakeTranslation[],
     writes,
@@ -219,7 +238,7 @@ type TranslationDraftCall = Parameters<
  */
 function makeBackend(seed: Seed = {}) {
   const store = makeDb(seed, { allowWrites: false });
-  const { pages, translations } = store;
+  const { drafts, pages, translations } = store;
   const calls = {
     savePageDraft: [] as SaveDraftCall[],
     savePageTranslationDraft: [] as TranslationDraftCall[],
@@ -231,21 +250,34 @@ function makeBackend(seed: Seed = {}) {
       draft_doc: JSON.stringify(doc),
       title: doc.meta.title,
     };
-    const row = translations.find(
+    let row = translations.find(
       (t) => t.page_id === pageId && t.locale === locale
     );
-    if (row) {
-      Object.assign(row, draft);
+    if (!row) {
+      row = {
+        $id: `tr-${locale}`,
+        $permissions: [],
+        description: draft.description,
+        is_published: false,
+        locale: locale as WinterGamesLocale,
+        page_id: pageId,
+        published_doc: null,
+        title: draft.title,
+      };
+      translations.push(row);
+    }
+    // The draft goes to its own row; the translation row is not written.
+    const stored = drafts.find((d) => d.$id === row.$id);
+    if (stored) {
+      Object.assign(stored, draft);
       return;
     }
-    translations.push({
+    drafts.push({
       ...draft,
-      $id: `tr-${locale}`,
+      $id: row.$id,
       $permissions: [],
-      is_published: false,
       locale: locale as WinterGamesLocale,
       page_id: pageId,
-      published_doc: null,
     });
   };
 
@@ -304,6 +336,7 @@ function makeBackend(seed: Seed = {}) {
   return {
     calls,
     deps,
+    drafts,
     lines,
     pages,
     translations,
@@ -359,7 +392,6 @@ function liveTranslations(): FakeTranslation[] {
     $id: `tr-live-${locale}`,
     $permissions: [...PUBLIC_READ],
     description: LIVE_DESCRIPTION,
-    draft_doc: liveDoc(locale),
     is_published: true,
     locale,
     page_id: LIVE_PAGE_ID,
@@ -368,8 +400,31 @@ function liveTranslations(): FakeTranslation[] {
   }));
 }
 
+function liveDrafts(): FakeDraft[] {
+  return LOCALES.map((locale) => ({
+    $id: `tr-live-${locale}`,
+    $permissions: [],
+    description: LIVE_DESCRIPTION,
+    draft_doc: liveDoc(locale),
+    locale,
+    page_id: LIVE_PAGE_ID,
+    title: LIVE_TITLE,
+  }));
+}
+
+/** The stored draft document of a translation row, from the draft table. */
+function draftOf(drafts: FakeDraft[], translationId: string): unknown {
+  return JSON.parse(
+    drafts.find((d) => d.$id === translationId)?.draft_doc ?? "null"
+  );
+}
+
 function liveSeed(overrides: Partial<FakePage> = {}): Seed {
-  return { pages: [livePage(overrides)], translations: liveTranslations() };
+  return {
+    drafts: liveDrafts(),
+    pages: [livePage(overrides)],
+    translations: liveTranslations(),
+  };
 }
 
 function sha256(text: string): string {
@@ -551,7 +606,10 @@ describe("a fresh run", () => {
       const row = backend.translations.find((t) => t.locale === locale);
       expect(row?.is_published).toBe(false);
       expect(row?.published_doc).toBeNull();
-      expect(JSON.parse(row?.draft_doc ?? "null")).toEqual(expectedDoc(locale));
+      expect(draftOf(backend.drafts, row?.$id ?? "")).toEqual(
+        expectedDoc(locale)
+      );
+      expect(row).not.toHaveProperty("draft_doc");
     }
   });
 
@@ -609,7 +667,6 @@ describe("a re-run", () => {
           $id: "tr-no-old",
           $permissions: [],
           description: null,
-          draft_doc: null,
           is_published: false,
           locale: "no",
           page_id: "page-existing",
@@ -636,10 +693,10 @@ describe("a re-run", () => {
     const [no, en] = backend.translations;
     expect(no?.title).toBe("Old");
     expect(no?.description).toBeNull();
-    expect(JSON.parse(no?.draft_doc ?? "null")).toEqual(
+    expect(draftOf(backend.drafts, no?.$id ?? "")).toEqual(
       keptMetaDoc("no", "Old", null)
     );
-    expect(JSON.parse(en?.draft_doc ?? "null")).toEqual(expectedDoc("en"));
+    expect(draftOf(backend.drafts, en?.$id ?? "")).toEqual(expectedDoc("en"));
     for (const t of backend.translations) {
       expect(t.is_published).toBe(false);
     }
@@ -678,7 +735,7 @@ describe("adopting the unbound live page", () => {
       expect(t.$permissions).toEqual(PUBLIC_READ);
       expect(t.title).toBe(LIVE_TITLE);
       expect(t.description).toBe(LIVE_DESCRIPTION);
-      expect(JSON.parse(t.draft_doc ?? "null")).toEqual(
+      expect(draftOf(backend.drafts, t.$id)).toEqual(
         keptMetaDoc(t.locale, LIVE_TITLE, LIVE_DESCRIPTION)
       );
     }
@@ -809,15 +866,15 @@ describe("over the real page builder", () => {
     expect(bind?.data.department_id).toBe(UNIT.$id);
     expect(bind?.data.campus_id).toBe("5");
 
-    const draftWrites = store.writes.filter(
-      (w) => w.tableId === "page_translations"
-    );
+    const draftWrites = store.writes.filter((w) => w.tableId === "page_drafts");
+    // The drafts go to the draft table, keyed by the translation row's id;
+    // the translation rows themselves are not written.
     expect(draftWrites.map((w) => [w.method, w.rowId])).toEqual([
-      ["updateRow", "tr-live-no"],
-      ["updateRow", "tr-live-en"],
+      ["upsertRow", "tr-live-no"],
+      ["upsertRow", "tr-live-en"],
     ]);
     for (const w of draftWrites) {
-      expect(w.permissionsPassed).toBe(false);
+      expect(w.permissionsPassed).toBe(true);
       expect(writtenKeys(w)).toEqual(DRAFT_COLUMNS);
       // The page builder always writes these two; the seed hands it the
       // stored values, so the live <title> and meta description stay.
@@ -825,8 +882,8 @@ describe("over the real page builder", () => {
       expect(w.data.description).toBe(LIVE_DESCRIPTION);
     }
     expect(store.writes.map((w) => w.tableId).sort()).toEqual([
-      "page_translations",
-      "page_translations",
+      "page_drafts",
+      "page_drafts",
       "pages",
     ]);
 
@@ -866,8 +923,8 @@ describe("over the real page builder", () => {
     // The re-run's writes are drafts only.
     const reRun = store.writes.slice(-2);
     for (const w of reRun) {
-      expect(w.tableId).toBe("page_translations");
-      expect(w.method).toBe("updateRow");
+      expect(w.tableId).toBe("page_drafts");
+      expect(w.method).toBe("upsertRow");
       expect(PUBLISH_STATE.some((key) => key in w.data)).toBe(false);
     }
     for (const helper of publishHelpers) {

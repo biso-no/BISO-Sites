@@ -1,13 +1,33 @@
 "use client";
 
-import { CalendarDays, Check, Copy, Link2, Video } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
-import { createBookingToken } from "@/app/(portal)/_actions/interviews";
+import {
+  CalendarDays,
+  Check,
+  Copy,
+  Link2,
+  TriangleAlert,
+  Video,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import {
+  type BookingTokenSummary,
+  createBookingToken,
+  listBookingTokens,
+  revokeBookingToken,
+} from "@/app/(portal)/_actions/interviews";
 import { localDateKey, slotKey } from "@/lib/schedule-dates";
 import { useRecruitment } from "../recruitment-context";
 import {
   cx,
   formatShortDate,
+  interviewInviteMissing,
   type PendingScorecard,
   type WorkspaceInterview,
 } from "../view-model";
@@ -18,6 +38,15 @@ const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 interface HeatCell {
   label: string;
   status: "open" | "booked" | "proposed";
+}
+
+function linkState(link: BookingTokenSummary): "Active" | "Booked" | "Expired" {
+  if (link.consumed_at) {
+    return "Booked";
+  }
+  return new Date(link.expires_at).getTime() > Date.now()
+    ? "Active"
+    : "Expired";
 }
 
 function buildDays(): { iso: string; label: string }[] {
@@ -45,6 +74,7 @@ export function InterviewsTab({
   pendingScorecards: PendingScorecard[];
 }) {
   const { panel, candidates, actions } = useRecruitment();
+  const t = useTranslations("adminPortal.jobs.studio");
   const primaryPanel = panel.filter((member) => member.scope === "primary");
   const days = useMemo(buildDays, []);
   const [duration, setDuration] = useState(30);
@@ -65,6 +95,32 @@ export function InterviewsTab({
   const [copied, setCopied] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [issuing, startIssue] = useTransition();
+  const [links, setLinks] = useState<BookingTokenSummary[]>([]);
+  const [revoking, startRevoke] = useTransition();
+
+  const refreshLinks = useCallback(async (applicationId: string) => {
+    if (!applicationId) {
+      setLinks([]);
+      return;
+    }
+    const result = await listBookingTokens(applicationId);
+    setLinks(result.data ?? []);
+  }, []);
+
+  useEffect(() => {
+    refreshLinks(bookingCandidateId);
+  }, [bookingCandidateId, refreshLinks]);
+
+  const revokeLink = (tokenId: string) => {
+    setBookingError(null);
+    startRevoke(async () => {
+      const result = await revokeBookingToken(tokenId);
+      if (result.error) {
+        setBookingError(result.error);
+      }
+      await refreshLinks(bookingCandidateId);
+    });
+  };
 
   const cellMap = useMemo(() => {
     const map = new Map<string, HeatCell>();
@@ -133,6 +189,7 @@ export function InterviewsTab({
         setBookingError(result.error);
       } else if (result.data) {
         setBookingUrl(result.data.url);
+        await refreshLinks(candidate.id);
       }
     });
   };
@@ -204,6 +261,12 @@ export function InterviewsTab({
                         {formatShortDate(interview.startsAt)}
                         {interview.teams ? " · Teams" : ""}
                       </span>
+                      {interviewInviteMissing(interview) ? (
+                        <span className="iv-row-sub iv-row-warn" role="status">
+                          <TriangleAlert aria-hidden="true" size={12} />
+                          {t("inviteNotSent")}
+                        </span>
+                      ) : null}
                     </div>
                     <span className="iv-panel">
                       {interview.panel.map((member) => (
@@ -299,6 +362,37 @@ export function InterviewsTab({
             </div>
           ) : null}
           {bookingError ? <p className="iv-error">{bookingError}</p> : null}
+          {links.length > 0 ? (
+            <div className="iv-field">
+              <span>Links sent to this candidate</span>
+              {links.map((link) => {
+                const state = linkState(link);
+                return (
+                  <div className="iv-row" key={link.id}>
+                    <div className="iv-row-main">
+                      <strong>{state}</strong>
+                      <span className="iv-row-sub">
+                        Created {formatShortDate(link.created_at)}
+                        {state === "Active"
+                          ? ` · expires ${formatShortDate(link.expires_at)}`
+                          : ""}
+                      </span>
+                    </div>
+                    {state === "Active" ? (
+                      <button
+                        className="btn-ghost"
+                        disabled={revoking}
+                        onClick={() => revokeLink(link.id)}
+                        type="button"
+                      >
+                        Revoke
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           <button
             className="btn-dark iv-issue"
             disabled={issuing}

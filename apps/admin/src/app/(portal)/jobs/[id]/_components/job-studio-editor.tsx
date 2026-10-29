@@ -40,6 +40,10 @@ import {
 import { CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
 import type { ContentNotificationState } from "@/lib/content-notification-state";
 import type { JobReuseSignals } from "@/lib/job-reuse";
+import {
+  publishDeadlineWarning,
+  saveDraftConfirmMessage,
+} from "@/lib/job-status-transition";
 import { defaultNotifyPush, notifyToggleCopy } from "@/lib/notify-toggle-copy";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
@@ -1112,6 +1116,17 @@ export function JobStudioEditor({
         ? `${successMessage} Translation queued.`
         : successMessage
     );
+    // Publishing a closed vacancy reopens it; say so when nobody can apply.
+    const deadlineWarning =
+      status === JobsStatus.PUBLISHED
+        ? publishDeadlineWarning({
+            applicationDeadline: form.application_deadline,
+            currentStatus: job?.status,
+          })
+        : null;
+    if (deadlineWarning) {
+      toast.warning(deadlineWarning);
+    }
   }
 
   /** Publish, but ask first when this looks like a past-round vacancy. */
@@ -1122,6 +1137,18 @@ export function JobStudioEditor({
       return;
     }
     submit(JobsStatus.PUBLISHED);
+  }
+
+  function handleSaveDraft() {
+    const confirmMessage = saveDraftConfirmMessage(job?.status);
+    if (
+      confirmMessage &&
+      // biome-ignore lint/suspicious/noAlert: Same confirmation pattern as the other studio prompts.
+      !window.confirm(confirmMessage)
+    ) {
+      return;
+    }
+    submit(JobsStatus.DRAFT);
   }
 
   async function submit(status: JobsStatus) {
@@ -1226,7 +1253,7 @@ export function JobStudioEditor({
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm transition hover:border-[#3DA9E0]/50"
               disabled={isBusy}
-              onClick={() => submit(JobsStatus.DRAFT)}
+              onClick={handleSaveDraft}
               type="button"
             >
               <Save size={15} />
@@ -2380,7 +2407,7 @@ export function JobStudioEditor({
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-[#001731] text-sm disabled:opacity-60"
               disabled={isBusy}
-              onClick={() => submit(JobsStatus.DRAFT)}
+              onClick={handleSaveDraft}
               type="button"
             >
               <Save size={15} />

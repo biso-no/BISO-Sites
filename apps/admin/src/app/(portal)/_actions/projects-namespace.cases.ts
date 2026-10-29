@@ -44,7 +44,9 @@ const savePageDraft = mock(
 
 mock.module("server-only", () => ({}));
 mock.module("@repo/api/page-builder", () => ({
+  PAGE_DRAFTS_TABLE_ID: "page_drafts",
   PAGE_LOCALES: ["no", "en"],
+  archivePage: mock(async () => undefined),
   clearPageTheme: mock(async () => undefined),
   getPageById: mock(async () => null),
   getPageEditorById: mock(async () => null),

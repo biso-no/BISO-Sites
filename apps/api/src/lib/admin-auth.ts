@@ -1,31 +1,17 @@
 import "server-only";
-import { Query } from "@repo/api";
-import { appwriteErrorStatus } from "@repo/api/errors";
+import { type Models, Query } from "@repo/api";
+import { appwriteErrorStatus, orNullIfRowNotFound } from "@repo/api/errors";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { AdminScope } from "@repo/shared/types/user-management";
 import {
-  getManagedCampuses,
-  isNationalOperations,
-  normalizeTeamName,
+  keepSyncedTeams,
+  M365_TEAM_SYNC_TABLE_ID,
+  rolesFromTeams,
 } from "@repo/shared/utils/team-roles";
 import type { NextRequest } from "next/server";
 
 const UNAUTHORIZED = 401;
-
-// Helper to reduce complexity
-function computeManagedCampusNames(
-  isGlobal: boolean,
-  managed: string[],
-  all: string[]
-): string[] {
-  if (isGlobal) {
-    return [];
-  }
-  if (managed.length > 0) {
-    return managed;
-  }
-  return all;
-}
+const FORBIDDEN = 403;
 
 /**
  * Extracts JWT from Authorization header (Bearer token)
@@ -38,12 +24,50 @@ export function extractJwtFromRequest(req: NextRequest): string | undefined {
   return;
 }
 
+/** A `m365_team_sync` row, written by the admin's M365 sign-in sync. */
+type M365TeamSyncRow = Models.Row & {
+  synced_at?: string | null;
+  team_ids?: string[] | null;
+};
+
+/**
+ * The team ids the M365 sync recorded for this user, read with the service
+ * key (the table has no permissions). No record means no synced teams: an
+ * empty set. Any other failure propagates.
+ */
+async function loadSyncedTeamIds(userId: string): Promise<Set<string>> {
+  const { db } = await createAdminClient();
+  try {
+    const record = await orNullIfRowNotFound(
+      db.getRow<M365TeamSyncRow>("app", M365_TEAM_SYNC_TABLE_ID, userId)
+    );
+    return new Set(record?.team_ids ?? []);
+  } catch (error) {
+    // This read uses the service key. A 401/403 here is a server fault, not
+    // the caller being signed out, so it must not be mistaken for one.
+    const status = appwriteErrorStatus(error);
+    if (status === UNAUTHORIZED || status === FORBIDDEN) {
+      throw new Error(
+        `Service key was refused reading the team sync record (HTTP ${status})`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
+}
+
 /**
  * Get the authorization scope for the current admin user.
  * Implements the three-tier authorization model:
- * 1. National + OperationsUnit => manage ANY campus/department
- * 2. Campus-{X} + Ledelsen{X} => manage within campus X only
- * 3. Campus-{X} + Dept-{Y} => manage within that department only
+ * 1. Teams `sg-app-campus-national` + `sg-app-dept-operationsunit` => manage
+ *    ANY campus/department
+ * 2. Teams `sg-app-campus-{x}` + `sg-app-dept-ledelsen{x}` => manage within
+ *    campus x only
+ * 3. Any other `sg-app-dept-*` team => manage within that department only
+ *
+ * Roles come from exact team ids, never team names. An `sg-app-*` team only
+ * counts when its id is in the caller's `m365_team_sync` record; without a
+ * record the caller has none. Campus membership alone grants no scope.
  *
  * Resolves to `null` only when the caller is not authenticated (no session, or
  * Appwrite answered 401). Any other failure (outage, timeout, 5xx) is rethrown
@@ -56,43 +80,24 @@ export async function getAdminScope(
     const jwt = extractJwtFromRequest(req);
     const { account, teams } = await createSessionClient(jwt);
     const user = await account.get();
-    const teamMemberships = await teams.list([Query.limit(200)]);
+    const [teamMemberships, syncedTeamIds] = await Promise.all([
+      teams.list([Query.limit(200)]),
+      loadSyncedTeamIds(user.$id),
+    ]);
 
-    const campusNames: string[] = [];
-    const departmentNames: string[] = [];
-
-    // Parse team memberships
-    for (const team of teamMemberships.teams) {
-      const normalized = normalizeTeamName(team.name);
-      if (!normalized) {
-        continue;
-      }
-
-      if (normalized.kind === "campus") {
-        campusNames.push(normalized.value);
-      } else {
-        departmentNames.push(normalized.value);
-      }
-    }
-
-    // Check for global admin (National + Operations Unit)
-    const isGlobalAdmin = isNationalOperations(campusNames, departmentNames);
-
-    // Check for campus admin (Ledelsen{City} + Campus-{City})
-    const managedCampuses = getManagedCampuses(campusNames, departmentNames);
-
+    const roles = rolesFromTeams(
+      keepSyncedTeams(teamMemberships.teams, syncedTeamIds)
+    );
+    const { isGlobalAdmin } = roles;
+    const managedCampuses = roles.managedCampuses;
     const isCampusAdmin = managedCampuses.length > 0;
 
     return {
       userId: user.$id,
       canManageAnyCampus: isGlobalAdmin,
-      managedCampusNames: computeManagedCampusNames(
-        isGlobalAdmin,
-        managedCampuses,
-        campusNames
-      ),
+      managedCampusNames: isGlobalAdmin ? [] : managedCampuses,
       managedDepartmentNames:
-        isGlobalAdmin || isCampusAdmin ? [] : departmentNames,
+        isGlobalAdmin || isCampusAdmin ? [] : roles.departmentNames,
       isGlobalAdmin,
       isCampusAdmin,
     };

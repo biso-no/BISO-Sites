@@ -428,6 +428,12 @@
       "reopen": "Åpne igjen"
     },
     "studio": {
+      "bulkDraftInvites": "Lag utkast til invitasjoner",
+      "bulkArchive": "Arkiver",
+      "bulkDraftRejections": "Lag utkast til avslag",
+      "bulkDismiss": "Lukk",
+      "bulkArchived": "{count, plural, one {Arkiverte # kandidat.} other {Arkiverte # kandidater.}}",
+      "inviteNotSent": "Invitasjon ikke sendt",
       "eyebrow": "BISO rekrutteringsstudio",
       "titleAccent": "dette semesteret.",
       "description": "Opprett, gjennomgå og publiser studentrettede roller med BISOs visuelle system, samtidig som hver utlysning knyttes til campus- og avdelingstilgang.",
@@ -437,6 +443,12 @@
       "duplicateHint": "Dupliser for en ny runde",
       "duplicateSuccess": "Kopi opprettet som nytt utkast",
       "duplicateError": "Kunne ikke lage kopien. Prøv igjen om litt.",
+      "closeConfirm": "Stenge denne stillingen? Den forsvinner fra den offentlige siden og tar ikke imot nye søknader. Eksisterende søknader beholdes.",
+      "reopenConfirm": "Åpne denne stillingen igjen? Den blir synlig på den offentlige siden igjen.",
+      "closeSuccess": "Stillingen er stengt",
+      "reopenSuccess": "Stillingen er åpnet igjen",
+      "reopenDeadlinePassed": "Stillingen er åpnet igjen, men søknadsfristen har gått ut. Flytt fristen så folk kan søke.",
+      "statusError": "Kunne ikke oppdatere stillingen. Prøv igjen om litt.",
       "confirmDelete": "Bekreft sletting",
       "kpi": {
         "openPositions": "Åpne stillinger",
