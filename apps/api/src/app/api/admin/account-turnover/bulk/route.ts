@@ -31,6 +31,15 @@ interface TurnoverResult {
   webhookResponse?: unknown;
 }
 
+function rejectNonGlobalAdmin(
+  scope: Awaited<ReturnType<typeof getAdminScope>>
+): NextResponse {
+  if (!scope) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+}
+
 /**
  * POST /api/admin/account-turnover/bulk
  * Bulk initiate account turnovers by calling the Azure Automation webhook for each.
@@ -38,8 +47,8 @@ interface TurnoverResult {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const scope = await getAdminScope(request);
-    if (!scope) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!scope?.isGlobalAdmin) {
+      return rejectNonGlobalAdmin(scope);
     }
 
     // Validate webhook URL is configured
