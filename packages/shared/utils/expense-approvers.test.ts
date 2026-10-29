@@ -65,6 +65,13 @@ describe("getCampusApprovalPlan", () => {
     ]);
   });
 
+  it("sends national reimbursements to the national manager mailbox", () => {
+    expect(NATIONAL_APPROVER_EMAIL).toBe("manager@biso.no");
+    expect(getCampusApprovalPlan({ campusId: "5" })[0]?.email).toBe(
+      "manager@biso.no"
+    );
+  });
+
   it("throws on an unknown campus", () => {
     expect(() => getCampusApprovalPlan({ campusId: "99" })).toThrow(
       "Unknown campus"

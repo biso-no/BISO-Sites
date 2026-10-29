@@ -15,8 +15,8 @@
  *   Ledelsen Oslo (department 2) has no department financial manager, so it is
  *   controller-only (1 step).
  * - Bergen / Trondheim / Stavanger (2/3/4): 1 step — the campus controller.
- * - National (campus 5): 1 step — markus@biso.no (placeholder for testing;
- *   becomes simen@biso.no later).
+ * - National (campus 5): 1 step — the national manager mailbox,
+ *   manager@biso.no.
  * - Department roles are matched by the email local-part prefix (financial
  *   managers start with "financ", managers "manag", deputies "deput") because
  *   the exact mailbox varies (finance. vs financial. etc.).
@@ -50,7 +50,7 @@ export interface ApprovalPlanInput {
 }
 
 export const EXPENSE_APPROVER_DOMAIN = "biso.no";
-export const NATIONAL_APPROVER_EMAIL = `markus@${EXPENSE_APPROVER_DOMAIN}`;
+export const NATIONAL_APPROVER_EMAIL = `manager@${EXPENSE_APPROVER_DOMAIN}`;
 
 const OSLO_CAMPUS_ID = "1";
 const NATIONAL_CAMPUS_ID = "5";
