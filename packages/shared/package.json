@@ -24,6 +24,7 @@
     "migrate:benefits": "bun --env-file=../../apps/admin/.env.local scripts/migrate-benefits.ts",
     "clear:legacy-benefit-codes": "bun --env-file=../../apps/admin/.env.local scripts/clear-legacy-benefit-codes.ts",
     "reconcile:row-permissions": "bun --env-file=../../apps/admin/.env.local scripts/reconcile-row-permissions.ts",
+    "migrate:page-drafts": "bun --env-file=../../apps/admin/.env.local scripts/migrate-page-drafts.ts",
     "backfill:m365-team-sync": "bun --env-file=../../apps/admin/.env.local scripts/backfill-m365-team-sync.ts"
   },
   "devDependencies": {
