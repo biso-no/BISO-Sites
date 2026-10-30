@@ -1,0 +1,225 @@
+---
+title: Common changes
+description: Step-by-step recipes for the changes that come up most, from a new page or server action to an editor block, a table, an environment variable, a translation and an admin menu item, with the checks that prove each one worked.
+covers:
+  - apps/web/src/lib/data/public-content.ts
+  - apps/web/src/lib/campus-scope.ts
+  - apps/web/src/app/sitemap.ts
+  - apps/web/src/app/campus-routing.test.ts
+  - apps/web/src/app/api/revalidate/route.ts
+  - apps/web/src/app/(public)/design-system/page-blocks/fixture.ts
+  - apps/web/src/lib/data/page-feeds.ts
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/nav-tree.ts
+  - apps/admin/src/app/(portal)/sidebar.tsx
+  - apps/admin/src/app/(portal)/_actions/audit-log.ts
+  - apps/admin/src/lib/web-revalidate.ts
+  - apps/admin/src/instrumentation.ts
+  - packages/editor/src/editor/types.ts
+  - packages/editor/src/editor/operations.ts
+  - packages/editor/src/editor/sanitize-doc.ts
+  - packages/editor/src/editor/page-feeds.ts
+  - packages/editor/src/editor/use-auto-feed.ts
+  - packages/editor/src/ai/prompt.ts
+  - packages/shared/utils/page-feeds.ts
+  - apps/admin/src/app/api/pages/**
+  - apps/web/src/app/api/pages/**
+  - packages/editor/src/blocks/index.ts
+  - packages/editor/src/blocks/registry.ts
+  - packages/editor/src/blocks/types.ts
+  - packages/i18n/messages/no.ts
+  - packages/i18n/messages/en.ts
+  - packages/i18n/scripts/translate.ts
+  - packages/api/package.json
+  - packages/api/types/inputs.ts
+  - turbo.json
+---
+
+Use these recipes for the changes you'll make most often. Each one lists the files to touch, in order, and the checks that prove it worked. Nothing in CI runs tests, lint or a type-check, so run the checks yourself. [Local setup](/developers/change-it/local-setup#type-check-lint-and-format) has the commands, and its [Tests](/developers/change-it/local-setup#tests) section names the one suite that already fails.
+
+## Add a page to the website
+
+1. Create `apps/web/src/app/(public)/<route>/page.tsx` as a Server Component. For a page only signed-in people may see, put it under `(protected)/` instead. That layout already shows everyone else the 401 page.
+2. Read data through a cached reader in `apps/web/src/lib/data/`, and not straight from Appwrite in the page. Copy the shape of `cachedPublishedPage` in `public-content.ts`: `"use cache"`, `cacheLife(...)`, `cacheTag(...)` and `createPublicClient()`. A reader must throw when Appwrite fails. If it returned `[]` or `null` instead, that answer would be cached for the whole cache window. Handle the failure where you call the reader.
+3. Build the page from the redesign's pieces in `apps/web/src/components/ui/`, such as `PageHeader`, `Section` and `Container`. `apps/web/CLAUDE.md` lists them and the design rules.
+4. If the page lists content for each campus:
+   - read `?campus=` with `resolveRequestCampus`, and answer 404 for a campus it doesn't know;
+   - set the page's canonical address to the URL without `?campus=`;
+   - add the path to `CAMPUS_SCOPED_PATHS` in `apps/web/src/lib/campus-scope.ts`;
+   - add the page to the `feeds` list in `apps/web/src/app/campus-routing.test.ts`, which checks those three things.
+5. If search engines should find the page, add it to `staticRoutes` in `apps/web/src/app/sitemap.ts`.
+
+Check:
+
+```bash
+bun run check-types --filter=web
+bun run test --filter=web
+```
+
+Several tests read the source: `styles.test.ts`, `motion.test.ts` and `redesign-coverage.test.ts` fail on the old colour classes, gradients, `backdrop-blur` and `whileInView`. Then run `bun run dev --filter=web` and open the page.
+
+## Add a page to the admin
+
+1. Create `apps/admin/src/app/(portal)/<route>/page.tsx`. The `(portal)` layout already runs `requireAdminAccess()`.
+2. Make `await requireNavAccess("<navKey>")` the page's first call. It returns the person's auth context. Use an existing key, or add one as in [Add an admin menu item with role access](#add-an-admin-menu-item-with-role-access).
+3. Load the data through a server action that applies the scope filters, as in the next section.
+
+`apps/admin/src/app/(portal)/pages/page.tsx` is a short example. A new top-level folder outside `(portal)` and `(editor)` gets no layout check, so it must add its own.
+
+## Add a server action
+
+### In the admin
+
+1. Put it in `apps/admin/src/app/(portal)/_actions/<area>.ts`, or in an `actions.ts` next to the page. The file starts with `"use server"`.
+2. Export only async functions from that file. Types are fine. A constant or a plain function breaks the build, and the type-check doesn't notice. Put shared constants and helpers in a plain module under `apps/admin/src/lib/`. A helper that other server code calls, but the browser must never reach, goes in a module that starts with `import "server-only"` and not `"use server"`. `_actions/audit-log.ts` and `lib/team-provisioning.ts` work this way, and `apps/admin/src/lib/server-only-modules.test.ts` checks them.
+3. Start the action with `const ctx = await requireAuth();`. It checks for a session and nothing else, so the next step matters.
+4. Limit what the person can reach:
+   - For a list, add `applyScopeQueries(ctx, fields)` from `@/lib/utils/authorization` to the query, or `applyContentRelationshipScopeQueries(ctx)` from `@/lib/content-authorization` for tables that link to a campus and department through relationships.
+   - Before a write, call `assertWriteAccess(ctx, campusId, departmentId)`. When the campus and department ids come from a form, call `assertContentOwnership(db, ctx, input)`, which also checks that the department belongs to the campus.
+
+   [Auth and roles](/developers/change-it/auth-and-roles#campus-and-department-scope) explains each one.
+5. Read and write content with `createAdminClient()`. Staff don't write content with their own session, so the checks in step 4 are the only limit.
+6. After a change, call `logAuditEvent(ctx, "<action>", { resourceId, resourceType })` from `_actions/audit-log.ts`, then `revalidatePath()` for the admin pages that show the data. If the website caches it too, see [Refresh the website after an admin save](#refresh-the-website-after-an-admin-save).
+
+`listPages` and `publishPageAction` in `apps/admin/src/app/(portal)/_actions/pages.ts` follow every step. The admin has no single shape for an action's result, so copy the one used in the file you're adding to.
+
+Check:
+
+```bash
+bun run check-types --filter=admin
+bun run build --filter=admin
+```
+
+The build is the only check that catches a `"use server"` file exporting something that isn't an async function.
+
+### On the website
+
+1. Put actions for one feature in `apps/web/src/app/actions/`, and actions several features share in `apps/web/src/lib/actions/`.
+2. If the action writes rows the visitor must own, such as a cart reservation, call `ensureAnonymousSession()` from `@/lib/anon-session` first.
+3. Return `{ success: boolean; data?: T; error?: string }` from a new action. Older actions use other shapes. Leave them as they are.
+
+## Add an editor block
+
+Each block lives in `packages/editor/src/blocks/<type>/`, and the folder name must be the block's type. The `faq` block is a small one to copy.
+
+1. In `packages/editor/src/editor/types.ts`, add the type to `BlockType`, write a `<Name>Block` interface for its content, and add that interface to the `Block` union.
+2. In `packages/editor/src/editor/operations.ts`, add a `case` to `emptyBlock()` with the content a new block starts with.
+3. Create the block's folder with three files:
+   - `render.tsx`: how the block looks, in the editor and on the website.
+   - `inspector.tsx`: the block's settings panel in the editor.
+   - `index.tsx`: calls `registerBlock()` with `type`, `label`, `description`, `category`, `group`, `aiHint`, `aiProps`, `empty`, `Render`, `Inspector` and `PaletteThumb`. `group` places the block in the palette, and is one of `text`, `media`, `structure`, `people`, `live`, `actions` or `extras`.
+4. Import the folder in `packages/editor/src/blocks/index.ts`.
+5. Add an example of the block to the website's design-system fixture, `apps/web/src/app/(public)/design-system/page-blocks/fixture.ts`.
+
+The palette, the AI's list of block types and the website's renderer all read the registry, so they pick the new block up by themselves. The page assistant's instructions don't: `packages/editor/src/ai/prompt.ts` lists the blocks and their prop paths by hand. Add your block's props there if the assistant should fill it in.
+
+Two kinds of block need more:
+
+- **A block that renders HTML.** Only `text` blocks are cleaned of unsafe HTML, in `sanitizeBlock()` in `packages/editor/src/editor/sanitize-doc.ts`. Every other prop is shown as plain text. If your block renders HTML, add it there.
+- **A block that shows Appwrite data**, like `events`, `news` or `partners`. It needs a feed. Follow the `partners` block, in this order:
+  1. In the block's `render.tsx`, read the rows with `useAutoFeed()` from `packages/editor/src/editor/use-auto-feed.ts`. Give it the key from `pageFeedKey()` and the address `/api/pages/<kind>`.
+  2. Add a branch for the new block type to `requestForBlock()` in `packages/editor/src/editor/page-feeds.ts`, returning the same key. It returns nothing for a type it doesn't know, so without the branch the website never asks for the block's rows.
+  3. If none of the existing `PageFeedKind` values fits, add one in that file, then:
+     - add a reader to `packages/shared/utils/page-feeds.ts`;
+     - add a cached reader to `apps/web/src/lib/data/public-content.ts`, and a `case` for it in `readFeed()` in `apps/web/src/lib/data/page-feeds.ts`. The type-check fails until the `case` is there;
+     - add `apps/web/src/app/api/pages/<kind>/route.ts`. The block fetches it in the browser when the server's read failed;
+     - add `apps/admin/src/app/api/pages/<kind>/route.ts`, built on `apps/admin/src/app/api/pages/_lib/feed.ts`. The editor's preview fetches it, and without it the block stays empty in the editor.
+  4. If the block needs rows to render in the design-system fixture, add them to `PAGE_BLOCKS_FEEDS` in the same `fixture.ts`.
+
+Check:
+
+```bash
+bun run check-types --filter=@repo/editor
+bun run test --filter=@repo/editor
+bun run test --filter=web
+```
+
+What the tests enforce:
+
+- `blocks/registry.test.ts`: every block folder registers exactly one block with the folder's name, and every block sits in a palette group.
+- `blocks/_v2/v2-guard.test.ts`: no screen-size variants such as `sm:` or `md:`, no hex colours or Tailwind palette colours, no `text-white`, `font-medium`, gradients, `backdrop-blur` or `whileInView`, no shadows other than `elev-*`, no rounding other than `biso-*`, no `next/link`, and no `<h1>` in a block.
+- `blocks/_v2/no-dynamic-classes.test.ts`: no class names built from variables.
+- On the website, `fixture.test.tsx` fails if the fixture has no example of a block.
+
+Then add the block to a page in your local admin and check how it looks there and on your local website.
+
+## Add a table or column
+
+The schema is `packages/api/appwrite.config.json`. Schema changes have been made by editing that file in a reviewed pull request, with the owner's approval. [Data model](/developers/change-it/data-model#schema-changes-and-what-never-to-hand-edit) explains why the root `CLAUDE.md` says otherwise.
+
+1. Change `packages/api/appwrite.config.json`. Follow the permission patterns in [Data model](/developers/change-it/data-model#permissions): no table-level `create("any")` or `create("users")`, no grant to a team called `admin`, who may see a row set on the row, and writes through the admin's service key.
+2. Run the schema tests:
+
+   ```bash
+   bun run test --filter=@repo/api
+   ```
+
+   `appwrite-config.test.ts` and `appwrite-config-permissions.test.ts` check the permissions, indexes and buckets in the file. They all pass today, so any failure is yours. A new team grant fails until you add the team id to the list in `appwrite-config-permissions.test.ts`.
+3. The owner pushes the change with `appwrite push tables` from `packages/api`. That changes production. If the CLI offers to recreate or delete an existing column, stop: recreating a column wipes it on every row.
+4. Regenerate the types and commit `packages/api/types/appwrite.ts`:
+
+   ```bash
+   cd packages/api
+   bun run types:generate
+   ```
+
+   Use the script, not the bare `appwrite types` command. [Regenerate the types](/developers/change-it/data-model#regenerate-the-types) says why.
+5. If the table has relationship columns, add a write-input type to `packages/api/types/inputs.ts`, and write its rows with `createTypedRow` and `updateTypedRow` from `@repo/api/write`.
+
+It worked when `bun run check-types` passes and the new table or column shows in the Appwrite console.
+
+## Add an environment variable
+
+1. Add the name, with no value, to the `.env.example` of each app that reads it.
+2. Read it with `process.env.NAME` in server code only. Only names that start with `NEXT_PUBLIC_` reach the browser, and `next build` copies their values into the build. Never put a secret in one.
+3. Add the name to `tasks.build.env` in `turbo.json`. Turbo runs in strict mode, so without it `next build` can't see the value. Names that start with `NEXT_PUBLIC_` are passed on without being listed.
+4. If the admin can't work without the variable, add it to `REQUIRED_ENV` in `apps/admin/src/instrumentation.ts`. The admin then refuses to start without it. The other apps have no such list.
+5. Put a value in your own `.env.local`.
+6. Before you deploy, put the value in Infisical and on each Site or function that needs it in the Appwrite console. A `NEXT_PUBLIC_*` value needs a new build. Then add the name to the [list of variables](/developers/keep-it-running/secrets-and-environment#all-variables-by-service).
+
+There's no shared list or schema of variables in code, so nothing tells you a value is missing until the code that reads it runs. [Secrets and environment](/developers/keep-it-running/secrets-and-environment#build-time-and-run-time) explains when a change takes effect.
+
+## Add a translation string
+
+Text for the website and the admin is in `packages/i18n/messages/no/<namespace>.json` and `packages/i18n/messages/en/<namespace>.json`. Norwegian is the default language.
+
+1. Add the key to both files, at the same place.
+2. Read it with `getTranslations("<namespace>")` in a Server Component, or `useTranslations("<namespace>")` in a Client Component. A dotted name reaches into a group, for example `useTranslations("adminPortal.nav")`.
+
+Nothing checks that both files have the same keys, so check the page in both languages.
+
+For a new namespace, create both JSON files, then import the file and add it to the object in both `packages/i18n/messages/no.ts` and `packages/i18n/messages/en.ts`. Those two files are what the apps load. `messageNamespaces` in `packages/i18n/messages/index.ts` and the type in `packages/i18n/types.ts` leave out several namespaces, so don't go by them.
+
+Don't use `bun run translate` in `packages/i18n` to add a string. It sends whole English files to an AI model and writes the answer over the Norwegian files, which replaces any Norwegian written by hand. It also refuses to start without `OPENAI_API_KEY`, although the model it calls is Anthropic's.
+
+## Add an admin menu item with role access
+
+1. In `apps/admin/src/lib/roles.ts`, add a key to `NAV_ACCESS` with the roles that may open the page. Include `ROLES.GLOBAL_ADMIN`: the page check always lets global admins in, but the sidebar shows an item only to the roles listed. Use `DEPARTMENT_ROLE` for every department member.
+2. In `apps/admin/src/lib/nav-tree.ts`, add `leaf("<labelKey>", "<navKey>", "/<path>", Icon)` to `NAV_TREE`, either at the top level or in a group's `children`. The icon comes from `lucide-react`.
+3. Add the label as `nav.<labelKey>` in both `packages/i18n/messages/no/adminPortal.json` and `packages/i18n/messages/en/adminPortal.json`.
+4. Start the page with `await requireNavAccess("<navKey>")`. Hiding the menu item doesn't stop anyone opening the address.
+5. Add a case for the new item to `apps/admin/src/lib/roles.test.ts` and `apps/admin/src/lib/nav-tree.test.ts`. Their existing cases fail only if the item changes what a tested role sees, so they won't remind you.
+
+Check:
+
+```bash
+bun run test --filter=admin
+```
+
+`content-translation.test.ts` fails today on a known problem, so any other failure is yours.
+
+## Refresh the website after an admin save
+
+The website caches what the admin edits, by tag. To make a save show up on the next page view:
+
+1. Tag the website's cached reader with `cacheTag("<tag>")`.
+2. Add the tag to `ALLOWED_TAGS` in `apps/web/src/app/api/revalidate/route.ts`, and to the `WebsiteTag` type in `apps/admin/src/lib/web-revalidate.ts`.
+3. After the save in the admin, call `await notifyWebsite(["<tag>"])`.
+
+`notifyWebsite` posts the tags to the website's `/api/revalidate`, at `NEXT_PUBLIC_WEB_BASE_URL`, with `CRON_SECRET`. It gives up after 3 seconds and never fails the save. If either variable is missing, it logs `notifyWebsite skipped:` and the change shows only when the website's cache runs out.
+
+## Before you open a pull request
+
+- Run `bun run check-types`, and the tests of every workspace you touched.
+- Run `bun x ultracite fix` on the files you changed, as in [Local setup](/developers/change-it/local-setup#lint-and-format).
+- Update the docs page whose `covers` matches the code you changed. The `docs-coverage` workflow warns on the pull request when you don't. `apps/docs/CLAUDE.md` has the rules.

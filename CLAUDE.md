@@ -12,7 +12,7 @@ apps share one Appwrite backend through `@repo/api`.
 |---------|------|---------------------------|------------|
 | `web`   | 3000 | Students, members, public | Next.js 16 public site (App Router, RSC). See `apps/web/CLAUDE.md`. |
 | `admin` | 3001 | BISO staff (IT, editors)  | Next.js 16 CMS with block-based page editor. See `apps/admin/CLAUDE.md`. |
-| `docs`  | 3002 | Developers                | Fumadocs-based developer documentation. |
+| `docs`  | 3002 | Staff and developers      | Fumadocs site: the platform guide for staff and the developer handover. See `apps/docs/CLAUDE.md`. |
 | `api`   | 3003 | `web` (server-to-server)  | Standalone JWT-authenticated REST service consumed via `NEXT_PUBLIC_API_BASE_URL`. |
 
 ### Packages (`packages/*`)
@@ -118,6 +118,12 @@ Read the relevant app-level `CLAUDE.md` **before** making non-trivial changes:
   third-party integrations, env var rules).
 - Touching shared data shapes used by both? Read **both** files plus
   `packages/api/appwrite.config.json`.
+
+## Documentation
+
+When you change how a feature behaves, update the docs page whose `covers`
+matches the code you changed, or add a page if none does. A PR check warns when
+covered code changes without its page. Rules in `apps/docs/CLAUDE.md`.
 
 ## Do not touch
 

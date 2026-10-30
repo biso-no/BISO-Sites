@@ -1,0 +1,125 @@
+---
+title: Backups and recovery
+description: What the nightly server backup covers, what a restore brings back and loses, the encryption keys a restore needs, how to get back into Infisical, and how to test a restore.
+covers:
+  - packages/payment/src/credentials/**
+  - packages/api/server-env.ts
+  - functions/scheduled-dispatch/src/main.ts
+  - functions/member-roster-sync/README.md
+  - apps/admin/src/app/api/units/sync/route.ts
+  - apps/admin/src/lib/m365-sync.ts
+---
+
+Read this before you restore anything, and before the planned Appwrite upgrade. It explains what the nightly backup covers, what a restore brings back and what it loses, and the keys a restore can't work without. Webdock backs up the whole server every night, but nobody has reported testing a restore, so treat the backup as unproven until someone has.
+
+## What the backup covers
+
+Webdock, the host, takes a backup of the whole server every night. The owner confirms it includes the encryption keys. Because it copies the whole server, it holds everything Appwrite and Infisical keep there:
+
+- **Appwrite:** the database with every table, the files in the `media`, `documents`, `expenses` and `resumes` buckets, users and sessions, and the console's settings. Those settings include each Site's and function's variables, the deployments, the sign-in providers, the push and email providers, and the API keys.
+- **Infisical:** the developers' credentials.
+- **The keys both of them encrypt with.** See [The encryption keys](#the-encryption-keys).
+
+The repo doesn't record how many nights Webdock keeps, or where it stores the copies. Check both in the Webdock account and write them on this page: <Private name="server-provider-account" label="Webdock account" />.
+
+Some things aren't on the server at all, so the backup doesn't hold them and a restore can't lose them:
+
+- the code, on GitHub
+- accounting records, in 24SevenOffice
+- governing documents, in SharePoint
+- staff accounts and `SG-App-*` groups, in BISO's Microsoft tenant
+- payments, at Vipps and Stripe
+- the app's store listings, at Apple and Google
+
+The repo doesn't say where Umami runs, so it doesn't say whether this backup covers it.
+
+## What a restore brings back, and what it loses
+
+A restore puts the whole server back to the moment of the backup. Everything since then is gone. That includes:
+
+- new orders, applications, expense claims, uploads and sign-ups
+- content edits in the admin
+- every change made in the Appwrite console and in Infisical since the backup
+
+That last point catches people out. If someone rotated a secret after the backup, the console goes back to the old value. If the old value was already removed at the provider, that feature stops working. After a restore, redo every secret change made since the backup, as in [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret).
+
+Payments made between the backup and the restore still exist at Vipps or Stripe, but their orders don't exist in Appwrite any more, and order reconciliation can only re-check orders it can find. Compare each provider's payments for that window with the `orders` table, and sort out any that are missing by hand.
+
+Some data refills itself from other systems after a restore:
+
+| Data | Refilled by |
+|---|---|
+| `member_roster` and the `memberships` catalogue | The next member-roster-sync run, or **Oppdater nå** (Refresh now) on the members page |
+| `departments` | The units sync on the admin's departments page |
+| `departures` | The next scheduled departures sync |
+| Events from Tickster, and ticket buyers | The next scheduled Tickster syncs |
+| A person's `sg-app-*` team memberships and their saved team list in `m365_team_sync` | Their next sign-in to the admin. For the saved lists, `bun run backfill:m365-team-sync` in `packages/shared`, a dry run and then `-- --apply`, brings every list in line with the current groups. |
+
+## The encryption keys
+
+Appwrite encrypts sensitive data with a key in its own server settings, `_APP_OPENSSL_KEY_V1`. Appwrite's documentation says the key protects secret data such as webhooks, passwords, user sessions and stored files, and says to keep it secret and back it up. Restore Appwrite's data under a different key and none of that can be read. For BISO that means:
+
+- **Payment credentials.** The Vipps and Stripe credentials in the `payment_settings` table are encrypted columns. Checkout and the payment webhooks fail until you enter every credential again on the admin's payment settings page (`/settings/payments`).
+- **Files.** The `documents` and `resumes` buckets have encryption switched on (`packages/api/appwrite.config.json`). Their files can't be read, and unlike the credentials, nobody can type them in again.
+- **Appwrite's own secrets**, such as user sessions.
+
+Infisical has its own key, `ENCRYPTION_KEY` in its server settings, which Infisical's self-hosting documentation lists as required. Without the same key, Infisical can't read the credentials it stores.
+
+A restore of the whole server brings both keys back with everything else. The danger is a partial rebuild: moving the database to a new server, or reinstalling Appwrite or Infisical with a fresh configuration. Copy the old key into the new setup before you start either service.
+
+If the server and its backups were both lost, both keys would go with them. Keep a copy of each somewhere off the server that BISO controls, and check that one exists when you take over.
+
+## Getting back into Infisical
+
+Infisical runs on the same server as Appwrite. The website, the admin and the API don't read it while they run, so an Infisical outage doesn't take the platform down. It does stop developers from fetching credentials, and a few minutes later it stops the private details on these pages from loading.
+
+- **Infisical is up, but nobody who can get in is left:** <Private name="infisical-admin-recovery" label="Infisical recovery" />
+- **Infisical can't be reached, and something can't wait for it:** use the emergency kit.
+
+The administration leader keeps the emergency kit offline, away from every server. It exists for exactly these two cases: Infisical can't be reached and something needs fixing, or nobody who can sign in to Infisical is left at BISO. These docs never say what's in it.
+
+<Private name="admin-leader-contact" label="Administration leader" />
+
+After the kit has been used, change every credential that was taken from it, and update the kit. [If you're hiring someone](/developers/start-here/if-youre-hiring-someone#the-emergency-kit) explains the kit for the board.
+
+## Test a restore
+
+Nobody has reported testing a restore. Do one when you take over, before the planned Appwrite upgrade, and once a year after that.
+
+The repo doesn't record how to start a restore at Webdock. Write the steps down here the first time you do one.
+
+### Keep the test away from production
+
+A restored copy holds production's settings, so left to run it acts like production:
+
+- scheduled-dispatch would call the production apps' endpoints every 5 minutes with the real `CRON_SECRET`
+- content-notifier could send pushes to real phones
+- member-roster-sync would call 24SevenOffice
+
+So:
+
+1. Restore to a separate server. Never restore a test over the live one.
+2. Before Appwrite starts on the test server, block its outbound network traffic. If you can't, disable the three functions and the push and email providers in its console straight away.
+3. Don't point an app at the test server unless both `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` are set, or it uses production. See [Secrets and environment](/developers/keep-it-running/secrets-and-environment#unset-appwrite-settings-mean-production).
+4. Delete the test server when you're done. It holds a full copy of BISO's personal data.
+
+### What the test must prove
+
+- [ ] A backup from last night exists and can be restored.
+- [ ] Appwrite starts, its console opens, and the production project shows the data from the day before: recent orders, pages and users.
+- [ ] Files open from each bucket: an image from `media`, a file from `documents`, a receipt from `expenses` and a CV from `resumes`. The `documents` and `resumes` files are encrypted, so opening them also proves that `_APP_OPENSSL_KEY_V1` came back with the data.
+- [ ] The Vipps and Stripe values in the `payment_settings` table can be read, for the same reason.
+- [ ] Infisical starts, you can sign in, and you can read a stored credential.
+- [ ] You wrote down how long the restore took, what was missing, and the date of the test, on this page.
+
+## After a real restore
+
+1. Check the health endpoints and the sites, as in [After a deploy, check](/developers/keep-it-running/deploying#after-a-deploy-check).
+2. Redo every secret change and console change made since the backup.
+3. Prove the payment credentials can be read. Buy a cheap product in the shop with the provider on **Live**, then refund it in the admin under **Refusjon** (Refund) on the order's page, at `/shop/orders/<id>`. If shop ledger posting is on, the sale is posted to 24SevenOffice and the refund posts a reversal. If it's off, nothing reaches 24SevenOffice, and a fully refunded order is never posted later. Don't use a membership for this: its refund needs a credit note made by hand in 24SevenOffice. Don't switch the provider to **Test** either: see [Payments](/developers/reference/payments#credentials-the-payment_settings-table).
+4. Open the next scheduled-dispatch execution. It should end with `"failed":0`.
+5. Press **Oppdater nå** (Refresh now) on the members page.
+6. Compare payments at Vipps and Stripe with the `orders` table for the lost window.
+7. Tell staff the time of the backup, so they know which work to redo.
+
+There's no tool for restoring a single table or item. To get back one thing that was deleted by mistake, restore to a separate server as in the test above, and copy that item across by hand.

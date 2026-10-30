@@ -1,0 +1,158 @@
+---
+title: System settings
+description: How global admins read the general settings and operations health, switch feature flags, manage the Vipps and Stripe payment settings, and set the app version rules that ask students to update the BISO app.
+who: "Global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/settings/**
+  - apps/admin/src/lib/integration-health.ts
+  - apps/admin/src/lib/team-health.ts
+  - packages/shared/utils/feature-flags.ts
+  - packages/shared/utils/feature-flags-server.ts
+  - packages/shared/utils/payment-config.ts
+  - packages/payment/src/credentials/**
+  - packages/shared/utils/app-versions.ts
+  - apps/api/src/lib/app-versions.ts
+  - apps/api/src/app/api/config/route.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Only global admins have these pages. They're under **System** in the sidebar, and they're also tabs at the top of **Innstillinger** (Settings): **Generelt** (General), **Driftshelse** (Operations health), **Funksjonsbrytere** (Feature flags), **Appversjoner** (App versions) and **Betaling** (Payments).
+- Apart from the general settings, every change here reaches everyone: on biso.no, in the BISO app or in the admin. There's no undo button, and most changes take effect at once.
+- Some labels, such as the feature flag names, are in English whatever your admin language. This page gives them as the screen shows them.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Read the general settings">
+
+Open **System** and choose **Innstillinger** (Settings). The page is headed **Innstillinger** (Settings), with **Konfigurer adminpreferansene dine.** (Configure your admin preferences.) under it. On the left are four sections:
+
+- **Generelt** (General): **Standardspråk** (Default Locale) sets your own admin language. It doesn't change anyone else's. See [Check the language](/guide/start-here/sign-in#check-the-language). **Tidssone** (Timezone) is saved with your preferences, but nothing in the admin uses it today.
+- **Sikkerhet** (Security): two lines you can't change, **To-faktor-autentisering** (Two-factor authentication), **Administreres i Microsoft 365** (Managed by Microsoft 365), and **Aktive sesjoner** (Active sessions), **Administreres av Appwrite-økter** (Managed by Appwrite sessions).
+- **Integrasjoner** (Integrations): Appwrite, Microsoft 365, SharePoint and Vipps MobilePay, each marked **Tilkoblet** (Connected) or **Ikke konfigurert** (Not configured). **Tilkoblet** (Connected) only means the settings for it exist. The page doesn't try to connect.
+- **Varsler** (Notifications): three switches, **Nye jobbsøknader** (New job applications), **Nye utkastinnleveringer** (New draft submissions) and **Systemvarsler** (System alerts). They're saved, but they have no effect today. Nothing sends notifications based on them.
+
+In **Generelt** (General) and **Varsler** (Notifications), **Lagre innstillinger** (Save Preferences) can be chosen once you've changed something. You see **Innstillinger lagret** (Settings saved).
+
+</Step>
+<Step title="Check operations health">
+
+Choose the **Driftshelse** (Operations health) tab. The page only reads. It shows whether the settings the admin needs exist, but never their values.
+
+**Integrasjoner** (Integrations) lists six services: Appwrite, Microsoft 365, SharePoint, Vipps MobilePay, Scheduler secrets and Umami analytics. Each has an English line on what it's for, and a status:
+
+- **Konfigurert** (Configured): every setting it needs exists.
+- **Ufullstendig** (Incomplete): some exist. The row says how many are missing, such as **2 mangler** (2 missing), but not which.
+- **Ikke konfigurert** (Not configured): none exist.
+
+A status only says whether a setting exists. It doesn't test the service. Two rows need care:
+
+- **Vipps MobilePay** checks a fallback set of Vipps settings on the admin. The settings checkout normally uses are under **Betaling** (Payments), so check those instead.
+- **Scheduler secrets** counts two old settings that the developers leave empty. So **Ufullstendig** (Incomplete) with **2 mangler** (2 missing) is normal there.
+
+The **Driftshåndbok** (Runbook) links point to pages that don't exist. If a service looks wrong, tell the developers (see the [developer docs](/developers)).
+
+**Påkrevde team** (Required teams) checks that the teams the admin needs exist. It shows **Alle påkrevde team finnes** (All required teams present), or how many are missing, with each one listed. If it shows **Kunne ikke laste team-helse. Sjekk Appwrite-tilkobling.** (Could not load team health. Check Appwrite connectivity.), the check couldn't run. If a team is missing or the check couldn't run, tell the developers.
+
+The page doesn't check 24SevenOffice, email sending, Stripe or the AI services.
+
+</Step>
+<Step title="Switch a feature flag">
+
+Choose the **Funksjonsbrytere** (Feature flags) tab. The line under the heading reads **Operasjonelle nødbrytere. Slå plattformfunksjoner av eller på — endringer trer i kraft innen ~15 s og logges i revisjonsloggen.** (Operational kill switches. Turn platform features on or off — changes apply within ~15s and are written to the audit log.)
+
+The switches are in three groups: **Refusjoner** (Reimbursements), **Nettbutikkbetaling** (Webshop payments) and **KI** (AI). Each row has an English name and description, and shows **På** (On) or **Av** (Off).
+
+| Switch | Until someone changes it | What it does |
+|---|---|---|
+| **Reimbursements module** | On | The reimbursement pages on biso.no. Off: the pages show as unavailable, nobody can submit or save a draft, and the app hides reimbursements. |
+| **Receipt scanning (AI/OCR)** | On | Fills in a reimbursement from a photo of the receipt. Off: only scanning stops. Typing in by hand still works. |
+| **Direct ledger posting (24SO + Teams approval)** | Off | On: each submitted reimbursement goes to approvers in Teams and by email, and is posted to 24SevenOffice. Off: reimbursements are emailed to accounting. Agree it with whoever keeps BISO's accounts before you change it. |
+| **Vipps checkout** | On | Vipps at checkout, for the shop and for membership. Off: Vipps is hidden, and refused if someone tries it. |
+| **Stripe (card) checkout** | Off | Card payment at checkout. Switch it on only when the developers say Stripe is set up. |
+| **Webshop → Finago ledger posting** | Off | Don't use this switch. Shop posting is switched on and off on the accounting page. See [Switch posting on](/guide/shop/accounting#switch-posting-on). |
+| **Admin AI copilot** | On | The BISO Assistant in the admin. Off: the assistant and its row in quick search are gone for everyone. The sidebar button stays but opens nothing. |
+
+Click a switch to change it. There's no confirmation. It moves at once, and you see **Bryter oppdatert** (Flag updated). If the change couldn't be saved, you see an error, such as **Kunne ikke oppdatere bryter** (Failed to update flag), and the switch moves back.
+
+</Step>
+<Step title="Change payment settings">
+
+Choose the **Betaling** (Payments) tab. The page is headed **Betalingsleverandører** (Payment providers), with one card for **Vipps** and one for **Stripe (kort)** (Stripe (card)).
+
+<Callout type="warn">
+Never switch a provider to **Test** on BISO's live admin. A payment taken in Test mode is still treated as a real sale: a membership becomes a real invoice in 24SevenOffice, and a shop order is posted to the ledger once posting is on. Keep every provider BISO uses on **Live**.
+</Callout>
+
+Each card shows:
+
+- **Aktiv modus** (Active mode): **Test** or **Live**. This is the set checkout uses.
+- A label for the active set, such as **Live · Klar** (Live · Ready), or **Ufullstendig** (Incomplete) when a value is missing.
+- Two tabs, **Test** and **Live**. The active one has a green dot. Choosing a tab only shows that set. It doesn't change the mode.
+- One row for each value, with its English name: **Client ID**, **Client secret**, **Subscription key** and **Merchant serial number** for Vipps, and **Secret key** and **Webhook secret** for Stripe. Each row says **Satt** (Set) or **Ikke satt** (Not set).
+
+The page never shows a stored value. To change one:
+
+1. Check that you're on the right tab, **Test** or **Live**.
+2. Type the new value in its field. Leave the others empty: **La stå tomt for å beholde nåværende verdi** (Leave blank to keep current value).
+3. Choose **Lagre** (Save). You see **Betalingsinnstillinger oppdatert** (Payment settings updated). If you typed nothing, you see **No values to update**.
+
+The old value is replaced, and you can't read it back.
+
+The button that changes the mode is on the tab that isn't active: **Sett Live som aktiv** (Set Live as active) or **Sett Test som aktiv** (Set Test as active). It takes effect at once, with no confirmation. It can't be chosen until every value in that set is filled in, and shows **Legg til de manglende hemmelighetene først** (Add the missing secrets first). The active tab says **Aktiv — brukes i kassen når denne leverandøren er på.** (Active — used at checkout while this provider is on.)
+
+On the Vipps card, **Registrer webhook** (Register webhook) tells Vipps where to send payment updates for the active mode, and stores the key that comes back. You see **Vipps-webhook registrert** (Vipps webhook registered). Choose it again after a change of mode or of merchant serial number. Stripe has no such button. The developers set up its webhook in Stripe.
+
+</Step>
+<Step title="Set app version rules">
+
+Choose the **Appversjoner** (App versions) tab. It sets which versions of the BISO app students may use. There's one card for **iPhone (iOS)** and one for **Android**, each with two fields:
+
+- **Minimumsversjon** (Minimum version): **Eldre versjoner blir stengt ute til de oppdaterer.** (Older versions are blocked until they update.)
+- **Anbefalt versjon** (Recommended version): **Eldre versjoner blir bedt om å oppdatere, men kan hoppe over det.** (Older versions are asked to update but can skip it.)
+
+Type a version as three numbers with dots, such as `2.4.0`. `2.4` isn't accepted. The recommended version can't be lower than the minimum, but it can be the same. Leave a field empty to switch that rule off.
+
+The iPhone card shows the version in the App Store, **Tilgjengelig i App Store:** (Live in the App Store:). If you type a higher version, a red warning says that version isn't in the App Store yet. You can still save, but iPhone users would have nothing to update to. If the App Store can't be reached, the line is missing and no warning shows.
+
+The Android card has no store check. It says **Sett minimumsversjonen først når utgivelsen er tilgjengelig for alle på Google Play (100 % utrulling).** (Set the minimum only after the release is live for everyone on Google Play (100% rollout).)
+
+Choose **Lagre** (Save) on the card. Each card saves on its own. You see **Regler for appversjon lagret** (App version rules saved).
+
+If the version doesn't look right, you see a message such as **Minimumsversjonen må se ut som 2.4.0 (tre tall atskilt med punktum).** (The minimum version must look like 2.4.0 (three numbers separated by dots).) or **Anbefalt versjon kan ikke være lavere enn minimumsversjonen.** (The recommended version can't be lower than the minimum version.)
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- A feature flag change reaches biso.no, the app and the admin within about 15 seconds. If one of them can't read the switches, it uses each switch's starting value from the table until it can.
+- A change to payment settings or to the active mode is used for new checkouts within about 15 seconds.
+- App version rules reach a phone the next time the app starts and asks for its settings. If the rules can't be read in time, the app gets no rule and shows no prompt.
+- Feature flag, payment and app version changes are written to the activity log with your email. Payment changes record which values changed, never the values themselves.
+- Nothing here sends an email or a notification.
+</WhatHappensNext>
+
+## What the student sees
+
+- With **Reimbursements module** off, the reimbursements link disappears from the account menu on biso.no, reimbursements disappear from the app, and the reimbursement pages show as unavailable.
+- With **Vipps checkout** off, Vipps isn't offered at checkout on biso.no or in the app.
+- Below the **Minimumsversjon** (Minimum version), the app shows a full screen, **På tide å oppdatere** (Time to update), saying **Denne versjonen av BISO-appen støttes ikke lenger. Oppdater for å fortsette å bruke appen.** (This version of the BISO app is no longer supported. Update to keep using the app.) **Oppdater** (Update) opens the store. There's no way past it.
+- Below the **Anbefalt versjon** (Recommended version), the app shows **En ny versjon er tilgjengelig** (A new version is available), with **Oppdater** (Update) and **Ikke nå** (Not now). **Ikke nå** (Not now) hides it for 3 days on that phone. A higher recommended version asks again at once.
+- The minimum always wins over **Ikke nå** (Not now).
+
+## Common mistakes
+
+- Switching a payment provider to **Test** on the live admin. Real orders are then paid with test money but booked as real sales.
+- Typing a payment value on the wrong tab. Check whether you're on **Test** or **Live** before you save.
+- Setting a **Minimumsversjon** (Minimum version) before that version is in the App Store and out to everyone on Google Play. Students who can't update are locked out of the app.
+- Switching **Webshop → Finago ledger posting** here. Use the accounting page.
+- Trying a feature flag to see what it does. Each one changes things for everyone within seconds.
+- Reading **Konfigurert** (Configured) or **Tilkoblet** (Connected) as proof a service works. They only show that its settings exist.
+- Expecting the **Varsler** (Notifications) switches or **Tidssone** (Timezone) to change anything. They have no effect today.

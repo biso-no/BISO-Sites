@@ -1,0 +1,129 @@
+---
+title: Payments
+description: How shop and membership payments work with Vipps MobilePay and Stripe, where the credentials live, the kill switches, what buyers see when a payment fails, and how to test with the providers' test modes.
+covers:
+  - packages/payment/**
+  - apps/api/src/app/api/payment/**
+  - apps/api/src/app/api/cron/reconcile-orders/route.ts
+  - apps/api/src/lib/settle-order.ts
+  - apps/admin/src/app/(portal)/settings/payments/**
+  - apps/admin/src/app/(portal)/settings/feature-flags/**
+  - apps/admin/src/app/(portal)/_actions/order-refunds.ts
+  - packages/shared/utils/payment-config.ts
+  - packages/shared/utils/feature-flags.ts
+  - packages/shared/utils/order-settlement.ts
+  - apps/web/src/app/actions/orders.ts
+  - apps/web/src/app/(public)/shop/checkout/**
+---
+
+Read this before you change checkout, refunds or payment settings, or when buyers can't pay. The platform takes payments with Vipps MobilePay and Stripe, for the shop and for memberships. The api runs every checkout and every payment update. The admin runs refunds. The website and the app only ask the api. [Payments fail](/developers/keep-it-running/when-things-break#payments-fail) is the runbook for a live problem.
+
+## Accounts
+
+Who owns the Vipps MobilePay and Stripe accounts: <Private name="account-owners" label="Account owners" />
+
+## How a payment flows
+
+<Mermaid
+  chart={`flowchart LR
+  buyer["Website or app"] -->|"start checkout"| api["api checkout"]
+  api --> prov["Vipps or Stripe"]
+  prov -->|"webhook"| cb["api callback"]
+  prov -->|"buyer comes back"| ret["api return"]
+  cron["Order reconciliation,<br/>scheduled"] --> prov
+  cb --> settle["Settle the order"]
+  ret --> settle
+  cron --> settle
+  settle --> tfso["24SevenOffice"]`}
+/>
+
+1. The website (`apps/web/src/app/actions/orders.ts`) or the app calls the api's `POST /api/payment/<provider>/checkout`, or `/membership-checkout` for a membership, with the buyer's Appwrite JWT.
+2. The api checks the provider's kill switch and credentials, prices the cart itself, creates the order and opens a payment with the provider. If the same signed-in buyer submits the same cart again within 15 minutes, they get the pending order and its payment link back instead of a second order.
+3. The buyer pays. Three things then bring the payment's result back, and any one of them is enough: the provider's webhook, the buyer's return through `/api/payment/return`, and order reconciliation, which re-checks orders still pending after 10 minutes ([Scheduled jobs](/developers/keep-it-running/scheduled-jobs#what-it-calls)).
+4. Each of them settles a paid order: a membership becomes a 24SevenOffice invoice, and a shop order becomes a ledger posting once ledger posting is switched on. [Accounting](/developers/reference/accounting) explains both. An atomic claim on the order makes sure only one of them does it.
+
+## Where the code lives
+
+| What | Where |
+|---|---|
+| Provider clients, credential choice, refunds, reconciliation | `packages/payment/src/` |
+| Checkout, callback, return, provider list, order status | `apps/api/src/app/api/payment/` |
+| Settling a paid order | `packages/shared/utils/order-settlement.ts`, called through `apps/api/src/lib/settle-order.ts` |
+| Order reconciliation | `apps/api/src/app/api/cron/reconcile-orders/route.ts` |
+| Payment settings page | `apps/admin/src/app/(portal)/settings/payments/` |
+| Refunds | `apps/admin/src/app/(portal)/_actions/order-refunds.ts` |
+
+`packages/payment/README.md` is out of date: it describes files and docs pages that no longer exist. Trust the code.
+
+## Credentials: the `payment_settings` table
+
+The credentials live in the `payment_settings` table, one row per provider, with the row id `vipps` or `stripe`. Every secret column is encrypted by Appwrite. A global admin edits them in the admin under **Innstillinger** (Settings), then **Betaling** (Payments), at `/settings/payments`.
+
+- **Two sets per provider, test and live.** **Aktiv modus** (Active mode) picks which one checkout uses. A provider whose mode was never set counts as test.
+
+<Callout type="warn">
+Never set a production provider to **Test**. Settling an order doesn't check the mode, so an order paid with test money still becomes a real 24SevenOffice invoice for a membership, or a real ledger posting for a shop order once posting is on.
+</Callout>
+
+- **The page never shows a value.** It only says **Satt** (Set) or **Ikke satt** (Not set) for each field. A field left blank keeps the stored value, so to fix a wrong value, type it again.
+- **Ready means complete.** **Klar** (Ready) needs the client id, client secret, subscription key and merchant serial number for Vipps, and the secret key and webhook secret for Stripe. Stripe checkout works with the secret key alone, but without the webhook secret every Stripe webhook fails its signature check.
+- **Changes reach the api within 15 seconds.** It keeps each row in memory for that long (`packages/payment/src/credentials/resolve.ts`).
+
+The `VIPPS_*` and `STRIPE_*` variables are only a fallback. Vipps uses them when the table has no complete set for the active mode. Stripe uses them when the active mode has no secret key, and then takes the mode from the key: `sk_live_` means live (`packages/payment/src/credentials/select.ts`). The api reads them for checkout, and the admin for refunds. The full list is under [Payments](/developers/keep-it-running/secrets-and-environment#payments) in Secrets and environment.
+
+The values are only readable while the Appwrite server keeps its encryption key. See [The encryption keys](/developers/keep-it-running/backups-and-recovery#the-encryption-keys).
+
+## Webhooks
+
+- **Vipps.** Choose **Registrer webhook** (Register webhook) on the payment settings page. The admin asks the api, with `CRON_SECRET`, to register `<NEXT_PUBLIC_API_BASE_URL>/api/payment/vipps/callback` for the active mode, and the api stores the signing secret Vipps returns. Do it again after every switch between test and live, and after a new merchant serial number.
+- **Stripe.** Nothing in the code registers the webhook. Add an endpoint for `https://api.biso.no/api/payment/stripe/callback` in Stripe's dashboard, with the events `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded` and `checkout.session.async_payment_failed`. Copy its signing secret into the webhook secret field for the same mode.
+
+A missed webhook isn't lost, as long as scheduled-dispatch's `ORDERS_RECONCILE_URL` is set: order reconciliation asks the provider about the order 10 minutes later.
+
+## Kill switches
+
+Two feature flags turn a provider on and off for everyone. A global admin switches them under **Innstillinger** (Settings), then **Funksjonsbrytere** (Feature flags). A change takes effect within about 15 seconds.
+
+| Flag | Default | What it does |
+|---|---|---|
+| `payments_vipps` | On | Vipps at checkout |
+| `payments_stripe` | Off | Card payment with Stripe at checkout |
+
+The flags live in the `feature_flags` table, and the list of flags with their defaults in `packages/shared/utils/feature-flags.ts`. A flag with no row in the table uses its default.
+
+## What buyers see when it fails
+
+- **On the website,** a provider's button shows whenever its flag is on, even if its credentials are missing. The buyer then gets the api's message on the checkout page, such as `Vipps is not configured` or `Stripe is not configured`.
+- **In the app,** the api's `GET /api/payment/providers` says which providers to offer. It offers one only when its flag is on and the api has credentials for its active mode. If the api can't read the settings, it answers `503` instead of guessing.
+- **If the provider is slow,** the api gives up after 10 seconds (`VIPPS_CHECKOUT_TIMEOUT_MS`, for both providers) and the buyer sees `Vipps checkout timed out` or `Stripe checkout timed out`. If the api itself doesn't answer, the website gives up after 10 seconds (`CHECKOUT_FETCH_TIMEOUT_MS`) with `Checkout request timed out. Please try again.`
+- **For a membership,** if 24SevenOffice can't confirm the student's current membership, checkout stops with `We couldn't verify your membership right now. Try again shortly.` and nothing is charged.
+- **After paying,** a buyer whose webhook was missed may see the order as pending until they come back to the site or reconciliation runs.
+- **In the admin,** a refund that fails says `The payment provider rejected the refund.` followed by the provider's message, or `Vipps is not configured`.
+
+## Test it safely
+
+Vipps and Stripe both have a test mode. Test in your own Appwrite project, never against production.
+
+1. Set up your own project, as in [Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project). Run the api next to the website.
+2. Get test credentials: a Vipps test merchant from the Vipps MobilePay merchant portal, or Stripe keys starting with `sk_test_`. The Vipps test environment and its test app are described in Vipps' developer documentation.
+3. Put them in `apps/api/.env.local`, and in `apps/admin/.env.local` if you test refunds. Your project's `payment_settings` table is empty, so the api uses the variables. For Vipps, set `VIPPS_TEST_MODE=true`. In `apps/api/.env.local`, also set `NEXT_PUBLIC_API_BASE_URL=http://localhost:3003` and `NEXT_PUBLIC_WEB_BASE_URL=http://localhost:3000`. Without the first, checkout answers `500` with `Payment service is misconfigured`. Without the second, the api falls back to its own `NEXT_PUBLIC_BASE_URL` and sends buyers there instead of to the website (`apps/api/src/lib/public-urls.ts`).
+4. Stripe is off by default. Turn `payments_stripe` on in your project's admin, or add a `feature_flags` row with that key and `enabled` set to true.
+5. Leave every `TFSO_*` variable unset. Settling has no test switch. An order paid in test mode is settled like a real one: a test membership becomes a real 24SevenOffice invoice, and a test shop order becomes a real ledger posting once `shop_ledger_posting` is on.
+
+   This tests shop checkout only. Membership checkout needs 24SevenOffice and a BI identity. Without a linked BI account it stops with `Link your BI student account first`, and with `TFSO_*` unset it always stops with `We couldn't verify your membership right now. Try again shortly.`
+6. Pay. The provider can't reach your machine with a webhook, but your return through the api checks the payment with the provider anyway. For Stripe webhooks, Stripe's CLI can forward test events to your api:
+
+   ```bash
+   stripe listen --forward-to localhost:3003/api/payment/stripe/callback
+   ```
+
+   It prints a signing secret starting with `whsec_`. Put it in `STRIPE_WEBHOOK_SECRET`.
+
+The same applies in production, as the warning under [Credentials](#credentials-the-payment_settings-table) says: keep every production provider on **Live**.
+
+The payment code has unit tests that need no network:
+
+```bash
+cd packages/payment && bun run test
+cd apps/api && bun run test
+```

@@ -1,0 +1,168 @@
+---
+title: Publish news
+description: How to write a news article in the BISO news studio, add pictures, choose whether students get a notification, and publish it to biso.no and the app.
+who: "Global admins (National + Operations Unit), campus leaders (Ledelsen on your campus) for articles on their campus, and department members, for their own department's articles."
+covers:
+  - apps/admin/src/app/(portal)/news/**
+  - apps/admin/src/app/(portal)/_actions/news.ts
+  - apps/admin/src/app/(portal)/_actions/schemas.ts
+  - apps/admin/src/app/(portal)/_components/description-block-editor.tsx
+  - apps/admin/src/app/(portal)/_components/image-upload-field.tsx
+  - apps/admin/src/app/(portal)/_components/status-badge.tsx
+  - apps/admin/src/app/_components/content-translation-controls.tsx
+  - apps/admin/src/lib/content-translation.ts
+  - apps/admin/src/lib/inline-media.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - apps/admin/src/lib/notify-push-guard.ts
+  - apps/admin/src/lib/content-notification-state.ts
+  - apps/admin/src/lib/content-authorization.ts
+  - packages/shared/utils/content-notifications.ts
+  - packages/shared/utils/content-notification-compose.ts
+  - packages/shared/utils/notification-topics.ts
+  - functions/content-notifier/**
+  - apps/web/src/app/(public)/news/**
+  - apps/web/src/components/news/**
+  - apps/web/src/app/actions/news.ts
+  - apps/web/src/lib/data/queries.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Nyheter** (News) in your sidebar. [How pages and news work](/guide/pages-and-news#who-can-use-pages-and-news) shows who can write which articles.
+- The news studio is in English whatever your admin language, so this page names its labels in English. Only the list of articles and a few messages follow your admin language.
+- Have ready:
+  - a headline and the article text, in Norwegian, English or both
+  - a cover image, up to 10 MB (JPG, PNG, GIF, WEBP or SVG)
+  - the department the article belongs to. Department members must choose theirs.
+- Decide whether students should get an app notification. It's on for every new article.
+- You can't set a time for an article to go live. It's published when you choose **Publish**, so keep it as a draft until then.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Start an article">
+
+Open **Innhold** (Content) and choose **Nyheter** (News). The list shows 20 articles a page, most recently changed first. **Søk** (Search) and the **Alle** (All), **Publisert** (Published) and **Utkast** (Draft) buttons only look through the articles on the page you're on.
+
+- To write a new article, choose **Skriv artikkel** (Write Article).
+- To change an article, choose its title, or the pencil icon that appears when you point at its row.
+
+The studio opens on **Essentials**. Its four steps sit in a rail across the top: **Essentials**, **Article**, **Media & Visibility** and **Review**. Click any of them, or move with **Continue** and **Back** at the bottom. A green tick shows when a step is filled in, but you don't have to go in order. The rail says **Unsaved** while you have changes that aren't saved.
+
+At the right of the rail, **NO** and **EN** switch the language you're writing in. The studio opens on **NO**.
+
+A **Live preview** on the right shows the article as you write. On a narrow screen, choose **Show preview**.
+
+</Step>
+<Step title="Fill in Essentials">
+
+- **Headline** (required) is for the language you have open (*A headline worth opening...*). You need a headline in at least one language.
+- **Article URL** (required) is the address after **biso.no/news/**. If it's empty when you leave the headline, it's filled in from the headline. Use only lowercase letters, numbers and hyphens. The studio doesn't check whether another article already uses it, so make it your own.
+- **Author** (*BISO*), for example Demo Events. biso.no shows it on the article after **Skrevet av** (Written by). Leave it empty to show no author.
+- **Category**: **General**, **Announcement**, **Press**, **Event recap** or **No category**.
+- **Campus** (required). Only global admins can change it. Everyone else gets their own campus.
+- **Department.** The list holds the campus's departments. Department members only see their own. **All departments** means the article belongs to no department: department members can't save with it.
+
+</Step>
+<Step title="Write the article">
+
+The **Article** step ("Tell the complete story") is the article text for the language you have open. Switch language with **NO** and **EN** in the rail.
+
+- Type in the box (*Write the norwegian article here...*). Press Enter to start a new paragraph.
+- Under the text, **Heading**, **Paragraph** and **Bullet** add a block of that kind at the end, and **Media** adds a picture or a file.
+- Type / in a block for a menu. It turns the block into a **Heading**, **Paragraph** or **Bullet**, adds a **New paragraph below** or **Media**, or deletes it with **Delete block**.
+
+**Media** takes a picture, video, sound file or document of up to 250 MB. For a picture, fill in **Image alt text** (*Describe the image*), which describes it for people who can't see it. **Media caption** (*Optional caption*) adds a caption.
+
+</Step>
+<Step title="Add the cover image and choose visibility">
+
+On **Media & Visibility**:
+
+1. **Cover image.** Drop a picture on **Slipp et bilde her eller velg fil** (Drop an image here or choose a file), or click it to choose one. You see **Bildet er lastet opp** (Image uploaded). **Bytt** (Replace) and **Fjern** (Remove) change it later. A picture over 10 MB is refused with **Kunne ikke laste opp bildet** (Couldn't upload the image) and **Bildet er større enn 10 MB.** (The image is larger than 10 MB.)
+2. **Sticky article** ("Keep this story prominent in news listings while it is relevant."). When it's on, biso.no shows the article first in its news list, marked **Fremhevet** (Featured). It's off for a new article. Switch it off again when the story is old.
+3. The notification card. Click it to switch it on or off. On a new article it reads **Notify students when published** and is on. When the article goes live, app users who follow news for its campus get one notification. For a National article, that's everyone who follows news. Only global admins can switch it on for National. Switch it off if students shouldn't get one.
+
+The dark **Current publishing scope** box shows the campus, the department and the article's current status. The button you save with decides the new status.
+
+</Step>
+<Step title="Write the other language">
+
+You can publish with one language, but students who read biso.no in the other language won't see the article.
+
+- Choose **NO** or **EN** in the rail and write the headline and text yourself.
+- Or, on **Review**, choose **Generate English** (or **Generate Norwegian**) in the **AI translation** card. AI fills in the other language's headline and text, and switches to it. If the other language already has text, you're asked **Replace the existing translated news draft?** first. You see **Translation draft generated**. Nothing is stored until you save, so read it first.
+
+**Auto-translate**, at the top on a computer or at the bottom on a narrow screen, translates the other language in the background each time you save or publish. It replaces what the other language had, without asking. It's off each time you open an article.
+
+</Step>
+<Step title="Check Review, then publish">
+
+**Review** ("Ready for readers?") lists **Headline**, **Slug**, **Campus**, **Cover image** and **Article body** as **Ready** or **Missing** for the language you have open. It's a reminder. Only the rules below stop a save.
+
+Then save:
+
+- **Save Draft** stores the article without publishing it. You see **Artikkel lagret** (Article saved).
+- **Publish** stores it and makes it public. You see **Artikkel publisert** (Article published).
+
+With **Auto-translate** on, the message ends with **Translation queued.**
+
+Both buttons are at the bottom of every step, on **Review**, and at the top right on a computer. A new article opens again at its own address once it's saved.
+
+If you see **Kunne ikke lagre artikkel** (Failed to save article), check:
+
+- a headline in at least one language
+- an **Article URL** with only lowercase letters, numbers and hyphens
+- a **Campus**
+- to publish: a headline in every language that has text
+
+A message such as **Unauthorized: no write access to this department** means you need to choose your own department.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- The article is published. It shows **Published** in **Nyheter** (News).
+- If **Notify students when published** is on, app users who follow news for the article's campus get one notification. For a National article, that's everyone who follows news. It shows the headline and the start of the article text. It goes out a few minutes after you publish. Between 22:00 and 08:00 Oslo time it waits until 08:00. If other articles for the same campus are due at the same time, students get one notification for all of them. See [How notifications reach students](/guide/announcements).
+- The notification is sent only once. Changing the article afterwards doesn't send another.
+- To see where it is, open the article and go to **Media & Visibility**:
+  - **Notification on its way** ("within a few minutes"), or **Notification scheduled** with the time it goes out: it hasn't gone yet. To stop it, click the card and save with **Publish**.
+  - **Notify students now**, on a published article with the switch off: click the card and save with **Publish** to send one notification.
+  - **Students were notified**, with the time: it's gone.
+  - **Published before automatic notifications**: this article can't send one.
+- Saving the article as a draft, or deleting it, also stops a notification that hasn't gone out. One that's gone can't be called back.
+- No email goes out to students. The notification is in the app only.
+- With **Auto-translate** on, the other language is written in the background. Open the article later and check it.
+- Saves and deletions are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- **biso.no/news** lists published articles, newest first. A sticky article comes first, marked **Fremhevet** (Featured). Visitors can narrow the list to a campus. National articles show for every campus.
+- The article itself is at biso.no/news/ followed by its **Article URL**.
+- biso.no shows an article only in the visitor's language. An article with only Norwegian text isn't listed for a visitor reading in English, and its page shows page not found for them.
+- The BISO app lists published articles for the student's campus and National, newest first. It shows each one in the student's language if the article has it, otherwise in Norwegian, otherwise in English.
+- Drafts aren't shown on biso.no or in the app.
+- The notification, if it's on, arrives on their phone with the headline in the student's language, or in the other language if that's the only one.
+
+## Common mistakes
+
+- Deleting an article you meant to hide. The bin icon on the list deletes the article and both languages at once, without asking. To take an article offline, open it and choose **Save Draft**.
+- Choosing **Save Draft** on a published article. It takes the article off biso.no and out of the app.
+- Leaving with **Discard** or the back arrow. Both leave without saving and without asking. Save first.
+- Forgetting the notification. It's on for every new article and for articles the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone) creates. Switch it off before you publish if students shouldn't get one.
+- Expecting a second notification after you change a published article. There's only ever one.
+- Emptying a language and saving. That language's headline and text are deleted for good.
+- Leaving **Auto-translate** on after you've written the other language by hand. The next save replaces it.
+- Giving two articles the same **Article URL**. biso.no then shows only one of them.
+- Writing in Norwegian only and expecting English readers of biso.no to see it. Add English, or use **Generate English**.
+
+<Callout type="warn">
+The bin icon in **Nyheter** (News) deletes the article for good, with no question first and no undo. If a notification has already gone out, it stays sent.
+</Callout>

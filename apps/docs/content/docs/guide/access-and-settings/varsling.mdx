@@ -1,0 +1,119 @@
+---
+title: Manage whistleblowing contacts
+description: How global admins choose who receives whistleblowing reports from the form on biso.no, under Varsling in the admin, test that reports reach them, and what reporters see.
+who: "Global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/varsling/**
+  - apps/admin/src/app/(portal)/_actions/varsling.ts
+  - apps/web/src/app/(public)/safety/**
+  - apps/web/src/app/(public)/varsling/**
+  - apps/web/src/app/actions/varsling.ts
+  - apps/web/src/components/safety/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Students and others report harassment and other concerns with the whistleblowing form on biso.no. Each report goes by email to one contact that the reporter picks. This page decides who those contacts are, for each campus.
+- Have each contact's name or role and email address ready. Agree with them first that they'll receive reports.
+- Everything you type in **Rolle eller person** (Role or person) is shown on biso.no.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open Varsling">
+
+Open **System** and choose **Varsling** (Whistleblowing). The page is headed **Varsling – Administrasjon** (Whistleblowing - Administration).
+
+The table lists every contact, sorted by campus and then by sort number, with the columns **Campus**, **Rolle** (Role), **E-post** (Email), **Sortering** (Sorting), **Status** and **Handlinger** (Actions). **Status** is **Aktiv** (Active) or **Inaktiv** (Inactive).
+
+There's no search. If the list is long, use the page controls at the bottom.
+
+If there are no contacts yet, you see **Ingen varslingskontakter er konfigurert ennå.** (No whistleblowing contacts configured yet.)
+
+</Step>
+<Step title="Add a contact">
+
+Choose **Legg til kontakt** (Add contact), or **Legg til første kontakt** (Add first contact) on an empty list. A form headed **Ny varslingskontakt** (New whistleblowing contact) opens above the list. Fill in:
+
+- **Campus**: the campus whose reporters can choose this contact.
+- **Rolle eller person** (Role or person): what the reporter sees in the list, up to 100 characters. You can name a person with their role, for example *Kari Nordmann – HR-leder*.
+- **E-postadresse** (Email address): where reports go.
+- **Sorteringsrekkefølge** (Sort order): **Lavere tall vises først i listen** (Lower numbers appear first in the list). It starts at 0.
+- **Aktiv** (Active): ticked, so the contact shows on biso.no straight away. Untick it to add the contact without showing it yet.
+
+Choose **Opprett** (Create). You see **Innstilling opprettet** (Settings created).
+
+If a required field is empty, you see **Vennligst fyll ut alle obligatoriske felt.** (Please fill out all required fields.) An address that isn't a valid email gives **A valid email address is required**.
+
+</Step>
+<Step title="Send a test">
+
+Choose **Send test** on the contact's row. It sends an email headed **BISO Varsling – testmelding** to that contact's address. It's in Norwegian. It says it's only a test and that nothing needs doing.
+
+You see **Testmelding sendt til** (Test email sent to) and the address. Ask the contact whether it arrived. Only one test can be sent at a time.
+
+If you see an English message that starts **SMTP is not configured on this deployment**, the admin can't send email, so no test went out. Tell the developers (see the [developer docs](/developers)).
+
+</Step>
+<Step title="Change a contact">
+
+Choose **Rediger** (Edit) on the row. The form opens as **Rediger varslingskontakt** (Edit whistleblowing contact). Change what you need and choose **Oppdater** (Update). You see **Innstilling oppdatert** (Settings updated).
+
+If you changed the email address, send a test again.
+
+</Step>
+<Step title="Hide or show a contact">
+
+Choose **Deaktiver** (Deactivate) on the row to stop offering the contact on biso.no. You see **Kontakten er deaktivert** (Contact deactivated), and the status changes to **Inaktiv** (Inactive).
+
+Choose **Aktiver** (Activate) to offer it again.
+
+Use this when someone is away for a while, or when you're not sure you'll need the contact again.
+
+</Step>
+<Step title="Delete a contact">
+
+Choose **Slett** (Delete) on the row. You see **Er du sikker på at du vil slette denne innstillingen?** (Are you sure you want to delete this setting?), and the button changes to **Bekreft sletting** (Confirm delete). Choose it to delete the contact. You see **Innstilling slettet** (Setting deleted).
+
+<Callout type="warn">
+Deleting a contact can't be undone. To stop offering a contact for a while, choose **Deaktiver** (Deactivate) instead.
+</Callout>
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- Changes show on the form on biso.no straight away. The form loads a campus's contacts when the reporter picks the campus.
+- A report goes by email to the address of the contact the reporter chose, with the subject **BISO Varsling:** and the type of case. Only that contact gets it.
+- Reports aren't stored in the admin or anywhere else. If the email is lost, there's no copy to get back.
+- If the reporter gave their email address, you can answer by replying to the report. An anonymous report has no address to reply to.
+- Nothing is sent to the reporter, and nobody else at BISO is told about a report.
+- Deleting or deactivating a contact doesn't affect reports already sent.
+- Each change, and each test, is written to the activity log with your email.
+</WhatHappensNext>
+
+## What the student sees
+
+The form is on biso.no/safety. The old address, biso.no/varsling, takes people there. Anyone can use it, without signing in.
+
+- They choose **Sakstype** (Case type): **Trakassering** (Harassment), **Vitne** (Witness) or **Annet** (Other), then **Campus**.
+- **Hvem ønsker du å kontakte?** (Who do you want to contact?) lists the active contacts for that campus, in your sort order, using the text from **Rolle eller person** (Role or person).
+- **Din e-postadresse (valgfritt)** (Your email address (optional)) can be left empty to stay anonymous.
+- They describe the case in **Saksbeskrivelse** (Case description) and choose **Send inn sak** (Submit case). They then see **Saken din er sendt inn. Du vil få svar så snart som mulig.** (Your case has been submitted. You will receive a response as soon as possible.)
+
+If a campus has no active contacts, the form says **Ingen varslingskontakter er registrert for dette campuset ennå.** (No whistleblowing contacts are registered for this campus yet.) and lists general contacts to reach directly. The form can't be sent for that campus.
+
+## Common mistakes
+
+- Typing the email address wrong. Reports go to the wrong place, or nowhere, and nobody notices. Send a test after every new contact or changed address, and ask the contact to confirm.
+- Leaving a campus with no active contact. Reporters on that campus can't use the form.
+- Deleting a contact you only wanted to pause. Use **Deaktiver** (Deactivate).
+- Forgetting to update contacts when people change roles, for example at the August board change. A report then goes to someone who has left.
+- Looking in the admin for a report. Reports only exist in the contact's mailbox.
+- Writing something in **Rolle eller person** (Role or person) you wouldn't want on a public page. Reporters see it exactly as you type it.

@@ -1,0 +1,114 @@
+---
+title: Events and content sources
+description: The outside sources that feed content into the platform. Tickster for events and ticket buyers, Entur for public-transport departures, and the old WordPress and WooCommerce site, with what each sync does, what fails, and how to test it locally.
+covers:
+  - packages/connectors/src/tickster/**
+  - apps/api/src/lib/tickster-sync.ts
+  - apps/api/src/lib/tickster-events-sync.ts
+  - apps/api/src/app/api/tickster/**
+  - apps/api/src/lib/entur-departures.ts
+  - apps/api/src/app/api/departures/**
+  - packages/wp-import/**
+  - apps/api/src/app/api/wc-products/route.ts
+  - apps/api/src/app/api/events/route.ts
+  - apps/api/src/app/api/jobs/route.ts
+  - apps/api/config/app-config.json
+---
+
+Read this before you change a sync that brings content in from outside, or when events, attendee lists or departures stop updating. Tickster and Entur are pulled by the api on a schedule, through scheduled-dispatch. All three only read from the outside service and write to Appwrite. The old WordPress site is history: one import moved its content, and a few api routes still point at it. The variables are listed under [Tickster, Entur, recruitment and WordPress](/developers/keep-it-running/secrets-and-environment#tickster-entur-recruitment-and-wordpress) in Secrets and environment.
+
+## Accounts
+
+Who owns the Tickster account and the old WordPress site: <Private name="account-owners" label="Account owners" />
+
+Entur needs no account.
+
+## Tickster
+
+BISO publishes some of its events on Tickster, and sells their tickets there. Two separate syncs in the api read from it. Both only make `GET` requests to Tickster, and both do nothing until their variables are set.
+
+### Events sync
+
+**What it does.** Copies the events BISO publishes on Tickster into `events` and `content_translations`, so they show on the website and in the app next to events made in the admin. It runs one search per campus by organiser name, by default `by:"BISO Oslo"`, `by:"BISO Bergen"` and so on, and gives each event that campus. Each event gets a row id worked out from its Tickster id, so a run updates rows instead of adding copies. The event row and its translations get the same read rule as an event made in the admin: readable by everyone once published or cancelled, and by nobody but the service key before that (`eventReadPermissions` in `packages/shared/utils/content-read-permissions.ts`). Operations Unit can also update and delete them.
+
+**Code.** `apps/api/src/lib/tickster-events-sync.ts` and the route `POST /api/tickster/events/sync`. The Tickster client is `packages/connectors/src/tickster/events-client.ts`.
+
+**Variables.** `TICKSTER_API_KEY` switches it on. `TICKSTER_EVENTS_QUERY_MAP` changes the searches per campus. The other `TICKSTER_EVENTS_*` variables and `TICKSTER_AUTH_HEADER` are optional. On scheduled-dispatch, the target is `TICKSTER_EVENTS_SYNC_URL`.
+
+**When it fails.** New and changed Tickster events don't reach the website or the app. Events already copied stay as they were.
+
+### Ticket buyers sync
+
+**What it does.** Imports the people who bought tickets into `event_attendees`, for the Tickster events listed in `TICKSTER_EVENT_MAP`. It writes the same rows as the admin's CSV import of attendees, so the admin's event segments and the app's "Your trip" use them the same way. It links a buyer to an Appwrite user when their emails match exactly. Each run reads the purchases from the start, and every write updates the same row, so running it again is safe. If a purchase fails, the answer's `lastCursor` points at the first page that failed, and you can start a run from there with `?from=<cursor>`.
+
+**Code.** `apps/api/src/lib/tickster-sync.ts` and the route `POST /api/tickster/sync`. The Tickster client is `packages/connectors/src/tickster/client.ts`.
+
+**Variables.** `TICKSTER_API_KEY` and `TICKSTER_EOG_CODE` switch it on. `TICKSTER_EVENT_MAP` is a JSON list that pairs each Tickster event id with an event id in `events` and a campus. A Tickster event that isn't in the list is skipped. `TICKSTER_BASE_URL` is optional. On scheduled-dispatch, the target is `TICKSTER_SYNC_URL`.
+
+**When it fails.** Attendee lists, and everything built on them, stop updating.
+
+### Both syncs
+
+Whether the Tickster variables are set in production is only visible in the Site's settings in the console. Without them, a sync answers `500` on every run, so leave its scheduled-dispatch target empty until Tickster is set up ([Scheduled jobs](/developers/keep-it-running/scheduled-jobs#what-it-calls)). A run where some rows failed answers `502`, with the counts in the body. A run that broke off, for example because Tickster refused the key, answers `500` with `INTERNAL_ERROR`, and the error itself is in the api's log after `[tickster/sync] Unexpected error:` or `[tickster/events/sync] Unexpected error:`.
+
+## Entur
+
+**What it does.** Keeps public-transport departures for the app. For each stop in `stop_places`, the api asks Entur's open Journey Planner API for the next departures, and writes them to `departures`. The app reads them live from Appwrite. The website doesn't show departures.
+
+**Code.** `apps/api/src/lib/entur-departures.ts` and the route `POST /api/departures/sync`. On scheduled-dispatch, the target is `DEPARTURES_SYNC_URL`.
+
+**Variables.** Entur needs no key. It asks callers to name themselves in an `ET-Client-Name` header, and the api sends `ENTUR_CLIENT_NAME`, by default `biso-departures`. Callers that don't name themselves are rate-limited harder. `ENTUR_TIME_RANGE`, `ENTUR_NUM_DEPARTURES` and `ENTUR_FETCH_TIMEOUT_MS` are optional.
+
+**When it fails.** Departures in the app go stale. A run where any stop failed answers `502`, so scheduled-dispatch shows it as failed.
+
+## WordPress and WooCommerce
+
+The website used to be a WordPress site with a WooCommerce shop. Its content was moved into Appwrite with a one-off import, and the new site took over `biso.no`.
+
+### The import
+
+**What it does.** `packages/wp-import` is a command-line tool, run by hand, that copied vacancies, products and orders from WordPress into Appwrite. It's built to run again safely: every write uses an id worked out from the WordPress record. `packages/wp-import/README.md` has the full steps.
+
+```bash
+cd packages/wp-import
+bun run extract --since=3m --jobs --products
+bun run transform
+bun run load --jobs --products            # dry run: no writes, no AI calls
+bun run load --jobs --products --apply
+```
+
+**Variables.** In `packages/wp-import/.env`, which every script loads: `WP_BASE_URL`, `WC_CONSUMER_KEY` and `WC_CONSUMER_SECRET` (only for orders and product variations), the Appwrite endpoint, project and API key, and `OPENAI_API_KEY` for `load --apply`, which translates with OpenAI.
+
+`WP_BASE_URL` defaults to the address the old site moved to (`packages/wp-import/scripts/extract.ts`). The owner lists only `biso.no`, `api.biso.no` and `admin.biso.no` as live, so check that the WordPress site still answers before you try another import.
+
+### Old api routes
+
+`/api/events`, `/api/jobs` and `/api/wc-products` on the api still read from `https://biso.no/wp-json/…`. That address now serves the new website, so these routes no longer get WordPress data. Nothing in this repo or in the app calls them. `WC_CONSUMER_KEY` and `WC_CONSUMER_SECRET` on the api exist only for `/api/wc-products`. The three route files (`apps/api/src/app/api/events/route.ts`, `jobs/route.ts` and `wc-products/route.ts` in the same folder) and those two variables are candidates for deletion. `apps/api/src/app/api/events/[id]/rsvp/route.ts` is a different route and must stay.
+
+The api's `/api/config` still reports `events_source: "wordpress"`, `jobs_source: "wordpress"` and `products_source: "woocommerce"`, from `apps/api/config/app-config.json`. The app doesn't read those values.
+
+## Test it safely
+
+All three syncs only read from the outside service, so you can run them on your machine against your own Appwrite project ([Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project)). They write only to that project.
+
+1. Put the variables in `apps/api/.env.local`, with a `CRON_SECRET` of your own. For Tickster, ask the account owner for the API key. It's a production credential, so get it for the session, and don't keep it in `.env.local` afterwards. For Entur, add a few rows to `stop_places` first.
+2. Start the api, then call the sync, with the same `CRON_SECRET` in your shell:
+
+   ```bash
+   export CRON_SECRET=<the value in apps/api/.env.local>
+   curl -X POST http://localhost:3003/api/departures/sync -H "x-cron-secret: $CRON_SECRET"
+   curl -X POST http://localhost:3003/api/tickster/events/sync -H "x-cron-secret: $CRON_SECRET"
+   ```
+
+3. Check the rows in your project. Run it twice: the second run should update rows, not add new ones.
+
+The ticket-buyers sync writes the names and emails of real ticket buyers into your project. Delete them when you're done.
+
+For the WordPress import, put your own project in `packages/wp-import/.env`, and run `load` without `--apply` first.
+
+The syncs and the import have unit tests:
+
+```bash
+cd apps/api && bun run test
+cd packages/wp-import && bun run test
+```

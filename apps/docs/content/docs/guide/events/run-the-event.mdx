@@ -1,0 +1,167 @@
+---
+title: Run the event
+description: How to see who's coming, import the attendee list, put people in buses or rooms, message a group, keep the ticket link right, and change or cancel an event after it's published.
+who: "Global admins (National + Operations Unit), campus leaders (Ledelsen on your campus) for events on their campus and National events, and department members, for their own department's events. Messaging a group is for global admins and campus leaders."
+covers:
+  - apps/admin/src/app/(portal)/events/[id]/segments/**
+  - apps/admin/src/app/(portal)/_actions/event-segments.ts
+  - apps/admin/src/app/(portal)/events/_components/event-studio-dashboard.tsx
+  - apps/admin/src/app/(portal)/events/[id]/_components/**
+  - apps/admin/src/app/(portal)/_actions/events.ts
+  - apps/admin/src/lib/announcements/audience-policy.ts
+  - apps/admin/src/app/(portal)/communications/_components/composer/composer-state.ts
+  - packages/shared/utils/event-rsvp.ts
+  - apps/api/src/lib/tickster-sync.ts
+  - apps/api/src/lib/tickster-events-sync.ts
+  - apps/web/src/components/events/v2/event-rsvp.tsx
+  - apps/web/src/components/events/v2/event-detail-v2.tsx
+  - apps/web/src/components/events/v2/ticket-link.tsx
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- The event is published. See [Create an event](/guide/events/create-an-event).
+- You can edit the event. [How events work](/guide/events#who-can-use-events) shows who can edit which events.
+- The logistics page and the event studio are in English whatever your admin language, so this page names their labels in English.
+- For buses, rooms or other groups, have the attendee list as a CSV file, for example an export from the ticket seller. It needs a header row and an email column.
+- Only students with a BISO app account can be put in a group, and only through the email on that account.
+- If the event was imported from Tickster, change its title, time, place and ticket link in Tickster. See [Events imported from Tickster](/guide/events#events-imported-from-tickster).
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the logistics page">
+
+Open **Innhold** (Content) and choose **Arrangementer** (Events). On the event's row, choose the map pin icon (tooltip: *Logistics*).
+
+The page is headed **Logistics**, with the event's English title. From top to bottom it has the event's groups, the **RSVPs** panel and the **Attendees** panel. **Back to event** opens the event in the studio.
+
+</Step>
+<Step title="See who's coming">
+
+The **RSVPs** panel lists every student who has answered, with a count at the top, for example **12 going · 4 maybe · 2 not going**.
+
+- The table shows **Name**, **Email**, **Answer** (**Going**, **Maybe** or **Not going**) and **Answered**, in Oslo time.
+- Going comes first, then Maybe, then Not going, each sorted by name.
+- **No one has answered yet.** means there are no answers so far.
+
+An answer isn't a ticket, a seat or a registration. Students can answer until the event ends, however many are already going. If people buy tickets, the buyers are a separate list: import it in the **Attendees** panel.
+
+The **Påmeldte** (Registered) column in **Arrangementer** (Events) always reads 0. Use this panel instead.
+
+</Step>
+<Step title="Make groups">
+
+Groups (segments) are buses, rooms or any other way you split the attendees.
+
+1. Choose **New segment**.
+2. Fill in **Name** (required, such as *Bus 1 / Room 204*) and **Kind** (*e.g. transport, lodging, group*). Groups of the same kind are filled together.
+3. **Capacity**: 0 means unlimited.
+4. Add what students need: **Departure time**, **Pickup location**, **Hotel**, **Room number** and **Notes**.
+5. Choose **Create segment**.
+
+Each group is a card with its details and how many people are in it, for example **12/40**. **Edit** changes it and **Save changes** stores it. **Delete**, then **Confirm**, removes the group and takes everyone out of it.
+
+</Step>
+<Step title="Import the attendee list">
+
+In the **Attendees** panel, under **Import attendees (CSV)**:
+
+1. Paste the CSV text in the box, or choose **Choose file**.
+2. Choose **Import**.
+
+The first line must be a header. These column names are recognised, in any case: email, name, phone, ticket_type and order_ref. A row needs an email or an order reference, or it's left out.
+
+You see a line such as **Imported 85, matched 72, skipped 0.** Matched people have an app account with the same email. Only matched people can be put in a group. The table shows a tick or a cross under **Matched**.
+
+Importing the same list again updates the rows instead of adding them twice, so you can import a newer export.
+
+If the ticket buyers for your event are also imported from Tickster, they show up in this list by themselves. IT sets this up for each event, so ask IT.
+
+</Step>
+<Step title="Put attendees in groups">
+
+To choose who goes where:
+
+1. Tick the people under **Pick**.
+2. Under **Assign selected to**, choose a group.
+3. Choose **Assign**. You see a line such as **Assigned 8, skipped 0, full 2.** Skipped people were already in that group. Full means the group reached its capacity.
+
+To fill groups automatically, choose **Auto-assign**. The button names a kind, for example **Auto-assign (transport)**: the kind of the first group in alphabetical order. It fills that kind's groups in name order, up to their capacity, and skips people who are already in one. You see a line such as **Auto-assigned 60 attendee(s); 12 left unassigned.**
+
+Auto-assign only places people whose app profile names the event's campus, or no campus. On a National event, that leaves out every student whose profile names Oslo, Bergen, Trondheim or Stavanger. Assign the people left over by hand.
+
+Students see their group in the BISO app. Nobody gets a message when you place them.
+
+</Step>
+<Step title="Message a group (global admins and campus leaders)">
+
+On a group's card, choose **Message**. It opens a new announcement aimed at that group, of type **Trip** and linked to the event, on the **Message** step.
+
+Go back to **What** and write the title. Then write the message on **Message**, and send it from **Check & send**. [Send an announcement](/guide/announcements/send-an-announcement) explains each step.
+
+Department members don't see **Message**. Ask a campus leader or a global admin. Campus leaders can message groups on their own campus's events. For a group on a National event, ask a global admin.
+
+</Step>
+<Step title="Keep the ticket link right">
+
+Open the event with the pencil icon and go to **Tickets & audience**. Change **Ticket link**, then go to **Review** and choose **Publish event** to save it.
+
+- biso.no shows **Kjøp billetter** (Get tickets) for as long as the event is listed, even after the sale has closed. When it's sold out or closed, say so in the teaser or the description.
+- The app hides its ticket button once the event starts or **Registration closes** has passed.
+- On a members-only event, biso.no shows the button to everyone. The app locks it for students who aren't members.
+- For an event imported from Tickster, the import removes the link when the sale ends. Change the link in Tickster, not here.
+
+</Step>
+<Step title="Change or cancel the event">
+
+To change a published event, open it, make the change, go to **Review** and choose **Publish event**. It stays published. **Save as draft** would take it off biso.no and out of the app.
+
+Students aren't told about a change, even to the date or place. To tell them, a campus leader or a global admin sends an announcement of type **Event** linked to the event. See [Send an announcement](/guide/announcements/send-an-announcement).
+
+There's no cancel button. To cancel an event:
+
+1. Send an announcement linked to the event while it's still published, or ask a campus leader or a global admin to send it. Only published events can be linked. Put what students need to know in the message itself: once the event is a draft, tapping the announcement in the app no longer opens it.
+2. Then open the event and choose **Save as draft**. It leaves biso.no and the app.
+
+For an event imported from Tickster, send the announcement first, then cancel the event in Tickster. The next import marks it **Avlyst** (Cancelled), and biso.no stops showing it. A cancelled event can't be linked to an announcement.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- Nothing is sent when you import attendees, make groups or place people in them.
+- A student placed in a group sees it in the BISO app on the event, under **Din reise** (Your trip), with the group's details.
+- Changing a group's details changes what students see in the app. Nobody is told.
+- A message to a group reaches each student in the group on their phone, in their language, and in their in-app inbox.
+- Changes to the event notify nobody. The event's automatic notification only ever goes out once.
+- When the event ends, students can no longer answer RSVP, and biso.no takes the event off its list.
+- Group changes, imports and placements are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- In the BISO app, a student in a group sees **Din reise** (Your trip) on the event: the group's departure time, pickup place, hotel, room and notes. biso.no shows no groups.
+- On the event, on biso.no and in the app, **Blir du med?** (Are you going?) shows their own answer and the counts of who's going and who might. Nobody sees who answered **Kommer ikke** (Not going), or any names.
+- A message to their group arrives as a push and in the app's inbox. Tapping it opens the event.
+
+## Common mistakes
+
+- Reading the **Påmeldte** (Registered) column as sign-ups. It always reads 0. Use the **RSVPs** panel.
+- Treating RSVP answers as the guest list for a ticketed event. Answers aren't tickets. Import the buyers in the **Attendees** panel.
+- Importing a CSV with no email column. Without an email, nobody can be matched or put in a group.
+- Expecting **Auto-assign** to place everyone. It skips people whose profile names another campus. On a National event, that's anyone whose profile names a campus. Assign them by hand.
+- Expecting students to be told when you place them in a group. Nobody is. Send a message to the group.
+- Changing the date or place and expecting students to know. Ask for an announcement linked to the event.
+- Editing an imported Tickster event's title, time, place or ticket link in the admin. The next import replaces them.
+- Deleting an event to take it down. Save it as a draft instead. Delete only an event made by mistake, before anyone has answered and before you've made groups for it.
+
+<Callout type="warn">
+Deleting an event, from the bin icon in **Arrangementer** (Events), can't be undone. Deleting a group takes everyone out of it, and nobody is told.
+</Callout>

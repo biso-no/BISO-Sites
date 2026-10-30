@@ -39,15 +39,39 @@ export const isProd =
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching them is the point
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
+const PLAIN_ABSOLUTE_URL = /^https?:\/\/[^\s\\@]*$/i;
+
 /**
- * Restrict post-auth redirect targets to same-site relative paths.
+ * True when `value` is a plain absolute http(s) URL whose origin exactly equals
+ * the origin of `NEXT_PUBLIC_DOCS_URL`. Unset or invalid env: always false.
+ */
+function isDocsUrl(value: string): boolean {
+  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL;
+  if (!(docsUrl && PLAIN_ABSOLUTE_URL.test(value))) {
+    return false;
+  }
+  try {
+    return new URL(value).origin === new URL(docsUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Restrict post-auth redirect targets to same-site relative paths, plus
+ * absolute URLs on the docs origin (`NEXT_PUBLIC_DOCS_URL`).
  *
  * Accepts a `redirectTo` value from a query parameter (typically URL-encoded
- * once already) and returns either a safe relative path beginning with a
- * single "/" or the fallback "/". Rejects absolute URLs, protocol-relative
- * URLs ("//..."), backslash tricks ("/\..."), and anything that fails to
- * decode. Use this anywhere a user-controlled string is passed to
- * `redirect()` after login or callback.
+ * once already) and returns one of:
+ * - an absolute http(s) URL whose origin is exactly the docs origin (only
+ *   when `NEXT_PUBLIC_DOCS_URL` is set and valid), returned as given or
+ *   decoded;
+ * - a safe relative path beginning with a single "/";
+ * - the fallback "/".
+ * Rejects every other absolute URL, protocol-relative URLs ("//..."),
+ * backslash tricks ("/\..."), anything holding a control character, and
+ * anything that fails to decode. Use this anywhere a user-controlled string
+ * is passed to `redirect()` after login or callback.
  */
 export function sanitizeRedirectTarget(
   input: string | null | undefined
@@ -63,6 +87,14 @@ export function sanitizeRedirectTarget(
   }
   if (CONTROL_CHARACTERS.test(decoded)) {
     return "/";
+  }
+  // The docs site is the one cross-origin target allowed. Check the raw value
+  // first so a docs URL whose query holds %-escapes is returned unchanged.
+  if (isDocsUrl(input)) {
+    return input;
+  }
+  if (isDocsUrl(decoded)) {
+    return decoded;
   }
   // Must be a same-site path. Reject absolute URLs and protocol-relative or
   // backslash-prefixed paths that browsers treat as cross-origin.

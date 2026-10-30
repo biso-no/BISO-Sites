@@ -1,0 +1,94 @@
+---
+title: Read the website analytics
+description: How global admins read the traffic figures for biso.no on the Analyse page, and what the figures cover.
+who: "Global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/analytics/**
+  - apps/admin/src/lib/umami/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Only global admins have **Analyse** (Analytics) in the sidebar.
+- The figures come from Umami, the analytics service BISO runs on its own server. The admin fetches them when you open the page. BISO doesn't save them. The admin only holds them for 5 minutes.
+- They cover the public site, biso.no, and nothing else. Days follow Oslo time.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open Analytics">
+
+In the sidebar, choose **Analyse** (Analytics), or choose **Analytics** in quick search.
+
+The page is headed **Analyse** (Analytics), under **Innsikt** (Insights). The line under the heading reads **Webtrafikk for den offentlige BISO-siden, hentet fra den selvhostede Umami-instansen.** (Web traffic for the public BISO site, sourced from the self-hosted Umami instance.)
+
+</Step>
+<Step title="Pick a period">
+
+In the header, choose **7 dager** (7 days), **30 dager** (30 days) or **90 dager** (90 days). The page opens on **30 dager** (30 days). The period always ends now.
+
+</Step>
+<Step title="Read the key figures">
+
+Five tiles sit across the top:
+
+- **Sidevisninger** (Pageviews)
+- **Besøkende** (Visitors)
+- **Besøk** (Visits)
+- **Fluktfrekvens** (Bounce rate), as a percentage. It turns red at 70% or more.
+- **Gj.sn. besøkstid** (Avg. visit time), in minutes and seconds, for example 2:05.
+
+Under the first three, a figure such as +12% or -5% compares the period with the one just before it, of the same length. It's left out when there's no earlier data.
+
+</Step>
+<Step title="Follow traffic over time">
+
+**Trafikk over tid** (Traffic over time) shows **Sidevisninger og økter per dag** (Pageviews and sessions per day). It has one line for **Sidevisninger** (Pageviews) and one for **Økter** (Sessions).
+
+If there's no traffic in the period, it says **Ingen trafikk registrert for denne perioden** (No traffic recorded for this period).
+
+</Step>
+<Step title="See where visitors go and where they come from">
+
+Three lists show the top 10 for the period. Each entry has a bar, scaled to the largest in its list.
+
+- **Mest besøkte sider** (Top pages): the biso.no pages with the most views.
+- **Toppkilder** (Top referrers): the sites visitors came from.
+- **Topphendelser** (Top events): actions that biso.no records, by their code names, such as `checkout_start`, `job_application_submit` or `document_download`. These aren't BISO events. The line under the heading gives the total, for example **240 hendelser registrert** (240 events tracked).
+
+</Step>
+<Step title="See which members are most active">
+
+**Medlemmer** (Members) is headed **Identifiserte medlemmer rangert etter besøk** (Identified members ranked by visits). It names up to 12 people who were signed in on biso.no, with the most visits first. Each row shows their visits and views, for example **5 besøk · 23 visninger** (5 visits · 23 views).
+
+The list looks at only a small sample of sessions, so it isn't every member who visited, and it can miss people who were active earlier in the period.
+
+Each name comes from the person's BISO account. If the account has no name, the list shows the first part of their email address. If the account can't be found, it shows **Unknown**.
+
+If nobody can be named, the list says **Ingen identifiserte medlemmer ennå** (No identified members yet).
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- The page only reads. It sends nothing and changes nothing.
+- The admin keeps the figures for 5 minutes, and the end of the period moves in 5-minute steps. A new visit can take about 5 minutes to show.
+</WhatHappensNext>
+
+## What the student sees
+
+Students never see this page. When they're signed in on biso.no, their visits are linked to their BISO account, which is how the **Medlemmer** (Members) list can name them. Visitors who aren't signed in are never named.
+
+## Common mistakes
+
+- Reading zeros as no visitors. If the admin can't reach Umami, every tile shows 0, the bounce rate shows 0%, and every list shows its empty text. There's no error message. If a period you know was busy shows nothing, ask the developers to check Umami (see the [developer docs](/developers)).
+- Reading **Medlemmer** (Members) as every member who visited. It's built from a small sample of sessions.
+- Reading **Topphendelser** (Top events) as BISO events. They're actions on the site, such as starting a checkout.
+- Looking for app or admin traffic. The page covers biso.no only.
+- Expecting a visit to show at once. Allow about 5 minutes.

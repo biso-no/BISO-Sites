@@ -2,189 +2,223 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 @import "../../../packages/ui/styles/globals.css";
+@import "../../../packages/ui/styles/biso-surface.css";
 
-@source "../../../../packages/ui/**/*.{ts,tsx}";
+/*
+ * Only the @repo/ui files docs imports, not the whole package: scanning all
+ * of it builds every utility the admin and web use. When docs imports another
+ * @repo/ui component, add its file here.
+ */
+@source "../../../packages/ui/components/ui/sheet.tsx";
+@source "../../../packages/ui/lib/utils.ts";
 @source "../**/*.{ts,tsx}";
 @source "../components/**/*.{ts,tsx}";
 
-/* App-specific color values - Light mode */
+/*
+ * The docs wear the BISO brand surface (`biso-surface biso-surface-v2` on
+ * <html>, see packages/ui/styles/biso-surface.css). Fumadocs reads its own
+ * `--color-fd-*` names, so they are pointed at the brand palette here.
+ */
 :root {
-  --radius: 0.5rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --input-background: oklch(1 0 0);
-  --switch-background: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --color-fd-background: var(--biso-paper);
+  --color-fd-foreground: var(--biso-ink);
+  --color-fd-card: var(--biso-paper);
+  --color-fd-card-foreground: var(--biso-ink);
+  --color-fd-popover: var(--biso-paper);
+  --color-fd-popover-foreground: var(--biso-ink);
+  --color-fd-muted: var(--surface-sunken);
+  --color-fd-muted-foreground: var(--ink-muted);
+  --color-fd-secondary: var(--surface-sunken);
+  --color-fd-secondary-foreground: var(--biso-ink);
+  --color-fd-border: var(--biso-line);
+  --color-fd-primary: var(--biso-blue);
+  --color-fd-primary-foreground: var(--biso-paper);
+  --color-fd-accent: var(--surface-sunken);
+  --color-fd-accent-foreground: var(--biso-ink);
+  --color-fd-ring: var(--biso-blue);
 
-  /* Section backgrounds */
-  --section: oklch(0.985 0 0);
-  --section-foreground: oklch(0.145 0 0);
+  /* packages/ui/styles/globals.css paints the body from these. */
+  --background: var(--color-fd-background);
+  --foreground: var(--color-fd-foreground);
 
-  /* Inverted section (dark hero, footer overlays) */
-  --inverted: oklch(0.145 0 0);
-  --inverted-foreground: oklch(0.985 0 0);
-  --inverted-muted: oklch(0.4 0 0);
-
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-
-  /* Brand colors — BISO blue (#3DA9E0) and BISO dark (#001731) */
-  --brand: oklch(0.68 0.14 220);
-  --brand-dark: oklch(0.15 0.05 250);
-  --brand-foreground: oklch(1 0 0);
-  --brand-muted: oklch(0.68 0.14 220 / 10%);
-  --brand-muted-strong: oklch(0.68 0.14 220 / 20%);
-  --brand-border: oklch(0.68 0.14 220 / 20%);
-  --brand-border-strong: oklch(0.68 0.14 220 / 40%);
-
-  /* Gradient stops */
-  --brand-gradient-from: oklch(0.68 0.14 220);
-  --brand-gradient-to: oklch(0.15 0.05 250);
-  --brand-gradient-via: oklch(0.68 0.14 220 / 70%);
-
-  /* Overlay gradients */
-  --brand-overlay-from: oklch(0.15 0.05 250 / 95%);
-  --brand-overlay-via: oklch(0.68 0.14 220 / 70%);
-  --brand-overlay-to: oklch(0.15 0.05 250 / 90%);
-
-  /* Brand accent — BISO yellow (#F7D64A) */
-  --brand-accent: oklch(0.88 0.17 95);
-  --brand-accent-muted: oklch(0.88 0.17 95 / 10%);
-
-  /* Navigation — always dark navy */
-  --nav-background: oklch(0.15 0.05 250 / 95%);
-  --nav-foreground: oklch(1 0 0);
+  /* The sidebar and the "What happens next" panel; the sun notice's tint. */
+  --docs-panel: #f7f9fb;
+  --docs-notice: #fff8e1;
 }
 
-/* Dark mode overrides */
+/* Dark mode: the navy becomes the page. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --input-background: oklch(0.205 0 0);
-  --switch-background: oklch(0.269 0 0);
-  --ring: oklch(0.556 0 0);
+  --color-fd-background: var(--biso-deep-sunken);
+  --color-fd-foreground: #ffffff;
+  --color-fd-card: var(--biso-deep-raised);
+  --color-fd-card-foreground: #ffffff;
+  --color-fd-popover: var(--biso-deep-raised);
+  --color-fd-popover-foreground: #ffffff;
+  --color-fd-muted: var(--biso-deep);
+  --color-fd-muted-foreground: var(--biso-deep-ink-muted);
+  --color-fd-secondary: var(--biso-deep-raised);
+  --color-fd-secondary-foreground: #ffffff;
+  --color-fd-border: var(--biso-deep-edge);
+  --color-fd-primary: var(--biso-sky);
+  --color-fd-primary-foreground: var(--biso-deep);
+  --color-fd-accent: var(--biso-deep-raised);
+  --color-fd-accent-foreground: #ffffff;
+  --color-fd-ring: var(--biso-sky);
 
-  --section: oklch(0.18 0 0);
-  --section-foreground: oklch(0.985 0 0);
-  --inverted: oklch(0.12 0 0);
-  --inverted-foreground: oklch(0.985 0 0);
-  --inverted-muted: oklch(0.6 0 0);
-
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-
-  /* Brand colors — adapted for dark mode */
-  --brand: oklch(0.68 0.14 220);
-  --brand-dark: oklch(0.68 0.14 220);
-  --brand-foreground: oklch(1 0 0);
-  --brand-muted: oklch(0.68 0.14 220 / 20%);
-  --brand-muted-strong: oklch(0.68 0.14 220 / 30%);
-  --brand-border: oklch(0.68 0.14 220 / 40%);
-  --brand-border-strong: oklch(0.68 0.14 220 / 60%);
-
-  --brand-gradient-from: oklch(0.72 0.14 220);
-  --brand-gradient-to: oklch(0.55 0.12 220);
-  --brand-gradient-via: oklch(0.68 0.14 220 / 80%);
-
-  --brand-overlay-from: oklch(0.12 0.02 250 / 95%);
-  --brand-overlay-via: oklch(0.68 0.14 220 / 60%);
-  --brand-overlay-to: oklch(0.12 0.02 250 / 90%);
-
-  --brand-accent: oklch(0.88 0.17 95);
-  --brand-accent-muted: oklch(0.88 0.17 95 / 5%);
-
-  /* Navigation — same dark navy in both themes */
-  --nav-background: oklch(0.15 0.05 250 / 95%);
-  --nav-foreground: oklch(1 0 0);
+  --docs-panel: var(--biso-deep);
+  --docs-notice: var(--biso-deep);
 }
 
-/* Fumadocs-specific overrides: wire Fumadocs CSS variables to BISO brand tokens */
-:root {
-  --color-fd-primary: var(--brand);
-  --fd-primary: var(--brand);
+@theme inline {
+  --color-panel: var(--docs-panel);
+  --color-notice: var(--docs-notice);
 }
 
-/* Mermaid diagram container */
-.mermaid-container svg {
-  max-width: 100%;
-  height: auto;
-  padding: 1rem;
-  background: transparent;
-  border-radius: 0.75rem;
+/*
+ * packages/ui/styles/globals.css gives every border `--border`, which resolves
+ * once at the root. Reading Fumadocs' token per element instead lets a region
+ * that re-points it, like the navy header, draw its own hairline.
+ */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-fd-border, currentColor);
+  }
 }
 
-.mermaid-container .node rect,
-.mermaid-container .node circle,
-.mermaid-container .node polygon {
-  stroke-width: 1.5px !important;
-  transition: all 0.2s ease;
+/*
+ * No backdrop blur anywhere (the brand has none). Fumadocs puts it on its
+ * header, the "On this page" bar, popovers, the search and drawer overlays and
+ * the code copy button; the surfaces that relied on it are made opaque below.
+ */
+*,
+::before,
+::after,
+::backdrop {
+  backdrop-filter: none;
 }
 
-.mermaid-container .node:hover rect {
-  filter: brightness(1.1);
-  stroke-width: 2px !important;
+/* The "On this page" bar under the header on narrow screens. */
+[data-toc-popover] > header {
+  background-color: var(--color-fd-background);
 }
 
-.mermaid-container .nodeLabel {
-  font-size: 14px;
-  font-weight: 500;
+/* Popover panels (Fumadocs renders them at 60% opacity). */
+[data-radix-popper-content-wrapper] > [data-state] {
+  background-color: var(--color-fd-popover);
 }
 
-.mermaid-container .cluster rect {
-  rx: 12px;
-  stroke-dasharray: 5, 5;
+/*
+ * The header bar: navy in both themes, like the site's own top bar. Fumadocs
+ * renders it as `#nd-subnav`; its colour tokens are re-pointed inside it so
+ * the title, links, search field and theme switch all read as on-navy. The
+ * landing's own header, `#site-header`, takes the same tokens so the two match.
+ */
+#nd-subnav,
+#site-header {
+  --color-fd-background: var(--biso-deep-raised);
+  --color-fd-foreground: #ffffff;
+  --color-fd-muted-foreground: var(--biso-deep-ink-muted);
+  --color-fd-accent-foreground: #ffffff;
+  --color-fd-primary: #ffffff;
+  --color-fd-secondary: var(--biso-deep-raised);
+  --color-fd-secondary-foreground: #ffffff;
+  --color-fd-accent: var(--biso-deep-raised);
+  --color-fd-border: var(--biso-deep-edge);
+  color: #ffffff;
+  background-color: var(--biso-deep);
+}
+
+#nd-subnav [data-header-body] {
+  border-bottom-color: var(--biso-deep-edge);
+}
+
+/*
+ * Past the layout's max width the grid leaves empty columns either side of the
+ * header; this band carries the navy to the window's edges. The layout clips
+ * horizontal overflow, so it adds no scroll.
+ */
+#nd-subnav::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -100vw;
+  z-index: -1;
+  content: "";
+  background-color: var(--biso-deep);
+  border-bottom: 1px solid var(--biso-deep-edge);
+}
+
+#nd-subnav a[data-active="true"] {
+  font-weight: 700;
+}
+
+/* Sidebar: a pale panel beside the page; navy in dark mode. */
+#nd-sidebar {
+  background-color: var(--docs-panel);
+  border-inline-end: 1px solid var(--color-fd-border);
+}
+
+/* fumadocs-ui/css/neutral.css retints these inside the sidebar in dark mode. */
+.dark #nd-sidebar {
+  --color-fd-muted: var(--biso-deep);
+  --color-fd-secondary: var(--biso-deep-raised);
+  --color-fd-muted-foreground: var(--biso-deep-ink-muted);
+}
+
+/*
+ * Group headings are bold ink. A folder renders as a Radix collapsible: its
+ * first child is the heading (a toggle button, a plain div when meta.json says
+ * `"collapsible": false`, or the folder's index link, which keeps the active
+ * style when it is the page you are on). A `---Separator---` is the tree's
+ * only paragraph.
+ */
+:is(#nd-sidebar, #nd-sidebar-mobile)
+  [data-state]:has(> [data-state][id])
+  > :first-child:not([data-active="true"]),
+:is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] p {
+  font-weight: 700;
+  color: var(--color-fd-foreground);
+}
+
+/* The page you are on: blue, bold, with a 2px blue rule on its left. */
+:is(#nd-sidebar, #nd-sidebar-mobile) a[data-active] {
+  border-radius: 0;
+}
+
+:is(#nd-sidebar, #nd-sidebar-mobile) a[data-active="true"] {
+  font-weight: 700;
+  color: var(--color-fd-primary);
+  background-color: transparent;
+  box-shadow: inset 2px 0 0 var(--color-fd-primary);
+}
+
+:is(#nd-sidebar, #nd-sidebar-mobile) a[data-active="true"]::before {
+  content: none;
+}
+
+/* Article headings take the display face, Museo Slab. */
+#nd-page :is(h1, h2, h3) {
+  font-family: var(--font-display);
+}
+
+/*
+ * A task panel's own heading ("Before you start", "What happens next") is its
+ * title: compact bold sans, not a display heading. It stays an MDX heading so
+ * it has an anchor and a line in "On this page".
+ */
+#nd-page [data-panel] :is(h2, h3) {
+  margin: 0 0 0.375rem;
+  font-family: var(--font-biso-sans);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+
+/* Museo Sans comes in 300 and 700 only, and the prose's 500 resolves to 300. */
+#nd-page :is(strong, b) {
+  font-weight: 700;
 }

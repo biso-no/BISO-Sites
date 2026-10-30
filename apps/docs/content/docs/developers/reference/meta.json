@@ -1,0 +1,15 @@
+{
+  "title": "Reference",
+  "pages": [
+    "microsoft",
+    "payments",
+    "accounting",
+    "ai",
+    "messaging-and-wallet",
+    "events-and-content-sources",
+    "packages",
+    "design-decisions",
+    "known-limitations",
+    "history"
+  ]
+}

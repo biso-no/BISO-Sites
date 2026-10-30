@@ -1,0 +1,139 @@
+<style>
+  .wf { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; font-size:12px; background:var(--bg-secondary); min-height:330px; }
+  .wf-side { width:42%; border-right:1px solid var(--border); padding:10px 8px; background:var(--bg-primary); }
+  .wf-main { flex:1; padding:12px; }
+  .wf-tabs { display:flex; gap:4px; margin-bottom:10px; }
+  .wf-tab { flex:1; text-align:center; padding:4px 0; border-radius:5px; border:1px solid var(--border); font-size:11px; color:var(--text-secondary); }
+  .wf-tab.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .wf-grp { font-weight:600; margin:8px 0 3px; font-size:11.5px; }
+  .wf-item { padding:2px 0 2px 10px; color:var(--text-secondary); font-size:11.5px; }
+  .wf-item.on { color:var(--accent); font-weight:600; border-left:2px solid var(--accent); padding-left:8px; }
+  .wf-h { font-weight:700; font-size:14px; margin-bottom:6px; }
+  .wf-p { color:var(--text-secondary); font-size:11.5px; margin-bottom:8px; line-height:1.4; }
+  .wf-flow { display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin:6px 0 10px; }
+  .wf-step { border:1px solid var(--border); border-radius:4px; padding:3px 6px; font-size:11px; }
+  .wf-arrow { color:var(--text-tertiary); }
+  .wf-shot { border:1px dashed var(--border); border-radius:6px; height:60px; display:flex; align-items:center; justify-content:center; color:var(--text-tertiary); font-size:11px; margin-bottom:8px; }
+  .wf-card { border:1px solid var(--border); border-radius:6px; padding:6px 8px; margin-bottom:6px; }
+  .wf-card b { font-size:12px; }
+  .wf-card ol { margin:4px 0 0 16px; padding:0; color:var(--text-secondary); font-size:11px; }
+  .wf-roles { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .note { font-size:12.5px; color:var(--text-secondary); margin-top:6px; line-height:1.45; }
+</style>
+
+<h2>How should the platform guide be organised?</h2>
+<p class="subtitle">All three put the developer handover in its own area behind the switcher at the top of the sidebar. The question is how a new HR lead or department editor finds their way in the guide itself.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="area" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="wf">
+        <div class="wf-side">
+          <div class="wf-tabs"><div class="wf-tab on">Platform guide</div><div class="wf-tab">Developers</div></div>
+          <div class="wf-grp">Getting started</div>
+          <div class="wf-item">Sign in and find your role</div>
+          <div class="wf-item">Finding your way around</div>
+          <div class="wf-grp">Recruitment</div>
+          <div class="wf-item on">How recruitment works</div>
+          <div class="wf-item">Publish a vacancy</div>
+          <div class="wf-item">Review applications</div>
+          <div class="wf-item">Book interviews</div>
+          <div class="wf-item">Make offers and reject</div>
+          <div class="wf-grp">Pages and news</div>
+          <div class="wf-grp">Events</div>
+          <div class="wf-grp">Shop and orders</div>
+          <div class="wf-grp">Members and benefits</div>
+          <div class="wf-grp">Push announcements</div>
+          <div class="wf-grp">Access and settings</div>
+        </div>
+        <div class="wf-main">
+          <div class="wf-h">How recruitment works</div>
+          <div class="wf-p">Who can use it, the whole round from vacancy to offer, and which emails you send yourself.</div>
+          <div class="wf-flow"><span class="wf-step">Vacancy</span><span class="wf-arrow">→</span><span class="wf-step">Applied</span><span class="wf-arrow">→</span><span class="wf-step">Shortlist</span><span class="wf-arrow">→</span><span class="wf-step">Interview</span><span class="wf-arrow">→</span><span class="wf-step">Offer</span></div>
+          <div class="wf-shot">screenshot: pipeline board</div>
+          <div class="wf-p">Next: Publish a vacancy →</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · By area</h3>
+      <p>Sidebar follows what the admin can do. Each area opens with "how it works", then one page per task. Simple, but a newcomer has to know which areas matter to them.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="role" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="wf">
+        <div class="wf-side">
+          <div class="wf-tabs"><div class="wf-tab on">Platform guide</div><div class="wf-tab">Developers</div></div>
+          <div class="wf-grp">I'm on the HR team</div>
+          <div class="wf-item on">Your first week</div>
+          <div class="wf-item">Run a recruitment round</div>
+          <div class="wf-item">Interviews and scorecards</div>
+          <div class="wf-grp">I edit a department</div>
+          <div class="wf-item">Your department page</div>
+          <div class="wf-item">Post news and events</div>
+          <div class="wf-item">Sell in the shop</div>
+          <div class="wf-grp">I lead a campus</div>
+          <div class="wf-item">Approvals and inbox</div>
+          <div class="wf-item">Push announcements</div>
+          <div class="wf-grp">I run IT</div>
+          <div class="wf-item">Give people access</div>
+          <div class="wf-item">Settings and flags</div>
+        </div>
+        <div class="wf-main">
+          <div class="wf-h">HR team: your first week</div>
+          <div class="wf-p">What you can see, what you can't, and the order to learn things in.</div>
+          <div class="wf-card"><b>Checklist</b><ol><li>Check you can open Jobs</li><li>Read how a round works</li><li>Duplicate last year's vacancy</li></ol></div>
+          <div class="wf-shot">screenshot: Jobs list</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · By role</h3>
+      <p>Sidebar is one section per role. Very direct for newcomers, but features several roles use (news, events, shop) either repeat or bounce between sections.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="wf">
+        <div class="wf-side">
+          <div class="wf-tabs"><div class="wf-tab on">Platform guide</div><div class="wf-tab">Developers</div></div>
+          <div class="wf-grp">Start here</div>
+          <div class="wf-item on">Pick your role</div>
+          <div class="wf-item">Sign in and find your way</div>
+          <div class="wf-grp">Recruitment</div>
+          <div class="wf-item">How recruitment works</div>
+          <div class="wf-item">Publish a vacancy</div>
+          <div class="wf-item">Review applications</div>
+          <div class="wf-item">…</div>
+          <div class="wf-grp">Pages and news</div>
+          <div class="wf-grp">Events</div>
+          <div class="wf-grp">Shop and orders</div>
+          <div class="wf-grp">Members and benefits</div>
+          <div class="wf-grp">Push announcements</div>
+          <div class="wf-grp">Access and settings</div>
+        </div>
+        <div class="wf-main">
+          <div class="wf-h">Pick your role</div>
+          <div class="wf-p">Each role gets a short reading list in order. Every link goes into the area pages on the left.</div>
+          <div class="wf-roles">
+            <div class="wf-card"><b>HR team</b><ol><li>Sign in</li><li>How recruitment works</li><li>Publish a vacancy</li></ol></div>
+            <div class="wf-card"><b>Department editor</b><ol><li>Sign in</li><li>Your department page</li><li>Post news</li></ol></div>
+            <div class="wf-card"><b>Campus leader</b><ol><li>Approvals</li><li>Push announcements</li></ol></div>
+            <div class="wf-card"><b>IT</b><ol><li>Give people access</li><li>Settings</li></ol></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · By area, with role start pages</h3>
+      <p>Sidebar by area like A. "Start here" gives each role a reading path through it, so newcomers get B's guidance without duplicated pages. My recommendation.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="note">Every task page would follow the same shape: what you need first, numbered steps with screenshots, what happens afterwards (who gets notified, what the student sees), and common mistakes.</p>

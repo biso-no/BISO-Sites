@@ -1,0 +1,197 @@
+---
+title: Create an event
+description: How to create an event in the BISO event studio, add the ticket link, choose who it's for and whether students get a notification, and publish it to biso.no and the app.
+who: "Global admins (National + Operations Unit), campus leaders (Ledelsen on your campus) for events on their campus and National events, and department members, for their own department's events."
+covers:
+  - apps/admin/src/app/(portal)/events/page.tsx
+  - apps/admin/src/app/(portal)/events/_components/**
+  - apps/admin/src/app/(portal)/events/[id]/page.tsx
+  - apps/admin/src/app/(portal)/events/[id]/_components/**
+  - apps/admin/src/app/(portal)/_actions/events.ts
+  - packages/shared/types/events.ts
+  - apps/admin/src/app/_components/content-translation-controls.tsx
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - apps/admin/src/lib/notify-push-guard.ts
+  - apps/admin/src/lib/content-notification-state.ts
+  - packages/shared/utils/content-notifications.ts
+  - packages/shared/utils/content-notification-compose.ts
+  - functions/content-notifier/**
+  - apps/web/src/app/(public)/events/**
+  - apps/web/src/app/actions/events.ts
+  - apps/web/src/components/events/**
+  - apps/web/src/lib/types/event.ts
+  - apps/web/src/lib/data/queries.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Arrangementer** (Events) in your sidebar. [How events work](/guide/events#who-can-use-events) shows who can create which events.
+- The event studio is in English whatever your admin language, so this page names its labels in English. The list of events and the messages after a save follow your admin language.
+- Have ready:
+  - a title, a one-line teaser and a description, in Norwegian, English or both
+  - the start and end, and the venue or the online link
+  - the ticket link, if people buy tickets or sign up somewhere
+  - a cover image, if you don't want one of the patterns
+  - the department that hosts it. Department members must choose theirs.
+- If BISO sells tickets for the event on Tickster, it may already be in **Arrangementer** (Events) as an imported event. Look for it first. Department members don't see imported events. Ask a campus leader to check, and to set **Hosted by** to your department if it's there. See [Events imported from Tickster](/guide/events#events-imported-from-tickster).
+- Decide whether students should get an app notification. It's on for every new event.
+- An event goes live when you choose **Publish event**, even with **Schedule for…** chosen. Keep it as a draft until it's ready.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Start an event">
+
+Open **Innhold** (Content) and choose **Arrangementer** (Events). The list shows 20 events a page, most recently changed first. The tabs **Alle** (All), **Kommende** (Upcoming), **Utkast** (Drafts), **Tidligere** (Past) and **Avlyst** (Cancelled), and **Søk** (Search), only look through the events on the page you're on.
+
+- To create an event, choose **Lag nytt arrangement** (Compose new event).
+- To change an event, choose the pencil icon on its row.
+
+The studio has five steps in a rail across the top: **Essentials**, **Description**, **Schedule & venue**, **Tickets & audience** and **Review**. Click any of them, or move with **Continue** and **Back** at the bottom. The rail says **Unsaved** while you have changes that aren't saved.
+
+The phone on the right previews your title, teaser, date and place. Its seat count and **Register** button are examples. biso.no shows a **Kjøp billetter** (Get tickets) button and the RSVP buttons instead.
+
+</Step>
+<Step title="Fill in Essentials">
+
+- The title, at the top (*A night with a name…*). **EN** and **NO** above it switch the language you're writing in. You need a title in at least one language.
+- The address line under the title. For a new event it follows the title as you type. Choose the pencil icon to write it yourself, using only lowercase letters, numbers and hyphens. The line reads biso.no/oslo/events/ for every campus, but the event's address is biso.no/events/ followed by what you write. The studio doesn't check whether another event already uses it, so make it your own.
+- **Category** ("Shown in lists"): **Social**, **Career**, **Workshop**, **Talk**, **Party**, **Sport**, **Academic** or **Trip**.
+- **Hosted by**: the department that runs the event. If you're in one department, it's filled in and locked. If you're in several, choose one of yours.
+- **Campus**. Department members can't change it. Campus leaders can choose their campus or National.
+- **One-line teaser**. The counter beside it counts down from 120, but the field takes up to 280 characters.
+- **Tags**: choose up to five.
+
+The card **This looks like a Welcome-week social.** shows on every event. Its buttons don't change your event.
+
+</Step>
+<Step title="Write the description">
+
+**Description** ("The whole night.") holds the event text for the language you have open.
+
+- Type in the box. Press Enter for a new paragraph, and type / for a heading or a bullet list.
+- **Suggest run-of-show** asks AI for a heading and a short programme, and adds them to the end of the English description, whichever language you have open. Read it and change it.
+
+</Step>
+<Step title="Set the time and place">
+
+On **Schedule & venue** ("When, where, how many."):
+
+1. **Start**, **End** and **Registration closes**, in Oslo time. biso.no shows **Registration closes** as **Påmeldingsfrist** (Registration deadline). In the app, the ticket button goes away after it. RSVP stays open until the event ends.
+2. **Where is it**: **On campus**, **Online** or **Hybrid**.
+3. **Venue address**, for on campus and hybrid. Keep it to 50 characters, or the save fails.
+4. **Online link**, for online and hybrid. biso.no shows it on the event page to every visitor, as **Delta digitalt** (Join online). Nothing sends it to anyone, so don't use a link that should stay private.
+5. **Capacity**. biso.no shows it as a number of places when it's above 0. It doesn't limit RSVP or tickets.
+6. **Waitlist** has no effect outside the studio. Leave it off.
+7. **Cover artwork**: choose one of the five patterns, or upload an image. **Remove** goes back to a pattern.
+
+No reminder is sent before the event, and biso.no has no calendar button.
+
+</Step>
+<Step title="Add tickets and choose who it's for">
+
+On **Tickets & audience** ("Doors, tickets, who's invited."):
+
+1. **Free** or **Paid ticket**. For a paid ticket, fill in **Regular price** and **Member price**, in whole kroner. Leave **Member price** at 0 if it's the same.
+2. **Ticket link** (*https://secure.tickster.com/…*). Paste the whole link, starting with https://. biso.no shows it as **Kjøp billetter** (Get tickets). Keep it under 255 characters, or the save fails.
+3. **Members only** or **Open to all BI students**. Members-only events are still shown to everyone. Only members can answer RSVP, and the app locks the ticket button for students who aren't members. biso.no shows the ticket button to everyone.
+4. **Part of a series** marks the event as a series in the biso.no list. It doesn't link other events to it or sell a bundle ticket.
+5. The notification card. On a new event it reads **Notify students when published** and is on. When the event goes live, app users who follow events for its campus get one notification. For a National event, that's everyone who follows events. The card also says how many devices follow events at the campus. Click the card to switch it off. Only global admins can switch it on for National.
+6. **Publish schedule**: **Publish now** or **Schedule for…**. With **Schedule for…**, fill in **Scheduled publish time**. The event still goes live when you choose **Publish event**. Only the notification waits until that time.
+7. **Point of contact**: **Name**, **Role** and **Email**. biso.no shows a **Spørsmål?** (Questions?) box on the event when there's an email.
+
+The green card **This event meets BISO publishing standards.** is the same on every event. It doesn't check yours.
+
+</Step>
+<Step title="Write the other language">
+
+You can publish with one language. biso.no then shows that language to every visitor, with a note when the description is only in English.
+
+- Choose **EN** or **NO** and write the other language yourself.
+- Or, on **Review**, choose **Generate Norwegian** (or **Generate English**) in the **AI translation** card. If the other language already has text, you're asked **Replace the existing destination-language content with a new translation?** first. You see **Translation draft generated**. Nothing is stored until you save, so read it first.
+
+**Auto-translate**, at the bottom, translates the other language in the background each time you save or publish, and replaces what it had. It's off each time you open an event.
+
+</Step>
+<Step title="Check Review, then publish">
+
+**Review** ("One last look.") lists the event's details. Click a row to go back and change it. Empty rows read **Not set**. The student numbers in the **Audience** row and the card **One reminder before you publish.** are the same on every event.
+
+Then save, with the buttons at the bottom:
+
+- **Save as draft** stores the event without publishing it. You see **Arrangement lagret** (Event saved).
+- **Publish event**, on **Review** only, stores it and makes it public. You see **Arrangement publisert** (Event published).
+
+With **Auto-translate** on, the message ends with **Translation queued.** A new event opens again at its own address once it's saved. Saving an event that already existed takes you back to the list.
+
+To save, an event needs a campus, an address and a title in at least one language. The **required** marks on **Category**, **One-line teaser** and **Start** aren't checked, so fill them in yourself.
+
+If you see **Please fix the form errors before continuing.**, check:
+
+- the title and the **Campus**
+- the address under the title: only lowercase letters, numbers and hyphens
+- the **Ticket link**: a whole link starting with https://
+- the **Email** under **Point of contact**
+
+If you see **Kunne ikke lagre arrangement** (Failed to save event), check:
+
+- **Hosted by**. Department members must choose their own department.
+- the **Venue address**: 50 characters at most
+- the **Ticket link**: under 255 characters
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- The event is published. It shows **Publisert** (Published) in **Arrangementer** (Events), and it's on biso.no and in the app.
+- If **Notify students when published** is on, app users who follow events for the event's campus get one notification. For a National event, that's everyone who follows events. It shows the title, the date and time, and the venue.
+- It goes out a few minutes after you publish. Between 22:00 and 08:00 Oslo time it waits until 08:00. With **Schedule for…** it waits until the time you chose.
+- If other events for the same campus are due at the same time, students get one notification for all of them. [How notifications reach students](/guide/announcements) explains the timing.
+- The notification is sent only once. Changing the event afterwards, even its date or place, doesn't send another.
+- To see where it is, open the event and go to **Tickets & audience**:
+  - **Notification on its way** ("within a few minutes"), or **Notification scheduled** with the time it goes out: it hasn't gone yet. To stop it, click the card. It reads **Will be cancelled when you save.** Then save with **Publish event**.
+  - **Notify students now**, on a published event with the switch off: click the card and save with **Publish event** to send one notification.
+  - **Students were notified**, with the time: it's gone.
+  - **Published before automatic notifications**: this event can't send one.
+- Saving the event as a draft, or deleting it, also stops a notification that hasn't gone out. One that's gone can't be called back.
+- No email goes out, and no reminder is sent before the event.
+- Students' RSVP answers appear on the event's logistics page. See [Run the event](/guide/events/run-the-event).
+- With **Auto-translate** on, the other language is written in the background. Open the event later and check it.
+- Saves and deletions are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- **biso.no/events** lists published events that haven't ended, for the campus the visitor chose and National. Members-only events are listed for everyone, with a members-only badge. Past events leave the list by themselves.
+- The event itself is at biso.no/events/ followed by its address. It shows the date, the time, the place, the price, and **Kapasitet** (Capacity) and **Påmeldingsfrist** (Registration deadline) when they're set. Online and hybrid events show **Delta digitalt** (Join online) to every visitor.
+- With a ticket link, the page has a **Kjøp billetter** (Get tickets) button. Without one:
+  - if the event has a registration deadline or a capacity, or is a **Paid ticket** event, it says **Påmelding kreves** (Registration Required) and that the organising unit announces how to sign up
+  - otherwise it says **Ingen påmelding nødvendig** (No Registration Needed)
+- Under it, **Blir du med?** (Are you going?) has the RSVP buttons, and counts of who's going and who might. Signed-out visitors see **Logg inn for å svare** (Sign in to respond). With a ticket link it adds **Du får ikke billett ved å svare her.** (Saying you're going doesn't get you a ticket.)
+- A members-only event says **Arrangement kun for medlemmer** (Members-only event). Students who aren't members see no RSVP buttons.
+- The BISO app lists published events that haven't ended for the one campus chosen in the app. A National event isn't in a city campus's list there. The notification, or a link to the event, still opens it.
+- In the app, the ticket button goes away once the event starts or registration closes. On a members-only event it's locked for students who aren't members.
+- Drafts aren't shown on biso.no or in the app. A link to a draft shows page not found.
+
+## Common mistakes
+
+- Choosing **Schedule for…** to hide the event until a date. The event goes live when you choose **Publish event**. Only the notification waits.
+- Forgetting the notification. It's on for every new event and for events the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone) creates. Switch it off before you publish if students shouldn't get one.
+- Expecting **Capacity**, **Waitlist** or **Registration closes** to stop people. None of them limits RSVP or tickets. Set limits with the ticket seller.
+- Relying on **Members only** to stop other students buying tickets. biso.no shows **Kjøp billetter** (Get tickets) to everyone.
+- Putting a private meeting link in **Online link**. Every visitor to the event page can see it.
+- Creating an event that the Tickster import already brought in. It then shows twice. Look in **Arrangementer** (Events) first. Department members don't see imported events. Ask a campus leader to check, and to set **Hosted by** to your department if it's there.
+- Editing the title, time, place or ticket link of an imported event in the admin. The next import replaces them. Change them in Tickster.
+- Giving two events the same address. biso.no then shows only one of them.
+- Choosing **Save as draft** on a published event. It takes the event off biso.no and out of the app.
+- Deleting an event you meant to hide. Save it as a draft instead. See [Run the event](/guide/events/run-the-event#common-mistakes).
+
+<Callout type="warn">
+The bin icon in **Arrangementer** (Events) turns red on the first click. The second click deletes the event and both languages for good, with no undo. If a notification has already gone out, it stays sent.
+</Callout>

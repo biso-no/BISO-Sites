@@ -1,0 +1,209 @@
+<style>
+  @font-face { font-family: "Museo Slab"; src: url("/files/Museo_Slab_900.otf"); font-weight: 900; }
+  @font-face { font-family: "Museo Slab"; src: url("/files/Museo_Slab_700.otf"); font-weight: 700; }
+  @font-face { font-family: "Museo Sans"; src: url("/files/museo_sans_300.otf"); font-weight: 300; }
+  @font-face { font-family: "Museo Sans"; src: url("/files/Museo_Sans_700.otf"); font-weight: 700; }
+
+  .m {
+    --deep: #001a35; --deep-raised: #0b2747; --deep-edge: #12314f; --deep-muted: #93a7bb;
+    --blue: #1668ae; --sky: #3aa3e1; --sun: #fecd45; --paper: #fff; --line: #e8ecf0;
+    --ink: #001a35; --ink-muted: #526475; --sunken: #eef1f5;
+    font-family: "Museo Sans", system-ui, sans-serif; font-weight: 300; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--line); overflow: hidden; font-size: 14px; line-height: 1.55; text-align: left;
+  }
+  .m * { box-sizing: border-box; }
+  .m b, .m strong { font-weight: 700; }
+  .m a { color: var(--blue); text-decoration: none; }
+  .m p { margin: 0; }
+  .option .content .m p { color: inherit; font-size: inherit; }
+  .m .disp { font-family: "Museo Slab", serif; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 0.88; }
+  .m .h2 { font-family: "Museo Slab", serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: 15px; display: inline-block; color: var(--ink); }
+  .m .h2.marked { border-bottom: 3px solid var(--sun); padding-bottom: 3px; }
+
+  .m .bar { display: flex; align-items: center; gap: 18px; padding: 12px 28px; background: var(--deep); color: #fff; border-bottom: 1px solid var(--deep-edge); }
+  .m .bar img { height: 30px; }
+  .m .bar .name { font-family: "Museo Slab", serif; font-weight: 700; font-size: 15px; }
+  .m .bar .spacer { flex: 1; }
+  .m .bar .lnk { color: var(--deep-muted); font-size: 13px; }
+  .m .bar .lnk.on { color: #fff; font-weight: 700; }
+  .m .bar .search { width: 220px; padding: 6px 12px; border: 1px solid var(--deep-edge); background: var(--deep-raised); color: var(--deep-muted); font-size: 13px; border-radius: 4px; }
+  .m .bar .signin { color: #fff; font-size: 13px; border: 1px solid var(--deep-edge); padding: 6px 12px; border-radius: 4px; }
+
+  /* ----- merged landing ----- */
+  .ml .hero { position: relative; display: grid; grid-template-columns: 1fr 1fr; height: 360px; background: var(--deep); }
+  .ml .left { padding: 42px 28px; color: #fff; position: relative; z-index: 2; }
+  .ml .left .disp { font-size: 58px; margin-bottom: 14px; }
+  .option .content .ml .left p { color: var(--deep-muted); max-width: 36ch; font-size: 15px; margin-bottom: 20px; }
+  .ml .ask { display: flex; align-items: center; background: #fff; border-radius: 4px; max-width: 470px; width: 118%; }
+  .ml .ask span { flex: 1; padding: 13px 16px; color: var(--ink-muted); font-size: 14.5px; }
+  .ml .ask b { background: var(--blue); color: #fff; padding: 13px 16px; font-size: 13.5px; border-radius: 0 4px 4px 0; }
+  .ml .hint { color: var(--deep-muted); font-size: 12.5px; margin-top: 9px; }
+  .ml .right { position: absolute; top: 0; bottom: 0; right: 0; width: 40%; background: var(--sky); color: var(--deep);
+               clip-path: polygon(calc(360px * 0.2309) 0, 100% 0, 100% 100%, 0 100%); padding: 42px 28px 40px calc(360px * 0.2309 + 24px); }
+  .ml .right .disp { font-size: 32px; margin-bottom: 12px; }
+  .option .content .ml .right p { color: var(--deep); max-width: 28ch; margin-bottom: 18px; font-size: 14px; }
+  .ml .btn2 { display: inline-block; border: 2px solid var(--deep); color: var(--deep); padding: 7px 14px; border-radius: 4px; font-weight: 700; font-size: 13px; }
+  .ml .lower { padding: 26px 28px 10px; }
+  .roles { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .role { padding: 16px 20px 18px; border-right: 1px solid var(--line); }
+  .role:last-child { border-right: 0; }
+  .role h4 { margin: 0 0 8px; font-weight: 700; font-size: 15px; }
+  .role ol { margin: 0; padding-left: 18px; color: var(--ink-muted); font-size: 13px; }
+  .role ol li { margin-bottom: 3px; }
+  .ml .tasks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; padding: 24px 28px 28px; }
+  .ml .tasks ul { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13.5px; }
+  .ml .tasks li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+
+  /* ----- answer panel ----- */
+  .ma { background: var(--sunken); padding: 24px; }
+  .ma .panel { background: #fff; border: 1px solid var(--line); max-width: 640px; margin: 0 auto; }
+  .ma .q { padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 700; display: flex; justify-content: space-between; }
+  .ma .q span { font-weight: 300; color: var(--ink-muted); font-size: 12.5px; }
+  .ma .a { padding: 16px 18px; font-size: 14px; }
+  .ma .a ol { margin: 8px 0 10px; padding-left: 20px; }
+  .ma .a ol li { margin-bottom: 4px; }
+  .ma .note { background: #fff8e1; border-left: 3px solid var(--sun); padding: 8px 12px; font-size: 13px; margin-top: 4px; }
+  .ma .src { border-top: 1px solid var(--line); padding: 12px 18px; font-size: 13px; }
+  .ma .src b { display: block; font-size: 12px; color: var(--ink-muted); margin-bottom: 4px; font-weight: 700; }
+  .ma .src a { display: block; padding: 2px 0; }
+
+  /* ----- article page ----- */
+  .mp .body { display: grid; grid-template-columns: 230px 1fr 190px; min-height: 640px; }
+  .mp .side { background: #f7f9fb; border-right: 1px solid var(--line); padding: 16px 14px; font-size: 13px; }
+  .mp .switch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-bottom: 14px; font-size: 12.5px; }
+  .mp .switch span { padding: 6px 0; text-align: center; color: var(--ink-muted); background: #fff; }
+  .mp .switch span.on { background: var(--deep); color: #fff; font-weight: 700; }
+  .mp .grp { font-weight: 700; margin: 12px 0 4px; color: var(--ink); }
+  .mp .it { padding: 3px 0 3px 10px; color: var(--ink-muted); border-left: 2px solid transparent; }
+  .mp .it.on { color: var(--blue); font-weight: 700; border-left-color: var(--blue); }
+  .mp .main { padding: 26px 34px 34px; max-width: 640px; }
+  .mp .crumb { font-size: 12.5px; color: var(--ink-muted); margin-bottom: 8px; }
+  .mp h1.disp { font-size: 38px; margin: 0 0 12px; }
+  .mp .meta { display: flex; gap: 22px; font-size: 12.5px; color: var(--ink-muted); padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .mp .meta b { color: var(--ink); }
+  .mp .before { border: 1px solid var(--line); padding: 12px 16px; margin-bottom: 20px; font-size: 13.5px; }
+  .mp .before ul { margin: 6px 0 0; padding-left: 18px; }
+  .mp h3 { font-family: "Museo Slab", serif; font-weight: 700; font-size: 17px; margin: 22px 0 10px; }
+  .mp .step { display: grid; grid-template-columns: 30px 1fr; gap: 10px; margin-bottom: 16px; }
+  .mp .num { width: 26px; height: 26px; background: var(--deep); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .mp .shot { margin-top: 8px; border: 1px solid var(--line); background: #f6f8fa; height: 120px; display: flex; }
+  .mp .shot .sb { width: 20%; border-right: 1px solid var(--line); background: #fff; padding: 10px 8px; }
+  .mp .shot .sb i { display: block; height: 6px; background: #dfe5eb; margin-bottom: 8px; }
+  .mp .shot .sb i.on { background: var(--blue); width: 70%; }
+  .mp .shot .fm { flex: 1; padding: 12px; }
+  .mp .shot .fm i { display: block; height: 22px; background: #fff; border: 1px solid #e3e8ee; margin-bottom: 7px; }
+  .mp .shot .fm i.s { width: 50%; }
+  .mp .cap { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
+  .mp .next { background: #f7f9fb; border-left: 3px solid var(--blue); padding: 12px 16px; font-size: 13.5px; }
+  .mp .next p + p { margin-top: 6px; }
+  .mp .rail { padding: 26px 16px; font-size: 12.5px; border-left: 1px solid var(--line); }
+  .mp .rail b { display: block; margin-bottom: 6px; }
+  .mp .rail a { display: block; padding: 2px 0; color: var(--ink-muted); }
+  .mp .rail .askp { margin-top: 18px; border: 1px solid var(--line); padding: 10px; }
+  .mp .rail .askp a { color: var(--blue); font-weight: 700; }
+
+  .opt-wrap { margin-bottom: 30px; }
+  .opt-wrap .option { display: block; }
+  .opt-wrap .option .content { width: 100%; }
+</style>
+
+<h2>A and B merged, plus what a guide page looks like</h2>
+<p class="subtitle">Three views: the landing, the answer you get when you ask a question, and a task page from the platform guide. Click the ones that feel right and tell me what to change.</p>
+
+<!-- landing -->
+<div class="opt-wrap"><div class="option" data-choice="landing" onclick="toggleSelect(this)"><div class="content">
+  <h3>1 · Landing</h3>
+  <p>A's split hero with B's search turned into an ask field. Role paths, then common tasks.</p>
+  <div class="m ml" style="margin-top:12px">
+    <div class="bar"><img src="/files/logo-dark.png" alt="BISO"><span class="name">Docs</span><span class="spacer"></span><span class="lnk">Platform guide</span><span class="lnk">Developers</span><span class="signin">Sign in</span></div>
+    <div class="hero">
+      <div class="left">
+        <div class="disp">How BISO<br>runs</div>
+        <p>Step-by-step guides for board members, HR, department editors and campus leaders.</p>
+        <div class="ask"><span>How do I send a booking link to a candidate?</span><b>Ask</b></div>
+        <div class="hint">Answers come from these docs, with links to the pages used.</div>
+      </div>
+      <div></div>
+      <div class="right">
+        <div class="disp">Keeping it<br>running</div>
+        <p>For the developer or consultant who takes over: what runs where, how to deploy, what to do when it breaks.</p>
+        <span class="btn2">Start the handover</span>
+      </div>
+    </div>
+    <div class="lower"><span class="h2">Start with your role</span></div>
+    <div class="roles">
+      <div class="role"><h4>HR team</h4><ol><li><a>Sign in</a></li><li><a>How recruitment works</a></li><li><a>Publish a vacancy</a></li><li><a>Review applications</a></li><li><a>Book interviews</a></li></ol></div>
+      <div class="role"><h4>Department editor</h4><ol><li><a>Sign in</a></li><li><a>Your department page</a></li><li><a>Post news</a></li><li><a>Create an event</a></li></ol></div>
+      <div class="role"><h4>Campus leader</h4><ol><li><a>Sign in</a></li><li><a>Inbox and approvals</a></li><li><a>Send a push announcement</a></li><li><a>Scan member passes</a></li></ol></div>
+      <div class="role"><h4>IT</h4><ol><li><a>Give people access</a></li><li><a>Settings and feature flags</a></li><li><a>The developer handover</a></li></ol></div>
+    </div>
+    <div class="tasks">
+      <div><a class="h2 marked">Recruitment</a><ul><li><a>Publish a vacancy</a></li><li><a>Shortlist or archive a candidate</a></li><li><a>Send a booking link</a></li><li><a>Make an offer</a></li></ul></div>
+      <div><a class="h2 marked">Pages and news</a><ul><li><a>Edit your department page</a></li><li><a>Post news and notify students</a></li><li><a>Translate a page</a></li><li><a>Publish a draft</a></li></ul></div>
+      <div><a class="h2 marked">Shop and members</a><ul><li><a>Add a product</a></li><li><a>Refund an order</a></li><li><a>Update member benefits</a></li><li><a>Scan member passes at the door</a></li></ul></div>
+    </div>
+  </div>
+</div></div></div>
+
+<!-- answer -->
+<div class="opt-wrap"><div class="option" data-choice="answer" onclick="toggleSelect(this)"><div class="content">
+  <h3>2 · An answer</h3>
+  <p>Opens under the ask field. Short, in steps where it can, with the pages it used listed below. The same answer appears in the admin's assistant.</p>
+  <div class="m ma" style="margin-top:12px">
+    <div class="panel">
+      <div class="q">How do I send a booking link to a candidate? <span>From the platform guide</span></div>
+      <div class="a">
+        <p>Open the vacancy, go to the candidate, and create a booking link:</p>
+        <ol>
+          <li>In <b>Jobs</b>, open the vacancy and choose <b>Pipeline</b>.</li>
+          <li>Open the candidate and choose <b>Create booking link</b>.</li>
+          <li>Copy the link and email it to the candidate yourself. The system doesn't send it.</li>
+        </ol>
+        <div class="note">The link works once and expires after 14 days. Booking creates the Teams interview but doesn't move the candidate to Interview, so do that by hand.</div>
+      </div>
+      <div class="src"><b>Pages used</b><a>Book interviews</a><a>How recruitment works</a></div>
+    </div>
+  </div>
+</div></div></div>
+
+<!-- article -->
+<div class="opt-wrap"><div class="option" data-choice="article" onclick="toggleSelect(this)"><div class="content">
+  <h3>3 · A task page</h3>
+  <p>Every task page has the same shape: who can do it, what you need first, numbered steps with screenshots, then what happens afterwards and what the student sees.</p>
+  <div class="m mp" style="margin-top:12px">
+    <div class="bar"><img src="/files/logo-dark.png" alt="BISO"><span class="name">Docs</span><span class="spacer"></span><span class="search">Search or ask</span><span class="signin">Sign in</span></div>
+    <div class="body">
+      <div class="side">
+        <div class="switch"><span class="on">Platform guide</span><span>Developers</span></div>
+        <div class="grp">Start here</div>
+        <div class="it">Pick your role</div>
+        <div class="it">Sign in and find your way</div>
+        <div class="grp">Recruitment</div>
+        <div class="it">How recruitment works</div>
+        <div class="it on">Publish a vacancy</div>
+        <div class="it">Review applications</div>
+        <div class="it">Book interviews</div>
+        <div class="it">Make offers and archive</div>
+        <div class="grp">Pages and news</div>
+        <div class="grp">Events</div>
+        <div class="grp">Shop and orders</div>
+        <div class="grp">Members and benefits</div>
+        <div class="grp">Push announcements</div>
+        <div class="grp">Access and settings</div>
+      </div>
+      <div class="main">
+        <div class="crumb">Recruitment</div>
+        <h1 class="disp">Publish a vacancy</h1>
+        <div class="meta"><span><b>Who can do this:</b> HR team, National HR, global admins</span><span>Updated 27 Oct 2026</span></div>
+        <div class="before"><b>Before you start</b><ul><li>Know the department, deadline and contact person.</li><li>Decide what you'll screen for: must-haves and nice-to-haves.</li><li>Have a cover image ready if you want one.</li></ul></div>
+        <h3>Steps</h3>
+        <div class="step"><span class="num">1</span><div>In <b>Jobs</b>, choose <b>New vacancy</b>. To reuse last year's, open it and choose <b>Duplicate</b> instead.<div class="shot"><div class="sb"><i></i><i class="on"></i><i></i><i></i></div><div class="fm"><i></i><i class="s"></i><i></i></div></div><div class="cap">The Jobs list, with New vacancy at the top right.</div></div></div>
+        <div class="step"><span class="num">2</span><div>Fill in <b>Essentials</b>: campus, department and a one-line teaser.</div></div>
+        <div class="step"><span class="num">3</span><div>…</div></div>
+        <h3>What happens next</h3>
+        <div class="next"><p>If you turned on <b>Notify students</b>, the app sends a push 3 minutes after you publish, but never between 22:00 and 08:00.</p><p><b>What the student sees:</b> the vacancy on biso.no/jobs and in the app. Members-only vacancies are visible to everyone, but only members can apply.</p></div>
+      </div>
+      <div class="rail"><b>On this page</b><a>Before you start</a><a>Steps</a><a>What happens next</a><a>Common mistakes</a><div class="askp">Stuck? <a>Ask about this page</a></div></div>
+    </div>
+  </div>
+</div></div></div>

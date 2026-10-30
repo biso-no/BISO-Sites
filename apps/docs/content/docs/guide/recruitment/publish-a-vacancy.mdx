@@ -1,0 +1,193 @@
+---
+title: Publish a vacancy
+description: How to post a vacancy in the BISO admin, from a blank form or a copy of last year's, and what students see once it's live.
+who: "HR team members (for their own campus), National HR, and global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/jobs/page.tsx
+  - apps/admin/src/app/(portal)/jobs/_components/job-studio-dashboard.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/page.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/_components/**
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/tabs/form-rubric-tab.tsx
+  - apps/admin/src/app/(portal)/_actions/jobs.ts
+  - apps/admin/src/app/(portal)/_actions/lookups.ts
+  - apps/admin/src/app/_components/content-translation-controls.tsx
+  - apps/admin/src/lib/content-translation.ts
+  - apps/admin/src/app/api/recruitment/publish-scheduled/**
+  - apps/admin/src/lib/job-publication.ts
+  - apps/admin/src/lib/job-reuse.ts
+  - apps/admin/src/lib/job-status-transition.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - apps/admin/src/lib/oslo-date.ts
+  - packages/shared/types/recruitment.ts
+  - packages/shared/recruitment.ts
+  - packages/shared/recruitment/apply.ts
+  - packages/shared/utils/content-notifications.ts
+  - functions/content-notifier/**
+  - apps/web/src/app/(public)/jobs/**
+  - apps/web/src/components/jobs/**
+  - apps/web/src/app/actions/jobs.ts
+  - apps/api/src/app/api/recruitment/applications/route.ts
+  - apps/api/src/lib/member-by-profile.ts
+  - packages/i18n/messages/*/jobs.json
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Only HR and global admins can post vacancies. If you can't see **Stillinger** (Jobs) in the sidebar, see [How recruitment works](/guide/recruitment).
+- Have these ready:
+  - The title and a description of the role. You need them in at least one language, Norwegian or English.
+  - The department the role belongs to, if it belongs to one.
+  - The application deadline. Students can apply until the end of that day.
+  - A contact person: name, role and email.
+  - What you'll screen for: the must-have and nice-to-have qualifications.
+  - Whether only members may apply, and whether you need a CV.
+  - Any extra questions for the application form.
+- You don't need a cover image. The editor lets you pick one, but only the phone preview on the right of the editor shows it, on wide screens. biso.no and the app don't.
+- Recruiting for the same role as last year? You can copy last year's vacancy instead of starting from a blank form. See the first step below.
+</BeforeYouStart>
+
+## Steps
+
+The vacancy editor is in English whatever your admin language, so this page names its labels in English. Its six steps sit in a rail across the top: **Essentials**, **Description**, **Logistics**, **Screening**, **Visibility** and **Review**. Click any of them, or move with **Continue** and **Back** at the bottom. You don't have to go in order.
+
+Once the vacancy has a title and a description, save as you go with **Save Draft** at the bottom. A draft is visible only to staff. On a computer, **Save Draft** and **Publish** are also at the top right on every step.
+
+On a vacancy that's already live, **Save Draft** takes it offline. The editor asks first: **This vacancy is live. Saving it as a draft takes it offline and it disappears from the public site. Continue?** To save changes to a live vacancy and keep it live, use **Publish**. On a closed vacancy, **Publish** reopens it.
+
+<Steps>
+<Step title="Start a new vacancy, or copy last year's">
+
+On **Stillinger** (Jobs), choose **Utlys stilling** (Post Job). The editor opens with the heading **New vacancy**, on the **Essentials** step.
+
+To reuse a vacancy from an earlier round, copy it instead:
+
+1. Find the old vacancy in the list. The **Søk** (Search) box searches titles, departments and campuses.
+2. Choose the copy icon on its row (tooltip: *Dupliser for en ny runde*). On a computer, the row's icons appear when you point at the row.
+3. You see **Kopi opprettet som nytt utkast** (Copy created as a new draft). The copy opens in the editor with the banner **This is a new draft copy.**
+
+The copy is a draft with no applications. It keeps everything from the old vacancy except the dates: the deadline, start date and scheduled publish time are empty. Choose **Set dates** in the banner to go straight to them. Its web address ends in this year's number, for example `kasserer-2026`. Check the title and the term length too.
+
+A copy starts with **Notify students when published** switched off. Turn it on in the **Visibility** step if students should get a notification.
+
+If you open an old vacancy with the pencil icon instead, and its deadline has passed, the editor shows **Recruiting for a new round? Duplicate this vacancy instead.** Choose **Duplicate as new vacancy**. If you rewrite the old vacancy for a new round, its text and dates are overwritten. If it still has applications, the new applicants land in the same list as the old ones.
+
+</Step>
+<Step title="Fill in Essentials">
+
+The language tabs **EN** and **NO** sit at the right of the step rail. The editor opens on **EN**. You write the title, teaser and description separately for each language. To save, you need both a title and a description in at least one language.
+
+- Type the title in the large field at the top (*A job title that excites...*).
+- The web address sits under the title, after **biso.no/jobs/**. If it's empty when you leave the title field, it's filled in from the title. Changing the title later doesn't change it. A copy keeps the old address with this year's number, so check that it still fits. Use only lowercase letters, numbers and hyphens. If another vacancy already uses the address, saving adds the year, for example `kasserer-2026`.
+- **Campus** (required). If you're a campus HR member, it's your campus and you can't change it. National HR and global admins choose the campus, so check it. Changing the campus clears **Department**.
+- **Department.** The list holds the campus's departments and HR. Leave it on **Any department** if the role doesn't belong to one.
+- **One-line teaser**, up to 280 characters. The editor saves without it, but write one: biso.no shows it at the top of the vacancy page.
+- **Tags.** Pick up to four.
+
+</Step>
+<Step title="Write the Description">
+
+**Description** ("The whole story.") is a text editor for the language you're on. Switch language with **EN** and **NO**.
+
+**Suggest section** asks AI to write one more section, a heading with a few bullet points, and adds it at the end. It needs a title in the current language. Read and edit what it writes before you publish.
+
+</Step>
+<Step title="Add the Logistics">
+
+Every field on **Logistics** ("Time, place, paperwork.") is optional, but set the deadline.
+
+- **Company**, **Employment type**, **Weekly commitment**, **Term length**, **Start date** and **Location**.
+- **Application deadline.** Pick a date. The vacancy stays open all of that day, Oslo time.
+- **Contact name**, **Contact role** and **Contact email**. The email must be a valid address. If you give one, biso.no shows the contact on the vacancy page as an email link.
+- **Paid vacancy.** biso.no then marks the vacancy **Betalt** (Paid).
+- **Require CV upload.** Applicants must then attach a CV. A cover letter is always required.
+
+</Step>
+<Step title="Set up Screening">
+
+**Screening** ("AI screening.") has two cards. **Auto-screen enabled** is selected for a new vacancy. **Manual review only** turns screening off.
+
+With auto-screen on, an AI tool reads each application once, right after it's sent, and gives it a match score and a short summary. It never changes an application's status. Turning auto-screen on later doesn't screen the applications you already have, so decide now.
+
+Under **Screening rubric**, tell the AI what to look for:
+
+- **Must-have qualifications.** Type one and choose **Add**. Repeat for each, up to 20.
+- **Nice-to-have qualifications.** The same.
+
+Extra questions for applicants aren't in the editor. You add them on the **Form & rubric** tab of the vacancy's applications. To add them before anyone applies:
+
+1. Choose **Save Draft**.
+2. Go back to **Stillinger** (Jobs) and choose the people icon on the vacancy's row.
+3. Open **Form & rubric**, add each question with **Add question**, and choose **Save form & rubric**.
+4. Choose **Edit posting** to go back to the editor.
+
+</Step>
+<Step title="Choose who sees it in Visibility">
+
+On **Visibility** ("Who gets to see this?"), the card that's switched on has a tick in its top right corner. Click a card to switch it.
+
+- **Members only** or **Public.** **Members only** is selected for a new vacancy, and for an older vacancy that never had this set. Everyone can see a members-only vacancy on biso.no and in the app, but only members can apply. With **Public**, anyone signed in to biso.no or the app can apply.
+- **Cover artwork.** Pick one of five patterns, or the upload icon for your own image. Only the editor's phone preview shows it.
+- **Notify students when published.** When the vacancy goes live, students who follow jobs for its campus in the app get one notification. It's on for a new vacancy and off for a copy. If the vacancy is already live and this was off, the card reads **Notify students now**.
+- **Push to inboxes** and **Friday newsletter.** These don't send anything, so you can leave them as they are.
+
+</Step>
+<Step title="Publish now or schedule">
+
+At the bottom of **Visibility**, under **Publication timing**, choose when the vacancy goes live:
+
+- **Publish now**, the default. The vacancy goes live when you choose **Publish**.
+- **Schedule.** The vacancy stays hidden until the time you set. Fill in **Scheduled publish time**, in your computer's time zone. The **Publish** button then reads **Schedule**.
+
+If you choose **Schedule** without a time, the editor stops you with **Choose a publish time, or switch to Publish now**. A time that has already passed publishes the vacancy at once.
+
+</Step>
+<Step title="Check everything in Review, then publish">
+
+**Review** ("One last look.") lists the main fields. Click a row to jump to its step.
+
+To fill in the other language with AI, use the **AI translation** card. On the **EN** tab it reads **Generate Norwegian**, and on the **NO** tab **Generate English**. It fills in the title, teaser and description and switches to that language. If the other language already has text, it asks before replacing it. Read the result before you publish.
+
+You can also switch on **Auto-translate** at the top of the editor on a computer. Then, after each save or publish, the other language is translated in the background.
+
+Choose **Publish** (or **Schedule**) at the bottom right. You see **Stilling publisert** (Job published), or **Scheduled to publish** with the time in Oslo time. If you reopen a closed vacancy this way and its deadline has passed, you also see **Vacancy published, but its application deadline has passed. Move the deadline so people can apply.** Set a new **Application deadline** on **Logistics** and publish again, or nobody can apply.
+
+If something is missing, a red box **Fix these before saving:** lists each problem. Click one to go to its step. If the save fails, your changes stay in the form, so try again in a moment.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- **Published now:** the vacancy is live straight away on biso.no and in the app. In **Stillinger** (Jobs) it shows **Publisert** (Published).
+- **Scheduled:** the vacancy stays a draft and shows **Planlagt** (Scheduled) in the list. The editor shows a banner with the publish time. The system checks for due vacancies every five minutes, so it goes live within about five minutes of your time. If the jobs list still shows **Planlagt** (Scheduled) well after that time, tell IT.
+- If **Notify students when published** is on, app users who follow jobs for the vacancy's campus get one notification. For a National vacancy, that's everyone who follows jobs. It goes out a few minutes after the vacancy goes live. Between 22:00 and 08:00 Oslo time it waits until 08:00. If other vacancies for the same campus are due at the same time, students get one notification for all of them.
+- The notification is sent only once. To see where it is, open the vacancy and go to **Visibility**. Until it's sent, the card reads **Notification on its way** ("within a few minutes"), or **Notification scheduled** with the time it goes out. After that it reads **Students were notified**. To stop one that hasn't gone out, click the card and save with **Publish**.
+- No email goes to students. The notification is in the app only.
+- Applications arrive in the vacancy's applications (see [Review applications](/guide/recruitment/review-applications)): in **Stillinger** (Jobs), choose the people icon on its row. Nothing tells you when one arrives, so check.
+- When the deadline passes, the vacancy leaves biso.no and the app, and nobody else can apply. The list still shows **Publisert** (Published), with **Frist passert** (Past deadline). To stop applications before the deadline, close the vacancy. See [End the round](/guide/recruitment/make-offers-and-close#end-the-round).
+</WhatHappensNext>
+
+## What the student sees
+
+- biso.no/jobs lists the vacancy as a card with the title, the department and campus, and the deadline after **Søknadsfrist** (Apply by). Paid and members-only vacancies are marked **Betalt** (Paid) and **Kun for medlemmer** (Members only).
+- The vacancy page is at biso.no/jobs/ followed by its web address. It shows the title, the teaser and the description. A box lists the company (or BISO), department, deadline, location, campus and contact. With no deadline, the deadline reads **Løpende** (Rolling). The application form is under that box.
+- biso.no shows the vacancy in the student's language. Where a field is empty in that language, they see the other language's text.
+- The app lists the vacancy until its deadline passes. In the app, a members-only vacancy's page shows a members-only badge.
+- Students must sign in to apply. Signed-out visitors see **Logg inn for å søke** (Sign in to apply) instead of the form. The form asks for contact details, your extra questions, a cover letter as a PDF, and a CV if you required one.
+- Everyone can read a members-only vacancy. A signed-in student who isn't a member sees **Dette vervet er kun åpent for BISO-medlemmer. Bli medlem for å søke.** (This position is open to BISO members only. Become a member to apply.) and a **Bli medlem** (Become a member) button instead of the form. Membership is checked again when they send the application. In the app, membership is looked up from the BI student number on the student's profile, so a student without one can't apply to a members-only vacancy.
+- After the deadline, or once you close the vacancy, it's gone from the list, and its page shows page not found.
+
+## Common mistakes
+
+- Forgetting the deadline. Without one, the vacancy stays on biso.no and in the app, and keeps taking applications, until you close it. A copy starts with no deadline, so set one every time.
+- Copying a vacancy and forgetting the notification. A copy starts with **Notify students when published** off. If the copy is already live, turn on **Notify students now** and save with **Publish**.
+- Confirming **Save Draft** on a live vacancy when you only meant to save changes. It takes the vacancy offline. To change a live vacancy and keep it live, save with **Publish**.
+- Choosing **Save Draft** on a scheduled vacancy. That cancels the schedule. Save it with **Schedule** again.
+- Expecting **Push to inboxes** or **Friday newsletter** to send something. They're saved with the vacancy, but they don't do anything. No inbox message or newsletter goes out.
+- Rewriting an old vacancy for a new round. Its text and dates are overwritten, and if it still has applications, the new applicants land in the same list as the old ones. Copy it instead, as in the first step.
+- Changing a vacancy after applications have arrived. Questions you add now only reach new applicants. Switching on auto-screen now only screens new applications. A new deadline doesn't change when the applications you already have are deleted. Set these before you publish.
+- Leaving the editor without saving. **Discard**, the back arrow and the sidebar links leave without saving and without asking. Only closing or reloading the browser tab warns you.

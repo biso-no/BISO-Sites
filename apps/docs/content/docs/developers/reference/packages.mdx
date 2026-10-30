@@ -1,0 +1,278 @@
+---
+title: Packages
+description: The eleven shared packages under packages/, with what each one holds, the entry points it exports, which apps use it, and the sharp edges to know before you change it.
+covers:
+  - packages/*/package.json
+  - packages/*/README.md
+  - packages/typescript-config/*.json
+  - packages/shared/scripts/**
+  - packages/shared/utils/scorecard-interview-backfill.ts
+  - packages/api/index.ts
+  - packages/editor/src/index.ts
+  - packages/editor/src/render/index.ts
+  - packages/editor/src/editor/serialize.ts
+  - packages/i18n/messages/index.ts
+  - packages/i18n/types.ts
+  - packages/tours/src/types.ts
+  - apps/admin/tsconfig.json
+  - apps/web/tsconfig.json
+---
+
+Read this before you change a shared package, or before you import something new from one. The repo has eleven packages under `packages/`. Each section below says what the package holds, the entry points its `package.json` exports, which apps and packages import it, and what catches people out. [Code layout](/developers/change-it/code-layout#how-the-apps-use-the-packages) explains how the apps compile the packages, and [Data model](/developers/change-it/data-model) covers the schema that lives in `@repo/api`.
+
+## At a glance
+
+| Package | What it holds | Imported by |
+|---|---|---|
+| [`@repo/api`](#repoapi) | Appwrite clients, the page editor's save and publish flow, the schema and the row types | Every app, content-notifier, member-roster-sync, and the shared, payment and connectors packages |
+| [`@repo/shared`](#reposhared) | Logic more than one app needs: membership, accounting postings, roles, the member pass, recruitment | Every app, content-notifier, member-roster-sync, and the editor, payment, ai and wp-import packages |
+| [`@repo/editor`](#repoeditor) | The block page editor and the renderer for built pages | admin, web |
+| [`@repo/ui`](#repoui) | Shared React components and CSS | web, admin, docs, `@repo/tours` |
+| [`@repo/connectors`](#repoconnectors) | Clients for Microsoft, 24SevenOffice, SharePoint, the Teams bot, Tickster and SMTP | admin, api, web, member-roster-sync, `@repo/shared` |
+| [`@repo/payment`](#repopayment) | Vipps MobilePay and Stripe | api, admin, and one deprecated web route |
+| [`@repo/ai`](#repoai) | The Anthropic models, the admin assistant and the AI helpers | admin, api, web, docs, `@repo/i18n`'s translation script |
+| [`@repo/i18n`](#repoi18n) | Locales and the Norwegian and English message files | web, admin, api |
+| [`@repo/tours`](#repotours) | The engine for the admin's guided tours | admin |
+| [`@repo/wp-import`](#repowp-import) | The one-off import from the old WordPress site | Nobody. You run it by hand. |
+| [`@repo/typescript-config`](#repotypescript-config) | Shared `tsconfig` presets | Every app and package |
+
+Every package except `typescript-config` ships TypeScript source and has no build output. An app that imports one must list it in `transpilePackages` in its `next.config`, as [Code layout](/developers/change-it/code-layout#how-the-apps-use-the-packages) describes.
+
+Several package READMEs link to `/docs/packages/…` pages. Those belonged to the old docs and now redirect into this area. This page replaces them.
+
+## `@repo/api`
+
+All Appwrite access goes through this package: the server, guest and browser clients, typed write helpers, storage links, the page editor's drafts and publishing, and the schema (`appwrite.config.json`) with the row types generated from it.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/api` | Helpers re-exported from `node-appwrite`, such as `ID`, `Query`, `Permission`, `Role`, `OAuthProvider` and the `Models` types, plus the storage link builders |
+| `@repo/api/server` | `createSessionClient()`, `createAdminClient()`, `createPublicClient()` and `createSessionJwt()`. Server only. |
+| `@repo/api/server-env` | The Appwrite endpoint and project id, with their fallbacks |
+| `@repo/api/client` | The browser client, from the `appwrite` SDK |
+| `@repo/api/errors` | `isNotFound()`, `orNullIfNotFound()`, `isRowNotFound()`, `orNullIfRowNotFound()` and `appwriteErrorStatus()`. They tell "the row doesn't exist" apart from "the call failed". The `Row` pair also treats a missing table or database as a failure, not as "no row". |
+| `@repo/api/file` | `InputFile`, for uploads from the server |
+| `@repo/api/page-builder` | Page drafts, publishing, and the permissions on page rows |
+| `@repo/api/storage` | The storage link builders on their own |
+| `@repo/api/storage-chunks` | Sends one chunk of a large upload to Appwrite with the service key. Server only. |
+| `@repo/api/write` | `createTypedRow()` and `updateTypedRow()`, for tables with relationship columns |
+| `@repo/api/types/*` | The generated row types (`types/appwrite.ts`) and the hand-written input types (`types/inputs.ts`) |
+
+**Sharp edges**
+
+- **`server.ts` starts with `"use server"`.** Every export, `createAdminClient` included, is a server action. Never import `@repo/api/server` from a client component, or those functions could be called from the browser. [Code layout](/developers/change-it/code-layout#conventions-that-matter) has the rule.
+- **Unset settings mean production.** `server-env.ts` falls back to the production project `biso` and the production Appwrite server, one value at a time. See [Unset Appwrite settings mean production](/developers/keep-it-running/secrets-and-environment#unset-appwrite-settings-mean-production).
+- **The session cookie name defaults to `a_session_biso`** when `APPWRITE_SESSION_COOKIE` is unset (`server.ts`). That is Appwrite's own cookie name for the project. Set the variable on every app that reads a session, as [Cookies on biso.no](/developers/change-it/auth-and-roles#cookies-on-bisono) explains.
+- **Regenerate the types with `bun run types:generate`.** The bare `appwrite types` command that the `CLAUDE.md` files quote leaves the types broken. See [Regenerate the types](/developers/change-it/data-model#regenerate-the-types).
+- **`appwrite push` from this folder changes production**, because `appwrite.config.json` names the production project. See [Schema changes](/developers/change-it/data-model#schema-changes-and-what-never-to-hand-edit).
+- **The maintenance scripts read `apps/admin/.env.local`.** That covers every `backfill:*`, `cutover:*`, `repair:*` and `finago:*` script in `package.json`, so each one works on whichever project that file names. Check the file before you run one. Don't apply `cutover:content-permissions` at all yet: [Data model](/developers/change-it/data-model#known-issues) says why.
+- **`bun run get-product` fails.** It points at `scripts/get-products.ts`, which doesn't exist.
+
+## `@repo/shared`
+
+Plain TypeScript modules that more than one app needs. They cover membership status and fulfilment, postings to 24SevenOffice, team roles, unit visibility, feature flags, benefits, push dispatch, the member pass with its Apple and Google Wallet passes, and recruitment.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/shared/utils/*` | One import per file in `utils/`, for example `@repo/shared/utils/team-roles` |
+| `@repo/shared/types/*` | Shared types, such as recruitment and user management |
+| `@repo/shared/member-pass/*` | The member pass, scanning, scanner grants and the wallet passes |
+| `@repo/shared/recruitment` | Recruitment helpers. `/recruitment/apply`, `/recruitment/booking-slots`, `/recruitment/booking-link` and `/recruitment/application-documents` are separate entry points. |
+
+It depends on `@repo/api` and `@repo/connectors`, so importing it can pull both into a bundle.
+
+**Sharp edges**
+
+- **Some files are server only.** Six files import `server-only`: the wallet-pass modules in `member-pass/`, `recruitment/apply.ts` and `utils/bi-identity-sync.ts`. Importing one of them into a client component fails the build, so check the top of a file before you use it in the browser.
+- **Roles are worked out here, for the admin and the API both.** `utils/team-roles.ts` holds the trusted team ids, `keepSyncedTeams()` and `rolesFromTeams()`. Change a role rule there and both apps follow. [Auth and roles](/developers/change-it/auth-and-roles#roles) explains them.
+- **The scripts write to whatever `apps/admin/.env.local` names.** The `lockdown:*`, `backfill:*`, `migrate:*`, `reconcile:*` and `clear:legacy-benefit-codes` scripts in `packages/shared/scripts/` read that file and use `node-appwrite` directly. Check which project the file names before you run one. [Maintenance scripts](#maintenance-scripts) covers the newest four.
+- **Its tests run on Vitest.** Run them with `bun run test`. A bare `bun test` starts Bun's own runner, which ignores the Vitest config. See [Tests](/developers/change-it/local-setup#tests).
+
+### Maintenance scripts
+
+Four scripts came with the fixes merged on 29 October 2026. Run each from `packages/shared`. Each one is a dry run by default: it prints `Mode: dry-run`, the endpoint and the project, then what it would change, and writes nothing. Add `-- --apply` to write. Each exits with a non-zero code when anything failed.
+
+```bash
+cd packages/shared
+bun run reconcile:row-permissions              # dry run
+bun run reconcile:row-permissions -- --apply   # writes
+```
+
+| Script | What it does | When to run it |
+|---|---|---|
+| `backfill:m365-team-sync` | Writes each Microsoft user's `m365_team_sync` row from their current Microsoft groups, as the sign-in sync would. It needs the Graph app registration, with `GroupMember.Read.All` or `Directory.Read.All`. If no user maps to any team, it writes nothing and exits with `1`, which usually means that permission is missing. | In a new project before the admin and the API are deployed, or after many group changes. [The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list) has the details. |
+| `reconcile:row-permissions` | Rewrites the read entries on existing rows of `pages`, `page_translations`, `campus_benefits`, `events` and `content_translations` to what the code writes now. It reads `news`, `webshop_products`, `jobs` and `departments` only for the status that translations follow. Update and delete entries are kept, and each row is checked again just before it's written. | After a change to the read rules in [Data model](/developers/change-it/data-model#content-rows-visibility-only). Apply it only while nobody is editing content, then run a dry run again: it should report 0 changes. Never run it together with `cutover:content-permissions`. |
+| `migrate:page-drafts` | Moves page drafts out of the old columns on `page_translations` (`draft_doc`, `puck_document`, `draft_document`) into `page_drafts`, and empties those columns. It never overwrites an existing draft row. A published translation that holds an unpublished title or description gets the published value back, and the newer one moves to the draft. The dry run lists each title it would restore. | Once, after deploying the code that reads drafts from `page_drafts`, while nobody is editing pages. Then run a dry run again: it should find nothing left to do. |
+| `backfill:scorecard-interviews` | Sets the `interview` link on interview scorecards that only have an `interview_id`, so the recruitment board and the retention clean-up find them. Scorecards whose interview no longer exists are listed as orphans, and never changed or deleted. | Once, for scorecards made before the link existed. Delete orphans by hand if you want them gone. |
+
+`reconcile:row-permissions`, `migrate:page-drafts` and `backfill:scorecard-interviews` write nothing at all if any read fails during their scan. `backfill:m365-team-sync` writes nothing if it can't list the Microsoft identities. If only some people's groups can't be read, it skips those people and writes the rest.
+
+## `@repo/editor`
+
+The in-house block page editor, `EditorShell`, built on dnd-kit, immer and zustand, and the renderer the website uses for pages built in the admin.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/editor` | `EditorShell`, the block registry and the editor callbacks. The admin's editor screen uses it. |
+| `@repo/editor/render` | The renderer, with no drag and drop and no inspector. The website uses it. |
+| `@repo/editor/blocks` | The block registry |
+| `@repo/editor/page-feeds` | Which feed each block that fills itself (events, news, jobs, partners and the like) asks for. The website and the editor both read it, so they agree. |
+| `@repo/editor/serialize` | Loads stored page documents and upgrades or repairs them |
+| `@repo/editor/templates` | Starting layouts for new unit and project pages |
+| `@repo/editor/theme/styles.css` | The editor's and the blocks' styles |
+| `@repo/editor/ai` | The page editor's AI tools and prompt |
+| `@repo/editor/types` | The document types |
+| `@repo/editor/sanitize` | Cleans the HTML in page documents. Server only. |
+| `@repo/editor/submit-rules` | Rules that the page-form endpoint and the editor share, such as which recipient addresses are allowed |
+
+**Sharp edges**
+
+- **`@/` reaches into the editor from the admin and the website.** The editor imports its own files as `@/…`. To make that work, `apps/admin/tsconfig.json` and `apps/web/tsconfig.json` map `@/*` to the app's own `src/*` first and to `packages/editor/src/*` second. So a new file in an app can hide an editor file with the same path, and an import of an app file that doesn't exist can quietly resolve to an editor file. Before you add a file under `apps/admin/src` or `apps/web/src`, check that `packages/editor/src` has nothing at the same path.
+- **The block registry relies on side effects.** Each block registers itself when its module loads. `package.json` sets `"sideEffects": true` so that bundlers keep those imports. Without it, every block renders as nothing and no error is shown (the comment at the top of `src/render/index.ts` explains this).
+- **Old page documents render empty.** `normalizePageDoc` in `src/editor/serialize.ts` turns any document that isn't the current version into an empty page. The page editor redesign treated every page built before it as a test, so nothing was migrated.
+- **It has no `build` script.** `turbo run build` doesn't type-check it on its own. Each app's `next build` checks the editor files it imports, and `bun run check-types` checks the whole package.
+- **`@repo/editor/sanitize` imports `server-only`.** Use it only in server components and server actions.
+
+## `@repo/ui`
+
+Shared React components built on Radix and Tailwind, the Plate.js rich-text editor kits, a few hooks, and the shared CSS.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/ui/components/*` | The components, for example `@repo/ui/components/ui/button` |
+| `@repo/ui/lib/*` | Helpers, such as `cn` in `lib/utils` |
+| `@repo/ui/hooks/*` | Hooks, such as `use-list-params` and `use-mobile` |
+| `@repo/ui/styles/globals.css` | Tailwind set-up and the shared type styles |
+
+`styles/biso-surface.css` holds the colour and font tokens. It isn't in the exports: the website, the admin and docs import it from their own stylesheets by relative path, and all three import `globals.css` the same way.
+
+**Sharp edges**
+
+- **Biome skips it.** `biome.jsonc` force-ignores `packages/ui/*`, yet the package's own `lint` script runs `biome lint .`, so `bun run lint` fails here. See [Lint and format](/developers/change-it/local-setup#lint-and-format).
+- **Its tests never run.** It has two test files and no `test` script.
+- **`ts_errors.txt` and `check-types.log` are old.** They're committed type-check output from April 2026 that lists Plate.js type errors. `bun run check-types` in `packages/ui` passes today. Ignore both files, or delete them.
+- **Two sets of tokens live here.** `biso-surface.css` defines the older `.biso-surface` palette and the 2026 redesign's `.biso-surface-v2`. The website and docs put both classes on `<html>` (`apps/web/src/app/layout.tsx`, `apps/docs/app/layout.tsx`), because some website components still read the old one. The admin's own screens use neither. Its page-editor canvas puts both on its frame (`packages/editor/src/components/editor-shell/canvas/index.tsx`), so the editor previews the website's look. So a change to either set shows on the website, in docs and in the editor canvas. The comments in `apps/web/src/app/layout.tsx` and `biso-surface.css` that say the admin mounts only `.biso-surface` are out of date. New website code uses the redesign's tokens only, as the "Design system" section of `apps/web/CLAUDE.md` says.
+
+## `@repo/connectors`
+
+Clients for the outside services the apps call.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/connectors/azure` | `createGraphClient()` and the BI directory lookup |
+| `@repo/connectors/azure/users` | Microsoft user management for the admin's IT pages |
+| `@repo/connectors/azure/bi-directory` | Looks up a student in BI's directory |
+| `@repo/connectors/azure/calendar` | Calendar, Outlook and Teams meeting helpers for recruitment scheduling |
+| `@repo/connectors/azure/recruitment-scheduling` | The interview panel's free and busy times, Teams meetings and the Outlook invites |
+| `@repo/connectors/24sevenoffice` | 24SevenOffice, over both its SOAP and REST APIs |
+| `@repo/connectors/sharepoint` | SharePoint, for governing documents |
+| `@repo/connectors/teams-bot` | The Teams approval bot |
+| `@repo/connectors/tickster` | Tickster events and ticket buyers |
+| `@repo/connectors/email` | Email over SMTP |
+
+**Sharp edges**
+
+- **24SevenOffice has only production.** The client's addresses are all the production service (`src/24sevenoffice/client.ts`, `src/24sevenoffice/rest/auth.ts`), and there's no test company. Read [Test it safely](/developers/reference/accounting#test-it-safely) before you run anything that calls it.
+- **`bun run generate:finago` rewrites the REST types.** It downloads 24SevenOffice's published API description and writes `src/24sevenoffice/rest/schema.d.ts`. It needs the internet, and the result can change types the code relies on, so read the diff and run `bun run check-types` before you commit it.
+- Each service has its own reference page with its variables and failures: [Microsoft](/developers/reference/microsoft), [Accounting](/developers/reference/accounting), [Messaging and wallets](/developers/reference/messaging-and-wallet#smtp) and [Events and content sources](/developers/reference/events-and-content-sources#tickster).
+
+## `@repo/payment`
+
+Vipps MobilePay and Stripe: checkout, payment updates, refunds, reconciliation of pending orders, and reading the credentials from the `payment_settings` table.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/payment/vipps` | Vipps checkout, capture, cancel, refunds, webhook registration and reconciliation |
+| `@repo/payment/stripe` | Stripe checkout sessions, webhook checks and refunds |
+| `@repo/payment/credentials` | Picks the credentials for the active mode, from the table or the variables |
+| `@repo/payment/refunds` | `refundPayment()` and `cancelPayment()`, which call the right provider |
+| `@repo/payment/reconcile` | Re-checks pending orders with the provider |
+
+The api uses it for every checkout, callback, return and reconciliation. The admin uses it for refunds and the payment settings page. The website imports it only in its deprecated `/api/cron/reconcile-orders` route.
+
+**Sharp edges**
+
+- **`README.md` is out of date.** It describes a Vipps-only package with an `@repo/payment/actions` entry point and files that no longer exist, and links to old docs pages. Trust `package.json` and [Payments](/developers/reference/payments).
+- **The table beats the variables.** Credentials in `payment_settings` are used before the `VIPPS_*` and `STRIPE_*` variables, so changing a variable may change nothing. See [Credentials](/developers/reference/payments#credentials-the-payment_settings-table).
+- **`bun run lint` fails here** on one complexity error in `src/reconcile.ts`.
+
+## `@repo/ai`
+
+AI on the Vercel AI SDK: the two Anthropic models, the admin assistant and its tools, and server helpers for screening job applications, drafting recruitment emails, matching Microsoft users to departments and reading text from PDFs.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/ai/models` | `balancedModel` and `fastModel`. The one place the apps' models are chosen. |
+| `@repo/ai/assistant`, `/assistant/types`, `/assistant/tools` | The admin assistant |
+| `@repo/ai/assistant/read-only-tools` | `READ_ONLY_TOOL_NAMES`: the assistant tools that may run without the user's confirmation. See [AI](/developers/reference/ai#the-admin-assistant). |
+| `@repo/ai/server/recruitment-screener` | Scores job applications |
+| `@repo/ai/server/recruitment-emails` | Drafts recruitment emails |
+| `@repo/ai/server/department-resolver` | Matches Microsoft users to departments for the admin's IT audit |
+| `@repo/ai/server/pdf-text-extractor` | Reads the text from a PDF |
+| `@repo/ai/config`, `/prompts`, `/utils` and four `/utils/*` files | Older helpers. See below. |
+
+**Sharp edges**
+
+- **The package never reads `ANTHROPIC_API_KEY`.** The AI library reads it by itself. Only docs names it, to switch its assistant on, and only `apps/docs/.env.example` lists it. See [AI](/developers/reference/ai).
+- **Don't trust `README.md`.** No app imports `@repo/ai/config`, `@repo/ai/prompts` or `@repo/ai/utils`, though the README shows them. It also shows entry points that don't exist, such as `@repo/ai/provider`, `@repo/ai/hooks/use-assistant` and `@repo/ai/tools/navigation`. The `exports` in `package.json` are the real list.
+- **`@ai-sdk/openai` is still a dependency.** The models moved from OpenAI to Anthropic on 22 October 2026. In the apps, only test mocks in the admin still refer to OpenAI's package. See [Leftovers](/developers/reference/ai#leftovers).
+
+## `@repo/i18n`
+
+The locale config (`no` and `en`, with `no` as the default) and the message files: one JSON file per namespace in `messages/no/` and in `messages/en/`.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/i18n` | The locale config and `loadMessages()` |
+| `@repo/i18n/config` | `SUPPORTED_LOCALES`, `DEFAULT_LOCALE` and `isLocale()` |
+| `@repo/i18n/messages` | `loadMessages(locale)`, which the apps call from their `src/i18n/request.ts` |
+| `@repo/i18n/types` | Message types |
+| `@repo/i18n/messages/{no,en}/memberPass.json` | The member pass texts, imported directly |
+
+**Sharp edges**
+
+- **The namespace lists are incomplete.** `messageNamespaces` in `messages/index.ts` lists 37 namespaces, and the `MessageNamespace` type in `types.ts` fewer, but there are 43 files per language. `loadMessages()` loads everything through `messages/no.ts` and `messages/en.ts` and ignores both lists, so nothing breaks today. Don't build on them.
+- **`bun run translate` needs `OPENAI_API_KEY` to start**, but translates with Anthropic, so it needs `ANTHROPIC_API_KEY` too. See [Leftovers](/developers/reference/ai#leftovers).
+- It has no tests.
+
+## `@repo/tours`
+
+The engine behind the admin's guided tours: a provider, a hook and the step types. The tours themselves are defined in `apps/admin/src/components/tours/`, and each person's progress is saved in the `tour_progress` table.
+
+| Import | What it gives you |
+|---|---|
+| `@repo/tours/provider` | The tour provider component |
+| `@repo/tours/use-tour` | The hook that starts and moves through a tour |
+| `@repo/tours/types` | Step and tour types, with no React or Appwrite imports |
+
+**Sharp edges**
+
+- Only the admin uses it, and only the admin lists it in `transpilePackages`. Add it there in any other app that starts to use it.
+- It has no tests, and the root `CLAUDE.md` package table leaves it out.
+
+## `@repo/wp-import`
+
+The command-line tool that copied vacancies, products and orders from the old WordPress site into Appwrite. It exports nothing. You run its three steps, `extract`, `transform` and `load`, by hand from `packages/wp-import`. [Events and content sources](/developers/reference/events-and-content-sources#the-import) has the commands, and `packages/wp-import/README.md` the full steps.
+
+**Sharp edges**
+
+- **It reads `packages/wp-import/.env`**, not an `.env.local` file, and uses `node-appwrite` directly. Point that file at your own project, and run `load` without `--apply` first.
+- **`load --apply` calls OpenAI** to translate, and needs a real `OPENAI_API_KEY`. It's the only code in the repo that calls OpenAI.
+- **`WP_BASE_URL` defaults to the address the old WordPress site moved to.** Check that the site still answers before you run another import.
+- It has no `build` script, and the root `CLAUDE.md` package table leaves it out.
+
+## `@repo/typescript-config`
+
+The shared `tsconfig` presets. It has no code and no exports map: other workspaces extend its files by path, such as `@repo/typescript-config/nextjs.json`.
+
+| File | What it sets | Used by |
+|---|---|---|
+| `base.json` | `strict`, ES2022, bundler module resolution | `packages/i18n`, `packages/wp-import` |
+| `nextjs.json` | `base.json` plus the Next.js plugin, `allowJs` and `noEmit` | The four apps, and `packages/ui` |
+| `react-library.json` | `base.json` plus `jsx: react-jsx` | The other packages |
+
+**Sharp edges**
+
+- The three functions in `functions/` don't use it. Each has its own `tsconfig.json`.
+- Each app sets its own `paths` in its `tsconfig.json`, which replace the ones in `nextjs.json`. That's where the `@/*` mapping described under [`@repo/editor`](#repoeditor) comes from.
+- Its `build`, `lint` and `check-types` scripts only print a message. Its `README.md` says `@repo/ui` uses `react-library.json`. It uses `nextjs.json`.

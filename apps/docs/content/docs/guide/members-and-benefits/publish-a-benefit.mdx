@@ -1,0 +1,211 @@
+---
+title: Publish a benefit
+description: How to add a member benefit or a one-line benefit on the BISO benefits board, set or change its discount code, publish it, and hide, order or delete benefits.
+who: "Global admins (National + Operations Unit) and benefits editors, on every campus and Hele BISO, and campus leaders (Ledelsen on your campus), on their own campus."
+covers:
+  - apps/admin/src/app/(portal)/benefits/page.tsx
+  - apps/admin/src/app/(portal)/benefits/[id]/**
+  - apps/admin/src/app/(portal)/benefits/_components/**
+  - apps/admin/src/app/(portal)/benefits/_lib/**
+  - apps/admin/src/app/(portal)/_actions/benefits.ts
+  - apps/admin/src/app/(portal)/_actions/schemas.ts
+  - apps/admin/src/lib/benefit-access.ts
+  - apps/admin/src/lib/benefits/**
+  - packages/shared/utils/benefit-catalog.ts
+  - packages/shared/utils/benefit-visibility.ts
+  - packages/shared/utils/benefit-public.ts
+  - packages/shared/utils/benefit-reveal-server.ts
+  - apps/api/src/app/api/benefits/**
+  - apps/web/src/lib/data/benefits.ts
+  - apps/web/src/components/member-portal/shared/**
+  - apps/web/src/components/membership/v2/membership-v2.tsx
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Fordeler** (Benefits) under **Innhold** (Content) in your sidebar. [How membership and benefits work](/guide/members-and-benefits#who-can-use-members-and-benefits) shows who can edit which campus.
+- Have ready, in Norwegian and if you like English:
+  - what the offer is, in one line, and a few lines more if needed
+  - the partner, with its website and logo, if it's new
+  - how students get it: by showing the member pass, with a discount code, with a link, or none of these
+  - the code or the link, if there is one. A link must start with https://
+  - the dates, if the offer is only for a time
+  - the terms, and an image if you want one
+- The title, description and terms are public. Never put a discount code in them. The code has its own field.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the benefits board">
+
+Open **Innhold** (Content) and choose **Fordeler** (Benefits). The page is headed **Medlemsfordeler** (Member benefits), under the small label **Fordeler** (Benefits). At the top right are:
+
+- **Partnere** (Partners), for the businesses behind the benefits and the logos on biso.no. See [Partners and membership texts](/guide/members-and-benefits/partners-and-texts).
+- **Tekster** (Texts), for global admins and benefits editors only.
+- **+ Ny fordel** (+ New benefit), on a campus tab you can edit.
+
+Below them are the campus tabs: **Oslo**, **Bergen**, **Trondheim**, **Stavanger** and **Hele BISO** (All of BISO). You see the tabs your role allows. The board opens on the tab you used last, or the first campus you can edit.
+
+Three counts cover the open tab only: **synlige på nettsiden** (visible on the website), **utkast** (drafts) and **utløper innen 30 dager** (ending within 30 days). The last one changes colour when it's above 0.
+
+The board has five sections: **Medlemsfordeler** (Member benefits), **Karrierefordeler** (Career advantages), **Sosialt nettverk** (Social network), **Trygghet og støtte** (Safety & support) and **For bedrifter** (For companies). On a campus tab, each section shows the campus's own benefits, then **Fra Hele BISO** (From All of BISO) and the benefits that apply on every campus. Each benefit shows its title, its partner's logo or initials, and its status.
+
+On the **Hele BISO** (All of BISO) tab, campus leaders see **Disse gjelder alle campuser. Bare administratorer kan endre dem.** (These apply to all campuses. Only administrators can change them.) They can look but not change anything there.
+
+</Step>
+<Step title="Start a benefit">
+
+Do one of these:
+
+- Choose **+ Ny fordel** (+ New benefit) for a member benefit on the open campus.
+- Choose **+ Legg til** (+ Add) under a section to add a benefit to that section.
+- Click a benefit to change it.
+
+A panel slides in from the right, headed **Ny fordel** (New benefit) or **Endre fordel** (Edit benefit), with the campus and the section above. At the top, **Slik ser studentene det** (How students will see it) previews the benefit as you fill it in.
+
+A new benefit starts as a draft, lasting **Til vi tar det bort** (Until we remove it), with **Ingen** (None) as the way to get it.
+
+</Step>
+<Step title="Describe the offer (member benefits)">
+
+For **Medlemsfordeler** (Member benefits):
+
+1. **Hva er tilbudet?** (What is the offer?): the title, up to 200 characters. You need a title in Norwegian or English.
+2. **Fortell litt mer** (Tell us a bit more): the description, if you want one. Up to 2,000 characters.
+3. **Hvilken partner?** (Which partner?): choose the partner. The list has **Ingen partner (BISO)** (No partner (BISO)) first, then the partners for this campus and for **Hele BISO** (All of BISO). If the partner isn't there, choose **+ Ny partner** (+ New partner), fill in **Navn** (Name), **Nettside** (Website) and **Logo**, then choose **Lagre partner** (Save partner). The partner is added on this benefit's campus.
+
+</Step>
+<Step title="Choose how students get it, and set the code">
+
+Under **Hvordan får studentene rabatten?** (How do students get the discount?), choose one:
+
+- **Vis medlemskortet** (Show the member card): students show their member pass.
+- **Rabattkode** (Discount code): students get a code.
+- **Lenke** (Link): students get a link.
+- **Ingen** (None): there's nothing to show or type.
+
+For **Rabattkode** (Discount code) or **Lenke** (Link), a field opens with the note **vises bare for medlemmer** (only shown to members). Type the code, for example `DEMO10` (an invented example, not a real code), or paste the link. A link must start with https://. Up to 500 characters.
+
+The code or link is stored apart from the benefit. Students see it only when an active member asks for it. In the admin, only people who can edit the benefit's campus see it in this panel.
+
+To change a code or link, open the benefit, replace what's in the field, and save as in [Save or publish](#save-or-publish). The old code is gone once you save. There's no history.
+
+To remove a code, choose **Vis medlemskortet** (Show the member card) or **Ingen** (None), and save. The stored code is deleted.
+
+</Step>
+<Step title="Set the dates">
+
+Under **Hvor lenge gjelder det?** (How long does it last?), choose:
+
+- **Til vi tar det bort** (Until we remove it): no dates. It stays up until someone hides or deletes it.
+- **Fra … til …** (From … to …): choose dates in **Fra** (From) and **Til** (To). You can leave either one empty. **Til** (To) can't be before **Fra** (From).
+
+The dates use Norwegian time. A benefit starts at midnight on the **Fra** (From) date and ends at the end of the **Til** (To) date.
+
+</Step>
+<Step title="Add more options (member benefits)">
+
+Open **Flere valg** (More options) for:
+
+- **Kategori** (Category): **Mat og drikke** (Food & drink), **Trening og helse** (Health & fitness), **Uteliv** (Nightlife), **Shopping**, **Reise** (Travel), **Programvare** (Software), **Arrangementer** (Events) or **Annet** (Other). A member benefit with no category is saved as **Annet** (Other).
+- **Vilkår** (Terms), up to 1,000 characters.
+- **Bilde** (Image): upload one if you want.
+- **Vis først** (Show first): **Vises øverst i medlemsportalen og på Medlemskap-siden.** (Shown at the top of the member portal and on the Membership page.)
+- **Engelsk tekst** (English text): the English title, description and terms.
+
+**Oversett automatisk** (Translate automatically) is on while the benefit has no English text. When you save, it writes the English title and description from the Norwegian. It switches itself off as soon as you type English yourself.
+
+</Step>
+<Step title="Write a one-line benefit (other sections)">
+
+**Karrierefordeler** (Career advantages), **Sosialt nettverk** (Social network), **Trygghet og støtte** (Safety & support) and **For bedrifter** (For companies) are one line each. The panel asks:
+
+1. **Hva får studentene?** (What do students get?), or **Hva får bedriftene?** (What do businesses get?) for **For bedrifter** (For companies).
+2. **Engelsk** (English), with the **Oversett automatisk** (Translate automatically) switch.
+3. **Hvor lenge gjelder det?** (How long does it last?), as in the dates step.
+
+These benefits have no partner, code, description, terms, image or category.
+
+</Step>
+<Step title="Save or publish">
+
+The buttons at the bottom of the panel depend on the benefit's status:
+
+| Status | Buttons |
+|---|---|
+| New | **Lagre utkast** (Save draft) and **Publiser** (Publish) |
+| **Utkast** (Draft) or **Skjult** (Hidden) | **Lagre utkast** (Save draft), **Publiser** (Publish) and **Slett** (Delete) |
+| Published | **Lagre endringer** (Save changes), **Skjul fra nettsiden** (Hide from the website) and **Slett** (Delete) |
+
+- **Publiser** (Publish) puts the benefit live, or **Planlagt** (Scheduled) if its start date is still to come. You see **Publisert** (Published).
+- **Lagre utkast** (Save draft) saves it without showing it to students. You see **Lagret** (Saved). A draft shows **Lagres som utkast til du publiserer** (Saved as a draft until you publish).
+- **Lagre endringer** (Save changes) saves a published benefit. It stays live.
+
+Before saving, the panel checks what you filled in. A message shows under the field, and the cursor goes to the first one:
+
+- **Skriv hva tilbudet er.** (Write what the offer is.)
+- **Skriv inn rabattkoden.** (Enter the discount code.)
+- **Skriv inn lenken.** (Enter the link.)
+- **Lenken må starte med https://** (The link must start with https://)
+- **Sluttdatoen må være etter startdatoen.** (The end date must be after the start date.)
+
+If the save fails, you see **Kunne ikke lagre. Prøv igjen.** (Could not save. Try again.), often with a reason:
+
+- **Du har ikke tilgang til å endre fordeler for denne campusen.** (You don't have access to change benefits for this campus.)
+- **Fant ikke partneren. Velg partneren på nytt.** (We couldn't find that partner. Choose the partner again.)
+- **Fant ikke fordelen. Den kan være slettet.** (We couldn't find this benefit. It may have been deleted.)
+- **Velg hvordan studentene får rabatten, og lagre på nytt.** (Choose how students redeem it, then save again.): an older benefit uses a way of getting it that the panel no longer offers. Choose one of the four and save.
+
+If you close the panel with changes you haven't saved, you're asked **Forkaste endringene?** (Discard your changes?). Choose **Fortsett å redigere** (Keep editing) to go back, or **Forkast** (Discard) to lose them.
+
+</Step>
+<Step title="Order, hide or delete benefits">
+
+**Order.** Drag benefits within a section to change their order. The board says **Dra for å endre rekkefølgen. Det er rekkefølgen studentene ser.** (Drag to change the order. This is the order students see.) You can also use the keyboard: Space to pick a benefit up, the arrow keys to move it, Space to drop it and Esc to cancel. Benefits students can't see, marked **Utløpt** (Expired), **Avsluttet** (Ended) or **Skjult** (Hidden), are dimmed, sit last and can't be dragged. If you see **Kunne ikke lagre rekkefølgen. Prøv igjen.** (Could not save the order. Try again.), reload the page and try again.
+
+**Hide.** Open a published benefit and choose **Skjul fra nettsiden** (Hide from the website). It leaves biso.no and the app, and shows **Skjult** (Hidden). Its text and code are kept. Only the status changes, so edits you made in the panel first aren't saved. To put it back, open it and choose **Publiser** (Publish).
+
+**Delete.** Open the benefit and choose **Slett** (Delete). You're asked **Slette «…»?** (Delete "…"?), with the benefit's title, and **Fordelen forsvinner fra nettsiden med en gang. Dette kan ikke angres.** (The benefit disappears from the website immediately. This cannot be undone.) Choose **Slett** (Delete) again, or **Avbryt** (Cancel).
+
+<Callout type="warn">
+Deleting a benefit removes it, its English text and its discount code for good. To take it down for now, choose **Skjul fra nettsiden** (Hide from the website) instead.
+</Callout>
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- A published benefit with no start date, or one that has started, is **Synlig** (Visible) on biso.no and in the app. One with a later start date is **Planlagt** (Scheduled) and goes live by itself on that date. A benefit with an end date comes down by itself after that day.
+- biso.no is told to update straight away. If it doesn't answer, it catches up within a few minutes.
+- With **Oversett automatisk** (Translate automatically) on, the English title and description are written in the background after you save. Open the benefit later and check them.
+- No push notification and no email go out to members about a new, changed or ended benefit.
+- Creating, changing, hiding, deleting and reordering benefits are written to the activity log.
+- The [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone) can also change benefits, but it never sees a code, and its changes keep the code as it is. If a change would remove a benefit's code or link, it stops and tells you to make the change here.
+</WhatHappensNext>
+
+## What the student sees
+
+- A visible benefit is public. Anyone can see its title, description, partner, image and terms on biso.no and in the app. Only the code or link is kept for members.
+- Member benefits are listed on biso.no/membership, on campus pages, on biso.no/students and in the member portal. The other four sections show as short lists of titles on biso.no/membership, biso.no/students and campus pages.
+- A visitor sees their campus's benefits first, then **Hele BISO** (All of BISO), in the order on the board. **Vis først** (Show first) benefits are shown at the top of the member portal and the Membership page.
+- In the member portal, biso.no/member, a benefit with a code or link has **Vis kode** (Reveal Code). Only an active member gets the code or link. Anyone else sees **Du trenger et aktivt medlemskap for å se denne fordelen. Bli medlem i BISO for å låse den opp.** (You need an active membership to see this benefit. Join BISO to unlock it.)
+- In the app, the button is **Vis kode** (Show code), **Åpne lenken** (Open the link) or **Vis medlemskortet i kassa** (Show your membership card at the checkout). A student who isn't a member sees **Koden vises bare for medlemmer.** (The code is only shown to members.)
+- Students don't see benefits that are **Utkast** (Draft), **Skjult** (Hidden), **Planlagt** (Scheduled), **Utløpt** (Expired) or **Avsluttet** (Ended).
+
+## Common mistakes
+
+- Putting the discount code in the title, description or terms. Everyone can read those. Use the **Rabattkode** (Discount code) field.
+- Saving with **Lagre utkast** (Save draft) and waiting for the benefit to show. Choose **Publiser** (Publish).
+- Changing text and then choosing **Skjul fra nettsiden** (Hide from the website). The changes aren't saved. Save first, then hide.
+- Typing over a code you still need. The old code is gone once you save, and there's no history.
+- Switching a benefit with a code to **Vis medlemskortet** (Show the member card) or **Ingen** (None). The code is deleted when you save, and you'll have to type it again.
+- Deleting a benefit you meant to take down for a while. Deleting can't be undone. Hide it instead.
+- Expecting a benefit with a **Fra** (From) date in the future to show now. It's **Planlagt** (Scheduled) until that date.
+- Trying to change a **Hele BISO** (All of BISO) benefit as a campus leader. Ask a global admin or a benefits editor.
+- Asking the assistant to set or change a code. It can't. Use this panel.

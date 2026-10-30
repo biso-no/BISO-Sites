@@ -1,0 +1,128 @@
+---
+title: How the shop works
+description: Who makes products and who sees orders in the BISO admin, how a product goes live, what each order status means, and what reaches 24SevenOffice on its own.
+covers:
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/nav-tree.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - apps/admin/src/lib/content-authorization.ts
+  - apps/admin/src/lib/assistant-publish.ts
+  - packages/ai/src/assistant/tools/confirmation.ts
+  - apps/admin/src/app/(portal)/shop/page.tsx
+  - apps/admin/src/app/(portal)/shop/shop-view-params.ts
+  - apps/admin/src/app/(portal)/shop/_components/**
+  - apps/admin/src/app/(portal)/_actions/shop.ts
+  - apps/admin/src/app/(portal)/_actions/approvals.ts
+  - apps/admin/src/lib/shop/**
+  - packages/shared/utils/vipps-pure.ts
+  - packages/shared/utils/vipps-order-ops.ts
+  - packages/shared/utils/finago-order-posting.ts
+  - packages/shared/utils/membership-fulfilment.ts
+  - apps/api/src/app/api/cron/reconcile-orders/route.ts
+  - functions/member-roster-sync/src/run.ts
+  - apps/web/src/app/(public)/shop/**
+---
+
+The shop sells BISO's products on biso.no/shop and in the BISO app. In the admin it sits under **Produkter** (Products) in the sidebar. That page holds the product catalogue and, for campus leaders and global admins, the orders. The shop's accounting settings are under **Regnskap** (Accounting).
+
+The product list, the orders and the accounting page follow your admin language. The product editor is in English whatever your language, so this guide names its labels in English.
+
+## Who can use the shop
+
+| Who | Products | Orders and refunds | Accounting |
+|---|---|---|---|
+| Global admins (National + Operations Unit) | Every product, on any campus | Every order | Yes |
+| Campus leaders (Ledelsen on your campus) | Products on your campus | Orders on your campus | Yes |
+| Department members, for their own department | Your department's products on your campus | No | No |
+
+- Global admins see every campus, or only the one they picked in the campus box.
+- HR members count as members of their department here.
+- Anyone else, such as a benefits editor who isn't in a department, doesn't have **Produkter** (Products) in the sidebar.
+- Department members never see orders. The **Bestillinger** (Orders) tab isn't there for them, and an order's page shows page not found.
+- Opening a product you can't edit shows a page-not-found error.
+- Only global admins can change a product's campus. For everyone else it's locked to their campus.
+- An order with no campus is only visible to global admins.
+- The accounting settings apply to the whole shop, on every campus. A campus leader who changes them changes them for everyone.
+
+If you think you should have access and don't, ask IT to check your groups.
+
+## From draft to live
+
+A product has one status for both languages. The catalogue shows it as a pill:
+
+| Status | What it means |
+|---|---|
+| **Utkast** (Draft) | Saved with **Save draft**. Drafts aren't shown on biso.no or in the app, and can't be bought. |
+| **Publisert** (Published) | Saved with **Publish**. It's on biso.no and in the app, and people can buy it. |
+
+The catalogue also has the chips **Venter på godkjenning** (Pending Approval) and **Arkivert** (Archived). The product editor never gives a product either status. It saves only **Utkast** (Draft) or **Publisert** (Published).
+
+- Nobody has to approve a product. If you can edit a product, you can publish it. That includes department members, for their own department's products.
+- To publish, a product needs a department and a sales type. The sales type decides which revenue account and VAT code the sale is booked under in 24SevenOffice. Campus leaders and global admins set sales types up on **Regnskap** (Accounting). See [Shop accounting](/guide/shop/accounting).
+- To take a product off the shop, open it and choose **Save draft**. It leaves biso.no and the app at once, and you can publish it again later.
+- To sell a product without showing it in the shop's lists, set its **Shop visibility** to **Link only**. It stays published, and anyone with the link can buy it.
+- Deleting a product removes it for good. Orders that include it keep their lines.
+
+### Approval requests from the assistant
+
+The only way a product gets an approval request is through the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone). If you ask it to publish a product and you aren't a campus leader for the product's campus or a global admin, the assistant first asks you to confirm on its card. It then saves the product as a draft and shows an **Approval required** card. You can then send a request. It goes to the campus leaders for the product's campus. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
+
+While the request waits, the product stays **Utkast** (Draft). It isn't counted under **Venter på godkjenning** (Pending Approval). Approving the request publishes it. The approval fails if the product has no department, or if it has no active sales type.
+
+Department members don't need a request for their own products. Open the product in the editor and choose **Publish**.
+
+## Membership isn't a shop product
+
+- Students buy membership at biso.no/membership/join, not in the shop. The address biso.no/shop/membership takes them there.
+- There's no product editor for membership. The plans, their names and their prices come from the membership products in 24SevenOffice. A scheduled sync copies them to the platform. Plans go on sale and come off sale by their own dates.
+- To change a price or add a plan, the membership product is changed in 24SevenOffice by whoever manages BISO's accounts there. Ask a global admin if you don't know who that is.
+- The change reaches biso.no the next time the member list is refreshed. A global admin can start a refresh at once with **Oppdater nå** (Refresh now) under **Medlemmer** (Members).
+- A paid membership shows in **Bestillinger** (Orders) like any other order. Refunding one needs extra work in 24SevenOffice. See [Orders and refunds](/guide/shop/orders-and-refunds#what-happens-next).
+
+## Order statuses
+
+An order is created when a buyer checks out on biso.no or in the app. After that, Vipps or Stripe moves it on: through the provider's own message to BISO, when the buyer comes back to the site, or through a scheduled check that asks the provider. You never set an order's status yourself. The only thing staff do that changes it is a refund.
+
+| Status | What it means |
+|---|---|
+| **Avventer** (Pending) | The buyer has started checkout, but the payment isn't confirmed yet. |
+| **Autorisert** (Authorized) | Vipps has reserved the money. The system normally takes the payment straight away, and the order becomes **Betalt** (Paid). |
+| **Betalt** (Paid) | Paid. Only a paid order can be refunded. |
+| **Delvis refundert** (Partially refunded) | Part of the order has been refunded. It still counts as **Betalt** (Paid) in the counts and the filters. |
+| **Refundert** (Refunded) | The whole order has been refunded. It never goes back to **Betalt** (Paid). |
+| **Feilet** (Failed) | The payment didn't go through. |
+| **Kansellert** (Cancelled) | The buyer stopped paying, or the payment ran out of time. These orders have no chip of their own. They're listed under **Alle** (All). |
+
+## What reaches 24SevenOffice
+
+- **Paid shop orders.** While **Automatisk bokføring** (Automatic posting) is switched on, each paid order is posted as one voucher. While it's off, paid orders wait, and they're posted once it's switched on. The order's **Regnskap** (Ledger) field then shows the voucher's transaction id. [Shop accounting](/guide/shop/accounting) explains the voucher.
+- **Free orders** (0 kr) and orders imported from the old WordPress shop are never posted.
+- **Memberships.** A paid membership becomes an invoice in 24SevenOffice, and the student is put in the plan's customer category. It isn't posted as a shop sale.
+- **Refunds.** A refund of an order that's already posted is reversed in 24SevenOffice on its own. Other refunds need work by hand, or nothing at all. See [Orders and refunds](/guide/shop/orders-and-refunds#what-happens-next).
+- **Nothing else.** Products, prices and sales types aren't sent to 24SevenOffice. The accounting page only reads the list of accounts from it.
+
+## What the system does on its own
+
+- Moves orders through their statuses, using what Vipps or Stripe reports, and takes payments that Vipps has reserved.
+- Counts stock down on each purchase, for products set to **Tracked**.
+- Posts paid orders to 24SevenOffice while posting is switched on. An order that couldn't be posted because a setting was missing is tried again later.
+- Posts a reversal when you refund an order that's already posted.
+- Books a membership purchase as an invoice in 24SevenOffice.
+- Translates the other language in the background when **Auto-translate** is on.
+- Writes product changes, refunds and accounting changes to the activity log.
+
+It never sends:
+
+- an email to the buyer about an order or a refund
+- a push notification about a product, an order or a refund
+- a message to anyone when a product request is sent or decided
+
+## What you do yourself
+
+- Publish products, and keep their prices, stock and pictures right.
+- Choose a department and a sales type before you publish.
+- Refund orders, and check the amount before you press the button.
+- Do the work in 24SevenOffice that the system can't: book the net sale of an order refunded in part before it was posted, credit the invoice when you refund a membership, and post a reversal by hand when the refund history asks for one.
+- Tell buyers about refunds and changes yourself.
+
+The pages after this one show each task step by step: [Add a product](/guide/shop/add-a-product), [Orders and refunds](/guide/shop/orders-and-refunds) and [Shop accounting](/guide/shop/accounting).

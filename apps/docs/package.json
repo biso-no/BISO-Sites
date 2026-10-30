@@ -7,12 +7,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome lint .",
+    "test": "bun test",
     "check-types": "fumadocs-mdx && tsc --noEmit",
+    "screenshots:schema": "bun scripts/screenshots/schema.ts",
+    "screenshots:seed": "bun scripts/screenshots/seed.ts",
+    "screenshots:capture": "bun scripts/screenshots/capture.ts",
+    "check:private-leaks": "bun scripts/private-leak-check.ts",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
+    "@repo/ai": "workspace:*",
+    "@repo/api": "workspace:*",
     "@repo/shared": "workspace:*",
     "@repo/ui": "workspace:*",
+    "ai": "catalog:",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",
     "fumadocs-ui": "catalog:",
@@ -21,15 +29,18 @@
     "next": "catalog:",
     "next-themes": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
+    "@types/bun": "catalog:",
     "@types/mdx": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "playwright": "^1.64.1",
     "postcss": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"

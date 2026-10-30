@@ -1,0 +1,192 @@
+---
+title: Add a product
+description: How to create a product in the BISO shop studio, with variants, stock, checkout questions and members-only rules, and publish it to biso.no and the app.
+who: "Global admins (National + Operations Unit), campus leaders (Ledelsen on your campus) for products on their campus, and department members, for their own department's products."
+covers:
+  - apps/admin/src/app/(portal)/shop/page.tsx
+  - apps/admin/src/app/(portal)/shop/_components/catalog-tab.tsx
+  - apps/admin/src/app/(portal)/shop/_components/product-row.tsx
+  - apps/admin/src/app/(portal)/shop/_components/featured-draft-card.tsx
+  - apps/admin/src/app/(portal)/shop/[id]/**
+  - apps/admin/src/app/(portal)/_actions/shop.ts
+  - apps/admin/src/app/(portal)/_actions/schemas.ts
+  - apps/admin/src/app/(portal)/_actions/lookups.ts
+  - apps/admin/src/app/_components/content-translation-controls.tsx
+  - apps/admin/src/lib/content-translation.ts
+  - apps/admin/src/lib/shop/sales-type.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - packages/shared/utils/member-discount.ts
+  - apps/api/src/lib/checkout-pricing.ts
+  - apps/web/src/app/actions/webshop.ts
+  - apps/web/src/app/actions/orders.ts
+  - apps/web/src/app/actions/cart-reservations.ts
+  - apps/web/src/app/(public)/shop/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Produkter** (Products) in your sidebar. [How the shop works](/guide/shop#who-can-use-the-shop) shows who can create which products.
+- The product editor is in English whatever your admin language, so this page names its labels in English. The product list follows your admin language.
+- Have ready:
+  - a name, a one-line teaser and a description, in Norwegian, English or both
+  - the price, and the member price if members pay less
+  - the variants, such as sizes, with a price and a stock count for each
+  - photos, if you don't want one of the patterns
+  - any questions buyers must answer, such as a locker number
+- A product can't be published without a department and a sales type. If the **Sales type** list is empty, ask a campus leader or a global admin to set sales types up. See [Shop accounting](/guide/shop/accounting).
+- Membership isn't a shop product. Plans and prices come from 24SevenOffice. See [Membership isn't a shop product](/guide/shop#membership-isnt-a-shop-product).
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Start a product">
+
+Choose **Produkter** (Products) in the sidebar. The page opens on the **Katalog** (Catalogue) tab, with your products and three counts: **Publiserte produkter** (Live products), **Lav beholdning** (Low stock) and **Venter på godkjenning** (Pending Approval).
+
+- Search with **Søk i produkter...** (Search products...). It looks through titles and addresses.
+- Narrow the list with the chips **Alle** (All), **Publisert** (Published), **Utkast** (Draft), **Venter på godkjenning** (Pending Approval) and **Arkivert** (Archived).
+
+Then:
+
+- To create a product, choose **Legg til produkt** (Add Product).
+- To change a product, choose its name or the pencil icon on its row.
+- To go back to the draft you edited last, choose **Fortsett redigering** (Resume editor) on the **Fortsett der du slapp** (Pick up where you left off) card.
+- To delete a product, choose the bin icon on its row (tooltip: *Slett produkt* (Delete product)). It changes to **Bekreft** (Confirm). Choose it again to delete. You see **Produkt slettet** (Product deleted). Clicking anywhere else cancels.
+
+<Callout type="warn">
+Deleting a product removes it and both languages for good, with no undo. Orders that include it keep their lines. To take a product out of the shop for now, open it and choose **Save draft** instead.
+</Callout>
+
+The editor has five steps: **Essentials**, **Description**, **Pricing & Options**, **Photos & Visibility** and **Review**. Move with **Continue** and **← Back** at the bottom. **Save draft** is there on every step. The phone on the right previews the product as you go.
+
+</Step>
+<Step title="Fill in Essentials">
+
+- The name, at the top (*Product name…*). **NO** and **EN** above it switch the language you're writing in. You need a name in at least one language.
+- The address line under the name. For a new product it follows the Norwegian name as you type. Choose **Edit** to write it yourself, using only lowercase letters, numbers and hyphens. Once the product is saved, changing the name doesn't change the address. The line reads biso.no/ followed by the campus and /shop/, but the product's real page is biso.no/shop/ followed by the address, with no campus in it. The editor doesn't check whether another product already uses it, so make it your own.
+- **Teaser** (*One sentence that sells the product…*), up to 140 characters.
+- **Category**: **Apparel**, **Tickets**, **Drinkware**, **Stationery**, **Stickers**, **Books** or **Other**.
+- **Department**: the department that sells the product. If you're in one department, it's filled in and locked. If you're in several, choose one of yours. Campus leaders and global admins can choose any department on the campus.
+- **Campus**. Only global admins can change it.
+- **Tags**: choose up to five.
+- **Sales type** (*Choose a sales type*). Each one shows its Norwegian name and its account number. It decides the revenue account and VAT code the sale is booked under. If you're not sure which one to use, ask a campus leader. A product can't be published with a type marked **(inactive)** or **(deleted)**, so choose another one.
+
+**Teaser**, **Category** and **Campus** are marked as required. Only **Campus** is checked when you save, so fill in the others yourself.
+
+</Step>
+<Step title="Write the description">
+
+**Description** ("Tell the full story.") holds the product text for the language you have open. Switch language with **NO** and **EN**.
+
+Type in the box. Press Enter for a new paragraph. Type / to choose **Heading**, **Paragraph** or **Bullet** for the line you're on.
+
+</Step>
+<Step title="Set prices, variants and stock">
+
+On **Pricing & Options**:
+
+1. **Regular price (NOK)**, 0 or more.
+2. **Member price (NOK)** (*Leave blank = same*). Members pay it when it's above 0 and lower than the regular price. Then the card **Members save** shows the discount. Blank, or 0, means members pay the regular price.
+3. **Variants**, if the product comes in sizes or types. Choose **Add variant**, then fill in **Name** (*e.g. Small, Blue, 500ml*), **Price (NOK)** and **Stock** for each. The bin icon on a row removes it. Once a product has a variant, the price fields and **Inventory mode** are replaced by the variant table.
+4. **Inventory mode**, for a product without variants:
+   - **Tracked** counts stock down on each purchase. Set the number in **Stock count**, with − and + or by typing it.
+   - **Unlimited** has no stock limit. It's the default.
+
+</Step>
+<Step title="Choose who can buy and what to ask">
+
+Still on **Pricing & Options**:
+
+1. **Who can buy**: **Members only** or **Open to all**, which is the default. A members-only product is listed for everyone, with a members-only badge. Only BISO members can complete the purchase. It limits who can buy, not who can see. To keep a product out of the shop's lists, use **Link only** in the next step.
+2. **Checkout questions**, for details you need from the buyer, such as a locker number or a shirt size. With none, the box reads **No questions — buyers go straight to checkout.** Choose **Add question** for each one:
+   - **Question** (*e.g. Locker number*): what the buyer is asked.
+   - **Answer type**: **Text**, **Paragraph**, **Number**, **Email** or **Dropdown**.
+   - **Answer needed?**: **Optional** or **Required**.
+   - **Placeholder** and **Help text**, if you want them.
+   - For a **Dropdown**, add the choices under **Dropdown options** with **Add option**. A dropdown needs at least one option, or the save fails.
+
+A question with no text in **Question** is left out when you save.
+
+</Step>
+<Step title="Add photos and choose where it shows">
+
+On **Photos & Visibility**:
+
+1. **Product photos**: click an empty slot to upload a photo. The first slot is the **Hero image**. The X on a photo removes it.
+2. **Cover pattern**: **Dotted**, **Linear**, **Concentric**, **Wave** or **Grid**. It's shown when the product has no photo.
+3. **Shop visibility**:
+   - **Listed**: in the shop, and in campus and unit feeds. It's the default.
+   - **Link only**: hidden from every list and from search engines. Anyone with the link can still open the product and buy it. Once the product is saved, the step shows its link with **Copy link**. Before the first save it says **Save the product to get its link.**
+
+Link only hides a product. It doesn't protect it. To limit who can buy, use **Members only**.
+
+</Step>
+<Step title="Check Review, then publish">
+
+**Review** ("One last look.") has a checklist of **Essentials**, **Description**, **Pricing** and **Photos**. Click a row to go back to that step. **Product summary** shows the name, the campus and the category.
+
+To write the other language with AI, choose **Generate English** (or **Generate Norwegian**) in the **AI translation** card. It translates the name and the description, not the teaser. If the other language already has text, you're asked **Replace the existing translated product draft?** first. You see **Translation draft generated**. Nothing is stored until you save, so read it first.
+
+**Auto-translate**, at the bottom, translates the other language in the background when you save or publish.
+
+The **Status** selector on **Review** (**Draft**, **Pending**, **Published**, **Archived**) doesn't change anything. Only the buttons decide:
+
+- **Publish** saves the product and puts it in the shop. You see **Product published!**
+- **Save draft** saves it without publishing. On a published product, it takes the product out of the shop. You see **Draft saved**.
+- **Discard** goes back to the list without saving.
+
+With **Auto-translate** on, the message ends with **Translation queued.** A new product takes you back to the list once it's saved.
+
+Nobody has to approve a product. **Publish** puts it in the shop at once, for department members too. Approval requests only come from the BISO Assistant. See [Approval requests from the assistant](/guide/shop#approval-requests-from-the-assistant).
+
+If the save fails, the message says why. The most common ones:
+
+- **Choose a department before publishing** or **Choose a sales type before publishing**: fill in **Department** or **Sales type** on **Essentials**.
+- **Choose an active sales type before publishing**: the sales type has been switched off. Choose another one.
+- **A Norwegian or English name is required**: write a name at the top of **Essentials**.
+- **Slug must be lowercase alphanumeric with hyphens**: fix the address under the name.
+- **Unauthorized: no write access to this department**: department members must choose their own department, even for a draft.
+- A message ending **is a dropdown, so it needs at least one option**: add an option to that question, or change its **Answer type**.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- The product shows **Publisert** (Published) in the catalogue. It's on biso.no/shop and in the app, unless it's **Link only**.
+- No push notification and no email go out about a new or changed product.
+- With **Auto-translate** on, the other language is written in the background. Open the product later and check it.
+- When people buy it, campus leaders and global admins see the orders under **Bestillinger** (Orders). Department members don't see orders. Ask a campus leader if you need to know what has sold.
+- For a **Tracked** product, stock goes down with each purchase. The **Lav beholdning** (Low stock) count turns red when a tracked product has fewer than 5 left.
+- Creating, saving and deleting products are written to the activity log.
+</WhatHappensNext>
+
+## What the student sees
+
+- **biso.no/shop** lists published products for the campus the visitor chose, or for every campus. Products set to **Link only** aren't listed. A product with only a Norwegian name is still listed for English readers.
+- The product's page is biso.no/shop/ followed by its address. A **Link only** product opens there too, and search engines are told not to list it.
+- Members-only products are listed for everyone, with a badge. A student who isn't a member can't complete the purchase and sees a message that the product is available to BISO members only.
+- Members get the member price at checkout.
+- Checkout questions are asked for each product in the cart.
+- The BISO app lists published products and leaves out **Link only** ones. A link still opens them. Its checkout also stops students who aren't members from buying members-only products.
+- Drafts aren't shown on biso.no or in the app, and can't be bought.
+
+## Common mistakes
+
+- Publishing without a **Department** or a **Sales type**. The save fails. Fill in both on **Essentials**.
+- Using the **Status** selector to hide or archive a product. It does nothing. Choose **Save draft** to take a product out of the shop.
+- Choosing **Save draft** on a published product by mistake. It leaves the shop at once. Choose **Publish** to put it back.
+- Expecting **Members only** to hide a product. Everyone can still see it. Use **Link only** to keep it out of the lists.
+- Using **Link only** for something that must stay private. Anyone with the link can buy it.
+- Setting **Member price (NOK)** to 0 to make it free for members. 0 counts as no member price, so members pay the regular price.
+- Giving two products the same address. biso.no then opens only one of them.
+- Expecting the required marks on **Teaser** and **Category** to stop a save. Fill them in yourself.
+- Adding a **Dropdown** question without options. The save fails.
+- Looking for a way to create a membership. Plans and prices come from 24SevenOffice.
+- Waiting for an approval after **Publish**. There isn't one. The product is live at once.
+- Deleting a product you meant to hide. Choose **Save draft** instead.

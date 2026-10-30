@@ -1,0 +1,105 @@
+---
+title: What BISO runs
+description: Every part of the platform on one page, where each part runs, and where its code lives.
+covers:
+  - functions/*/package.json
+  - functions/*/README.md
+  - functions/scheduled-dispatch/src/main.ts
+  - packages/api/server-env.ts
+  - apps/api/src/lib/allowed-origins.ts
+  - packages/connectors/package.json
+  - packages/payment/package.json
+  - packages/ai/src/models.ts
+---
+
+This page is the map of the platform. Read it before you change anything, and come back to it when something breaks and you need to know what depends on what. Almost everything runs on one rented server: Appwrite holds the data and also runs the web apps and the three functions.
+
+## The system
+
+<Mermaid
+  chart={`flowchart TB
+  browser["Browsers"]
+  app["BISO app<br/>iOS and Android"]
+  subgraph vps["Webdock VPS"]
+    subgraph aw["Appwrite 2.5.0"]
+      web["web<br/>biso.no"]
+      admin["admin<br/>admin.biso.no"]
+      api["api<br/>api.biso.no"]
+      docs["docs<br/>docs.biso.no, planned"]
+      data[("Database, sign-in,<br/>files, push and email")]
+      fns["Functions<br/>scheduled-dispatch<br/>content-notifier<br/>member-roster-sync"]
+    end
+    infisical["Infisical<br/>developer credentials"]
+  end
+  outside["Outside services<br/>Microsoft, BI sign-in,<br/>Vipps, Stripe, 24SevenOffice,<br/>Anthropic, Firebase, wallets,<br/>SMTP, Tickster, Entur"]
+  betterstack["Better Stack<br/>uptime alerts"]
+  umami["Umami<br/>analytics"]
+  browser --> web
+  browser --> admin
+  browser --> docs
+  app --> api
+  app --> data
+  web --> api
+  web --> data
+  admin --> data
+  api --> data
+  fns -->|"scheduled-dispatch, every 5 min"| api
+  web --> outside
+  admin --> outside
+  api --> outside
+  fns --> outside
+  betterstack -.->|"uptime checks"| web
+  browser -.-> umami`}
+/>
+
+To keep it readable, the diagram leaves out these calls:
+
+- The admin calls the API, and asks the website to refresh its cache after some saves.
+- scheduled-dispatch also calls the website, the admin and content-notifier.
+- Browsers call the API directly from some expense pages.
+- Appwrite itself calls Firebase to send push, and BI and Microsoft for sign-in.
+- The docs read private details from Infisical and the signed-in reader from Appwrite, and send the assistant's questions to Anthropic.
+- Vipps, Stripe and the Teams bot call the API back.
+
+## Components
+
+| Component | What it does | Where it runs | Code |
+|---|---|---|---|
+| web | The public site at `biso.no`. Students sign in here with BI or a magic link. | Appwrite Site | `apps/web` |
+| admin | The staff CMS at `admin.biso.no`. Staff sign in with Microsoft. | Appwrite Site | `apps/admin` |
+| api | A REST service at `api.biso.no` for the website and the app: payments, membership checks, expenses, the member pass and BI sign-in. Most scheduled jobs call it. | Appwrite Site | `apps/api` |
+| docs | These docs. | Appwrite Site, planned for `docs.biso.no` | `apps/docs` |
+| Appwrite 2.5.0 | Two databases with about 100 tables, sign-in and sessions, file storage, push and email, functions, and hosting for the apps. An upgrade is planned. | Webdock VPS, self-hosted | Schema in `packages/api/appwrite.config.json`. Apps reach it through `packages/api`. |
+| Infisical | Where developers get credentials, for example when setting up a new machine. Values are copied from it into the Appwrite console by hand. The website, admin and API never read it. The docs read their private details from it. | Webdock VPS, self-hosted | Infisical itself isn't in the repo. The docs' reader is `apps/docs/lib/private/infisical.ts`. |
+| scheduled-dispatch | Every 5 minutes, calls the apps' background endpoints, such as order reconciliation, scheduled announcements and data clean-up. | Appwrite Function | `functions/scheduled-dispatch` |
+| content-notifier | Sends the automatic push when an event, news item or job goes live. | Appwrite Function | `functions/content-notifier` |
+| member-roster-sync | Every night, rebuilds the member list on the admin's members page from 24SevenOffice. | Appwrite Function | `functions/member-roster-sync` |
+| Shared packages | Code the apps share, such as Appwrite access, the page editor, UI, outside services, payments, AI and translations. | Built into each app | `packages/*` |
+| BISO app | The iOS and Android app. It talks to Appwrite directly and to `api.biso.no`. | App Store and Google Play | The BISO-Flutter repo |
+| Better Stack | Sends an alert when the site can't be reached. Free plan. | Better Stack's own service | Not in the repo |
+| Umami | Visitor analytics for the website and the admin. The admin's analytics page reads it. | Self-hosted | Umami itself isn't in the repo. The admin's client is in `apps/admin/src/lib/umami`. |
+
+## Outside services
+
+| Service | What it's for | Code |
+|---|---|---|
+| Microsoft (BISO's tenant) | Staff sign-in to the admin, and the groups that give admin roles. Microsoft Graph for the admin's IT pages and interview invites. SharePoint for governing documents. A Teams bot for expense approvals. Azure Automation for the board turnover. | `apps/admin/src/lib/m365-sync.ts`, `packages/connectors/src/azure`, `packages/connectors/src/sharepoint`, `packages/connectors/src/teams-bot` |
+| BI (the school) | Student sign-in on the website and in the app, through helper routes on the API, and the student's id from BI's directory. | `apps/api/src/app/api/auth`, `packages/connectors/src/azure/bi-directory.ts` |
+| Vipps MobilePay and Stripe | Payments in the shop and for memberships. The code supports both providers. | `packages/payment`, `apps/api/src/app/api/payment` |
+| 24SevenOffice (Finago) | Membership checks, the member roster, departments and ledger postings. | `packages/connectors/src/24sevenoffice` |
+| Anthropic | The AI features in the admin, the API and the website, and the docs assistant. | `packages/ai` |
+| Firebase Cloud Messaging | Push notifications to the app, sent through Appwrite. | The BISO-Flutter repo |
+| Apple Wallet and Google Wallet | The member pass. | `packages/shared/member-pass` |
+| SMTP relay | Email to people who aren't Appwrite users, such as whistleblowing contacts and page-form inboxes. | `packages/connectors/src/email` |
+| Tickster | Ticket buyers and events. | `apps/api/src/lib/tickster-sync.ts`, `apps/api/src/lib/tickster-events-sync.ts` |
+| Entur | Public-transport departures for the app. | `apps/api/src/lib/entur-departures.ts` |
+
+## What this means when something breaks
+
+- **One server carries almost everything.** If Appwrite is down, the website, the admin, the API and the functions stop, and the BISO app can't load data. Infisical runs on the same server, so if the server itself is down, Infisical is down too. The administration leader's emergency kit covers that case.
+- **Backups.** Webdock backs up the whole server every night, encryption keys included. Nobody has reported testing a restore.
+- **Unset Appwrite settings mean production.** `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back one at a time. If either is unset, the web apps use the production value for it (`packages/api/server-env.ts`). Only the admin warns.
+
+## How code gets to production
+
+The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy the apps, and no GitHub workflow builds or tests them. A deploy workflow is planned. Only scheduled-dispatch's README says it deploys through the console's Git integration. The other two functions' READMEs don't say how their code reaches Appwrite. Check each function's deployment settings in the console before you push function code. [Deploying](/developers/keep-it-running/deploying#deploy-a-function) has the details. The BISO app is different: in the BISO-Flutter repo, each push to `main` builds Android and uploads it to Google Play's internal track, and iOS is built by hand with `flutter build ipa --release`.

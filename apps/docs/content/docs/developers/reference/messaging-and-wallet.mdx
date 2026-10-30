@@ -1,0 +1,114 @@
+---
+title: Messaging and wallets
+description: How the platform sends email over SMTP and through Appwrite Messaging, how push reaches the app through Firebase, and how the member pass gets into Apple Wallet and Google Wallet. What fails, what people see, and how to test.
+covers:
+  - packages/connectors/src/email/**
+  - apps/web/src/app/actions/varsling.ts
+  - apps/web/src/app/api/form/submit/route.ts
+  - apps/admin/src/app/(portal)/_actions/varsling.ts
+  - apps/admin/src/app/(portal)/_actions/member-pass-scanners.ts
+  - apps/api/src/app/api/expenses/submit/route.ts
+  - packages/shared/utils/push-dispatch.ts
+  - apps/admin/src/lib/announcements/send.ts
+  - packages/shared/member-pass/wallet-config.ts
+  - packages/shared/member-pass/apple-pass.ts
+  - packages/shared/member-pass/google-pass.ts
+  - packages/shared/member-pass/google-wallet-api.ts
+  - apps/web/src/app/api/member-pass/**
+  - apps/api/src/app/api/member-pass/route.ts
+  - apps/api/src/app/api/member-pass/apple/**
+  - apps/api/src/app/api/member-pass/google/**
+---
+
+Read this before you change how the platform sends email or push, or how the member pass works. Email leaves the platform two ways: over an SMTP relay to people who aren't Appwrite users, and through Appwrite Messaging to people who are. Push goes through Appwrite Messaging to Firebase. The member pass can be added to Apple Wallet and Google Wallet. The variables are listed under [Email, analytics and rate limits](/developers/keep-it-running/secrets-and-environment#email-analytics-and-rate-limits) and [Member pass](/developers/keep-it-running/secrets-and-environment#member-pass) in Secrets and environment.
+
+## Accounts
+
+- The SMTP relay, the Firebase project and Google Wallet: <Private name="account-owners" label="Account owners" />
+- The Apple Developer account, which holds the Wallet pass certificate: <Private name="apple-developer-account" label="Apple Developer account" />
+
+## SMTP
+
+**What it does.** Sends email to addresses that may never sign in to the platform. Appwrite Messaging can only address Appwrite users, so these go over a plain SMTP relay:
+
+- whistleblowing reports from the website, to one of the contacts staff set up on the admin's whistleblowing page
+- page forms set to send by email, from the website
+- invitations to member-pass scanners, from the admin
+- the **Send test** button on the admin's whistleblowing contacts page (`/varsling`), which mails a sample report to a contact's stored address
+
+**Code.** `packages/connectors/src/email/smtp.ts`. It's called from `apps/web/src/app/actions/varsling.ts`, `apps/web/src/app/api/form/submit/route.ts`, `apps/admin/src/app/(portal)/_actions/varsling.ts` and `apps/admin/src/app/(portal)/_actions/member-pass-scanners.ts`.
+
+**Variables.** `SMTP_HOST`, `SMTP_FROM`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_ALLOW_INSECURE`, on the website and the admin. SMTP is off unless both `SMTP_HOST` and `SMTP_FROM` are set. Unless the connection uses TLS from the start (port 465, or `SMTP_SECURE=true`), the relay must offer STARTTLS, or every send fails. Set `SMTP_ALLOW_INSECURE=true` only for a relay you trust that can't.
+
+**When it fails.**
+
+- **A whistleblowing report is lost.** The website keeps no copy: the email is the report. The reporter sees `Failed to submit varsling case. Please try again.` Use **Send test** after any change to SMTP or to a contact.
+- A page form in email mode answers `500` with `Submission failed`. A form whose recipient isn't a `@biso.no` address answers `400` with `This form is not set up to send email.`, and sends nothing.
+- A scanner invitation isn't sent, but the scanner's access is still saved. If the send itself failed, the admin logs `[Member Pass] Sending a scanner invitation failed:`.
+- **Send test** shows `SMTP is not configured on this deployment — set SMTP_HOST and SMTP_FROM.` when SMTP is off.
+
+**Test it safely.** In your own Appwrite project, point `SMTP_HOST` at a mail catcher on your machine, such as Mailpit, with `SMTP_ALLOW_INSECURE=true`. A catcher keeps every message, whatever the address, so nothing reaches a real inbox. The connector has unit tests in `packages/connectors/src/email/smtp.test.ts`.
+
+## Appwrite Messaging email
+
+**What it does.** Sends email to Appwrite users through the email provider set up under **Messaging** in the Appwrite console. The provider isn't in the repo.
+
+- While `expenses_ledger_posting` is off, a submitted reimbursement is emailed with its cover sheet and receipts to the student, and to accounting. Accounting's inbox is the Appwrite user in `INVOICE_USER_ID`, because Messaging only mails users (`apps/api/src/app/api/expenses/submit/route.ts`).
+- While the flag is on, the student gets an email when their reimbursement is approved or rejected (`apps/api/src/lib/expense-approval.ts`).
+
+Sign-in links by email, on the website and in the app, are sent by Appwrite itself, with Appwrite's own email settings. They aren't in the repo either.
+
+**When it fails.** While `expenses_ledger_posting` is off and `INVOICE_USER_ID` is unset, every reimbursement submission fails before anything is sent. A message Appwrite accepted but couldn't deliver shows under **Messaging**, then **Messages**, in the console, with its errors.
+
+**Test it safely.** Your own project has no email provider until you add one. Add one with your own mailbox or a test service, and make `INVOICE_USER_ID` a user in your project. The reimbursement emails also need the `expenses` storage bucket, because the cover sheet is stored there first. The schema copy in [Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project) has no buckets, so create it in your project.
+
+## Push
+
+**What it does.** Sends push notifications to the BISO app. The admin's announcements (`apps/admin/src/lib/announcements/send.ts`) and the content-notifier function call `packages/shared/utils/push-dispatch.ts`, which asks Appwrite Messaging to push to topics or users. Appwrite passes each push to Firebase Cloud Messaging through the provider with the id `push`. Its credential is a Firebase service account, set in the console. No variable is involved.
+
+**When it fails.** The sender logs `Failed to send announcement push:` and carries on, so the admin doesn't show an error. [Push notifications aren't sent](/developers/keep-it-running/when-things-break#push-notifications-arent-sent) is the runbook, and [Push](/developers/change-it/the-mobile-app#push) explains how phones register.
+
+**Test it safely.** There's no safe end-to-end test. The app has the production Appwrite project written into its code ([The mobile app](/developers/change-it/the-mobile-app)), so a phone can't register with a test project without changing the app. `packages/shared/utils/push-dispatch.test.ts` and the tests in `functions/content-notifier` cover who a push goes to and what it says.
+
+## Apple Wallet
+
+**What it does.** A member can add their pass to Apple Wallet: the website's `GET /api/member-pass/apple`, or the api's route of the same name for the app. The route builds a `.pkpass` file signed with BISO's Pass Type ID certificate. The code in it is signed with `MEMBER_PASS_SECRET`. The first pass a process builds fetches its icon from the website's `/apple-touch-icon.png`.
+
+**Code.** `packages/shared/member-pass/apple-pass.ts` and `packages/shared/member-pass/wallet-config.ts`, and the routes in `apps/web/src/app/api/member-pass/apple/` and `apps/api/src/app/api/member-pass/apple/`.
+
+**Variables.** `APPLE_PASS_TYPE_ID`, `APPLE_TEAM_ID`, `APPLE_PASS_CERT`, `APPLE_PASS_KEY`, `APPLE_PASS_KEY_PASSPHRASE` and `APPLE_WWDR_CERT`, on the website and the api. The certificates and the key go in base64 on one line.
+
+**When it fails.**
+
+- Until all of them are set, the **Legg til i Apple Wallet** (Add to Apple Wallet) button is hidden, and the route answers `404` with `not_configured`.
+- If building the pass fails, the route answers `500` with `failed`, and logs `[Member Pass] Apple Wallet pass failed:`.
+- The Pass Type ID certificate expires on 2027-10-17. After that, passes already in Wallet keep working, but no new pass can be signed. See [Apple](/developers/keep-it-running/yearly-calendar#apple) in the Yearly calendar.
+
+## Google Wallet
+
+**What it does.** A member can save their pass to Google Wallet. The route writes the pass to Google's Wallet API with BISO's service account, then sends the member to a "Save to Google Wallet" link. The website redirects to the link. The api returns it as `saveUrl` for the app.
+
+**Code.** `packages/shared/member-pass/google-pass.ts` and `packages/shared/member-pass/google-wallet-api.ts`, and the routes in `apps/web/src/app/api/member-pass/google/` and `apps/api/src/app/api/member-pass/google/`.
+
+**Variables.** `GOOGLE_WALLET_ISSUER_ID` and `GOOGLE_WALLET_SERVICE_ACCOUNT`, on the website and the api. The service account's JSON key goes in base64 on one line.
+
+**When it fails.**
+
+- Until both are set, the **Legg til i Google Wallet** (Add to Google Wallet) button is hidden, and the route answers `404` with `not_configured`.
+- If Google's API refuses the pass, the route answers `502` with `wallet_unavailable`, and logs `[Member Pass] Google Wallet API failed:`.
+
+## Changing the pass secret
+
+Don't change `MEMBER_PASS_SECRET` unless it has leaked. Every pass already in Apple Wallet or Google Wallet stops scanning. [Secrets to leave alone](/developers/keep-it-running/secrets-and-environment#secrets-to-leave-alone) explains.
+
+## Testing the wallets
+
+There's no safe end-to-end test of either wallet. A pass exists only for a member whose membership 24SevenOffice confirms, and there's no test company to get one from ([Accounting](/developers/reference/accounting#test-it-safely)). The Google route also writes to BISO's real issuer account. With the variables unset, the buttons stay hidden and nothing is called.
+
+The pass code has unit tests that need no network:
+
+```bash
+cd packages/shared && bun run test
+```
+
+They're in `packages/shared/member-pass/`, for example `apple-pass.test.ts`, `google-pass.test.ts` and `wallet-config.test.ts`.

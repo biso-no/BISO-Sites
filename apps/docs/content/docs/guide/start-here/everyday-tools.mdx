@@ -1,0 +1,210 @@
+---
+title: Everyday tools
+description: The overview, review drafts, the activity log, quick search and the BISO Assistant, and who sees each one.
+who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Quick search and the BISO Assistant are for everyone with an admin role, including department members, HR and benefits editors."
+covers:
+  - apps/admin/src/app/(portal)/page.tsx
+  - apps/admin/src/app/(portal)/_components/content-chart.tsx
+  - apps/admin/src/app/(portal)/_actions/pages.ts
+  - apps/admin/src/app/(portal)/drafts/**
+  - apps/admin/src/app/(portal)/_actions/drafts.ts
+  - apps/admin/src/app/(portal)/activity/**
+  - apps/admin/src/app/(portal)/_actions/activity.ts
+  - apps/admin/src/app/(portal)/_actions/audit-log.ts
+  - apps/admin/src/app/(portal)/_components/command-palette.tsx
+  - apps/admin/src/app/(portal)/_actions/palette-search.ts
+  - apps/admin/src/lib/palette-search-model.ts
+  - apps/admin/src/lib/recents.ts
+  - apps/admin/src/app/(portal)/_components/assistant/**
+  - apps/admin/src/app/api/assistant/**
+  - packages/ai/src/assistant/**
+  - apps/admin/src/app/(portal)/sidebar.tsx
+  - apps/admin/src/app/(portal)/_components/admin-shell.tsx
+  - apps/admin/src/app/(portal)/layout.tsx
+  - apps/admin/src/lib/assistant-publish.ts
+  - apps/admin/src/lib/assistant-campus.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - packages/shared/utils/content-notifications.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You're signed in to the admin. [Sign in and find your way](/guide/start-here/sign-in) covers signing in, the sidebar, the language setting and the notification bell.
+- Each step below says who sees the tool. Department members, HR and benefits editors have quick search and the assistant. The other tools aren't in their sidebar.
+- Quick search and the assistant panel are in English whatever your admin language, so this page gives their labels in English.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Read the overview (global admins and campus leaders)">
+
+Global admins and campus leaders land on **Oversikt** (Overview) when they sign in. Everyone else goes to the first item in their sidebar.
+
+The heading reads **God dag, Admin** (Good day, Admin). It says "Admin" for everyone. The header has two buttons:
+
+- **Gjennomgå utkast** (Review Drafts) opens the drafts list. See the next step.
+- **Opprett side** (Create Page) opens **Sider** (Pages).
+
+Below the heading are the counts. Each one links to its area and is marked **Åpne arbeidsområde** (Open workspace). Global admins see four. Campus leaders see three, because vacancies belong to HR and the global admins.
+
+| Count | What it counts | Where it links |
+|---|---|---|
+| **Åpne stillinger** (Open Jobs) | Published jobs. Global admins only. | **Stillinger** (Jobs) |
+| **Kommende arrangementer** (Upcoming Events) | Every published event, past ones included | **Arrangementer** (Events) |
+| **Publiserte artikler** (Published Articles) | Published news | **Nyheter** (News) |
+| **Ventende utkast** (Pending Drafts) | The drafts in **Gjennomgå utkast** (Review Drafts): draft events and news, plus draft jobs for global admins | **Gjennomgå utkast** (Review Drafts) |
+
+The counts follow your campus. Campus leaders see their own campus. Global admins see all campuses, or the one they picked in the campus box at the top of the sidebar. A count that can't be loaded shows 0, with no error message.
+
+The **Activity** chart covers the **Last 14 days**, with **Events**, **News** and **Jobs** shown separately. It counts each day's entries in the activity log, such as an item being created or edited. It doesn't show how many items were published. It reads only the latest 200 log entries, so a busy fortnight is cut short.
+
+Under the chart, **Nylig aktivitet** (Recent Activity) lists the five latest entries in the activity log. **Se all aktivitet** (View all activity) opens the full log.
+
+The overview doesn't show the inbox. New form submissions and waiting requests are counted in the red number on **Innboks** (Inbox) in the sidebar. That number is counted when the admin loads and doesn't change while you move between pages, so reload the page to update it. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
+
+</Step>
+<Step title="Review drafts (global admins and campus leaders)">
+
+Open **Innhold** (Content) and choose **Gjennomgå utkast** (Review Drafts), or choose **Gjennomgå utkast** (Review Drafts) on the overview. The heading shows how many are waiting, for example **4 ventende** (4 pending).
+
+The list holds draft events and news for your campus. Global admins also see draft jobs, and they see all campuses, or the one they picked in the campus box. The list takes up to 50 of each type, most recently edited first. Pages, products, benefits and documents never appear here.
+
+Each card shows:
+
+- the cover image, for events and news
+- the type: **Stilling** (Job), **Arrangement** (Event) or **Artikkel** (Article)
+- the Norwegian title, or **Untitled job**, **Untitled event** or **Untitled article** when there isn't one
+- the date it was last edited
+
+To check a draft, choose the link icon at the bottom of the card (tooltip: *Forhåndsvis* (Preview)). It opens the item's editor. There's no preview of the public page on this screen.
+
+To publish the draft, choose **Godkjenn** (Approve). It goes live at once, with no confirmation. You see **Utkast godkjent og publisert** (Draft approved and published), and the card leaves the list.
+
+If a draft isn't ready, leave it. It stays a draft, and stays in this list, until someone approves it or publishes it from its editor.
+
+The notification bell's **Pending** tab also lists draft jobs, events and news. See [Sign in and find your way](/guide/start-here/sign-in#open-the-notification-bell).
+
+Campus leaders don't see draft jobs in this list. Draft jobs can still show in the bell's **Pending** tab. Leave them to HR, who handle vacancies in **Stillinger** (Jobs) with the global admins.
+
+<Callout type="warn">
+**Godkjenn** (Approve) publishes the item on biso.no straight away. Open the draft with the link icon and check it first.
+</Callout>
+
+</Step>
+<Step title="Check the activity log (global admins and campus leaders)">
+
+Open **System** and choose **Aktivitet** (Activity), or choose **Se all aktivitet** (View all activity) on the overview. The page is headed **Aktivitetslogg** (Activity Log).
+
+The log lists actions taken in the admin, newest first. Each row shows:
+
+- who did it: their email, or **System** for something that ran by itself, such as a vacancy going live at its scheduled time
+- what they did, as a code name, for example `event.create`, `page_published` or `draft_approved`
+- the type of item, with the first eight characters of its id
+- the date and time
+
+Change how many rows you see with **Per side** (Per page) at the bottom.
+
+Use the log to check who did something and when. Find the row by its date and time, then read the action and the type of item.
+
+You can't search, filter or export the log, and you can't open a row for more detail.
+
+</Step>
+<Step title="Find things with quick search (everyone)">
+
+Open quick search in any of these ways:
+
+- Press ⌘K on a Mac or Ctrl+K on other computers.
+- Click **Hurtigsøk i admin...** (Quick search in admin...) in the top bar.
+- Click the ⌘ K button next to **BISO Studio** at the top of the sidebar.
+
+Move with the arrow keys and press Enter to open what's highlighted. Esc closes quick search.
+
+With nothing typed, you see:
+
+- **Recent**: the last five admin pages and items you opened. They're kept in this browser, so another computer has its own list.
+- **Navigate**: the admin pages your role can open. A few aren't here: **Medlemmer** (Members), **Regnskap** (Accounting), **Varsling** (Whistleblowing) and **Appversjoner** (App versions). Use the sidebar for those. Some names differ from the sidebar: **Shop** is **Produkter** (Products), **Drafts** is **Gjennomgå utkast** (Review Drafts), **IT Console** is **IT** and **Payment settings** is **Betaling** (Payments).
+- **Create**, if your role can create content: **New Event** and **New News Article**, plus **New Job Posting** for HR and global admins. Each opens the editor for a new item.
+- **Account**: **Sign Out**.
+
+Global admins also get **Switch campus: Oslo**, **Switch campus: Bergen**, **Switch campus: Trondheim**, **Switch campus: Stavanger** and **Switch campus: All campuses**. They do the same as the campus box in the sidebar.
+
+Type to narrow the list. Once you've typed two letters, quick search also looks through content. Results come in groups: **Jobs**, **Events**, **News**, **Pages**, **Departments**, **Products** and **Orders**, with up to five in each. It matches titles, department names, and for orders the buyer's name or email. Each result shows its status, or its campus for a department. Choose one to open it.
+
+You only get results your role and campus let you open. Orders, for example, show only for global admins and campus leaders.
+
+While it searches, you see **Searching…**. If the search fails, you see **Search unavailable**. Try again in a moment.
+
+Quick search doesn't find members, form submissions, approval requests, documents or benefits, and it doesn't search the text of news articles.
+
+When the assistant is on, the last group, **AI**, has one row: **Ask BISO Assistant:** followed by what you typed, or **Open BISO Assistant** if you typed nothing. Choosing it opens the assistant and sends your text as the first message.
+
+</Step>
+<Step title="Ask the BISO Assistant (everyone)">
+
+Open the assistant in any of these ways:
+
+- Choose **Spør BISO Assistant** (Ask BISO Assistant) near the bottom of the sidebar.
+- Choose the **AI** row in quick search.
+- On a narrow screen, tap the round sparkle button at the bottom right.
+
+A panel titled **BISO Assistant** slides in from the right. Close it with the X in its header. The panel is in English whatever your admin language.
+
+An empty panel shows **What can I help with?** and a few suggestions for your role. Choose a suggestion to send it, or type in **Ask BISO Assistant…**. Press Enter to send, and Shift+Enter for a new line. A message can be up to 2,000 characters.
+
+What the assistant can do depends on your role. It can search and read the content you have access to, and take you to pages. Global admins and campus leaders get more, such as approving requests. Only HR and global admins can work with vacancies through the assistant. For everyone else it won't work with vacancies, and tells you HR handles them.
+
+When it opens a page for you, the admin goes there straight away, and the chat shows a note of where it went. The conversation stays while you move around the admin. If you reload or close the page, it's gone.
+
+In the job editor and the event editor, the assistant can fill in the form on your screen. It doesn't save. Check the fields, then save yourself.
+
+Jobs, events and news that the assistant creates have **Notify students when published** switched on. When one is published, students who follow that topic in the app usually get one notification. To stop it, open the item's editor, switch off **Notify students when published** and save, before it's published. [How notifications reach students](/guide/announcements) explains who gets it and when.
+
+The assistant can't create, change, publish or delete anything until you confirm it. Each change gets its own card, and the admin makes the change only after you choose **Confirm** on that card, or the red **Delete** for a deletion. **Cancel** drops it.
+
+- New content first gets a draft card with **NO** and **EN** tabs. **Edit** lets you change the title and text, **Approve & save** accepts the text, and the X drops it. The assistant then shows a confirm card for saving the item.
+- The confirm card's title says what will happen, for example **Create events draft**, **Create and publish news**, **Update events**, **Publish jobs** or **Delete news**.
+- The card lists every field the change will write. A card for new content starts with **Campus**, **Department** and **Publishes now**, and for an event, news item or job, **Push notification: yes**. A card for a change names the item and lists each field that changes.
+- A long value is cut short on the card. Choose **Show full value:** with the field's name to read all of it.
+
+Read every line before you choose. Only the cards in the assistant's latest message can be answered. Older cards read **This card is no longer active. Ask again to make this change.** A card works once, and the change isn't made if you confirm more than 10 minutes after the card appeared. Then ask again. Once you've answered, the card shrinks to a line saying you confirmed, or **Cancelled**. The line follows your click, so read the assistant's reply to see whether the change was made.
+
+If you ask it to publish something you can't publish yourself, you still confirm the change on its card first. The item is then saved as a draft, or left as one, and the assistant shows an **Approval required** card. For a new item, the confirm card's title and **Publishes now: yes** still say it goes live, but the item is saved as a draft. That happens for department members' own items too. You don't need a request for those: open the item in its editor and publish it there. Benefits editors can publish benefits through the assistant without a request, and HR and global admins can publish vacancies without one. The assistant also shows the **Approval required** card when you ask for a change your role can't make.
+
+The card's title says what's being asked, for example **Events → Publish**. Only publishing an event, news item, job, benefit, document or product can be approved. Any other request, such as **Events → Update** or **Pages → Publish**, can only be rejected, so drop it with the X. Then ask a campus leader or a global admin to make the change, or make the change yourself in the item's editor, if you can. For a publishing request, choose **Send approval request** to send it. The request goes to the inbox of the campus leaders for the item's campus. Requests for jobs, and for National or no campus, go to the global admins. Global admins can see every request.
+
+Nobody is told about the request, and you aren't told when it's decided. When it's approved, the item is published, so check the item in its own list. If it's rejected, the item stays as it was, and nothing in the admin tells you why. Ask the approvers. See [Inbox and approvals](/guide/start-here/inbox-and-approvals).
+
+<Callout type="warn">
+**Delete** on an assistant card deletes the item for good. There's no undo.
+</Callout>
+
+If **Spør BISO Assistant** (Ask BISO Assistant) opens nothing and quick search has no **AI** row, the assistant is switched off for the whole admin. Ask the global admins.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- None of these tools sends an email, a push or a Teams message of its own.
+- Approving a draft publishes it on biso.no at once. Events and news show on the biso.no lists, and jobs on biso.no/jobs. For an event, news item or job, its automatic push notification follows if the item's **Notify students when published** setting is on. It's on for items the assistant creates, so switch it off in the item's editor and save first if you don't want a push.
+- Approving a draft is written to the activity log with your email.
+- An approval request sent from the assistant waits in the approvers' inbox. Nobody gets a message about it.
+</WhatHappensNext>
+
+## What the student sees
+
+Students and members never see these tools. They see what comes out of them: a draft you approve shows on biso.no like any other published item.
+
+## Common mistakes
+
+- Reading **Kommende arrangementer** (Upcoming Events) as events still to come. It counts every published event, past ones included.
+- Trusting a 0 on the overview. A count that couldn't be loaded shows 0. Reload the page if a number looks wrong.
+- Approving a draft to see how it looks. **Godkjenn** (Approve) publishes it at once. Open it with the link icon instead. To take a published item offline again, unpublish it in its own editor.
+- Losing an assistant conversation. Reloading or closing the admin clears it. Copy anything you need first.
+- Choosing **Confirm** or **Delete** on an assistant card without reading every line. The card lists exactly what will be written, including the campus and whether the item goes live. A deletion can't be undone.
+- Looking for a member or a form submission in quick search. Use **Medlemmer** (Members) or **Innboks** (Inbox).

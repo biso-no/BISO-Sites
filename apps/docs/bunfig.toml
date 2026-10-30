@@ -1,0 +1,3 @@
+# Compile the MDX pages in tests, as the build does. See test-preload.ts.
+[test]
+preload = ["./test-preload.ts"]

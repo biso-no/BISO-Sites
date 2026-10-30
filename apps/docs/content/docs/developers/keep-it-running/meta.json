@@ -1,0 +1,12 @@
+{
+  "title": "Keep it running",
+  "pages": [
+    "deploying",
+    "scheduled-jobs",
+    "secrets-and-environment",
+    "monitoring-and-health",
+    "backups-and-recovery",
+    "when-things-break",
+    "yearly-calendar"
+  ]
+}

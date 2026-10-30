@@ -1,0 +1,195 @@
+---
+title: Upload and update documents
+description: How to find BISO's governing documents in the admin, upload a new one to SharePoint, publish it on biso.no and upload a new version.
+who: "Global admins (National + Operations Unit) and members of the Control Committee, for every document. Campus leaders (Ledelsen on your campus), for documents on your campus. Department members, for their own department's documents on their campus."
+covers:
+  - apps/admin/src/app/(portal)/documents/**
+  - apps/admin/src/app/(portal)/_actions/documents.ts
+  - apps/admin/src/app/(portal)/_actions/schemas.ts
+  - apps/admin/src/app/(portal)/_components/pdf-upload-field.tsx
+  - apps/admin/src/app/(portal)/_components/version-input.tsx
+  - apps/admin/src/app/(portal)/_components/department-combobox.tsx
+  - apps/admin/src/lib/documents/**
+  - apps/admin/src/lib/content-authorization.ts
+  - packages/shared/utils/document-version.ts
+  - apps/web/src/app/(public)/documents/**
+  - apps/web/src/app/actions/documents.ts
+  - apps/web/src/app/api/documents/**
+  - apps/web/src/components/documents/**
+  - apps/web/src/lib/documents.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Documents are BISO's governing documents, such as the statutes, the local bylaws and the code of conduct. Each one is a PDF, kept in BISO's document library in SharePoint. The admin puts the file there for you. Students find the published ones at biso.no/documents.
+- A file must be a PDF smaller than 4 MB. A larger file stops with **Kunne ikke lagre dokumentet** (Failed to save document), or **Opplasting mislyktes** (Upload failed) for a new version. Make the PDF smaller and try again.
+- Each document has one language. To offer a document in Norwegian and in English, upload each language as its own document. They can have the same title.
+- National documents show for every campus. Only global admins and members of the Control Committee can add or change them. Everyone else works with documents for one campus.
+- Uploading needs the admin's connection to SharePoint. If it isn't set up, saving a new document or a new version stops with a message that starts **SharePoint-opplasting mislyktes: SharePoint is not configured** (SharePoint upload failed: SharePoint is not configured), and nothing is saved. Ask IT. You can still find documents and change their details.
+- The document form is mostly in English, whatever your admin language. This page gives each label as it appears on screen.
+- Who can open **Dokumenter** (Documents) is in [How departments work](/guide/departments-and-documents#who-can-use-departments-and-documents).
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Find a document">
+
+Open **Organisasjon** (Organization) and choose **Dokumenter** (Documents). The line under the heading reads **Administrer offisielle BISO-dokumenter publisert på SharePoint.** (Manage official BISO documents published on SharePoint.)
+
+The list shows 25 documents a page, the most recently changed first. Each row shows:
+
+- the title
+- **Draft** or **Published**, in English
+- **Campus** for a campus document, without saying which campus, or **National** for a national one
+- the category, in English, such as **National Statutes**
+- the version, such as **v12**, the file size and the date it was last changed
+
+**Søk** (Search) looks through titles and descriptions. **Alle** (All), **Publisert** (Published) and **Utkast** (Draft) narrow the list. Both work only on the 25 documents on the page you're on, so go through the pages at the bottom to find an older document. If nothing on the page matches, you see **No matching documents**.
+
+To open a document, choose its title. You can also point at its row and choose the pencil icon (tooltip: *Rediger dokument* (Edit document)).
+
+Global admins who have picked a campus in the campus box see only that campus's documents. Pick **All Campuses** in the campus box to see the national ones.
+
+If there are no documents yet, you see **Ingen dokumenter ennå** (No documents yet) and an **Upload first document** button.
+
+</Step>
+<Step title="Upload a new document">
+
+Choose **Nytt dokument** (New Document). The page **New Document** opens.
+
+Fill in **Document details**:
+
+- **Tittel** (Title), required. In SharePoint the file is named after the title, whatever your PDF is called. You can't change the title later.
+- **Beskrivelse** (Description): one or two lines about the document. biso.no shows it under the title.
+- **Kategori** (Category), required: **Nasjonale vedtekter** (National Statutes), **Lokale vedtekter** (Campus Bylaws) or **Adferdskodeks** (Code of Conduct). The form starts on **Nasjonale vedtekter**.
+- **Språk** (Language), required: **Norsk** (Norwegian) or **Engelsk** (English).
+- **Omfang** (Scope), required: **National (shown to all campuses)** or **Campus-specific**. The form starts on **National**. Unless you're a global admin or in the Control Committee, choose **Campus-specific**.
+- **Campus**, required for a campus document. Choose your campus. Campus leaders choose a campus they lead.
+- **Department**, for a campus document:
+  - Global admins, the Control Committee and campus leaders can choose a department on that campus, or leave **Campus-wide (no department)** for a document that belongs to the whole campus.
+  - Department members in several departments must choose one of theirs.
+  - Department members in one department see the field locked, reading **Pick a campus first**. If saving then shows **Unauthorized: no write access to this department**, ask a campus leader or a global admin to upload the document for your department.
+- **Versjon** (Version), required. Type the number only, such as 12 or 7.1. The box already shows the **v**.
+- **Status**, required: **Draft** or **Published**. It starts on **Draft**. A draft isn't shown on biso.no.
+
+Under **File**, click the **PDF-fil** (PDF File) box, which reads **Click or drag a PDF file here**, or drop the PDF on it. A file that isn't a PDF is ignored. To take the file out again, choose the X next to its name.
+
+Choose **Lagre** (Save). The file goes to SharePoint first, and then the document is saved. You see **Dokument lagret** (Document saved), and the document's page opens.
+
+The admin also asks SharePoint for a link that anyone can open. If SharePoint refuses, the document is still saved, and you see a warning instead: **Lagret, men SharePoint ville ikke opprette en offentlig lenke. Personer utenfor BISO kan fortsatt laste ned dokumentet fra biso.no.** (Saved, but SharePoint would not create a public link. People outside BISO can still download the document from biso.no.)
+
+If the save stops, the message says why:
+
+| You see | What to do |
+|---|---|
+| **A document with this title already exists in this category. Open it and upload a new version instead.** | A document with the same title, category, language and campus already exists. Open it and upload a new version. |
+| **Version must be a number like 12 or 7.1** | Type the version as a number only. |
+| **Only global admins and the control committee can create national documents** | Choose **Campus-specific** under **Omfang** (Scope). |
+| **Unauthorized: no write access to this department** | If you're in several departments, choose yours under **Department**. If you're in one, ask a campus leader or a global admin to upload it. |
+| **Unauthorized:** and a message about the campus | Choose your own campus under **Campus**. Campus leaders choose a campus they lead. |
+| **Title is required** or **A PDF file is required** | Fill in **Tittel** (Title), or add the PDF. |
+| **Kunne ikke lagre dokumentet** (Failed to save document) | The PDF may be too big. Make it smaller than 4 MB and try again. |
+| **SharePoint-opplasting mislyktes** (SharePoint upload failed), then the reason | Nothing was saved. Try again, and ask IT if it keeps failing. |
+| **Saved to SharePoint but the database write failed**, then the reason and **Try again.** | Choose **Lagre** (Save) again. |
+
+</Step>
+<Step title="Change a document's details or publish it">
+
+Open the document. Under **Document details** you can change:
+
+- **Beskrivelse** (Description)
+- **Status**: choose **Published** to show the document on biso.no, or **Draft** to take it off
+- **Department**, for a campus document. It's locked for members of one department.
+
+Choose **Lagre** (Save). You see **Dokument lagret** (Document saved).
+
+**Tittel** (Title), **Kategori** (Category), **Språk** (Language), **Omfang** (Scope) and **Campus** decide where the file is kept in SharePoint, so they're fixed once the document is uploaded. The note under **Tittel** (Title) reads **Tittel, kategori, språk, omfang og campus kan ikke endres etter opplasting, fordi de bestemmer hvor filen lagres.** (Title, category, language, scope and campus cannot be changed after upload, because they decide where the file is stored.)
+
+The fields still let you type. If you change one and save, the save is refused with **The title, category, language, scope and campus decide where the file is stored in SharePoint and cannot be changed after upload. Create a new document instead.**
+
+If you see **Kunne ikke lagre dokumentet** (Failed to save document), undo any change to the fixed fields and save again. Ask IT if it keeps failing.
+
+</Step>
+<Step title="Upload a new version">
+
+When a document is revised, upload the new file to the same document. Its link stays the same and its history is kept.
+
+Open the document. **File on SharePoint** shows the current version, such as **v12**, the file size and **Last updated** with the date.
+
+- **Vis på SharePoint** (View on SharePoint) opens the file in a new tab.
+- **Kopier lenke** (Copy link) copies its link. You see **Lenke kopiert** (Link copied).
+- If you see **Denne lenken virker bare for personer som er logget inn hos BISO.** (This link only works for people signed in to BISO.), the link opens only for people signed in with a BISO account.
+
+The note above the version field reads **Skriv inn det nye versjonsnummeret og velg PDF-en. Filen i SharePoint erstattes, så eksisterende lenker virker fortsatt, og forrige versjon blir liggende i historikken.** (Enter the new version number and choose the PDF. The file on SharePoint is replaced, so existing links keep working, and the earlier version stays in the history.)
+
+1. Type the new number in **Versjon** (Version), such as 13 or 12.1. It must be higher than the current version. 12.10 counts as higher than 12.9.
+2. Add the PDF in the box below it, as for a new document.
+3. Choose **Last opp ny versjon** (Upload New Version). The button shows once you've added a PDF, and works once you've typed a version.
+
+<Callout type="warn">
+Check the PDF and the number before you choose **Last opp ny versjon** (Upload New Version). You can't remove a version or lower the number. To fix a wrong upload, upload the right PDF as the next version.
+</Callout>
+
+You see **Ny versjon lastet opp — v13** (New version uploaded), and the new version is added at the top of **Versjonshistorikk** (Version history), with its size and date. The document keeps its status.
+
+Each new version also asks SharePoint again for a link that anyone can open. If it still refuses, you see the same warning as for a new document, and the version is uploaded anyway.
+
+If the upload stops:
+
+| You see | What to do |
+|---|---|
+| **Version must be higher than the current v12** | Type a higher number than the one shown. |
+| **Version must be a number like 12 or 7.1** | Type the version as a number only. |
+| **SharePoint-opplasting mislyktes** (SharePoint upload failed), then the reason | Try again, and ask IT if it keeps failing. |
+| **Opplasting mislyktes** (Upload failed) | The PDF may be too big. Make it smaller than 4 MB and try again. |
+| **Saved to SharePoint but the database write failed**, then the reason and **Upload the same version again to finish.** | Upload the same file with the same version number again. |
+
+</Step>
+<Step title="Delete a document">
+
+Delete a document only if it should disappear for good. To take it off biso.no and keep it, set **Status** to **Draft** instead.
+
+In the list, point at the document's row and choose the bin icon (tooltip: *Slett dokument* (Delete document)). The icon turns red, and you see **Er du sikker på at du vil slette dette elementet? Denne handlingen kan ikke angres.** (Are you sure you want to delete this item? This action cannot be undone.) Choose the bin again to delete. You see **Document deleted**.
+
+The document and its version history leave the admin and biso.no. Deleting here doesn't remove the file in SharePoint. If it must go, ask a global admin to remove it there.
+
+<Callout type="warn">
+Deleting a document can't be undone in the admin. To bring it back, you'd have to upload it again as a new document.
+</Callout>
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- No email or notification goes out when a document is uploaded, changed, published or deleted.
+- A published document is listed on biso.no/documents. A draft isn't.
+- In SharePoint, each version is also kept as its own file, named after the title and the version, such as *Vedtekter v12.pdf*, in a **Previous versions** folder next to the current file.
+- Each upload, change, new version and deletion is written to the activity log.
+- Deleting a document leaves its files in SharePoint.
+</WhatHappensNext>
+
+## What the student sees
+
+- biso.no/documents lists every published document, by category. Visitors can pick a category and search titles and descriptions.
+- National documents show whichever campus the visitor has picked. A campus document shows to visitors who have picked that campus, or no campus.
+- Documents in both languages are listed for every visitor.
+- Each document shows its title and description, a link that opens the file in SharePoint, and a download button. Earlier versions are listed under it, each with its own download.
+- Draft documents aren't shown.
+
+## Common mistakes
+
+- Leaving **Omfang** (Scope) on **National**. The form starts there. Unless you're a global admin or in the Control Committee, the save is refused with **Only global admins and the control committee can create national documents**. Choose **Campus-specific**.
+- Choosing **Forkast** (Discard) to cancel. It saves, the same as **Lagre** (Save), and for a new document it uploads the file to SharePoint. To leave without saving, use the back arrow to the left of the title.
+- Getting the title, category, language, scope or campus wrong. They can't be changed after upload. Create a new document with the right details, then delete the wrong one. Its file stays in SharePoint.
+- Making a new document for a new edition. Open the existing document and upload a new version, so the link stays the same and the history is kept.
+- Uploading a new version with the wrong PDF or a wrong number, such as 120 for 12.1. You can't undo it, and later versions must be higher still. Upload the right PDF as the next version.
+- Typing **v** in **Versjon** (Version). The box already has it. Type the number only.
+- Looking for an older document with **Søk** (Search). It only looks through the 25 documents on the page you're on.
+- Deleting a document to take it off biso.no. Set **Status** to **Draft** instead. Deleting can't be undone.
+- As a member of several departments, leaving **Department** on **Campus-wide (no department)**. The save is refused with **Unauthorized: no write access to this department**. Choose your department.

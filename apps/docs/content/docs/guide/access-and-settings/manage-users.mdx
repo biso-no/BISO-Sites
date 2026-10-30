@@ -1,0 +1,163 @@
+---
+title: Manage Microsoft users
+description: How global admins find, create and change BISO's Microsoft accounts in IT, change their groups, and reset their password or two-step sign-in, and what campus leaders can see and create.
+who: "Global admins (National + Operations Unit). Campus leaders (Ledelsen on your campus) can find, open and create accounts on their own campus, but can't change an account once it's made."
+covers:
+  - apps/admin/src/app/(portal)/it/page.tsx
+  - apps/admin/src/app/(portal)/it/layout.tsx
+  - apps/admin/src/app/(portal)/it/users/page.tsx
+  - apps/admin/src/app/(portal)/it/users/new/**
+  - apps/admin/src/app/(portal)/it/users/[userId]/**
+  - apps/admin/src/app/(portal)/it/users/_components/users-list-client.tsx
+  - apps/admin/src/app/(portal)/it/users/_components/create-user-client.tsx
+  - apps/admin/src/app/(portal)/it/users/_components/user-detail-client.tsx
+  - apps/admin/src/app/(portal)/_actions/it-users.ts
+  - apps/admin/src/lib/it/graph.ts
+  - apps/admin/src/lib/it/tenant-guard.ts
+  - apps/admin/src/lib/it/turnover-target.ts
+  - apps/admin/src/app/(portal)/it/users/_components/turnover-gate.ts
+  - apps/admin/src/lib/it/m365-config.ts
+  - apps/admin/src/lib/it-permission-rules.ts
+  - apps/admin/src/lib/it-permissions.ts
+  - packages/connectors/src/azure/users.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Every change on this page is made in Microsoft 365 at once. You can't see Microsoft from this guide, so the steps are text only.
+- Only global admins can change an account. Campus leaders can find and read the accounts on their own campus, and create new ones there. See [Campus leaders in IT](/guide/access-and-settings#campus-leaders-in-it).
+- IT shows only licensed accounts on BISO's own domain. Guests, and shared mailboxes without a licence, aren't listed and can't be opened.
+- An account's groups decide its role in the admin. See [Where roles come from](/guide/access-and-settings#where-roles-come-from).
+- Most labels in an account's **Profil** (Profile) section are in English whatever your admin language. This page gives them as the screen shows them.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Find a user">
+
+Open **System** and choose **IT**. The page is headed **Microsoft 365-brukere** (Microsoft 365 users), on the **Brukere** (Users) tab.
+
+With nothing typed, the list shows 20 accounts. Type a name, email or login address in **Søk i Microsoft 365-brukere** (Search Microsoft 365 users) to search. A search shows up to 25.
+
+Each row shows the name, email, department, job title, office, **Last sign-in:** with a date or **Never**, and a status: **Aktivert** (Enabled), **Deaktivert** (Disabled) or **Ukjent** (Unknown). Choose a row to open the account.
+
+If nothing matches, you see **Ingen Microsoft 365-brukere funnet** (No Microsoft 365 users found). If Microsoft can't be reached, a red box with Microsoft's error message shows instead of the list. Try again later, and tell the developers if it stays (see the [developer docs](/developers)).
+
+</Step>
+<Step title="Create a user (global admins and campus leaders)">
+
+Choose **Opprett bruker** (Create user) above the list. Fill in:
+
+- **Fornavn** (Given name) and **Etternavn** (Surname). Both are required.
+- **Brukerprinsipalnavn** (User principal name): the login address. Leave it empty and the admin makes one from the first and last name, as firstname.lastname on BISO's domain. A typed address must end in BISO's own domain, or you see **User principal name must use @biso.no.**
+- **E-postalias** (Mail nickname) and **Stillingstittel** (Job title), if you want them.
+- **Konto aktivert** (Account enabled): **Enabled** unless you want the account switched off for now.
+- **Campus**, then **Avdeling** (Department). Both are required. Choose the campus first: the department list shows only that campus's departments. Campus leaders see only their own campus in **Campus**, so they can only create accounts there.
+
+Choose **Opprett bruker** (Create user). You see **Microsoft 365 user created**, and the **Midlertidig passord** (Temporary password) box shows the new password. It's shown once. Click it to copy it, and give it to the person over a secure channel. They must change it the first time they sign in.
+
+The form stays filled in after the account is made. Don't choose **Opprett bruker** (Create user) again. Choose **Back** to go to the list.
+
+The admin also puts the new account in two groups: the `SG-App-` group for the campus and the one for the department. So the person gets the admin role those groups give when they first sign in to the admin. Check the campus and department carefully: Ledelsen on a city campus gives campus leader access, and Operations Unit on National gives global admin access. Don't create an account here for someone who shouldn't have admin access, such as an outside consultant. The developers' way to do that is in [Getting access](/developers/start-here/getting-access#microsoft-account).
+
+If you see **Required Microsoft 365 security group not found:** followed by a group name, or **Microsoft 365 user was created, but the Appwrite profile sync failed. Manual cleanup is required before retrying.**, the account was made but its setup wasn't finished. Don't try again. Ask the developers to finish it by hand.
+
+</Step>
+<Step title="Change an account's details (global admins)">
+
+Open the account. Its name is the heading, with its login address under it. The **Profil** (Profile) section holds:
+
+- **Display name**, **User principal name** and **Mail nickname**, which are required, and **Given name**, **Surname** and **Job title**
+- **Avdeling** (Department), from BISO's list of departments, and **Kontorsted** (Office location), which is the campus. Campus leaders see an account only if this is their campus.
+- **Mobile phone** and **Business phone**
+
+When you change **User principal name**, the admin checks it as you type: **Sjekker tilgjengelighet…** (Checking availability…), then **Tilgjengelig** (Available), **Allerede i bruk** (Already in use) with the owner's name, or **Må være en gyldig @biso.no-adresse** (Must be a valid @biso.no address). **Mail nickname** follows it, with the note **Synkronisert automatisk** (Auto-synced). You can only save when the new address is free.
+
+Choose **Lagre profil** (Save profile). You see **Profil oppdatert** (Profile updated).
+
+</Step>
+<Step title="Disable or enable an account (global admins)">
+
+In **Profil** (Profile), set **Account status** to **Disabled** or **Enabled**. A field headed **Risikokontroller** (Risk controls) appears, with the hint **Endring av kontostatus er høy risiko. Skriv bekreftelsesordet som vises for å fortsette.** (Changing account status is high risk. Type the shown confirmation word to continue.)
+
+Type `DISABLE` or `ENABLE`, in capitals, as the field shows. Then choose **Lagre profil** (Save profile).
+
+<Callout type="warn">
+Disabling locks the person out of Microsoft at once. Check the name and login address at the top of the page before you save.
+</Callout>
+
+A disabled account can't sign in to Microsoft. Its licences and groups stay, so you can enable it again the same way.
+
+</Step>
+<Step title="Change groups (global admins)">
+
+**Grupper** (Groups) lists the account's groups, each with its type, such as **Sikkerhetsgruppe** (Security) or **Microsoft 365**. The `SG-App-` security groups decide the person's role in the admin.
+
+- To add one, choose **Legg til i gruppe** (Add to group) and search in **Søk etter grupper…** (Search groups…). Choose the group, then **Bekreft** (Confirm) in the box that says **Brukeren får tilgang til alle ressurser knyttet til denne gruppen.** (The user will gain access to all resources associated with this group.)
+- To remove one, choose **Fjern** (Remove) on its row, then **Bekreft** (Confirm). The box says **Brukeren mister tilgang til ressurser knyttet til denne gruppen.** (The user will lose access to resources associated with this group.)
+
+The change is made in Microsoft at once. The person's role in the admin changes the next time they sign in.
+
+</Step>
+<Step title="Change aliases, manager and licences (global admins)">
+
+- **Aliaser** (Aliases) lists the account's email addresses. The main one is marked **Primær** (Primary). Type a new address and choose **Sjekk alias** (Check alias), then **Legg til alias** (Add alias). If the address belongs to someone else, you can choose **Overfør til denne brukeren** (Transfer to this user), and give the other person a replacement address if you like. **Fjern** (Remove) takes an alias off the mailbox.
+- **Leder** (Manager) shows the person's manager, or **Ingen leder tilordnet** (No manager assigned). Use **Tildel leder** (Assign manager), **Endre leder** (Change manager) or **Fjern leder** (Remove manager), and confirm.
+- **Lisenser** (Licenses) lists the licences the account has. **Tildel lisens** (Assign license) offers only licences BISO still has free. **Fjern** (Remove) warns **Dette vil umiddelbart fjerne tilgang til alle tilknyttede tjenester.** (This will immediately revoke access to all associated services.)
+
+</Step>
+<Step title="Reset two-step sign-in (MFA) (global admins)">
+
+Use this when someone has a new phone or has lost their sign-in method.
+
+**MFA og sikkerhet** (MFA and security) lists the account's sign-in methods. Choose **Tilbakestill MFA** (Reset MFA), then **Bekreft** (Confirm). The box says **Authenticator, telefon og privat e-postadresse for gjenoppretting fjernes. Brukeren må registrere MFA på nytt.** (Authenticator, phone and private email recovery methods will be removed. The user must re-enroll MFA at next sign-in.)
+
+You see **MFA-metoder fjernet** (MFA methods removed). If some couldn't be removed, you see **Noen MFA-metoder kunne ikke fjernes** (Some MFA methods could not be removed) with the reasons. The password stays as it was.
+
+If the button isn't there, the section says **Ingen fjerbare MFA-metoder registrert.** (No removable MFA methods registered.)
+
+</Step>
+<Step title="Reset a password (global admins)">
+
+The **Risikokontroller** (Risk controls) box has three password and sign-in actions. Each asks you to choose **Bekreft** (Confirm).
+
+- **Generer midlertidig passord** (Generate temporary password), for someone who has forgotten their password. The old password stops working at once. The new one shows under the button, as **Midlertidig passord** (Temporary password). Click it to copy it, and give it to the person over a secure channel. They must change it when they next sign in.
+- **Tving passordbytte ved neste innlogging** (Force password reset at next sign-in), for someone who knows their password but should change it. Their current password keeps working until they do.
+- **Tilbakekall alle sesjoner** (Revoke all sign-in sessions), to sign the person out of their Microsoft apps straight away. It can't be undone.
+
+<Callout type="warn">
+**Generer midlertidig passord** (Generate temporary password) replaces the person's password at once, and the old one can't be brought back. Check the name and login address at the top of the page before you confirm.
+</Callout>
+
+The top of the same box has **Start overgang** (Trigger turnover), on accounts whose login address ends in @biso.no. It's for role accounts only. See [Hand over a role account](/guide/access-and-settings/hand-over-a-role-account).
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- Each change is made in Microsoft 365 at once.
+- A change to someone's groups changes their role in the admin the next time they sign in.
+- Nobody gets an email. A new account's password, and any temporary password, is only shown on your screen, once.
+- Each change, and each attempt that failed, is written to the activity log with your email.
+- When someone leaves BISO, also ask the developers to sign them out of the admin, as in [When the work ends](/developers/start-here/getting-access#when-the-work-ends).
+</WhatHappensNext>
+
+## Common mistakes
+
+- Choosing **Opprett bruker** (Create user) a second time after the account was made. The form keeps your input, and a second try fails because the address is taken. Go **Back** to the list instead.
+- Choosing the department before the campus. Choose **Campus** first, then check **Avdeling** (Department) again before you create the account. Campus leaders can't change it afterwards; ask a global admin.
+- Closing the page before copying a temporary password. It isn't shown again. Choose **Generer midlertidig passord** (Generate temporary password) to make a new one.
+- Retrying after **Manual cleanup is required before retrying**. The account already exists. Ask the developers to finish it.
+- Expecting a group change to show up in the admin at once. The person must sign out and sign in again.
+- Removing a licence to tidy up. It cuts the person off from every service that comes with it, at once.
+- Choosing **Generer midlertidig passord** (Generate temporary password), **Tilbakekall alle sesjoner** (Revoke all sign-in sessions) or **Tilbakestill MFA** (Reset MFA) on the wrong account. None can be undone. Check the name and login address at the top of the page first.
+- Disabling the wrong account. The person is locked out of Microsoft at once. Set it back to **Enabled** with `ENABLE`.
+- Leaving **Kontorsted** (Office location) empty. Campus leaders then can't see the account.
+- Creating an account you didn't need. There's no way to delete an account in the admin. Ask the developers.
+- Choosing **Overfør til denne brukeren** (Transfer to this user) without checking who has the address now. It takes the address off the other person's mailbox at once, with no confirmation.

@@ -1,0 +1,152 @@
+---
+title: How membership and benefits work
+description: Who can see the members list, scan member passes and edit benefits in the BISO admin, what is members-only, what members see on biso.no and in the app, and what the system does on its own.
+covers:
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/nav-tree.ts
+  - apps/admin/src/lib/authorization.ts
+  - apps/admin/src/lib/benefit-access.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - apps/admin/src/lib/web-revalidate.ts
+  - apps/admin/src/app/(portal)/layout.tsx
+  - apps/admin/src/app/(portal)/_actions/members.ts
+  - apps/admin/src/app/(portal)/_actions/member-pass.ts
+  - apps/admin/src/app/(portal)/_actions/member-pass-scanners.ts
+  - apps/admin/src/app/(portal)/_actions/benefits.ts
+  - apps/admin/src/app/(portal)/_actions/membership-texts.ts
+  - packages/shared/member-pass/**
+  - packages/shared/utils/member-pass.ts
+  - packages/shared/utils/benefit-catalog.ts
+  - packages/shared/utils/benefit-visibility.ts
+  - packages/shared/utils/benefit-public.ts
+  - packages/shared/utils/benefit-scope.ts
+  - packages/shared/utils/content-read-permissions.ts
+  - packages/shared/utils/benefit-reveal-server.ts
+  - apps/api/src/app/api/benefits/**
+  - apps/api/src/app/api/member-pass/**
+  - functions/member-roster-sync/**
+  - apps/web/src/lib/data/benefits.ts
+  - apps/web/src/components/membership/v2/membership-v2.tsx
+  - apps/web/src/components/member-portal/shared/benefit-card.tsx
+  - apps/web/src/app/(public)/member/member-portal-content.tsx
+---
+
+This area of the admin covers BISO's paying members and what they get. It has two parts:
+
+- **Medlemmer** (Members), in the sidebar. It holds the members list and the tools for scanning member passes at the door.
+- **Fordeler** (Benefits), under **Innhold** (Content). It holds the benefits board, the partners behind the benefits, the partner logos on biso.no and the texts that say what membership gives.
+
+Students buy membership on biso.no. The plans and prices come from 24SevenOffice, and there's no screen in the admin to change them. See [Membership isn't a shop product](/guide/shop#membership-isnt-a-shop-product).
+
+## Who can use members and benefits
+
+| Who | Members list | Scanning, guest links and scanner access | Benefits, partners and logos | Membership texts |
+|---|---|---|---|---|
+| Global admins (National + Operations Unit) | Every campus, and **Oppdater nå** (Refresh now) | Yes, for any campus or all campuses | Every campus and **Hele BISO** (All of BISO) | Yes |
+| Campus leaders (Ledelsen on your campus) | Members on your campus | Scanning, and guest links and scanner access for your campus | Your campus. **Hele BISO** (All of BISO) is read-only | No |
+| Benefits editors | No | No | Every campus and **Hele BISO** (All of BISO) | Yes |
+| Department members, HR and everyone else | No | No | No | No |
+
+- **Hele BISO** (All of BISO) holds the benefits, partners and logos that apply on every campus.
+- The benefits editor role doesn't come from your Microsoft groups. IT keeps a list of benefits editors. To get the role, ask IT to add you to the benefits editor list, then sign in with your BISO Microsoft account as usual. See [Sign in and find your way](/guide/start-here/sign-in).
+- A benefits editor needs no campus or department group. Their sidebar shows only **Fordeler** (Benefits), and the admin opens there. The role under their name reads **Fordelsansvarlig** (Benefits manager).
+- A campus leader who is also on the benefits editor list gets a benefits editor's rights in **Fordeler** (Benefits). The role under their name still reads **Campusadministrator** (Campus Admin).
+- Global admins see the members on every campus, or only the campus they picked in the campus box.
+- A member whose campus isn't known is only in the list for global admins.
+- Only people who can edit a benefit's campus see its discount code or link. A campus leader who opens a **Hele BISO** (All of BISO) benefit sees it read-only, with no code.
+- Opening a page your role can't use shows a page-not-found error.
+
+If you think you should have access and don't, ask IT to check your groups.
+
+## The members list
+
+**Medlemmer** (Members) lists the paid BISO members from 24SevenOffice: name, email, campus, plan and expiry date. It's a copy. A sync copies the members from 24SevenOffice, and a global admin can start one at any time with **Oppdater nå** (Refresh now).
+
+Scanning and member benefits don't use the list. Each scan, and each time a member asks for a code, checks the membership with 24SevenOffice. So a new member's pass can work before they show up in the list. See [Find a member](/guide/members-and-benefits/find-a-member).
+
+## Member passes and scanning
+
+Every member has a member pass. It's in the BISO app as **Medlemskort** (Member pass), and on biso.no in the member portal. The pass on biso.no shows a code that changes every 30 seconds. A pass can also be in Apple Wallet or Google Wallet.
+
+The pass in the app and on biso.no shows the day's colour, such as **Blå** (Blue), and so does each scanner. A colour is picked for each day, so a guard can compare the pass with the scanner and spot a screenshot from another day. Wallet passes don't show the colour.
+
+There are three ways to scan:
+
+| Way | For | How they get in |
+|---|---|---|
+| **Skann medlemskort** (Scan passes) in the admin | Global admins and campus leaders | Their own admin sign-in |
+| A guest scanner link | Guards at an event who have no BISO account | A link you make. It works in a phone's browser for up to 48 hours |
+| Scanner access in the BISO app | People outside BISO who scan in the BISO app | They sign in to the app with the email address you gave access to |
+
+All three give the same answers. Each scan checks the code on the pass, then asks 24SevenOffice whether the person is a member right now. See [Scan member passes](/guide/members-and-benefits/scan-member-passes).
+
+## Benefits and their status
+
+The board under **Fordeler** (Benefits) has five sections, in this order:
+
+- **Medlemsfordeler** (Member benefits): discounts and offers from partners. Each one says how students get it: show the member pass, a discount code, a link, or nothing.
+- **Karrierefordeler** (Career advantages), **Sosialt nettverk** (Social network), **Trygghet og støtte** (Safety & support) and **For bedrifter** (For companies). These are one line each.
+
+Each benefit has a pill that shows its status. The status comes from the button you last used, the dates and the partner:
+
+| Status | What it means |
+|---|---|
+| **Utkast** (Draft) | Saved with **Lagre utkast** (Save draft). Not shown to students. |
+| **Synlig** (Visible) | Published and live. Shown on biso.no and in the app. |
+| **Planlagt** (Scheduled) | Published, with a start date still to come. It goes live by itself at midnight on the start date, Norwegian time. |
+| **Utløpt** (Expired) | Published, but its end date has passed. It came down by itself at the end of that day. |
+| **Avsluttet** (Ended) | Published, but the partnership with its partner has ended. |
+| **Skjult** (Hidden) | Taken down with **Skjul fra nettsiden** (Hide from the website). |
+
+Only **Synlig** (Visible) benefits are shown to students. See [Publish a benefit](/guide/members-and-benefits/publish-a-benefit) and [Partners and membership texts](/guide/members-and-benefits/partners-and-texts).
+
+## What's members-only
+
+- A visible benefit is public. Anyone, signed in or not, can see its title, description, partner, image and terms on biso.no and in the app.
+- Only the discount code or link is for members. It's stored apart from the benefit and handed out only to an active member, after their membership is checked.
+- There's no switch that makes a whole benefit members-only. Anything you write in the title, description or terms is public.
+
+## What members see
+
+On biso.no:
+
+- **biso.no/membership** lists the member benefits, grouped by category when there's more than one. The other four sections show there as short lists of titles. Campus pages and biso.no/students show benefits too.
+- A visitor who has picked a campus sees that campus's benefits first, then **Hele BISO** (All of BISO). With no campus picked, they see **Hele BISO** (All of BISO) only. Within each group, the order is the one on the board.
+- In the member portal, biso.no/member, the **Fordeler** (Benefits) tab lists the member benefits for the member's campus. A benefit with a code or link has a **Vis kode** (Reveal Code) button. One where students show their pass says **Vis medlemskortet i appen** (Show your member card in the app).
+- A student who isn't a member and chooses **Vis kode** (Reveal Code) gets **Du trenger et aktivt medlemskap for å se denne fordelen. Bli medlem i BISO for å låse den opp.** (You need an active membership to see this benefit. Join BISO to unlock it.)
+
+In the BISO app:
+
+- Benefits are listed for the campus. A benefit opens with its partner, title and description, its end date and terms if it has them, and, unless it has no way to get it, one button: **Vis kode** (Show code), **Åpne lenken** (Open the link) or **Vis medlemskortet i kassa** (Show your membership card at the checkout).
+- A student who isn't signed in sees **Logg inn for å se koden** (Sign in to see the code). One who isn't a member sees **Koden vises bare for medlemmer.** (The code is only shown to members.) and **Bli medlem** (Become a member).
+- The member pass is under **Medlemskort** (Member pass).
+
+The membership texts and partner logos show in set places on biso.no. See [Partners and membership texts](/guide/members-and-benefits/partners-and-texts).
+
+## What the system does on its own
+
+- Puts a **Planlagt** (Scheduled) benefit live on its start date, and takes a benefit down after its end date.
+- Tells biso.no to update after each change to a benefit, partner, logo or membership text. If biso.no doesn't answer, it catches up within a few minutes.
+- Writes English text for you. For a benefit, it does this in the background when **Oversett automatisk** (Translate automatically) is on. For a membership text, it fills in each English line you left empty when you save.
+- Copies the members list from 24SevenOffice each time the sync runs. The list shows when it was last refreshed.
+- Checks every scanned pass with 24SevenOffice, and gives a grey **Kunne ikke sjekke — prøv igjen** (Couldn't check — try again) if it can't.
+- Ends guest scanner links at the time set on them, and scanner access at its end date.
+- Sends the scanner invitation email when you give someone scanner access.
+- Writes changes to benefits, partners, logos, membership texts and scanner access to the activity log.
+
+It never sends:
+
+- a push notification or an email about a new, changed or ended benefit
+- an email when scanner access is revoked or ends
+- a message to a member when their pass is scanned
+
+## What you do yourself
+
+- Publish benefits, and keep their codes, links and dates right.
+- Hide or delete offers that have stopped, and end partnerships.
+- Make a guest scanner link for each event, and revoke it when you're done.
+- Give scanner access, and revoke it when the person stops scanning. Tell them yourself, because no email goes out.
+- Keep the membership texts up to date.
+- Ask a global admin to refresh the members list if you need it updated now.
+
+The pages after this one show each task step by step: [Find a member](/guide/members-and-benefits/find-a-member), [Scan member passes](/guide/members-and-benefits/scan-member-passes), [Publish a benefit](/guide/members-and-benefits/publish-a-benefit) and [Partners and membership texts](/guide/members-and-benefits/partners-and-texts).

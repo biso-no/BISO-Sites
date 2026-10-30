@@ -1,0 +1,83 @@
+---
+title: Your first day
+description: What to read and in what order, the access to ask for, and the first things you can do without putting production at risk.
+covers:
+  - packages/api/server-env.ts
+  - packages/api/client.ts
+  - apps/*/.env.example
+  - apps/web/src/instrumentation.ts
+  - apps/admin/src/instrumentation.ts
+  - functions/scheduled-dispatch/README.md
+  - apps/docs/scripts/screenshots/README.md
+  - lefthook.yml
+  - .github/workflows/**
+---
+
+Read this on your first day with the BISO platform, whether you're a consultant or a new hire. It gives the reading order, the access to ask for, and the first things you can do safely. The platform runs on one production server, and the repo has no staging environment, so be careful with anything that talks to Appwrite.
+
+## Reading order
+
+The sidebar lists the four sections in reading order. Work through them like this:
+
+1. **Start here.** Read this page, then [What BISO runs](/developers/start-here/what-biso-runs) and [Getting access](/developers/start-here/getting-access). The section opens with [If you're hiring someone](/developers/start-here/if-youre-hiring-someone), which is for the BISO board. Skim it to see what they'll give you.
+2. **Keep it running.** Deploying, scheduled jobs, secrets, monitoring, backups, what to do when things break, and the yearly calendar. Read the pages on deploying and on when things break before you change anything live.
+3. **Change it.** Local setup, code layout, data model, auth and roles, common changes, and the mobile app. Read [Local setup](/developers/change-it/local-setup) before you run an app.
+4. **Reference.** The outside services, the shared packages, design decisions, known limitations and history. Look things up when you need them.
+
+Where to go next:
+
+- [Deploying](/developers/keep-it-running/deploying) and [When things break](/developers/keep-it-running/when-things-break), before you touch anything live.
+- [Local setup](/developers/change-it/local-setup), before you run an app.
+- [Known limitations](/developers/reference/known-limitations), for what is still wrong.
+
+## Access checklist
+
+Ask for these in this order. [Getting access](/developers/start-here/getting-access) says who grants each one and how.
+
+- [ ] A BISO Microsoft account and a place in the `docs-handover` team. When that's done, the three values below show instead of a sign-in message.
+- [ ] GitHub: an invite to BISO-Sites and BISO-Flutter.
+- [ ] Infisical: <Private name="infisical-url" label="Infisical" />
+- [ ] The Appwrite console: <Private name="appwrite-console-url" label="Appwrite console" />
+- [ ] The server: <Private name="server-access" label="Server access" />
+
+## First safe things to do
+
+### Clone the code and type-check it
+
+You need Bun 1.3.1. npm and pnpm don't work with this repo, because its workspaces and shared `catalog:` versions need Bun.
+
+```bash
+git clone https://github.com/biso-no/BISO-Sites.git
+cd BISO-Sites
+bun install
+bun run check-types
+```
+
+None of this talks to Appwrite. It worked when Turbo's summary reports every task as successful.
+
+### Read what BISO runs
+
+[What BISO runs](/developers/start-here/what-biso-runs) shows every part of the platform, where it runs, and where its code lives.
+
+### Run the apps against a non-production Appwrite project
+
+<Callout type="warn">
+`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset or empty, server code then tries `APPWRITE_ENDPOINT` or `APPWRITE_PROJECT_ID` before it falls back to production. The browser reads only the `NEXT_PUBLIC_*` names and goes straight to production, so set those two. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local env file.
+</Callout>
+
+The repo has no local Appwrite and no staging project, so make an Appwrite project of your own before you run anything. [Local setup](/developers/change-it/local-setup) has the full steps and the usual first-run failures. In short:
+
+1. Create your own project, push the tables to it and make an API key in it, as steps 1 to 3 of `apps/docs/scripts/screenshots/README.md` describe. Never run `appwrite push` from `packages/api`: its config names the production project.
+2. For each app you run, copy `apps/<app>/.env.example` to `apps/<app>/.env.local`, then fill in your project's `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT` and `APPWRITE_API_KEY`. The website needs `APPWRITE_SESSION_COOKIE=a_session_biso_web` and the admin `APPWRITE_SESSION_COOKIE=a_session_biso_admin`. Their templates already hold those values. The admin also needs `NEXT_PUBLIC_BASE_URL=http://localhost:3001`.
+3. Start one app from the repo root, for example `bun run dev --filter=admin`. Don't set the values with `export` instead: Turbo drops shell variables that a task doesn't declare, apart from `NEXT_PUBLIC_*` ones.
+4. Check that it worked. The admin prints no `Falling back to production Appwrite defaults` line, and `/api/health/ready` on the website, the admin or the API answers `{"status":"ready", …}`.
+
+This gets the apps running. Signing in also needs the sign-in providers set up in your project, such as Microsoft for the admin.
+
+### Look at the known issues
+
+The owner keeps the current issues list outside the repo. The GitHub issue tracker isn't used for this. [Known limitations](/developers/reference/known-limitations) lists what is known to be wrong today, and says where the owner's list of security issues is kept. These are the issues to know on day one:
+
+- **Unset Appwrite settings mean production**, as described above.
+- **Deploys are manual.** The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy the apps, and a GitHub workflow is planned. Only scheduled-dispatch's README says it deploys through the console's Git integration. The other two functions' READMEs don't say how their code reaches Appwrite. Check each function's deployment settings in the console before you push function code. [Deploying](/developers/keep-it-running/deploying#deploy-a-function) has the details.
+- **Nothing checks your changes for you.** CI runs no tests, lint or type-check, and the lefthook pre-commit hook is off (every line of `lefthook.yml` is commented out). Run `bun run check-types` yourself before you deploy, and lint the files you changed with `bun x ultracite check <paths>`. The repo-wide `bun run check` currently reports about 150 errors that were already there.

@@ -1,0 +1,55 @@
+---
+title: If you're hiring someone
+description: For the BISO board. What BISO owns, who holds the keys, the emergency kit, and what to give a developer or consultant on their first day.
+covers: []
+---
+
+This page is for the BISO board. Read it when you need someone to look after the website, the admin and the app, whether that's a consultant or a new person in the organisation. It explains what BISO owns, who holds the keys, and what to hand over on the first day. You don't need to be technical to follow it.
+
+## What BISO owns
+
+- **The code.** It's stored on GitHub in two repositories. BISO-Sites holds the website, the admin, the API and these docs. BISO-Flutter holds the app. Both are public, so anyone can read the code, but only people BISO invites can change it.
+- **The server.** BISO rents one Linux server from Webdock. It runs Appwrite, which stores all the data and runs the website, the admin and the API. It also runs Infisical, the password safe the developers use. Webdock backs up the whole server every night, but nobody has reported testing a restore from that backup.
+- **The domain.** `biso.no` and the addresses under it: `admin.biso.no`, `api.biso.no`, and `docs.biso.no` once these docs move there.
+- **The app store listings.** The BISO app is in Apple's App Store and on Google Play, under BISO's own developer accounts.
+- **The accounts.** Microsoft (staff accounts and sign-in to the admin), Apple and Google (the app stores), Webdock (the server), GitHub (the code), and the services the platform uses for payments, accounting, AI and alerts. [Getting access](/developers/start-here/getting-access) lists them all.
+
+## Who holds the keys
+
+Each account has an owner: the person who can sign in, reset access and pay the bill. The list is private:
+
+<Private name="account-owners" label="Account owners" />
+
+Private details like this one show only after sign-in, and only to global admins, campus admins and people in the docs handover team. If you can't see it, ask IT or your campus leadership.
+
+If an owner on the list has left BISO, move that account to someone who is staying.
+
+## The emergency kit
+
+The administration leader keeps an emergency kit offline, away from every server. These docs never say what's in it.
+
+<Private name="admin-leader-contact" label="Administration leader" />
+
+Open the kit only when the developers can't get back in on their own:
+
+- Infisical, where the developers keep the platform's passwords and keys, can't be reached, and something needs fixing.
+- Nobody who can sign in to Infisical is left at BISO.
+
+Give the person you've hired only what they need from the kit. When they're done, ask them to change what they used, and update the kit.
+
+## What to give a consultant on day one
+
+1. **These docs.** Anyone can read them. To see the private details, they need step 2.
+2. **A place in the docs handover team.** First, BISO's Microsoft administrators create a BISO Microsoft account for them. Ask for it to be kept out of the admin's role groups, because those groups would let the consultant publish on the website. Then a global admin adds the account to the team. [Getting access](/developers/start-here/getting-access#the-docs-handover-team) has the steps.
+3. **An Infisical login.** An Infisical admin invites them.
+4. **A GitHub invite.** An owner of BISO's GitHub organisation invites them to the repositories they'll work on.
+
+Access to the Appwrite console and to the server gives full control of the live website, admin and app. Give it only when the work needs it, for example to put a fix live.
+
+To run the apps on their own machine, they need one of two things: a non-production Appwrite project with an API key, which a console admin creates for them, or a console invite so they can create it themselves. [Your first day](/developers/start-here/your-first-day#run-the-apps-against-a-non-production-appwrite-project) has the steps.
+
+When the work ends, take every access back. [Getting access](/developers/start-here/getting-access#when-the-work-ends) lists each one.
+
+## What to ask them to do first
+
+Ask them to read [Your first day](/developers/start-here/your-first-day) and work through its checklist before they change anything.

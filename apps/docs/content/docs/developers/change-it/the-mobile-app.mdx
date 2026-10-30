@@ -1,0 +1,136 @@
+---
+title: The mobile app
+description: The BISO app in the BISO-Flutter repository, how it talks to Appwrite and the API, how to run it, how it's built, signed and released, and what's broken or unused.
+covers:
+  - apps/api/src/lib/auth.ts
+  - apps/api/src/lib/member-pass/**
+  - apps/api/src/app/api/config/route.ts
+  - apps/api/config/app-config.json
+  - apps/api/src/app/api/auth/**
+  - apps/api/src/app/api/member-pass/**
+  - apps/api/src/app/api/profile/route.ts
+  - apps/api/src/app/api/membership/route.ts
+  - apps/api/src/app/api/payment/**
+  - apps/api/src/app/api/expenses/**
+  - apps/api/src/app/api/notifications/**
+  - apps/api/src/app/api/shop/**
+  - apps/api/src/app/api/benefits/**
+  - apps/api/src/app/api/recruitment/**
+  - apps/api/src/app/api/campus/**
+  - apps/api/src/app/api/events/**
+  - packages/shared/utils/app-versions.ts
+  - packages/shared/utils/checkout-return.ts
+  - apps/admin/src/app/(portal)/settings/app-versions/**
+  - apps/web/public/.well-known/**
+  - apps/web/src/app/api/aasa/route.ts
+  - apps/web/src/app/(auth)/auth/verify/page.tsx
+---
+
+Read this before you change the BISO app, or anything in BISO-Sites the app depends on: the API routes it calls, the tables it reads, or the files the website serves for app links. The app is a Flutter app for students, in its own repository, BISO-Flutter. Its code isn't in this repo. Everything below about the app was read from BISO-Flutter's `main` branch.
+
+## The stack
+
+- Flutter and Dart, with Riverpod for state and `go_router` for navigation.
+- The Appwrite Flutter SDK (`appwrite` in `pubspec.yaml`).
+- Firebase Cloud Messaging for push (`firebase_messaging`).
+- `flutter_web_auth_2` for BI sign-in, `mobile_scanner` for the member-pass scanner, and `in_app_update` for Android updates.
+
+The Android package and the iOS bundle id are both `com.biso.no`.
+
+## How it talks to the backend
+
+The addresses are written into `lib/core/constants/app_constants.dart`: the production Appwrite server, the project `biso`, the database `app`, and `https://api.biso.no`. The app has no build flavours and reads no build-time settings, so every build, a local one included, talks to production.
+
+### Appwrite, directly
+
+The app reads many tables straight from Appwrite with the person's own session, such as events, news, jobs, products and departments. It writes a few, such as chat messages, and uses Appwrite Realtime for chat. So Appwrite's table and row permissions are all that stand between the app and the data. A permission change in `packages/api/appwrite.config.json` can break the app as well as the website. One example: the schema file no longer gives the `user` table `create("users")`, and `appwrite-config-permissions.test.ts` checks that it's gone. A comment in `appwrite-config.test.ts` says the live table still had that grant on 2026-08-11, and the test allows it as an exception because the app might rely on it. The repo doesn't record whether the live table matches the file now. The app's code on `main` only reads the `user` table. If the live table still has the grant, a push of this file may remove it, so check the table in the console first.
+
+### The API
+
+Anything that needs a check on the server or a secret goes through `https://api.biso.no`. The app calls these route families in `apps/api/src/app/api/`:
+
+| Area | Routes |
+|---|---|
+| Profile and BI | `/api/profile`, `/api/auth/bi-sync` |
+| Membership | `/api/membership`, `/api/payment/<provider>/membership-checkout` |
+| Shop | `/api/shop/cart`, `/api/payment/providers`, `/api/payment/checkout/quote`, `/api/payment/<provider>/checkout`, `/api/payment/orders/<id>` |
+| Member pass | `/api/member-pass`, with `/apple`, `/google`, `/scan` and `/scanner` |
+| Benefits | `/api/benefits`, and the reveal route for a single benefit |
+| Expenses | `/api/expenses/draft`, `/submit`, `/summary`, `/attachments` and `/ocr` |
+| Recruitment | `/api/recruitment/applications` |
+| Notifications | `/api/notifications/read`, `/api/notifications/clear` |
+| Events | `/api/events/<id>/rsvp`: `GET` for the counts and the student's own answer, `POST` to save or clear the answer |
+| Units | `/api/campus/<campusId>/<departmentId>/board` |
+| Settings | `/api/config` |
+
+Installed copies of the app update slowly, so treat these routes as a public contract. Keep the fields old versions read, and add new ones beside them. If you must rename or remove one, first raise the minimum app version (see [Update nudges](#update-nudges)).
+
+Each call carries a JWT from `account.createJWT()` in an `Authorization: Bearer` header. The app reuses a token for 10 minutes, because Appwrite allows only 100 new JWTs per account per hour (`lib/data/services/api_auth.dart`). The member-pass routes read only that header and answer `401` with `not_authenticated` without it. [Auth and roles](/developers/change-it/auth-and-roles#the-api) covers the API's side.
+
+### Sign-in
+
+- **BI student accounts.** `lib/data/services/bi_sign_in_service.dart` opens Appwrite's `oidc` sign-in in a private browser sheet, which returns to the app on the `appwrite-callback-biso` scheme. The app then calls `/api/auth/bi-sync` to copy the student number. Like the website's, this sign-in depends on the API's BI routes. [Auth and roles](/developers/change-it/auth-and-roles#how-students-sign-in) explains them.
+- **Sign-in links by email.** The app asks Appwrite to email a link to `https://biso.no/auth/verify`. On a phone with the app, that address opens the app. If it opens in a browser instead, the website's `/auth/verify` page shows a button with a `biso://auth/verify` link, and doesn't use the token itself.
+- **A 6-digit code by email** is offered in debug builds only, because simulators can't open email links.
+
+### App links
+
+The website serves the files that let `https://biso.no` links open the app:
+
+- iOS: `/.well-known/apple-app-site-association`, which `apps/web/next.config.ts` rewrites to `apps/web/src/app/api/aasa/route.ts`. A static copy is in `apps/web/public/.well-known/`.
+- Android: `apps/web/public/.well-known/assetlinks.json`, which lists the SHA-256 fingerprints of the app's signing certificates. Android checks it before it lets a link open the app. If a signing key changes, update the fingerprints.
+
+After a Vipps or Stripe payment started in the app, the API's `/api/payment/return` sends the buyer back with a `biso://shop/order` link (`appOrderDeepLink` in `packages/shared/utils/checkout-return.ts`).
+
+### Push
+
+The app registers its Firebase token with Appwrite as a push target, on the push provider whose id is `push`, and subscribes to topics through Appwrite Messaging (`lib/data/services/notification_service.dart`). Pushes come from the admin's announcements and from the content-notifier function. Never replace the `push` provider with one under another id, because every phone is registered against that id. When pushes don't arrive, see [Push notifications aren't sent](/developers/keep-it-running/when-things-break#push-notifications-arent-sent).
+
+### Update nudges
+
+`/api/config` returns a minimum and a recommended version for each platform, from the `app_versions` table (`packages/shared/utils/app-versions.ts`). Below the minimum, the app blocks use until the person updates. Below the recommended version, it shows a nudge that the person can dismiss for 3 days. The app prompts only on a fresh answer from the API, and never when it can't read a version. A global admin sets both in the admin under **System**, then **Appversjoner** (App versions), at `/settings/app-versions`.
+
+## Run it locally
+
+Use Flutter 3.47.2, the version the Android build uses. From the BISO-Flutter folder:
+
+```bash
+flutter pub get
+flutter gen-l10n
+dart run build_runner build --delete-conflicting-outputs
+flutter test
+flutter run
+```
+
+The app has no settings for another environment, so a local run signs in to production and shows real data. To point it at your own Appwrite project, change the constants in `lib/core/constants/app_constants.dart` on your machine, and don't commit the change.
+
+## Build and release
+
+[Deploying](/developers/keep-it-running/deploying#the-biso-app) has the step-by-step release. In short:
+
+- **Version.** The `version:` line in `pubspec.yaml`, in the form `1.2.3+45`, is the release version. Raise the build number after the `+` before every push to `main` and before every iOS build.
+- **Android.** `.github/workflows/build.yml` runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.2 and Java 17, generates code, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then makes a GitHub release with the APK. Pull requests get the tests and a debug build only. Moving a release from the internal track to production is done by hand in the Google Play Console.
+- **iOS.** Nothing in GitHub builds iOS. The owner builds it by hand on a Mac with `flutter build ipa --release`, and uploads the result to App Store Connect. A GitHub Action for iOS is planned.
+
+## Signing and secrets
+
+**Android.** The workflow writes the signing key from these GitHub secrets in the BISO-Flutter repository: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` and `ANDROID_KEY_ALIAS`. It uploads to Google Play with `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`.
+
+**iOS.** The Xcode project uses automatic signing. On the Mac you build on, sign in to Xcode with an Apple ID that's a member of BISO's Apple Developer team. The app's Apple certificate expires on 2027-06-12. [Yearly calendar](/developers/keep-it-running/yearly-calendar#apple) has the renewals.
+
+**Other workflows.** The two Claude workflows in BISO-Flutter use the `CLAUDE_CODE_OAUTH_TOKEN` secret.
+
+**Accounts.**
+
+- Apple Developer and App Store Connect: <Private name="apple-developer-account" label="Apple Developer account" />
+- Google Play Console: <Private name="google-play-account" label="Google Play account" />
+
+[Getting access](/developers/start-here/getting-access#app-stores) says how to get invited.
+
+## Known issues
+
+- **The AI chat has no server.** The chat screen calls `/api/public-assistant` on the API (`lib/data/services/ai_chat_service.dart`). `apps/api` has no such route, so every message fails. The screen's route, `/ai-chat`, is registered in `lib/main.dart`, but nothing in the app links to it.
+- **The Xcode Cloud set-up isn't used.** A workflow manifest (`ios/Runner.xcodeproj/xcshareddata/xcodecloud/manifest.json`) and `ios/ci_scripts/ci_post_clone.sh` are in the repo, but iOS isn't built there. The script's default Flutter version, 3.32.8, is older than the 3.47.2 that the Android build pins, which the Android workflow's comment says the dependencies need. The fastlane lanes in `ios/fastlane/` aren't the release path either. Delete them, or fix them when the planned GitHub Action is built.
+- **Every build talks to production.** There's no build setting for another Appwrite project or API. See [Run it locally](#run-it-locally).
+- **Staff should sign in to the admin first.** Ask each staff member to make their own first sign-in in the admin, with Microsoft, before they use the app with a `@biso.no` address. The reason is on the owner's list of security issues: [Known limitations](/developers/reference/known-limitations) says where that list is kept.
+- **The GitHub release notes overstate.** Each release made on `main` says it was "deployed to both app stores". Only Android is uploaded, and only to the internal track.

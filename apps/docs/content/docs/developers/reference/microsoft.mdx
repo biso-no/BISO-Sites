@@ -1,0 +1,183 @@
+---
+title: Microsoft
+description: Everything the platform does with Microsoft. Staff sign-in, Microsoft Graph, SharePoint, the Teams approval bot, Azure Automation, and BI student sign-in, with what breaks when each fails and how to test without touching production.
+covers:
+  - packages/connectors/src/azure/**
+  - packages/connectors/src/sharepoint/**
+  - packages/connectors/src/teams-bot/**
+  - apps/admin/src/lib/it/graph.ts
+  - apps/admin/src/lib/it-permission-rules.ts
+  - apps/admin/src/app/(portal)/_actions/it-users.ts
+  - apps/admin/src/lib/documents/sharepoint-mapping.ts
+  - apps/admin/src/app/(portal)/_actions/documents.ts
+  - apps/admin/src/app/(portal)/_actions/interviews.ts
+  - apps/admin/src/app/(portal)/_actions/it-turnover.ts
+  - apps/admin/src/app/api/it/turnover/stop-retention/route.ts
+  - apps/api/src/app/api/teams/bot/route.ts
+  - apps/api/teams-manifest/**
+  - apps/api/src/lib/expense-approval.ts
+  - apps/api/src/app/api/campus/[campusId]/[departmentId]/board/route.ts
+  - apps/api/src/app/api/auth/**
+  - apps/api/src/lib/bi-oidc-discovery.ts
+  - apps/api/src/lib/bi-userinfo.ts
+  - packages/shared/utils/bi-identity-sync.ts
+  - apps/web/src/app/api/documents/[id]/download/route.ts
+  - apps/web/src/app/actions/booking.ts
+  - apps/web/src/lib/data/unit-board.ts
+---
+
+Read this before you change anything that talks to Microsoft, or when a Microsoft feature stops working. The platform uses two Microsoft tenants: BISO's own, for staff, and BI's, for students. Each section below says what one part does, where its code is, which variables it reads, what people see when it fails, and how to test it. [Secrets and environment](/developers/keep-it-running/secrets-and-environment#microsoft) lists every variable, and [Rotate a secret](/developers/keep-it-running/secrets-and-environment#rotate-a-secret) says how to change one.
+
+## Accounts
+
+- Where each app registration lives, and who owns it: <Private name="azure-app-registration" label="Azure app registrations" />
+- Who administers BISO's tenant: <Private name="microsoft-tenant-admins" label="Microsoft tenant administrators" />
+
+The secrets of these registrations expire, and nothing in the code warns before they do. The known dates are in the [Yearly calendar](/developers/keep-it-running/yearly-calendar#azure-app-secrets). [An Azure secret has expired](/developers/keep-it-running/when-things-break#an-azure-secret-has-expired) lists what breaks when each one runs out.
+
+## At a glance
+
+| Part | Tenant | Used by | Credentials |
+|---|---|---|---|
+| [Staff sign-in](#staff-sign-in) | BISO | admin, docs | Appwrite's Microsoft provider, in the console |
+| [Microsoft Graph](#microsoft-graph) | BISO | admin, api, web | `AZURE_GRAPH_*` |
+| [Unit boards](#unit-boards) | BISO | api, for the website | `AZURE_TENANT_ID`, `AZURE_APP_ID`, `AZURE_CLIENT_SECRET` |
+| [SharePoint](#sharepoint) | BISO | admin, web | `SHAREPOINT_*` |
+| [Teams approval bot](#teams-approval-bot) | BISO | api | `TEAMS_BOT_*`, `TEAMS_APP_ID` |
+| [Azure Automation](#azure-automation) | BISO | admin | `AZURE_RETENTION_START_WEBHOOK_URL`, `AZURE_RETENTION_STOP_WEBHOOK_URL` |
+| [BI student sign-in](#bi-student-sign-in) | BI | Appwrite, through the api | Appwrite's `oidc` provider, in the console, and `BI_OIDC_WELL_KNOWN_URL` |
+| [BI directory](#bi-directory) | BI | web, api | `BI_AZURE_*` |
+
+## Staff sign-in
+
+**What it does.** Staff sign in to the admin with their BISO Microsoft account, through Appwrite's Microsoft provider. At each sign-in, the admin copies the person's `SG-App-*` groups into Appwrite teams, and saves the list of them in `m365_team_sync`, using the person's own Microsoft token. Docs reuse the admin's session. [Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in) has the whole flow.
+
+**Code.** `signInWithAzure()` in `apps/admin/src/lib/server.ts`, the return route `apps/admin/src/app/(auth)/auth/oauth/route.ts`, and the group sync in `apps/admin/src/lib/m365-sync.ts`.
+
+**Credentials.** The client id and secret are set on the Microsoft provider in the Appwrite console. They aren't variables. The secret probably expires on 5 March 2027: check the exact date in the Azure portal.
+
+**When it fails.** Staff land back on the sign-in page under **Innlogging mislyktes. Prøv igjen eller kontakt support.** (Sign-in failed. Please try again or contact support.) If only the group sync fails, they're signed in anyway, with their teams and saved team list as the sync left them. A failure halfway can leave the two out of step until the next sign-in ([Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in)). [Sign-in to the admin fails](/developers/keep-it-running/when-things-break#sign-in-to-the-admin-fails) is the runbook.
+
+**Test it safely.** Your own Appwrite project, as in [Local setup](/developers/change-it/local-setup#point-the-apps-at-your-own-appwrite-project), has no Microsoft provider until you add one. The screenshot scripts show a way round it: they make staff users and sign them in with the project's API key ([Signing in](/developers/change-it/local-setup#signing-in)). The sync has unit tests in `apps/admin/src/lib/m365-sync.test.ts`.
+
+## Microsoft Graph
+
+**What it does.** One app registration with application permissions calls Microsoft Graph without a signed-in person. It's used for:
+
+- the admin's **IT** pages: finding, creating and changing Microsoft accounts and their groups, resetting MFA, ending sign-in sessions, the board turnover, and the department audit at `/it/users/audit`
+- interview scheduling: the panel's free and busy times, the Teams meeting and the Outlook invite, from the admin's interview tools and from the website's booking page
+- finding who approves an expense, in the api
+- the API's admin routes for Microsoft accounts, which nothing in the website or the admin calls ([The API](/developers/change-it/auth-and-roles#the-api))
+- `backfill:m365-team-sync`, which reads every staff user's groups to write their saved team list. For that the registration needs the `GroupMember.Read.All` or `Directory.Read.All` application permission ([The saved team list](/developers/change-it/auth-and-roles#the-saved-team-list)).
+
+On the IT pages, global admins may do everything. Campus admins may look up accounts and create new ones, only in the campuses they manage. Everything else, the board turnover included, is for global admins ([Microsoft accounts on the IT page](/developers/change-it/auth-and-roles#microsoft-accounts-on-the-it-page)).
+
+**Campus mail lists.** The admin, and the API's user routes, set a new account's Office field (`officeLocation`) to its campus name, and the IT page's profile form changes it when someone moves campus (`apps/admin/src/app/(portal)/_actions/it-users.ts`). On 29 October 2026 the owner decided to turn each campus's mail list, and the national one, into a dynamic distribution group in Exchange Online that filters on that field. The change is made in Exchange, not in the repo, so check in the Exchange admin centre whether a list is dynamic yet. Once it is, a new account joins it within about 24 hours, and a change of Office moves the person to the other list. Until then, the list keeps the members it has, and someone adds new accounts by hand. A dynamic list's Office value must match the campus name in Appwrite's `campus` table, so check the lists if a campus is ever renamed.
+
+**Code.** `packages/connectors/src/azure/`: `graph-client.ts`, `users.ts`, `authentication-methods.ts`, `calendar.ts` and `recruitment-scheduling.ts`. The admin builds its client in `apps/admin/src/lib/it/graph.ts`. Interview scheduling is called from `apps/admin/src/app/(portal)/_actions/interviews.ts` and `apps/web/src/app/actions/booking.ts`.
+
+**Variables.** `AZURE_GRAPH_TENANT_ID`, `AZURE_GRAPH_CLIENT_ID` and `AZURE_GRAPH_CLIENT_SECRET`, with fallbacks to older names:
+
+- The IT pages fall back to `AZURE_TENANT_ID` and `AZURE_APP_ID` for the tenant and client id, but never for the secret.
+- Interview scheduling also falls back to `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (`readGraphCredentials` in `recruitment-scheduling.ts`).
+- The website's booking page needs all three values, though `apps/web/.env.example` lists only the secret.
+
+**When it fails.**
+
+- The IT user list shows the error in its place, for example `Missing Microsoft Graph server credentials`. The api's approver lookup fails with the same message.
+- A booked interview is still saved, but no Teams meeting or Outlook invite goes out. If the Graph call fails, the website logs `[Booking] Calendar invite failed:`. With the variables missing, nothing is logged, and the booking page also offers times without checking the panel's calendars. Either way, after a booking without an invite the website emails the staff member who made the booking link, writes a `recruitment.booking.invite_failed` row to `audit_logs`, and the interview shows **Invitasjon ikke sendt** (Invite not sent) on the **Interviews** tab of the vacancy's applications. That email needs `SMTP_HOST` and `SMTP_FROM` on the website. If it can't be sent, the website logs `[Booking] Could not alert staff about a failed invite:`.
+- Staff sign-in doesn't use this registration, so an expired Graph secret never stops anyone signing in.
+
+**Test it safely.** No test tenant is recorded, so every Graph call with this registration acts on BISO's real accounts. Pages that only read, such as the user search, change nothing. Never test anything that writes. Creating a user, changing groups, resetting MFA or running a turnover changes a real person's account. Booking an interview, on a local website or with the admin's interview tools, creates a real Teams meeting and sends real Outlook invites to the panel and the candidate. Even the read-only pages use production credentials: get them from the account owner for the session, and don't keep them in `.env.local` afterwards. The unit tests are in `packages/connectors/src/azure/*.test.ts` and `apps/admin/src/lib/it/`.
+
+## Unit boards
+
+**What it does.** The board on each unit page, and the campus leadership on the website, come from Microsoft 365. The api's `GET /api/campus/{campusId}/{departmentId}/board` asks Graph for enabled users whose office location is the campus and whose department starts with the unit's name, with their photos. The website caches each board with Next.js's `hours` cache profile (`apps/web/src/lib/data/unit-board.ts`). So a board follows each person's department and office in Microsoft, and a change there reaches the website once the cache expires.
+
+**Code.** `apps/api/src/app/api/campus/[campusId]/[departmentId]/board/route.ts`, and `apps/web/src/lib/data/unit-board.ts` on the website.
+
+**Variables.** `AZURE_TENANT_ID`, `AZURE_APP_ID` and `AZURE_CLIENT_SECRET` on the api. This route has no fallback to the `AZURE_GRAPH_*` names.
+
+**When it fails.** Unit pages show no board. With a variable missing, the api logs `Missing Azure credentials in environment variables`.
+
+**Test it safely.** The route only reads, so running it from a local api with the real variables changes nothing in Microsoft. It still reads real staff names, emails and photos, so keep what it returns off screenshots and out of issues. It also uses production credentials: get them from the account owner for the session, and don't keep them in `.env.local` afterwards.
+
+## SharePoint
+
+**What it does.** Governing documents. The admin uploads each adopted version to one document library in SharePoint, and the website streams downloads from it.
+
+**Code.** `packages/connectors/src/sharepoint/index.ts`. The admin side is `apps/admin/src/app/(portal)/_actions/documents.ts` and `apps/admin/src/lib/documents/sharepoint-mapping.ts`. The website's download route is `apps/web/src/app/api/documents/[id]/download/route.ts`.
+
+**Variables.** `SHAREPOINT_TENANT_ID`, `SHAREPOINT_CLIENT_ID`, `SHAREPOINT_CLIENT_SECRET` and `SHAREPOINT_SITES` on the website and the admin. `SHAREPOINT_DOCUMENTS_DRIVE_ID`, on the admin only, names the library that uploads go to. It has no fallback on purpose: a comment in `sharepoint-mapping.ts` says guessing the library once sent uploads to the wrong site.
+
+**When it fails.**
+
+- On the website, a document download answers `500` with `{"error":"Download failed"}`, and the log says `Document download error:`.
+- In the admin, an upload shows `SharePoint is not configured: …` or `SharePoint upload failed: …`.
+
+**Test it safely.** No test library is recorded. An upload with the real variables writes to BISO's real library. For an end-to-end test, ask a tenant administrator for a separate document library, and put its drive id in `SHAREPOINT_DOCUMENTS_DRIVE_ID` in your own `apps/admin/.env.local`. The unit tests are `packages/connectors/src/sharepoint/index.test.ts` and `apps/admin/src/lib/documents/sharepoint-mapping.test.ts`.
+
+## Teams approval bot
+
+**What it does.** It's part of direct ledger posting for reimbursements, which runs only while the feature flag `expenses_ledger_posting` is on. It's off by default. With it on, a submitted reimbursement goes through an approval chain. Each approver gets a Teams card from the bot and an Outlook email with a link to the website's approval page (`/fs/approve/<token>`). A decision on the card comes back to the api at `POST /api/teams/bot`. With the flag off, nothing uses the bot, and submissions are emailed to accounting instead. [Accounting](/developers/reference/accounting#reimbursements) has the rest of the flow.
+
+**Code.** `packages/connectors/src/teams-bot/`, `apps/api/src/app/api/teams/bot/route.ts` and `apps/api/src/lib/expense-approval.ts`. The Teams app package is in `apps/api/teams-manifest/`. Its README lists the bot's Graph permissions, and says the package has to be uploaded to the organisation's Teams app catalog by hand. The approvers are found with the [Microsoft Graph](#microsoft-graph) registration.
+
+**Variables.** `TEAMS_BOT_APP_ID`, `TEAMS_BOT_APP_PASSWORD`, `TEAMS_BOT_APP_TENANT_ID`, `TEAMS_APP_ID`, `TEAMS_BOT_MAIL_FROM` and `TEAMS_BOT_SERVICE_URL`, all on the api. `EXPENSE_APPROVAL_WEB_URL` sets the website address in the approval links.
+
+**When it fails.**
+
+- The card and the email are sent separately. If one fails, the log says `[expense-approval] Teams notify failed:` or `[expense-approval] Email notify failed:`, and the other is still sent.
+- If neither reaches the first approver, the submission fails, and the reimbursement goes back to draft so the student can try again.
+- If an approver can't be found, or a later approver can't be reached, the api records an issue. Staff see it on the admin's **IT** page, under expense approvals (`/it/expense-approvals`), and can send the approval again from there.
+- A card click that fails the bot's sign-in check answers `401`, and the api logs `[teams/bot] auth failed:`.
+
+**Test it safely.** There's no safe end-to-end test. The bot's messaging endpoint is set to the production API in its Azure resource (`apps/api/teams-manifest/README.md`), so Teams sends every card click there. Keep `expenses_ledger_posting` off in your own project, and nothing calls the bot. The approver rules have unit tests in `packages/shared/utils/expense-approvers.test.ts`.
+
+## Azure Automation
+
+**What it does.** The admin's board turnover for role accounts calls a runbook in Azure Automation through two webhooks, to start a retention run and to stop it 7 days later. [The August board turnover](/developers/keep-it-running/yearly-calendar#the-august-board-turnover) describes the whole flow and what the repo doesn't hold, and [Azure Automation webhooks](/developers/keep-it-running/yearly-calendar#azure-automation-webhooks) covers their end dates.
+
+**Code.** `apps/admin/src/app/(portal)/_actions/it-turnover.ts`, `apps/admin/src/lib/it/turnover.ts` and the stop job `apps/admin/src/app/api/it/turnover/stop-retention/route.ts`. The runbook itself isn't in the repo.
+
+**Variables.** `AZURE_RETENTION_START_WEBHOOK_URL` and `AZURE_RETENTION_STOP_WEBHOOK_URL` on the admin. Each URL carries its own token, so treat it as a secret. `AZURE_ACCOUNT_TURNOVER_WEBHOOK_URL` on the api belongs to an older route that nothing calls.
+
+**When it fails.**
+
+- If the start fails, the turnover still renames the account. The job in `m365_turnover_jobs` is left as `retention_start_failed`, and the dialog lists it under **Krever manuell oppfølging:** (Needs manual follow-up).
+- If the stop fails 7 days later, the job shows `stop_failed`, and every scheduled-dispatch run tries the stop again.
+
+**Test it safely.** There's no safe end-to-end test. A turnover renames a real Microsoft account, resets its MFA and sets a new password, so never run one to test. The state rules have unit tests in `apps/admin/src/lib/it/turnover.test.ts`.
+
+## BI student sign-in
+
+**What it does.** Students sign in to the website and the app with their BI account, through Appwrite's `oidc` provider. That provider reads its settings from two api routes:
+
+- `/api/auth/bi-oidc/openid-configuration` serves the discovery document of BI's tenant, from `BI_OIDC_WELL_KNOWN_URL`, with the user-info address swapped for the api's own.
+- `/api/auth/bi-userinfo` passes the request on to Microsoft's user-info endpoint, and marks a `bi.no` email as verified in the answer. Microsoft never sends that claim, and without it Appwrite refuses to attach a BI sign-in to an existing account with the same email.
+
+[Auth and roles](/developers/change-it/auth-and-roles#how-students-sign-in) explains why.
+
+**Code.** `apps/api/src/app/api/auth/` and `apps/api/src/lib/bi-oidc-discovery.ts`, `apps/api/src/lib/bi-userinfo.ts`. On the website, `signInWithBiStudent()` in `apps/web/src/lib/server.ts` and the return route `apps/web/src/app/(auth)/auth/oauth/route.ts`.
+
+**Credentials.** The provider's client id and secret are set on the `oidc` provider in the Appwrite console, next to the discovery address. They aren't variables.
+
+**When it fails.**
+
+- If the api is down, BI sign-in fails on the website and in the app.
+- The website's sign-in page shows **Vi kunne ikke logge deg inn med BI. Prøv igjen, eller bruk en innloggingslenke.** (We could not sign you in with BI. Please try again, or use a login link.)
+- Without `BI_OIDC_WELL_KNOWN_URL`, the discovery route answers `500` with `not_configured` and logs `[bi-oidc] BI_OIDC_WELL_KNOWN_URL is not configured`. If Microsoft can't be reached, it answers `502`.
+
+**Test it safely.** There's no safe end-to-end test. A comment in `packages/shared/utils/bi-identity-sync.ts` says account linking can't be tried from `localhost` and only works against a real deployment. The routes have unit tests next to them in `apps/api/src/app/api/auth/`, and the website's side is tested in `apps/web/src/lib/bi-login.test.ts`. Don't use `BI_DEV_STUDENT_EMAIL_OVERRIDE` to test: production is the only deployment, and the override lets one address claim a student's identity there ([Secrets and environment](/developers/keep-it-running/secrets-and-environment#bi-sign-in)).
+
+## BI directory
+
+**What it does.** After a BI sign-in, the website, or the api for the app (`/api/auth/bi-sync`), looks the student up in BI's directory through Graph. It needs the student's `employeeId`, which 24SevenOffice uses to find the student's customer record. The office location and department are read only as a hint for the campus.
+
+**Code.** `packages/connectors/src/azure/bi-directory.ts` and `packages/shared/utils/bi-identity-sync.ts`.
+
+**Variables.** `BI_AZURE_TENANT_ID`, `BI_AZURE_CLIENT_ID` and `BI_AZURE_CLIENT_SECRET`, on the website and the api. They address BISO's app registration in BI's tenant, not BISO's own tenant.
+
+**When it fails.** The student is still signed in. Their `bi_employee_id` stays empty, and the membership page says **Vi kunne ikke bekrefte BI-registreringen din** (We couldn't verify your BI record), without charging anything. Membership purchase is blocked until the lookup works, either at a later sign-in or when the student presses **Prøv igjen** (Try again) on that page.
+
+**Test it safely.** Same as [BI student sign-in](#bi-student-sign-in): only on a real deployment. The lookup has unit tests in `apps/web/src/lib/actions/bi-identity.test.ts`.

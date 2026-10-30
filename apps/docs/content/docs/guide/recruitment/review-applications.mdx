@@ -1,0 +1,240 @@
+---
+title: Review applications
+description: How to read a vacancy's applications in the admin, use the AI screening as advice, and move candidates to Shortlist or Archived.
+who: "HR team members (for their own campus), National HR, and global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/jobs/_components/job-studio-dashboard.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/page.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/[applicationId]/page.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_actions/**
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/*.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/view-model.ts
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/pipeline/**
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/advance-stage-modal.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/email-draft-default.ts
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/bulk-email-composer.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/compare-view.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/overlays/schedule-modal.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/applications/_components/recruitment/tabs/settings-tab.tsx
+  - apps/admin/src/app/(portal)/jobs/[id]/_components/job-studio-editor.tsx
+  - apps/admin/src/app/(portal)/_actions/jobs.ts
+  - apps/admin/src/app/api/recruitment/applications/**
+  - apps/admin/src/lib/recruitment.ts
+  - packages/shared/types/recruitment.ts
+  - packages/shared/recruitment/apply.ts
+  - packages/shared/utils/screening-anonymizer.ts
+  - packages/ai/src/server/recruitment-screener.ts
+  - packages/ai/src/server/recruitment-emails.ts
+  - packages/ai/src/server/recruitment-email-prompt.ts
+  - apps/web/src/app/(protected)/applications/**
+  - packages/i18n/messages/*/applications.json
+  - packages/i18n/messages/*/adminPortal.json
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Only HR and global admins can review applications. If you can't see **Stillinger** (Jobs) in the sidebar, see [How recruitment works](/guide/recruitment).
+- The vacancy is published and students have applied. See [Publish a vacancy](/guide/recruitment/publish-a-vacancy).
+- Nothing tells you when an application arrives. There's no email, and nothing shows in the notification bell. Check the vacancy's applications yourself while it's open.
+- Know which moves are final before you start. See [Statuses](/guide/recruitment#statuses).
+</BeforeYouStart>
+
+## Steps
+
+The applications workspace is mostly in English whatever your admin language, so this page names most of its labels in English. The few labels that follow your language are given in Norwegian, with the English in brackets.
+
+<Steps>
+<Step title="Open the vacancy's applications">
+
+1. In the sidebar, open **Innhold** (Content) and choose **Stillinger** (Jobs).
+2. Find the vacancy and choose the people icon on its row. On a computer, the row's icons appear when you point at the row.
+
+The workspace opens on the **Pipeline** tab. The heading is the vacancy's title followed by **recruitment.** The **Applicants** counter at the top shows how many have applied.
+
+The board has five columns: **Applied**, **Shortlist**, **Interview**, **Offer** and **Archived**. Every new application starts in **Applied**.
+
+Each card shows the candidate's name, their match score, the AI summary and three icons:
+
+- The compare icon (tooltip: *Add to compare*). See the last step.
+- The calendar icon (tooltip: *Schedule interview*) opens the scheduling dialog. That dialog sends calendar invites, so leave it until you're ready to interview the candidate.
+- The arrow icon (tooltip: *Advance stage*) opens the dialog that moves the candidate.
+
+Above the board:
+
+- The search box (*Search candidates, skills, email…*) finds candidates by name, email or a must-have qualification the AI found.
+- The sort menu starts on **Newest first**. You can also choose **Oldest first**, **Name A–Z**, **AI match** or **Interview score**. **Interview score** puts the candidates with the highest average overall score from their scorecards first. Candidates with no scorecard go to the bottom of each column. Read the **Scorecards** box in each candidate's panel for the detail.
+- **Starred only** shows only starred candidates.
+- The two icons at the right switch between the board (tooltip: *Board*) and a list (tooltip: *List*).
+
+**All jobs** at the top takes you back to the jobs list. **Edit posting** opens the vacancy in the editor.
+
+</Step>
+<Step title="Read a candidate">
+
+Click a candidate's card, or their row in the list, to open their details in a panel. The top of the panel shows their current status, name and email, and their LinkedIn and phone if they gave them.
+
+The panel has five tabs:
+
+- **Overview**: the AI screening result. See the next step.
+- **Documents**: the cover letter and CV, shown in the panel. **Download** saves a copy.
+- **Answers**: the candidate's answers to your extra questions.
+- **Interviews**: the candidate's interviews, once any are booked.
+- **Notes**: one shared note per candidate. Add to the existing text and choose **Save note**. Saving replaces what's stored, and the box shows the note as it was when you opened the page. If colleagues may have written since, reload the page first. Everyone who can open this vacancy's applications can read the note.
+
+To mark a candidate, choose the star next to their name (tooltip: *Star candidate*). The star is saved on the application, so everyone who opens this vacancy's applications sees it. **Starred only** above the board then shows just the starred candidates.
+
+The **Activity** list at the side is a summary built from the candidate's current status. It doesn't show who moved the candidate or when. Applications from biso.no and the app show there as **Applied via public_apply**.
+
+While the panel is open, the address in your browser points to this candidate. Copy it to send a colleague straight to them. They need access to the vacancy too.
+
+Close the panel with the X at the top.
+
+</Step>
+<Step title="Use the AI screening as advice">
+
+If auto-screen was on when the student applied, an AI tool read the application once, right after it was sent. **Overview** shows what it found:
+
+- A match score from 0 to 100. The same score is in the ring on the card.
+- A short summary in English.
+- Scores out of 5 for the areas it looked at.
+- **Strengths** and **Gaps**. **Gaps** include any must-have qualifications it couldn't find.
+
+The card also shows up to three must-have qualifications the AI found.
+
+The AI read the cover letter, the CV, the answers and the vacancy's rubric. Before it read them, the candidate's name was replaced with a label and their contact details were removed. For a long CV it read only the first part.
+
+Use the score to decide whose applications to read first. Then read each application yourself. When students apply, they're told that all decisions are made by people. The screening never changes a status, and nothing in the workspace moves candidates by score. The **AI-shortlisted** counter at the top counts candidates with a match of 85 or more. It doesn't move anyone.
+
+To read the strongest matches first, choose **AI match** in the sort menu. Candidates without a score go to the bottom of each column, so read those too.
+
+If a card shows "—" instead of a score, see [If there is no AI score](#if-there-is-no-ai-score).
+
+</Step>
+<Step title="Shortlist or archive a candidate">
+
+When you've read an application, move the candidate to **Shortlist** to take them further, or to **Archived** if they're not going further this round. **Archived** is final. You can't move an archived candidate back.
+
+There are two ways to move one candidate.
+
+**Drag the card** to another column on the board. The status changes at once. There's no dialog and no email draft. Dropping a card on **Offer** or **Archived** is final. There's no confirmation, and the student sees the new status at once. If the move isn't allowed, the card stays where it was and you see a message such as **Can't move Ola straight to interview.** Dragging works only on the board.
+
+**Use Advance** when you also want an email draft:
+
+1. Choose the arrow icon on the card (tooltip: *Advance stage*), or **Advance** in the candidate's panel. The **Advance candidate** dialog opens.
+2. The dialog shows the current status and a suggested new one. From **Applied** it suggests **Shortlist**, and from **Shortlist** it suggests **Interview**. From **Interview** it suggests **Shortlist**, which is a move back, so choose **Offer** yourself if that's what you mean. To archive instead, choose **Archived** in the row of statuses.
+3. To get a draft, choose **Draft email with AI**. Nothing goes to the AI until you do. The note next to the button reads **Draft a candidate notification email. The name and contact details are removed before the AI sees anything.** The dialog shows **Drafting with AI…**, then a subject and text you can edit. If you change the status you're moving to, the draft goes, so choose **Draft email with AI** again.
+4. Check and adjust the draft. It's in Norwegian. The AI writes it from the vacancy title and the kind of email only. It gets a label in place of the candidate's name, and the admin puts the candidate's first name back in. The drafter is set to sign off in English with **Best regards, BISO HR**, so change the sign-off to fit. The draft for **Shortlist** thanks the candidate for completing an interview round, so rewrite it for a candidate who hasn't had an interview. If you see **Failed to draft:** and a reason, write the email yourself.
+5. Choose **Copy** to copy the subject and text. Do this before the next step, because the dialog closes when the move is done and the draft goes with it. Pressing Esc also closes the dialog and loses the draft.
+6. Choose **Move to Shortlist** or **Move to Archived**.
+7. Paste the draft into your email and send it yourself. The system sends nothing.
+
+The **Suggested next steps** list in the dialog is a reminder. None of it happens by itself.
+
+For a candidate in **Offer** or **Archived**, the dialog says **No further stage**.
+
+</Step>
+<Step title="Move several candidates at once">
+
+1. Tick the box on each card. In the list, tick the box on each row, or tick the box in the header to select every candidate shown.
+2. A bar appears with the number selected, for example **3 selected**.
+3. Open **Move stage** and choose the status.
+
+Only the candidates who can make that move are moved.
+
+- If some candidates can't make that move, you see **Some candidates could not be moved to** followed by the status's internal name, for example *rejected* for **Archived**. The others still move.
+- When more than one candidate moves, you see a message such as **Successfully moved 4 candidates.**
+- If some moves fail to save, you see a message such as **Moved 3/4 candidates. 1 failed.** Those candidates stay where they were.
+
+**Arkiver** (Archive) in the bar does the same as **Move stage** with **Archived**. It moves the ticked candidates at once, with no confirmation, and **Archived** is final.
+
+Moving candidates this way sends no email. After a move to **Archived**, a box shows how many were archived, for example **Arkiverte 4 kandidater.** (Archived 4 candidates.), with **Lag utkast til avslag** (Draft rejection emails) and **Lukk** (Dismiss). **Lag utkast til avslag** (Draft rejection emails) opens the drafts panel with **Not this round** selected, for the candidates who moved.
+
+The other buttons in the bar only draft emails. They don't change anyone's status:
+
+- **AI-personalize email ★** opens the drafts panel with **You're shortlisted** selected.
+- **Lag utkast til invitasjoner** (Draft invite emails) opens it with **Schedule interview** selected. It books no interviews.
+
+In the drafts panel:
+
+1. The type of email is at the top: **You're shortlisted**, **Schedule interview**, **Not this round** or **Offer letter**.
+2. Choose **Draft emails with AI**. Nothing goes to the AI until you do. The line next to the button says how many drafts are ready, and that names and contact details are removed before the AI sees anything.
+3. Each candidate shows **Drafted**, **Failed** or **Not drafted**. Click a name to read and edit their draft.
+4. Only the first 25 candidates get a draft. The rest stay **Not drafted**, so select 25 or fewer at a time.
+5. Each draft is in Norwegian. The AI writes it from the vacancy title and the type of email only. It gets a label in place of each candidate's name, and the admin puts the candidate's first name back in. The drafter is set to sign off in English with **Best regards, BISO HR**. Check and adjust every draft before sending. The **You're shortlisted** draft thanks the candidate for completing an interview round, so rewrite it for candidates who haven't had one.
+6. **Copy all drafts** copies one block for each candidate marked **Drafted** or **Failed**, with **To:**, **Subject:** and the text. A failed draft gives a block with an empty subject and text, so delete those. Send each one as its own email.
+
+Switching the type at the top clears the drafts, edits included, and you choose **Draft emails with AI** again. **Draft again** writes every draft again and also loses your edits.
+
+Copy the drafts before you close the panel with the X or Esc. They aren't saved.
+
+</Step>
+<Step title="Compare candidates">
+
+1. Choose the compare icon on a card (tooltip: *Add to compare*), or **Compare** in a candidate's panel. Nothing shows until you've added two.
+2. With two or more added, a **Compare** bar shows their first names, **Open compare** with the number, and **Clear**. You can compare up to three. Adding a fourth drops the first one you added.
+3. Choose **Open compare**.
+
+The view shows the candidates side by side, headed with the vacancy title, for example **Who fits Treasurer best?** Each column shows the match score, **Stage**, **Source**, **Skills**, **Strengths**, **Gaps** and **Summary**.
+
+For an AI verdict, choose **Get AI verdict** at the top. Nothing goes to the AI until you do. While it's working, the button says **Analysing candidates…**. The verdict names the candidate it thinks fits best, and that column is marked **AI pick**. If you change which candidates you compare, the verdict goes, so ask again.
+
+The verdict uses each candidate's match score, strengths, gaps, status, source and days since applying. Names are replaced with labels such as *Candidate 2*, and contact details are removed, before anything goes to the AI. The admin puts first names back into the verdict you read. It doesn't read the CV or cover letter. If the AI can't answer, the verdict names the candidate with the highest match score. Treat it as one more opinion.
+
+From here, **Advance** opens the move dialog for a candidate, and **Schedule** opens the scheduling dialog. Either one closes the compare view, so you land back on the board when you're done. **Back to pipeline** closes the view.
+
+When two or more candidates have a match of 90 or more, the **AI noticed** box above the board has a **Compare top** button. It opens this view with the top three.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- The student sees the new status on biso.no and in the app straight away, on **Mine søknader** (My applications). See [What the student sees](#what-the-student-sees).
+- No email goes out when you move a candidate, whether you drag, use **Advance**, **Move stage** or **Arkiver** (Archive). The candidate gets only the emails you send yourself.
+- If auto-screen is on, each new application is screened when it arrives. Screening never moves anyone, so new applications always land in **Applied**.
+- Next, [book interviews](/guide/recruitment/book-interviews) with the candidates on your shortlist. When you schedule an interview for a candidate in the scheduling dialog, the system moves them to **Interview** itself.
+</WhatHappensNext>
+
+## What the student sees
+
+The student sees each of their applications on biso.no and in the app, on **Mine søknader** (My applications), with a status label. The label changes as soon as you move the candidate. No email or notification goes with it.
+
+| Status in the workspace | What the student sees |
+|---|---|
+| **Applied** | **Sendt inn** (Submitted) |
+| **Shortlist** | **Vurdert** (Reviewed) |
+| **Interview** | **Intervju** (Interview) |
+| **Offer** | **Tilbud** (Accepted) |
+| **Archived** | **Ikke valgt** (Not selected) |
+
+- The app shows the same labels, except **Sendt** (Submitted) for **Applied** and **Akseptert** (Accepted) for **Offer**.
+- A student you archive sees **Ikke valgt** (Not selected) as soon as you archive them. Send your email right away.
+- The student doesn't see the match score, the AI summary, your notes or your stars.
+
+## Common mistakes
+
+- Treating the AI score as a decision. The score comes from one AI reading of the application. Read the application before you shortlist or archive. Sorting by **AI match** puts candidates with no score at the bottom, so read them too.
+- Expecting the candidate to get an email. Moving a candidate sends nothing. The student only sees the new label on **Mine søknader** (My applications). Write and send each email yourself.
+- Choosing **Arkiver** (Archive) in the bar to draft rejection emails. It archives every ticked candidate at once, and that's final. To draft without moving anyone, use **AI-personalize email ★** and choose **Not this round**.
+- Archiving too early. **Archived** and **Offer** are final, and nobody can leave them. If you're unsure about a candidate, leave them in **Applied** or **Shortlist**. A candidate in **Interview** can go back to **Shortlist**.
+- Trying to move a candidate from **Applied** straight to **Interview**. They go through **Shortlist** first.
+- Choosing **Move to**, or pressing Esc, before you copy the draft. The dialog closes and the draft is lost. If that happens, tick the candidate, choose **AI-personalize email ★** in the bar, pick the type of email and choose **Draft emails with AI**.
+- Selecting more than 25 candidates for bulk email. Only the first 25 get a draft.
+- Sending a draft as it is. Drafts are written from the vacancy title only, with the candidate's first name added, and the **You're shortlisted** draft is written for after an interview. Read and adjust each one.
+- Writing a note you wouldn't want colleagues to read. Everyone who can open the vacancy's applications sees the same notes.
+
+## If there is no AI score
+
+A candidate with no score shows "—" in the ring on their card (tooltip: *Not screened*). Their **Overview** says **No AI screening summary yet.**, and the **AI noticed** box above the board counts them, for example **3 applications have no AI screening yet.**
+
+The screening runs once, right after the student sends the application. There's no button to run it again. A candidate has no score if the vacancy was set to **Manual review only** when they applied, or if the screening didn't work at that moment.
+
+Turning auto-screen on later doesn't screen the applications you already have. Review those candidates the same way, without a score.
+
+To have new applications screened, open the vacancy with **Edit posting**. On the **Screening** step, make sure **Auto-screen enabled** is selected, then save with **Publish**. If the vacancy was saved with **Manual review only**, the **Auto-screen applications** switch on the **Access & data** tab doesn't turn screening back on by itself.
+
+If auto-screen is on and every new application shows "—", tell IT.

@@ -1,0 +1,123 @@
+---
+title: Monitoring and health
+description: What watches the platform today, what each health endpoint checks, where to find the logs, and what nobody is watching.
+covers:
+  - apps/*/src/app/api/health/**
+  - apps/docs/app/api/health/**
+  - apps/*/src/instrumentation.ts
+  - apps/docs/instrumentation.ts
+  - packages/shared/utils/server-error-logging.ts
+  - packages/api/server.ts
+  - apps/admin/src/app/(portal)/settings/operations/**
+  - apps/admin/src/lib/integration-health.ts
+  - apps/admin/src/lib/team-health.ts
+  - apps/admin/src/lib/umami/**
+  - apps/admin/src/app/_components/analytics-script.tsx
+  - apps/web/src/app/api/analytics/page-view/route.ts
+---
+
+Use this page to find out whether the platform is healthy, and where to look when it isn't. One outside service, Better Stack, sends an alert when the site can't be reached. Everything else you check yourself: the health endpoints, the logs in the Appwrite console, and the admin's operations page. Nothing alerts anyone when a scheduled job, a function or a payment fails, so read [What isn't monitored](#what-isnt-monitored) before you trust a quiet inbox.
+
+## Better Stack
+
+Better Stack (free plan) checks that the site can be reached and sends an alert when it can't. It isn't set up in the repo. Which addresses it checks, how often, and who gets the alerts are all set in the Better Stack account:
+
+<Private name="better-stack-account" label="Better Stack" />
+
+When you take over, open the account and check two things:
+
+- **It checks every live app.** Each of these should have a check. Add any that's missing:
+  - `https://biso.no/api/health`
+  - `https://admin.biso.no/api/health`
+  - `https://api.biso.no/api/health`
+  - `https://docs.biso.no/api/health`, once docs is live
+- **The alerts reach you.** Add yourself, and remove anyone who no longer works on the platform.
+
+Every check costs something. A check on `/api/health` costs one Site execution. A check on `/api/health/ready` also costs an Appwrite request. Keep a few minutes between checks.
+
+## Umami
+
+Umami is BISO's visitor analytics. It's self-hosted, it isn't in the repo, and the repo doesn't say where it runs. Who owns it is listed under <Private name="account-owners" label="Account owners" />.
+
+- The website and the admin each load Umami's script with a fixed website id (`apps/web/src/app/layout.tsx`, `apps/admin/src/app/_components/analytics-script.tsx`). The script loads after the page, so an Umami outage doesn't stop either site from working.
+- The admin's **Analyse** (Analytics) page reads Umami's API with `UMAMI_API_URL`, `UMAMI_USERNAME` and `UMAMI_PASSWORD`. If those are missing, or Umami doesn't answer, the page shows empty numbers and the admin logs `[Umami] GET … failed` or `[Umami] GET … threw`.
+- The website's own page-view endpoint, `/api/analytics/page-view`, is switched off. It always answers `204`.
+
+Umami counts visitors. It sends no alerts, so don't count on it to notice an outage.
+
+## Health endpoints
+
+| Endpoint | On | What it checks | Answers |
+|---|---|---|---|
+| `GET /api/health` | web, admin, api, docs | Nothing. It only shows that the app is running. | `200` with `{"status":"ok",…}` |
+| `GET /api/health/ready` | web, admin, api | That the app's `APPWRITE_API_KEY` can list one Appwrite user within 3 seconds | `200` with `{"status":"ready","latencyMs":…}`, or `503` with `{"status":"error",…}` |
+| `GET /api/health/teams` | admin | That the Appwrite teams the admin needs exist | `200`, or `503` with a list of the missing teams. Needs a signed-in global admin. Anyone else gets `401` or `403`. |
+
+[Deploying](/developers/keep-it-running/deploying#health-endpoints) has the commands to call them.
+
+Read the answers with care:
+
+- **`/api/health` can answer `200` while the site is broken.** When Appwrite fails, most of the website's data reads log the error and return an empty list. Pages still load, with empty sections (`apps/web/src/app/actions/events.ts`). If pages look empty, check `/api/health/ready`.
+- **`/api/health/teams` can't be used by a monitor.** Its code says it's meant for one, but a monitor can't sign in as a global admin. Open it in a browser where you're signed in to the admin.
+- **`/api/health/teams` lists `biso-members` as required.** That team isn't used. Ignore it if it's reported missing.
+
+## The admin's operations page
+
+Global admins can open **Innstillinger** (Settings), then **Driftshelse** (Operations health), at `/settings/operations`. It shows two things:
+
+- For Appwrite, Microsoft 365, SharePoint, Vipps, the scheduler secrets and Umami, whether their variables are set on the admin's Site. It only checks that a value exists. It doesn't try the value.
+- The same team check as `/api/health/teams`.
+
+Three parts of it mislead:
+
+- **Vipps** is checked through the `VIPPS_*` variables on the admin. The real credentials are in the `payment_settings` table, and payments run on the api, so Vipps can show as missing while payments work.
+- **The scheduler secrets** entry wants `ENTUR_SYNC_SECRET` and `TICKSTER_SYNC_SECRET` as well as `CRON_SECRET`. Leave those two unset, as [Secrets and environment](/developers/keep-it-running/secrets-and-environment#scheduled-jobs) says.
+- **The runbook links** point at old docs pages that no longer exist. The runbooks are now [When things break](/developers/keep-it-running/when-things-break).
+
+## Logs
+
+The apps write their logs to standard output and nowhere else. There's no error tracker such as Sentry, so the logs in the Appwrite console are all there is.
+
+### Sites
+
+Open the Appwrite console (<Private name="appwrite-console-url" label="Appwrite console" />), then BISO's production project, then **Sites**, then the Site. Its logs are there, and each deployment has its own build log.
+
+### Functions
+
+Open **Functions**, then the function, then **Executions**, then a run. The output is split across the **Logs** and **Errors** tabs. Keep logging switched on in each function's settings, as the functions' READMEs say, or the runs keep no output.
+
+Appwrite deletes execution logs after 14 days unless its server is set otherwise (`_APP_MAINTENANCE_RETENTION_EXECUTION` in Appwrite's server settings). The production value isn't recorded. Copy what you need from an incident before it's gone.
+
+[Scheduled jobs](/developers/keep-it-running/scheduled-jobs#check-that-its-working) explains scheduled-dispatch's log lines.
+
+### What to search for
+
+| Line | Written by | What it means |
+|---|---|---|
+| `[request-error]` | web, admin, api, docs | A request failed with an error nothing caught. The JSON that follows names the app, the method and path, and the error with its stack. Cookies, keys and `Authorization` headers are replaced with `[redacted]`. |
+| `[appwrite] slow request` | Server code using `@repo/api` | One Appwrite call took 2 seconds or more (`APPWRITE_SLOW_REQUEST_MS`). |
+| `[appwrite] request timed out` | Server code using `@repo/api` | One Appwrite call was cut off after 8 seconds (`APPWRITE_REQUEST_TIMEOUT_MS`). The caller gets a `504` error of type `appwrite_timeout`. Many of these at once usually mean Appwrite itself is struggling. |
+| `[web] …` or `[admin] …` when the Site starts | web, admin | A start-up check failed. The line names the variable that's wrong. |
+| `[admin] Falling back to production Appwrite defaults for unset env: …` | admin | An Appwrite setting is unset. See [Secrets and environment](/developers/keep-it-running/secrets-and-environment#unset-appwrite-settings-mean-production). |
+| `Error fetching events:` and similar | web | A data read failed and the page showed an empty list instead |
+| `M365 Sync Failed:` | admin | Copying someone's Microsoft groups to their Appwrite teams failed when they signed in. They're signed in, with the teams they had before. |
+| `Failed to send announcement push:` | admin, content-notifier | Appwrite refused a push. See [Push notifications aren't sent](/developers/keep-it-running/when-things-break#push-notifications-arent-sent). |
+| `AI screening failed for application …` | web, api | Screening a job application failed. See [AI features fail](/developers/keep-it-running/when-things-break#ai-features-fail). |
+| `[payment/credentials] vipps row not found in DB — falling back to env` | api | There's no `payment_settings` row for Vipps, so the api uses the `VIPPS_*` variables. The same line exists for Stripe. |
+
+When the Appwrite console itself won't load, its logs won't either. Read Appwrite's own logs on the server, as in [Appwrite is down](/developers/keep-it-running/when-things-break#appwrite-is-down).
+
+## What isn't monitored
+
+Better Stack only tells you when a site can't be reached. Nothing tells anyone about any of these:
+
+- **Errors.** `[request-error]` lines stay in the Site logs until someone reads them.
+- **Scheduled jobs.** A failed scheduled-dispatch run answers `502`, which shows only in its executions.
+- **The other two functions.** content-notifier failures show only in its executions. member-roster-sync failures also show on the admin's members page as **Siste oppdatering feilet** (Last refresh failed).
+- **Appwrite failing behind a running app.** `/api/health` answers `200` while the pages are empty, as described above.
+- **Payments stuck as pending.** Order reconciliation retries them on its own, and nobody hears about the ones it can't fix.
+- **The server.** The repo has nothing that watches disk space, memory or CPU, and whether Webdock sends alerts isn't recorded.
+- **The nightly backup.** Nobody checks that it ran. See [Backups and recovery](/developers/keep-it-running/backups-and-recovery).
+- **Expiry dates.** Nothing tracks when certificates and secrets run out. The [Yearly calendar](/developers/keep-it-running/yearly-calendar) lists the ones that are known.
+
+Until something better exists, open these once a week: the latest scheduled-dispatch execution (it should end with `"failed":0`), the members page's status line, and the Site logs of the admin and the api for `[request-error]`.

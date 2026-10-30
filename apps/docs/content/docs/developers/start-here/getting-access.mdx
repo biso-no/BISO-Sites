@@ -1,0 +1,136 @@
+---
+title: Getting access
+description: Every account and system behind the platform, who grants access to each, and how to get it.
+covers:
+  - apps/docs/lib/auth/access.ts
+  - apps/docs/components/private.tsx
+  - apps/admin/src/app/(auth)/auth/login/page.tsx
+  - apps/admin/src/app/(auth)/auth/oauth/route.ts
+  - apps/admin/src/lib/m365-sync.ts
+  - apps/admin/src/app/(portal)/_actions/it-users.ts
+  - apps/admin/src/lib/it-permission-rules.ts
+  - packages/shared/utils/team-roles.ts
+---
+
+Use this page to get the access you need, or to give it to someone else. Each section names a system, what it's for, who grants access and how. The people who grant access are named in private blocks, so sign in to see them. When someone's work ends, remove every access they were given.
+
+## Who can see the private details
+
+The private values on these pages show only after sign-in, and only to:
+
+- global admins: members of the National campus team and the Operations Unit department team
+- campus admins: members of a city's campus team and that city's Ledelsen team
+- members of the `docs-handover` team
+
+Docs checks exact team ids and ignores team names (`apps/docs/lib/auth/access.ts`). Anyone else who signs in sees "Your account doesn't have access to this."
+
+## Microsoft account
+
+You sign in to the admin, and through it to these docs, with a BISO Microsoft account.
+
+Who creates accounts: <Private name="microsoft-tenant-admins" label="Microsoft tenant administrators" />
+
+**For a consultant**, a tenant administrator creates a BISO account in the Microsoft Entra admin centre and adds it to no `SG-App-*` group. Don't create the account on the admin's IT page. That page always adds a new account to one `SG-App-Campus-*` group and one `SG-App-Dept-*` group, and those groups give admin roles that can publish content. If the account was already made there, a global admin can remove both groups on the same page. That's enough if the person hasn't signed in to the admin yet. If they have, also remove their `sg-app-*` team memberships in the Appwrite console, and delete their row in the `m365_team_sync` table (the row id is their Appwrite user id).
+
+**For an in-house hire who needs an admin role**, a global admin adds them to the right groups on the admin's IT page. Only global admins can change groups there. A campus admin can create a new account on that page too, only in a campus they manage, and it gets that campus's group and a department group. The admin copies a person's `SG-App-*` groups into Appwrite teams, and saves the list of them, each time they sign in, so a change takes effect at their next sign-in. [Auth and roles](/developers/change-it/auth-and-roles#roles) explains how the roles are worked out.
+
+| Role | Groups |
+|---|---|
+| Global admin | `SG-App-Campus-National` and `SG-App-Dept-OperationsUnit` |
+| Campus admin | `SG-App-Campus-<City>` and `SG-App-Dept-Ledelsen<City>`, for Oslo, Bergen, Stavanger or Trondheim |
+| HR | `SG-App-Dept-HR`. No other group gives HR. |
+| National HR | `SG-App-Campus-National` and `SG-App-Dept-HR` |
+| Department member | A campus group and a department group |
+
+## The docs handover team
+
+This team lets a consultant see the private details on these pages without giving them any admin role. Nothing adds people to it automatically. A global admin does it by hand.
+
+Who is in it now: <Private name="docs-handover-team" label="Docs handover team" />
+
+If the team doesn't exist yet, create it first, with the custom id `docs-handover`. The owner steps in `apps/docs/CLAUDE.md` explain why the id matters.
+
+To let a consultant in:
+
+1. The consultant gets a BISO Microsoft account, as described above.
+2. The consultant opens a docs page with a private value and chooses **Sign in** next to "Sign in with your BISO admin account to see this." On the admin's sign-in page they choose **Logg inn med BISO-konto** (Sign in with BISO account) and sign in with Microsoft. This creates their Appwrite account.
+3. They land back on the docs page, which now says "Your account doesn't have access to this." If they land on an admin page saying they have no access, that's fine too. Either way the account exists. The consultant sends the email address they signed in with to a global admin.
+4. The global admin opens the production project in the Appwrite console, opens the `docs-handover` team, and adds that account as a member. Don't give it the `owner` role: a team owner can add other people. Then check that the team's members match the list above and that nobody in it holds `owner`.
+5. The consultant reloads the docs page. The private values now show.
+
+To remove someone, delete their membership of the team in the console.
+
+## GitHub
+
+The code is in two public repositories in BISO's GitHub organisation. BISO-Sites holds the website, the admin, the API, these docs and the three Appwrite functions. BISO-Flutter holds the app. You can read and clone both without an invite. To push branches, you need one.
+
+Who invites: <Private name="github-org" label="GitHub organisation owners" />
+
+An organisation owner invites your GitHub account as a collaborator on each repository you'll work on.
+
+## Infisical
+
+Infisical is where developers get credentials, for example when setting up a new machine. The website, admin and API don't read it: the values they need are copied from it into the Appwrite console by hand. It runs on the same server as Appwrite.
+
+- Address: <Private name="infisical-url" label="Infisical" />
+- Who invites: <Private name="infisical-admins" label="Infisical admins" />
+
+An Infisical admin invites you to BISO's Infisical project.
+
+If nobody who can invite you is left: <Private name="infisical-admin-recovery" label="Infisical recovery" />. The administration leader also keeps an [emergency kit](/developers/start-here/if-youre-hiring-someone#the-emergency-kit) for this case.
+
+## Appwrite console
+
+The console controls production: each app's deploys and environment variables, the functions, the database, and users and teams.
+
+- Address: <Private name="appwrite-console-url" label="Appwrite console" />
+- Who invites: <Private name="appwrite-console-admins" label="Appwrite console admins" />
+
+An owner of BISO's organisation in the console invites your email address to it. This console account is separate from the Appwrite account that the admin's sign-in creates for you.
+
+## The server
+
+A Linux VPS at Webdock runs Appwrite and Infisical. Deploys and environment variables are handled in the Appwrite console, so you need the server only for work on Appwrite or Infisical themselves, such as an upgrade or a restore.
+
+- Webdock account: <Private name="server-provider-account" label="Webdock account" />
+- Getting onto the server: <Private name="server-access" label="Server access" />
+
+## Microsoft app registrations
+
+The admin's Microsoft sign-in, the Microsoft Graph features, SharePoint and the Teams bot use app registrations in BISO's Microsoft tenant. Their secrets expire, and you renew them in the Azure portal. A Microsoft tenant administrator grants access to the portal.
+
+- Where they live and who owns them: <Private name="azure-app-registration" label="Azure app registrations" />
+
+## App stores
+
+- **Apple Developer and App Store Connect**: <Private name="apple-developer-account" label="Apple Developer account" />. You need this to release the iOS app, which is built by hand with `flutter build ipa --release` and then uploaded.
+- **Google Play Console**: <Private name="google-play-account" label="Google Play account" />. In the BISO-Flutter repo, each push to `main` builds Android and uploads it to the internal track. Moving a release to production is done by hand in the Play Console.
+
+The account owner invites you as a user in each.
+
+## Better Stack
+
+Better Stack (free plan) sends an alert when the site can't be reached. It isn't set up in the repo.
+
+- Account, and who gets the alerts: <Private name="better-stack-account" label="Better Stack" />
+
+The account owner invites you.
+
+## Other accounts
+
+The platform also uses outside services such as Umami, Anthropic, 24SevenOffice, Vipps and Firebase. The credentials the apps use for them are in Infisical. Who owns each account:
+
+<Private name="account-owners" label="Account owners" />
+
+## When the work ends
+
+Removing someone from a Microsoft group doesn't take their admin roles away straight away. The admin only updates a person's Appwrite teams and their saved team list when they next sign in, and Appwrite sessions last a year. So remove access in this order:
+
+1. On the admin's IT page, remove the person from their `SG-App-*` groups.
+2. In the Appwrite console, in the production project, delete the person's row in the `m365_team_sync` table. The row id is their Appwrite user id. Without that row, the admin and the API give them no role. Re-running `backfill:m365-team-sync` also brings the row in line with their groups, but it skips anyone whose Microsoft account it can't read.
+3. In the same project, remove their memberships of `sg-app-*` teams and of `docs-handover`.
+4. Delete the user's sessions, or block the user.
+5. Remove their Infisical user, their membership of BISO's organisation in the Appwrite console, their server and Webdock access, and their GitHub collaborator access.
+6. If a Microsoft account was made for them, disable or delete it.
+
+Go through this list again at each August board turnover.

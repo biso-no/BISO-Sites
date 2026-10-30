@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Permission, Role } from "@repo/api";
 import {
   buildContentRowPermissions,
@@ -87,34 +87,81 @@ describe("buildContentTranslationPermissions", () => {
 });
 
 describe("sanitizeRedirectTarget", () => {
-  test("keeps same-site paths unchanged", () => {
-    expect(sanitizeRedirectTarget("/pages?x=1")).toBe("/pages?x=1");
-    expect(sanitizeRedirectTarget("/events/42")).toBe("/events/42");
+  const original = process.env.NEXT_PUBLIC_DOCS_URL;
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_DOCS_URL = "https://docs.biso.no";
+  });
+  afterEach(() => {
+    if (original === undefined) {
+      Reflect.deleteProperty(process.env, "NEXT_PUBLIC_DOCS_URL");
+    } else {
+      process.env.NEXT_PUBLIC_DOCS_URL = original;
+    }
   });
 
-  test("falls back to / for empty and cross-origin targets", () => {
+  test("keeps relative paths and rejects unsafe relative forms", () => {
+    expect(sanitizeRedirectTarget("/pages/1?x=2")).toBe("/pages/1?x=2");
+    expect(sanitizeRedirectTarget("%2Fpages%2F1")).toBe("/pages/1");
+    expect(sanitizeRedirectTarget("//evil.com")).toBe("/");
+    expect(sanitizeRedirectTarget("/\\evil.com")).toBe("/");
+    expect(sanitizeRedirectTarget("https://evil.com")).toBe("/");
+    expect(sanitizeRedirectTarget(null)).toBe("/");
+    expect(sanitizeRedirectTarget("")).toBe("/");
+  });
+
+  test("rejects control characters and whitespace in relative paths", () => {
     for (const bad of [
-      "",
-      null,
-      undefined,
-      "https://evil.com",
-      "//evil.com",
-      "/\\evil.com",
-      "%2F%2Fevil.com",
-      "evil.com",
+      "/%09/evil.com",
+      "%2F%09%2Fevil.com",
+      "/\t/evil.com",
+      "/\t\\evil.com",
+      "/%09%5Cevil.com",
+      "/%0A/evil.com",
+      "/%0D/evil.com",
+      "/%00",
+      "/%7f/x",
     ]) {
       expect(sanitizeRedirectTarget(bad)).toBe("/");
     }
   });
 
-  test("falls back to / when the target contains control characters", () => {
+  test("accepts the docs origin with path and query preserved", () => {
+    const url = "https://docs.biso.no/it/guide?a=1%202#top";
+    expect(sanitizeRedirectTarget(url)).toBe(url);
+    expect(sanitizeRedirectTarget(encodeURIComponent(url))).toBe(url);
+    expect(sanitizeRedirectTarget("https://docs.biso.no")).toBe(
+      "https://docs.biso.no"
+    );
+  });
+
+  test("rejects lookalike and malformed docs URLs", () => {
     for (const bad of [
-      "/%09/evil.com",
-      "/%0a/evil.com",
-      "/%0d/evil.com",
-      "/\t/evil.com",
-      "/%7f/x",
+      "https://docs.biso.no.evil.com/x",
+      "https://docs.biso.no@evil.com/",
+      "https://evil.com@docs.biso.no/",
+      "//docs.biso.no/x",
+      "https:/docs.biso.no",
+      "https:\\\\docs.biso.no",
+      "https://docs.biso.no\\@evil.com",
+      "http://docs.biso.no/x",
+      "https://docs.biso.no:8443/x",
+      "javascript:alert(1)",
+      "https://docs.biso.no/x%00",
+      "https://docs.biso.no/x%0Ay",
     ]) {
+      expect(sanitizeRedirectTarget(bad)).toBe("/");
+    }
+  });
+
+  test("accepts no absolute URL when the env var is unset or invalid", () => {
+    Reflect.deleteProperty(process.env, "NEXT_PUBLIC_DOCS_URL");
+    expect(sanitizeRedirectTarget("https://docs.biso.no/x")).toBe("/");
+    process.env.NEXT_PUBLIC_DOCS_URL = "not a url";
+    expect(sanitizeRedirectTarget("https://docs.biso.no/x")).toBe("/");
+  });
+
+  test("falls back to / for other cross-origin forms", () => {
+    for (const bad of [undefined, "%2F%2Fevil.com", "evil.com"]) {
       expect(sanitizeRedirectTarget(bad)).toBe("/");
     }
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { use, useEffect, useId, useState } from "react";
+import { type CSSProperties, use, useEffect, useId, useState } from "react";
 
 export function Mermaid({ chart }: { chart: string }) {
   const [mounted, setMounted] = useState(false);
@@ -15,6 +15,46 @@ export function Mermaid({ chart }: { chart: string }) {
   }
   return <MermaidContent chart={chart} />;
 }
+
+/**
+ * Diagram colours from the BISO palette. On paper, lines and borders are the
+ * action blue (sky is for navy only); on navy, they are sky. Sun is a marker,
+ * so it only ever draws a border, never text.
+ */
+const MERMAID_THEME = {
+  light: {
+    primaryColor: "#eef1f5",
+    primaryTextColor: "#001a35",
+    primaryBorderColor: "#1668ae",
+    lineColor: "#1668ae",
+    secondaryColor: "#f7f9fb",
+    tertiaryColor: "#ffffff",
+    mainBkg: "#ffffff",
+    nodeBorder: "#1668ae",
+    clusterBkg: "#f7f9fb",
+    clusterBorder: "#e8ecf0",
+    titleColor: "#001a35",
+    edgeLabelBackground: "#ffffff",
+    tertiaryTextColor: "#001a35",
+    tertiaryBorderColor: "#fecd45",
+  },
+  dark: {
+    primaryColor: "#0b2747",
+    primaryTextColor: "#ffffff",
+    primaryBorderColor: "#3aa3e1",
+    lineColor: "#3aa3e1",
+    secondaryColor: "#001a35",
+    tertiaryColor: "#00142a",
+    mainBkg: "#0b2747",
+    nodeBorder: "#3aa3e1",
+    clusterBkg: "#001a35",
+    clusterBorder: "#12314f",
+    titleColor: "#ffffff",
+    edgeLabelBackground: "#00142a",
+    tertiaryTextColor: "#93a7bb",
+    tertiaryBorderColor: "#fecd45",
+  },
+} as const;
 
 const cache = new Map<string, Promise<unknown>>();
 
@@ -42,29 +82,10 @@ function MermaidContent({ chart }: { chart: string }) {
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "loose",
-    fontFamily: "var(--font-inter), ui-sans-serif, system-ui",
+    fontFamily: "var(--font-museo), ui-sans-serif, system-ui",
     theme: "base",
-    themeVariables: {
-      /* BISO brand palette: blue #3DA9E0, navy #001731, yellow #F7D64A */
-      primaryColor: resolvedTheme === "dark" ? "#1a3a5c" : "#dbeeff",
-      primaryTextColor: resolvedTheme === "dark" ? "#e0f2fe" : "#001731",
-      primaryBorderColor: resolvedTheme === "dark" ? "#3DA9E0" : "#3DA9E0",
-      lineColor: resolvedTheme === "dark" ? "#3DA9E0" : "#0077b6",
-      secondaryColor: resolvedTheme === "dark" ? "#0d2235" : "#f0f9ff",
-      tertiaryColor: resolvedTheme === "dark" ? "#001731" : "#ffffff",
-      mainBkg: resolvedTheme === "dark" ? "#0d2235" : "#ffffff",
-      nodeBorder: resolvedTheme === "dark" ? "#3DA9E0" : "#93c5fd",
-      clusterBkg:
-        resolvedTheme === "dark"
-          ? "rgba(0, 23, 49, 0.6)"
-          : "rgba(219, 238, 255, 0.5)",
-      clusterBorder: resolvedTheme === "dark" ? "#3DA9E0" : "#93c5fd",
-      titleColor: resolvedTheme === "dark" ? "#7dd3fc" : "#0077b6",
-      edgeLabelBackground: resolvedTheme === "dark" ? "#001731" : "#f0f9ff",
-      /* Accent nodes use BISO yellow */
-      tertiaryTextColor: resolvedTheme === "dark" ? "#F7D64A" : "#92620d",
-      tertiaryBorderColor: resolvedTheme === "dark" ? "#F7D64A" : "#f7d64a",
-    },
+    themeVariables:
+      resolvedTheme === "dark" ? MERMAID_THEME.dark : MERMAID_THEME.light,
   });
 
   const { svg, bindFunctions } = use(
@@ -73,8 +94,50 @@ function MermaidContent({ chart }: { chart: string }) {
     })
   );
 
+  return <MermaidFrame bindFunctions={bindFunctions} svg={svg} />;
+}
+
+/**
+ * A diagram never shrinks below this share of its natural size, which keeps
+ * Mermaid's 16 px labels at 12 px or more.
+ */
+export const MIN_SCALE = 0.75;
+
+/** The width of the root `<svg>`'s viewBox, ignoring any nested viewBox. */
+const ROOT_VIEWBOX_WIDTH =
+  /^\s*<svg\b[^>]*?\sviewBox="\s*-?[\d.]+[\s,]+-?[\d.]+[\s,]+([\d.]+)/;
+
+/** A diagram's natural width in px, read from its viewBox. */
+export function naturalWidth(svg: string): number | null {
+  const match = ROOT_VIEWBOX_WIDTH.exec(svg);
+  const width = match ? Number.parseFloat(match[1]) : Number.NaN;
+  return Number.isFinite(width) && width > 0 ? width : null;
+}
+
+/**
+ * Mermaid sizes the SVG to `width="100%"` with its natural width as
+ * `max-width`. The frame adds a `min-width` of `MIN_SCALE` times that width,
+ * at every screen size. A diagram that still doesn't fit scrolls sideways
+ * inside the frame, and the frame's inline-size containment keeps the page
+ * itself from widening.
+ */
+export function MermaidFrame({
+  svg,
+  bindFunctions,
+}: {
+  svg: string;
+  bindFunctions?: (element: Element) => void;
+}) {
+  const width = naturalWidth(svg);
+  const style = width
+    ? ({
+        "--mermaid-min-width": `${Math.round(width * MIN_SCALE)}px`,
+      } as CSSProperties)
+    : undefined;
+
   return (
     <div
+      className="overflow-x-auto overscroll-x-contain contain-inline-size [&>svg]:min-w-(--mermaid-min-width)"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid returns SVG for trusted docs content.
       dangerouslySetInnerHTML={{ __html: svg }}
       ref={(container) => {
@@ -82,6 +145,7 @@ function MermaidContent({ chart }: { chart: string }) {
           bindFunctions?.(container);
         }
       }}
+      style={style}
     />
   );
 }

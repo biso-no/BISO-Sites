@@ -1,0 +1,147 @@
+---
+title: How events work
+description: Who can create and publish events in the BISO admin, how an event goes live, what tickets, RSVP and members-only mean, how Tickster imports behave, and what the system does on its own.
+covers:
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/nav-tree.ts
+  - apps/admin/src/lib/event-scope.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - apps/admin/src/lib/content-authorization.ts
+  - apps/admin/src/lib/notify-push-guard.ts
+  - apps/admin/src/app/(portal)/events/**
+  - apps/admin/src/app/(portal)/_actions/events.ts
+  - apps/admin/src/app/(portal)/_actions/event-segments.ts
+  - apps/api/src/lib/tickster-events-sync.ts
+  - apps/api/src/app/api/tickster/events/sync/route.ts
+  - packages/shared/utils/event-rsvp.ts
+  - packages/shared/utils/content-read-permissions.ts
+  - packages/shared/utils/content-notifications.ts
+  - functions/content-notifier/**
+  - apps/web/src/lib/data/queries.ts
+  - apps/web/src/components/events/**
+---
+
+Events are how BISO tells students what's on. In the admin they sit under **Innhold** (Content) → **Arrangementer** (Events) in the sidebar. Students find them on biso.no/events and in the BISO app.
+
+The events list follows your admin language. The event editor and the logistics page are in English whatever your language, so this guide names their labels in English.
+
+BISO doesn't sell event tickets or take registrations itself. Where people buy a ticket or sign up goes in the event's ticket link, which biso.no shows as a **Kjøp billetter** (Get tickets) button. Students can also say whether they're coming with the RSVP buttons.
+
+## Who can use events
+
+| Who | Events | Logistics and RSVPs | Message a group |
+|---|---|---|---|
+| Global admins (National + Operations Unit) | Every event, on any campus and National | Every event | Yes |
+| Campus leaders (Ledelsen on your campus) | Events on your campus, and National events | The same events | Groups on your campus's events |
+| Department members, for their own department | Your department's events on your campus | The same events | No |
+
+- HR members count as members of their department here.
+- Anyone else, such as a benefits editor who isn't in a department, doesn't have **Arrangementer** (Events) in the sidebar.
+- Opening an event you can't edit shows a page-not-found error.
+- Department members must choose their own department as the event's host, even for a draft. An event with no department, such as a campus-wide event or an event imported from Tickster, is only in the list for campus leaders and global admins.
+- Campus leaders can move an event between their campus and National. Department members can't change the campus.
+- Only global admins can switch on the notification for a National event. See [How notifications reach students](/guide/announcements).
+- Messaging a group is a push announcement, so it's for global admins and campus leaders. See [Send an announcement](/guide/announcements/send-an-announcement).
+- Nobody has to approve an event. If you can edit an event, you can publish it. **Gjennomgå utkast** (Review Drafts) shows draft events to global admins and campus leaders, but an event doesn't have to go through it.
+
+If you think you should have access and don't, ask IT to check your groups.
+
+## From draft to live
+
+An event has one status for both languages. The list shows it as a pill:
+
+| Status | What it means |
+|---|---|
+| **Utkast** (Draft) | Saved with **Save as draft**. Drafts aren't shown on biso.no or in the app. |
+| **Publisert** (Published) | Saved with **Publish event**. It's on biso.no and in the app until it ends. |
+| **Avlyst** (Cancelled) | Only an event imported from Tickster can have this status. biso.no doesn't show it. |
+
+- **Publish event** makes the event public at once.
+- To take a published event offline, open it and choose **Save as draft**.
+- There's no cancel button in the admin. To call an event off, see [Run the event](/guide/events/run-the-event#change-or-cancel-the-event).
+- When an event has ended, biso.no takes it off its list by itself.
+- biso.no lists events for the campus the visitor chose and National. The app lists events for the one campus chosen in the app, so a National event isn't in a city campus's list there. A notification or a link still opens it.
+
+The **Publish schedule** setting has **Publish now** and **Schedule for…**. **Schedule for…** doesn't hold the event back: it goes live as soon as you choose **Publish event**. The time you pick only delays the event's notification. To keep an event hidden until a date, save it as a draft and publish it yourself on that date.
+
+## Tickets, RSVP and members-only
+
+**The ticket link.** Paste the page where people buy a ticket or sign up, such as Tickster. biso.no shows it as **Kjøp billetter** (Get tickets). A paid event needs one, because biso.no has no checkout for events. The member price is shown as text on the event. The ticket seller applies it.
+
+**RSVP.** Signed-in students can answer **Kommer** (Going), **Kanskje** (Maybe) or **Kommer ikke** (Not going) on a published event, on biso.no or in the app. Each student has one answer per event and can change or remove it until the event ends. An answer isn't a ticket, a seat or a registration. You see the answers, with names and emails, on the event's logistics page.
+
+RSVP takes no notice of **Capacity**, **Waitlist** or **Registration closes**:
+
+- Students can answer until the event ends, even after **Registration closes** and with any number already going.
+- **Capacity** is shown on biso.no as a number of places. It doesn't limit answers or tickets.
+- **Waitlist** has no effect outside the editor.
+- The **Påmeldte** (Registered) column in **Arrangementer** (Events) always reads 0. RSVPs aren't counted there.
+
+**Members only.** A members-only event is still shown to everyone, on biso.no and in the app, marked as members-only. It changes two things:
+
+- Only BISO members can answer RSVP.
+- In the app, the ticket button is locked for students who aren't members. biso.no shows **Kjøp billetter** (Get tickets) to everyone.
+
+## Events imported from Tickster
+
+When the Tickster import runs, it copies the events that BISO's campuses sell on tickster.com into **Arrangementer** (Events). When it's set up, it runs every few minutes. Nobody starts it from the admin, and no screen shows that it ran.
+
+What the import does with each event depends on its sale at Tickster:
+
+| At Tickster | In the admin |
+|---|---|
+| On sale | Published, with the ticket link |
+| Sale ended | Stays published, without the ticket link |
+| Cancelled | **Avlyst** (Cancelled), and biso.no doesn't show it |
+| Not on sale to the public, or sale paused | Not imported. An event imported earlier becomes a draft. |
+
+An imported event has no department in **Hosted by**, and its address ends in a code from Tickster. Department members don't see imported events. A campus leader can set **Hosted by** to your department so you can see and edit it.
+
+Each time the import runs, it writes these fields again from Tickster, in both languages:
+
+- the title, the teaser and the description
+- the start and end
+- the venue address and the cover image
+- the price and the ticket link
+- whether it's part of a series
+- the status: published, draft or cancelled
+
+It also sets the event back to **Open to all BI students**. Change these things in Tickster, not in the admin. An edit you make in the admin is replaced at the next run. Saving the event as a draft doesn't take it off biso.no either: the next run publishes it again.
+
+The import leaves these alone, so edit them in the admin:
+
+- **Category**, **Tags** and **Hosted by**
+- **Capacity**, **Member price** and **Registration closes**
+- **Point of contact**
+- the notification switch
+
+Each new event the import brings in has its notification switched on. If it's published and not over, students who follow events for its campus get the automatic notification.
+
+The import doesn't look for events made in the admin. If you also create the event yourself, it shows twice.
+
+## What the system does on its own
+
+- Sends one app notification when an event goes live, if its **Notify students when published** switch is on. The switch is on for every new event, for events the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone) creates, and for events the Tickster import brings in. [How notifications reach students](/guide/announcements) explains who gets it and when.
+- Takes an event off the biso.no list once it has ended, and closes RSVP.
+- Imports and updates events from Tickster, when the import runs.
+- Translates the other language in the background when **Auto-translate** is on.
+- Writes creates, saves and deletions of events, and changes to logistics groups, to the activity log.
+
+It never sends:
+
+- an email about an event
+- a reminder before an event starts
+- a message when an event is changed, moved, unpublished or deleted
+- a message when a student answers RSVP, to the student or to you
+- a message when a student is placed in a group
+
+## What you do yourself
+
+- Publish the event. Nothing goes live by itself, and **Schedule for…** doesn't hold an event back.
+- Add the ticket link, and set up sales and member prices with the ticket seller.
+- Switch off **Notify students when published** before you publish an event that students shouldn't get a notification about.
+- Tell students about changes. A campus leader or global admin can send an announcement linked to the event.
+- Check RSVPs and import attendee lists on the logistics page, and put people in groups.
+- Change imported events in Tickster.
+
+The pages after this one show each task step by step: [Create an event](/guide/events/create-an-event) and [Run the event](/guide/events/run-the-event).

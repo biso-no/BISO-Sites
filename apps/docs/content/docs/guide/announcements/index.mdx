@@ -1,0 +1,141 @@
+---
+title: How notifications reach students
+description: Which content sends an automatic push notification in the BISO app, to whom and when, the quiet hours, and what a manual announcement from Communications adds.
+covers:
+  - apps/admin/src/lib/roles.ts
+  - apps/admin/src/lib/nav-tree.ts
+  - apps/admin/src/lib/notify-toggle-copy.ts
+  - apps/admin/src/lib/notify-push-guard.ts
+  - apps/admin/src/lib/announcements/**
+  - apps/admin/src/app/(portal)/communications/**
+  - apps/admin/src/app/(portal)/_actions/announcements.ts
+  - apps/admin/src/app/api/announcements/dispatch/route.ts
+  - packages/shared/utils/content-notifications.ts
+  - packages/shared/utils/content-notification-compose.ts
+  - packages/shared/utils/notification-topics.ts
+  - packages/shared/utils/push-dispatch.ts
+  - functions/content-notifier/**
+  - functions/scheduled-dispatch/**
+---
+
+BISO reaches students through the BISO app: a push notification on their phone, and a message in the app's inbox. There are two kinds:
+
+- **Automatic notifications.** An event, a news article or a job sends one by itself when it goes live, if its notification switch is on.
+- **Announcements.** Global admins and campus leaders write and send these in **Innhold** (Content) → **Kommunikasjon** (Communications).
+
+Nothing here sends email. Students without the app get no notifications.
+
+The **Kommunikasjon** (Communications) screens are in English whatever your admin language, so this guide names their labels in English.
+
+## Who can send what
+
+| Who | Automatic notifications | Announcements |
+|---|---|---|
+| Global admins (National + Operations Unit) | The switch on any event, article or job, National included | Any audience, including every campus |
+| Campus leaders (Ledelsen on your campus) | The switch on the events and articles you can edit. It's locked on National ones. | Everyone or followers of a topic on your campus, specific people, and groups on your campus's events |
+| Department members, for their own department | The switch on your department's events and articles | None |
+
+- HR sets the switch on jobs. See [How recruitment works](/guide/recruitment).
+- Only global admins can switch on the notification for a National event or article, and only global admins and National HR for a National job. For anyone else the switch is locked and keeps what was set. If anyone else moves an item into National, the switch is turned off.
+- Department members, HR and benefits editors don't have **Kommunikasjon** (Communications) in the sidebar. Ask a campus leader or a global admin to send an announcement.
+
+## What students choose in the app
+
+In the BISO app, students choose the topics they follow: **News**, **Events**, **Jobs** and **Shop**. All four are on to begin with. For each topic they follow, they get notifications for their own campus and for National.
+
+Notifications come in Norwegian or English. Automatic notifications and announcements to everyone or a topic use the app's language on each phone. Announcements to specific people or a group use the language in the student's profile. If an item has only one language, that one is used.
+
+## Automatic notifications
+
+Three kinds of content send one. Pages, products, benefits and documents never do.
+
+| Content | Who gets it | What it says |
+|---|---|---|
+| Event | Students who follow **Events** for the event's campus. For a National event, everyone who follows **Events**. | The title, then the date, the time and the venue |
+| News article | Students who follow **News** for the article's campus, or everyone who follows **News** for a National article | The headline, then the teaser or the start of the text |
+| Job | Students who follow **Jobs** for the job's campus, or everyone who follows **Jobs** for National | **Ny stilling:** (New position:) and the title, then **Søknadsfrist** (Apply by) and the deadline |
+
+### The switch
+
+Each event, article and job has a card in its editor. On a new item it reads **Notify students when published** and is on. A copied vacancy starts with it off. It's also on for items the [BISO Assistant](/guide/start-here/everyday-tools#ask-the-biso-assistant-everyone) creates, and for events the Tickster import brings in. Click the card to switch it off, then save.
+
+The card shows where the notification is:
+
+| Card | What it means |
+|---|---|
+| **Notify students when published** | Not published yet. One goes out when it's published. |
+| **Notify students now** | Published, switch off. Switch it on and save to send one. |
+| **Notification on its way** | Published, switch on. It goes out in a few minutes. |
+| **Notification scheduled** | Waiting, with the time it goes out. Switch it off and save to stop it. |
+| **Students were notified** | Sent, with the time. |
+| **Published before automatic notifications** | Published before this feature existed. It can't send one. |
+
+### When it goes out
+
+- A few minutes after the item goes live with the switch on. The system waits three minutes, then sends at its next check, which runs every five minutes. Allow up to about ten minutes.
+- Never between 22:00 and 08:00 Oslo time. A notification due in that window waits until 08:00.
+- For an event with **Schedule for…**, not before the time you chose. The event itself is public as soon as you publish it.
+- When several items for the same topic and campus are due together, students get one notification for all of them, such as **3 nye arrangementer i Oslo** (3 new events in Oslo), listing the first titles.
+
+It doesn't go out if, before then, the switch is turned off and saved, the item is saved as a draft or deleted, or the event is over. A job whose deadline has passed sends none either. Turning the switch on again starts a new wait.
+
+### Once only
+
+Each item sends its notification once. After that:
+
+- Changing the item, even an event's date or place, sends nothing.
+- The switch is gone from the card, and there's no way to send it again.
+- Unpublishing or deleting the item doesn't call it back.
+
+To tell students about a change, send an announcement.
+
+Each automatic notification is also listed in **Kommunikasjon** (Communications), tagged **Automatic**, and it's in the students' inbox. Campus leaders see only the ones for their own campus. Tapping it opens the item, or, for a combined notification, the message in the app.
+
+## What an announcement adds
+
+An announcement is a notification you write yourself. It can do what the automatic one can't:
+
+- **Your own words**, for anything: a change, a reminder, a cancellation, news that has no article.
+- **A wider or narrower audience.** **Everyone at a campus** reaches every student with notifications on, including students who follow no topic. **Specific people** and **A group from an event** reach only the people you choose.
+- **A link** to a published event, article or job, which opens when the student taps it.
+- **A time.** Send it now or schedule it for a set time.
+- **Urgent** delivers it with priority.
+- **Inbox only** puts it in the app's inbox without a push.
+
+The 22:00 to 08:00 rule doesn't apply to announcements. If you choose to send at once between 22:00 and 08:00 Oslo time, the composer suggests 08:00 instead, unless the announcement is **Urgent**. You can still send at once. A scheduled announcement goes out at the time you chose, up to about five minutes late.
+
+An announcement's status shows in the list, in capitals:
+
+| Status | What it means |
+|---|---|
+| **DRAFT** | Saved, not sent |
+| **SCHEDULED** | Waiting for its time |
+| **SENT** | Handed over for delivery. It can't be sent again. |
+| **FAILED** | Something went wrong. Open it with **Review & send** and send it again. |
+
+**SENT** means the admin handed the announcement over for delivery. It doesn't confirm that each phone got it.
+
+## What the system does on its own
+
+- Sends one automatic notification for each event, article and job that goes live with its switch on, a few minutes later and never between 22:00 and 08:00.
+- Puts several due at the same time for the same topic and campus into one notification.
+- Sends scheduled announcements at their time.
+- Lists every sent notification in **Kommunikasjon** (Communications) and in the students' inbox. Campus leaders see only those for their own campus in **Kommunikasjon** (Communications).
+- Writes announcements you create, save, send, schedule or delete to the activity log.
+
+It never sends:
+
+- an email
+- a reminder before an event
+- a notification when an item is changed, unpublished, cancelled or deleted
+- a notification when a student answers RSVP, or is placed in a group
+- an automatic notification for pages, products, benefits or documents. **Shop** can be chosen as a topic for an announcement, but nothing sends one by itself.
+
+## What you do yourself
+
+- Switch off **Notify students when published** before you publish an item that students shouldn't hear about.
+- Send an announcement when something changes, is cancelled or needs a reminder.
+- Check late-night sends. Announcements aren't held back at night.
+- Delete a scheduled announcement you no longer want. A push that has gone out can't be called back.
+
+Next: [Send an announcement](/guide/announcements/send-an-announcement). For the switch in each editor, see [Create an event](/guide/events/create-an-event) and [Publish news](/guide/pages-and-news/publish-news).

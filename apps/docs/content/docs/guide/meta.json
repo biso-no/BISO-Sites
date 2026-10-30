@@ -1,0 +1,17 @@
+{
+  "title": "Platform guide",
+  "root": true,
+  "pages": [
+    "index",
+    "start-here",
+    "recruitment",
+    "pages-and-news",
+    "departments-and-documents",
+    "events",
+    "announcements",
+    "shop",
+    "members-and-benefits",
+    "access-and-settings",
+    "analytics"
+  ]
+}

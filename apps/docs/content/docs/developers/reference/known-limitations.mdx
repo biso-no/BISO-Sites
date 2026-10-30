@@ -1,0 +1,92 @@
+---
+title: Known limitations
+description: What is known to be broken, missing or risky on the platform today, most serious first, each with a short summary and a link to the page that explains it.
+covers:
+  - packages/shared/utils/team-roles.ts
+  - packages/api/appwrite.config.json
+  - packages/api/page-builder.ts
+  - packages/api/server-env.ts
+  - packages/payment/src/credentials/**
+  - apps/admin/src/lib/m365-sync.ts
+  - apps/admin/src/app/(portal)/_actions/it-turnover.ts
+  - packages/shared/recruitment/apply.ts
+  - apps/web/src/app/(auth)/auth/invite/route.ts
+  - apps/api/vercel.json
+  - lefthook.yml
+  - .github/workflows/**
+  - CLAUDE.md
+  - apps/admin/CLAUDE.md
+  - apps/web/CLAUDE.md
+  - packages/payment/README.md
+  - packages/ai/README.md
+  - packages/i18n/messages/index.ts
+---
+
+Read this before you estimate work on the platform, or before you rely on any part of it. It lists what is known to be wrong, missing or risky today, most serious first. Each item has a short summary and a link to the page that explains it. When you fix something here, remove it from this page and update the page it links to.
+
+The owner keeps a separate list of open security issues. Only the security issues already explained elsewhere in these docs are listed on this page. Where the list is kept: <Private name="security-issues-tracker" label="Security issues" />
+
+## High
+
+Problems that can cost money, lose data, or give the wrong people access.
+
+- **Draft news, jobs, documents and products can be read through the API.** `news`, `jobs`, `documents`, `document_versions`, `webshop_products` and its `product_variations` and `product_custom_fields` still grant `read("any")` at table level in the schema file, so every row in them is readable whatever its own permissions say. Their translated text follows the parent's status and stays hidden while it's a draft. The cutover script covers only some of these tables, and it isn't safe to apply yet. See [Data model, known issues](/developers/change-it/data-model#known-issues).
+- **People who leave keep their admin roles until they next sign in.** The Microsoft group sync runs only at admin sign-in, and an Appwrite session lasts a year. Delete the person's `m365_team_sync` row, and remove their teams and sessions in the Appwrite console by hand. See [Group changes reach the admin only at the next sign-in](/developers/change-it/auth-and-roles#group-changes-reach-the-admin-only-at-the-next-sign-in) and [When the work ends](/developers/start-here/getting-access#when-the-work-ends).
+- **The board turnover leaves Appwrite sessions open.** Handing a role account to its next holder ends its Microsoft sessions, but not its Appwrite ones, so the previous holder can stay signed in to the admin. Delete those sessions straight after each turnover. See [After each turnover](/developers/keep-it-running/yearly-calendar#after-each-turnover).
+- **Test-mode payments go into the real accounts.** Settling an order doesn't check the payment mode. An order paid with Vipps or Stripe test money still becomes a real 24SevenOffice invoice, or a real ledger posting once shop posting is on. Keep every production provider on **Live**, and leave the `TFSO_*` variables unset when you test. See [Credentials](/developers/reference/payments#credentials-the-payment_settings-table).
+- **24SevenOffice has no test company.** Every address in the connector is the production service. See [Accounting, test it safely](/developers/reference/accounting#test-it-safely).
+- **Unset Appwrite settings mean production.** If `NEXT_PUBLIC_APPWRITE_ENDPOINT` or `NEXT_PUBLIC_APPWRITE_PROJECT` is unset, the apps quietly use the production value for it. Only the admin warns. See [Unset Appwrite settings mean production](/developers/keep-it-running/secrets-and-environment#unset-appwrite-settings-mean-production).
+- **There's no staging environment.** Every deploy goes straight to production, and the repo has no local Appwrite. The maintenance scripts in `packages/api` and `packages/shared` write to whatever project `apps/admin/.env.local` names. Make your own Appwrite project before you run anything: [Run the apps against a non-production Appwrite project](/developers/start-here/your-first-day#run-the-apps-against-a-non-production-appwrite-project).
+- **One server carries almost everything.** Appwrite, the web apps, the functions and Infisical all run on one Webdock server. If it goes down, they all stop, and the BISO app can't load data. See [What this means when something breaks](/developers/start-here/what-biso-runs#what-this-means-when-something-breaks).
+- **Nobody has tested a restore.** Webdock backs up the whole server every night, but nobody has reported restoring from it. See [Test a restore](/developers/keep-it-running/backups-and-recovery#test-a-restore).
+- **The repo's copy of scheduled-dispatch has the wrong timeout.** The console sets 330 seconds, and `appwrite.config.json` says 60. Two of its targets are allowed 300 seconds each. Running `appwrite push` for the function from `packages/api` would set it back to 60. See [scheduled-dispatch](/developers/keep-it-running/deploying#scheduled-dispatch).
+- **`appwrite push` from `packages/api` changes production**, because that's the project the file names. If the CLI offers to recreate a column, stop: recreating a column wipes it on every row. See [Schema changes](/developers/change-it/data-model#schema-changes-and-what-never-to-hand-edit).
+
+## Medium
+
+Gaps in process and tooling, and bugs that make the platform harder to run or change safely.
+
+- **Deploys are manual.** The owner deploys each app by hand in the Appwrite console. Pushing to `main` doesn't deploy, nobody knows why yet, and pull requests get no preview deployments. A GitHub workflow is planned. See [How deploys work today](/developers/keep-it-running/deploying#how-deploys-work-today) and [Why pushing to main doesn't deploy](/developers/keep-it-running/deploying#why-pushing-to-main-doesnt-deploy).
+- **Nothing checks your changes.** CI runs no tests, lint or type-check, and the lefthook pre-commit hook is off: every line of `lefthook.yml` is commented out. See [Nothing checks your work for you](/developers/change-it/local-setup#nothing-checks-your-work-for-you).
+- **The checks already fail.** One test suite fails on a known problem: an admin translation test that expects an old OpenAI model. The repo-wide `bun run check` reports about 150 errors, `bun run lint` fails in `@repo/ui` and `@repo/payment`, and `bun run fix` does nothing. Check the files you changed instead. See [Tests](/developers/change-it/local-setup#tests) and [Lint and format](/developers/change-it/local-setup#lint-and-format).
+- **The type-check misses one build error.** A `"use server"` file may export only async functions, and `bun run check-types` doesn't notice when one doesn't. Only a real build does, so build the admin after you change a server action. See [Type-check](/developers/change-it/local-setup#type-check).
+- **Saving a page draft changes the live page's address and owner.** On a published page, a draft save writes the slug, campus and department straight away, before anyone publishes. See [Data model, known issues](/developers/change-it/data-model#known-issues).
+- **Monitoring only tells you when a site can't be reached.** Nobody hears about errors, failed scheduled jobs, failures in content-notifier or member-roster-sync, payments stuck as pending, the server's disk and memory, or the nightly backup. See [What isn't monitored](/developers/keep-it-running/monitoring-and-health#what-isnt-monitored).
+- **Pages can look fine while Appwrite fails.** Most of the website's data reads log the error and return an empty list, so `/api/health` answers `200` and pages load with empty sections. See [Health endpoints](/developers/keep-it-running/monitoring-and-health#health-endpoints).
+- **Nothing warns before a certificate or secret expires**, and several end dates aren't recorded anywhere yet. See [Dates nobody has recorded yet](/developers/keep-it-running/yearly-calendar#dates-nobody-has-recorded-yet).
+- **Much of the live set-up exists only in the console.** The repo doesn't record how each Site is built, and it holds the settings of only one of the three functions. See [The Site settings live only in the console](/developers/keep-it-running/deploying#the-site-settings-live-only-in-the-console) and [Deploy a function](/developers/keep-it-running/deploying#deploy-a-function).
+- **The turnover's Azure runbook isn't in the repo.** The admin calls a PowerShell runbook in Azure Automation, and nothing in the repo shows whether it exists or works. See [What isn't in the repo](/developers/keep-it-running/yearly-calendar#what-isnt-in-the-repo).
+- **Docs built on Appwrite show no last-updated dates.** The Appwrite build is probably a shallow clone, and docs hide every date when the git history is missing. See [What a deploy workflow needs](/developers/keep-it-running/deploying#what-a-deploy-workflow-needs).
+- **Anonymous users pile up.** The clean-up endpoint exists, but its only schedule is in `apps/api/vercel.json`, which nothing on Appwrite reads. See [Endpoints with no schedule](/developers/keep-it-running/scheduled-jobs#endpoints-with-no-schedule).
+- **Job application screening is switched on by the wrong key.** It runs only when `OPENAI_API_KEY` is set, although it runs on Anthropic and never calls OpenAI (`isAutoScreened` in `packages/shared/recruitment/apply.ts`). See [AI features fail](/developers/keep-it-running/when-things-break#ai-features-fail).
+- **Renaming a Microsoft group breaks the matching team.** The sync builds each team id from the group's name in lower case (`sanitizeTeamId` in `apps/admin/src/lib/m365-sync.ts`). A renamed group gets a new team and leaves the old one behind. Code and the schema file name some ids directly, such as `sg-app-dept-operationsunit`, `sg-app-dept-hr` and `sg-app-dept-controlcommittee`, and those stop matching. Rename an `SG-App-*` group only together with a code and schema change. See [Microsoft groups become Appwrite teams](/developers/change-it/auth-and-roles#microsoft-groups-become-appwrite-teams).
+- **Some links fall back to a hostname that isn't live.** The admin uses it for interview-booking, vacancy and shop links when `NEXT_PUBLIC_WEB_BASE_URL` is unset, so make sure that variable is set on the admin's Site. The website's `/auth/invite` route always redirects there after a team invitation is accepted (`apps/web/src/app/(auth)/auth/invite/route.ts`), though nothing in the repo sends people to that route. See [Addresses](/developers/keep-it-running/secrets-and-environment#addresses).
+- **The BISO app has its own gaps.** Its AI chat calls an api route that doesn't exist, every build talks to production, and the Xcode Cloud and fastlane set-ups in the repo aren't used. See [The mobile app, known issues](/developers/change-it/the-mobile-app#known-issues), which lists the rest.
+
+## Low
+
+Out-of-date guidance and leftovers. These don't stop anything working today, but each one costs a newcomer time.
+
+### Guidance that's out of date
+
+Trust the code over these files. Fix them as you go.
+
+- **The root `CLAUDE.md`** says lefthook and lint-staged format every commit, which they don't. It says `_transit` makes package type-checks run before app type-checks, which it doesn't ([Code layout](/developers/change-it/code-layout#gotchas)). It quotes the bare `appwrite types` command, where you should run `bun run types:generate` ([Data model](/developers/change-it/data-model#regenerate-the-types)). It lists `bun run fix`, which does nothing. Its package table leaves out `@repo/tours`, `@repo/wp-import` and the `functions/` folder.
+- **`apps/admin/CLAUDE.md`** describes a sign-in link by email, `signInWithMagicLink()` and an `/auth/callback` route. None of them exists: the admin signs in with Microsoft only ([Auth and roles](/developers/change-it/auth-and-roles#how-staff-sign-in)). It also says there are four route groups, where there are five with `(scan)`, and its list of roles leaves out `benefitseditor`.
+- **`apps/web/CLAUDE.md`** says on line 213 that `next.config.ts` sets `ignoreBuildErrors`. It doesn't. It also says the root layout is `force-dynamic` (it uses `instant = false`), that receipt reading uses OpenAI (it uses Anthropic, in the api), and that pages render through a `PageDoc` component (they render through `RenderedPage`).
+- **`packages/payment/README.md`** describes a Vipps-only package with an `@repo/payment/actions` entry point and files that no longer exist. See [Packages](/developers/reference/packages#repopayment).
+- **`packages/ai/README.md`** shows entry points that don't exist, such as `@repo/ai/provider` and `@repo/ai/hooks/use-assistant`. See [Packages](/developers/reference/packages#repoai).
+- **Several READMEs link to the old docs**, such as `/docs/packages/…` and `/docs/operations/…` pages, which were replaced by this area.
+
+### Leftovers
+
+- **Code from the WordPress site.** The api's `/api/events`, `/api/jobs` and `/api/wc-products` still read `biso.no/wp-json`, which now serves the new website. Nothing calls them. See [Old api routes](/developers/reference/events-and-content-sources#old-api-routes).
+- **Routes and variables nothing uses.** The api's old account-turnover routes, old routes in the admin and the website that call Appwrite functions that no longer exist, and ten variable names that no code reads. See [Endpoints with no schedule](/developers/keep-it-running/scheduled-jobs#endpoints-with-no-schedule) and [Names nothing reads](/developers/keep-it-running/secrets-and-environment#names-nothing-reads).
+- **The website's deprecated checkout routes.** `/api/cron/reconcile-orders`, `/api/checkout/return` and `/api/checkout/webhook` on the website are left from when checkout ran there. The webhook only answers `410`. Delete the other two once `ORDERS_RECONCILE_URL` points at the api. See [Calls into BISO](/developers/keep-it-running/scheduled-jobs#calls-into-biso) and [Endpoints with no schedule](/developers/keep-it-running/scheduled-jobs#endpoints-with-no-schedule).
+- **Hosting leftovers.** `apps/web/Dockerfile` and `apps/api/Dockerfile` are out of date and nothing uses `apps/admin/Dockerfile` ([Don't use the Dockerfiles](/developers/keep-it-running/deploying#dont-use-the-dockerfiles)). `VERCEL_ENV=production` still makes the website and the admin treat themselves as production ([Set by the platform](/developers/keep-it-running/secrets-and-environment#set-by-the-platform)).
+- **AI leftovers.** Pinecone settings that nothing uses, the `@ai-sdk/openai` dependency, and a translation script that needs an OpenAI key to start. See [Leftovers](/developers/reference/ai#leftovers).
+- **Unused schema.** No code in this repo uses 17 of the tables, though the BISO app uses some of them. The old draft columns on `page_translations`, `draft_doc`, `puck_document` and `draft_document`, are read only by `migrate:page-drafts`, and as a fallback for `draft_doc` until it has run. Until then, a published page's translation row can still hold an unpublished draft in `draft_doc`, readable like the rest of the row, so run the migration. The `biso-members` team isn't used. See [Tables by area](/developers/change-it/data-model#tables-by-area) and [Key relationships](/developers/change-it/data-model#key-relationships).
+- **`/api/health/teams` can't serve a monitor**, because it needs a signed-in global admin, and it lists the unused `biso-members` team as required. The admin's integration-status page also lists two old secrets as required. See [Health endpoints](/developers/keep-it-running/monitoring-and-health#health-endpoints) and [Scheduled jobs variables](/developers/keep-it-running/secrets-and-environment#scheduled-jobs).
+- **The `.env.example` templates are incomplete.** They list most variable names, not all. [Secrets and environment](/developers/keep-it-running/secrets-and-environment#all-variables-by-service) has the full list.
+- **Small package problems.** `@repo/i18n`'s namespace lists are incomplete, `@repo/ui` has committed type-check output from April 2026, and `bun run get-product` in `packages/api` points at a file that doesn't exist. See [Packages](/developers/reference/packages).
+- **Some admin files are very large.** `event-studio-editor.tsx` has 4,697 lines, `shop-studio-editor.tsx` 3,879, `job-studio-editor.tsx` 2,438, and the jobs server actions in `apps/admin/src/app/(portal)/_actions/jobs.ts` 1,846. Changes there are slow to review, so keep them small and test them by hand.

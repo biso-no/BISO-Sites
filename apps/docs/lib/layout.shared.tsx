@@ -1,55 +1,40 @@
+import { ViewerStatus } from "components/viewer-status";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import Image from "next/image";
+import { AREAS } from "./areas";
 
-export function baseOptions(): BaseLayoutProps {
-  return {
-    links: [
-      {
-        url: "/docs",
-        external: false,
-        type: "main",
-        text: "Documentation",
-      },
-      {
-        url: "https://github.com/biso-no/biso-sites",
-        external: true,
-        type: "main",
-        text: "Repository",
-      },
-      {
-        url: "https://public.biso.no",
-        external: true,
-        type: "main",
-        text: "Website",
-      },
-      {
-        url: "https://admin-dev.biso.no",
-        external: true,
-        type: "main",
-        text: "Admin",
-      },
-    ],
-    nav: {
-      title: (
-        <>
-          {logo}
-          <span className="in-[.uwu]:hidden font-medium in-[header]:text-[15px]">
-            BISO
-          </span>
-        </>
-      ),
-    },
-  };
-}
+/** The logo is drawn for navy: it sits in the navy header bar. */
+const LOGO_SIZE = 30;
 
-export const logo = (
+export const navTitle = (
   <>
     <Image
       alt="BISO"
-      aria-label="BISO logo"
-      className="in-[.uwu]:block hidden w-22"
-      sizes="100px"
-      src={"/logo.png"}
+      height={LOGO_SIZE}
+      src="/biso-logo-on-navy.png"
+      width={LOGO_SIZE}
     />
+    <span className="font-bold font-display text-[15px]">Docs</span>
   </>
 );
+
+export function baseOptions(): BaseLayoutProps {
+  return {
+    nav: { title: navTitle },
+    // Header only: in the sidebar and the mobile menu, AreaSwitch does this job.
+    links: [
+      ...AREAS.map((area) => ({
+        type: "main" as const,
+        text: area.title,
+        url: area.href,
+        active: "nested-url" as const,
+        on: "nav" as const,
+      })),
+      {
+        type: "custom" as const,
+        on: "nav" as const,
+        children: <ViewerStatus />,
+      },
+    ],
+  };
+}

@@ -1,0 +1,130 @@
+---
+title: Hand over a role account
+description: How global admins pass a shared role account, such as a leader's or a financial manager's account, from one holder to the next in IT, and what the handover does and doesn't do.
+who: "Global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/(portal)/it/users/_components/turnover-dialog.tsx
+  - apps/admin/src/app/(portal)/it/users/_components/turnover-gate.ts
+  - apps/admin/src/app/(portal)/it/users/_components/user-detail-client.tsx
+  - apps/admin/src/app/(portal)/it/users/[userId]/page.tsx
+  - apps/admin/src/lib/it/turnover-target.ts
+  - apps/admin/src/lib/it-permission-rules.ts
+  - apps/admin/src/app/(portal)/_actions/it-turnover.ts
+  - apps/admin/src/lib/it/turnover.ts
+  - apps/admin/src/app/api/it/turnover/stop-retention/route.ts
+  - functions/scheduled-dispatch/src/main.ts
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+<Callout type="warn">
+Only run a handover on a shared role account: one that belongs to a position and passes from one holder to the next. Never run it on a person's own account.
+</Callout>
+
+- A role account is a BISO Microsoft account that belongs to a position, such as a department leader or a financial manager, not to a person. Most handovers happen at the August board change.
+- Know the role account's login address, and the new holder's first and last name. The login address must end in @biso.no. The handover isn't offered on any other account.
+- The handover runs in Microsoft 365, so the steps are text only.
+- Agree a secure way to give the new holder their password, such as in person.
+- When a person with their own account leaves, don't use this. Use the other actions on their account instead, such as disabling it. See [Manage Microsoft users](/guide/access-and-settings/manage-users).
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the role account">
+
+Open **System**, choose **IT**, and search for the role account by its login address. Open it.
+
+Check the heading and the login address under it. They must be the position's account, and not a person's own account.
+
+</Step>
+<Step title="Start the handover">
+
+In the **Risikokontroller** (Risk controls) box, choose the red **Start overgang** (Trigger turnover). It's only there on accounts whose login address ends in @biso.no.
+
+A box headed **Overgang av rollekonto** (Role account turnover) opens. It explains that the login address stays the same, only the name changes, and the previous holder loses access. Under **Dette vil:** (This will:) it lists what happens. Read it.
+
+</Step>
+<Step title="Enter the new holder and confirm">
+
+Fill in:
+
+- **Ny innehavers fornavn** (New holder first name)
+- **Ny innehavers etternavn** (New holder last name)
+- **Skriv kontoens påloggingsadresse for å bekrefte** (Type the account's login address to confirm): type the role account's login address exactly. Upper or lower case doesn't matter.
+
+**Kjør overgang** (Run turnover) can only be chosen when both names are filled in and the address matches. Choose it.
+
+While it runs, you can't close the box. Wait for it to finish.
+
+</Step>
+<Step title="Read the messages">
+
+As soon as it finishes, messages appear at the top of the screen, at the same time as the password box. Each one disappears after a few seconds, and more may follow. Point at them to keep them open. Read and note every message before you do anything else, even before you copy the password. They aren't kept anywhere you can see later.
+
+- **Overgang fullført for** (Turnover complete for) the new name, with **Oppbevaringskjøringen stopper automatisk** (Retention run stops automatically on) and a date. The handover went through.
+- **Kontoen ble overført, men oppbevaringskjøringen startet ikke — sjekk advarslene.** (Account handed over, but the retention run did not start — check the warnings.) The account was handed over, but the retention run that clears the old holder's Teams history may not have started. Tell the developers, with the warnings you saw (see the [developer docs](/developers)).
+- A separate warning, in English, for each part that failed, such as **Session revocation failed:**, **Password reset failed:** or **MFA reset failed for** followed by the reason. Redo that part on the account's page:
+  - for a failed sign-out, **Tilbakekall alle sesjoner** (Revoke all sign-in sessions)
+  - for a failed password reset, **Generer midlertidig passord** (Generate temporary password), and give the new holder that password
+  - for a failed MFA reset, **Tilbakestill MFA** (Reset MFA)
+
+  See [Manage Microsoft users](/guide/access-and-settings/manage-users#reset-a-password-global-admins).
+
+If the password step failed, the box closes without showing a password.
+
+If you see a red error and no password, reload the account's page and check its name. If it still shows the old holder's name, nothing changed, and you can try again. If it shows the new holder's name, the handover went through, but its password is lost. Make a new one with **Generer midlertidig passord** (Generate temporary password), and tell the developers so they can check the retention run.
+
+</Step>
+<Step title="Copy the temporary password">
+
+If the handover set a password, the box shows **Midlertidig passord for rollekontoen** (Temporary password for the role account), with **Konto** (Account) and **Midlertidig passord** (Temporary password). It stays open until you close it.
+
+Choose **Kopier** (Copy). You see **Passord kopiert** (Password copied). If you see **Kunne ikke kopiere — merk og kopier passordet manuelt.** (Could not copy — select and copy the password manually.), select the password and copy it yourself.
+
+The password is shown once. Keep it safe until you give it to the new holder. Then choose **Ferdig** (Done).
+
+</Step>
+<Step title="Ask the developers to sign the old holder out of the admin">
+
+Straight away, before you give the new holder the password, ask the developers to sign the old holder out of the admin. Their checklist for this is in [After each turnover](/developers/keep-it-running/yearly-calendar#after-each-turnover).
+
+</Step>
+<Step title="Give the new holder the password">
+
+Give the new holder the login address and the temporary password over the secure channel you agreed. They sign in with them, choose a new password, and set up two-step sign-in (MFA) again.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+The handover does this, at once, in Microsoft 365:
+
+- Renames the account to the new holder: its display name, first name and last name. The login address stays the same.
+- Removes the two-step sign-in methods that Microsoft lets it remove, so the new holder sets up their own.
+- Signs the account out of its Microsoft apps.
+- Gives the account a new temporary password, which the new holder must change at their first sign-in.
+- Starts a 7-day retention run in Azure, meant to clear the previous holder's Teams history. It stops by itself on the date shown in the message. Treat what it clears as gone for good.
+
+It doesn't:
+
+- change the login address, the account's groups or its licences. The new holder gets the same access the account had, including its role in the admin when they sign in.
+- email or notify anyone. Nobody is told, so you give the password yourself.
+- keep a copy of the old name you can restore with one click. A global admin can type the old name back on the account's page, but removed sign-in methods and the old password are gone.
+
+The handover is written to the activity log with your email.
+</WhatHappensNext>
+
+## Common mistakes
+
+- Running a handover on a person's own account. Only use it on a shared role account. Check the heading and login address before you choose **Start overgang** (Trigger turnover).
+- Running it a second time to fix a failed part. It starts again from the top: it locks out the new holder and starts another retention run. Redo only the part that failed, on the account's page.
+- Choosing **Ferdig** (Done) before copying the password. It isn't shown again. Make a new one with **Generer midlertidig passord** (Generate temporary password).
+- Copying the password before reading the messages. They disappear within seconds, and they're the only record of what failed.
+- Forgetting to ask the developers to sign the old holder out of the admin.
+- Giving the password over an open channel. The box asks you to share it over a secure channel.

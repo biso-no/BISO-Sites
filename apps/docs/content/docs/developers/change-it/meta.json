@@ -1,0 +1,11 @@
+{
+  "title": "Change it",
+  "pages": [
+    "local-setup",
+    "code-layout",
+    "data-model",
+    "auth-and-roles",
+    "common-changes",
+    "the-mobile-app"
+  ]
+}

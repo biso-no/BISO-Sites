@@ -1,0 +1,108 @@
+---
+title: Find a member
+description: How to look someone up in the BISO members list, read what it shows, and refresh it from 24SevenOffice.
+who: "Global admins (National + Operations Unit), for every campus, and campus leaders (Ledelsen on your campus), for members on their campus. Only global admins can refresh the list."
+covers:
+  - apps/admin/src/app/(portal)/members/page.tsx
+  - apps/admin/src/app/(portal)/members/_components/**
+  - apps/admin/src/app/(portal)/_actions/members.ts
+  - apps/admin/src/lib/member-roster-status.ts
+  - apps/admin/src/lib/utils/authorization.ts
+  - apps/admin/src/lib/list-params.ts
+  - packages/shared/utils/member-roster-sync.ts
+  - functions/member-roster-sync/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- You need **Medlemmer** (Members) in your sidebar. Only global admins and campus leaders have it. See [Who can use members and benefits](/guide/members-and-benefits#who-can-use-members-and-benefits).
+- The list holds the paid members from 24SevenOffice. It's a copy, refreshed by a sync, so it can be behind.
+- Campus leaders see the members on their own campus. Global admins see every campus, or the campus they picked in the campus box. A member with no known campus is only shown to global admins.
+- The list shows members' names and email addresses. Use it only for BISO work, and don't share it.
+- To check at the door whether someone is a member, scan their pass instead. See [Scan member passes](/guide/members-and-benefits/scan-member-passes).
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Open the members list">
+
+Choose **Medlemmer** (Members) in the sidebar. The page is headed **Medlemmer** (Members), with the line **Betalende BISO-medlemmer fra 24SevenOffice, på campusene du har tilgang til.** (Paid BISO members from 24SevenOffice, across the campuses you can see.)
+
+The three buttons at the top, **Gjesteskanner-lenker** (Guest scanner links), **Skannertilgang** (Scanner access) and **Skann medlemskort** (Scan passes), are for scanning. See [Scan member passes](/guide/members-and-benefits/scan-member-passes).
+
+</Step>
+<Step title="Search for a member">
+
+Type in **Søk etter navn eller e-post…** (Search by name or email…). It finds members whose name or email address contains what you typed, so part of a name or address is enough.
+
+The list is sorted by name, A to Z. It shows 25 members a page. To see 50 or 100, change the page size under the list.
+
+If nobody matches, you see **Ingen medlemmer funnet** (No members found) and **Prøv et annet søk, eller oppdater medlemslisten.** (Try a different search, or refresh the roster.) Only global admins can refresh the list. Campus leaders who think someone is missing should ask a global admin.
+
+</Step>
+<Step title="Read a member's row">
+
+Each row shows:
+
+- the member's name, or **Uten navn** (Unnamed) if 24SevenOffice has none
+- their email address, or a dash
+- their campus, or **Ukjent campus** (Unknown campus)
+- the name of their membership plan
+- the date the membership expires, in your browser's date format
+
+That's all the list holds. You can't open a member or change anything here.
+
+</Step>
+<Step title="Check when the list was last refreshed">
+
+The line above the list says how fresh it is:
+
+- **Sist oppdatert** (Last refreshed) and a date and time: the last refresh that worked.
+- **Ikke synkronisert ennå** (Not synced yet): it has never been refreshed.
+- **Siste oppdatering feilet** (Last refresh failed) and a date and time, after a middle dot: the latest refresh failed. The list isn't cleared, but it may be out of date.
+- **Oppdaterer…** (Refreshing…): a refresh is running now.
+- **Status for oppdatering er ikke tilgjengelig.** (Refresh status unavailable.): the admin can't read the sync's status. The list still shows the members it has. Tell IT.
+
+</Step>
+<Step title="Refresh the list (global admins)">
+
+Choose **Oppdater nå** (Refresh now), next to the status line. Campus leaders don't have this button.
+
+You see one of these:
+
+- **Oppdatering startet. Det tar et par minutter.** (Refresh started. It takes a couple of minutes.) Wait a couple of minutes, then reload the page.
+- **En oppdatering kjører allerede.** (A refresh is already running.) Wait for it to finish, then reload the page.
+- **Synkronisering av medlemslisten er ikke satt opp.** (Roster sync is not configured.) Tell IT.
+- **Kunne ikke starte oppdateringen. Prøv igjen senere.** (Could not start a refresh. Try again later.)
+
+While a refresh runs, the button reads **Oppdaterer…** (Refreshing…) and can't be pressed.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- A refresh builds the list again from 24SevenOffice. Members who hold an active plan are in it, and members whose plan has ended drop off.
+- A member's campus comes from their latest invoice in 24SevenOffice.
+- If 24SevenOffice returns no members at all, the refresh stops and the list stays as it was.
+- A refresh doesn't change anyone's membership in 24SevenOffice. It only changes this list.
+- Nobody is notified when the list is refreshed.
+</WhatHappensNext>
+
+## What the student sees
+
+Students never see this list. Their member pass and their benefit codes don't depend on it: both check the membership with 24SevenOffice. A student who has just paid can use their pass before they show up here.
+
+## Common mistakes
+
+- Using the list to decide at the door whether someone is a member. It can be behind. Scan their pass instead.
+- Searching for a student number. The search only looks at names and email addresses.
+- Expecting a new member to show up straight away. They show up after the next refresh.
+- Waiting for a campus leader to refresh the list. Only global admins have **Oppdater nå** (Refresh now), even though the empty-list message suggests refreshing.
+- Looking for a member with **Ukjent campus** (Unknown campus) as a campus leader. Only global admins see them. Ask a global admin.
+- Expecting **Oppdater nå** (Refresh now) to fix someone's membership. It only copies what 24SevenOffice already has. Changes to a membership are made in 24SevenOffice.

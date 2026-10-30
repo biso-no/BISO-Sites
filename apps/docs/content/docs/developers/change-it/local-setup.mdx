@@ -1,0 +1,220 @@
+---
+title: Local setup
+description: Install the tools, point each app at an Appwrite project of your own, run the apps and their tests, and fix the usual first-run failures.
+covers:
+  - package.json
+  - apps/*/package.json
+  - apps/*/.env.example
+  - apps/admin/src/instrumentation.ts
+  - apps/web/src/instrumentation.ts
+  - apps/*/src/app/api/health/ready/route.ts
+  - packages/api/server-env.ts
+  - packages/api/client.ts
+  - apps/web/vitest.config.ts
+  - apps/api/vitest.config.ts
+  - apps/admin/src/lib/content-translation.test.ts
+  - lefthook.yml
+  - biome.jsonc
+  - apps/docs/scripts/screenshots/README.md
+---
+
+Read this before you run any of the apps on your machine. It covers the tools to install, the env file each app reads, how to point the apps at an Appwrite project of your own, and how to run the type-check, the linter and the tests. The repo has no local Appwrite and no staging project, and an Appwrite setting you leave unset quietly becomes the production value. So most of this page is about keeping your machine away from production.
+
+## What you need
+
+- **Bun 1.3.1.** `package.json` pins it in `packageManager`, and the docs CI job installs the same version. npm and pnpm don't work, because the workspaces and the shared `catalog:` versions need Bun.
+
+  ```bash
+  curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.1"
+  bun --version
+  ```
+
+  It worked when the second command prints `1.3.1`.
+- **Node 22 or later.** `package.json` asks for it in `engines`.
+- **The Appwrite CLI**, to push the tables to your own project and to generate types. You create the project itself in the Appwrite console. The CLI isn't a repo dependency, so install it yourself, for example with `bun add -g appwrite-cli`.
+- **Access to the Appwrite console**, to create your project. [Getting access](/developers/start-here/getting-access) says how to get it.
+
+## Install
+
+```bash
+git clone https://github.com/biso-no/BISO-Sites.git
+cd BISO-Sites
+bun install
+```
+
+`bun install` installs every workspace. Only the docs app runs a step after installing (`fumadocs-mdx`, which builds the docs' content index). Nothing installs git hooks.
+
+## Env files
+
+Each Next.js app reads its own `apps/<app>/.env.local`. Next.js loads that file itself, and each app's `.gitignore` keeps it out of git. Start each one from the app's template, for example:
+
+```bash
+cp apps/admin/.env.example apps/admin/.env.local
+```
+
+| App | Template | Must be set, or the app refuses to start |
+|---|---|---|
+| web | `apps/web/.env.example` | `APPWRITE_SESSION_COOKIE=a_session_biso_web` |
+| admin | `apps/admin/.env.example` | `APPWRITE_API_KEY`, `NEXT_PUBLIC_BASE_URL`, and `APPWRITE_SESSION_COOKIE=a_session_biso_admin` |
+| api | `apps/api/.env.example` | Nothing. The API has no start-up checks. |
+| docs | `apps/docs/.env.example` | Nothing. Sign-in, private details and the assistant need more: see `apps/docs/CLAUDE.md`. |
+
+`functions/scheduled-dispatch` and `packages/wp-import` have templates too. The templates list most variable names but not all of them. [Secrets and environment](/developers/keep-it-running/secrets-and-environment#all-variables-by-service) has the full list.
+
+Three things catch people out:
+
+- **The templates leave the Appwrite endpoint and project empty.** An empty value counts as unset, so a copied template talks to production until you fill both in. The next section says what to put there.
+- **Set variables in `.env.local`, not with `export`.** `bun run dev --filter=<app>` goes through Turbo, which runs in strict env mode. It drops every shell variable a task doesn't declare, apart from `NEXT_PUBLIC_*` ones, and `dev` declares none. If you want shell variables, start the app from its own folder instead (`cd apps/admin && bun run dev`), which skips Turbo.
+- **Some maintenance scripts read the admin's file.** The scripts in `packages/api` and `packages/shared`, such as `cutover:content-permissions` and `migrate:benefits`, run with `bun --env-file=../../apps/admin/.env.local`. They change whatever project that file names, and stop if it names none. Check the file before you run one.
+
+## Point the apps at your own Appwrite project
+
+<Callout type="warn">
+`NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` fall back to production one at a time. If either is unset or empty, server code then tries `APPWRITE_ENDPOINT` or `APPWRITE_PROJECT_ID` before it falls back to production (`packages/api/server-env.ts`). The browser and file links read only the `NEXT_PUBLIC_*` names and go straight to production (`packages/api/client.ts`, `packages/api/storage.ts`), so set those two. Only the admin prints a warning. Infisical holds the production values, so don't copy its Appwrite values into a local file.
+</Callout>
+
+The repo has no local Appwrite (no Docker Compose file) and doesn't record a non-production project. Make your own on the same server:
+
+1. Follow steps 1 to 3 in `apps/docs/scripts/screenshots/README.md`. You create a separate project in the console, push the tables to it with the CLI from a temporary copy of the schema, and make an API key. The copy has no buckets, functions or messaging topics, so file uploads, functions and push don't work in that project. The key gets only the scopes the screenshot scripts need: reading and writing users, teams and rows, and reading databases and tables. That includes `users.read`, which `/api/health/ready` needs. Add scopes to the key when you work on something that needs more.
+2. Never run `appwrite push` from `packages/api`. Its `appwrite.config.json` names the production project.
+3. Put your project's values in each app's `.env.local`, next to the session cookie names above:
+
+   | Variable | Value |
+   |---|---|
+   | `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Your server's endpoint, ending in `/v1` |
+   | `NEXT_PUBLIC_APPWRITE_PROJECT` | Your project's id |
+   | `APPWRITE_API_KEY` | The key you made in your project |
+   | `NEXT_PUBLIC_BASE_URL` | The app's own address, for example `http://localhost:3001` for the admin |
+   | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:3003`, on the website, the admin and the api |
+   | `NEXT_PUBLIC_WEB_BASE_URL` | `http://localhost:3000`, on the api. Without it, the api falls back to `NEXT_PUBLIC_BASE_URL`, its own address, and sends buyers there instead of to the website. Without `NEXT_PUBLIC_API_BASE_URL` on the api, its checkout answers `500` with `Payment service is misconfigured`. |
+
+4. Start the app and check it, as described under [Run the apps](#run-the-apps).
+
+Your project starts with empty tables, so expect empty lists. Step 6 of the same README (`bun run screenshots:seed`) adds a small made-up set: one campus, two departments, six staff users, recruitment rows, and a few rows for pages, news, events with RSVPs, the shop, members, benefits, announcements and Varsling.
+
+### Signing in
+
+- The admin signs staff in with Microsoft only, through the Microsoft provider in Appwrite. Your project needs that provider set up before sign-in works, and the steps above don't cover it. After sign-in, roles come from team memberships, and a `sg-app-*` team counts only when its id is also in the user's row in `m365_team_sync`, which the sign-in writes ([Auth and roles](/developers/change-it/auth-and-roles#the-saved-team-list)). A user with no role team gets the 401 page, not the sign-in page.
+- The website signs students in with BI (Appwrite's `oidc` provider) or a magic link. Your project needs those set up too.
+- The screenshot scripts show a way round Microsoft. `seed.ts` creates made-up staff users, their teams and each one's `m365_team_sync` row, one of them a global admin. `capture.ts` creates a session for each one with the API key and sets the admin's session cookie in the browser it drives.
+
+## Run the apps
+
+| App | Port | Command | Calls the API for |
+|---|---|---|---|
+| web | 3000 | `bun run dev --filter=web` | Shop checkout, membership status and purchase, unit boards, expenses |
+| admin | 3001 | `bun run dev --filter=admin` | Unit boards in the page editor, payment-settings tests, expense approval issues |
+| docs | 3002 | `bun run dev --filter=docs` | Nothing |
+| api | 3003 | `bun run dev --filter=api` | (This is the API.) |
+
+`bun run dev` with no filter starts all four. Each dev script runs `next dev` under Bun (`bun --bun next dev -p <port>`). Run the API next to the website or the admin when you work on any feature in the last column.
+
+It worked when:
+
+- the terminal shows `Ready` and the app's address;
+- `http://localhost:<port>/api/health` answers `{"status":"ok", …}`;
+- on web, admin and api, `http://localhost:<port>/api/health/ready` answers `{"status":"ready", …}`. That route lists one user with the app's `APPWRITE_API_KEY`. Your key only works in your project, so a `503` with `{"status":"error", …}` means the app is talking to another project, can't reach Appwrite, or has a key without the `users.read` scope;
+- the admin prints no `[admin] Falling back to production Appwrite defaults` line. The website and the API never print it, so rely on `/api/health/ready` for them.
+
+## Type-check, lint and format
+
+### Type-check
+
+```bash
+bun run check-types                  # every workspace
+bun run check-types --filter=admin   # one app
+```
+
+The root `CLAUDE.md` makes this required before merging. It worked when Turbo's summary shows every task successful.
+
+After you change a `"use server"` file in the admin, also run `bun run build --filter=admin`. A `"use server"` file may export only async functions, and only a real build catches a file that breaks that rule.
+
+### Lint and format
+
+Biome does both, through the Ultracite preset (`biome.jsonc`). Run it on the paths you changed:
+
+```bash
+bun x ultracite fix apps/admin/src/lib/roles.ts
+bun x ultracite check apps/admin/src/lib/roles.ts
+```
+
+`fix` formats and fixes what it can. `check` reports what's left. Don't rely on the repo-wide commands yet:
+
+- `bun run check` runs `ultracite check` on the whole repo. It reports about 150 errors that were already there.
+- `bun run lint` runs `biome lint .` in each workspace. It fails in `@repo/ui`, which `biome.jsonc` tells Biome to skip, and in `@repo/payment`, on one complexity error in `src/reconcile.ts`.
+- `bun run fix` does nothing, because no workspace has a `fix` script.
+
+### Nothing checks your work for you
+
+- **No pre-commit hook runs.** Every line of `lefthook.yml` is commented out, lefthook doesn't read `lefthook-temp.yml`, and nothing installs hooks on `bun install`. The root `CLAUDE.md` says lefthook and lint-staged format each commit. They don't.
+- **CI runs no tests, lint or type-check.** The only workflows are `docs-coverage.yml`, which warns when a PR changes code without its docs page, and `pr-review.yml`, an automated Claude Code review of each PR.
+
+So before you open a PR, run the type-check, Ultracite on your paths, and the tests of every workspace you touched.
+
+## Tests
+
+`bun run test` runs every suite through Turbo, uncached. Each workspace uses one of two runners:
+
+| Runner | Workspaces | Its `test` script |
+|---|---|---|
+| Bun | `apps/admin`, `apps/docs`, `packages/editor`, `packages/ai`, `packages/connectors`, `packages/wp-import`, `functions/content-notifier`, `functions/member-roster-sync` | `bun test`, mostly `bun test ./src` |
+| Vitest | `apps/web`, `apps/api`, `packages/api`, `packages/shared`, `packages/payment` | `vitest run`. The API's script also sets `NODE_ENV=test`. |
+
+`packages/ui` has two test files but no `test` script, so they never run. `packages/i18n`, `packages/tours` and `functions/scheduled-dispatch` have no tests. There are no end-to-end browser tests.
+
+To run one file, work from the workspace's folder:
+
+```bash
+cd apps/admin && bun test src/lib/roles.test.ts          # a Bun workspace
+cd apps/web && bun run test src/lib/app-links.test.ts    # a Vitest workspace
+```
+
+In a Vitest workspace, always use `bun run test`. A bare `bun test` starts Bun's own runner, which ignores `vitest.config.ts`. In `apps/web`, a bare `bun test` on the whole app hadn't finished after three minutes, where `bun run test` takes about five seconds.
+
+Things to know when a test fails:
+
+- **One suite fails today on a known problem.** `apps/admin/src/lib/content-translation.test.ts` expects an old AI model id (`gpt-5.6-luna`) and gets `claude-haiku-5-5`. Every other suite passes, so any other failure is new.
+- **Many tests read source files** to enforce conventions, such as the website's colour tokens and motion rules or the editor's registry. If one fails after your change, read the test. It names the rule.
+- **Admin tests that mock modules** live in `*.cases.ts` files. Bun's module mocks leak between files, so a runner test starts each case file in its own `bun test` process. A new `*.cases.ts` file runs only once you add it to a runner's `CASE_FILES` list, for example in `apps/admin/src/app/(portal)/_actions/content-translation-actions.test.ts`.
+
+## Common first-run failures
+
+### The admin stops at start-up: missing variables
+
+**Symptom:** `[admin] Missing required environment variables: APPWRITE_API_KEY, NEXT_PUBLIC_BASE_URL.`
+
+**Check:** that both are in `apps/admin/.env.local`, and that you didn't set them with `export` before `bun run dev --filter=admin`. Turbo drops `APPWRITE_API_KEY` from the shell.
+
+**Fix:** put them in `apps/admin/.env.local` and start the admin again.
+
+### The website or the admin stops at start-up: session cookie
+
+**Symptom:** `[web] APPWRITE_SESSION_COOKIE must be "a_session_biso_web" but is "(unset)"`, or the same line from `[admin]` with `a_session_biso_admin`.
+
+**Fix:** set `APPWRITE_SESSION_COOKIE` to exactly that value in the app's `.env.local`. Never use `a_session_biso` here. The website's start-up check explains why.
+
+The website also warns when `APPWRITE_SESSION_COOKIE_FALLBACK` isn't `a_session_biso`. Locally that warning is harmless. Set the variable to `a_session_biso` to silence it.
+
+### The admin says it's falling back to production
+
+**Symptom:** `[admin] Falling back to production Appwrite defaults for unset env: …`
+
+**Fix:** stop the admin straight away. Set both `NEXT_PUBLIC_APPWRITE_ENDPOINT` and `NEXT_PUBLIC_APPWRITE_PROJECT` in `apps/admin/.env.local`, start it again, and check that the line is gone. Then check the website's and the API's `.env.local` too: they never warn.
+
+### Checkout fails on the website
+
+**Symptom:** shop checkout fails, and the log shows `NEXT_PUBLIC_API_BASE_URL is not configured`. Unit pages show no board members.
+
+**Fix:** set `NEXT_PUBLIC_API_BASE_URL=http://localhost:3003` in `apps/web/.env.local`, restart the website, and start the API with `bun run dev --filter=api`. The admin shows the same message on its unit boards, payment-settings test and expense approval issues.
+
+### The admin shows "401" after you sign in
+
+**Symptom:** you're signed in, and the admin shows its 401 page.
+
+**Check:** your user's teams in your project, and your row in `m365_team_sync`. The admin gives roles only through teams whose ids are in that row, as described in [Signing in](#signing-in).
+
+### Pages hang, then fail with a timeout
+
+**Symptom:** pages take about 8 seconds and then fail. The error reads `Appwrite request timed out after 8000ms`.
+
+**Check:** that `NEXT_PUBLIC_APPWRITE_ENDPOINT` is your server's address, ends in `/v1`, and is reachable from your machine. Appwrite calls from the server time out after 8 seconds (`APPWRITE_REQUEST_TIMEOUT_MS`). Calls slower than 2 seconds log `[appwrite] slow request` (`APPWRITE_SLOW_REQUEST_MS`).
