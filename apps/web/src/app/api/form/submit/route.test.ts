@@ -335,6 +335,56 @@ describe("POST /api/form/submit", () => {
       expect(mocks.sendEmail).not.toHaveBeenCalled();
     });
 
+    describe("a department's page below its unit", () => {
+      const subSlug = `${unitSlug}/program`;
+
+      function publishSubPage(departmentId: string, storedSlug = subSlug) {
+        publishUnit(departmentId);
+        mocks.page.mockResolvedValue({
+          ...(mocks.page.mock.results.at(-1)?.value ?? {}),
+          row: {
+            $id: "page-2",
+            campus_id: "01",
+            department_id: departmentId,
+            slug: storedSlug,
+          },
+          translation: { is_published: true },
+          doc: {
+            version: 2,
+            meta: {},
+            sections: [
+              {
+                id: "s",
+                layout: {},
+                columns: [{ id: "c", blocks: [block()] }],
+              },
+            ],
+          },
+        });
+      }
+
+      it("accepts it", async () => {
+        publishSubPage("d-1");
+        expect((await post({ ...base, slug: subSlug })).status).toBe(200);
+      });
+
+      it("refuses one that belongs to another department", async () => {
+        publishSubPage("d-2");
+        expect((await post({ ...base, slug: subSlug })).status).toBe(404);
+      });
+
+      it("refuses a row stored at a case variant, and a variant address", async () => {
+        publishSubPage("d-1", `${unitSlug}/Program`);
+        expect((await post({ ...base, slug: subSlug })).status).toBe(404);
+        publishSubPage("d-1");
+        expect(
+          (await post({ ...base, slug: "Units/oslo/fadderullan/program" }))
+            .status
+        ).toBe(404);
+        expect(mocks.sendEmail).not.toHaveBeenCalled();
+      });
+    });
+
     it("never reads a unit slug variant with the admin client", async () => {
       mocks.page.mockResolvedValue(null);
       mocks.cookieGet.mockReturnValue({ value: "s" });

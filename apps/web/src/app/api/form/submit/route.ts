@@ -10,7 +10,10 @@ import {
   isProjectNamespaceSlug,
   isProjectSlug,
 } from "@repo/shared/utils/project-units";
-import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
+import {
+  isUnitPageSlug,
+  parseUnitSubPageSlug,
+} from "@repo/shared/utils/unit-urls";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/cookie-prefs";
@@ -25,6 +28,7 @@ import {
   findCanonicalUnit,
   projectPageIsGenuine,
   publishedUnitPage,
+  publishedUnitSubPage,
 } from "@/lib/unit-page";
 
 const OPERATIONS_UNIT_TEAM_ID = "sg-app-dept-operationsunit";
@@ -258,6 +262,32 @@ async function findPage(slug: string, locale: FormLocale) {
   return { membersOnly: members !== null, page: members };
 }
 
+/**
+ * Exactly the pages the site renders for a unit: its own page at the
+ * department's canonical slug, or a page below it at `<canonical>/<name>`
+ * stored at exactly that slug. Either must belong to the department.
+ */
+async function ownedUnitPage(
+  page: Awaited<ReturnType<typeof cachedPublishedPage>>,
+  slug: string
+) {
+  const subPage = parseUnitSubPageSlug(slug);
+  const unitSlug = subPage ? subPage.unitSlug : slug;
+  const parts = unitSlug.split("/");
+  const unit =
+    parts.length === UNIT_SLUG_PARTS
+      ? await findCanonicalUnit(parts[1] ?? "", parts[2] ?? "").catch(
+          () => null
+        )
+      : null;
+  if (!unit || unit.canonical.slice(1) !== unitSlug) {
+    return null;
+  }
+  return subPage
+    ? publishedUnitSubPage(page, slug, unit.department.$id)
+    : publishedUnitPage(page, unit.department.$id);
+}
+
 async function loadDoc(slug: string, locale: FormLocale) {
   const { membersOnly, page } = await findPage(slug, locale);
   if (!page?.doc) {
@@ -275,19 +305,7 @@ async function loadDoc(slug: string, locale: FormLocale) {
   // the unit's row too, so it must take this branch, where only the exact
   // canonical slug (the one the unit route gives its forms) passes.
   if (isUnitPageSlug(slug)) {
-    // Exactly the pages the site renders for a unit: the slug must be the
-    // department's canonical one and the page must belong to it.
-    const parts = slug.split("/");
-    const unit =
-      parts.length === UNIT_SLUG_PARTS
-        ? await findCanonicalUnit(parts[1] ?? "", parts[2] ?? "").catch(
-            () => null
-          )
-        : null;
-    if (!unit || unit.canonical.slice(1) !== slug) {
-      return null;
-    }
-    const owned = publishedUnitPage(page, unit.department.$id);
+    const owned = await ownedUnitPage(page, slug);
     return owned ? { ...base, doc: owned.doc } : null;
   }
 

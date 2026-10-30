@@ -468,3 +468,68 @@ describe("unit route: national project redirect (C3)", () => {
     await expect(UnitPage({ params: nationalParams })).resolves.toBeDefined();
   });
 });
+
+describe("unit route: a department's page below its unit", () => {
+  const SUB = "units/oslo/fadderullan/program";
+  const subParams = Promise.resolve({
+    segments: ["oslo", "fadderullan", "program"],
+  });
+  const subPage = (row: Record<string, unknown> = {}) => ({
+    ...ownPage({
+      header: { title: "Program", variant: "plain" },
+      meta: { ...META, slug: SUB },
+      sections: [],
+      version: 2,
+    }),
+    row: { department_id: "d-1", slug: SUB, status: "published", ...row },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveUnit.mockResolvedValue({
+      department: { $id: "d-1", Name: "OSL Fadderullan" },
+      kind: "subPage",
+      slug: SUB,
+    } as never);
+  });
+
+  it("renders the department's published page at its address", async () => {
+    cachedPublishedPage.mockResolvedValue(subPage());
+
+    const page = (await UnitPage({ params: subParams })) as Element & {
+      props: { children: Element[] };
+    };
+    const publishedUnit = child(child(page.props.children[1] as Element));
+    const render = publishedUnit.type as (props: unknown) => Promise<Element>;
+
+    expect(cachedPublishedPage).toHaveBeenCalledWith(SUB, "no");
+    expect((await render(publishedUnit.props)).type).toBe(stubs.RenderedPage);
+    expect(await generateMetadata({ params: subParams })).toMatchObject({
+      alternates: { canonical: `/${SUB}` },
+      title: "Stored page | BISO",
+    });
+  });
+
+  it("404s when nothing is published there", async () => {
+    cachedPublishedPage.mockResolvedValue(null);
+    await expect(UnitPage({ params: subParams })).rejects.toThrow(
+      "NEXT_NOT_FOUND"
+    );
+  });
+
+  it("404s a page that belongs to another department", async () => {
+    cachedPublishedPage.mockResolvedValue(subPage({ department_id: "d-2" }));
+    await expect(UnitPage({ params: subParams })).rejects.toThrow(
+      "NEXT_NOT_FOUND"
+    );
+  });
+
+  it("404s a row whose stored address only matches by case", async () => {
+    cachedPublishedPage.mockResolvedValue(
+      subPage({ slug: "units/oslo/fadderullan/Program" })
+    );
+    await expect(UnitPage({ params: subParams })).rejects.toThrow(
+      "NEXT_NOT_FOUND"
+    );
+  });
+});

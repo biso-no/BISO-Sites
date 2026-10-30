@@ -1,6 +1,7 @@
 import type { Departments } from "@repo/api/types/appwrite";
 import {
   campusIdToLabel,
+  parseUnitSubPageSlug,
   unitCanonicalPath,
 } from "@repo/shared/utils/unit-urls";
 import { cache } from "react";
@@ -20,6 +21,11 @@ export type UnitResolution =
    * substituting a placeholder.
    */
   | { kind: "department"; department: Departments; canonical: string | null }
+  /**
+   * A department's page below its unit: `slug` is the storage slug,
+   * `units/<campus>/<unit>/<name>`, built from the unit's canonical address.
+   */
+  | { kind: "subPage"; department: Departments; slug: string }
   | {
       kind: "chooser";
       slug: string;
@@ -42,6 +48,10 @@ export type UnitResolution =
  */
 const resolveUnitByKey = cache(async (key: string): Promise<UnitResolution> => {
   const segments = key.split("/");
+  if (segments.length === SUB_PAGE_SEGMENTS) {
+    const [campus, unit, name] = segments as [string, string, string];
+    return await resolveSubPage(campus, unit, name);
+  }
   if (segments.length === 2) {
     return await resolveCanonical(segments[0] as string, segments[1] as string);
   }
@@ -76,6 +86,27 @@ export const resolveUnit = (segments: string[]): Promise<UnitResolution> =>
   segments.some((segment) => segment.includes("/"))
     ? Promise.resolve<UnitResolution>({ kind: "notFound" })
     : resolveUnitByKey(segments.join("/"));
+
+/** `/units/<campus>/<unit>/<name>`: a department's page below its unit. */
+const SUB_PAGE_SEGMENTS = 3;
+
+/**
+ * The unit, and the storage slug of its page called `name`. Only an address
+ * the admin can write (`parseUnitSubPageSlug`) resolves; the page itself is
+ * looked up and checked by the route.
+ */
+async function resolveSubPage(
+  campusSegment: string,
+  unitSlug: string,
+  name: string
+): Promise<UnitResolution> {
+  const found = await findCanonicalUnit(campusSegment, unitSlug);
+  const slug = found ? `${found.canonical.slice(1)}/${name}` : null;
+  if (!(found && slug && parseUnitSubPageSlug(slug))) {
+    return { kind: "notFound" };
+  }
+  return { kind: "subPage", department: found.department, slug };
+}
 
 async function resolveCanonical(
   campusSegment: string,
