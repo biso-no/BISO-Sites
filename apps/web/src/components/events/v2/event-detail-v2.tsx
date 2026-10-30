@@ -322,9 +322,7 @@ async function ActionCard({
       <dl>
         {event.department ? (
           <DetailRow
-            href={`/units/${event.campus.name.toLowerCase().replace(/\s+/g, "-")}/${event.department.Name.toLowerCase()
-              .replace(/\s+/g, "-")
-              .replace(departmentNameRegex, "")}`}
+            href={`/units/${event.campus.name.toLowerCase().replace(/\s+/g, "-")}/${event.department.slug}`}
             isLink
             label={t("modal.department")}
             value={event.department.Name}
