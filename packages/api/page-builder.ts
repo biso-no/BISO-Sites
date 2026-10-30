@@ -1049,27 +1049,15 @@ async function grantReadToPublishedTranslations(
 }
 
 /**
- * Unpublish a page's translation (removes it from the public site). The
- * page row becomes a draft only when no other locale is still published.
+ * Unpublish a page: every translation and the page row go back to draft,
+ * which removes the page from the public site in all locales.
  *
  * PRIVILEGED: same contract as {@link publishPage} — the row writes use the
  * service-key admin client because campus approvers are not on the page rows'
  * write ACL. Callers MUST enforce publish authorization first.
  */
-export async function unpublishPage({
-  id,
-  locale = "no",
-}: {
-  id: string;
-  locale?: "no" | "en";
-}): Promise<void> {
+export async function unpublishPage({ id }: { id: string }): Promise<void> {
   const { db } = await createAdminClient();
-
-  const tRes = await db.listRows<PageTranslations>("app", "page_translations", [
-    Query.equal("page_id", id),
-    Query.equal("locale", locale as PageTranslationsLocale),
-    Query.limit(1),
-  ]);
 
   const pageRes = await db.listRows<Pages>("app", "pages", [
     Query.equal("$id", id),
@@ -1082,8 +1070,10 @@ export async function unpublishPage({
     audience: pageAudience(visibility),
   });
 
-  const translation = tRes.rows[0];
-  if (translation) {
+  // Unpublish takes the page off the site in every locale. Publishing
+  // translates into the other locale, so leaving one live would keep the
+  // page on the site after the editor was told it was taken down.
+  for (const translation of await listPageTranslations(db, id)) {
     await db.updateRow(
       "app",
       "page_translations",
@@ -1093,15 +1083,6 @@ export async function unpublishPage({
       },
       draftPermissions
     );
-  }
-
-  // The page is one row shared by its locales: it stays published (with its
-  // published permissions) while any other locale is still live.
-  const stillLive = (await listPageTranslations(db, id)).some(
-    (other) => other.$id !== translation?.$id && other.is_published
-  );
-  if (stillLive) {
-    return;
   }
 
   await db.updateRow(

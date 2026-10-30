@@ -429,22 +429,25 @@ export function PageEditorClient({
     toast.error(LATEST_NOT_SAVED);
   }
 
-  async function handleUnpublish(locale: EditorLocale) {
+  async function handleUnpublish() {
     const id = pageIdRef.current;
     if (!id) {
       throw new Error("Page not saved yet");
     }
     try {
-      await unpublishPageAction(id, locale);
+      await unpublishPageAction(id);
+      // Unpublish takes every locale offline, not just the open one.
       setDocuments((current) => {
-        const doc = current[locale];
-        if (!doc) {
-          return current;
+        const next = { ...current };
+        for (const [locale, doc] of Object.entries(current)) {
+          if (doc) {
+            next[locale as EditorLocale] = {
+              ...doc,
+              meta: { ...doc.meta, status: "draft" },
+            };
+          }
         }
-        return {
-          ...current,
-          [locale]: { ...doc, meta: { ...doc.meta, status: "draft" } },
-        };
+        return next;
       });
       toast.success("Page unpublished");
     } catch (err) {

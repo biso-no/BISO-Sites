@@ -85,9 +85,11 @@ const bump = (row: string) => {
 };
 
 /**
- * `unpublishPage` since stage 5: the locale goes offline, and the page row
- * becomes a draft only when no other locale is still live. While another
- * locale is live the row is not written at all, so its `$updatedAt` stays.
+ * One locale going offline while the translation runs: the page row becomes
+ * a draft only when no other locale is still live, and is not written
+ * otherwise, so its `$updatedAt` stays. The Unpublish action now takes every
+ * locale down at once; these cases keep the per-locale checks in
+ * `translatePublishedPage` honest against any row that goes offline alone.
  */
 function unpublishLocale(locale: Locale) {
   const translation = store.translations[locale];

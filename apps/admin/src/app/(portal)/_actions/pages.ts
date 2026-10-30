@@ -926,10 +926,8 @@ async function translatePublishedPage({
   await notifyWebsite(["pages"]);
 }
 
-export async function unpublishPageAction(
-  id: string,
-  locale: "no" | "en" = "no"
-) {
+/** Take a page off the public site in every locale. */
+export async function unpublishPageAction(id: string) {
   const ctx = await requireAuth();
   try {
     // Admin client for the same reason as publishPageAction — authorization is
@@ -947,7 +945,7 @@ export async function unpublishPageAction(
     );
     requireProjectHubAccess(page, ctx.roles);
 
-    await pbUnpublishPage({ id, locale });
+    await pbUnpublishPage({ id });
     await logAuditEvent(ctx, "page_unpublished", {
       resourceId: id,
       resourceType: "page",

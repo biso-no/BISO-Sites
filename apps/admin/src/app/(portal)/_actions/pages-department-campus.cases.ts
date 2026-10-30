@@ -237,7 +237,7 @@ describe("the Winter Games board without the National campus team", () => {
       currentCtx = ctx();
       await publishPageAction("pw", "no");
       expect(publishPage).toHaveBeenCalledTimes(1);
-      await unpublishPageAction("pw", "no");
+      await unpublishPageAction("pw");
       expect(unpublishPage).toHaveBeenCalledTimes(1);
     });
 
@@ -258,7 +258,7 @@ describe("the department-campus grant stays narrow", () => {
       await savePageEditorDoc({ doc: winterGamesDoc() as never, id: "pw" })
     ).toHaveProperty("error");
     await expect(publishPageAction("pw", "no")).rejects.toThrow();
-    await expect(unpublishPageAction("pw", "no")).rejects.toThrow();
+    await expect(unpublishPageAction("pw")).rejects.toThrow();
     await expect(deletePageAction("pw")).rejects.toThrow();
     expect(savePageDraft).not.toHaveBeenCalled();
     expect(publishPage).not.toHaveBeenCalled();
