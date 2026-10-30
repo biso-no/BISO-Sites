@@ -36,6 +36,7 @@ import type {
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
+  LockedPageMeta,
   PageDoc,
   PageMeta,
   PublishOutcome,
@@ -83,7 +84,7 @@ interface Props {
   departments: EditorDepartment[];
   initial: PageDoc | null;
   locales: EditorLocaleOption[];
-  lockedMeta?: { department?: boolean; slug?: boolean };
+  lockedMeta?: LockedPageMeta;
   onDocChange?: (doc: PageDoc, locale: EditorLocale) => void;
   onExit?: () => void;
   /**

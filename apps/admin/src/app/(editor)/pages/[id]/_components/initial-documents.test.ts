@@ -57,6 +57,32 @@ function existingPage(
 }
 
 describe("blankPageDoc", () => {
+  test("a department user's new page starts under their unit", () => {
+    const unit = { departmentId: "24", unitSlug: "units/oslo/fadderullan" };
+    expect(
+      blankPageDoc({ defaultCampusId: "1", locale: "no", unit }).meta
+    ).toMatchObject({
+      campus: "1",
+      department: "24",
+      slug: "units/oslo/fadderullan/uten-navn",
+    });
+    expect(buildInitialDocuments(null, "no", "1", unit).no?.meta.slug).toBe(
+      "units/oslo/fadderullan/uten-navn"
+    );
+  });
+
+  test("an existing page keeps its own address and department, unit or not", () => {
+    const doc = blankPageDoc({
+      defaultCampusId: EDITOR_CAMPUS,
+      locale: "no",
+      page: existingPage().page,
+      translation: translation("no"),
+      unit: { departmentId: "24", unitSlug: "units/oslo/fadderullan" },
+    });
+    expect(doc.meta.slug).toBe("fadderullan");
+    expect(doc.meta.department).toBe("dept-1");
+  });
+
   test("an existing page without a document keeps its live title, description and scope", () => {
     // The editor saves this document on the first edit; placeholders here
     // would overwrite the live title, description and campus.

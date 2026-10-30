@@ -602,6 +602,27 @@ export interface EditorDepartment {
   name: string;
   /** The department's own theme, or null for BISO's colours. */
   theme: PageTheme | null;
+  /**
+   * The department's unit page address (`units/<campus>/<slug>`); its pages
+   * may sit below it. Null when the department has no slug yet.
+   */
+  unitSlug?: string | null;
+}
+
+/**
+ * Meta fields the host has bound to something outside the editor and that
+ * must not be edited here. Unit pages set slug + department: both encode the
+ * page's binding to a department, and changing either orphans the page.
+ */
+export interface LockedPageMeta {
+  campus?: boolean;
+  department?: boolean;
+  slug?: boolean;
+  /**
+   * The slug is `<department's unitSlug>/<name>`: only the name is edited,
+   * and picking a department moves the page under that department's unit.
+   */
+  slugUnderUnit?: boolean;
 }
 
 export interface EditorCampus {

@@ -6,6 +6,7 @@ import type {
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
+  LockedPageMeta,
   PageDoc,
   PublishOutcome,
   StoredMeta,
@@ -28,6 +29,7 @@ import {
   buildInitialDocuments,
   hasExistingContent,
   type LocaleDocuments,
+  type NewPageUnit,
   syncSharedMeta,
   withDepartmentTheme,
   withoutDroppedTheme,
@@ -41,7 +43,9 @@ interface PageEditorClientProps {
   departments: EditorDepartment[];
   initialLocale: EditorLocale;
   initialPage: PageEditorLoadResult | null;
-  lockedMeta?: { department?: boolean; slug?: boolean };
+  lockedMeta?: LockedPageMeta;
+  /** Where a department user's new page starts: their department's unit. */
+  newPageUnit?: NewPageUnit;
   pageId: string | null;
 }
 
@@ -69,6 +73,7 @@ export function PageEditorClient({
   defaultCampusId,
   departments,
   lockedMeta,
+  newPageUnit,
 }: PageEditorClientProps) {
   const router = useRouter();
   // The latest id, readable from closures captured before the first create
@@ -76,7 +81,12 @@ export function PageEditorClient({
   const pageIdRef = useRef<string | null>(pageId);
   const [activeLocale, setActiveLocale] = useState<EditorLocale>(initialLocale);
   const [documents, setDocuments] = useState<LocaleDocuments>(() =>
-    buildInitialDocuments(initialPage, initialLocale, defaultCampusId)
+    buildInitialDocuments(
+      initialPage,
+      initialLocale,
+      defaultCampusId,
+      newPageUnit
+    )
   );
   const [pendingTranslateLocale, setPendingTranslateLocale] =
     useState<EditorLocale | null>(null);
@@ -114,6 +124,7 @@ export function PageEditorClient({
       locale: activeLocale,
       page: initialPage?.page,
       translation: initialPage?.translations[activeLocale],
+      unit: newPageUnit,
     });
 
   const localeOptions = useMemo<EditorLocaleOption[]>(
