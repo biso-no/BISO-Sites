@@ -106,7 +106,7 @@ export function assertDepartmentUserAddress({
     return null;
   }
   if (!unitSlug) {
-    return "This department has no web address yet, so it can't have pages. Ask BISO IT to run the department sync.";
+    return "This department has no page on biso.no, so it can't have pages of its own. Ask BISO IT if it should.";
   }
   return `Your department's pages live under ${unitSlug}/ — give the page a name after that.`;
 }

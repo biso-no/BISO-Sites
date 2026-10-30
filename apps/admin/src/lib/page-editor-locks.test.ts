@@ -1,5 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { pageEditorLocks } from "./page-editor-locks";
+import { lockAfterCreate, pageEditorLocks } from "./page-editor-locks";
+
+describe("lockAfterCreate", () => {
+  const newPage = { campus: true, slugUnderUnit: true };
+
+  test("a page held below a unit keeps its department once it exists", () => {
+    expect(lockAfterCreate(newPage, false)).toEqual(newPage);
+    expect(lockAfterCreate(newPage, true)).toEqual({
+      ...newPage,
+      department: true,
+    });
+  });
+
+  test("other locks are unchanged", () => {
+    expect(lockAfterCreate({ campus: true }, true)).toEqual({ campus: true });
+    expect(lockAfterCreate(undefined, true)).toBeUndefined();
+  });
+});
 
 const base = { campusLocked: false, departmentUser: false, slug: null };
 

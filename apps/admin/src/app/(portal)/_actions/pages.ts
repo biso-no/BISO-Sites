@@ -28,10 +28,7 @@ import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc as EditorPageDoc } from "@repo/editor/types";
 import type { PageTheme } from "@repo/shared/utils/page-theme";
-import {
-  parseUnitSubPageSlug,
-  unitPageSlug,
-} from "@repo/shared/utils/unit-urls";
+import { parseUnitSubPageSlug } from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
@@ -49,6 +46,7 @@ import {
   parseAutoTranslationOptions,
   scheduleContentTranslation,
 } from "@/lib/content-translation.server";
+import { departmentUnitSlug } from "@/lib/department-unit";
 import { pageAccessContext } from "@/lib/page-access";
 import {
   requestedPageCampusId,
@@ -378,15 +376,21 @@ function pageAddressError({
   if (!departmentId) {
     return "Choose the department this page belongs to.";
   }
+  // Not their department: the ownership check refuses it, without this
+  // message naming another department's address.
+  if (!ctx.resolvedDepartmentIds.includes(departmentId)) {
+    return null;
+  }
   return assertDepartmentUserAddress({ nextSlug, persistedSlug, unitSlug });
 }
 
 /**
- * The page's department unit, read from the department row: its unit page
- * address (`units/<campus>/<slug>`; null without a department, a row or a
- * slug), and, when `slug` is a sub-page of it, the department's campus, which
- * the sub-page's URL encodes (undefined otherwise). A missing row is left to
- * the ownership check, which refuses the save.
+ * The page's department unit, read from the department row: the address its
+ * pages sit below (`departmentUnitSlug`; null without a department or row,
+ * or when the site doesn't serve the unit), and, when `slug` is a sub-page of
+ * it, the department's campus, which the sub-page's URL encodes (undefined
+ * otherwise). A missing row is left to the ownership check, which refuses the
+ * save.
  */
 async function readDepartmentUnit(
   db: Awaited<ReturnType<typeof createAdminClient>>["db"],
@@ -396,13 +400,11 @@ async function readDepartmentUnit(
   const row = departmentId
     ? await orNullIfRowNotFound(
         db.getRow<Departments>("app", "departments", departmentId, [
-          Query.select(["$id", "slug", "campus_id"]),
+          Query.select(["$id", "slug", "campus_id", "active", "Name"]),
         ])
       )
     : null;
-  const unitSlug = row
-    ? unitPageSlug({ campusId: row.campus_id, slug: row.slug })
-    : null;
+  const unitSlug = row ? departmentUnitSlug(row) : null;
   if (!unitSlug || parseUnitSubPageSlug(slug)?.unitSlug !== unitSlug) {
     return { unitSlug };
   }

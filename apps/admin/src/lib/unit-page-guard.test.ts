@@ -353,13 +353,13 @@ describe("assertDepartmentUserAddress", () => {
     ).toBeNull();
   });
 
-  test("a department with no web address can't take new pages", () => {
+  test("a department the site doesn't serve can't take new pages", () => {
     expect(
       assertDepartmentUserAddress({
         nextSlug: "units/oslo/x/program",
         persistedSlug: null,
         unitSlug: null,
       })
-    ).toContain("has no web address yet");
+    ).toContain("has no page on biso.no");
   });
 });

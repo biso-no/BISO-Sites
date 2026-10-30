@@ -22,6 +22,7 @@ import {
   savePageEditorDoc,
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
+import { lockAfterCreate } from "@/lib/page-editor-locks";
 import { pickSharedMeta } from "@/lib/page-shared-meta";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
@@ -79,6 +80,8 @@ export function PageEditorClient({
   // The latest id, readable from closures captured before the first create
   // resolved (autosave, the explicit translate save).
   const pageIdRef = useRef<string | null>(pageId);
+  // Whether the page exists yet: a new page's locks tighten once it does.
+  const [created, setCreated] = useState(pageId !== null);
   const [activeLocale, setActiveLocale] = useState<EditorLocale>(initialLocale);
   const [documents, setDocuments] = useState<LocaleDocuments>(() =>
     buildInitialDocuments(
@@ -214,6 +217,7 @@ export function PageEditorClient({
     });
     if (!pageIdRef.current && "pageId" in result) {
       pageIdRef.current = result.pageId;
+      setCreated(true);
       // Not router.replace: that remounts the editor and re-hydrates from the
       // server copy, dropping edits made during the save round-trip. Only
       // while the editor is still at /pages/new: a create that finishes after
@@ -475,7 +479,7 @@ export function PageEditorClient({
         departments={departmentList}
         initial={activeDoc}
         locales={localeOptions}
-        lockedMeta={lockedMeta}
+        lockedMeta={lockAfterCreate(lockedMeta, created)}
         onDocChange={handleDocChange}
         onExit={handleExit}
         onFlush={handleFlush}

@@ -35,7 +35,11 @@ export function UnitPageNameField({
       <input
         disabled
         id="pe-page-slug"
-        placeholder="Choose the department first"
+        placeholder={
+          meta.department
+            ? "This department has no page on biso.no"
+            : "Choose the department first"
+        }
         readOnly
         value=""
       />

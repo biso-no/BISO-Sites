@@ -633,8 +633,10 @@ describe("save returns the bound department (I3)", () => {
     };
     // A department user's page lives under their unit.
     store.departments.set("dept-1", {
+      active: true,
       campus: { $id: "1" },
       campus_id: "1",
+      Name: "OSL Fadderullan",
       slug: "fadderullan",
       theme_accent: null,
       theme_dark: null,

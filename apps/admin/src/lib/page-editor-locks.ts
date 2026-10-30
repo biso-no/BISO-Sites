@@ -42,3 +42,17 @@ export function pageEditorLocks({
   }
   return campusLocked ? { campus: true } : undefined;
 }
+
+/**
+ * The locks once a new page exists. A page held below a unit is then bound to
+ * the department it was created in, like a stored sub-page (the save refuses
+ * a department change), so the department locks too.
+ */
+export function lockAfterCreate(
+  locked: LockedPageMeta | undefined,
+  created: boolean
+): LockedPageMeta | undefined {
+  return created && locked?.slugUnderUnit
+    ? { ...locked, department: true }
+    : locked;
+}

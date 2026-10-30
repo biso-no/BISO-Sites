@@ -1,6 +1,5 @@
 import { resolvePageCampusId } from "@repo/api/page-builder";
 import { parsePageTheme } from "@repo/shared/utils/page-theme";
-import { unitPageSlug } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { listAllDepartments } from "@/app/(portal)/_actions/departments";
 import { listCampuses } from "@/app/(portal)/_actions/lookups";
@@ -10,6 +9,7 @@ import {
 } from "@/app/(portal)/_actions/pages";
 import { getLocale } from "@/app/actions/locale";
 import { getUserAuthContext, requireNavAccess } from "@/lib/authorization";
+import { departmentUnitSlug } from "@/lib/department-unit";
 import { pageEditorLocks } from "@/lib/page-editor-locks";
 import { PageEditorClient } from "./_components/page-editor-client";
 
@@ -74,7 +74,7 @@ export default async function PageEditorPage({ params }: Props) {
     id: d.$id,
     name: d.Name ?? d.$id,
     theme: parsePageTheme({ dark: d.theme_dark, accent: d.theme_accent }),
-    unitSlug: unitPageSlug({ campusId: d.campus_id, slug: d.slug }),
+    unitSlug: departmentUnitSlug(d),
   }));
   // A department user's new page starts in their department when they have
   // exactly one with a web address; with several they pick one first.

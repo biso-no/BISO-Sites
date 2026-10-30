@@ -10,6 +10,8 @@ import type { UserAuthContext } from "@/lib/authorization";
 
 const FADDERULLAN = "24";
 const INVEST = "35";
+const HR = "1005";
+const INACTIVE = "77";
 const OSLO = "1";
 const UNIT = "units/oslo/fadderullan";
 
@@ -143,6 +145,7 @@ const save = (
 
 const department = (id: string, name: string, slug: string, campus = OSLO) => ({
   $id: id,
+  active: true,
   campus,
   campus_id: campus,
   Name: name,
@@ -154,6 +157,8 @@ beforeEach(() => {
   tables.departments = {
     [FADDERULLAN]: department(FADDERULLAN, "OSL Fadderullan", "fadderullan"),
     [INVEST]: department(INVEST, "OSL Invest", "invest"),
+    [HR]: department(HR, "HR", "hr", "5"),
+    [INACTIVE]: { ...department(INACTIVE, "OSL Old", "old"), active: false },
   };
   tables.pages = {
     legacy: {
@@ -230,7 +235,46 @@ describe("a department member editing a page", () => {
   });
 });
 
+describe("addresses a department member can't use", () => {
+  test("a case variant of their own sub-page address", async () => {
+    expect(await save(`${UNIT}/Program`)).toHaveProperty("error");
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+
+  test("another department's: the access error, never its address", async () => {
+    const saved = await save("program", INVEST);
+    expect(saved).toEqual({
+      error: "Unauthorized: no write access to this department",
+    });
+  });
+
+  test("none, when the site doesn't serve their unit", async () => {
+    for (const [id, unit] of [
+      [HR, "units/national/hr"],
+      [INACTIVE, "units/oslo/old"],
+    ] as const) {
+      currentCtx = context({
+        resolvedCampusIds: [OSLO, "5"],
+        resolvedDepartmentIds: [id],
+      });
+      // Below the unit's would-be address: reserved like any units/ claim.
+      expect(await save(`${unit}/program`, id)).toHaveProperty("error");
+      expect(await save("program", id)).toEqual({
+        error:
+          "This department has no page on biso.no, so it can't have pages of its own. Ask BISO IT if it should.",
+      });
+    }
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+});
+
 describe("admins", () => {
+  test("can't move a sub-page to another department", async () => {
+    currentCtx = globalAdmin();
+    expect(await save(`${UNIT}/a`, INVEST, "sub")).toHaveProperty("error");
+    expect(savePageDraft).not.toHaveBeenCalled();
+  });
+
   test("a campus admin still creates pages at any address", async () => {
     currentCtx = osloCampusAdmin();
     expect(await save("program", FADDERULLAN)).not.toHaveProperty("error");
