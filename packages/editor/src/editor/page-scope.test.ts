@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { departmentsForCampus, metaAfterCampusChange } from "./page-scope";
+import {
+  departmentsForCampus,
+  metaAfterCampusChange,
+  metaAfterUnitDepartmentChange,
+  unitPageName,
+} from "./page-scope";
 
 const DEPARTMENTS = [
   { campusId: "1", id: "d-oslo", name: "OSL Fadderullan", theme: null },
@@ -46,5 +51,80 @@ describe("metaAfterCampusChange", () => {
         DEPARTMENTS
       ).department
     ).toBe("d-bergen");
+  });
+});
+
+const UNITS = [
+  {
+    campusId: "1",
+    id: "d-oslo",
+    name: "OSL Fadderullan",
+    theme: null,
+    unitSlug: "units/oslo/fadderullan",
+  },
+  {
+    campusId: "1",
+    id: "d-invest",
+    name: "OSL Invest",
+    theme: null,
+    unitSlug: "units/oslo/invest",
+  },
+  { campusId: "1", id: "d-new", name: "OSL New", theme: null, unitSlug: null },
+];
+
+describe("unitPageName", () => {
+  test("is the part of a sub-page's slug after its unit", () => {
+    expect(
+      unitPageName("units/oslo/fadderullan/program", "units/oslo/fadderullan")
+    ).toBe("program");
+  });
+
+  test("is empty for a slug outside the unit", () => {
+    expect(unitPageName("uten-navn", "units/oslo/fadderullan")).toBe("");
+    expect(
+      unitPageName("units/oslo/invest/program", "units/oslo/fadderullan")
+    ).toBe("");
+  });
+});
+
+describe("metaAfterUnitDepartmentChange", () => {
+  const meta = {
+    campus: "1",
+    department: "d-oslo",
+    slug: "units/oslo/fadderullan/program",
+    status: "draft" as const,
+    title: "Mitt program",
+  };
+
+  test("moves a sub-page's name under the new department's unit", () => {
+    expect(metaAfterUnitDepartmentChange(meta, "d-invest", UNITS)).toEqual({
+      ...meta,
+      department: "d-invest",
+      slug: "units/oslo/invest/program",
+    });
+  });
+
+  test("names a page that isn't a sub-page yet from its title", () => {
+    expect(
+      metaAfterUnitDepartmentChange(
+        { ...meta, department: "", slug: "uten-navn" },
+        "d-oslo",
+        UNITS
+      ).slug
+    ).toBe("units/oslo/fadderullan/mitt-program");
+    expect(
+      metaAfterUnitDepartmentChange(
+        { ...meta, department: "", slug: "uten-navn", title: "!!!" },
+        "d-oslo",
+        UNITS
+      ).slug
+    ).toBe("units/oslo/fadderullan/side");
+  });
+
+  test("keeps the slug when the department has no unit address", () => {
+    expect(metaAfterUnitDepartmentChange(meta, "d-new", UNITS)).toEqual({
+      ...meta,
+      department: "d-new",
+    });
   });
 });

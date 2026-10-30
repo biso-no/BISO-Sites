@@ -627,11 +627,23 @@ describe("save returns the bound department (I3)", () => {
   test("a department user's new page reports the department it was bound to", async () => {
     currentCtx = {
       ...ctx,
-      resolvedCampusIds: ["campus-oslo"],
+      resolvedCampusIds: ["1"],
       resolvedDepartmentIds: ["dept-1"],
       roles: [],
     };
-    const result = await save(null, "no", doc() as Doc);
+    // A department user's page lives under their unit.
+    store.departments.set("dept-1", {
+      active: true,
+      campus: { $id: "1" },
+      campus_id: "1",
+      Name: "OSL Fadderullan",
+      slug: "fadderullan",
+      theme_accent: null,
+      theme_dark: null,
+    } as never);
+    const subPage = doc();
+    subPage.meta.slug = "units/oslo/fadderullan/side";
+    const result = await save(null, "no", subPage as Doc);
     expect(result.department).toBe("dept-1");
     expect(store.pages.get("page-new")?.department).toBe("dept-1");
   });

@@ -1,3 +1,4 @@
+import type { Departments } from "@repo/api/types/appwrite";
 import { projectPageSlug } from "@repo/shared/utils/project-units";
 import { unitDisplayName } from "@repo/shared/utils/unit-names";
 import type { Metadata } from "next";
@@ -13,6 +14,7 @@ import {
   isServableProjectPage,
   nationalProjectForUnit,
   publishedUnitPage,
+  publishedUnitSubPage,
 } from "@/lib/unit-page";
 import { CampusChooser } from "./_components/campus-chooser";
 import { UnitView } from "./_components/unit-view";
@@ -55,6 +57,9 @@ export default async function UnitPage({ params }: Props) {
         unavailableAt={resolution.unavailableAt}
       />
     );
+  }
+  if (resolution.kind === "subPage") {
+    return await renderUnitSubPage(resolution.department, resolution.slug);
   }
 
   const locale = await getLocale();
@@ -136,9 +141,61 @@ export default async function UnitPage({ params }: Props) {
   );
 }
 
+const unitTheme = (department: Departments) => ({
+  theme_accent: department.theme_accent ?? null,
+  theme_dark: department.theme_dark ?? null,
+});
+
+/**
+ * A department's page below its unit. Unlike the unit's own address there is
+ * no coded default to fall back to: anything but the department's published
+ * page stored at exactly this address 404s (`publishedUnitSubPage`), decided
+ * here, before any Suspense boundary. A failed read throws rather than
+ * answering 404.
+ */
+async function renderUnitSubPage(department: Departments, slug: string) {
+  const locale = await getLocale();
+  const result = await cachedPublishedPage(slug, locale);
+  if (!(result && publishedUnitSubPage(result, slug, department.$id))) {
+    notFound();
+  }
+  return renderPublishedEditorPage({
+    departmentTheme: unitTheme(department),
+    locale,
+    result,
+    slug,
+    stream: {
+      fallback: <DepartmentLoading />,
+      frame: (body) => <div className="min-h-screen bg-surface">{body}</div>,
+    },
+  });
+}
+
+/** The sub-page's own title and description; none for a page not served. */
+async function subPageMetadata(
+  department: Departments,
+  slug: string
+): Promise<Metadata> {
+  const locale = await getLocale();
+  const result = await cachedPublishedPage(slug, locale).catch(() => null);
+  const page = publishedUnitSubPage(result, slug, department.$id);
+  if (!page) {
+    return {};
+  }
+  const title = page.translation?.title || unitDisplayName(department.Name);
+  return {
+    title: `${title} | BISO`,
+    description: page.translation?.description?.slice(0, 160) || undefined,
+    alternates: { canonical: `/${slug}` },
+  };
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { segments } = await params;
   const resolution = await resolveUnit(segments);
+  if (resolution.kind === "subPage") {
+    return await subPageMetadata(resolution.department, resolution.slug);
+  }
 
   if (resolution.kind === "chooser") {
     // Still real content a crawler can land on directly — give it a title

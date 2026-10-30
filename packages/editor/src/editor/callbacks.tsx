@@ -6,6 +6,7 @@ import type {
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
+  LockedPageMeta,
   PageDoc,
   PublishOutcome,
   StoredMeta,
@@ -17,12 +18,8 @@ export interface EditorCallbacks {
   campuses: EditorCampus[];
   departments: EditorDepartment[];
   locales: EditorLocaleOption[];
-  /**
-   * Meta fields the host has bound to something outside the editor and that
-   * must not be edited here. Unit pages set slug + department: both encode the
-   * page's binding to a department, and changing either orphans the page.
-   */
-  lockedMeta?: { campus?: boolean; department?: boolean; slug?: boolean };
+  /** Meta fields the host holds (see `LockedPageMeta`). */
+  lockedMeta?: LockedPageMeta;
   onExit?: () => void;
   onLocaleChange: (locale: EditorLocale) => void;
   onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;

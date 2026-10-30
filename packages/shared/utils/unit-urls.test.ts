@@ -4,8 +4,10 @@ import {
   campusIdToSegment,
   campusSegmentToId,
   isUnitPageSlug,
+  parseUnitSubPageSlug,
   unitCanonicalPath,
   unitPageSlug,
+  unitSubPageSlug,
 } from "./unit-urls";
 
 describe("campus segment mapping", () => {
@@ -110,5 +112,34 @@ describe("isUnitPageSlug accents", () => {
     expect(isUnitPageSlug("ünits/oslo/x")).toBe(true);
     expect(isUnitPageSlug("únits/oslo/x")).toBe(true);
     expect(isUnitPageSlug("unit/oslo/x")).toBe(false);
+  });
+});
+
+describe("unit sub-page slugs", () => {
+  it("puts a page name under its unit's address", () => {
+    expect(unitSubPageSlug("units/oslo/fadderullan", "program-2026")).toBe(
+      "units/oslo/fadderullan/program-2026"
+    );
+  });
+
+  it("splits a sub-page slug into its unit and name", () => {
+    expect(parseUnitSubPageSlug("units/oslo/fadderullan/program-2026")).toEqual(
+      { name: "program-2026", unitSlug: "units/oslo/fadderullan" }
+    );
+  });
+
+  it("is not a sub-page: the unit page itself or a deeper path", () => {
+    expect(parseUnitSubPageSlug("units/oslo/fadderullan")).toBeNull();
+    expect(parseUnitSubPageSlug("units/oslo/fadderullan/a/b")).toBeNull();
+    expect(parseUnitSubPageSlug("units/oslo/fadderullan/")).toBeNull();
+  });
+
+  it("is not a sub-page outside units/ or with a name a slug can't have", () => {
+    expect(parseUnitSubPageSlug("about/oslo/fadderullan/x")).toBeNull();
+    expect(parseUnitSubPageSlug("Units/oslo/fadderullan/x")).toBeNull();
+    expect(parseUnitSubPageSlug("units/oslo/fadderullan/Program")).toBeNull();
+    expect(parseUnitSubPageSlug("units/oslo/fadderullan/a b")).toBeNull();
+    expect(parseUnitSubPageSlug("units/oslo/fadderullan/-x")).toBeNull();
+    expect(parseUnitSubPageSlug(" units/oslo/fadderullan/x")).toBeNull();
   });
 });

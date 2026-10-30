@@ -6,6 +6,7 @@ import type {
   EditorDepartment,
   EditorLocale,
   EditorLocaleOption,
+  LockedPageMeta,
   PageDoc,
   PublishOutcome,
   StoredMeta,
@@ -21,6 +22,7 @@ import {
   savePageEditorDoc,
   unpublishPageAction,
 } from "@/app/(portal)/_actions/pages";
+import { lockAfterCreate } from "@/lib/page-editor-locks";
 import { pickSharedMeta } from "@/lib/page-shared-meta";
 import { uploadMediaFile } from "@/lib/upload-client";
 import {
@@ -28,6 +30,7 @@ import {
   buildInitialDocuments,
   hasExistingContent,
   type LocaleDocuments,
+  type NewPageUnit,
   syncSharedMeta,
   withDepartmentTheme,
   withoutDroppedTheme,
@@ -41,7 +44,9 @@ interface PageEditorClientProps {
   departments: EditorDepartment[];
   initialLocale: EditorLocale;
   initialPage: PageEditorLoadResult | null;
-  lockedMeta?: { department?: boolean; slug?: boolean };
+  lockedMeta?: LockedPageMeta;
+  /** Where a department user's new page starts: their department's unit. */
+  newPageUnit?: NewPageUnit;
   pageId: string | null;
 }
 
@@ -69,14 +74,22 @@ export function PageEditorClient({
   defaultCampusId,
   departments,
   lockedMeta,
+  newPageUnit,
 }: PageEditorClientProps) {
   const router = useRouter();
   // The latest id, readable from closures captured before the first create
   // resolved (autosave, the explicit translate save).
   const pageIdRef = useRef<string | null>(pageId);
+  // Whether the page exists yet: a new page's locks tighten once it does.
+  const [created, setCreated] = useState(pageId !== null);
   const [activeLocale, setActiveLocale] = useState<EditorLocale>(initialLocale);
   const [documents, setDocuments] = useState<LocaleDocuments>(() =>
-    buildInitialDocuments(initialPage, initialLocale, defaultCampusId)
+    buildInitialDocuments(
+      initialPage,
+      initialLocale,
+      defaultCampusId,
+      newPageUnit
+    )
   );
   const [pendingTranslateLocale, setPendingTranslateLocale] =
     useState<EditorLocale | null>(null);
@@ -114,6 +127,7 @@ export function PageEditorClient({
       locale: activeLocale,
       page: initialPage?.page,
       translation: initialPage?.translations[activeLocale],
+      unit: newPageUnit,
     });
 
   const localeOptions = useMemo<EditorLocaleOption[]>(
@@ -203,6 +217,7 @@ export function PageEditorClient({
     });
     if (!pageIdRef.current && "pageId" in result) {
       pageIdRef.current = result.pageId;
+      setCreated(true);
       // Not router.replace: that remounts the editor and re-hydrates from the
       // server copy, dropping edits made during the save round-trip. Only
       // while the editor is still at /pages/new: a create that finishes after
@@ -429,22 +444,25 @@ export function PageEditorClient({
     toast.error(LATEST_NOT_SAVED);
   }
 
-  async function handleUnpublish(locale: EditorLocale) {
+  async function handleUnpublish() {
     const id = pageIdRef.current;
     if (!id) {
       throw new Error("Page not saved yet");
     }
     try {
-      await unpublishPageAction(id, locale);
+      await unpublishPageAction(id);
+      // Unpublish takes every locale offline, not just the open one.
       setDocuments((current) => {
-        const doc = current[locale];
-        if (!doc) {
-          return current;
+        const next = { ...current };
+        for (const [locale, doc] of Object.entries(current)) {
+          if (doc) {
+            next[locale as EditorLocale] = {
+              ...doc,
+              meta: { ...doc.meta, status: "draft" },
+            };
+          }
         }
-        return {
-          ...current,
-          [locale]: { ...doc, meta: { ...doc.meta, status: "draft" } },
-        };
+        return next;
       });
       toast.success("Page unpublished");
     } catch (err) {
@@ -461,7 +479,7 @@ export function PageEditorClient({
         departments={departmentList}
         initial={activeDoc}
         locales={localeOptions}
-        lockedMeta={lockedMeta}
+        lockedMeta={lockAfterCreate(lockedMeta, created)}
         onDocChange={handleDocChange}
         onExit={handleExit}
         onFlush={handleFlush}

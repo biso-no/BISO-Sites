@@ -13,6 +13,7 @@ import {
 import {
   departmentsForCampus,
   metaAfterCampusChange,
+  metaAfterUnitDepartmentChange,
 } from "@/editor/page-scope";
 import { useEditorStore } from "@/editor/store";
 import { findBlock, findSection } from "@/editor/tree";
@@ -21,6 +22,7 @@ import { BlockVisibility } from "./block-visibility";
 import { HeaderPanel } from "./header-panel";
 import { SectionPanel } from "./section-panel";
 import { ThemePanel } from "./theme-panel";
+import { UnitPageNameField } from "./unit-page-name-field";
 
 export function InspectorPane() {
   const selection = useSelection();
@@ -204,13 +206,21 @@ function PageTab({
       </div>
       <div className="pe-row">
         <label htmlFor="pe-page-slug">Shared slug</label>
-        <input
-          disabled={lockedMeta?.slug}
-          id="pe-page-slug"
-          onChange={(e) => setMeta("slug", e.target.value)}
-          readOnly={lockedMeta?.slug}
-          value={doc.meta.slug}
-        />
+        {lockedMeta?.slugUnderUnit ? (
+          <UnitPageNameField
+            departments={departments}
+            meta={doc.meta}
+            onSlug={(slug) => setMeta("slug", slug)}
+          />
+        ) : (
+          <input
+            disabled={lockedMeta?.slug}
+            id="pe-page-slug"
+            onChange={(e) => setMeta("slug", e.target.value)}
+            readOnly={lockedMeta?.slug}
+            value={doc.meta.slug}
+          />
+        )}
       </div>
       <div className="pe-row">
         <label htmlFor="pe-page-campus">Campus</label>
@@ -232,11 +242,22 @@ function PageTab({
           departments={departmentsForCampus(departments, campusId)}
           doc={doc}
           locked={lockedMeta?.department}
-          onChange={(value) => setMeta("department", value)}
+          onChange={(value) =>
+            lockedMeta?.slugUnderUnit
+              ? setDoc({
+                  ...doc,
+                  meta: metaAfterUnitDepartmentChange(
+                    doc.meta,
+                    value,
+                    departments
+                  ),
+                })
+              : setMeta("department", value)
+          }
           waitingForCampus={!campusId}
         />
       </div>
-      {(lockedMeta?.slug || lockedMeta?.department) && (
+      {lockedMeta?.department && (
         <p
           style={{
             fontSize: 10,

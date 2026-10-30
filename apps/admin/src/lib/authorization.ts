@@ -17,6 +17,7 @@ import {
   isBenefitEditorEmail,
 } from "./benefit-access";
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
+import { matchDepartmentIdsByKey } from "./department-name-match";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
 
@@ -76,9 +77,43 @@ async function loadSyncedTeamIds(userId: string): Promise<Set<string>> {
   return new Set(record?.team_ids ?? []);
 }
 
+/** Upper bound on the departments read when a team name has no exact match. */
+const DEPARTMENT_SCAN_LIMIT = 1000;
+
+/**
+ * Department ids for names with no exact match, by name key. Empty when the
+ * scan fails or doesn't read every department: a key that looks unique in a
+ * partial read may not be.
+ */
+async function looseDepartmentIds(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  names: string[]
+): Promise<string[]> {
+  try {
+    const all = await db.listRows<Departments>("app", "departments", [
+      Query.select(["$id", "Name"]),
+      Query.limit(DEPARTMENT_SCAN_LIMIT),
+    ]);
+    if (all.total > all.rows.length) {
+      console.error(
+        `resolveDepartmentIds: ${all.total} departments exceed the scan limit; name-key matches skipped`
+      );
+      return [];
+    }
+    return matchDepartmentIdsByKey(names, all.rows);
+  } catch (error) {
+    console.error("Failed to scan departments for name-key matches:", error);
+    return [];
+  }
+}
+
 /**
  * Resolve team-derived department names (e.g. "Operations Unit") to the
  * Appwrite Departments row $ids stored on content rows' `department_id` column.
+ *
+ * A name with no exact match is matched by name key instead: Microsoft group
+ * names hold no spaces or punctuation, so the team "OSLFadderullan" never
+ * equals its department's Name, "OSL Fadderullan" (see department-name-match).
  *
  * Returns an empty array on lookup failure — callers must treat the absence of
  * a resolved id the same as no department membership (no extra access granted).
@@ -96,7 +131,14 @@ async function resolveDepartmentIds(
       Query.equal("Name", departmentNames),
       Query.limit(departmentNames.length),
     ]);
-    return result.rows.map((row) => row.$id);
+    const ids = result.rows.map((row) => row.$id);
+    const exactNames = new Set(result.rows.map((row) => row.Name));
+    const unmatched = departmentNames.filter((name) => !exactNames.has(name));
+    if (unmatched.length > 0) {
+      ids.push(...(await looseDepartmentIds(db, unmatched)));
+    }
+    // Two teams can name one department; callers count the ids.
+    return [...new Set(ids)];
   } catch (error) {
     console.error("Failed to resolve department IDs:", error);
     return [];

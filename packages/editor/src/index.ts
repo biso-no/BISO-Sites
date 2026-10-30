@@ -28,6 +28,7 @@ export type {
   EditorLocale,
   EditorLocaleOption,
   InsertTarget,
+  LockedPageMeta,
   PageDoc,
   PageHeader,
   PageMeta,

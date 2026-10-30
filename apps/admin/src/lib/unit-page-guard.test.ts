@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertDepartmentUserAddress,
   assertProjectPageNamespace,
   assertUnitPageBindingUnchanged,
   assertUnitPageNamespace,
@@ -214,5 +215,151 @@ describe("assertProjectPageNamespace", () => {
   test("leaves ordinary slugs alone", () => {
     expect(assertProjectPageNamespace(null, "about")).toBeNull();
     expect(assertProjectPageNamespace(null, "projects-overview")).toBeNull();
+  });
+});
+
+const FADDERULLAN = "units/oslo/fadderullan";
+
+describe("unit sub-pages", () => {
+  test("a page may claim a sub-page under its own department's unit", () => {
+    expect(
+      assertUnitPageNamespace(null, `${FADDERULLAN}/program`, FADDERULLAN)
+    ).toBeNull();
+    expect(
+      assertUnitPageNamespace(
+        "about/junk",
+        `${FADDERULLAN}/program`,
+        FADDERULLAN
+      )
+    ).toBeNull();
+  });
+
+  test("a sub-page under another unit, or with no unit, is refused", () => {
+    expect(
+      assertUnitPageNamespace(null, "units/oslo/invest/program", FADDERULLAN)
+    ).toContain(CLAIM_REFUSED);
+    expect(
+      assertUnitPageNamespace(null, `${FADDERULLAN}/program`, null)
+    ).toContain(CLAIM_REFUSED);
+    expect(assertUnitPageNamespace(null, `${FADDERULLAN}/program`)).toContain(
+      CLAIM_REFUSED
+    );
+  });
+
+  test("case, padding and deeper variants of a sub-page are refused", () => {
+    expect(
+      assertUnitPageNamespace(null, `${FADDERULLAN}/Program`, FADDERULLAN)
+    ).toContain(CLAIM_REFUSED);
+    expect(
+      assertUnitPageNamespace(null, ` ${FADDERULLAN}/program`, FADDERULLAN)
+    ).toContain(CLAIM_REFUSED);
+    expect(
+      assertUnitPageNamespace(null, `${FADDERULLAN}/a/b`, FADDERULLAN)
+    ).toContain(CLAIM_REFUSED);
+  });
+
+  test("the unit page's own address is still only createUnitPage's", () => {
+    expect(assertUnitPageNamespace(null, FADDERULLAN, FADDERULLAN)).toContain(
+      CLAIM_REFUSED
+    );
+  });
+
+  const subPage = { department_id: "24", slug: `${FADDERULLAN}/a` };
+
+  test("a sub-page may be renamed within its unit", () => {
+    expect(
+      assertUnitPageBindingUnchanged(subPage, {
+        department: "24",
+        slug: `${FADDERULLAN}/b`,
+      })
+    ).toBeNull();
+  });
+
+  test("a sub-page may not leave its unit or change department", () => {
+    expect(
+      assertUnitPageBindingUnchanged(subPage, {
+        department: "24",
+        slug: "units/oslo/invest/b",
+      })
+    ).toBe("A unit page's slug is managed by its department and cannot change");
+    expect(
+      assertUnitPageBindingUnchanged(subPage, {
+        department: "24",
+        slug: "about/b",
+      })
+    ).toBe("A unit page's slug is managed by its department and cannot change");
+    expect(
+      assertUnitPageBindingUnchanged(subPage, {
+        department: "35",
+        slug: `${FADDERULLAN}/a`,
+      })
+    ).toBe(
+      "A unit page's department is managed by its department and cannot change"
+    );
+  });
+});
+
+describe("assertDepartmentUserAddress", () => {
+  const OUTSIDE = "Your department's pages live under units/oslo/fadderullan/";
+
+  test("a new page must be a sub-page of the department's unit", () => {
+    expect(
+      assertDepartmentUserAddress({
+        nextSlug: `${FADDERULLAN}/program`,
+        persistedSlug: null,
+        unitSlug: FADDERULLAN,
+      })
+    ).toBeNull();
+    expect(
+      assertDepartmentUserAddress({
+        nextSlug: "uten-navn",
+        persistedSlug: null,
+        unitSlug: FADDERULLAN,
+      })
+    ).toContain(OUTSIDE);
+  });
+
+  test("an address change must land under the department's unit", () => {
+    expect(
+      assertDepartmentUserAddress({
+        nextSlug: "about/y",
+        persistedSlug: "uten-navn-7",
+        unitSlug: FADDERULLAN,
+      })
+    ).toContain(OUTSIDE);
+    expect(
+      assertDepartmentUserAddress({
+        nextSlug: `${FADDERULLAN}/y`,
+        persistedSlug: "uten-navn-7",
+        unitSlug: FADDERULLAN,
+      })
+    ).toBeNull();
+  });
+
+  test("a page that keeps its address may still be saved", () => {
+    expect(
+      assertDepartmentUserAddress({
+        nextSlug: "uten-navn-7",
+        persistedSlug: "uten-navn-7",
+        unitSlug: FADDERULLAN,
+      })
+    ).toBeNull();
+    expect(
+      assertDepartmentUserAddress({
+        nextSlug: FADDERULLAN,
+        persistedSlug: FADDERULLAN,
+        unitSlug: FADDERULLAN,
+      })
+    ).toBeNull();
+  });
+
+  test("a department the site doesn't serve can't take new pages", () => {
+    expect(
+      assertDepartmentUserAddress({
+        nextSlug: "units/oslo/x/program",
+        persistedSlug: null,
+        unitSlug: null,
+      })
+    ).toContain("has no page on biso.no");
   });
 });

@@ -22,9 +22,10 @@ export interface PageAccessReader extends DepartmentScopeReader {
 
 /**
  * Whether `departmentId` is the only department called `name`. Membership is
- * a team name matched to `departments.Name` (`resolveDepartmentIds`), and Name
- * is not unique: a member of a team whose name two departments share resolves
- * to both, so neither one's campus can be said to be theirs. Fails closed.
+ * a team name matched to `departments.Name` (`resolveDepartmentIds`): exactly,
+ * or by name key when only one department has that key. Name is not unique: a
+ * member of a team whose name two departments share resolves to both, so
+ * neither one's campus can be said to be theirs. Fails closed.
  */
 async function isOnlyDepartmentNamed(
   db: PageAccessReader,

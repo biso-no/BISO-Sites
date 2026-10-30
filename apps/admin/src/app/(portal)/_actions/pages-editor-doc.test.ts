@@ -304,15 +304,28 @@ describe("savePageEditorDoc: campus chosen in the editor", () => {
 
   test("a department user cannot move a page to another campus", async () => {
     currentCtx = departmentCtx;
-    // The department is re-read to check it belongs to the campus.
-    adminDb.getRow.mockResolvedValueOnce({
-      $id: "dept-1",
-      campus: { $id: "campus-oslo" },
-    });
+    // The page, and its department (re-read to check it belongs to the
+    // campus). A department user's page keeps its address here: a new one
+    // must sit under their unit.
+    adminDb.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "pages"
+          ? {
+              $id: "page-1",
+              campus: "campus-oslo",
+              campus_id: "campus-oslo",
+              department: "dept-1",
+              department_id: "dept-1",
+              slug: "about/team",
+              status: "draft",
+            }
+          : { $id: "dept-1", campus: { $id: "campus-oslo" } }
+      )
+    );
 
     await savePageEditorDoc({
       doc: makeDoc({ campus: "campus-bergen", department: "dept-1" }),
-      id: null,
+      id: "page-1",
     });
 
     expect(savePageDraftSpy.mock.calls[0]?.[0].campusId).toBe("campus-oslo");
@@ -320,19 +333,21 @@ describe("savePageEditorDoc: campus chosen in the editor", () => {
 
   test("a unit page keeps its campus even if the document says otherwise", async () => {
     currentCtx = globalAdminCtx;
-    adminDb.getRow.mockResolvedValueOnce({
-      $id: "page-unit",
-      campus: "campus-oslo",
-      campus_id: "campus-oslo",
-      department: "dept-1",
-      department_id: "dept-1",
-      slug: "units/oslo/fadderullan",
-      status: "draft",
-    });
-    adminDb.getRow.mockResolvedValueOnce({
-      $id: "dept-1",
-      campus: { $id: "campus-oslo" },
-    });
+    adminDb.getRow.mockImplementation((_db: string, table: string) =>
+      Promise.resolve(
+        table === "pages"
+          ? {
+              $id: "page-unit",
+              campus: "campus-oslo",
+              campus_id: "campus-oslo",
+              department: "dept-1",
+              department_id: "dept-1",
+              slug: "units/oslo/fadderullan",
+              status: "draft",
+            }
+          : { $id: "dept-1", campus: { $id: "campus-oslo" } }
+      )
+    );
 
     await savePageEditorDoc({
       doc: makeDoc({

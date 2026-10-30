@@ -149,7 +149,7 @@ describe("publishing tells the website to refresh (C5)", () => {
 
   test("unpublish notifies with pages", async () => {
     adminDb.getRow.mockResolvedValue(pageRow(null));
-    await unpublishPageAction("page-1", "no");
+    await unpublishPageAction("page-1");
     expect(sentTags()).toEqual([["pages"]]);
   });
 
@@ -165,7 +165,7 @@ describe("publishing tells the website to refresh (C5)", () => {
     );
     adminDb.getRow.mockResolvedValue(pageRow(null));
     await expect(publishPageAction("page-1", "no")).resolves.toBeDefined();
-    await expect(unpublishPageAction("page-1", "no")).resolves.toBeUndefined();
+    await expect(unpublishPageAction("page-1")).resolves.toBeUndefined();
     await expect(deletePageAction("page-1")).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });

@@ -19,6 +19,12 @@ import { pickSharedMeta } from "@/lib/page-shared-meta";
 
 export type LocaleDocuments = Partial<Record<EditorLocale, PageDoc>>;
 
+/** The department a department user's new page starts in, and its unit. */
+export interface NewPageUnit {
+  departmentId: string;
+  unitSlug: string;
+}
+
 const UNTITLED: Record<EditorLocale, string> = {
   en: "Untitled page",
   no: "Uten navn",
@@ -50,6 +56,7 @@ export function blankPageDoc({
   page,
   source,
   translation,
+  unit,
 }: {
   defaultCampusId: string;
   locale: EditorLocale;
@@ -57,10 +64,17 @@ export function blankPageDoc({
   /** The document open in another locale, whose shared meta this one follows. */
   source?: PageDoc;
   translation?: PageTranslationEditorEntry;
+  /** A new page held below this department's unit (a department user's). */
+  unit?: NewPageUnit;
 }): PageDoc {
   const title = translation?.title || UNTITLED[locale];
+  // Only a brand-new page starts under the unit; anything stored keeps its own.
+  const newUnit = page || source ? undefined : unit;
+  const name = generateSlug(title) || "untitled";
   const slug =
-    source?.meta.slug || page?.slug || generateSlug(title) || "untitled";
+    source?.meta.slug ||
+    page?.slug ||
+    (newUnit ? `${newUnit.unitSlug}/${name}` : name);
   const status =
     source?.meta.status ??
     (page?.status === "published" ? "published" : "draft");
@@ -70,7 +84,11 @@ export function blankPageDoc({
     header: emptyHeader(translation?.title ? title : ""),
     meta: {
       campus: source?.meta.campus ?? pageCampus(page, defaultCampusId),
-      department: source?.meta.department ?? page?.departmentId ?? "",
+      department:
+        source?.meta.department ??
+        page?.departmentId ??
+        newUnit?.departmentId ??
+        "",
       description: translation?.description ?? "",
       slug,
       status,
@@ -95,7 +113,8 @@ function storedDoc(
 export function buildInitialDocuments(
   initialPage: PageEditorLoadResult | null,
   initialLocale: EditorLocale,
-  defaultCampusId: string
+  defaultCampusId: string,
+  unit?: NewPageUnit
 ): LocaleDocuments {
   const docs: LocaleDocuments = {};
   const page = initialPage?.page;
@@ -122,6 +141,7 @@ export function buildInitialDocuments(
       locale: initialLocale,
       page,
       translation: initialPage?.translations[initialLocale],
+      unit,
     });
   }
 

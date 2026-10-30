@@ -93,6 +93,22 @@ export function publishedUnitPage(
  * with its canonical path built from the resolved ids rather than the URL
  * text (so `/units/OSLO/Fadderullan` is not a second URL for the same page).
  */
+/**
+ * A department's page below its unit (`units/<campus>/<unit>/<name>`), as the
+ * site serves it: the row stored at exactly `slug` (the lookup also matches
+ * case and accent variants, which the admin never writes), published, and
+ * bound to the unit's department — `publishedUnitPage`'s rule.
+ */
+export function publishedUnitSubPage(
+  pageResult: PageLookupResult,
+  slug: string,
+  departmentId: string
+): PublishedUnitPage | null {
+  return pageResult?.row.slug === slug
+    ? publishedUnitPage(pageResult, departmentId)
+    : null;
+}
+
 export async function findCanonicalUnit(
   campusSegment: string,
   slug: string

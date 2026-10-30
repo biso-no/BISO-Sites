@@ -336,7 +336,7 @@ describe("hub pages: publish, unpublish, archive, campus", () => {
     currentCtx = campusAdmin();
     adminDb.getRow.mockResolvedValue(hubRow);
     await expect(publishPageAction("hub", "no")).rejects.toThrow(HUB_ERROR);
-    await expect(unpublishPageAction("hub", "no")).rejects.toThrow(HUB_ERROR);
+    await expect(unpublishPageAction("hub")).rejects.toThrow(HUB_ERROR);
     await expect(deletePageAction("hub")).rejects.toThrow(HUB_ERROR);
   });
 

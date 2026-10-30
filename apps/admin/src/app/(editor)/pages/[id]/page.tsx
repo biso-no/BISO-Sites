@@ -1,7 +1,5 @@
 import { resolvePageCampusId } from "@repo/api/page-builder";
 import { parsePageTheme } from "@repo/shared/utils/page-theme";
-import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
-import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
 import { notFound } from "next/navigation";
 import { listAllDepartments } from "@/app/(portal)/_actions/departments";
 import { listCampuses } from "@/app/(portal)/_actions/lookups";
@@ -11,6 +9,8 @@ import {
 } from "@/app/(portal)/_actions/pages";
 import { getLocale } from "@/app/actions/locale";
 import { getUserAuthContext, requireNavAccess } from "@/lib/authorization";
+import { departmentUnitSlug } from "@/lib/department-unit";
+import { pageEditorLocks } from "@/lib/page-editor-locks";
 import { PageEditorClient } from "./_components/page-editor-client";
 
 interface Props {
@@ -60,27 +60,32 @@ export default async function PageEditorPage({ params }: Props) {
     : campuses.filter((campus) => ctx.managedCampusIds.includes(campus.$id));
   const campusLocked = choosableCampuses.length === 0;
 
-  // A unit page's slug IS its binding to a department and campus (see the
-  // unit pages spec). Editing any of them here would orphan the page, so they
-  // are shown read-only; savePageEditorDoc enforces it server-side.
-  let locked:
-    | { campus?: boolean; department?: boolean; slug?: boolean }
-    | undefined;
-  if (
-    isUnitPageSlug(pageResult?.page.slug) ||
-    isProjectNamespaceSlug(pageResult?.page.slug)
-  ) {
-    locked = { campus: true, department: true, slug: true };
-  } else if (campusLocked) {
-    locked = { campus: true };
-  }
+  // A department user (neither a global nor a campus admin) keeps their
+  // pages below their unit; see pageEditorLocks for every rule.
+  const departmentUser = !isGlobalAdmin && ctx.managedCampusIds.length === 0;
+  const locked = pageEditorLocks({
+    campusLocked,
+    departmentUser,
+    slug: pageResult?.page.slug ?? null,
+  });
 
   const editorDepartments = departments.map((d) => ({
     campusId: d.campus_id ?? null,
     id: d.$id,
     name: d.Name ?? d.$id,
     theme: parsePageTheme({ dark: d.theme_dark, accent: d.theme_accent }),
+    unitSlug: departmentUnitSlug(d),
   }));
+  // A department user's new page starts in their department when they have
+  // exactly one with a web address; with several they pick one first.
+  const unitDepartments = editorDepartments.filter((d) => d.unitSlug);
+  const onlyUnit =
+    isNew && departmentUser && unitDepartments.length === 1
+      ? unitDepartments[0]
+      : undefined;
+  const newPageUnit = onlyUnit?.unitSlug
+    ? { departmentId: onlyUnit.id, unitSlug: onlyUnit.unitSlug }
+    : undefined;
   // Existing pages open on their own campus; a new page starts on the
   // editor's (the campus switcher for a global admin, else their own).
   const defaultCampusId =
@@ -102,6 +107,7 @@ export default async function PageEditorPage({ params }: Props) {
       initialLocale={initialLocale}
       initialPage={pageResult}
       lockedMeta={locked}
+      newPageUnit={newPageUnit}
       pageId={isNew ? null : id}
     />
   );

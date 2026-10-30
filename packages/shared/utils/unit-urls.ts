@@ -71,6 +71,43 @@ export function unitPageSlug(target: UnitTarget): string | null {
   return `${UNIT_PAGE_SLUG_PREFIX}${segment}/${target.slug}`;
 }
 
+/** A sub-page name: lowercase a–z and 0–9 in hyphen-joined words. */
+const SUB_PAGE_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** `units`, campus, department, name. */
+const SUB_PAGE_SEGMENTS = 4;
+
+/**
+ * Storage slug of a department's own page below its unit page:
+ * `units/<campus>/<department>/<name>`. `unitSlug` is the unit page's slug
+ * (`unitPageSlug`).
+ */
+export function unitSubPageSlug(unitSlug: string, name: string): string {
+  return `${unitSlug}/${name}`;
+}
+
+/**
+ * The unit address and name of a sub-page slug, or null when `slug` is not
+ * exactly `units/<campus>/<department>/<name>` with a lowercase slug name.
+ * Strict on purpose: anything else in `units/` stays reserved.
+ */
+export function parseUnitSubPageSlug(
+  slug: string | null | undefined
+): { name: string; unitSlug: string } | null {
+  if (!slug?.startsWith(UNIT_PAGE_SLUG_PREFIX)) {
+    return null;
+  }
+  const segments = slug.split("/");
+  const name = segments.at(-1) ?? "";
+  if (
+    segments.length !== SUB_PAGE_SEGMENTS ||
+    segments.some((segment) => segment === "") ||
+    !SUB_PAGE_NAME_RE.test(name)
+  ) {
+    return null;
+  }
+  return { name, unitSlug: segments.slice(0, -1).join("/") };
+}
+
 /** Public canonical path for a department. */
 export function unitCanonicalPath(target: UnitTarget): string | null {
   const slug = unitPageSlug(target);

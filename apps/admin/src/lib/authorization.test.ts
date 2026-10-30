@@ -377,3 +377,180 @@ describe("benefits editor role", () => {
     await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
   });
 });
+
+interface DepartmentRow {
+  $id: string;
+  Name: string;
+}
+
+/**
+ * A departments table that answers `equal("Name")` and `limit` like Appwrite.
+ * `scanError` makes a read with no Name filter fail.
+ */
+function departmentsTable(rows: DepartmentRow[], scanError?: Error): void {
+  db.listRows.mockImplementation(
+    (_database: string, table: string, queries: string[] = []) => {
+      if (table !== "departments") {
+        return Promise.resolve({ rows: [], total: 0 });
+      }
+      let matched = rows;
+      let limit = 25;
+      let byName = false;
+      for (const raw of queries) {
+        const query = JSON.parse(raw) as {
+          attribute?: string;
+          method: string;
+          values?: unknown[];
+        };
+        if (query.method === "equal" && query.attribute === "Name") {
+          byName = true;
+          matched = matched.filter((row) => query.values?.includes(row.Name));
+        }
+        if (query.method === "limit") {
+          limit = Number(query.values?.[0]);
+        }
+      }
+      if (scanError && !byName) {
+        return Promise.reject(scanError);
+      }
+      return Promise.resolve({
+        rows: matched.slice(0, limit),
+        total: matched.length,
+      });
+    }
+  );
+}
+
+describe("department teams resolve to department rows", () => {
+  const oslo = { $id: "sg-app-campus-oslo", name: "Oslo" };
+
+  beforeEach(() => {
+    account.get.mockReset();
+    db.listRows.mockReset();
+    teams.list.mockReset();
+    account.get.mockResolvedValue({
+      $id: "user-1",
+      email: "member@example.com",
+      name: "Member Person",
+    });
+  });
+
+  test("a campus-prefixed team matches its department despite the missing space", async () => {
+    memberOf([
+      oslo,
+      { $id: "sg-app-dept-oslfadderullan", name: "OSLFadderullan" },
+    ]);
+    departmentsTable([
+      { $id: "24", Name: "OSL Fadderullan" },
+      { $id: "317", Name: "BRG Fadderullan" },
+      { $id: "2", Name: "Ledelsen Oslo" },
+    ]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.resolvedDepartmentIds).toEqual(["24"]);
+  });
+
+  test("punctuation and letters a group name can't hold don't block a match", async () => {
+    memberOf([
+      oslo,
+      { $id: "sg-app-dept-oslfinansbachelor", name: "OSLFINANSbachelor" },
+      {
+        $id: "sg-app-dept-oslsivkbisivilkonomer",
+        name: "OSLSIVKBISivilkonomer",
+      },
+    ]);
+    departmentsTable([
+      { $id: "9", Name: "OSL FINANS (bachelor)" },
+      { $id: "16", Name: "OSL SIVØK - BI Siviløkonomer" },
+      { $id: "96", Name: "OSL MSc Finans" },
+    ]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.resolvedDepartmentIds).toEqual(["9", "16"]);
+  });
+
+  test("an exact name match resolves as before", async () => {
+    memberOf([
+      oslo,
+      { $id: "sg-app-dept-ledelsenoslo", name: "Ledelsen Oslo" },
+    ]);
+    departmentsTable([
+      { $id: "2", Name: "Ledelsen Oslo" },
+      { $id: "24", Name: "OSL Fadderullan" },
+    ]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.resolvedDepartmentIds).toEqual(["2"]);
+  });
+
+  test("a loose match two departments share resolves to neither", async () => {
+    memberOf([
+      oslo,
+      { $id: "sg-app-dept-oslfadderullan", name: "OSLFadderullan" },
+    ]);
+    departmentsTable([
+      { $id: "24", Name: "OSL Fadderullan" },
+      { $id: "25", Name: "OSL-Fadderullan" },
+    ]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.resolvedDepartmentIds).toEqual([]);
+  });
+
+  test("two teams for the same department resolve it once", async () => {
+    memberOf([
+      oslo,
+      { $id: "sg-app-dept-oslfadderullan", name: "OSL Fadderullan" },
+      { $id: "sg-app-dept-osl-fadderullan", name: "OSL-Fadderullan" },
+    ]);
+    departmentsTable([{ $id: "24", Name: "OSL Fadderullan" }]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.resolvedDepartmentIds).toEqual(["24"]);
+  });
+
+  test("no loose match when the scan didn't read every department", async () => {
+    memberOf([
+      oslo,
+      { $id: "sg-app-dept-oslfadderullan", name: "OSLFadderullan" },
+    ]);
+    const filler = Array.from({ length: 1000 }, (_, i) => ({
+      $id: `filler-${i}`,
+      Name: `Filler ${i}`,
+    }));
+    // The department sharing the key sits past the scan's limit.
+    departmentsTable([
+      { $id: "24", Name: "OSL Fadderullan" },
+      ...filler,
+      { $id: "25", Name: "OSL-Fadderullan" },
+    ]);
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.resolvedDepartmentIds).toEqual([]);
+  });
+
+  test("a failed scan keeps the exact matches", async () => {
+    memberOf([
+      oslo,
+      { $id: "sg-app-dept-ledelsenoslo", name: "Ledelsen Oslo" },
+      { $id: "sg-app-dept-oslfadderullan", name: "OSLFadderullan" },
+    ]);
+    departmentsTable(
+      [
+        { $id: "2", Name: "Ledelsen Oslo" },
+        { $id: "24", Name: "OSL Fadderullan" },
+      ],
+      new Error("scan failed")
+    );
+
+    const ctx = await getUserAuthContext();
+
+    expect(ctx?.resolvedDepartmentIds).toEqual(["2"]);
+  });
+});

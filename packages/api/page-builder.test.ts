@@ -1120,41 +1120,38 @@ describe("unpublishPage", () => {
     );
   }
 
-  it("keeps the page published while another locale is still live", async () => {
+  it("takes every locale offline, not just one", async () => {
     seed([
       { $id: "tr-no", locale: "no", is_published: true },
       { $id: "tr-en", locale: "en", is_published: true },
     ]);
 
-    await unpublishPage({ id: "page-1", locale: "en" });
+    await unpublishPage({ id: "page-1" });
 
-    expect(db.updateRow).toHaveBeenCalledTimes(1);
-    expect(db.updateRow.mock.calls[0][1]).toBe("page_translations");
-    expect(db.updateRow.mock.calls[0][2]).toBe("tr-en");
-    expect(db.updateRow.mock.calls[0][3]).toEqual({ is_published: false });
+    const translationWrites = db.updateRow.mock.calls.filter(
+      (c) => c[1] === "page_translations"
+    );
+    expect(translationWrites.map((c) => c[2]).sort()).toEqual([
+      "tr-en",
+      "tr-no",
+    ]);
+    for (const write of translationWrites) {
+      expect(write[3]).toEqual({ is_published: false });
+      expect(write[4]).toEqual([]);
+    }
   });
 
-  it("makes the page a draft once the last published locale is unpublished", async () => {
+  it("makes the page a draft with no read permission", async () => {
     seed([
-      { $id: "tr-no", locale: "no", is_published: false },
+      { $id: "tr-no", locale: "no", is_published: true },
       { $id: "tr-en", locale: "en", is_published: true },
     ]);
 
-    await unpublishPage({ id: "page-1", locale: "en" });
+    await unpublishPage({ id: "page-1" });
 
     const pageWrite = db.updateRow.mock.calls.find((c) => c[1] === "pages");
     expect(pageWrite?.[3]).toEqual({ status: "draft" });
-    expect(pageWrite?.[4]).toBeDefined();
-  });
-
-  it("does not count the locale being unpublished as still live", async () => {
-    seed([{ $id: "tr-no", locale: "no", is_published: true }]);
-
-    await unpublishPage({ id: "page-1", locale: "no" });
-
-    expect(db.updateRow.mock.calls.find((c) => c[1] === "pages")?.[3]).toEqual({
-      status: "draft",
-    });
+    expect(pageWrite?.[4]).toEqual([]);
   });
 });
 
