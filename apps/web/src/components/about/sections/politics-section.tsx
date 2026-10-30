@@ -33,7 +33,7 @@ export async function PoliticsSection() {
       <CtaCard
         cta={t("spu.cta")}
         description={t("spu.description")}
-        href="/contact"
+        href="/units/oslo/spu-studentpolitisk-utvalg"
         title={t("spu.title")}
       />
       <PdfLink
