@@ -1,5 +1,12 @@
 "use server";
 
+import { campusScopeIds } from "@/lib/campus-scope";
+import { filterTranslationRefs, queryEvents } from "@/lib/data/queries";
+import {
+  emptyWebResult,
+  WEB_PAGE_SIZE,
+  type WebPaginatedResult,
+} from "@/lib/list-params";
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
 import type {
@@ -9,13 +16,6 @@ import type {
   Events,
 } from "@repo/api/types/appwrite";
 import { EventsCategory } from "@repo/api/types/appwrite";
-import { campusScopeIds } from "@/lib/campus-scope";
-import { filterTranslationRefs, queryEvents } from "@/lib/data/queries";
-import {
-  emptyWebResult,
-  WEB_PAGE_SIZE,
-  type WebPaginatedResult,
-} from "@/lib/list-params";
 
 interface ListEventsParams {
   campus?: string;
@@ -403,6 +403,7 @@ export async function getCollectionEvents(
         "campus.name",
         "department.$id",
         "department.Name",
+        "department.campus",
         "translation_refs.$id",
         "translation_refs.$createdAt",
         "translation_refs.$updatedAt",

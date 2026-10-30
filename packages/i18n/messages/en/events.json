@@ -48,6 +48,7 @@
   },
   "modal": {
     "memberPrice": "Member Price",
+    "department": "Department",
     "getTickets": "Get Tickets on Tickster",
     "registerNow": "Register Now",
     "close": "Close",

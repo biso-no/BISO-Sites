@@ -48,6 +48,7 @@
   },
   "modal": {
     "memberPrice": "Medlemspris",
+    "department": "Avdeling",
     "getTickets": "Kjøp billetter på Tickster",
     "registerNow": "Registrer deg nå",
     "close": "Lukk",

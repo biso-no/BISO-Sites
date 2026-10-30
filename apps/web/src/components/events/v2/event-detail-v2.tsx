@@ -1,12 +1,3 @@
-import type { Events } from "@repo/api/types/appwrite";
-import { EventsLocationMode } from "@repo/api/types/appwrite";
-import type { EventRsvpSummary } from "@repo/shared/utils/event-rsvp";
-import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
-import { ArrowLeft } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
 import {
   MembersOnlyBadge,
   MembersOnlyNotice,
@@ -25,6 +16,15 @@ import {
   getEventHref,
   resolveEventRegistration,
 } from "@/lib/types/event";
+import type { Events } from "@repo/api/types/appwrite";
+import { EventsLocationMode } from "@repo/api/types/appwrite";
+import type { EventRsvpSummary } from "@repo/shared/utils/event-rsvp";
+import { PlateContentRenderer } from "@repo/ui/components/plate-content-renderer";
+import { ArrowLeft } from "lucide-react";
+import { getTranslations } from "next-intl/server";
+import Image from "next/image";
+import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   type EventPrice,
   eventPrice,
@@ -72,7 +72,32 @@ export interface EventDetailV2Props {
   showSignIn: boolean;
 }
 
-function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+const departmentNameRegex = /^(osl|brg|trd|stv)-/;
+
+function DetailRow({
+  label,
+  value,
+  isLink,
+  href,
+}: {
+  label: string;
+  value: ReactNode;
+  isLink?: boolean;
+  href?: string;
+}) {
+  if (isLink && typeof value === "string") {
+    return (
+      <div className="border-edge border-b py-3 last:border-b-0">
+        <dt className="type-label text-ink-muted">{label}</dt>
+        <dd className="type-body-sm mt-1 text-ink">
+          <Link className="underline" href={href || value}>
+            {value}
+          </Link>
+        </dd>
+      </div>
+    );
+  }
+
   return (
     <div className="border-edge border-b py-3 last:border-b-0">
       <dt className="type-label text-ink-muted">{label}</dt>
@@ -295,7 +320,18 @@ async function ActionCard({
   return (
     <div className="rounded-biso-md border border-edge bg-surface-raised p-6">
       <dl>
+        {event.department ? (
+          <DetailRow
+            href={`/units/${event.campus.name.toLowerCase().replace(/\s+/g, "-")}/${event.department.Name.toLowerCase()
+              .replace(/\s+/g, "-")
+              .replace(departmentNameRegex, "")}`}
+            isLink
+            label={t("modal.department")}
+            value={event.department.Name}
+          />
+        ) : null}
         <DetailRow label={t("modal.date")} value={date} />
+
         {time ? <DetailRow label={t("modal.time")} value={time} /> : null}
         <DetailRow
           label={t("modal.location")}
@@ -407,7 +443,7 @@ interface CollectionCopy {
   title: string;
 }
 
-function CollectionList({
+async function CollectionList({
   copy,
   events,
   locale,
@@ -416,6 +452,7 @@ function CollectionList({
   events: Events[];
   locale: string;
 }) {
+  const t = await getTranslations("events");
   if (events.length === 0) {
     return null;
   }
@@ -436,6 +473,17 @@ function CollectionList({
           const price = copy.priceFor(event);
           const row = (
             <>
+              <div>
+                {event.department ? (
+                  <DetailRow
+                    href={`/units/${event.campus.name.toLowerCase().replace(/\s+/g, "-")}/${event.department.Name.toLowerCase().replace(/\s+/g, "-").replace(departmentNameRegex, "")}`}
+                    isLink
+                    label={t("modal.department")}
+                    value={event.department.Name}
+                  />
+                ) : null}
+              </div>
+
               {event.start_date ? (
                 <DateBlock
                   date={event.start_date}
