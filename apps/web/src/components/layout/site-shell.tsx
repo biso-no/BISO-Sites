@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getActiveCampus } from "@/app/actions/campus";
 import { getLocale } from "@/app/actions/locale";
 import { FooterV2 } from "@/components/layout/footer-v2";
+import { MobileAppBanner } from "@/components/layout/mobile-app-banner";
 import { PublicProviders } from "@/components/layout/public-providers";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/layout/skip-link";
 import { NavigationV2 } from "@/components/nav/mega-nav-v2";
@@ -137,6 +138,7 @@ export async function SiteShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <FooterV2 />
+      <MobileAppBanner />
       <OnboardingPopout needsOnboarding={needsOnboarding} />
     </PublicProviders>
   );

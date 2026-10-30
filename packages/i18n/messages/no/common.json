@@ -49,12 +49,28 @@
       "termsOfService": "Tjenester og vilkår"
     },
     "tagline": "Bli en del av noe større",
+    "app": {
+      "heading": "Last ned BISO-appen",
+      "appleHint": "Last ned fra",
+      "appleStore": "App Store",
+      "googleHint": "Tilgjengelig på",
+      "googlePlay": "Google Play"
+    },
     "stats": {
       "societies": "Foreninger og enheter",
       "events": "Publiserte arrangementer",
       "positions": "Ledige verv",
       "campuses": "Campuser"
     }
+  },
+  "appBanner": {
+    "title": "Visste du at vi også har en app?",
+    "subtitle": "Arrangementer, medlemsbevis og fordeler rett i lomma.",
+    "appleHint": "Last ned fra",
+    "appleStore": "App Store",
+    "googleHint": "Tilgjengelig på",
+    "googlePlay": "Google Play",
+    "dismiss": "Lukk app-banner"
   },
   "navigation": {
     "partner": "Bedrift",

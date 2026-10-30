@@ -64,4 +64,10 @@ describe("footer (RD-014)", () => {
     expect(shell).not.toContain("shellV2");
     expect(shell).not.toContain("isShellV2Enabled");
   });
+
+  it("includes both Apple App Store and Google Play badges in the footer", () => {
+    expect(footer).toContain("<AppStoreBadge");
+    expect(footer).toContain('platform="ios"');
+    expect(footer).toContain('platform="android"');
+  });
 });

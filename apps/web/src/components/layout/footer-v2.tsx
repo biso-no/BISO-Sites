@@ -6,6 +6,7 @@ import { getLocale } from "@/app/actions/locale";
 import { Container } from "@/components/ui/container";
 import { StatRow } from "@/components/ui/stat-row";
 import { cachedCampuses, cachedHomeCounts } from "@/lib/data/public-content";
+import { AppStoreBadge } from "./app-store-badge";
 import { FooterSocial } from "./footer-social";
 
 /**
@@ -149,6 +150,21 @@ export async function FooterV2() {
                 contact@biso.no
               </a>
             </address>
+            <div className="mt-6">
+              <p className="type-label mb-3 text-ink">{t("app.heading")}</p>
+              <div className="flex flex-wrap gap-2.5">
+                <AppStoreBadge
+                  hint={t("app.appleHint")}
+                  platform="ios"
+                  storeName={t("app.appleStore")}
+                />
+                <AppStoreBadge
+                  hint={t("app.googleHint")}
+                  platform="android"
+                  storeName={t("app.googlePlay")}
+                />
+              </div>
+            </div>
           </div>
 
           {columns.map((column) => (

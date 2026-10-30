@@ -49,12 +49,28 @@
       "termsOfService": "Terms of Service"
     },
     "tagline": "Be part of something bigger",
+    "app": {
+      "heading": "Get the BISO app",
+      "appleHint": "Download on the",
+      "appleStore": "App Store",
+      "googleHint": "Get it on",
+      "googlePlay": "Google Play"
+    },
     "stats": {
       "societies": "Societies & units",
       "events": "Published events",
       "positions": "Open positions",
       "campuses": "Campuses"
     }
+  },
+  "appBanner": {
+    "title": "Did you know we have an app too?",
+    "subtitle": "Events, member pass and benefits in your pocket.",
+    "appleHint": "Download on the",
+    "appleStore": "App Store",
+    "googleHint": "Get it on",
+    "googlePlay": "Google Play",
+    "dismiss": "Dismiss app banner"
   },
   "navigation": {
     "partner": "Business",
