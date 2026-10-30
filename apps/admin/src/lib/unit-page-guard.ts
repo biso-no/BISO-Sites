@@ -1,5 +1,13 @@
 import { isProjectNamespaceSlug } from "@repo/shared/utils/project-units";
-import { isUnitPageSlug } from "@repo/shared/utils/unit-urls";
+import {
+  isUnitPageSlug,
+  parseUnitSubPageSlug,
+} from "@repo/shared/utils/unit-urls";
+
+/** Whether `slug` is exactly `<unitSlug>/<name>` (see `parseUnitSubPageSlug`). */
+function isSubPageOf(slug: string, unitSlug: string | null | undefined) {
+  return Boolean(unitSlug) && parseUnitSubPageSlug(slug)?.unitSlug === unitSlug;
+}
 
 /**
  * A unit page's slug IS its binding to a department: the public routes resolve
@@ -19,7 +27,11 @@ export function assertUnitPageBindingUnchanged(
   if (!isAdminOwnedPageSlug(persisted.slug)) {
     return null;
   }
-  if (next.slug !== persisted.slug) {
+  // A sub-page's name may change; the unit it sits under may not.
+  const subPage = parseUnitSubPageSlug(persisted.slug);
+  const renamedWithinUnit =
+    subPage !== null && isSubPageOf(next.slug, subPage.unitSlug);
+  if (next.slug !== persisted.slug && !renamedWithinUnit) {
     return "A unit page's slug is managed by its department and cannot change";
   }
   if ((persisted.department_id ?? "") !== next.department) {
@@ -52,19 +64,51 @@ export function assertUnitPageBindingUnchanged(
  * `assertUnitPageBindingUnchanged` instead — the two rules are complementary,
  * not overlapping.
  *
+ * One more address is open: a department's sub-page,
+ * `<unitSlug>/<name>` exactly (`parseUnitSubPageSlug`), where `unitSlug` is
+ * the unit address of the department the page is saved under. The caller
+ * derives it from the department row, never from the request.
+ *
  * Returns an error message, or null when the slug is allowed.
  */
 export function assertUnitPageNamespace(
   persistedSlug: string | null | undefined,
-  nextSlug: string
+  nextSlug: string,
+  unitSlug?: string | null
 ): string | null {
   if (!isUnitPageSlug(nextSlug)) {
     return null;
   }
-  if (persistedSlug === nextSlug) {
+  if (persistedSlug === nextSlug || isSubPageOf(nextSlug, unitSlug)) {
     return null;
   }
   return 'The "units/" address space belongs to department pages. Open the department under Departments and use "Create page" instead.';
+}
+
+/**
+ * A department user's pages live under their unit: a new page, or a page
+ * whose address changes, must be `<unitSlug>/<name>`, where `unitSlug` is the
+ * unit address of the page's department. A page that keeps its address is
+ * left alone, so pages made before this rule can still be saved.
+ *
+ * Returns an error message, or null when the address is allowed.
+ */
+export function assertDepartmentUserAddress({
+  nextSlug,
+  persistedSlug,
+  unitSlug,
+}: {
+  nextSlug: string;
+  persistedSlug: string | null | undefined;
+  unitSlug: string | null;
+}): string | null {
+  if (persistedSlug === nextSlug || isSubPageOf(nextSlug, unitSlug)) {
+    return null;
+  }
+  if (!unitSlug) {
+    return "This department has no web address yet, so it can't have pages. Ask BISO IT to run the department sync.";
+  }
+  return `Your department's pages live under ${unitSlug}/ — give the page a name after that.`;
 }
 
 /**

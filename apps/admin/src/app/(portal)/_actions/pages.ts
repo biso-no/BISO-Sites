@@ -1,6 +1,7 @@
 "use server";
 
 import { Query } from "@repo/api";
+import { orNullIfRowNotFound } from "@repo/api/errors";
 import {
   archivePage,
   PAGE_LOCALES,
@@ -27,6 +28,10 @@ import { sanitizePageDocHtml } from "@repo/editor/sanitize";
 import { normalizePageDoc } from "@repo/editor/serialize";
 import type { PageDoc as EditorPageDoc } from "@repo/editor/types";
 import type { PageTheme } from "@repo/shared/utils/page-theme";
+import {
+  parseUnitSubPageSlug,
+  unitPageSlug,
+} from "@repo/shared/utils/unit-urls";
 import { revalidatePath } from "next/cache";
 import { requireAuth, type UserAuthContext } from "@/lib/authorization";
 import {
@@ -62,6 +67,7 @@ import {
 } from "@/lib/page-theme-publish";
 import { hasNavAccess } from "@/lib/roles";
 import {
+  assertDepartmentUserAddress,
   assertProjectPageSave,
   assertUnitPageBindingUnchanged,
   assertUnitPageNamespace,
@@ -332,6 +338,77 @@ async function withoutDepartmentTheme(
 const themeDroppedFlag = (dropped: boolean): { themeDropped?: true } =>
   dropped ? { themeDropped: true } : {};
 
+/** Neither a global admin nor a campus admin: scoped to their departments. */
+function isDepartmentUser(ctx: UserAuthContext): boolean {
+  return (
+    !ctx.roles.includes("globaladmin") && ctx.managedCampusIds.length === 0
+  );
+}
+
+/**
+ * Where a saved page may live: the reserved `units/` and `projects/` address
+ * spaces, checked on every save (a create-only check is stepped around by
+ * saving an ordinary slug first and renaming afterwards), and, for a
+ * department user, their department's unit. An error message, or null.
+ */
+function pageAddressError({
+  ctx,
+  departmentId,
+  existing,
+  nextSlug,
+  unitSlug,
+}: {
+  ctx: UserAuthContext;
+  departmentId: string | null;
+  existing: Pages | null;
+  nextSlug: string;
+  unitSlug: string | null;
+}): string | null {
+  const persistedSlug = existing?.slug ?? null;
+  const namespaceError =
+    assertUnitPageNamespace(persistedSlug, nextSlug, unitSlug) ??
+    assertProjectPageSave({
+      isGlobalAdmin: ctx.roles.includes("globaladmin"),
+      nextSlug,
+      persisted: existing,
+    });
+  if (namespaceError || !isDepartmentUser(ctx)) {
+    return namespaceError;
+  }
+  if (!departmentId) {
+    return "Choose the department this page belongs to.";
+  }
+  return assertDepartmentUserAddress({ nextSlug, persistedSlug, unitSlug });
+}
+
+/**
+ * The page's department unit, read from the department row: its unit page
+ * address (`units/<campus>/<slug>`; null without a department, a row or a
+ * slug), and, when `slug` is a sub-page of it, the department's campus, which
+ * the sub-page's URL encodes (undefined otherwise). A missing row is left to
+ * the ownership check, which refuses the save.
+ */
+async function readDepartmentUnit(
+  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  departmentId: string | null,
+  slug: string
+): Promise<{ subPageCampusId?: string | null; unitSlug: string | null }> {
+  const row = departmentId
+    ? await orNullIfRowNotFound(
+        db.getRow<Departments>("app", "departments", departmentId, [
+          Query.select(["$id", "slug", "campus_id"]),
+        ])
+      )
+    : null;
+  const unitSlug = row
+    ? unitPageSlug({ campusId: row.campus_id, slug: row.slug })
+    : null;
+  if (!unitSlug || parseUnitSubPageSlug(slug)?.unitSlug !== unitSlug) {
+    return { unitSlug };
+  }
+  return { subPageCampusId: row?.campus_id ?? null, unitSlug };
+}
+
 export async function savePageEditorDoc({
   id,
   doc,
@@ -400,20 +477,20 @@ export async function savePageEditorDoc({
         persisted?.department ?? null
       );
     }
-    // Every save, create or update: a create-only check is stepped around by
-    // saving an ordinary slug first and renaming into `units/` afterwards.
-    const namespaceError =
-      assertUnitPageNamespace(
-        existing?.slug ?? null,
-        normalizedDoc.meta.slug
-      ) ??
-      assertProjectPageSave({
-        isGlobalAdmin: ctx.roles.includes("globaladmin"),
-        nextSlug: normalizedDoc.meta.slug,
-        persisted: existing,
-      });
-    if (namespaceError) {
-      return { error: namespaceError };
+    const departmentId = normalizedDoc.meta.department || null;
+    // The unit address of the department the page is saved under, read from
+    // the department row: a page may sit at `<unit>/<name>` below it.
+    const nextSlug = normalizedDoc.meta.slug;
+    const unit = await readDepartmentUnit(db, departmentId, nextSlug);
+    const addressError = pageAddressError({
+      ctx,
+      departmentId,
+      existing,
+      nextSlug,
+      unitSlug: unit.unitSlug,
+    });
+    if (addressError) {
+      return { error: addressError };
     }
     if (existing) {
       // Complementary to the namespace rule above, which cannot see a unit
@@ -448,8 +525,8 @@ export async function savePageEditorDoc({
       chosenCampusId,
       isUpdate: Boolean(existing),
       persistedCampusId: persisted?.campus ?? null,
+      unitCampusId: unit.subPageCampusId,
     });
-    const departmentId = normalizedDoc.meta.department || null;
     // The requested department's own campus, for its member: the ownership
     // check still verifies the department belongs to `campusId`.
     await assertContentOwnership(

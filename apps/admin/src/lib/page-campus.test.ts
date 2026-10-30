@@ -115,4 +115,25 @@ describe("resolvePageSaveCampusId with a chosen campus", () => {
       })
     ).toBe("4");
   });
+
+  test("a unit sub-page takes its unit's campus, on create and update", () => {
+    // Its URL, units/<campus>/<unit>/<name>, encodes the campus.
+    expect(
+      resolvePageSaveCampusId({
+        authorCampusId: "5",
+        chosenCampusId: "2",
+        isUpdate: false,
+        persistedCampusId: null,
+        unitCampusId: "1",
+      })
+    ).toBe("1");
+    expect(
+      resolvePageSaveCampusId({
+        authorCampusId: "5",
+        isUpdate: true,
+        persistedCampusId: "4",
+        unitCampusId: "1",
+      })
+    ).toBe("1");
+  });
 });

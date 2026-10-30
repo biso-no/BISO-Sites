@@ -24,6 +24,11 @@ export function resolvePageSaveCampusId(params: {
   chosenCampusId?: string | null;
   isUpdate: boolean;
   persistedCampusId: string | null;
+  /**
+   * A unit sub-page's department campus: its URL encodes it, so it wins
+   * whoever saves. Undefined for any other page.
+   */
+  unitCampusId?: string | null;
 }): string | null {
   const {
     authorCampusId,
@@ -32,9 +37,13 @@ export function resolvePageSaveCampusId(params: {
     hub,
     isUpdate,
     persistedCampusId,
+    unitCampusId,
   } = params;
   if (hub) {
     return null;
+  }
+  if (unitCampusId !== undefined) {
+    return unitCampusId;
   }
   if (isUpdate && persistedCampusId && campusLocked) {
     return persistedCampusId;
