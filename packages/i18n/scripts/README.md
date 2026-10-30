@@ -19,7 +19,7 @@ Translate all files from English to Norwegian:
 
 ```bash
 cd packages/i18n
-OPENAI_API_KEY=your_api_key_here bun run translate
+ANTHROPIC_API_KEY=your_api_key_here bun run translate
 ```
 
 #### Dry Run Mode
@@ -27,7 +27,7 @@ OPENAI_API_KEY=your_api_key_here bun run translate
 Preview translations without writing files:
 
 ```bash
-OPENAI_API_KEY=your_api_key_here bun run translate --dry-run
+ANTHROPIC_API_KEY=your_api_key_here bun run translate --dry-run
 ```
 
 #### Translate a Single File
@@ -35,13 +35,13 @@ OPENAI_API_KEY=your_api_key_here bun run translate --dry-run
 Translate only a specific file:
 
 ```bash
-OPENAI_API_KEY=your_api_key_here bun run translate --file=admin.json
+ANTHROPIC_API_KEY=your_api_key_here bun run translate --file=admin.json
 ```
 
 #### Combine Options
 
 ```bash
-OPENAI_API_KEY=your_api_key_here bun run translate --dry-run --file=common.json
+ANTHROPIC_API_KEY=your_api_key_here bun run translate --dry-run --file=common.json
 ```
 
 ### Features
@@ -70,7 +70,7 @@ The script uses gpt-5-mini with specific instructions to:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | Your OpenAI API key |
+| `ANTHROPIC_API_KEY` | Yes | Your OpenAI API key |
 
 ### Output
 
@@ -125,12 +125,12 @@ Approximate cost for translating all 29 files: $2-5 USD
 
 ### Troubleshooting
 
-#### "OPENAI_API_KEY environment variable is required"
+#### "ANTHROPIC_API_KEY environment variable is required"
 
 Make sure you're providing the API key:
 
 ```bash
-OPENAI_API_KEY=sk-... bun run translate
+ANTHROPIC_API_KEY=sk-... bun run translate
 ```
 
 #### Rate Limit Errors
@@ -152,7 +152,7 @@ If a translation produces invalid JSON:
 1. **Always run with `--dry-run` first** to preview translations
 2. **Test with a single file** before running on all files:
    ```bash
-   OPENAI_API_KEY=... bun run translate --dry-run --file=common.json
+   ANTHROPIC_API_KEY=... bun run translate --dry-run --file=common.json
    ```
 3. **Review changes** before committing:
    ```bash
@@ -171,7 +171,7 @@ You can integrate this into your workflow:
 # Example GitHub Actions workflow
 - name: Translate new content
   env:
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   run: |
     cd packages/i18n
     bun run translate --file=newly-added.json

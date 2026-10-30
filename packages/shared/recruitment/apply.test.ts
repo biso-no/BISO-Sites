@@ -257,7 +257,7 @@ describe("submitRecruitmentApplication", () => {
   beforeEach(() => {
     fake.reset();
     vi.clearAllMocks();
-    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
@@ -494,7 +494,7 @@ describe("runRecruitmentScreening", () => {
   beforeEach(() => {
     fake.reset();
     vi.clearAllMocks();
-    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
 

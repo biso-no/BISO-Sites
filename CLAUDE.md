@@ -102,7 +102,7 @@ Entrypoints:
   into **both** `./src/*` and `../../packages/editor/src/*` — see
   `apps/admin/CLAUDE.md`.
 - **Env vars**: only `NEXT_PUBLIC_*` vars cross to the browser. Server-only
-  secrets (`APPWRITE_API_KEY`, `VIPPS_*`, `AZURE_*`, `OPENAI_API_KEY`,
+  secrets (`APPWRITE_API_KEY`, `VIPPS_*`, `AZURE_*`, `ANTHROPIC_API_KEY`,
   `SHAREPOINT_*`, `CRON_SECRET`, etc.) must never be referenced from a Client
   Component. New build-time env vars must also be added to `turbo.json`.
 - **Server-first**: default to React Server Components and server actions.

@@ -182,7 +182,7 @@ All consumed server-side only:
   `NEXT_PUBLIC_APPWRITE_PROJECT`, `NEXT_PUBLIC_BASE_URL`,
   `NEXT_PUBLIC_API_BASE_URL`.
 - Server-only — never reference from a Client Component or `NEXT_PUBLIC_*`
-  variable: `APPWRITE_API_KEY`, `APPWRITE_SESSION_COOKIE`, `OPENAI_API_KEY`,
+  variable: `APPWRITE_API_KEY`, `APPWRITE_SESSION_COOKIE`, `ANTHROPIC_API_KEY`,
   `SHAREPOINT_*`, `VIPPS_*`, `AZURE_*`, `WEBDOCK_API_KEY`, `PINECONE_*`,
   `CRON_SECRET`, `APPWRITE_BUCKET_ID`.
 - The cron handler (`/api/cron/cleanup-reservations`) gates on

@@ -156,7 +156,7 @@ No user-visible success claim depends on background completion. A future durable
 - Manual failure: show the model/action error and leave the destination untouched.
 - Background failure: retain the successful save/publish, log the content type and identifier without content bodies, and allow the user to retry from Review.
 - Stale callback: silently skip its destination write and log a development-only diagnostic.
-- Missing `OPENAI_API_KEY`: return a clear manual error; background work logs the configuration failure.
+- Missing `ANTHROPIC_API_KEY`: return a clear manual error; background work logs the configuration failure.
 
 ## Testing
 

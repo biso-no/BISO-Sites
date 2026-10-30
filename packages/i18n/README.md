@@ -98,13 +98,13 @@ For bulk translations or when adding new content, you can use the automated tran
 
 ```bash
 # Translate all files from English to Norwegian
-OPENAI_API_KEY=your_key bun run translate
+ANTHROPIC_API_KEY=your_key bun run translate
 
 # Preview translations without writing files
-OPENAI_API_KEY=your_key bun run translate --dry-run
+ANTHROPIC_API_KEY=your_key bun run translate --dry-run
 
 # Translate a specific file
-OPENAI_API_KEY=your_key bun run translate --file=admin.json
+ANTHROPIC_API_KEY=your_key bun run translate --file=admin.json
 ```
 
 See [scripts/README.md](./scripts/README.md) for detailed documentation on the translation script.

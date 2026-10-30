@@ -45,16 +45,16 @@ import {
   parseRecruitmentApplicationReviewMetadata,
   parseRecruitmentScreeningRubric,
   RECRUITMENT_RESUME_BUCKET_ID,
+  recruitmentApplicationSubmitSchema,
+  serializeRecruitmentAiScreening,
+  serializeRecruitmentApplicationReviewMetadata,
+  validateRecruitmentResumeFile,
   type RecruitmentAiScreening,
   type RecruitmentApplicationAnswerInput,
   type RecruitmentApplicationSubmitInput,
   type RecruitmentCustomQuestion,
   type RecruitmentScreeningRubric,
   type RecruitmentVacancy,
-  recruitmentApplicationSubmitSchema,
-  serializeRecruitmentAiScreening,
-  serializeRecruitmentApplicationReviewMetadata,
-  validateRecruitmentResumeFile,
 } from "@repo/shared/types/recruitment";
 
 export type RecruitmentApplyErrorCode =
@@ -484,7 +484,7 @@ function isAutoScreened(vacancy: RecruitmentVacancy): boolean {
   return (
     vacancy.auto_screen !== false &&
     vacancy.metadata.auto_screen !== false &&
-    Boolean(process.env.OPENAI_API_KEY)
+    Boolean(process.env.ANTHROPIC_API_KEY)
   );
 }
 

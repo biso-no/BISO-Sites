@@ -9,17 +9,17 @@
  * model choice stays in one place — see packages/ai/src/models.ts.
  *
  * Usage:
- *   OPENAI_API_KEY=your_key bun run translate
+ *   ANTHROPIC_API_KEY=your_key bun run translate
  *
  * Options:
  *   --dry-run    Preview translations without writing files
  *   --file=name  Translate only a specific file (e.g., --file=admin.json)
  */
 
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { fastModel } from "@repo/ai/models";
 import { generateObject } from "ai";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // Configuration
 const SOURCE_LANG = "en";
@@ -27,10 +27,10 @@ const TARGET_LANG = "no";
 const SOURCE_DIR = join(import.meta.dirname, "../messages", SOURCE_LANG);
 const TARGET_DIR = join(import.meta.dirname, "../messages", TARGET_LANG);
 
-// Fail fast with a useful message; the AI SDK reads OPENAI_API_KEY itself.
-if (!process.env.OPENAI_API_KEY) {
-  console.error("❌ Error: OPENAI_API_KEY environment variable is required");
-  console.error("Usage: OPENAI_API_KEY=your_key bun run translate");
+// Fail fast with a useful message; the AI SDK reads ANTHROPIC_API_KEY itself.
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error("❌ Error: ANTHROPIC_API_KEY environment variable is required");
+  console.error("Usage: ANTHROPIC_API_KEY=your_key bun run translate");
   process.exit(1);
 }
 

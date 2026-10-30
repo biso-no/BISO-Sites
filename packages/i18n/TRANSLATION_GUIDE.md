@@ -11,20 +11,20 @@
 
 ```bash
 cd packages/i18n
-OPENAI_API_KEY=sk-your-key-here bun run translate
+ANTHROPIC_API_KEY=sk-your-key-here bun run translate
 ```
 
 ### Safe Testing (Recommended First)
 
 ```bash
 # Test with one file first
-OPENAI_API_KEY=sk-your-key-here bun run translate --dry-run --file=common.json
+ANTHROPIC_API_KEY=sk-your-key-here bun run translate --dry-run --file=common.json
 
 # If it looks good, translate that file for real
-OPENAI_API_KEY=sk-your-key-here bun run translate --file=common.json
+ANTHROPIC_API_KEY=sk-your-key-here bun run translate --file=common.json
 
 # Then translate everything
-OPENAI_API_KEY=sk-your-key-here bun run translate
+ANTHROPIC_API_KEY=sk-your-key-here bun run translate
 ```
 
 ## 📋 Common Workflows
@@ -34,7 +34,7 @@ OPENAI_API_KEY=sk-your-key-here bun run translate
 1. Create your English translations in `messages/en/yourfile.json`
 2. Run the translator on just that file:
    ```bash
-   OPENAI_API_KEY=sk-... bun run translate --file=yourfile.json
+   ANTHROPIC_API_KEY=sk-... bun run translate --file=yourfile.json
    ```
 3. Review the Norwegian output in `messages/no/yourfile.json`
 4. Commit both files
@@ -44,7 +44,7 @@ OPENAI_API_KEY=sk-your-key-here bun run translate
 1. Update the English file in `messages/en/`
 2. Run the translator to update Norwegian:
    ```bash
-   OPENAI_API_KEY=sk-... bun run translate --file=yourfile.json
+   ANTHROPIC_API_KEY=sk-... bun run translate --file=yourfile.json
    ```
 3. Review changes: `git diff messages/no/yourfile.json`
 4. Commit if satisfied
@@ -55,13 +55,13 @@ Need to retranslate everything (e.g., after changing translation style)?
 
 ```bash
 # Preview first
-OPENAI_API_KEY=sk-... bun run translate --dry-run
+ANTHROPIC_API_KEY=sk-... bun run translate --dry-run
 
 # Backup existing translations (optional)
 cp -r messages/no messages/no.backup
 
 # Translate all
-OPENAI_API_KEY=sk-... bun run translate
+ANTHROPIC_API_KEY=sk-... bun run translate
 
 # Review changes
 git diff messages/no/
@@ -81,20 +81,20 @@ git diff messages/no/
 
 ## 🔧 Troubleshooting
 
-### "OPENAI_API_KEY environment variable is required"
+### "ANTHROPIC_API_KEY environment variable is required"
 
 You forgot to set the API key. Use:
 ```bash
-OPENAI_API_KEY=sk-your-key bun run translate
+ANTHROPIC_API_KEY=sk-your-key bun run translate
 ```
 
 ### Rate Limit Errors
 
 Wait a minute, then retry. Or translate files one at a time:
 ```bash
-OPENAI_API_KEY=sk-... bun run translate --file=admin.json
+ANTHROPIC_API_KEY=sk-... bun run translate --file=admin.json
 # wait a minute
-OPENAI_API_KEY=sk-... bun run translate --file=common.json
+ANTHROPIC_API_KEY=sk-... bun run translate --file=common.json
 ```
 
 ### Translation Quality Issues

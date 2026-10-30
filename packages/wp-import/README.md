@@ -22,7 +22,7 @@ Copy `.env.example` to `.env` and fill in:
 | `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Same value used by `apps/admin`/`apps/web` (e.g. `https://<region>.cloud.appwrite.io/v1`). |
 | `NEXT_PUBLIC_APPWRITE_PROJECT` | The Appwrite project id (`biso`, not `dev`). |
 | `APPWRITE_API_KEY` | A server API key with read/write scope on the `app` database (tables, rows) and the `media` storage bucket. Generate a scoped key in the Appwrite console — do not reuse a key that has broader scope than needed. |
-| `OPENAI_API_KEY` | Used by `translateFields()` (`gpt-5-nano`, same model the admin app uses) to generate the missing-locale translation on `load --apply`. Not needed for `extract`, `transform`, or a dry-run `load`. |
+| `ANTHROPIC_API_KEY` | Used by `translateFields()` (`gpt-5-nano`, same model the admin app uses) to generate the missing-locale translation on `load --apply`. Not needed for `extract`, `transform`, or a dry-run `load`. |
 
 `.env` is gitignored. Never commit real credentials, and never copy
 production credentials into a shell an automated agent can read.
