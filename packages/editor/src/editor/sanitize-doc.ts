@@ -178,10 +178,13 @@ const NBSP = "\u00a0";
  * htmlparser2 keeps its open elements in an array it `unshift`s, so a parse
  * is quadratic in nesting depth, and `nestingLimit` only applies after it:
  * 80,000 nested tags took 1.4 s under Node and 0.4 s under Bun. Every tag
- * starts with a `<`, so counting them bounds the depth; at this many a parse
- * still takes milliseconds (the slowest body found, some 16 ms under Bun),
- * and no legacy text item comes near it. A body outside the editor's
- * grammar has the same cap.
+ * starts with a `<`, so counting them bounds the depth. The slowest markup
+ * found at this many is SVG nested in a `<foreignObject>`: there
+ * htmlparser2's `readTagName` searches the whole open-element stack for
+ * every tag (`stack.includes`), so a parse takes about 60 ms under Bun and
+ * 200 to 300 ms under Node, the server's runtime. No legacy text item comes
+ * near it, nor does a body the editor writes (`scanBody` lets that one
+ * through at any size); any other body has the same cap.
  */
 const MAX_TAG_STARTS = 10_000;
 

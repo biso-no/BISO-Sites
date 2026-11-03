@@ -377,12 +377,12 @@ describe("sanitizeRichBodyHtml: long and deep bodies", () => {
     );
   });
 
-  test("the worst body under the cap stays bounded", () => {
-    // htmlparser2 keeps two of each repetition's three elements open, 4,998
-    // deep, and its implied closes make this slower to parse than 10,000
-    // plain nested tags.
-    const body = "<button><select><b></button>".repeat(2499);
-    expect(tagStarts(body)).toBe(9996);
+  test("the slowest markup found under the cap, SVG in a foreignObject, parses in under 150 ms", () => {
+    // 10,000 elements deep, and inside the SVG integration point
+    // htmlparser2's `readTagName` searches the whole stack for every tag
+    // (`stack.includes`): about 60 ms under Bun, 200 to 300 ms under Node.
+    const body = `<svg><foreignobject>${"<clippath>".repeat(9998)}`;
+    expect(tagStarts(body)).toBe(10_000);
     expect(timed(body).elapsed).toBeLessThan(150);
   });
 });

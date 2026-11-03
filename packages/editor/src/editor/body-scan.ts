@@ -9,6 +9,9 @@
 // nothing for the two to read differently (no raw text, comments, other
 // quotes or foreign content), and the end tags htmlparser2 implies only ever
 // close elements, so its stack is never deeper than the one counted here.
+// The one element it opens unasked, an empty `<p>` for a `</p>` whose `p`
+// it has already closed, stays within that depth too: the scan still holds
+// the `p` that end tag closes.
 // Everything else is bounded by the sanitiser's cap on tag starts.
 
 import {
