@@ -20,6 +20,10 @@ const walk = (dir: string): string[] =>
 
 const read = (file: string): string => readFileSync(file, "utf8");
 
+/** A static, non-type import of Plate or of the rich editor. */
+const isGuarded = (source: string): boolean =>
+  STATIC_PLATE.test(source) || STATIC_RICH.test(source);
+
 const isInRich = (file: string): boolean =>
   !relative(RICH_ROOT, file).startsWith("..");
 
@@ -32,14 +36,26 @@ const richFiles = existsSync(RICH_ROOT)
 
 describe("Plate confinement", () => {
   test("no file outside blocks/text/rich statically imports Plate or the rich editor", () => {
-    const offenders = files.filter(
-      (f) => STATIC_PLATE.test(read(f)) || STATIC_RICH.test(read(f))
-    );
+    const offenders = files.filter((f) => isGuarded(read(f)));
     expect(offenders).toEqual([]);
   });
 
-  // Becomes a plain `test` once the rich/ folder exists (Task 5).
-  test.todo("the guard sees the rich folder's own Plate imports", () => {
+  test("the guard sees the rich folder's own Plate imports", () => {
     expect(richFiles.some((f) => STATIC_PLATE.test(read(f)))).toBe(true);
+  });
+
+  test.each([
+    'import { x } from "platejs";',
+    'import { y } from "@platejs/list/react";',
+    'import Z from "./rich/field";',
+  ])("the guard catches %s", (source) => {
+    expect(isGuarded(source)).toBe(true);
+  });
+
+  test.each([
+    'import type { V } from "platejs";',
+    'const m = await import("./rich/field");',
+  ])("the guard lets %s through", (source) => {
+    expect(isGuarded(source)).toBe(false);
   });
 });
