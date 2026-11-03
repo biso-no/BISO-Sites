@@ -10,9 +10,14 @@ import {
 import { textSwatches } from "@repo/shared/utils/text-colours";
 import { Window } from "happy-dom";
 import { EventEditorStore, type PlateEditor } from "platejs/react";
-import { act, createElement } from "react";
+import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import {
+  type EditorCallbacks,
+  EditorCallbacksContext,
+} from "@/editor/callbacks";
 import { useEditorStore } from "@/editor/store";
+import type { EditorDepartment } from "@/editor/types";
 import RichTextField, { type RichTextFieldProps } from "./field";
 import { RichPastePlugin } from "./paste-plugin";
 import { RichKeysPlugin } from "./react-plugins";
@@ -71,13 +76,15 @@ const settle = (run: () => void) =>
 type Emit = (html: string) => void;
 
 /**
- * One field on `html`. `editor.tf.focus` is stubbed: a focused Slate editor
- * syncs the DOM selection through slate-dom, which read `globalThis.Node`
- * before any test file here installed a DOM (one module cache per run).
+ * One field on `html`, inside `wrap` when given (read again on every
+ * render). `editor.tf.focus` is stubbed: a focused Slate editor syncs the
+ * DOM selection through slate-dom, which read `globalThis.Node` before any
+ * test file here installed a DOM (one module cache per run).
  */
 async function mountField(
   html: string,
-  variant: RichTextFieldProps["variant"] = "panel"
+  variant: RichTextFieldProps["variant"] = "panel",
+  wrap: (field: ReactElement) => ReactElement = (field) => field
 ) {
   const editorRef: { current: unknown } = { current: null };
   const onChange = mock<Emit>(() => undefined);
@@ -88,13 +95,15 @@ async function mountField(
   const rerender = (next: string) =>
     settle(() => {
       root.render(
-        createElement(RichTextField, {
-          editorRef,
-          html: next,
-          label: "Text",
-          onChange,
-          variant,
-        })
+        wrap(
+          createElement(RichTextField, {
+            editorRef,
+            html: next,
+            label: "Text",
+            onChange,
+            variant,
+          })
+        )
       );
     });
   await rerender(html);
@@ -568,8 +577,9 @@ test("Text colour opens the swatches; the current one is pressed", async () => {
   );
   await settle(() => editor.tf.select([]));
   const toggle = button(host, "Text colour");
-  expect(toggle.getAttribute("aria-haspopup")).toBe("true");
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(toggle.hasAttribute("aria-controls")).toBe(false);
+  expect(toggle.hasAttribute("aria-haspopup")).toBe(false);
 
   let down: MouseEvent | undefined;
   await settle(() => {
@@ -577,6 +587,9 @@ test("Text colour opens the swatches; the current one is pressed", async () => {
   });
   expect(down?.defaultPrevented).toBe(true);
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(toggle.getAttribute("aria-controls")).toBe(
+    group(host, "Text colour")?.id ?? "missing"
+  );
   expect(groupButtons(host, "Text colour")).toEqual([
     "Default",
     "Accent",
@@ -705,9 +718,11 @@ test("More formatting holds strikethrough, divider and clear formatting", async 
   await settle(() => editor.tf.select([]));
   const toggle = button(host, "More formatting");
   expect(toggle.textContent).toBe("⋯");
-  expect(toggle.getAttribute("aria-haspopup")).toBe("true");
   await settle(() => press(toggle));
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(toggle.getAttribute("aria-controls")).toBe(
+    group(host, "More formatting")?.id ?? "missing"
+  );
   expect(groupButtons(host, "More formatting")).toEqual([
     "Strikethrough",
     "Divider",
@@ -811,4 +826,145 @@ test("the page theme reaches the swatches, the panel's paint and paste", async (
   expect(editor.getOption(RichPastePlugin, "swatches")).toEqual(
     textSwatches(theme)
   );
+});
+
+test("Escape after a press closes the swatches and keeps the text focused", async () => {
+  const { editable, editor, focus, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  const outer = mock(() => undefined);
+  window.addEventListener("keydown", outer);
+  let escapeKey: KeyboardEvent | undefined;
+  try {
+    await settle(() => {
+      escapeKey = keydown(editable(), { key: "Escape" });
+    });
+  } finally {
+    window.removeEventListener("keydown", outer);
+  }
+  expect(group(host, "Text colour")).toBeNull();
+  expect(escapeKey?.defaultPrevented).toBe(true);
+  expect(outer).not.toHaveBeenCalled();
+  expect(focus).toHaveBeenCalled();
+});
+
+test("opened from the keyboard, Escape hands focus back to the toggle", async () => {
+  const { editor, focus, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => pressByKey(button(host, "More formatting")));
+  expect(document.activeElement).toBe(button(host, "Strikethrough"));
+
+  await settle(() => {
+    keydown(document.activeElement as HTMLElement, { key: "Escape" });
+  });
+  expect(group(host, "More formatting")).toBeNull();
+  expect(document.activeElement).toBe(button(host, "More formatting"));
+  expect(focus).not.toHaveBeenCalled();
+});
+
+test("Escape in the link input is the input's, not the swatches'", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  await settle(() => editor.setOption(RichKeysPlugin, "linkOpen", true));
+  const input = linkInput(host) as HTMLInputElement;
+  expect(document.activeElement).toBe(input);
+
+  await settle(() => {
+    keydown(input, { key: "Escape" });
+  });
+  expect(linkInput(host)).toBeNull();
+  expect(group(host, "Text colour")).not.toBeNull();
+});
+
+test("focus leaving the menu closes it; moving inside it does not", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => pressByKey(button(host, "Text colour")));
+  expect(document.activeElement).toBe(button(host, "Default"));
+
+  await settle(() => button(host, "Accent").focus());
+  expect(group(host, "Text colour")).not.toBeNull();
+  await settle(() => button(host, "Text colour").focus());
+  expect(group(host, "Text colour")).not.toBeNull();
+
+  await settle(() => button(host, "Bold").focus());
+  expect(group(host, "Text colour")).toBeNull();
+});
+
+test("a colour chosen at a caret colours what is typed next", async () => {
+  const { editor, host, onChange } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select(editor.api.end([0])));
+  await settle(() => press(button(host, "Text colour")));
+  await settle(() => press(button(host, "Red")));
+  expect(onChange).not.toHaveBeenCalled();
+  expect(
+    button(host, "Text colour")
+      .querySelector(".pe-rt-colour__dot")
+      ?.classList.contains("pe-rt-swatch--none")
+  ).toBe(false);
+
+  await settle(() => editor.tf.insertText("c"));
+  expect(onChange).toHaveBeenLastCalledWith(
+    '<p>ab<span data-color="red">c</span></p>'
+  );
+});
+
+/** Callbacks for a page whose department list is `departments`. */
+const callbacksWith = (departments: EditorDepartment[]): EditorCallbacks => ({
+  activeLocale: "no",
+  campuses: [],
+  departments,
+  locales: [{ hasDraft: true, label: "Norwegian", locale: "no" }],
+  onLocaleChange: () => undefined,
+  savePage: async () => undefined,
+  uploadFile: async () => ({ fileId: "", url: "" }),
+});
+
+test("the swatches follow the department's theme", async () => {
+  const PURPLE = { accent: "#fecd45", dark: "#3b1c6b" };
+  const GREEN = { accent: "#2bb673", dark: "#0b3d2e" };
+  const accentOf = (theme: typeof PURPLE) =>
+    textSwatches(theme).find((s) => s.token === "accent")?.paper;
+  expect(accentOf(GREEN)).not.toBe(accentOf(PURPLE));
+
+  const doc = useEditorStore.getState().doc;
+  useEditorStore.setState({
+    doc: { ...doc, meta: { ...doc.meta, department: "d1", theme: undefined } },
+  });
+  let theme = PURPLE;
+  const department = (): EditorDepartment => ({
+    campusId: null,
+    id: "d1",
+    name: "Department",
+    theme,
+  });
+  try {
+    const { editable, editor, rerender } = await mountField(
+      "<p>a</p>",
+      "panel",
+      (field) =>
+        createElement(
+          EditorCallbacksContext.Provider,
+          { value: callbacksWith([department()]) },
+          field
+        )
+    );
+    expect(editable().style.getPropertyValue("--pe-rt-accent")).toBe(
+      accentOf(PURPLE) ?? ""
+    );
+
+    theme = GREEN;
+    await rerender("<p>a</p>");
+    expect(editable().style.getPropertyValue("--pe-rt-accent")).toBe(
+      accentOf(GREEN) ?? ""
+    );
+    expect(editor.getOption(RichPastePlugin, "swatches")).toEqual(
+      textSwatches(GREEN)
+    );
+  } finally {
+    // In `act`: the field is still mounted, and a render React schedules on
+    // its own would run after this file has taken its DOM away.
+    await settle(() => useEditorStore.setState({ doc }));
+  }
 });

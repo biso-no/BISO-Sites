@@ -3,21 +3,24 @@
 import { useEditorRef } from "platejs/react";
 import {
   type FocusEvent,
-  type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
   type RefObject,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
 
-/** What the toggle needs from the popover: spread it on the `<button>`. */
+/**
+ * What the toggle needs from the popover: spread it on the `<button>`. A
+ * disclosure: `aria-expanded`, and `aria-controls` names the open menu.
+ */
 export interface PopoverButtonProps {
+  "aria-controls": string | undefined;
   "aria-expanded": boolean;
-  "aria-haspopup": "true";
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   onMouseDown: (event: MouseEvent) => void;
   ref: RefObject<HTMLButtonElement | null>;
@@ -58,12 +61,13 @@ function keepInsideToolbar(menu: HTMLElement): void {
 /**
  * A toolbar button that opens a small menu under it, inside the toolbar's
  * width. A press, like every toolbar press, takes no focus; opened from the
- * keyboard, the first item does. The menu closes when one of its items is chosen, on Escape inside it
- * (focus goes back to the toggle, and the key goes no further), on a press
- * anywhere outside it, and when keyboard focus leaves it.
+ * keyboard, the first item does. The menu closes when one of its items is
+ * chosen, on a press anywhere outside it, when keyboard focus leaves it, and
+ * on Escape (see the listener below).
  */
 export function RichPopover({ button, children, label }: RichPopoverProps) {
   const editor = useEditorRef();
+  const id = useId();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
@@ -111,19 +115,41 @@ export function RichPopover({ button, children, label }: RichPopoverProps) {
       document.removeEventListener("mousedown", onPressOutside, true);
   }, [open]);
 
+  // Escape closes the menu wherever the editor's focus is: in the menu, or
+  // still in the text after a press opened it. Focus goes back to the toggle
+  // from the menu, to the text from the text, and the key goes no further,
+  // so a view around the field stays open. Capture phase, on the document,
+  // since the text keeps focus. Escape anywhere else is that control's own.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onEscape = (event: KeyboardEvent) => {
+      const { target } = event;
+      const inMenu = !isOutside(wrap.current, target);
+      const inText =
+        target instanceof Node &&
+        Boolean(editor.api.toDOMNode(editor)?.contains(target));
+      if (event.key !== "Escape" || !(inMenu || inText)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      if (inMenu) {
+        toggle.current?.focus();
+      } else {
+        editor.tf.focus();
+      }
+    };
+    document.addEventListener("keydown", onEscape, true);
+    return () => document.removeEventListener("keydown", onEscape, true);
+  }, [editor, open]);
+
   // A click with no count is Enter or Space on the focused toggle.
   const onClick = (event: MouseEvent<HTMLButtonElement>) => {
     focusFirst.current = !open && event.detail === 0;
     setOpen(!open);
-  };
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (open && event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      setOpen(false);
-      toggle.current?.focus();
-    }
   };
 
   const onBlur = (event: FocusEvent) => {
@@ -133,19 +159,14 @@ export function RichPopover({ button, children, label }: RichPopoverProps) {
   };
 
   return (
-    // The wrapper only hears what its buttons pass up: Escape, and focus
-    // leaving them. It is no control itself.
-    // biome-ignore lint/a11y/noStaticElementInteractions: key and focus events from its buttons, see above.
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: key and focus events from its buttons, see above.
-    <div
-      className="pe-rt-popwrap"
-      onBlur={onBlur}
-      onKeyDown={onKeyDown}
-      ref={wrap}
-    >
+    // The wrapper only hears focus leaving its buttons. It is no control
+    // itself.
+    // biome-ignore lint/a11y/noStaticElementInteractions: focus events from its buttons, see above.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: focus events from its buttons, see above.
+    <div className="pe-rt-popwrap" onBlur={onBlur} ref={wrap}>
       {button({
+        "aria-controls": open ? id : undefined,
         "aria-expanded": open,
-        "aria-haspopup": "true",
         onClick,
         onMouseDown: keepSelection,
         ref: toggle,
@@ -159,6 +180,7 @@ export function RichPopover({ button, children, label }: RichPopoverProps) {
         <div
           aria-label={label}
           className="pe-rt-pop"
+          id={id}
           onMouseDown={keepSelection}
           ref={pop}
           role="group"

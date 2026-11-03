@@ -2050,6 +2050,24 @@
 .pe-rt-bubble .pe-rt-sep {
   background: color-mix(in srgb, var(--ink-2) 70%, var(--ink-3));
 }
+/*
+ * The bubble's menus sit in the canvas frame, whose ramp turns dark in dark
+ * mode: a pressed or hovered item takes the ramp's sunken paper, not white.
+ * A dot's ring is drawn against what it sits on: the menu's paper, or the
+ * colour button's ink.
+ */
+.pe-rt-bubble .pe-rt-pop__item:not(:disabled):hover,
+.pe-rt-bubble .pe-rt-pop__item[aria-pressed="true"] {
+  color: var(--pg-ink);
+  background: var(--paper-2);
+}
+.pe-rt-bubble .pe-rt-pop .pe-rt-swatch:not(.pe-rt-swatch--none) {
+  box-shadow: inset 0 0 0 0.5px
+    color-mix(in srgb, var(--pg-ink) 35%, transparent);
+}
+.pe-rt-bubble .pe-rt-colour__dot:not(.pe-rt-swatch--none) {
+  box-shadow: inset 0 0 0 0.5px var(--paper);
+}
 /* The address replaces the buttons while it is open: one short row. */
 .pe-rt-bar--ink:has(.pe-rt-link) > :not(.pe-rt-link) {
   display: none;
