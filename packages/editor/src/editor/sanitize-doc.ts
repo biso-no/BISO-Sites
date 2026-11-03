@@ -17,6 +17,7 @@ import {
   keptOlStart,
   SAFE_HREF,
 } from "../lib/rich-allowlist";
+import { nestsDeeperThan, textLines } from "./nesting-scan";
 
 /**
  * The tags a legacy text item (`body[].text`) may hold: `lib/sanitize.ts`'s
@@ -174,15 +175,29 @@ const NBSP = "\u00a0";
  * is quadratic in nesting depth, and `nestingLimit` only applies after it:
  * 80,000 nested tags took 1.4 s under Node and 0.4 s under Bun. Every tag
  * starts with a `<`, so counting them bounds the depth; at this many a parse
- * still takes a few milliseconds, and no paragraph comes near it.
+ * still takes a few milliseconds, and no legacy text item comes near it.
  */
 const MAX_TAG_STARTS = 10_000;
 
-function hasTooManyTags(html: string): boolean {
+/**
+ * How deep a body may nest before it is kept as text (`nesting-scan.ts`
+ * measures it without a parse). No body the editor writes comes near.
+ */
+const MAX_BODY_DEPTH = 100;
+
+/**
+ * A backstop behind the depth scan, should markup ever read shallower to it
+ * than to htmlparser2: past this many tags a body is kept as text too. That
+ * is some 8,000 short paragraphs; a parse that deep takes a third of a
+ * second under Node.
+ */
+const MAX_BODY_TAG_STARTS = 50_000;
+
+function hasMoreTagsThan(html: string, limit: number): boolean {
   let count = 0;
   for (let at = html.indexOf("<"); at !== -1; at = html.indexOf("<", at + 1)) {
     count += 1;
-    if (count > MAX_TAG_STARTS) {
+    if (count > limit) {
       return true;
     }
   }
@@ -209,7 +224,7 @@ function escapeText(html: string): string {
  * back as escaped text.
  */
 export function sanitizeRichHtml(html: string): string {
-  if (hasTooManyTags(html)) {
+  if (hasMoreTagsThan(html, MAX_TAG_STARTS)) {
     return escapeText(html);
   }
   return breakLines(sanitizeHtml(html, OPTIONS)).replaceAll(NBSP, "&nbsp;");
@@ -219,15 +234,37 @@ export function sanitizeRichHtml(html: string): string {
  * A text block's HTML body reduced to `BODY_TAGS`: the server-side twin of
  * `sanitizeRichBody` in `lib/sanitize.ts`. Void tags are written as a browser
  * serializes them.
+ *
+ * A body nested more than `MAX_BODY_DEPTH` deep, or with more than
+ * `MAX_BODY_TAG_STARTS` tags, is never parsed: it keeps its text, one
+ * paragraph per line, and loses its formatting. The browser sanitiser has no
+ * such limit, since a DOM parses deep markup in linear time; what is stored
+ * is this function's output, so this is the rule that counts.
  */
 export function sanitizeRichBodyHtml(html: string): string {
-  if (hasTooManyTags(html)) {
-    return escapeText(html);
-  }
+  const unsafeToParse =
+    hasMoreTagsThan(html, MAX_BODY_TAG_STARTS) ||
+    nestsDeeperThan(html, MAX_BODY_DEPTH);
+  return sanitizeBody(unsafeToParse ? asTextParagraphs(html) : html);
+}
+
+function sanitizeBody(html: string): string {
   return sanitizeHtml(html, BODY_OPTIONS)
     .replaceAll("<br />", "<br>")
     .replaceAll("<hr />", "<hr>")
     .replaceAll(NBSP, "&nbsp;");
+}
+
+/**
+ * The body's text as flat `<p>`s, every `<` in it escaped, so the parse that
+ * follows sees one level and settles its entities.
+ */
+function asTextParagraphs(html: string): string {
+  return textLines(html)
+    .map(
+      (line) => `<p>${line.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</p>`
+    )
+    .join("");
 }
 
 type Loose = Record<string, unknown>;
