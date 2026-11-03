@@ -96,7 +96,9 @@ test.each([
   ["word-web", EXPECTED],
   ["web-page", EXPECTED],
 ])("%s pastes as the reference document", (name, expected) => {
-  expect(pasteInto(fixture(name))).toBe(expected);
+  const out = pasteInto(fixture(name));
+  expect(out).toBe(expected);
+  expect(valueToHtml(htmlToValue(out))).toBe(out);
 });
 
 // One three-row table in each source's markup: a bold first row (a header
@@ -115,11 +117,15 @@ test.each([
   "google-docs",
   "word-web",
 ])("%s table pastes as a real table", (name) => {
-  expect(pasteInto(fixture(`${name}-table`))).toBe(TABLE_EXPECTED);
+  const out = pasteInto(fixture(`${name}-table`));
+  expect(out).toBe(TABLE_EXPECTED);
+  expect(valueToHtml(htmlToValue(out))).toBe(out);
 });
 
 test("a web page table keeps its header row and caption", () => {
-  expect(pasteInto(fixture("web-page-table"))).toBe(WEB_TABLE_EXPECTED);
+  const out = pasteInto(fixture("web-page-table"));
+  expect(out).toBe(WEB_TABLE_EXPECTED);
+  expect(valueToHtml(htmlToValue(out))).toBe(out);
 });
 
 test("a pasted cell's paragraphs are its lines", () => {
@@ -129,6 +135,51 @@ test("a pasted cell's paragraphs are its lines", () => {
     )
   ).toBe(
     "<table><tbody><tr><td>a<br><strong>b</strong></td><td>c</td></tr></tbody></table>"
+  );
+});
+
+/** An empty line with the caret in it, before or between existing tables. */
+function editorAtEmptyLine(tablesAround: "before" | "between") {
+  const [table] = htmlToValue(
+    "<table><tbody><tr><td>t</td></tr></tbody></table>"
+  );
+  const line = { type: "p", children: [{ text: "" }] };
+  const editor = createConversionEditor([RichPastePlugin]);
+  editor.tf.setValue(
+    tablesAround === "before"
+      ? [line, table as Value[number]]
+      : [table as Value[number], line, structuredClone(table) as Value[number]]
+  );
+  const at = tablesAround === "before" ? 0 : 1;
+  editor.tf.select(editor.api.start([at]));
+  return { at, editor };
+}
+
+// A paste that adds nothing (an image, an empty mark, a blank paragraph)
+// leaves the caret's empty line, and the caret, where they were.
+test.each([
+  ["before", '<img src="x.png" alt="Logo">'],
+  ["before", "<b></b>"],
+  ["before", "<p> </p>"],
+  ["between", '<img src="x.png" alt="Logo">'],
+])("a paste that adds nothing keeps the empty line %s tables: %s", (tablesAround, html) => {
+  const { at, editor } = editorAtEmptyLine(
+    tablesAround as "before" | "between"
+  );
+  const before = structuredClone(editor.children);
+  editor.tf.insertData(clipboard({ "text/html": html }));
+  expect(editor.children).toEqual(before);
+  expect(editor.selection?.anchor.path).toEqual([at, 0]);
+});
+
+test("a table pasted into an empty line before a table replaces the line", () => {
+  const { editor } = editorAtEmptyLine("before");
+  editor.tf.insertData(
+    clipboard({ "text/html": "<table><tr><td>new</td></tr></table>" })
+  );
+  expect(editor.children[0]?.type).toBe("table");
+  expect(valueToHtml(editor.children)).toBe(
+    "<table><tbody><tr><td>new</td></tr></tbody></table><table><tbody><tr><td>t</td></tr></tbody></table>"
   );
 });
 
@@ -705,25 +756,80 @@ test("a colour on most of the paste is the source's text colour and is dropped",
 test("grey body with one red word keeps only the red", () => {
   expect(
     pasteInto(
-      '<p><span style="color:#595959">Most of the text is grey and </span><span style="color:#c00000">red</span></p>'
+      '<p><span style="color:#595959">Most of the text is grey and </span><span style="color:#c00000">red</span></p><p><span style="color:#595959">so is this line</span></p>'
     )
   ).toBe(
-    '<p>Most of the text is grey and <span data-color="red">red</span></p>'
+    '<p>Most of the text is grey and <span data-color="red">red</span></p><p>so is this line</p>'
   );
 });
 
 test("a colour on exactly half of the text is the writer's", () => {
-  expect(pasteInto('<p><span style="color:#c00000">ab</span> cd</p>')).toBe(
-    '<p><span data-color="red">ab</span> cd</p>'
-  );
+  expect(
+    pasteInto('<p><span style="color:#c00000">ab</span></p><p>cd</p>')
+  ).toBe('<p><span data-color="red">ab</span></p><p>cd</p>');
 });
 
 test("the text colour is dropped and the rest of the span's style kept", () => {
   expect(
     pasteInto(
-      '<p><span style="color:#595959;font-weight:700">all bold</span> x</p>'
+      '<p><span style="color:#595959;font-weight:700">all bold</span></p><p><span style="color:#595959">x</span></p>'
     )
-  ).toBe("<p><strong>all bold</strong> x</p>");
+  ).toBe("<p><strong>all bold</strong></p><p>x</p>");
+});
+
+// A word or a line is all the writer's: the text colour rule needs at least
+// two blocks of text to tell the source's colour from the writer's.
+test.each([
+  [
+    '<span style="color:#c00000">red</span>',
+    '<p><span data-color="red">red</span></p>',
+  ],
+  [
+    '<p><span style="color:#c00000">A whole sentence in red.</span></p>',
+    '<p><span data-color="red">A whole sentence in red.</span></p>',
+  ],
+  [
+    '<ul><li><span style="color:#c00000">one red item</span></li></ul>',
+    '<ul><li><span data-color="red">one red item</span></li></ul>',
+  ],
+])("a single block in one colour keeps it: %s", (input, out) => {
+  expect(pasteInto(input)).toBe(out);
+});
+
+test.each([
+  [
+    "two list items",
+    '<ul><li><span style="color:#595959">one</span></li><li><span style="color:#595959">two</span></li></ul>',
+    "<ul><li>one</li><li>two</li></ul>",
+  ],
+  [
+    "two table cells",
+    '<table><tr><td><span style="color:#595959">one</span></td><td><span style="color:#595959">two</span></td></tr></table>',
+    "<table><tbody><tr><td>one</td><td>two</td></tr></tbody></table>",
+  ],
+])("a colour over most of %s is the source's text colour", (_, input, out) => {
+  expect(pasteInto(input)).toBe(out);
+});
+
+// Only text takes a colour: white space between blocks inside a coloured
+// run would otherwise be a line of its own in a cell.
+test("white space in a coloured run adds no line to a cell", () => {
+  expect(
+    pasteInto(
+      '<table><tr><td><span style="color:#c00000"><p>a</p>\n<p>b</p></span></td><td>plain words here</td></tr></table>'
+    )
+  ).toBe(
+    '<table><tbody><tr><td><span data-color="red">a</span><br><span data-color="red">b</span></td><td>plain words here</td></tr></tbody></table>'
+  );
+});
+
+// Word marks a bookmark with an `<a>` that has no href: not a link.
+test("a colour inside a Word bookmark is kept", () => {
+  expect(
+    pasteInto(
+      `<p><a name="_Hlk150000001"><span style='color:#C00000'>red</span></a> and plain words here</p>`
+    )
+  ).toBe('<p><span data-color="red">red</span> and plain words here</p>');
 });
 
 test("heading and link text do not count towards the text colour", () => {

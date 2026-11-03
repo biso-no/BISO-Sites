@@ -6,6 +6,7 @@ import {
   type PluginConfig,
   RangeApi,
   type SlateEditor,
+  type TElement,
 } from "platejs";
 import { isListItem, listDepths } from "./html";
 import {
@@ -74,16 +75,24 @@ function settleListDepths(editor: SlateEditor, from: number, to: number) {
 /**
  * The empty line a table was pasted into, removed. Plate puts a pasted table
  * after the block the caret is in, and the save drops an empty line, so the
- * canvas would show one the page never stores.
+ * canvas would show one the page never stores. Only a table the paste added
+ * counts: `nextBefore` is the block that followed the line before the paste,
+ * so a paste that added nothing leaves the line before a table the page
+ * already had.
  */
-function dropEmptyLineBeforeTable(editor: SlateEditor, index: number): void {
+function dropEmptyLineBeforeTable(
+  editor: SlateEditor,
+  index: number,
+  nextBefore: TElement | undefined
+): void {
   const block = editor.children[index];
+  const next = editor.children[index + 1];
   const isEmptyLine =
     block !== undefined &&
     block.type !== KEYS.table &&
     !isListItem(block) &&
     NodeApi.string(block) === "";
-  if (isEmptyLine && editor.children[index + 1]?.type === KEYS.table) {
+  if (isEmptyLine && next?.type === KEYS.table && next !== nextBefore) {
     editor.tf.removeNodes({ at: [index] });
   }
 }
@@ -132,8 +141,9 @@ export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
         const from = editor.selection
           ? (RangeApi.start(editor.selection).path[0] ?? 0)
           : 0;
+        const nextBefore = editor.children[from + 1];
         insertNormalised(data);
-        dropEmptyLineBeforeTable(editor, from);
+        dropEmptyLineBeforeTable(editor, from, nextBefore);
         const to = editor.selection
           ? (editor.selection.focus.path[0] ?? from)
           : editor.children.length - 1;

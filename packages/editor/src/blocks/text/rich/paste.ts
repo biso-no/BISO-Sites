@@ -54,9 +54,12 @@ const TEXT_BLOCKS = [
   "td",
   "th",
 ];
+const BLOCK_TAGS = [...TEXT_BLOCKS, "hr", "ol", "table", "ul"];
 const BLOCK_NODE_NAMES: ReadonlySet<string> = new Set(
-  [...TEXT_BLOCKS, "hr", "ol", "table", "ul"].map((tag) => tag.toUpperCase())
+  BLOCK_TAGS.map((tag) => tag.toUpperCase())
 );
+const TEXT_BLOCK_SELECTOR = TEXT_BLOCKS.join(", ");
+const BLOCK_SELECTOR = BLOCK_TAGS.join(", ");
 
 /**
  * Pasted HTML as markup Plate's deserializer reads the way the user meant.
@@ -155,8 +158,11 @@ const COLOUR_INLINES: ReadonlySet<string> = new Set([
   "U",
 ]);
 
-/** Text that keeps no colour and does not count towards the text colour. */
-const UNCOLOURED_TEXT = `${HEADINGS}, a`;
+/**
+ * Text that keeps no colour and does not count towards the text colour. An
+ * `<a>` with no href (Word's bookmarks) is no link.
+ */
+const UNCOLOURED_TEXT = `${HEADINGS}, a[href]`;
 
 /** A `color` declaration (not `background-color`) and its value. */
 const COLOUR_DECLARATION = /^\s*color\s*:(.*)$/is;
@@ -195,14 +201,16 @@ function takeColour(el: Element): string | null {
   return value === null ? null : parseCssColour(value);
 }
 
-/** A text's or line break's characters that are not white space. */
+/** A text's characters that are not white space. */
 const visibleLength = (node: Node): number =>
   (node.textContent ?? "").replace(WHITE_SPACE, "").length;
 
 /** What the colour walk gathers. */
 interface ColourWalk {
-  /** Each text and line break the writer coloured, with its token. */
-  coloured: [node: ChildNode, token: TextColourToken][];
+  /** The blocks that hold text, headings and links included. */
+  blocks: Set<Element | null>;
+  /** Each text the writer coloured, with its token. */
+  coloured: [node: Text, token: TextColourToken][];
   /** How much of the text outside headings and links each token covers. */
   shares: Map<TextColourToken, number>;
   swatches: readonly TextSwatch[];
@@ -210,13 +218,26 @@ interface ColourWalk {
   total: number;
 }
 
+/**
+ * A text that shows: its block noted, and its length and colour counted
+ * where it is outside headings and links. White space takes no colour, so a
+ * coloured run around blocks adds no span between them (a line of its own
+ * in a cell).
+ */
 function addText(
   walk: ColourWalk,
-  node: ChildNode,
+  node: Text,
   token: TextColourToken | null,
   inBody: boolean
 ): void {
-  const length = inBody ? visibleLength(node) : 0;
+  const length = visibleLength(node);
+  if (length === 0) {
+    return;
+  }
+  walk.blocks.add(node.parentElement?.closest(TEXT_BLOCK_SELECTOR) ?? null);
+  if (!inBody) {
+    return;
+  }
   walk.total += length;
   if (token !== null) {
     walk.shares.set(token, (walk.shares.get(token) ?? 0) + length);
@@ -256,8 +277,8 @@ function walkColours(
   inBody: boolean
 ): void {
   for (const child of Array.from(node.childNodes)) {
-    if (child.nodeType === Node.TEXT_NODE || child.nodeName === "BR") {
-      addText(walk, child, token, inBody);
+    if (child.nodeType === Node.TEXT_NODE) {
+      addText(walk, child as Text, token, inBody);
     } else if (child.nodeType === Node.ELEMENT_NODE) {
       walkColours(
         walk,
@@ -269,26 +290,30 @@ function walkColours(
 }
 
 /**
- * Each text and line break in the colour a browser paints it in, the colour
- * of the innermost element that sets one, on a `<span data-color>` of its
- * own, where that colour is the writer's: set on an inline element, near a
- * swatch (`nearestTextColour`), outside headings and links, and on no more
- * than half of the text outside them. Every `color` declaration goes.
+ * Each text in the colour a browser paints it in, the colour of the
+ * innermost element that sets one, on a `<span data-color>` of its own,
+ * where that colour is the writer's: set on an inline element, near a swatch
+ * (`nearestTextColour`) and outside headings and links. Where the text is in
+ * two blocks or more, a colour on more than half of it outside headings and
+ * links is the source's text colour and goes too; a word or a line pasted
+ * in one colour keeps it. Every `color` declaration goes.
  */
 function mapPastedColours(
   root: HTMLElement,
   swatches: readonly TextSwatch[]
 ): void {
   const walk: ColourWalk = {
+    blocks: new Set(),
     coloured: [],
     shares: new Map(),
     swatches,
     total: 0,
   };
   walkColours(walk, root, null, true);
+  const judgesTextColour = walk.blocks.size >= 2;
   for (const [node, token] of walk.coloured) {
-    // The source's text colour.
-    if ((walk.shares.get(token) ?? 0) * 2 > walk.total) {
+    const isTextColour = (walk.shares.get(token) ?? 0) * 2 > walk.total;
+    if (judgesTextColour && isTextColour) {
       continue;
     }
     const span = root.ownerDocument.createElement("span");
@@ -435,19 +460,18 @@ function markWordWebListLevels(root: HTMLElement): void {
 // ── Whitespace ──
 
 /**
- * Whitespace at the end of a block's text, and before a block inside it (a
- * nested list), removed. A browser does not show it, but Plate's whitespace
- * collapse keeps it as a trailing space ("Student welfare <ul>"). This also
- * removes the `&nbsp;` Word on the web ends each paragraph with.
+ * Whitespace at the end of a block's text, and before any block (a nested
+ * list, a paragraph inside a coloured run), removed. A browser does not show
+ * it, but Plate's whitespace collapse keeps it as a trailing space ("Student
+ * welfare <ul>", "a <br>b" in a cell). This also removes the `&nbsp;` Word
+ * on the web ends each paragraph with.
  */
 function trimBlockEnds(root: HTMLElement): void {
-  for (const block of root.querySelectorAll(TEXT_BLOCKS.join(", "))) {
+  for (const block of root.querySelectorAll(TEXT_BLOCK_SELECTOR)) {
     trimTrailingText(block.lastChild);
-    for (const child of block.children) {
-      if (BLOCK_NODE_NAMES.has(child.nodeName)) {
-        trimTrailingText(child.previousSibling);
-      }
-    }
+  }
+  for (const block of root.querySelectorAll(BLOCK_SELECTOR)) {
+    trimTrailingText(block.previousSibling);
   }
 }
 
