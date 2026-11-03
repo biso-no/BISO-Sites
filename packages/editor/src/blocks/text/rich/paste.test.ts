@@ -382,6 +382,13 @@ test.each([
   ["p1\n\np2", "<p>p1</p><p>p2</p>"],
   ["line1\r\nline2", "<p>line1<br>line2</p>"],
   ["3. a\n4. b", '<ol start="3"><li>a</li><li>b</li></ol>'],
+  // A numbered line on its own is a list only when it is number 1. (On its
+  // own and with no line break, it goes in as it is: see below.)
+  ["17. mai: Frokost\n", "<p>17. mai: Frokost</p>"],
+  ["1. Plan", "<ol><li>Plan</li></ol>"],
+  ["1) Plan", "<ol><li>Plan</li></ol>"],
+  ["Program\n17. mai: Frokost", "<p>Program<br>17. mai: Frokost</p>"],
+  ["Steps:\n1. Plan", "<p>Steps:</p><ol><li>Plan</li></ol>"],
   ["1. a", "<ol><li>a</li></ol>"],
   // Marker lines are a list wherever they sit in a chunk; the lines between
   // them stay a paragraph.
@@ -1081,6 +1088,7 @@ test.each([
   "a < b",
   " world",
   "https://biso.no",
+  "17. mai: Frokost",
 ])("single-line plain text %p passes through untouched", (text) => {
   const { editor, seen } = recordingEditor({ forward: false });
   const data = clipboard({ "text/plain": text });

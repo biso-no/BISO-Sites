@@ -559,14 +559,20 @@ const BLANK_LINE = /\n\s*\n/;
 const escapeText = (text: string): string =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
+/** The number a numbered line starts with, or `NaN`. */
+const lineNumber = (line: string): number =>
+  Number(NUMBER_LINE.exec(line)?.[1]);
+
 /**
- * Whether plain text needs the HTML path: it has a line break, or it starts
- * with a list marker. Anything else is inserted as it is, so a single line
- * keeps its spaces (" world" after "hello").
+ * Whether plain text needs the HTML path: it has a line break, or it is a
+ * list item (`- `, or `1.` or `1)`: a line numbered on its own is a list
+ * only when it is number 1, so "17. mai" stays text). Anything else is
+ * inserted as it is, so a single line keeps its spaces (" world" after
+ * "hello").
  */
 export function plainTextHasStructure(text: string): boolean {
   return (
-    text.includes("\n") || BULLET_LINE.test(text) || NUMBER_LINE.test(text)
+    text.includes("\n") || BULLET_LINE.test(text) || lineNumber(text) === 1
   );
 }
 
@@ -576,7 +582,8 @@ export function plainTextHasStructure(text: string): boolean {
  * starts with `1.` or `1)` a numbered one (from its first number) when its
  * numbers count on by one, and the lines between them one paragraph, joined
  * by line breaks. A numbered run that does not count on ("17. mai",
- * "24. mai") is paragraph text.
+ * "24. mai") is paragraph text, as is a numbered line on its own that is not
+ * number 1 ("17. mai: Frokost").
  */
 export function plainTextToHtml(text: string): string {
   return text
@@ -612,10 +619,16 @@ function addToRuns(runs: LineRun[], kind: LineKind, lines: string[]): void {
   }
 }
 
-/** Whether numbered lines count on by one from the first line's number. */
+/**
+ * Whether numbered lines are a list: they count on by one from the first
+ * line's number, and a line on its own is number 1.
+ */
 function countsOn(lines: string[]): boolean {
-  const numbers = lines.map((line) => Number(NUMBER_LINE.exec(line)?.[1]));
+  const numbers = lines.map(lineNumber);
   const first = numbers[0] ?? 0;
+  if (numbers.length === 1) {
+    return first === 1;
+  }
   return numbers.every((number, i) => number === first + i);
 }
 
