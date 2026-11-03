@@ -187,6 +187,16 @@ test.each([
     "<ul><li>a</li></ul><p>note one<br>note two</p><ul><li>b</li></ul>",
   ],
   ["- a\n1. b", "<ul><li>a</li></ul><ol><li>b</li></ol>"],
+  // A numbered run is a list only when it counts on by one; dates and other
+  // numbered lines stay text, in the paragraph around them.
+  [
+    "Program\n17. mai: Frokost\n24. mai: Tur",
+    "<p>Program<br>17. mai: Frokost<br>24. mai: Tur</p>",
+  ],
+  ["3. a\n4. b", '<ol start="3"><li>a</li><li>b</li></ol>'],
+  ["1. a\n3. b", "<p>1. a<br>3. b</p>"],
+  ["1. a\n2. b\n2. c", "<p>1. a<br>2. b<br>2. c</p>"],
+  ["- a\n1. b\n2. c", "<ul><li>a</li></ul><ol><li>b</li><li>c</li></ol>"],
 ])("plain text %p", (plain, html) => expect(pasteInto(null, plain)).toBe(html));
 
 test("plain text that looks like markup stays text", () => {

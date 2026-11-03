@@ -342,8 +342,10 @@ export function plainTextHasStructure(text: string): boolean {
 /**
  * Plain text as HTML: blank lines separate chunks. Within a chunk, a run of
  * lines that start with `-`, `*` or `•` becomes a bullet list, a run that
- * starts with `1.` or `1)` a numbered one (from its first number), and the
- * lines between them one paragraph, joined by line breaks.
+ * starts with `1.` or `1)` a numbered one (from its first number) when its
+ * numbers count on by one, and the lines between them one paragraph, joined
+ * by line breaks. A numbered run that does not count on ("17. mai",
+ * "24. mai") is paragraph text.
  */
 export function plainTextToHtml(text: string): string {
   return text
@@ -357,6 +359,11 @@ export function plainTextToHtml(text: string): string {
 
 type LineKind = "ol" | "p" | "ul";
 
+interface LineRun {
+  kind: LineKind;
+  lines: string[];
+}
+
 function lineKind(line: string): LineKind {
   if (BULLET_LINE.test(line)) {
     return "ul";
@@ -364,22 +371,40 @@ function lineKind(line: string): LineKind {
   return NUMBER_LINE.test(line) ? "ol" : "p";
 }
 
-/** Each run of adjacent lines of one kind, in order. */
-function lineRuns(chunk: string): { kind: LineKind; lines: string[] }[] {
-  const runs: { kind: LineKind; lines: string[] }[] = [];
+/** Adds `lines` to the last run when it is of `kind`, else starts a run. */
+function addToRuns(runs: LineRun[], kind: LineKind, lines: string[]): void {
+  const run = runs.at(-1);
+  if (run?.kind === kind) {
+    run.lines.push(...lines);
+  } else {
+    runs.push({ kind, lines: [...lines] });
+  }
+}
+
+/** Whether numbered lines count on by one from the first line's number. */
+function countsOn(lines: string[]): boolean {
+  const numbers = lines.map((line) => Number(NUMBER_LINE.exec(line)?.[1]));
+  const first = numbers[0] ?? 0;
+  return numbers.every((number, i) => number === first + i);
+}
+
+/**
+ * Each run of adjacent lines of one kind, in order. A numbered run that does
+ * not count on joins the paragraph lines around it.
+ */
+function lineRuns(chunk: string): LineRun[] {
+  const marked: LineRun[] = [];
   for (const line of chunk.split("\n")) {
-    const kind = lineKind(line);
-    const run = runs.at(-1);
-    if (run?.kind === kind) {
-      run.lines.push(line);
-    } else {
-      runs.push({ kind, lines: [line] });
-    }
+    addToRuns(marked, lineKind(line), [line]);
+  }
+  const runs: LineRun[] = [];
+  for (const { kind, lines } of marked) {
+    addToRuns(runs, kind === "ol" && !countsOn(lines) ? "p" : kind, lines);
   }
   return runs;
 }
 
-function runToHtml({ kind, lines }: { kind: LineKind; lines: string[] }) {
+function runToHtml({ kind, lines }: LineRun) {
   if (kind === "p") {
     return `<p>${lines.map(escapeText).join("<br>")}</p>`;
   }
