@@ -353,3 +353,66 @@ but those exact numbers are not.
 - A Google Docs list-formatted heading pastes as a list item, not a heading.
 - Real-browser focus of the bubble and link input (tests fake the focus check).
 - Canvas look: list indent, spacing and toolbar against the mockups.
+
+## Stage 2 done (2026-11-03)
+
+### What was built
+
+- Before any feature: Stage 1's loose ends were closed. Depth and size limits on stored bodies are measured safely on the server, and the field's undo, outside-change and link-input edge cases were fixed.
+- Text colour: a colour menu in the panel toolbar, the Expand toolbar and the selection bubble with six swatches (Default, Accent, Muted, Green, Amber, Red). Colour is stored as `<span data-color="…">` with a token, never as a hex value, and both sanitisers keep only the five known tokens. The swatches follow the page's theme and are checked for contrast (`text-colours.ts` in `@repo/shared`).
+- Tables: stored as real `table/thead/tbody/tr/th/td` elements with merged cells (colspan and rowspan 2 to 20). The toolbar has a table button that inserts one, and a table bar with Row and Column groups, Header row and Delete table. Tab in the last cell adds a row. The public page lets a wide table scroll inside itself.
+- Paste: Word, Google Docs and web tables now arrive as tables. Pasted text colours map to the nearest swatch or are dropped. A paste that loses images shows a short notice saying where images go.
+- Expand: a button opens the rich text field in a wide writing view over the page, with the same toolbar plus a menu for less-used controls. Esc or Close leaves it.
+- Field undo now continues into page undo when the field has nothing left to undo.
+- Verification (2026-11-03): lint on the 55 branch files Biome covers (57 changed, two CSS files ignored by Biome), clean. Forced `bun run check-types` 18 of 18, nothing cached. Editor tests 1671 pass, 0 fail. Shared 1205 pass; web `styles.test.ts` 37 pass. Admin builds compile. Web chunk check: the paste code is in one chunk, the public renderer's class string in another, and no file holds both. The public CSS carries the colour rules (2 files).
+
+### Decisions made while building, and the cost if wrong
+
+- Both sets of loose ends came first, as independent reviews. Cost: none.
+- Non-canonical bodies are capped at 10,000 tags and canonical bodies deeper than 100 become text paragraphs. Cost: a deep, non-canonical body loses tags past depth 100 (text kept); a crafted body costs about 200 ms of server time.
+- The copilot writes a body in two steps (raw, then canonical under the same undo key). Cost: a raw body is briefly visible, and two copilot writes to one block within 1 s undo together.
+- Field undo falls through to page undo via a callback the shell supplies. Cost: none known.
+- Six swatches; Green, Amber and Red are derived from the theme so they stay readable on dark department sections. Cost: six colours may feel limited; easy to extend.
+- Pasted colour maps to the nearest swatch within a set distance. Colours on headings, links and blocks are dropped, as is a colour covering more than half of a multi-block paste. Cost: one pasted red word in a multi-block paste can lose its colour.
+- A link inside coloured text keeps the link colour. Cost: link text cannot be coloured.
+- Swatches are resolved inside the editor chunk; a stored non-hex theme falls back to BISO swatches. Cost: such a page shows BISO colours in the menu.
+- Tables have no wrapper element; header row is the first all-header row group; empty tables kept, row-less dropped; captions become a paragraph before the table; tables inside lists, quotes or cells are flattened; a paragraph is kept after a trailing table. Cost: small differences on phones; nested tables lose structure.
+- Header group stops where a cell's rowspan would reach past it. Cost: none known.
+- Table cells wrap like body copy. Cost: very narrow columns break words.
+- The table bar is Row and Column icon groups plus Header row and Delete table; Row above is off in the header row; no table controls on the canvas. Cost: canvas table editing is text only.
+- Spans longer than the real table are clamped when it loads, the grid is repaired on every change, and Delete column in a cell spanning every column deletes the table. Cost: a malformed stored span shows shorter than stored.
+- The more-options menu is only in the panel and Expand toolbars, not the bubble. Cost: none.
+- Expand sits over the page with no blur, closes on Esc or Close only, has no focus trap, uses 14px writing text, and closes if you select another block. Cost: keyboard users can tab out behind it (minor accessibility gap).
+- The colour menu shifts left to stay inside the 308px panel and closes when focus leaves; Escape closes any open popover before it closes Expand. Cost: none.
+- Popovers use the disclosure pattern (aria-expanded), not a menu role. Cost: none.
+- The dropped-image notice also fires for clipboard image files and on the canvas, and its status region stays in the accessibility tree when empty. Cost: none.
+- Paste keeps line breaks like stored HTML does, while non-breaking spaces still collapse. Cost: a deliberate nbsp in pasted text becomes a plain space.
+- A single-block paste keeps its mapped colours (the majority rule needs two blocks). Cost: a one-paragraph paste in a Word text colour keeps it.
+- While the link input is open, toolbar presses do not take a pending outside change. Cost: on Apply the user's link wins over a concurrent copilot change of that block.
+- Unknown or uppercase colour tokens are dropped; `data-color` is kept only on spans. Cost: none.
+- Canvas header cells look like the public page's (bold, header background). Cost: none.
+- The `scanBody` depth rule and the fixed-point merge of equal inline runs (two leaves with the same output become one). Cost: none, the HTML is equivalent.
+
+### Deferred
+
+- Bodies containing the code points U+FDD0 to U+FDEF lose space protection and break the round-trip rule; invisible space literals in tests should be escapes; `rich/html.ts` is about 490 lines and mixes parsing with the serialiser (split it).
+- Copilot undo can split into two steps if another history write lands first; the failure path of canonical conversion and the link Apply ordering are untested; the field can keep a pending take after a no-op page step; a single "17. mai" line still becomes a list; no test that `EditorShell` supplies the undo callback.
+- Swatch contrast test covers BISO and one department theme only; rgb() with percentage channels is ignored on paste.
+- `textLines` keeps text of dropped elements (escaped, safe); a `>` inside a quoted attribute ends a tag there.
+- The colour menu reads the first leaf on a mixed selection; a long comment line in `popover.tsx`.
+- Merging several tbody/tfoot can extend a truncated rowspan (malformed sources only); header background equals the tinted-section fill; stray `tr/td/th` outside a table are kept by the server and dropped by the client; source whitespace in cells leaves trailing spaces.
+- A headless-only throw on a rowspan staircase Delete row; a `tr` holding only non-cell blocks is dropped; one `html.test.ts` comment is inaccurate.
+- Expand: Escape needs focus inside the dialog; no test typing in the field then closing; the panel needs `overflow:auto` for very short windows; the parked placeholder lacks toolbar height so content shifts behind the scrim.
+- The web-page-table paste fixture lacks box-sizing realism; a span wrapping paragraphs inside a list item glues their text (pre-existing).
+- The image notice: no test that it leaves `onChange` alone; a bare inline `<svg>` is not counted; pasted HTML is parsed twice; a weak unmount timer assertion; over-constrained `:empty` CSS.
+- Admin `content-translation.test.ts` model-id failure (pre-existing, also on main).
+- Stage 3: copilot prompt and tools for tables and colour, `templates.ts`, a translation round trip test, docs pages, go-live checklist.
+
+### Owner hand checks
+
+- A wide table on a phone scrolls inside itself while the page does not.
+- Tables read by VoiceOver and NVDA on the public page (the table is `display:block`, which some screen readers handle badly).
+- Coloured text on paper, deep and photo sections under BISO and one department theme, including a dark section and a department theme.
+- Pasting a Word table on Mac (and Windows if available), and a real Word or Google Docs paste of a table with coloured text.
+- The Expand view's look, and at a short window.
+- Cmd+Z in a field right after a copilot change.
