@@ -2079,6 +2079,11 @@
 .pe-rt-field [data-color="red"] {
   color: var(--pe-rt-red);
 }
+/* A link keeps its own colour inside coloured text: the save puts the
+   colour's span inside the link. */
+.pe-rt-field a [data-color] {
+  color: inherit;
+}
 .pe-rt-field hr {
   border: 0;
   border-top: 0.5px solid var(--rule-2);

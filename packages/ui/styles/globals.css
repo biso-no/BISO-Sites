@@ -470,6 +470,12 @@ html {
   .pg-rich [data-color="red"] {
     color: var(--ink-red);
   }
+
+  /* A link keeps its accent inside coloured text: the save puts the
+     colour's span inside the link. */
+  .pg-rich a [data-color] {
+    color: inherit;
+  }
 }
 
 /* ---------------------------------------------------------------------------

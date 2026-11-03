@@ -25,6 +25,8 @@ const DECLARATION_PREVIEW = 80;
 const WHITESPACE_RUN = /\s+/g;
 const LIGHT_INK_DECLARATION = /^\s*--ink:\s*var\(--biso-ink\);/m;
 const NAVY = /#001a35|rgb\(\s*0,\s*26,\s*53\s*\)/i;
+const LINK_KEEPS_ACCENT =
+  /\.pg-rich a \[data-color\]\s*\{\s*color:\s*inherit;\s*\}/;
 
 const styles = readFileSync(join(import.meta.dirname, "styles.css"), "utf8");
 const adminStyles = readFileSync(
@@ -682,6 +684,11 @@ describe("named navy tokens (page themes)", () => {
       );
       expect(globals, token).toMatch(rule);
     }
+  });
+
+  it("keeps a link's accent on a coloured run inside it", () => {
+    // The save puts the colour's span inside the link.
+    expect(globals).toMatch(LINK_KEEPS_ACCENT);
   });
 
   it("gives each rich text hue an ink on paper and on navy", () => {
