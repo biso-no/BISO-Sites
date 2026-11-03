@@ -547,6 +547,21 @@ test.each([
   expect(pasteInto(html)).toBe(out);
 });
 
+test("paragraphs a span wraps inside a list item or a quote are joined by line breaks", () => {
+  expect(
+    pasteInto(
+      '<ul><li><span style="color:#c00000"><p>alpha</p><p>beta</p></span></li></ul>'
+    )
+  ).toBe("<ul><li>alpha<br>beta</li></ul>");
+  expect(
+    pasteInto(
+      '<blockquote><span style="font-weight:700"><p>alpha</p><p>beta</p></span></blockquote>'
+    )
+  ).toBe(
+    "<blockquote><strong>alpha</strong><br><strong>beta</strong></blockquote>"
+  );
+});
+
 test("lines inside a list item are joined by line breaks", () => {
   expect(pasteInto("<ul><li><div>a</div><div>b</div></li></ul>")).toBe(
     "<ul><li>a<br>b</li></ul>"

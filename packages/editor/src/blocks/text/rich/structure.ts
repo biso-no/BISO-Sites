@@ -108,7 +108,8 @@ const childrenTagged = (el: Element, tag: string): Element[] =>
 
 /**
  * The blocks Plate cannot read as ones it can. In order:
- * 0. An inline element around blocks goes into each of them
+ * 0. A link around blocks, or an inline element around blocks in a list
+ *    item, a quote or a heading, goes into each of them
  *    (`inlineIntoBlocks`).
  * 1. A table where the page stores none (`NO_TABLE_INSIDE`) is flattened:
  *    each cell a paragraph (or unwrapped when it holds blocks).
@@ -187,19 +188,62 @@ function pushInto(inline: Element, block: Element): void {
   }
 }
 
+/** Blocks that hold lines of text, not blocks: list items, quotes, headings. */
+const LINE_HOLDERS: ReadonlySet<string> = new Set([
+  "BLOCKQUOTE",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "LI",
+]);
+
+/** The block `el` sits in, through inline elements, or none. */
+function blockAround(el: Element, root: HTMLElement): Element | null {
+  for (let at = el.parentElement; at && at !== root; at = at.parentElement) {
+    if (BLOCK_TAGS.has(at.tagName)) {
+      return at;
+    }
+  }
+  return null;
+}
+
 /**
- * Each link around blocks put inside them instead, as Plate itself does
- * with a mark or a colour's span around blocks: around the content of each
- * block, and of each cell of a table, and around the text beside them. So a
- * table in a link stays a table, its cells linked, and the link's blocks
- * keep their lines apart. Innermost first, so an outer one finds the blocks
- * an inner one held.
+ * Whether `el` is an inline element whose blocks Plate would run together:
+ * a link anywhere, or any inline element in a list item, a quote or a
+ * heading (`<li><span><p>a</p><p>b</p></span></li>`). Elsewhere Plate itself
+ * puts a mark or a colour's span around blocks into each, and a cell's
+ * blocks are its lines however deep they sit (`cellLines`).
+ */
+function runsBlocksTogether(el: Element, root: HTMLElement): boolean {
+  if (BLOCK_TAGS.has(el.tagName)) {
+    return false;
+  }
+  const around = blockAround(el, root);
+  return (
+    el.tagName === "A" || (around !== null && LINE_HOLDERS.has(around.tagName))
+  );
+}
+
+/**
+ * Each such inline element (`runsBlocksTogether`) around blocks put inside
+ * them instead: around the content of each block, and of each cell of a
+ * table, and around the text beside them. So a table in a link stays a
+ * table, its cells linked, and blocks keep their lines apart: in a list
+ * item or a quote they are joined by line breaks later
+ * (`joinBlockParagraphs`). Innermost first, so an outer one finds the
+ * blocks an inner one held.
  */
 function inlineIntoBlocks(root: HTMLElement): void {
-  for (const link of Array.from(root.querySelectorAll("a")).reverse()) {
-    if (holdsBlocks(link)) {
-      pushInto(link, link);
-      unwrap(link);
+  const inlines = Array.from(root.querySelectorAll("*")).filter((el) =>
+    runsBlocksTogether(el, root)
+  );
+  for (const inline of inlines.reverse()) {
+    if (holdsBlocks(inline)) {
+      pushInto(inline, inline);
+      unwrap(inline);
     }
   }
 }
@@ -334,7 +378,8 @@ function breakAround(block: Element, addsOwnBreak: (next: Node) => boolean) {
 
 /**
  * The paragraphs that become lines of the block holding them. A heading
- * holds some only where a table inside it was flattened.
+ * holds some only where a table inside it was flattened, or an inline
+ * element around them went into them (`inlineIntoBlocks`).
  */
 const JOINED_PARAGRAPHS =
   "li > p, blockquote > p, h1 > p, h2 > p, h3 > p, h4 > p, h5 > p, h6 > p";

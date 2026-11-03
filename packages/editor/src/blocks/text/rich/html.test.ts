@@ -290,6 +290,33 @@ test.each([
 ])("a link around blocks goes into each: %s", (input, out) =>
   expect(valueToHtml(htmlToValue(input))).toBe(out));
 
+// Blocks inside a list item, a quote or a cell are its lines, also where an
+// inline element wraps them.
+test.each([
+  [
+    "<ul><li><span><p>a</p><p>b</p></span></li></ul>",
+    "<ul><li>a<br>b</li></ul>",
+  ],
+  [
+    '<ul><li><span data-color="red"><p>a</p><p>b</p></span></li></ul>',
+    '<ul><li><span data-color="red">a</span><br><span data-color="red">b</span></li></ul>',
+  ],
+  [
+    "<ul><li>x<span><span><p>a</p><p>b</p></span></span></li></ul>",
+    "<ul><li>x<br>a<br>b</li></ul>",
+  ],
+  [
+    "<blockquote><b><p>a</p><p>b</p></b></blockquote>",
+    "<blockquote><strong>a</strong><br><strong>b</strong></blockquote>",
+  ],
+  ["<h2><em><p>a</p><p>b</p></em></h2>", "<h2><em>a</em><br><em>b</em></h2>"],
+  [
+    "<table><tr><td><span><p>a</p><p>b</p></span></td></tr></table>",
+    "<table><tbody><tr><td>a<br>b</td></tr></tbody></table>",
+  ],
+])("blocks wrapped in an inline element stay lines apart: %s", (input, out) =>
+  expect(valueToHtml(htmlToValue(input))).toBe(out));
+
 // A caption is its table's title: a line of its own just before it, wherever
 // the table sits, never words run into the text beside it.
 test.each([
