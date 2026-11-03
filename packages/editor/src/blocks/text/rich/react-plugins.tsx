@@ -25,6 +25,7 @@ import {
   isHotkey,
   KEYS,
   type PluginConfig,
+  type SlateEditor,
   type TElement,
 } from "platejs";
 import {
@@ -38,10 +39,10 @@ import {
   type PlateLeafProps,
   toPlatePlugin,
 } from "platejs/react";
-import type { KeyboardEvent } from "react";
+import { Children, type KeyboardEvent } from "react";
 import { keptCellSpan, keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { handleListTab } from "./commands";
-import { isListItem } from "./html";
+import { headerRows, isListItem } from "./html";
 import { ORDERED_LIST_STYLES } from "./list-item-parse";
 import { RichPastePlugin } from "./paste-plugin";
 import {
@@ -51,6 +52,7 @@ import {
   RichColourPlugin,
   RichShapePlugin,
 } from "./plugins";
+import { inTableCell, tabFromLastCell } from "./table-commands";
 
 type BlockTag = "blockquote" | "h2" | "h3" | "p";
 
@@ -106,13 +108,21 @@ function HrElement(props: PlateElementProps) {
 }
 
 /**
- * A table as plain tags, every row in one `<tbody>`, so the canvas wears the
- * public classes; the page puts an all-`th` first row in a `<thead>`.
+ * A table as plain tags, so the canvas wears the public classes: the header
+ * group in a `<thead>` and the other rows in a `<tbody>`, as the page writes
+ * them (`headerRows`). Plate's children are the rows, one per row node, then
+ * what its plugins render below a node; that stays after the rows.
  */
 function TableElement(props: PlateElementProps) {
+  const children = Children.toArray(props.children);
+  const count = props.element.children.length;
+  const rows = children.slice(0, count);
+  const head = headerRows(props.element);
   return (
     <PlateElement {...props} as="table" attributes={plainAttributes(props)}>
-      <tbody>{props.children}</tbody>
+      {head > 0 ? <thead>{rows.slice(0, head)}</thead> : null}
+      {head < rows.length ? <tbody>{rows.slice(head)}</tbody> : null}
+      {children.slice(count)}
     </PlateElement>
   );
 }
@@ -272,7 +282,10 @@ function emptyHistoryStep(
  * through `handleListTab`: Plate's key handler calls `tab` and prevents the
  * default when it returns `true`. Outside a list it returns `false` and Tab
  * stays the browser's; the indent plugin's own `tab` is not passed on, since
- * it would indent a paragraph the page cannot store.
+ * it would indent a paragraph the page cannot store. In a table cell, Tab and
+ * Shift+Tab are the table plugin's (`tab`, the transform before this one):
+ * they move to the next or previous cell. Tab in the last cell adds a row
+ * (`tabFromLastCell`).
  */
 export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
   handlers: {
@@ -297,27 +310,38 @@ export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
   },
   key: "richKeys",
   options: { emptyHistory: null, linkNeedsSelection: false, linkOpen: false },
-}).overrideEditor(({ editor }) => ({
+}).overrideEditor(({ editor, tf: { tab } }) => ({
   transforms: {
-    tab: ({ reverse }) => handleListTab(editor, { shift: reverse }),
+    tab: (options) => {
+      if (!inTableCell(editor)) {
+        return handleListTab(editor, { shift: options.reverse });
+      }
+      return (!options.reverse && tabFromLastCell(editor)) || tab(options);
+    },
   },
 }));
 
+/** A cell holds plain lines: no list starts there. */
+const outsideCell = (editor: SlateEditor) => !inTableCell(editor);
+
 /**
- * `- ` or `* ` starts a bullet list, `1. ` or `1) ` a numbered one. `type`
- * is the block a rule must not already be inside; no block is a `list`.
+ * `- ` or `* ` starts a bullet list, `1. ` or `1) ` a numbered one, outside
+ * a table cell. `type` is the block a rule must not already be inside; no
+ * block is a `list`.
  */
 const LIST_RULES: AutoformatRule[] = [
   {
     format: (editor) => toggleList(editor, { listStyleType: KEYS.ul }),
     match: ["- ", "* "],
     mode: "block",
+    query: outsideCell,
     type: KEYS.list,
   },
   {
     format: (editor) => toggleList(editor, { listStyleType: KEYS.ol }),
     match: ["1. ", "1) "],
     mode: "block",
+    query: outsideCell,
     type: KEYS.list,
   },
 ];
@@ -365,7 +389,8 @@ export const richReactPlugins: (AnyPlatePlugin | AnySlatePlugin)[] = [
   TableCellHeaderPlugin.withComponent(TableCellHeaderElement),
   RichShapePlugin,
   AutoformatPlugin.configure({ options: { rules: LIST_RULES } }),
-  // After the indent plugin, so its `tab` wraps the indent plugin's.
+  // After the indent and table plugins, so its `tab` wraps theirs: the
+  // table's moves between cells, and wraps the indent plugin's.
   RichKeysPlugin,
   RichPastePlugin,
 ];

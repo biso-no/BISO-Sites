@@ -285,7 +285,9 @@ test("a stored table is a real table on the canvas", async () => {
   );
 
   const table = editables()[0]?.querySelector("table");
-  const header = table?.querySelectorAll(":scope > tbody > tr > th");
+  // The header row in a thead, as the page writes it, so it wears the
+  // page's header background.
+  const header = table?.querySelectorAll(":scope > thead > tr > th");
   expect([...(header ?? [])].map((th) => th.textContent)).toEqual([
     "Name",
     "Role",

@@ -20,14 +20,20 @@ import {
 import { richBasePlugins, TABLE_CELL_TYPES } from "./plugins";
 import { structureBlocks } from "./structure";
 
-/** A headless editor on the rich text schema, for conversion and paste. */
+/**
+ * A headless editor on the rich text schema, for conversion and paste.
+ * `nodeId` gives every block an id, as the field's editor has: Plate's
+ * merge-aware table transforms find a cell's place in the grid by it. Tests
+ * of those transforms only; conversion stays id-free.
+ */
 export function createConversionEditor(
-  extraPlugins: AnySlatePlugin[] = []
+  extraPlugins: AnySlatePlugin[] = [],
+  { nodeId = false }: { nodeId?: boolean } = {}
 ): SlateEditor {
   return createSlateEditor({
     // Plate adds a random `id` to every block unless NODE_ENV is "test";
     // the same HTML must always give the same value.
-    nodeId: false,
+    nodeId,
     plugins: [...richBasePlugins, ...extraPlugins],
   });
 }
@@ -384,6 +390,15 @@ function headerRowCount(rows: TElement[][]): number {
   }
   return count;
 }
+
+/**
+ * How many of `table`'s leading rows the page writes in its `<thead>`, by
+ * `headerRowCount`. Shared with the canvas, which draws them there too.
+ */
+export const headerRows = (table: TElement): number =>
+  headerRowCount(
+    table.children.filter(isRow).map((row) => row.children.filter(isCell))
+  );
 
 /**
  * A table: its header group (`headerRowCount`) in `<thead>`, the other rows

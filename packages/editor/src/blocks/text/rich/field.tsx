@@ -1,6 +1,6 @@
 "use client";
 
-import { type Point, TextApi, type Value } from "platejs";
+import { normalizeNodeId, type Point, TextApi, type Value } from "platejs";
 import {
   Plate,
   PlateContent,
@@ -110,7 +110,7 @@ export default function RichTextField({
 }: RichTextFieldProps) {
   const [initial] = useState(() => {
     const value = htmlToValue(html);
-    return { html: valueToHtml(value), value };
+    return { html: valueToHtml(value), value: normalizeNodeId(value) };
   });
   // Canonical, so mounting a legacy body reports nothing.
   const lastHtml = useRef(initial.html);
@@ -121,6 +121,12 @@ export default function RichTextField({
   const forceTake = useRef(false);
   const takeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const editor = usePlateEditor({
+    // Plate's default, except under NODE_ENV "test": set, so tests run the
+    // editor the page runs. The merge-aware table transforms find each
+    // cell's place in the grid by its id. The first value comes with its ids
+    // (`normalizeNodeId`), so Plate need not add them by operations, whose
+    // change would be reported after the field mounted.
+    nodeId: true,
     plugins: richReactPlugins,
     value: initial.value,
   });

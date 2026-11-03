@@ -1808,7 +1808,7 @@
   border: 0;
   border-radius: 4px;
 }
-.pe-rt-btn:hover {
+.pe-rt-btn:not(:disabled):hover {
   color: var(--pg-ink);
 }
 .pe-rt-btn[aria-pressed="true"],
@@ -1827,16 +1827,37 @@
   margin: 0 3px;
   background: var(--rule-2);
 }
+/* A run of buttons that stays on one line: the row wraps between runs. */
+.pe-rt-group {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  align-items: center;
+}
+/*
+ * The mockup's narrow drop: the name, then a small ▾ (drawn below, after the
+ * bubble's colours) in place of the browser's wide arrow. A long name is cut
+ * short.
+ */
 .pe-rt-select {
+  flex: none;
+  width: 80px;
   height: 22px;
-  padding: 0 4px;
+  padding: 0 15px 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11.5px;
   color: var(--pg-ink);
+  white-space: nowrap;
   cursor: pointer;
   background: white;
   border: 0;
   border-radius: 4px;
   box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-rt-select:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 .pe-rt-link {
   display: flex;
@@ -1865,6 +1886,28 @@
 }
 .pe-rt-link__btn {
   font-size: 11.5px;
+}
+/* The table controls: a line of their own under the buttons, in a table. */
+.pe-rt-table {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  padding-top: 3px;
+  margin-top: 1px;
+  border-top: 0.5px solid var(--rule-2);
+}
+.pe-rt-table__label {
+  margin: 0 2px 0 4px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pe-rt-table__btn {
+  font-size: 11.5px;
+  white-space: nowrap;
 }
 /* A toolbar button's menu: the text colours, ⋯. Items as .pe-seg buttons. */
 .pe-rt-popwrap {
@@ -2049,6 +2092,23 @@
 }
 .pe-rt-bubble .pe-rt-sep {
   background: color-mix(in srgb, var(--ink-2) 70%, var(--ink-3));
+}
+/*
+ * The style select's ▾, in its text colour: two half squares, 6px by 3px,
+ * 6px in from the right. After the bubble's `background`, which would take
+ * it off.
+ */
+.pe-rt-select,
+.pe-rt-bubble .pe-rt-select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position:
+    calc(100% - 9px) 50%,
+    calc(100% - 6px) 50%;
+  background-size: 3px 3px;
 }
 /*
  * The bubble's menus sit in the canvas frame, whose ramp turns dark in dark

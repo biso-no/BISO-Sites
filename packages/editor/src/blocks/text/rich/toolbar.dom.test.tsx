@@ -7,8 +7,11 @@ import {
   spyOn,
   test,
 } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { textSwatches } from "@repo/shared/utils/text-colours";
 import { Window } from "happy-dom";
+import { NodeApi, type Path } from "platejs";
 import { EventEditorStore, type PlateEditor } from "platejs/react";
 import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -176,6 +179,7 @@ test("toolbar exposes labelled controls in order", async () => {
     "Link",
     "Bullet list",
     "Numbered list",
+    "Insert table",
     "More formatting",
   ]);
   // Right above the text, in the wrapper that takes a pending prop.
@@ -967,4 +971,281 @@ test("the swatches follow the department's theme", async () => {
     // its own would run after this file has taken its DOM away.
     await settle(() => useEditorStore.setState({ doc }));
   }
+});
+
+// ── Tables ──
+
+/** The caret at the end of the text `text`, or in the empty cell at `path`. */
+const caretIn = (editor: PlateEditor, at: string | Path) => {
+  const path =
+    typeof at === "string"
+      ? [...NodeApi.texts(editor)].find(([leaf]) => leaf.text === at)?.[1]
+      : at;
+  if (!path) {
+    throw new Error(`no text ${String(at)}`);
+  }
+  return settle(() => editor.tf.select(editor.api.end(path)));
+};
+
+const HEADER_TABLE =
+  "<table><thead><tr><th>h</th><th>i</th></tr></thead><tbody><tr><td>a</td><td>b</td></tr></tbody></table>";
+
+/** The names of the table bar's controls, in order. */
+const tableBarButtons = (host: HTMLElement) => groupButtons(host, "Table");
+
+test("the toolbar wraps only between whole groups", async () => {
+  const { $ } = await mountField("<p>a</p>");
+  const bar = $(".pe-rt-bar") as HTMLElement;
+  const layout = [...bar.children].map((child) => {
+    if (child.classList.contains("pe-rt-sep")) {
+      return "|";
+    }
+    if (child.classList.contains("pe-rt-group")) {
+      return [...child.querySelectorAll("[aria-label]")]
+        .map((control) => control.getAttribute("aria-label"))
+        .join(" + ");
+    }
+    return child.getAttribute("aria-label");
+  });
+  expect(layout).toEqual([
+    "Text style",
+    "|",
+    "Bold + Italic + Underline + Text colour + Link",
+    "|",
+    "Bullet list + Numbered list",
+    "Insert table + More formatting",
+  ]);
+
+  // A group is one flex line that never wraps or shrinks. The select is the
+  // mockup's narrow drop ("Paragraph ▾"), its longer names cut short, and
+  // still leaves the lists room on the first line at 308px.
+  const css = readFileSync(
+    join(import.meta.dir, "..", "..", "..", "theme", "editor.css"),
+    "utf8"
+  );
+  const rule = (selector: string) =>
+    new RegExp(`\\n${selector.replaceAll(".", "\\.")} \\{([^}]*)\\}`).exec(
+      css
+    )?.[1] ?? "";
+  expect(rule(".pe-rt-group")).toContain("display: flex;");
+  expect(rule(".pe-rt-group")).toContain("flex: none;");
+  expect(rule(".pe-rt-group")).not.toContain("wrap");
+  expect(rule(".pe-rt-select")).toContain("width: 80px;");
+  expect(rule(".pe-rt-select")).toContain("text-overflow: ellipsis;");
+});
+
+test("Insert table adds a table with a header row", async () => {
+  const { editor, host, onChange } = await mountField("<p>a</p>");
+  await caretIn(editor, "a");
+  let down: MouseEvent | undefined;
+  await settle(() => {
+    down = press(button(host, "Insert table"));
+  });
+  expect(down?.defaultPrevented).toBe(true);
+  const row = "<tr><td></td><td></td><td></td></tr>";
+  expect(onChange).toHaveBeenLastCalledWith(
+    `<p>a</p><table><thead><tr><th></th><th></th><th></th></tr></thead><tbody>${row}${row}</tbody></table>`
+  );
+  // The caret is in the first header cell.
+  expect(group(host, "Table")).not.toBeNull();
+  expect(button(host, "Header row").getAttribute("aria-pressed")).toBe("true");
+  expect(button(host, "Insert row above").disabled).toBe(true);
+});
+
+test("the table bar shows only while the caret is in a table", async () => {
+  const { $, editor, host } = await mountField(`<p>p</p>${HEADER_TABLE}`);
+  await caretIn(editor, "p");
+  expect(group(host, "Table")).toBeNull();
+
+  await caretIn(editor, "a");
+  const bar = group(host, "Table");
+  expect(bar?.classList.contains("pe-rt-table")).toBe(true);
+  expect($(".pe-rt-bar")?.contains(bar)).toBe(true);
+  expect(tableBarButtons(host)).toEqual([
+    "Insert row above",
+    "Insert row below",
+    "Delete row",
+    "Insert column left",
+    "Insert column right",
+    "Delete column",
+    "Header row",
+    "Delete table",
+  ]);
+  for (const control of bar?.querySelectorAll("button") ?? []) {
+    expect(control.getAttribute("title")).toBe(
+      control.getAttribute("aria-label")
+    );
+  }
+  const labels = [...(bar?.querySelectorAll(".pe-rt-table__label") ?? [])];
+  expect(labels.map((label) => label.textContent)).toEqual(["Row", "Column"]);
+  expect(labels.every((label) => label.getAttribute("aria-hidden"))).toBe(true);
+  expect(button(host, "Insert row above").disabled).toBe(false);
+
+  await caretIn(editor, "p");
+  expect(group(host, "Table")).toBeNull();
+});
+
+test("in a cell, style, lists, table and divider are off", async () => {
+  const { $, editor, host } = await mountField(`<p>p</p>${HEADER_TABLE}`);
+  const select = () => $<HTMLSelectElement>('select[aria-label="Text style"]');
+  const off = ["Bullet list", "Numbered list", "Insert table"];
+
+  await caretIn(editor, "a");
+  expect(select()?.disabled).toBe(true);
+  for (const name of off) {
+    expect(button(host, name).disabled, name).toBe(true);
+  }
+  expect(button(host, "Bold").disabled).toBe(false);
+  await settle(() => press(button(host, "More formatting")));
+  expect(button(host, "Divider").disabled).toBe(true);
+  expect(button(host, "Strikethrough").disabled).toBe(false);
+  await settle(() => press(button(host, "More formatting")));
+
+  await caretIn(editor, "p");
+  expect(select()?.disabled).toBe(false);
+  for (const name of off) {
+    expect(button(host, name).disabled, name).toBe(false);
+  }
+});
+
+test("Header row reflects and toggles the first row", async () => {
+  const { editor, host, onChange } = await mountField(HEADER_TABLE);
+  await caretIn(editor, "h");
+  const header = () => button(host, "Header row");
+  expect(header().getAttribute("aria-pressed")).toBe("true");
+  expect(button(host, "Insert row above").disabled).toBe(true);
+
+  let down: MouseEvent | undefined;
+  await settle(() => {
+    down = press(header());
+  });
+  expect(down?.defaultPrevented).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith(
+    "<table><tbody><tr><td>h</td><td>i</td></tr><tr><td>a</td><td>b</td></tr></tbody></table>"
+  );
+  expect(header().getAttribute("aria-pressed")).toBe("false");
+  expect(button(host, "Insert row above").disabled).toBe(false);
+
+  await settle(() => press(header()));
+  expect(onChange).toHaveBeenLastCalledWith(HEADER_TABLE);
+});
+
+test("the table bar's row and column buttons edit the table", async () => {
+  const { editor, host, onChange } = await mountField(
+    "<table><tbody><tr><td>x</td></tr></tbody></table>"
+  );
+  await caretIn(editor, "x");
+  await settle(() => press(button(host, "Insert row below")));
+  expect(onChange).toHaveBeenLastCalledWith(
+    "<table><tbody><tr><td>x</td></tr><tr><td></td></tr></tbody></table>"
+  );
+  await settle(() => press(button(host, "Insert column right")));
+  expect(onChange).toHaveBeenLastCalledWith(
+    "<table><tbody><tr><td>x</td><td></td></tr><tr><td></td><td></td></tr></tbody></table>"
+  );
+  await settle(() => press(button(host, "Delete column")));
+  await settle(() => press(button(host, "Delete row")));
+  expect(onChange).toHaveBeenLastCalledWith(
+    "<table><tbody><tr><td></td></tr></tbody></table>"
+  );
+});
+
+test("Delete table removes it and hands the caret to the next line", async () => {
+  const { editor, focus, host, onChange } = await mountField(
+    `<p>a</p>${HEADER_TABLE}<p>b</p>`
+  );
+  await caretIn(editor, "i");
+  await settle(() => press(button(host, "Delete table")));
+  expect(onChange).toHaveBeenLastCalledWith("<p>a</p><p>b</p>");
+  expect(editor.selection?.focus.path).toEqual([1, 0]);
+  expect(group(host, "Table")).toBeNull();
+  // The bar it was pressed in is gone: focus goes back to the text.
+  expect(focus).toHaveBeenCalled();
+});
+
+test("Tab in a cell moves to the next cell and nests no list", async () => {
+  const { editable, editor, onChange } = await mountField(HEADER_TABLE);
+  await caretIn(editor, "h");
+  let tab: KeyboardEvent | undefined;
+  await settle(() => {
+    tab = keydown(editable(), { code: "Tab", key: "Tab" });
+  });
+  expect(tab?.defaultPrevented).toBe(true);
+  expect(editor.selection?.focus.path.slice(0, 3)).toEqual([0, 0, 1]);
+  expect(onChange).not.toHaveBeenCalled();
+
+  await settle(() => {
+    keydown(editable(), { code: "Tab", key: "Tab", shiftKey: true });
+  });
+  expect(editor.selection?.focus.path.slice(0, 3)).toEqual([0, 0, 0]);
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("Tab in the last cell adds a row and moves into it", async () => {
+  const { editable, editor, onChange } = await mountField(HEADER_TABLE);
+  await caretIn(editor, "b");
+  await settle(() => {
+    keydown(editable(), { code: "Tab", key: "Tab" });
+  });
+  expect(onChange).toHaveBeenLastCalledWith(
+    "<table><thead><tr><th>h</th><th>i</th></tr></thead><tbody><tr><td>a</td><td>b</td></tr><tr><td></td><td></td></tr></tbody></table>"
+  );
+  expect(editor.selection?.focus.path.slice(0, 3)).toEqual([0, 2, 0]);
+
+  // Shift+Tab in the first cell stays put.
+  await caretIn(editor, "h");
+  onChange.mockClear();
+  await settle(() => {
+    keydown(editable(), { code: "Tab", key: "Tab", shiftKey: true });
+  });
+  expect(editor.selection?.focus.path.slice(0, 3)).toEqual([0, 0, 0]);
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("typing '- ' in a cell starts no list", async () => {
+  const { editor, onChange } = await mountField(
+    "<table><tbody><tr><td>a</td><td></td></tr></tbody></table>"
+  );
+  await caretIn(editor, [0, 0, 1, 0, 0]);
+  await settle(() => {
+    editor.tf.insertText("-");
+    editor.tf.insertText(" ");
+  });
+  expect(onChange).toHaveBeenLastCalledWith(
+    "<table><tbody><tr><td>a</td><td>- </td></tr></tbody></table>"
+  );
+});
+
+test("the canvas draws the header row in a thead, as the page does", async () => {
+  const { editable, editor } = await mountField(HEADER_TABLE, "canvas");
+  const cells = (section: string) =>
+    [
+      ...(editable()
+        .querySelector("table")
+        ?.querySelectorAll(`:scope > ${section} > tr > *`) ?? []),
+    ].map((cell) => `${cell.tagName.toLowerCase()}:${cell.textContent}`);
+  expect(cells("thead")).toEqual(["th:h", "th:i"]);
+  expect(cells("tbody")).toEqual(["td:a", "td:b"]);
+
+  // The header group follows the first row as it changes.
+  await settle(() => editor.tf.setNodes({ type: "td" }, { at: [0, 0, 0] }));
+  expect(cells("thead")).toEqual([]);
+  expect(cells("tbody")).toEqual(["td:h", "th:i", "td:a", "td:b"]);
+  await settle(() => editor.tf.setNodes({ type: "th" }, { at: [0, 0, 0] }));
+  expect(cells("thead")).toEqual(["th:h", "th:i"]);
+  expect(cells("tbody")).toEqual(["td:a", "td:b"]);
+});
+
+test("the canvas bubble has no table controls", async () => {
+  const { editable, editor, host } = await mountField(
+    "<table><tbody><tr><td>cell</td></tr></tbody></table>",
+    "canvas"
+  );
+  await moveFocus(editor, editable(), null);
+  await settle(() => editor.tf.select(editor.api.range([0, 0, 0])));
+  expect(host.querySelector(".pe-rt-bubble")).not.toBeNull();
+  expect(button(host, "Insert table")).toBeUndefined();
+  expect(group(host, "Table")).toBeNull();
+  expect(editable().querySelector("thead")).toBeNull();
+  expect(editable().querySelectorAll("tbody > tr > td")).toHaveLength(1);
 });
