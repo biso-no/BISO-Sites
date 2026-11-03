@@ -8,11 +8,14 @@ import {
   test,
 } from "bun:test";
 import { Window } from "happy-dom";
+import type { PlateEditor } from "platejs/react";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { PatchFn } from "@/blocks/types";
-import { doc } from "@/editor/test-fixtures";
+import { useEditorStore } from "@/editor/store";
+import { doc, section } from "@/editor/test-fixtures";
+import { findBlock } from "@/editor/tree";
 import type { TextBlock } from "@/editor/types";
 import { TextInspector } from "./inspector";
 import { TextRender } from "./render";
@@ -326,6 +329,83 @@ test("an Escape something inside handled keeps the wide view open", async () => 
     keydown(field, { key: "Escape" });
   });
   expect(wideView()).toBeNull();
+});
+
+// A click on the panel's chrome moves focus out of the field: Escape there
+// still closes the view.
+test("Escape closes the wide view wherever focus is", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  await settle(() => expandButton(host).click());
+  const view = wideView() as HTMLElement;
+  // The panel takes focus from a click on its chrome.
+  expect(view.getAttribute("tabindex")).toBe("-1");
+
+  (document.activeElement as HTMLElement | null)?.blur();
+  expect(document.activeElement).toBe(document.body);
+  let escapeKey: KeyboardEvent | undefined;
+  await settle(() => {
+    escapeKey = keydown(document.body, { key: "Escape" });
+  });
+  expect(escapeKey?.defaultPrevented).toBe(true);
+  expectPanel(host);
+});
+
+test("once the wide view is closed, Escape is no longer its own", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  await settle(() => expandButton(host).click());
+  await settle(() => button(wideView() as HTMLElement, "Close").click());
+  expectPanel(host);
+
+  let escapeKey: KeyboardEvent | undefined;
+  await settle(() => {
+    escapeKey = keydown(document.body, { key: "Escape" });
+  });
+  expect(escapeKey?.defaultPrevented).toBe(false);
+});
+
+/** Block `b1` of the page store in the inspector, written back to the store. */
+function StoreInspector() {
+  const block = useEditorStore((s) => findBlock(s.doc, "b1")?.block);
+  const setProp = useEditorStore((s) => s.setProp);
+  const pageDoc = useEditorStore((s) => s.doc);
+  return createElement(TextInspector, {
+    block: block as TextBlock,
+    doc: pageDoc,
+    onPatch: (path, value, options) => setProp("b1", path, value, options),
+  });
+}
+
+test("text typed in the wide view reaches the page and the panel field", async () => {
+  useEditorStore.getState().setDoc(doc(section("s-1", "1", [["b1"]])));
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ host, root });
+  await settle(() => root.render(createElement(StoreInspector)));
+  await settle(() => expandButton(host).click());
+
+  // The field's editor, from its editable. Loaded here, not at the top:
+  // slate-dom reads the DOM it first loads in.
+  const { ELEMENT_TO_NODE } = await import("slate-dom");
+  const editable = wideView()?.querySelector("[contenteditable]");
+  const editor = ELEMENT_TO_NODE.get(
+    editable as HTMLElement
+  ) as unknown as PlateEditor;
+  await settle(() => {
+    editor.tf.select(editor.api.end([]));
+    editor.tf.insertText(" Written wide.");
+  });
+  const body = findBlock(useEditorStore.getState().doc, "b1")?.block as
+    | TextBlock
+    | undefined;
+  expect(body?.body).toContain("Written wide.");
+
+  await settle(() => button(wideView() as HTMLElement, "Close").click());
+  expectPanel(host);
+  const panel = host.querySelector(".pe-insp-section [contenteditable]");
+  expect(panel?.textContent).toContain("Written wide.");
 });
 
 test("a click on the scrim keeps the wide view open", async () => {

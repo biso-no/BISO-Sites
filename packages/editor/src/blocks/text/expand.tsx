@@ -1,6 +1,6 @@
 "use client";
 
-import { type KeyboardEvent, Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import type { PatchFn } from "@/blocks/types";
 import type { TextBlock } from "@/editor/types";
 import { bodyPatch, bodyToHtml } from "./body";
@@ -21,9 +21,11 @@ interface TextExpandViewProps {
  * Drawn in place, not in a portal, so the editor's theme and dark mode reach
  * it as they reach `.pe-confirm`.
  *
- * Close or Escape closes it. A press on the scrim does not, so a stray click
- * never ends the writing. An Escape that a control inside took first (the
- * link input, an open popover) leaves it open.
+ * Close or Escape closes it, wherever focus is while it is open: a click on
+ * the panel's chrome focuses the panel. A press on the scrim does not, so a
+ * stray click never ends the writing. An Escape that a control inside took
+ * first (the link input, an open popover) leaves it open. The panel scrolls
+ * on a window too short for it.
  */
 export function TextExpandView({
   block,
@@ -31,26 +33,28 @@ export function TextExpandView({
   onPageHistory,
   onPatch,
 }: TextExpandViewProps) {
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && !event.defaultPrevented) {
-      event.preventDefault();
-      onClose();
-    }
-  };
+  // On the document, as the event bubbles: the link input's handler and the
+  // popovers' capturing listener run before it, and stop or prevent the key
+  // they take.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   return (
     <div className="pe-rt-expand">
-      {/* The dialog hears Escape from the controls inside it. A React
-          handler, not a DOM listener on the panel: the link input's handler
-          and the popovers' document listener run before it, and stop or
-          prevent the key they take. */}
-      {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: Escape from its controls, see above. */}
       <div
         aria-label="Text"
         aria-modal="true"
         className="pe-rt-expand__panel"
-        onKeyDown={onKeyDown}
         role="dialog"
+        tabIndex={-1}
       >
         <div className="pe-rt-expand__hd">
           <span className="pe-insp-section__h">Text</span>
