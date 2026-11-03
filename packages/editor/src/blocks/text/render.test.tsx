@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { TextBlock } from "@/editor/types";
 import { TextRender } from "./render";
+import { RICH_CLASS } from "./render-classes";
 import { RICH_ATTR } from "./test-support";
 
 const block = (text: string): TextBlock => ({
@@ -105,5 +106,27 @@ describe("TextRender with an HTML body", () => {
 
   test("a blank string body renders nothing on the site", () => {
     expect(renderBody("<p> </p>")).toBe("");
+  });
+
+  test("a table body renders inside the rich wrapper as stored", () => {
+    const table =
+      '<table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td colspan="2">Ada</td></tr></tbody></table>';
+    expect(renderBody(`<p>x</p>${table}`)).toBe(
+      `<div class="${RICH_ATTR}"><p>x</p>${table}</div>`
+    );
+  });
+
+  test("tables scroll inside themselves", () => {
+    for (const c of [
+      "[&_table]:block",
+      "[&_table]:overflow-x-auto",
+      "[&_table]:max-w-full",
+    ]) {
+      expect(RICH_CLASS).toContain(c);
+    }
+  });
+
+  test("table cells wrap long words as body copy does", () => {
+    expect(RICH_CLASS).toContain("[&_:is(th,td)]:[overflow-wrap:anywhere]");
   });
 });

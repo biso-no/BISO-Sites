@@ -277,6 +277,32 @@ test("a coloured run shows as its token span on the canvas", async () => {
   expect(a.spy).not.toHaveBeenCalled();
 });
 
+test("a stored table is a real table on the canvas", async () => {
+  const a = field();
+  const { editables, render } = mount(a);
+  await render(
+    '<table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td colspan="2">Ada</td></tr></tbody></table>'
+  );
+
+  const table = editables()[0]?.querySelector("table");
+  const header = table?.querySelectorAll(":scope > tbody > tr > th");
+  expect([...(header ?? [])].map((th) => th.textContent)).toEqual([
+    "Name",
+    "Role",
+  ]);
+  const merged = table?.querySelector(':scope > tbody > tr > td[colspan="2"]');
+  expect(merged?.textContent).toBe("Ada");
+  expect(merged?.hasAttribute("rowspan")).toBe(false);
+  // Plain tags, so the canvas wears the public classes.
+  for (const tag of ["table", "tr", "th", "td"]) {
+    expect(
+      editables()[0]?.querySelector(tag)?.getAttribute("class")
+    ).toBeNull();
+  }
+  await advance(TAKE_DELAY);
+  expect(a.spy).not.toHaveBeenCalled();
+});
+
 test("typing emits the new HTML", async () => {
   const a = field();
   const { render } = mount(a);

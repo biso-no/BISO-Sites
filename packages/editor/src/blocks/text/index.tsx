@@ -19,7 +19,7 @@ function TextThumb() {
 registerBlock({
   type: "text",
   label: "Rich text",
-  description: "Headings, paragraphs, lists",
+  description: "Headings, paragraphs, lists, tables",
   category: "Tell a story",
   group: "text",
   aiHint: "A rich-text block with headings and paragraphs.",

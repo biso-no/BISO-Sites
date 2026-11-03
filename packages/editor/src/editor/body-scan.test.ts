@@ -5,6 +5,8 @@ const CANONICAL = [
   '<h2>T</h2><p>a <strong>b</strong> <a href="https://biso.no?a=1&amp;b=2">l</a><br>c</p>',
   '<ul><li>x<ul><li>y</li></ul></li></ul><ol start="3"><li>z</li></ol><hr><blockquote>q &gt; r</blockquote>',
   '<p><span data-color="accent">a</span></p>',
+  '<table><thead><tr><th colspan="2">h</th></tr></thead><tbody><tr><td rowspan="2">a</td><td>b</td></tr></tbody></table>',
+  '<table><tbody><tr><th>Row</th><td colspan="2" rowspan="3">a<br>b</td></tr></tbody></table>',
   "plain text, no tags",
   "",
 ];
@@ -33,6 +35,13 @@ test.each([
   "<p\n>x</p>",
   '<a  href="x">y</a>',
   '<b data-color="accent">a</b>',
+  "<table><tfoot><tr><td>f</td></tr></tfoot></table>",
+  "<table><caption>c</caption><tbody><tr><td>a</td></tr></tbody></table>",
+  "<table><colgroup><col></colgroup><tbody><tr><td>a</td></tr></tbody></table>",
+  '<table border="1"><tbody><tr><td>a</td></tr></tbody></table>',
+  '<table><tbody><tr colspan="2"><td>a</td></tr></tbody></table>',
+  '<table><tbody><tr><td scope="col">a</td></tr></tbody></table>',
+  '<p colspan="2">a</p>',
 ])("rejects anything else: %s", (html) =>
   expect(scanBody(html, 100)).toBe("other"));
 

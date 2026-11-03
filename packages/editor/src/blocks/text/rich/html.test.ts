@@ -1,7 +1,14 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { Window } from "happy-dom";
-import { type Descendant, deserializeHtml, type Value } from "platejs";
+import {
+  type Descendant,
+  deserializeHtml,
+  ElementApi,
+  type TElement,
+  type Value,
+} from "platejs";
 import { legacyBodyToHtml } from "../body";
+import { toggleRichList } from "./commands";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
 import { effectiveDepths } from "./list-item-parse";
 
@@ -30,6 +37,11 @@ const ROUND_TRIP = [
   '<p><span data-color="accent">a</span> <span data-color="red"><strong>b</strong></span></p>',
   '<h2><span data-color="muted">T</span></h2><ul><li><span data-color="green">x</span></li></ul>',
   '<p><a href="https://biso.no"><span data-color="amber">l</span></a></p>',
+  "<table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Ada</td><td><strong>Lead</strong></td></tr></tbody></table>",
+  '<table><tbody><tr><td colspan="2">a</td></tr><tr><td rowspan="2">b</td><td>c</td></tr><tr><td>d</td></tr></tbody></table>',
+  "<p>x</p><table><tbody><tr><td>a<br>b</td><td></td></tr></tbody></table><ul><li>y</li></ul>",
+  '<table><tbody><tr><th>Row</th><td><a href="https://biso.no">l</a> <span data-color="red">r</span></td></tr></tbody></table>',
+  "<table><thead><tr><th>Only header</th></tr></thead></table>",
 ];
 
 test.each(ROUND_TRIP)("round-trips %s", (html) =>
@@ -198,10 +210,242 @@ test.each([
   ["<ul><li><p>a</p><p>b</p></li></ul>", "<ul><li>a<br>b</li></ul>"],
   [
     "<p>a</p><table><tr><td>c1</td><td>c2</td></tr></table>",
-    "<p>a</p><p>c1</p><p>c2</p>",
+    "<p>a</p><table><tbody><tr><td>c1</td><td>c2</td></tr></tbody></table>",
   ],
 ])("line and cell blocks stay apart: %s", (html, out) =>
   expect(valueToHtml(htmlToValue(html))).toBe(out));
+
+test.each([
+  [
+    "<table><tr><th>h</th></tr><tr><td>a</td></tr></table>",
+    "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<table><thead><tr><td>h</td></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+    "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<table><caption>Contacts</caption><colgroup><col></colgroup><tbody><tr><td>a</td></tr></tbody><tfoot><tr><td>sum</td></tr></tfoot></table>",
+    "<p>Contacts</p><table><tbody><tr><td>a</td></tr><tr><td>sum</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tbody><tr><td><p>a</p><p>b</p></td><td><ul><li>c</li><li>d</li></ul></td></tr></tbody></table>",
+    "<table><tbody><tr><td>a<br>b</td><td>c<br>d</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tbody><tr><td>a<table><tbody><tr><td>b</td><td>c</td></tr></tbody></table></td></tr></tbody></table>",
+    "<table><tbody><tr><td>a<br>b<br>c</td></tr></tbody></table>",
+  ],
+  [
+    "<ul><li>x<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table></li></ul>",
+    "<ul><li>x<br>a<br>b</li></ul>",
+  ],
+  [
+    "<blockquote><table><tbody><tr><td>q</td></tr></tbody></table></blockquote>",
+    "<blockquote>q</blockquote>",
+  ],
+  ["<table></table><p>x</p>", "<p>x</p>"],
+  [
+    "<table><tbody><tr><td></td></tr></tbody></table>",
+    "<table><tbody><tr><td></td></tr></tbody></table>",
+  ],
+  [
+    '<table><thead><tr><td colspan="2">h</td></tr></thead><tbody><tr><td>a</td><td>b</td></tr></tbody></table>',
+    '<table><thead><tr><th colspan="2">h</th></tr></thead><tbody><tr><td>a</td><td>b</td></tr></tbody></table>',
+  ],
+  [
+    "<table><tbody><tr><td><p></p><p>a</p><hr><p>b</p><p><br></p></td></tr></tbody></table>",
+    "<table><tbody><tr><td>a<br>b</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tbody><tr><td><h2>H</h2><blockquote>q</blockquote></td></tr></tbody></table>",
+    "<table><tbody><tr><td>H<br>q</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tbody><tr></tr><tr><td>a</td></tr></tbody></table>",
+    "<table><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+])("stored table %s is read as %s", (input, out) =>
+  expect(valueToHtml(htmlToValue(input))).toBe(out));
+
+// A caption is its table's title: a line of its own just before it, wherever
+// the table sits, never words run into the text beside it.
+test.each([
+  [
+    "<p>x</p><table><caption>Board</caption><tbody><tr><td>a</td></tr></tbody></table>",
+    "<p>x</p><p>Board</p><table><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<ul><li>x<table><caption>Board</caption><tbody><tr><td>a</td></tr></tbody></table></li></ul>",
+    "<ul><li>x<br>Board<br>a</li></ul>",
+  ],
+  [
+    "<blockquote>x<table><caption>Board</caption><tbody><tr><td>q</td></tr></tbody></table></blockquote>",
+    "<blockquote>x<br>Board<br>q</blockquote>",
+  ],
+  [
+    "<table><tbody><tr><td>a<table><caption>Board</caption><tbody><tr><td>b</td></tr></tbody></table></td></tr></tbody></table>",
+    "<table><tbody><tr><td>a<br>Board<br>b</td></tr></tbody></table>",
+  ],
+  [
+    "<table><caption><p>Board</p><p>2026</p></caption><tbody><tr><td>a</td></tr></tbody></table>",
+    "<p>Board</p><p>2026</p><table><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<h2>T<table><caption>Board</caption><tbody><tr><td>a</td><td>b</td></tr></tbody></table></h2>",
+    "<h2>T<br>Board<br>a<br>b</h2>",
+  ],
+])("a caption is a line before its table: %s", (input, out) =>
+  expect(valueToHtml(htmlToValue(input))).toBe(out));
+
+test("a list made inside a cell is a plain line again", () => {
+  const html = "<table><tbody><tr><td>a</td></tr></tbody></table>";
+  const editor = createConversionEditor();
+  editor.tf.setValue(htmlToValue(html));
+  editor.tf.select(editor.api.start([0, 0, 0]));
+  toggleRichList(editor, "disc");
+  editor.tf.normalize({ force: true });
+
+  const [cellBlock] = editor.api.nodes<TElement>({
+    at: [0, 0, 0],
+    match: (node) => ElementApi.isElement(node) && node.type === "p",
+  });
+  expect(cellBlock?.[0]).toEqual({ type: "p", children: [{ text: "a" }] });
+  expect(valueToHtml(editor.children)).toBe(html);
+});
+
+test("a cell holds plain lines: no heading, list item or divider", () => {
+  const editor = createConversionEditor();
+  editor.tf.setValue([
+    {
+      type: "table",
+      children: [
+        {
+          type: "tr",
+          children: [
+            {
+              type: "td",
+              children: [
+                { type: "h2", children: [{ text: "a" }] },
+                { type: "hr", children: [{ text: "" }] },
+                {
+                  type: "blockquote",
+                  indent: 2,
+                  listStart: 3,
+                  listStyleType: "decimal",
+                  children: [{ text: "b" }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+  editor.tf.normalize({ force: true });
+  expect(editor.children[0]).toEqual({
+    type: "table",
+    children: [
+      {
+        type: "tr",
+        children: [
+          {
+            type: "td",
+            children: [
+              { type: "p", children: [{ text: "a" }] },
+              { type: "p", children: [{ text: "b" }] },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+});
+
+const line = (text: string): TElement => ({ type: "p", children: [{ text }] });
+
+test("cells write the spans Plate holds, as numbers or attributes, 2 to 20", () => {
+  expect(
+    valueToHtml([
+      {
+        type: "table",
+        children: [
+          {
+            type: "tr",
+            children: [
+              { type: "th", colSpan: 2, children: [line("a")] },
+              {
+                type: "th",
+                attributes: { rowspan: "3" },
+                children: [line("b")],
+              },
+            ],
+          },
+          { type: "tr", children: [{ text: "" }] },
+          {
+            type: "tr",
+            children: [
+              { type: "td", colSpan: 21, rowSpan: 1, children: [line("c")] },
+              {
+                type: "td",
+                children: [line(""), line("d"), line(" "), line("e")],
+              },
+            ],
+          },
+        ],
+      },
+    ])
+  ).toBe(
+    '<table><thead><tr><th colspan="2">a</th><th rowspan="3">b</th></tr></thead><tbody><tr><td>c</td><td>d<br>e</td></tr></tbody></table>'
+  );
+});
+
+test("a table with no cell writes nothing; one with empty cells is kept", () => {
+  expect(
+    valueToHtml([
+      { type: "table", children: [{ text: "" }] },
+      { type: "table", children: [{ type: "tr", children: [{ text: "" }] }] },
+    ])
+  ).toBe("");
+  expect(
+    valueToHtml([
+      {
+        type: "table",
+        children: [
+          { type: "tr", children: [{ type: "td", children: [line("")] }] },
+        ],
+      },
+    ])
+  ).toBe("<table><tbody><tr><td></td></tr></tbody></table>");
+});
+
+test("a table ends the list before it", () => {
+  expect(
+    valueToHtml([
+      {
+        type: "p",
+        indent: 1,
+        listStyleType: "disc",
+        children: [{ text: "a" }],
+      },
+      {
+        type: "table",
+        children: [
+          { type: "tr", children: [{ type: "td", children: [line("b")] }] },
+        ],
+      },
+    ])
+  ).toBe(
+    "<ul><li>a</li></ul><table><tbody><tr><td>b</td></tr></tbody></table>"
+  );
+});
+
+test("the value never ends with a table or a divider", () => {
+  expect(htmlToValue("<p>a</p><hr>").at(-1)).toMatchObject({ type: "p" });
+  expect(
+    htmlToValue("<table><tbody><tr><td>a</td></tr></tbody></table>").at(-1)
+  ).toMatchObject({ type: "p" });
+});
 
 test("empty leaves and empty links print nothing", () => {
   expect(

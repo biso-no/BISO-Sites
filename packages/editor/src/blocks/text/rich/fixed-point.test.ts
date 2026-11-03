@@ -37,7 +37,7 @@ const URLS = [
   "mailto:it@biso.no",
   "javascript:x",
 ] as const;
-const BLOCKS = ["p", "h2", "h3", "blockquote", "hr", "list"] as const;
+const BLOCKS = ["p", "h2", "h3", "blockquote", "hr", "list", "table"] as const;
 const LIST_STYLES = ["disc", "decimal"] as const;
 
 function randomValues(count: number): Value[] {
@@ -124,6 +124,38 @@ function randomValues(count: number): Value[] {
     return item;
   };
 
+  /** Some cells span 1 to 3 columns or rows, as Plate's merge writes it. */
+  const cell = (type: "td" | "th"): TElement => {
+    const node: TElement = {
+      type,
+      children: Array.from({ length: int(1, 2) }, () => ({
+        type: "p",
+        children: inline(),
+      })),
+    };
+    if (int(0, 3) === 0) {
+      node.colSpan = int(1, 3);
+    }
+    if (int(0, 3) === 0) {
+      node.rowSpan = int(1, 3);
+    }
+    return node;
+  };
+
+  /** 1 to 4 rows of 1 to 4 cells; the first is a header row half the time. */
+  const table = (): TElement => {
+    const header = chance();
+    return {
+      type: "table",
+      children: Array.from({ length: int(1, 4) }, (_, row) => ({
+        type: "tr",
+        children: Array.from({ length: int(1, 4) }, () =>
+          cell(header && row === 0 ? "th" : "td")
+        ),
+      })),
+    };
+  };
+
   const blocks = (): TElement[] => {
     const kind = pick(BLOCKS);
     if (kind === "hr") {
@@ -131,6 +163,9 @@ function randomValues(count: number): Value[] {
     }
     if (kind === "list") {
       return Array.from({ length: int(1, 4) }, listItem);
+    }
+    if (kind === "table") {
+      return [table()];
     }
     return [{ type: kind, children: inline() }];
   };
@@ -158,6 +193,14 @@ test("the random values hold every feature the serializer writes", () => {
     "<h3>",
     "<blockquote>",
     "<hr>",
+    "<table><thead><tr><th",
+    "<table><tbody><tr><td",
+    "</td></tr><tr><td",
+    "<td></td>",
+    ' colspan="2"',
+    ' colspan="3"',
+    ' rowspan="2"',
+    ' rowspan="3"',
     "<br>",
     " ",
     "&amp;",
@@ -168,6 +211,8 @@ test("the random values hold every feature the serializer writes", () => {
     expect(html).toContain(feature);
   }
   expect(html).toMatch(NESTED_LIST_END);
+  // A span of 1 is redundant and left out.
+  expect(html).not.toContain('span="1"');
   expect(html).not.toContain("javascript:");
   expect(html).not.toContain("pink");
 });

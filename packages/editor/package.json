@@ -34,6 +34,7 @@
     "@platejs/indent": "catalog:",
     "@platejs/link": "catalog:",
     "@platejs/list": "catalog:",
+    "@platejs/table": "catalog:",
     "@repo/shared": "workspace:*",
     "@repo/ui": "workspace:*",
     "ai": "catalog:",

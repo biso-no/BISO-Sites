@@ -18,6 +18,20 @@ export const INLINE_TAGS: readonly string[] = [
   "span",
 ];
 
+/**
+ * A table: an optional header row in `thead`, the other rows in `tbody`.
+ * A caption, `tfoot` and `colgroup` are rewritten before a body is stored
+ * (`rich/structure.ts`), so neither sanitiser keeps them.
+ */
+export const TABLE_TAGS: readonly string[] = [
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+];
+
 /** What a text block's HTML body may hold. */
 export const BODY_TAGS: readonly string[] = [
   ...INLINE_TAGS,
@@ -31,6 +45,7 @@ export const BODY_TAGS: readonly string[] = [
   "hr",
   "u",
   "s",
+  ...TABLE_TAGS,
 ];
 
 /** The body tags that never hold content and are written without an end tag. */
@@ -63,6 +78,9 @@ export const SAFE_HREF = /^(?:https?:|mailto:|tel:|[/#?.])/i;
 /** `ol[start]`: one to four digits, no leading zero. A start of 1 is dropped as redundant. */
 export const OL_START = /^[1-9]\d{0,3}$/;
 
+/** `th`/`td` `colspan` and `rowspan`: 2 to 20, no leading zero. */
+export const CELL_SPAN = /^(?:[2-9]|1\d|20)$/;
+
 /** An attribute's value as a body tag keeps it, or `null` to drop it. */
 export type AttributeRule = (value: string) => string | null;
 
@@ -75,6 +93,15 @@ export function keptHref(value: string): string | null {
 export function keptOlStart(value: string): string | null {
   const trimmed = value.trim();
   return OL_START.test(trimmed) && Number(trimmed) >= 2 ? trimmed : null;
+}
+
+/**
+ * A cell's `colspan` or `rowspan` worth keeping, trimmed: 2 to 20. A span of
+ * 1 is redundant and goes, as does anything else.
+ */
+export function keptCellSpan(value: string): string | null {
+  const trimmed = value.trim();
+  return CELL_SPAN.test(trimmed) ? trimmed : null;
 }
 
 /**
@@ -96,6 +123,8 @@ export const BODY_ATTRIBUTE_RULES: Readonly<
   a: { href: keptHref },
   ol: { start: keptOlStart },
   span: { "data-color": keptColourToken },
+  th: { colspan: keptCellSpan, rowspan: keptCellSpan },
+  td: { colspan: keptCellSpan, rowspan: keptCellSpan },
 };
 
 /** The attribute names `BODY_ATTRIBUTE_RULES` lets each tag keep. */

@@ -422,7 +422,9 @@ html {
     line-height: 1.6;
   }
 
-  .type-body-sm {
+  .type-body-sm,
+  .pg-rich :is(th, td),
+  .pg-rich :is(th, td) p {
     font-family: var(--font-sans);
     font-size: 0.875rem;
     font-weight: 400;

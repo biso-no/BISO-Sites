@@ -278,8 +278,8 @@ test("paragraphs inside a list item or a quote are joined by line breaks", () =>
   ).toBe("<ul><li>a<br>b</li></ul><blockquote>c<br>d</blockquote>");
 });
 
-// Line-per-block sources. Plate has no parser for div, td, th, dt or dd, so
-// without the structure step their lines and cells ran together.
+// Line-per-block sources. Plate has no parser for div, dt or dd, so without
+// the structure step their lines ran together.
 const GMAIL =
   '<div dir="ltr"><div>Velkommen til semesteret.</div><div>Mvh Ola</div></div>';
 const GMAIL_FIRST_LINE_BARE =
@@ -311,21 +311,26 @@ test.each([
     "<p>Hei alle,</p><p>Møtet flyttes til <strong>torsdag</strong>.</p><p>Hilsen Kari</p>",
   ],
   [
-    "a Google Sheets 2×2 table",
-    SHEETS_TABLE,
-    '<p>Name</p><p>Email</p><p>Kari</p><p><a href="mailto:kari@biso.no">kari@biso.no</a></p>',
-  ],
-  [
-    "a web table with a caption and header cells",
-    WEB_TABLE,
-    "<p>Board</p><p>Name</p><p>Email</p><p>Kari</p><p>kari@biso.no</p>",
-  ],
-  [
     "a definition list",
     "<dl><dt>Fadder</dt><dd>A student who shows new students around.</dd></dl>",
     "<p>Fadder</p><p>A student who shows new students around.</p>",
   ],
-])("%s pastes one paragraph per line or cell", (_, html, out) => {
+])("%s pastes one paragraph per line", (_, html, out) => {
+  expect(pasteInto(html)).toBe(out);
+});
+
+test.each([
+  [
+    "a Google Sheets 2×2 table",
+    SHEETS_TABLE,
+    '<table><tbody><tr><td>Name</td><td>Email</td></tr><tr><td>Kari</td><td><a href="mailto:kari@biso.no">kari@biso.no</a></td></tr></tbody></table>',
+  ],
+  [
+    "a web table with a caption and header cells",
+    WEB_TABLE,
+    "<p>Board</p><table><thead><tr><th>Name</th><th>Email</th></tr></thead><tbody><tr><td>Kari</td><td>kari@biso.no</td></tr></tbody></table>",
+  ],
+])("%s pastes as a table", (_, html, out) => {
   expect(pasteInto(html)).toBe(out);
 });
 

@@ -13,6 +13,13 @@ import { IndentPlugin } from "@platejs/indent/react";
 import { LinkPlugin } from "@platejs/link/react";
 import { toggleList } from "@platejs/list";
 import { ListPlugin } from "@platejs/list/react";
+import { getColSpan, getRowSpan } from "@platejs/table";
+import {
+  TableCellHeaderPlugin,
+  TableCellPlugin,
+  TablePlugin,
+  TableRowPlugin,
+} from "@platejs/table/react";
 import {
   type AnySlatePlugin,
   isHotkey,
@@ -32,7 +39,7 @@ import {
   toPlatePlugin,
 } from "platejs/react";
 import type { KeyboardEvent } from "react";
-import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
+import { keptCellSpan, keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { handleListTab } from "./commands";
 import { isListItem } from "./html";
 import { ORDERED_LIST_STYLES } from "./list-item-parse";
@@ -42,6 +49,7 @@ import {
   linkHtmlParse,
   listItemHtmlParse,
   RichColourPlugin,
+  RichShapePlugin,
 } from "./plugins";
 
 type BlockTag = "blockquote" | "h2" | "h3" | "p";
@@ -96,6 +104,58 @@ function HrElement(props: PlateElementProps) {
     </PlateElement>
   );
 }
+
+/**
+ * A table as plain tags, every row in one `<tbody>`, so the canvas wears the
+ * public classes; the page puts an all-`th` first row in a `<thead>`.
+ */
+function TableElement(props: PlateElementProps) {
+  return (
+    <PlateElement {...props} as="table" attributes={plainAttributes(props)}>
+      <tbody>{props.children}</tbody>
+    </PlateElement>
+  );
+}
+
+function TableRowElement(props: PlateElementProps) {
+  return (
+    <PlateElement {...props} as="tr" attributes={plainAttributes(props)} />
+  );
+}
+
+/** A span as the page stores it: 2 to 20, or none. */
+const keptSpan = (span: number): number | undefined =>
+  keptCellSpan(String(span)) === null ? undefined : span;
+
+/**
+ * A cell with the spans the page will store, by Plate's reading of them, in
+ * place of the parsed `colspan`/`rowspan` Plate passes on as attributes.
+ */
+const cellElement = (tag: "td" | "th") =>
+  function CellElement(props: PlateElementProps) {
+    const {
+      colspan: _colspan,
+      colSpan: _colSpan,
+      rowspan: _rowspan,
+      rowSpan: _rowSpan,
+      ...attributes
+    } = props.attributes;
+    return (
+      <PlateElement
+        {...props}
+        as={tag}
+        attributes={{
+          ...attributes,
+          className: undefined,
+          colSpan: keptSpan(getColSpan(props.element)),
+          rowSpan: keptSpan(getRowSpan(props.element)),
+        }}
+      />
+    );
+  };
+
+const TableCellElement = cellElement("td");
+const TableCellHeaderElement = cellElement("th");
 
 /**
  * The stored `href` by the sanitisers' rule, not Plate's URL check, so the
@@ -297,6 +357,13 @@ export const richReactPlugins: (AnyPlatePlugin | AnySlatePlugin)[] = [
   }),
   // The last leaf plugin, so its span wraps the marks, as the save writes it.
   toPlatePlugin(RichColourPlugin).withComponent(ColourLeaf),
+  TablePlugin.configure({ options: { disableMarginLeft: true } }).withComponent(
+    TableElement
+  ),
+  TableRowPlugin.withComponent(TableRowElement),
+  TableCellPlugin.withComponent(TableCellElement),
+  TableCellHeaderPlugin.withComponent(TableCellHeaderElement),
+  RichShapePlugin,
   AutoformatPlugin.configure({ options: { rules: LIST_RULES } }),
   // After the indent plugin, so its `tab` wraps the indent plugin's.
   RichKeysPlugin,

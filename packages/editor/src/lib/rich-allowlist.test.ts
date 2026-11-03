@@ -52,7 +52,10 @@ const CASES: [string, string][] = [
   ['<a href="mailto:a@b.no">x</a>', '<a href="mailto:a@b.no">x</a>'],
   ['<a href="tel:+4712345678">x</a>', '<a href="tel:+4712345678">x</a>'],
   ["<script>alert(1)</script><style>p{}</style><p>ok</p>", "<p>ok</p>"],
-  ["<h1>Big</h1><table><tr><td>c</td></tr></table>", "Bigc"],
+  [
+    "<h1>Big</h1><table><tr><td>c</td></tr></table>",
+    "Big<table><tbody><tr><td>c</td></tr></tbody></table>",
+  ],
   ["<img src=x onerror=alert(1)><p>t</p>", "<p>t</p>"],
   [
     "<p><u>u</u> <s>s</s></p><hr><blockquote>q</blockquote>",
@@ -75,6 +78,51 @@ const CASES: [string, string][] = [
     '<p><span data-color="muted">a</span></p>',
   ],
   ['<p><b data-color="accent">a</b></p>', "<p><b>a</b></p>"],
+  [
+    "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+    "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    '<table><tbody><tr><td colspan="2" rowspan="3">a</td></tr></tbody></table>',
+    '<table><tbody><tr><td colspan="2" rowspan="3">a</td></tr></tbody></table>',
+  ],
+  [
+    '<table><tbody><tr><td colspan="21" rowspan="1">a</td><td colspan="x">b</td><td rowspan="02">c</td></tr></tbody></table>',
+    "<table><tbody><tr><td>a</td><td>b</td><td>c</td></tr></tbody></table>",
+  ],
+  [
+    '<table border="1" style="x" class="y"><tbody><tr><td width="5" scope="col" class="z">a</td></tr></tbody></table>',
+    "<table><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tfoot><tr><td>f</td></tr></tfoot></table>",
+    "<table><tbody><tr><td>f</td></tr></tbody></table>",
+  ],
+  // Spans: integers 2 to 20, trimmed; 1 is redundant and goes.
+  [
+    '<table><tbody><tr><td colspan="0">a</td><td colspan="1">b</td><td colspan="2">c</td><td colspan="20">d</td><td colspan="21">e</td><td colspan="2x">f</td><td colspan=" 3 ">g</td></tr></tbody></table>',
+    '<table><tbody><tr><td>a</td><td>b</td><td colspan="2">c</td><td colspan="20">d</td><td>e</td><td>f</td><td colspan="3">g</td></tr></tbody></table>',
+  ],
+  [
+    '<table><tbody><tr><th rowspan="0">a</th><th rowspan="1">b</th><th rowspan="2">c</th><th rowspan="20">d</th><th rowspan="21">e</th><th rowspan="2x">f</th></tr></tbody></table>',
+    '<table><tbody><tr><th>a</th><th>b</th><th rowspan="2">c</th><th rowspan="20">d</th><th>e</th><th>f</th></tr></tbody></table>',
+  ],
+  [
+    '<table><tbody><tr><th colspan="2">Row</th><td>a</td></tr></tbody></table>',
+    '<table><tbody><tr><th colspan="2">Row</th><td>a</td></tr></tbody></table>',
+  ],
+  [
+    '<table colspan="2"><tbody rowspan="2"><tr colspan="2"><td>a</td></tr></tbody></table>',
+    "<table><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tbody><tr><td>a<table><tbody><tr><td>b</td></tr></tbody></table></td></tr></tbody></table>",
+    "<table><tbody><tr><td>a<table><tbody><tr><td>b</td></tr></tbody></table></td></tr></tbody></table>",
+  ],
+  [
+    "<table><caption>C</caption><colgroup><col></colgroup><tbody><tr><td>a</td></tr></tbody></table>",
+    "<table>C<tbody><tr><td>a</td></tr></tbody></table>",
+  ],
 ];
 
 describe("body sanitisers", () => {

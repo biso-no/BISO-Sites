@@ -1,3 +1,4 @@
+import { getColSpan, getRowSpan } from "@platejs/table";
 import {
   type AnySlatePlugin,
   createSlateEditor,
@@ -9,7 +10,7 @@ import {
   type TText,
   type Value,
 } from "platejs";
-import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
+import { keptCellSpan, keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseInert, sanitizeRichBody } from "@/lib/sanitize";
 import {
   effectiveDepths,
@@ -155,6 +156,20 @@ function keepLineBreaks(root: HTMLElement): void {
 }
 
 /**
+ * Each cell's lines in one paragraph, as Plate's table normaliser would
+ * wrap them. Done here it costs nothing; done by the normaliser, one cell at
+ * a time, it runs the list normaliser after every wrap: 20 ms for a 4×4
+ * table.
+ */
+function cellParagraphs(root: HTMLElement): void {
+  for (const cell of Array.from(root.querySelectorAll("td, th"))) {
+    const paragraph = cell.ownerDocument.createElement("p");
+    paragraph.append(...Array.from(cell.childNodes));
+    cell.append(paragraph);
+  }
+}
+
+/**
  * Stored body HTML as a normalised Plate value; never `[]`. The structure
  * step runs before the sanitiser, which would unwrap a `div` or a cell and
  * run its words into the next one's. Plate then reads the body as a browser
@@ -169,6 +184,7 @@ export function htmlToValue(html: string): Value {
   structureBlocks(source);
   const element = parseInert(sanitizeRichBody(source.innerHTML));
   flattenListItems(element);
+  cellParagraphs(element);
   colourInnermost(element);
   keepLineBreaks(element);
   const keepSpaces = !ANY_STAND_IN.test(element.textContent ?? "");
@@ -183,7 +199,8 @@ export function htmlToValue(html: string): Value {
   return editor.children.length > 0 ? editor.children : emptyValue();
 }
 
-// ── Plate value → HTML. Pure: only Plate's types are used below. ──
+// ── Plate value → HTML. Pure: only Plate's types and its span reads are
+// used below. ──
 
 /** A `Map`, so a type such as `constructor` cannot hit a prototype key. */
 const BLOCK_TAGS: ReadonlyMap<string, string> = new Map([
@@ -310,9 +327,66 @@ function inlineToHtml(nodes: Descendant[], inLink = false): string {
     .join("");
 }
 
+const isElementOf = (
+  node: Descendant,
+  types: ReadonlySet<string>
+): node is TElement => !isText(node) && types.has(node.type);
+
+const ROW: ReadonlySet<string> = new Set(["tr"]);
+const CELL: ReadonlySet<string> = new Set(["td", "th"]);
+
+/** A span attribute, when the sanitisers keep it: 2 to 20. */
+function spanAttribute(name: string, span: number): string {
+  const kept = keptCellSpan(String(span));
+  return kept === null ? "" : ` ${name}="${kept}"`;
+}
+
+/**
+ * A cell with its spans, by Plate's own reading of them (a merge writes
+ * `colSpan`, a parse `attributes.colspan`). Its lines are its blocks' inline
+ * HTML joined by `<br>`; an empty line goes, an empty cell stays.
+ */
+function cellToHtml(cell: TElement): string {
+  const tag = cell.type === "th" ? "th" : "td";
+  const spans =
+    spanAttribute("colspan", getColSpan(cell)) +
+    spanAttribute("rowspan", getRowSpan(cell));
+  const lines = cell.children
+    .filter((line) => textOf(line).trim() !== "")
+    .map((line) => inlineToHtml(isText(line) ? [line] : line.children));
+  return `<${tag}${spans}>${lines.join("<br>")}</${tag}>`;
+}
+
+const rowToHtml = (cells: TElement[]): string =>
+  `<tr>${cells.map(cellToHtml).join("")}</tr>`;
+
+/**
+ * A table: the first row in `<thead>` when its cells are all `th`, the others
+ * in `<tbody>`. A row with no cell is nothing, and so is a table with no row.
+ */
+function tableToHtml(table: TElement): string {
+  const rows = table.children
+    .filter((row) => isElementOf(row, ROW))
+    .map((row) => row.children.filter((cell) => isElementOf(cell, CELL)))
+    .filter((cells) => cells.length > 0);
+  const [first] = rows;
+  if (first === undefined) {
+    return "";
+  }
+  const header = first.every((cell) => cell.type === "th");
+  const body = header ? rows.slice(1) : rows;
+  const head = header ? `<thead>${rowToHtml(first)}</thead>` : "";
+  const bodyHtml =
+    body.length > 0 ? `<tbody>${body.map(rowToHtml).join("")}</tbody>` : "";
+  return `<table>${head}${bodyHtml}</table>`;
+}
+
 function blockToHtml(node: TElement): string {
   if (node.type === "hr") {
     return "<hr>";
+  }
+  if (node.type === "table") {
+    return tableToHtml(node);
   }
   if (textOf(node).trim() === "") {
     return "";
