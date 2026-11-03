@@ -190,6 +190,12 @@
   --biso-deep-sunken: #00142a;     /* a recess below the navy          */
   --biso-deep-edge: #12314f;       /* hairline on navy                 */
   --biso-deep-ink-muted: #93a7bb;  /* secondary text on navy           */
+  /* Rich text colours on navy, the same navy variants the state colours take
+     on a deep band below. A page theme re-derives each one so it stays
+     readable on its own dark, raised and sunken (shared/utils/page-theme). */
+  --biso-deep-ink-green: #26b66d;
+  --biso-deep-ink-amber: #dd9000;
+  --biso-deep-ink-red: #ff6f61;
 
   /* The reference's own button blue (#217EC7) is 4.31:1 under white text and
      fails AA, and white on --biso-sky is 2.80:1. --biso-blue is the corrected
@@ -215,6 +221,10 @@
   --surface-sunken: #eef1f5;
   --ink: var(--biso-ink);
   --ink-muted: #526475;
+  /* Rich text colours on light: the state colours, fixed under every theme. */
+  --ink-green: #187244;
+  --ink-amber: #8a5a00;
+  --ink-red: #b3261e;
   --ink-accent: var(--biso-blue);
   --edge: var(--biso-line);
   --action: var(--biso-blue);
@@ -235,6 +245,9 @@
   --surface-sunken: var(--biso-deep-sunken);
   --ink: var(--biso-paper);
   --ink-muted: var(--biso-deep-ink-muted);
+  --ink-green: var(--biso-deep-ink-green);
+  --ink-amber: var(--biso-deep-ink-amber);
+  --ink-red: var(--biso-deep-ink-red);
   --ink-accent: var(--biso-sky);
   --edge: var(--biso-deep-edge);
   --action: var(--biso-sky);
@@ -271,6 +284,9 @@
   --surface-sunken: var(--biso-deep-sunken);
   --ink: var(--biso-paper);
   --ink-muted: var(--biso-deep-ink-muted);
+  --ink-green: var(--biso-deep-ink-green);
+  --ink-amber: var(--biso-deep-ink-amber);
+  --ink-red: var(--biso-deep-ink-red);
   --ink-accent: var(--biso-sky);
   --edge: var(--biso-deep-edge);
   --action: var(--biso-sky);

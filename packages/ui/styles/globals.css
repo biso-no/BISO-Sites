@@ -445,6 +445,29 @@ html {
   .type-measure {
     max-width: var(--measure, 68ch);
   }
+
+  /* Rich text colour. A span stores only its token; the surface's ink paints
+     it, so it follows the page theme and turns to the navy variant on a deep
+     band. Tokens: packages/shared/utils/text-colours.ts. */
+  .pg-rich [data-color="accent"] {
+    color: var(--ink-accent);
+  }
+
+  .pg-rich [data-color="muted"] {
+    color: var(--ink-muted);
+  }
+
+  .pg-rich [data-color="green"] {
+    color: var(--ink-green);
+  }
+
+  .pg-rich [data-color="amber"] {
+    color: var(--ink-amber);
+  }
+
+  .pg-rich [data-color="red"] {
+    color: var(--ink-red);
+  }
 }
 
 /* ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import {
   normalizeHex,
   parsePageTheme,
   sameTheme,
+  TEXT_HUES,
   THEME_QUICK_PICKS,
   themeCss,
   themeTokens,
@@ -274,6 +275,19 @@ describe("themeTokens", () => {
     expect("--ink" in tokens).toBe(false);
     expect("--biso-ink" in tokens).toBe(false);
   });
+  it("BISO's deep text inks are the CSS defaults", () => {
+    const t = themeTokens(BISO_THEME);
+    expect(t["--biso-deep-ink-green"]).toBe("#26b66d");
+    expect(t["--biso-deep-ink-amber"]).toBe("#dd9000");
+    expect(t["--biso-deep-ink-red"]).toBe("#ff6f61");
+  });
+  it("keeps the fixed text hues and their BISO navy variants", () => {
+    expect(TEXT_HUES).toEqual({
+      green: { paper: "#187244", deep: "#26b66d" },
+      amber: { paper: "#8a5a00", deep: "#dd9000" },
+      red: { paper: "#b3261e", deep: "#ff6f61" },
+    });
+  });
   it("holds the contrast guarantees for the BISO theme too", () => {
     const t = themeTokens(BISO_THEME);
     expect(t["--biso-deep"]).toBe("#001a35");
@@ -412,6 +426,24 @@ describe("themeTokens on a seeded sweep of passing themes", () => {
         theme,
         ok: true,
       });
+    }
+  });
+
+  it("keeps every deep text ink readable on the dark, raised and sunken", () => {
+    for (const theme of themes) {
+      const t = themeTokens(theme);
+      const surfaces = [
+        t["--biso-deep"],
+        t["--biso-deep-raised"],
+        t["--biso-deep-sunken"],
+      ];
+      for (const hue of ["green", "amber", "red"] as const) {
+        const ink = t[`--biso-deep-ink-${hue}`];
+        const ok = surfaces.every(
+          (surface) => contrastRatio(ink, surface) >= 4.5
+        );
+        expect({ theme, hue, ok }).toEqual({ theme, hue, ok: true });
+      }
     }
   });
 
