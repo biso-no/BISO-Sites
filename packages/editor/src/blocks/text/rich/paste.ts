@@ -1,6 +1,6 @@
 import { DROPPED_WITH_CONTENT } from "@/lib/rich-allowlist";
 import { parseInert } from "@/lib/sanitize";
-import { LIST_TAGS } from "./list-item-parse";
+import { flattenListItems, LIST_TAGS } from "./list-item-parse";
 
 // Clipboard HTML from Word (desktop and web), Google Docs and web pages,
 // rewritten into plain semantic markup before Plate's HTML deserializer reads
@@ -22,6 +22,9 @@ const WORD_LIST_ITEM = /mso-list:\s*(l\d+)\s+level(\d+)/;
 const ORDERED_MARKER = /^\(?(\d+|[a-z]{1,3})[.)]/i;
 const DIGITS = /^\d+$/;
 const HEADING_TAG = /^H([1-6])$/;
+const HEADINGS = "h1, h2, h3, h4, h5, h6";
+/** The span Word writes a list item's bullet or number in. */
+const WORD_MARKER = 'span[style*="mso-list:Ignore"]';
 /** Blocks that hold text directly. */
 const TEXT_BLOCKS = [
   "blockquote",
@@ -46,13 +49,18 @@ export function normalizePastedHtml(html: string): string {
   for (const wrapper of root.querySelectorAll('b[id^="docs-internal-guid"]')) {
     unwrap(wrapper);
   }
+  // Before the Word lists: a Title is an h1 by then, and no heading joins a
+  // list run.
   markHeadings(root);
+  keepHeadingNumbers(root);
   convertWordLists(root);
   markWordWebListLevels(root);
   trimBlockEnds(root);
   unwrapBlockParagraphs(root);
   dropLinkUnderline(root);
   shiftHeadings(root);
+  // Last, once every list is final.
+  flattenListItems(root);
   return root.innerHTML;
 }
 
@@ -86,6 +94,18 @@ function markHeadings(root: HTMLElement): void {
   }
 }
 
+/**
+ * Word numbers a heading ("1. Introduction") with the same `mso-list` style
+ * and marker span as a list item. The heading stays a heading, and its number
+ * stays as text.
+ */
+function keepHeadingNumbers(root: HTMLElement): void {
+  for (const heading of root.querySelectorAll(HEADINGS)) {
+    const marker = heading.querySelector(WORD_MARKER);
+    marker?.replaceWith(`${(marker.textContent ?? "").trim()} `);
+  }
+}
+
 // ── Desktop Word lists ──
 // Word writes a list as one paragraph per item, with the level in its inline
 // `mso-list` style and the bullet or number as text in a `mso-list:Ignore`
@@ -98,8 +118,12 @@ interface OpenWordList {
   tag: "ol" | "ul";
 }
 
+/** A Word list paragraph's level; never a heading's, which Word also numbers. */
 const wordListLevel = (node: Node): number | undefined => {
-  if (node.nodeType !== Node.ELEMENT_NODE) {
+  if (
+    node.nodeType !== Node.ELEMENT_NODE ||
+    HEADING_TAG.test((node as Element).tagName)
+  ) {
     return;
   }
   const match = WORD_LIST_ITEM.exec(
@@ -153,7 +177,7 @@ function wordListRun(first: Element): { blanks: Node[]; items: Element[] } {
 
 /** The bullet or number Word wrote as text, taken out of the paragraph. */
 function takeMarker(paragraph: Element): string {
-  const marker = paragraph.querySelector('span[style*="mso-list:Ignore"]');
+  const marker = paragraph.querySelector(WORD_MARKER);
   if (!marker) {
     return "";
   }
@@ -162,13 +186,24 @@ function takeMarker(paragraph: Element): string {
   return text.trim();
 }
 
-/** The same stack walk as the serializer's, keyed by Word's level. */
+/** A list's `start` worth writing: its first number, when that is 2 or more. */
+const listStart = (number: string): number | undefined =>
+  DIGITS.test(number) && Number(number) >= 2 ? Number(number) : undefined;
+
+/**
+ * The same stack walk as the serializer's, keyed by Word's level. A level is
+ * at most one below the innermost open list, so no item gets two sublists
+ * from a skipped level.
+ */
 function buildWordList(paragraphs: Element[]): DocumentFragment {
   const doc = paragraphs[0]?.ownerDocument ?? document;
   const out = doc.createDocumentFragment();
   const stack: OpenWordList[] = [];
   for (const paragraph of paragraphs) {
-    const level = wordListLevel(paragraph) ?? 1;
+    const level = Math.min(
+      wordListLevel(paragraph) ?? 1,
+      (stack.at(-1)?.level ?? 0) + 1
+    );
     const ordered = ORDERED_MARKER.exec(takeMarker(paragraph));
     const tag = ordered ? "ol" : "ul";
     while ((stack.at(-1)?.level ?? 0) > level) {
@@ -186,9 +221,9 @@ function buildWordList(paragraphs: Element[]): DocumentFragment {
       continue;
     }
     const list = doc.createElement(tag);
-    const number = ordered?.[1] ?? "";
-    if (DIGITS.test(number) && Number(number) >= 2) {
-      list.setAttribute("start", String(Number(number)));
+    const start = listStart(ordered?.[1] ?? "");
+    if (start !== undefined) {
+      list.setAttribute("start", String(start));
     }
     list.append(item);
     (top?.item ?? out).append(list);
@@ -309,7 +344,7 @@ function dropLinkUnderline(root: HTMLElement): void {
  * page title is the page's `h1`) and every lower level `h3`.
  */
 function shiftHeadings(root: HTMLElement): void {
-  const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+  const headings = Array.from(root.querySelectorAll(HEADINGS));
   const levelOf = (heading: Element): number =>
     Number(HEADING_TAG.exec(heading.tagName)?.[1]);
   const top = Math.min(...headings.map(levelOf));
@@ -334,16 +369,27 @@ function unwrap(el: Element): void {
 // ── Plain text ──
 
 const BULLET_LINE = /^\s*[-*•]\s+/;
-const NUMBER_LINE = /^\s*\d+[.)]\s+/;
+const NUMBER_LINE = /^\s*(\d+)[.)]\s+/;
 const BLANK_LINE = /\n\s*\n/;
 
 const escapeText = (text: string): string =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
 /**
+ * Whether plain text needs the HTML path: it has a line break, or it starts
+ * with a list marker. Anything else is inserted as it is, so a single line
+ * keeps its spaces (" world" after "hello").
+ */
+export function plainTextHasStructure(text: string): boolean {
+  return (
+    text.includes("\n") || BULLET_LINE.test(text) || NUMBER_LINE.test(text)
+  );
+}
+
+/**
  * Plain text as HTML: blank-line-separated chunks become paragraphs, and a
  * chunk whose every line starts with `-`, `*` or `•` (or `1.`, `1)`) becomes
- * a bullet (or numbered) list.
+ * a bullet (or numbered, from its first number) list.
  */
 export function plainTextToHtml(text: string): string {
   return text
@@ -357,16 +403,17 @@ export function plainTextToHtml(text: string): string {
 
 function chunkToHtml(chunk: string): string {
   const lines = chunk.split("\n");
-  for (const [marker, tag] of [
-    [BULLET_LINE, "ul"],
-    [NUMBER_LINE, "ol"],
-  ] as const) {
-    if (lines.every((line) => marker.test(line))) {
-      const items = lines.map(
-        (line) => `<li>${escapeText(line.replace(marker, ""))}</li>`
-      );
-      return `<${tag}>${items.join("")}</${tag}>`;
-    }
+  const items = (marker: RegExp): string =>
+    lines
+      .map((line) => `<li>${escapeText(line.replace(marker, ""))}</li>`)
+      .join("");
+  if (lines.every((line) => BULLET_LINE.test(line))) {
+    return `<ul>${items(BULLET_LINE)}</ul>`;
+  }
+  if (lines.every((line) => NUMBER_LINE.test(line))) {
+    const start = listStart(NUMBER_LINE.exec(chunk)?.[1] ?? "");
+    const startAttribute = start === undefined ? "" : ` start="${start}"`;
+    return `<ol${startAttribute}>${items(NUMBER_LINE)}</ol>`;
   }
   return `<p>${lines.map(escapeText).join("<br>")}</p>`;
 }

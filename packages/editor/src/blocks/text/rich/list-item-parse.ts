@@ -2,6 +2,37 @@ import { keptOlStart } from "@/lib/rich-allowlist";
 
 export const LIST_TAGS: ReadonlySet<string> = new Set(["OL", "UL"]);
 
+const LI_BLOCK_TAGS: ReadonlySet<string> = new Set([
+  "BLOCKQUOTE",
+  "H2",
+  "H3",
+  "HR",
+  "P",
+]);
+
+/**
+ * Each `<li>`'s nested lists moved to just after it, in their order, and its
+ * block children unwrapped, so every item deserializes as one flat block and
+ * keeps its depth as its count of list ancestors. `deserializeHtml` alone
+ * does not do this, and the nested item's text would end up inside its
+ * parent item. `BaseListPlugin`'s paste transform does, but it inserts each
+ * sublist right after the item, so an item's second sublist lands before
+ * its first. Stored HTML and pasted HTML both go through this first.
+ */
+export function flattenListItems(root: HTMLElement): void {
+  for (const li of Array.from(root.querySelectorAll("li"))) {
+    let anchor: Element = li;
+    for (const child of Array.from(li.children)) {
+      if (LIST_TAGS.has(child.tagName)) {
+        anchor.after(child);
+        anchor = child;
+      } else if (LI_BLOCK_TAGS.has(child.tagName)) {
+        child.replaceWith(...Array.from(child.childNodes));
+      }
+    }
+  }
+}
+
 /**
  * The list styles that number their items, in a `data-list-style-type` and
  * in the value. The serializer writes these as `<ol>`; every other style is

@@ -11,7 +11,7 @@ import {
 } from "platejs";
 import { SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseInert, sanitizeRichBody } from "@/lib/sanitize";
-import { LIST_TAGS, ORDERED_LIST_STYLES } from "./list-item-parse";
+import { flattenListItems, ORDERED_LIST_STYLES } from "./list-item-parse";
 import { richBasePlugins } from "./plugins";
 
 /** A headless editor on the rich text schema, for conversion and paste. */
@@ -27,29 +27,6 @@ export function createConversionEditor(
 }
 
 const emptyValue = (): Value => [{ type: "p", children: [{ text: "" }] }];
-
-const LI_BLOCK_TAGS = new Set(["BLOCKQUOTE", "H2", "H3", "HR", "P"]);
-
-/**
- * Each `<li>`'s nested lists moved to just after it, and its block children
- * unwrapped, so every item deserializes as one flat block and keeps its
- * depth as its count of list ancestors. `BaseListPlugin` does the same to
- * pasted HTML, but `deserializeHtml` alone does not, and the nested item's
- * text would end up inside its parent item.
- */
-function flattenListItems(root: HTMLElement): void {
-  for (const li of Array.from(root.querySelectorAll("li"))) {
-    let anchor: Element = li;
-    for (const child of Array.from(li.children)) {
-      if (LIST_TAGS.has(child.tagName)) {
-        anchor.after(child);
-        anchor = child;
-      } else if (LI_BLOCK_TAGS.has(child.tagName)) {
-        child.replaceWith(...Array.from(child.childNodes));
-      }
-    }
-  }
-}
 
 /**
  * Deserialized nodes as top-level blocks. Plate wraps inline runs that sit

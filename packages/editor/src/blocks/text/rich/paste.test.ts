@@ -165,7 +165,8 @@ test.each([
   ["1. a\n2) b", "<ol><li>a</li><li>b</li></ol>"],
   ["p1\n\np2", "<p>p1</p><p>p2</p>"],
   ["line1\r\nline2", "<p>line1<br>line2</p>"],
-  ["a < b", "<p>a &lt; b</p>"],
+  ["3. a\n4. b", '<ol start="3"><li>a</li><li>b</li></ol>'],
+  ["1. a", "<ol><li>a</li></ol>"],
 ])("plain text %p", (plain, html) => expect(pasteInto(null, plain)).toBe(html));
 
 test("plain text that looks like markup stays text", () => {
@@ -270,7 +271,7 @@ const wordItem = (marker: string, level: number, text: string): string =>
 
 test("Word list runs keep their levels, styles and starting number", () => {
   expect(
-    normalizePastedHtml(
+    pasteInto(
       wordItem("3.", 1, "c") +
         wordItem("a)", 2, "c1") +
         wordItem("(b)", 2, "c2") +
@@ -280,6 +281,73 @@ test("Word list runs keep their levels, styles and starting number", () => {
   ).toBe(
     '<ol start="3"><li>c<ol><li>c1</li><li>c2<ul><li>deep</li></ul></li></ol></li><li>d</li></ol>'
   );
+});
+
+test("a Word level that skips one nests one level, in order", () => {
+  expect(
+    pasteInto(
+      wordItem("·", 1, "a") + wordItem("·", 3, "deep") + wordItem("·", 2, "mid")
+    )
+  ).toBe("<ul><li>a<ul><li>deep</li><li>mid</li></ul></li></ul>");
+  // One sublist, not two: "deep" is clamped to level 2 before Plate sees it.
+  expect(
+    normalizePastedHtml(
+      wordItem("·", 1, "a") + wordItem("·", 3, "deep") + wordItem("·", 2, "mid")
+    )
+  ).toBe("<ul><li>a</li><ul><li>deep</li><li>mid</li></ul></ul>");
+});
+
+test("two sublists of one Word item keep their order", () => {
+  expect(
+    pasteInto(
+      wordItem("1.", 1, "c") + wordItem("a)", 2, "c1") + wordItem("·", 2, "c2")
+    )
+  ).toBe("<ol><li>c<ol><li>c1</li></ol><ul><li>c2</li></ul></li></ol>");
+});
+
+test("two sublists of one web list item keep their order", () => {
+  expect(
+    pasteInto("<ul><li>a<ul><li>x</li></ul><ol><li>y</li></ol></li></ul>")
+  ).toBe("<ul><li>a<ul><li>x</li></ul><ol><li>y</li></ol></li></ul>");
+});
+
+// Word numbers headings with the same `mso-list` style and marker span as
+// list paragraphs.
+test("a numbered Word heading stays a heading and keeps its number", () => {
+  expect(
+    pasteInto(
+      "<h1 style='mso-list:l1 level1 lfo2'><span style='mso-list:Ignore'>1.<span>&nbsp;&nbsp;</span></span>Introduction</h1>"
+    )
+  ).toBe("<h2>1. Introduction</h2>");
+  expect(
+    normalizePastedHtml(
+      "<h1 style='mso-list:l1 level1 lfo2'><span style='mso-list:Ignore'>1.<span>&nbsp;&nbsp;</span></span>Introduction</h1>"
+    )
+  ).toBe("<h2>1. Introduction</h2>");
+});
+
+test("a numbered heading right after a list paragraph ends the run", () => {
+  expect(
+    pasteInto(
+      `${wordItem("·", 1, "a")}<h2 style='mso-list:l1 level2 lfo2'><span style='mso-list:Ignore'>1.1<span>&nbsp;</span></span>Scope</h2>${wordItem("·", 1, "b")}`
+    )
+  ).toBe("<ul><li>a</li></ul><h2>1.1 Scope</h2><ul><li>b</li></ul>");
+});
+
+test("a numbered Word Title keeps its number", () => {
+  expect(
+    pasteInto(
+      "<p class=MsoTitle style='mso-list:l2 level1 lfo3'><span style='mso-list:Ignore'>1.<span>&nbsp;</span></span>Plan</p>"
+    )
+  ).toBe("<h2>1. Plan</h2>");
+});
+
+test("Word 2016+'s downlevel conditional around the glyph", () => {
+  expect(
+    pasteInto(
+      "<p class=MsoListParagraph style='text-indent:-18.0pt;mso-list:l0 level1 lfo1'><![if !supportLists]><span style='font-family:Symbol'><span style='mso-list:Ignore'>·<span style='font:7.0pt \"Times New Roman\"'>&nbsp;&nbsp;&nbsp; </span></span></span><![endif]><span lang=EN-GB>One</span></p>"
+    )
+  ).toBe("<ul><li>One</li></ul>");
 });
 
 test("whitespace between Word list paragraphs is part of the run; text ends it", () => {
@@ -293,10 +361,13 @@ test("whitespace between Word list paragraphs is part of the run; text ends it",
   ).toBe('<ol><li>a</li></ol>x<ol start="2"><li>b</li></ol>');
 });
 
-test("Word on the web's data-aria-level nests list items", () => {
+test.each([
+  "aria-level",
+  "data-aria-level",
+])("%s nests list items", (attribute) => {
   expect(
     pasteInto(
-      '<ul><li data-aria-level="1"><p>a</p></li></ul><ul><li data-aria-level="2"><p>b</p></li></ul>'
+      `<ul><li ${attribute}="1"><p>a</p></li></ul><ul><li ${attribute}="2"><p>b</p></li></ul>`
     )
   ).toBe("<ul><li>a<ul><li>b</li></ul></li></ul>");
 });
@@ -322,15 +393,21 @@ test("Word on the web's end-of-paragraph mark and Chrome's trailing newline add 
   expect(editor.children).toEqual([{ type: "p", children: [{ text: "a" }] }]);
 });
 
-/** A plugin below `RichPastePlugin` that records what reaches Plate's own paste. */
-function recordingEditor() {
+/**
+ * A plugin below `RichPastePlugin` that records what reaches Plate's own
+ * paste. With `forward: false` it stops there: a headless editor has no
+ * plain-text insert, and its stub only warns.
+ */
+function recordingEditor({ forward = true } = {}) {
   const seen: DataTransfer[] = [];
   const recorder = createSlatePlugin({ key: "recordPaste" }).overrideEditor(
     ({ tf: { insertData } }) => ({
       transforms: {
         insertData(data: DataTransfer) {
           seen.push(data);
-          insertData(data);
+          if (forward) {
+            insertData(data);
+          }
         },
       },
     })
@@ -377,4 +454,26 @@ test("plain text reaches Plate as HTML, with the text still there", () => {
   expect(received?.getData("text/html")).toBe("<ul><li>a</li></ul>");
   expect(received?.getData("text/plain")).toBe("- a");
   expect(valueToHtml(editor.children)).toBe("<ul><li>a</li></ul>");
+});
+
+// Plain text with no line break and no list marker goes to the editor as it
+// is, so its spaces survive (" world" after "hello") and a bare URL still
+// becomes a link.
+test.each([
+  "a < b",
+  " world",
+  "https://biso.no",
+])("single-line plain text %p passes through untouched", (text) => {
+  const { editor, seen } = recordingEditor({ forward: false });
+  const data = clipboard({ "text/plain": text });
+  editor.tf.insertData(data);
+  expect(seen).toEqual([data]);
+  expect(seen[0]).toBe(data);
+  expect(seen[0]?.types).toEqual(["text/plain"]);
+});
+
+test("a pasted bare URL becomes a link", () => {
+  expect(pasteInto(null, "https://biso.no")).toBe(
+    '<p><a href="https://biso.no">https://biso.no</a></p>'
+  );
 });

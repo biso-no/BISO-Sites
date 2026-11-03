@@ -1,5 +1,9 @@
 import { createSlatePlugin } from "platejs";
-import { normalizePastedHtml, plainTextToHtml } from "./paste";
+import {
+  normalizePastedHtml,
+  plainTextHasStructure,
+  plainTextToHtml,
+} from "./paste";
 
 const HTML = "text/html";
 const PLAIN = "text/plain";
@@ -29,8 +33,9 @@ function withHtml(data: DataTransfer, html: string): DataTransfer {
 
 /**
  * Paste through the normaliser. An in-editor copy is inserted as it is;
- * pasted HTML is normalised first; plain text becomes HTML, so it reaches the
- * same deserializer and its bullets and numbers become lists.
+ * pasted HTML is normalised first; plain text with line breaks or a list
+ * marker becomes HTML, so it reaches the same deserializer and its bullets
+ * and numbers become lists. A single plain line is inserted as it is.
  */
 export const RichPastePlugin = createSlatePlugin({
   key: "richPaste",
@@ -47,7 +52,11 @@ export const RichPastePlugin = createSlatePlugin({
         return;
       }
       const text = data.getData(PLAIN);
-      insertData(text ? withHtml(data, plainTextToHtml(text)) : data);
+      insertData(
+        plainTextHasStructure(text)
+          ? withHtml(data, plainTextToHtml(text))
+          : data
+      );
     },
   },
 }));
