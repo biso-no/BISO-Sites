@@ -24,9 +24,11 @@ import {
   type AnyPlatePlugin,
   createTPlatePlugin,
   ParagraphPlugin,
+  type PlateEditor,
   PlateElement,
   type PlateElementProps,
 } from "platejs/react";
+import type { KeyboardEvent } from "react";
 import { SAFE_HREF } from "@/lib/rich-allowlist";
 import { handleListTab } from "./commands";
 import { isListItem } from "./html";
@@ -130,9 +132,13 @@ const indentMargin = ({
     ? `${(nodeValue - 1) * LIST_STEP_REM}rem`
     : "";
 
+type HistoryStep = "undo" | "redo";
+
 export type RichKeysConfig = PluginConfig<
   "richKeys",
   {
+    /** Steps the page when the field has nothing to undo or redo. */
+    emptyHistory: ((step: HistoryStep) => void) | null;
     linkOpen: boolean;
     /** The canvas: its input lives in the bubble, which needs a selection. */
     linkNeedsSelection: boolean;
@@ -140,11 +146,37 @@ export type RichKeysConfig = PluginConfig<
 >;
 
 /**
+ * The step mod+z or mod+shift+z asks of the page: only when the field's own
+ * history has nothing in that direction. By key, as Plate reads its own
+ * hotkeys.
+ */
+function emptyHistoryStep(
+  editor: PlateEditor,
+  event: KeyboardEvent
+): HistoryStep | null {
+  if (
+    isHotkey("mod+z", { byKey: true }, event) &&
+    editor.history.undos.length === 0
+  ) {
+    return "undo";
+  }
+  if (
+    isHotkey("mod+shift+z", { byKey: true }, event) &&
+    editor.history.redos.length === 0
+  ) {
+    return "redo";
+  }
+  return null;
+}
+
+/**
  * The field's own keys. mod+k opens the toolbar's link input (`linkOpen`,
  * which the toolbar reads and closes); with `linkNeedsSelection` only over
  * an expanded selection. On a canvas caret it opens nothing, but it still
  * never reaches the browser, whose Ctrl+K is its search bar on Windows and
- * Linux. Tab and Shift+Tab nest and un-nest list items
+ * Linux. mod+z and mod+shift+z with nothing left in the field's own
+ * history go to `emptyHistory`, when it is set, to step the page; otherwise
+ * Slate's history handles them. Tab and Shift+Tab nest and un-nest list items
  * through `handleListTab`: Plate's key handler calls `tab` and prevents the
  * default when it returns `true`. Outside a list it returns `false` and Tab
  * stays the browser's; the indent plugin's own `tab` is not passed on, since
@@ -154,18 +186,25 @@ export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
   handlers: {
     onKeyDown: ({ editor, event, getOption, setOption }) => {
       // By key, as Plate reads its own hotkeys: the letter the user sees.
-      if (!isHotkey("mod+k", { byKey: true }, event)) {
+      if (isHotkey("mod+k", { byKey: true }, event)) {
+        event.preventDefault();
+        if (editor.api.isExpanded() || !getOption("linkNeedsSelection")) {
+          setOption("linkOpen", true);
+        }
+        return true;
+      }
+      const emptyHistory = getOption("emptyHistory");
+      const step = emptyHistory ? emptyHistoryStep(editor, event) : null;
+      if (!(emptyHistory && step)) {
         return false;
       }
       event.preventDefault();
-      if (editor.api.isExpanded() || !getOption("linkNeedsSelection")) {
-        setOption("linkOpen", true);
-      }
+      emptyHistory(step);
       return true;
     },
   },
   key: "richKeys",
-  options: { linkNeedsSelection: false, linkOpen: false },
+  options: { emptyHistory: null, linkNeedsSelection: false, linkOpen: false },
 }).overrideEditor(({ editor }) => ({
   transforms: {
     tab: ({ reverse }) => handleListTab(editor, { shift: reverse }),

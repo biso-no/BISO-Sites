@@ -83,6 +83,7 @@ const TAKE_DELAY = 300;
 const advance = (ms: number) => settle(() => jest.advanceTimersByTime(ms));
 
 type Emit = (html: string) => void;
+type PageStep = NonNullable<RichTextFieldProps["onPageHistory"]>;
 
 interface Field {
   editor: () => PlateEditor;
@@ -93,13 +94,21 @@ interface Field {
 /** One field's fixed props; `html` is given per render. */
 function field(
   variant: RichTextFieldProps["variant"] = "canvas",
-  label = "Rich text"
+  label = "Rich text",
+  onPageHistory?: PageStep
 ): Field {
   const editorRef: { current: unknown } = { current: null };
   const spy = mock<Emit>(() => undefined);
   return {
     editor: () => editorRef.current as PlateEditor,
-    props: (html) => ({ editorRef, html, label, onChange: spy, variant }),
+    props: (html) => ({
+      editorRef,
+      html,
+      label,
+      onChange: spy,
+      onPageHistory,
+      variant,
+    }),
     spy,
   };
 }
@@ -474,6 +483,126 @@ test("a press in the open link input takes no outside change", async () => {
   });
   expect(apply).toBeDefined();
   expect(editables()[0]?.textContent).toBe("a");
+});
+
+/**
+ * A Ctrl key press on the editable, as the browser sends it: Plate reads
+ * `key`, Slate's own undo and redo read `which`.
+ */
+const pressKey = (
+  editable: HTMLElement | undefined,
+  init: { code: string; key: string; shiftKey?: boolean; which: number }
+) =>
+  settle(() => {
+    editable?.dispatchEvent(
+      new window.KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: true,
+        keyCode: init.which,
+        ...init,
+      })
+    );
+  });
+
+const UNDO = { code: "KeyZ", key: "z", which: 90 };
+const REDO = { code: "KeyZ", key: "Z", shiftKey: true, which: 90 };
+
+/** The keydown events the editable saw, to read `defaultPrevented` from. */
+const keydowns = (editable: HTMLElement | undefined): KeyboardEvent[] => {
+  const seen: KeyboardEvent[] = [];
+  editable?.addEventListener("keydown", (event) => seen.push(event));
+  return seen;
+};
+
+// With nothing of its own to undo, mod+z in a field undoes the page, which
+// the shell's own shortcut leaves to focused text.
+test("mod+z with an empty field history steps the page back and shows the result at once", async () => {
+  const pageHistory = mock<PageStep>(() => undefined);
+  const a = field("canvas", "Rich text", pageHistory);
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+  const seen = keydowns(editables()[0]);
+
+  await pressKey(editables()[0], UNDO);
+  expect(pageHistory.mock.calls).toEqual([["undo"]]);
+  expect(seen[0]?.defaultPrevented).toBe(true);
+
+  // The page's previous body, while the field is still focused.
+  await render("<p>before</p>");
+  expect(editables()[0]?.textContent).toBe("before");
+  expect(a.spy).not.toHaveBeenCalled();
+});
+
+test("mod+shift+z with an empty redo history steps the page forward", async () => {
+  const pageHistory = mock<PageStep>(() => undefined);
+  const a = field("canvas", "Rich text", pageHistory);
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+  const seen = keydowns(editables()[0]);
+
+  await pressKey(editables()[0], REDO);
+  expect(pageHistory.mock.calls).toEqual([["redo"]]);
+  expect(seen[0]?.defaultPrevented).toBe(true);
+  await render("<p>after</p>");
+  expect(editables()[0]?.textContent).toBe("after");
+});
+
+test("mod+z after typing undoes the typing in the field, not the page", async () => {
+  const pageHistory = mock<PageStep>(() => undefined);
+  const a = field("canvas", "Rich text", pageHistory);
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+  await typeText(a.editor(), "!");
+
+  await pressKey(editables()[0], UNDO);
+  expect(pageHistory).not.toHaveBeenCalled();
+  expect(editables()[0]?.textContent).toBe("a");
+});
+
+test("a page step that changes nothing here takes nothing later", async () => {
+  const pageHistory = mock<PageStep>(() => undefined);
+  const a = field("canvas", "Rich text", pageHistory);
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+
+  await pressKey(editables()[0], UNDO);
+  expect(pageHistory).toHaveBeenCalledTimes(1);
+  await typeText(a.editor(), "x");
+  expect(a.spy).toHaveBeenLastCalledWith("<p>ax</p>");
+
+  // An outside change, while the field is focused, waits as ever.
+  await render("<p>z</p>");
+  expect(editables()[0]?.textContent).toBe("ax");
+});
+
+test("a page step is forgotten when focus leaves the field", async () => {
+  const pageHistory = mock<PageStep>(() => undefined);
+  const a = field("canvas", "Rich text", pageHistory);
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+
+  await pressKey(editables()[0], UNDO);
+  await blur(a.editor(), editables()[0]);
+  await refocus(a.editor(), editables()[0]);
+  await render("<p>z</p>");
+  expect(editables()[0]?.textContent).toBe("a");
+});
+
+test("without onPageHistory, mod+z in an empty field changes nothing", async () => {
+  const a = field();
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+
+  await pressKey(editables()[0], UNDO);
+  expect(editables()[0]?.textContent).toBe("a");
+  expect(a.spy).not.toHaveBeenCalled();
 });
 
 test("a legacy prop re-rendered, or in its canonical form, triggers no setValue and no emit", async () => {

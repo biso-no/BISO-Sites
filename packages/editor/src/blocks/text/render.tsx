@@ -5,7 +5,7 @@ import { isBlankHtml } from "@/blocks/_v2/blank";
 import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
-import { useInEditor } from "@/editor/callbacks";
+import { useEditorCallbacks, useInEditor } from "@/editor/callbacks";
 import type { TextBlock, TextBodyItem } from "@/editor/types";
 import { sanitizeRichBody, sanitizeRichText } from "@/lib/sanitize";
 import { bodyPatch, bodyToHtml, isLegacyBody } from "./body";
@@ -53,6 +53,7 @@ export function TextRender({ block, edit, onPatch }: Props) {
  */
 function EditBody({ block, onPatch }: { block: TextBlock; onPatch: PatchFn }) {
   const mounted = useMounted();
+  const { pageHistory } = useEditorCallbacks();
   const html = bodyToHtml(block.body);
   const fallback = <RichBody html={html} />;
   if (!mounted) {
@@ -64,6 +65,7 @@ function EditBody({ block, onPatch }: { block: TextBlock; onPatch: PatchFn }) {
         html={html}
         label="Rich text"
         onChange={bodyPatch(block, onPatch)}
+        onPageHistory={pageHistory}
         variant="canvas"
       />
     </Suspense>

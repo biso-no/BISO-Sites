@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import type { PatchFn } from "@/blocks/types";
 import { InspSection } from "@/components/editor-shell/inspector/insp-parts";
+import { useEditorCallbacks } from "@/editor/callbacks";
 import type { PageDoc, TextBlock } from "@/editor/types";
 import { bodyPatch, bodyToHtml } from "./body";
 import { RichTextField, useMounted } from "./lazy-field";
@@ -20,6 +21,7 @@ interface Props {
  */
 export function TextInspector({ block, onPatch }: Props) {
   const mounted = useMounted();
+  const { pageHistory } = useEditorCallbacks();
   const fallback = <div className="pe-rt-field" />;
   return (
     <InspSection label="Text">
@@ -30,6 +32,7 @@ export function TextInspector({ block, onPatch }: Props) {
             key={block.id}
             label="Text"
             onChange={bodyPatch(block, onPatch)}
+            onPageHistory={pageHistory}
             variant="panel"
           />
         </Suspense>

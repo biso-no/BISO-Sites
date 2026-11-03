@@ -28,6 +28,11 @@ export interface RichTextFieldProps {
   html: string;
   label: string;
   onChange: (html: string) => void;
+  /**
+   * Steps the page's history, for mod+z or mod+shift+z with nothing left in
+   * the field's own; the field then shows the page's body for it at once.
+   */
+  onPageHistory?: (step: "undo" | "redo") => void;
   variant: "panel" | "canvas";
 }
 
@@ -84,6 +89,8 @@ function takeProp(
  * while the field is focused is taken on focus out, after the same delay.
  * While the link input is open the prop waits too, since the input acts on
  * a selection in the text it opened on; it is taken when the input closes.
+ * After mod+z or mod+shift+z stepped the page (`onPageHistory`), the next
+ * changed prop is taken at once, focused or not.
  * The panel shows the toolbar above the text; the canvas shows it in a
  * bubble over a selection.
  *
@@ -94,6 +101,7 @@ export default function RichTextField({
   html,
   label,
   onChange,
+  onPageHistory,
   variant,
 }: RichTextFieldProps) {
   const [initial] = useState(() => {
@@ -105,6 +113,8 @@ export default function RichTextField({
   // The latest prop, and whether it changed since the field last took one.
   const latestHtml = useRef(html);
   const pending = useRef(false);
+  // A page step this field asked for: its body shows at once, even focused.
+  const forceTake = useRef(false);
   const takeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const editor = usePlateEditor({
     plugins: richReactPlugins,
@@ -126,6 +136,19 @@ export default function RichTextField({
       variant === "canvas"
     );
   }, [editor, variant]);
+
+  useEffect(() => {
+    editor.setOption(
+      RichKeysPlugin,
+      "emptyHistory",
+      onPageHistory
+        ? (step) => {
+            forceTake.current = true;
+            onPageHistory(step);
+          }
+        : null
+    );
+  }, [editor, onPageHistory]);
 
   /** Takes the latest prop, if it changed; reads it now, never earlier. */
   const take = useCallback(() => {
@@ -161,11 +184,16 @@ export default function RichTextField({
     // Its own echo (the exact string the field reported): nothing to parse,
     // and nothing left to take.
     pending.current = html !== lastHtml.current;
+    if (forceTake.current && pending.current) {
+      forceTake.current = false;
+      take();
+      return;
+    }
     // A focused field keeps its text, and takes the prop on focus out.
     if (shouldTakeProp(html, lastHtml.current, editor.api.isFocused())) {
       takeLater();
     }
-  }, [editor, html, takeLater]);
+  }, [editor, html, take, takeLater]);
 
   // The link input closed: what came in while it was open is taken now.
   useEffect(() => {
@@ -182,6 +210,7 @@ export default function RichTextField({
   const handleValueChange = ({ value }: { value: Value }) => {
     const next = htmlToEmit(value, lastHtml.current);
     if (next !== null) {
+      forceTake.current = false;
       lastHtml.current = next;
       onChange(next);
     }
@@ -201,6 +230,7 @@ export default function RichTextField({
     }
   };
   const takeAfterBlur = () => {
+    forceTake.current = false;
     if (pending.current) {
       takeLater();
     }

@@ -2,6 +2,10 @@ import { afterAll, expect, mock, test } from "bun:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { PatchFn } from "@/blocks/types";
+import {
+  type EditorCallbacks,
+  EditorCallbacksContext,
+} from "@/editor/callbacks";
 import { doc } from "@/editor/test-fixtures";
 import type { TextBlock } from "@/editor/types";
 import type { RichTextFieldProps } from "./rich/field";
@@ -79,4 +83,32 @@ test("the inspector field edits the whole body, coalesced per block", () => {
   expect(onPatch.mock.calls).toEqual([
     ["body", "<p>z</p>", { coalesce: "a:body" }],
   ]);
+});
+
+test("both surfaces hand the field the shell's page history", () => {
+  const pageHistory = mock<NonNullable<EditorCallbacks["pageHistory"]>>(
+    () => undefined
+  );
+  const callbacks: EditorCallbacks = {
+    activeLocale: "no",
+    campuses: [],
+    departments: [],
+    locales: [],
+    onLocaleChange: () => undefined,
+    pageHistory,
+    savePage: async () => undefined,
+    uploadFile: async () => ({ fileId: "", url: "" }),
+  };
+  const inShell = (node: ReactElement) =>
+    createElement(EditorCallbacksContext.Provider, { value: callbacks }, node);
+  const onPatch = mock<PatchFn>(() => undefined);
+
+  const canvas = fieldOf(
+    inShell(createElement(TextRender, { block, edit: true, onPatch }))
+  );
+  const panel = fieldOf(
+    inShell(createElement(TextInspector, { block, doc: doc(), onPatch }))
+  );
+  expect(canvas.onPageHistory).toBe(pageHistory);
+  expect(panel.onPageHistory).toBe(pageHistory);
 });
