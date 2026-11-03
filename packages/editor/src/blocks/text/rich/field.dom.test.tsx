@@ -17,6 +17,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { legacyBodyToHtml } from "../body";
 import { RICH_CLASS } from "../render-classes";
 import RichTextField, { type RichTextFieldProps } from "./field";
+import { RichKeysPlugin } from "./react-plugins";
 
 /** What Slate, Plate, floating-ui and React DOM read from the global scope. */
 const GLOBALS = [
@@ -420,6 +421,59 @@ test("refocused straight after blur, the field takes the outside change on focus
     "<p>COPILOT REWRITE?</p>",
   ]);
   expect(editables()[0]?.textContent).toBe("COPILOT REWRITE?");
+});
+
+/** Opens or closes the toolbar's link input, as mod+k and its buttons do. */
+const setLinkOpen = (editor: PlateEditor, open: boolean) =>
+  settle(() => editor.setOption(RichKeysPlugin, "linkOpen", open));
+
+// The link input acts on the selection in the text it opened on.
+test("an outside change waits while the link input is open, and is taken when it closes", async () => {
+  const a = field("panel", "Text");
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  await setLinkOpen(a.editor(), true);
+
+  await render("<p>b</p>");
+  await advance(TAKE_DELAY * 3);
+  expect(editables()[0]?.textContent).toBe("a");
+
+  await setLinkOpen(a.editor(), false);
+  expect(editables()[0]?.textContent).toBe("b");
+  expect(a.spy).not.toHaveBeenCalled();
+});
+
+test("a take scheduled before the link input opened does not fire while it is open", async () => {
+  const a = field("panel", "Text");
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  await render("<p>b</p>");
+  await advance(TAKE_DELAY - 1);
+  await setLinkOpen(a.editor(), true);
+  await advance(10);
+  expect(editables()[0]?.textContent).toBe("a");
+
+  await setLinkOpen(a.editor(), false);
+  expect(editables()[0]?.textContent).toBe("b");
+});
+
+test("a press in the open link input takes no outside change", async () => {
+  const a = field("panel", "Text");
+  const { editables, host, render } = mount(a);
+  await render("<p>a</p>");
+  await setLinkOpen(a.editor(), true);
+  await render("<p>b</p>");
+
+  const apply = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent === "Apply"
+  );
+  await settle(() => {
+    apply?.dispatchEvent(
+      new window.MouseEvent("mousedown", { bubbles: true, cancelable: true })
+    );
+  });
+  expect(apply).toBeDefined();
+  expect(editables()[0]?.textContent).toBe("a");
 });
 
 test("a legacy prop re-rendered, or in its canonical form, triggers no setValue and no emit", async () => {

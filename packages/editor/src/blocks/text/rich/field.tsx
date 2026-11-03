@@ -5,6 +5,7 @@ import {
   Plate,
   PlateContent,
   type PlateEditor,
+  useEditorPluginOption,
   usePlateEditor,
 } from "platejs/react";
 import {
@@ -81,6 +82,8 @@ function takeProp(
  * what it last reported and it is not focused, so the panel and the canvas
  * can edit one value without moving each other's caret. A prop that changes
  * while the field is focused is taken on focus out, after the same delay.
+ * While the link input is open the prop waits too, since the input acts on
+ * a selection in the text it opened on; it is taken when the input closes.
  * The panel shows the toolbar above the text; the canvas shows it in a
  * bubble over a selection.
  *
@@ -107,6 +110,8 @@ export default function RichTextField({
     plugins: richReactPlugins,
     value: initial.value,
   });
+  const linkOpen = useEditorPluginOption(editor, RichKeysPlugin, "linkOpen");
+  const linkWasOpen = useRef(false);
 
   useEffect(() => {
     if (editorRef) {
@@ -130,15 +135,26 @@ export default function RichTextField({
       takeProp(editor, lastHtml, latestHtml.current);
     }
   }, [editor]);
-  /** Takes it once `TAKE_DELAY_MS` pass with no new prop and no focus. */
+  /** Whether the toolbar's link input is open. */
+  const linkInputOpen = useCallback(
+    () => editor.getOption(RichKeysPlugin, "linkOpen"),
+    [editor]
+  );
+  /**
+   * Takes it once `TAKE_DELAY_MS` pass with no new prop, no focus and no
+   * open link input. Nothing is scheduled while the input is open.
+   */
   const takeLater = useCallback(() => {
     clearTimeout(takeTimer.current);
+    if (linkInputOpen()) {
+      return;
+    }
     takeTimer.current = setTimeout(() => {
-      if (!editor.api.isFocused()) {
+      if (!(editor.api.isFocused() || linkInputOpen())) {
         take();
       }
     }, TAKE_DELAY_MS);
-  }, [editor, take]);
+  }, [editor, linkInputOpen, take]);
 
   useEffect(() => {
     latestHtml.current = html;
@@ -150,6 +166,16 @@ export default function RichTextField({
       takeLater();
     }
   }, [editor, html, takeLater]);
+
+  // The link input closed: what came in while it was open is taken now.
+  useEffect(() => {
+    if (linkOpen) {
+      linkWasOpen.current = true;
+    } else if (linkWasOpen.current) {
+      linkWasOpen.current = false;
+      take();
+    }
+  }, [linkOpen, take]);
 
   useEffect(() => () => clearTimeout(takeTimer.current), []);
 
@@ -167,9 +193,10 @@ export default function RichTextField({
       : { className: "pe-rt-field" };
 
   // A toolbar press does not focus the editor, so it takes the pending prop
-  // itself, before the command runs on the old text.
+  // itself, before the command runs on the old text. A press in the open
+  // link input leaves it for the input's close.
   const takeBeforeCommand = () => {
-    if (!editor.api.isFocused()) {
+    if (!(editor.api.isFocused() || linkInputOpen())) {
       take();
     }
   };
