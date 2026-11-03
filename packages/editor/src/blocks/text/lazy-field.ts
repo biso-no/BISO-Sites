@@ -4,7 +4,8 @@ import { lazy, useSyncExternalStore } from "react";
 
 /**
  * The Plate editing field, in a chunk of its own that only edit mode loads,
- * so the public site never does. The one way into `rich/` from outside it.
+ * so the public site never does. With `canonical-body.ts`, the only way
+ * into `rich/` from outside it.
  */
 export const RichTextField = lazy(() => import("./rich/field"));
 

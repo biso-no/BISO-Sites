@@ -6,6 +6,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PageEditorToolName } from "@/ai/tools";
 import { type ToolResult, validateSetTheme } from "@/ai/tools/theme";
 import { getBlock } from "@/blocks/registry";
+import {
+  canonicalBodyHtml,
+  preloadRichHtml,
+} from "@/blocks/text/canonical-body";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { useSelection } from "@/editor/hooks";
 import { isInsideTextBody } from "@/editor/operations";
@@ -126,17 +130,65 @@ function applyInsertSection(args: ToolArgs): ToolResult {
   };
 }
 
+/** Canonical body writes still on their way. */
+const canonicalWrites = new Set<Promise<void>>();
+
+/** Resolves once every canonical body write under way has settled. */
+export async function whenBodiesCanonical(): Promise<void> {
+  await Promise.allSettled([...canonicalWrites]);
+}
+
+/**
+ * Replaces the raw body the copilot wrote with the field's canonical form,
+ * unless something else changed the body first. Under the raw write's
+ * coalesce key, so both are one undo step. If the form cannot be made, the
+ * raw body stays: the server sanitises it on save anyway.
+ */
+async function writeCanonicalBody(
+  id: string,
+  raw: string,
+  coalesce: string
+): Promise<void> {
+  let canonical: string;
+  try {
+    canonical = await canonicalBodyHtml(raw);
+  } catch {
+    return;
+  }
+  const store = useEditorStore.getState();
+  const block = findBlock(store.doc, id)?.block;
+  if (block?.type === "text" && block.body === raw && canonical !== raw) {
+    store.setProp(id, "body", canonical, { coalesce });
+  }
+}
+
 function applySetProp(args: ToolArgs): ToolResult {
   const store = useEditorStore.getState();
   const id = args.id as string;
   const path = args.path as string;
+  const { value } = args;
   const found = findBlock(store.doc, id);
   if (found && isInsideTextBody(found.block, path)) {
     return toolError(
       `Set the whole body as one HTML string: block ${id}'s body is HTML, so set_prop it with path "body", not ${path}.`
     );
   }
-  store.setProp(id, path, args.value);
+  if (
+    found?.block.type !== "text" ||
+    path !== "body" ||
+    typeof value !== "string"
+  ) {
+    store.setProp(id, path, value);
+    return { message: "Applied.", status: "applied" };
+  }
+  // The raw body at once, so the next tool call sees it; then the form the
+  // field writes, so the saved page shows what the canvas does.
+  const coalesce = `copilot:${id}:body`;
+  store.setProp(id, path, value, { coalesce });
+  const write = writeCanonicalBody(id, value, coalesce).finally(() => {
+    canonicalWrites.delete(write);
+  });
+  canonicalWrites.add(write);
   return { message: "Applied.", status: "applied" };
 }
 
@@ -211,6 +263,12 @@ export function CopilotPanel() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // A body the copilot writes is canonicalised in the rich chunk; load it
+  // now, so the canonical write lands inside the raw one's coalesce window.
+  useEffect(() => {
+    preloadRichHtml();
   }, []);
 
   function handleSubmit(e: React.FormEvent) {
