@@ -168,8 +168,9 @@ function flattenMisplacedTables(root: HTMLElement): void {
 
 /**
  * A table in the stored shape: no column groups; the caption a paragraph
- * before it; footer rows at the end of the last body (one is made when there
- * is none); every cell of the header a `th`; no row without a cell. A table
+ * before it; the header first, where a browser draws it wherever the source
+ * has it; footer rows at the end of the last body (one is made when there is
+ * none); every cell of the header a `th`; no row without a cell. A table
  * with no cell left is unwrapped.
  */
 function tidyTable(table: Element): void {
@@ -177,6 +178,7 @@ function tidyTable(table: Element): void {
     column.remove();
   }
   captionsBefore(table);
+  table.prepend(...childrenTagged(table, "THEAD"));
   const footers = childrenTagged(table, "TFOOT");
   if (footers.length > 0) {
     let body = childrenTagged(table, "TBODY").at(-1);

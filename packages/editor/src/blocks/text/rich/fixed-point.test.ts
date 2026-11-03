@@ -142,15 +142,18 @@ function randomValues(count: number): Value[] {
     return node;
   };
 
-  /** 1 to 4 rows of 1 to 4 cells; the first is a header row half the time. */
+  /**
+   * 1 to 4 rows of 1 to 4 cells. Half the time the first one or two are
+   * header rows, all `th`.
+   */
   const table = (): TElement => {
-    const header = chance();
+    const headerRows = chance() ? int(1, 2) : 0;
     return {
       type: "table",
       children: Array.from({ length: int(1, 4) }, (_, row) => ({
         type: "tr",
         children: Array.from({ length: int(1, 4) }, () =>
-          cell(header && row === 0 ? "th" : "td")
+          cell(row < headerRows ? "th" : "td")
         ),
       })),
     };
@@ -194,6 +197,8 @@ test("the random values hold every feature the serializer writes", () => {
     "<blockquote>",
     "<hr>",
     "<table><thead><tr><th",
+    "</th></tr><tr><th",
+    '<tbody><tr><th rowspan="',
     "<table><tbody><tr><td",
     "</td></tr><tr><td",
     "<td></td>",

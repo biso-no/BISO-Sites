@@ -396,7 +396,7 @@ test("cells write the spans Plate holds, as numbers or attributes, 2 to 20", () 
       },
     ])
   ).toBe(
-    '<table><thead><tr><th colspan="2">a</th><th rowspan="3">b</th></tr></thead><tbody><tr><td>c</td><td>d<br>e</td></tr></tbody></table>'
+    '<table><tbody><tr><th colspan="2">a</th><th rowspan="3">b</th></tr><tr><td>c</td><td>d<br>e</td></tr></tbody></table>'
   );
 });
 
@@ -438,6 +438,64 @@ test("a table ends the list before it", () => {
   ).toBe(
     "<ul><li>a</li></ul><table><tbody><tr><td>b</td></tr></tbody></table>"
   );
+});
+
+// A browser ends a row span at the end of its row group, so the header group
+// never cuts one: it is the longest run of leading all-`th` rows that no
+// cell's span reaches past.
+test.each([
+  [
+    "a two-row header",
+    '<table><thead><tr><th rowspan="2">Name</th><th colspan="2">Contact</th></tr><tr><th>Email</th><th>Phone</th></tr></thead><tbody><tr><td>Ada</td><td>a@biso.no</td><td>123</td></tr></tbody></table>',
+    '<table><thead><tr><th rowspan="2">Name</th><th colspan="2">Contact</th></tr><tr><th>Email</th><th>Phone</th></tr></thead><tbody><tr><td>Ada</td><td>a@biso.no</td><td>123</td></tr></tbody></table>',
+  ],
+  [
+    "a header cell spanning into the body",
+    '<table><tr><th rowspan="2">h</th><th>x</th></tr><tr><td>y</td></tr></table>',
+    '<table><tbody><tr><th rowspan="2">h</th><th>x</th></tr><tr><td>y</td></tr></tbody></table>',
+  ],
+  [
+    "two plain header rows",
+    "<table><tr><th>a</th></tr><tr><th>b</th></tr><tr><td>c</td></tr></table>",
+    "<table><thead><tr><th>a</th></tr><tr><th>b</th></tr></thead><tbody><tr><td>c</td></tr></tbody></table>",
+  ],
+  [
+    "a body row of th with a row span",
+    '<table><tbody><tr><th rowspan="2">a</th><th>b</th></tr><tr><td>c</td></tr></tbody></table>',
+    '<table><tbody><tr><th rowspan="2">a</th><th>b</th></tr><tr><td>c</td></tr></tbody></table>',
+  ],
+  [
+    "a second header row spanning into the body",
+    '<table><thead><tr><th>a</th></tr><tr><th rowspan="2">b</th></tr></thead><tbody><tr><td>c</td></tr></tbody></table>',
+    '<table><thead><tr><th>a</th></tr></thead><tbody><tr><th rowspan="2">b</th></tr><tr><td>c</td></tr></tbody></table>',
+  ],
+  [
+    "a header after the body in the source",
+    "<table><tbody><tr><td>a</td></tr></tbody><thead><tr><th>h</th></tr></thead></table>",
+    "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+])("the header group keeps its row spans: %s", (_, input, out) => {
+  expect(valueToHtml(htmlToValue(input))).toBe(out);
+  expect(valueToHtml(htmlToValue(out))).toBe(out);
+});
+
+test("a span the page drops does not keep a row out of the header", () => {
+  const value: Value = [
+    {
+      type: "table",
+      children: [
+        {
+          type: "tr",
+          children: [{ type: "th", rowSpan: 25, children: [line("a")] }],
+        },
+        { type: "tr", children: [{ type: "td", children: [line("b")] }] },
+      ],
+    },
+  ];
+  const html =
+    "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>b</td></tr></tbody></table>";
+  expect(valueToHtml(value)).toBe(html);
+  expect(valueToHtml(htmlToValue(html))).toBe(html);
 });
 
 test("the value never ends with a table or a divider", () => {

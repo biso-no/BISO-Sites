@@ -17,7 +17,7 @@ import {
   flattenListItems,
   ORDERED_LIST_STYLES,
 } from "./list-item-parse";
-import { richBasePlugins } from "./plugins";
+import { richBasePlugins, TABLE_CELL_TYPES } from "./plugins";
 import { structureBlocks } from "./structure";
 
 /** A headless editor on the rich text schema, for conversion and paste. */
@@ -327,18 +327,19 @@ function inlineToHtml(nodes: Descendant[], inLink = false): string {
     .join("");
 }
 
-const isElementOf = (
-  node: Descendant,
-  types: ReadonlySet<string>
-): node is TElement => !isText(node) && types.has(node.type);
+const isRow = (node: Descendant): node is TElement =>
+  !isText(node) && node.type === "tr";
 
-const ROW: ReadonlySet<string> = new Set(["tr"]);
-const CELL: ReadonlySet<string> = new Set(["td", "th"]);
+const isCell = (node: Descendant): node is TElement =>
+  !isText(node) && TABLE_CELL_TYPES.includes(node.type);
 
-/** A span attribute, when the sanitisers keep it: 2 to 20. */
+/** A span as it is written: 2 to 20, or 1 where the sanitisers drop it. */
+const writtenSpan = (span: number): number =>
+  Number(keptCellSpan(String(span)) ?? 1);
+
 function spanAttribute(name: string, span: number): string {
-  const kept = keptCellSpan(String(span));
-  return kept === null ? "" : ` ${name}="${kept}"`;
+  const written = writtenSpan(span);
+  return written > 1 ? ` ${name}="${written}"` : "";
 }
 
 /**
@@ -361,24 +362,49 @@ const rowToHtml = (cells: TElement[]): string =>
   `<tr>${cells.map(cellToHtml).join("")}</tr>`;
 
 /**
- * A table: the first row in `<thead>` when its cells are all `th`, the others
+ * How many leading rows make the header: the longest run of rows whose cells
+ * are all `th` that no cell's row span reaches past. A browser ends a row
+ * span at the end of its row group, so a header that cut one would shift
+ * the cells below it.
+ */
+function headerRowCount(rows: TElement[][]): number {
+  let leading = 0;
+  while (rows[leading]?.every((cell) => cell.type === "th")) {
+    leading += 1;
+  }
+  const spansFit = (count: number): boolean =>
+    rows
+      .slice(0, count)
+      .every((cells, row) =>
+        cells.every((cell) => row + writtenSpan(getRowSpan(cell)) <= count)
+      );
+  let count = leading;
+  while (count > 0 && !spansFit(count)) {
+    count -= 1;
+  }
+  return count;
+}
+
+/**
+ * A table: its header group (`headerRowCount`) in `<thead>`, the other rows
  * in `<tbody>`. A row with no cell is nothing, and so is a table with no row.
  */
 function tableToHtml(table: TElement): string {
   const rows = table.children
-    .filter((row) => isElementOf(row, ROW))
-    .map((row) => row.children.filter((cell) => isElementOf(cell, CELL)))
+    .filter(isRow)
+    .map((row) => row.children.filter(isCell))
     .filter((cells) => cells.length > 0);
-  const [first] = rows;
-  if (first === undefined) {
+  if (rows.length === 0) {
     return "";
   }
-  const header = first.every((cell) => cell.type === "th");
-  const body = header ? rows.slice(1) : rows;
-  const head = header ? `<thead>${rowToHtml(first)}</thead>` : "";
+  const headerRows = headerRowCount(rows);
+  const head = rows.slice(0, headerRows);
+  const body = rows.slice(headerRows);
+  const headHtml =
+    head.length > 0 ? `<thead>${head.map(rowToHtml).join("")}</thead>` : "";
   const bodyHtml =
     body.length > 0 ? `<tbody>${body.map(rowToHtml).join("")}</tbody>` : "";
-  return `<table>${head}${bodyHtml}</table>`;
+  return `<table>${headHtml}${bodyHtml}</table>`;
 }
 
 function blockToHtml(node: TElement): string {
