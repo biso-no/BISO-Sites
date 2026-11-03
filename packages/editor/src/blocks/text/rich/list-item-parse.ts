@@ -46,6 +46,50 @@ export const ORDERED_LIST_STYLES: ReadonlySet<string> = new Set([
   "upper-roman",
 ]);
 
+/**
+ * The nesting depth of each item in one run of list items, from their raw
+ * levels (Plate's `indent`, or Word's `mso-list` level). A level deeper than
+ * the item before goes one depth down, however many levels it skips; a level
+ * equal to the one before stays at its depth; a shallower level returns to
+ * the depth of the latest item at that level, or one below the latest item
+ * shallower than it. So items that skip the same levels stay siblings.
+ */
+export function effectiveDepths(levels: readonly number[]): number[] {
+  const depths: number[] = [];
+  for (const [i, level] of levels.entries()) {
+    const previous = levels[i - 1];
+    if (previous === undefined) {
+      depths.push(1);
+    } else if (level > previous) {
+      depths.push((depths[i - 1] ?? 0) + 1);
+    } else if (level === previous) {
+      depths.push(depths[i - 1] ?? 1);
+    } else {
+      depths.push(depthOfShallower(levels, depths, i));
+    }
+  }
+  return depths;
+}
+
+/** The depth of item `i`, whose level is below the item before it. */
+function depthOfShallower(
+  levels: readonly number[],
+  depths: readonly number[],
+  i: number
+): number {
+  const level = levels[i] ?? 1;
+  for (let j = i - 1; j >= 0; j -= 1) {
+    const earlier = levels[j] ?? 1;
+    if (earlier === level) {
+      return depths[j] ?? 1;
+    }
+    if (earlier < level) {
+      return (depths[j] ?? 0) + 1;
+    }
+  }
+  return 1;
+}
+
 type ListStyle = "disc" | "decimal";
 
 /**

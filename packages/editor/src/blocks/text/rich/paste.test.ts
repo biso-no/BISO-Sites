@@ -289,12 +289,20 @@ test("a Word level that skips one nests one level, in order", () => {
       wordItem("·", 1, "a") + wordItem("·", 3, "deep") + wordItem("·", 2, "mid")
     )
   ).toBe("<ul><li>a<ul><li>deep</li><li>mid</li></ul></li></ul>");
-  // One sublist, not two: "deep" is clamped to level 2 before Plate sees it.
+  // One sublist, not two: "deep" is at depth 2 before Plate sees it.
   expect(
     normalizePastedHtml(
       wordItem("·", 1, "a") + wordItem("·", 3, "deep") + wordItem("·", 2, "mid")
     )
   ).toBe("<ul><li>a</li><ul><li>deep</li><li>mid</li></ul></ul>");
+});
+
+test("Word items that skip the same level are siblings", () => {
+  expect(
+    pasteInto(
+      wordItem("·", 1, "a") + wordItem("·", 3, "b") + wordItem("·", 3, "c")
+    )
+  ).toBe("<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>");
 });
 
 test("two sublists of one Word item keep their order", () => {

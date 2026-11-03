@@ -3,6 +3,7 @@ import { Window } from "happy-dom";
 import { deserializeHtml, type Value } from "platejs";
 import { legacyBodyToHtml } from "../body";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
+import { effectiveDepths } from "./list-item-parse";
 
 const previous = { Node: globalThis.Node, document: globalThis.document };
 
@@ -133,17 +134,64 @@ test("alpha and roman list styles are ordered, as the serializer reads them", ()
   ).toBe("<ol><li>a</li></ol>");
 });
 
-/** Tab pressed twice: a list item two levels below the one above it. */
-const INDENT_JUMP: Value = [
-  { type: "p", indent: 1, listStyleType: "disc", children: [{ text: "a" }] },
-  { type: "p", indent: 3, listStyleType: "disc", children: [{ text: "b" }] },
-  { type: "p", indent: 2, listStyleType: "disc", children: [{ text: "c" }] },
+test.each([
+  [
+    [1, 3, 3],
+    [1, 2, 2],
+  ],
+  [
+    [1, 3, 2],
+    [1, 2, 2],
+  ],
+  [
+    [1, 2, 3, 1, 3],
+    [1, 2, 3, 1, 2],
+  ],
+  [
+    [2, 2],
+    [1, 1],
+  ],
+  [
+    [1, 2, 1, 2],
+    [1, 2, 1, 2],
+  ],
+  [
+    [3, 1, 2],
+    [1, 1, 2],
+  ],
+])("effective depths of %p are %p", (levels, depths) => {
+  expect(effectiveDepths(levels)).toEqual(depths);
+});
+
+/** Bullets a, b, c… at these indents. */
+const bullets = (...indents: number[]): Value =>
+  indents.map((indent, i) => ({
+    type: "p",
+    indent,
+    listStyleType: "disc",
+    children: [{ text: "abc"[i] ?? "" }],
+  }));
+
+/** Tab pressed twice: list items two levels below the one above them. */
+const INDENT_JUMPS: [name: string, value: Value][] = [
+  ["1, 3, 3", bullets(1, 3, 3)],
+  ["1, 3, 2", bullets(1, 3, 2)],
 ];
 
-test("a list item is at most one level below the list it sits in", () => {
-  expect(valueToHtml(INDENT_JUMP)).toBe(
+test.each(INDENT_JUMPS)("an indent jump nests one level: %s", (_, value) => {
+  expect(valueToHtml(value)).toBe(
     "<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>"
   );
+});
+
+test("a paragraph ends a list run, so its depths start again", () => {
+  expect(
+    valueToHtml([
+      ...bullets(2),
+      { type: "p", children: [{ text: "x" }] },
+      ...bullets(1, 3),
+    ])
+  ).toBe("<ul><li>a</li></ul><p>x</p><ul><li>a<ul><li>b</li></ul></li></ul>");
 });
 
 /** What the editor's echo compare relies on (Task 7). */
@@ -152,8 +200,10 @@ const expectFixedPoint = (value: Value): void => {
   expect(valueToHtml(htmlToValue(once))).toBe(once);
 };
 
-test("serializing an indent jump is a fixed point", () => {
-  expectFixedPoint(INDENT_JUMP);
+test.each(
+  INDENT_JUMPS
+)("serializing an indent jump is a fixed point: %s", (_, value) => {
+  expectFixedPoint(value);
 });
 
 test.each(ROUND_TRIP)("serializing is a fixed point: %s", (html) => {

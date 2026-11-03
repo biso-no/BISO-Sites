@@ -1,6 +1,10 @@
 import { DROPPED_WITH_CONTENT } from "@/lib/rich-allowlist";
 import { parseInert } from "@/lib/sanitize";
-import { flattenListItems, LIST_TAGS } from "./list-item-parse";
+import {
+  effectiveDepths,
+  flattenListItems,
+  LIST_TAGS,
+} from "./list-item-parse";
 
 // Clipboard HTML from Word (desktop and web), Google Docs and web pages,
 // rewritten into plain semantic markup before Plate's HTML deserializer reads
@@ -191,19 +195,18 @@ const listStart = (number: string): number | undefined =>
   DIGITS.test(number) && Number(number) >= 2 ? Number(number) : undefined;
 
 /**
- * The same stack walk as the serializer's, keyed by Word's level. A level is
- * at most one below the innermost open list, so no item gets two sublists
- * from a skipped level.
+ * The same stack walk as the serializer's, on the `effectiveDepths` of
+ * Word's levels, so items that skip a level stay siblings.
  */
 function buildWordList(paragraphs: Element[]): DocumentFragment {
   const doc = paragraphs[0]?.ownerDocument ?? document;
   const out = doc.createDocumentFragment();
   const stack: OpenWordList[] = [];
-  for (const paragraph of paragraphs) {
-    const level = Math.min(
-      wordListLevel(paragraph) ?? 1,
-      (stack.at(-1)?.level ?? 0) + 1
-    );
+  const depths = effectiveDepths(
+    paragraphs.map((paragraph) => wordListLevel(paragraph) ?? 1)
+  );
+  for (const [index, paragraph] of paragraphs.entries()) {
+    const level = depths[index] ?? 1;
     const ordered = ORDERED_MARKER.exec(takeMarker(paragraph));
     const tag = ordered ? "ol" : "ul";
     while ((stack.at(-1)?.level ?? 0) > level) {

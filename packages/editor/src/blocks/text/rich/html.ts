@@ -11,7 +11,11 @@ import {
 } from "platejs";
 import { SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseInert, sanitizeRichBody } from "@/lib/sanitize";
-import { flattenListItems, ORDERED_LIST_STYLES } from "./list-item-parse";
+import {
+  effectiveDepths,
+  flattenListItems,
+  ORDERED_LIST_STYLES,
+} from "./list-item-parse";
 import { richBasePlugins } from "./plugins";
 
 /** A headless editor on the rich text schema, for conversion and paste. */
@@ -135,11 +139,39 @@ interface OpenList {
   tag: "ol" | "ul";
 }
 
+const isListItem = (
+  node: TElement
+): node is TElement & { listStyleType: string } =>
+  typeof node.listStyleType === "string" && node.listStyleType !== "";
+
+/**
+ * Each block's list depth, by `effectiveDepths` over each run of adjacent
+ * list items (any other block ends a run); 0 for a block that is no list item.
+ */
+function listDepths(value: Value): number[] {
+  const depths: number[] = [];
+  let run: number[] = [];
+  const endRun = (): void => {
+    depths.push(...effectiveDepths(run));
+    run = [];
+  };
+  for (const node of value) {
+    if (isListItem(node)) {
+      run.push(typeof node.indent === "number" ? node.indent : 1);
+    } else {
+      endRun();
+      depths.push(0);
+    }
+  }
+  endRun();
+  return depths;
+}
+
 /**
  * Plate's indent lists (flat blocks carrying `listStyleType` and `indent`)
  * back to nested `<ul>`/`<ol>`. Unlike other blocks, an empty list item is
- * kept. An item sits at most one level below the innermost open list, so an
- * indent jump (Tab twice) writes the same HTML a re-parse of it gives.
+ * kept. Items nest by `effectiveDepths`, so an indent jump (Tab twice) goes
+ * one level down and writes the same HTML a re-parse of it gives.
  */
 export function valueToHtml(value: Value): string {
   const stack: OpenList[] = [];
@@ -158,20 +190,17 @@ export function valueToHtml(value: Value): string {
     }
   };
 
-  for (const node of value) {
-    const { indent, listStart, listStyleType } = node;
-    if (typeof listStyleType !== "string" || listStyleType === "") {
+  const depths = listDepths(value);
+  for (const [index, node] of value.entries()) {
+    if (!isListItem(node)) {
       closeAll();
       html += blockToHtml(node);
       continue;
     }
 
+    const { listStart, listStyleType } = node;
     const tag = ORDERED_LIST_STYLES.has(listStyleType) ? "ol" : "ul";
-    const openDepth = stack.at(-1)?.indent ?? 0;
-    const level = Math.min(
-      typeof indent === "number" ? indent : 1,
-      openDepth + 1
-    );
+    const level = depths[index] ?? 1;
     closeDeeperThan(level);
     if (stack.at(-1)?.indent === level && stack.at(-1)?.tag !== tag) {
       closeList();
