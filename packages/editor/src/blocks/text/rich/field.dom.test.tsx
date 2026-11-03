@@ -265,6 +265,18 @@ test("mounting emits nothing", async () => {
   expect(a.editor().history.undos).toEqual([]);
 });
 
+test("a coloured run shows as its token span on the canvas", async () => {
+  const a = field();
+  const { editables, render } = mount(a);
+  await render('<p><span data-color="red">x</span></p>');
+
+  const span = editables()[0]?.querySelector("span[data-color]");
+  expect(span?.getAttribute("data-color")).toBe("red");
+  expect(span?.textContent).toBe("x");
+  await advance(TAKE_DELAY);
+  expect(a.spy).not.toHaveBeenCalled();
+});
+
 test("typing emits the new HTML", async () => {
   const a = field();
   const { render } = mount(a);

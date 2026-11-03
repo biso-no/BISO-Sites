@@ -9,7 +9,7 @@ import {
   type TText,
   type Value,
 } from "platejs";
-import { SAFE_HREF } from "@/lib/rich-allowlist";
+import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseInert, sanitizeRichBody } from "@/lib/sanitize";
 import {
   effectiveDepths,
@@ -51,9 +51,117 @@ function asBlocks(editor: SlateEditor, nodes: Descendant[]): Value {
 }
 
 /**
+ * The white space HTML keeps as text but Plate collapses, as its `\s`
+ * matches it: everything JavaScript calls white space except space, tab,
+ * LF, FF and CR. U+00A0 is the one a body is likely to hold.
+ */
+const KEPT_SPACES =
+  "\v\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
+const KEPT_SPACE = new RegExp(`[${KEPT_SPACES}]`, "g");
+/** The noncharacters U+FDD0 to U+FDEF, which no text should hold. */
+const FIRST_STAND_IN = 0xfd_d0;
+const ANY_STAND_IN = /[\ufdd0-\ufdef]/;
+const STAND_IN = /[\ufdd0-\ufdef]/g;
+
+/** Each kept space in the text below `node` as its stand-in. */
+function hideKeptSpaces(node: Node): void {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType !== Node.TEXT_NODE) {
+      hideKeptSpaces(child);
+      continue;
+    }
+    const text = child.textContent ?? "";
+    const hidden = text.replace(KEPT_SPACE, (space) =>
+      String.fromCharCode(FIRST_STAND_IN + KEPT_SPACES.indexOf(space))
+    );
+    if (hidden !== text) {
+      child.textContent = hidden;
+    }
+  }
+}
+
+/** The stand-ins in `nodes` as the spaces they stand for. */
+function restoreKeptSpaces(nodes: Descendant[]): Descendant[] {
+  return nodes.map((node) =>
+    ElementApi.isElement(node)
+      ? { ...node, children: restoreKeptSpaces(node.children) }
+      : {
+          ...node,
+          text: node.text.replace(
+            STAND_IN,
+            (standIn) =>
+              KEPT_SPACES[standIn.charCodeAt(0) - FIRST_STAND_IN] ?? standIn
+          ),
+        }
+  );
+}
+
+/**
+ * Each text and line break on a span of its own, in the colour of its
+ * innermost coloured span, as a browser paints it. Plate gives a leaf its
+ * innermost colour only up to an element: a span around a link colours
+ * every text in it, over the spans inside. Runs after the sanitiser, so
+ * every `data-color` left is a token.
+ */
+function colourInnermost(root: HTMLElement): void {
+  const coloured: [node: ChildNode, colour: string][] = [];
+  const visit = (node: Node, colour: string | null): void => {
+    for (const child of Array.from(node.childNodes)) {
+      const element =
+        child.nodeType === Node.ELEMENT_NODE ? (child as Element) : null;
+      if (element === null || element.tagName === "BR") {
+        if (colour !== null) {
+          coloured.push([child, colour]);
+        }
+        continue;
+      }
+      const own =
+        element.tagName === "SPAN" ? element.getAttribute("data-color") : null;
+      if (own !== null) {
+        element.removeAttribute("data-color");
+      }
+      visit(element, own ?? colour);
+    }
+  };
+  visit(root, null);
+  for (const [node, colour] of coloured) {
+    const span = root.ownerDocument.createElement("span");
+    span.setAttribute("data-color", colour);
+    node.replaceWith(span);
+    span.append(node);
+  }
+}
+
+/** The parents a `<br>` with no text beside it stays a line break in. */
+const LINE_BREAK_PARENTS: ReadonlySet<string> = new Set(["P", "SPAN"]);
+
+/**
+ * Plate makes a `<br>` with no text beside it a paragraph of its own unless
+ * its parent is a `p` or a `span`, so a line break with marks of its own
+ * (`<strong><br></strong>`), or one between marked runs in a heading or a
+ * list item, would split its block. Wrapped in a span, each stays a line
+ * break, as a browser shows it. One between top-level blocks is left to be
+ * an empty paragraph.
+ */
+function keepLineBreaks(root: HTMLElement): void {
+  for (const br of Array.from(root.querySelectorAll("br"))) {
+    const parent = br.parentElement;
+    if (parent && parent !== root && !LINE_BREAK_PARENTS.has(parent.tagName)) {
+      const span = br.ownerDocument.createElement("span");
+      br.replaceWith(span);
+      span.append(br);
+    }
+  }
+}
+
+/**
  * Stored body HTML as a normalised Plate value; never `[]`. The structure
  * step runs before the sanitiser, which would unwrap a `div` or a cell and
- * run its words into the next one's.
+ * run its words into the next one's. Plate then reads the body as a browser
+ * shows it: each text in its innermost colour, each line break kept, and
+ * each kept space (U+00A0 and the like) as a stand-in it does not collapse.
+ * A body that already holds a stand-in has its spaces read as Plate reads
+ * them.
  */
 export function htmlToValue(html: string): Value {
   const editor = createConversionEditor();
@@ -61,7 +169,16 @@ export function htmlToValue(html: string): Value {
   structureBlocks(source);
   const element = parseInert(sanitizeRichBody(source.innerHTML));
   flattenListItems(element);
-  editor.tf.setValue(asBlocks(editor, deserializeHtml(editor, { element })));
+  colourInnermost(element);
+  keepLineBreaks(element);
+  const keepSpaces = !ANY_STAND_IN.test(element.textContent ?? "");
+  if (keepSpaces) {
+    hideKeptSpaces(element);
+  }
+  const nodes = deserializeHtml(editor, { element });
+  editor.tf.setValue(
+    asBlocks(editor, keepSpaces ? restoreKeptSpaces(nodes) : nodes)
+  );
   editor.tf.normalize({ force: true });
   return editor.children.length > 0 ? editor.children : emptyValue();
 }
@@ -76,7 +193,7 @@ const BLOCK_TAGS: ReadonlyMap<string, string> = new Map([
   ["p", "p"],
 ]);
 
-/** Outermost first. */
+/** Outermost first, inside the colour span. */
 const MARKS: [mark: string, tag: string][] = [
   ["bold", "strong"],
   ["italic", "em"],
@@ -96,38 +213,101 @@ const isText = (node: Descendant): node is TText =>
 const textOf = (node: Descendant): string =>
   isText(node) ? node.text : node.children.map(textOf).join("");
 
-/**
- * An empty leaf (Slate keeps one beside a link) prints nothing, so a mark it
- * carries cannot leave an empty `<strong></strong>` behind.
- */
-function leafToHtml(leaf: TText): string {
-  if (leaf.text === "") {
-    return "";
-  }
-  let open = "";
-  let close = "";
-  for (const [mark, tag] of MARKS) {
-    if (leaf[mark]) {
-      open += `<${tag}>`;
-      close = `</${tag}>${close}`;
-    }
-  }
-  return `${open}${escapeText(leaf.text).replaceAll("\n", "<br>")}${close}`;
+/** Text in the tags its leaves share, outermost first in `open`. */
+interface Run {
+  close: string;
+  open: string;
+  text: string;
 }
 
-function inlineToHtml(nodes: Descendant[]): string {
-  let html = "";
+/** A link with its href as it is written. */
+interface Link {
+  children: Descendant[];
+  href: string;
+}
+
+/**
+ * A leaf's text in its tags: the colour span (a token the sanitisers keep,
+ * or none), then `strong > em > u > s`.
+ */
+function leafRun(leaf: TText): Run {
+  let open = "";
+  let close = "";
+  const wrap = (start: string, end: string): void => {
+    open += start;
+    close = `${end}${close}`;
+  };
+  const color =
+    typeof leaf.color === "string" ? keptColourToken(leaf.color) : null;
+  if (color !== null) {
+    wrap(`<span data-color="${color}">`, "</span>");
+  }
+  for (const [mark, tag] of MARKS) {
+    if (leaf[mark]) {
+      wrap(`<${tag}>`, `</${tag}>`);
+    }
+  }
+  return { close, open, text: leaf.text };
+}
+
+/** The href a node is written with, or `null` when it is written as its text. */
+function linkHref(node: TElement): string | null {
+  const url = typeof node.url === "string" ? node.url.trim() : "";
+  return node.type === "a" && SAFE_HREF.test(url) && textOf(node) !== ""
+    ? url
+    : null;
+}
+
+/**
+ * The runs and links `nodes` are written as, in order. An empty leaf (Slate
+ * keeps one beside a link) is nothing, so a mark it carries cannot leave an
+ * empty `<strong></strong>` behind. A link without a safe href or any text,
+ * and any inline inside a link, adds only its leaves.
+ */
+function inlinePieces(
+  nodes: Descendant[],
+  inLink: boolean,
+  pieces: (Run | Link)[] = []
+): (Run | Link)[] {
   for (const node of nodes) {
     if (isText(node)) {
-      html += leafToHtml(node);
+      if (node.text !== "") {
+        pieces.push(leafRun(node));
+      }
       continue;
     }
-    const inner = inlineToHtml(node.children);
-    const url = typeof node.url === "string" ? node.url.trim() : "";
-    const isLink = node.type === "a" && SAFE_HREF.test(url) && inner !== "";
-    html += isLink ? `<a href="${escapeAttribute(url)}">${inner}</a>` : inner;
+    const href = inLink ? null : linkHref(node);
+    if (href === null) {
+      inlinePieces(node.children, inLink, pieces);
+    } else {
+      pieces.push({ children: node.children, href });
+    }
   }
-  return html;
+  return pieces;
+}
+
+/**
+ * Inline nodes as HTML. Adjacent runs in the same tags are written as one,
+ * as a re-parse reads them (a colour no sanitiser keeps and a link written
+ * as text add no tags), so the output is already a fixed point.
+ */
+function inlineToHtml(nodes: Descendant[], inLink = false): string {
+  const merged: (Run | Link)[] = [];
+  for (const piece of inlinePieces(nodes, inLink)) {
+    const last = merged.at(-1);
+    if (last && "text" in last && "text" in piece && last.open === piece.open) {
+      last.text += piece.text;
+    } else {
+      merged.push(piece);
+    }
+  }
+  return merged
+    .map((piece) =>
+      "text" in piece
+        ? `${piece.open}${escapeText(piece.text).replaceAll("\n", "<br>")}${piece.close}`
+        : `<a href="${escapeAttribute(piece.href)}">${inlineToHtml(piece.children, true)}</a>`
+    )
+    .join("");
 }
 
 function blockToHtml(node: TElement): string {

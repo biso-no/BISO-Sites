@@ -27,14 +27,22 @@ import {
   type PlateEditor,
   PlateElement,
   type PlateElementProps,
+  PlateLeaf,
+  type PlateLeafProps,
+  toPlatePlugin,
 } from "platejs/react";
 import type { KeyboardEvent } from "react";
-import { SAFE_HREF } from "@/lib/rich-allowlist";
+import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { handleListTab } from "./commands";
 import { isListItem } from "./html";
 import { ORDERED_LIST_STYLES } from "./list-item-parse";
 import { RichPastePlugin } from "./paste-plugin";
-import { LIST_TARGETS, linkHtmlParse, listItemHtmlParse } from "./plugins";
+import {
+  LIST_TARGETS,
+  linkHtmlParse,
+  listItemHtmlParse,
+  RichColourPlugin,
+} from "./plugins";
 
 type BlockTag = "blockquote" | "h2" | "h3" | "p";
 
@@ -101,6 +109,30 @@ function LinkElement(props: PlateElementProps) {
       {...props}
       as="a"
       attributes={{ ...plainAttributes(props), href }}
+    />
+  );
+}
+
+/**
+ * A coloured run as the page stores it: a plain span with its token, which
+ * the public CSS paints. A colour the sanitisers would drop shows as plain
+ * text, as it is saved.
+ */
+function ColourLeaf(props: PlateLeafProps) {
+  const { color } = props.leaf;
+  const token = typeof color === "string" ? keptColourToken(color) : null;
+  if (token === null) {
+    return props.children;
+  }
+  return (
+    <PlateLeaf
+      {...props}
+      as="span"
+      attributes={{
+        ...props.attributes,
+        className: undefined,
+        "data-color": token,
+      }}
     />
   );
 }
@@ -263,6 +295,8 @@ export const richReactPlugins: (AnyPlatePlugin | AnySlatePlugin)[] = [
   }).extend({
     parsers: { html: { deserializer: { parse: listItemHtmlParse } } },
   }),
+  // The last leaf plugin, so its span wraps the marks, as the save writes it.
+  toPlatePlugin(RichColourPlugin).withComponent(ColourLeaf),
   AutoformatPlugin.configure({ options: { rules: LIST_RULES } }),
   // After the indent plugin, so its `tab` wraps the indent plugin's.
   RichKeysPlugin,

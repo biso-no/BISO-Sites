@@ -11,12 +11,12 @@ import sanitizeHtml, {
 } from "sanitize-html";
 import { safeHref } from "../blocks/_v2/links";
 import {
+  BODY_ATTRIBUTE_RULES,
   BODY_ATTRIBUTES,
   BODY_TAGS,
   DROPPED_WITH_CONTENT,
   INLINE_TAGS,
-  keptOlStart,
-  SAFE_HREF,
+  keptAttributes,
 } from "../lib/rich-allowlist";
 import { scanBody, textLines } from "./body-scan";
 
@@ -44,26 +44,14 @@ const keepSafeHref: Transformer = (tagName, { href }) => {
 };
 
 /**
- * The body path's link rule: the browser sanitiser's `SAFE_HREF`, verbatim,
- * so a link the editor shows keeps its href on save and the reverse.
+ * A body tag keeps what `keptAttributes` keeps, as the browser sanitiser
+ * does, so a link or colour the editor shows survives the save and the
+ * reverse.
  */
-const keepBodyHref: Transformer = (tagName, { href }) => {
-  const attribs: Attributes = {};
-  if (href !== undefined && SAFE_HREF.test(href.trim())) {
-    attribs.href = href;
-  }
-  return { attribs, tagName };
-};
-
-/** `ol[start]` kept only when valid and at least 2, as the browser sanitiser does. */
-const keepOlStart: Transformer = (tagName, { start }) => {
-  const attribs: Attributes = {};
-  const kept = start === undefined ? null : keptOlStart(start);
-  if (kept !== null) {
-    attribs.start = kept;
-  }
-  return { attribs, tagName };
-};
+const keepBodyAttributes: Transformer = (tagName, attribs) => ({
+  attribs: keptAttributes(tagName, attribs),
+  tagName,
+});
 
 const BODY_OPTIONS: IOptions = {
   // sanitize-html's types want arrays it could change.
@@ -77,7 +65,9 @@ const BODY_OPTIONS: IOptions = {
   disallowedTagsMode: "discard",
   nestingLimit: 100,
   nonTextTags: [...DROPPED_WITH_CONTENT],
-  transformTags: { a: keepBodyHref, ol: keepOlStart },
+  transformTags: Object.fromEntries(
+    Object.keys(BODY_ATTRIBUTE_RULES).map((tag) => [tag, keepBodyAttributes])
+  ),
 };
 
 const OPTIONS: IOptions = {

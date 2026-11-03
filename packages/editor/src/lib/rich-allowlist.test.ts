@@ -58,6 +58,23 @@ const CASES: [string, string][] = [
     "<p><u>u</u> <s>s</s></p><hr><blockquote>q</blockquote>",
     "<p><u>u</u> <s>s</s></p><hr><blockquote>q</blockquote>",
   ],
+  [
+    '<p><span data-color="accent">a</span></p>',
+    '<p><span data-color="accent">a</span></p>',
+  ],
+  [
+    '<p><span data-color=" red ">a</span></p>',
+    '<p><span data-color="red">a</span></p>',
+  ],
+  [
+    '<p><span data-color="ACCENT">a</span><span data-color="#ff0000">b</span><span data-color="pink">c</span></p>',
+    "<p><span>a</span><span>b</span><span>c</span></p>",
+  ],
+  [
+    '<p><span data-color="muted" style="color:red" class="x">a</span></p>',
+    '<p><span data-color="muted">a</span></p>',
+  ],
+  ['<p><b data-color="accent">a</b></p>', "<p><b>a</b></p>"],
 ];
 
 describe("body sanitisers", () => {

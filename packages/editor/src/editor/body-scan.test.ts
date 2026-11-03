@@ -4,6 +4,7 @@ import { scanBody, textLines } from "./body-scan";
 const CANONICAL = [
   '<h2>T</h2><p>a <strong>b</strong> <a href="https://biso.no?a=1&amp;b=2">l</a><br>c</p>',
   '<ul><li>x<ul><li>y</li></ul></li></ul><ol start="3"><li>z</li></ol><hr><blockquote>q &gt; r</blockquote>',
+  '<p><span data-color="accent">a</span></p>',
   "plain text, no tags",
   "",
 ];
@@ -31,6 +32,7 @@ test.each([
   "<p >x</p>",
   "<p\n>x</p>",
   '<a  href="x">y</a>',
+  '<b data-color="accent">a</b>',
 ])("rejects anything else: %s", (html) =>
   expect(scanBody(html, 100)).toBe("other"));
 

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { Window } from "happy-dom";
-import { deserializeHtml, type Value } from "platejs";
+import { type Descendant, deserializeHtml, type Value } from "platejs";
 import { legacyBodyToHtml } from "../body";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
 import { effectiveDepths } from "./list-item-parse";
@@ -27,10 +27,111 @@ const ROUND_TRIP = [
   "<p>line<br>break</p>",
   '<p><a href="https://biso.no">biso</a></p>',
   "<p>a &lt; b &amp; c</p>",
+  '<p><span data-color="accent">a</span> <span data-color="red"><strong>b</strong></span></p>',
+  '<h2><span data-color="muted">T</span></h2><ul><li><span data-color="green">x</span></li></ul>',
+  '<p><a href="https://biso.no"><span data-color="amber">l</span></a></p>',
 ];
 
 test.each(ROUND_TRIP)("round-trips %s", (html) =>
   expect(valueToHtml(htmlToValue(html))).toBe(html));
+
+test("colour sits outside the other marks", () => {
+  expect(
+    valueToHtml(
+      htmlToValue('<p><strong><span data-color="red">b</span></strong></p>')
+    )
+  ).toBe('<p><span data-color="red"><strong>b</strong></span></p>');
+});
+
+// A browser paints each text in its innermost colour; so does the parse,
+// through a link too, where Plate's own merge gives the outer one.
+test.each([
+  [
+    '<p><span data-color="red">a<span data-color="green">b</span>c</span></p>',
+    '<p><span data-color="red">a</span><span data-color="green">b</span><span data-color="red">c</span></p>',
+  ],
+  [
+    '<p><span data-color="red"><a href="/x"><span data-color="green">t</span>u</a></span></p>',
+    '<p><a href="/x"><span data-color="green">t</span><span data-color="red">u</span></a></p>',
+  ],
+  [
+    '<p><span data-color="red"><strong>a<br>b</strong></span></p>',
+    '<p><span data-color="red"><strong>a<br>b</strong></span></p>',
+  ],
+])("the innermost colour wins: %s", (html, out) => {
+  expect(valueToHtml(htmlToValue(html))).toBe(out);
+});
+
+// Plate collapses these with other white space; HTML keeps them as text.
+test("no-break and other kept spaces survive the parse", () => {
+  const html = "<p>a  b %　c</p><ul><li> </li></ul>";
+  expect(valueToHtml(htmlToValue(html))).toBe(html);
+});
+
+// Plate makes a lone `<br>` outside a `p` or `span` a paragraph of its own.
+test.each([
+  "<p>a<strong><br></strong>b</p>",
+  '<h2><strong>a</strong><br><em>b</em></h2><ul><li><br></li><li><a href="/x"><br></a>c</li></ul>',
+])("a line break on its own stays in its block: %s", (html) => {
+  expect(valueToHtml(htmlToValue(html))).toBe(html);
+});
+
+test("an unknown colour is dropped, its text kept", () => {
+  expect(
+    valueToHtml([{ type: "p", children: [{ text: "x", color: "pink" }] }])
+  ).toBe("<p>x</p>");
+});
+
+// Runs that print the same tags are one run, as a re-parse reads them, so
+// the output is already a fixed point.
+test.each<[name: string, children: Descendant[], html: string]>([
+  [
+    "same marks",
+    [
+      { text: "a", bold: true },
+      { text: " b", bold: true },
+    ],
+    "<p><strong>a b</strong></p>",
+  ],
+  [
+    "an unknown colour beside no colour",
+    [
+      { text: "a", bold: true, color: "pink" },
+      { text: "b", bold: true },
+    ],
+    "<p><strong>ab</strong></p>",
+  ],
+  [
+    "the same colour",
+    [
+      { text: "a", color: "red" },
+      { text: "b", color: " red " },
+    ],
+    '<p><span data-color="red">ab</span></p>',
+  ],
+  [
+    "an unsafe link between its neighbours",
+    [
+      { text: "a", italic: true },
+      {
+        type: "a",
+        url: "javascript:x",
+        children: [{ text: "b", italic: true }],
+      },
+      { text: "c", italic: true },
+    ],
+    "<p><em>abc</em></p>",
+  ],
+])("adjacent runs with the same tags are one run: %s", (_, children, html) => {
+  expect(valueToHtml([{ type: "p", children }])).toBe(html);
+  expect(valueToHtml(htmlToValue(html))).toBe(html);
+});
+
+test("split marks re-parse merged", () => {
+  expect(
+    valueToHtml(htmlToValue("<p><strong>a</strong><strong> b</strong></p>"))
+  ).toBe("<p><strong>a b</strong></p>");
+});
 
 test("legacy bodies convert to canonical HTML", () => {
   const legacy = [

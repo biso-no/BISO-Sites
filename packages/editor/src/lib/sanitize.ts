@@ -2,7 +2,7 @@ import {
   BODY_TAGS,
   DROPPED_WITH_CONTENT,
   INLINE_TAGS,
-  keptOlStart,
+  keptAttributes,
   SAFE_HREF,
 } from "./rich-allowlist";
 
@@ -86,17 +86,26 @@ function cleanChild(child: Node, body: boolean): void {
   cleanNode(el, body);
 }
 
+/**
+ * A body tag keeps what `keptAttributes` keeps, as the server sanitiser
+ * does; a legacy item's tags keep only a safe `a[href]`.
+ */
 function stripAttributes(el: Element, tag: string, body: boolean): void {
-  for (const attr of Array.from(el.attributes)) {
-    if (
-      body &&
-      tag === "ol" &&
-      attr.name === "start" &&
-      keptOlStart(attr.value) !== null
-    ) {
-      el.setAttribute("start", keptOlStart(attr.value) as string);
-      continue;
+  const attributes = Array.from(el.attributes);
+  if (body) {
+    const kept = keptAttributes(
+      tag,
+      Object.fromEntries(attributes.map(({ name, value }) => [name, value]))
+    );
+    for (const { name } of attributes) {
+      el.removeAttribute(name);
     }
+    for (const [name, value] of Object.entries(kept)) {
+      el.setAttribute(name, value);
+    }
+    return;
+  }
+  for (const attr of attributes) {
     if (
       tag === "a" &&
       attr.name === "href" &&
