@@ -40,6 +40,7 @@ import {
   toPlatePlugin,
 } from "platejs/react";
 import { Children, type KeyboardEvent } from "react";
+import { opensNewStep } from "@/editor/coalesce";
 import { keptCellSpan, keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { handleListTab } from "./commands";
 import { isListItem } from "./html";
@@ -251,6 +252,11 @@ export type RichKeysConfig = PluginConfig<
     linkOpen: boolean;
     /** The canvas: its input lives in the bubble, which needs a selection. */
     linkNeedsSelection: boolean;
+    /**
+     * Takes an outside change the field holds back, before mod+z or
+     * mod+shift+z: its own history would write over that change.
+     */
+    pendingTake: (() => void) | null;
   }
 >;
 
@@ -278,22 +284,34 @@ function emptyHistoryStep(
   return null;
 }
 
+/** mod+z or mod+shift+z, by key, as Plate reads its own hotkeys. */
+const isHistoryKey = (event: KeyboardEvent): boolean =>
+  isHotkey("mod+z", { byKey: true }, event) ||
+  isHotkey("mod+shift+z", { byKey: true }, event);
+
 /**
  * The field's own keys. mod+k opens the toolbar's link input (`linkOpen`,
  * which the toolbar reads and closes); with `linkNeedsSelection` only over
  * an expanded selection. On a canvas caret it opens nothing, but it still
  * never reaches the browser, whose Ctrl+K is its search bar on Windows and
- * Linux. mod+z and mod+shift+z with nothing left in the field's own
- * history go to `emptyHistory`, when it is set, to step the page; otherwise
- * Slate's history handles them. Tab and Shift+Tab nest and un-nest list items
- * through `handleListTab`: Plate's key handler calls `tab` and prevents the
- * default when it returns `true`. Outside a list it returns `false` and Tab
+ * Linux. mod+z and mod+shift+z first take a pending outside change
+ * (`pendingTake`), which clears the field's history; with nothing left in
+ * it they go to `emptyHistory`, when it is set, to step the page, so the
+ * page's undo reverts that change first. Otherwise Slate's history handles
+ * them. Tab and Shift+Tab nest and un-nest list items through
+ * `handleListTab`: Plate's key handler calls `tab` and prevents the default
+ * when it returns `true`. Outside a list it returns `false` and Tab
  * stays the browser's; the indent plugin's own `tab` is not passed on, since
  * it would indent a paragraph the page cannot store. In a table cell, Tab and
  * Shift+Tab are the table plugin's (`tab`, the transform before this one):
  * they move to the next or previous cell. Tab in the last cell adds a row
  * (`tabFromLastCell`). The field's own undo and redo set `historyStep` for
  * the change they make.
+ *
+ * The field's undo steps where the page's do: a change after a pause of
+ * `COALESCE_MS` or more (`opensNewStep`), or the first after the field's own
+ * undo or redo, opens a new batch in Slate's history. The page's
+ * history-neutral write for that undo or redo ends its typing step too.
  */
 export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
   handlers: {
@@ -305,6 +323,9 @@ export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
           setOption("linkOpen", true);
         }
         return true;
+      }
+      if (isHistoryKey(event)) {
+        getOption("pendingTake")?.();
       }
       const emptyHistory = getOption("emptyHistory");
       const step = emptyHistory ? emptyHistoryStep(editor, event) : null;
@@ -322,31 +343,48 @@ export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
     historyStep: false,
     linkNeedsSelection: false,
     linkOpen: false,
+    pendingTake: null,
   },
-}).overrideEditor(({ editor, setOption, tf: { redo, tab, undo } }) => {
-  /**
-   * `step` with `historyStep` set. Slate reports the change in a microtask
-   * queued by its first operation, so it is still set then, and cleared
-   * after.
-   */
-  const asHistoryStep = (step: () => void) => {
-    setOption("historyStep", true);
-    step();
-    queueMicrotask(() => setOption("historyStep", false));
-  };
-  return {
-    transforms: {
-      redo: () => asHistoryStep(redo),
-      undo: () => asHistoryStep(undo),
-      tab: (options) => {
-        if (!inTableCell(editor)) {
-          return handleListTab(editor, { shift: options.reverse });
-        }
-        return (!options.reverse && tabFromLastCell(editor)) || tab(options);
+}).overrideEditor(
+  ({ editor, getOption, setOption, tf: { apply, redo, tab, undo } }) => {
+    /** When the text last changed, other than by the field's undo or redo. */
+    let lastChangeAt: number | null = null;
+    /**
+     * `step` with `historyStep` set. Slate reports the change in a microtask
+     * queued by its first operation, so it is still set then, and cleared
+     * after. The next change opens a batch, as the page's next step opens.
+     */
+    const asHistoryStep = (step: () => void) => {
+      setOption("historyStep", true);
+      step();
+      lastChangeAt = null;
+      queueMicrotask(() => setOption("historyStep", false));
+    };
+    return {
+      transforms: {
+        apply: (operation) => {
+          if (operation.type !== "set_selection" && !getOption("historyStep")) {
+            const now = Date.now();
+            if (opensNewStep(lastChangeAt, now)) {
+              // Read by Slate's history `apply`: this operation opens a batch.
+              editor.tf.setSplittingOnce(true);
+            }
+            lastChangeAt = now;
+          }
+          apply(operation);
+        },
+        redo: () => asHistoryStep(redo),
+        undo: () => asHistoryStep(undo),
+        tab: (options) => {
+          if (!inTableCell(editor)) {
+            return handleListTab(editor, { shift: options.reverse });
+          }
+          return (!options.reverse && tabFromLastCell(editor)) || tab(options);
+        },
       },
-    },
-  };
-});
+    };
+  }
+);
 
 /** A cell holds plain lines: no list starts there. */
 const outsideCell = (editor: SlateEditor) => !inTableCell(editor);

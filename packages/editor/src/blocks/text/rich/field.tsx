@@ -109,8 +109,10 @@ function takeProp(
  * a selection in the text it opened on; it is taken when the input closes.
  * After mod+z or mod+shift+z stepped the page (`onPageHistory`), the next
  * changed prop is taken at once, focused or not, and the field's own
- * history starts again. The field's own undo and redo report their change
- * as `historyNeutral`, so it adds no page step.
+ * history starts again. mod+z and mod+shift+z take a pending prop before
+ * they act, so the page's undo reverts that outside change. The field's own
+ * undo and redo report their change as `historyNeutral`, so it adds no page
+ * step.
  * The panel shows the toolbar above the text; the canvas shows it in a
  * bubble over a selection.
  *
@@ -211,6 +213,11 @@ export default function RichTextField({
       takeProp(editor, lastHtml, latestHtml.current);
     }
   }, [editor]);
+  // mod+z and mod+shift+z take a pending outside change first, so the
+  // page's undo reverts it and the field's own never writes over it.
+  useEffect(() => {
+    editor.setOption(RichKeysPlugin, "pendingTake", take);
+  }, [editor, take]);
   /** Whether the toolbar's link input is open. */
   const linkInputOpen = useCallback(
     () => editor.getOption(RichKeysPlugin, "linkOpen"),

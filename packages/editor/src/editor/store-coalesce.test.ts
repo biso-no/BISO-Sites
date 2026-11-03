@@ -6,6 +6,7 @@ import {
   setSystemTime,
   test,
 } from "bun:test";
+import { COALESCE_MS, opensNewStep } from "./coalesce";
 import { useEditorStore } from "./store";
 import { doc, section } from "./test-fixtures";
 
@@ -18,6 +19,13 @@ const bodyOf = (id: string) => {
 };
 const type = (id: string, html: string) =>
   state().setProp(id, "body", html, { coalesce: `${id}:body` });
+
+test("opensNewStep: nothing before, or one second or more since, opens a step", () => {
+  expect(opensNewStep(null, 5)).toBe(true);
+  expect(opensNewStep(0, 999)).toBe(false);
+  expect(opensNewStep(0, 1000)).toBe(true);
+  expect(COALESCE_MS).toBe(1000);
+});
 
 describe("coalesced history", () => {
   let original: unknown;

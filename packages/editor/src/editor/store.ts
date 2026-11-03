@@ -6,6 +6,7 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import type { PatchOptions } from "../blocks/types";
 import { emptyHeader } from "../header/empty-header";
+import { opensNewStep } from "./coalesce";
 import {
   bindCollection as opBindCollection,
   duplicateBlock as opDuplicate,
@@ -52,8 +53,6 @@ import type {
 } from "./types";
 
 const HISTORY_LIMIT = 100;
-/** Edits sharing a coalesce key within this window are one undo step. */
-const COALESCE_MS = 1000;
 
 interface HistorySnap {
   header: PageHeader | undefined;
@@ -481,7 +480,7 @@ export const useEditorStore = create<EditorState>()(
           const continuesBurst =
             key !== undefined &&
             s.lastCoalesce?.key === key &&
-            now - s.lastCoalesce.at < COALESCE_MS;
+            !opensNewStep(s.lastCoalesce.at, now);
           if (!continuesBurst) {
             pushHistory(s);
           }

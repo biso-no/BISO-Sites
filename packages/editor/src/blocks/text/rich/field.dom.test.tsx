@@ -760,6 +760,154 @@ test("mod+z after a pause undoes the typing, then the step before it, and never 
   setSystemTime();
 });
 
+const T0 = new Date("2026-11-03T10:00:00Z").getTime();
+
+/** How many steps the page can undo and redo. */
+const pageHistory = () => {
+  const { future, past } = useEditorStore.getState();
+  return { future: future.length, past: past.length };
+};
+
+/**
+ * At `T0`, a one-block page with `b1` in a focused `StoreField`: what it
+ * shows, and the text and body it started with.
+ */
+async function focusedStoreField() {
+  setSystemTime(T0);
+  useEditorStore.getState().setDoc(doc(section("s-1", "1", [["b1"]])));
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const entry = { host, root };
+  mounted.push(entry);
+  const editorRef: { current: unknown } = { current: null };
+  await settle(() => root.render(createElement(StoreField, { editorRef })));
+  const editor = editorRef.current as PlateEditor;
+  markFocused(editor);
+  const editable = () =>
+    (host.querySelector("[contenteditable]") as HTMLElement | null) ??
+    undefined;
+  const shown = () => editable()?.textContent ?? "";
+  return {
+    before: shown(),
+    editor,
+    original: storeProp("b1", "body"),
+    press: (key: typeof UNDO) => pressKey(editable(), key),
+    shown,
+    unmount: () => {
+      act(() => root.unmount());
+      host.remove();
+      mounted = mounted.filter((m) => m !== entry);
+    },
+  };
+}
+
+// A pause of a second or more opens a page step, and the field's own undo
+// steps at the same places, so neither undo spans two of the other's steps.
+test("each pause in typing is its own undo step, in the field and on the page", async () => {
+  const f = await focusedStoreField();
+  await typeText(f.editor, "Hello");
+  expect(pageHistory().past).toBe(1);
+  setSystemTime(T0 + 2000);
+  await typeText(f.editor, " world");
+  expect(pageHistory().past).toBe(2);
+  setSystemTime(T0 + 4000);
+
+  await f.press(UNDO);
+  expect(f.shown()).toBe(`${f.before}Hello`);
+  expect(pageHistory()).toEqual({ future: 1, past: 1 });
+  await f.press(UNDO);
+  expect(f.shown()).toBe(f.before);
+  expect(storeProp("b1", "body")).toBe(f.original);
+  expect(pageHistory()).toEqual({ future: 2, past: 0 });
+
+  await f.press(REDO);
+  expect(f.shown()).toBe(`${f.before}Hello`);
+  expect(pageHistory()).toEqual({ future: 1, past: 1 });
+  await f.press(REDO);
+  expect(f.shown()).toBe(`${f.before}Hello world`);
+  expect(pageHistory()).toEqual({ future: 0, past: 2 });
+  setSystemTime();
+});
+
+test("a pause of exactly one second splits the field and the page alike", async () => {
+  const split = await focusedStoreField();
+  await typeText(split.editor, "Hello");
+  setSystemTime(T0 + 1000);
+  await typeText(split.editor, " world");
+  expect(pageHistory().past).toBe(2);
+  await split.press(UNDO);
+  expect(split.shown()).toBe(`${split.before}Hello`);
+  expect(pageHistory().past).toBe(1);
+  split.unmount();
+
+  const joined = await focusedStoreField();
+  await typeText(joined.editor, "Hello");
+  setSystemTime(T0 + 999);
+  await typeText(joined.editor, " world");
+  expect(pageHistory().past).toBe(1);
+  await joined.press(UNDO);
+  expect(joined.shown()).toBe(joined.before);
+  expect(pageHistory().past).toBe(0);
+  setSystemTime();
+});
+
+test("typing straight after a field undo is a step of its own", async () => {
+  const f = await focusedStoreField();
+  await typeText(f.editor, "Hello");
+  setSystemTime(T0 + 2000);
+  await typeText(f.editor, " world");
+  await f.press(UNDO);
+  expect(f.shown()).toBe(`${f.before}Hello`);
+
+  await typeText(f.editor, "!");
+  expect(f.shown()).toBe(`${f.before}Hello!`);
+  expect(pageHistory().past).toBe(2);
+  await f.press(UNDO);
+  expect(f.shown()).toBe(`${f.before}Hello`);
+  expect(pageHistory().past).toBe(1);
+  await f.press(UNDO);
+  expect(f.shown()).toBe(f.before);
+  expect(pageHistory().past).toBe(0);
+  setSystemTime();
+});
+
+// The copilot writes the body while the field is focused, so the field has
+// not taken it. mod+z takes it first, and the page's undo then reverts it
+// before the typing. The field's own undo would write over it, with no page
+// step to bring it back.
+test("a copilot change the field has not taken stays reachable by undo and redo", async () => {
+  const f = await focusedStoreField();
+  await typeText(f.editor, "Hello");
+  expect(pageHistory().past).toBe(1);
+  setSystemTime(T0 + 2000);
+  await settle(() =>
+    useEditorStore.getState().setProp("b1", "body", "<p>Copilot</p>", {
+      coalesce: "copilot:b1:body",
+    })
+  );
+  expect(f.shown()).toBe(`${f.before}Hello`);
+  expect(pageHistory().past).toBe(2);
+
+  await f.press(UNDO);
+  expect(storeProp("b1", "body")).toContain("Hello");
+  expect(storeProp("b1", "body")).not.toContain("Copilot");
+  expect(f.shown()).toBe(`${f.before}Hello`);
+  expect(pageHistory()).toEqual({ future: 1, past: 1 });
+  await f.press(UNDO);
+  expect(storeProp("b1", "body")).toBe(f.original);
+  expect(f.shown()).toBe(f.before);
+  expect(pageHistory().past).toBe(0);
+
+  await f.press(REDO);
+  expect(storeProp("b1", "body")).toContain("Hello");
+  await f.press(REDO);
+  expect(storeProp("b1", "body")).toBe("<p>Copilot</p>");
+  expect(f.shown()).toBe("Copilot");
+  expect(pageHistory().future).toBe(0);
+  setSystemTime();
+});
+
 test("a legacy prop re-rendered, or in its canonical form, triggers no setValue and no emit", async () => {
   const a = field();
   const { render } = mount(a);
