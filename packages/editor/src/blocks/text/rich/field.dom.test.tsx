@@ -30,6 +30,9 @@ const GLOBALS = [
   "cancelAnimationFrame",
   "document",
   "getComputedStyle",
+  // Slate scrolls the caret into view after typing in a field it saw focus.
+  "innerHeight",
+  "innerWidth",
   "requestAnimationFrame",
   "window",
 ] as const;
@@ -140,6 +143,24 @@ const typeText = (editor: PlateEditor, text: string) =>
 const markFocused = (editor: PlateEditor) => {
   editor.api.isFocused = () => true;
 };
+
+/** Focus leaves the field, as a click elsewhere on the page does. */
+const blur = (editor: PlateEditor, editable: HTMLElement | undefined) =>
+  settle(() => {
+    editor.api.isFocused = () => false;
+    editable?.dispatchEvent(
+      new window.FocusEvent("focusout", { bubbles: true })
+    );
+  });
+
+/** Focus comes back to the field. */
+const refocus = (editor: PlateEditor, editable: HTMLElement | undefined) =>
+  settle(() => {
+    editable?.dispatchEvent(
+      new window.FocusEvent("focusin", { bubbles: true })
+    );
+    markFocused(editor);
+  });
 
 test("renders the stored HTML as editable content", async () => {
   const a = field();
@@ -352,7 +373,9 @@ test("taking a prop starts the field's undo history again", async () => {
   expect(a.editor().history.redos).toHaveLength(0);
 });
 
-test("a focused field keeps its text when the prop changes under it", async () => {
+// An outside change (the copilot, or the other surface's toolbar) that lands
+// while the field is focused waits for the field to lose focus.
+test("a focused field keeps its text when the prop changes under it, and takes it after blur", async () => {
   const a = field();
   const { editables, render } = mount(a);
   await render("<p>a</p>");
@@ -360,8 +383,43 @@ test("a focused field keeps its text when the prop changes under it", async () =
   await typeText(a.editor(), "!");
 
   await render("<p>other</p>");
+  await advance(TAKE_DELAY);
   expect(editables()[0]?.textContent).toBe("a!");
   expect(a.spy).toHaveBeenCalledTimes(1);
+
+  await blur(a.editor(), editables()[0]);
+  await advance(TAKE_DELAY - 1);
+  expect(editables()[0]?.textContent).toBe("a!");
+  await advance(1);
+  expect(editables()[0]?.textContent).toBe("other");
+  // Taking it is not an edit of the field's own.
+  expect(a.spy).toHaveBeenCalledTimes(1);
+
+  await refocus(a.editor(), editables()[0]);
+  await typeText(a.editor(), "?");
+  expect(a.spy).toHaveBeenLastCalledWith("<p>other?</p>");
+});
+
+test("refocused straight after blur, the field takes the outside change on focus", async () => {
+  const a = field();
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+  await typeText(a.editor(), "!");
+  await render("<p>COPILOT REWRITE</p>");
+
+  await blur(a.editor(), editables()[0]);
+  await refocus(a.editor(), editables()[0]);
+  expect(editables()[0]?.textContent).toBe("COPILOT REWRITE");
+
+  await typeText(a.editor(), "?");
+  // The take blur scheduled finds nothing left to do.
+  await advance(TAKE_DELAY);
+  expect(a.spy.mock.calls.map(([html]) => html)).toEqual([
+    "<p>a!</p>",
+    "<p>COPILOT REWRITE?</p>",
+  ]);
+  expect(editables()[0]?.textContent).toBe("COPILOT REWRITE?");
 });
 
 test("a legacy prop re-rendered, or in its canonical form, triggers no setValue and no emit", async () => {

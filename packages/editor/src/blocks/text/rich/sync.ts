@@ -11,10 +11,10 @@ export function htmlToEmit(value: Value, lastHtml: string): string | null {
 }
 
 /**
- * Whether the field considers the `html` prop at all. Its own echo is the
- * exact string it last reported or took (`lastHtml`); a focused field never
- * takes the prop, so typing ahead of it keeps the caret and the text. The
- * field asks this of the raw prop before parsing anything. Taking the prop
+ * Whether the field takes the `html` prop now. Its own echo is the exact
+ * string it last reported or took (`lastHtml`); a focused field leaves the
+ * prop until focus leaves it, so typing ahead of it keeps the caret and the
+ * text. The field asks this of the raw prop before parsing anything. Taking the prop
  * compares its canonical form (`valueToHtml(htmlToValue(prop))`) once more,
  * so a legacy body that canonicalises to the field's text changes nothing.
  */
