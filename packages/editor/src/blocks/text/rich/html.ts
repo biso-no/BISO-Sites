@@ -1,4 +1,3 @@
-import { getColSpan, getRowSpan } from "@platejs/table";
 import {
   type AnySlatePlugin,
   createSlateEditor,
@@ -10,15 +9,21 @@ import {
   type TText,
   type Value,
 } from "platejs";
-import { keptCellSpan, keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
+import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseInert, sanitizeRichBody } from "@/lib/sanitize";
 import {
   effectiveDepths,
   flattenListItems,
   ORDERED_LIST_STYLES,
 } from "./list-item-parse";
-import { richBasePlugins, TABLE_CELL_TYPES } from "./plugins";
+import { richBasePlugins } from "./plugins";
 import { structureBlocks } from "./structure";
+import {
+  type GridCell,
+  type GridRow,
+  headerRowCount,
+  tableGrid,
+} from "./table-grid";
 
 /**
  * A headless editor on the rich text schema, for conversion and paste.
@@ -333,82 +338,34 @@ function inlineToHtml(nodes: Descendant[], inLink = false): string {
     .join("");
 }
 
-const isRow = (node: Descendant): node is TElement =>
-  !isText(node) && node.type === "tr";
-
-const isCell = (node: Descendant): node is TElement =>
-  !isText(node) && TABLE_CELL_TYPES.includes(node.type);
-
-/** A span as it is written: 2 to 20, or 1 where the sanitisers drop it. */
-const writtenSpan = (span: number): number =>
-  Number(keptCellSpan(String(span)) ?? 1);
-
-function spanAttribute(name: string, span: number): string {
-  const written = writtenSpan(span);
-  return written > 1 ? ` ${name}="${written}"` : "";
-}
+const spanAttribute = (name: string, span: number): string =>
+  span > 1 ? ` ${name}="${span}"` : "";
 
 /**
- * A cell with its spans, by Plate's own reading of them (a merge writes
- * `colSpan`, a parse `attributes.colspan`). Its lines are its blocks' inline
- * HTML joined by `<br>`; an empty line goes, an empty cell stays.
+ * A cell with its spans in the grid. Its lines are its blocks' inline HTML
+ * joined by `<br>`; an empty line goes, an empty cell stays.
  */
-function cellToHtml(cell: TElement): string {
-  const tag = cell.type === "th" ? "th" : "td";
+function cellToHtml({ cell, colSpan, rowSpan, type }: GridCell): string {
+  const tag = type === "th" ? "th" : "td";
   const spans =
-    spanAttribute("colspan", getColSpan(cell)) +
-    spanAttribute("rowspan", getRowSpan(cell));
-  const lines = cell.children
+    spanAttribute("colspan", colSpan) + spanAttribute("rowspan", rowSpan);
+  const lines = (cell?.children ?? [])
     .filter((line) => textOf(line).trim() !== "")
     .map((line) => inlineToHtml(isText(line) ? [line] : line.children));
   return `<${tag}${spans}>${lines.join("<br>")}</${tag}>`;
 }
 
-const rowToHtml = (cells: TElement[]): string =>
-  `<tr>${cells.map(cellToHtml).join("")}</tr>`;
+const rowToHtml = (row: GridRow): string =>
+  `<tr>${row.cells.map(cellToHtml).join("")}</tr>`;
 
 /**
- * How many leading rows make the header: the longest run of rows whose cells
- * are all `th` that no cell's row span reaches past. A browser ends a row
- * span at the end of its row group, so a header that cut one would shift
- * the cells below it.
- */
-function headerRowCount(rows: TElement[][]): number {
-  let leading = 0;
-  while (rows[leading]?.every((cell) => cell.type === "th")) {
-    leading += 1;
-  }
-  const spansFit = (count: number): boolean =>
-    rows
-      .slice(0, count)
-      .every((cells, row) =>
-        cells.every((cell) => row + writtenSpan(getRowSpan(cell)) <= count)
-      );
-  let count = leading;
-  while (count > 0 && !spansFit(count)) {
-    count -= 1;
-  }
-  return count;
-}
-
-/**
- * How many of `table`'s leading rows the page writes in its `<thead>`, by
- * `headerRowCount`. Shared with the canvas, which draws them there too.
- */
-export const headerRows = (table: TElement): number =>
-  headerRowCount(
-    table.children.filter(isRow).map((row) => row.children.filter(isCell))
-  );
-
-/**
- * A table: its header group (`headerRowCount`) in `<thead>`, the other rows
- * in `<tbody>`. A row with no cell is nothing, and so is a table with no row.
+ * A table as its whole grid (`tableGrid`, which the editor holds it to as
+ * well, so a table the editor never saw writes what a re-parse reads): its
+ * header group (`headerRowCount`) in `<thead>`, the other rows in `<tbody>`.
+ * A table with no cell is nothing.
  */
 function tableToHtml(table: TElement): string {
-  const rows = table.children
-    .filter(isRow)
-    .map((row) => row.children.filter(isCell))
-    .filter((cells) => cells.length > 0);
+  const { rows } = tableGrid(table);
   if (rows.length === 0) {
     return "";
   }

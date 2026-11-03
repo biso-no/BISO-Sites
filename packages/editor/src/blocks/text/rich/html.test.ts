@@ -396,7 +396,8 @@ test("cells write the spans Plate holds, as numbers or attributes, 2 to 20", () 
       },
     ])
   ).toBe(
-    '<table><tbody><tr><th colspan="2">a</th><th rowspan="3">b</th></tr><tr><td>c</td><td>d<br>e</td></tr></tbody></table>'
+    // The row with no cell goes, so b's span of 3 covers the 2 rows left.
+    '<table><tbody><tr><th colspan="2">a</th><th rowspan="2">b</th></tr><tr><td>c</td><td>d<br>e</td></tr></tbody></table>'
   );
 });
 
@@ -465,9 +466,11 @@ test.each([
     '<table><tbody><tr><th rowspan="2">a</th><th>b</th></tr><tr><td>c</td></tr></tbody></table>',
   ],
   [
+    // b holds the first column below it, so a browser puts c in the second;
+    // the grid fills the places nothing holds.
     "a second header row spanning into the body",
     '<table><thead><tr><th>a</th></tr><tr><th rowspan="2">b</th></tr></thead><tbody><tr><td>c</td></tr></tbody></table>',
-    '<table><thead><tr><th>a</th></tr></thead><tbody><tr><th rowspan="2">b</th></tr><tr><td>c</td></tr></tbody></table>',
+    '<table><thead><tr><th>a</th><th></th></tr></thead><tbody><tr><th rowspan="2">b</th><th></th></tr><tr><td>c</td></tr></tbody></table>',
   ],
   [
     "a header after the body in the source",

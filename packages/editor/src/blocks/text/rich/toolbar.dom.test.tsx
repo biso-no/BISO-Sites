@@ -1076,6 +1076,13 @@ test("the table bar shows only while the caret is in a table", async () => {
       control.getAttribute("aria-label")
     );
   }
+  // One rule, between Row and Column; the text buttons sit apart by margin.
+  expect(bar?.querySelectorAll(".pe-rt-sep")).toHaveLength(1);
+  expect(
+    button(host, "Header row").parentElement?.classList.contains(
+      "pe-rt-table__text"
+    )
+  ).toBe(true);
   const labels = [...(bar?.querySelectorAll(".pe-rt-table__label") ?? [])];
   expect(labels.map((label) => label.textContent)).toEqual(["Row", "Column"]);
   expect(labels.every((label) => label.getAttribute("aria-hidden"))).toBe(true);

@@ -11,7 +11,12 @@ import {
 import { BaseIndentPlugin } from "@platejs/indent";
 import { BaseLinkPlugin } from "@platejs/link";
 import { BaseListPlugin } from "@platejs/list";
-import { BaseTablePlugin } from "@platejs/table";
+import {
+  BaseTablePlugin,
+  computeCellIndices,
+  getColSpan,
+  getRowSpan,
+} from "@platejs/table";
 import {
   type AnySlatePlugin,
   createSlatePlugin,
@@ -24,6 +29,7 @@ import {
 } from "platejs";
 import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseListItem } from "./list-item-parse";
+import { type GridCell, TABLE_CELL_TYPES, tableGrid } from "./table-grid";
 
 /**
  * The blocks that can be indented and become list items. Shared with the
@@ -76,9 +82,6 @@ export const RichColourPlugin = createSlatePlugin({
     },
   },
 });
-
-/** The cell types. Shared with the table commands. */
-export const TABLE_CELL_TYPES: readonly string[] = [KEYS.td, KEYS.th];
 
 /** Table structure, which Plate's own table normaliser puts in order. */
 const TABLE_TYPES: ReadonlySet<string> = new Set([
@@ -145,6 +148,90 @@ function plainCellLine(
   return true;
 }
 
+/** An empty cell, as the grid adds one. */
+const emptyCell = (type: string): TElement => ({
+  type,
+  children: [{ type: KEYS.p, children: [{ text: "" }] }],
+});
+
+/** The props that give `cell` the spans `to` has: none for a span of 1. */
+function spanProps(cell: TElement, to: GridCell): Record<string, unknown> {
+  const {
+    colspan: _colspan,
+    rowspan: _rowspan,
+    ...attributes
+  } = (cell.attributes as Record<string, unknown> | undefined) ?? {};
+  return {
+    attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+    colSpan: to.colSpan > 1 ? to.colSpan : undefined,
+    rowSpan: to.rowSpan > 1 ? to.rowSpan : undefined,
+  };
+}
+
+/**
+ * A table held to its whole grid (`tableGrid`): rows with no cell go, spans
+ * shrink to fit, and short rows get empty cells. A table with no cell goes.
+ * Whether it changed anything.
+ */
+function wholeTable(
+  editor: SlateEditor,
+  [table, path]: NodeEntry<TElement>
+): boolean {
+  const { rows } = tableGrid(table);
+  if (rows.length === 0) {
+    editor.tf.removeNodes({ at: path });
+    return true;
+  }
+  const kept = new Set(rows.map((row) => row.index));
+  const gone = table.children.flatMap((row, index) =>
+    ElementApi.isElement(row) && row.type === KEYS.tr && !kept.has(index)
+      ? [index]
+      : []
+  );
+  const respan = rows.flatMap((row) =>
+    row.cells.filter(
+      (cell) =>
+        cell.cell !== null &&
+        (getColSpan(cell.cell) !== cell.colSpan ||
+          getRowSpan(cell.cell) !== cell.rowSpan)
+    )
+  );
+  const added = rows.some((row) => row.cells.some((cell) => !cell.cell));
+  if (gone.length === 0 && respan.length === 0 && !added) {
+    return false;
+  }
+  const rowPath = (index: number): number[] => [
+    ...path,
+    index - gone.filter((goneIndex) => goneIndex < index).length,
+  ];
+  editor.tf.withoutNormalizing(() => {
+    for (const index of [...gone].reverse()) {
+      editor.tf.removeNodes({ at: [...path, index] });
+    }
+    for (const row of rows) {
+      for (const cell of row.cells) {
+        if (cell.cell && respan.includes(cell)) {
+          editor.tf.setNodes(spanProps(cell.cell, cell), {
+            at: [...rowPath(row.index), cell.index],
+          });
+        }
+      }
+      // From the right, so each index still holds.
+      for (const cell of row.cells.filter((c) => !c.cell).reverse()) {
+        editor.tf.insertNodes(emptyCell(cell.type), {
+          at: [...rowPath(row.index), cell.index],
+        });
+      }
+    }
+  });
+  // Plate keeps each cell's place in the grid; a span alone does not redo it.
+  const node = editor.api.node<TElement>(path)?.[0];
+  if (node) {
+    computeCellIndices(editor, { tableNode: node });
+  }
+  return true;
+}
+
 /**
  * The shape the page can store, kept as the value changes:
  * - a block in a cell is a plain paragraph, one line of the cell, as the
@@ -152,7 +239,9 @@ function plainCellLine(
  *   and a divider goes. Rows, cells and a table inside a cell are left to
  *   Plate's own table normaliser;
  * - the value never ends with a table or a divider, so there is always a
- *   line to type below one. That empty paragraph is never saved.
+ *   line to type below one. That empty paragraph is never saved;
+ * - a table is a whole grid (`wholeTable`), after every change: a row or
+ *   column command can leave a row with no cell or a span past the edge.
  */
 export const RichShapePlugin = createSlatePlugin({
   key: "richShape",
@@ -164,10 +253,15 @@ export const RichShapePlugin = createSlatePlugin({
         path.length > 0 &&
         ElementApi.isElement(node) &&
         !(TABLE_TYPES.has(node.type) || editor.api.isInline(node));
-      const changed =
-        path.length === 0
-          ? endWithParagraph(editor)
-          : isLine && plainCellLine(editor, [node, path]);
+      const isTable = ElementApi.isElement(node) && node.type === KEYS.table;
+      let changed = false;
+      if (path.length === 0) {
+        changed = endWithParagraph(editor);
+      } else if (isTable) {
+        changed = wholeTable(editor, [node, path]);
+      } else if (isLine) {
+        changed = plainCellLine(editor, [node, path]);
+      }
       if (!changed) {
         normalizeNode(entry, options);
       }

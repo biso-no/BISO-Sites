@@ -42,7 +42,7 @@ import {
 import { Children, type KeyboardEvent } from "react";
 import { keptCellSpan, keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { handleListTab } from "./commands";
-import { headerRows, isListItem } from "./html";
+import { isListItem } from "./html";
 import { ORDERED_LIST_STYLES } from "./list-item-parse";
 import { RichPastePlugin } from "./paste-plugin";
 import {
@@ -53,6 +53,7 @@ import {
   RichShapePlugin,
 } from "./plugins";
 import { inTableCell, tabFromLastCell } from "./table-commands";
+import { headerRows } from "./table-grid";
 
 type BlockTag = "blockquote" | "h2" | "h3" | "p";
 

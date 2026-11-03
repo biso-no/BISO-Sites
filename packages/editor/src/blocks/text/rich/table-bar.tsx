@@ -46,8 +46,10 @@ const COLUMN_ACTIONS: IconAction[] = [
  * The table controls, a line of their own under the formatting buttons while
  * the caret is in a table: rows, columns, the header row and the table
  * itself. Each line part (`Row`, `Column`, the text buttons) stays whole when
- * the line wraps. A command that takes the table away hands focus back to
- * the text, since the button pressed goes with it.
+ * the line wraps. The text buttons are set apart by a margin, not a rule,
+ * which the panel's width would leave at the end of a line. A command that
+ * takes the table away hands focus back to the text, since the button
+ * pressed goes with it.
  */
 export function TableBar({
   editor,
@@ -94,8 +96,7 @@ export function TableBar({
         </span>
         {COLUMN_ACTIONS.map(iconButton)}
       </span>
-      <span aria-hidden="true" className="pe-rt-sep" />
-      <span className="pe-rt-group">
+      <span className="pe-rt-group pe-rt-table__text">
         <button
           aria-label="Header row"
           aria-pressed={state.headerRow}

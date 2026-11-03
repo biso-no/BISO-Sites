@@ -2,7 +2,6 @@ import {
   BaseTablePlugin,
   getColSpan,
   getRowSpan,
-  getTableColumnCount,
   insertTable,
 } from "@platejs/table";
 import {
@@ -12,26 +11,30 @@ import {
   NodeApi,
   type NodeEntry,
   type Path,
+  PathApi,
+  type Point,
   type SlateEditor,
   type TElement,
   type TTableElement,
 } from "platejs";
 import { isListItem } from "./html";
-import { TABLE_CELL_TYPES } from "./plugins";
+import { headerRows, isTableCell, tableGrid } from "./table-grid";
 
 // What the table bar, ⊞ and the keys do to a table. Plain functions on any
 // Slate editor with the table plugin, so they run on the headless conversion
 // editor in tests. Rows and columns go through Plate's merge-aware
-// transforms, which keep a table with merged cells rectangular.
+// transforms; `RichShapePlugin` then holds the table to a whole grid, so the
+// commands always start from one, and the width read here is the grid's.
 
-const isCell = (node: unknown): node is TElement =>
-  ElementApi.isElement(node) && TABLE_CELL_TYPES.includes(node.type);
+/** A cell, in its table. */
+interface CellAt {
+  cell: NodeEntry<TElement>;
+  table: NodeEntry<TTableElement>;
+}
 
 /** The first cell in the selection, in its table. */
-function selectedCell(
-  editor: SlateEditor
-): { cell: NodeEntry<TElement>; table: NodeEntry<TTableElement> } | undefined {
-  const cell = editor.api.node<TElement>({ match: isCell });
+function selectedCell(editor: SlateEditor): CellAt | undefined {
+  const cell = editor.api.node<TElement>({ match: isTableCell });
   const table = cell
     ? editor.api.above<TTableElement>({
         at: cell[1],
@@ -43,25 +46,37 @@ function selectedCell(
 
 /** Whether the selection is in a table cell. */
 export function inTableCell(editor: SlateEditor): boolean {
-  return editor.selection !== null && editor.api.some({ match: isCell });
+  return editor.selection !== null && editor.api.some({ match: isTableCell });
 }
+
+/** The cell `point` is in, if any. */
+const cellPathAt = (editor: SlateEditor, point: Point): Path | undefined =>
+  editor.api.above({ at: point, match: isTableCell })?.[1];
+
+/** Whether the selection is a caret in a cell, or a range inside one. */
+function inOneCell(editor: SlateEditor): boolean {
+  const { selection } = editor;
+  if (!selection) {
+    return false;
+  }
+  const anchor = cellPathAt(editor, selection.anchor);
+  const focus = cellPathAt(editor, selection.focus);
+  return Boolean(anchor && focus && PathApi.equals(anchor, focus));
+}
+
+export interface TableState {
+  /** The page draws a header row: the table has a header group. */
+  headerRow: boolean;
+  /** The caret is in the header group. */
+  inHeaderRow: boolean;
+}
+
+/** A cell's row: the index of its `tr` in the table. */
+const rowIndex = (cellPath: Path): number => cellPath.at(-2) ?? 0;
 
 /** A row node's children; none for anything else. */
 const rowChildren = (row: Descendant | undefined): Descendant[] =>
   ElementApi.isElement(row) ? row.children : [];
-
-/** The header row: the first row, when every one of its cells is a `th`. */
-const hasHeaderRow = (table: TTableElement): boolean => {
-  const cells = rowChildren(table.children[0]);
-  return cells.length > 0 && cells.every((cell) => cell.type === KEYS.th);
-};
-
-export interface TableState {
-  /** The first row is a header row. */
-  headerRow: boolean;
-  /** The caret is in the header row. */
-  inHeaderRow: boolean;
-}
 
 /** The table at the selection, as the table bar shows it; `null` outside one. */
 export function tableState(editor: SlateEditor): TableState | null {
@@ -69,12 +84,9 @@ export function tableState(editor: SlateEditor): TableState | null {
   if (!at) {
     return null;
   }
-  const headerRow = hasHeaderRow(at.table[0]);
-  return { headerRow, inHeaderRow: headerRow && rowIndex(at.cell[1]) === 0 };
+  const head = headerRows(at.table[0]);
+  return { headerRow: head > 0, inHeaderRow: rowIndex(at.cell[1]) < head };
 }
-
-/** A cell's row: the index of its `tr` in the table. */
-const rowIndex = (cellPath: Path): number => cellPath.at(-2) ?? 0;
 
 const isEmptyParagraph = (node: TElement | undefined): boolean =>
   node?.type === KEYS.p && !isListItem(node) && NodeApi.string(node) === "";
@@ -124,44 +136,89 @@ function deleteTable(editor: SlateEditor, tablePath: Path): void {
 }
 
 /**
- * Every cell of the first row a `td` when they are all `th`, and a `th`
- * otherwise.
+ * The fewest leading rows that can be a header: the first, and every row a
+ * row span from them reaches into.
+ */
+function headerReach(table: TTableElement): number {
+  const { rows } = tableGrid(table);
+  let reach = 1;
+  for (const [index, row] of rows.entries()) {
+    if (index >= reach) {
+      break;
+    }
+    for (const cell of row.cells) {
+      reach = Math.max(reach, index + cell.rowSpan);
+    }
+  }
+  return reach;
+}
+
+/**
+ * The page's header row off or on. With a header group, its cells become
+ * `td`. Without one, the first row's become `th`, with the rows its row spans
+ * reach into, so the page can draw them as a header.
  */
 function toggleHeader(
   editor: SlateEditor,
   [table, path]: NodeEntry<TTableElement>
 ) {
-  const type = hasHeaderRow(table) ? KEYS.td : KEYS.th;
+  const head = headerRows(table);
+  const type = head > 0 ? KEYS.td : KEYS.th;
+  const rows = head > 0 ? head : headerReach(table);
   editor.tf.withoutNormalizing(() => {
-    for (const [index, cell] of rowChildren(table.children[0]).entries()) {
-      if (isCell(cell)) {
-        editor.tf.setNodes({ type }, { at: [...path, 0, index] });
+    for (const [index, row] of table.children.slice(0, rows).entries()) {
+      for (const [cellIndex, cell] of rowChildren(row).entries()) {
+        if (isTableCell(cell)) {
+          editor.tf.setNodes({ type }, { at: [...path, index, cellIndex] });
+        }
       }
     }
   });
 }
 
 /**
- * Runs a table bar command at the selection's first cell. A new row is a body
- * row, and never goes above the header row; a new column takes each row's
- * kind (`th` in the header row, `td` elsewhere). Deleting a table's last row
- * or last column deletes the table.
+ * Runs a table bar command at the selection's first cell; a selection inside
+ * one cell first becomes a caret at its focus, so Delete row and Delete
+ * column act on the cell's row and column. A new row is a body row: above
+ * the header group it goes nowhere, and from inside it it goes after the
+ * group. A new column takes each row's kind (`th` in a row of `th`, `td`
+ * elsewhere). Deleting a table's last row or last column deletes the table.
  */
 export function runTableAction(editor: SlateEditor, action: TableAction): void {
+  if (editor.api.isExpanded() && inOneCell(editor)) {
+    editor.tf.collapse({ edge: "focus" });
+  }
   const at = selectedCell(editor);
   if (!at) {
     return;
   }
-  const { cell, table } = at;
+  // One step for the grid: Plate's transforms take several operations
+  // (a span grows, then a row goes in), and the table is held to a whole
+  // grid only once they are all done.
+  editor.tf.withoutNormalizing(() => runAt(editor, action, at));
+}
+
+/** `runTableAction` at that cell. */
+function runAt(
+  editor: SlateEditor,
+  action: TableAction,
+  { cell, table }: CellAt
+): void {
+  const row = rowIndex(cell[1]);
+  const head = headerRows(table[0]);
   const tf = editor.getTransforms(BaseTablePlugin);
   switch (action) {
     case "rowAbove":
-      if (!(hasHeaderRow(table[0]) && rowIndex(cell[1]) === 0)) {
+      if (row >= head) {
         tf.insert.tableRow({ before: true, header: false });
       }
       return;
     case "rowBelow":
-      tf.insert.tableRow({ header: false });
+      tf.insert.tableRow(
+        row < head
+          ? { fromRow: [...table[1], head - 1], header: false }
+          : { header: false }
+      );
       return;
     case "columnLeft":
       tf.insert.tableColumn({ before: true });
@@ -170,17 +227,14 @@ export function runTableAction(editor: SlateEditor, action: TableAction): void {
       tf.insert.tableColumn();
       return;
     case "deleteRow":
-      if (
-        rowIndex(cell[1]) === 0 &&
-        getRowSpan(cell[0]) >= table[0].children.length
-      ) {
+      if (row === 0 && getRowSpan(cell[0]) >= table[0].children.length) {
         deleteTable(editor, table[1]);
       } else {
         tf.remove.tableRow();
       }
       return;
     case "deleteColumn":
-      if (getColSpan(cell[0]) >= getTableColumnCount(table[0])) {
+      if (getColSpan(cell[0]) >= tableGrid(table[0]).width) {
         deleteTable(editor, table[1]);
       } else {
         tf.remove.tableColumn();
@@ -198,12 +252,12 @@ export function runTableAction(editor: SlateEditor, action: TableAction): void {
 }
 
 /**
- * Tab in a table's last cell: a new body row at the end, with the caret in
- * its first cell. Whether the caret was in the last cell.
+ * Tab in a table's last cell (a caret, or a range inside it): a new body row
+ * at the end, with the caret in its first cell. Whether it was the last cell.
  */
 export function tabFromLastCell(editor: SlateEditor): boolean {
   const at = selectedCell(editor);
-  if (!(at && editor.api.isCollapsed())) {
+  if (!(at && inOneCell(editor))) {
     return false;
   }
   const [table, tablePath] = at.table;
@@ -215,7 +269,9 @@ export function tabFromLastCell(editor: SlateEditor): boolean {
   if (!isLast) {
     return false;
   }
-  editor.getTransforms(BaseTablePlugin).insert.tableRow({ header: false });
-  editor.tf.select(editor.api.start([...tablePath, lastRow + 1]));
+  editor.tf.withoutNormalizing(() => {
+    editor.getTransforms(BaseTablePlugin).insert.tableRow({ header: false });
+    editor.tf.select(editor.api.start([...tablePath, lastRow + 1]));
+  });
   return true;
 }
