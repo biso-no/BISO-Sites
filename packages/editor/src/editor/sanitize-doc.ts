@@ -15,12 +15,14 @@ import {
   DROPPED_WITH_CONTENT,
   INLINE_TAGS,
   keptOlStart,
+  SAFE_HREF,
 } from "../lib/rich-allowlist";
 
 /**
- * The markup a text block may store: `lib/sanitize.ts`'s allowlist, which
- * the editor applies in the browser on blur. Everything else is unwrapped,
- * its text kept.
+ * The tags a legacy text item (`body[].text`) may hold: `lib/sanitize.ts`'s
+ * inline allowlist, which the editor applies in the browser on blur.
+ * Everything else is unwrapped, its text kept. A string body uses
+ * `BODY_TAGS` (see `BODY_OPTIONS`).
  */
 const ALLOWED_TAGS = INLINE_TAGS;
 
@@ -39,6 +41,18 @@ const keepSafeHref: Transformer = (tagName, { href }) => {
   return { attribs, tagName };
 };
 
+/**
+ * The body path's link rule: the browser sanitiser's `SAFE_HREF`, verbatim,
+ * so a link the editor shows keeps its href on save and the reverse.
+ */
+const keepBodyHref: Transformer = (tagName, { href }) => {
+  const attribs: Attributes = {};
+  if (href !== undefined && SAFE_HREF.test(href.trim())) {
+    attribs.href = href;
+  }
+  return { attribs, tagName };
+};
+
 /** `ol[start]` kept only when valid and at least 2, as the browser sanitiser does. */
 const keepOlStart: Transformer = (tagName, { start }) => {
   const attribs: Attributes = {};
@@ -51,14 +65,14 @@ const keepOlStart: Transformer = (tagName, { start }) => {
 
 const BODY_OPTIONS: IOptions = {
   allowedAttributes: { a: ["href"], ol: ["start"] },
-  allowedTags: BODY_TAGS,
+  allowedTags: [...BODY_TAGS],
   allowedSchemes: ["http", "https", "mailto", "tel"],
   allowedSchemesByTag: {},
   allowProtocolRelative: true,
   disallowedTagsMode: "discard",
   nestingLimit: 100,
-  nonTextTags: DROPPED_WITH_CONTENT,
-  transformTags: { a: keepSafeHref, ol: keepOlStart },
+  nonTextTags: [...DROPPED_WITH_CONTENT],
+  transformTags: { a: keepBodyHref, ol: keepOlStart },
 };
 
 const OPTIONS: IOptions = {
@@ -74,7 +88,7 @@ const OPTIONS: IOptions = {
   // Deeper tags are discarded, their text kept. Bounds the work and the
   // output for a document built to be deep.
   nestingLimit: 100,
-  nonTextTags: DROPPED_WITH_CONTENT,
+  nonTextTags: [...DROPPED_WITH_CONTENT],
   transformTags: { a: keepSafeHref },
 };
 

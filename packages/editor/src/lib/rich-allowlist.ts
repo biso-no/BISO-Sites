@@ -3,10 +3,18 @@
 // this, so the two cannot drift apart.
 
 /** What a legacy text item (`body[].text`) may hold. */
-export const INLINE_TAGS = ["b", "strong", "i", "em", "a", "br", "span"];
+export const INLINE_TAGS: readonly string[] = [
+  "b",
+  "strong",
+  "i",
+  "em",
+  "a",
+  "br",
+  "span",
+];
 
 /** What a text block's HTML body may hold. */
-export const BODY_TAGS = [
+export const BODY_TAGS: readonly string[] = [
   ...INLINE_TAGS,
   "p",
   "h2",
@@ -25,7 +33,7 @@ export const BODY_TAGS = [
  * (SVG/MathML) markup, and the raw-text elements a browser parses
  * differently from htmlparser2.
  */
-export const DROPPED_WITH_CONTENT = [
+export const DROPPED_WITH_CONTENT: readonly string[] = [
   "script",
   "style",
   "iframe",
