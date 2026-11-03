@@ -299,53 +299,53 @@ but those exact numbers are not.
 
 ### What was built
 
-- `body` on a Text block is now a sanitised HTML string; legacy `TextBodyItem[]` still loads and renders with the old markup (`blocks/text/body.ts`).
-- One shared allowlist (`lib/rich-allowlist.ts`) drives both sanitisers: client `lib/sanitize.ts` and server `editor/sanitize-doc.ts`. No `style` or `class` survives either.
-- A Plate editing surface in `blocks/text/rich/`: HTML to and from Plate values (`html.ts`, `list-item-parse.ts` with the shared `effectiveDepths`), paste normaliser for Word, Google Docs and web pages plus plain-text lists (`paste.ts`, `paste-plugin.ts`), toolbar, selection bubble and link editor, Tab/Shift+Tab list depth, mod+k.
-- The field (`field.tsx`, `sync.ts`) is used on both the panel and the canvas, loaded lazily (`lazy-field.ts`) and mounted only after client mount. The public renderer never imports it (confinement guard test).
-- Store patches accept `coalesce`, so typing bursts become one undo step.
-- Verification: `bun run check-types` passes, editor `bun test ./src` 1306 pass, admin and web builds compile. The `richPaste` key sits in one chunk and that chunk does not hold the legacy renderer's class string.
+- A Text block's `body` is now a sanitised HTML string. Old `TextBodyItem[]` bodies still load and render with the old markup (`blocks/text/body.ts`).
+- One shared allowlist (`lib/rich-allowlist.ts`) drives both sanitisers, the client one (`lib/sanitize.ts`) and the server one (`editor/sanitize-doc.ts`). No `style` or `class` survives either.
+- A Plate editing surface in `blocks/text/rich/`: HTML to and from editor content, a paste cleaner for Word, Google Docs, web pages and plain-text lists, a toolbar, a selection bubble with a link editor, Tab and Shift+Tab for list depth, and Ctrl/Cmd+K for links.
+- The same field is used in the side panel and on the canvas. It loads lazily and only mounts after the page has loaded in the browser. The public renderer never imports it; a guard test enforces this.
+- Typing bursts are merged into one undo step.
+- Verification: forced `bun run check-types` passed (18 of 18, nothing cached). Editor tests: 1306 pass. Admin and web builds compile. The paste code sits in one web chunk and that chunk does not contain the public renderer's class string. Final lint ran on the 51 branch files that Biome covers (52 changed, one ignored), not repo-wide.
 
-### Rulings made while building (cost if wrong)
+### Decisions made while building, and the cost if wrong
 
-- Chunk check uses the legacy class string, not `pg-rich` (shared by the lazy field). If wrong, the check passes with Plate in the public chunk; the confinement test is the main proof.
-- T7 carried RICH_CLASS verbatim from T9. Cost: a class mismatch caught by T9's exact-markup test.
-- Subagent commits keep the author model's trailer. Cost: cosmetic.
-- Implementers lint only their changed paths. Cost: pre-existing lint drift untouched.
-- aria-level pin runs through the paste path, not `htmlToValue`. Cost: none after sanitising.
-- Extra `htmlToValue` steps (lift nested lists, wrap blockless body, link parse via `SAFE_HREF`) accepted. Cost: small surface, tested.
-- All ordered list styles map to "decimal". Cost: alpha/roman markers show as numbers.
-- Serializer clamps depth via one shared `effectiveDepths`. Cost: odd Word level jumps nest one level differently from Word.
-- Admin editor renders the lazy field only after client mount. Cost: SSR crash if wrong; the admin build passed.
-- List blocks render as own `<ul>/<ol start><li>`. Cost: none known.
-- Canvas list indent is 1.25rem per level, matching the site; list-style set inside `.pe-rt-field`. Cost: slight canvas offset.
-- DOM tests stub `editor.api.isFocused`. Cost: real focus behaviour verified by hand.
-- Docs update stays in Stage 3. Cost: expected PR docs-check warning.
-- Sibling `<p>` in `<li>`/`<blockquote>` join with `<br>`. Cost: multi-paragraph quotes show line breaks.
-- Word-web fixture uses `data-aria-level`; both forms handled. Cost: none.
-- Extra normaliser steps (trim trailing whitespace, drop link-underline span, drop DROPPED_WITH_CONTENT) accepted. Cost: small.
-- Numbered Word headings stay headings and keep their number as text. Cost: headings show "1. " prefixes.
-- Pasting into a non-empty list item merges the first pasted item; adjacent same-kind Word lists merge. Accepted.
-- Plain text converts to HTML only with a newline or a list-marker first line, else default insert. Cost: a single "- item" line becomes a list.
-- Numbered plain-text runs keep their start number (>= 2). Cost: none.
-- Field skips canonicalising when html equals last html or the editor is focused; unfocused field takes a changed prop 300 ms after the last change. Cost: other surface lags up to 300 ms.
-- Taking a prop clears the field's undo history. Cost: field-level mod+z cannot undo across surfaces.
-- Tab never nests deeper than previous item + 1 and does nothing on a first item. Cost: cannot pre-indent a first bullet.
-- Panel nested-list step is 20px (mockup said 18px). Cosmetic.
-- Heading/Subheading/Quote on a list item leaves the list; list on a heading/quote makes a paragraph item. Cost: no "bulleted heading".
-- Shift+Tab outdents the item and its deeper followers. Cost: none known.
-- Toolbar/bubble take a pending prop on mousedown when unfocused. Cost: none.
-- No whole-run depth normaliser. Cost: canvas can sit one level deeper than saved until reload after heading-ising or deleting a parent item.
+- The bundle-split check looks for the old renderer's class string instead of `pg-rich`, because the editor also uses `pg-rich`. If this is wrong, the check could pass while the editor sits in the public bundle. The guard test is the main proof.
+- Commits keep the trailer of the model that wrote them. Cost: trailers differ cosmetically.
+- Each task was linted on its own changed files only, since a repo-wide run rewrites about 20 unrelated files. Cost: old lint drift stays.
+- All ordered list styles (letters, roman numerals) become plain 1. 2. 3. numbering. Cost: pasted a./b. lists show numbers.
+- List nesting is capped at one level below the previous item, using one shared rule for saving and pasting. Cost: odd Word level jumps nest slightly differently from Word; text and order are kept.
+- The admin editor shows the rich field only after the browser has loaded, with a static fallback before. Cost: a crash during server rendering if wrong; the admin build passed.
+- Lists render as their own list elements, and the canvas indents them 1.25rem per level, like the site (the panel uses the same step instead of the mockup's 18px). Cost: small spacing differences at most.
+- Tests fake the editor's focus check. Cost: real focus behaviour needs a hand check (below).
+- The docs page update waits for Stage 3. Cost: the PR docs check warns until then.
+- Paragraphs inside a list item or a quote are joined with line breaks. Cost: a pasted multi-paragraph quote shows line breaks instead of paragraphs.
+- Word numbered headings ("1. Introduction") stay headings and keep their number as text. Cost: headings show the number prefix.
+- Pasting into a list item that has text merges the first pasted item into it, and neighbouring Word lists of the same kind merge. Accepted.
+- Plain text becomes formatted only when it has a line break or starts with a list marker; a single pasted "- item" line becomes a list. Numbered runs keep their start number.
+- The field skips re-reading its own saved HTML while focused, and an unfocused field picks up outside changes 300 ms after the last one. Cost: the other surface lags up to 300 ms.
+- Accepting an outside change clears the field's own undo history. Cost: Ctrl+Z inside a field cannot step back past a change made in the other surface; page-level undo still can.
+- Tab never nests deeper than one below the previous item and does nothing on the first item. Cost: you cannot pre-indent a first bullet (Word does not allow it either).
+- Choosing Heading, Subheading or Quote on a list item takes it out of the list; making a heading or quote a list turns it into a paragraph item. Cost: no "bulleted heading".
+- Shift+Tab outdents the item and the deeper items that follow it.
+- The toolbar and bubble pick up any pending outside change when you press the mouse while unfocused, so commands never act on stale content.
+- The editor has no whole-list depth repair. After turning a parent item into a heading or deleting it, the canvas can show one level deeper than what saves, until reload. Saved HTML is always correct.
+- Extra paste cleanups were accepted because tests pin them: trimming trailing whitespace, dropping link-underline styling, dropping content Word wraps in hidden elements, lifting nested lists out of list items, wrapping a body with no block in a paragraph.
 
-### Deferred minors
+### Deferred
 
-- Tests: guard regexes lack fixture strings and miss `from "./rich"`, `../rich/x`, `export … from "platejs"`, side-effect imports; lockstep cases lack entity-encoded javascript:, uppercase tags, bare `<a>`, nested svg, `ol[start]` edges; no empty-array test for `legacyBodyToHtml`; no tests for setDoc/redo breaking a coalesce burst; weak undo fixture; DOM-globals block copied in six test files (shared helper wanted); RichBubble act() warnings; `test-support.ts` in `src/` imports react-dom/client.
-- Behaviour: `legacyBodyToHtml` does not escape text (callers sanitise); `templates.ts` `text()` still builds legacy arrays (Stage 3); `MAX_TAG_STARTS` (10,000 `<`) turns an oversized body into escaped text, so a big Word paste needs triage; `flattenListItems` joins `<li>` paragraphs and reorders sublists on hand-written HTML; `listRestart` dropped; adjacent Word lists with different ids merge and renumber; any `application/x-slate-fragment` skips the normaliser (stored HTML stays safe); trailing-newline single line loses a leading space; heading-number handling replaces only the first marker span; multi-item Shift+Tab uses the first item's depth; `setStyle` list-exit strands sub-items; canvas mod+k on a caret is not preventDefault'ed (Ctrl+K opens browser search on Windows/Linux); bubble link placeholder is faint; `indentList` applies the first item's style to all; `selectedBlocks` spreads per change.
+- Tests: the import guard misses a few import spellings (`from "./rich"`, `../rich/x`, `export ... from "platejs"`, side-effect imports) and has no fixture strings; sanitiser cases lack entity-encoded `javascript:`, uppercase tags, bare `<a>`, nested svg and `ol[start]` edges; no test for an empty legacy array; no tests for `setDoc` or redo ending a typing burst; the same DOM setup block is copied into six test files; the bubble tests print act() warnings; `test-support.ts` sits in `src/`.
+- `canvas.test.tsx` and `topbar.test.tsx` fail 19 tests when `src/components` runs alone. This also happens on the base commit and is pre-existing.
+- The sanitiser lockstep test proves the two rules agree under happy-dom, not that browser parsing agrees. The server sanitiser is authoritative for the public site.
+- Admin `src/lib/content-translation.test.ts` fails (expects model `gpt-5.6-luna`, gets `claude-haiku-5-5`); this branch does not touch it.
+- `legacyBodyToHtml` does not escape text; callers sanitise. `templates.ts` still builds old-style bodies (Stage 3).
+- A body with more than 10,000 `<` characters is saved as escaped text, so a very large Word paste needs a decision.
+- Hand-written HTML: list items with several paragraphs run together and sublists can reorder; `listRestart` is dropped; neighbouring Word lists with different ids merge and renumber.
+- Any `application/x-slate-fragment` paste skips the cleaner (saved HTML is still sanitised).
+- A single line with a trailing newline loses its leading space; only the first number marker in a Word heading is removed.
+- Multi-item Shift+Tab uses the first item's depth; changing a list item's style strands its sub-items; Ctrl+K on a caret in the canvas also opens browser search on Windows and Linux; the bubble's link placeholder is faint; indenting several items applies the first item's list style to all.
 
 ### Owner hand checks
 
 - Paste from Word desktop and Word on the web, by hand on Mac and Windows.
-- Google Docs list-formatted heading (`<li><h1 role=presentation>`) pastes as a list item, not a heading.
-- Real-browser focus behaviour of the bubble and link input (tests stub `isFocused`).
+- A Google Docs list-formatted heading pastes as a list item, not a heading.
+- Real-browser focus of the bubble and link input (tests fake the focus check).
 - Canvas look: list indent, spacing and toolbar against the mockups.
-- Known unrelated noise: `apps/admin/src/lib/content-translation.test.ts` fails (expects model `gpt-5.6-luna`, gets `claude-haiku-5-5`); not touched by this branch.
