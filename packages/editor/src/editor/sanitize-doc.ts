@@ -10,38 +10,22 @@ import sanitizeHtml, {
   type Transformer,
 } from "sanitize-html";
 import { safeHref } from "../blocks/_v2/links";
+import {
+  BODY_TAGS,
+  DROPPED_WITH_CONTENT,
+  INLINE_TAGS,
+  keptOlStart,
+} from "../lib/rich-allowlist";
 
 /**
  * The markup a text block may store: `lib/sanitize.ts`'s allowlist, which
  * the editor applies in the browser on blur. Everything else is unwrapped,
  * its text kept.
  */
-const ALLOWED_TAGS = ["b", "strong", "i", "em", "a", "br", "span"];
+const ALLOWED_TAGS = INLINE_TAGS;
 
 /** Browsers wrap each new line typed with Enter in one of these. */
 const LINE_BLOCK_TAGS = new Set(["div", "p"]);
-
-/**
- * Removed together with their content: code, embedded documents, foreign
- * (SVG/MathML) markup, and the raw-text elements a browser parses
- * differently from htmlparser2.
- */
-const DROPPED_WITH_CONTENT = [
-  "script",
-  "style",
-  "iframe",
-  "object",
-  "embed",
-  "svg",
-  "math",
-  "textarea",
-  "noscript",
-  "template",
-  "noembed",
-  "noframes",
-  "option",
-  "xmp",
-];
 
 /**
  * The same rule every v2 link follows. A safe value is kept as written, as
@@ -53,6 +37,28 @@ const keepSafeHref: Transformer = (tagName, { href }) => {
     attribs.href = href;
   }
   return { attribs, tagName };
+};
+
+/** `ol[start]` kept only when valid and at least 2, as the browser sanitiser does. */
+const keepOlStart: Transformer = (tagName, { start }) => {
+  const attribs: Attributes = {};
+  const kept = start === undefined ? null : keptOlStart(start);
+  if (kept !== null) {
+    attribs.start = kept;
+  }
+  return { attribs, tagName };
+};
+
+const BODY_OPTIONS: IOptions = {
+  allowedAttributes: { a: ["href"], ol: ["start"] },
+  allowedTags: BODY_TAGS,
+  allowedSchemes: ["http", "https", "mailto", "tel"],
+  allowedSchemesByTag: {},
+  allowProtocolRelative: true,
+  disallowedTagsMode: "discard",
+  nestingLimit: 100,
+  nonTextTags: DROPPED_WITH_CONTENT,
+  transformTags: { a: keepSafeHref, ol: keepOlStart },
 };
 
 const OPTIONS: IOptions = {
@@ -195,6 +201,21 @@ export function sanitizeRichHtml(html: string): string {
   return breakLines(sanitizeHtml(html, OPTIONS)).replaceAll(NBSP, "&nbsp;");
 }
 
+/**
+ * A text block's HTML body reduced to `BODY_TAGS`: the server-side twin of
+ * `sanitizeRichBody` in `lib/sanitize.ts`. Void tags are written as a browser
+ * serializes them.
+ */
+export function sanitizeRichBodyHtml(html: string): string {
+  if (hasTooManyTags(html)) {
+    return escapeText(html);
+  }
+  return sanitizeHtml(html, BODY_OPTIONS)
+    .replaceAll("<br />", "<br>")
+    .replaceAll("<hr />", "<hr>")
+    .replaceAll(NBSP, "&nbsp;");
+}
+
 type Loose = Record<string, unknown>;
 
 const isRecord = (value: unknown): value is Loose =>
@@ -213,9 +234,13 @@ function sanitizeBodyItem(item: unknown): unknown {
 }
 
 function sanitizeBlock(block: unknown): unknown {
-  if (
-    !(isRecord(block) && block.type === "text" && Array.isArray(block.body))
-  ) {
+  if (!(isRecord(block) && block.type === "text")) {
+    return block;
+  }
+  if (typeof block.body === "string") {
+    return { ...block, body: sanitizeRichBodyHtml(block.body) };
+  }
+  if (!Array.isArray(block.body)) {
     return block;
   }
   return { ...block, body: block.body.map(sanitizeBodyItem) };
