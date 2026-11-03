@@ -4,6 +4,8 @@ import {
   ElementApi,
   KEYS,
   type NodeEntry,
+  type Path,
+  PathApi,
   type SlateEditor,
   type TElement,
 } from "platejs";
@@ -35,24 +37,45 @@ const selectedBlocks = (editor: SlateEditor): NodeEntry<TElement>[] =>
     ? [...editor.api.nodes<TElement>({ block: true, mode: "lowest" })]
     : [];
 
-/** The style of the block at the selection; any other block reads as `p`. */
+/** A block the style select can change; not a rule (`hr`) or a link. */
+const STYLED = {
+  match: (node: unknown) => ElementApi.isElement(node) && isStyle(node.type),
+  mode: "lowest",
+} as const;
+
+/** What makes a block a list item, all of it. */
+const LIST_PROPS = [
+  KEYS.listType,
+  KEYS.indent,
+  KEYS.listStart,
+  KEYS.listRestart,
+  KEYS.listRestartPolite,
+];
+
+/**
+ * The style of the block at the selection. A list item reads as `p`, since
+ * the page stores every list item as plain text; any other block does too.
+ */
 export function currentStyle(editor: SlateEditor): RichStyle {
-  const type = selectedBlocks(editor)[0]?.[0].type;
-  return isStyle(type) ? type : "p";
+  const node = selectedBlocks(editor)[0]?.[0];
+  if (!node || isListItem(node)) {
+    return "p";
+  }
+  return isStyle(node.type) ? node.type : "p";
 }
 
 /**
- * Gives every styled block in the selection `style`. Only the type changes,
- * so a list item stays a list item; a rule (`hr`) is left alone.
+ * Gives every styled block in the selection `style`. Paragraph keeps a list
+ * item in its list; a heading, subheading or quote takes it out, since the
+ * page has no heading inside a list. A rule (`hr`) is left alone.
  */
 export function setStyle(editor: SlateEditor, style: RichStyle): void {
-  editor.tf.setNodes(
-    { type: style },
-    {
-      match: (node) => ElementApi.isElement(node) && isStyle(node.type),
-      mode: "lowest",
+  editor.tf.withoutNormalizing(() => {
+    editor.tf.setNodes({ type: style }, STYLED);
+    if (style !== "p") {
+      editor.tf.unsetNodes(LIST_PROPS, STYLED);
     }
-  );
+  });
 }
 
 export function isMarkActive(editor: SlateEditor, mark: RichMark): boolean {
@@ -74,35 +97,95 @@ export function activeList(editor: SlateEditor): "disc" | "decimal" | null {
 
 /**
  * Makes the selected blocks a `kind` list, switches them to it from the
- * other kind, or (when they already are one) back into plain blocks.
+ * other kind, or (when they already are one) back into plain blocks. A
+ * heading or quote becomes a paragraph first: the page stores list items as
+ * plain text.
  */
 export function toggleRichList(
   editor: SlateEditor,
   kind: "disc" | "decimal"
 ): void {
-  toggleList(editor, { listStyleType: kind });
+  editor.tf.withoutNormalizing(() => {
+    editor.tf.setNodes({ type: KEYS.p }, STYLED);
+    toggleList(editor, { listStyleType: kind });
+  });
+}
+
+/** A list item's depth; Plate's lists start at 1. */
+const depthOf = (node: TElement): number =>
+  typeof node.indent === "number" ? node.indent : 1;
+
+/** The block at `path`, if there is one. */
+const blockAt = (editor: SlateEditor, path: Path | undefined) =>
+  path ? editor.api.node<TElement>(path)?.[0] : undefined;
+
+/**
+ * Whether the first selected item can go one level deeper: only under the
+ * item just before it, and never more than one level below that item. Any
+ * deeper and the page would store it shallower than the editor shows it.
+ */
+function canNest(editor: SlateEditor, [first, path]: NodeEntry<TElement>) {
+  const previous = blockAt(editor, PathApi.previous(path));
+  return Boolean(
+    previous && isListItem(previous) && depthOf(first) <= depthOf(previous)
+  );
 }
 
 /**
- * Tab nests the selected list items one level, Shift+Tab takes them one
- * level out. `false` (nothing done) unless every selected block is a list
- * item, so Tab elsewhere leaves the key to the browser. A nested item keeps
- * its kind: `indentList` would make it a bullet otherwise.
+ * The items after the selection that sit under its first item: the run of
+ * list items deeper than it. They come out one level with it.
+ */
+function subItems(
+  editor: SlateEditor,
+  firstDepth: number,
+  lastPath: Path
+): NodeEntry<TElement>[] {
+  const items: NodeEntry<TElement>[] = [];
+  let path = PathApi.next(lastPath);
+  let node = blockAt(editor, path);
+  while (node && isListItem(node) && depthOf(node) > firstDepth) {
+    items.push([node, path]);
+    path = PathApi.next(path);
+    node = blockAt(editor, path);
+  }
+  return items;
+}
+
+/**
+ * Tab nests the selected list items one level, Shift+Tab takes them, and
+ * the sub-items of the first, one level out. `false` (nothing done) unless
+ * every selected block is a list item, so Tab elsewhere leaves the key to
+ * the browser. Where the first item cannot nest (see `canNest`) Tab still
+ * returns `true` and changes nothing, so focus stays in the field. A nested
+ * item keeps its kind: `indentList` would make it a bullet otherwise.
  */
 export function handleListTab(
   editor: SlateEditor,
   { shift }: { shift: boolean }
 ): boolean {
-  const blocks = selectedBlocks(editor).map(([node]) => node);
-  const [first] = blocks;
-  if (!(first && isListItem(first) && blocks.every(isListItem))) {
+  const entries = selectedBlocks(editor);
+  const firstEntry = entries[0];
+  const lastEntry = entries.at(-1);
+  if (!(firstEntry && lastEntry)) {
     return false;
   }
-  if (shift) {
-    outdentList(editor);
-  } else {
-    indentList(editor, { listStyleType: first.listStyleType });
+  const [first] = firstEntry;
+  if (!(isListItem(first) && entries.every(([node]) => isListItem(node)))) {
+    return false;
   }
+  if (!shift) {
+    if (canNest(editor, firstEntry)) {
+      indentList(editor, { listStyleType: first.listStyleType });
+    }
+    return true;
+  }
+  const following = subItems(editor, depthOf(first), lastEntry[1]);
+  editor.tf.withoutNormalizing(() => {
+    outdentList(editor);
+    for (const [node, path] of following) {
+      editor.tf.setNodes({ indent: depthOf(node) - 1 }, { at: path });
+    }
+  });
   return true;
 }
 

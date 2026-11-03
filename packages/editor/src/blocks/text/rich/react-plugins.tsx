@@ -130,21 +130,31 @@ const indentMargin = ({
     ? `${(nodeValue - 1) * LIST_STEP_REM}rem`
     : "";
 
-export type RichKeysConfig = PluginConfig<"richKeys", { linkOpen: boolean }>;
+export type RichKeysConfig = PluginConfig<
+  "richKeys",
+  {
+    linkOpen: boolean;
+    /** The canvas: its input lives in the bubble, which needs a selection. */
+    linkNeedsSelection: boolean;
+  }
+>;
 
 /**
  * The field's own keys. mod+k opens the toolbar's link input (`linkOpen`,
- * which the toolbar reads and closes). Tab and Shift+Tab nest and un-nest
- * list items through `handleListTab`: Plate's key handler calls `tab` and
- * prevents the default when it returns `true`. Outside a list it returns
- * `false` and Tab stays the browser's; the indent plugin's own `tab` is not
- * passed on, since it would indent a paragraph the page cannot store.
+ * which the toolbar reads and closes); with `linkNeedsSelection` only over
+ * an expanded selection. Tab and Shift+Tab nest and un-nest list items
+ * through `handleListTab`: Plate's key handler calls `tab` and prevents the
+ * default when it returns `true`. Outside a list it returns `false` and Tab
+ * stays the browser's; the indent plugin's own `tab` is not passed on, since
+ * it would indent a paragraph the page cannot store.
  */
 export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
   handlers: {
-    onKeyDown: ({ event, setOption }) => {
+    onKeyDown: ({ editor, event, getOption, setOption }) => {
       // By key, as Plate reads its own hotkeys: the letter the user sees.
-      const openLink = isHotkey("mod+k", { byKey: true }, event);
+      const openLink =
+        isHotkey("mod+k", { byKey: true }, event) &&
+        (editor.api.isExpanded() || !getOption("linkNeedsSelection"));
       if (openLink) {
         event.preventDefault();
         setOption("linkOpen", true);
@@ -153,7 +163,7 @@ export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
     },
   },
   key: "richKeys",
-  options: { linkOpen: false },
+  options: { linkNeedsSelection: false, linkOpen: false },
 }).overrideEditor(({ editor }) => ({
   transforms: {
     tab: ({ reverse }) => handleListTab(editor, { shift: reverse }),

@@ -12,6 +12,7 @@ import { EventEditorStore, type PlateEditor } from "platejs/react";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import RichTextField, { type RichTextFieldProps } from "./field";
+import { RichKeysPlugin } from "./react-plugins";
 
 /** What Slate, Plate, floating-ui and React DOM read from the global scope. */
 const GLOBALS = [
@@ -80,23 +81,25 @@ async function mountField(
   document.body.append(host);
   const root = createRoot(host);
   mounted.push({ host, root });
-  await settle(() => {
-    root.render(
-      createElement(RichTextField, {
-        editorRef,
-        html,
-        label: "Text",
-        onChange,
-        variant,
-      })
-    );
-  });
+  const rerender = (next: string) =>
+    settle(() => {
+      root.render(
+        createElement(RichTextField, {
+          editorRef,
+          html: next,
+          label: "Text",
+          onChange,
+          variant,
+        })
+      );
+    });
+  await rerender(html);
   const editor = editorRef.current as PlateEditor;
   const focus = spyOn(editor.tf, "focus").mockImplementation(() => undefined);
   const $ = <T extends Element = HTMLElement>(selector: string) =>
     host.querySelector<T>(selector) as T | null;
   const editable = () => $("[contenteditable]") as HTMLElement;
-  return { $, editable, editor, focus, host, onChange };
+  return { $, editable, editor, focus, host, onChange, rerender };
 }
 
 /** The button with this accessible name (its label, else its text). */
@@ -148,7 +151,10 @@ test("toolbar exposes labelled controls in order", async () => {
     "Bullet list",
     "Numbered list",
   ]);
-  expect(bar?.nextElementSibling?.getAttribute("contenteditable")).toBe("true");
+  // Right above the text, in the wrapper that takes a pending prop.
+  expect(
+    bar?.parentElement?.nextElementSibling?.getAttribute("contenteditable")
+  ).toBe("true");
   expect($(".pe-rt-bubble")).toBeNull();
 });
 
@@ -306,6 +312,55 @@ test("the Link button closes an open input and returns focus", async () => {
   expect(focus).toHaveBeenCalled();
 });
 
+test("Apply at a caret inserts the address as linked text", async () => {
+  const { editor, host, onChange } = await mountField("<p>see </p>");
+  await settle(() => editor.tf.select(editor.api.end([0])));
+  await settle(() => press(button(host, "Link")));
+  await settle(() => typeInto(linkInput(host) as HTMLInputElement, "biso.no"));
+  await settle(() => press(button(host, "Apply")));
+  expect(onChange).toHaveBeenLastCalledWith(
+    '<p>see <a href="https://biso.no">https://biso.no</a></p>'
+  );
+  const links = [...editor.api.nodes({ at: [], match: { type: "a" } })];
+  expect(links.map(([node]) => editor.api.string(node))).toEqual([
+    "https://biso.no",
+  ]);
+});
+
+test("Apply with no selection changes nothing and closes", async () => {
+  const { editor, host, onChange } = await mountField("<p>see</p>");
+  expect(editor.selection).toBeNull();
+  await settle(() => press(button(host, "Link")));
+  await settle(() => typeInto(linkInput(host) as HTMLInputElement, "biso.no"));
+  await settle(() => press(button(host, "Apply")));
+  expect(onChange).not.toHaveBeenCalled();
+  expect(linkInput(host)).toBeNull();
+});
+
+test("the input closes when the selection moves to another link", async () => {
+  const { editor, host } = await mountField(
+    '<p><a href="/a">one</a> and <a href="/b">two</a></p>'
+  );
+  await settle(() => editor.tf.select(editor.api.start([0, 1])));
+  await settle(() => press(button(host, "Link")));
+  expect(linkInput(host)?.value).toBe("/a");
+
+  await settle(() => editor.tf.select(editor.api.start([0, 3])));
+  expect(linkInput(host)).toBeNull();
+});
+
+test("a toolbar command on an unfocused field first takes its pending prop", async () => {
+  const { editor, host, onChange, rerender } = await mountField("<p>a</p>");
+  await settle(() => editor.tf.select([]));
+  await rerender("<p>b</p>");
+  expect(host.querySelector("[contenteditable]")?.textContent).toBe("a");
+
+  await settle(() => press(button(host, "Bold")));
+  expect(host.querySelector("[contenteditable]")?.textContent).toBe("b");
+  expect(onChange).toHaveBeenCalledTimes(1);
+  expect(onChange).toHaveBeenLastCalledWith("<p><strong>b</strong></p>");
+});
+
 test("mod+k opens the link input", async () => {
   const { editable, editor, host } = await mountField("<p>biso</p>");
   await settle(() => editor.tf.select([]));
@@ -393,6 +448,65 @@ test("the canvas bubble shows over an expanded selection while focused", async (
 
   await settle(() => editor.tf.collapse({ edge: "end" }));
   expect($(".pe-rt-bubble")).toBeNull();
+});
+
+test("mod+k on a canvas caret opens no input, now or with the next selection", async () => {
+  const { $, editable, editor, host } = await mountField(
+    "<p>biso</p>",
+    "canvas"
+  );
+  await moveFocus(editor, editable(), null);
+  await settle(() => editor.tf.select(editor.api.end([0])));
+  let event: KeyboardEvent | undefined;
+  await settle(() => {
+    event = keydown(editable(), { code: "KeyK", ctrlKey: true, key: "k" });
+  });
+  expect(event?.defaultPrevented).toBe(false);
+
+  await settle(() => editor.tf.select([]));
+  expect($(".pe-rt-bubble")).not.toBeNull();
+  expect(linkInput(host)).toBeNull();
+  expect(document.activeElement?.tagName).not.toBe("INPUT");
+});
+
+test("a link input asked for while the bubble is hidden is dropped", async () => {
+  const { editable, editor, host } = await mountField("<p>biso</p>", "canvas");
+  await moveFocus(editor, editable(), null);
+  await settle(() => editor.setOption(RichKeysPlugin, "linkOpen", true));
+  expect(editor.getOption(RichKeysPlugin, "linkOpen")).toBe(false);
+  await settle(() => editor.tf.select([]));
+  expect(host.querySelector(".pe-rt-bubble")).not.toBeNull();
+  expect(linkInput(host)).toBeNull();
+});
+
+test("mod+k over a canvas selection opens the input in the bubble", async () => {
+  const { editable, editor, host } = await mountField("<p>biso</p>", "canvas");
+  await moveFocus(editor, editable(), null);
+  await settle(() => editor.tf.select([]));
+  await settle(() => {
+    keydown(editable(), { code: "KeyK", ctrlKey: true, key: "k" });
+  });
+  expect(host.querySelector(".pe-rt-bubble")?.contains(linkInput(host))).toBe(
+    true
+  );
+});
+
+test("a press on the bubble's own surface keeps focus where it is", async () => {
+  const { $, editable, editor } = await mountField("<p>biso</p>", "canvas");
+  await moveFocus(editor, editable(), null);
+  await settle(() => editor.tf.select([]));
+  const bubble = $(".pe-rt-bubble") as HTMLElement;
+  const down = (target: Element) => {
+    const event = new window.MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  expect(down(bubble)).toBe(true);
+  expect(down(bubble.querySelector(".pe-rt-sep") as Element)).toBe(true);
+  expect(down(bubble.querySelector("select") as Element)).toBe(false);
 });
 
 test("the canvas bubble stays hidden while the editor is not focused", async () => {

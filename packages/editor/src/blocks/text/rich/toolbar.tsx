@@ -172,9 +172,10 @@ export function RichToolbar({ editor, tone }: ToolbarProps) {
 
 /**
  * The address input, on its own line inside the toolbar. It opens on the
- * address of the link in the selection. Enter or Apply links the selection,
- * Remove unlinks it, Escape closes; each hands focus back to the editor,
- * whose selection Slate kept while the input had focus.
+ * address of the link in the selection, and closes when the selection moves
+ * to another link. Enter or Apply links the selection, Remove unlinks it,
+ * Escape closes; each hands focus back to the editor, whose selection Slate
+ * kept while the input had focus.
  */
 function LinkEditor({
   editor,
@@ -184,11 +185,19 @@ function LinkEditor({
   url: string | null;
 }) {
   const [invalid, setInvalid] = useState(false);
+  const [openedOn] = useState(url);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     input.current?.focus();
   }, []);
+
+  // The address shown belongs to the link the input opened on.
+  useEffect(() => {
+    if (url !== openedOn) {
+      editor.setOption(RichKeysPlugin, "linkOpen", false);
+    }
+  }, [editor, openedOn, url]);
 
   const close = () => {
     editor.setOption(RichKeysPlugin, "linkOpen", false);

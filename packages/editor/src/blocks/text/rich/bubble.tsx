@@ -8,8 +8,13 @@ import {
   useFloatingToolbar,
   useFloatingToolbarState,
 } from "@platejs/floating";
-import { type PlateEditor, useEventEditorValue } from "platejs/react";
 import {
+  type PlateEditor,
+  useEventEditorValue,
+  usePluginOption,
+} from "platejs/react";
+import {
+  type MouseEvent,
   type RefObject,
   useCallback,
   useEffect,
@@ -23,6 +28,19 @@ import { RichToolbar } from "./toolbar";
 const FLOATING: UseVirtualFloatingOptions = {
   middleware: [offset(8), flip({ padding: 8 }), shift({ padding: 8 })],
   placement: "top",
+};
+
+/**
+ * A press on the bubble's own surface (padding, gaps, separators) would move
+ * focus to the page and hide it. Only its select and address input take
+ * focus; its buttons already keep it. Capture phase, before the buttons'
+ * own handlers; it only prevents the default, so they still run.
+ */
+const keepFocus = (event: MouseEvent) => {
+  const { target } = event;
+  if (!(target instanceof Element && target.closest("select, input"))) {
+    event.preventDefault();
+  }
 };
 
 /**
@@ -79,18 +97,25 @@ export function RichBubble({ editor }: { editor: PlateEditor }) {
     [clickOutsideRef, ref]
   );
 
-  // A link input left open would reappear with the next selection.
+  // A link input opened (or left open) while hidden would take focus with
+  // the next selection.
+  const linkOpen = usePluginOption(RichKeysPlugin, "linkOpen");
   useEffect(() => {
-    if (!visible) {
+    if (!visible && linkOpen) {
       editor.setOption(RichKeysPlugin, "linkOpen", false);
     }
-  }, [editor, visible]);
+  }, [editor, linkOpen, visible]);
 
   if (!visible) {
     return null;
   }
   return (
-    <div className="pe-rt-bubble" ref={setBubble} style={props.style}>
+    <div
+      className="pe-rt-bubble"
+      onMouseDownCapture={keepFocus}
+      ref={setBubble}
+      style={props.style}
+    >
       <RichToolbar editor={editor} tone="ink" />
     </div>
   );

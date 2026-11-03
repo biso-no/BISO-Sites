@@ -1942,7 +1942,8 @@
 }
 .pe-rt-bubble .pe-rt-btn[aria-pressed="true"],
 .pe-rt-bubble .pe-rt-btn[aria-expanded="true"],
-.pe-rt-bubble .pe-rt-select {
+.pe-rt-bubble .pe-rt-select,
+.pe-rt-bubble .pe-rt-link__input {
   color: var(--paper);
   background: var(--ink-2);
   box-shadow: none;
@@ -1961,4 +1962,11 @@
 .pe-rt-bubble .pe-rt-link__input {
   flex: none;
   width: 200px;
+  border-color: transparent;
+}
+.pe-rt-bubble .pe-rt-link__input:focus {
+  border-color: var(--ink-3);
+}
+.pe-rt-bubble .pe-rt-link__input[aria-invalid="true"] {
+  border-color: var(--paper);
 }

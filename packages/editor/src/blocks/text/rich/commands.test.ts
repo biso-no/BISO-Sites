@@ -44,14 +44,42 @@ test("setStyle turns a paragraph into a heading", () => {
   expect(currentStyle(editor)).toBe("h2");
 });
 
-test("setStyle keeps list props", () => {
+test("a list item reads as a paragraph and Paragraph keeps it in the list", () => {
   const editor = editorWith("<ul><li>a</li></ul>");
-  setStyle(editor, "h3");
-  expect(editor.children[0]).toMatchObject({
-    indent: 1,
-    listStyleType: "disc",
-    type: "h3",
+  expect(currentStyle(editor)).toBe("p");
+  setStyle(editor, "p");
+  expect(html(editor)).toBe("<ul><li>a</li></ul>");
+});
+
+test("a list item reads as a paragraph whatever its block type", () => {
+  const editor = editorWith("<p>a</p>");
+  editor.tf.setNodes(
+    { indent: 1, listStyleType: "disc", type: "h2" },
+    { at: [0] }
+  );
+  expect(currentStyle(editor)).toBe("p");
+});
+
+test.each([
+  ["h2", "<h2>a</h2>"],
+  ["h3", "<h3>a</h3>"],
+  ["blockquote", "<blockquote>a</blockquote>"],
+] as const)("setStyle(%p) takes a list item out of the list", (style, out) => {
+  const editor = editorWith('<ol start="3"><li>a</li></ol>');
+  setStyle(editor, style);
+  expect(html(editor)).toBe(out);
+  expect(editor.children[0]).toEqual({
+    children: [{ text: "a" }],
+    type: style,
   });
+});
+
+test("a list made from a heading is a list of paragraphs", () => {
+  const editor = editorWith("<h2>a</h2><blockquote>b</blockquote>");
+  toggleRichList(editor, "disc");
+  expect(html(editor)).toBe("<ul><li>a</li><li>b</li></ul>");
+  expect(currentStyle(editor)).toBe("p");
+  expect(editor.children.map((node) => node.type)).toEqual(["p", "p"]);
 });
 
 test("currentStyle reads an unknown block as a paragraph", () => {
@@ -90,6 +118,92 @@ test("Tab keeps a numbered item numbered", () => {
   editor.tf.select([1]);
   handleListTab(editor, { shift: false });
   expect(html(editor)).toBe("<ol><li>a<ol><li>b</li></ol></li></ol>");
+});
+
+/** Each block's indent (0 when it has none). */
+const indents = (editor: SlateEditor): number[] =>
+  editor.children.map((node) =>
+    typeof node.indent === "number" ? node.indent : 0
+  );
+
+/** The editor's nesting is what the page stores and reads back. */
+const expectStoredNesting = (editor: SlateEditor): void =>
+  expect(indents(editor)).toEqual(
+    indents(editorWith(valueToHtml(editor.children)))
+  );
+
+test("Tab on the first item of a list keeps it where it is", () => {
+  const editor = editorWith("<p>x</p><ul><li>a</li><li>b</li></ul>");
+  editor.tf.select([1]);
+  expect(handleListTab(editor, { shift: false })).toBe(true);
+  expect(indents(editor)).toEqual([0, 1, 1]);
+});
+
+test("Tab on an item already nested under the one before keeps it there", () => {
+  const editor = editorWith("<ul><li>a<ul><li>b</li></ul></li></ul>");
+  editor.tf.select([1]);
+  expect(handleListTab(editor, { shift: false })).toBe(true);
+  expect(indents(editor)).toEqual([1, 2]);
+});
+
+test("Tab nests a selection of items under the item before it", () => {
+  const editor = editorWith("<ul><li>a</li><li>b</li><li>c</li></ul>");
+  editor.tf.select(editor.api.range([1], [2]));
+  handleListTab(editor, { shift: false });
+  expect(indents(editor)).toEqual([1, 2, 2]);
+  expectStoredNesting(editor);
+});
+
+test("Shift+Tab takes an item's own sub-items out with it", () => {
+  const editor = editorWith(
+    "<ul><li>a<ul><li>b<ul><li>c</li></ul></li></ul></li><li>d</li></ul>"
+  );
+  expect(indents(editor)).toEqual([1, 2, 3, 1]);
+  editor.tf.select([1]);
+  expect(handleListTab(editor, { shift: true })).toBe(true);
+  expect(indents(editor)).toEqual([1, 1, 2, 1]);
+  expectStoredNesting(editor);
+});
+
+test("Shift+Tab on a(1) b(2) c(3) at b gives 1, 1, 2", () => {
+  const editor = editorWith(
+    "<ul><li>a<ul><li>b<ul><li>c</li></ul></li></ul></li></ul>"
+  );
+  editor.tf.select([1]);
+  handleListTab(editor, { shift: true });
+  expect(indents(editor)).toEqual([1, 1, 2]);
+  expectStoredNesting(editor);
+});
+
+test("Shift+Tab leaves a later sibling at its own level", () => {
+  const editor = editorWith("<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>");
+  editor.tf.select([1]);
+  handleListTab(editor, { shift: true });
+  expect(indents(editor)).toEqual([1, 1, 2]);
+  expectStoredNesting(editor);
+});
+
+test("every Tab and Shift+Tab keeps the nesting the page stores", () => {
+  const editor = editorWith(
+    "<p>x</p><ul><li>a</li><li>b<ul><li>c</li><li>d</li></ul></li><li>e</li></ul>"
+  );
+  const moves: [number, boolean][] = [
+    [2, false],
+    [3, false],
+    [3, false],
+    [4, false],
+    [2, true],
+    [1, false],
+    [5, false],
+    [2, true],
+    [1, true],
+    [3, true],
+  ];
+  for (const [index, shift] of moves) {
+    editor.tf.select([index]);
+    handleListTab(editor, { shift });
+    expectStoredNesting(editor);
+  }
 });
 
 test("Tab outside a list does nothing", () => {
@@ -153,4 +267,27 @@ test("applyLink ignores an unsafe address", () => {
   const editor = editorWith("<p>biso</p>");
   applyLink(editor, "javascript:alert(1)");
   expect(html(editor)).toBe("<p>biso</p>");
+});
+
+test("applyLink at a caret outside a link inserts the address as linked text", () => {
+  const editor = editorWith("<p>see </p>");
+  editor.tf.select(editor.api.end([0]));
+  applyLink(editor, "biso.no");
+  expect(html(editor)).toBe(
+    '<p>see <a href="https://biso.no">https://biso.no</a></p>'
+  );
+  const links = [...editor.api.nodes({ at: [], match: { type: "a" } })];
+  expect(links.map(([node]) => editor.api.string(node))).toEqual([
+    "https://biso.no",
+  ]);
+});
+
+test("applyLink without a selection changes nothing", () => {
+  const editor = editorWith('<p>a <a href="/x">b</a></p>');
+  editor.tf.deselect();
+  const before = structuredClone(editor.children);
+  expect(() => applyLink(editor, "biso.no")).not.toThrow();
+  expect(() => applyLink(editor, null)).not.toThrow();
+  expect(editor.children).toEqual(before);
+  expect(linkUrl(editor)).toBeNull();
 });

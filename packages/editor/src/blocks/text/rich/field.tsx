@@ -1,6 +1,6 @@
 "use client";
 
-import type { Value } from "platejs";
+import { type Point, TextApi, type Value } from "platejs";
 import {
   Plate,
   PlateContent,
@@ -11,7 +11,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { RICH_CLASS } from "../render-classes";
 import { RichBubble } from "./bubble";
 import { htmlToValue, valueToHtml } from "./html";
-import { richReactPlugins } from "./react-plugins";
+import { RichKeysPlugin, richReactPlugins } from "./react-plugins";
 import { htmlToEmit, shouldTakeProp } from "./sync";
 import { RichToolbar } from "./toolbar";
 
@@ -31,10 +31,18 @@ export interface RichTextFieldProps {
  */
 const TAKE_DELAY_MS = 300;
 
+/** Whether `point` still lies in a text of the editor's value. */
+const fits = (editor: PlateEditor, point: Point): boolean => {
+  const node = editor.api.node(point.path)?.[0];
+  return TextApi.isText(node) && point.offset <= node.text.length;
+};
+
 /**
  * Takes the pending prop, if any: replaces the value unless the prop is, in
- * canonical form, what the field already holds. The field's undo history
- * starts again, so mod+z never replays the other surface's edit.
+ * canonical form, what the field already holds. The selection stays where
+ * it was when it still fits the new text, so a toolbar command that took the
+ * prop acts on it. The field's undo history starts again, so mod+z never
+ * replays the other surface's edit.
  */
 function takePending(
   editor: PlateEditor,
@@ -51,9 +59,17 @@ function takePending(
   if (propHtml === lastHtml.current) {
     return;
   }
+  const { selection } = editor;
   // First, so the change `setValue` causes reports nothing.
   lastHtml.current = propHtml;
   editor.tf.setValue(value);
+  if (
+    selection &&
+    fits(editor, selection.anchor) &&
+    fits(editor, selection.focus)
+  ) {
+    editor.tf.select(selection);
+  }
   editor.history.redos = [];
   editor.history.undos = [];
 }
@@ -94,6 +110,14 @@ export default function RichTextField({
   }, [editor, editorRef]);
 
   useEffect(() => {
+    editor.setOption(
+      RichKeysPlugin,
+      "linkNeedsSelection",
+      variant === "canvas"
+    );
+  }, [editor, variant]);
+
+  useEffect(() => {
     // Its own echo, or a focused field keeping its text: nothing to parse.
     // An echo is the exact string the field reported.
     if (!shouldTakeProp(html, lastHtml.current, editor.api.isFocused())) {
@@ -121,19 +145,30 @@ export default function RichTextField({
       ? { className: RICH_CLASS, "data-rich-edit": "1" }
       : { className: "pe-rt-field" };
 
+  const take = () => takePending(editor, lastHtml, pending);
+  // A toolbar press does not focus the editor, so it takes the pending prop
+  // itself, before the command runs on the old text.
+  const takeBeforeCommand = () => {
+    if (!editor.api.isFocused()) {
+      take();
+    }
+  };
+
   // `onValueChange`, not `onChange`: a caret move changes no HTML. Focus
   // takes a pending prop before the first keystroke can build on old text.
   return (
     <Plate editor={editor} onValueChange={handleValueChange}>
       {variant === "panel" ? (
-        <RichToolbar editor={editor} tone="paper" />
+        <div onMouseDownCapture={takeBeforeCommand}>
+          <RichToolbar editor={editor} tone="paper" />
+        </div>
       ) : null}
-      <PlateContent
-        aria-label={label}
-        onFocus={() => takePending(editor, lastHtml, pending)}
-        {...surface}
-      />
-      {variant === "canvas" ? <RichBubble editor={editor} /> : null}
+      <PlateContent aria-label={label} onFocus={take} {...surface} />
+      {variant === "canvas" ? (
+        <div onMouseDownCapture={takeBeforeCommand}>
+          <RichBubble editor={editor} />
+        </div>
+      ) : null}
     </Plate>
   );
 }
