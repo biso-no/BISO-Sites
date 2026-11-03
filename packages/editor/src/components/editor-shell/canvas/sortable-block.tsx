@@ -44,7 +44,7 @@ export function SortableBlock({ block }: { block: Block }) {
   const isHovered = hoveredId === block.id;
 
   const onPatch = useCallback<PatchFn>(
-    (path, value) => setProp(block.id, path, value),
+    (path, value, options) => setProp(block.id, path, value, options),
     [block.id, setProp]
   );
 
