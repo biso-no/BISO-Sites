@@ -11,13 +11,14 @@ import sanitizeHtml, {
 } from "sanitize-html";
 import { safeHref } from "../blocks/_v2/links";
 import {
+  BODY_ATTRIBUTES,
   BODY_TAGS,
   DROPPED_WITH_CONTENT,
   INLINE_TAGS,
   keptOlStart,
   SAFE_HREF,
 } from "../lib/rich-allowlist";
-import { nestsDeeperThan, textLines } from "./nesting-scan";
+import { scanBody, textLines } from "./body-scan";
 
 /**
  * The tags a legacy text item (`body[].text`) may hold: `lib/sanitize.ts`'s
@@ -65,7 +66,10 @@ const keepOlStart: Transformer = (tagName, { start }) => {
 };
 
 const BODY_OPTIONS: IOptions = {
-  allowedAttributes: { a: ["href"], ol: ["start"] },
+  // sanitize-html's types want arrays it could change.
+  allowedAttributes: Object.fromEntries(
+    Object.entries(BODY_ATTRIBUTES).map(([tag, names]) => [tag, [...names]])
+  ),
   allowedTags: [...BODY_TAGS],
   allowedSchemes: ["http", "https", "mailto", "tel"],
   allowedSchemesByTag: {},
@@ -175,23 +179,18 @@ const NBSP = "\u00a0";
  * is quadratic in nesting depth, and `nestingLimit` only applies after it:
  * 80,000 nested tags took 1.4 s under Node and 0.4 s under Bun. Every tag
  * starts with a `<`, so counting them bounds the depth; at this many a parse
- * still takes a few milliseconds, and no legacy text item comes near it.
+ * still takes milliseconds (the slowest body found, some 16 ms under Bun),
+ * and no legacy text item comes near it. A body outside the editor's
+ * grammar has the same cap.
  */
 const MAX_TAG_STARTS = 10_000;
 
 /**
- * How deep a body may nest before it is kept as text (`nesting-scan.ts`
- * measures it without a parse). No body the editor writes comes near.
+ * How deep a body in the editor's grammar may nest before it is kept as
+ * text (`scanBody` measures it without a parse). No body the editor writes
+ * comes near.
  */
 const MAX_BODY_DEPTH = 100;
-
-/**
- * A backstop behind the depth scan, should markup ever read shallower to it
- * than to htmlparser2: past this many tags a body is kept as text too. That
- * is some 8,000 short paragraphs; a parse that deep takes a third of a
- * second under Node.
- */
-const MAX_BODY_TAG_STARTS = 50_000;
 
 function hasMoreTagsThan(html: string, limit: number): boolean {
   let count = 0;
@@ -235,17 +234,22 @@ export function sanitizeRichHtml(html: string): string {
  * `sanitizeRichBody` in `lib/sanitize.ts`. Void tags are written as a browser
  * serializes them.
  *
- * A body nested more than `MAX_BODY_DEPTH` deep, or with more than
- * `MAX_BODY_TAG_STARTS` tags, is never parsed: it keeps its text, one
- * paragraph per line, and loses its formatting. The browser sanitiser has no
- * such limit, since a DOM parses deep markup in linear time; what is stored
- * is this function's output, so this is the rule that counts.
+ * A body in the editor's own grammar (`scanBody`) is parsed at any length,
+ * since its depth is known; nested more than `MAX_BODY_DEPTH` deep, it is
+ * never parsed: it keeps its text, one paragraph per line, and loses its
+ * formatting. Any other body is parsed up to `MAX_TAG_STARTS` tags, where
+ * sanitize-html's `nestingLimit` drops the tags past 100 levels and keeps
+ * their text; past that cap it becomes text paragraphs too. The browser
+ * sanitiser has no such limits, since a DOM parses deep markup in linear
+ * time; what is stored is this function's output, so these are the rules
+ * that count.
  */
 export function sanitizeRichBodyHtml(html: string): string {
-  const unsafeToParse =
-    hasMoreTagsThan(html, MAX_BODY_TAG_STARTS) ||
-    nestsDeeperThan(html, MAX_BODY_DEPTH);
-  return sanitizeBody(unsafeToParse ? asTextParagraphs(html) : html);
+  const scan = scanBody(html, MAX_BODY_DEPTH);
+  const asText =
+    scan === "too-deep" ||
+    (scan === "other" && hasMoreTagsThan(html, MAX_TAG_STARTS));
+  return sanitizeBody(asText ? asTextParagraphs(html) : html);
 }
 
 function sanitizeBody(html: string): string {

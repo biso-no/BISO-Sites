@@ -28,6 +28,18 @@ export const BODY_TAGS: readonly string[] = [
   "s",
 ];
 
+/** The body tags that never hold content and are written without an end tag. */
+export const VOID_BODY_TAGS: readonly string[] = ["br", "hr"];
+
+/**
+ * The attributes a body tag may keep, by tag. Each value has its own rule
+ * (`SAFE_HREF`, `keptOlStart`); a tag not listed keeps none.
+ */
+export const BODY_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
+  a: ["href"],
+  ol: ["start"],
+};
+
 /**
  * Removed together with their content: code, embedded documents, foreign
  * (SVG/MathML) markup, and the raw-text elements a browser parses

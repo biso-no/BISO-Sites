@@ -38,8 +38,10 @@ export function sanitizeRichText(html: string): string {
  * block tags stay and no `<br>` is inserted for a `div`/`p`; the elements in
  * `DROPPED_WITH_CONTENT` go with their content, other tags are unwrapped.
  * There is no depth limit here, since a DOM parses deep markup in linear
- * time. The server's `sanitizeRichBodyHtml` keeps a body nested past 100
- * levels as text paragraphs, and its output is what is stored.
+ * time. The server's `sanitizeRichBodyHtml` has one, and its output is what
+ * is stored: a body in the editor's own grammar nested past 100 levels, or
+ * any other body with more than 10,000 tags, is kept as text paragraphs,
+ * and any other body loses its tags past 100 levels, their text kept.
  */
 export function sanitizeRichBody(html: string): string {
   const tmp = parseInert(html);

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { Window } from "happy-dom";
 import { safeHref } from "../blocks/_v2/links";
 import { sanitizeRichText } from "../lib/sanitize";
+import { scanBody } from "./body-scan";
 import { block, doc, section } from "./test-fixtures";
 import type { Block, PageDoc, TextBlock } from "./types";
 
@@ -232,8 +233,8 @@ describe("sanitizeRichHtml: hostile sizes", () => {
   });
 });
 
-/** Only `<p>` text paragraphs: tags and formatting gone, text kept. */
-const TEXT_PARAGRAPHS = /^(?:<p>[^<]*<\/p>)+$/;
+/** A tag the body sanitiser never keeps. */
+const DROPPED_TAG = /<(?:div|textarea|svg|button|select|head|rp|style)/;
 
 describe("sanitizeRichBodyHtml: long and deep bodies", () => {
   const PARAGRAPH =
@@ -271,18 +272,34 @@ describe("sanitizeRichBodyHtml: long and deep bodies", () => {
     expect(sanitizeRichBodyHtml(out)).toBe(out);
   });
 
+  const deep = (inner: string): string =>
+    `${"<b>".repeat(150)}${inner}${"</b>".repeat(150)}`;
+
   test("text kept from a deep body stays text", () => {
-    const deep = (inner: string): string =>
-      `${"<b>".repeat(150)}${inner}${"</b>".repeat(150)}`;
     expect(
-      sanitizeRichBodyHtml(
-        deep("a &amp; b &lt;i&gt; <3<script>alert(1)</script><br>next")
-      )
+      sanitizeRichBodyHtml(deep("a &amp; b &lt;i&gt; &lt;3<br>next"))
     ).toBe("<p>a &amp; b &lt;i&gt; &lt;3</p><p>next</p>");
   });
 
+  test("a non-canonical deep body under the cap keeps its text and at most 100 levels", () => {
+    const out = sanitizeRichBodyHtml(deep("a <3<script>alert(1)</script> b"));
+    expect(out).toContain("a &lt;3");
+    expect(out).not.toContain("<script");
+    expect(out).not.toContain("alert");
+    expect(out.split("<b>").length - 1).toBeLessThanOrEqual(100);
+    expect(scanBody(out, 100)).toBe("canonical");
+  });
+
+  /** Cold, as on a server's first request: no warm-up call. */
+  const timed = (html: string): { elapsed: number; out: string } => {
+    const started = performance.now();
+    const out = sanitizeRichBodyHtml(html);
+    return { elapsed: performance.now() - started, out };
+  };
+
   // Each repetition opens one element that htmlparser2 keeps open, so 150 of
-  // them nest 150 deep however few end tags a count would see.
+  // them nest 150 deep however few end tags a count would see. None of them
+  // is canonical, so sanitize-html's nesting limit bounds them.
   test.each([
     ["stray end tags", "<div></span>w"],
     ["end tags in comments", "<div><!--</div>-->w"],
@@ -292,10 +309,32 @@ describe("sanitizeRichBodyHtml: long and deep bodies", () => {
     ["end tags in raw text", "<div><textarea></div></textarea>w"],
     ["a self-closed svg before raw text", "<div><svg/><style></div></style>w"],
     ["an <image> end tag, which is <img>'s", "<image><span></image>w"],
-  ])("%s cannot hide the depth", (_, repeated) => {
-    const out = sanitizeRichBodyHtml(repeated.repeat(150));
-    expect(out).toMatch(TEXT_PARAGRAPHS);
+  ])("%s is sanitised under the cap, fast", (_, repeated) => {
+    const { elapsed, out } = timed(repeated.repeat(150));
+    expect(elapsed).toBeLessThan(50);
+    expect(scanBody(out, 100)).toBe("canonical");
+    expect(out).not.toMatch(DROPPED_TAG);
     expect(out).toContain("w");
+  });
+
+  // Implied closes and a raw-text end that a mirror of htmlparser2 had to
+  // get exactly right, and did not; the canonical scan mirrors none of it.
+  test.each([
+    [
+      "form controls that close each other",
+      "<button><select><b></button>".repeat(200),
+    ],
+    ["a body that closes the head", "<head><body><b></head>".repeat(200)],
+    ["ruby text that closes ruby text", "<rp><rt><b></rp>".repeat(200)],
+    [
+      "a raw-text end read through `c | 0x20`",
+      `<style>\x1c\x0fstyle>${"<b>".repeat(200)}`,
+    ],
+  ])("%s is sanitised under the cap, fast", (_, html) => {
+    const { elapsed, out } = timed(html);
+    expect(elapsed).toBeLessThan(50);
+    expect(scanBody(out, 100)).toBe("canonical");
+    expect(out).not.toMatch(DROPPED_TAG);
   });
 
   test("end tags a browser would imply keep a long list shallow", () => {
@@ -321,12 +360,30 @@ describe("sanitizeRichBodyHtml: long and deep bodies", () => {
     }
   });
 
-  test("past 50,000 tags even a flat body is kept as text paragraphs, never escaped", () => {
+  test("a canonical body of any size stays markup", () => {
     const body = PARAGRAPH.repeat(9000);
-    expect(tagStarts(body)).toBeGreaterThan(50_000);
+    const { elapsed, out } = timed(body);
+    expect(out).toBe(body);
+    expect(elapsed).toBeLessThan(200);
+  });
+
+  test("a non-canonical body past 10,000 tags is kept as text paragraphs, never escaped", () => {
+    const body = PARAGRAPH.replaceAll("<p>", "<P>")
+      .replaceAll("</p>", "</P>")
+      .repeat(2000);
+    expect(tagStarts(body)).toBeGreaterThan(10_000);
     expect(sanitizeRichBodyHtml(body)).toBe(
-      "<p>Short paragraph with bold and a link.</p>".repeat(9000)
+      "<p>Short paragraph with bold and a link.</p>".repeat(2000)
     );
+  });
+
+  test("the worst body under the cap stays bounded", () => {
+    // htmlparser2 keeps two of each repetition's three elements open, 4,998
+    // deep, and its implied closes make this slower to parse than 10,000
+    // plain nested tags.
+    const body = "<button><select><b></button>".repeat(2499);
+    expect(tagStarts(body)).toBe(9996);
+    expect(timed(body).elapsed).toBeLessThan(150);
   });
 });
 
