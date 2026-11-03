@@ -321,13 +321,18 @@ but those exact numbers are not.
 - Word numbered headings ("1. Introduction") stay headings and keep their number as text. Cost: headings show the number prefix.
 - Pasting into a list item that has text merges the first pasted item into it, and neighbouring Word lists of the same kind merge. Accepted.
 - Plain text becomes formatted only when it has a line break or starts with a list marker; a single pasted "- item" line becomes a list. Numbered runs keep their start number.
-- The field skips re-reading its own saved HTML while focused, and an unfocused field picks up outside changes 300 ms after the last one. Cost: the other surface lags up to 300 ms.
+- The field skips re-reading its own saved HTML while focused, and an unfocused field picks up outside changes 300 ms after the last one. A change that arrives while the field is focused (the copilot, the other surface) is taken 300 ms after focus leaves, or at once on the next focus. Cost: the other surface lags up to 300 ms, and typing before focus leaves overwrites the outside change.
 - Accepting an outside change clears the field's own undo history. Cost: Ctrl+Z inside a field cannot step back past a change made in the other surface; page-level undo still can.
-- Tab never nests deeper than one below the previous item and does nothing on the first item. Cost: you cannot pre-indent a first bullet (Word does not allow it either).
+- Tab never nests deeper than one below the previous item and does nothing on the first item. Cost: you cannot pre-indent a first bullet. Tab on a list's first item does nothing here; Word indents the whole list instead and Google Docs nests it.
 - Choosing Heading, Subheading or Quote on a list item takes it out of the list; making a heading or quote a list turns it into a paragraph item. Cost: no "bulleted heading".
 - Shift+Tab outdents the item and the deeper items that follow it.
 - The toolbar and bubble pick up any pending outside change when you press the mouse while unfocused, so commands never act on stale content.
 - The editor has no whole-list depth repair. After turning a parent item into a heading or deleting it, the canvas can show one level deeper than what saves, until reload. Saved HTML is always correct.
+- Until Stage 2 adds tables, a `div`, a table cell or caption, `dt` and `dd` each become a paragraph (or are unwrapped when they hold blocks), in pasted and in stored HTML. Cost: a pasted table arrives as one paragraph per cell.
+- A body nested more than 100 levels deep, or with more than 50,000 tags, is saved as plain text paragraphs: the text is kept, the formatting dropped. The server measures the depth in one pass, without parsing, because the parser it uses is quadratic in depth.
+- After a paste, the list runs it touches are set to the depths the page saves them at. Cost: a list that already showed deeper than it saves is corrected when something is pasted into it.
+- The copilot sets a Text block's `body` as one HTML string; a path inside it (`body.0.text`) is refused, and a legacy array body keeps its item paths. The copilot prompt's text-block line changed in Stage 1 for this.
+- Plain text finds list lines per line: a run of marker lines inside a chunk becomes a list, and the lines between them stay one paragraph.
 - Extra paste cleanups were accepted because tests pin them: trimming trailing whitespace, dropping link-underline styling, dropping content Word wraps in hidden elements, lifting nested lists out of list items, wrapping a body with no block in a paragraph.
 
 ### Deferred
@@ -337,11 +342,10 @@ but those exact numbers are not.
 - The sanitiser lockstep test proves the two rules agree under happy-dom, not that browser parsing agrees. The server sanitiser is authoritative for the public site.
 - Admin `src/lib/content-translation.test.ts` fails (expects model `gpt-5.6-luna`, gets `claude-haiku-5-5`); this branch does not touch it.
 - `legacyBodyToHtml` does not escape text; callers sanitise. `templates.ts` still builds old-style bodies (Stage 3).
-- A body with more than 10,000 `<` characters is saved as escaped text, so a very large Word paste needs a decision.
-- Hand-written HTML: list items with several paragraphs run together and sublists can reorder; `listRestart` is dropped; neighbouring Word lists with different ids merge and renumber.
+- Hand-written HTML: sublists can reorder; `listRestart` is dropped; neighbouring Word lists with different ids merge and renumber.
 - Any `application/x-slate-fragment` paste skips the cleaner (saved HTML is still sanitised).
 - A single line with a trailing newline loses its leading space; only the first number marker in a Word heading is removed.
-- Multi-item Shift+Tab uses the first item's depth; changing a list item's style strands its sub-items; Ctrl+K on a caret in the canvas also opens browser search on Windows and Linux; the bubble's link placeholder is faint; indenting several items applies the first item's list style to all.
+- Multi-item Shift+Tab uses the first item's depth; changing a list item's style strands its sub-items; the bubble's link placeholder is faint; indenting several items applies the first item's list style to all.
 
 ### Owner hand checks
 
