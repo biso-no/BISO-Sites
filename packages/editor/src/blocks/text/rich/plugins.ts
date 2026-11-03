@@ -29,6 +29,7 @@ import {
 } from "platejs";
 import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseListItem } from "./list-item-parse";
+import { RichTableEdgesPlugin } from "./table-edges";
 import { type GridCell, TABLE_CELL_TYPES, tableGrid } from "./table-grid";
 
 /**
@@ -295,4 +296,6 @@ export const richBasePlugins: AnySlatePlugin[] = [
   // Tables sit flush with the text; there is no margin control.
   BaseTablePlugin.configure({ options: { disableMarginLeft: true } }),
   RichShapePlugin,
+  // After the table plugin, so its deletes wrap the table's own.
+  RichTableEdgesPlugin,
 ];

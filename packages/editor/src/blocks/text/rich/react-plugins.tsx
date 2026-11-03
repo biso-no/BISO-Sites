@@ -53,6 +53,7 @@ import {
   RichShapePlugin,
 } from "./plugins";
 import { inTableCell, tabFromLastCell } from "./table-commands";
+import { RichTableEdgesPlugin } from "./table-edges";
 import { headerRows } from "./table-grid";
 
 type BlockTag = "blockquote" | "h2" | "h3" | "p";
@@ -389,6 +390,8 @@ export const richReactPlugins: (AnyPlatePlugin | AnySlatePlugin)[] = [
   TableCellPlugin.withComponent(TableCellElement),
   TableCellHeaderPlugin.withComponent(TableCellHeaderElement),
   RichShapePlugin,
+  // After the table plugins, so its deletes wrap the table's own.
+  RichTableEdgesPlugin,
   AutoformatPlugin.configure({ options: { rules: LIST_RULES } }),
   // After the indent and table plugins, so its `tab` wraps theirs: the
   // table's moves between cells, and wraps the indent plugin's.
