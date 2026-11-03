@@ -99,7 +99,9 @@ describe("unitPageTemplate", () => {
     }).sections;
     const heading = (sections: Section[], index: number) => {
       const block = flat(sections)[index];
-      return block?.type === "text" ? block.body[0]?.text : undefined;
+      return block?.type === "text" && Array.isArray(block.body)
+        ? block.body[0]?.text
+        : undefined;
     };
     expect(heading(norwegian, 0)).toBe("Om Fadderullan");
     expect(heading(english, 0)).toBe("About Fadderullan");
@@ -160,7 +162,9 @@ describe("unitPageTemplate escapes the unit's name", () => {
     });
     const about = sections[0].columns[0].blocks[0];
 
-    expect(about.type === "text" && about.body[0].text).toBe(heading);
+    expect(
+      about.type === "text" && Array.isArray(about.body) && about.body[0].text
+    ).toBe(heading);
     expect(header.title).toBe(name);
   });
 });

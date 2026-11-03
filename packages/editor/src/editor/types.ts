@@ -79,7 +79,11 @@ export interface TextBodyItem {
 }
 
 export interface TextBlock {
-  body: TextBodyItem[];
+  /**
+   * String = sanitised body HTML (current shape). Array = legacy, read-only,
+   * still rendered.
+   */
+  body: string | TextBodyItem[];
   id: string;
   type: "text";
 }

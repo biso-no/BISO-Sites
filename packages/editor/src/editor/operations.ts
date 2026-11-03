@@ -55,10 +55,7 @@ export function emptyBlock(type: BlockType): Block {
       return {
         id,
         type,
-        body: [
-          { type: "h", text: "Section heading" },
-          { type: "p", text: "Tell the story like you'd tell a friend." },
-        ],
+        body: "<h2>Section heading</h2><p>Tell the story like you'd tell a friend.</p>",
       };
     case "heading":
       return {

@@ -125,7 +125,8 @@ describe("operations", () => {
   });
   test("setProp reaches a block inside a column", () => {
     setProp(d, "b-3", "body.0.text", "Hei");
-    expect((findBlock(d, "b-3")?.block as TextBlock).body[0].text).toBe("Hei");
+    const body = (findBlock(d, "b-3")?.block as TextBlock).body;
+    expect(Array.isArray(body) && body[0].text).toBe("Hei");
   });
   test("anchors are slugified", () => {
     setSectionAnchor(d, "s-1", "Se Aftermovien!");

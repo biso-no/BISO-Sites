@@ -361,8 +361,9 @@ describe("sanitizePageDocHtml", () => {
     const out = sanitizePageDocHtml(fixture());
     const nested = out.sections[1].columns[1].blocks[1] as TextBlock;
 
-    expect(nested.body.map((item) => item.text)).toEqual(["hei", "<a>x</a>"]);
-    expect(nested.body.map((item) => item.type)).toEqual(["p", "p"]);
+    const items = Array.isArray(nested.body) ? nested.body : [];
+    expect(items.map((item) => item.text)).toEqual(["hei", "<a>x</a>"]);
+    expect(items.map((item) => item.type)).toEqual(["p", "p"]);
   });
 
   test("leaves every other block, the header and the meta identical", () => {
@@ -476,6 +477,7 @@ describe("sanitizePageDocHtml", () => {
     const blocks = (out.sections as PageDoc["sections"])[1].columns[1]
       .blocks as Block[];
 
-    expect((blocks[1] as TextBlock).body[0].text).toBe("hei");
+    const body = (blocks[1] as TextBlock).body;
+    expect(Array.isArray(body) && body[0].text).toBe("hei");
   });
 });
