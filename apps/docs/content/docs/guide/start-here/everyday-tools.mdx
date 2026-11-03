@@ -1,10 +1,12 @@
 ---
 title: Everyday tools
-description: The overview, review drafts, the activity log, quick search and the BISO Assistant, and who sees each one.
+description: The overview and its push subscriber counts, review drafts, the activity log, quick search and the BISO Assistant, and who sees each one.
 who: "Global admins (National + Operations Unit) and campus leaders (Ledelsen on your campus). Quick search and the BISO Assistant are for everyone with an admin role, including department members, HR and benefits editors."
 covers:
   - apps/admin/src/app/(portal)/page.tsx
   - apps/admin/src/app/(portal)/_components/content-chart.tsx
+  - apps/admin/src/app/(portal)/_components/subscriber-overview.tsx
+  - apps/admin/src/lib/notifications/subscriber-overview.ts
   - apps/admin/src/app/(portal)/_actions/pages.ts
   - apps/admin/src/app/(portal)/drafts/**
   - apps/admin/src/app/(portal)/_actions/drafts.ts
@@ -58,6 +60,14 @@ Below the heading are the counts. Each one links to its area and is marked **Åp
 | **Ventende utkast** (Pending Drafts) | The drafts in **Gjennomgå utkast** (Review Drafts): draft events and news, plus draft jobs for global admins | **Gjennomgå utkast** (Review Drafts) |
 
 The counts follow your campus. Campus leaders see their own campus. Global admins see all campuses, or the one they picked in the campus box at the top of the sidebar. A count that can't be loaded shows 0, with no error message.
+
+Under the counts, **Abonnenter** (Subscribers) shows how many phones get each kind of push notification. It has a row for **Alle** (Everyone) and one for each topic students can follow: **Nyheter** (News), **Arrangementer** (Events), **Stillinger** (Jobs) and **Nettbutikk** (Shop). It has a column for each campus and one for **Alle campuser** (All campuses).
+
+- In the **Alle** (Everyone) row, a campus cell counts the phones that an **Everyone at a campus** notification to that campus reaches. Under **Alle campuser** (All campuses) it counts every phone with notifications on.
+- In a topic row, a campus cell counts the phones at that campus that follow the topic. Under **Alle campuser** (All campuses) it counts every phone that follows the topic, which is who a national notification on that topic reaches. It isn't the campus cells added up: phones with no campus chosen are counted only there.
+- The numbers count phones, not students, and Norwegian and English are counted together. They're the same numbers as the reach in [Send an announcement](/guide/announcements/send-an-announcement). They can be a few minutes old, and older on the first visit after a quiet spell. Reload a minute later to see fresh ones.
+- Campus leaders see their own campus, and **Alle campuser** (All campuses) only for **Alle** (Everyone). A note under the table says so. Global admins see every campus. The table doesn't follow the campus box.
+- A number that can't be loaded shows a dash (—), never 0. The dash can stay for a few minutes before the number is tried again. **Gå til Kommunikasjon** (Go to Communications) opens **Kommunikasjon** (Communications).
 
 The **Activity** chart covers the **Last 14 days**, with **Events**, **News** and **Jobs** shown separately. It counts each day's entries in the activity log, such as an item being created or edited. It doesn't show how many items were published. It reads only the latest 200 log entries, so a busy fortnight is cut short.
 
@@ -204,6 +214,7 @@ Students and members never see these tools. They see what comes out of them: a d
 
 - Reading **Kommende arrangementer** (Upcoming Events) as events still to come. It counts every published event, past ones included.
 - Trusting a 0 on the overview. A count that couldn't be loaded shows 0. Reload the page if a number looks wrong.
+- Adding up the campus columns in **Abonnenter** (Subscribers) to get a national total. Read **Alle campuser** (All campuses) instead: it also counts phones with no campus chosen.
 - Approving a draft to see how it looks. **Godkjenn** (Approve) publishes it at once. Open it with the link icon instead. To take a published item offline again, unpublish it in its own editor.
 - Losing an assistant conversation. Reloading or closing the admin clears it. Copy anything you need first.
 - Choosing **Confirm** or **Delete** on an assistant card without reading every line. The card lists exactly what will be written, including the campus and whether the item goes live. A deletion can't be undone.

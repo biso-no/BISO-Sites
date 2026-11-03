@@ -386,7 +386,26 @@
     "createPage": "Opprett side",
     "noActivity": "Ingen nylig aktivitet",
     "studioLog": "Studiologg",
-    "openWorkspace": "Åpne arbeidsområde"
+    "openWorkspace": "Åpne arbeidsområde",
+    "subscribers": {
+      "eyebrow": "Pushvarsler",
+      "title": "Abonnenter",
+      "description": "Hvor mange telefoner som får hver type varsel. Norsk og engelsk telles sammen. Tallene kan være noen minutter gamle.",
+      "topic": "Varsel",
+      "allCampuses": "Alle campuser",
+      "rows": {
+        "everyone": "Alle",
+        "news": "Nyheter",
+        "events": "Arrangementer",
+        "jobs": "Stillinger",
+        "shop": "Nettbutikk"
+      },
+      "unavailable": "Kunne ikke hente tallet",
+      "loading": "Henter abonnenter",
+      "openCommunications": "Gå til Kommunikasjon",
+      "notShown": "Vises ikke for din rolle",
+      "scopeNote": "For hvert emne ser du bare din egen campus."
+    }
   },
   "jobs": {
     "title": "Stillinger",

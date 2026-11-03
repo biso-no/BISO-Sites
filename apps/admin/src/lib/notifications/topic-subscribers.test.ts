@@ -30,9 +30,11 @@ mock.module("next/cache", () => ({
       fn(...args),
 }));
 
-const { getEventTopicSubscriberCounts, pickPushSubscriberTotal } = await import(
-  "./topic-subscribers"
-);
+const {
+  getChannelSubscriberCounts,
+  getEventTopicSubscriberCounts,
+  pickPushSubscriberTotal,
+} = await import("./topic-subscribers");
 
 describe("pickPushSubscriberTotal", () => {
   test("returns the total from a subscriber list", () => {
@@ -95,5 +97,33 @@ describe("getEventTopicSubscriberCounts", () => {
       "1": null,
     });
     quiet.mockRestore();
+  });
+});
+
+describe("getChannelSubscriberCounts", () => {
+  beforeEach(() => {
+    totals = {};
+    listSubscribers.mockClear();
+  });
+
+  test("adds up each channel across both languages, keyed by channel", async () => {
+    totals = {
+      general_en: 10,
+      general_no: 30,
+      news_national_en: 1,
+      news_national_no: 2,
+    };
+
+    await expect(
+      getChannelSubscriberCounts(["general", "news_national"])
+    ).resolves.toEqual({ general: 40, news_national: 3 });
+  });
+
+  test("leaves a channel unknown rather than zero when its count is missing", async () => {
+    totals = { general_en: 10, general_no: 30, jobs_oslo_no: 2 };
+
+    await expect(
+      getChannelSubscriberCounts(["general", "jobs_oslo"])
+    ).resolves.toEqual({ general: 40, jobs_oslo: null });
   });
 });

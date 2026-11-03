@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { forbidden, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 import { requireAdminAccess } from "@/lib/authorization";
 import { getDefaultNavPath } from "@/lib/nav-tree";
 import { hasNavAccess } from "@/lib/roles";
@@ -27,6 +28,10 @@ import {
   StudioPageHeader,
   StudioPanel,
 } from "./_components/studio";
+import {
+  SubscriberOverview,
+  SubscriberOverviewSkeleton,
+} from "./_components/subscriber-overview";
 
 export default async function AdminPortalDashboard() {
   const ctx = await requireAdminAccess();
@@ -150,6 +155,17 @@ export default async function AdminPortalDashboard() {
             />
           ))}
         </StudioKpiStrip>
+      </div>
+
+      <div className="mb-7">
+        <Suspense fallback={<SubscriberOverviewSkeleton />}>
+          <SubscriberOverview
+            ctx={{
+              managedCampusIds: ctx.managedCampusIds,
+              roles: ctx.roles,
+            }}
+          />
+        </Suspense>
       </div>
 
       <div className="mb-7">

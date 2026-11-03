@@ -80,6 +80,23 @@ export const getChannelSubscriberCount = unstable_cache(
 );
 
 /**
+ * Push subscriber counts for several channels, keyed by channel. Each goes
+ * through {@link getChannelSubscriberCount}, so it shares that cache and
+ * always agrees with the reach the composer shows for the same channel.
+ */
+export async function getChannelSubscriberCounts(
+  channels: string[]
+): Promise<Record<string, number | null>> {
+  const entries = await Promise.all(
+    channels.map(
+      async (channel) =>
+        [channel, await getChannelSubscriberCount(channel)] as const
+    )
+  );
+  return Object.fromEntries(entries);
+}
+
+/**
  * Push subscriber counts for the events channel of each campus, across both
  * languages, keyed by campus id. Fetched in parallel and cached briefly.
  */

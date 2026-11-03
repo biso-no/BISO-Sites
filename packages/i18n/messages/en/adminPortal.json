@@ -386,7 +386,26 @@
     "createPage": "Create Page",
     "noActivity": "No recent activity",
     "studioLog": "Studio log",
-    "openWorkspace": "Open workspace"
+    "openWorkspace": "Open workspace",
+    "subscribers": {
+      "eyebrow": "Push notifications",
+      "title": "Subscribers",
+      "description": "How many phones get each kind of notification. Norwegian and English are counted together. The numbers can be a few minutes old.",
+      "topic": "Notification",
+      "allCampuses": "All campuses",
+      "rows": {
+        "everyone": "Everyone",
+        "news": "News",
+        "events": "Events",
+        "jobs": "Jobs",
+        "shop": "Shop"
+      },
+      "unavailable": "Couldn't load this number",
+      "loading": "Loading subscribers",
+      "openCommunications": "Go to Communications",
+      "notShown": "Not shown for your role",
+      "scopeNote": "For each topic you see only your own campus."
+    }
   },
   "jobs": {
     "title": "Jobs",
