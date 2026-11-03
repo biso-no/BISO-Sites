@@ -9,15 +9,19 @@ import {
   usePlateEditor,
 } from "platejs/react";
 import {
+  type CSSProperties,
   type RefObject,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { RICH_CLASS } from "../render-classes";
 import { RichBubble } from "./bubble";
 import { htmlToValue, valueToHtml } from "./html";
+import { usePageSwatches } from "./page-swatches";
+import { RichPastePlugin } from "./paste-plugin";
 import { RichKeysPlugin, richReactPlugins } from "./react-plugins";
 import { htmlToEmit, shouldTakeProp } from "./sync";
 import { RichToolbar } from "./toolbar";
@@ -122,6 +126,16 @@ export default function RichTextField({
   });
   const linkOpen = useEditorPluginOption(editor, RichKeysPlugin, "linkOpen");
   const linkWasOpen = useRef(false);
+  const swatches = usePageSwatches();
+  // The panel paints colours as `.pe-rt-field [data-color]` reads them; the
+  // canvas wears the public classes and the frame's theme.
+  const paint = useMemo(
+    () =>
+      Object.fromEntries(
+        swatches.map(({ paper, token }) => [`--pe-rt-${token}`, paper])
+      ) as CSSProperties,
+    [swatches]
+  );
 
   useEffect(() => {
     if (editorRef) {
@@ -136,6 +150,11 @@ export default function RichTextField({
       variant === "canvas"
     );
   }, [editor, variant]);
+
+  // Pasted colours map to the page's swatches.
+  useEffect(() => {
+    editor.setOption(RichPastePlugin, "swatches", swatches);
+  }, [editor, swatches]);
 
   useEffect(() => {
     editor.setOption(
@@ -219,7 +238,7 @@ export default function RichTextField({
   const surface =
     variant === "canvas"
       ? { className: RICH_CLASS, "data-rich-edit": "1" }
-      : { className: "pe-rt-field" };
+      : { className: "pe-rt-field", style: paint };
 
   // A toolbar press does not focus the editor, so it takes the pending prop
   // itself, before the command runs on the old text. A press in the open
@@ -243,7 +262,7 @@ export default function RichTextField({
     <Plate editor={editor} onValueChange={handleValueChange}>
       {variant === "panel" ? (
         <div onMouseDownCapture={takeBeforeCommand}>
-          <RichToolbar editor={editor} tone="paper" />
+          <RichToolbar editor={editor} swatches={swatches} tone="paper" />
         </div>
       ) : null}
       <PlateContent
@@ -254,7 +273,7 @@ export default function RichTextField({
       />
       {variant === "canvas" ? (
         <div onMouseDownCapture={takeBeforeCommand}>
-          <RichBubble editor={editor} />
+          <RichBubble editor={editor} swatches={swatches} />
         </div>
       ) : null}
     </Plate>

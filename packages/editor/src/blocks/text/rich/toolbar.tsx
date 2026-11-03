@@ -1,5 +1,9 @@
 "use client";
 
+import type {
+  TextColourToken,
+  TextSwatch,
+} from "@repo/shared/utils/text-colours";
 import {
   type PlateEditor,
   useEditorSelector,
@@ -14,9 +18,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { ColourMenu } from "./colour-menu";
 import {
   activeList,
   applyLink,
+  currentColour,
   currentStyle,
   isMarkActive,
   linkUrl,
@@ -28,6 +34,7 @@ import {
   toggleRichList,
   toggleRichMark,
 } from "./commands";
+import { MoreMenu } from "./more-menu";
 import { RichKeysPlugin } from "./react-plugins";
 
 /** Buttons take no focus, so the editor keeps its selection. */
@@ -48,41 +55,50 @@ const MARKS: { glyph: ReactNode; label: string; mark: ToolbarMark }[] = [
 
 interface ToolbarState {
   bold: boolean;
+  colour: TextColourToken | null;
   italic: boolean;
   link: string | null;
   list: "disc" | "decimal" | null;
+  strikethrough: boolean;
   style: RichStyle;
   underline: boolean;
 }
 
 const readState = (editor: PlateEditor): ToolbarState => ({
   bold: isMarkActive(editor, "bold"),
+  colour: currentColour(editor),
   italic: isMarkActive(editor, "italic"),
   link: linkUrl(editor),
   list: activeList(editor),
+  strikethrough: isMarkActive(editor, "strikethrough"),
   style: currentStyle(editor),
   underline: isMarkActive(editor, "underline"),
 });
 
 const sameState = (a: ToolbarState, b: ToolbarState): boolean =>
   a.bold === b.bold &&
+  a.colour === b.colour &&
   a.italic === b.italic &&
   a.link === b.link &&
   a.list === b.list &&
+  a.strikethrough === b.strikethrough &&
   a.style === b.style &&
   a.underline === b.underline;
 
 interface ToolbarProps {
   editor: PlateEditor;
+  /** The page theme's text colours. */
+  swatches: readonly TextSwatch[];
   tone: "paper" | "ink";
 }
 
 /**
- * The formatting row: text style, bold, italic, underline, link, then the
- * two lists. `paper` sits above the panel field; `ink` is the canvas
- * bubble's. Each control shows the state at the selection.
+ * The formatting row: text style, bold, italic, underline, text colour,
+ * link, then the two lists and, in the panel, ⋯ for the rest. `paper` sits
+ * above the panel field; `ink` is the canvas bubble's. Each control shows
+ * the state at the selection.
  */
-export function RichToolbar({ editor, tone }: ToolbarProps) {
+export function RichToolbar({ editor, swatches, tone }: ToolbarProps) {
   const state = useEditorSelector(readState, [], { equalityFn: sameState });
   const linkOpen = usePluginOption(RichKeysPlugin, "linkOpen");
 
@@ -134,6 +150,7 @@ export function RichToolbar({ editor, tone }: ToolbarProps) {
           {glyph}
         </button>
       ))}
+      <ColourMenu current={state.colour} editor={editor} swatches={swatches} />
       <button
         aria-expanded={linkOpen}
         aria-label="Link"
@@ -165,6 +182,13 @@ export function RichToolbar({ editor, tone }: ToolbarProps) {
       >
         <NumberedListIcon />
       </button>
+      {tone === "paper" ? (
+        <MoreMenu
+          editor={editor}
+          inCell={false}
+          strikethrough={state.strikethrough}
+        />
+      ) : null}
       {linkOpen ? <LinkEditor editor={editor} url={state.link} /> : null}
     </div>
   );

@@ -7,11 +7,14 @@ import {
   spyOn,
   test,
 } from "bun:test";
+import { textSwatches } from "@repo/shared/utils/text-colours";
 import { Window } from "happy-dom";
 import { EventEditorStore, type PlateEditor } from "platejs/react";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { useEditorStore } from "@/editor/store";
 import RichTextField, { type RichTextFieldProps } from "./field";
+import { RichPastePlugin } from "./paste-plugin";
 import { RichKeysPlugin } from "./react-plugins";
 
 /** What Slate, Plate, floating-ui and React DOM read from the global scope. */
@@ -55,6 +58,7 @@ afterEach(() => {
   }
   mounted = [];
   EventEditorStore.set("focus", null);
+  useEditorStore.setState({ themePreview: null });
 });
 
 /** `act` that also lets Slate report the change (it does so in a microtask). */
@@ -109,16 +113,28 @@ const button = (host: HTMLElement, name: string) =>
       (element.getAttribute("aria-label") ?? element.textContent) === name
   ) as HTMLButtonElement;
 
-/** A press as the browser sends it: mousedown, then click. */
+/**
+ * A press as the browser sends it: mousedown, then click. A mouse click
+ * counts one click (`detail`); Enter or Space on a button clicks with none.
+ */
 function press(target: HTMLElement): MouseEvent {
   const down = new window.MouseEvent("mousedown", {
     bubbles: true,
     cancelable: true,
   });
   target.dispatchEvent(down);
-  target.click();
+  target.dispatchEvent(
+    new window.MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      detail: 1,
+    })
+  );
   return down as unknown as MouseEvent;
 }
+
+/** Enter or Space on a focused button: a click with no mouse behind it. */
+const pressByKey = (target: HTMLElement) => target.click();
 
 /** Type into the (uncontrolled) input: its value, then `input`. */
 function typeInto(input: HTMLInputElement, text: string): void {
@@ -147,9 +163,11 @@ test("toolbar exposes labelled controls in order", async () => {
     "Bold",
     "Italic",
     "Underline",
+    "Text colour",
     "Link",
     "Bullet list",
     "Numbered list",
+    "More formatting",
   ]);
   // Right above the text, in the wrapper that takes a pending prop.
   expect(
@@ -532,4 +550,265 @@ test("the bubble stays while focus moves into it, and goes when focus leaves", a
 
   await moveFocus(editor, null, select);
   expect($(".pe-rt-bubble")).toBeNull();
+});
+
+/** The open popover with this label, or `null`. */
+const group = (host: HTMLElement, label: string) =>
+  host.querySelector<HTMLElement>(`[role="group"][aria-label="${label}"]`);
+
+/** The names of the buttons in the popover with this label. */
+const groupButtons = (host: HTMLElement, label: string) =>
+  [...(group(host, label)?.querySelectorAll("button") ?? [])].map(
+    (element) => element.getAttribute("aria-label") ?? element.textContent
+  );
+
+test("Text colour opens the swatches; the current one is pressed", async () => {
+  const { editor, host } = await mountField(
+    '<p><span data-color="accent">a</span></p>'
+  );
+  await settle(() => editor.tf.select([]));
+  const toggle = button(host, "Text colour");
+  expect(toggle.getAttribute("aria-haspopup")).toBe("true");
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+  let down: MouseEvent | undefined;
+  await settle(() => {
+    down = press(toggle);
+  });
+  expect(down?.defaultPrevented).toBe(true);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(groupButtons(host, "Text colour")).toEqual([
+    "Default",
+    "Accent",
+    "Muted",
+    "Green",
+    "Amber",
+    "Red",
+  ]);
+  expect(button(host, "Accent").getAttribute("aria-pressed")).toBe("true");
+  expect(button(host, "Default").getAttribute("aria-pressed")).toBe("false");
+});
+
+test("a swatch colours the selection and closes the swatches", async () => {
+  const { editor, focus, host, onChange } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  expect(button(host, "Default").getAttribute("aria-pressed")).toBe("true");
+
+  let down: MouseEvent | undefined;
+  await settle(() => {
+    down = press(button(host, "Red"));
+  });
+  expect(down?.defaultPrevented).toBe(true);
+  expect(onChange).toHaveBeenLastCalledWith(
+    '<p><span data-color="red">ab</span></p>'
+  );
+  expect(group(host, "Text colour")).toBeNull();
+  expect(button(host, "Text colour").getAttribute("aria-expanded")).toBe(
+    "false"
+  );
+  expect(focus).toHaveBeenCalled();
+});
+
+test("the colour button shows the colour at the selection", async () => {
+  const { editor, host } = await mountField(
+    '<p><span data-color="red">a</span>b</p>'
+  );
+  const dot = () =>
+    button(host, "Text colour").querySelector<HTMLElement>(
+      ".pe-rt-colour__dot"
+    );
+  await settle(() => editor.tf.select(editor.api.start([0, 0])));
+  const red = textSwatches(null).find((s) => s.token === "red")?.paper;
+  expect(dot()?.style.backgroundColor).toBe(red ?? "");
+  expect(dot()?.classList.contains("pe-rt-swatch--none")).toBe(false);
+
+  await settle(() => editor.tf.select(editor.api.end([0])));
+  expect(dot()?.style.backgroundColor).toBe("");
+  expect(dot()?.classList.contains("pe-rt-swatch--none")).toBe(true);
+});
+
+test("Default removes the colour", async () => {
+  const { editor, host, onChange } = await mountField(
+    '<p><span data-color="red">ab</span></p>'
+  );
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  await settle(() => press(button(host, "Default")));
+  expect(onChange).toHaveBeenLastCalledWith("<p>ab</p>");
+});
+
+test("Escape closes the swatches and keeps the key", async () => {
+  const { editor, focus, host, onChange } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+
+  let escapeKey: KeyboardEvent | undefined;
+  await settle(() => {
+    escapeKey = keydown(button(host, "Red"), { key: "Escape" });
+  });
+  expect(escapeKey?.defaultPrevented).toBe(true);
+  expect(group(host, "Text colour")).toBeNull();
+  expect(document.activeElement).toBe(button(host, "Text colour"));
+  expect(focus).not.toHaveBeenCalled();
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("Escape outside an open popover is left alone", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  let escapeKey: KeyboardEvent | undefined;
+  await settle(() => {
+    escapeKey = keydown(button(host, "Text colour"), { key: "Escape" });
+  });
+  expect(escapeKey?.defaultPrevented).toBe(false);
+});
+
+test("a press outside closes the swatches", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  expect(group(host, "Text colour")).not.toBeNull();
+
+  await settle(() => {
+    document.body.dispatchEvent(
+      new window.MouseEvent("mousedown", { bubbles: true, cancelable: true })
+    );
+  });
+  expect(group(host, "Text colour")).toBeNull();
+  expect(button(host, "Text colour").getAttribute("aria-expanded")).toBe(
+    "false"
+  );
+});
+
+test("the colour button closes its own swatches", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  await settle(() => press(button(host, "Text colour")));
+  expect(group(host, "Text colour")).toBeNull();
+});
+
+test("opened from the keyboard, the first swatch takes focus; by mouse, nothing moves", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  expect(document.activeElement).not.toBe(button(host, "Default"));
+  await settle(() => press(button(host, "Text colour")));
+
+  await settle(() => pressByKey(button(host, "Text colour")));
+  expect(document.activeElement).toBe(button(host, "Default"));
+});
+
+test("More formatting holds strikethrough, divider and clear formatting", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  const toggle = button(host, "More formatting");
+  expect(toggle.textContent).toBe("⋯");
+  expect(toggle.getAttribute("aria-haspopup")).toBe("true");
+  await settle(() => press(toggle));
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(groupButtons(host, "More formatting")).toEqual([
+    "Strikethrough",
+    "Divider",
+    "Clear formatting",
+  ]);
+  expect(button(host, "Divider").disabled).toBe(false);
+});
+
+test("Strikethrough toggles and shows its state", async () => {
+  const { editor, focus, host, onChange } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "More formatting")));
+  expect(button(host, "Strikethrough").getAttribute("aria-pressed")).toBe(
+    "false"
+  );
+  await settle(() => press(button(host, "Strikethrough")));
+  expect(onChange).toHaveBeenLastCalledWith("<p><s>ab</s></p>");
+  expect(group(host, "More formatting")).toBeNull();
+  expect(focus).toHaveBeenCalled();
+
+  await settle(() => press(button(host, "More formatting")));
+  expect(button(host, "Strikethrough").getAttribute("aria-pressed")).toBe(
+    "true"
+  );
+});
+
+test("Divider and Clear formatting run from the menu", async () => {
+  const { editor, host, onChange } = await mountField("<p>a</p>");
+  await settle(() => editor.tf.select(editor.api.end([0])));
+  await settle(() => press(button(host, "More formatting")));
+  await settle(() => press(button(host, "Divider")));
+  expect(onChange).toHaveBeenLastCalledWith("<p>a</p><hr>");
+  expect(group(host, "More formatting")).toBeNull();
+
+  const cleared = await mountField(
+    '<p><a href="https://biso.no"><strong><span data-color="red">x</span></strong></a> <em>y</em> <s>z</s></p>'
+  );
+  await settle(() => cleared.editor.tf.select([]));
+  await settle(() => press(button(cleared.host, "More formatting")));
+  await settle(() => press(button(cleared.host, "Clear formatting")));
+  expect(cleared.onChange).toHaveBeenLastCalledWith(
+    '<p><a href="https://biso.no">x</a> y z</p>'
+  );
+});
+
+test("opening one popover closes the other", async () => {
+  const { editor, host } = await mountField("<p>ab</p>");
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  await settle(() => press(button(host, "More formatting")));
+  expect(group(host, "Text colour")).toBeNull();
+  expect(group(host, "More formatting")).not.toBeNull();
+});
+
+test("the bubble has the colour button and no ⋯", async () => {
+  const { $, editable, editor } = await mountField("<p>biso</p>", "canvas");
+  await moveFocus(editor, editable(), null);
+  await settle(() => editor.tf.select([]));
+  const labels = [
+    ...($(".pe-rt-bubble")?.querySelectorAll("[aria-label]") ?? []),
+  ].map((control) => control.getAttribute("aria-label"));
+  expect(labels).toContain("Text colour");
+  expect(labels).not.toContain("More formatting");
+});
+
+test("a swatch in the bubble colours the selection", async () => {
+  const { $, editable, editor, host, onChange } = await mountField(
+    "<p>biso</p>",
+    "canvas"
+  );
+  await moveFocus(editor, editable(), null);
+  await settle(() => editor.tf.select([]));
+  await settle(() => press(button(host, "Text colour")));
+  expect($(".pe-rt-bubble")?.contains(group(host, "Text colour"))).toBe(true);
+  await settle(() => press(button(host, "Green")));
+  expect(onChange).toHaveBeenLastCalledWith(
+    '<p><span data-color="green">biso</span></p>'
+  );
+});
+
+test("the panel field paints colours with the page's swatches", async () => {
+  const { editable } = await mountField("<p>a</p>");
+  for (const swatch of textSwatches(null)) {
+    expect(editable().style.getPropertyValue(`--pe-rt-${swatch.token}`)).toBe(
+      swatch.paper
+    );
+  }
+});
+
+test("the page theme reaches the swatches, the panel's paint and paste", async () => {
+  const theme = { accent: "#fecd45", dark: "#3b1c6b" };
+  const accent = textSwatches(theme).find((s) => s.token === "accent");
+  expect(accent?.paper).not.toBe(
+    textSwatches(null).find((s) => s.token === "accent")?.paper
+  );
+  const { editable, editor } = await mountField("<p>a</p>");
+  await settle(() => useEditorStore.setState({ themePreview: theme }));
+  expect(editable().style.getPropertyValue("--pe-rt-accent")).toBe(
+    accent?.paper ?? ""
+  );
+  expect(editor.getOption(RichPastePlugin, "swatches")).toEqual(
+    textSwatches(theme)
+  );
 });

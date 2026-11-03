@@ -8,6 +8,7 @@ import {
   useFloatingToolbar,
   useFloatingToolbarState,
 } from "@platejs/floating";
+import type { TextSwatch } from "@repo/shared/utils/text-colours";
 import {
   type PlateEditor,
   useEventEditorValue,
@@ -78,7 +79,13 @@ function useFocusWithin(
  * The canvas field's toolbar: a small dark bar over an expanded selection
  * while the editor (or the bubble itself) has focus, hidden otherwise.
  */
-export function RichBubble({ editor }: { editor: PlateEditor }) {
+export function RichBubble({
+  editor,
+  swatches,
+}: {
+  editor: PlateEditor;
+  swatches: readonly TextSwatch[];
+}) {
   const bubble = useRef<HTMLDivElement | null>(null);
   const focused = useFocusWithin(editor, bubble);
   const state = useFloatingToolbarState({
@@ -116,7 +123,7 @@ export function RichBubble({ editor }: { editor: PlateEditor }) {
       ref={setBubble}
       style={props.style}
     >
-      <RichToolbar editor={editor} tone="ink" />
+      <RichToolbar editor={editor} swatches={swatches} tone="ink" />
     </div>
   );
 }

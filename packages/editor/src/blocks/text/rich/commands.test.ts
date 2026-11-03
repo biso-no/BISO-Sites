@@ -4,11 +4,15 @@ import type { SlateEditor } from "platejs";
 import {
   activeList,
   applyLink,
+  clearFormatting,
+  currentColour,
   currentStyle,
   handleListTab,
+  insertDivider,
   isMarkActive,
   linkUrl,
   normalizeHref,
+  setColour,
   setStyle,
   toggleRichList,
   toggleRichMark,
@@ -290,4 +294,69 @@ test("applyLink without a selection changes nothing", () => {
   expect(() => applyLink(editor, null)).not.toThrow();
   expect(editor.children).toEqual(before);
   expect(linkUrl(editor)).toBeNull();
+});
+
+test("setColour colours the selection; null clears it", () => {
+  const editor = editorWith("<p>ab</p>");
+  setColour(editor, "red");
+  expect(html(editor)).toBe('<p><span data-color="red">ab</span></p>');
+  setColour(editor, null);
+  expect(html(editor)).toBe("<p>ab</p>");
+});
+
+test("currentColour reads the colour at the selection", () => {
+  const editor = editorWith('<p><span data-color="muted">a</span>b</p>');
+  editor.tf.select({
+    anchor: { offset: 0, path: [0, 0] },
+    focus: { offset: 1, path: [0, 0] },
+  });
+  expect(currentColour(editor)).toBe("muted");
+  editor.tf.select({
+    anchor: { offset: 0, path: [0, 1] },
+    focus: { offset: 1, path: [0, 1] },
+  });
+  expect(currentColour(editor)).toBeNull();
+});
+
+test("currentColour reads an unknown colour as none", () => {
+  const editor = editorWith("<p>a</p>");
+  editor.tf.setNodes({ color: "#ff0000" }, { at: [0, 0] });
+  editor.tf.select([]);
+  expect(currentColour(editor)).toBeNull();
+});
+
+test("clearFormatting removes marks and colour and keeps the link", () => {
+  const editor = editorWith(
+    '<p><a href="https://biso.no"><strong><span data-color="red">x</span></strong></a> <em>y</em> <s>z</s></p>'
+  );
+  clearFormatting(editor);
+  expect(html(editor)).toBe('<p><a href="https://biso.no">x</a> y z</p>');
+});
+
+/** The top-level block the selection's focus is in. */
+const focusBlock = (editor: SlateEditor): number | undefined =>
+  editor.selection?.focus.path[0];
+
+test("insertDivider puts a rule after the block and the caret after it", () => {
+  const editor = editorWith("<p>a</p><p>b</p>");
+  editor.tf.select(editor.api.end([0]));
+  insertDivider(editor);
+  expect(html(editor)).toBe("<p>a</p><hr><p>b</p>");
+  expect(focusBlock(editor)).toBe(2);
+
+  const last = editorWith("<p>a</p>");
+  last.tf.select(last.api.end([0]));
+  insertDivider(last);
+  expect(html(last)).toBe("<p>a</p><hr>");
+  expect(last.children.map((node) => node.type)).toEqual(["p", "hr", "p"]);
+  expect(focusBlock(last)).toBe(2);
+});
+
+test("insertDivider on an empty paragraph replaces it", () => {
+  const editor = editorWith("<p>a</p><p></p>");
+  editor.tf.select(editor.api.start([1]));
+  insertDivider(editor);
+  expect(html(editor)).toBe("<p>a</p><hr>");
+  expect(editor.children.map((node) => node.type)).toEqual(["p", "hr", "p"]);
+  expect(focusBlock(editor)).toBe(2);
 });

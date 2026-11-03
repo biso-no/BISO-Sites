@@ -1,15 +1,17 @@
 import { unwrapLink, upsertLink } from "@platejs/link";
 import { indentList, outdentList, toggleList } from "@platejs/list";
+import type { TextColourToken } from "@repo/shared/utils/text-colours";
 import {
   ElementApi,
   KEYS,
+  NodeApi,
   type NodeEntry,
   type Path,
   PathApi,
   type SlateEditor,
   type TElement,
 } from "platejs";
-import { SAFE_HREF } from "@/lib/rich-allowlist";
+import { keptColourToken, SAFE_HREF } from "@/lib/rich-allowlist";
 import { isListItem } from "./html";
 import { ORDERED_LIST_STYLES } from "./list-item-parse";
 
@@ -84,6 +86,70 @@ export function isMarkActive(editor: SlateEditor, mark: RichMark): boolean {
 
 export function toggleRichMark(editor: SlateEditor, mark: RichMark): void {
   editor.tf.toggleMark(mark);
+}
+
+/** The colour mark's key: `RichColourPlugin` holds the token as `color`. */
+const COLOUR = "color";
+
+/**
+ * The colour at the selection, as the page would store it: a value the
+ * sanitisers would drop reads as none.
+ */
+export function currentColour(editor: SlateEditor): TextColourToken | null {
+  const colour = editor.api.marks()?.[COLOUR];
+  return typeof colour === "string" ? keptColourToken(colour) : null;
+}
+
+/** Colours the selection with `colour`; `null` takes its colour off. */
+export function setColour(
+  editor: SlateEditor,
+  colour: TextColourToken | null
+): void {
+  if (colour === null) {
+    editor.tf.removeMarks(COLOUR);
+  } else {
+    editor.tf.addMarks({ [COLOUR]: colour });
+  }
+}
+
+/** What Clear formatting takes off: every mark and the colour, not links. */
+const FORMATTING = ["bold", "italic", "underline", "strikethrough", COLOUR];
+
+/** Takes the marks and the colour off the selection; links stay. */
+export function clearFormatting(editor: SlateEditor): void {
+  editor.tf.removeMarks(FORMATTING);
+}
+
+/** A plain paragraph with no text: the line a divider takes the place of. */
+const isEmptyParagraph = (node: TElement): boolean =>
+  node.type === KEYS.p && !isListItem(node) && NodeApi.string(node) === "";
+
+/**
+ * A divider after the top-level block at the caret, with the caret in the
+ * block after it; an empty paragraph there is added when there is none. An
+ * empty paragraph at the caret becomes the divider instead.
+ */
+export function insertDivider(editor: SlateEditor): void {
+  const index = editor.selection?.focus.path[0];
+  const block = index === undefined ? undefined : editor.children[index];
+  if (index === undefined || block === undefined) {
+    return;
+  }
+  const rule = { type: KEYS.hr, children: [{ text: "" }] };
+  const at = isEmptyParagraph(block) ? index : index + 1;
+  editor.tf.withoutNormalizing(() => {
+    if (at === index) {
+      editor.tf.removeNodes({ at: [index] });
+    }
+    editor.tf.insertNodes(rule, { at: [at] });
+    if (at + 1 === editor.children.length) {
+      editor.tf.insertNodes(
+        { type: KEYS.p, children: [{ text: "" }] },
+        { at: [at + 1] }
+      );
+    }
+  });
+  editor.tf.select(editor.api.start([at + 1]));
 }
 
 /** The list kind of the block at the selection, or `null` outside a list. */
