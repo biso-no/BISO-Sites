@@ -81,3 +81,87 @@ describe("coalesced history", () => {
     expect(state().past.length).toBe(2);
   });
 });
+
+// A rich text field's own undo and redo write the body back as it was: no
+// new page step, so the page's undo never replays what the field undid.
+describe("history-neutral writes", () => {
+  let original: unknown;
+  const titleOf = (id: string) => {
+    const found = state()
+      .doc.sections.flatMap((s) => s.columns.flatMap((c) => c.blocks))
+      .find((b) => b.id === id);
+    return (found as Record<string, unknown> | undefined)?.title;
+  };
+  const neutral = (id: string, html: unknown) =>
+    state().setProp(id, "body", html, {
+      coalesce: `${id}:body`,
+      historyNeutral: true,
+    });
+
+  beforeEach(() => {
+    setSystemTime(new Date("2026-11-03T10:00:00Z"));
+    state().setDoc(doc(section("s-1", "1-1", [["b1"], ["b2"]])));
+    original = bodyOf("b1");
+    // The step before the typing.
+    state().setProp("b2", "title", "Earlier");
+    type("b1", "<p>H</p>");
+    type("b1", "<p>Hello</p>");
+    setSystemTime(new Date("2026-11-03T10:00:02Z"));
+  });
+
+  afterEach(() => {
+    setSystemTime();
+  });
+
+  test("one that lands on no step changes the page and adds no step", () => {
+    neutral("b1", "<p>Hel</p>");
+    expect(bodyOf("b1")).toBe("<p>Hel</p>");
+    expect(state().past.length).toBe(2);
+    expect(state().future.length).toBe(0);
+  });
+
+  test("one that lands on the step below takes it, as undo would", () => {
+    neutral("b1", original);
+    expect(bodyOf("b1")).toEqual(original);
+    expect(state().past.length).toBe(1);
+    expect(state().future.length).toBe(1);
+
+    // The next undo goes to the step before the typing, with no replay.
+    state().undo();
+    expect(bodyOf("b1")).toEqual(original);
+    expect(titleOf("b2")).not.toBe("Earlier");
+    expect(state().past.length).toBe(0);
+  });
+
+  test("one that lands on the step above takes it back, as redo would", () => {
+    neutral("b1", original);
+    neutral("b1", "<p>Hello</p>");
+    expect(state().past.length).toBe(2);
+    expect(state().future.length).toBe(0);
+
+    state().undo();
+    expect(bodyOf("b1")).toEqual(original);
+    expect(titleOf("b2")).toBe("Earlier");
+  });
+
+  test("page redo after it walks forward through the same steps", () => {
+    neutral("b1", original);
+    state().undo();
+    state().redo();
+    expect(titleOf("b2")).toBe("Earlier");
+    expect(bodyOf("b1")).toEqual(original);
+    state().redo();
+    expect(bodyOf("b1")).toBe("<p>Hello</p>");
+    expect(state().future.length).toBe(0);
+  });
+
+  test("typing straight after it starts a step of its own", () => {
+    setSystemTime(new Date("2026-11-03T10:00:00.500Z"));
+    neutral("b1", original);
+    type("b1", "<p>X</p>");
+    expect(state().past.length).toBe(2);
+    state().undo();
+    expect(bodyOf("b1")).toEqual(original);
+    expect(titleOf("b2")).toBe("Earlier");
+  });
+});

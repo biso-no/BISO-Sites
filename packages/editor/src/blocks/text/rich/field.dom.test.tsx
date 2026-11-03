@@ -5,6 +5,7 @@ import {
   expect,
   jest,
   mock,
+  setSystemTime,
   spyOn,
   test,
 } from "bun:test";
@@ -14,7 +15,11 @@ import { Window } from "happy-dom";
 import type { PlateEditor } from "platejs/react";
 import { act, createElement, Fragment } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { legacyBodyToHtml } from "../body";
+import { useEditorStore } from "@/editor/store";
+import { doc, section } from "@/editor/test-fixtures";
+import { findBlock } from "@/editor/tree";
+import type { TextBlock } from "@/editor/types";
+import { bodyPatch, bodyToHtml, legacyBodyToHtml } from "../body";
 import { RICH_CLASS } from "../render-classes";
 import RichTextField, { type RichTextFieldProps } from "./field";
 import { RichPastePlugin } from "./paste-plugin";
@@ -83,7 +88,7 @@ const TAKE_DELAY = 300;
 /** Move the fake clock on, as `settle` does for the change it causes. */
 const advance = (ms: number) => settle(() => jest.advanceTimersByTime(ms));
 
-type Emit = (html: string) => void;
+type Emit = RichTextFieldProps["onChange"];
 type PageStep = NonNullable<RichTextFieldProps["onPageHistory"]>;
 
 interface Field {
@@ -604,6 +609,29 @@ test("mod+z after typing undoes the typing in the field, not the page", async ()
   expect(editables()[0]?.textContent).toBe("a");
 });
 
+test("the field's own undo and redo report their change as history-neutral; typing does not", async () => {
+  const a = field(
+    "canvas",
+    "Rich text",
+    mock<PageStep>(() => undefined)
+  );
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+  await typeText(a.editor(), "!");
+  expect(a.spy.mock.calls).toEqual([["<p>a!</p>"]]);
+
+  await pressKey(editables()[0], UNDO);
+  await pressKey(editables()[0], REDO);
+  await typeText(a.editor(), "?");
+  expect(a.spy.mock.calls).toEqual([
+    ["<p>a!</p>"],
+    ["<p>a</p>", { historyNeutral: true }],
+    ["<p>a!</p>", { historyNeutral: true }],
+    ["<p>a!?</p>"],
+  ]);
+});
+
 test("a page step that changes nothing here takes nothing later", async () => {
   const pageHistory = mock<PageStep>(() => undefined);
   const a = field("canvas", "Rich text", pageHistory);
@@ -644,6 +672,92 @@ test("without onPageHistory, mod+z in an empty field changes nothing", async () 
   await pressKey(editables()[0], UNDO);
   expect(editables()[0]?.textContent).toBe("a");
   expect(a.spy).not.toHaveBeenCalled();
+});
+
+/**
+ * Block `b1` of the page store in a field wired as the canvas wires it: the
+ * body from the store, each change through `bodyPatch`, and mod+z past the
+ * field's own history to the page's.
+ */
+function StoreField({ editorRef }: { editorRef: { current: unknown } }) {
+  const block = useEditorStore((s) => findBlock(s.doc, "b1")?.block);
+  const setProp = useEditorStore((s) => s.setProp);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+  const text = block as TextBlock;
+  return createElement(RichTextField, {
+    editorRef,
+    html: bodyToHtml(text.body),
+    label: "Rich text",
+    onChange: bodyPatch(text, (path, value, options) =>
+      setProp(text.id, path, value, options)
+    ),
+    onPageHistory: (step) => (step === "undo" ? undo() : redo()),
+    variant: "canvas",
+  });
+}
+
+/** A prop of block `id` in the page store. */
+const storeProp = (id: string, key: "body" | "title"): unknown =>
+  (
+    findBlock(useEditorStore.getState().doc, id)?.block as
+      | Record<string, unknown>
+      | undefined
+  )?.[key];
+
+// The field's own undo writes the body back without a page step of its
+// own, so the page's undo after it never brings the typing back. Redo walks
+// forward through the same steps.
+test("mod+z after a pause undoes the typing, then the step before it, and never replays the typing", async () => {
+  setSystemTime(new Date("2026-11-03T10:00:00Z"));
+  const store = useEditorStore.getState();
+  store.setDoc(doc(section("s-1", "1-1", [["b1"], ["b2"]])));
+  const title = storeProp("b2", "title");
+  // The step before the typing.
+  store.setProp("b2", "title", "Earlier");
+  const original = storeProp("b1", "body") as string;
+
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ host, root });
+  const editorRef: { current: unknown } = { current: null };
+  await settle(() => root.render(createElement(StoreField, { editorRef })));
+  const editor = editorRef.current as PlateEditor;
+  const editable = () =>
+    host.querySelector("[contenteditable]") as HTMLElement | null;
+  const shown = () => editable()?.textContent ?? "";
+  const before = shown();
+  markFocused(editor);
+
+  await typeText(editor, "Hello");
+  expect(shown()).toBe(`${before}Hello`);
+  expect(storeProp("b1", "body")).toContain("Hello");
+  expect(useEditorStore.getState().past).toHaveLength(2);
+
+  setSystemTime(new Date("2026-11-03T10:00:02Z"));
+  // The field undoes its own typing, and the page's step for it goes.
+  await pressKey(editable() ?? undefined, UNDO);
+  expect(shown()).toBe(before);
+  expect(storeProp("b1", "body")).toBe(original);
+  expect(useEditorStore.getState().past).toHaveLength(1);
+
+  // Nothing left in the field: the page undoes the step before the typing.
+  await pressKey(editable() ?? undefined, UNDO);
+  expect(storeProp("b2", "title")).toBe(title);
+  expect(storeProp("b1", "body")).toBe(original);
+  expect(shown()).toBe(before);
+  expect(useEditorStore.getState().past).toHaveLength(0);
+
+  // Redo walks forward: the step before the typing, then the typing.
+  await pressKey(editable() ?? undefined, REDO);
+  expect(storeProp("b2", "title")).toBe("Earlier");
+  expect(shown()).toBe(before);
+  await pressKey(editable() ?? undefined, REDO);
+  expect(storeProp("b1", "body")).toContain("Hello");
+  expect(shown()).toBe(`${before}Hello`);
+  expect(useEditorStore.getState().future).toHaveLength(0);
+  setSystemTime();
 });
 
 test("a legacy prop re-rendered, or in its canonical form, triggers no setValue and no emit", async () => {

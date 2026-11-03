@@ -17,6 +17,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { PatchOptions } from "@/blocks/types";
 import { RICH_CLASS } from "../render-classes";
 import { RichBubble } from "./bubble";
 import { htmlToValue, valueToHtml } from "./html";
@@ -33,7 +34,14 @@ export interface RichTextFieldProps {
   editorRef?: { current: unknown };
   html: string;
   label: string;
-  onChange: (html: string) => void;
+  /**
+   * Gets each change's HTML; the field's own undo or redo comes with
+   * `historyNeutral`, since the page's history holds that step already.
+   */
+  onChange: (
+    html: string,
+    options?: Pick<PatchOptions, "historyNeutral">
+  ) => void;
   /**
    * Steps the page's history, for mod+z or mod+shift+z with nothing left in
    * the field's own; the field then shows the page's body for it at once.
@@ -100,7 +108,9 @@ function takeProp(
  * While the link input is open the prop waits too, since the input acts on
  * a selection in the text it opened on; it is taken when the input closes.
  * After mod+z or mod+shift+z stepped the page (`onPageHistory`), the next
- * changed prop is taken at once, focused or not.
+ * changed prop is taken at once, focused or not, and the field's own
+ * history starts again. The field's own undo and redo report their change
+ * as `historyNeutral`, so it adds no page step.
  * The panel shows the toolbar above the text; the canvas shows it in a
  * bubble over a selection.
  *
@@ -183,6 +193,10 @@ export default function RichTextField({
       onPageHistory
         ? (step) => {
             forceTake.current = true;
+            // The page's history holds the field's steps from here on: its
+            // own would replay them out of order.
+            editor.history.undos = [];
+            editor.history.redos = [];
             onPageHistory(step);
           }
         : null
@@ -259,9 +273,14 @@ export default function RichTextField({
 
   const handleValueChange = ({ value }: { value: Value }) => {
     const next = htmlToEmit(value, lastHtml.current);
-    if (next !== null) {
-      forceTake.current = false;
-      lastHtml.current = next;
+    if (next === null) {
+      return;
+    }
+    forceTake.current = false;
+    lastHtml.current = next;
+    if (editor.getOption(RichKeysPlugin, "historyStep")) {
+      onChange(next, { historyNeutral: true });
+    } else {
       onChange(next);
     }
   };

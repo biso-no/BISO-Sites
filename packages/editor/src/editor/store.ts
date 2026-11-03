@@ -274,6 +274,36 @@ export const useEditorStore = create<EditorState>()(
       state.future = [];
     }
 
+    /**
+     * A write that steps back or forward over an edit the history already
+     * holds: no new step. Where it brings the page back to the step on top
+     * of `past`, it takes that step as an undo would; to the one on top of
+     * `future`, as a redo would. Typing after it starts a step of its own.
+     */
+    function writeHistoryNeutral(
+      state: {
+        doc: PageDoc;
+        past: HistorySnap[];
+        future: HistorySnap[];
+        lastCoalesce: { key: string; at: number } | null;
+      },
+      write: () => void
+    ) {
+      const before = snap(state.doc);
+      write();
+      state.lastCoalesce = null;
+      const now = JSON.stringify(snap(state.doc));
+      const isAt = (entry: HistorySnap | undefined) =>
+        entry !== undefined && JSON.stringify(entry) === now;
+      if (isAt(state.past.at(-1))) {
+        state.past.pop();
+        state.future.push(before);
+      } else if (isAt(state.future.at(-1))) {
+        state.future.pop();
+        state.past.push(before);
+      }
+    }
+
     return {
       doc: structuredClone(EMPTY_DOC),
       past: [],
@@ -442,6 +472,10 @@ export const useEditorStore = create<EditorState>()(
 
       setProp: (id, path, value, options) =>
         set((s) => {
+          if (options?.historyNeutral) {
+            writeHistoryNeutral(s, () => opSetProp(s.doc, id, path, value));
+            return;
+          }
           const key = options?.coalesce;
           const now = Date.now();
           const continuesBurst =

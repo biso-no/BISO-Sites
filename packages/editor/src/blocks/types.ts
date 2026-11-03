@@ -37,6 +37,11 @@ export interface PatchOptions {
    * continuous typing is not one step per keystroke.
    */
   coalesce?: string;
+  /**
+   * The edit steps back or forward over one the page's history already
+   * holds (a rich text field's own undo or redo): it adds no undo step.
+   */
+  historyNeutral?: boolean;
 }
 
 export type PatchFn = (

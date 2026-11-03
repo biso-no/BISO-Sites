@@ -243,6 +243,11 @@ export type RichKeysConfig = PluginConfig<
   {
     /** Steps the page when the field has nothing to undo or redo. */
     emptyHistory: ((step: HistoryStep) => void) | null;
+    /**
+     * While the field undoes or redoes its own edit, until the change it
+     * makes has been reported: the page holds that step already.
+     */
+    historyStep: boolean;
     linkOpen: boolean;
     /** The canvas: its input lives in the bubble, which needs a selection. */
     linkNeedsSelection: boolean;
@@ -287,7 +292,8 @@ function emptyHistoryStep(
  * it would indent a paragraph the page cannot store. In a table cell, Tab and
  * Shift+Tab are the table plugin's (`tab`, the transform before this one):
  * they move to the next or previous cell. Tab in the last cell adds a row
- * (`tabFromLastCell`).
+ * (`tabFromLastCell`). The field's own undo and redo set `historyStep` for
+ * the change they make.
  */
 export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
   handlers: {
@@ -311,17 +317,36 @@ export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
     },
   },
   key: "richKeys",
-  options: { emptyHistory: null, linkNeedsSelection: false, linkOpen: false },
-}).overrideEditor(({ editor, tf: { tab } }) => ({
-  transforms: {
-    tab: (options) => {
-      if (!inTableCell(editor)) {
-        return handleListTab(editor, { shift: options.reverse });
-      }
-      return (!options.reverse && tabFromLastCell(editor)) || tab(options);
-    },
+  options: {
+    emptyHistory: null,
+    historyStep: false,
+    linkNeedsSelection: false,
+    linkOpen: false,
   },
-}));
+}).overrideEditor(({ editor, setOption, tf: { redo, tab, undo } }) => {
+  /**
+   * `step` with `historyStep` set. Slate reports the change in a microtask
+   * queued by its first operation, so it is still set then, and cleared
+   * after.
+   */
+  const asHistoryStep = (step: () => void) => {
+    setOption("historyStep", true);
+    step();
+    queueMicrotask(() => setOption("historyStep", false));
+  };
+  return {
+    transforms: {
+      redo: () => asHistoryStep(redo),
+      undo: () => asHistoryStep(undo),
+      tab: (options) => {
+        if (!inTableCell(editor)) {
+          return handleListTab(editor, { shift: options.reverse });
+        }
+        return (!options.reverse && tabFromLastCell(editor)) || tab(options);
+      },
+    },
+  };
+});
 
 /** A cell holds plain lines: no list starts there. */
 const outsideCell = (editor: SlateEditor) => !inTableCell(editor);

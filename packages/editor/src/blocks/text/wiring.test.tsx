@@ -69,6 +69,17 @@ test("the canvas field edits the whole body, coalesced per block", () => {
   ]);
 });
 
+test("the field's own undo or redo reaches the page as history-neutral", () => {
+  const onPatch = mock<PatchFn>(() => undefined);
+  const field = fieldOf(
+    createElement(TextRender, { block, edit: true, onPatch })
+  );
+  field.onChange("<p>y</p>", { historyNeutral: true });
+  expect(onPatch.mock.calls).toEqual([
+    ["body", "<p>y</p>", { coalesce: "a:body", historyNeutral: true }],
+  ]);
+});
+
 test("the inspector field edits the whole body, coalesced per block", () => {
   const onPatch = mock<PatchFn>(() => undefined);
   const field = fieldOf(
