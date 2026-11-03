@@ -20,7 +20,7 @@
 - Colour is stored only as `<span data-color="TOKEN">`, TOKEN one of `accent, muted, green, amber, red` (`packages/shared/utils/text-colour-tokens.ts`).
 - Plate confinement: no file outside `blocks/text/rich/` statically imports `platejs`, `@platejs/*` or anything in `rich/` (`blocks/text/rich-confinement.test.ts`); `lazy-field.ts` and `canonical-body.ts` are the only ways in, both dynamic. The public renderer never imports Plate. The `apps/web` initial bundle must not grow by the editor.
 - Invariants: `valueToHtml(htmlToValue(valueToHtml(v))) === valueToHtml(v)` (`rich/fixed-point.test.ts`, tables and colour included); `sanitizeRichBodyHtml` leaves `valueToHtml` output unchanged apart from U+00A0 as `&nbsp;`; `scanBody(valueToHtml(v), 100) === "canonical"` (the canonical fast path); legacy `body: TextBodyItem[]` renders exactly as today.
-- Chrome: Markus loves the current editor chrome. Change no look. The one new glyph (Task 3's `✕`) sits in the existing `.pe-copilot-panel__tool-name` span. Chrome strings are English.
+- Chrome: Markus loves the current editor chrome. Change no look. Chrome strings are English.
 - Every `.tsx` under `packages/editor/src/blocks/` passes `blocks/_v2/v2-guard.test.ts`.
 - Known failures that are not this branch's: admin `src/lib/content-translation.test.ts` (model-id mismatch, also on main); `canvas.test.tsx` and `topbar.test.tsx` when `src/components` runs alone. Record them, don't fix them.
 - Commit messages end with an attribution line for the model you are (`Co-Authored-By: <your model name> <noreply@anthropic.com>`), then:
@@ -32,8 +32,8 @@
 
 1. **A typing pause of exactly one second.** The store opens a new page step at `now - last >= 1000`; if the field splits its Slate batch at `> 1000`, one key undoes two page steps again → Task 1 (a) test `a pause of exactly one second splits the field and the page alike`.
 2. **Pasting a table over a select-all of a text that opens with a table.** The caret's anchor is in a table, so the paste would go "after the table" and delete nothing → Task 1 (b) test `pasting a table over a select-all replaces the whole text, even one that opens with a table`.
-3. **A copilot tool whose apply throws.** With client tools, a call that never gets an output leaves the chat waiting forever → Task 3 test `a tool that throws still answers the model, and changes nothing`.
-4. **Sending a new message while a tool answer is still on its way** (a slow canonical write after the stream ended). The next request would carry a tool call with no result, which the SDK rejects → Task 3 tests `hasPendingToolCall` and `the input waits while a tool answer is pending`.
+3. ~~(Task 3 removed)~~ **A copilot tool whose apply throws.** With client tools, a call that never gets an output leaves the chat waiting forever → Task 3 test `a tool that throws still answers the model, and changes nothing`.
+4. ~~(Task 3 removed)~~ **Sending a new message while a tool answer is still on its way** (a slow canonical write after the stream ended). The next request would carry a tool call with no result, which the SDK rejects → Task 3 tests `hasPendingToolCall` and `the input waits while a tool answer is pending`.
 5. **A text body whose first 2,000 characters hold no end tag** (one long link). The preview must still be cut and never longer than the limit → Task 2 test `a body with no end tag before the limit is cut at the limit`.
 
 ---
@@ -273,6 +273,8 @@ test("an empty or missing body shows as empty", () => { /* body "" and body unde
 ---
 
 ### Task 3: The page's answer to each copilot tool reaches the model
+
+> **REMOVED by controller ruling (2026-11-04) — not executed.** Turning the six page tools into client tools reworks a working copilot flow (resend loop, step cap, pending-answer gating) to surface errors that rarely occur: the body is already protected by the `body.*` refusal, and Task 2's prompt steers the model to whole-body writes. Client tool errors not reaching the model is a pre-existing limitation, not caused by this branch. Recorded as a follow-up in the go-live checklist. Task 6 documents the copilot as it is.
 
 The page-changing tools have a server `execute` today, so the server answers `"applied"` before the browser has tried. The model never sees a refusal: `body.0.text` refused, a missing section, a theme that fails contrast, a body the editor could not read back. The browser cannot overwrite that answer either. `addToolOutput` updates the part, but the server's `tool-output-available` chunk arrives next and replaces it, and the server's loop has already continued. So these tools become client tools. The server stops at their call, the browser answers, and the SDK sends the answer back. This is the pattern `apps/admin/.../assistant/assistant-widget.tsx` already uses.
 
