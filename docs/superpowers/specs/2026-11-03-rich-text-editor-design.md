@@ -269,3 +269,28 @@ but those exact numbers are not.
   on the go-live checklist.
 - **No separate stopgap.** The plan orders the work so the first shippable stage already ends
   the reported bug: the one-surface canvas plus the paste pipeline, before the toolbar polish.
+
+## Rulings during planning (2026-11-03)
+
+- **No `@platejs/docx`.** Its 52.3.10 source takes a list's style from the bullet or number
+  text and its level from `mso-list`, but never carries the number itself. Numbered lists could
+  therefore not keep counting after an interruption, as agreed above. The paste normaliser
+  instead turns desktop Word's `mso-list` paragraphs into real nested `<ul>`/`<ol start>`
+  markup, which is a small, tested transform. All four sources then go through one HTML path.
+  `@platejs/juice` is also unnecessary, because Word puts `mso-list` inline on each paragraph.
+- **Heading levels on paste are relative.** The highest heading level in the pasted content
+  becomes Heading (h2), and every lower level becomes Subheading (h3). For a Word document
+  with Heading 1 and Heading 2 this matches the table above. Content copied from a BISO page,
+  which starts at h2, then keeps its levels instead of dropping one.
+- **Stages.**
+  - Stage 1 is the shippable bug fix: storage shape, both sanitisers, the one-surface canvas
+    and panel field, a toolbar and bubble with style / B / I / U / link / lists, and the paste
+    pipeline. Stage 1 also adds the strikethrough mark and the divider line, so they survive
+    paste, but their buttons come in Stage 2.
+  - Stage 2 adds colour swatches, tables, the ⋯ menu, Expand, and the notice about dropped
+    images.
+  - Stage 3 covers the copilot prompt, templates, the translation round-trip test, the docs
+    pages, the bundle check, and the go-live checklist.
+- **The canvas surface does not use `data-edit="1"`.** The existing canvas `FormatBar` calls
+  `execCommand` on any `[data-edit='1']` element, which would bypass Plate. The rich surface
+  uses `data-rich-edit="1"` and gets its own bubble.
