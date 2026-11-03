@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colours";
+import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colour-tokens";
 
 // A link inside coloured text keeps the link's colour: the save puts the
 // colour's span inside the link (`<a><span data-color>`), and the span would

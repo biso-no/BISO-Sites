@@ -1,7 +1,7 @@
+import type { TextColourToken } from "@repo/shared/utils/text-colour-tokens";
 import {
   nearestTextColour,
   parseCssColour,
-  type TextColourToken,
   type TextSwatch,
   textSwatches,
 } from "@repo/shared/utils/text-colours";

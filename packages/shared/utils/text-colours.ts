@@ -1,6 +1,7 @@
 /**
- * Rich text colour: the five tokens a span may carry, the swatch each one
- * shows under a page theme, and the token a pasted CSS colour maps to.
+ * Rich text colour: the swatch each of the five tokens a span may carry
+ * (`text-colour-tokens.ts`) shows under a page theme, and the token a pasted
+ * CSS colour maps to.
  *
  * Colour is stored only as a token (`<span data-color="red">`), never as hex.
  * CSS paints it through `.pg-rich [data-color]`, which reads `--ink-<token>`:
@@ -21,16 +22,7 @@ import {
   themeTokens,
   toRgb,
 } from "./page-theme";
-
-export const TEXT_COLOUR_TOKENS = [
-  "accent",
-  "muted",
-  "green",
-  "amber",
-  "red",
-] as const;
-
-export type TextColourToken = (typeof TEXT_COLOUR_TOKENS)[number];
+import { TEXT_COLOUR_TOKENS, type TextColourToken } from "./text-colour-tokens";
 
 export interface TextSwatch {
   /** On a navy band and in dark mode. */

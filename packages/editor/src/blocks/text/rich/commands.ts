@@ -1,6 +1,6 @@
 import { unwrapLink, upsertLink } from "@platejs/link";
 import { indentList, outdentList, toggleList } from "@platejs/list";
-import type { TextColourToken } from "@repo/shared/utils/text-colours";
+import type { TextColourToken } from "@repo/shared/utils/text-colour-tokens";
 import {
   ElementApi,
   KEYS,

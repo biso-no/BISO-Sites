@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colours";
+import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colour-tokens";
 import { describe, expect, it } from "vitest";
 import { codeOnly } from "@/test/source";
 

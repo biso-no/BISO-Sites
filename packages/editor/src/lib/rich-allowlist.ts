@@ -5,7 +5,7 @@
 import {
   TEXT_COLOUR_TOKENS,
   type TextColourToken,
-} from "@repo/shared/utils/text-colours";
+} from "@repo/shared/utils/text-colour-tokens";
 
 /** What a legacy text item (`body[].text`) may hold. */
 export const INLINE_TAGS: readonly string[] = [

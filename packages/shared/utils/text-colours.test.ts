@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { BISO_THEME, contrastRatio, themeTokens } from "./page-theme";
+import { TEXT_COLOUR_TOKENS, type TextColourToken } from "./text-colour-tokens";
 import {
   nearestTextColour,
   PASTE_COLOUR_MAX_DISTANCE,
   parseCssColour,
-  TEXT_COLOUR_TOKENS,
-  type TextColourToken,
   textSwatches,
 } from "./text-colours";
 

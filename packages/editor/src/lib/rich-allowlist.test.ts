@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Window } from "happy-dom";
 import { doc, section } from "../editor/test-fixtures";
 import type { TextBlock } from "../editor/types";
@@ -155,5 +157,28 @@ describe("sanitizeDoc text-block branch", () => {
       .blocks as TextBlock[];
     expect(outNew.body).toBe("<p>hei</p>");
     expect(outOld.body).toEqual([{ text: "hei", type: "p" }]);
+  });
+});
+
+// The public renderer's sanitiser reads the allowlist, so whatever the
+// allowlist imports ships in the public client chunk.
+describe("what the allowlist brings into the public chunk", () => {
+  const SHARED = join(import.meta.dir, "../../../shared/utils");
+  const source = (path: string): string =>
+    existsSync(path) ? readFileSync(path, "utf8") : "";
+  const IMPORT_FROM = /^\s*import[\s\S]*?from\s*["']([^"']+)["']/gm;
+  const importsOf = (path: string): string[] =>
+    [...source(path).matchAll(IMPORT_FROM)].map(([, module = ""]) => module);
+
+  test("it reads the colour tokens without the swatches and colour maths", () => {
+    const imports = importsOf(join(import.meta.dir, "rich-allowlist.ts"));
+    expect(imports).toContain("@repo/shared/utils/text-colour-tokens");
+    expect(imports).not.toContain("@repo/shared/utils/text-colours");
+  });
+
+  test("the token module imports nothing", () => {
+    const tokens = join(SHARED, "text-colour-tokens.ts");
+    expect(existsSync(tokens)).toBe(true);
+    expect(importsOf(tokens)).toEqual([]);
   });
 });

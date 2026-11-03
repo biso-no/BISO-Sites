@@ -1,9 +1,7 @@
 "use client";
 
-import type {
-  TextColourToken,
-  TextSwatch,
-} from "@repo/shared/utils/text-colours";
+import type { TextColourToken } from "@repo/shared/utils/text-colour-tokens";
+import type { TextSwatch } from "@repo/shared/utils/text-colours";
 import {
   type PlateEditor,
   useEditorSelector,

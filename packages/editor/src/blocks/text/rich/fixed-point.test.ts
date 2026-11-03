@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, mock, test } from "bun:test";
-import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colours";
+import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colour-tokens";
 import { Window } from "happy-dom";
 import type { Descendant, TElement, TText, Value } from "platejs";
 import { scanBody } from "@/editor/body-scan";
