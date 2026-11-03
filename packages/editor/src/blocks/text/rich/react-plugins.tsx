@@ -142,7 +142,9 @@ export type RichKeysConfig = PluginConfig<
 /**
  * The field's own keys. mod+k opens the toolbar's link input (`linkOpen`,
  * which the toolbar reads and closes); with `linkNeedsSelection` only over
- * an expanded selection. Tab and Shift+Tab nest and un-nest list items
+ * an expanded selection. On a canvas caret it opens nothing, but it still
+ * never reaches the browser, whose Ctrl+K is its search bar on Windows and
+ * Linux. Tab and Shift+Tab nest and un-nest list items
  * through `handleListTab`: Plate's key handler calls `tab` and prevents the
  * default when it returns `true`. Outside a list it returns `false` and Tab
  * stays the browser's; the indent plugin's own `tab` is not passed on, since
@@ -152,14 +154,14 @@ export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
   handlers: {
     onKeyDown: ({ editor, event, getOption, setOption }) => {
       // By key, as Plate reads its own hotkeys: the letter the user sees.
-      const openLink =
-        isHotkey("mod+k", { byKey: true }, event) &&
-        (editor.api.isExpanded() || !getOption("linkNeedsSelection"));
-      if (openLink) {
-        event.preventDefault();
+      if (!isHotkey("mod+k", { byKey: true }, event)) {
+        return false;
+      }
+      event.preventDefault();
+      if (editor.api.isExpanded() || !getOption("linkNeedsSelection")) {
         setOption("linkOpen", true);
       }
-      return openLink;
+      return true;
     },
   },
   key: "richKeys",

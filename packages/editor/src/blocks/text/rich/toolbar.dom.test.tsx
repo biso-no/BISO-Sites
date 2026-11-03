@@ -461,7 +461,9 @@ test("mod+k on a canvas caret opens no input, now or with the next selection", a
   await settle(() => {
     event = keydown(editable(), { code: "KeyK", ctrlKey: true, key: "k" });
   });
-  expect(event?.defaultPrevented).toBe(false);
+  // Still kept from the browser, whose Ctrl+K is its search bar on Windows
+  // and Linux.
+  expect(event?.defaultPrevented).toBe(true);
 
   await settle(() => editor.tf.select([]));
   expect($(".pe-rt-bubble")).not.toBeNull();
