@@ -47,7 +47,7 @@ test("the copilot knows the props and item shapes of the v2 blocks", () => {
   // belongs, a value under the wrong key) renders as an empty block.
   for (const shape of [
     "heading: eyebrow, title, intro, size (small|medium|large), link? {label, href}",
-    "text: body [{type: h|h3|p|li, text}]",
+    "text: body (one HTML string: <h2>, <h3>, <p>, <ul>/<ol><li>, <blockquote>, <hr>, <strong>, <em>, <u>, <s>, <a href>)",
     "highlights: items [{text}]",
     "facts: items [{label, text, href?}]",
     "stats: items [{num, label}]",
@@ -67,4 +67,12 @@ test("the copilot knows the props and item shapes of the v2 blocks", () => {
     expect(prompt).toContain(shape);
   }
   expect(prompt).toContain("items.0.label");
+});
+
+test("the copilot sets a text block's body whole, never one item of it", () => {
+  const prompt = buildSystemPrompt("empty page");
+
+  // A sub-path such as body.0.text would replace the HTML string with a list.
+  expect(prompt).not.toContain("text: body [");
+  expect(prompt).toContain("set the whole body at once");
 });

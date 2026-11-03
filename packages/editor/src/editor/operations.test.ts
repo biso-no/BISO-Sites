@@ -124,9 +124,19 @@ describe("operations", () => {
     expect(d.sections.map((s) => s.id)).toEqual(["s-1", "s-2"]);
   });
   test("setProp reaches a block inside a column", () => {
+    // A legacy array body, which keeps its `body.0.text` path.
+    setProp(d, "b-3", "body", [{ text: "Old", type: "p" }]);
     setProp(d, "b-3", "body.0.text", "Hei");
     const body = (findBlock(d, "b-3")?.block as TextBlock).body;
-    expect(Array.isArray(body) && body[0].text).toBe("Hei");
+    expect(body).toEqual([{ text: "Hei", type: "p" }]);
+  });
+  test("setProp never writes inside a text block's HTML body", () => {
+    const before = (findBlock(d, "b-3")?.block as TextBlock).body;
+    expect(typeof before).toBe("string");
+    setProp(d, "b-3", "body.0.text", "New heading");
+    expect((findBlock(d, "b-3")?.block as TextBlock).body).toBe(before);
+    setProp(d, "b-3", "body", "<p>x</p>");
+    expect((findBlock(d, "b-3")?.block as TextBlock).body).toBe("<p>x</p>");
   });
   test("anchors are slugified", () => {
     setSectionAnchor(d, "s-1", "Se Aftermovien!");

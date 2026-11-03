@@ -8,10 +8,11 @@ import { type ToolResult, validateSetTheme } from "@/ai/tools/theme";
 import { getBlock } from "@/blocks/registry";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { useSelection } from "@/editor/hooks";
+import { isInsideTextBody } from "@/editor/operations";
 import { COLUMN_COUNT } from "@/editor/sections";
 import { LAYOUT_VALUES, serializePageForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
-import { findSection, targetAfterBlock } from "@/editor/tree";
+import { findBlock, findSection, targetAfterBlock } from "@/editor/tree";
 import type {
   BlockType,
   InsertTarget,
@@ -125,6 +126,20 @@ function applyInsertSection(args: ToolArgs): ToolResult {
   };
 }
 
+function applySetProp(args: ToolArgs): ToolResult {
+  const store = useEditorStore.getState();
+  const id = args.id as string;
+  const path = args.path as string;
+  const found = findBlock(store.doc, id);
+  if (found && isInsideTextBody(found.block, path)) {
+    return toolError(
+      `Set the whole body as one HTML string: block ${id}'s body is HTML, so set_prop it with path "body", not ${path}.`
+    );
+  }
+  store.setProp(id, path, args.value);
+  return { message: "Applied.", status: "applied" };
+}
+
 function applySetTheme(args: ToolArgs): ToolResult {
   const checked = validateSetTheme(args);
   if ("error" in checked) {
@@ -151,8 +166,7 @@ export function applyToolCall(toolName: string, args: ToolArgs): ToolResult {
       store.removeBlock(args.id as string);
       break;
     case "set_prop":
-      store.setProp(args.id as string, args.path as string, args.value);
-      break;
+      return applySetProp(args);
     case "bind_collection":
       store.bindCollection(args.id as string, args.source as string);
       break;

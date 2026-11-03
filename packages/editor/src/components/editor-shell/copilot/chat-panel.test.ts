@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { checkTheme } from "@repo/shared/utils/page-theme";
 import { useEditorStore } from "@/editor/store";
 import { doc, section } from "@/editor/test-fixtures";
+import { findBlock } from "@/editor/tree";
+import type { TextBlock } from "@/editor/types";
 import { applyToolCall } from "./chat-panel";
 
 const columnIds = () =>
@@ -215,4 +217,45 @@ test("insert_section with a background is one undo step", () => {
 test("server-only tools are a neutral success", () => {
   expect(applyToolCall("list_blocks", {}).status).toBe("applied");
   expect(applyToolCall("generate_copy", {}).status).toBe("applied");
+});
+
+const bodyOf = (id: string): TextBlock["body"] =>
+  (findBlock(useEditorStore.getState().doc, id)?.block as TextBlock).body;
+
+test("set_prop inside a text block's HTML body is refused and keeps the body", () => {
+  const before = bodyOf("b-1");
+  expect(typeof before).toBe("string");
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body.0.text",
+    value: "New heading",
+  });
+  expect(result.status).toBe("error");
+  expect(String(result.message)).toContain(
+    "Set the whole body as one HTML string"
+  );
+  expect(bodyOf("b-1")).toBe(before);
+});
+
+test("set_prop body sets the whole HTML body", () => {
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body",
+    value: "<p>x</p>",
+  });
+  expect(result.status).toBe("applied");
+  expect(bodyOf("b-1")).toBe("<p>x</p>");
+});
+
+test("set_prop body.0.text still edits a legacy array body", () => {
+  useEditorStore
+    .getState()
+    .setProp("b-1", "body", [{ text: "Old", type: "h" }]);
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body.0.text",
+    value: "Hei",
+  });
+  expect(result.status).toBe("applied");
+  expect(bodyOf("b-1")).toEqual([{ text: "Hei", type: "h" }]);
 });

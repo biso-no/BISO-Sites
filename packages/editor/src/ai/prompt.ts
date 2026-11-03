@@ -59,7 +59,8 @@ GUIDELINES:
   Paths follow these shapes (lists are arrays of objects, never a string;
   set a whole list, or one field with a path like \`items.0.label\`):
     heading: eyebrow, title, intro, size (small|medium|large), link? {label, href}
-    text: body [{type: h|h3|p|li, text}]
+    text: body (one HTML string: <h2>, <h3>, <p>, <ul>/<ol><li>, <blockquote>, <hr>, <strong>, <em>, <u>, <s>, <a href>)
+      set the whole body at once with path \`body\`, never a path inside it
     quote: text, author, role
     callout: tone (info|warn|tip), title, body
     highlights: items [{text}]

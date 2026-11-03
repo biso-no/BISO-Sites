@@ -524,7 +524,25 @@ function setPath(target: object, path: string, value: unknown): void {
   }
 }
 
-/** Set a nested property on a block using dot-notation path. */
+/**
+ * Whether `path` reaches inside a text block's HTML body, as the legacy
+ * `body.0.text` does. The body is one string, and `setPath` would replace it
+ * with an array holding only the new value. A legacy array body keeps its
+ * item paths.
+ */
+export function isInsideTextBody(block: Block, path: string): boolean {
+  return (
+    block.type === "text" &&
+    typeof block.body === "string" &&
+    path.startsWith("body.")
+  );
+}
+
+/**
+ * Set a nested property on a block using dot-notation path. A path inside a
+ * text block's HTML body changes nothing: the copilot refuses it first, and
+ * this keeps any other caller from wiping the body.
+ */
 export function setProp(
   doc: PageDoc,
   blockId: string,
@@ -532,7 +550,7 @@ export function setProp(
   value: unknown
 ): void {
   const found = findBlock(doc, blockId);
-  if (found) {
+  if (found && !isInsideTextBody(found.block, path)) {
     setPath(found.block, path, value);
   }
 }
