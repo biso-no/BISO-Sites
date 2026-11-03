@@ -11,6 +11,7 @@ import {
 import { isListItem, listDepths } from "./html";
 import {
   normalizePastedHtml,
+  pastedImageCount,
   plainTextHasStructure,
   plainTextToHtml,
 } from "./paste";
@@ -102,6 +103,11 @@ export type RichPasteConfig = PluginConfig<
   {
     /** What pasted colours map to: the page theme's swatches. */
     swatches: readonly TextSwatch[];
+    /**
+     * How many pastes dropped an image so far. The field shows its notice
+     * when this goes up.
+     */
+    imageNotices: number;
   }
 >;
 
@@ -112,12 +118,13 @@ export type RichPasteConfig = PluginConfig<
  * reaches the same deserializer and its bullets and numbers become lists. A
  * single plain line is inserted as it is. Then the pasted list items are put
  * at the depths the save writes, and an empty line a table was pasted into
- * goes.
+ * goes. A paste with an image in it (HTML or a file) counts one
+ * `imageNotices`; the paste itself is unchanged.
  */
 export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
   key: "richPaste",
-  options: { swatches: textSwatches(null) },
-}).overrideEditor(({ editor, getOption, tf: { insertData } }) => {
+  options: { imageNotices: 0, swatches: textSwatches(null) },
+}).overrideEditor(({ editor, getOption, setOption, tf: { insertData } }) => {
   const insertNormalised = (data: DataTransfer): void => {
     if (data.types.includes(SLATE_FRAGMENT)) {
       insertData(data);
@@ -135,9 +142,22 @@ export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
       plainTextHasStructure(text) ? withHtml(data, plainTextToHtml(text)) : data
     );
   };
+  /** Whether the paste holds a picture the text will not keep. */
+  const dropsImage = (data: DataTransfer): boolean => {
+    const html = data.types.includes(SLATE_FRAGMENT) ? "" : data.getData(HTML);
+    return (
+      (html !== "" && pastedImageCount(html) > 0) ||
+      Array.from(data.files ?? []).some((file) =>
+        file?.type.startsWith("image/")
+      )
+    );
+  };
   return {
     transforms: {
       insertData(data: DataTransfer) {
+        if (dropsImage(data)) {
+          setOption("imageNotices", getOption("imageNotices") + 1);
+        }
         const from = editor.selection
           ? (RangeApi.start(editor.selection).path[0] ?? 0)
           : 0;

@@ -49,6 +49,10 @@ export interface RichTextFieldProps {
  */
 const TAKE_DELAY_MS = 300;
 
+/** How long the dropped-image notice stays. */
+const NOTICE_MS = 6000;
+const IMAGE_NOTICE = "Images aren't pasted into text — use an Image block.";
+
 /** Whether `point` still lies in a text of the editor's value. */
 const fits = (editor: PlateEditor, point: Point): boolean => {
   const node = editor.api.node(point.path)?.[0];
@@ -136,6 +140,13 @@ export default function RichTextField({
   const linkOpen = useEditorPluginOption(editor, RichKeysPlugin, "linkOpen");
   const linkWasOpen = useRef(false);
   const swatches = usePageSwatches();
+  const imageNotices = useEditorPluginOption(
+    editor,
+    RichPastePlugin,
+    "imageNotices"
+  );
+  const [notice, setNotice] = useState("");
+  const noticesSeen = useRef(imageNotices);
   // The panel paints colours as `.pe-rt-field [data-color]` reads them; the
   // canvas wears the public classes and the frame's theme.
   const paint = useMemo(
@@ -235,6 +246,17 @@ export default function RichTextField({
 
   useEffect(() => () => clearTimeout(takeTimer.current), []);
 
+  // A paste dropped an image: say where images go, then take it back down.
+  useEffect(() => {
+    if (imageNotices <= noticesSeen.current) {
+      return;
+    }
+    noticesSeen.current = imageNotices;
+    setNotice(IMAGE_NOTICE);
+    const timer = setTimeout(() => setNotice(""), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [imageNotices]);
+
   const handleValueChange = ({ value }: { value: Value }) => {
     const next = htmlToEmit(value, lastHtml.current);
     if (next !== null) {
@@ -274,13 +296,18 @@ export default function RichTextField({
           <RichToolbar editor={editor} swatches={swatches} tone="paper" />
         </div>
       ) : null}
-      <PlateContent
-        aria-label={label}
-        autoFocus={autoFocus}
-        onBlur={takeAfterBlur}
-        onFocus={take}
-        {...surface}
-      />
+      <div className="pe-rt-wrap">
+        <PlateContent
+          aria-label={label}
+          autoFocus={autoFocus}
+          onBlur={takeAfterBlur}
+          onFocus={take}
+          {...surface}
+        />
+        <div className="pe-rt-notice" role="status">
+          {notice}
+        </div>
+      </div>
       {variant === "canvas" ? (
         <div onMouseDownCapture={takeBeforeCommand}>
           <RichBubble editor={editor} swatches={swatches} />

@@ -1983,6 +1983,36 @@
   margin-left: 1px;
 }
 
+.pe-rt-wrap {
+  position: relative;
+}
+.pe-rt-notice {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  color: var(--pg-ink);
+  pointer-events: none;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 5px;
+}
+/*
+ * Empty, it stays in the accessibility tree (so a screen reader announces
+ * the text when it arrives) but takes no room and shows nothing.
+ */
+.pe-rt-notice:empty {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
 .pe-rt-field {
   min-height: 230px;
   max-height: 480px;

@@ -5,7 +5,11 @@ import { textSwatches } from "@repo/shared/utils/text-colours";
 import { Window } from "happy-dom";
 import { createSlatePlugin, type Value } from "platejs";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
-import { normalizePastedHtml, plainTextToHtml } from "./paste";
+import {
+  normalizePastedHtml,
+  pastedImageCount,
+  plainTextToHtml,
+} from "./paste";
 import { RichPastePlugin } from "./paste-plugin";
 
 const previous = {
@@ -978,4 +982,45 @@ test("a pasted bare URL becomes a link", () => {
   expect(pasteInto(null, "https://biso.no")).toBe(
     '<p><a href="https://biso.no">https://biso.no</a></p>'
   );
+});
+
+test.each([
+  ['<p>a</p><img src="x.png"><p><img src="y.png"></p>', 2],
+  [fixture("web-page"), 1],
+  ["<p>no pictures</p>", 0],
+  ['<p><v:imagedata src="x.png"></v:imagedata></p>', 1],
+])("pastedImageCount %#", (html, n) => {
+  expect(pastedImageCount(html)).toBe(n);
+});
+
+test("a paste that drops images counts one notice; text still pastes", () => {
+  const editor = createConversionEditor([RichPastePlugin]);
+  editor.tf.setValue(htmlToValue(""));
+  editor.tf.select(editor.api.end([]));
+  expect(editor.getOption(RichPastePlugin, "imageNotices")).toBe(0);
+  editor.tf.insertData(
+    clipboard({ "text/html": '<p>a</p><img src="x.png"><img src="y.png">' })
+  );
+  expect(editor.getOption(RichPastePlugin, "imageNotices")).toBe(1);
+  expect(valueToHtml(editor.children)).toBe("<p>a</p>");
+  editor.tf.insertData(clipboard({ "text/html": "<p>b</p>" }));
+  expect(editor.getOption(RichPastePlugin, "imageNotices")).toBe(1);
+});
+
+test("an image file on the clipboard counts a notice", () => {
+  const editor = createConversionEditor([RichPastePlugin]);
+  editor.tf.setValue(htmlToValue(""));
+  editor.tf.select(editor.api.end([]));
+  const data = {
+    ...clipboard({}),
+    files: [{ type: "image/png" }],
+  } as unknown as DataTransfer;
+  editor.tf.insertData(data);
+  expect(editor.getOption(RichPastePlugin, "imageNotices")).toBe(1);
+  const text = {
+    ...clipboard({}),
+    files: [{ type: "text/plain" }],
+  } as unknown as DataTransfer;
+  editor.tf.insertData(text);
+  expect(editor.getOption(RichPastePlugin, "imageNotices")).toBe(1);
 });

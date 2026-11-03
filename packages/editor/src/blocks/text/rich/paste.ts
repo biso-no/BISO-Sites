@@ -62,6 +62,20 @@ const TEXT_BLOCK_SELECTOR = TEXT_BLOCKS.join(", ");
 const BLOCK_SELECTOR = BLOCK_TAGS.join(", ");
 
 /**
+ * How many pictures the clipboard HTML holds: `img` elements, and the
+ * `v:imagedata` Word writes. The rich text has no images, so a paste drops
+ * them.
+ */
+export function pastedImageCount(html: string): number {
+  const root = parseInert(html);
+  // A namespaced tag is no CSS selector.
+  return (
+    root.querySelectorAll("img").length +
+    root.getElementsByTagName("v:imagedata").length
+  );
+}
+
+/**
  * Pasted HTML as markup Plate's deserializer reads the way the user meant.
  * Colours map to the nearest of `swatches`: the page theme's, BISO's by
  * default.

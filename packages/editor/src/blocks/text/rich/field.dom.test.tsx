@@ -17,6 +17,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { legacyBodyToHtml } from "../body";
 import { RICH_CLASS } from "../render-classes";
 import RichTextField, { type RichTextFieldProps } from "./field";
+import { RichPastePlugin } from "./paste-plugin";
 import { RichKeysPlugin } from "./react-plugins";
 
 /** What Slate, Plate, floating-ui and React DOM read from the global scope. */
@@ -724,4 +725,60 @@ test("a Word list pasted into the field becomes a real list", async () => {
   expect(a.spy.mock.calls[0]?.[0]).toContain(
     "<ul><li>Sustainability and academic development</li><li>Student welfare<ul><li>Mental health</li></ul></li><li>Finance</li></ul>"
   );
+});
+
+const NOTICE = "Images aren't pasted into text — use an Image block.";
+const NOTICE_MS = 6000;
+
+/** A paste that dropped an image, as the paste plugin counts it. */
+const dropImage = (editor: PlateEditor) =>
+  settle(() => {
+    editor.setOption(
+      RichPastePlugin,
+      "imageNotices",
+      editor.getOption(RichPastePlugin, "imageNotices") + 1
+    );
+  });
+
+test.each([
+  "canvas",
+  "panel",
+] as const)("a dropped image shows a notice for six seconds (%s)", async (variant) => {
+  const a = field(variant);
+  const { host, render } = mount(a);
+  await render("<p>a</p>");
+  const region = host.querySelector('[role="status"]');
+  expect(region?.className).toBe("pe-rt-notice");
+  expect(region?.textContent).toBe("");
+  expect(region?.parentElement?.className).toBe("pe-rt-wrap");
+  await dropImage(a.editor());
+  expect(region?.textContent).toBe(NOTICE);
+  await advance(NOTICE_MS - 1);
+  expect(region?.textContent).toBe(NOTICE);
+  await advance(1);
+  expect(region?.textContent).toBe("");
+});
+
+test("a second dropped image restarts the notice", async () => {
+  const a = field();
+  const { host, render } = mount(a);
+  await render("<p>a</p>");
+  const region = host.querySelector('[role="status"]');
+  await dropImage(a.editor());
+  await advance(4000);
+  await dropImage(a.editor());
+  await advance(4000);
+  expect(region?.textContent).toBe(NOTICE);
+  await advance(2000);
+  expect(region?.textContent).toBe("");
+});
+
+test("a field that unmounts with a notice showing leaves no timer behind", async () => {
+  const a = field();
+  const { render, unmount } = mount(a);
+  await render("<p>a</p>");
+  await dropImage(a.editor());
+  const showing = jest.getTimerCount();
+  await unmount();
+  expect(jest.getTimerCount()).toBeLessThan(showing);
 });

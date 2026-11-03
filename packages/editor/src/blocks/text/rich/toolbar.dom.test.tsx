@@ -184,8 +184,8 @@ test("toolbar exposes labelled controls in order", async () => {
   ]);
   // Right above the text, in the wrapper that takes a pending prop.
   expect(
-    bar?.parentElement?.nextElementSibling?.getAttribute("contenteditable")
-  ).toBe("true");
+    bar?.parentElement?.nextElementSibling?.querySelector("[contenteditable]")
+  ).not.toBeNull();
   expect($(".pe-rt-bubble")).toBeNull();
 });
 
