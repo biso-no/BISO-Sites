@@ -155,8 +155,9 @@ export const isListItem = (
 /**
  * Each block's list depth, by `effectiveDepths` over each run of adjacent
  * list items (any other block ends a run); 0 for a block that is no list item.
+ * Shared with the paste plugin.
  */
-function listDepths(value: Value): number[] {
+export function listDepths(value: Value): number[] {
   const depths: number[] = [];
   let run: number[] = [];
   const endRun = (): void => {

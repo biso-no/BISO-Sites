@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Window } from "happy-dom";
-import { createSlatePlugin } from "platejs";
+import { createSlatePlugin, type Value } from "platejs";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
 import { normalizePastedHtml, plainTextToHtml } from "./paste";
 import { RichPastePlugin } from "./paste-plugin";
@@ -40,12 +40,17 @@ const clipboard = (entries: Record<string, string>): DataTransfer =>
 
 const SLATE_FRAGMENT = "application/x-slate-fragment";
 
-function pasteData(data: DataTransfer, startHtml = ""): string {
+/** The editor after pasting `data` at the end of `startHtml`. */
+function pastedEditor(data: DataTransfer, startHtml = "") {
   const editor = createConversionEditor([RichPastePlugin]);
   editor.tf.setValue(htmlToValue(startHtml));
   editor.tf.select(editor.api.end([]));
   editor.tf.insertData(data);
-  return valueToHtml(editor.children);
+  return editor;
+}
+
+function pasteData(data: DataTransfer, startHtml = ""): string {
+  return valueToHtml(pastedEditor(data, startHtml).children);
 }
 
 function pasteInto(
@@ -438,6 +443,41 @@ test.each([
       `<ul><li ${attribute}="1"><p>a</p></li></ul><ul><li ${attribute}="2"><p>b</p></li></ul>`
     )
   ).toBe("<ul><li>a<ul><li>b</li></ul></li></ul>");
+});
+
+/** Each list item's `indent` in the editor value: what the canvas shows. */
+const listIndents = (value: Value): unknown[] =>
+  value
+    .filter((node) => typeof node.listStyleType === "string")
+    .map((node) => node.indent);
+
+// The canvas draws an item at its `indent`; the save writes `effectiveDepths`
+// of each run. A pasted list must already be at the depths it saves at.
+test.each([
+  "aria-level",
+  "data-aria-level",
+])("a %s sublist pasted with the paragraph above it sits at its saved depths", (attribute) => {
+  const editor = pastedEditor(
+    clipboard({
+      "text/html": `<p>Intro</p><ul><li ${attribute}="2"><p>x</p></li><li ${attribute}="3"><p>y</p></li></ul>`,
+    })
+  );
+  expect(listIndents(editor.children)).toEqual([1, 2]);
+  expect(valueToHtml(editor.children)).toBe(
+    "<p>Intro</p><ul><li>x<ul><li>y</li></ul></li></ul>"
+  );
+});
+
+test("a sublist pasted at the end of a paragraph: the item left after the merge sits at its saved depth", () => {
+  const editor = pastedEditor(
+    clipboard({
+      "text/html":
+        '<ul><li aria-level="2"><p>x</p></li><li aria-level="3"><p>y</p></li></ul>',
+    }),
+    "<p>Intro</p>"
+  );
+  expect(listIndents(editor.children)).toEqual([1]);
+  expect(valueToHtml(editor.children)).toBe("<p>Introx</p><ul><li>y</li></ul>");
 });
 
 test("a link's own underline is its look, not a mark", () => {

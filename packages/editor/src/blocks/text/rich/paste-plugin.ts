@@ -1,4 +1,5 @@
-import { createSlatePlugin } from "platejs";
+import { createSlatePlugin, RangeApi, type SlateEditor } from "platejs";
+import { isListItem, listDepths } from "./html";
 import {
   normalizePastedHtml,
   plainTextHasStructure,
@@ -32,31 +33,73 @@ function withHtml(data: DataTransfer, html: string): DataTransfer {
 }
 
 /**
+ * The list items in the runs from block `from` to block `to`, set to the
+ * depth the save writes them at (`listDepths`). A pasted sublist keeps its
+ * source's levels (Google Docs' `aria-level="2"`), and the first pasted
+ * item can merge into the block the caret was in, so the canvas would show
+ * an item deeper than the page stores it.
+ */
+function settleListDepths(editor: SlateEditor, from: number, to: number) {
+  const blocks = editor.children;
+  const isItem = (index: number): boolean => {
+    const block = blocks[index];
+    return block !== undefined && isListItem(block);
+  };
+  let start = from;
+  while (isItem(start - 1)) {
+    start -= 1;
+  }
+  let end = to;
+  while (isItem(end + 1)) {
+    end += 1;
+  }
+  const depths = listDepths(blocks.slice(start, end + 1));
+  editor.tf.withoutNormalizing(() => {
+    for (const [offset, depth] of depths.entries()) {
+      if (depth > 0 && blocks[start + offset]?.indent !== depth) {
+        editor.tf.setNodes({ indent: depth }, { at: [start + offset] });
+      }
+    }
+  });
+}
+
+/**
  * Paste through the normaliser. An in-editor copy is inserted as it is;
  * pasted HTML is normalised first; plain text with line breaks or a list
  * marker becomes HTML, so it reaches the same deserializer and its bullets
- * and numbers become lists. A single plain line is inserted as it is.
+ * and numbers become lists. A single plain line is inserted as it is. Then
+ * the pasted list items are put at the depths the save writes.
  */
 export const RichPastePlugin = createSlatePlugin({
   key: "richPaste",
-}).overrideEditor(({ tf: { insertData } }) => ({
-  transforms: {
-    insertData(data: DataTransfer) {
-      if (data.types.includes(SLATE_FRAGMENT)) {
-        insertData(data);
-        return;
-      }
-      const html = data.getData(HTML);
-      if (html) {
-        insertData(withHtml(data, normalizePastedHtml(html)));
-        return;
-      }
-      const text = data.getData(PLAIN);
-      insertData(
-        plainTextHasStructure(text)
-          ? withHtml(data, plainTextToHtml(text))
-          : data
-      );
+}).overrideEditor(({ editor, tf: { insertData } }) => {
+  const insertNormalised = (data: DataTransfer): void => {
+    if (data.types.includes(SLATE_FRAGMENT)) {
+      insertData(data);
+      return;
+    }
+    const html = data.getData(HTML);
+    if (html) {
+      insertData(withHtml(data, normalizePastedHtml(html)));
+      return;
+    }
+    const text = data.getData(PLAIN);
+    insertData(
+      plainTextHasStructure(text) ? withHtml(data, plainTextToHtml(text)) : data
+    );
+  };
+  return {
+    transforms: {
+      insertData(data: DataTransfer) {
+        const from = editor.selection
+          ? (RangeApi.start(editor.selection).path[0] ?? 0)
+          : 0;
+        insertNormalised(data);
+        const to = editor.selection
+          ? (editor.selection.focus.path[0] ?? from)
+          : editor.children.length - 1;
+        settleListDepths(editor, from, to);
+      },
     },
-  },
-}));
+  };
+});
