@@ -866,6 +866,37 @@ test.each([
   expect(pasteInto(input)).toBe(out);
 });
 
+// Chrome and Safari wrap a one-paragraph copy in the page's text colour,
+// and the common body greys map to Muted: that is the source's text.
+test.each([
+  "#4b5563",
+  "#6b7280",
+  "#444",
+  "#555",
+  "#595959",
+  "#666",
+  "#5f6368",
+])("a single block in the body grey %s comes with no colour", (grey) => {
+  expect(
+    pasteInto(
+      `<span style="color: ${grey}; font-family: Inter;">A whole paragraph copied from a web page.</span>`
+    )
+  ).toBe("<p>A whole paragraph copied from a web page.</p>");
+  expect(
+    pasteInto(
+      `<p class=MsoNormal><span style="color:${grey}">A paragraph from Word in a grey.</span></p>`
+    )
+  ).toBe("<p>A paragraph from Word in a grey.</p>");
+});
+
+test("a single block's grey goes and its red word stays", () => {
+  expect(
+    pasteInto(
+      '<span style="color: rgb(75, 85, 99)">Grey body with one <span style="color:#c00000">red</span> word.</span>'
+    )
+  ).toBe('<p>Grey body with one <span data-color="red">red</span> word.</p>');
+});
+
 test.each([
   [
     "two list items",

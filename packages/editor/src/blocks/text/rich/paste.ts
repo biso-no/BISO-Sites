@@ -215,6 +215,9 @@ function takeColour(el: Element): string | null {
   return value === null ? null : parseCssColour(value);
 }
 
+/** What a source's grey body text maps to (`mapPastedColours`). */
+const BODY_GREY: TextColourToken = "muted";
+
 /** A text's characters that are not white space. */
 const visibleLength = (node: Node): number =>
   (node.textContent ?? "").replace(WHITE_SPACE, "").length;
@@ -309,8 +312,11 @@ function walkColours(
  * where that colour is the writer's: set on an inline element, near a swatch
  * (`nearestTextColour`) and outside headings and links. Where the text is in
  * two blocks or more, a colour on more than half of it outside headings and
- * links is the source's text colour and goes too; a word or a line pasted
- * in one colour keeps it. Every `color` declaration goes.
+ * links is the source's text colour and goes too. In one block, Muted is
+ * the source's text colour and goes: Chrome and Safari wrap a one-paragraph
+ * copy in the page's text colour, and the common body greys map to it. A
+ * word or a line pasted in another colour keeps it. Every `color`
+ * declaration goes.
  */
 function mapPastedColours(
   root: HTMLElement,
@@ -326,8 +332,10 @@ function mapPastedColours(
   walkColours(walk, root, null, true);
   const judgesTextColour = walk.blocks.size >= 2;
   for (const [node, token] of walk.coloured) {
-    const isTextColour = (walk.shares.get(token) ?? 0) * 2 > walk.total;
-    if (judgesTextColour && isTextColour) {
+    const isTextColour = judgesTextColour
+      ? (walk.shares.get(token) ?? 0) * 2 > walk.total
+      : token === BODY_GREY;
+    if (isTextColour) {
       continue;
     }
     const span = root.ownerDocument.createElement("span");
