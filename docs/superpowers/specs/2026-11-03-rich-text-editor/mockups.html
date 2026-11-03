@@ -1,0 +1,145 @@
+<style>
+  .pp { --paper:#faf7f2; --paper-2:#f3eee5; --paper-3:#ede6d8; --ink:#1a1814; --ink-2:#3a342a; --ink-3:#6b6357; --ink-4:#9c9385; --rule:#e5dcca; --rule-2:#d8cdb6; --accent:#3da9e0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
+  .pp .insp { width: 308px; background: var(--paper); border: 0.5px solid var(--rule-2); border-radius: 8px; padding: 12px; box-sizing: border-box; margin: 0 auto; }
+  .pp .lbl { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px; display:flex; justify-content:space-between; align-items:center; }
+  .pp .lbl .exp { text-transform:none; letter-spacing:0; font-size: 11px; color: var(--ink-2); border: 0.5px solid var(--rule-2); background: var(--paper-2); border-radius: 5px; padding: 1px 6px; }
+  .pp .bar { display:flex; flex-wrap:wrap; gap:2px; align-items:center; padding:3px; background: var(--paper-2); border:0.5px solid var(--rule-2); border-bottom:0; border-radius:6px 6px 0 0; }
+  .pp .b { min-width:22px; height:22px; padding:0 4px; display:grid; place-items:center; font-size:12px; color:var(--ink-2); border-radius:4px; box-sizing:border-box; }
+  .pp .b.on { background:white; color:var(--ink); box-shadow:0 0 0 0.5px var(--rule-2); }
+  .pp .sep { width:0.5px; height:16px; background:var(--rule-2); margin:0 3px; }
+  .pp .drop { height:22px; padding:0 6px; display:flex; align-items:center; gap:4px; font-size:11.5px; background:white; border-radius:4px; box-shadow:0 0 0 0.5px var(--rule-2); color:var(--ink); }
+  .pp .seg { display:flex; gap:2px; padding:2px; background:var(--paper-2); border:0.5px solid var(--rule-2); border-radius:6px; margin-bottom:4px; }
+  .pp .seg span { flex:1; text-align:center; font-size:11.5px; padding:3px 2px; color:var(--ink-2); border-radius:4px; }
+  .pp .seg span.on { background:white; color:var(--ink); box-shadow:0 0 0 0.5px var(--rule-2); }
+  .pp .field { background:white; border:0.5px solid var(--rule-2); border-radius:0 0 6px 6px; padding:10px 12px; min-height:230px; font-size:12.5px; line-height:1.5; color:var(--ink-2); }
+  .pp .field.round { border-radius:6px; }
+  .pp .field h4 { font-size:15px; margin:0 0 6px; color:var(--ink); font-weight:600; }
+  .pp .field p { margin:0 0 8px; }
+  .pp .field ul, .pp .field ol { margin:0 0 8px; padding-left:18px; }
+  .pp .field .acc { color:#2a7fb0; }
+  .pp .sel { background: #cfe6f6; }
+  .pp .canvas { background:white; border:0.5px solid var(--rule-2); border-radius:8px; padding:28px 28px 24px; position:relative; }
+  .pp .canvas h4 { font-size:22px; margin:0 0 10px; font-weight:600; letter-spacing:-.01em; }
+  .pp .canvas p { font-size:14px; line-height:1.6; color:var(--ink-2); margin:0 0 10px; max-width: 46ch; }
+  .pp .canvas ul { font-size:14px; line-height:1.6; color:var(--ink-2); margin:0; padding-left:20px; }
+  .pp .bubble { position:absolute; display:flex; gap:2px; align-items:center; background:var(--ink); border-radius:7px; padding:3px; box-shadow:0 6px 18px rgba(0,0,0,.18); }
+  .pp .bubble .b { color:#efe9de; }
+  .pp .bubble .b.on { background:#3a342a; box-shadow:none; color:white; }
+  .pp .bubble .sep { background:#4a443a; }
+  .pp .bubble .drop { background:#3a342a; color:white; box-shadow:none; }
+  .pp .dock { display:flex; gap:2px; align-items:center; background:var(--paper-2); border:0.5px solid var(--rule-2); border-radius:7px; padding:3px; margin:-14px 0 14px; width:max-content; }
+  .pp .outline { outline: 1.5px solid var(--accent); outline-offset: 10px; border-radius: 2px; }
+  .pp .note { font-size:12px; color:var(--ink-3); margin-top:10px; line-height:1.5; }
+  .pp .sw { width:10px; height:10px; border-radius:50%; display:inline-block; }
+</style>
+
+<h2>Rich text: the right panel and the preview</h2>
+<p class="subtitle">Two choices here. Pick one in each row (or tell me what to mix). Both use the editor's current look, at the panel's real width (308px).</p>
+
+<div class="section">
+<h3>1 · The field in the right panel</h3>
+<div class="cards">
+
+  <div class="card" data-choice="panel-a" onclick="toggleSelect(this)">
+    <div class="card-image pp" style="padding:16px; background:#efe9de">
+      <div class="insp">
+        <div class="lbl">Text <span class="exp">⤢ Expand</span></div>
+        <div class="bar">
+          <span class="drop">Paragraph ▾</span>
+          <span class="sep"></span>
+          <span class="b"><b>B</b></span><span class="b"><i>I</i></span><span class="b"><u>U</u></span>
+          <span class="b" title="Colour">A<span class="sw" style="background:#2a7fb0;width:6px;height:6px;margin-left:1px"></span></span>
+          <span class="b">🔗</span>
+          <span class="sep"></span>
+          <span class="b">•≡</span><span class="b">1≡</span><span class="b">⊞</span><span class="b">⋯</span>
+        </div>
+        <div class="field">
+          <h4>Campus Management's core responsibilities</h4>
+          <p>Made up of student leaders who take on responsibility for the student experience at each campus.</p>
+          <ul><li><b>Sustainability</b> and academic development</li><li>Student welfare</li><li>Finance</li></ul>
+          <p>Campus Management plays a key role in <span class="acc">every campus decision</span>.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · One row, like Word</h3>
+      <p>A style dropdown (Heading, Subheading, Paragraph, Quote) and then the formatting buttons in one row. Less used things (strikethrough, divider) sit behind ⋯.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="panel-b" onclick="toggleSelect(this)">
+    <div class="card-image pp" style="padding:16px; background:#efe9de">
+      <div class="insp">
+        <div class="lbl">Text <span class="exp">⤢ Expand</span></div>
+        <div class="seg"><span>H2</span><span>H3</span><span class="on">Paragraph</span><span>• List</span><span>1. List</span></div>
+        <div class="bar" style="border-radius:6px 6px 0 0">
+          <span class="b"><b>B</b></span><span class="b"><i>I</i></span><span class="b"><u>U</u></span><span class="b"><s>S</s></span>
+          <span class="b" title="Colour">A<span class="sw" style="background:#2a7fb0;width:6px;height:6px;margin-left:1px"></span></span>
+          <span class="b">🔗</span>
+          <span class="sep"></span>
+          <span class="b">❝</span><span class="b">⊞</span><span class="b">―</span>
+        </div>
+        <div class="field">
+          <h4>Campus Management's core responsibilities</h4>
+          <p>Made up of student leaders who take on responsibility for the student experience at each campus.</p>
+          <ul><li><b>Sustainability</b> and academic development</li><li>Student welfare</li><li>Finance</li></ul>
+          <p>Campus Management plays a key role in <span class="acc">every campus decision</span>.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · Two rows: line type, then formatting</h3>
+      <p>The top row is the same switcher you have today (H2 / H3 / Paragraph / List), now for whichever line the cursor is on. Formatting buttons sit underneath. Everything is visible, nothing hidden.</p>
+    </div>
+  </div>
+
+</div>
+<p class="note">Both have <b>⤢ Expand</b>: opens the same field in a wide writing view over the editor, for long texts that feel cramped in a 308px panel.</p>
+</div>
+
+<div class="section">
+<h3>2 · Writing straight on the preview</h3>
+<div class="cards">
+
+  <div class="card" data-choice="float-a" onclick="toggleSelect(this)">
+    <div class="card-image pp" style="padding:16px; background:#efe9de">
+      <div class="canvas" style="padding-top:44px">
+        <div class="bubble" style="top:84px; left:92px">
+          <span class="drop">Paragraph ▾</span><span class="sep"></span>
+          <span class="b on"><b>B</b></span><span class="b"><i>I</i></span><span class="b"><u>U</u></span>
+          <span class="b">A</span><span class="b">🔗</span><span class="sep"></span><span class="b">•≡</span><span class="b">1≡</span>
+        </div>
+        <h4>Campus Management's core responsibilities</h4>
+        <p style="margin-top:40px">Made up of <span class="sel">student leaders who take on</span> responsibility for the student experience at each campus.</p>
+        <ul><li>Sustainability and academic development</li><li>Student welfare</li></ul>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · Pops up when you select text</h3>
+      <p>Nothing shows while typing. Select a few words and a small bar appears right above them. Clean preview, but you have to know to select.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="float-b" onclick="toggleSelect(this)">
+    <div class="card-image pp" style="padding:16px; background:#efe9de">
+      <div class="canvas" style="padding-top:40px">
+        <div class="outline">
+          <div class="dock">
+            <span class="drop">Paragraph ▾</span><span class="sep"></span>
+            <span class="b"><b>B</b></span><span class="b"><i>I</i></span><span class="b"><u>U</u></span>
+            <span class="b">A</span><span class="b">🔗</span><span class="sep"></span><span class="b">•≡</span><span class="b">1≡</span><span class="b">⊞</span>
+          </div>
+          <h4>Campus Management's core responsibilities</h4>
+          <p>Made up of student leaders who take on responsibility for the student experience at each campus.</p>
+          <ul><li>Sustainability and academic development</li><li>Student welfare</li></ul>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · Sits on top of the block while you edit</h3>
+      <p>Click into a rich text block and the bar docks above it until you click away. Always visible, easier for first-timers, a bit more on screen.</p>
+    </div>
+  </div>
+
+</div>
+</div>
