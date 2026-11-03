@@ -1,6 +1,7 @@
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
+import type { PatchFn } from "@/blocks/types";
 import { emptyBlock } from "@/editor/operations";
-import { bodyToHtml, legacyBodyToHtml } from "./body";
+import { bodyPatch, bodyToHtml, legacyBodyToHtml } from "./body";
 
 test("maps legacy item types to tags, grouping consecutive list items", () => {
   expect(
@@ -34,4 +35,12 @@ test("a new text block starts in the new shape", () => {
   expect(emptyBlock("text")).toMatchObject({
     body: "<h2>Section heading</h2><p>Tell the story like you'd tell a friend.</p>",
   });
+});
+
+test("bodyPatch patches the whole body once, coalesced per block", () => {
+  const onPatch = mock<PatchFn>(() => undefined);
+  bodyPatch({ body: [], id: "a", type: "text" }, onPatch)("<p>x</p>");
+  expect(onPatch.mock.calls).toEqual([
+    ["body", "<p>x</p>", { coalesce: "a:body" }],
+  ]);
 });

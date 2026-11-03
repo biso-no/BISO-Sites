@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { TextBlock } from "@/editor/types";
 import { TextRender } from "./render";
-import { RICH_CLASS } from "./render-classes";
+import { RICH_ATTR } from "./test-support";
 
 const block = (text: string): TextBlock => ({
   body: [{ text, type: "p" }],
@@ -86,9 +86,6 @@ describe("TextRender in the redesign's type", () => {
     expect(html).toContain("type-body");
   });
 });
-
-/** `RICH_CLASS` as React writes it into the class attribute. */
-const RICH_ATTR = RICH_CLASS.replaceAll("&", "&amp;").replaceAll(">", "&gt;");
 
 const renderBody = (body: string) =>
   renderToStaticMarkup(

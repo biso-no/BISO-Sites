@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import type { PatchFn } from "@/blocks/types";
 import { InspSection } from "@/components/editor-shell/inspector/insp-parts";
 import type { PageDoc, TextBlock } from "@/editor/types";
-import { bodyToHtml } from "./body";
+import { bodyPatch, bodyToHtml } from "./body";
 import { RichTextField, useMounted } from "./lazy-field";
 
 interface Props {
@@ -29,9 +29,7 @@ export function TextInspector({ block, onPatch }: Props) {
             html={bodyToHtml(block.body)}
             key={block.id}
             label="Text"
-            onChange={(next) =>
-              onPatch("body", next, { coalesce: `${block.id}:body` })
-            }
+            onChange={bodyPatch(block, onPatch)}
             variant="panel"
           />
         </Suspense>

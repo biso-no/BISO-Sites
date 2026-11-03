@@ -1,6 +1,7 @@
 import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
-import type { TextBodyItem } from "@/editor/types";
+import type { PatchFn } from "@/blocks/types";
+import type { TextBlock, TextBodyItem } from "@/editor/types";
 
 const LEGACY_TAG = { h: "h2", h3: "h3", p: "p", li: "li" } as const;
 
@@ -33,4 +34,16 @@ export function bodyToHtml(body: unknown): string {
     return body;
   }
   return isLegacyBody(body) ? legacyBodyToHtml(listOf<TextBodyItem>(body)) : "";
+}
+
+/**
+ * The write path of a block's field, on the canvas and in the inspector
+ * alike: the whole body as one patch, under one coalesce key per block, so a
+ * typing burst on either surface is one undo step.
+ */
+export function bodyPatch(
+  block: TextBlock,
+  onPatch: PatchFn
+): (html: string) => void {
+  return (html) => onPatch("body", html, { coalesce: `${block.id}:body` });
 }

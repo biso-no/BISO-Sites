@@ -17,6 +17,7 @@ import type { TextBlock } from "@/editor/types";
 import { TextInspector } from "./inspector";
 import { TextRender } from "./render";
 import { RICH_CLASS } from "./render-classes";
+import { RICH_ATTR } from "./test-support";
 
 /** What Slate, Plate, floating-ui and React DOM read from the global scope. */
 const GLOBALS = [
@@ -63,9 +64,6 @@ afterEach(() => {
   }
   mounted = [];
 });
-
-/** `RICH_CLASS` as React writes it into the class attribute. */
-const RICH_ATTR = RICH_CLASS.replaceAll("&", "&amp;").replaceAll(">", "&gt;");
 
 /** How long an unfocused field waits before it takes a changed prop. */
 const TAKE_DELAY = 300;

@@ -8,7 +8,7 @@ import type { PatchFn } from "@/blocks/types";
 import { useInEditor } from "@/editor/callbacks";
 import type { TextBlock, TextBodyItem } from "@/editor/types";
 import { sanitizeRichBody, sanitizeRichText } from "@/lib/sanitize";
-import { bodyToHtml, isLegacyBody } from "./body";
+import { bodyPatch, bodyToHtml, isLegacyBody } from "./body";
 import { RichTextField, useMounted } from "./lazy-field";
 import { RICH_CLASS } from "./render-classes";
 
@@ -63,9 +63,7 @@ function EditBody({ block, onPatch }: { block: TextBlock; onPatch: PatchFn }) {
       <RichTextField
         html={html}
         label="Rich text"
-        onChange={(next) =>
-          onPatch("body", next, { coalesce: `${block.id}:body` })
-        }
+        onChange={bodyPatch(block, onPatch)}
         variant="canvas"
       />
     </Suspense>

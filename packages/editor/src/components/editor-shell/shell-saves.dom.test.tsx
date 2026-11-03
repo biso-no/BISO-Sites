@@ -9,6 +9,7 @@ import {
 import { Window } from "happy-dom";
 import { act, createElement, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { loadRichField } from "@/blocks/text/test-support";
 import { useEditorStore } from "@/editor/store";
 import { doc, section } from "@/editor/test-fixtures";
 import type {
@@ -46,7 +47,7 @@ const previous = {
 };
 const flags = globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
-beforeAll(() => {
+beforeAll(async () => {
   const win = new Window();
   Object.assign(globalThis, {
     CustomEvent: win.CustomEvent,
@@ -68,6 +69,7 @@ beforeAll(() => {
     requestAnimationFrame: win.requestAnimationFrame.bind(win),
     window: win,
   });
+  await loadRichField();
 });
 
 afterAll(() => {
