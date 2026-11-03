@@ -34,6 +34,7 @@ afterAll(async () => {
   expect(restored.useMounted).toBe(real.useMounted);
 });
 
+const { TextExpandView } = await import("./expand");
 const { TextInspector } = await import("./inspector");
 const { TextRender } = await import("./render");
 
@@ -82,6 +83,31 @@ test("the inspector field edits the whole body, coalesced per block", () => {
   field.onChange("<p>z</p>");
   expect(onPatch.mock.calls).toEqual([
     ["body", "<p>z</p>", { coalesce: "a:body" }],
+  ]);
+});
+
+test("the wide view's field edits the whole body, coalesced per block", () => {
+  const onPatch = mock<PatchFn>(() => undefined);
+  const onPageHistory = mock(() => undefined);
+  const field = fieldOf(
+    createElement(TextExpandView, {
+      block,
+      onClose: () => undefined,
+      onPageHistory,
+      onPatch,
+    })
+  );
+  expect(field).toMatchObject({
+    autoFocus: true,
+    html: "<p>x</p>",
+    label: "Text",
+    variant: "panel",
+  });
+  expect(field.onPageHistory).toBe(onPageHistory);
+
+  field.onChange("<p>w</p>");
+  expect(onPatch.mock.calls).toEqual([
+    ["body", "<p>w</p>", { coalesce: "a:body" }],
   ]);
 });
 

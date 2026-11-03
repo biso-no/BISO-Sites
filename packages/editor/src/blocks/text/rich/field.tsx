@@ -27,6 +27,8 @@ import { htmlToEmit, shouldTakeProp } from "./sync";
 import { RichToolbar } from "./toolbar";
 
 export interface RichTextFieldProps {
+  /** Focuses the text once it mounts, as the wide writing view opens. */
+  autoFocus?: boolean;
   /** Receives the Plate editor; tests only. */
   editorRef?: { current: unknown };
   html: string;
@@ -101,6 +103,7 @@ function takeProp(
  * Needs a DOM (`htmlToValue`): render it only after the client has mounted.
  */
 export default function RichTextField({
+  autoFocus,
   editorRef,
   html,
   label,
@@ -273,6 +276,7 @@ export default function RichTextField({
       ) : null}
       <PlateContent
         aria-label={label}
+        autoFocus={autoFocus}
         onBlur={takeAfterBlur}
         onFocus={take}
         {...surface}

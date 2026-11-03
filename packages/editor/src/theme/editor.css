@@ -1143,6 +1143,12 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+/* A small button at the title's end, such as the Rich text field's Expand. */
+.pe-insp-section__h--action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .pe-row {
   display: flex;
   gap: 8px;
@@ -2065,6 +2071,65 @@
   font-weight: 600;
   color: var(--pg-ink);
   background: var(--paper-2);
+}
+
+/*
+ * The wide writing view: the panel's field over the editor. In the title's
+ * small type, Expand and Close keep their own case, spacing and weight.
+ */
+.pe-rt-expand-btn {
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-2);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 5px;
+}
+/* `.pe-confirm`'s scrim without the blur, so the canvas shows live behind. */
+.pe-rt-expand {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(26, 24, 20, 0.22);
+}
+.pe-rt-expand__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 12px;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px -32px rgba(26, 24, 20, 0.45);
+}
+.pe-rt-expand__hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* The panel's gap spaces the title. */
+.pe-rt-expand__hd .pe-insp-section__h {
+  margin-bottom: 0;
+}
+.pe-rt-expand .pe-rt-field {
+  min-height: min(60vh, 520px);
+  max-height: calc(100vh - 170px);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.pe-rt-expand .pe-rt-field h2 {
+  font-size: 18px;
+}
+.pe-rt-expand .pe-rt-field h3 {
+  font-size: 15px;
 }
 
 /* The canvas bubble: the toolbar in ink, over the selected text. */

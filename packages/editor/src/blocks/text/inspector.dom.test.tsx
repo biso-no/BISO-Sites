@@ -19,7 +19,10 @@ import { TextRender } from "./render";
 import { RICH_CLASS } from "./render-classes";
 import { RICH_ATTR } from "./test-support";
 
-/** What Slate, Plate, floating-ui and React DOM read from the global scope. */
+/**
+ * What Slate, Plate, floating-ui and React DOM read from the global scope;
+ * the viewport's size for Slate scrolling a focused selection into view.
+ */
 const GLOBALS = [
   "CustomEvent",
   "DOMParser",
@@ -31,6 +34,8 @@ const GLOBALS = [
   "cancelAnimationFrame",
   "document",
   "getComputedStyle",
+  "innerHeight",
+  "innerWidth",
   "requestAnimationFrame",
   "window",
 ] as const;
@@ -100,7 +105,43 @@ function mount() {
     settle(() =>
       root.render(createElement(TextRender, { block, edit: true, onPatch }))
     );
-  return { canvas, host, inspect, onPatch };
+  const unmount = () => act(() => root.unmount());
+  return { canvas, host, inspect, onPatch, unmount };
+}
+
+/** The section's Expand button. */
+const expandButton = (host: HTMLElement) =>
+  host.querySelector<HTMLButtonElement>(
+    'button[aria-haspopup="dialog"]'
+  ) as HTMLButtonElement;
+
+/** The open wide view, anywhere in the document. */
+const wideView = () => document.querySelector<HTMLElement>('[role="dialog"]');
+
+/** The button in `scope` with this accessible name (its label, else text). */
+const button = (scope: HTMLElement, name: string) =>
+  [...scope.querySelectorAll("button")].find(
+    (element) =>
+      (element.getAttribute("aria-label") ?? element.textContent) === name
+  ) as HTMLButtonElement;
+
+const keydown = (target: Element, init: KeyboardEventInit) => {
+  const event = new window.KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+  target.dispatchEvent(event);
+  return event;
+};
+
+/** The panel field is back, the wide view gone, and Expand has focus. */
+function expectPanel(host: HTMLElement) {
+  expect(wideView()).toBeNull();
+  const editable = host.querySelector(".pe-insp-section [contenteditable]");
+  expect(editable?.getAttribute("aria-label")).toBe("Text");
+  expect(document.activeElement).toBe(expandButton(host));
+  expect(expandButton(host).getAttribute("aria-expanded")).toBe("false");
 }
 
 test("inspector shows the newly selected block's text", async () => {
@@ -117,7 +158,10 @@ test("inspector field has the Text label and the toolbar", async () => {
   const { host, inspect } = mount();
   await inspect(textBlock("a", "<p>Alpha</p>"));
 
-  expect(host.querySelector(".pe-insp-section__h")?.textContent).toBe("Text");
+  const header = host.querySelector(".pe-insp-section__h");
+  expect(header?.firstChild?.textContent).toBe("Text");
+  expect(header?.querySelector("button")).toBe(expandButton(host));
+  expect(expandButton(host).textContent).toBe("⤢ Expand");
   const editable = host.querySelector("[contenteditable]");
   expect(editable?.getAttribute("aria-label")).toBe("Text");
   expect(editable?.classList.contains("pe-rt-field")).toBe(true);
@@ -176,4 +220,141 @@ test("a server render shows the static fallback, never the field", async () => {
   expect(inspector).toContain('<div class="pe-rt-field"></div>');
   expect(`${canvas}${inspector}`).not.toContain("data-slate-editor");
   expect(`${canvas}${inspector}`).not.toContain("contenteditable");
+});
+
+test("Expand opens the same text in a wide view and parks the panel field", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  expect(expandButton(host).getAttribute("aria-expanded")).toBe("false");
+
+  await settle(() => expandButton(host).click());
+
+  const view = wideView() as HTMLElement;
+  expect(view.getAttribute("aria-label")).toBe("Text");
+  expect(view.getAttribute("aria-modal")).toBe("true");
+  expect(view.querySelector(".pe-rt-bar")).not.toBeNull();
+  expect(view.textContent).toContain("Alpha");
+  expect(expandButton(host).getAttribute("aria-expanded")).toBe("true");
+  // One Plate field in the inspector: the wide view's, beside the section.
+  const editables = document.querySelectorAll(".pe-rt-field[contenteditable]");
+  expect(editables).toHaveLength(1);
+  expect(view.contains(editables[0] as Node)).toBe(true);
+  expect(document.activeElement).toBe(editables[0] as Element);
+  expect(view.closest(".pe-insp-section")).toBeNull();
+  expect(host.querySelector(".pe-insp-section [contenteditable]")).toBeNull();
+  // The parked field keeps the panel's height.
+  const parked = host.querySelector(".pe-insp-section .pe-rt-field");
+  expect(parked?.getAttribute("aria-hidden")).toBe("true");
+});
+
+test("Close and Escape return to the panel, focus on Expand", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+
+  await settle(() => expandButton(host).click());
+  await settle(() => button(wideView() as HTMLElement, "Close").click());
+  expectPanel(host);
+
+  await settle(() => expandButton(host).click());
+  const field = wideView()?.querySelector("[contenteditable]") as Element;
+  let escapeKey: KeyboardEvent | undefined;
+  await settle(() => {
+    escapeKey = keydown(field, { key: "Escape" });
+  });
+  // The view took the key.
+  expect(escapeKey?.defaultPrevented).toBe(true);
+  expectPanel(host);
+  expect(host.textContent).toContain("Alpha");
+});
+
+test("Escape in a popover keeps the wide view open", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  await settle(() => expandButton(host).click());
+  const view = wideView() as HTMLElement;
+
+  for (const name of ["Text colour", "More formatting"]) {
+    // From the keyboard: the popover's first item takes focus.
+    await settle(() => button(view, name).click());
+    const group = () =>
+      view.querySelector(`[role="group"][aria-label="${name}"]`);
+    expect(group()).not.toBeNull();
+    expect(group()?.contains(document.activeElement)).toBe(true);
+
+    await settle(() => {
+      keydown(document.activeElement as Element, { key: "Escape" });
+    });
+    expect(group()).toBeNull();
+    expect(wideView()).toBe(view);
+  }
+});
+
+test("Escape in the link input keeps the wide view open", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  await settle(() => expandButton(host).click());
+  const view = wideView() as HTMLElement;
+
+  await settle(() => button(view, "Link").click());
+  const input = view.querySelector('input[aria-label="Link address"]');
+  expect(document.activeElement).toBe(input);
+
+  await settle(() => {
+    keydown(input as Element, { key: "Escape" });
+  });
+  expect(view.querySelector('input[aria-label="Link address"]')).toBeNull();
+  expect(wideView()).toBe(view);
+});
+
+test("an Escape something inside handled keeps the wide view open", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  await settle(() => expandButton(host).click());
+  const view = wideView() as HTMLElement;
+  const field = view.querySelector("[contenteditable]") as Element;
+  // As the link input does: it prevents the key it took.
+  const take = (event: Event) => event.preventDefault();
+  field.addEventListener("keydown", take);
+
+  await settle(() => {
+    keydown(field, { key: "Escape" });
+  });
+  expect(wideView()).toBe(view);
+
+  field.removeEventListener("keydown", take);
+  await settle(() => {
+    keydown(field, { key: "Escape" });
+  });
+  expect(wideView()).toBeNull();
+});
+
+test("a click on the scrim keeps the wide view open", async () => {
+  const { host, inspect } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  await settle(() => expandButton(host).click());
+
+  const scrim = wideView()?.parentElement as HTMLElement;
+  expect(scrim.classList.contains("pe-rt-expand")).toBe(true);
+  await settle(() => scrim.click());
+  expect(wideView()).not.toBeNull();
+});
+
+// Keyed on the block, like the panel field: another block, or none, closes
+// the view rather than showing it another block's text.
+test("the wide view closes when its block goes", async () => {
+  const { host, inspect, unmount } = mount();
+  await inspect(textBlock("a", "<p>Alpha</p>"));
+  await settle(() => expandButton(host).click());
+  expect(wideView()?.textContent).toContain("Alpha");
+
+  await inspect(textBlock("b", "<p>Beta</p>"));
+  expect(wideView()).toBeNull();
+  expect(expandButton(host).getAttribute("aria-expanded")).toBe("false");
+  const panel = host.querySelector(".pe-insp-section [contenteditable]");
+  expect(panel?.textContent).toBe("Beta");
+
+  await settle(() => expandButton(host).click());
+  expect(wideView()?.textContent).toContain("Beta");
+  unmount();
+  expect(wideView()).toBeNull();
 });
