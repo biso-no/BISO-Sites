@@ -11,18 +11,23 @@ import {
 } from "platejs";
 import { SAFE_HREF } from "@/lib/rich-allowlist";
 import { parseInert, sanitizeRichBody } from "@/lib/sanitize";
+import { LIST_TAGS, ORDERED_LIST_STYLES } from "./list-item-parse";
 import { richBasePlugins } from "./plugins";
 
 /** A headless editor on the rich text schema, for conversion and paste. */
 export function createConversionEditor(
   extraPlugins: AnySlatePlugin[] = []
 ): SlateEditor {
-  return createSlateEditor({ plugins: [...richBasePlugins, ...extraPlugins] });
+  return createSlateEditor({
+    // Plate adds a random `id` to every block unless NODE_ENV is "test";
+    // the same HTML must always give the same value.
+    nodeId: false,
+    plugins: [...richBasePlugins, ...extraPlugins],
+  });
 }
 
 const emptyValue = (): Value => [{ type: "p", children: [{ text: "" }] }];
 
-const LIST_TAGS = new Set(["OL", "UL"]);
 const LI_BLOCK_TAGS = new Set(["BLOCKQUOTE", "H2", "H3", "HR", "P"]);
 
 /**
@@ -75,19 +80,12 @@ export function htmlToValue(html: string): Value {
 
 // ── Plate value → HTML. Pure: only Plate's types are used below. ──
 
-const BLOCK_TAGS: Record<string, string> = {
-  blockquote: "blockquote",
-  h2: "h2",
-  h3: "h3",
-  p: "p",
-};
-
-const ORDERED_STYLES = new Set([
-  "decimal",
-  "lower-alpha",
-  "upper-alpha",
-  "lower-roman",
-  "upper-roman",
+/** A `Map`, so a type such as `constructor` cannot hit a prototype key. */
+const BLOCK_TAGS: ReadonlyMap<string, string> = new Map([
+  ["blockquote", "blockquote"],
+  ["h2", "h2"],
+  ["h3", "h3"],
+  ["p", "p"],
 ]);
 
 /** Outermost first. */
@@ -151,7 +149,7 @@ function blockToHtml(node: TElement): string {
   if (textOf(node).trim() === "") {
     return "";
   }
-  const tag = BLOCK_TAGS[node.type] ?? "p";
+  const tag = BLOCK_TAGS.get(node.type) ?? "p";
   return `<${tag}>${inlineToHtml(node.children)}</${tag}>`;
 }
 
@@ -163,7 +161,8 @@ interface OpenList {
 /**
  * Plate's indent lists (flat blocks carrying `listStyleType` and `indent`)
  * back to nested `<ul>`/`<ol>`. Unlike other blocks, an empty list item is
- * kept.
+ * kept. An item sits at most one level below the innermost open list, so an
+ * indent jump (Tab twice) writes the same HTML a re-parse of it gives.
  */
 export function valueToHtml(value: Value): string {
   const stack: OpenList[] = [];
@@ -190,8 +189,12 @@ export function valueToHtml(value: Value): string {
       continue;
     }
 
-    const tag = ORDERED_STYLES.has(listStyleType) ? "ol" : "ul";
-    const level = typeof indent === "number" ? indent : 1;
+    const tag = ORDERED_LIST_STYLES.has(listStyleType) ? "ol" : "ul";
+    const openDepth = stack.at(-1)?.indent ?? 0;
+    const level = Math.min(
+      typeof indent === "number" ? indent : 1,
+      openDepth + 1
+    );
     closeDeeperThan(level);
     if (stack.at(-1)?.indent === level && stack.at(-1)?.tag !== tag) {
       closeList();

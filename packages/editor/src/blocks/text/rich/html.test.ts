@@ -111,3 +111,57 @@ test("top-level text with no block keeps its words, in a paragraph", () => {
     "<p>bare <strong>text</strong></p>"
   );
 });
+
+test("conversion is deterministic outside tests: no node ids", () => {
+  // Plate turns on random node ids unless NODE_ENV is "test".
+  const nodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+  try {
+    const html = "<h2>A</h2><ul><li>b</li></ul>";
+    const value = htmlToValue(html);
+    expect(value.some((block) => "id" in block)).toBe(false);
+    expect(htmlToValue(html)).toEqual(value);
+    expect(htmlToValue("")).toEqual([{ type: "p", children: [{ text: "" }] }]);
+  } finally {
+    process.env.NODE_ENV = nodeEnv;
+  }
+});
+
+test("alpha and roman list styles are ordered, as the serializer reads them", () => {
+  expect(
+    deserialized('<ol><li data-list-style-type="lower-alpha">a</li></ol>')
+  ).toBe("<ol><li>a</li></ol>");
+});
+
+/** Tab pressed twice: a list item two levels below the one above it. */
+const INDENT_JUMP: Value = [
+  { type: "p", indent: 1, listStyleType: "disc", children: [{ text: "a" }] },
+  { type: "p", indent: 3, listStyleType: "disc", children: [{ text: "b" }] },
+  { type: "p", indent: 2, listStyleType: "disc", children: [{ text: "c" }] },
+];
+
+test("a list item is at most one level below the list it sits in", () => {
+  expect(valueToHtml(INDENT_JUMP)).toBe(
+    "<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>"
+  );
+});
+
+/** What the editor's echo compare relies on (Task 7). */
+const expectFixedPoint = (value: Value): void => {
+  const once = valueToHtml(value);
+  expect(valueToHtml(htmlToValue(once))).toBe(once);
+};
+
+test("serializing an indent jump is a fixed point", () => {
+  expectFixedPoint(INDENT_JUMP);
+});
+
+test.each(ROUND_TRIP)("serializing is a fixed point: %s", (html) => {
+  expectFixedPoint(htmlToValue(html));
+});
+
+test("an unknown block type, even a prototype key, is a paragraph", () => {
+  expect(
+    valueToHtml([{ type: "constructor", children: [{ text: "x" }] }])
+  ).toBe("<p>x</p>");
+});

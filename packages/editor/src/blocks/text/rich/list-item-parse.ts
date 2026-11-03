@@ -1,6 +1,19 @@
 import { keptOlStart } from "@/lib/rich-allowlist";
 
-const LIST_TAGS = new Set(["OL", "UL"]);
+export const LIST_TAGS: ReadonlySet<string> = new Set(["OL", "UL"]);
+
+/**
+ * The list styles that number their items, in a `data-list-style-type` and
+ * in the value. The serializer writes these as `<ol>`; every other style is
+ * a bullet.
+ */
+export const ORDERED_LIST_STYLES: ReadonlySet<string> = new Set([
+  "decimal",
+  "lower-alpha",
+  "upper-alpha",
+  "lower-roman",
+  "upper-roman",
+]);
 
 type ListStyle = "disc" | "decimal";
 
@@ -52,7 +65,7 @@ function listAncestorCount(li: HTMLElement): number {
 function styleOf(li: HTMLElement): ListStyle {
   const stated = li.getAttribute("data-list-style-type");
   if (stated !== null) {
-    return stated === "decimal" ? "decimal" : "disc";
+    return ORDERED_LIST_STYLES.has(stated) ? "decimal" : "disc";
   }
   return li.closest("ul, ol")?.tagName === "OL" ? "decimal" : "disc";
 }
