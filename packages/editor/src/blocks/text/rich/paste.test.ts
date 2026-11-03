@@ -263,6 +263,37 @@ test("a paste with no table into a cell stays in the cell, its blocks as lines",
   );
 });
 
+// Select-all, either way, then a paste replaces everything, tables too.
+test.each([
+  [
+    "<p>before</p><table><tbody><tr><td>a</td></tr></tbody></table><p>after</p>",
+    "<p>New</p>",
+    "<p>New</p>",
+  ],
+  [
+    "<table><tbody><tr><td>a</td></tr></tbody></table><p>after</p>",
+    "<p>New</p>",
+    "<p>New</p>",
+  ],
+  [
+    "<table><tbody><tr><td>a</td></tr></tbody></table><p>after</p>",
+    "<table><tr><td>x</td><td>y</td></tr></table>",
+    "<table><tbody><tr><td>x</td><td>y</td></tr></tbody></table>",
+  ],
+])("pasting a table over a select-all replaces the whole text, even one that opens with a table: %s", (start, pasted, out) => {
+  for (const backward of [false, true]) {
+    const editor = createConversionEditor([RichPastePlugin], { nodeId: true });
+    editor.tf.setValue(htmlToValue(start));
+    const all = editor.api.range([]);
+    if (!all) {
+      throw new Error("no text");
+    }
+    editor.tf.select(backward ? { anchor: all.focus, focus: all.anchor } : all);
+    editor.tf.insertData(clipboard({ "text/html": pasted }));
+    expect(valueToHtml(editor.children)).toBe(out);
+  }
+});
+
 // Each fixture keeps the source markup it stands in for, so an edit cannot
 // quietly turn it into easy HTML.
 test.each([

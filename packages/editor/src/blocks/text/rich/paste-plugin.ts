@@ -18,6 +18,7 @@ import {
   plainTextHasStructure,
   plainTextToHtml,
 } from "./paste";
+import { wholeValueSelected } from "./table-edges";
 
 const HTML = "text/html";
 const PLAIN = "text/plain";
@@ -157,7 +158,9 @@ export type RichPasteConfig = PluginConfig<
  * at the depths the save writes, and an empty line a table was pasted into
  * goes. A paste with an image in it (HTML or a file) counts one
  * `imageNotices`; the paste itself is unchanged. A table pasted in a cell
- * goes after the table, with the rest of the paste (`insertAfterTable`).
+ * goes after the table, with the rest of the paste (`insertAfterTable`). A
+ * paste over the whole text (select-all, either way) deletes it first, tables
+ * too, so it replaces everything.
  */
 export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
   key: "richPaste",
@@ -203,6 +206,10 @@ export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
           }
         },
         insertData(data: DataTransfer) {
+          // Otherwise an anchor in a table sends the paste after that table.
+          if (wholeValueSelected(editor)) {
+            editor.tf.delete();
+          }
           if (dropsImage(data)) {
             setOption("imageNotices", getOption("imageNotices") + 1);
           }

@@ -5,6 +5,7 @@ import {
   type Path,
   type Point,
   type SlateEditor,
+  type TRange,
   type Value,
 } from "platejs";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
@@ -341,4 +342,69 @@ test("deleting the whole text selected empties it, tables and all", () => {
   editor.tf.select(editor.api.range([]));
   editor.tf.deleteFragment();
   expect(html(editor)).toBe("");
+});
+
+// ── The whole text selected ──
+// Select-all, either way, then Delete, typing or a paste (paste.test.ts)
+// replaces everything, tables too.
+
+const OPENS_WITH_TABLE = `${TABLE}<p>after</p>`;
+
+/** The whole text selected backward: from its end to its start. */
+const REVERSED = (editor: SlateEditor): TRange => {
+  const all = editor.api.range([]);
+  if (!all) {
+    throw new Error("no text");
+  }
+  return { anchor: all.focus, focus: all.anchor };
+};
+
+const selectAll = (editor: SlateEditor, way: string) =>
+  editor.tf.select(way === "forward" ? editor.api.range([]) : REVERSED(editor));
+
+test.each([
+  "forward",
+  "backward",
+])("select-all %s then Delete empties the text, tables and all", (way) => {
+  for (const start of [PAGE, OPENS_WITH_TABLE]) {
+    const editor = editorOn(start);
+    selectAll(editor, way);
+    editor.tf.deleteFragment();
+    expect(html(editor)).toBe("");
+    expect(editor.children).toHaveLength(1);
+  }
+});
+
+test.each([
+  "forward",
+  "backward",
+])("typing over a select-all %s leaves only what was typed", (way) => {
+  for (const start of [PAGE, OPENS_WITH_TABLE]) {
+    const editor = editorOn(start);
+    selectAll(editor, way);
+    editor.tf.insertText("Z");
+    expect(html(editor)).toBe("<p>Z</p>");
+  }
+});
+
+test("a delete of the whole text from code removes a table that opens it", () => {
+  const editor = editorOn(OPENS_WITH_TABLE);
+  editor.tf.delete({ at: editor.api.range([]) });
+  expect(html(editor)).toBe("");
+  expect(editor.children).toHaveLength(1);
+  expect(editor.children[0]?.type).toBe("p");
+});
+
+test("a selection short of the whole text still keeps the table", () => {
+  const editor = editorOn(PAGE);
+  const end = editor.api.end([]);
+  if (!end) {
+    throw new Error("no text");
+  }
+  editor.tf.select({ anchor: at(editor, "before", 1), focus: end });
+  editor.tf.insertText("Z");
+  expect(html(editor)).toBe(
+    "<p>bZ</p><table><tbody><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody></table>"
+  );
+  expect(editor.children.map((node) => node.type)).toContain("table");
 });

@@ -17,7 +17,8 @@ import {
 import { isTableCell } from "./table-grid";
 
 // What deleting does at a table's edges, as in Word: no text crosses into or
-// out of a cell, and deleting text never removes a table.
+// out of a cell, and deleting text never removes a table, unless the whole
+// text goes.
 
 type Delete = (options?: DeleteTextOptions) => void;
 
@@ -225,6 +226,49 @@ function inOneTable(editor: SlateEditor, at: TRange): boolean {
   );
 }
 
+/**
+ * Whether `at` covers the whole value, in either direction: its edges are
+ * the value's first and last points, as after select-all.
+ */
+export function coversWholeValue(editor: SlateEditor, at: TRange): boolean {
+  const first = editor.api.start([]);
+  const last = editor.api.end([]);
+  const [start, end] = RangeApi.edges(at);
+  return Boolean(
+    first && last && PointApi.equals(start, first) && PointApi.equals(end, last)
+  );
+}
+
+/**
+ * A delete of the whole text: Slate's own, from the value's first point to
+ * its last, so no table stays. Slate keeps the block its start lies in, so a
+ * table that opens the text first gets an empty line before it to hold the
+ * start. A caller's ref to the end point stays, at the start. The caret,
+ * when the delete was the selection's, at the start.
+ */
+function deleteWholeValue(
+  remove: Delete,
+  editor: SlateEditor,
+  options: DeleteTextOptions
+): void {
+  editor.tf.withoutNormalizing(() => {
+    if (editor.children[0]?.type === KEYS.table) {
+      editor.tf.insertNodes(editor.api.create.block(), { at: [0] });
+    }
+    const [start, end] = edgesOf(editor, []);
+    remove({ ...options, at: { anchor: start, focus: end }, hanging: true });
+    if (options.at == null) {
+      editor.tf.select(edgeOf(editor, [], false));
+    }
+  });
+}
+
+/** Whether the selection is expanded and covers the whole value. */
+export const wholeValueSelected = (editor: SlateEditor): boolean =>
+  editor.selection !== null &&
+  RangeApi.isExpanded(editor.selection) &&
+  coversWholeValue(editor, editor.selection);
+
 /** A delete's place as a caret, a range, or neither (a path: a node goes). */
 function placeOf(
   editor: SlateEditor,
@@ -247,46 +291,70 @@ function placeOf(
  * or broken with Enter (`deleteAcross`). A selection that runs into a table
  * deletes what it covers outside it and clears the text it covers in the
  * cells; the table and its cells stay, as they do under a selection that
- * holds the whole table. Only the table bar removes a table, and Plate's
- * reset when the whole text is selected and deleted. A selection in one
- * table keeps Plate's own handling, which clears the cells of its grid.
- * Plate also holds a selection that starts in a table to that table, and
- * takes one that runs into a table from outside to the table's end.
+ * holds the whole table. Only the table bar removes a table, and a delete of
+ * the whole text (`coversWholeValue`): select-all, either way, then Delete,
+ * typing or a paste (`RichPastePlugin`) replaces everything, tables too.
+ * Delete goes through Plate's select-all reset; typing, a paste and a delete
+ * from code through `deleteWholeValue`. A selection in one table keeps
+ * Plate's own handling, which clears the cells of its grid. Plate also holds
+ * a selection that starts in a table to that table, and takes one that runs
+ * into a table from outside to the table's end.
  */
 export const RichTableEdgesPlugin = createSlatePlugin({
   key: "richTableEdges",
-}).overrideEditor(({ editor, tf: { delete: remove, deleteFragment } }) => ({
-  transforms: {
-    delete(options = {}) {
-      const place = placeOf(editor, options);
-      let handled = false;
-      if (place && PointApi.isPoint(place)) {
-        handled =
-          !editor.api.void({ at: place }) &&
-          deleteAtEdge(remove, editor, place, options);
-      } else if (place) {
-        handled = deleteAcross(remove, editor, place, options);
-      }
-      if (!handled) {
-        remove(options);
-      }
+}).overrideEditor(
+  ({ editor, tf: { delete: remove, deleteFragment, insertText } }) => ({
+    transforms: {
+      delete(options = {}) {
+        const place = placeOf(editor, options);
+        if (
+          place &&
+          !PointApi.isPoint(place) &&
+          coversWholeValue(editor, place)
+        ) {
+          deleteWholeValue(remove, editor, options);
+          return;
+        }
+        let handled = false;
+        if (place && PointApi.isPoint(place)) {
+          handled =
+            !editor.api.void({ at: place }) &&
+            deleteAtEdge(remove, editor, place, options);
+        } else if (place) {
+          handled = deleteAcross(remove, editor, place, options);
+        }
+        if (!handled) {
+          remove(options);
+        }
+      },
+      deleteFragment(options) {
+        const { selection } = editor;
+        if (selection && wholeValueSelected(editor)) {
+          // Forward, which is what Plate's select-all reset matches.
+          const [start, end] = RangeApi.edges(selection);
+          editor.tf.select({ anchor: start, focus: end });
+          deleteFragment(options);
+          return;
+        }
+        const runsIntoTable =
+          selection !== null &&
+          RangeApi.isExpanded(selection) &&
+          !inOneTable(editor, selection) &&
+          tablesIn(editor, selection).length > 0;
+        if (runsIntoTable) {
+          editor.tf.delete({ reverse: options?.direction === "backward" });
+          return;
+        }
+        deleteFragment(options);
+      },
+      // Plate's table `insertText` collapses a selection that spans cells and
+      // deletes nothing; over the whole text, the text goes first.
+      insertText(text, options) {
+        if (options?.at == null && wholeValueSelected(editor)) {
+          editor.tf.delete();
+        }
+        insertText(text, options);
+      },
     },
-    deleteFragment(options) {
-      const { selection } = editor;
-      const runsIntoTable =
-        selection !== null &&
-        RangeApi.isExpanded(selection) &&
-        !RangeApi.equals(selection, {
-          anchor: edgeOf(editor, [], false),
-          focus: edgeOf(editor, [], true),
-        }) &&
-        !inOneTable(editor, selection) &&
-        tablesIn(editor, selection).length > 0;
-      if (runsIntoTable) {
-        editor.tf.delete({ reverse: options?.direction === "backward" });
-        return;
-      }
-      deleteFragment(options);
-    },
-  },
-}));
+  })
+);
