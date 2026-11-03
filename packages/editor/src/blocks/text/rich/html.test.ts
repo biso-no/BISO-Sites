@@ -91,6 +91,17 @@ test("a block inside a list item is unwrapped into the item itself", () => {
   ]);
 });
 
+// Plate has no parser for these, so their lines and cells ran together.
+test.each([
+  ["<div>a</div><div>b</div>", "<p>a</p><p>b</p>"],
+  ["<ul><li><p>a</p><p>b</p></li></ul>", "<ul><li>a<br>b</li></ul>"],
+  [
+    "<p>a</p><table><tr><td>c1</td><td>c2</td></tr></table>",
+    "<p>a</p><p>c1</p><p>c2</p>",
+  ],
+])("line and cell blocks stay apart: %s", (html, out) =>
+  expect(valueToHtml(htmlToValue(html))).toBe(out));
+
 test("empty leaves and empty links print nothing", () => {
   expect(
     valueToHtml([

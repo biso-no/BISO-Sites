@@ -17,6 +17,7 @@ import {
   ORDERED_LIST_STYLES,
 } from "./list-item-parse";
 import { richBasePlugins } from "./plugins";
+import { structureBlocks } from "./structure";
 
 /** A headless editor on the rich text schema, for conversion and paste. */
 export function createConversionEditor(
@@ -49,10 +50,16 @@ function asBlocks(editor: SlateEditor, nodes: Descendant[]): Value {
     : [{ type: "p", children: nodes }];
 }
 
-/** Stored body HTML as a normalised Plate value; never `[]`. */
+/**
+ * Stored body HTML as a normalised Plate value; never `[]`. The structure
+ * step runs before the sanitiser, which would unwrap a `div` or a cell and
+ * run its words into the next one's.
+ */
 export function htmlToValue(html: string): Value {
   const editor = createConversionEditor();
-  const element = parseInert(sanitizeRichBody(html));
+  const source = parseInert(html);
+  structureBlocks(source);
+  const element = parseInert(sanitizeRichBody(source.innerHTML));
   flattenListItems(element);
   editor.tf.setValue(asBlocks(editor, deserializeHtml(editor, { element })));
   editor.tf.normalize({ force: true });

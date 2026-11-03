@@ -248,6 +248,66 @@ test("paragraphs inside a list item or a quote are joined by line breaks", () =>
   ).toBe("<ul><li>a<br>b</li></ul><blockquote>c<br>d</blockquote>");
 });
 
+// Line-per-block sources. Plate has no parser for div, td, th, dt or dd, so
+// without the structure step their lines and cells ran together.
+const GMAIL =
+  '<div dir="ltr"><div>Velkommen til semesteret.</div><div>Mvh Ola</div></div>';
+const GMAIL_FIRST_LINE_BARE =
+  '<div dir="ltr">Velkommen til semesteret.<div>Mvh Ola</div></div>';
+const APPLE_NOTES =
+  '<meta charset="UTF-8"><div style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0); font-style: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><b>Agenda</b></div><div style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0); font-style: normal;">First point</div><div style="caret-color: rgb(0, 0, 0); color: rgb(0, 0, 0); font-style: normal;">Second point</div>';
+const OUTLOOK_WEB =
+  '<div class="elementToProof" style="font-family: Aptos, Aptos_EmbeddedFont, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 12pt; color: rgb(0, 0, 0);">Hei alle,</div><div class="elementToProof" style="font-family: Aptos, Aptos_EmbeddedFont, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 12pt; color: rgb(0, 0, 0);"><br></div><div class="elementToProof" style="font-family: Aptos, Aptos_EmbeddedFont, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 12pt; color: rgb(0, 0, 0);">Møtet flyttes til <b>torsdag</b>.</div><div class="elementToProof" style="font-family: Aptos, Aptos_EmbeddedFont, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 12pt; color: rgb(0, 0, 0);">Hilsen Kari</div>';
+const SHEETS_TABLE =
+  '<google-sheets-html-origin><style type="text/css"><!--td {border: 1px solid #cccccc;}br {mso-data-placement:same-cell;}--></style><table xmlns="http://www.w3.org/1999/xhtml" cellspacing="0" cellpadding="0" dir="ltr" border="1" style="table-layout:fixed;font-size:10pt;font-family:Arial;width:0px;border-collapse:collapse;border:none" data-sheets-root="1"><colgroup><col width="100"><col width="160"></colgroup><tbody><tr style="height:21px;"><td style="overflow:hidden;padding:2px 3px 2px 3px;vertical-align:bottom;">Name</td><td style="overflow:hidden;padding:2px 3px 2px 3px;vertical-align:bottom;">Email</td></tr><tr style="height:21px;"><td style="overflow:hidden;padding:2px 3px 2px 3px;vertical-align:bottom;">Kari</td><td style="overflow:hidden;padding:2px 3px 2px 3px;vertical-align:bottom;"><a class="in-cell-link" href="mailto:kari@biso.no" target="_blank">kari@biso.no</a></td></tr></tbody></table></google-sheets-html-origin>';
+const WEB_TABLE =
+  "<table>\n  <caption>Board</caption>\n  <thead>\n    <tr><th>Name </th><th>Email</th></tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>Kari</td>\n      <td>kari@biso.no\n      </td>\n    </tr>\n  </tbody>\n</table>";
+
+test.each([
+  ["Gmail", GMAIL, "<p>Velkommen til semesteret.</p><p>Mvh Ola</p>"],
+  [
+    "Gmail, first line bare",
+    GMAIL_FIRST_LINE_BARE,
+    "<p>Velkommen til semesteret.</p><p>Mvh Ola</p>",
+  ],
+  [
+    "Apple Notes",
+    APPLE_NOTES,
+    "<p><strong>Agenda</strong></p><p>First point</p><p>Second point</p>",
+  ],
+  [
+    "Outlook on the web",
+    OUTLOOK_WEB,
+    "<p>Hei alle,</p><p>Møtet flyttes til <strong>torsdag</strong>.</p><p>Hilsen Kari</p>",
+  ],
+  [
+    "a Google Sheets 2×2 table",
+    SHEETS_TABLE,
+    '<p>Name</p><p>Email</p><p>Kari</p><p><a href="mailto:kari@biso.no">kari@biso.no</a></p>',
+  ],
+  [
+    "a web table with a caption and header cells",
+    WEB_TABLE,
+    "<p>Board</p><p>Name</p><p>Email</p><p>Kari</p><p>kari@biso.no</p>",
+  ],
+  [
+    "a definition list",
+    "<dl><dt>Fadder</dt><dd>A student who shows new students around.</dd></dl>",
+    "<p>Fadder</p><p>A student who shows new students around.</p>",
+  ],
+])("%s pastes one paragraph per line or cell", (_, html, out) => {
+  expect(pasteInto(html)).toBe(out);
+});
+
+test("lines inside a list item are joined by line breaks", () => {
+  expect(pasteInto("<ul><li><div>a</div><div>b</div></li></ul>")).toBe(
+    "<ul><li>a<br>b</li></ul>"
+  );
+  expect(pasteInto("<ul><li><div><p>a</p><p>b</p></div></li></ul>")).toBe(
+    "<ul><li>a<br>b</li></ul>"
+  );
+});
+
 test("a nested list stays out of the joined item text", () => {
   expect(
     pasteInto("<ul><li><p>a</p><ul><li><p>b</p></li></ul></li></ul>")

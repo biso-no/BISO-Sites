@@ -1,16 +1,14 @@
 import { DROPPED_WITH_CONTENT } from "@/lib/rich-allowlist";
 import { parseInert } from "@/lib/sanitize";
-import {
-  effectiveDepths,
-  flattenListItems,
-  LIST_TAGS,
-} from "./list-item-parse";
+import { effectiveDepths, flattenListItems } from "./list-item-parse";
+import { isBlankText, rename, structureBlocks, unwrap } from "./structure";
 
 // Clipboard HTML from Word (desktop and web), Google Docs and web pages,
 // rewritten into plain semantic markup before Plate's HTML deserializer reads
 // it. Plate keeps only what the rich text schema knows, so this pass only has
 // to fix what Plate would misread: Word's paragraph "lists" and junk, heading
-// levels, a link's underline, and whitespace at the end of a block.
+// levels, lines and cells (`structureBlocks`), a link's underline, and
+// whitespace at the end of a block.
 
 /** Removed with their content. */
 const REMOVED_TAGS: ReadonlySet<string> = new Set([
@@ -29,10 +27,13 @@ const HEADING_TAG = /^H([1-6])$/;
 const HEADINGS = "h1, h2, h3, h4, h5, h6";
 /** The span Word writes a list item's bullet or number in. */
 const WORD_MARKER = 'span[style*="mso-list:Ignore"]';
-/** Blocks that hold text directly. */
+/** Blocks that hold text directly, and the ones that become paragraphs. */
 const TEXT_BLOCKS = [
   "blockquote",
+  "caption",
+  "dd",
   "div",
+  "dt",
   "h1",
   "h2",
   "h3",
@@ -41,6 +42,8 @@ const TEXT_BLOCKS = [
   "h6",
   "li",
   "p",
+  "td",
+  "th",
 ];
 const BLOCK_NODE_NAMES: ReadonlySet<string> = new Set(
   [...TEXT_BLOCKS, "hr", "ol", "table", "ul"].map((tag) => tag.toUpperCase())
@@ -60,7 +63,7 @@ export function normalizePastedHtml(html: string): string {
   convertWordLists(root);
   markWordWebListLevels(root);
   trimBlockEnds(root);
-  unwrapBlockParagraphs(root);
+  structureBlocks(root);
   dropLinkUnderline(root);
   shiftHeadings(root);
   // Last, once every list is final.
@@ -135,9 +138,6 @@ const wordListLevel = (node: Node): number | undefined => {
   );
   return match ? Number(match[2]) : undefined;
 };
-
-const isBlankText = (node: Node): boolean =>
-  node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() === "";
 
 function convertWordLists(root: HTMLElement): void {
   const converted = new Set<Element>();
@@ -290,46 +290,6 @@ function trimTrailingText(start: Node | null): boolean {
   return false;
 }
 
-// ── Paragraphs inside list items and quotes ──
-
-const isBreakOrList = (node: Node): boolean =>
-  node.nodeName === "BR" || LIST_TAGS.has(node.nodeName);
-
-function contentSibling(
-  node: Node,
-  side: "nextSibling" | "previousSibling"
-): Node | null {
-  let sibling = node[side];
-  while (sibling && isBlankText(sibling)) {
-    sibling = sibling[side];
-  }
-  return sibling;
-}
-
-/**
- * Each `<p>` directly in an `<li>` or `<blockquote>` unwrapped, with a `<br>`
- * between it and the content beside it, so its words never run into the
- * next paragraph's. A nested list needs no break; an empty paragraph goes.
- */
-function unwrapBlockParagraphs(root: HTMLElement): void {
-  for (const paragraph of root.querySelectorAll("li > p, blockquote > p")) {
-    if ((paragraph.textContent ?? "").trim() === "") {
-      paragraph.remove();
-      continue;
-    }
-    const before = contentSibling(paragraph, "previousSibling");
-    if (before && !isBreakOrList(before)) {
-      paragraph.before(paragraph.ownerDocument.createElement("br"));
-    }
-    // A paragraph after this one adds its own break.
-    const after = contentSibling(paragraph, "nextSibling");
-    if (after && !isBreakOrList(after) && after.nodeName !== "P") {
-      paragraph.after(paragraph.ownerDocument.createElement("br"));
-    }
-    unwrap(paragraph);
-  }
-}
-
 /**
  * Google Docs and Word on the web underline a link's text with an inline
  * style. That is the link's look, not an underline the writer chose.
@@ -357,16 +317,6 @@ function shiftHeadings(root: HTMLElement): void {
       rename(heading, tag.toLowerCase());
     }
   }
-}
-
-function rename(el: Element, tag: string): void {
-  const renamed = el.ownerDocument.createElement(tag);
-  renamed.append(...Array.from(el.childNodes));
-  el.replaceWith(renamed);
-}
-
-function unwrap(el: Element): void {
-  el.replaceWith(...Array.from(el.childNodes));
 }
 
 // ── Plain text ──
