@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { TextBlock } from "@/editor/types";
 import { TextRender } from "./render";
+import { RICH_CLASS } from "./render-classes";
 
 const block = (text: string): TextBlock => ({
   body: [{ text, type: "p" }],
@@ -83,5 +84,29 @@ describe("TextRender in the redesign's type", () => {
     ]);
     expect(html).toContain("type-heading-card");
     expect(html).toContain("type-body");
+  });
+});
+
+/** `RICH_CLASS` as React writes it into the class attribute. */
+const RICH_ATTR = RICH_CLASS.replaceAll("&", "&amp;").replaceAll(">", "&gt;");
+
+const renderBody = (body: string) =>
+  renderToStaticMarkup(
+    <TextRender
+      block={{ body, id: "t", type: "text" }}
+      edit={false}
+      onPatch={noPatch}
+    />
+  );
+
+describe("TextRender with an HTML body", () => {
+  test("a string body renders its HTML inside the rich wrapper", () => {
+    expect(renderBody("<h2>T</h2><ul><li>x</li></ul>")).toBe(
+      `<div class="${RICH_ATTR}"><h2>T</h2><ul><li>x</li></ul></div>`
+    );
+  });
+
+  test("a blank string body renders nothing on the site", () => {
+    expect(renderBody("<p> </p>")).toBe("");
   });
 });

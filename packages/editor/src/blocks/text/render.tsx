@@ -1,13 +1,16 @@
 "use client";
 
-import { createElement, type ReactNode, useMemo } from "react";
+import { createElement, type ReactNode, Suspense, useMemo } from "react";
 import { isBlankHtml } from "@/blocks/_v2/blank";
 import { knownKey } from "@/blocks/_v2/known-key";
 import { listOf } from "@/blocks/_v2/list";
 import type { PatchFn } from "@/blocks/types";
 import { useInEditor } from "@/editor/callbacks";
 import type { TextBlock, TextBodyItem } from "@/editor/types";
-import { sanitizeRichText } from "@/lib/sanitize";
+import { sanitizeRichBody, sanitizeRichText } from "@/lib/sanitize";
+import { bodyToHtml, isLegacyBody } from "./body";
+import { RichTextField, useMounted } from "./lazy-field";
+import { RICH_CLASS } from "./render-classes";
 
 const HTML_PROP = "dangerouslySetInnerHTML";
 
@@ -26,16 +29,77 @@ interface Props {
   onPatch: PatchFn;
 }
 
+/**
+ * A text block. In edit mode, any body is one Plate field on the canvas. On
+ * the site, an HTML body renders in the rich wrapper and a legacy array
+ * renders exactly as it always has.
+ */
 export function TextRender({ block, edit, onPatch }: Props) {
-  const items = listOf<TextBodyItem>(block.body);
-  if (!edit && items.every((item) => isBlankHtml(item.text))) {
+  if (edit) {
+    return <EditBody block={block} onPatch={onPatch} />;
+  }
+  if (isLegacyBody(block.body)) {
+    return <LegacyBody body={block.body} />;
+  }
+  if (isBlankHtml(block.body)) {
     return null;
   }
-  const change = (index: number) => (html: string) => {
-    const body = [...items];
-    body[index] = { ...body[index], text: html };
-    onPatch("body", body);
-  };
+  return <RichBody html={block.body} />;
+}
+
+/**
+ * The canvas field, drawn once the client has mounted and its chunk has
+ * loaded. Until then, and on the server, the body shows as on the site.
+ */
+function EditBody({ block, onPatch }: { block: TextBlock; onPatch: PatchFn }) {
+  const mounted = useMounted();
+  const html = bodyToHtml(block.body);
+  const fallback = <RichBody html={html} />;
+  if (!mounted) {
+    return fallback;
+  }
+  return (
+    <Suspense fallback={fallback}>
+      <RichTextField
+        html={html}
+        label="Rich text"
+        onChange={(next) =>
+          onPatch("body", next, { coalesce: `${block.id}:body` })
+        }
+        variant="canvas"
+      />
+    </Suspense>
+  );
+}
+
+/**
+ * Body HTML in the public wrapper. The public routes sanitize on the server
+ * (`@repo/editor/sanitize`) before the document reaches this renderer.
+ * Inside the editor the markup is sanitized again before it runs in the
+ * admin session: old rows, direct table writes, copilot or translate output
+ * and legacy bodies turned into HTML reach the canvas before any save cleans
+ * them. Memoized on the string, so it is cleaned once per change.
+ */
+function RichBody({ html }: { html: string }) {
+  const inEditor = useInEditor();
+  const markup = useMemo(
+    () => ({
+      __html:
+        inEditor && typeof document !== "undefined"
+          ? sanitizeRichBody(html)
+          : html,
+    }),
+    [inEditor, html]
+  );
+  return createElement("div", { className: RICH_CLASS, [HTML_PROP]: markup });
+}
+
+/** A legacy array body on the site: one element per item, as always. */
+function LegacyBody({ body }: { body: TextBodyItem[] }) {
+  const items = listOf<TextBodyItem>(body);
+  if (items.every((item) => isBlankHtml(item.text))) {
+    return null;
+  }
 
   // Consecutive list items share one <ul>; every other item stands alone.
   const nodes: ReactNode[] = [];
@@ -58,9 +122,7 @@ export function TextRender({ block, edit, onPatch }: Props) {
   items.forEach((stored, i) => {
     // An unknown item type (copilot output) is a paragraph.
     const item = { ...stored, type: knownKey(ITEM_CLASS, stored.type, "p") };
-    const node = (
-      <BodyItem edit={edit} item={item} key={i} onChange={change(i)} />
-    );
+    const node = <BodyItem item={item} key={i} />;
     if (item.type === "li") {
       run.push(node);
       return;
@@ -77,40 +139,17 @@ export function TextRender({ block, edit, onPatch }: Props) {
   );
 }
 
-function BodyItem({
-  item,
-  edit,
-  onChange,
-}: {
-  item: TextBodyItem;
-  edit: boolean;
-  onChange: (html: string) => void;
-}) {
-  const editProps = edit
-    ? ({
-        contentEditable: true,
-        suppressContentEditableWarning: true,
-        "data-edit": "1",
-        onBlur: (e: React.FocusEvent<HTMLElement>) =>
-          onChange(sanitizeRichText(e.currentTarget.innerHTML)),
-        role: "textbox",
-        tabIndex: 0,
-      } as Record<string, unknown>)
-    : {};
-
-  // The stored value is sanitized HTML. It is rendered as markup in both
-  // modes: as a text child it was escaped, and every blur then re-saved the
-  // escaped form, so "&" became "&amp;amp;" one blur at a time.
+function BodyItem({ item }: { item: TextBodyItem }) {
+  // The stored value is sanitized HTML, rendered as markup.
   //
   // The object is memoized on the stored text: React writes innerHTML
-  // whenever the prop's identity changes, and a fresh object on every
-  // render (hover, selection) would wipe whatever is being typed.
+  // whenever the prop's identity changes.
   //
-  // Inside the editor, in edit and preview alike, the markup is sanitized
-  // again before it runs in the admin session: old rows, direct table writes
-  // and copilot or translate output reach the canvas before any save cleans
-  // them. The public routes sanitize on the server (`@repo/editor/sanitize`)
-  // before the document reaches this renderer.
+  // Inside the editor (preview) the markup is sanitized again before it runs
+  // in the admin session: old rows, direct table writes and copilot or
+  // translate output reach the canvas before any save cleans them. The
+  // public routes sanitize on the server (`@repo/editor/sanitize`) before
+  // the document reaches this renderer.
   const inEditor = useInEditor();
   const html = useMemo(
     () => ({
@@ -122,7 +161,6 @@ function BodyItem({
     [inEditor, item.text]
   );
   const props = {
-    ...editProps,
     className: ITEM_CLASS[item.type],
     [HTML_PROP]: html,
   };

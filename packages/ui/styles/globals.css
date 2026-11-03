@@ -342,6 +342,7 @@ html {
   .type-display-hero,
   .type-display-lg,
   .type-display-sm,
+  .pg-rich > h2,
   .type-heading-section,
   .type-label {
     font-family: var(--font-display);
@@ -381,7 +382,8 @@ html {
     letter-spacing: -0.015em;
   }
 
-  .type-display-sm {
+  .type-display-sm,
+  .pg-rich > h2 {
     font-size: clamp(1.5rem, 3vw, 2.25rem);
     font-weight: 800;
     line-height: 0.95;
@@ -403,7 +405,8 @@ html {
   }
 
   /* Body roles keep the UI face and sentence case. */
-  .type-heading-card {
+  .type-heading-card,
+  .pg-rich > h3 {
     font-family: var(--font-sans);
     font-size: 1.0625rem;
     font-weight: 700;
@@ -411,7 +414,8 @@ html {
     text-wrap: balance;
   }
 
-  .type-body {
+  .type-body,
+  .pg-rich :is(p, li, blockquote) {
     font-family: var(--font-sans);
     font-size: 1rem;
     font-weight: 400;
