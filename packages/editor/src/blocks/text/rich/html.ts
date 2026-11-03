@@ -144,7 +144,7 @@ const LINE_BREAK_PARENTS: ReadonlySet<string> = new Set(["P", "SPAN"]);
  * break, as a browser shows it. One between top-level blocks is left to be
  * an empty paragraph.
  */
-function keepLineBreaks(root: HTMLElement): void {
+export function keepLineBreaks(root: HTMLElement): void {
   for (const br of Array.from(root.querySelectorAll("br"))) {
     const parent = br.parentElement;
     if (parent && parent !== root && !LINE_BREAK_PARENTS.has(parent.tagName)) {

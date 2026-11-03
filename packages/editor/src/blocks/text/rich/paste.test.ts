@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { textSwatches } from "@repo/shared/utils/text-colours";
 import { Window } from "happy-dom";
 import { createSlatePlugin, type Value } from "platejs";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
@@ -41,8 +42,12 @@ const clipboard = (entries: Record<string, string>): DataTransfer =>
 const SLATE_FRAGMENT = "application/x-slate-fragment";
 
 /** The editor after pasting `data` at the end of `startHtml`. */
-function pastedEditor(data: DataTransfer, startHtml = "") {
-  const editor = createConversionEditor([RichPastePlugin]);
+function pastedEditor(
+  data: DataTransfer,
+  startHtml = "",
+  paste: typeof RichPastePlugin = RichPastePlugin
+) {
+  const editor = createConversionEditor([paste]);
   editor.tf.setValue(htmlToValue(startHtml));
   editor.tf.select(editor.api.end([]));
   editor.tf.insertData(data);
@@ -78,13 +83,63 @@ const EXPECTED =
   '<ol start="2"><li>Run the events</li></ol>' +
   '<p>Read the <em>full</em> <u>handbook</u> at <a href="https://biso.no">biso.no</a>.</p>';
 
+// Desktop Word's `color:#C00000` run is the one colour the reference
+// document holds; every other source writes only body ink and link colours.
+const EXPECTED_WORD = EXPECTED.replace(
+  "for the student experience.",
+  'for the <span data-color="red">student experience</span>.'
+);
+
+test.each([
+  ["word-desktop", EXPECTED_WORD],
+  ["google-docs", EXPECTED],
+  ["word-web", EXPECTED],
+  ["web-page", EXPECTED],
+])("%s pastes as the reference document", (name, expected) => {
+  expect(pasteInto(fixture(name))).toBe(expected);
+});
+
+// One three-row table in each source's markup: a bold first row (a header
+// row on the web page), a mailto link, and a last row merged across.
+const TABLE_EXPECTED =
+  "<table><tbody><tr><td><strong>Campus</strong></td><td><strong>Contact</strong></td></tr>" +
+  '<tr><td>Oslo</td><td><a href="mailto:oslo@biso.no">oslo@biso.no</a></td></tr>' +
+  '<tr><td colspan="2">Bergen opens in spring</td></tr></tbody></table>';
+const WEB_TABLE_EXPECTED =
+  "<p>Contacts</p><table><thead><tr><th>Campus</th><th>Contact</th></tr></thead><tbody>" +
+  '<tr><td>Oslo</td><td><a href="mailto:oslo@biso.no">oslo@biso.no</a></td></tr>' +
+  '<tr><td colspan="2">Bergen opens in spring</td></tr></tbody></table>';
+
 test.each([
   "word-desktop",
   "google-docs",
   "word-web",
-  "web-page",
-])("%s pastes as the reference document", (name) => {
-  expect(pasteInto(fixture(name))).toBe(EXPECTED);
+])("%s table pastes as a real table", (name) => {
+  expect(pasteInto(fixture(`${name}-table`))).toBe(TABLE_EXPECTED);
+});
+
+test("a web page table keeps its header row and caption", () => {
+  expect(pasteInto(fixture("web-page-table"))).toBe(WEB_TABLE_EXPECTED);
+});
+
+test("a pasted cell's paragraphs are its lines", () => {
+  expect(
+    pasteInto(
+      "<table><tr><td><p>a</p><p><b>b</b></p></td><td>c</td></tr></table>"
+    )
+  ).toBe(
+    "<table><tbody><tr><td>a<br><strong>b</strong></td><td>c</td></tr></tbody></table>"
+  );
+});
+
+test("a pasted table into an empty field is just the table", () => {
+  const editor = pastedEditor(
+    clipboard({ "text/html": "<table><tr><td>a</td></tr></table>" })
+  );
+  expect(valueToHtml(editor.children)).toBe(
+    "<table><tbody><tr><td>a</td></tr></tbody></table>"
+  );
+  expect(editor.children[0]?.type).toBe("table");
 });
 
 // Each fixture keeps the source markup it stands in for, so an edit cannot
@@ -130,6 +185,41 @@ test.each([
   ["web-page", "<u>"],
   ["web-page", 'class="'],
   ["web-page", 'style="'],
+  ["word-desktop-table", "class=MsoTableGrid"],
+  ["word-desktop-table", "<td width="],
+  ["word-desktop-table", "valign=top"],
+  ["word-desktop-table", "<p class=MsoNormal"],
+  ["word-desktop-table", "<o:p></o:p>"],
+  ["word-desktop-table", "<b>"],
+  ["word-desktop-table", "colspan=2"],
+  [
+    "google-docs-table",
+    '<b style="font-weight:normal;" id="docs-internal-guid-',
+  ],
+  [
+    "google-docs-table",
+    '<div dir="ltr" style="margin-left:0pt;" align="left">',
+  ],
+  ["google-docs-table", "<colgroup>"],
+  ["google-docs-table", '<p dir="ltr"'],
+  ["google-docs-table", "font-weight:700"],
+  ["google-docs-table", "color:#000000"],
+  ["google-docs-table", 'colspan="2"'],
+  ["word-web-table", 'class="TableContainer'],
+  ["word-web-table", 'class="Table '],
+  ["word-web-table", 'class="TableCellElement'],
+  ["word-web-table", 'class="TableCellContent'],
+  ["word-web-table", 'class="OutlineElement'],
+  ["word-web-table", 'class="Paragraph'],
+  ["word-web-table", 'class="TextRun'],
+  ["word-web-table", "font-weight: bold"],
+  ["word-web-table", 'colspan="2"'],
+  ["web-page-table", "<caption>Contacts</caption>"],
+  ["web-page-table", '<thead><tr><th scope="col"'],
+  ["web-page-table", 'class="'],
+  ["web-page-table", 'style="'],
+  ["web-page-table", "color: rgb(55, 65, 81)"],
+  ["web-page-table", 'colspan="2"'],
 ])("the %s fixture holds %s", (name, marker) => {
   expect(fixture(name)).toContain(marker);
 });
@@ -258,15 +348,17 @@ test("Word on the web's heading paragraphs are headings", () => {
   ).toBe("<h2>A</h2><h3>B</h3><p>c</p>");
 });
 
+// A line break outside a `p` is in a span of its own (`keepLineBreaks`), so
+// Plate reads it as a line break, as it does a stored body's.
 test("paragraphs inside a list item or a quote are joined by line breaks", () => {
   expect(normalizePastedHtml("<ul><li><p>a</p><p>b</p></li></ul>")).toBe(
-    "<ul><li>a<br>b</li></ul>"
+    "<ul><li>a<span><br></span>b</li></ul>"
   );
   expect(normalizePastedHtml("<blockquote><p>a</p><p>b</p></blockquote>")).toBe(
-    "<blockquote>a<br>b</blockquote>"
+    "<blockquote>a<span><br></span>b</blockquote>"
   );
   expect(normalizePastedHtml("<ul><li><p>a</p>tail</li></ul>")).toBe(
-    "<ul><li>a<br>tail</li></ul>"
+    "<ul><li>a<span><br></span>tail</li></ul>"
   );
   expect(normalizePastedHtml("<ul><li><p>a</p><p><br></p></li></ul>")).toBe(
     "<ul><li>a</li></ul>"
@@ -516,6 +608,172 @@ test("a link's own underline is its look, not a mark", () => {
       '<p><a href="https://biso.no"><span style="text-decoration:underline">x</span></a> <u>y</u></p>'
     )
   ).toBe('<p><a href="https://biso.no">x</a> <u>y</u></p>');
+});
+
+// ── Colour ──
+// A pasted colour takes the nearest swatch, or none: a colour on a block, in
+// a heading or on a link is the source's layout, and so is the colour most
+// of the text is in.
+
+const PURPLE_SWATCHES = textSwatches({ dark: "#3b1c6b", accent: "#fecd45" });
+
+test.each([
+  [
+    '<p>a <span style="color:#C00000">b</span></p>',
+    '<p>a <span data-color="red">b</span></p>',
+  ],
+  [
+    '<p>a <font color="#0070c0">b</font></p>',
+    '<p>a <span data-color="accent">b</span></p>',
+  ],
+  [
+    '<p>a <span style="background-color:#c00000;-webkit-tap-highlight-color:transparent">b</span></p>',
+    "<p>a b</p>",
+  ],
+  ['<p>a <span style="color:#7030a0">b</span></p>', "<p>a b</p>"],
+  ['<p style="color:#c00000">a</p>', "<p>a</p>"],
+  [
+    '<h2><span style="color:#c00000">T</span></h2><p>x</p>',
+    "<h2>T</h2><p>x</p>",
+  ],
+  [
+    '<p><a href="https://biso.no"><span style="color:#0563c1">l</span></a> x</p>',
+    '<p><a href="https://biso.no">l</a> x</p>',
+  ],
+  [
+    '<p><span style="color:#c00000">a<span style="color:#00b050">b</span></span> c</p>',
+    '<p><span data-color="red">a</span><span data-color="green">b</span> c</p>',
+  ],
+  // Word on the web writes `!important`; a browser copy writes `rgb()`.
+  [
+    '<p>a <span style="color: rgb(192, 0, 0) !important">b</span></p>',
+    '<p>a <span data-color="red">b</span></p>',
+  ],
+  // Any inline element maps; one that is not a span gets a span inside.
+  [
+    '<p>a <b style="color:#c00000">b</b></p>',
+    '<p>a <span data-color="red"><strong>b</strong></span></p>',
+  ],
+  ['<div style="color:#c00000">a</div>', "<p>a</p>"],
+  ['<p>a <cite style="color:#c00000">b</cite></p>', "<p>a b</p>"],
+  // Body ink is no colour.
+  ['<p>a <span style="color:#000000">b</span></p>', "<p>a b</p>"],
+])("pasted colour %s", (input, out) => {
+  expect(pasteInto(input)).toBe(out);
+});
+
+// Each text is in the colour of the innermost element that sets one, as a
+// browser paints it: body ink inside a coloured run is no colour, and a link
+// inside one keeps none.
+test.each([
+  [
+    '<p><span style="color:#c00000">a <span style="color:#000000">b</span></span> c d e</p>',
+    '<p><span data-color="red">a </span>b c d e</p>',
+  ],
+  [
+    '<p><span style="color:#c00000">see <a href="https://biso.no">here</a> now</span> and some more plain words</p>',
+    '<p><span data-color="red">see </span><a href="https://biso.no">here</a><span data-color="red"> now</span> and some more plain words</p>',
+  ],
+])("the innermost colour %s", (input, out) => {
+  expect(pasteInto(input)).toBe(out);
+});
+
+// Colour comes from CSS alone. A copy from a page that stores tokens carries
+// the colour it paints in (a browser inlines it), which maps back.
+test.each([
+  ['<p><span data-color="red">a</span> b</p>', "<p>a b</p>"],
+  [
+    '<p><span data-color="red" style="color: rgb(179, 38, 30)">a</span> b</p>',
+    '<p><span data-color="red">a</span> b</p>',
+  ],
+  [
+    '<h2><span data-color="red" style="color: rgb(179, 38, 30)">T</span></h2><p>x</p>',
+    "<h2>T</h2><p>x</p>",
+  ],
+])("a pasted colour token %s is read from its CSS colour", (input, out) => {
+  expect(pasteInto(input)).toBe(out);
+});
+
+test("a colour on most of the paste is the source's text colour and is dropped", () => {
+  expect(
+    pasteInto(
+      '<p><span style="color:#595959">all</span></p><p><span style="color:#595959">of it</span></p>'
+    )
+  ).toBe("<p>all</p><p>of it</p>");
+});
+
+test("grey body with one red word keeps only the red", () => {
+  expect(
+    pasteInto(
+      '<p><span style="color:#595959">Most of the text is grey and </span><span style="color:#c00000">red</span></p>'
+    )
+  ).toBe(
+    '<p>Most of the text is grey and <span data-color="red">red</span></p>'
+  );
+});
+
+test("a colour on exactly half of the text is the writer's", () => {
+  expect(pasteInto('<p><span style="color:#c00000">ab</span> cd</p>')).toBe(
+    '<p><span data-color="red">ab</span> cd</p>'
+  );
+});
+
+test("the text colour is dropped and the rest of the span's style kept", () => {
+  expect(
+    pasteInto(
+      '<p><span style="color:#595959;font-weight:700">all bold</span> x</p>'
+    )
+  ).toBe("<p><strong>all bold</strong> x</p>");
+});
+
+test("heading and link text do not count towards the text colour", () => {
+  expect(
+    pasteInto(
+      '<h2>A heading longer than the text</h2><p><span style="color:#c00000">red</span> x <a href="https://biso.no">a long link text</a></p>'
+    )
+  ).toBe(
+    '<h2>A heading longer than the text</h2><p>red x <a href="https://biso.no">a long link text</a></p>'
+  );
+});
+
+test("colours map against the page's own theme", () => {
+  expect(
+    normalizePastedHtml(
+      '<p>a <span style="color:#fecd45">b</span></p>',
+      PURPLE_SWATCHES
+    )
+  ).toContain('data-color="accent"');
+  expect(
+    normalizePastedHtml('<p>a <span style="color:#fecd45">b</span></p>')
+  ).not.toContain("data-color");
+});
+
+test("the paste plugin maps colours against its swatches option", () => {
+  const html = '<p>a <span style="color:#fecd45">b</span></p>';
+  expect(pasteInto(html)).toBe("<p>a b</p>");
+  const configured = pastedEditor(
+    clipboard({ "text/html": html }),
+    "",
+    RichPastePlugin.configure({ options: { swatches: PURPLE_SWATCHES } })
+  );
+  expect(valueToHtml(configured.children)).toBe(
+    '<p>a <span data-color="accent">b</span></p>'
+  );
+  const editor = createConversionEditor([RichPastePlugin]);
+  editor.tf.setValue(htmlToValue(""));
+  editor.tf.select(editor.api.end([]));
+  editor.setOption(RichPastePlugin, "swatches", PURPLE_SWATCHES);
+  editor.tf.insertData(clipboard({ "text/html": html }));
+  expect(valueToHtml(editor.children)).toBe(
+    '<p>a <span data-color="accent">b</span></p>'
+  );
+});
+
+// Paste reads a line break as loading a stored body does (`keepLineBreaks`).
+test("a line break between marked runs in a list item stays a line break", () => {
+  expect(pasteInto("<ul><li><strong>a</strong><br><em>b</em></li></ul>")).toBe(
+    "<ul><li><strong>a</strong><br><em>b</em></li></ul>"
+  );
 });
 
 test("Word on the web's end-of-paragraph mark and Chrome's trailing newline add nothing", () => {

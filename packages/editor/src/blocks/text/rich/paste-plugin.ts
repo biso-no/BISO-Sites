@@ -1,4 +1,12 @@
-import { createSlatePlugin, RangeApi, type SlateEditor } from "platejs";
+import { type TextSwatch, textSwatches } from "@repo/shared/utils/text-colours";
+import {
+  createTSlatePlugin,
+  KEYS,
+  NodeApi,
+  type PluginConfig,
+  RangeApi,
+  type SlateEditor,
+} from "platejs";
 import { isListItem, listDepths } from "./html";
 import {
   normalizePastedHtml,
@@ -64,15 +72,43 @@ function settleListDepths(editor: SlateEditor, from: number, to: number) {
 }
 
 /**
- * Paste through the normaliser. An in-editor copy is inserted as it is;
- * pasted HTML is normalised first; plain text with line breaks or a list
- * marker becomes HTML, so it reaches the same deserializer and its bullets
- * and numbers become lists. A single plain line is inserted as it is. Then
- * the pasted list items are put at the depths the save writes.
+ * The empty line a table was pasted into, removed. Plate puts a pasted table
+ * after the block the caret is in, and the save drops an empty line, so the
+ * canvas would show one the page never stores.
  */
-export const RichPastePlugin = createSlatePlugin({
+function dropEmptyLineBeforeTable(editor: SlateEditor, index: number): void {
+  const block = editor.children[index];
+  const isEmptyLine =
+    block !== undefined &&
+    block.type !== KEYS.table &&
+    !isListItem(block) &&
+    NodeApi.string(block) === "";
+  if (isEmptyLine && editor.children[index + 1]?.type === KEYS.table) {
+    editor.tf.removeNodes({ at: [index] });
+  }
+}
+
+export type RichPasteConfig = PluginConfig<
+  "richPaste",
+  {
+    /** What pasted colours map to: the page theme's swatches. */
+    swatches: readonly TextSwatch[];
+  }
+>;
+
+/**
+ * Paste through the normaliser. An in-editor copy is inserted as it is;
+ * pasted HTML is normalised first, its colours mapped to the `swatches`
+ * option; plain text with line breaks or a list marker becomes HTML, so it
+ * reaches the same deserializer and its bullets and numbers become lists. A
+ * single plain line is inserted as it is. Then the pasted list items are put
+ * at the depths the save writes, and an empty line a table was pasted into
+ * goes.
+ */
+export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
   key: "richPaste",
-}).overrideEditor(({ editor, tf: { insertData } }) => {
+  options: { swatches: textSwatches(null) },
+}).overrideEditor(({ editor, getOption, tf: { insertData } }) => {
   const insertNormalised = (data: DataTransfer): void => {
     if (data.types.includes(SLATE_FRAGMENT)) {
       insertData(data);
@@ -80,7 +116,9 @@ export const RichPastePlugin = createSlatePlugin({
     }
     const html = data.getData(HTML);
     if (html) {
-      insertData(withHtml(data, normalizePastedHtml(html)));
+      insertData(
+        withHtml(data, normalizePastedHtml(html, getOption("swatches")))
+      );
       return;
     }
     const text = data.getData(PLAIN);
@@ -95,6 +133,7 @@ export const RichPastePlugin = createSlatePlugin({
           ? (RangeApi.start(editor.selection).path[0] ?? 0)
           : 0;
         insertNormalised(data);
+        dropEmptyLineBeforeTable(editor, from);
         const to = editor.selection
           ? (editor.selection.focus.path[0] ?? from)
           : editor.children.length - 1;
