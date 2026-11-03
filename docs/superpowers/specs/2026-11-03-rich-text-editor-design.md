@@ -364,7 +364,7 @@ but those exact numbers are not.
 - Paste: Word, Google Docs and web tables now arrive as tables. Pasted text colours map to the nearest swatch or are dropped. A paste that loses images shows a short notice saying where images go.
 - Expand: a button opens the rich text field in a wide writing view over the page, with the same toolbar plus a menu for less-used controls. Esc or Close leaves it.
 - Field undo now continues into page undo when the field has nothing left to undo.
-- Verification (2026-11-03): lint on the 55 branch files Biome covers (57 changed, two CSS files ignored by Biome), clean. Forced `bun run check-types` 18 of 18, nothing cached. Editor tests 1671 pass, 0 fail. Shared 1205 pass; web `styles.test.ts` 37 pass. Admin builds compile. Web chunk check: the paste code is in one chunk, the public renderer's class string in another, and no file holds both. The public CSS carries the colour rules (2 files).
+- Verification (2026-11-03): lint ran on the 55 branch files Biome covers (57 changed, two CSS files ignored by Biome), clean. Forced `bun run check-types` passed 18 of 18, nothing cached. Editor tests: 1671 pass, 0 fail. Shared: 1205 pass. Web `styles.test.ts`: 37 pass. Admin `src/lib`: 845 pass and 1 fail, the known model-id mismatch in `content-translation.test.ts`, which also fails on main. Both the admin and the web build ran with `--force` and exited 0. Web chunk check: the paste code is in one chunk, the public renderer's class string is in a different one, and no file holds both. The built CSS has the colour rules in two files: one public file with the `.pg-rich [data-color]` rules and one editor file with the `.pe-rt-field` rules.
 
 ### Decisions made while building, and the cost if wrong
 
@@ -391,7 +391,16 @@ but those exact numbers are not.
 - While the link input is open, toolbar presses do not take a pending outside change. Cost: on Apply the user's link wins over a concurrent copilot change of that block.
 - Unknown or uppercase colour tokens are dropped; `data-color` is kept only on spans. Cost: none.
 - Canvas header cells look like the public page's (bold, header background). Cost: none.
-- The `scanBody` depth rule and the fixed-point merge of equal inline runs (two leaves with the same output become one). Cost: none, the HTML is equivalent.
+- The server tells a well-formed body from a malformed one before deciding how to cap depth, and neighbouring text runs with identical output are merged on save so saving twice gives the same HTML. Cost: none, the HTML is equivalent.
+- Paste assigns colour to each piece of text from the innermost colour that was painted on it. Cost: a word coloured inside a differently coloured phrase takes the word's colour only.
+- A `data-color` already on pasted HTML is stripped, so a copy from a BISO page goes through the same heading, link and majority rules as Word does. Cost: copying coloured text between two BISO pages can lose a colour that Word would have kept.
+- A table pasted into an empty line replaces that line. Cost: none known; the empty line is not kept.
+- The style select is narrowed to 80px with a drawn arrow, and the toolbar wraps only between groups, never inside one. Cost: a two-row toolbar at 308px.
+- Tab in the last row of a table with merged cells copies the merge, as Plate and Word do. An expanded selection inside one cell collapses to its end before row and column commands. Cost: a merged last row gets a merged new row; a word selected when you press Delete row acts on the cell, not on the word.
+- The saved HTML writes the same repaired grid the editor works on. A malformed stored table is saved as a whole grid after the next edit. Cost: an odd stored table changes shape on its first save.
+- The Header row button flips what the public page draws, not a separate flag: the header cells become body cells, or the first row (and rows its merged cells reach) becomes header cells. Cost: none known.
+- Delete column on a cell that spans every column deletes the whole table. Cost: one click removes a table that has a full-width merged cell.
+- Cell text uses the small body size, footer rows are saved as body rows, a caption becomes a paragraph before the table, and empty tables are kept. Cost: a table caption loses its caption styling; a table with a footer row loses the footer's grouping.
 
 ### Deferred
 
@@ -411,7 +420,7 @@ but those exact numbers are not.
 ### Owner hand checks
 
 - A wide table on a phone scrolls inside itself while the page does not.
-- Tables read by VoiceOver and NVDA on the public page (the table is `display:block`, which some screen readers handle badly).
+- Tables read by VoiceOver and NVDA on the public page (the table is drawn as a plain block so it can scroll sideways, which some screen readers handle badly).
 - Coloured text on paper, deep and photo sections under BISO and one department theme, including a dark section and a department theme.
 - Pasting a Word table on Mac (and Windows if available), and a real Word or Google Docs paste of a table with coloured text.
 - The Expand view's look, and at a short window.
