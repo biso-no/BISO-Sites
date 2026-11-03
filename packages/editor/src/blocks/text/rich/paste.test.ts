@@ -197,6 +197,72 @@ test("a pasted table into an empty field is just the table", () => {
   expect(editor.children[0]?.type).toBe("table");
 });
 
+const IN_CELL =
+  "<p>before</p><table><tbody><tr><td>x</td><td>y</td></tr></tbody></table><p>after</p>";
+
+/** A field's editor (node ids on) holding `IN_CELL`, the caret after "x". */
+function editorInCell() {
+  const editor = createConversionEditor([RichPastePlugin], { nodeId: true });
+  editor.tf.setValue(htmlToValue(IN_CELL));
+  editor.tf.normalize({ force: true });
+  editor.tf.select(editor.api.end([1, 0, 0]));
+  return editor;
+}
+
+// Paste never nests a table and never writes over cells.
+test("text and a table pasted into a cell go after the table, whole", () => {
+  const editor = editorInCell();
+  const table = structuredClone(editor.children[1]);
+  editor.tf.insertData(
+    clipboard({
+      "text/html":
+        "<p>Intro</p><table><caption>Contacts</caption><thead><tr><th>Campus</th><th>Who</th></tr></thead>" +
+        '<tbody><tr><td rowspan="2">Oslo</td><td>Ada</td></tr><tr><td>Bo</td></tr></tbody></table><p>Outro</p>',
+    })
+  );
+  expect(valueToHtml(editor.children)).toBe(
+    "<p>before</p><table><tbody><tr><td>x</td><td>y</td></tr></tbody></table>" +
+      "<p>Intro</p><p>Contacts</p><table><thead><tr><th>Campus</th><th>Who</th></tr></thead>" +
+      '<tbody><tr><td rowspan="2">Oslo</td><td>Ada</td></tr><tr><td>Bo</td></tr></tbody></table>' +
+      "<p>Outro</p><p>after</p>"
+  );
+  expect(editor.children[1]).toEqual(table);
+  expect(editor.selection?.anchor).toEqual(editor.api.end([5]));
+});
+
+test("a table alone pasted into a cell goes after the table", () => {
+  const editor = editorInCell();
+  const table = structuredClone(editor.children[1]);
+  editor.tf.insertData(
+    clipboard({ "text/html": "<table><tr><td>a</td><td>b</td></tr></table>" })
+  );
+  expect(valueToHtml(editor.children)).toBe(
+    "<p>before</p><table><tbody><tr><td>x</td><td>y</td></tr></tbody></table>" +
+      "<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table><p>after</p>"
+  );
+  expect(editor.children[1]).toEqual(table);
+});
+
+test("a table copied in the field and pasted into a cell goes after the table", () => {
+  const editor = editorInCell();
+  const [copied] = htmlToValue("<table><tr><td>a</td><td>b</td></tr></table>");
+  editor.tf.insertFragment([copied as Value[number]]);
+  expect(valueToHtml(editor.children)).toBe(
+    "<p>before</p><table><tbody><tr><td>x</td><td>y</td></tr></tbody></table>" +
+      "<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table><p>after</p>"
+  );
+});
+
+test("a paste with no table into a cell stays in the cell, its blocks as lines", () => {
+  const editor = editorInCell();
+  editor.tf.insertData(
+    clipboard({ "text/html": "<p><b>one</b></p><h2>two</h2>" })
+  );
+  expect(valueToHtml(editor.children)).toBe(
+    "<p>before</p><table><tbody><tr><td>x<strong>one</strong><br>two</td><td>y</td></tr></tbody></table><p>after</p>"
+  );
+});
+
 // Each fixture keeps the source markup it stands in for, so an edit cannot
 // quietly turn it into easy HTML.
 test.each([

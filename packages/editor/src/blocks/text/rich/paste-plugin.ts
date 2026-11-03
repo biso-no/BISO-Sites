@@ -1,8 +1,11 @@
 import { type TextSwatch, textSwatches } from "@repo/shared/utils/text-colours";
 import {
   createTSlatePlugin,
+  type Descendant,
+  ElementApi,
   KEYS,
   NodeApi,
+  PathApi,
   type PluginConfig,
   RangeApi,
   type SlateEditor,
@@ -98,6 +101,40 @@ function dropEmptyLineBeforeTable(
   }
 }
 
+/**
+ * A paste with a table in it while the caret is in a cell: the whole of it
+ * after the caret's table, its blocks as they came, and the caret at its
+ * end. The caret's table is left as it is, so a paste never nests a table
+ * and never writes over cells. Whether it went there.
+ */
+function insertAfterTable(
+  editor: SlateEditor,
+  fragment: Descendant[]
+): boolean {
+  const anchor = editor.selection?.anchor;
+  const hasTable = fragment.some(
+    (node) => ElementApi.isElement(node) && node.type === KEYS.table
+  );
+  const table =
+    anchor && hasTable
+      ? editor.api.above({
+          at: anchor,
+          match: { type: KEYS.table },
+          mode: "highest",
+        })
+      : undefined;
+  if (!table) {
+    return false;
+  }
+  const at = PathApi.next(table[1]);
+  editor.tf.insertNodes(structuredClone(fragment), { at });
+  const last = editor.api.end([at[0] + fragment.length - 1]);
+  if (last) {
+    editor.tf.select(last);
+  }
+  return true;
+}
+
 export type RichPasteConfig = PluginConfig<
   "richPaste",
   {
@@ -119,56 +156,68 @@ export type RichPasteConfig = PluginConfig<
  * single plain line is inserted as it is. Then the pasted list items are put
  * at the depths the save writes, and an empty line a table was pasted into
  * goes. A paste with an image in it (HTML or a file) counts one
- * `imageNotices`; the paste itself is unchanged.
+ * `imageNotices`; the paste itself is unchanged. A table pasted in a cell
+ * goes after the table, with the rest of the paste (`insertAfterTable`).
  */
 export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
   key: "richPaste",
   options: { imageNotices: 0, swatches: textSwatches(null) },
-}).overrideEditor(({ editor, getOption, setOption, tf: { insertData } }) => {
-  const insertNormalised = (data: DataTransfer): void => {
-    if (data.types.includes(SLATE_FRAGMENT)) {
-      insertData(data);
-      return;
-    }
-    const html = data.getData(HTML);
-    if (html) {
+}).overrideEditor(
+  ({ editor, getOption, setOption, tf: { insertData, insertFragment } }) => {
+    const insertNormalised = (data: DataTransfer): void => {
+      if (data.types.includes(SLATE_FRAGMENT)) {
+        insertData(data);
+        return;
+      }
+      const html = data.getData(HTML);
+      if (html) {
+        insertData(
+          withHtml(data, normalizePastedHtml(html, getOption("swatches")))
+        );
+        return;
+      }
+      const text = data.getData(PLAIN);
       insertData(
-        withHtml(data, normalizePastedHtml(html, getOption("swatches")))
+        plainTextHasStructure(text)
+          ? withHtml(data, plainTextToHtml(text))
+          : data
       );
-      return;
-    }
-    const text = data.getData(PLAIN);
-    insertData(
-      plainTextHasStructure(text) ? withHtml(data, plainTextToHtml(text)) : data
-    );
-  };
-  /** Whether the paste holds a picture the text will not keep. */
-  const dropsImage = (data: DataTransfer): boolean => {
-    const html = data.types.includes(SLATE_FRAGMENT) ? "" : data.getData(HTML);
-    return (
-      (html !== "" && pastedImageCount(html) > 0) ||
-      Array.from(data.files ?? []).some((file) =>
-        file?.type.startsWith("image/")
-      )
-    );
-  };
-  return {
-    transforms: {
-      insertData(data: DataTransfer) {
-        if (dropsImage(data)) {
-          setOption("imageNotices", getOption("imageNotices") + 1);
-        }
-        const from = editor.selection
-          ? (RangeApi.start(editor.selection).path[0] ?? 0)
-          : 0;
-        const nextBefore = editor.children[from + 1];
-        insertNormalised(data);
-        dropEmptyLineBeforeTable(editor, from, nextBefore);
-        const to = editor.selection
-          ? (editor.selection.focus.path[0] ?? from)
-          : editor.children.length - 1;
-        settleListDepths(editor, from, to);
+    };
+    /** Whether the paste holds a picture the text will not keep. */
+    const dropsImage = (data: DataTransfer): boolean => {
+      const html = data.types.includes(SLATE_FRAGMENT)
+        ? ""
+        : data.getData(HTML);
+      return (
+        (html !== "" && pastedImageCount(html) > 0) ||
+        Array.from(data.files ?? []).some((file) =>
+          file?.type.startsWith("image/")
+        )
+      );
+    };
+    return {
+      transforms: {
+        insertFragment(fragment, options) {
+          if (!insertAfterTable(editor, fragment)) {
+            insertFragment(fragment, options);
+          }
+        },
+        insertData(data: DataTransfer) {
+          if (dropsImage(data)) {
+            setOption("imageNotices", getOption("imageNotices") + 1);
+          }
+          const from = editor.selection
+            ? (RangeApi.start(editor.selection).path[0] ?? 0)
+            : 0;
+          const nextBefore = editor.children[from + 1];
+          insertNormalised(data);
+          dropEmptyLineBeforeTable(editor, from, nextBefore);
+          const to = editor.selection
+            ? (editor.selection.focus.path[0] ?? from)
+            : editor.children.length - 1;
+          settleListDepths(editor, from, to);
+        },
       },
-    },
-  };
-});
+    };
+  }
+);
