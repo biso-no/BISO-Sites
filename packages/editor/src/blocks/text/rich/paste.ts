@@ -340,9 +340,10 @@ export function plainTextHasStructure(text: string): boolean {
 }
 
 /**
- * Plain text as HTML: blank-line-separated chunks become paragraphs, and a
- * chunk whose every line starts with `-`, `*` or `•` (or `1.`, `1)`) becomes
- * a bullet (or numbered, from its first number) list.
+ * Plain text as HTML: blank lines separate chunks. Within a chunk, a run of
+ * lines that start with `-`, `*` or `•` becomes a bullet list, a run that
+ * starts with `1.` or `1)` a numbered one (from its first number), and the
+ * lines between them one paragraph, joined by line breaks.
  */
 export function plainTextToHtml(text: string): string {
   return text
@@ -354,19 +355,46 @@ export function plainTextToHtml(text: string): string {
     .join("");
 }
 
+type LineKind = "ol" | "p" | "ul";
+
+function lineKind(line: string): LineKind {
+  if (BULLET_LINE.test(line)) {
+    return "ul";
+  }
+  return NUMBER_LINE.test(line) ? "ol" : "p";
+}
+
+/** Each run of adjacent lines of one kind, in order. */
+function lineRuns(chunk: string): { kind: LineKind; lines: string[] }[] {
+  const runs: { kind: LineKind; lines: string[] }[] = [];
+  for (const line of chunk.split("\n")) {
+    const kind = lineKind(line);
+    const run = runs.at(-1);
+    if (run?.kind === kind) {
+      run.lines.push(line);
+    } else {
+      runs.push({ kind, lines: [line] });
+    }
+  }
+  return runs;
+}
+
+function runToHtml({ kind, lines }: { kind: LineKind; lines: string[] }) {
+  if (kind === "p") {
+    return `<p>${lines.map(escapeText).join("<br>")}</p>`;
+  }
+  const marker = kind === "ul" ? BULLET_LINE : NUMBER_LINE;
+  const items = lines
+    .map((line) => `<li>${escapeText(line.replace(marker, ""))}</li>`)
+    .join("");
+  const start =
+    kind === "ol"
+      ? listStart(NUMBER_LINE.exec(lines[0] ?? "")?.[1] ?? "")
+      : undefined;
+  const startAttribute = start === undefined ? "" : ` start="${start}"`;
+  return `<${kind}${startAttribute}>${items}</${kind}>`;
+}
+
 function chunkToHtml(chunk: string): string {
-  const lines = chunk.split("\n");
-  const items = (marker: RegExp): string =>
-    lines
-      .map((line) => `<li>${escapeText(line.replace(marker, ""))}</li>`)
-      .join("");
-  if (lines.every((line) => BULLET_LINE.test(line))) {
-    return `<ul>${items(BULLET_LINE)}</ul>`;
-  }
-  if (lines.every((line) => NUMBER_LINE.test(line))) {
-    const start = listStart(NUMBER_LINE.exec(chunk)?.[1] ?? "");
-    const startAttribute = start === undefined ? "" : ` start="${start}"`;
-    return `<ol${startAttribute}>${items(NUMBER_LINE)}</ol>`;
-  }
-  return `<p>${lines.map(escapeText).join("<br>")}</p>`;
+  return lineRuns(chunk).map(runToHtml).join("");
 }

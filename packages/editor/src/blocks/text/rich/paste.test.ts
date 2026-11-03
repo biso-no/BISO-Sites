@@ -172,17 +172,32 @@ test.each([
   ["line1\r\nline2", "<p>line1<br>line2</p>"],
   ["3. a\n4. b", '<ol start="3"><li>a</li><li>b</li></ol>'],
   ["1. a", "<ol><li>a</li></ol>"],
+  // Marker lines are a list wherever they sit in a chunk; the lines between
+  // them stay a paragraph.
+  [
+    "Intro\n- a\n- b\nOutro",
+    "<p>Intro</p><ul><li>a</li><li>b</li></ul><p>Outro</p>",
+  ],
+  [
+    "Steps:\n3. c\n4. d",
+    '<p>Steps:</p><ol start="3"><li>c</li><li>d</li></ol>',
+  ],
+  [
+    "- a\nnote one\nnote two\n- b",
+    "<ul><li>a</li></ul><p>note one<br>note two</p><ul><li>b</li></ul>",
+  ],
+  ["- a\n1. b", "<ul><li>a</li></ul><ol><li>b</li></ol>"],
 ])("plain text %p", (plain, html) => expect(pasteInto(null, plain)).toBe(html));
 
 test("plain text that looks like markup stays text", () => {
   expect(pasteInto(null, "<b>x</b> & y\n- <i>z</i>")).toBe(
-    "<p>&lt;b&gt;x&lt;/b&gt; &amp; y<br>- &lt;i&gt;z&lt;/i&gt;</p>"
+    "<p>&lt;b&gt;x&lt;/b&gt; &amp; y</p><ul><li>&lt;i&gt;z&lt;/i&gt;</li></ul>"
   );
 });
 
-test("plain text: list and paragraph chunks mix, and several blank lines are one break", () => {
+test("plain text: list and paragraph lines mix, and several blank lines are one break", () => {
   expect(plainTextToHtml("Intro\n\n\n- a\n- b\n\n1. c\n2. d\nnot a list")).toBe(
-    "<p>Intro</p><ul><li>a</li><li>b</li></ul><p>1. c<br>2. d<br>not a list</p>"
+    "<p>Intro</p><ul><li>a</li><li>b</li></ul><ol><li>c</li><li>d</li></ol><p>not a list</p>"
   );
 });
 
