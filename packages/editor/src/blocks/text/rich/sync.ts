@@ -11,16 +11,17 @@ export function htmlToEmit(value: Value, lastHtml: string): string | null {
 }
 
 /**
- * Whether the field replaces its value with the `html` prop. The caller
- * canonicalises the prop first (`valueToHtml(htmlToValue(prop))`), so a
- * legacy body compares in the form the field reports. Its own echo matches
- * `lastHtml`; a focused field never takes the prop, so typing ahead of it
- * keeps the caret and the text.
+ * Whether the field considers the `html` prop at all. Its own echo is the
+ * exact string it last reported or took (`lastHtml`); a focused field never
+ * takes the prop, so typing ahead of it keeps the caret and the text. The
+ * field asks this of the raw prop before parsing anything. Taking the prop
+ * compares its canonical form (`valueToHtml(htmlToValue(prop))`) once more,
+ * so a legacy body that canonicalises to the field's text changes nothing.
  */
 export function shouldTakeProp(
-  propCanonical: string,
+  prop: string,
   lastHtml: string,
   focused: boolean
 ): boolean {
-  return propCanonical !== lastHtml && !focused;
+  return prop !== lastHtml && !focused;
 }

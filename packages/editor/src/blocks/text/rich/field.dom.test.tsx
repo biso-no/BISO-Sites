@@ -3,6 +3,7 @@ import {
   afterEach,
   beforeAll,
   expect,
+  jest,
   mock,
   spyOn,
   test,
@@ -17,14 +18,19 @@ import { legacyBodyToHtml } from "../body";
 import { RICH_CLASS } from "../render-classes";
 import RichTextField, { type RichTextFieldProps } from "./field";
 
-/** What Slate, Plate and React DOM read from the global scope here. */
+/** What Slate, Plate, floating-ui and React DOM read from the global scope. */
 const GLOBALS = [
+  "CustomEvent",
   "DOMParser",
   "Document",
+  "Element",
+  "HTMLElement",
   "Node",
   "ShadowRoot",
   "cancelAnimationFrame",
   "document",
+  "getComputedStyle",
+  "requestAnimationFrame",
   "window",
 ] as const;
 
@@ -38,9 +44,11 @@ beforeAll(() => {
     scope[key] = key === "window" ? win : source[key];
   }
   scope.IS_REACT_ACT_ENVIRONMENT = true;
+  jest.useFakeTimers();
 });
 
 afterAll(() => {
+  jest.useRealTimers();
   Object.assign(scope, previous);
   scope.IS_REACT_ACT_ENVIRONMENT = undefined;
 });
@@ -63,6 +71,12 @@ const settle = (run: () => void) =>
     run();
     await Promise.resolve();
   });
+
+/** How long an unfocused field waits before it takes a changed prop. */
+const TAKE_DELAY = 300;
+
+/** Move the fake clock on, as `settle` does for the change it causes. */
+const advance = (ms: number) => settle(() => jest.advanceTimersByTime(ms));
 
 type Emit = (html: string) => void;
 
@@ -104,7 +118,8 @@ function mount(...fields: Field[]) {
     });
   const editables = () =>
     [...host.querySelectorAll("[contenteditable]")] as HTMLElement[];
-  return { editables, host, render };
+  const unmount = () => act(() => root.render(null));
+  return { editables, host, render, unmount };
 }
 
 /** Put the caret at the end and type one character at a time, as keys do. */
@@ -153,27 +168,42 @@ test("elements are plain tags; the canvas carries the public classes", async () 
 });
 
 // One <ul>/<ol> per list block, as Plate draws lists; the numbers carry on
-// through `start` and Plate's indent margin shows the nesting.
+// through `start`. Each level below the first sits 1.25rem further in, the
+// public page's step (every top-level list already has `pl-5`).
 test("each list item is its own list, numbered on and indented by depth", async () => {
   const { editables, host, render } = mount(field());
   await render(
-    '<ol start="3"><li>a</li><li>b</li></ol><ul><li>c<ul><li>d</li></ul></li></ul>'
+    '<ol start="3"><li>a</li><li>b</li></ol><ul><li>c<ul><li>d<ul><li>e</li></ul></li></ul></li></ul>'
   );
 
   const items = [...(editables()[0]?.children ?? [])] as HTMLElement[];
-  expect(items.map((item) => item.tagName)).toEqual(["OL", "OL", "UL", "UL"]);
-  expect(items.map((item) => item.textContent)).toEqual(["a", "b", "c", "d"]);
+  expect(items.map((item) => item.tagName)).toEqual([
+    "OL",
+    "OL",
+    "UL",
+    "UL",
+    "UL",
+  ]);
+  expect(items.map((item) => item.textContent)).toEqual([
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+  ]);
   expect(items.map((item) => item.getAttribute("start"))).toEqual([
     "3",
     "4",
     null,
     null,
+    null,
   ]);
   expect(items.map((item) => item.style.marginLeft)).toEqual([
-    "24px",
-    "24px",
-    "24px",
-    "48px",
+    "",
+    "",
+    "",
+    "1.25rem",
+    "2.5rem",
   ]);
   expect(host.querySelector("li :is(ul, ol)")).toBeNull();
 });
@@ -198,6 +228,8 @@ test("mounting emits nothing", async () => {
       { text: "x", type: "li" },
     ])
   );
+  // The legacy prop is not the canonical HTML, so it waits its turn too.
+  await advance(TAKE_DELAY);
   expect(a.spy).not.toHaveBeenCalled();
   expect(a.editor().history.undos).toEqual([]);
 });
@@ -209,6 +241,13 @@ test("typing emits the new HTML", async () => {
   await typeText(a.editor(), "!");
   expect(a.spy).toHaveBeenCalledTimes(1);
   expect(a.spy).toHaveBeenCalledWith("<p>a!</p>");
+
+  // The page hands the emitted HTML straight back.
+  const setValue = spyOn(a.editor().tf, "setValue");
+  await render("<p>a!</p>");
+  await advance(TAKE_DELAY);
+  expect(setValue).not.toHaveBeenCalled();
+  expect(a.spy).toHaveBeenCalledTimes(1);
 });
 
 test("focused field ignores the echo of its own change; unfocused field takes it", async () => {
@@ -224,12 +263,93 @@ test("focused field ignores the echo of its own change; unfocused field takes it
   const setValue = spyOn(a.editor().tf, "setValue");
 
   await render("<p>a!</p>");
+  await advance(TAKE_DELAY);
   expect(setValue).not.toHaveBeenCalled();
   expect(a.editor().selection).toEqual(selection);
   expect(editables()[1]?.textContent).toBe("a!");
   // Taking the prop is not an edit of B's own.
   expect(b.spy).not.toHaveBeenCalled();
   expect(a.spy).toHaveBeenCalledTimes(1);
+});
+
+// Long pasted documents: both surfaces stay mounted, so a keystroke must not
+// make the focused one parse its own echo.
+test("a focused field parses no prop at all", async () => {
+  const html = await import("./html");
+  const a = field();
+  const { render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+  await typeText(a.editor(), "!");
+  const parse = spyOn(html, "htmlToValue");
+  try {
+    await render("<p>a!</p>");
+    await render("<p>other</p>");
+    await advance(TAKE_DELAY * 2);
+    expect(parse).not.toHaveBeenCalled();
+  } finally {
+    parse.mockRestore();
+  }
+});
+
+test("an unfocused field takes a changed prop 300 ms after the last change", async () => {
+  const a = field();
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  const setValue = spyOn(a.editor().tf, "setValue");
+
+  await render("<p>b</p>");
+  await advance(TAKE_DELAY - 1);
+  await render("<p>c</p>");
+  await advance(TAKE_DELAY - 1);
+  expect(setValue).not.toHaveBeenCalled();
+  expect(editables()[0]?.textContent).toBe("a");
+
+  await advance(1);
+  expect(setValue).toHaveBeenCalledTimes(1);
+  expect(editables()[0]?.textContent).toBe("c");
+  expect(a.spy).not.toHaveBeenCalled();
+});
+
+test("a field that unmounts drops its pending prop", async () => {
+  const a = field();
+  const { render, unmount } = mount(a);
+  await render("<p>a</p>");
+  const setValue = spyOn(a.editor().tf, "setValue");
+  await render("<p>b</p>");
+  unmount();
+  await advance(TAKE_DELAY);
+  expect(setValue).not.toHaveBeenCalled();
+});
+
+test("focusing a field takes its pending prop at once", async () => {
+  const a = field();
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  await render("<p>b</p>");
+  expect(editables()[0]?.textContent).toBe("a");
+
+  await settle(() => {
+    editables()[0]?.dispatchEvent(
+      new window.FocusEvent("focusin", { bubbles: true })
+    );
+  });
+  expect(editables()[0]?.textContent).toBe("b");
+  expect(a.spy).not.toHaveBeenCalled();
+});
+
+test("taking a prop starts the field's undo history again", async () => {
+  const a = field();
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  await typeText(a.editor(), "!");
+  expect(a.editor().history.undos.length).toBeGreaterThan(0);
+
+  await render("<p>other</p>");
+  await advance(TAKE_DELAY);
+  expect(editables()[0]?.textContent).toBe("other");
+  expect(a.editor().history.undos).toHaveLength(0);
+  expect(a.editor().history.redos).toHaveLength(0);
 });
 
 test("a focused field keeps its text when the prop changes under it", async () => {
@@ -249,9 +369,11 @@ test("a legacy prop re-rendered, or in its canonical form, triggers no setValue 
   const { render } = mount(a);
   await render("<p>A <b>b</b></p>");
   const setValue = spyOn(a.editor().tf, "setValue");
+  await advance(TAKE_DELAY);
 
   await render("<p>A <b>b</b></p>");
   await render("<p>A <strong>b</strong></p>");
+  await advance(TAKE_DELAY);
   expect(setValue).not.toHaveBeenCalled();
   expect(a.spy).not.toHaveBeenCalled();
 });

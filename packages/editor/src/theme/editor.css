@@ -1776,3 +1776,189 @@
   border: 0.5px solid var(--rule-2);
   border-radius: 6px;
 }
+
+/* === Rich text field ===================================================== */
+/*
+ * The panel's toolbar sits on the field's top edge and shares its rules;
+ * the canvas bubble wears the same controls in ink. Each list item is its
+ * own <ul>/<ol>, so blocks space by margin and list items sit flush.
+ */
+.pe-rt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  padding: 3px;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+}
+.pe-rt-btn {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+.pe-rt-btn:hover {
+  color: var(--pg-ink);
+}
+.pe-rt-btn[aria-pressed="true"],
+.pe-rt-btn[aria-expanded="true"] {
+  color: var(--pg-ink);
+  background: white;
+  box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-rt-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.pe-rt-sep {
+  width: 0.5px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--rule-2);
+}
+.pe-rt-select {
+  height: 22px;
+  padding: 0 4px;
+  font-size: 11.5px;
+  color: var(--pg-ink);
+  cursor: pointer;
+  background: white;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-rt-link {
+  display: flex;
+  flex-basis: 100%;
+  gap: 2px;
+  align-items: center;
+  padding-top: 2px;
+}
+.pe-rt-link__input {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  color: var(--pg-ink);
+  outline: 0;
+  background: white;
+  border: 0.5px solid var(--rule-2);
+  border-radius: 4px;
+}
+.pe-rt-link__input:focus {
+  border-color: var(--ink-3);
+}
+.pe-rt-link__input[aria-invalid="true"] {
+  border-color: var(--pg-ink);
+}
+.pe-rt-link__btn {
+  font-size: 11.5px;
+}
+
+.pe-rt-field {
+  min-height: 230px;
+  max-height: 480px;
+  padding: 10px 12px;
+  overflow: auto;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  outline: 0;
+  background: white;
+  border: 0.5px solid var(--rule-2);
+  border-radius: 0 0 6px 6px;
+}
+.pe-rt-field:focus {
+  border-color: var(--ink-3);
+}
+.pe-rt-field > * + * {
+  margin-top: 8px;
+}
+.pe-rt-field > :is(ul, ol) + :is(ul, ol) {
+  margin-top: 0;
+}
+.pe-rt-field h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pg-ink);
+}
+.pe-rt-field h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pg-ink);
+}
+.pe-rt-field ul,
+.pe-rt-field ol {
+  padding-left: 18px;
+}
+.pe-rt-field ul {
+  list-style: disc;
+}
+.pe-rt-field ol {
+  list-style: decimal;
+}
+.pe-rt-field blockquote {
+  padding-left: 8px;
+  border-left: 2px solid var(--rule-2);
+}
+.pe-rt-field a {
+  color: var(--sky);
+  text-decoration: underline;
+}
+.pe-rt-field hr {
+  border: 0;
+  border-top: 0.5px solid var(--rule-2);
+}
+
+/* The canvas bubble: the toolbar in ink, over the selected text. */
+.pe-rt-bubble {
+  z-index: 20;
+  padding: 3px;
+  background: var(--pg-ink);
+  border-radius: 7px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.pe-rt-bar--ink {
+  flex-wrap: nowrap;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.pe-rt-bubble .pe-rt-btn {
+  color: var(--paper-2);
+}
+.pe-rt-bubble .pe-rt-btn[aria-pressed="true"],
+.pe-rt-bubble .pe-rt-btn[aria-expanded="true"],
+.pe-rt-bubble .pe-rt-select {
+  color: var(--paper);
+  background: var(--ink-2);
+  box-shadow: none;
+}
+.pe-rt-bubble .pe-rt-sep {
+  background: color-mix(in srgb, var(--ink-2) 70%, var(--ink-3));
+}
+/* The address replaces the buttons while it is open: one short row. */
+.pe-rt-bar--ink:has(.pe-rt-link) > :not(.pe-rt-link) {
+  display: none;
+}
+.pe-rt-bubble .pe-rt-link {
+  flex-basis: auto;
+  padding-top: 0;
+}
+.pe-rt-bubble .pe-rt-link__input {
+  flex: none;
+  width: 200px;
+}

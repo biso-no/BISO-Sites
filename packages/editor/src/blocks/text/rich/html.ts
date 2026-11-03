@@ -139,7 +139,8 @@ interface OpenList {
   tag: "ol" | "ul";
 }
 
-const isListItem = (
+/** A block Plate's list plugin made a list item. Shared with the commands. */
+export const isListItem = (
   node: TElement
 ): node is TElement & { listStyleType: string } =>
   typeof node.listStyleType === "string" && node.listStyleType !== "";

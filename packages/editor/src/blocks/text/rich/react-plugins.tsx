@@ -13,14 +13,23 @@ import { IndentPlugin } from "@platejs/indent/react";
 import { LinkPlugin } from "@platejs/link/react";
 import { toggleList } from "@platejs/list";
 import { ListPlugin } from "@platejs/list/react";
-import { type AnySlatePlugin, KEYS } from "platejs";
+import {
+  type AnySlatePlugin,
+  isHotkey,
+  KEYS,
+  type PluginConfig,
+  type TElement,
+} from "platejs";
 import {
   type AnyPlatePlugin,
+  createTPlatePlugin,
   ParagraphPlugin,
   PlateElement,
   type PlateElementProps,
 } from "platejs/react";
 import { SAFE_HREF } from "@/lib/rich-allowlist";
+import { handleListTab } from "./commands";
+import { isListItem } from "./html";
 import { ORDERED_LIST_STYLES } from "./list-item-parse";
 import { RichPastePlugin } from "./paste-plugin";
 import { LIST_TARGETS, linkHtmlParse, listItemHtmlParse } from "./plugins";
@@ -97,6 +106,60 @@ function LinkElement(props: PlateElementProps) {
 /** Plate's own list wrapper (inline-styled) off: `blockElement` draws lists. */
 const noListWrapper = () => undefined;
 
+/** Tailwind's `pl-5`: how far the public page sets in each nested list. */
+const LIST_STEP_REM = 1.25;
+
+/**
+ * The indent margin as the public page draws it, in place of Plate's 24px a
+ * level. Each list block is its own top-level list here and already has
+ * `pl-5` (`RICH_CLASS`), so the first level adds nothing and each level
+ * below it 1.25rem. A block that is no list item is stored without its
+ * indent, so it shows none.
+ */
+const indentMargin = ({
+  element,
+  nodeValue,
+}: {
+  element?: TElement;
+  nodeValue?: unknown;
+}): string =>
+  element &&
+  isListItem(element) &&
+  typeof nodeValue === "number" &&
+  nodeValue > 1
+    ? `${(nodeValue - 1) * LIST_STEP_REM}rem`
+    : "";
+
+export type RichKeysConfig = PluginConfig<"richKeys", { linkOpen: boolean }>;
+
+/**
+ * The field's own keys. mod+k opens the toolbar's link input (`linkOpen`,
+ * which the toolbar reads and closes). Tab and Shift+Tab nest and un-nest
+ * list items through `handleListTab`: Plate's key handler calls `tab` and
+ * prevents the default when it returns `true`. Outside a list it returns
+ * `false` and Tab stays the browser's; the indent plugin's own `tab` is not
+ * passed on, since it would indent a paragraph the page cannot store.
+ */
+export const RichKeysPlugin = createTPlatePlugin<RichKeysConfig>({
+  handlers: {
+    onKeyDown: ({ event, setOption }) => {
+      // By key, as Plate reads its own hotkeys: the letter the user sees.
+      const openLink = isHotkey("mod+k", { byKey: true }, event);
+      if (openLink) {
+        event.preventDefault();
+        setOption("linkOpen", true);
+      }
+      return openLink;
+    },
+  },
+  key: "richKeys",
+  options: { linkOpen: false },
+}).overrideEditor(({ editor }) => ({
+  transforms: {
+    tab: ({ reverse }) => handleListTab(editor, { shift: reverse }),
+  },
+}));
+
 /**
  * `- ` or `* ` starts a bullet list, `1. ` or `1) ` a numbered one. `type`
  * is the block a rule must not already be inside; no block is a `list`.
@@ -137,7 +200,12 @@ export const richReactPlugins: (AnyPlatePlugin | AnySlatePlugin)[] = [
   LinkPlugin.withComponent(LinkElement).extend({
     parsers: { html: { deserializer: { parse: linkHtmlParse } } },
   }),
-  IndentPlugin.configure({ inject: { targetPlugins: LIST_TARGETS } }),
+  IndentPlugin.configure({
+    inject: {
+      nodeProps: { transformNodeValue: indentMargin },
+      targetPlugins: LIST_TARGETS,
+    },
+  }),
   ListPlugin.configure({
     inject: { targetPlugins: LIST_TARGETS },
     render: { belowNodes: noListWrapper },
@@ -145,5 +213,7 @@ export const richReactPlugins: (AnyPlatePlugin | AnySlatePlugin)[] = [
     parsers: { html: { deserializer: { parse: listItemHtmlParse } } },
   }),
   AutoformatPlugin.configure({ options: { rules: LIST_RULES } }),
+  // After the indent plugin, so its `tab` wraps the indent plugin's.
+  RichKeysPlugin,
   RichPastePlugin,
 ];
