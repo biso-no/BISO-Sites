@@ -268,6 +268,28 @@ test.each([
 ])("stored table %s is read as %s", (input, out) =>
   expect(valueToHtml(htmlToValue(input))).toBe(out));
 
+// A link holds no blocks. One around blocks goes into each of them, as a
+// mark or a colour around blocks does, so a table in a link stays a table.
+test.each([
+  [
+    '<a href="/x"><table><tr><td>x</td><td>y</td></tr></table></a>',
+    '<table><tbody><tr><td><a href="/x">x</a></td><td><a href="/x">y</a></td></tr></tbody></table>',
+  ],
+  [
+    '<a href="/x"><h2>Title</h2><p>About <b>it</b></p></a>',
+    '<h2><a href="/x">Title</a></h2><p><a href="/x">About <strong>it</strong></a></p>',
+  ],
+  [
+    '<a href="/x"><p>x</p>tail</a>',
+    '<p><a href="/x">x</a></p><p><a href="/x">tail</a></p>',
+  ],
+  [
+    '<a href="/x"><ul><li>one</li><li>two</li></ul></a>',
+    '<ul><li><a href="/x">one</a></li><li><a href="/x">two</a></li></ul>',
+  ],
+])("a link around blocks goes into each: %s", (input, out) =>
+  expect(valueToHtml(htmlToValue(input))).toBe(out));
+
 // A caption is its table's title: a line of its own just before it, wherever
 // the table sits, never words run into the text beside it.
 test.each([

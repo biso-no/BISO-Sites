@@ -108,6 +108,8 @@ const childrenTagged = (el: Element, tag: string): Element[] =>
 
 /**
  * The blocks Plate cannot read as ones it can. In order:
+ * 0. An inline element around blocks goes into each of them
+ *    (`inlineIntoBlocks`).
  * 1. A table where the page stores none (`NO_TABLE_INSIDE`) is flattened:
  *    each cell a paragraph (or unwrapped when it holds blocks).
  * 2. Every other table is tidied to the stored shape (`tidyTable`).
@@ -118,6 +120,7 @@ const childrenTagged = (el: Element, tag: string): Element[] =>
  * Wherever a table goes, its caption is a line of its own just before it.
  */
 export function structureBlocks(root: HTMLElement): void {
+  inlineIntoBlocks(root);
   flattenMisplacedTables(root);
   for (const table of root.querySelectorAll("table")) {
     tidyTable(table);
@@ -132,6 +135,73 @@ export function structureBlocks(root: HTMLElement): void {
     asParagraph(container);
   }
   joinBlockParagraphs(root);
+}
+
+const isBlockElement = (node: Node): node is Element =>
+  node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has(node.nodeName);
+
+/**
+ * Each run of `parent`'s children beside its blocks in a copy of `inline`,
+ * unless the run is blank.
+ */
+function wrapRunsBeside(inline: Element, parent: Element): void {
+  let run: Node[] = [];
+  const wrapRun = () => {
+    const [first] = run;
+    if (first && run.some((node) => !isBlankText(node))) {
+      const copy = inline.cloneNode(false) as Element;
+      parent.insertBefore(copy, first);
+      copy.append(...run);
+    }
+    run = [];
+  };
+  for (const child of Array.from(parent.childNodes)) {
+    if (isBlockElement(child)) {
+      wrapRun();
+    } else {
+      run.push(child);
+    }
+  }
+  wrapRun();
+}
+
+/**
+ * A copy of `inline` around the content of `block`, or, where `block` holds
+ * blocks itself, around each run of content beside them and into each of
+ * them: a list's items, a table's cells.
+ */
+function pushInto(inline: Element, block: Element): void {
+  if (!holdsBlocks(block)) {
+    if (block.hasChildNodes()) {
+      const copy = inline.cloneNode(false) as Element;
+      copy.append(...Array.from(block.childNodes));
+      block.append(copy);
+    }
+    return;
+  }
+  wrapRunsBeside(inline, block);
+  for (const child of Array.from(block.children)) {
+    if (isBlockElement(child)) {
+      pushInto(inline, child);
+    }
+  }
+}
+
+/**
+ * Each link around blocks put inside them instead, as Plate itself does
+ * with a mark or a colour's span around blocks: around the content of each
+ * block, and of each cell of a table, and around the text beside them. So a
+ * table in a link stays a table, its cells linked, and the link's blocks
+ * keep their lines apart. Innermost first, so an outer one finds the blocks
+ * an inner one held.
+ */
+function inlineIntoBlocks(root: HTMLElement): void {
+  for (const link of Array.from(root.querySelectorAll("a")).reverse()) {
+    if (holdsBlocks(link)) {
+      pushInto(link, link);
+      unwrap(link);
+    }
+  }
 }
 
 /** Each caption of `table` as a paragraph just before it. */
