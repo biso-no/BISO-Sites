@@ -233,3 +233,26 @@ test("2,000 random values serialize to a fixed point the server leaves alone", (
     expect(scanBody(once, 100)).toBe("canonical");
   }
 }, 60_000);
+
+// The translation fixtures in apps/admin/src/lib/page-document-translation.test.ts,
+// copied: bodies as the field writes them, so a translation keeps a body
+// canonical and the server leaves it as it is.
+const TRANSLATION_FIXTURES = {
+  RICH_EN:
+    '<h2>About us</h2><p>We are <strong>students</strong> at <a href="https://biso.no">BISO</a>. <span data-color="accent">Welcome!</span></p>' +
+    '<ul><li>One<ul><li>Two</li></ul></li></ul><ol start="3"><li>Three</li></ol>' +
+    '<table><thead><tr><th colspan="2">Contact</th></tr></thead><tbody><tr><td rowspan="2">Oslo</td><td><span data-color="red">Important</span></td></tr><tr><td><em>Bergen</em></td></tr></tbody></table>' +
+    "<blockquote>Quote</blockquote><hr><p><u>Under</u> and <s>over</s></p>",
+  RICH_NO:
+    '<h2>Om oss</h2><p>Vi er <strong>studenter</strong> i <a href="https://biso.no">BISO</a>. <span data-color="accent">Velkommen!</span></p>' +
+    '<ul><li>Ett<ul><li>To</li></ul></li></ul><ol start="3"><li>Tre</li></ol>' +
+    '<table><thead><tr><th colspan="2">Kontakt</th></tr></thead><tbody><tr><td rowspan="2">Oslo</td><td><span data-color="red">Viktig</span></td></tr><tr><td><em>Bergen</em></td></tr></tbody></table>' +
+    "<blockquote>Sitat</blockquote><hr><p><u>Under</u> og <s>over</s></p>",
+};
+
+test.each(
+  Object.entries(TRANSLATION_FIXTURES)
+)("the translation fixture %s is canonical and a fixed point", (_, html) => {
+  expect(scanBody(html, 100)).toBe("canonical");
+  expect(valueToHtml(htmlToValue(html))).toBe(html);
+});

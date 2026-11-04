@@ -70,6 +70,8 @@ afterEach(() => {
     host.remove();
   }
   mounted = [];
+  // Real time again, even after a test that set it failed part way.
+  setSystemTime();
 });
 
 /**
@@ -774,7 +776,6 @@ test("mod+z after a pause undoes the typing, then the step before it, and never 
   expect(storeProp("b1", "body")).toContain("Hello");
   expect(shown()).toBe(`${before}Hello`);
   expect(useEditorStore.getState().future).toHaveLength(0);
-  setSystemTime();
 });
 
 const T0 = new Date("2026-11-03T10:00:00Z").getTime();
@@ -844,7 +845,6 @@ test("each pause in typing is its own undo step, in the field and on the page", 
   await f.press(REDO);
   expect(f.shown()).toBe(`${f.before}Hello world`);
   expect(pageHistory()).toEqual({ future: 0, past: 2 });
-  setSystemTime();
 });
 
 test("a pause of exactly one second splits the field and the page alike", async () => {
@@ -866,7 +866,6 @@ test("a pause of exactly one second splits the field and the page alike", async 
   await joined.press(UNDO);
   expect(joined.shown()).toBe(joined.before);
   expect(pageHistory().past).toBe(0);
-  setSystemTime();
 });
 
 test("typing straight after a field undo is a step of its own", async () => {
@@ -886,7 +885,6 @@ test("typing straight after a field undo is a step of its own", async () => {
   await f.press(UNDO);
   expect(f.shown()).toBe(f.before);
   expect(pageHistory().past).toBe(0);
-  setSystemTime();
 });
 
 // The copilot writes the body while the field is focused, so the field has
@@ -922,7 +920,6 @@ test("a copilot change the field has not taken stays reachable by undo and redo"
   expect(storeProp("b1", "body")).toBe("<p>Copilot</p>");
   expect(f.shown()).toBe("Copilot");
   expect(pageHistory().future).toBe(0);
-  setSystemTime();
 });
 
 test("a legacy prop re-rendered, or in its canonical form, triggers no setValue and no emit", async () => {
