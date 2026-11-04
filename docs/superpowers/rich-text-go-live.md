@@ -36,8 +36,9 @@ browser. Use a test page.
    - Type in the panel, then press Cmd+Z on the canvas. The typing undoes.
    - Ask the copilot to change the text, then press Cmd+Z in the field. The
      copilot change undoes.
-10. **Select all in a text that opens with a table.** Press Cmd+A, then type,
-    paste and press Delete in turn. The table is replaced or removed and no text
+10. **Select all in a text that opens with a table.** With the cursor in the
+    text below the table, press Cmd+A, then type, paste and press Delete in
+    turn. The table is replaced or removed and no text
     is lost off to the side. Pasting only a picture leaves the text alone.
     - Do the same from inside the table: click in a cell and press Cmd+A twice.
       The first selects the table, the second the whole text. Typing, pasting
@@ -71,7 +72,9 @@ browser. Use a test page.
 - After the deploy, open a few published pages with Rich text and compare them
   with before.
 - After the web deploy and then the admin deploy, edit one real Rich text block,
-  publish the page, and check the text on biso.no.
+  publish the page, and check the text on biso.no. Pick a block you could
+  re-type: if you later roll back, the old site shows that block empty (see
+  below).
 - The docs pages go out with the next docs deploy.
 - The PR docs check still warns about `local-setup.mdx` and `deploying.mdx` (a
   root `package.json` catalog line; both pages checked, still accurate). It also
@@ -85,9 +88,9 @@ Main's text block reads its body with `listOf`, which turns anything that is not
 an array into an empty list. So with a new (HTML string) body, the old site
 draws nothing and the old editor's text inspector shows an empty list. Editing
 that block in the old editor adds a first item and saves an array, which
-replaces the HTML text. New HTML bodies come from three places, not only from
-saving a text in the new editor: **Opprett side** (Create page) on a unit, whose
-new template writes an HTML "About ..." text, and any copilot change to a text.
+replaces the HTML text. New HTML bodies come from three places: saving a text in
+the new editor, **Opprett side** (Create page) on a unit, whose new template
+writes an HTML "About ..." text, and any copilot change to a text.
 If none of these has happened yet, rolling back is clean. After that, the old
 site and the old editor show those text blocks as empty. The text is still in
 the page and shows again when you redeploy. So fix forward. If you must roll
@@ -114,5 +117,9 @@ redeploy.
   loses the caret-preserving field undo.
 - A sanitiser timing test (150 ms bound) ran 170 ms once under heavy parallel
   load. It could flake in CI; loosen the bound or measure relative time if it does.
+- Page redo by keyboard outside a text field may not work on Windows. The page
+  shortcut in `editor-shell/index.tsx` checks `e.key === "z"`, which is `"Z"`
+  with Shift held on Windows, and it doesn't handle Ctrl+Y. This was already so
+  on `main`; inside a text field both keys work.
 - The smaller deferred items are listed under "Deferred" in the Stage 1, 2 and 3
   notes at the end of the spec.
