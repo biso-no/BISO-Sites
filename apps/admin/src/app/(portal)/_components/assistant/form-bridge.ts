@@ -56,11 +56,7 @@ export function getActiveFormSchemaId(): string | null {
  * Fill a single field in the registered form.
  * Returns false if no form is registered or schemaId doesn't match.
  */
-function fillFormField(
-  schemaId: string,
-  path: string,
-  value: string
-): boolean {
+function fillFormField(schemaId: string, path: string, value: string): boolean {
   if (_bridge.schemaId !== schemaId || !_bridge.setField) {
     return false;
   }
