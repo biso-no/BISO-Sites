@@ -1,11 +1,12 @@
+import { errorSummary } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import { createRateLimiter } from "@repo/shared/member-pass/rate-limit";
 import {
   type RevealDb,
   revealBenefitCode,
 } from "@repo/shared/utils/benefit-reveal-server";
-import { type NextRequest, NextResponse } from "next/server";
-import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import type { NextRequest } from "next/server";
+import { corsPreflightResponse, noStoreJson } from "@/lib/cors";
 import { resolveMemberPassForRequest } from "@/lib/member-pass/resolve";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +23,6 @@ const revealRateLimiter = createRateLimiter({
   windowMs: ONE_MINUTE_MS,
 });
 
-function json(body: unknown, origin: string | null, status = 200) {
-  const response = NextResponse.json(body, { status });
-  response.headers.set("Cache-Control", "private, no-store");
-  return applyCorsHeaders(response, origin);
-}
-
 /** The reveal helper's database, bound to the "app" database with admin rights. */
 async function createRevealDb(): Promise<RevealDb> {
   const { db } = await createAdminClient();
@@ -43,12 +38,6 @@ async function createRevealDb(): Promise<RevealDb> {
   };
 }
 
-/** Only the error's status code and type: a message or row could carry a code. */
-function errorSummary(error: unknown): string {
-  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
-  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
-}
-
 /**
  * Reveals a benefit's code or link to an active member. Membership is
  * resolved first (a live check); non-members and outages return before any
@@ -62,21 +51,21 @@ export async function POST(
   const origin = req.headers.get("origin");
   const resolved = await resolveMemberPassForRequest(req);
   if (resolved.state === "unauthenticated") {
-    return json({ error: "not_authenticated" }, origin, 401);
+    return noStoreJson({ error: "not_authenticated" }, origin, 401);
   }
   if (resolved.state === "unavailable") {
-    return json({ error: "membership_unavailable" }, origin, 503);
+    return noStoreJson({ error: "membership_unavailable" }, origin, 503);
   }
   if (resolved.state !== "active") {
-    return json({ error: "not_member" }, origin, 403);
+    return noStoreJson({ error: "not_member" }, origin, 403);
   }
 
   const { id } = await params;
   if (!BENEFIT_ID_RE.test(id)) {
-    return json({ error: "not_found" }, origin, 404);
+    return noStoreJson({ error: "not_found" }, origin, 404);
   }
   if (!revealRateLimiter(resolved.userId)) {
-    return json({ error: "rate_limited" }, origin, 429);
+    return noStoreJson({ error: "rate_limited" }, origin, 429);
   }
 
   try {
@@ -87,21 +76,21 @@ export async function POST(
       userId: resolved.userId,
     });
     if (result.ok) {
-      return json({ value: result.value }, origin);
+      return noStoreJson({ value: result.value }, origin);
     }
     switch (result.reason) {
       case "not_found":
-        return json({ error: "not_found" }, origin, 404);
+        return noStoreJson({ error: "not_found" }, origin, 404);
       case "no_code":
-        return json({ error: "no_code" }, origin, 409);
+        return noStoreJson({ error: "no_code" }, origin, 409);
       case "not_member":
-        return json({ error: "not_member" }, origin, 403);
+        return noStoreJson({ error: "not_member" }, origin, 403);
       default:
-        return json({ error: "membership_unavailable" }, origin, 503);
+        return noStoreJson({ error: "membership_unavailable" }, origin, 503);
     }
   } catch (error) {
     console.error("[Benefits] Reveal failed:", errorSummary(error));
-    return json({ error: "unavailable" }, origin, 503);
+    return noStoreJson({ error: "unavailable" }, origin, 503);
   }
 }
 

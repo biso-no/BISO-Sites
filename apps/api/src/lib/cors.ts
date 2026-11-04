@@ -28,3 +28,17 @@ export function corsPreflightResponse(origin: string | null) {
   response.headers.set("Access-Control-Max-Age", "86400");
   return applyCorsHeaders(response, origin);
 }
+
+/**
+ * A JSON answer with the CORS headers, which no cache may keep: these
+ * responses are about the signed-in caller.
+ */
+export function noStoreJson(
+  body: unknown,
+  origin: string | null,
+  status = 200
+) {
+  const response = NextResponse.json(body, { status });
+  response.headers.set("Cache-Control", "private, no-store");
+  return applyCorsHeaders(response, origin);
+}
