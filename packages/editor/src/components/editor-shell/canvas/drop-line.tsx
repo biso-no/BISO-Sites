@@ -1,5 +1,5 @@
 /** The accent line that marks where a drop will land. */
-export function DropLine({ active }: { active: boolean }) {
+function DropLine({ active }: { active: boolean }) {
   return (
     <div
       aria-hidden="true"
