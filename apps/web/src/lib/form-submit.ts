@@ -10,7 +10,7 @@ import type { Block, PageDoc } from "@repo/editor/types";
  */
 
 export const MAX_DATA_JSON_LENGTH = 16_384;
-export const MAX_TOPIC_LENGTH = 100;
+const MAX_TOPIC_LENGTH = 100;
 const MAX_HEADING_LENGTH = 200;
 const MAX_LIST_ITEMS = 50;
 

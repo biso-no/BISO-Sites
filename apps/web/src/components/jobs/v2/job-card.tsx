@@ -27,7 +27,7 @@ import { Pill } from "@/components/ui/pill";
  */
 export const JOB_TIME_ZONE = "Europe/Oslo";
 
-export function formatJobDate(
+function formatJobDate(
   value: string | null | undefined,
   locale: string
 ): string | null {

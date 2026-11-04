@@ -4,7 +4,7 @@
  * is a partial success (the student number landed, only the directory
  * enrichment failed) and so returns as `?linked=1`.
  */
-export const ACCOUNT_LINK_ERRORS = [
+const ACCOUNT_LINK_ERRORS = [
   "already_linked",
   "invalid_bi_email",
   "no_bi_identity",

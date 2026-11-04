@@ -38,7 +38,7 @@ const CAREER_DAYS_CAMPUS_IDS = {
 export type CareerDaysCampus = keyof typeof CAREER_DAYS_CAMPUS_IDS;
 
 /** `departments.campus_id` of the national units. */
-export const NATIONAL_CAMPUS_ID = "5";
+const NATIONAL_CAMPUS_ID = "5";
 
 /**
  * Path of the unit with exactly this display name, optionally on one campus.

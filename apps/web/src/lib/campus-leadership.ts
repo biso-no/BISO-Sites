@@ -9,7 +9,7 @@ import type { Locale } from "@repo/i18n/config";
 import { NATIONAL_CAMPUS_ID } from "@/lib/campus-scope";
 
 /** `departments.$id` of each campus's management unit. */
-export const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
+const MANAGEMENT_DEPARTMENT_IDS: Record<string, string> = {
   "1": "2", // Oslo
   "2": "301", // Bergen
   "3": "601", // Trondheim
