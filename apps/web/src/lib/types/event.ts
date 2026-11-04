@@ -1,31 +1,4 @@
-import {
-  type ContentTranslations,
-  EventsCategory,
-} from "@repo/api/types/appwrite";
-
-interface EventMetadata {
-  agenda?: { time: string; activity: string }[];
-  attendees?: number;
-  department_id?: string;
-  end_date?: string;
-  end_time?: string;
-  highlights?: string[];
-  image?: string;
-  location?: string;
-  member_price?: number;
-  price?: number;
-  start_date?: string;
-  start_time?: string;
-  ticket_url?: string;
-  units?: string[];
-  [key: string]: unknown;
-}
-
-export interface EventWithTranslation extends ContentTranslations {
-  event_ref: NonNullable<ContentTranslations["event_ref"]>;
-}
-
-type CollectionPricing = "bundle" | "individual";
+import { EventsCategory } from "@repo/api/types/appwrite";
 
 /**
  * How (and whether) an event is signed up for.
@@ -100,36 +73,6 @@ export function getEventHref(
   return slug ? `/events/${encodeURIComponent(slug)}` : null;
 }
 
-export function parseEventMetadata(
-  metadataString: string | null | undefined
-): EventMetadata {
-  if (!metadataString) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(metadataString);
-  } catch {
-    return {};
-  }
-}
-
-export function formatEventPrice(
-  price: number | null | undefined,
-  ticketUrl?: string | null
-): string {
-  // A genuine zero price is free, even with an external ticket link.
-  if (price === 0) {
-    return "Free";
-  }
-  // An unknown price (e.g. a Tickster event synced without enrichment) with an
-  // external ticket link must not be advertised as "Free".
-  if (price === null || price === undefined) {
-    return ticketUrl ? "See tickets" : "Free";
-  }
-  return `${price} NOK`;
-}
-
 /**
  * The event's category, from the real `events.category` column.
  *
@@ -170,17 +113,3 @@ export const EVENT_CATEGORY_COLORS: Record<EventsCategory, string> = {
   [EventsCategory.TALK]: "bg-indigo-100 text-indigo-700 border-indigo-200",
   [EventsCategory.TRIP]: "bg-teal-100 text-teal-700 border-teal-200",
 };
-
-function _isCollectionEvent(event: ContentTranslations): boolean {
-  return event.event_ref?.is_collection ?? false;
-}
-
-function _hasCollectionParent(event: ContentTranslations): boolean {
-  return !!event.event_ref?.collection_id;
-}
-
-function _getCollectionPricing(
-  event: ContentTranslations
-): CollectionPricing | null {
-  return event.event_ref?.collection_pricing ?? null;
-}
