@@ -26,8 +26,8 @@ import type { InlineMediaUpload } from "@/lib/inline-media";
 /*  A lightweight contentEditable block editor (heading / paragraph / bullet) */
 /*  that serializes to simple HTML. This is the same editor the events and    */
 /*  jobs studios use; extracted here so the communications studio reuses it    */
-/*  rather than the Plate-based `@repo/ui` ContentEditor (whose JSON output    */
-/*  leaked into the push previews).                                           */
+/*  rather than the Plate-based ContentEditor `@repo/ui` used to have (whose   */
+/*  JSON output leaked into the push previews).                               */
 /*                                                                            */
 /*  Contract: `value` is HTML in, `onChange` emits HTML out. Bodies flatten   */
 /*  to plain text downstream via `htmlToPlainText` for push payloads.         */
