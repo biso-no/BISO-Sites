@@ -82,6 +82,11 @@ import {
   stripHtml,
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import {
+  StudioCoverPattern,
+  studioCoverBackground,
+  studioCoverPatternIndex,
+} from "../../../_components/studio";
 import { StepIntro } from "../../../communications/_components/composer/ui";
 import { describePushAudience } from "./event-studio-push";
 import {
@@ -373,185 +378,6 @@ function buildDefaultValues(
     contact_role: fallback(event?.contact_role, null),
     contact_email: fallback(event?.contact_email, null),
   };
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                Cover patterns                              */
-/* -------------------------------------------------------------------------- */
-
-function coverPatternToNumber(value: EventsCoverPattern | null | undefined) {
-  switch (value) {
-    case EventsCoverPattern.LINEAR:
-      return 2;
-    case EventsCoverPattern.CONCENTRIC:
-      return 3;
-    case EventsCoverPattern.WAVE:
-      return 4;
-    case EventsCoverPattern.GRID:
-      return 5;
-    default:
-      return 1;
-  }
-}
-
-function coverBackground(value: EventsCoverPattern | null | undefined) {
-  switch (value) {
-    case EventsCoverPattern.LINEAR:
-      return "linear-gradient(135deg, #2a4a7a 0%, #15263c 100%)";
-    case EventsCoverPattern.CONCENTRIC:
-      return "linear-gradient(135deg, #2f5d3a 0%, #1a3422 100%)";
-    case EventsCoverPattern.WAVE:
-      return "linear-gradient(135deg, #b08a3e 0%, #6a5118 100%)";
-    case EventsCoverPattern.GRID:
-      return "linear-gradient(180deg, #29261b 0%, #100e09 100%)";
-    default:
-      return "linear-gradient(135deg, #6b1e1e 0%, #2a1010 100%)";
-  }
-}
-
-function EvCoverPattern({ which }: { which: number }) {
-  if (which === 2) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Linear cover pattern</title>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <line
-            key={`line-${i}`}
-            stroke="white"
-            strokeWidth="0.5"
-            x1="0"
-            x2="200"
-            y1={i * 18}
-            y2={i * 18 - 30}
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 3) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Concentric cover pattern</title>
-        {[80, 60, 40, 20].map((r) => (
-          <circle
-            cx="40"
-            cy="100"
-            fill="none"
-            key={`circ-${r}`}
-            r={r}
-            stroke="white"
-            strokeWidth="0.5"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 4) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Wave cover pattern</title>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <path
-            d={`M0,${60 + i * 8} Q50,${40 + i * 8} 100,${60 + i * 8} T200,${60 + i * 8}`}
-            fill="none"
-            key={`wave-${i}`}
-            opacity={1 - i * 0.06}
-            stroke="white"
-            strokeWidth="0.4"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 5) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={{
-          height: "100%",
-          inset: 0,
-          opacity: 0.3,
-          position: "absolute",
-          width: "100%",
-        }}
-        viewBox="0 0 200 130"
-      >
-        <title>Grid cover pattern</title>
-        <defs>
-          <pattern
-            height="22"
-            id="evstudio-grid"
-            patternUnits="userSpaceOnUse"
-            width="22"
-          >
-            <path d="M0 11h22M11 0v22" stroke="white" strokeWidth="0.3" />
-          </pattern>
-        </defs>
-        <rect fill="url(#evstudio-grid)" height="130" width="200" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      aria-hidden
-      preserveAspectRatio="none"
-      style={{
-        height: "100%",
-        inset: 0,
-        opacity: 0.3,
-        position: "absolute",
-        width: "100%",
-      }}
-      viewBox="0 0 200 130"
-    >
-      <title>Dotted cover pattern</title>
-      <defs>
-        <pattern
-          height="14"
-          id="evstudio-dots"
-          patternUnits="userSpaceOnUse"
-          width="14"
-        >
-          <circle cx="2" cy="2" fill="white" r="1" />
-        </pattern>
-      </defs>
-      <rect fill="url(#evstudio-dots)" height="130" width="200" />
-    </svg>
-  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2322,7 +2148,7 @@ function ScheduleStep({
                   key={pattern.id}
                   onClick={() => set("cover_pattern", pattern.id)}
                   style={{
-                    background: coverBackground(pattern.id),
+                    background: studioCoverBackground(pattern.id),
                     border: `1.5px solid ${active ? BRAND.ink : "transparent"}`,
                     borderRadius: 8,
                     cursor: "pointer",
@@ -2335,7 +2161,9 @@ function ScheduleStep({
                   }}
                   type="button"
                 >
-                  <EvCoverPattern which={coverPatternToNumber(pattern.id)} />
+                  <StudioCoverPattern
+                    which={studioCoverPatternIndex(pattern.id)}
+                  />
                   <span
                     style={{
                       bottom: 4,
@@ -3331,7 +3159,7 @@ function EventPreviewPane({
   const audienceLabel = draft.member_only
     ? "with active BISO membership"
     : `on the ${campus?.name ?? "campus"}`;
-  const coverWhich = coverPatternToNumber(draft.cover_pattern);
+  const coverWhich = studioCoverPatternIndex(draft.cover_pattern);
   let capacityBarColor: string = BRAND.leaf;
   if (ratio >= 0.95) {
     capacityBarColor = BRAND.claret;
@@ -3578,7 +3406,7 @@ function EventPreviewPane({
                 style={{
                   background: draft.image
                     ? `linear-gradient(135deg, rgba(0, 23, 49, 0.28), rgba(0, 10, 22, 0.52)), url(${draft.image})`
-                    : coverBackground(draft.cover_pattern),
+                    : studioCoverBackground(draft.cover_pattern),
                   backgroundPosition: "center",
                   backgroundSize: "cover",
                   height: 160,
@@ -3586,7 +3414,7 @@ function EventPreviewPane({
                   position: "relative",
                 }}
               >
-                {!draft.image && <EvCoverPattern which={coverWhich} />}
+                {!draft.image && <StudioCoverPattern which={coverWhich} />}
                 <span
                   style={{
                     backdropFilter: "blur(8px)",

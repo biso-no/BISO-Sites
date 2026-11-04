@@ -53,6 +53,11 @@ import {
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
 import {
+  StudioCoverPattern,
+  studioCoverBackground,
+  studioCoverPatternIndex,
+} from "../../../_components/studio";
+import {
   type CustomFieldDraft,
   CustomFieldsBoard,
   type CustomFieldType,
@@ -184,163 +189,6 @@ function describeSaveError(
     return error;
   }
   return Object.values(error ?? {}).flat()[0] ?? "Failed to save product";
-}
-
-/* -------------------------------------------------------------------------- */
-/*                            Cover pattern utilities                          */
-/* -------------------------------------------------------------------------- */
-
-function shopCoverBackground(pattern: string | null): string {
-  switch (pattern) {
-    case "linear":
-      return "linear-gradient(135deg, #2a4a7a 0%, #15263c 100%)";
-    case "concentric":
-      return "linear-gradient(135deg, #2f5d3a 0%, #1a3422 100%)";
-    case "wave":
-      return "linear-gradient(135deg, #b08a3e 0%, #6a5118 100%)";
-    case "grid":
-      return "linear-gradient(180deg, #29261b 0%, #100e09 100%)";
-    default:
-      return "linear-gradient(135deg, #6b1e1e 0%, #2a1010 100%)";
-  }
-}
-
-function shopCoverPatternIndex(pattern: string | null): number {
-  switch (pattern) {
-    case "linear":
-      return 2;
-    case "concentric":
-      return 3;
-    case "wave":
-      return 4;
-    case "grid":
-      return 5;
-    default:
-      return 1;
-  }
-}
-
-function ShopCoverPattern({ which }: { which: number }) {
-  const svgStyle: React.CSSProperties = {
-    height: "100%",
-    inset: 0,
-    opacity: 0.3,
-    position: "absolute",
-    width: "100%",
-  };
-
-  if (which === 2) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Linear cover pattern</title>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <line
-            key={`shop-line-${i}`}
-            stroke="white"
-            strokeWidth="0.5"
-            x1="0"
-            x2="200"
-            y1={i * 18}
-            y2={i * 18 - 30}
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 3) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Concentric cover pattern</title>
-        {[80, 60, 40, 20].map((r) => (
-          <circle
-            cx="40"
-            cy="100"
-            fill="none"
-            key={`shop-circ-${r}`}
-            r={r}
-            stroke="white"
-            strokeWidth="0.5"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 4) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Wave cover pattern</title>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <path
-            d={`M0,${60 + i * 8} Q50,${40 + i * 8} 100,${60 + i * 8} T200,${60 + i * 8}`}
-            fill="none"
-            key={`shop-wave-${i}`}
-            opacity={1 - i * 0.06}
-            stroke="white"
-            strokeWidth="0.4"
-          />
-        ))}
-      </svg>
-    );
-  }
-  if (which === 5) {
-    return (
-      <svg
-        aria-hidden
-        preserveAspectRatio="none"
-        style={svgStyle}
-        viewBox="0 0 200 130"
-      >
-        <title>Grid cover pattern</title>
-        <defs>
-          <pattern
-            height="22"
-            id="shop-grid"
-            patternUnits="userSpaceOnUse"
-            width="22"
-          >
-            <path d="M0 11h22M11 0v22" stroke="white" strokeWidth="0.3" />
-          </pattern>
-        </defs>
-        <rect fill="url(#shop-grid)" height="130" width="200" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      aria-hidden
-      preserveAspectRatio="none"
-      style={svgStyle}
-      viewBox="0 0 200 130"
-    >
-      <title>Dotted cover pattern</title>
-      <defs>
-        <pattern
-          height="14"
-          id="shop-dots"
-          patternUnits="userSpaceOnUse"
-          width="14"
-        >
-          <circle cx="2" cy="2" fill="white" r="1" />
-        </pattern>
-      </defs>
-      <rect fill="url(#shop-dots)" height="130" width="200" />
-    </svg>
-  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2357,10 +2205,10 @@ function PhotosVisibilityStep({
                     overflow: "hidden",
                     position: "relative",
                     width: 56,
-                    background: shopCoverBackground(p.id),
+                    background: studioCoverBackground(p.id),
                   }}
                 >
-                  <ShopCoverPattern which={shopCoverPatternIndex(p.id)} />
+                  <StudioCoverPattern which={studioCoverPatternIndex(p.id)} />
                 </div>
                 <span
                   style={{
@@ -2808,8 +2656,8 @@ function PreviewPane({
   const cat = PRODUCT_CATEGORIES.find((c) => c.id === category);
   const coverBg = heroImage
     ? `url(${heroImage})`
-    : shopCoverBackground(coverPattern);
-  const coverWhich = shopCoverPatternIndex(coverPattern);
+    : studioCoverBackground(coverPattern);
+  const coverWhich = studioCoverPatternIndex(coverPattern);
   const hasPrice = regularPrice > 0;
   const hasMemberPrice =
     memberPrice !== null && memberPrice > 0 && memberPrice < regularPrice;
@@ -3077,7 +2925,7 @@ function PreviewPane({
                   position: "relative",
                 }}
               >
-                {!heroImage && <ShopCoverPattern which={coverWhich} />}
+                {!heroImage && <StudioCoverPattern which={coverWhich} />}
                 {cat && (
                   <span
                     style={{
