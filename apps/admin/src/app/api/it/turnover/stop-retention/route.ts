@@ -1,7 +1,7 @@
 import { type Models, Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { type NextRequest, NextResponse } from "next/server";
+import { requireCronSecret } from "@/lib/api-auth";
 import { postRetentionWebhook, RETENTION_RUN_DAYS } from "@/lib/it/turnover";
 
 export const dynamic = "force-dynamic";
@@ -15,23 +15,6 @@ type TurnoverJobRow = Models.Row & {
   user_upn: string;
   stop_attempts?: number | null;
 };
-
-function readBearerToken(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-  return authHeader.slice(7);
-}
-
-function hasValidSecret(request: NextRequest, secret: string) {
-  // Header-only — keep the secret out of access logs / referrers.
-  const candidates = [
-    readBearerToken(request),
-    request.headers.get("x-cron-secret"),
-  ];
-  return candidates.some((candidate) => safeSecretCompare(candidate, secret));
-}
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
@@ -76,18 +59,9 @@ async function stopJob(
  * `stop_failed` jobs from a previous sweep (retry).
  */
 async function handle(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json(
-      { code: "SECRET_NOT_CONFIGURED", error: "CRON_SECRET is not configured" },
-      { status: 500 }
-    );
-  }
-  if (!hasValidSecret(request, secret)) {
-    return NextResponse.json(
-      { code: "UNAUTHORIZED", error: "Unauthorized" },
-      { status: 401 }
-    );
+  const rejected = requireCronSecret(request);
+  if (rejected) {
+    return rejected;
   }
 
   const stopUrl = process.env.AZURE_RETENTION_STOP_WEBHOOK_URL;
