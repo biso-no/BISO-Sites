@@ -1,6 +1,6 @@
 import { createAdminClient } from "@repo/api/server";
 import { type NextRequest, NextResponse } from "next/server";
-import { createAuthenticatedClient } from "@/lib/auth";
+import { authenticateBuyer } from "@/lib/checkout-session";
 import {
   buildTrustedCheckoutParams,
   type CheckoutLineItemInput,
@@ -43,23 +43,6 @@ function isValidBody(body: QuoteBody | null): body is QuoteBody {
   );
 }
 
-function hasBearerToken(req: NextRequest): boolean {
-  return req.headers.get("authorization")?.startsWith("Bearer ") ?? false;
-}
-
-async function authenticate(req: NextRequest) {
-  if (!hasBearerToken(req)) {
-    return null;
-  }
-  try {
-    const client = await createAuthenticatedClient(req);
-    const user = await client.account.get();
-    return user?.$id ? { client, userId: user.$id } : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   const json = (data: unknown, status = 200) =>
@@ -68,7 +51,7 @@ export async function POST(req: NextRequest) {
   try {
     // Authenticated because the price depends on who is asking: the member
     // discount is resolved from the caller's own profile and membership.
-    const auth = await authenticate(req);
+    const auth = await authenticateBuyer(req);
     if (!auth) {
       return json({ message: "Authentication required" }, 401);
     }
