@@ -229,7 +229,7 @@ but those exact numbers are not.
 - Fixtures that use the legacy shape and must keep rendering:
   `apps/web/src/app/(public)/design-system/page-blocks/fixture.ts`,
   `apps/web/src/app/(public)/design-system/winter-games/doc.ts`,
-  `packages/wp-import` (emits legacy items).
+  `packages/wp-import` (corrected in Stage 3: it never writes page text blocks; it emits no legacy items).
 - Theme tokens: `packages/shared/utils/page-theme.ts` (`themeTokens`), `packages/editor/src/theme/*.css`.
 
 ## Done means
@@ -425,3 +425,51 @@ but those exact numbers are not.
 - Pasting a Word table on Mac (and Windows if available), and a real Word or Google Docs paste of a table with coloured text.
 - The Expand view's look, and at a short window.
 - Cmd+Z in a field right after a copilot change.
+
+## Stage 3 done (2026-11-04)
+
+### What was built
+
+- Five loose ends from Stage 2 were closed first: undo, selecting everything in a text that opens with a table, and paste edge cases (a picture-only paste over a selection keeps the text).
+- The copilot sees every text body, not just the first lines, and writes the whole rich text vocabulary: lists, links, tables and colour. Its view of a page has a total body budget.
+- New unit pages start with a formatted "About ..." text instead of old-style items.
+- A formatted body survives Translate to EN and the save, covered by tests with a list, a merged-cell table and colour.
+- Docs: the page guide and the developer pages describe the rich text block, the copilot and the new body format.
+- The go-live checklist for the owner is `docs/superpowers/rich-text-go-live.md`.
+
+### Decisions made while building, and the cost if wrong
+
+- The copilot's tools stay as they are. The plan's change to run page tools in the browser, so that tool errors reach the model, was removed: it reworks a working flow for rare errors, the body is already protected, and the limitation was there before. Cost: the copilot may report a refused write inside a body as applied; the prompt steers it away from that. Listed under follow-ups.
+- Undo ruling: if another block changes (the copilot or the other surface) between typing in a field and an undo in that field, the later step into page undo can bring the typing back. A fix needs one shared undo history for fields and the page, which would lose the caret-preserving field undo. Cost: confusing undo in that rare sequence.
+- A whole-value delete over select-all only happens when the paste brings something to insert; a fragment with no text, table or divider is not inserted, so an image-only paste keeps the text. An image-only paste over a partial selection still deletes the selected words, as before. Cost: none known.
+- Typing over select-all keeps the first block's type, and a direct code-level insert over a forward select-all that opens with a table still lands after the table (real pastes are fixed). A divider counts as a neighbouring line. Cost: small oddities in rarely used paths.
+- A single numbered chunk that does not continue a list must start at 1 to become a list. Cost: a line like "17. mai" no longer turns into a list, but a pasted list starting at another number stays plain text.
+- Enter also opens a line between two touching tables. Cost: an extra empty line between tables.
+- Templates escape text inside `text()`; callers no longer escape. Cost: a caller that still escapes would show double escaping.
+- wp-import never writes page text blocks. A comment in the code says so and this corrects the starting-points list above. Cost: none.
+- Copilot body previews are cut after the last closing tag before 2,000 characters (or at 2,000), with a note to ask the volunteer to select the block before partial rewrites. Cost: a partial preview can be unbalanced.
+- The previews share a total budget of 20,000 characters, spent in document order. Later blocks show a placeholder saying how long the body is and that selecting the block reveals it. Once one preview does not fit, every later non-empty body shows the placeholder; an empty body still shows an empty string. Cost: on very long pages the copilot has to be told which block to read.
+- The docs scope grew by two pages, `ai.mdx` and `packages.mdx`, because the PR docs check flags them. The check still warns about `local-setup.mdx` and `deploying.mdx` (version pins), `guide/pages-and-news/department-pages.mdx` and `developers/reference/events-and-content-sources.mdx`. All four were checked and are still accurate. Cost: four warnings stay on the PR.
+- The docs describe the copilot as it is: all eight tools run on the server, page tools answer "applied" before the browser applies them, only the theme tool checks its input on the server, and the 12-step cap is the route's own per-request limit.
+- Deploy web first, then admin straight after, because the live web draws an HTML text body as nothing. Cost: a body saved before web ships shows blank until web ships.
+
+### Deferred
+
+- Follow-ups (also in the go-live checklist): copilot page-tool errors raised in the browser do not reach the model, and the chat shows a tick for a call the browser refused; the rare undo case above; a sanitiser timing test (150 ms bound) ran 170 ms once under heavy parallel load and could flake in CI.
+- Minor items: about 1 ms timing skew in the undo-burst split at exactly 1000 ms, and a clock reset that leaks if a test fails; a preview cut after the last end tag can leave unbalanced markup, and an end-tag match could hit `</p>` inside an attribute value; the unit-page text helper does not turn U+00A0 into `&nbsp;`, so a unit name with a non-breaking space would be non-canonical; a long wp-import comment line; the translation test fixtures are not pinned as canonical in `fixed-point.test.ts`, and the English sample text is duplicated across two admin test files; the "Write in a Rich text block" guide step is long and dense.
+- Pre-existing: admin `src/lib/content-translation.test.ts` model-id mismatch (also on main).
+
+### Owner hand checks
+
+- All of them are in `docs/superpowers/rich-text-go-live.md`, together with the Stage 1 and Stage 2 checks, the deploy order and the rollback note.
+
+### Verification (2026-11-04)
+
+- Lint: `bun x ultracite fix` then `check` on the 24 branch files since Stage 3 began, clean, no fixes.
+- Forced `bun run check-types`: 18 of 18 successful, 0 cached.
+- Editor tests: 1800 pass, 0 fail, 131 files (Stage 3 baseline 1746 at the start of the plan).
+- Shared: 1205 pass. Web `styles.test.ts`: 38 pass. Docs: 347 pass, docs check-types clean.
+- Admin: `departments.test.ts` 33 pass, `content-translation-actions.test.ts` 13 pass, `src/lib` 848 pass and 1 fail (the known model-id mismatch).
+- Forced builds of admin, web and docs all exit 0.
+- Web chunk check: the paste code is in one chunk, the public renderer's class string is in a different one, and no file holds both. The built CSS has the colour rules in two files.
+- PR docs check: the four expected warnings and nothing else.
