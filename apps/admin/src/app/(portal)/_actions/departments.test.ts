@@ -793,16 +793,16 @@ describe("createUnitPage rich text", () => {
         {
           doc: {
             sections: {
-              columns: { blocks: { body?: { text: string }[] }[] }[];
+              columns: { blocks: { body?: string }[] }[];
             }[];
           };
         },
       ],
     ];
-    const about = call.doc.sections[0].columns[0].blocks[0].body ?? [];
+    const about = call.doc.sections[0].columns[0].blocks[0].body;
     // Escaped by the template, so the name reads as written.
-    expect(about[0]?.text).toBe(
-      "Om Case &amp; Co&lt;img src=x onerror=alert(1)&gt;"
+    expect(about).toBe(
+      "<h2>Om Case &amp; Co&lt;img src=x onerror=alert(1)&gt;</h2><p>Fortell nye studenter hva dere gjør, når det skjer og hvorfor de bør bli med.</p>"
     );
   });
 });

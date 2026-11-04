@@ -81,13 +81,16 @@ function htmlText(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
+/**
+ * A text block whose body is the HTML the rich text field writes. Both
+ * arguments are plain text and are escaped here, once; callers never escape.
+ * The unit's name (inside the heading) comes from the accounting system:
+ * text, not markup.
+ */
 function text(heading: string, paragraph: string): Block {
   const block = emptyBlock("text");
   if (block.type === "text") {
-    block.body = [
-      { text: heading, type: "h" },
-      { text: paragraph, type: "p" },
-    ];
+    block.body = `<h2>${htmlText(heading)}</h2><p>${htmlText(paragraph)}</p>`;
   }
   return block;
 }
@@ -124,8 +127,7 @@ export function unitPageTemplate(input: UnitPageTemplateInput): {
   sections: Section[];
 } {
   const copy = COPY[input.locale];
-  // The name comes from the accounting system: text, not markup.
-  const about = text(copy.about(htmlText(input.name)), copy.aboutBody);
+  const about = text(copy.about(input.name), copy.aboutBody);
 
   const blocks: Block[] =
     input.kind === "unit"

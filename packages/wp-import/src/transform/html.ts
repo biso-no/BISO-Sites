@@ -5,6 +5,7 @@
  * That parser only recognises top-level <figure>, <h1-6>, <p> and <li>; anything
  * else is silently dropped, which is why unsupported containers are rescued into
  * paragraphs here rather than passed through.
+ * Descriptions only: nothing in this package writes a page's text block (TextBlock.body), since pages are not imported.
  */
 
 const NAMED_ENTITIES: Record<string, string> = {

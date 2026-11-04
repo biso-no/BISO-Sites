@@ -1,7 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
+import { scanBody } from "./body-scan";
 import { unitPageTemplate } from "./templates";
 import type { Block, Section } from "./types";
 
+mock.module("server-only", () => ({}));
+const { sanitizeRichBodyHtml } = await import("./sanitize-doc");
+
+const H2_TEXT = /<h2>(.*?)<\/h2>/;
 const flat = (sections: Section[]): Block[] =>
   sections.flatMap((s) => s.columns.flatMap((c) => c.blocks));
 const types = (sections: Section[]) => flat(sections).map((b) => b.type);
@@ -99,8 +104,8 @@ describe("unitPageTemplate", () => {
     }).sections;
     const heading = (sections: Section[], index: number) => {
       const block = flat(sections)[index];
-      return block?.type === "text" && Array.isArray(block.body)
-        ? block.body[0]?.text
+      return block?.type === "text" && typeof block.body === "string"
+        ? H2_TEXT.exec(block.body)?.[1]
         : undefined;
     };
     expect(heading(norwegian, 0)).toBe("Om Fadderullan");
@@ -148,12 +153,19 @@ describe("unitPageTemplate", () => {
 
 describe("unitPageTemplate escapes the unit's name", () => {
   // The name lands in a text block, whose body is HTML; department names come
-  // from the accounting system. The header shows it as plain text.
+  // from the accounting system. The header shows it as plain text. `text()`
+  // escapes, so the name reaches it unescaped and is escaped exactly once.
   test.each([
-    ["no", "Om Case &amp; Co &lt;img src=x onerror=alert(1)&gt;"],
-    ["en", "About Case &amp; Co &lt;img src=x onerror=alert(1)&gt;"],
-  ] as const)("in the %s about heading", (locale, heading) => {
-    const name = "Case & Co <img src=x onerror=alert(1)>";
+    [
+      "no",
+      '<h2>Om Case &amp; Co &lt;img src=x onerror=alert(1)&gt; "q"</h2><p>Fortell nye studenter hva dere gjør, når det skjer og hvorfor de bør bli med.</p>',
+    ],
+    [
+      "en",
+      '<h2>About Case &amp; Co &lt;img src=x onerror=alert(1)&gt; "q"</h2><p>Tell new students what you do, when it happens and why they should join.</p>',
+    ],
+  ] as const)("in the %s about text body", (locale, body) => {
+    const name = 'Case & Co <img src=x onerror=alert(1)> "q"';
     const { header, sections } = unitPageTemplate({
       campusLabel: null,
       kind: "unit",
@@ -162,9 +174,26 @@ describe("unitPageTemplate escapes the unit's name", () => {
     });
     const about = sections[0].columns[0].blocks[0];
 
-    expect(
-      about.type === "text" && Array.isArray(about.body) && about.body[0].text
-    ).toBe(heading);
+    expect(about.type === "text" && about.body).toBe(body);
     expect(header.title).toBe(name);
   });
+});
+
+test("every template text body is the HTML the field writes", () => {
+  for (const kind of ["unit", "project"] as const) {
+    for (const locale of ["no", "en"] as const) {
+      const { sections } = unitPageTemplate({
+        campusLabel: "Oslo",
+        kind,
+        locale,
+        name: 'Case & Co "q"',
+      });
+      for (const block of flat(sections).filter((b) => b.type === "text")) {
+        const body = block.type === "text" ? block.body : undefined;
+        expect(typeof body).toBe("string");
+        expect(scanBody(body as string, 100)).toBe("canonical");
+        expect(sanitizeRichBodyHtml(body as string)).toBe(body as string);
+      }
+    }
+  }
 });
