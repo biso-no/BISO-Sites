@@ -21,7 +21,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 export const MEMBERSHIP_CACHE_TTL_SECONDS = 60;
 
 /** A forced refresh within this long of the last computation is served from cache. */
-export const MEMBERSHIP_REFRESH_FLOOR_MS = 60 * 1000;
+const MEMBERSHIP_REFRESH_FLOOR_MS = 60 * 1000;
 
 /**
  * Failures are deliberately not cached by `unstable_cache`, so during a
