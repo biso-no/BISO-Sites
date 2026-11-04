@@ -194,6 +194,67 @@ test("the last line after a table stays, and Backspace there moves into the tabl
   expect(caret(editor)).toEqual(at(editor, "b2", 2));
 });
 
+// The only line on a table's far side stays, so the text keeps a place to
+// write before a table that opens it, or between two tables.
+const TABLE_C = "<table><tbody><tr><td>c1</td></tr></tbody></table>";
+const tableOf = (start: string): Value =>
+  htmlToValue(start).filter((node) => node.type === "table");
+const types = (editor: SlateEditor) => editor.children.map((node) => node.type);
+
+test("Delete on an empty first line before a table keeps the line", () => {
+  const editor = editorOn([
+    { type: "p", children: [{ text: "" }] },
+    ...tableOf(TABLE),
+  ]);
+  editor.tf.select({ offset: 0, path: [0, 0] });
+  editor.tf.deleteForward("character");
+  expect(types(editor)).toEqual(["p", "table", "p"]);
+  expect(caret(editor)).toEqual(at(editor, "a1", 0));
+});
+
+test("Backspace and Delete on an empty line between two tables keep the line", () => {
+  const editor = editorOn([
+    ...tableOf(TABLE),
+    { type: "p", children: [{ text: "" }] },
+    ...tableOf(TABLE_C),
+    { type: "p", children: [{ text: "" }] },
+  ]);
+  editor.tf.select({ offset: 0, path: [1, 0] });
+  editor.tf.deleteBackward("character");
+  expect(types(editor)).toEqual(["table", "p", "table", "p"]);
+  expect(caret(editor)).toEqual(at(editor, "b2", 2));
+
+  editor.tf.select({ offset: 0, path: [1, 0] });
+  editor.tf.deleteForward("character");
+  expect(types(editor)).toEqual(["table", "p", "table", "p"]);
+  expect(caret(editor)).toEqual(at(editor, "c1", 0));
+});
+
+test("Enter at the very start of a table that opens the text adds a line above it", () => {
+  const editor = editorOn(TABLE);
+  editor.tf.select(at(editor, "a1", 0));
+  editor.tf.insertBreak();
+  expect(types(editor)).toEqual(["p", "table", "p"]);
+  expect(editor.selection?.anchor.path[0]).toBe(0);
+  editor.tf.insertText("x");
+  expect(html(editor)).toBe(`<p>x</p>${TABLE}`);
+});
+
+test("Enter at the start of a table right after another table adds a line between them", () => {
+  const editor = editorOn(`${TABLE}${TABLE_C}`);
+  editor.tf.select(at(editor, "c1", 0));
+  editor.tf.insertBreak();
+  expect(types(editor)).toEqual(["table", "p", "table", "p"]);
+});
+
+test("Enter at the start of a table after a paragraph stays the table's own", () => {
+  const editor = editorOn(`<p>x</p>${TABLE}`);
+  editor.tf.select(at(editor, "a1", 0));
+  editor.tf.insertBreak();
+  expect(editor.children[1]?.type).toBe("table");
+  expect(editor.children).toHaveLength(3);
+});
+
 test("Backspace at the start of a list item after a table ends the list first", () => {
   const editor = editorOn(`${TABLE}<ul><li>item</li></ul>`);
   editor.tf.select(at(editor, "item", 0));

@@ -64,12 +64,24 @@ function deleteBetween(
 }
 
 /**
+ * Whether the block beside `path`, after it or else before it, is a block
+ * that is no table: a line the text keeps when the one at `path` goes.
+ */
+function lineBeside(editor: SlateEditor, path: Path, after: boolean): boolean {
+  const besidePath = after ? PathApi.next(path) : PathApi.previous(path);
+  const beside = besidePath ? editor.api.node(besidePath) : undefined;
+  return beside !== undefined && beside[0].type !== KEYS.table;
+}
+
+/**
  * A caret's one-step delete (Backspace, Delete, a word or a line) that would
  * cross a table's edge. In a cell it stops at the cell's edge. Beside a
  * table it stops at its block's edge; from there the caret moves into the
- * table instead (the last cell's end, or the first cell's start), and an
- * empty line it leaves goes, unless it is the last line. Whether it handled
- * the delete.
+ * table instead (the last cell's end, or the first cell's start). An empty
+ * line it leaves goes only when a line that is no table lies on its other
+ * side (after it for Backspace, before it for Delete), so the only line
+ * before a table that opens the text, after the last table, or between two
+ * tables stays. Whether it handled the delete.
  */
 function deleteAtEdge(
   remove: Delete,
@@ -112,14 +124,43 @@ function deleteAtEdge(
     return true;
   }
   const tableRef = editor.api.pathRef(table[1]);
-  const isLast = !NodeApi.has(editor, PathApi.next(path));
-  if (NodeApi.string(node) === "" && !isLast) {
+  if (NodeApi.string(node) === "" && lineBeside(editor, path, reverse)) {
     editor.tf.removeNodes({ at: path });
   }
   const tablePath = tableRef.unref();
   if (tablePath) {
     editor.tf.select(edgeOf(editor, tablePath, reverse));
   }
+  return true;
+}
+
+/**
+ * Enter with the caret at the very start of a table that opens the text, or
+ * that follows another table: an empty line above the table, with the caret
+ * in it, since the text has no other place to write there. Whether it did.
+ */
+function openLineAboveTable(editor: SlateEditor): boolean {
+  const { selection } = editor;
+  if (!selection || RangeApi.isExpanded(selection)) {
+    return false;
+  }
+  const table = editor.api.above({
+    at: selection.anchor,
+    match: { type: KEYS.table },
+    mode: "highest",
+  });
+  if (!table) {
+    return false;
+  }
+  const [, path] = table;
+  if (
+    !PointApi.equals(selection.anchor, edgeOf(editor, path, false)) ||
+    lineBeside(editor, path, false)
+  ) {
+    return false;
+  }
+  editor.tf.insertNodes(editor.api.create.block(), { at: path });
+  editor.tf.select(edgeOf(editor, path, false));
   return true;
 }
 
@@ -303,7 +344,10 @@ function placeOf(
 export const RichTableEdgesPlugin = createSlatePlugin({
   key: "richTableEdges",
 }).overrideEditor(
-  ({ editor, tf: { delete: remove, deleteFragment, insertText } }) => ({
+  ({
+    editor,
+    tf: { delete: remove, deleteFragment, insertBreak, insertText },
+  }) => ({
     transforms: {
       delete(options = {}) {
         const place = placeOf(editor, options);
@@ -346,6 +390,11 @@ export const RichTableEdgesPlugin = createSlatePlugin({
           return;
         }
         deleteFragment(options);
+      },
+      insertBreak() {
+        if (!openLineAboveTable(editor)) {
+          insertBreak();
+        }
       },
       // Plate's table `insertText` collapses a selection that spans cells and
       // deletes nothing; over the whole text, the text goes first.
