@@ -282,10 +282,11 @@ export function coversWholeValue(editor: SlateEditor, at: TRange): boolean {
 
 /**
  * A delete of the whole text: Slate's own, from the value's first point to
- * its last, so no table stays. Slate keeps the block its start lies in, so a
- * table that opens the text first gets an empty line before it to hold the
- * start. A caller's ref to the end point stays, at the start. The caret,
- * when the delete was the selection's, at the start.
+ * its last, so no table stays. Slate keeps the block its start lies in, so
+ * an empty plain line goes in first to hold the start: what replaces the
+ * text then goes into a line, not into a table, a divider or a list item. A
+ * caller's ref to the end point stays, at the start. The caret, when the
+ * delete was the selection's, at the start.
  */
 function deleteWholeValue(
   remove: Delete,
@@ -293,9 +294,7 @@ function deleteWholeValue(
   options: DeleteTextOptions
 ): void {
   editor.tf.withoutNormalizing(() => {
-    if (editor.children[0]?.type === KEYS.table) {
-      editor.tf.insertNodes(editor.api.create.block(), { at: [0] });
-    }
+    editor.tf.insertNodes(editor.api.create.block(), { at: [0] });
     const [start, end] = edgesOf(editor, []);
     remove({ ...options, at: { anchor: start, focus: end }, hanging: true });
     if (options.at == null) {

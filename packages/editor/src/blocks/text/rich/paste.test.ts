@@ -263,7 +263,23 @@ test("a paste with no table into a cell stays in the cell, its blocks as lines",
   );
 });
 
-// Select-all, either way, then a paste replaces everything, tables too.
+/** A field's editor (node ids on) holding `start`, all of it selected. */
+function selectedAll(start: string, backward: boolean) {
+  const editor = createConversionEditor([RichPastePlugin], { nodeId: true });
+  editor.tf.setValue(htmlToValue(start));
+  const all = editor.api.range([]);
+  if (!all) {
+    throw new Error("no text");
+  }
+  editor.tf.select(backward ? { anchor: all.focus, focus: all.anchor } : all);
+  return editor;
+}
+
+const OPENS_WITH_TABLE =
+  "<table><tbody><tr><td>a</td></tr></tbody></table><p>after</p>";
+
+// Select-all, either way, then a paste replaces everything, tables too, and
+// leaves a plain line for it: no empty list item, no divider.
 test.each([
   [
     "<p>before</p><table><tbody><tr><td>a</td></tr></tbody></table><p>after</p>",
@@ -280,17 +296,65 @@ test.each([
     "<table><tr><td>x</td><td>y</td></tr></table>",
     "<table><tbody><tr><td>x</td><td>y</td></tr></tbody></table>",
   ],
+  [
+    "<ul><li>x</li></ul><p>y</p>",
+    "<table><tr><td>t</td></tr></table>",
+    "<table><tbody><tr><td>t</td></tr></tbody></table>",
+  ],
+  ["<hr><p>x</p>", "<p>New</p>", "<p>New</p>"],
 ])("pasting a table over a select-all replaces the whole text, even one that opens with a table: %s", (start, pasted, out) => {
   for (const backward of [false, true]) {
-    const editor = createConversionEditor([RichPastePlugin], { nodeId: true });
-    editor.tf.setValue(htmlToValue(start));
-    const all = editor.api.range([]);
-    if (!all) {
-      throw new Error("no text");
-    }
-    editor.tf.select(backward ? { anchor: all.focus, focus: all.anchor } : all);
+    const editor = selectedAll(start, backward);
     editor.tf.insertData(clipboard({ "text/html": pasted }));
     expect(valueToHtml(editor.children)).toBe(out);
+  }
+});
+
+test("plain text with lines pasted over a select-all replaces the whole text", () => {
+  for (const backward of [false, true]) {
+    const editor = selectedAll(OPENS_WITH_TABLE, backward);
+    editor.tf.insertData(clipboard({ "text/plain": "one\ntwo" }));
+    expect(valueToHtml(editor.children)).toBe("<p>one<br>two</p>");
+  }
+});
+
+test("a fragment inserted over a select-all replaces the whole text, even one that opens with a table", () => {
+  for (const backward of [false, true]) {
+    const editor = selectedAll(OPENS_WITH_TABLE, backward);
+    const [copied] = htmlToValue("<table><tr><td>x</td></tr></table>");
+    editor.tf.insertFragment([copied as Value[number]]);
+    expect(valueToHtml(editor.children)).toBe(
+      "<table><tbody><tr><td>x</td></tr></tbody></table>"
+    );
+  }
+});
+
+/** What a screenshot puts on the clipboard: an image file and no text. */
+const screenshot = (): DataTransfer =>
+  ({
+    ...clipboard({}),
+    files: [{ type: "image/png" }],
+    types: ["Files"],
+  }) as unknown as DataTransfer;
+
+// A paste with nothing the text keeps leaves the text as it was.
+test.each([
+  [
+    "an image alone in HTML",
+    () => clipboard({ "text/html": '<p><img src="x.png"></p>' }),
+    1,
+  ],
+  ["a screenshot", screenshot, 1],
+  ["an empty clipboard", () => clipboard({}), 0],
+])("a paste of %s over a select-all keeps the text", (_, data, notices) => {
+  for (const start of ["<p>Keep me</p>", OPENS_WITH_TABLE]) {
+    for (const backward of [false, true]) {
+      const editor = selectedAll(start, backward);
+      const kept = valueToHtml(editor.children);
+      editor.tf.insertData(data());
+      expect(valueToHtml(editor.children)).toBe(kept);
+      expect(editor.getOption(RichPastePlugin, "imageNotices")).toBe(notices);
+    }
   }
 });
 

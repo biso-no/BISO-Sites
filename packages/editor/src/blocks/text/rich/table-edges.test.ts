@@ -410,6 +410,8 @@ test("deleting the whole text selected empties it, tables and all", () => {
 // replaces everything, tables too.
 
 const OPENS_WITH_TABLE = `${TABLE}<p>after</p>`;
+const OPENS_WITH_RULE = "<hr><p>x</p>";
+const OPENS_WITH_LIST = "<ul><li>x</li></ul><p>y</p>";
 
 /** The whole text selected backward: from its end to its start. */
 const REVERSED = (editor: SlateEditor): TRange => {
@@ -430,7 +432,10 @@ test.each([
   for (const start of [PAGE, OPENS_WITH_TABLE]) {
     const editor = editorOn(start);
     selectAll(editor, way);
-    editor.tf.deleteFragment();
+    // Backspace deletes a selection backward, Delete forward.
+    editor.tf.deleteFragment(
+      way === "backward" ? { direction: "backward" } : undefined
+    );
     expect(html(editor)).toBe("");
     expect(editor.children).toHaveLength(1);
   }
@@ -440,11 +445,35 @@ test.each([
   "forward",
   "backward",
 ])("typing over a select-all %s leaves only what was typed", (way) => {
-  for (const start of [PAGE, OPENS_WITH_TABLE]) {
+  for (const start of [
+    PAGE,
+    OPENS_WITH_TABLE,
+    OPENS_WITH_RULE,
+    OPENS_WITH_LIST,
+  ]) {
     const editor = editorOn(start);
     selectAll(editor, way);
     editor.tf.insertText("Z");
     expect(html(editor)).toBe("<p>Z</p>");
+  }
+});
+
+test.each([
+  "forward",
+  "backward",
+])("Enter over a select-all %s leaves two empty lines", (way) => {
+  for (const start of [
+    PAGE,
+    OPENS_WITH_TABLE,
+    OPENS_WITH_RULE,
+    OPENS_WITH_LIST,
+  ]) {
+    const editor = editorOn(start);
+    selectAll(editor, way);
+    editor.tf.insertBreak();
+    expect(html(editor)).toBe("");
+    expect(types(editor)).toEqual(["p", "p"]);
+    expect(caret(editor)).toEqual({ offset: 0, path: [1, 0] });
   }
 });
 

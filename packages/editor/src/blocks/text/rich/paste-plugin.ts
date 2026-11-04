@@ -10,6 +10,7 @@ import {
   RangeApi,
   type SlateEditor,
   type TElement,
+  TextApi,
 } from "platejs";
 import { isListItem, listDepths } from "./html";
 import {
@@ -136,6 +137,20 @@ function insertAfterTable(
   return true;
 }
 
+/**
+ * Whether `nodes` hold anything the text keeps: some text, a table, or a
+ * void such as a divider. An image pasted alone brings none of these.
+ */
+function bringsContent(editor: SlateEditor, nodes: Descendant[]): boolean {
+  return nodes.some((node) =>
+    ElementApi.isElement(node)
+      ? node.type === KEYS.table ||
+        editor.api.isVoid(node) ||
+        bringsContent(editor, node.children)
+      : TextApi.isText(node) && node.text !== ""
+  );
+}
+
 export type RichPasteConfig = PluginConfig<
   "richPaste",
   {
@@ -158,9 +173,12 @@ export type RichPasteConfig = PluginConfig<
  * at the depths the save writes, and an empty line a table was pasted into
  * goes. A paste with an image in it (HTML or a file) counts one
  * `imageNotices`; the paste itself is unchanged. A table pasted in a cell
- * goes after the table, with the rest of the paste (`insertAfterTable`). A
- * paste over the whole text (select-all, either way) deletes it first, tables
- * too, so it replaces everything.
+ * goes after the table, with the rest of the paste (`insertAfterTable`).
+ * Over the whole text (select-all, either way), a fragment that brings
+ * something (`bringsContent`) deletes the text first, tables too, so it
+ * replaces everything. One that brings nothing (an image alone, which Plate
+ * reads as an empty line) is not inserted, and a paste with no fragment (a
+ * screenshot, an empty clipboard) inserts none: the text stays.
  */
 export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
   key: "richPaste",
@@ -201,15 +219,19 @@ export const RichPastePlugin = createTSlatePlugin<RichPasteConfig>({
     return {
       transforms: {
         insertFragment(fragment, options) {
+          if (wholeValueSelected(editor)) {
+            // Plate's own insert would replace the text with an empty line.
+            if (!bringsContent(editor, fragment)) {
+              return;
+            }
+            // Otherwise an anchor in a table sends it after that table.
+            editor.tf.delete();
+          }
           if (!insertAfterTable(editor, fragment)) {
             insertFragment(fragment, options);
           }
         },
         insertData(data: DataTransfer) {
-          // Otherwise an anchor in a table sends the paste after that table.
-          if (wholeValueSelected(editor)) {
-            editor.tf.delete();
-          }
           if (dropsImage(data)) {
             setOption("imageNotices", getOption("imageNotices") + 1);
           }
