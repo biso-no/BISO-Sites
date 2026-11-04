@@ -89,8 +89,14 @@ export function unwrap(el: Element): void {
   el.replaceWith(...Array.from(el.childNodes));
 }
 
+/**
+ * Whether `el` holds blocks: a child is a block, or an inline element that
+ * holds blocks itself (`<a><span><p>a</p><p>b</p></span></a>`).
+ */
 const holdsBlocks = (el: Element): boolean =>
-  Array.from(el.children).some((child) => BLOCK_TAGS.has(child.tagName));
+  Array.from(el.children).some(
+    (child) => BLOCK_TAGS.has(child.tagName) || holdsBlocks(child)
+  );
 
 const isBlank = (el: Element): boolean => (el.textContent ?? "").trim() === "";
 
@@ -138,12 +144,14 @@ export function structureBlocks(root: HTMLElement): void {
   joinBlockParagraphs(root);
 }
 
-const isBlockElement = (node: Node): node is Element =>
-  node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has(node.nodeName);
+/** A block, or an inline element that holds blocks (`holdsBlocks`). */
+const isBlockOrHolder = (node: Node): node is Element =>
+  node.nodeType === Node.ELEMENT_NODE &&
+  (BLOCK_TAGS.has(node.nodeName) || holdsBlocks(node as Element));
 
 /**
- * Each run of `parent`'s children beside its blocks in a copy of `inline`,
- * unless the run is blank.
+ * Each run of `parent`'s children beside its blocks, and beside the inline
+ * elements that hold blocks, in a copy of `inline`, unless the run is blank.
  */
 function wrapRunsBeside(inline: Element, parent: Element): void {
   let run: Node[] = [];
@@ -157,7 +165,7 @@ function wrapRunsBeside(inline: Element, parent: Element): void {
     run = [];
   };
   for (const child of Array.from(parent.childNodes)) {
-    if (isBlockElement(child)) {
+    if (isBlockOrHolder(child)) {
       wrapRun();
     } else {
       run.push(child);
@@ -169,7 +177,8 @@ function wrapRunsBeside(inline: Element, parent: Element): void {
 /**
  * A copy of `inline` around the content of `block`, or, where `block` holds
  * blocks itself, around each run of content beside them and into each of
- * them: a list's items, a table's cells.
+ * them: a list's items, a table's cells, and through an inline element that
+ * holds blocks, the blocks it holds.
  */
 function pushInto(inline: Element, block: Element): void {
   if (!holdsBlocks(block)) {
@@ -182,7 +191,7 @@ function pushInto(inline: Element, block: Element): void {
   }
   wrapRunsBeside(inline, block);
   for (const child of Array.from(block.children)) {
-    if (isBlockElement(child)) {
+    if (isBlockOrHolder(child)) {
       pushInto(inline, child);
     }
   }

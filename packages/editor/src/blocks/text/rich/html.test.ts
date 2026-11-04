@@ -287,6 +287,19 @@ test.each([
     '<a href="/x"><ul><li>one</li><li>two</li></ul></a>',
     '<ul><li><a href="/x">one</a></li><li><a href="/x">two</a></li></ul>',
   ],
+  // Through an inline element that holds the blocks.
+  [
+    '<a href="/x"><span><p>a</p><p>b</p></span></a>',
+    '<p><a href="/x">a</a></p><p><a href="/x">b</a></p>',
+  ],
+  [
+    '<a href="/x"><span data-color="red"><p>a</p><p>b</p></span></a>',
+    '<p><a href="/x"><span data-color="red">a</span></a></p><p><a href="/x"><span data-color="red">b</span></a></p>',
+  ],
+  [
+    '<ul><li><a href="/x"><span><p>a</p><p>b</p></span></a></li></ul>',
+    '<ul><li><a href="/x">a</a><br><a href="/x">b</a></li></ul>',
+  ],
 ])("a link around blocks goes into each: %s", (input, out) =>
   expect(valueToHtml(htmlToValue(input))).toBe(out));
 
@@ -314,6 +327,7 @@ test.each([
     "<table><tr><td><span><p>a</p><p>b</p></span></td></tr></table>",
     "<table><tbody><tr><td>a<br>b</td></tr></tbody></table>",
   ],
+  ["<div><span><p>a</p><p>b</p></span></div>", "<p>a</p><p>b</p>"],
 ])("blocks wrapped in an inline element stay lines apart: %s", (input, out) =>
   expect(valueToHtml(htmlToValue(input))).toBe(out));
 
