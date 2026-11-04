@@ -82,6 +82,7 @@ import {
   stripHtml,
   type TextDescriptionBlock,
 } from "../../../_components/description-blocks";
+import { StepIntro } from "../../../communications/_components/composer/ui";
 import { describePushAudience } from "./event-studio-push";
 import {
   memberPriceProblem,
@@ -2005,30 +2006,10 @@ function ScheduleStep({
 
   return (
     <div>
-      <div style={{ padding: "8px 0 18px" }}>
-        <div
-          style={{
-            color: BRAND.ink,
-            fontFamily: "'Instrument Serif', Georgia, serif",
-            fontSize: 40,
-            letterSpacing: "-0.015em",
-            lineHeight: 1.05,
-          }}
-        >
-          When, where, how many.
-        </div>
-        <p
-          style={{
-            color: BRAND.ink3,
-            fontSize: 13.5,
-            margin: "8px 0 0",
-            maxWidth: "50ch",
-          }}
-        >
-          Once the date is in, calendar buttons and reminders wire themselves up
-          automatically. Capacity sets the cut-off for the waitlist.
-        </p>
-      </div>
+      <StepIntro
+        lead="Once the date is in, calendar buttons and reminders wire themselves up automatically. Capacity sets the cut-off for the waitlist."
+        title="When, where, how many."
+      />
 
       <div
         style={{
@@ -2627,31 +2608,10 @@ function TicketsStep({
 
   return (
     <div>
-      <div style={{ padding: "8px 0 18px" }}>
-        <div
-          style={{
-            color: BRAND.ink,
-            fontFamily: "'Instrument Serif', Georgia, serif",
-            fontSize: 40,
-            letterSpacing: "-0.015em",
-            lineHeight: 1.05,
-          }}
-        >
-          Doors, tickets, who's invited.
-        </div>
-        <p
-          style={{
-            color: BRAND.ink3,
-            fontSize: 13.5,
-            margin: "8px 0 0",
-            maxWidth: "50ch",
-          }}
-        >
-          Where people get tickets or sign up goes in the ticket link: the event
-          page shows it as a Get tickets button. BISO sells no event tickets
-          itself, so a paid event needs one.
-        </p>
-      </div>
+      <StepIntro
+        lead="Where people get tickets or sign up goes in the ticket link: the event page shows it as a Get tickets button. BISO sells no event tickets itself, so a paid event needs one."
+        title="Doors, tickets, who's invited."
+      />
 
       <div
         style={{
@@ -3047,30 +3007,10 @@ function ReviewStep({
 
   return (
     <div>
-      <div style={{ padding: "8px 0 18px" }}>
-        <div
-          style={{
-            color: BRAND.ink,
-            fontFamily: "'Instrument Serif', Georgia, serif",
-            fontSize: 40,
-            letterSpacing: "-0.015em",
-            lineHeight: 1.05,
-          }}
-        >
-          One last look.
-        </div>
-        <p
-          style={{
-            color: BRAND.ink3,
-            fontSize: 13.5,
-            margin: "8px 0 0",
-            maxWidth: "50ch",
-          }}
-        >
-          Click any row to jump back and edit. When you're happy, hit Publish —
-          the event goes on biso.no and the BISO app at the same moment.
-        </p>
-      </div>
+      <StepIntro
+        lead="Click any row to jump back and edit. When you're happy, hit Publish — the event goes on biso.no and the BISO app at the same moment."
+        title="One last look."
+      />
 
       <TranslationReviewCard
         className="mb-4"
