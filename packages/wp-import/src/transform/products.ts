@@ -111,7 +111,7 @@ function variationRow(
  * one row per variation, so a variation is never silently dropped; the
  * caller is told which names were left unpaired.
  */
-export function buildVariations(variations: WcProductVariation[]): {
+function buildVariations(variations: WcProductVariation[]): {
   rows: TransformedVariation[];
   unpairedNames: string[];
 } {

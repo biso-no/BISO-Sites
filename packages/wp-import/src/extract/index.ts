@@ -209,7 +209,7 @@ export async function extractJobs(
  * the sole source of the WAPF field-group definitions (`_wapf_fieldgroup`),
  * which neither /wp/v2/product nor the Store API exposes.
  */
-export interface WcAdminProduct {
+interface WcAdminProduct {
   id: number;
   meta_data: WpMetaEntry[];
 }

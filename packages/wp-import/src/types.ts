@@ -18,12 +18,6 @@ export interface RejectRow {
   sourceId: number;
 }
 
-export interface ImportReport {
-  imported: number;
-  rejected: RejectRow[];
-  warnings: string[];
-}
-
 /**
  * Structural type for the `fetch` used by this package's clients.
  *
