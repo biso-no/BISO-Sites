@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Bell,
-  Check,
   ChevronRight,
   type Megaphone,
   Save,
@@ -50,6 +49,7 @@ import {
   LocaleTabs,
   MONO,
   StepIntro,
+  StepRail,
   TYPE_ICONS,
 } from "./composer/ui";
 import { WhatStep } from "./composer/what-step";
@@ -305,151 +305,6 @@ function announcementDepartmentId(
 /* -------------------------------------------------------------------------- */
 /*                              Shared primitives                             */
 /* -------------------------------------------------------------------------- */
-
-function pickStepColor(
-  active: boolean,
-  done: boolean,
-  variants: { active: string; done: string; idle: string }
-) {
-  if (active) {
-    return variants.active;
-  }
-  if (done) {
-    return variants.done;
-  }
-  return variants.idle;
-}
-
-function StepRail({
-  dirty,
-  setStep,
-  step,
-}: {
-  dirty: boolean;
-  setStep: (step: StepIndex) => void;
-  step: StepIndex;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        backdropFilter: "blur(14px)",
-        background: "rgba(250,247,242,.92)",
-        borderBottom: `0.5px solid ${BRAND.rule}`,
-        display: "flex",
-        gap: 6,
-        padding: "14px 36px",
-        position: "sticky",
-        top: 0,
-        WebkitBackdropFilter: "blur(14px)",
-        zIndex: 10,
-      }}
-    >
-      {STEPS.map((name, index) => {
-        const active = index === step;
-        const done = index < step;
-        const pillColor = pickStepColor(active, done, {
-          active: BRAND.paper,
-          done: BRAND.leaf,
-          idle: BRAND.ink3,
-        });
-        const numBg = pickStepColor(active, done, {
-          active: BRAND.paper,
-          done: BRAND.leaf,
-          idle: "white",
-        });
-        const numBorder = pickStepColor(active, done, {
-          active: "0.5px solid transparent",
-          done: `0.5px solid ${BRAND.leaf}`,
-          idle: `0.5px solid ${BRAND.rule2}`,
-        });
-        const numColor = pickStepColor(active, done, {
-          active: BRAND.ink,
-          done: "white",
-          idle: BRAND.ink3,
-        });
-        return (
-          <div key={name} style={{ alignItems: "center", display: "flex" }}>
-            {index > 0 && (
-              <div
-                style={{
-                  background: BRAND.rule2,
-                  height: "0.5px",
-                  margin: "0 -2px",
-                  maxWidth: 36,
-                  width: 36,
-                }}
-              />
-            )}
-            <button
-              onClick={() => setStep(index as StepIndex)}
-              style={{
-                alignItems: "center",
-                background: active ? BRAND.ink : "transparent",
-                border: 0,
-                borderRadius: 999,
-                color: pillColor,
-                cursor: "pointer",
-                display: "flex",
-                fontSize: 12.5,
-                gap: 9,
-                padding: "6px 14px 6px 6px",
-                transition: "color .15s, background .15s",
-              }}
-              type="button"
-            >
-              <span
-                style={{
-                  alignItems: "center",
-                  background: numBg,
-                  border: numBorder,
-                  borderRadius: "50%",
-                  color: numColor,
-                  display: "grid",
-                  fontFamily: MONO,
-                  fontSize: 10.5,
-                  height: 22,
-                  placeItems: "center",
-                  width: 22,
-                }}
-              >
-                {done ? (
-                  <Check size={11} />
-                ) : (
-                  String(index + 1).padStart(2, "0")
-                )}
-              </span>
-              <span>{name}</span>
-            </button>
-          </div>
-        );
-      })}
-      <div style={{ marginLeft: "auto" }}>
-        {dirty && (
-          <span
-            style={{
-              alignItems: "center",
-              color: BRAND.ink3,
-              display: "flex",
-              fontSize: 11.5,
-              gap: 5,
-            }}
-          >
-            <span
-              style={{
-                background: BRAND.gold,
-                borderRadius: "50%",
-                height: 5,
-                width: 5,
-              }}
-            />
-            Unsaved
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function ContentStep({
   locale,
@@ -1435,7 +1290,7 @@ export function AnnouncementStudioEditor({
             position: "relative",
           }}
         >
-          <StepRail dirty={dirty} setStep={setStep} step={step} />
+          <StepRail dirty={dirty} setStep={setStep} step={step} steps={STEPS} />
           <div
             style={{
               margin: "0 auto",

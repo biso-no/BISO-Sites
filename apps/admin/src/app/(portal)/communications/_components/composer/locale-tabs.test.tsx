@@ -59,3 +59,16 @@ test("LocaleTabs shows no pending dot once Norwegian is filled", () => {
   }) as ReactElement<{ children?: ReactNode }>;
   expect(renderToStaticMarkup(element)).not.toContain("Not yet filled");
 });
+
+test("LocaleTabs can lead with English, as the event studio does", () => {
+  const element = LocaleTabs({
+    locale: "en",
+    order: ["en", "no"],
+    pendingNo: false,
+    setLocale: () => undefined,
+  }) as ReactElement<{ children?: ReactNode }>;
+  expect(tabs(element).map((button) => renderToStaticMarkup(button))).toEqual([
+    expect.stringContaining("English"),
+    expect.stringContaining("Norsk"),
+  ]);
+});
