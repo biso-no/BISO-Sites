@@ -38,6 +38,12 @@ const MAX_TEXT_LEN = 120;
 /** How much of a text block's body the page state shows the copilot. */
 export const AI_BODY_CHARS = 2000;
 
+/**
+ * How many body characters one page state shows the copilot in all, spent
+ * on the text blocks in document order.
+ */
+export const AI_BODY_TOTAL_CHARS = 20_000;
+
 /** An end tag such as `</p>` or `</h2>`. */
 const END_TAG = /<\/[a-z][a-z0-9]*>/gi;
 
@@ -357,13 +363,30 @@ function truncate(s: string | undefined): string {
   return s.length > MAX_TEXT_LEN ? `${s.slice(0, MAX_TEXT_LEN)}…` : s;
 }
 
-/** `head` up to the end of its last end tag, or all of it when it has none. */
+const HIGH_SURROGATE_FIRST = 0xd8_00;
+const HIGH_SURROGATE_LAST = 0xdb_ff;
+
+/**
+ * `head` up to the end of its last end tag. With none, all of it, less a
+ * trailing high surrogate the cut parted from its pair.
+ */
 function cutAfterLastEndTag(head: string): string {
   let end = 0;
   for (const match of head.matchAll(END_TAG)) {
     end = match.index + match[0].length;
   }
-  return end > 0 ? head.slice(0, end) : head;
+  if (end > 0) {
+    return head.slice(0, end);
+  }
+  const last = head.charCodeAt(head.length - 1);
+  const splitsPair =
+    last >= HIGH_SURROGATE_FIRST && last <= HIGH_SURROGATE_LAST;
+  return splitsPair ? head.slice(0, -1) : head;
+}
+
+/** What is left of `AI_BODY_TOTAL_CHARS` while one page state is written. */
+export interface BodyBudget {
+  left: number;
 }
 
 /**
@@ -371,19 +394,33 @@ function cutAfterLastEndTag(head: string): string {
  * array included, junk as ""), as a JSON string. A body over
  * `AI_BODY_CHARS` is cut after its last end tag inside the limit (or at the
  * limit when there is none) and a note says so: `set_prop` replaces the whole
- * body, so a rewrite from the preview would lose the rest. The selected
- * block's full props show the whole body.
+ * body, so a rewrite from the preview would lose the rest.
+ *
+ * The preview spends `budget`. Once one does not fit, the budget is used up,
+ * and this and every later non-empty body show only their length. The
+ * selected block's full props show the whole body either way.
  */
-export function bodyForAI(body: unknown): string {
+export function bodyForAI(
+  body: unknown,
+  budget: BodyBudget = { left: Number.POSITIVE_INFINITY }
+): string {
   const html = bodyToHtml(body);
-  if (html.length <= AI_BODY_CHARS) {
+  const isCut = html.length > AI_BODY_CHARS;
+  const preview = isCut
+    ? cutAfterLastEndTag(html.slice(0, AI_BODY_CHARS))
+    : html;
+  if (preview.length > budget.left) {
+    budget.left = 0;
+    return `(${html.length} characters, select the block to read it)`;
+  }
+  budget.left -= preview.length;
+  if (!isCut) {
     return JSON.stringify(html);
   }
-  const preview = cutAfterLastEndTag(html.slice(0, AI_BODY_CHARS));
   return `${JSON.stringify(preview)} (cut: the first ${preview.length} of ${html.length} characters; set_prop body replaces all of it, so ask the volunteer to select this block before you rewrite part of it)`;
 }
 
-function blockSummary(b: Block): string {
+function blockSummary(b: Block, budget: BodyBudget): string {
   const base = `[${b.id}] type=${b.type}`;
   const r = b as unknown as Record<string, unknown>;
 
@@ -413,7 +450,7 @@ function blockSummary(b: Block): string {
     parts.push(`members.count=${(r.members as unknown[]).length}`);
   }
   if (b.type === "text") {
-    parts.push(`body=${bodyForAI(b.body)}`);
+    parts.push(`body=${bodyForAI(b.body, budget)}`);
   }
 
   return parts.join(" ");
@@ -441,6 +478,7 @@ export function serializePageForAI(
     "== BLOCKS ==",
   ];
   let n = 0;
+  const budget: BodyBudget = { left: AI_BODY_TOTAL_CHARS };
   for (const [i, s] of doc.sections.entries()) {
     lines.push(
       `Section ${i + 1} [${s.id}] columns=${s.layout.columns} background=${s.layout.background}`
@@ -450,7 +488,7 @@ export function serializePageForAI(
       for (const b of c.blocks) {
         n += 1;
         const sel = b.id === selection ? " ← SELECTED" : "";
-        lines.push(`    ${n}. ${blockSummary(b)}${sel}`);
+        lines.push(`    ${n}. ${blockSummary(b, budget)}${sel}`);
       }
     }
   }
