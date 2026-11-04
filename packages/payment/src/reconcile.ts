@@ -166,6 +166,93 @@ export interface PendingRefundSweepTally {
   unresolved: number;
 }
 
+type PendingRefund = Awaited<ReturnType<typeof listPendingRefunds>>[number];
+type RefundResolver = Parameters<typeof settlePendingRefund>[0]["resolver"];
+
+/** Which tally each settlement outcome counts towards. */
+const OUTCOME_TALLY = {
+  failed: "failed",
+  settled: "settled",
+  still_pending: "stillPending",
+  unresolved: "unresolved",
+} as const satisfies Record<
+  Awaited<ReturnType<typeof settlePendingRefund>>,
+  keyof PendingRefundSweepTally
+>;
+
+/**
+ * The refund's order with its refund history, or how the sweep counts a
+ * refund it can't settle: "unresolved" without an order, "error" when a read
+ * failed (the refund stays pending and is retried).
+ */
+async function readSweepOrder(
+  db: ReconcileDb,
+  refund: PendingRefund,
+  orders: { collId: string; dbId: string }
+): Promise<RefundableOrder | "error" | "unresolved"> {
+  const orderId =
+    typeof refund.order === "string" ? refund.order : refund.order?.$id;
+  if (!orderId) {
+    return "unresolved";
+  }
+
+  let order: RefundableOrder | null;
+  try {
+    order = (await orNullIfNotFound(
+      db.getRow<RefundableOrder>(orders.dbId, orders.collId, orderId, [
+        ORDER_WITH_REFUNDS_SELECT,
+      ])
+    )) as RefundableOrder | null;
+  } catch (error) {
+    console.error(
+      `[Refund] Could not read order ${orderId}; leaving refund ${refund.$id} pending:`,
+      error
+    );
+    return "error";
+  }
+  if (!order) {
+    return "unresolved";
+  }
+  // Deliberately unguarded. An empty history makes the ledger allocation
+  // weight against every original line instead of only the unreversed ones,
+  // and settlement would still advance — baking a wrong revenue-account
+  // reversal in permanently. Leaving the attempt pending is recoverable.
+  try {
+    order.refunds = await loadOrderRefunds(orderId, db);
+  } catch (error) {
+    console.error(
+      `[Refund] Could not load refund history for ${orderId}; leaving refund ${refund.$id} pending:`,
+      error
+    );
+    return "error";
+  }
+  return order;
+}
+
+/** Asks Stripe where a pending refund stands. */
+function stripeRefundResolver(
+  creds: Awaited<ReturnType<typeof resolveStripeCredentials>>
+): RefundResolver {
+  return {
+    state: async ({ paymentIntentId, providerRefundId }) => {
+      if (!(creds && providerRefundId)) {
+        // No provider handle to ask — a Vipps attempt, or one that never
+        // got far enough to record an id. Throwing keeps it pending
+        // rather than guessing that it failed.
+        throw new Error("No resolvable provider refund id");
+      }
+      const state = await getStripeRefundState(providerRefundId, creds);
+      // Carry Stripe's own aggregate through: it is the only figure that
+      // includes refunds issued straight from the dashboard, and
+      // reporting zero here would overstate the refundable balance.
+      const refundedTotalMinor = paymentIntentId
+        ? await getStripeRefundedTotal(paymentIntentId, creds).catch(() => 0)
+        : 0;
+      return { ...state, refundedTotalMinor };
+    },
+  };
+}
+
 /**
  * Resolves refunds left in `pending` — accepted-but-unsettled Stripe refunds,
  * and attempts whose outcome was never confirmed.
@@ -197,47 +284,16 @@ export async function sweepPendingRefunds(
   }
 
   const creds = await resolveStripeCredentials(db);
-  const { collId: ordersId, dbId } = ordersTable();
+  const orders = ordersTable();
 
   for (const refund of pending) {
-    const orderId =
-      typeof refund.order === "string" ? refund.order : refund.order?.$id;
-    if (!orderId) {
-      tally.unresolved += 1;
-      continue;
-    }
-
-    let order: RefundableOrder | null;
-    try {
-      order = (await orNullIfNotFound(
-        db.getRow<RefundableOrder>(dbId, ordersId, orderId, [
-          ORDER_WITH_REFUNDS_SELECT,
-        ])
-      )) as RefundableOrder | null;
-    } catch (error) {
-      console.error(
-        `[Refund] Could not read order ${orderId}; leaving refund ${refund.$id} pending:`,
-        error
-      );
+    const order = await readSweepOrder(db, refund, orders);
+    if (order === "error") {
       tally.errors += 1;
       continue;
     }
-    if (!order) {
+    if (order === "unresolved") {
       tally.unresolved += 1;
-      continue;
-    }
-    // Deliberately unguarded. An empty history makes the ledger allocation
-    // weight against every original line instead of only the unreversed ones,
-    // and settlement would still advance — baking a wrong revenue-account
-    // reversal in permanently. Leaving the attempt pending is recoverable.
-    try {
-      order.refunds = await loadOrderRefunds(orderId, db);
-    } catch (error) {
-      console.error(
-        `[Refund] Could not load refund history for ${orderId}; leaving refund ${refund.$id} pending:`,
-        error
-      );
-      tally.errors += 1;
       continue;
     }
 
@@ -251,26 +307,7 @@ export async function sweepPendingRefunds(
         ledger,
         order,
         refund,
-        resolver: {
-          state: async ({ paymentIntentId, providerRefundId }) => {
-            if (!(creds && providerRefundId)) {
-              // No provider handle to ask — a Vipps attempt, or one that never
-              // got far enough to record an id. Throwing keeps it pending
-              // rather than guessing that it failed.
-              throw new Error("No resolvable provider refund id");
-            }
-            const state = await getStripeRefundState(providerRefundId, creds);
-            // Carry Stripe's own aggregate through: it is the only figure that
-            // includes refunds issued straight from the dashboard, and
-            // reporting zero here would overstate the refundable balance.
-            const refundedTotalMinor = paymentIntentId
-              ? await getStripeRefundedTotal(paymentIntentId, creds).catch(
-                  () => 0
-                )
-              : 0;
-            return { ...state, refundedTotalMinor };
-          },
-        },
+        resolver: stripeRefundResolver(creds),
       });
     } catch (error) {
       console.error(
@@ -280,16 +317,7 @@ export async function sweepPendingRefunds(
       tally.errors += 1;
       continue;
     }
-
-    if (outcome === "settled") {
-      tally.settled += 1;
-    } else if (outcome === "failed") {
-      tally.failed += 1;
-    } else if (outcome === "unresolved") {
-      tally.unresolved += 1;
-    } else if (outcome === "still_pending") {
-      tally.stillPending += 1;
-    }
+    tally[OUTCOME_TALLY[outcome]] += 1;
   }
 
   return tally;
