@@ -159,7 +159,7 @@ Anthropic has no test mode, so every call is paid for, whichever key you use.
 
 These look like AI integrations but do nothing, or less than their names suggest. Leave them, or remove them in a clean-up.
 
-- **OpenAI in the apps.** `apps/admin`, `apps/api` and `packages/ai` list `@ai-sdk/openai` as a dependency, but only test mocks in the admin refer to it. `apps/web/CLAUDE.md` still says receipt reading uses OpenAI. It uses Anthropic, in the api.
+- **OpenAI in the apps.** `apps/admin` lists `@ai-sdk/openai` as a dependency, but only its test mocks refer to it. `apps/web/CLAUDE.md` still says receipt reading uses OpenAI. It uses Anthropic, in the api.
 - **The translation script.** `bun run translate` in `packages/i18n` refuses to start without `OPENAI_API_KEY`, but translates with Anthropic's fast model, so it needs `ANTHROPIC_API_KEY` too.
 - **The WordPress import** is the only code that calls OpenAI. `bun run load --apply` in `packages/wp-import` translates with `gpt-5-nano` and needs a real `OPENAI_API_KEY`. See [Events and content sources](/developers/reference/events-and-content-sources#wordpress-and-woocommerce).
 - **Pinecone.** `PINECONE_API_KEY` and `PINECONE_INDEX_NAME` are in `turbo.json` and three `.env.example` files, and `packages/ai/src/utils/vector-store.types.ts` describes a vector store, but no code uses Pinecone or any vector store.
