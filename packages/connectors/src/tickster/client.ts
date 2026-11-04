@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { TicksterCrmPage, TicksterEvent, TicksterPurchase } from "./types";
+import type { TicksterCrmPage, TicksterPurchase } from "./types";
 
 const DEFAULT_BASE_URL = "https://api.tickster.com";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -154,23 +154,6 @@ export class TicksterClient {
     return {
       purchases,
       nextCursor: extractNextCursor(payload, purchases),
-    };
-  }
-
-  async getEvent(eventId: string): Promise<TicksterEvent | null> {
-    const payload = await this.request(
-      `/events/${encodeURIComponent(eventId)}`
-    );
-    if (!(payload && typeof payload === "object")) {
-      return null;
-    }
-    const raw = payload as Record<string, unknown>;
-    const id = toStringOrNull(raw.id) ?? eventId;
-    return {
-      id,
-      name: toStringOrNull(raw.name),
-      start: toStringOrNull(raw.start) ?? toStringOrNull(raw.startDate),
-      venue: toStringOrNull(raw.venue),
     };
   }
 }
