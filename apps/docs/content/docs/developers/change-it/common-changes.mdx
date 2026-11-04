@@ -129,7 +129,7 @@ Two kinds of block need more:
      - add a reader to `packages/shared/utils/page-feeds.ts`;
      - add a cached reader to `apps/web/src/lib/data/public-content.ts`, and a `case` for it in `readFeed()` in `apps/web/src/lib/data/page-feeds.ts`. The type-check fails until the `case` is there;
      - add `apps/web/src/app/api/pages/<kind>/route.ts`. The block fetches it in the browser when the server's read failed;
-     - add `apps/admin/src/app/api/pages/<kind>/route.ts`, built on `apps/admin/src/app/api/pages/_lib/feed.ts`. The editor's preview fetches it, and without it the block stays empty in the editor.
+     - add `apps/admin/src/app/api/pages/<kind>/route.ts`, built with `departmentFeedRoute()` from `apps/admin/src/app/api/pages/_lib/feed.ts`, as the other kinds are. The editor's preview fetches it, and without it the block stays empty in the editor.
   4. If the block needs rows to render in the design-system fixture, add them to `PAGE_BLOCKS_FEEDS` in the same `fixture.ts`.
 
 Check:
