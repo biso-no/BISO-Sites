@@ -12,9 +12,9 @@ browser. Use a test page.
    nested bullets, a numbered list broken by a paragraph, a red word, a link, a
    table with a header row and a merged cell, and a picture. Paste it from Word
    on Mac, Word on Windows (if you have it), Word on the web and Google Docs.
-   You should see the headings, nested bullets, the numbering restart after the
-   paragraph, the red word in the nearest swatch, the link, the table with its
-   header row and merged cell, and the notice "Images aren't pasted into text — use an Image block." for the picture.
+   You should see the headings, nested bullets, the numbered list carry on
+   (2., 3.) after the paragraph, the red word in the nearest swatch, the link,
+   the table with its header row and merged cell, and the notice "Images aren't pasted into text — use an Image block." for the picture.
 2. **Google Docs list-formatted heading.** It pastes as a list item, not a
    heading.
 3. **Bubble and link input.** Select a word, check the bubble appears, press
@@ -39,13 +39,23 @@ browser. Use a test page.
 10. **Select all in a text that opens with a table.** Press Cmd+A, then type,
     paste and press Delete in turn. The table is replaced or removed and no text
     is lost off to the side. Pasting only a picture leaves the text alone.
+    - Do the same from inside the table: click in a cell and press Cmd+A twice.
+      The first selects the table, the second the whole text. Typing, pasting
+      and Delete then replace the whole text, not each cell.
 11. **The copilot.**
     - Ask it to write a text with a table and a coloured word. It should arrive
       as a real table and colour.
     - Ask it to change a text block that is not selected. It should find it
       and change it.
+    - Make a text longer than about 2,000 characters, select another block,
+      and ask the copilot to change the last paragraph of the long text. It
+      must not cut the text: the end of the text must still be there
+      afterwards. Ideally it asks you to select the block. The chat may still
+      show ✓ for a change that was refused; that is a known follow-up.
 12. **Translate to EN** on a page with a list, a table with a merged cell and
-    coloured text. The English page keeps the list, the table and the colour.
+    one word in each colour (Accent, Muted, Green, Amber, Red). The English
+    page keeps the list, the table and every colour. Then do the same the other
+    way with **Translate to NO**: every colour survives there too.
 13. **New unit page.** Create a unit page and open its "About ..." text. It
     should be a formatted text you can edit, with the unit name in it.
 
@@ -60,6 +70,8 @@ browser. Use a test page.
   when someone edits it.
 - After the deploy, open a few published pages with Rich text and compare them
   with before.
+- After the web deploy and then the admin deploy, edit one real Rich text block,
+  publish the page, and check the text on biso.no.
 - The docs pages go out with the next docs deploy.
 - The PR docs check still warns about `local-setup.mdx` and `deploying.mdx` (a
   root `package.json` catalog line; both pages checked, still accurate). It also
@@ -73,11 +85,14 @@ Main's text block reads its body with `listOf`, which turns anything that is not
 an array into an empty list. So with a new (HTML string) body, the old site
 draws nothing and the old editor's text inspector shows an empty list. Editing
 that block in the old editor adds a first item and saves an array, which
-replaces the HTML text. If nobody saved in the new editor yet, rolling back is
-clean. After that, the old site and the old editor show those text blocks as
-empty. The text is still in the page and shows again when you redeploy. So fix
-forward. If you must roll back, roll back web and admin both, and don't edit
-those pages until you redeploy.
+replaces the HTML text. New HTML bodies come from three places, not only from
+saving a text in the new editor: **Opprett side** (Create page) on a unit, whose
+new template writes an HTML "About ..." text, and any copilot change to a text.
+If none of these has happened yet, rolling back is clean. After that, the old
+site and the old editor show those text blocks as empty. The text is still in
+the page and shows again when you redeploy. So fix forward. If you must roll
+back, roll back web and admin both, and don't edit those pages until you
+redeploy.
 
 ## Follow-ups (not blocking)
 
@@ -86,6 +101,13 @@ those pages until you redeploy.
   The copilot may then say it made a change it did not. The prompt steers it
   away from the refused case. It was left alone because fixing it reworks a
   working flow.
+- A server-side `set_prop` body guard, so that the refusal of a rewrite of a
+  long, unselected text reaches the model. Today the browser refuses it and the
+  model isn't told.
+- When several table cells are selected, a paste fills each one (Plate's own
+  multi-cell paste).
+- `structure.ts` takes time in the square of the depth on crafted, deeply
+  nested pastes.
 - Rare undo case: type in a field, then another block changes (the copilot or the
   other surface), then undo in the field. The step back into page undo can bring
   the typing back. A fix needs one shared undo history for fields and page, which

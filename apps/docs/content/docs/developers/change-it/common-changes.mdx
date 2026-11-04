@@ -175,7 +175,7 @@ comm -12 <(grep -rl "richPaste" apps/web/.next/static/chunks | sort) <(grep -rl 
 grep -rl "richPaste" apps/web/.next/static/chunks | wc -l
 ```
 
-The `comm` line must print nothing, and the count must be at least 1. For a colour, also check that its rule reached the website's CSS: `grep -rlE 'data-color=("|)accent' apps/web/.next/static/css | wc -l`, with your token in place of `accent`, must print at least 1.
+The `comm` line must print nothing, and the count must be at least 1. For a colour, also check that its rule reached the website's CSS: `grep -lE 'data-color="?accent' apps/web/.next/static/chunks/*.css | wc -l`, with your token in place of `accent`, must print at least 1.
 
 ### The body's two shapes
 
