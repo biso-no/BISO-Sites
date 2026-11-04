@@ -46,3 +46,31 @@ export const isCurrentTranslationSource = <Snapshot extends object>(
   (Object.keys(submitted) as (keyof Snapshot)[]).every(
     (key) => current[key] === submitted[key]
   );
+
+/** A title, teaser and description, as events and job vacancies store them. */
+export interface TitledTranslation {
+  description: string;
+  short_description: string;
+  title: string;
+}
+
+/**
+ * A translation draft keyed by the target locale, the shape the event and job
+ * studios read: `title_en`, `short_description_en`, `description_en` for an
+ * English draft, the `_no` keys for a Norwegian one.
+ */
+export const toTitledTranslationDraft = (
+  sourceLocale: ContentLocale,
+  translated: TitledTranslation
+) =>
+  getTargetLocale(sourceLocale) === "en"
+    ? {
+        description_en: translated.description,
+        short_description_en: translated.short_description,
+        title_en: translated.title,
+      }
+    : {
+        description_no: translated.description,
+        short_description_no: translated.short_description,
+        title_no: translated.title,
+      };
