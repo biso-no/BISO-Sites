@@ -101,7 +101,7 @@ function MermaidContent({ chart }: { chart: string }) {
  * A diagram never shrinks below this share of its natural size, which keeps
  * Mermaid's 16 px labels at 12 px or more.
  */
-export const MIN_SCALE = 0.75;
+const MIN_SCALE = 0.75;
 
 /** The width of the root `<svg>`'s viewBox, ignoring any nested viewBox. */
 const ROOT_VIEWBOX_WIDTH =
