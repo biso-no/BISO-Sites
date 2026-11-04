@@ -25,14 +25,6 @@ export const GENERAL_CONTENT_TABLES = [
   "page_translations",
 ] as const;
 
-export interface CutoverTable {
-  $id: string;
-  $permissions: string[];
-  enabled: boolean;
-  name: string;
-  rowSecurity: boolean;
-}
-
 export interface CutoverDb {
   getTable(params: { databaseId: string; tableId: string }): Promise<{
     $id: string;
