@@ -129,7 +129,7 @@ A run started through the domain may be cut off after 30 seconds, which is Appwr
 
 ### Add a job
 
-1. Write the endpoint in the app that owns the work. Check `CRON_SECRET` from `x-cron-secret` or `Authorization: Bearer` with `safeSecretCompare` from `@repo/shared/utils/secrets`, as the existing targets do.
+1. Write the endpoint in the app that owns the work. Check `CRON_SECRET` from `x-cron-secret` or `Authorization: Bearer` with `safeSecretCompare` from `@repo/shared/utils/secrets`, as the existing targets do. In the admin, `requireCronSecret(request)` in `apps/admin/src/lib/api-auth.ts` does this check.
 2. Add the new variable name to `TARGET_ENV_VARS` in `functions/scheduled-dispatch/src/main.ts`. The function only reads the names in that list.
 3. Deploy the app. See [Deploying](/developers/keep-it-running/deploying).
 4. Set the new variable on scheduled-dispatch in the console, and add it to `functions/scheduled-dispatch/.env.example`.
