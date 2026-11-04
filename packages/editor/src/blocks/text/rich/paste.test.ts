@@ -446,6 +446,28 @@ test.each([
   ["1. a\n3. b", "<p>1. a<br>3. b</p>"],
   ["1. a\n2. b\n2. c", "<p>1. a<br>2. b<br>2. c</p>"],
   ["- a\n1. b\n2. c", "<ul><li>a</li></ul><ol><li>b</li><li>c</li></ol>"],
+  // Numbered lines after a blank line carry on the list before it when they
+  // count on from its last number; no other runs join across a blank line.
+  [
+    "1. One\n\n2. Two\n\n3. Three",
+    "<ol><li>One</li><li>Two</li><li>Three</li></ol>",
+  ],
+  [
+    "Agenda\n\n1. Welcome\n\n2. Budget",
+    "<p>Agenda</p><ol><li>Welcome</li><li>Budget</li></ol>",
+  ],
+  ["1. a\n2. b\n\n3. c", "<ol><li>a</li><li>b</li><li>c</li></ol>"],
+  ["3. a\n4. b\n\n5. c", '<ol start="3"><li>a</li><li>b</li><li>c</li></ol>'],
+  ["1. a\n2. b\n\n4. c", "<ol><li>a</li><li>b</li></ol><p>4. c</p>"],
+  ["1. One\n\n2. Two\nmore", "<ol><li>One</li><li>Two</li></ol><p>more</p>"],
+  [
+    "1. One\n\nA paragraph\n\n2. Two",
+    "<ol><li>One</li></ol><p>A paragraph</p><p>2. Two</p>",
+  ],
+  [
+    "Program\n\n17. mai: Frokost\n\n18. mai: Tur",
+    "<p>Program</p><p>17. mai: Frokost</p><p>18. mai: Tur</p>",
+  ],
 ])("plain text %p", (plain, html) => expect(pasteInto(null, plain)).toBe(html));
 
 test("plain text that looks like markup stays text", () => {

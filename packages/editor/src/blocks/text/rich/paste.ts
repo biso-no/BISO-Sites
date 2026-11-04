@@ -583,16 +583,30 @@ export function plainTextHasStructure(text: string): boolean {
  * numbers count on by one, and the lines between them one paragraph, joined
  * by line breaks. A numbered run that does not count on ("17. mai",
  * "24. mai") is paragraph text, as is a numbered line on its own that is not
- * number 1 ("17. mai: Frokost").
+ * number 1 ("17. mai: Frokost"). Runs of two chunks stay apart, except one:
+ * numbered lines that open a chunk and count on from the numbered list that
+ * closes the chunk before carry that list on, so a list with blank lines
+ * between its items ("1. One", "", "2. Two") stays one list.
  */
 export function plainTextToHtml(text: string): string {
-  return text
+  const runs: LineRun[] = [];
+  const chunks = text
     .replaceAll("\r\n", "\n")
     .split(BLANK_LINE)
     .map((chunk) => chunk.trim())
-    .filter((chunk) => chunk !== "")
-    .map(chunkToHtml)
-    .join("");
+    .filter((chunk) => chunk !== "");
+  for (const chunk of chunks) {
+    const marked = markedRuns(chunk);
+    const [first, ...rest] = marked;
+    const list = runs.at(-1);
+    if (list && first && carriesOn(list, first)) {
+      list.lines.push(...first.lines);
+      runs.push(...settledRuns(rest));
+    } else {
+      runs.push(...settledRuns(marked));
+    }
+  }
+  return runs.map(runToHtml).join("");
 }
 
 type LineKind = "ol" | "p" | "ul";
@@ -619,28 +633,54 @@ function addToRuns(runs: LineRun[], kind: LineKind, lines: string[]): void {
   }
 }
 
+/** Whether numbered lines count on by one from the first line's number. */
+function countsOnByOne(lines: string[]): boolean {
+  const numbers = lines.map(lineNumber);
+  const first = numbers[0] ?? 0;
+  return numbers.every((number, i) => number === first + i);
+}
+
 /**
  * Whether numbered lines are a list: they count on by one from the first
  * line's number, and a line on its own is number 1.
  */
 function countsOn(lines: string[]): boolean {
-  const numbers = lines.map(lineNumber);
-  const first = numbers[0] ?? 0;
-  if (numbers.length === 1) {
-    return first === 1;
+  if (lines.length === 1) {
+    return lineNumber(lines[0] ?? "") === 1;
   }
-  return numbers.every((number, i) => number === first + i);
+  return countsOnByOne(lines);
 }
 
 /**
- * Each run of adjacent lines of one kind, in order. A numbered run that does
- * not count on joins the paragraph lines around it.
+ * Whether the run `next`, which opens a chunk, carries on `list`, the last
+ * run of the chunks before: both are numbered, and `next` counts on by one
+ * from `list`'s last number. A lone line counts on too ("2. Two" after
+ * "1. One"), where on its own it would be text.
  */
-function lineRuns(chunk: string): LineRun[] {
+function carriesOn(list: LineRun, next: LineRun): boolean {
+  return (
+    list.kind === "ol" &&
+    next.kind === "ol" &&
+    lineNumber(list.lines.at(-1) ?? "") + 1 ===
+      lineNumber(next.lines[0] ?? "") &&
+    countsOnByOne(next.lines)
+  );
+}
+
+/** Each run of adjacent lines of one kind in `chunk`, in order. */
+function markedRuns(chunk: string): LineRun[] {
   const marked: LineRun[] = [];
   for (const line of chunk.split("\n")) {
     addToRuns(marked, lineKind(line), [line]);
   }
+  return marked;
+}
+
+/**
+ * The runs of one chunk as they are written: a numbered run that does not
+ * count on joins the paragraph lines around it.
+ */
+function settledRuns(marked: LineRun[]): LineRun[] {
   const runs: LineRun[] = [];
   for (const { kind, lines } of marked) {
     addToRuns(runs, kind === "ol" && !countsOn(lines) ? "p" : kind, lines);
@@ -662,8 +702,4 @@ function runToHtml({ kind, lines }: LineRun) {
       : undefined;
   const startAttribute = start === undefined ? "" : ` start="${start}"`;
   return `<${kind}${startAttribute}>${items}</${kind}>`;
-}
-
-function chunkToHtml(chunk: string): string {
-  return lineRuns(chunk).map(runToHtml).join("");
 }
