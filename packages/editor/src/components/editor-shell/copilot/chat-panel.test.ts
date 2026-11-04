@@ -2,7 +2,9 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { checkTheme } from "@repo/shared/utils/page-theme";
 import { useEditorStore } from "@/editor/store";
 import { doc, section } from "@/editor/test-fixtures";
-import { applyToolCall } from "./chat-panel";
+import { findBlock } from "@/editor/tree";
+import type { TextBlock } from "@/editor/types";
+import { applyToolCall, pageStateForTurn } from "./chat-panel";
 
 const columnIds = () =>
   useEditorStore
@@ -19,6 +21,8 @@ beforeEach(() => {
 afterEach(() => {
   useEditorStore.getState().setInsertTarget(null);
   useEditorStore.getState().select(null);
+  // A new turn on a page with no long body: no cut body is left to refuse.
+  pageStateForTurn(doc(), null);
 });
 
 test("insert_block without afterBlockId appends at the end of the page", () => {
@@ -215,4 +219,91 @@ test("insert_section with a background is one undo step", () => {
 test("server-only tools are a neutral success", () => {
   expect(applyToolCall("list_blocks", {}).status).toBe("applied");
   expect(applyToolCall("generate_copy", {}).status).toBe("applied");
+});
+
+const bodyOf = (id: string): TextBlock["body"] =>
+  (findBlock(useEditorStore.getState().doc, id)?.block as TextBlock).body;
+
+test("set_prop inside a text block's HTML body is refused and keeps the body", () => {
+  const before = bodyOf("b-1");
+  expect(typeof before).toBe("string");
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body.0.text",
+    value: "New heading",
+  });
+  expect(result.status).toBe("error");
+  expect(String(result.message)).toContain(
+    "Set the whole body as one HTML string"
+  );
+  expect(bodyOf("b-1")).toBe(before);
+});
+
+test("set_prop body sets the whole HTML body", () => {
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body",
+    value: "<p>x</p>",
+  });
+  expect(result.status).toBe("applied");
+  expect(bodyOf("b-1")).toBe("<p>x</p>");
+});
+
+test("set_prop body.0.text still edits a legacy array body", () => {
+  useEditorStore
+    .getState()
+    .setProp("b-1", "body", [{ text: "Old", type: "h" }]);
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body.0.text",
+    value: "Hei",
+  });
+  expect(result.status).toBe("applied");
+  expect(bodyOf("b-1")).toEqual([{ text: "Hei", type: "h" }]);
+});
+
+// A body the turn's page state showed cut or not at all: a whole-body
+// rewrite from it would lose the rest, so only the selected block's, whose
+// full props held it whole, goes through.
+const LONG_BODY = "<p>abcdefgh</p>".repeat(300);
+
+/** A turn begun on the page with b-1's body `LONG_BODY` and `selected`. */
+function longBodyTurn(selected: string | null) {
+  const store = useEditorStore.getState();
+  store.setProp("b-1", "body", LONG_BODY);
+  pageStateForTurn(useEditorStore.getState().doc, selected);
+}
+
+test("set_prop body on a block whose body the turn saw cut is refused and keeps the body", () => {
+  longBodyTurn("b-2");
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body",
+    value: "<p>Only the start</p>",
+  });
+  expect(result.status).toBe("error");
+  expect(String(result.message)).toContain("select the block");
+  expect(bodyOf("b-1")).toBe(LONG_BODY);
+});
+
+test("set_prop body on the selected block is applied, though its body is long", () => {
+  longBodyTurn("b-1");
+  const result = applyToolCall("set_prop", {
+    id: "b-1",
+    path: "body",
+    value: "<p>Rewritten</p>",
+  });
+  expect(result.status).toBe("applied");
+  expect(bodyOf("b-1")).toBe("<p>Rewritten</p>");
+});
+
+test("set_prop body on a short unselected body is still applied", () => {
+  longBodyTurn("b-1");
+  const result = applyToolCall("set_prop", {
+    id: "b-2",
+    path: "body",
+    value: "<p>Short</p>",
+  });
+  expect(result.status).toBe("applied");
+  expect(bodyOf("b-2")).toBe("<p>Short</p>");
 });

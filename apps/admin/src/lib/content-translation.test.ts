@@ -106,6 +106,25 @@ describe("content translation service", () => {
     expect(request.prompt).not.toContain('"key":"lead"');
   });
 
+  test("tells the model to keep every tag and attribute value as written", async () => {
+    await translateContentFields({
+      contentType: "page",
+      fields: [
+        {
+          format: "html",
+          key: "body",
+          value: '<p><span data-color="red">Viktig</span></p>',
+        },
+      ],
+      sourceLocale: "no",
+      targetLocale: "en",
+    });
+    const request = generateObjectSpy.mock.calls[0]?.[0] as { prompt: string };
+    expect(request.prompt).toContain(
+      "In HTML, keep every tag and every attribute value exactly as written (for example data-color, href, start, colspan and rowspan), and translate only the text between tags."
+    );
+  });
+
   test("rejects duplicate or unsafe field keys before calling the model", async () => {
     await expect(
       translateContentFields({

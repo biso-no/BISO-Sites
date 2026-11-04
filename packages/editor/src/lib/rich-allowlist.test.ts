@@ -1,0 +1,184 @@
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { Window } from "happy-dom";
+import { doc, section } from "../editor/test-fixtures";
+import type { TextBlock } from "../editor/types";
+import { parseInert, sanitizeRichBody, sanitizeRichText } from "./sanitize";
+
+// `server-only` throws outside a react-server build, which a test is not.
+mock.module("server-only", () => ({}));
+const { sanitizePageDocHtml, sanitizeRichBodyHtml } = await import(
+  "../editor/sanitize-doc"
+);
+
+const previous = { Node: globalThis.Node, document: globalThis.document };
+
+beforeAll(() => {
+  const window = new Window();
+  globalThis.document = window.document as unknown as Document;
+  globalThis.Node = window.Node as unknown as typeof Node;
+});
+
+afterAll(() => {
+  globalThis.document = previous.document;
+  globalThis.Node = previous.Node;
+});
+
+/** Serialised the way a browser does, so `<br>` and `<br />` read the same. */
+const norm = (html: string): string => parseInert(html).innerHTML;
+
+const CASES: [string, string][] = [
+  [
+    "<ul><li>a<ul><li>b</li></ul></li></ul>",
+    "<ul><li>a<ul><li>b</li></ul></li></ul>",
+  ],
+  ['<ol start="3"><li>a</li></ol>', '<ol start="3"><li>a</li></ol>'],
+  ['<ol start="1"><li>a</li></ol>', "<ol><li>a</li></ol>"],
+  ['<ol start="x"><li>a</li></ol>', "<ol><li>a</li></ol>"],
+  ['<p style="color:red" class="x" id="y">t</p>', "<p>t</p>"],
+  ['<a href="javascript:alert(1)">x</a>', "<a>x</a>"],
+  [
+    '<a href="https://biso.no" target="_blank">x</a>',
+    '<a href="https://biso.no">x</a>',
+  ],
+  ['<a href=".x">x</a>', '<a href=".x">x</a>'],
+  ['<a href="..x">x</a>', '<a href="..x">x</a>'],
+  ['<a href="ht&#9;tps://x">x</a>', "<a>x</a>"],
+  ['<a href="&#1;https://x">x</a>', "<a>x</a>"],
+  [
+    '<a href="HTTPS://biso.no/a:b">x</a>',
+    '<a href="HTTPS://biso.no/a:b">x</a>',
+  ],
+  ['<a href="/a:b#c?d">x</a>', '<a href="/a:b#c?d">x</a>'],
+  ['<a href="mailto:a@b.no">x</a>', '<a href="mailto:a@b.no">x</a>'],
+  ['<a href="tel:+4712345678">x</a>', '<a href="tel:+4712345678">x</a>'],
+  ["<script>alert(1)</script><style>p{}</style><p>ok</p>", "<p>ok</p>"],
+  [
+    "<h1>Big</h1><table><tr><td>c</td></tr></table>",
+    "Big<table><tbody><tr><td>c</td></tr></tbody></table>",
+  ],
+  ["<img src=x onerror=alert(1)><p>t</p>", "<p>t</p>"],
+  [
+    "<p><u>u</u> <s>s</s></p><hr><blockquote>q</blockquote>",
+    "<p><u>u</u> <s>s</s></p><hr><blockquote>q</blockquote>",
+  ],
+  [
+    '<p><span data-color="accent">a</span></p>',
+    '<p><span data-color="accent">a</span></p>',
+  ],
+  [
+    '<p><span data-color=" red ">a</span></p>',
+    '<p><span data-color="red">a</span></p>',
+  ],
+  [
+    '<p><span data-color="ACCENT">a</span><span data-color="#ff0000">b</span><span data-color="pink">c</span></p>',
+    "<p><span>a</span><span>b</span><span>c</span></p>",
+  ],
+  [
+    '<p><span data-color="muted" style="color:red" class="x">a</span></p>',
+    '<p><span data-color="muted">a</span></p>',
+  ],
+  ['<p><b data-color="accent">a</b></p>', "<p><b>a</b></p>"],
+  [
+    "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+    "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    '<table><tbody><tr><td colspan="2" rowspan="3">a</td></tr></tbody></table>',
+    '<table><tbody><tr><td colspan="2" rowspan="3">a</td></tr></tbody></table>',
+  ],
+  [
+    '<table><tbody><tr><td colspan="21" rowspan="1">a</td><td colspan="x">b</td><td rowspan="02">c</td></tr></tbody></table>',
+    "<table><tbody><tr><td>a</td><td>b</td><td>c</td></tr></tbody></table>",
+  ],
+  [
+    '<table border="1" style="x" class="y"><tbody><tr><td width="5" scope="col" class="z">a</td></tr></tbody></table>',
+    "<table><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tfoot><tr><td>f</td></tr></tfoot></table>",
+    "<table><tbody><tr><td>f</td></tr></tbody></table>",
+  ],
+  // Spans: integers 2 to 20, trimmed; 1 is redundant and goes.
+  [
+    '<table><tbody><tr><td colspan="0">a</td><td colspan="1">b</td><td colspan="2">c</td><td colspan="20">d</td><td colspan="21">e</td><td colspan="2x">f</td><td colspan=" 3 ">g</td></tr></tbody></table>',
+    '<table><tbody><tr><td>a</td><td>b</td><td colspan="2">c</td><td colspan="20">d</td><td>e</td><td>f</td><td colspan="3">g</td></tr></tbody></table>',
+  ],
+  [
+    '<table><tbody><tr><th rowspan="0">a</th><th rowspan="1">b</th><th rowspan="2">c</th><th rowspan="20">d</th><th rowspan="21">e</th><th rowspan="2x">f</th></tr></tbody></table>',
+    '<table><tbody><tr><th>a</th><th>b</th><th rowspan="2">c</th><th rowspan="20">d</th><th>e</th><th>f</th></tr></tbody></table>',
+  ],
+  [
+    '<table><tbody><tr><th colspan="2">Row</th><td>a</td></tr></tbody></table>',
+    '<table><tbody><tr><th colspan="2">Row</th><td>a</td></tr></tbody></table>',
+  ],
+  [
+    '<table colspan="2"><tbody rowspan="2"><tr colspan="2"><td>a</td></tr></tbody></table>',
+    "<table><tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+  [
+    "<table><tbody><tr><td>a<table><tbody><tr><td>b</td></tr></tbody></table></td></tr></tbody></table>",
+    "<table><tbody><tr><td>a<table><tbody><tr><td>b</td></tr></tbody></table></td></tr></tbody></table>",
+  ],
+  [
+    "<table><caption>C</caption><colgroup><col></colgroup><tbody><tr><td>a</td></tr></tbody></table>",
+    "<table>C<tbody><tr><td>a</td></tr></tbody></table>",
+  ],
+];
+
+describe("body sanitisers", () => {
+  test.each(CASES)("client and server agree on %s", (input, expected) => {
+    expect(norm(sanitizeRichBody(input))).toBe(norm(expected));
+    expect(norm(sanitizeRichBodyHtml(input))).toBe(norm(expected));
+  });
+
+  test("inline sanitisers are unchanged for legacy items", () => {
+    expect(sanitizeRichText("a<p>b</p>")).toBe("a<br>b");
+  });
+});
+
+describe("sanitizeDoc text-block branch", () => {
+  test("cleans a string body and leaves legacy arrays on the old path", () => {
+    const page = doc(section("s1", "1", [["t-new", "t-old"]]));
+    const fresh: TextBlock = {
+      body: "<script>alert(1)</script><p>hei</p>",
+      id: "t-new",
+      type: "text",
+    };
+    const legacy: TextBlock = {
+      body: [{ text: "<img src=x onerror=alert(1)>hei", type: "p" }],
+      id: "t-old",
+      type: "text",
+    };
+    page.sections[0].columns[0].blocks = [fresh, legacy];
+
+    const [outNew, outOld] = sanitizePageDocHtml(page).sections[0].columns[0]
+      .blocks as TextBlock[];
+    expect(outNew.body).toBe("<p>hei</p>");
+    expect(outOld.body).toEqual([{ text: "hei", type: "p" }]);
+  });
+});
+
+// The public renderer's sanitiser reads the allowlist, so whatever the
+// allowlist imports ships in the public client chunk.
+describe("what the allowlist brings into the public chunk", () => {
+  const SHARED = join(import.meta.dir, "../../../shared/utils");
+  const source = (path: string): string =>
+    existsSync(path) ? readFileSync(path, "utf8") : "";
+  const IMPORT_FROM = /^\s*import[\s\S]*?from\s*["']([^"']+)["']/gm;
+  const importsOf = (path: string): string[] =>
+    [...source(path).matchAll(IMPORT_FROM)].map(([, module = ""]) => module);
+
+  test("it reads the colour tokens without the swatches and colour maths", () => {
+    const imports = importsOf(join(import.meta.dir, "rich-allowlist.ts"));
+    expect(imports).toContain("@repo/shared/utils/text-colour-tokens");
+    expect(imports).not.toContain("@repo/shared/utils/text-colours");
+  });
+
+  test("the token module imports nothing", () => {
+    const tokens = join(SHARED, "text-colour-tokens.ts");
+    expect(existsSync(tokens)).toBe(true);
+    expect(importsOf(tokens)).toEqual([]);
+  });
+});

@@ -3,6 +3,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { TextBlock } from "@/editor/types";
 import { TextRender } from "./render";
+import { RICH_CLASS } from "./render-classes";
+import { RICH_ATTR } from "./test-support";
 
 const block = (text: string): TextBlock => ({
   body: [{ text, type: "p" }],
@@ -83,5 +85,56 @@ describe("TextRender in the redesign's type", () => {
     ]);
     expect(html).toContain("type-heading-card");
     expect(html).toContain("type-body");
+  });
+});
+
+const renderBody = (body: string) =>
+  renderToStaticMarkup(
+    <TextRender
+      block={{ body, id: "t", type: "text" }}
+      edit={false}
+      onPatch={noPatch}
+    />
+  );
+
+describe("TextRender with an HTML body", () => {
+  test("a string body renders its HTML inside the rich wrapper", () => {
+    expect(renderBody("<h2>T</h2><ul><li>x</li></ul>")).toBe(
+      `<div class="${RICH_ATTR}"><h2>T</h2><ul><li>x</li></ul></div>`
+    );
+  });
+
+  test("a blank string body renders nothing on the site", () => {
+    expect(renderBody("<p> </p>")).toBe("");
+  });
+
+  test("a table body renders inside the rich wrapper as stored", () => {
+    const table =
+      '<table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td colspan="2">Ada</td></tr></tbody></table>';
+    expect(renderBody(`<p>x</p>${table}`)).toBe(
+      `<div class="${RICH_ATTR}"><p>x</p>${table}</div>`
+    );
+  });
+
+  test("tables scroll inside themselves", () => {
+    for (const c of [
+      "[&_table]:block",
+      "[&_table]:overflow-x-auto",
+      "[&_table]:max-w-full",
+    ]) {
+      expect(RICH_CLASS).toContain(c);
+    }
+  });
+
+  test("the box itself is not capped, so a table may use the full width", () => {
+    // The text keeps the measure through `.pg-rich > :not(table)` in the
+    // shared stylesheet (apps/web styles.test.ts pins it).
+    expect(RICH_CLASS).not.toContain("measure");
+    expect(RICH_CLASS.split(" ")).toContain("pg-rich");
+    expect(RICH_CLASS).toContain("[&_table]:max-w-full");
+  });
+
+  test("table cells wrap long words as body copy does", () => {
+    expect(RICH_CLASS).toContain("[&_:is(th,td)]:[overflow-wrap:anywhere]");
   });
 });

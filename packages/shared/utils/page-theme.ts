@@ -28,6 +28,23 @@ export const MIN_DARK_ON_WHITE = 7;
 export const MIN_ACCENT_ON_DARK = 4.5;
 /** Text-on-light minimum for the derived `--biso-blue`. */
 const MIN_TEXT_ON_LIGHT = 4.5;
+/** The deep text inks against the dark, raised and sunken surfaces. */
+const MIN_TEXT_ON_DEEP = 4.5;
+
+/**
+ * Rich text colours with a fixed hue. `paper` is BISO's state colour for text
+ * on white and is the same under every theme. `deep` is BISO's navy variant,
+ * the one `biso-surface.css` uses for state colours on navy; `themeTokens`
+ * moves it per theme, because the fixed value fails on lighter department
+ * darks (#ff6f61 on a dark at the 7 : 1 limit is about 2.6 : 1).
+ */
+export const TEXT_HUES = {
+  green: { paper: "#187244", deep: "#26b66d" },
+  amber: { paper: "#8a5a00", deep: "#dd9000" },
+  red: { paper: "#b3261e", deep: "#ff6f61" },
+} as const;
+
+export type TextHue = keyof typeof TEXT_HUES;
 
 const WHITE = "#ffffff";
 const SUNKEN_TINT = "#eef1f5";
@@ -64,9 +81,10 @@ export function normalizeHex(input: string): string | null {
   return `#${full}`;
 }
 
-type Rgb = [number, number, number];
+export type Rgb = [number, number, number];
 
-function toRgb(hex: string): Rgb | null {
+/** 0-255 channels of a hex colour, or null if it is not valid hex. */
+export function toRgb(hex: string): Rgb | null {
   const normal = normalizeHex(hex);
   if (!normal) {
     return null;
@@ -83,11 +101,13 @@ function channelHex(value: number): string {
   return clamped.toString(16).padStart(2, "0");
 }
 
-function rgbToHex([r, g, b]: Rgb): string {
+/** `#rrggbb`, with each channel rounded and clamped to 0-255. */
+export function rgbToHex([r, g, b]: Rgb): string {
   return `#${channelHex(r)}${channelHex(g)}${channelHex(b)}`;
 }
 
-function linearize(channel: number): number {
+/** sRGB channel (0-255) to linear light (0-1). */
+export function linearize(channel: number): number {
   const c = channel / 255;
   return c <= 0.040_45 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
@@ -462,6 +482,28 @@ function mixWithWhite(dark: string, whiteShare: number): string {
   return rgbToHex([mix(r), mix(g), mix(b)]);
 }
 
+function lightestOf(surfaces: readonly string[]): string {
+  const lightness = (hex: string) => luminance(toRgb(hex) as Rgb);
+  return surfaces.reduce((lightest, surface) =>
+    lightness(surface) > lightness(lightest) ? surface : lightest
+  );
+}
+
+/**
+ * A text hue's navy variant, moved just far enough to pass on the lightest of
+ * the deep surfaces. On a passing theme it ends up lighter than that surface,
+ * so it passes on the two darker ones too.
+ */
+function deriveDeepInk(hue: TextHue, surfaces: readonly string[]): string {
+  return (
+    nearestPassingShade(
+      TEXT_HUES[hue].deep,
+      lightestOf(surfaces),
+      MIN_TEXT_ON_DEEP
+    ) ?? WHITE
+  );
+}
+
 function deriveMutedInk(surfaces: string[], dark: string): string {
   let share = MUTED_START;
   let ink = mixWithWhite(dark, share);
@@ -487,6 +529,7 @@ export function themeTokens(theme: PageTheme): Record<`--${string}`, string> {
   const raised = deriveRaised(dark, accent);
   const sunken = deriveSunken(dark);
   const edge = shiftLightness(dark, EDGE_STEP);
+  const deepSurfaces = [dark, raised, sunken];
 
   // The tint is the darker of the two light surfaces, so it is the hard one.
   const blue =
@@ -501,7 +544,10 @@ export function themeTokens(theme: PageTheme): Record<`--${string}`, string> {
     "--biso-deep-sunken": sunken,
     "--biso-deep-edge": edge,
     // Checked against the final raised, which may sit closer to the dark.
-    "--biso-deep-ink-muted": deriveMutedInk([dark, raised, sunken], dark),
+    "--biso-deep-ink-muted": deriveMutedInk(deepSurfaces, dark),
+    "--biso-deep-ink-green": deriveDeepInk("green", deepSurfaces),
+    "--biso-deep-ink-amber": deriveDeepInk("amber", deepSurfaces),
+    "--biso-deep-ink-red": deriveDeepInk("red", deepSurfaces),
   };
 }
 

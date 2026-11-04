@@ -4,7 +4,9 @@ import { type PageTheme, sameTheme } from "@repo/shared/utils/page-theme";
 import { current } from "immer";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import type { PatchOptions } from "../blocks/types";
 import { emptyHeader } from "../header/empty-header";
+import { opensNewStep } from "./coalesce";
 import {
   bindCollection as opBindCollection,
   duplicateBlock as opDuplicate,
@@ -106,6 +108,8 @@ interface EditorState {
   ) => string;
   insertTarget: InsertTarget | null;
   inspectorTab: "block" | "page" | "outline";
+  /** Key and time of the last coalesced edit; any other history step clears it. */
+  lastCoalesce: { key: string; at: number } | null;
   /**
    * Locale the page is being rendered in. Auto-source blocks pass it to their
    * feed endpoints so an English page gets English titles and date formatting
@@ -146,7 +150,12 @@ interface EditorState {
 
   // Mode / viewport
   setMode: (mode: EditorMode) => void;
-  setProp: (id: string, path: string, value: unknown) => void;
+  setProp: (
+    id: string,
+    path: string,
+    value: unknown,
+    options?: PatchOptions
+  ) => void;
   setSaving: (state: SavingState) => void;
   setSectionAnchor: (id: string, anchor: string) => void;
   setSectionLayout: (id: string, patch: Partial<SectionLayout>) => void;
@@ -254,7 +263,9 @@ export const useEditorStore = create<EditorState>()(
       doc: PageDoc;
       past: HistorySnap[];
       future: HistorySnap[];
+      lastCoalesce: { key: string; at: number } | null;
     }) {
+      state.lastCoalesce = null;
       state.past.push(snap(state.doc));
       if (state.past.length > HISTORY_LIMIT) {
         state.past.shift();
@@ -262,10 +273,41 @@ export const useEditorStore = create<EditorState>()(
       state.future = [];
     }
 
+    /**
+     * A write that steps back or forward over an edit the history already
+     * holds: no new step. Where it brings the page back to the step on top
+     * of `past`, it takes that step as an undo would; to the one on top of
+     * `future`, as a redo would. Typing after it starts a step of its own.
+     */
+    function writeHistoryNeutral(
+      state: {
+        doc: PageDoc;
+        past: HistorySnap[];
+        future: HistorySnap[];
+        lastCoalesce: { key: string; at: number } | null;
+      },
+      write: () => void
+    ) {
+      const before = snap(state.doc);
+      write();
+      state.lastCoalesce = null;
+      const now = JSON.stringify(snap(state.doc));
+      const isAt = (entry: HistorySnap | undefined) =>
+        entry !== undefined && JSON.stringify(entry) === now;
+      if (isAt(state.past.at(-1))) {
+        state.past.pop();
+        state.future.push(before);
+      } else if (isAt(state.future.at(-1))) {
+        state.future.pop();
+        state.past.push(before);
+      }
+    }
+
     return {
       doc: structuredClone(EMPTY_DOC),
       past: [],
       future: [],
+      lastCoalesce: null,
 
       selection: null,
       selectedSectionId: null,
@@ -427,9 +469,22 @@ export const useEditorStore = create<EditorState>()(
           opDuplicate(s.doc, id);
         }),
 
-      setProp: (id, path, value) =>
+      setProp: (id, path, value, options) =>
         set((s) => {
-          pushHistory(s);
+          if (options?.historyNeutral) {
+            writeHistoryNeutral(s, () => opSetProp(s.doc, id, path, value));
+            return;
+          }
+          const key = options?.coalesce;
+          const now = Date.now();
+          const continuesBurst =
+            key !== undefined &&
+            s.lastCoalesce?.key === key &&
+            !opensNewStep(s.lastCoalesce.at, now);
+          if (!continuesBurst) {
+            pushHistory(s);
+          }
+          s.lastCoalesce = key === undefined ? null : { at: now, key };
           opSetProp(s.doc, id, path, value);
         }),
 
@@ -500,6 +555,7 @@ export const useEditorStore = create<EditorState>()(
       setDoc: (doc) =>
         set((s) => {
           s.doc = structuredClone(doc);
+          s.lastCoalesce = null;
           s.past = [];
           s.future = [];
           s.themePreview = null;
@@ -562,6 +618,7 @@ export const useEditorStore = create<EditorState>()(
       undo: () =>
         set((s) => {
           s.themePreview = null;
+          s.lastCoalesce = null;
           const entry = s.past.pop();
           if (!entry) {
             return;
@@ -574,6 +631,7 @@ export const useEditorStore = create<EditorState>()(
       redo: () =>
         set((s) => {
           s.themePreview = null;
+          s.lastCoalesce = null;
           const entry = s.future.pop();
           if (!entry) {
             return;

@@ -25,6 +25,12 @@ export interface EditorCallbacks {
   onPublish?: (locale: EditorLocale) => Promise<PublishOutcome | undefined>;
   onTranslateLocale?: (targetLocale: EditorLocale) => Promise<void>;
   onUnpublish?: (locale: EditorLocale) => Promise<void>;
+  /**
+   * Steps the page's undo history, for a rich text field with nothing of
+   * its own left to undo or redo. `EditorShell` supplies it; hosts never
+   * pass it.
+   */
+  pageHistory?: (step: "undo" | "redo") => void;
   savePage: (
     doc: PageDoc,
     locale: EditorLocale

@@ -2,16 +2,28 @@
 
 import type { ReactNode } from "react";
 
+/** A titled group of fields; `action` is a small button at the title's end. */
 export function InspSection({
+  action,
   label,
   children,
 }: {
+  action?: ReactNode;
   label: string;
   children: ReactNode;
 }) {
   return (
     <div className="pe-insp-section">
-      <div className="pe-insp-section__h">{label}</div>
+      <div
+        className={
+          action
+            ? "pe-insp-section__h pe-insp-section__h--action"
+            : "pe-insp-section__h"
+        }
+      >
+        {label}
+        {action}
+      </div>
       {children}
     </div>
   );

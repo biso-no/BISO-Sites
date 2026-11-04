@@ -10,38 +10,26 @@ import sanitizeHtml, {
   type Transformer,
 } from "sanitize-html";
 import { safeHref } from "../blocks/_v2/links";
+import {
+  BODY_ATTRIBUTE_RULES,
+  BODY_ATTRIBUTES,
+  BODY_TAGS,
+  DROPPED_WITH_CONTENT,
+  INLINE_TAGS,
+  keptAttributes,
+} from "../lib/rich-allowlist";
+import { scanBody, textLines } from "./body-scan";
 
 /**
- * The markup a text block may store: `lib/sanitize.ts`'s allowlist, which
- * the editor applies in the browser on blur. Everything else is unwrapped,
- * its text kept.
+ * The tags a legacy text item (`body[].text`) may hold: `lib/sanitize.ts`'s
+ * inline allowlist, which the editor applies in the browser on blur.
+ * Everything else is unwrapped, its text kept. A string body uses
+ * `BODY_TAGS` (see `BODY_OPTIONS`).
  */
-const ALLOWED_TAGS = ["b", "strong", "i", "em", "a", "br", "span"];
+const ALLOWED_TAGS = INLINE_TAGS;
 
 /** Browsers wrap each new line typed with Enter in one of these. */
 const LINE_BLOCK_TAGS = new Set(["div", "p"]);
-
-/**
- * Removed together with their content: code, embedded documents, foreign
- * (SVG/MathML) markup, and the raw-text elements a browser parses
- * differently from htmlparser2.
- */
-const DROPPED_WITH_CONTENT = [
-  "script",
-  "style",
-  "iframe",
-  "object",
-  "embed",
-  "svg",
-  "math",
-  "textarea",
-  "noscript",
-  "template",
-  "noembed",
-  "noframes",
-  "option",
-  "xmp",
-];
 
 /**
  * The same rule every v2 link follows. A safe value is kept as written, as
@@ -53,6 +41,33 @@ const keepSafeHref: Transformer = (tagName, { href }) => {
     attribs.href = href;
   }
   return { attribs, tagName };
+};
+
+/**
+ * A body tag keeps what `keptAttributes` keeps, as the browser sanitiser
+ * does, so a link or colour the editor shows survives the save and the
+ * reverse.
+ */
+const keepBodyAttributes: Transformer = (tagName, attribs) => ({
+  attribs: keptAttributes(tagName, attribs),
+  tagName,
+});
+
+const BODY_OPTIONS: IOptions = {
+  // sanitize-html's types want arrays it could change.
+  allowedAttributes: Object.fromEntries(
+    Object.entries(BODY_ATTRIBUTES).map(([tag, names]) => [tag, [...names]])
+  ),
+  allowedTags: [...BODY_TAGS],
+  allowedSchemes: ["http", "https", "mailto", "tel"],
+  allowedSchemesByTag: {},
+  allowProtocolRelative: true,
+  disallowedTagsMode: "discard",
+  nestingLimit: 100,
+  nonTextTags: [...DROPPED_WITH_CONTENT],
+  transformTags: Object.fromEntries(
+    Object.keys(BODY_ATTRIBUTE_RULES).map((tag) => [tag, keepBodyAttributes])
+  ),
 };
 
 const OPTIONS: IOptions = {
@@ -68,7 +83,7 @@ const OPTIONS: IOptions = {
   // Deeper tags are discarded, their text kept. Bounds the work and the
   // output for a document built to be deep.
   nestingLimit: 100,
-  nonTextTags: DROPPED_WITH_CONTENT,
+  nonTextTags: [...DROPPED_WITH_CONTENT],
   transformTags: { a: keepSafeHref },
 };
 
@@ -153,16 +168,28 @@ const NBSP = "\u00a0";
  * htmlparser2 keeps its open elements in an array it `unshift`s, so a parse
  * is quadratic in nesting depth, and `nestingLimit` only applies after it:
  * 80,000 nested tags took 1.4 s under Node and 0.4 s under Bun. Every tag
- * starts with a `<`, so counting them bounds the depth; at this many a parse
- * still takes a few milliseconds, and no paragraph comes near it.
+ * starts with a `<`, so counting them bounds the depth. The slowest markup
+ * found at this many is SVG nested in a `<foreignObject>`: there
+ * htmlparser2's `readTagName` searches the whole open-element stack for
+ * every tag (`stack.includes`), so a parse takes about 60 ms under Bun and
+ * 200 to 300 ms under Node, the server's runtime. No legacy text item comes
+ * near it, nor does a body the editor writes (`scanBody` lets that one
+ * through at any size); any other body has the same cap.
  */
 const MAX_TAG_STARTS = 10_000;
 
-function hasTooManyTags(html: string): boolean {
+/**
+ * How deep a body in the editor's grammar may nest before it is kept as
+ * text (`scanBody` measures it without a parse). No body the editor writes
+ * comes near.
+ */
+const MAX_BODY_DEPTH = 100;
+
+function hasMoreTagsThan(html: string, limit: number): boolean {
   let count = 0;
   for (let at = html.indexOf("<"); at !== -1; at = html.indexOf("<", at + 1)) {
     count += 1;
-    if (count > MAX_TAG_STARTS) {
+    if (count > limit) {
       return true;
     }
   }
@@ -189,10 +216,52 @@ function escapeText(html: string): string {
  * back as escaped text.
  */
 export function sanitizeRichHtml(html: string): string {
-  if (hasTooManyTags(html)) {
+  if (hasMoreTagsThan(html, MAX_TAG_STARTS)) {
     return escapeText(html);
   }
   return breakLines(sanitizeHtml(html, OPTIONS)).replaceAll(NBSP, "&nbsp;");
+}
+
+/**
+ * A text block's HTML body reduced to `BODY_TAGS`: the server-side twin of
+ * `sanitizeRichBody` in `lib/sanitize.ts`. Void tags are written as a browser
+ * serializes them.
+ *
+ * A body in the editor's own grammar (`scanBody`) is parsed at any length,
+ * since its depth is known; nested more than `MAX_BODY_DEPTH` deep, it is
+ * never parsed: it keeps its text, one paragraph per line, and loses its
+ * formatting. Any other body is parsed up to `MAX_TAG_STARTS` tags, where
+ * sanitize-html's `nestingLimit` drops the tags past 100 levels and keeps
+ * their text; past that cap it becomes text paragraphs too. The browser
+ * sanitiser has no such limits, since a DOM parses deep markup in linear
+ * time; what is stored is this function's output, so these are the rules
+ * that count.
+ */
+export function sanitizeRichBodyHtml(html: string): string {
+  const scan = scanBody(html, MAX_BODY_DEPTH);
+  const asText =
+    scan === "too-deep" ||
+    (scan === "other" && hasMoreTagsThan(html, MAX_TAG_STARTS));
+  return sanitizeBody(asText ? asTextParagraphs(html) : html);
+}
+
+function sanitizeBody(html: string): string {
+  return sanitizeHtml(html, BODY_OPTIONS)
+    .replaceAll("<br />", "<br>")
+    .replaceAll("<hr />", "<hr>")
+    .replaceAll(NBSP, "&nbsp;");
+}
+
+/**
+ * The body's text as flat `<p>`s, every `<` in it escaped, so the parse that
+ * follows sees one level and settles its entities.
+ */
+function asTextParagraphs(html: string): string {
+  return textLines(html)
+    .map(
+      (line) => `<p>${line.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</p>`
+    )
+    .join("");
 }
 
 type Loose = Record<string, unknown>;
@@ -213,9 +282,13 @@ function sanitizeBodyItem(item: unknown): unknown {
 }
 
 function sanitizeBlock(block: unknown): unknown {
-  if (
-    !(isRecord(block) && block.type === "text" && Array.isArray(block.body))
-  ) {
+  if (!(isRecord(block) && block.type === "text")) {
+    return block;
+  }
+  if (typeof block.body === "string") {
+    return { ...block, body: sanitizeRichBodyHtml(block.body) };
+  }
+  if (!Array.isArray(block.body)) {
     return block;
   }
   return { ...block, body: block.body.map(sanitizeBodyItem) };

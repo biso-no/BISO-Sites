@@ -88,6 +88,7 @@ export const translateContentFields = async ({
     prompt: `Translate this ${contentType} from ${LANGUAGE_NAMES[sourceLocale]} to ${LANGUAGE_NAMES[targetLocale]}.
 Return one translation for every supplied field using the exact same key.
 Preserve meaning, tone, proper nouns, URLs, email addresses, placeholders, identifiers, and HTML structure.
+In HTML, keep every tag and every attribute value exactly as written (for example data-color, href, start, colspan and rowspan), and translate only the text between tags.
 Do not add facts or explanatory text. Leave formatting intact.
 
 Fields:

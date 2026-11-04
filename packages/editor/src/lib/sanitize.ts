@@ -1,7 +1,16 @@
-const ALLOWED_TAGS = new Set(["b", "strong", "i", "em", "a", "br", "span"]);
+import {
+  BODY_TAGS,
+  DROPPED_WITH_CONTENT,
+  INLINE_TAGS,
+  keptAttributes,
+  SAFE_HREF,
+} from "./rich-allowlist";
+
+const ALLOWED_TAGS = new Set(INLINE_TAGS);
+const BODY_ALLOWED_TAGS = new Set(BODY_TAGS);
+const DROPPED_TAGS = new Set(DROPPED_WITH_CONTENT);
 /** Browsers wrap each new line typed with Enter in one of these. */
 const LINE_BLOCK_TAGS = new Set(["div", "p"]);
-const SAFE_HREF = /^(?:https?:|mailto:|tel:|[/#?.])/i;
 
 /**
  * The markup parsed into a document with no browsing context. Set as
@@ -20,17 +29,33 @@ export function parseInert(html: string): HTMLElement {
 
 export function sanitizeRichText(html: string): string {
   const tmp = parseInert(html);
-  cleanNode(tmp);
+  cleanNode(tmp, false);
   return tmp.innerHTML;
 }
 
-function cleanNode(node: Node): void {
+/**
+ * A text block's HTML body reduced to `BODY_TAGS`. Unlike the inline pass,
+ * block tags stay and no `<br>` is inserted for a `div`/`p`; the elements in
+ * `DROPPED_WITH_CONTENT` go with their content, other tags are unwrapped.
+ * There is no depth limit here, since a DOM parses deep markup in linear
+ * time. The server's `sanitizeRichBodyHtml` has one, and its output is what
+ * is stored: a body in the editor's own grammar nested past 100 levels, or
+ * any other body with more than 10,000 tags, is kept as text paragraphs,
+ * and any other body loses its tags past 100 levels, their text kept.
+ */
+export function sanitizeRichBody(html: string): string {
+  const tmp = parseInert(html);
+  cleanNode(tmp, true);
+  return tmp.innerHTML;
+}
+
+function cleanNode(node: Node, body: boolean): void {
   for (const child of Array.from(node.childNodes)) {
-    cleanChild(child);
+    cleanChild(child, body);
   }
 }
 
-function cleanChild(child: Node): void {
+function cleanChild(child: Node, body: boolean): void {
   if (child.nodeType === Node.TEXT_NODE) {
     return;
   }
@@ -43,21 +68,44 @@ function cleanChild(child: Node): void {
   const el = child as Element;
   const tag = el.tagName.toLowerCase();
 
-  if (!ALLOWED_TAGS.has(tag)) {
-    if (LINE_BLOCK_TAGS.has(tag) && el.previousSibling) {
+  if (body && DROPPED_TAGS.has(tag)) {
+    el.remove();
+    return;
+  }
+
+  if (!(body ? BODY_ALLOWED_TAGS : ALLOWED_TAGS).has(tag)) {
+    if (!body && LINE_BLOCK_TAGS.has(tag) && el.previousSibling) {
       el.before(el.ownerDocument.createElement("br"));
     }
-    cleanNode(el);
+    cleanNode(el, body);
     unwrapElement(el);
     return;
   }
 
-  stripAttributes(el, tag);
-  cleanNode(el);
+  stripAttributes(el, tag, body);
+  cleanNode(el, body);
 }
 
-function stripAttributes(el: Element, tag: string): void {
-  for (const attr of Array.from(el.attributes)) {
+/**
+ * A body tag keeps what `keptAttributes` keeps, as the server sanitiser
+ * does; a legacy item's tags keep only a safe `a[href]`.
+ */
+function stripAttributes(el: Element, tag: string, body: boolean): void {
+  const attributes = Array.from(el.attributes);
+  if (body) {
+    const kept = keptAttributes(
+      tag,
+      Object.fromEntries(attributes.map(({ name, value }) => [name, value]))
+    );
+    for (const { name } of attributes) {
+      el.removeAttribute(name);
+    }
+    for (const [name, value] of Object.entries(kept)) {
+      el.setAttribute(name, value);
+    }
+    return;
+  }
+  for (const attr of attributes) {
     if (
       tag === "a" &&
       attr.name === "href" &&

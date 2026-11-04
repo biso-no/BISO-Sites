@@ -205,6 +205,10 @@ export function EditorShell({
   useUnloadPrompt(unsaved);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
+  const pageHistory = useCallback(
+    (step: "undo" | "redo") => (step === "undo" ? undo() : redo()),
+    [undo, redo]
+  );
 
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
@@ -549,6 +553,8 @@ export function EditorShell({
       ) {
         return;
       }
+      // A rich text field undoes its own edits, and steps the page through
+      // `pageHistory` once it has none left, so a key is never undone twice.
       if (e.target instanceof HTMLElement && e.target.isContentEditable) {
         return;
       }
@@ -580,6 +586,7 @@ export function EditorShell({
         locales,
         onLocaleChange,
         onTranslateLocale,
+        pageHistory,
         translatingLocale,
       }}
     >

@@ -1,5 +1,21 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { PageDoc } from "@repo/api/page-builder";
+import type { TextColourToken } from "@repo/shared/utils/text-colour-tokens";
+
+/** Real colour tokens: the fixture stops type-checking if one is renamed. */
+const ACCENT: TextColourToken = "accent";
+const RED: TextColourToken = "red";
+
+/**
+ * A translated body exactly as the Rich text field writes it: nested lists,
+ * a list numbered from 3, a table with a header row and merged cells,
+ * colour, a link, every mark, a quote and a divider.
+ */
+const RICH_EN =
+  `<h2>About us</h2><p>We are <strong>students</strong> at <a href="https://biso.no">BISO</a>. <span data-color="${ACCENT}">Welcome!</span></p>` +
+  '<ul><li>One<ul><li>Two</li></ul></li></ul><ol start="3"><li>Three</li></ol>' +
+  `<table><thead><tr><th colspan="2">Contact</th></tr></thead><tbody><tr><td rowspan="2">Oslo</td><td><span data-color="${RED}">Important</span></td></tr><tr><td><em>Bergen</em></td></tr></tbody></table>` +
+  "<blockquote>Quote</blockquote><hr><p><u>Under</u> and <s>over</s></p>";
 
 const sourceDocument: PageDoc = {
   sections: [
@@ -638,5 +654,36 @@ describe("page auto-translation: rich text", () => {
     expect(saved.doc.sections[0].columns[0].blocks[0].body[0].text).toBe(
       "<b>Hi</b>"
     );
+  });
+
+  test("a translated rich body keeps its lists, table, colours and links when it is saved", async () => {
+    // The model's copy, with a style it added on a merged cell.
+    const modelBody = RICH_EN.replace(
+      '<td rowspan="2">',
+      '<td style="color:red" rowspan="2">'
+    );
+    translatePageDocumentSpy.mockImplementationOnce(async () => ({
+      ...translatedDocument,
+      sections: [
+        {
+          columns: [
+            {
+              blocks: [{ body: modelBody, id: "t-1", type: "text" }],
+              id: "c-1",
+            },
+          ],
+          id: "s-1",
+          layout: {},
+        },
+      ],
+    }));
+
+    await publishNorwegianWithTranslation();
+    await deferredTask?.();
+
+    const [[saved]] = savePageTranslationDraftSpy.mock.calls as unknown as [
+      [{ doc: { sections: { columns: { blocks: { body: string }[] }[] }[] } }],
+    ];
+    expect(saved.doc.sections[0].columns[0].blocks[0].body).toBe(RICH_EN);
   });
 });

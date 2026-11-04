@@ -2,12 +2,19 @@ import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
 import { Window } from "happy-dom";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { loadRichField } from "@/blocks/text/test-support";
 import { useEditorStore } from "@/editor/store";
 import { doc, section } from "@/editor/test-fixtures";
 import type { EditorLocale } from "@/editor/types";
 import { EditorShell } from "./index";
 
+// The canvas draws a text block's Plate field, which also reads the DOM
+// globals from CustomEvent to requestAnimationFrame.
 const previous = {
+  CustomEvent: globalThis.CustomEvent,
+  DOMParser: globalThis.DOMParser,
+  Document: globalThis.Document,
+  Element: globalThis.Element,
   Event: globalThis.Event,
   KeyboardEvent: globalThis.KeyboardEvent,
   MouseEvent: globalThis.MouseEvent,
@@ -15,14 +22,22 @@ const previous = {
   HTMLElement: globalThis.HTMLElement,
   HTMLInputElement: globalThis.HTMLInputElement,
   HTMLTextAreaElement: globalThis.HTMLTextAreaElement,
+  ShadowRoot: globalThis.ShadowRoot,
+  cancelAnimationFrame: globalThis.cancelAnimationFrame,
   document: globalThis.document,
+  getComputedStyle: globalThis.getComputedStyle,
+  requestAnimationFrame: globalThis.requestAnimationFrame,
   window: globalThis.window,
 };
 const flags = globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
-beforeAll(() => {
+beforeAll(async () => {
   const win = new Window();
   Object.assign(globalThis, {
+    CustomEvent: win.CustomEvent,
+    DOMParser: win.DOMParser,
+    Document: win.Document,
+    Element: win.Element,
     Event: win.Event,
     HTMLElement: win.HTMLElement,
     HTMLInputElement: win.HTMLInputElement,
@@ -31,9 +46,14 @@ beforeAll(() => {
     KeyboardEvent: win.KeyboardEvent,
     MouseEvent: win.MouseEvent,
     Node: win.Node,
+    ShadowRoot: win.ShadowRoot,
+    cancelAnimationFrame: win.cancelAnimationFrame.bind(win),
     document: win.document,
+    getComputedStyle: win.getComputedStyle.bind(win),
+    requestAnimationFrame: win.requestAnimationFrame.bind(win),
     window: win,
   });
+  await loadRichField();
 });
 
 afterAll(() => {

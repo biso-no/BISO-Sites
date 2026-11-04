@@ -1143,6 +1143,12 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+/* A small button at the title's end, such as the Rich text field's Expand. */
+.pe-insp-section__h--action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .pe-row {
   display: flex;
   gap: 8px;
@@ -1775,4 +1781,473 @@
   background: transparent;
   border: 0.5px solid var(--rule-2);
   border-radius: 6px;
+}
+
+/* === Rich text field ===================================================== */
+/*
+ * The panel's toolbar sits on the field's top edge and shares its rules;
+ * the canvas bubble wears the same controls in ink. Each list item is its
+ * own <ul>/<ol>, so blocks space by margin and list items sit flush.
+ */
+.pe-rt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  padding: 3px;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+}
+.pe-rt-btn {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+.pe-rt-btn:not(:disabled):hover {
+  color: var(--pg-ink);
+}
+.pe-rt-btn[aria-pressed="true"],
+.pe-rt-btn[aria-expanded="true"] {
+  color: var(--pg-ink);
+  background: white;
+  box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-rt-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.pe-rt-sep {
+  width: 0.5px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--rule-2);
+}
+/* A run of buttons that stays on one line: the row wraps between runs. */
+.pe-rt-group {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  align-items: center;
+}
+/*
+ * The mockup's narrow drop: the name, then a small ▾ (drawn below, after the
+ * bubble's colours) in place of the browser's wide arrow. A long name is cut
+ * short.
+ */
+.pe-rt-select {
+  flex: none;
+  width: 80px;
+  height: 22px;
+  padding: 0 15px 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--pg-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  background: white;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-rt-select:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.pe-rt-link {
+  display: flex;
+  flex-basis: 100%;
+  gap: 2px;
+  align-items: center;
+  padding-top: 2px;
+}
+.pe-rt-link__input {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  color: var(--pg-ink);
+  outline: 0;
+  background: white;
+  border: 0.5px solid var(--rule-2);
+  border-radius: 4px;
+}
+.pe-rt-link__input:focus {
+  border-color: var(--ink-3);
+}
+.pe-rt-link__input[aria-invalid="true"] {
+  border-color: var(--pg-ink);
+}
+.pe-rt-link__btn {
+  font-size: 11.5px;
+}
+/* The table controls: a line of their own under the buttons, in a table. */
+.pe-rt-table {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  padding-top: 3px;
+  margin-top: 1px;
+  border-top: 0.5px solid var(--rule-2);
+}
+.pe-rt-table__label {
+  margin: 0 2px 0 4px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pe-rt-table__btn {
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.pe-rt-table__text {
+  margin-left: 4px;
+}
+/* A toolbar button's menu: the text colours, ⋯. Items as .pe-seg buttons. */
+.pe-rt-popwrap {
+  position: relative;
+  display: inline-flex;
+}
+.pe-rt-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 132px;
+  padding: 3px;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.pe-rt-pop__item {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+.pe-rt-pop__item:not(:disabled):hover,
+.pe-rt-pop__item[aria-pressed="true"] {
+  color: var(--pg-ink);
+  background: white;
+  box-shadow: 0 0 0 0.5px var(--rule-2);
+}
+.pe-rt-pop__item:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.pe-rt-swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+}
+.pe-rt-swatch--none {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ink-4);
+}
+/* Under the A, as Word shows the colour it will paint. */
+.pe-rt-colour__dot {
+  width: 6px;
+  height: 6px;
+  margin-left: 1px;
+}
+
+.pe-rt-wrap {
+  position: relative;
+}
+.pe-rt-notice {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  color: var(--pg-ink);
+  pointer-events: none;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 5px;
+}
+/*
+ * Empty, it stays in the accessibility tree (so a screen reader announces
+ * the text when it arrives) but takes no room and shows nothing.
+ */
+.pe-rt-notice:empty {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+.pe-rt-field {
+  min-height: 230px;
+  max-height: 480px;
+  padding: 10px 12px;
+  overflow: auto;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  outline: 0;
+  background: white;
+  border: 0.5px solid var(--rule-2);
+  border-radius: 0 0 6px 6px;
+}
+.pe-rt-field:focus {
+  border-color: var(--ink-3);
+}
+.pe-rt-field > * + * {
+  margin-top: 8px;
+}
+.pe-rt-field > :is(ul, ol) + :is(ul, ol) {
+  margin-top: 0;
+}
+.pe-rt-field h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pg-ink);
+}
+.pe-rt-field h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pg-ink);
+}
+.pe-rt-field ul,
+.pe-rt-field ol {
+  padding-left: 18px;
+}
+.pe-rt-field ul {
+  list-style: disc;
+}
+.pe-rt-field ol {
+  list-style: decimal;
+}
+.pe-rt-field blockquote {
+  padding-left: 8px;
+  border-left: 2px solid var(--rule-2);
+}
+.pe-rt-field a {
+  color: var(--sky);
+  text-decoration: underline;
+}
+/* The page's swatches, set on the field (`--pe-rt-<token>`). */
+.pe-rt-field [data-color="accent"] {
+  color: var(--pe-rt-accent);
+}
+.pe-rt-field [data-color="muted"] {
+  color: var(--pe-rt-muted);
+}
+.pe-rt-field [data-color="green"] {
+  color: var(--pe-rt-green);
+}
+.pe-rt-field [data-color="amber"] {
+  color: var(--pe-rt-amber);
+}
+.pe-rt-field [data-color="red"] {
+  color: var(--pe-rt-red);
+}
+/* A link keeps its own colour inside coloured text: the save puts the
+   colour's span inside the link. */
+.pe-rt-field a [data-color] {
+  color: inherit;
+}
+.pe-rt-field hr {
+  border: 0;
+  border-top: 0.5px solid var(--rule-2);
+}
+/* No wrapper: a table too wide for the panel scrolls sideways itself. */
+.pe-rt-field table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.pe-rt-field :is(th, td) {
+  min-width: 48px;
+  padding: 3px 6px;
+  vertical-align: top;
+  text-align: left;
+  border: 0.5px solid var(--rule-2);
+}
+.pe-rt-field th {
+  font-weight: 600;
+  color: var(--pg-ink);
+  background: var(--paper-2);
+}
+
+/*
+ * The wide writing view: the panel's field over the editor. In the title's
+ * small type, Expand and Close keep their own case, spacing and weight.
+ */
+.pe-rt-expand-btn {
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-2);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 5px;
+}
+/* `.pe-confirm`'s scrim without the blur, so the canvas shows live behind. */
+.pe-rt-expand {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(26, 24, 20, 0.22);
+}
+.pe-rt-expand__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 12px;
+  overflow: auto;
+  background: var(--paper);
+  border: 0.5px solid var(--rule-2);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px -32px rgba(26, 24, 20, 0.45);
+}
+.pe-rt-expand__hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* The panel's gap spaces the title. */
+.pe-rt-expand__hd .pe-insp-section__h {
+  margin-bottom: 0;
+}
+.pe-rt-expand .pe-rt-field {
+  min-height: min(60vh, 520px);
+  max-height: calc(100vh - 170px);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.pe-rt-expand .pe-rt-field h2 {
+  font-size: 18px;
+}
+.pe-rt-expand .pe-rt-field h3 {
+  font-size: 15px;
+}
+
+/* The canvas bubble: the toolbar in ink, over the selected text. */
+.pe-rt-bubble {
+  z-index: 20;
+  padding: 3px;
+  background: var(--pg-ink);
+  border-radius: 7px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.pe-rt-bar--ink {
+  flex-wrap: nowrap;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.pe-rt-bubble .pe-rt-btn {
+  color: var(--paper-2);
+}
+.pe-rt-bubble .pe-rt-btn[aria-pressed="true"],
+.pe-rt-bubble .pe-rt-btn[aria-expanded="true"],
+.pe-rt-bubble .pe-rt-select,
+.pe-rt-bubble .pe-rt-link__input {
+  color: var(--paper);
+  background: var(--ink-2);
+  box-shadow: none;
+}
+.pe-rt-bubble .pe-rt-sep {
+  background: color-mix(in srgb, var(--ink-2) 70%, var(--ink-3));
+}
+/*
+ * The style select's ▾, in its text colour: two half squares, 6px by 3px,
+ * 6px in from the right. After the bubble's `background`, which would take
+ * it off.
+ */
+.pe-rt-select,
+.pe-rt-bubble .pe-rt-select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position:
+    calc(100% - 9px) 50%,
+    calc(100% - 6px) 50%;
+  background-size: 3px 3px;
+}
+/*
+ * The bubble's menus sit in the canvas frame, whose ramp turns dark in dark
+ * mode: a pressed or hovered item takes the ramp's sunken paper, not white.
+ * A dot's ring is drawn against what it sits on: the menu's paper, or the
+ * colour button's ink.
+ */
+.pe-rt-bubble .pe-rt-pop__item:not(:disabled):hover,
+.pe-rt-bubble .pe-rt-pop__item[aria-pressed="true"] {
+  color: var(--pg-ink);
+  background: var(--paper-2);
+}
+.pe-rt-bubble .pe-rt-pop .pe-rt-swatch:not(.pe-rt-swatch--none) {
+  box-shadow: inset 0 0 0 0.5px
+    color-mix(in srgb, var(--pg-ink) 35%, transparent);
+}
+.pe-rt-bubble .pe-rt-colour__dot:not(.pe-rt-swatch--none) {
+  box-shadow: inset 0 0 0 0.5px var(--paper);
+}
+/* The address replaces the buttons while it is open: one short row. */
+.pe-rt-bar--ink:has(.pe-rt-link) > :not(.pe-rt-link) {
+  display: none;
+}
+.pe-rt-bubble .pe-rt-link {
+  flex-basis: auto;
+  padding-top: 0;
+}
+.pe-rt-bubble .pe-rt-link__input {
+  flex: none;
+  width: 200px;
+  border-color: transparent;
+}
+.pe-rt-bubble .pe-rt-link__input:focus {
+  border-color: var(--ink-3);
+}
+.pe-rt-bubble .pe-rt-link__input[aria-invalid="true"] {
+  border-color: var(--paper);
 }

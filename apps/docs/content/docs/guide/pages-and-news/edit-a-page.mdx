@@ -21,6 +21,8 @@ covers:
   - packages/editor/src/blocks/**
   - packages/editor/src/editor/**
   - packages/shared/utils/page-theme.ts
+  - packages/shared/utils/text-colours.ts
+  - packages/shared/utils/text-colour-tokens.ts
   - packages/api/page-builder.ts
   - apps/web/src/app/(public)/[...slug]/**
   - apps/web/src/lib/published-editor-page.tsx
@@ -122,9 +124,56 @@ Then fill in the block's fields in the **Block** tab on the right. Some blocks n
 - **Live from BISO** blocks fill themselves from biso.no, such as your department's events, open roles or news. On **Events feed**, **Open roles**, **News feed** and **Shop**, **Department** under **Data source** is set to **This page's department**, which follows the page's **Dept**. Global admins and campus leaders can pick another department instead. On biso.no, a live block with nothing to show is left out.
 - **Signup form** and **Multi-step form** have a **Submission** setting. **Save to admin** sends the answers to the admin's inbox (see [Inbox and approvals](/guide/start-here/inbox-and-approvals)). Only global admins and campus leaders can open the inbox. **Email** sends them to the **Recipient**, which must be a @biso.no address. Any other address is refused, and nothing is sent. If you're a department member and want the answers yourself, choose **Email** and a @biso.no address you can read.
 - Images, logos and files: choose **↑ Upload**, or paste a link that starts with https://.
-- In a **Rich text** block, select some text to get **Bold**, **Italic**, **Link** and **Remove formatting**.
+- A **Rich text** block has its own writing field and buttons. The next step shows how to use them.
 
-At the bottom of the list, **Build me a section** opens the AI copilot, a chat panel where you type in **Ask the copilot…**. The **Ask AI** button on the page opens it too. Check the page after you use it.
+At the bottom of the list, **Build me a section** opens the AI copilot, a chat panel where you type in **Ask the copilot…**. The **Ask AI** button on the page opens it too. The copilot can also write and change **Rich text**, with lists, tables and colours. In a long text, or on a long page, it may read only part of a text. So select the block before you ask for changes to a long text. If you don't, the copilot can't rewrite that text, and it stays as it was. It isn't always told when a change didn't work, so check the page after you use it.
+
+</Step>
+<Step title="Write in a Rich text block">
+
+Select a **Rich text** block. In the **Block** tab, the **Text** section has one writing field, with a row of buttons above it:
+
+- **Text style** chooses **Heading**, **Subheading**, **Paragraph** or **Quote** for the line you're on.
+- **B**, **I** and **U** make the selected text bold, italic or underlined.
+- **A** sets the text colour. Its dot shows the colour of the selected text.
+- The link button opens a box for the address, such as biso.no/events. Press Enter or choose **Apply**. **Remove** takes the link off.
+- The bullet list and numbered list buttons turn lines into a list, or back into text.
+- ⊞ adds a table.
+- ⋯ holds **Strikethrough**, **Divider** and **Clear formatting**.
+
+In a narrow panel the buttons wrap onto two rows.
+
+**Shortcuts.** Ctrl+B, Ctrl+I and Ctrl+U (Cmd on a Mac) for bold, italic and underline, and Ctrl+K (Cmd+K) for a link. Type `- ` or `* ` at the start of a line to start a bullet list, or `1. ` to start a numbered list. In a list, Tab moves an item one level in, and Shift+Tab moves it back out.
+
+**On the page.** You can also write on the page itself. Click into the text and type. Select some words, and a dark bar appears above them with **Text style**, **B**, **I**, **U**, **A**, the link button and the two list buttons. Tables and ⋯ are only in the panel and in **⤢ Expand**. To add a link on the page, select the words first, then press Ctrl+K.
+
+**⤢ Expand**, next to **Text**, opens the same field in a wide view over the editor, with the same buttons. The page behind it changes as you type. **Close** or Esc takes you back to the panel.
+
+**Colours.** **A** offers **Default**, which takes the colour off, and five colours: **Accent**, **Muted**, **Green**, **Amber** and **Red**. They're worked out from the page's colours (see [Set the colours](#set-the-colours)). **Accent** is the page's accent colour, and on a dark section each colour turns lighter so it stays readable. When a department changes its colours, coloured text follows. There's no picker for other colours. A link keeps its link colour, even inside coloured text.
+
+**Tables.** ⊞ adds a table with 3 rows and 3 columns. The first row is a header row. While the cursor is in a table, a second row of buttons shows under the first:
+
+- **Row**: *Insert row above*, *Insert row below* and *Delete row*.
+- **Column**: *Insert column left*, *Insert column right* and *Delete column*.
+- **Header row** turns the header row on or off.
+- **Delete table** removes the table.
+
+Point at a **Row** or **Column** button to see its name. Tab moves to the next cell and Shift+Tab to the one before. Tab in the last cell adds a row. In a table, Ctrl+A (Cmd+A) selects the table, and pressing it again selects all of the text. A cell holds plain lines of text, so **Text style**, the list buttons, ⊞ and **Divider** are greyed out there. To write above a table at the very start of the text, between two tables, or right after a divider, put the cursor at the start of the table and press Enter.
+
+**Pasting.** You can paste from Word (on Mac, Windows or the web), Google Docs or a web page. The paste keeps:
+
+- headings: the biggest headings become **Heading** and the rest **Subheading**;
+- paragraphs and quotes;
+- bullet and numbered lists, with their levels, and numbering that carries on after a paragraph in between;
+- tables, with the header row and merged cells;
+- bold, italic, underline, strikethrough and links;
+- text colours, as the nearest of the five colours when one is close. Black or grey body text comes in without colour, and so does colour on headings and links.
+
+Fonts, sizes, spacing, background colours, highlights, comments and pictures are left out. When a picture is left out, the field says *Images aren't pasted into text — use an Image block.*
+
+From plain text, a blank line starts a new paragraph. Lines that start with `-`, `*` or `•` become a bullet list, and numbered lines that count up by one (1, 2, 3) become a numbered list. A single line such as "17. mai" stays text.
+
+**Undo.** In the field, Ctrl+Z (Cmd+Z) undoes your typing one pause at a time: a pause of a second or more starts a new step. When the field has nothing left to undo, Ctrl+Z carries on with the page's own undo, such as a block you moved. Ctrl+Shift+Z or Ctrl+Y (Cmd+Shift+Z on a Mac) redoes. A change from the copilot is a step of its own.
 
 </Step>
 <Step title="Arrange and change what's on the page">
@@ -135,7 +184,7 @@ At the bottom of the list, **Build me a section** opens the AI copilot, a chat p
 - With a section selected, the **Block** tab shows its settings: **Section layout**, **Appearance** (**Background**, **Spacing**, **Align columns**), **Background image** for a **Photo** background, **Responsive**, **Link name** and **Actions**. A button on the page can link to a section by its **Link name**, as #name.
 - To hide something on phones, tick **Hide on phone** under **Visibility** for a block, or **Hide section on phone** for a section.
 - The **Outline** tab lists the page header, every section and the blocks in it. Click one to select it.
-- To undo, press Ctrl+Z (Cmd+Z on a Mac). To redo, press Ctrl+Shift+Z (Cmd+Shift+Z). This doesn't work while you're typing in a field.
+- To undo, press Ctrl+Z (Cmd+Z on a Mac). To redo, press Ctrl+Shift+Z (Cmd+Shift+Z). In a **Rich text** field, undo goes back through your typing first, then carries on with the page's changes (see [Write in a Rich text block](#write-in-a-rich-text-block)). In any other field, it undoes only that field's typing. To undo a change to the page from there, click outside the field first.
 
 <Callout type="warn">
 Deleting a block or a section happens at once, without asking. Undo it straight away with Ctrl+Z or Cmd+Z. After you reload the page or leave the editor, you can't undo it.
@@ -178,7 +227,7 @@ The **NO** and **EN** buttons above the page switch language. A **+** after a la
 You can write the other language in two ways:
 
 - Choose its button and build it yourself. It starts with an empty page header and no sections.
-- Choose **Translate to EN** (or **Translate to NO**). AI translates the language you have open, saves the result as the other language's draft, and switches to it. It translates the text and leaves links, pictures, emails, prices and numbers as they are. If the other language already has content, you're asked **Replace translated draft?** first. Choose **Replace** or **Cancel**. You see **Translated Norwegian to English**, or **Translation failed**.
+- Choose **Translate to EN** (or **Translate to NO**). AI translates the language you have open, saves the result as the other language's draft, and switches to it. It translates the text and leaves links, pictures, emails, prices and numbers as they are. **Rich text** keeps its formatting: lists, tables, colours and links. If the other language already has content, you're asked **Replace translated draft?** first. Choose **Replace** or **Cancel**. You see **Translated Norwegian to English**, or **Translation failed**.
 
 A translation isn't published until you publish that language. Read it through first, and check people's names, roles and addresses too, for example in a **Team grid** or **Contact** block.
 
@@ -230,6 +279,9 @@ If **Publish** is greyed out with the tooltip *The page colours fail the contras
 - Drafts and archived pages aren't shown on biso.no.
 - Live blocks show what biso.no has now, such as the department's upcoming events. A live block with nothing in it is left out.
 - On a phone, anything marked **Hide on phone** isn't shown. A section is hidden too when every block in it is hidden.
+- Text in a **Rich text** block stops at a comfortable reading width, about 70 characters a line, so on a wide section it doesn't reach the right edge. A table can use the block's whole width.
+- On a phone, a table too wide for the screen scrolls sideways inside its block. The rest of the page doesn't move.
+- Coloured text in a **Rich text** block uses the page's colours, so it changes when the department's colours change.
 
 ## Common mistakes
 
@@ -243,6 +295,9 @@ If **Publish** is greyed out with the tooltip *The page colours fail the contras
 - Changing the colours on a department's page. When you publish, they change every page the department has.
 - Closing the tab while the top bar shows **Saving…** or **Error**. Wait for **Saved**.
 - Waiting for someone to approve the page. There's no approval step for pages: **Publish** puts the page live.
+- Pasting pictures into a **Rich text** block. They're left out. Use an **Image** block.
+- Colouring whole paragraphs. Keep colour for the few words that should stand out. When you paste, a colour that covers most of the pasted text is left out, because it's usually the document's own text colour.
+- Expecting Word's fonts and sizes. The page uses BISO's own fonts and sizes. For bigger text, use **Heading** or **Subheading**.
 
 <Callout type="warn">
 The bin icon on a row in **Sider** (Pages) shows when you point at the row. Its name is **Slett side** (Delete page). It asks **Delete page?** once, then takes the page off biso.no in every language at once. The page stays in the list as **Archived**. There's no button to restore it: to bring it back, open it and publish it. Every language that was live when you deleted it comes back too.

@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colour-tokens";
 import { describe, expect, it } from "vitest";
 import { codeOnly } from "@/test/source";
 
@@ -24,6 +25,14 @@ const DECLARATION_PREVIEW = 80;
 const WHITESPACE_RUN = /\s+/g;
 const LIGHT_INK_DECLARATION = /^\s*--ink:\s*var\(--biso-ink\);/m;
 const NAVY = /#001a35|rgb\(\s*0,\s*26,\s*53\s*\)/i;
+const LINK_KEEPS_ACCENT =
+  /\.pg-rich a \[data-color\]\s*\{\s*color:\s*inherit;\s*\}/;
+const RICH_MEASURE_PROPERTY =
+  /@property --pg-rich-measure\s*\{\s*syntax:\s*"<length> \| none";\s*inherits:\s*true;\s*initial-value:\s*none;\s*\}/;
+const RICH_MEASURE_ON_BOX =
+  /\.pg-rich\s*\{\s*--pg-rich-measure:\s*var\(--measure\);\s*\}/;
+const RICH_MEASURE_ON_TEXT =
+  /\.pg-rich > :not\(table\)\s*\{\s*max-width:\s*var\(--pg-rich-measure\);\s*\}/;
 
 const styles = readFileSync(join(import.meta.dirname, "styles.css"), "utf8");
 const adminStyles = readFileSync(
@@ -636,6 +645,9 @@ describe("named navy tokens (page themes)", () => {
     "--biso-deep-sunken": "#00142a",
     "--biso-deep-edge": "#12314f",
     "--biso-deep-ink-muted": "#93a7bb",
+    "--biso-deep-ink-green": "#26b66d",
+    "--biso-deep-ink-amber": "#dd9000",
+    "--biso-deep-ink-red": "#ff6f61",
     "--biso-ink": "#001a35",
   };
 
@@ -659,12 +671,51 @@ describe("named navy tokens (page themes)", () => {
       "--biso-deep-sunken",
       "--biso-deep-edge",
       "--biso-deep-ink-muted",
+      "--biso-deep-ink-green",
+      "--biso-deep-ink-amber",
+      "--biso-deep-ink-red",
     ]) {
       // deep, dark, deep-in-dark: raised and sunken are in all three.
       const reads = derived.match(new RegExp(`var\\(${name}\\)`, "g")) ?? [];
       const minimum =
         name.endsWith("raised") || name.endsWith("sunken") ? 3 : 2;
       expect(reads.length, name).toBeGreaterThanOrEqual(minimum);
+    }
+  });
+
+  it("each rich text colour token has a rule that reads its ink", () => {
+    for (const token of TEXT_COLOUR_TOKENS) {
+      const rule = new RegExp(
+        `\\.pg-rich \\[data-color="${token}"\\]\\s*\\{\\s*color:\\s*var\\(--ink-${token}\\);`
+      );
+      expect(globals, token).toMatch(rule);
+    }
+  });
+
+  it("keeps rich text at the measure while a table may use the full width", () => {
+    // Registered as a length, so 54ch resolves once on the box at body size
+    // and a heading wraps where the text does; an unregistered property
+    // would resolve `ch` in each heading's larger font.
+    expect(globals).toMatch(RICH_MEASURE_PROPERTY);
+    expect(globals).toMatch(RICH_MEASURE_ON_BOX);
+    expect(globals).toMatch(RICH_MEASURE_ON_TEXT);
+  });
+
+  it("keeps a link's accent on a coloured run inside it", () => {
+    // The save puts the colour's span inside the link.
+    expect(globals).toMatch(LINK_KEEPS_ACCENT);
+  });
+
+  it("gives each rich text hue an ink on paper and on navy", () => {
+    for (const hue of ["green", "amber", "red"]) {
+      expect(definitions, hue).toMatch(
+        new RegExp(`^\\s*--ink-${hue}:\\s*#[0-9a-f]{6};`, "m")
+      );
+      const reads =
+        derived.match(
+          new RegExp(`--ink-${hue}:\\s*var\\(--biso-deep-ink-${hue}\\);`, "g")
+        ) ?? [];
+      expect(reads.length, hue).toBe(2);
     }
   });
 

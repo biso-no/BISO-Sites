@@ -137,7 +137,8 @@ export const pageEditorTools = {
   set_prop: tool({
     description:
       "Set a property on a block. Use dot notation for nested paths, e.g. 'items.0.label'. " +
-      "Check the current page state for available props per block type.",
+      "Check the current page state for available props per block type. " +
+      "A text block's body is one HTML string: set it whole with path 'body'.",
     inputSchema: z.object({
       id: z.string().describe("Block ID to update"),
       path: z

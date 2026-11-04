@@ -326,6 +326,16 @@ html {
   --shear-run: 0.2309;
 }
 
+/* The rich text measure as a length. Registered, `.pg-rich` computes it to
+   pixels in its own font and its children inherit that, so `ch` is not
+   measured again in a heading's larger font. `none` leaves anything outside
+   rich text uncapped. */
+@property --pg-rich-measure {
+  syntax: "<length> | none";
+  inherits: true;
+  initial-value: none;
+}
+
 /* ---------------------------------------------------------------------------
  * BISO 2026 redesign — the nine type roles.
  *
@@ -342,6 +352,7 @@ html {
   .type-display-hero,
   .type-display-lg,
   .type-display-sm,
+  .pg-rich > h2,
   .type-heading-section,
   .type-label {
     font-family: var(--font-display);
@@ -381,7 +392,8 @@ html {
     letter-spacing: -0.015em;
   }
 
-  .type-display-sm {
+  .type-display-sm,
+  .pg-rich > h2 {
     font-size: clamp(1.5rem, 3vw, 2.25rem);
     font-weight: 800;
     line-height: 0.95;
@@ -403,7 +415,8 @@ html {
   }
 
   /* Body roles keep the UI face and sentence case. */
-  .type-heading-card {
+  .type-heading-card,
+  .pg-rich > h3 {
     font-family: var(--font-sans);
     font-size: 1.0625rem;
     font-weight: 700;
@@ -411,14 +424,17 @@ html {
     text-wrap: balance;
   }
 
-  .type-body {
+  .type-body,
+  .pg-rich :is(p, li, blockquote) {
     font-family: var(--font-sans);
     font-size: 1rem;
     font-weight: 400;
     line-height: 1.6;
   }
 
-  .type-body-sm {
+  .type-body-sm,
+  .pg-rich :is(th, td),
+  .pg-rich :is(th, td) p {
     font-family: var(--font-sans);
     font-size: 0.875rem;
     font-weight: 400;
@@ -440,6 +456,48 @@ html {
      Replaces the 51 `max-w-4xl` prose containers (~100ch) found in Phase 0. */
   .type-measure {
     max-width: var(--measure, 68ch);
+  }
+
+  /* Rich text keeps the measure, and a table may use the block's full width,
+     since its columns split the line. The measure is resolved once, on the
+     box at body size (`--pg-rich-measure` is a registered length, below), so
+     a heading wraps where the text does. Set on each heading, 54ch would be
+     measured in the heading's larger font. */
+  .pg-rich {
+    --pg-rich-measure: var(--measure);
+  }
+
+  .pg-rich > :not(table) {
+    max-width: var(--pg-rich-measure);
+  }
+
+  /* Rich text colour. A span stores only its token; the surface's ink paints
+     it, so it follows the page theme and turns to the navy variant on a deep
+     band. Tokens: packages/shared/utils/text-colours.ts. */
+  .pg-rich [data-color="accent"] {
+    color: var(--ink-accent);
+  }
+
+  .pg-rich [data-color="muted"] {
+    color: var(--ink-muted);
+  }
+
+  .pg-rich [data-color="green"] {
+    color: var(--ink-green);
+  }
+
+  .pg-rich [data-color="amber"] {
+    color: var(--ink-amber);
+  }
+
+  .pg-rich [data-color="red"] {
+    color: var(--ink-red);
+  }
+
+  /* A link keeps its accent inside coloured text: the save puts the
+     colour's span inside the link. */
+  .pg-rich a [data-color] {
+    color: inherit;
   }
 }
 

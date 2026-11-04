@@ -109,7 +109,7 @@ bun run reconcile:row-permissions -- --apply   # writes
 
 ## `@repo/editor`
 
-The in-house block page editor, `EditorShell`, built on dnd-kit, immer and zustand, and the renderer the website uses for pages built in the admin.
+The in-house block page editor, `EditorShell`, built on dnd-kit, immer and zustand, and the renderer the website uses for pages built in the admin. The Rich text block's writing field is built on Plate.js and loads only in edit mode, so the website never loads Plate.
 
 | Import | What it gives you |
 |---|---|
@@ -117,7 +117,7 @@ The in-house block page editor, `EditorShell`, built on dnd-kit, immer and zusta
 | `@repo/editor/render` | The renderer, with no drag and drop and no inspector. The website uses it. |
 | `@repo/editor/blocks` | The block registry |
 | `@repo/editor/page-feeds` | Which feed each block that fills itself (events, news, jobs, partners and the like) asks for. The website and the editor both read it, so they agree. |
-| `@repo/editor/serialize` | Loads stored page documents and upgrades or repairs them |
+| `@repo/editor/serialize` | Loads stored page documents and upgrades or repairs them. It also writes the page state the copilot reads (see [AI](/developers/reference/ai#the-page-editor-copilot)). |
 | `@repo/editor/templates` | Starting layouts for new unit and project pages |
 | `@repo/editor/theme/styles.css` | The editor's and the blocks' styles |
 | `@repo/editor/ai` | The page editor's AI tools and prompt |
@@ -132,6 +132,7 @@ The in-house block page editor, `EditorShell`, built on dnd-kit, immer and zusta
 - **Old page documents render empty.** `normalizePageDoc` in `src/editor/serialize.ts` turns any document that isn't the current version into an empty page. The page editor redesign treated every page built before it as a test, so nothing was migrated.
 - **It has no `build` script.** `turbo run build` doesn't type-check it on its own. Each app's `next build` checks the editor files it imports, and `bun run check-types` checks the whole package.
 - **`@repo/editor/sanitize` imports `server-only`.** Use it only in server components and server actions.
+- **Plate stays in `src/blocks/text/rich/`.** No other file in `src` may import `platejs`, `@platejs/*` or the `rich/` folder statically. `blocks/text/lazy-field.ts` and `blocks/text/canonical-body.ts` load it with a dynamic `import()`. A static import anywhere else could pull Plate into the website's bundle, so `src/blocks/text/rich-confinement.test.ts` fails on one. [Code layout](/developers/change-it/code-layout#conventions-that-matter) has the rule.
 
 ## `@repo/ui`
 

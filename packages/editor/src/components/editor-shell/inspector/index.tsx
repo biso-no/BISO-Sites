@@ -38,9 +38,9 @@ export function InspectorPane() {
   const setProp = useEditorStore((s) => s.setProp);
 
   const onPatch = useCallback<PatchFn>(
-    (path, value) => {
+    (path, value, options) => {
       if (selection) {
-        setProp(selection, path, value);
+        setProp(selection, path, value, options);
       }
     },
     [selection, setProp]

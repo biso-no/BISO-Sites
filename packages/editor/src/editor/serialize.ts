@@ -1,4 +1,5 @@
 import { parsePageTheme } from "@repo/shared/utils/page-theme";
+import { bodyToHtml } from "../blocks/text/body";
 import { emptyHeader } from "../header/empty-header";
 import { effectiveTheme } from "./effective-theme";
 import { newId } from "./ids";
@@ -33,6 +34,18 @@ import { PAGE_DOC_VERSION } from "./types";
 export { pruneEmptyFeedBlocks } from "./prune-feeds";
 
 const MAX_TEXT_LEN = 120;
+
+/** How much of a text block's body the page state shows the copilot. */
+export const AI_BODY_CHARS = 2000;
+
+/**
+ * How many body characters one page state shows the copilot in all, spent
+ * on the text blocks in document order.
+ */
+export const AI_BODY_TOTAL_CHARS = 20_000;
+
+/** An end tag such as `</p>` or `</h2>`. */
+const END_TAG = /<\/[a-z][a-z0-9]*>/gi;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
@@ -350,7 +363,86 @@ function truncate(s: string | undefined): string {
   return s.length > MAX_TEXT_LEN ? `${s.slice(0, MAX_TEXT_LEN)}…` : s;
 }
 
-function blockSummary(b: Block): string {
+const HIGH_SURROGATE_FIRST = 0xd8_00;
+const HIGH_SURROGATE_LAST = 0xdb_ff;
+
+/**
+ * `head` up to the end of its last end tag. With none, all of it, less a
+ * trailing high surrogate the cut parted from its pair.
+ */
+function cutAfterLastEndTag(head: string): string {
+  let end = 0;
+  for (const match of head.matchAll(END_TAG)) {
+    end = match.index + match[0].length;
+  }
+  if (end > 0) {
+    return head.slice(0, end);
+  }
+  const last = head.charCodeAt(head.length - 1);
+  const splitsPair =
+    last >= HIGH_SURROGATE_FIRST && last <= HIGH_SURROGATE_LAST;
+  return splitsPair ? head.slice(0, -1) : head;
+}
+
+/** What is left of `AI_BODY_TOTAL_CHARS` while one page state is written. */
+export interface BodyBudget {
+  left: number;
+}
+
+/**
+ * A text block's body as the copilot sees it: the HTML it renders (a legacy
+ * array included, junk as ""), as a JSON string. A body over
+ * `AI_BODY_CHARS` is cut after its last end tag inside the limit (or at the
+ * limit when there is none) and a note says so: `set_prop` replaces the whole
+ * body, so a rewrite from the preview would lose the rest.
+ *
+ * The preview spends `budget`. Once one does not fit, the budget is used up,
+ * and this and every later non-empty body show only their length. The
+ * selected block's full props show the whole body either way.
+ */
+export function bodyForAI(
+  body: unknown,
+  budget: BodyBudget = { left: Number.POSITIVE_INFINITY }
+): string {
+  return bodySeenByAI(body, budget).shown;
+}
+
+/** `bodyForAI`, and whether it shows the whole body. */
+function bodySeenByAI(
+  body: unknown,
+  budget: BodyBudget
+): { shown: string; whole: boolean } {
+  const html = bodyToHtml(body);
+  const isCut = html.length > AI_BODY_CHARS;
+  const preview = isCut
+    ? cutAfterLastEndTag(html.slice(0, AI_BODY_CHARS))
+    : html;
+  if (preview.length > budget.left) {
+    budget.left = 0;
+    return {
+      shown: `(${html.length} characters, select the block to read it)`,
+      whole: false,
+    };
+  }
+  budget.left -= preview.length;
+  if (!isCut) {
+    return { shown: JSON.stringify(html), whole: true };
+  }
+  return {
+    shown: `${JSON.stringify(preview)} (cut: the first ${preview.length} of ${html.length} characters; set_prop body replaces all of it, so ask the volunteer to select this block before you rewrite part of it)`,
+    whole: false,
+  };
+}
+
+/**
+ * One block's line. A text block whose body it shows cut or not at all goes
+ * into `partBodies`.
+ */
+function blockSummary(
+  b: Block,
+  budget: BodyBudget,
+  partBodies: Set<string>
+): string {
   const base = `[${b.id}] type=${b.type}`;
   const r = b as unknown as Record<string, unknown>;
 
@@ -379,6 +471,13 @@ function blockSummary(b: Block): string {
   if ("members" in r && Array.isArray(r.members)) {
     parts.push(`members.count=${(r.members as unknown[]).length}`);
   }
+  if (b.type === "text") {
+    const { shown, whole } = bodySeenByAI(b.body, budget);
+    if (!whole) {
+      partBodies.add(b.id);
+    }
+    parts.push(`body=${shown}`);
+  }
 
   return parts.join(" ");
 }
@@ -389,6 +488,25 @@ export function serializePageForAI(
   selection: string | null,
   departments: EditorDepartment[] = []
 ): string {
+  return pageStateForAI(doc, selection, departments).text;
+}
+
+/** A page state, and what it leaves out of the text blocks' bodies. */
+export interface PageStateForAI {
+  /**
+   * The text blocks whose body `text` shows cut or not at all. The selected
+   * block is never one: its full props show its whole body.
+   */
+  partBodies: ReadonlySet<string>;
+  text: string;
+}
+
+/** `serializePageForAI`, with the text blocks whose body it shows in part. */
+export function pageStateForAI(
+  doc: PageDoc,
+  selection: string | null,
+  departments: EditorDepartment[] = []
+): PageStateForAI {
   const { meta } = doc;
   const blocks = walkBlocks(doc);
   const lines: string[] = [
@@ -405,6 +523,8 @@ export function serializePageForAI(
     "== BLOCKS ==",
   ];
   let n = 0;
+  const budget: BodyBudget = { left: AI_BODY_TOTAL_CHARS };
+  const partBodies = new Set<string>();
   for (const [i, s] of doc.sections.entries()) {
     lines.push(
       `Section ${i + 1} [${s.id}] columns=${s.layout.columns} background=${s.layout.background}`
@@ -414,7 +534,7 @@ export function serializePageForAI(
       for (const b of c.blocks) {
         n += 1;
         const sel = b.id === selection ? " ← SELECTED" : "";
-        lines.push(`    ${n}. ${blockSummary(b)}${sel}`);
+        lines.push(`    ${n}. ${blockSummary(b, budget, partBodies)}${sel}`);
       }
     }
   }
@@ -427,10 +547,11 @@ export function serializePageForAI(
         "== SELECTED BLOCK (full props) ==",
         JSON.stringify(b, null, 2)
       );
+      partBodies.delete(b.id);
     }
   }
 
-  return lines.join("\n");
+  return { partBodies, text: lines.join("\n") };
 }
 
 /** Deserialize a PageDoc from a JSON string. */

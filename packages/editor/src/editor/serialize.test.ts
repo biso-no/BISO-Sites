@@ -2,9 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { emptyHeader } from "../header/empty-header";
 import { DEFAULT_SECTION_LAYOUT } from "./sections";
 import {
+  AI_BODY_CHARS,
+  AI_BODY_TOTAL_CHARS,
+  bodyForAI,
   fromJSON,
   LAYOUT_VALUES,
   normalizePageDoc,
+  pageStateForAI,
   serializePageForAI,
 } from "./serialize";
 import { block, doc, section } from "./test-fixtures";
@@ -20,6 +24,8 @@ import type {
 } from "./types";
 
 const SELECTED_TEXT_BLOCK = /\[b-2\] type=text.*← SELECTED/;
+/** A block line's `body=` value: the JSON string and anything after it. */
+const BODY_VALUE = / body=("(?:[^"\\]|\\.)*")(.*)$/;
 const SECTION_ID = /^s-/;
 const COLUMN_ID = /^c-/;
 
@@ -260,6 +266,183 @@ describe("serializePageForAI", () => {
     expect(out).toContain("Section 1 [s-1] columns=1-1 background=white");
     expect(out).toContain("  Column 2 [s-1-c1]");
     expect(out).toMatch(SELECTED_TEXT_BLOCK);
+  });
+
+  /** The page-state line of the text block `b-1` with `body` (none when undefined). */
+  const lineWithBody = (body: unknown): string => {
+    const d = doc(section("s-1", "1", [["b-1"]]));
+    const [b1] = d.sections[0].columns[0].blocks;
+    if (body === undefined) {
+      Reflect.deleteProperty(b1, "body");
+    } else {
+      Object.assign(b1, { body });
+    }
+    const line = serializePageForAI(d, null)
+      .split("\n")
+      .find((l) => l.includes("[b-1]"));
+    if (!line) {
+      throw new Error("no line for b-1");
+    }
+    return line;
+  };
+
+  /** The body preview a line shows, decoded, and the note after it. */
+  const previewOf = (line: string): { note: string; preview: string } => {
+    const match = BODY_VALUE.exec(line);
+    if (!match) {
+      throw new Error(`no body on ${line}`);
+    }
+    return { note: match[2], preview: JSON.parse(match[1]) as string };
+  };
+
+  test("the AI sees every text block's body, selected or not", () => {
+    const lines = serializePageForAI(
+      doc(section("s-1", "1", [["b-1", "b-2"]])),
+      "b-2"
+    ).split("\n");
+    const body =
+      'body="<h2>Section heading</h2><p>Tell the story like you\'d tell a friend.</p>"';
+    expect(lines.find((l) => l.includes("[b-1]"))).toContain(body);
+    expect(lines.find((l) => l.includes("[b-2]"))).toContain(body);
+  });
+
+  test("a legacy body is shown as the HTML it renders", () => {
+    expect(
+      lineWithBody([
+        { text: "T", type: "h" },
+        { text: "a", type: "li" },
+      ])
+    ).toContain('body="<h2>T</h2><ul><li>a</li></ul>"');
+  });
+
+  test("a long body is cut after an end tag, with a note saying so", () => {
+    const body = "<p>abcdefgh</p>".repeat(300);
+    expect(body).toHaveLength(4500);
+    const line = lineWithBody(body);
+    const { note, preview } = previewOf(line);
+    expect(preview).toBe("<p>abcdefgh</p>".repeat(133));
+    expect(preview).toHaveLength(1995);
+    expect(note).toStartWith(
+      " (cut: the first 1995 of 4500 characters; set_prop body replaces all of it"
+    );
+    expect(note).toContain(
+      "ask the volunteer to select this block before you rewrite part of it)"
+    );
+  });
+
+  test("a body with no end tag before the limit is cut at the limit", () => {
+    const body = `<p><a href="https://biso.no/${"x".repeat(3000)}">l</a></p>`;
+    const { note, preview } = previewOf(lineWithBody(body));
+    expect(preview).toHaveLength(AI_BODY_CHARS);
+    expect(preview).toBe(body.slice(0, AI_BODY_CHARS));
+    expect(note).toContain(`(cut: the first 2000 of ${body.length} characters`);
+  });
+
+  test("a body of exactly the limit is shown whole", () => {
+    const body = `<p>${"x".repeat(1993)}</p>`;
+    expect(body).toHaveLength(AI_BODY_CHARS);
+    const line = lineWithBody(body);
+    expect(previewOf(line)).toEqual({ note: "", preview: body });
+    expect(line).not.toContain("(cut:");
+  });
+
+  test("an empty or missing body shows as empty", () => {
+    expect(lineWithBody("")).toContain('body=""');
+    expect(lineWithBody(undefined)).toContain('body=""');
+  });
+
+  test("the selected block's full props still hold its whole body", () => {
+    const d = doc(section("s-1", "1", [["b-1"]]));
+    const body = "<p>abcdefgh</p>".repeat(300);
+    Object.assign(d.sections[0].columns[0].blocks[0], { body });
+    const out = serializePageForAI(d, "b-1");
+    expect(out).toContain("(cut: the first 1995 of 4500 characters");
+    expect(out).toContain(`"body": ${JSON.stringify(body)}`);
+  });
+
+  test("a cut with no end tag drops a trailing high surrogate", () => {
+    // The emoji's high surrogate is character 2000, its low one 2001.
+    const body = `<p>${"x".repeat(1996)}😀</p>`;
+    const { note, preview } = previewOf(lineWithBody(body));
+    expect(preview).toBe(`<p>${"x".repeat(1996)}`);
+    expect(note).toContain(`(cut: the first 1999 of ${body.length} characters`);
+  });
+
+  /** A one-column page of text blocks b-1, b-2, … holding `bodies`, and its lines by id. */
+  const pageWithBodies = (
+    bodies: string[],
+    selection: string | null = null
+  ) => {
+    const ids = bodies.map((_, i) => `b-${i + 1}`);
+    const d = doc(section("s-1", "1", [ids]));
+    for (const [i, b] of d.sections[0].columns[0].blocks.entries()) {
+      Object.assign(b, { body: bodies[i] });
+    }
+    const out = serializePageForAI(d, selection);
+    const lines = out.split("\n");
+    const lineOf = (id: string): string =>
+      lines.find((l) => l.includes(`[${id}]`)) ?? "";
+    return { lineOf, out };
+  };
+
+  test("past the page's body budget, later blocks show only their length", () => {
+    const full = `<p>${"x".repeat(1993)}</p>`;
+    const long = "<p>abcdefgh</p>".repeat(300);
+    const bodies = [
+      ...new Array<string>(AI_BODY_TOTAL_CHARS / AI_BODY_CHARS).fill(full),
+      long,
+      "<p>a</p>",
+      "",
+    ];
+    const { lineOf, out } = pageWithBodies(bodies, "b-11");
+    for (let i = 1; i <= 10; i += 1) {
+      expect(lineOf(`b-${i}`)).toContain(` body=${JSON.stringify(full)}`);
+    }
+    expect(lineOf("b-11")).toContain(
+      " body=(4500 characters, select the block to read it)"
+    );
+    // Spent in document order: a short body after the budget is gone waits too.
+    expect(lineOf("b-12")).toContain(
+      " body=(8 characters, select the block to read it)"
+    );
+    // An empty body costs nothing.
+    expect(lineOf("b-13")).toContain(' body=""');
+    // The selected block's full props still hold its whole body.
+    expect(out).toContain(`"body": ${JSON.stringify(long)}`);
+  });
+
+  test("the page state names the unselected text blocks whose body it cuts or withholds", () => {
+    const full = `<p>${"x".repeat(1993)}</p>`;
+    const long = "<p>abcdefgh</p>".repeat(300);
+    const bodies = [
+      long,
+      ...new Array<string>(AI_BODY_TOTAL_CHARS / AI_BODY_CHARS - 1).fill(full),
+      "<p>a</p>",
+      long,
+      "",
+    ];
+    const ids = bodies.map((_, i) => `b-${i + 1}`);
+    const d = doc(section("s-1", "1", [ids]));
+    for (const [i, b] of d.sections[0].columns[0].blocks.entries()) {
+      Object.assign(b, { body: bodies[i] });
+    }
+    // b-1 is cut; b-11 and b-12 are withheld once the budget runs out; b-12
+    // is selected, so its full props show it whole.
+    const state = pageStateForAI(d, "b-12");
+    expect([...state.partBodies]).toEqual(["b-1", "b-11"]);
+    expect(state.text).toBe(serializePageForAI(d, "b-12"));
+  });
+
+  test("a page under the body budget shows every body as on its own", () => {
+    const bodies = [
+      "<p>abcdefgh</p>".repeat(300),
+      "<h2>T</h2><p>short</p>",
+      `<p><a href="https://biso.no/${"x".repeat(3000)}">l</a></p>`,
+    ];
+    const { lineOf } = pageWithBodies(bodies);
+    for (const [i, body] of bodies.entries()) {
+      expect(lineOf(`b-${i + 1}`)).toContain(` body=${bodyForAI(body)}`);
+    }
   });
 });
 

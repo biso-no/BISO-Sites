@@ -6,14 +6,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PageEditorToolName } from "@/ai/tools";
 import { type ToolResult, validateSetTheme } from "@/ai/tools/theme";
 import { getBlock } from "@/blocks/registry";
+import {
+  canonicalBodyHtml,
+  preloadRichHtml,
+} from "@/blocks/text/canonical-body";
 import { useEditorCallbacks } from "@/editor/callbacks";
 import { useSelection } from "@/editor/hooks";
+import { isInsideTextBody } from "@/editor/operations";
 import { COLUMN_COUNT } from "@/editor/sections";
-import { LAYOUT_VALUES, serializePageForAI } from "@/editor/serialize";
+import { LAYOUT_VALUES, pageStateForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
-import { findSection, targetAfterBlock } from "@/editor/tree";
+import { findBlock, findSection, targetAfterBlock } from "@/editor/tree";
 import type {
   BlockType,
+  EditorDepartment,
   InsertTarget,
   PageDoc,
   SectionBackground,
@@ -25,6 +31,23 @@ type ToolArgs = Record<string, unknown>;
 /** The section the most recent insert_section made, for `sectionId: "new"`. */
 const NEW_SECTION = "new";
 let lastInsertedSectionId: string | null = null;
+
+/**
+ * The text blocks whose body this turn's page state showed the copilot cut
+ * or not at all (`pageStateForAI`).
+ */
+let partBodies: ReadonlySet<string> = new Set();
+
+/** The page state a new turn sends, kept for the turn's tool calls. */
+export function pageStateForTurn(
+  doc: PageDoc,
+  selection: string | null,
+  departments: EditorDepartment[] = []
+): string {
+  const state = pageStateForAI(doc, selection, departments);
+  partBodies = state.partBodies;
+  return state.text;
+}
 
 function toolError(message: string): ToolResult {
   return { message, status: "error" };
@@ -125,6 +148,74 @@ function applyInsertSection(args: ToolArgs): ToolResult {
   };
 }
 
+/** Canonical body writes still on their way. */
+const canonicalWrites = new Set<Promise<void>>();
+
+/** Resolves once every canonical body write under way has settled. */
+export async function whenBodiesCanonical(): Promise<void> {
+  await Promise.allSettled([...canonicalWrites]);
+}
+
+/**
+ * Replaces the raw body the copilot wrote with the field's canonical form,
+ * unless something else changed the body first. Under the raw write's
+ * coalesce key, so both are one undo step. If the form cannot be made, the
+ * raw body stays: the server sanitises it on save anyway.
+ */
+async function writeCanonicalBody(
+  id: string,
+  raw: string,
+  coalesce: string
+): Promise<void> {
+  let canonical: string;
+  try {
+    canonical = await canonicalBodyHtml(raw);
+  } catch {
+    return;
+  }
+  const store = useEditorStore.getState();
+  const block = findBlock(store.doc, id)?.block;
+  if (block?.type === "text" && block.body === raw && canonical !== raw) {
+    store.setProp(id, "body", canonical, { coalesce });
+  }
+}
+
+function applySetProp(args: ToolArgs): ToolResult {
+  const store = useEditorStore.getState();
+  const id = args.id as string;
+  const path = args.path as string;
+  const { value } = args;
+  const found = findBlock(store.doc, id);
+  if (found && isInsideTextBody(found.block, path)) {
+    return toolError(
+      `Set the whole body as one HTML string: block ${id}'s body is HTML, so set_prop it with path "body", not ${path}.`
+    );
+  }
+  // A rewrite of a body the copilot saw only in part would lose the rest.
+  if (found?.block.type === "text" && path === "body" && partBodies.has(id)) {
+    return toolError(
+      `Block ${id}'s body is longer than the page state showed you, so set_prop body would lose the rest of it. Ask the volunteer to select the block, then rewrite it.`
+    );
+  }
+  if (
+    found?.block.type !== "text" ||
+    path !== "body" ||
+    typeof value !== "string"
+  ) {
+    store.setProp(id, path, value);
+    return { message: "Applied.", status: "applied" };
+  }
+  // The raw body at once, so the next tool call sees it; then the form the
+  // field writes, so the saved page shows what the canvas does.
+  const coalesce = `copilot:${id}:body`;
+  store.setProp(id, path, value, { coalesce });
+  const write = writeCanonicalBody(id, value, coalesce).finally(() => {
+    canonicalWrites.delete(write);
+  });
+  canonicalWrites.add(write);
+  return { message: "Applied.", status: "applied" };
+}
+
 function applySetTheme(args: ToolArgs): ToolResult {
   const checked = validateSetTheme(args);
   if ("error" in checked) {
@@ -151,8 +242,7 @@ export function applyToolCall(toolName: string, args: ToolArgs): ToolResult {
       store.removeBlock(args.id as string);
       break;
     case "set_prop":
-      store.setProp(args.id as string, args.path as string, args.value);
-      break;
+      return applySetProp(args);
     case "bind_collection":
       store.bindCollection(args.id as string, args.source as string);
       break;
@@ -173,7 +263,7 @@ export function CopilotPanel() {
   const { departments } = useEditorCallbacks();
 
   const getPageContext = useCallback(
-    () => serializePageForAI(doc, selection, departments),
+    () => pageStateForTurn(doc, selection, departments),
     [doc, selection, departments]
   );
 
@@ -197,6 +287,12 @@ export function CopilotPanel() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // A body the copilot writes is canonicalised in the rich chunk; load it
+  // now, so the canonical write lands inside the raw one's coalesce window.
+  useEffect(() => {
+    preloadRichHtml();
   }, []);
 
   function handleSubmit(e: React.FormEvent) {

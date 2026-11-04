@@ -1,9 +1,57 @@
 import { describe, expect, mock, test } from "bun:test";
 import type { PageDoc } from "@repo/api/page-builder";
+import type { TextColourToken } from "@repo/shared/utils/text-colour-tokens";
+import type { TranslationField } from "./content-translation";
 import {
   getPageTranslationSource,
   translatePageDocument,
 } from "./page-document-translation";
+
+// `@repo/editor/sanitize` opens with `import "server-only"`, which throws
+// outside a react-server build.
+mock.module("server-only", () => ({}));
+const { sanitizePageDocHtml } = await import("@repo/editor/sanitize");
+
+/** Real colour tokens: a fixture stops type-checking if one is renamed. */
+const ACCENT: TextColourToken = "accent";
+const RED: TextColourToken = "red";
+
+/**
+ * A body exactly as the Rich text field writes it (a fixed point of its
+ * parse and serialise): nested lists, a list numbered from 3, a table with a
+ * header row and merged cells, colour, a link, every mark, a quote and a
+ * divider. `RICH_EN` is the same body in English.
+ */
+const RICH_NO =
+  `<h2>Om oss</h2><p>Vi er <strong>studenter</strong> i <a href="https://biso.no">BISO</a>. <span data-color="${ACCENT}">Velkommen!</span></p>` +
+  '<ul><li>Ett<ul><li>To</li></ul></li></ul><ol start="3"><li>Tre</li></ol>' +
+  `<table><thead><tr><th colspan="2">Kontakt</th></tr></thead><tbody><tr><td rowspan="2">Oslo</td><td><span data-color="${RED}">Viktig</span></td></tr><tr><td><em>Bergen</em></td></tr></tbody></table>` +
+  "<blockquote>Sitat</blockquote><hr><p><u>Under</u> og <s>over</s></p>";
+const RICH_EN =
+  `<h2>About us</h2><p>We are <strong>students</strong> at <a href="https://biso.no">BISO</a>. <span data-color="${ACCENT}">Welcome!</span></p>` +
+  '<ul><li>One<ul><li>Two</li></ul></li></ul><ol start="3"><li>Three</li></ol>' +
+  `<table><thead><tr><th colspan="2">Contact</th></tr></thead><tbody><tr><td rowspan="2">Oslo</td><td><span data-color="${RED}">Important</span></td></tr><tr><td><em>Bergen</em></td></tr></tbody></table>` +
+  "<blockquote>Quote</blockquote><hr><p><u>Under</u> and <s>over</s></p>";
+
+const richDoc = (body: string) =>
+  ({
+    meta: { department: "", slug: "x", status: "draft", title: "Om oss" },
+    sections: [
+      {
+        columns: [{ blocks: [{ body, id: "t-1", type: "text" }], id: "c-1" }],
+        id: "s-1",
+        layout: {},
+      },
+    ],
+    version: 2,
+  }) as unknown as PageDoc;
+
+const bodyIn = (doc: PageDoc): string =>
+  (
+    doc.sections as unknown as {
+      columns: { blocks: { body: string }[] }[];
+    }[]
+  )[0].columns[0].blocks[0].body;
 
 const sourceDocument = {
   meta: {
@@ -411,5 +459,37 @@ describe("page document translation", () => {
       mime: "image/png",
       src: "https://example.com/bygg.png",
     });
+  });
+});
+
+describe("a formatted text body", () => {
+  test("goes to the translator whole, as HTML, and comes back whole", async () => {
+    const seen: TranslationField[] = [];
+    const translated = await translatePageDocument(
+      { document: richDoc(RICH_NO), sourceLocale: "no", targetLocale: "en" },
+      ({ fields }) => {
+        seen.push(...fields);
+        return Promise.resolve(
+          Object.fromEntries(
+            fields.map((f) => [f.key, f.value === RICH_NO ? RICH_EN : f.value])
+          )
+        );
+      }
+    );
+
+    expect(seen.find((f) => f.value === RICH_NO)?.format).toBe("html");
+    expect(bodyIn(translated)).toBe(RICH_EN);
+  });
+
+  test("keeps its lists, table, colours and links through the save's sanitiser", () => {
+    expect(bodyIn(sanitizePageDocHtml(richDoc(RICH_EN)))).toBe(RICH_EN);
+  });
+
+  test("loses what a model adds around the formatting, and keeps the formatting", () => {
+    const sloppy = RICH_EN.replace("<table>", '<table class="x">')
+      .replace('<td rowspan="2">', '<td style="color:red" rowspan="2">')
+      .replace("<h2>", '<h2 style="font-family:Calibri">');
+
+    expect(bodyIn(sanitizePageDocHtml(richDoc(sloppy)))).toBe(RICH_EN);
   });
 });

@@ -2,14 +2,14 @@ import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { Window } from "happy-dom";
 import { safeHref } from "../blocks/_v2/links";
 import { sanitizeRichText } from "../lib/sanitize";
+import { scanBody } from "./body-scan";
 import { block, doc, section } from "./test-fixtures";
 import type { Block, PageDoc, TextBlock } from "./types";
 
 // `server-only` throws outside a react-server build, which a test is not.
 mock.module("server-only", () => ({}));
-const { sanitizePageDocHtml, sanitizeRichHtml } = await import(
-  "./sanitize-doc"
-);
+const { sanitizePageDocHtml, sanitizeRichBodyHtml, sanitizeRichHtml } =
+  await import("./sanitize-doc");
 
 /** A `<` that opens anything but an allowlisted tag. */
 const OTHER_TAG = /<(?!\/?(?:b|strong|i|em|a|br|span)[\s>])/i;
@@ -233,6 +233,160 @@ describe("sanitizeRichHtml: hostile sizes", () => {
   });
 });
 
+/** A tag the body sanitiser never keeps. */
+const DROPPED_TAG = /<(?:div|textarea|svg|button|select|head|rp|style)/;
+
+describe("sanitizeRichBodyHtml: long and deep bodies", () => {
+  const PARAGRAPH =
+    '<p>Short paragraph with <strong>bold</strong> and a <a href="https://biso.no">link</a>.</p>';
+  const tagStarts = (html: string): number => html.split("<").length - 1;
+
+  test("a long flat body stays markup, past the inline path's 10,000 tags", () => {
+    const body = PARAGRAPH.repeat(2000);
+    expect(tagStarts(body)).toBeGreaterThan(10_000);
+    expect(sanitizeRichBodyHtml(body)).toBe(body);
+  });
+
+  test("the legacy inline path keeps its 10,000-tag cap", () => {
+    const html = "<b>x</b>".repeat(6000);
+    expect(sanitizeRichHtml(html).startsWith("&lt;b&gt;x&lt;/b&gt;")).toBe(
+      true
+    );
+    expect(sanitizeRichBodyHtml(html)).toBe(html);
+  });
+
+  test("100 levels of nesting stay markup", () => {
+    const body = `<p>${"<b>".repeat(99)}x${"</b>".repeat(99)}</p>`;
+    expect(sanitizeRichBodyHtml(body)).toBe(body);
+  });
+
+  test("a body nested 150 deep is kept as text paragraphs with every word", () => {
+    const depth = 150;
+    const body =
+      Array.from({ length: depth }, (_, i) => `<ul><li>word${i}`).join("") +
+      "</li></ul>".repeat(depth);
+    const out = sanitizeRichBodyHtml(body);
+    expect(out).toBe(
+      Array.from({ length: depth }, (_, i) => `<p>word${i}</p>`).join("")
+    );
+    expect(sanitizeRichBodyHtml(out)).toBe(out);
+  });
+
+  const deep = (inner: string): string =>
+    `${"<b>".repeat(150)}${inner}${"</b>".repeat(150)}`;
+
+  test("text kept from a deep body stays text", () => {
+    expect(
+      sanitizeRichBodyHtml(deep("a &amp; b &lt;i&gt; &lt;3<br>next"))
+    ).toBe("<p>a &amp; b &lt;i&gt; &lt;3</p><p>next</p>");
+  });
+
+  test("a non-canonical deep body under the cap keeps its text and at most 100 levels", () => {
+    const out = sanitizeRichBodyHtml(deep("a <3<script>alert(1)</script> b"));
+    expect(out).toContain("a &lt;3");
+    expect(out).not.toContain("<script");
+    expect(out).not.toContain("alert");
+    expect(out.split("<b>").length - 1).toBeLessThanOrEqual(100);
+    expect(scanBody(out, 100)).toBe("canonical");
+  });
+
+  /** Cold, as on a server's first request: no warm-up call. */
+  const timed = (html: string): { elapsed: number; out: string } => {
+    const started = performance.now();
+    const out = sanitizeRichBodyHtml(html);
+    return { elapsed: performance.now() - started, out };
+  };
+
+  // Each repetition opens one element that htmlparser2 keeps open, so 150 of
+  // them nest 150 deep however few end tags a count would see. None of them
+  // is canonical, so sanitize-html's nesting limit bounds them.
+  test.each([
+    ["stray end tags", "<div></span>w"],
+    ["end tags in comments", "<div><!--</div>-->w"],
+    ["end tags after a closed empty comment", "<!--><div>w"],
+    ["end tags in attribute values", '<div title="</div>">w'],
+    ["an unquoted value ending in a slash", "<div title=/x/>w"],
+    ["end tags in raw text", "<div><textarea></div></textarea>w"],
+    ["a self-closed svg before raw text", "<div><svg/><style></div></style>w"],
+    ["an <image> end tag, which is <img>'s", "<image><span></image>w"],
+  ])("%s is sanitised under the cap, fast", (_, repeated) => {
+    const { elapsed, out } = timed(repeated.repeat(150));
+    expect(elapsed).toBeLessThan(50);
+    expect(scanBody(out, 100)).toBe("canonical");
+    expect(out).not.toMatch(DROPPED_TAG);
+    expect(out).toContain("w");
+  });
+
+  // Implied closes and a raw-text end that a mirror of htmlparser2 had to
+  // get exactly right, and did not; the canonical scan mirrors none of it.
+  test.each([
+    [
+      "form controls that close each other",
+      "<button><select><b></button>".repeat(200),
+    ],
+    ["a body that closes the head", "<head><body><b></head>".repeat(200)],
+    ["ruby text that closes ruby text", "<rp><rt><b></rp>".repeat(200)],
+    [
+      "a raw-text end read through `c | 0x20`",
+      `<style>\x1c\x0fstyle>${"<b>".repeat(200)}`,
+    ],
+  ])("%s is sanitised under the cap, fast", (_, html) => {
+    const { elapsed, out } = timed(html);
+    expect(elapsed).toBeLessThan(50);
+    expect(scanBody(out, 100)).toBe("canonical");
+    expect(out).not.toMatch(DROPPED_TAG);
+  });
+
+  test("end tags a browser would imply keep a long list shallow", () => {
+    expect(sanitizeRichBodyHtml(`<ul>${"<li>item".repeat(150)}</ul>`)).toBe(
+      `<ul>${"<li>item</li>".repeat(150)}</ul>`
+    );
+    expect(sanitizeRichBodyHtml("<p>para".repeat(150))).toBe(
+      "<p>para</p>".repeat(150)
+    );
+  });
+
+  test("degrades 80,000 nested tags in under 200 ms", () => {
+    // Cold, as on a server's first request: no warm-up call.
+    const depth = 80_000;
+    const nested = `${"<b>".repeat(depth)}x${"</b>".repeat(depth)}`;
+    const unclosed = `${"<div><b>".repeat(depth / 2)}x`;
+    for (const body of [nested, unclosed]) {
+      const started = performance.now();
+      const out = sanitizeRichBodyHtml(body);
+      const elapsed = performance.now() - started;
+      expect(out).toBe("<p>x</p>");
+      expect(elapsed).toBeLessThan(200);
+    }
+  });
+
+  test("a canonical body of any size stays markup", () => {
+    const body = PARAGRAPH.repeat(9000);
+    const { elapsed, out } = timed(body);
+    expect(out).toBe(body);
+    expect(elapsed).toBeLessThan(200);
+  });
+
+  test("a non-canonical body past 10,000 tags is kept as text paragraphs, never escaped", () => {
+    const body = PARAGRAPH.replaceAll("<p>", "<P>")
+      .replaceAll("</p>", "</P>")
+      .repeat(2000);
+    expect(tagStarts(body)).toBeGreaterThan(10_000);
+    expect(sanitizeRichBodyHtml(body)).toBe(
+      "<p>Short paragraph with bold and a link.</p>".repeat(2000)
+    );
+  });
+
+  test("the slowest markup found under the cap, SVG in a foreignObject, parses in under 150 ms", () => {
+    // 10,000 elements deep, and inside the SVG integration point
+    // htmlparser2's `readTagName` searches the whole stack for every tag
+    // (`stack.includes`): about 60 ms under Bun, 200 to 300 ms under Node.
+    const body = `<svg><foreignobject>${"<clippath>".repeat(9998)}`;
+    expect(tagStarts(body)).toBe(10_000);
+    expect(timed(body).elapsed).toBeLessThan(150);
+  });
+});
+
 describe("sanitizeRichHtml: lines typed with Enter", () => {
   test.each([
     ["one<div>two</div><div>three</div>", "one<br>two<br>three"],
@@ -361,8 +515,9 @@ describe("sanitizePageDocHtml", () => {
     const out = sanitizePageDocHtml(fixture());
     const nested = out.sections[1].columns[1].blocks[1] as TextBlock;
 
-    expect(nested.body.map((item) => item.text)).toEqual(["hei", "<a>x</a>"]);
-    expect(nested.body.map((item) => item.type)).toEqual(["p", "p"]);
+    const items = Array.isArray(nested.body) ? nested.body : [];
+    expect(items.map((item) => item.text)).toEqual(["hei", "<a>x</a>"]);
+    expect(items.map((item) => item.type)).toEqual(["p", "p"]);
   });
 
   test("leaves every other block, the header and the meta identical", () => {
@@ -476,6 +631,7 @@ describe("sanitizePageDocHtml", () => {
     const blocks = (out.sections as PageDoc["sections"])[1].columns[1]
       .blocks as Block[];
 
-    expect((blocks[1] as TextBlock).body[0].text).toBe("hei");
+    const body = (blocks[1] as TextBlock).body;
+    expect(Array.isArray(body) && body[0].text).toBe("hei");
   });
 });

@@ -70,6 +70,31 @@ describe("TextRender inside the editor", () => {
   });
 });
 
+// The same unclean value, stored as an HTML body.
+const renderHtmlBody = (edit: boolean, body: string) =>
+  renderToStaticMarkup(
+    createElement(
+      EditorCallbacksContext.Provider,
+      { value: EDITOR },
+      createElement(TextRender, {
+        block: { body, id: "t1", type: "text" },
+        edit,
+        onPatch: () => undefined,
+      })
+    )
+  );
+
+test("an unclean string body is sanitised in the editor", () => {
+  const stored = "<img src=x onerror=alert(1)><p>hei</p>";
+  // Preview, and edit mode before the editing field has loaded.
+  for (const edit of [false, true]) {
+    const html = renderHtmlBody(edit, stored);
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("onerror");
+    expect(html).toContain("<p>hei</p>");
+  }
+});
+
 describe("TextRender on the public site", () => {
   test("renders the value the server route already sanitized, as given", () => {
     // The routes run sanitizePageDocHtml before RenderedPage; the client

@@ -31,4 +31,21 @@ export interface BlockDefinition<B extends Block = Block> {
   type: BlockType;
 }
 
-export type PatchFn = (path: string, value: unknown) => void;
+export interface PatchOptions {
+  /**
+   * Edits with the same key within one second share an undo step, so
+   * continuous typing is not one step per keystroke.
+   */
+  coalesce?: string;
+  /**
+   * The edit steps back or forward over one the page's history already
+   * holds (a rich text field's own undo or redo): it adds no undo step.
+   */
+  historyNeutral?: boolean;
+}
+
+export type PatchFn = (
+  path: string,
+  value: unknown,
+  options?: PatchOptions
+) => void;

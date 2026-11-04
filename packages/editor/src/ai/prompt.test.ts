@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
-import { buildSystemPrompt } from "./prompt";
+import { TEXT_COLOUR_TOKENS } from "@repo/shared/utils/text-colour-tokens";
+import { BODY_TAGS } from "@/lib/rich-allowlist";
+import { buildSystemPrompt, PROMPT_BODY_EXAMPLE } from "./prompt";
 
 test("the copilot describes the current BISO typography and palette", () => {
   const prompt = buildSystemPrompt("empty page");
@@ -47,7 +49,7 @@ test("the copilot knows the props and item shapes of the v2 blocks", () => {
   // belongs, a value under the wrong key) renders as an empty block.
   for (const shape of [
     "heading: eyebrow, title, intro, size (small|medium|large), link? {label, href}",
-    "text: body [{type: h|h3|p|li, text}]",
+    "text: body, one HTML string; set it whole with path `body`",
     "highlights: items [{text}]",
     "facts: items [{label, text, href?}]",
     "stats: items [{num, label}]",
@@ -67,4 +69,36 @@ test("the copilot knows the props and item shapes of the v2 blocks", () => {
     expect(prompt).toContain(shape);
   }
   expect(prompt).toContain("items.0.label");
+});
+
+test("the copilot sets a text block's body whole, never one item of it", () => {
+  const prompt = buildSystemPrompt("empty page");
+
+  // A sub-path such as body.0.text would replace the HTML string with a list.
+  expect(prompt).not.toContain("text: body [");
+  expect(prompt).toContain(
+    "set it whole with path `body`, never a path inside it"
+  );
+});
+
+test("the copilot knows every tag a text body keeps", () => {
+  const prompt = buildSystemPrompt("empty page");
+
+  // b and i are read on input and written as strong and em.
+  for (const tag of BODY_TAGS.filter((t) => t !== "b" && t !== "i")) {
+    expect(prompt).toMatch(new RegExp(`<${tag}[ >]`));
+  }
+});
+
+test("the copilot knows the colour tokens, the list start and the cell spans", () => {
+  const prompt = buildSystemPrompt("empty page");
+
+  expect(prompt).toContain('<span data-color="TOKEN">');
+  for (const token of TEXT_COLOUR_TOKENS) {
+    expect(prompt).toContain(`${token} (`);
+  }
+  expect(prompt).toContain('<ol start="3"> counts from 3');
+  expect(prompt).toContain("colspan and rowspan from 2 to 20");
+  expect(prompt).toContain("never write a hex colour, a style or a class");
+  expect(prompt).toContain(PROMPT_BODY_EXAMPLE);
 });

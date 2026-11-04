@@ -107,7 +107,8 @@ describe("unknown enum values take the default", () => {
     expect(p?.textContent).toBe("Hei");
     expect(classesOf(p)).toContain("type-body");
     noUndefinedClass(root);
-    expect(inspectorOn(block)).toEqual(["Paragraph"]);
+    // The inspector edits the whole body as one text, with no type picker
+    // per item; `text/body.test.ts` pins the paragraph fallback it reads.
   });
 
   test("gallery layout falls back to the collage", () => {

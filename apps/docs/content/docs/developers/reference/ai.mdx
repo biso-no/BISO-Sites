@@ -8,6 +8,8 @@ covers:
   - apps/docs/components/assistant/**
   - apps/docs/components/landing/ask-field.tsx
   - packages/editor/src/ai/**
+  - packages/editor/src/components/editor-shell/copilot/chat-panel.tsx
+  - packages/editor/src/editor/serialize.ts
   - apps/admin/src/app/api/assistant/route.ts
   - apps/admin/src/app/(portal)/_components/assistant/parts/confirm-action-card.tsx
   - apps/admin/src/app/api/page-editor/ai/**
@@ -72,6 +74,16 @@ The assistant reads and changes content for the signed-in staff member, within t
 - The server checks the click before the tool runs: the same user, the exact call and its input, and within 10 minutes (`createConfirmationGate` in `packages/ai/src/assistant/tools/confirmation.ts`). A call without a valid confirmation answers `Not run:` with the reason, and changes nothing.
 - Every tool with a server `execute` is gated, unless its name is in `READ_ONLY_TOOL_NAMES` (`packages/ai/src/assistant/tools/read-only-tools.ts`). A new tool is gated until you add it there, so add only tools that change nothing.
 - The confirmations are signed with keys derived from `APPWRITE_API_KEY`. Without that variable, the assistant answers `503` with `The AI assistant is not configured.`
+
+## The page editor copilot
+
+The copilot is the chat panel in the page editor (**Ask AI**, or **Build me a section**). Its route is `apps/admin/src/app/api/page-editor/ai/chat/route.ts`, its instructions are `buildSystemPrompt` in `packages/editor/src/ai/prompt.ts`, and its eight tools are in `packages/editor/src/ai/tools/index.ts`: `insert_section`, `insert_block`, `set_theme`, `remove_block`, `set_prop`, `bind_collection`, `generate_copy` and `list_blocks`.
+
+- **What it reads.** When the volunteer sends a message, the browser builds the page state with `pageStateForTurn` in `packages/editor/src/components/editor-shell/copilot/chat-panel.tsx`, which calls `pageStateForAI` (the same text as `serializePageForAI`) in `packages/editor/src/editor/serialize.ts`, and sends it along. It lists the sections and blocks, with every text block's body as HTML. A body over 2,000 characters (`AI_BODY_CHARS`) is cut after the last end tag inside that limit, with a note that `set_prop` replaces the whole body, so the model should ask the volunteer to select the block before it rewrites part of it. The bodies share a budget of 20,000 characters (`AI_BODY_TOTAL_CHARS`), spent in document order. Once a body doesn't fit in what's left, it and every later body that isn't empty show only `(N characters, select the block to read it)`. The selected block's full props come last, with its whole body. `pageStateForAI` also returns the ids of the text blocks whose body the state shows cut or not at all, the selected block never among them, and the browser keeps them for the answer's tool calls. The state isn't sent again during an answer, so the model learns about its own changes only from its tools' answers.
+- **Where the tools run.** All eight have an `execute` on the server, and that answer is what the model gets. The tools that change the page answer `applied` at once, before the browser has tried the change. Only `set_theme` checks its input on the server (`validateSetTheme` in `packages/editor/src/ai/tools/theme.ts`), so only its refusals reach the model. `generate_copy` returns a placeholder, and `list_blocks` a note pointing back to the page state: the model writes copy itself and reads the page from its instructions.
+- **How the page changes.** The browser applies each call as it streams in: `onToolCall` in `packages/editor/src/components/editor-shell/copilot/chat-panel.tsx` calls `applyToolCall`, which changes the editor store. What `applyToolCall` returns never goes back to the model. When it refuses a call, the page stays as it was and the model isn't told. That happens for a block type or section that doesn't exist, a `columnIndex` outside the section, a path inside a text body such as `body.0.text`, or a `set_prop` with the path `body` on a text block whose body the page state showed cut or not at all, unless it's the selected block. A rewrite from a cut copy would lose the rest of the text. The model may then say it made the change, and the chat shows ✓ for the call, because the ✓ follows the server's answer. The prompt steers the model away from these calls. For example, it says to set a text body whole, with the path `body`.
+- **Steps.** The model's turns, its tool calls and the server's answers all run in one request, at most 12 steps (`stopWhen: isStepCount(12)` in the route). The loop ends at the first step with no tool call. The browser never sends a follow-up request by itself.
+- **Text bodies.** `set_prop` with the path `body` stores the HTML as the model wrote it, then the form the Rich text field would write (`canonicalBodyHtml` in `packages/editor/src/blocks/text/canonical-body.ts`), under the same undo key, so the volunteer undoes it in one step. The server sanitises the body again when the draft is saved.
 
 ## Settings
 
