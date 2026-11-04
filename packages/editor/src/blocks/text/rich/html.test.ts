@@ -7,6 +7,8 @@ import {
   type TElement,
   type Value,
 } from "platejs";
+import { PROMPT_BODY_EXAMPLE } from "@/ai/prompt";
+import { scanBody } from "@/editor/body-scan";
 import { legacyBodyToHtml } from "../body";
 import { toggleRichList } from "./commands";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
@@ -694,4 +696,11 @@ test("an unknown block type, even a prototype key, is a paragraph", () => {
   expect(
     valueToHtml([{ type: "constructor", children: [{ text: "x" }] }])
   ).toBe("<p>x</p>");
+});
+
+test("the copilot's example body is what the field writes", () => {
+  expect(valueToHtml(htmlToValue(PROMPT_BODY_EXAMPLE))).toBe(
+    PROMPT_BODY_EXAMPLE
+  );
+  expect(scanBody(PROMPT_BODY_EXAMPLE, 100)).toBe("canonical");
 });

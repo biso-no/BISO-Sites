@@ -1,4 +1,5 @@
 import { parsePageTheme } from "@repo/shared/utils/page-theme";
+import { bodyToHtml } from "../blocks/text/body";
 import { emptyHeader } from "../header/empty-header";
 import { effectiveTheme } from "./effective-theme";
 import { newId } from "./ids";
@@ -33,6 +34,12 @@ import { PAGE_DOC_VERSION } from "./types";
 export { pruneEmptyFeedBlocks } from "./prune-feeds";
 
 const MAX_TEXT_LEN = 120;
+
+/** How much of a text block's body the page state shows the copilot. */
+export const AI_BODY_CHARS = 2000;
+
+/** An end tag such as `</p>` or `</h2>`. */
+const END_TAG = /<\/[a-z][a-z0-9]*>/gi;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
@@ -350,6 +357,32 @@ function truncate(s: string | undefined): string {
   return s.length > MAX_TEXT_LEN ? `${s.slice(0, MAX_TEXT_LEN)}…` : s;
 }
 
+/** `head` up to the end of its last end tag, or all of it when it has none. */
+function cutAfterLastEndTag(head: string): string {
+  let end = 0;
+  for (const match of head.matchAll(END_TAG)) {
+    end = match.index + match[0].length;
+  }
+  return end > 0 ? head.slice(0, end) : head;
+}
+
+/**
+ * A text block's body as the copilot sees it: the HTML it renders (a legacy
+ * array included, junk as ""), as a JSON string. A body over
+ * `AI_BODY_CHARS` is cut after its last end tag inside the limit (or at the
+ * limit when there is none) and a note says so: `set_prop` replaces the whole
+ * body, so a rewrite from the preview would lose the rest. The selected
+ * block's full props show the whole body.
+ */
+export function bodyForAI(body: unknown): string {
+  const html = bodyToHtml(body);
+  if (html.length <= AI_BODY_CHARS) {
+    return JSON.stringify(html);
+  }
+  const preview = cutAfterLastEndTag(html.slice(0, AI_BODY_CHARS));
+  return `${JSON.stringify(preview)} (cut: the first ${preview.length} of ${html.length} characters; set_prop body replaces all of it, so ask the volunteer to select this block before you rewrite part of it)`;
+}
+
 function blockSummary(b: Block): string {
   const base = `[${b.id}] type=${b.type}`;
   const r = b as unknown as Record<string, unknown>;
@@ -378,6 +411,9 @@ function blockSummary(b: Block): string {
   }
   if ("members" in r && Array.isArray(r.members)) {
     parts.push(`members.count=${(r.members as unknown[]).length}`);
+  }
+  if (b.type === "text") {
+    parts.push(`body=${bodyForAI(b.body)}`);
   }
 
   return parts.join(" ");

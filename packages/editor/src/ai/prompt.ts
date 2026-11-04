@@ -1,3 +1,11 @@
+/**
+ * The example text body the prompt shows: exactly what the rich text field
+ * writes for it (`rich/html.test.ts` pins the fixed point), so the copilot
+ * copies the stored form.
+ */
+export const PROMPT_BODY_EXAMPLE =
+  '<h2>Opening hours</h2><p>We are open <strong>every weekday</strong>. <span data-color="red">Closed on 17 May.</span></p><ul><li>Oslo<ul><li>Nydalen</li></ul></li></ul><table><thead><tr><th>Day</th><th>Hours</th></tr></thead><tbody><tr><td>Monday</td><td rowspan="2">10–16</td></tr><tr><td>Tuesday</td></tr></tbody></table>';
+
 export function buildSystemPrompt(pageContext: string): string {
   return `You are the BISO Page Editor copilot — an AI assistant built into the page editor for BISO, a Norwegian BI business school student organisation.
 
@@ -59,8 +67,22 @@ GUIDELINES:
   Paths follow these shapes (lists are arrays of objects, never a string;
   set a whole list, or one field with a path like \`items.0.label\`):
     heading: eyebrow, title, intro, size (small|medium|large), link? {label, href}
-    text: body (one HTML string: <h2>, <h3>, <p>, <ul>/<ol><li>, <blockquote>, <hr>, <strong>, <em>, <u>, <s>, <a href>)
-      set the whole body at once with path \`body\`, never a path inside it
+    text: body, one HTML string; set it whole with path \`body\`, never a path inside it
+      (body.0.text is refused). The page state shows each text block's body: send the
+      whole new body, keeping what the volunteer did not ask you to change. Write only:
+      blocks: <h2> heading, <h3> subheading, <p>, <blockquote> quote, <hr> divider,
+        <ul> or <ol> of <li> items (put a <ul> or <ol> inside an <li> to nest;
+        <ol start="3"> counts from 3), and <table>: an optional header row
+        <thead><tr><th>…</th></tr></thead>, then <tbody><tr><td>…</td></tr></tbody>;
+        colspan and rowspan from 2 to 20 merge cells; a cell holds text, inline tags
+        and <br>, never a list, heading or table
+      inline: <strong>, <em>, <u>, <s>, <br>, <a href="…"> (the link rules below),
+        and <span data-color="TOKEN"> for coloured text. TOKEN is accent (the page's
+        accent colour, for emphasis), muted (quieter grey, for asides), green (good
+        news), amber (caution) or red (warnings and deadlines). The colours come from
+        the page theme and stay readable on dark sections. Use them sparingly, and
+        never write a hex colour, a style or a class. No <h1>: the page header is the title.
+      e.g. ${PROMPT_BODY_EXAMPLE}
     quote: text, author, role
     callout: tone (info|warn|tip), title, body
     highlights: items [{text}]
