@@ -27,7 +27,7 @@ export interface NotifyToggleCopy {
 }
 
 /** "Mon 2 Nov at 08:00" in Oslo time, or "" for an invalid date. */
-export function formatNotifyLabel(iso: string): string {
+function formatNotifyLabel(iso: string): string {
   const date = formatOsloDate(
     iso,
     { day: "numeric", month: "short", weekday: "short" },

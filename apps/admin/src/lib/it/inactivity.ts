@@ -17,7 +17,7 @@ function parseMs(value: string | null | undefined): number | null {
 // (Outlook/Teams) access and would flag actively-used accounts. Only when no
 // sign-in data exists at all does it fall back to account creation, so
 // never-signed-in old accounts are still caught while brand-new ones are not.
-export function lastActivityMs(user: M365UserListItem): number | null {
+function lastActivityMs(user: M365UserListItem): number | null {
   const signInTimes = [
     parseMs(user.lastSignInDateTime),
     parseMs(user.lastNonInteractiveSignInDateTime),

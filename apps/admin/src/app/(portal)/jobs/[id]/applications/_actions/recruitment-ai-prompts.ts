@@ -28,7 +28,7 @@ const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
 
 const LABEL_PATTERN = /\bCandidate (\d+)\b/g;
 
-export function candidateLabel(index: number): string {
+function candidateLabel(index: number): string {
   return `Candidate ${index + 1}`;
 }
 

@@ -56,7 +56,7 @@ const leaf = (
   icon: LucideIcon
 ): NavLeaf => ({ icon, kind: "leaf", labelKey, navKey, path });
 
-export const NAV_TREE: NavNode[] = [
+const NAV_TREE: NavNode[] = [
   leaf("overview", "portal.dashboard", "/", LayoutDashboard),
   leaf("inbox", "portal.inbox", "/inbox", Inbox),
   leaf("members", "portal.members", "/members", Users),

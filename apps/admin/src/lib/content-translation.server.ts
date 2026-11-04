@@ -12,7 +12,7 @@ const TRANSLATION_FIELD_KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 export const contentLocaleSchema = z.enum(["no", "en"]);
 
-export const autoTranslationOptionsSchema = z.object({
+const autoTranslationOptionsSchema = z.object({
   enabled: z.boolean(),
   sourceLocale: contentLocaleSchema,
 });

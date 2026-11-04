@@ -24,7 +24,7 @@ export const ROLES = {
 } as const;
 
 // Pseudo-role for any user with at least one recorded sg-app-dept-* team id
-export const DEPARTMENT_ROLE = "department" as const;
+const DEPARTMENT_ROLE = "department" as const;
 
 /**
  * Navigation access rules based on campus + department membership.

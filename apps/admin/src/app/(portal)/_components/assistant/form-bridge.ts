@@ -56,7 +56,7 @@ export function getActiveFormSchemaId(): string | null {
  * Fill a single field in the registered form.
  * Returns false if no form is registered or schemaId doesn't match.
  */
-export function fillFormField(
+function fillFormField(
   schemaId: string,
   path: string,
   value: string

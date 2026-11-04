@@ -29,7 +29,7 @@ export interface DraftErrors {
 
 let counter = 0;
 
-export function newKey(): string {
+function newKey(): string {
   counter += 1;
   return `line-${counter}`;
 }

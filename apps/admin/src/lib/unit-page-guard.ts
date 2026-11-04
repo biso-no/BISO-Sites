@@ -146,7 +146,7 @@ export function assertProjectPageNamespace(
  * otherwise pass `assertWriteAccess`). A national project page is bound to its
  * unit and follows the ordinary department write rules instead.
  */
-export function assertProjectHubWriteAccess(
+function assertProjectHubWriteAccess(
   persisted: { department_id?: string | null; slug?: string | null },
   isGlobalAdmin: boolean
 ): string | null {

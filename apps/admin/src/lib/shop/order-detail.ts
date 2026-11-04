@@ -152,7 +152,7 @@ export function refundBlockedReason(
 }
 
 /** Refund rows flattened for display, newest first. */
-export function toDetailRefunds(
+function toDetailRefunds(
   refunds: OrderRefundRow[] | null | undefined
 ): OrderDetailRefund[] {
   return (refunds ?? [])
@@ -179,7 +179,7 @@ export function toDetailRefunds(
  * Merges the order's lines with how much of each is still refundable, so the
  * panel's steppers cannot offer a quantity that has already been returned.
  */
-export function toDetailLines(
+function toDetailLines(
   items: RefundableOrderItem[],
   summary: ReturnType<typeof computeRefundable>,
   extras: LineExtras
