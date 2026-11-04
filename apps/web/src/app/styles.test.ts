@@ -27,6 +27,12 @@ const LIGHT_INK_DECLARATION = /^\s*--ink:\s*var\(--biso-ink\);/m;
 const NAVY = /#001a35|rgb\(\s*0,\s*26,\s*53\s*\)/i;
 const LINK_KEEPS_ACCENT =
   /\.pg-rich a \[data-color\]\s*\{\s*color:\s*inherit;\s*\}/;
+const RICH_MEASURE_PROPERTY =
+  /@property --pg-rich-measure\s*\{\s*syntax:\s*"<length> \| none";\s*inherits:\s*true;\s*initial-value:\s*none;\s*\}/;
+const RICH_MEASURE_ON_BOX =
+  /\.pg-rich\s*\{\s*--pg-rich-measure:\s*var\(--measure\);\s*\}/;
+const RICH_MEASURE_ON_TEXT =
+  /\.pg-rich > :not\(table\)\s*\{\s*max-width:\s*var\(--pg-rich-measure\);\s*\}/;
 
 const styles = readFileSync(join(import.meta.dirname, "styles.css"), "utf8");
 const adminStyles = readFileSync(
@@ -684,6 +690,15 @@ describe("named navy tokens (page themes)", () => {
       );
       expect(globals, token).toMatch(rule);
     }
+  });
+
+  it("keeps rich text at the measure while a table may use the full width", () => {
+    // Registered as a length, so 54ch resolves once on the box at body size
+    // and a heading wraps where the text does; an unregistered property
+    // would resolve `ch` in each heading's larger font.
+    expect(globals).toMatch(RICH_MEASURE_PROPERTY);
+    expect(globals).toMatch(RICH_MEASURE_ON_BOX);
+    expect(globals).toMatch(RICH_MEASURE_ON_TEXT);
   });
 
   it("keeps a link's accent on a coloured run inside it", () => {

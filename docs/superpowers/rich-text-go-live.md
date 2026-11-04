@@ -24,7 +24,9 @@ browser. Use a test page.
 5. **Screen readers.** VoiceOver (Safari) and NVDA read a table on biso.no. You
    should hear it as a table with its header cells; note anything odd.
 6. **Wide table on a phone.** The table scrolls inside itself and the page does
-   not.
+   not. On a desktop, a table with many columns uses the section's width while
+   the text around it keeps its reading width, headings included. Check it on
+   biso.no and on the editor's page preview, in Chrome, Safari and Firefox.
 7. **Coloured text.** Put one word in each swatch in a text on white, tinted,
    dark and photo sections, under BISO and one department theme. Every colour
    should stay readable.

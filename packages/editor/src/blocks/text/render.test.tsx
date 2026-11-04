@@ -126,6 +126,14 @@ describe("TextRender with an HTML body", () => {
     }
   });
 
+  test("the box itself is not capped, so a table may use the full width", () => {
+    // The text keeps the measure through `.pg-rich > :not(table)` in the
+    // shared stylesheet (apps/web styles.test.ts pins it).
+    expect(RICH_CLASS).not.toContain("measure");
+    expect(RICH_CLASS.split(" ")).toContain("pg-rich");
+    expect(RICH_CLASS).toContain("[&_table]:max-w-full");
+  });
+
   test("table cells wrap long words as body copy does", () => {
     expect(RICH_CLASS).toContain("[&_:is(th,td)]:[overflow-wrap:anywhere]");
   });

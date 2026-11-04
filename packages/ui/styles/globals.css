@@ -326,6 +326,16 @@ html {
   --shear-run: 0.2309;
 }
 
+/* The rich text measure as a length. Registered, `.pg-rich` computes it to
+   pixels in its own font and its children inherit that, so `ch` is not
+   measured again in a heading's larger font. `none` leaves anything outside
+   rich text uncapped. */
+@property --pg-rich-measure {
+  syntax: "<length> | none";
+  inherits: true;
+  initial-value: none;
+}
+
 /* ---------------------------------------------------------------------------
  * BISO 2026 redesign — the nine type roles.
  *
@@ -446,6 +456,19 @@ html {
      Replaces the 51 `max-w-4xl` prose containers (~100ch) found in Phase 0. */
   .type-measure {
     max-width: var(--measure, 68ch);
+  }
+
+  /* Rich text keeps the measure, and a table may use the block's full width,
+     since its columns split the line. The measure is resolved once, on the
+     box at body size (`--pg-rich-measure` is a registered length, below), so
+     a heading wraps where the text does. Set on each heading, 54ch would be
+     measured in the heading's larger font. */
+  .pg-rich {
+    --pg-rich-measure: var(--measure);
+  }
+
+  .pg-rich > :not(table) {
+    max-width: var(--pg-rich-measure);
   }
 
   /* Rich text colour. A span stores only its token; the surface's ink paints
