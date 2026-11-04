@@ -273,6 +273,8 @@ export async function getPageEditorLocales(): Promise<PageEditorLocale[]> {
   return [...PAGE_LOCALES];
 }
 
+type AdminDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
 /**
  * Department users are scoped to pages whose department_id matches one of their
  * departments (see applyScopeQueries). Default a saved page's department to the
@@ -285,9 +287,7 @@ function ensureDepartmentForScoping(
   doc: PageDoc,
   ctx: UserAuthContext
 ): PageDoc {
-  const isAdmin =
-    ctx.roles.includes("globaladmin") || ctx.managedCampusIds.length > 0;
-  if (isAdmin || doc.meta.department) {
+  if (!isDepartmentUser(ctx) || doc.meta.department) {
     return doc;
   }
   if (ctx.resolvedDepartmentIds.length !== 1) {
@@ -307,7 +307,7 @@ function ensureDepartmentForScoping(
  * uses; a failed read keeps the theme, as before.
  */
 async function withoutDepartmentTheme(
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  db: AdminDatabase,
   doc: PageDoc
 ): Promise<{ dropped: boolean; doc: PageDoc }> {
   const departmentId = doc.meta.department;
@@ -393,7 +393,7 @@ function pageAddressError({
  * save.
  */
 async function readDepartmentUnit(
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"],
+  db: AdminDatabase,
   departmentId: string | null,
   slug: string
 ): Promise<{ subPageCampusId?: string | null; unitSlug: string | null }> {
@@ -747,7 +747,7 @@ async function copyThemeToDepartment({
   pageId,
 }: {
   ctx: UserAuthContext;
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"];
+  db: AdminDatabase;
   departmentId: string | null;
   locale: PageEditorLocale;
   pageId: string;
@@ -809,7 +809,7 @@ async function copyThemeToDepartment({
 async function getPageSourceDocument(
   id: string,
   locale: PageEditorLocale,
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"]
+  db: AdminDatabase
 ): Promise<PageDoc | null> {
   const editor = await pbGetPageEditorById(id, db);
   const translation = editor?.translations[locale];
@@ -826,8 +826,6 @@ function isSamePageDocument(a: PageDoc | null, b: PageDoc | null): boolean {
     JSON.stringify(getPageTranslationSource(b))
   );
 }
-
-type AdminDatabase = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 /**
  * One locale's draft and publish state, as the auto-translation guard
