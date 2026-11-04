@@ -1,4 +1,3 @@
-import { Query } from "@repo/api";
 import { buildPageRowPermissions, pageAudience } from "@repo/api/page-builder";
 import type { PagesVisibility } from "@repo/api/types/appwrite";
 import {
@@ -7,6 +6,7 @@ import {
   type TranslationContentType,
   translationReadPermissions,
 } from "./content-read-permissions";
+import { errorMessage, scanTable } from "./table-scan";
 
 /**
  * Brings the read permissions on existing content rows in line with what the
@@ -94,7 +94,6 @@ export interface ReconcileDb {
 }
 
 const DATABASE_ID = "app";
-const PAGE_SIZE = 100;
 const READ_PREFIX = "read(";
 
 const TABLE_ORDER: ReconcileTableId[] = [
@@ -187,35 +186,6 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
   const left = [...a].sort();
   const right = [...b].sort();
   return left.length === right.length && left.every((v, i) => v === right[i]);
-}
-
-async function* scanTable(
-  db: ReconcileDb,
-  tableId: ReconcileTableId
-): AsyncGenerator<ReconcileRow> {
-  let cursor: string | undefined;
-  while (true) {
-    const queries = [Query.limit(PAGE_SIZE)];
-    if (cursor) {
-      queries.push(Query.cursorAfter(cursor));
-    }
-    const { rows } = await db.listRows({
-      databaseId: DATABASE_ID,
-      tableId,
-      queries,
-    });
-    for (const row of rows) {
-      yield row;
-    }
-    if (rows.length < PAGE_SIZE) {
-      return;
-    }
-    cursor = rows.at(-1)?.$id;
-  }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function translationSkipReason(

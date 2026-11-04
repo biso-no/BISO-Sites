@@ -1,9 +1,9 @@
-import { Query } from "@repo/api";
 import {
   jsonToPageDoc,
   PAGE_DRAFTS_TABLE_ID,
   pageDocToJson,
 } from "@repo/api/page-builder";
+import { errorMessage, scanTable } from "./table-scan";
 
 /**
  * Moves page drafts out of `page_translations` into the service-only
@@ -98,39 +98,9 @@ interface PlannedRow {
 
 const DATABASE_ID = "app";
 const TRANSLATIONS_TABLE_ID = "page_translations";
-const PAGE_SIZE = 100;
 const TITLE_MAX = 200;
 const DESCRIPTION_MAX = 4000;
 const DRAFT_COLUMNS = ["draft_doc", "puck_document", "draft_document"] as const;
-
-async function* scanTable(
-  db: PageDraftMigrationDb,
-  tableId: string
-): AsyncGenerator<MigrationRow> {
-  let cursor: string | undefined;
-  while (true) {
-    const queries = [Query.limit(PAGE_SIZE)];
-    if (cursor) {
-      queries.push(Query.cursorAfter(cursor));
-    }
-    const { rows } = await db.listRows({
-      databaseId: DATABASE_ID,
-      tableId,
-      queries,
-    });
-    for (const row of rows) {
-      yield row;
-    }
-    if (rows.length < PAGE_SIZE) {
-      return;
-    }
-    cursor = rows.at(-1)?.$id;
-  }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 function nonEmpty(value: unknown, max: number): string | null {
   return typeof value === "string" && value.trim() !== "" && value.length <= max

@@ -1,4 +1,5 @@
 import { Query } from "@repo/api";
+import { errorMessage, scanTable } from "./table-scan";
 
 /**
  * Sets the `interview` relationship on interview scorecards that only carry
@@ -53,48 +54,15 @@ export interface ScorecardBackfillDb {
 }
 
 const DATABASE_ID = "app";
-const PAGE_SIZE = 100;
 const INTERVIEWS = "job_interviews";
 const SCORECARDS = "job_interview_scorecards";
 
 // The relationship is selected explicitly: Appwrite does not return it unless
 // asked, and a scorecard that is already linked must not be planned again.
-const SELECT_BY_TABLE: Record<string, string[]> = {
-  [INTERVIEWS]: ["$id"],
-  [SCORECARDS]: ["$id", "interview_id", "interview.$id"],
-};
-
-async function* scanTable(
-  db: ScorecardBackfillDb,
-  tableId: string
-): AsyncGenerator<BackfillRow> {
-  let cursor: string | undefined;
-  while (true) {
-    const queries = [
-      Query.select(SELECT_BY_TABLE[tableId] ?? ["*"]),
-      Query.limit(PAGE_SIZE),
-    ];
-    if (cursor) {
-      queries.push(Query.cursorAfter(cursor));
-    }
-    const { rows } = await db.listRows({
-      databaseId: DATABASE_ID,
-      tableId,
-      queries,
-    });
-    for (const row of rows) {
-      yield row;
-    }
-    if (rows.length < PAGE_SIZE) {
-      return;
-    }
-    cursor = rows.at(-1)?.$id;
-  }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+const INTERVIEW_COLUMNS = [Query.select(["$id"])];
+const SCORECARD_COLUMNS = [
+  Query.select(["$id", "interview_id", "interview.$id"]),
+];
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -118,7 +86,7 @@ async function scan(
 ): Promise<void> {
   const interviewIds = new Set<string>();
   try {
-    for await (const row of scanTable(db, INTERVIEWS)) {
+    for await (const row of scanTable(db, INTERVIEWS, INTERVIEW_COLUMNS)) {
       report.scanned.interviews += 1;
       interviewIds.add(row.$id);
     }
@@ -127,7 +95,7 @@ async function scan(
     return;
   }
   try {
-    for await (const row of scanTable(db, SCORECARDS)) {
+    for await (const row of scanTable(db, SCORECARDS, SCORECARD_COLUMNS)) {
       report.scanned.scorecards += 1;
       const interviewId = asString(row.interview_id);
       if (!interviewIds.has(interviewId)) {
