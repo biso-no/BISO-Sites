@@ -64,13 +64,20 @@ function deleteBetween(
 }
 
 /**
- * Whether the block beside `path`, after it or else before it, is a block
- * that is no table: a line the text keeps when the one at `path` goes.
+ * Whether the block beside `path`, after it or else before it, is a line the
+ * text keeps when the one at `path` goes: a block that is neither a table
+ * nor a void (a divider), which have no place to write either.
  */
 function lineBeside(editor: SlateEditor, path: Path, after: boolean): boolean {
   const besidePath = after ? PathApi.next(path) : PathApi.previous(path);
-  const beside = besidePath ? editor.api.node(besidePath) : undefined;
-  return beside !== undefined && beside[0].type !== KEYS.table;
+  const beside = besidePath
+    ? editor.api.node<TElement>(besidePath)?.[0]
+    : undefined;
+  return (
+    beside !== undefined &&
+    beside.type !== KEYS.table &&
+    !editor.api.isVoid(beside)
+  );
 }
 
 /**
@@ -78,10 +85,11 @@ function lineBeside(editor: SlateEditor, path: Path, after: boolean): boolean {
  * cross a table's edge. In a cell it stops at the cell's edge. Beside a
  * table it stops at its block's edge; from there the caret moves into the
  * table instead (the last cell's end, or the first cell's start). An empty
- * line it leaves goes only when a line that is no table lies on its other
- * side (after it for Backspace, before it for Delete), so the only line
- * before a table that opens the text, after the last table, or between two
- * tables stays. Whether it handled the delete.
+ * line it leaves goes only when a line that is no table and no divider lies
+ * on its other side (after it for Backspace, before it for Delete), so the
+ * only line before a table that opens the text, after the last table, or
+ * between a table and another table or a divider stays. Whether it handled
+ * the delete.
  */
 function deleteAtEdge(
   remove: Delete,
@@ -136,8 +144,9 @@ function deleteAtEdge(
 
 /**
  * Enter with the caret at the very start of a table that opens the text, or
- * that follows another table: an empty line above the table, with the caret
- * in it, since the text has no other place to write there. Whether it did.
+ * that follows another table or a divider: an empty line above the table,
+ * with the caret in it, since the text has no other place to write there.
+ * Whether it did.
  */
 function openLineAboveTable(editor: SlateEditor): boolean {
   const { selection } = editor;
@@ -309,6 +318,27 @@ export const wholeValueSelected = (editor: SlateEditor): boolean =>
   RangeApi.isExpanded(editor.selection) &&
   coversWholeValue(editor, editor.selection);
 
+/**
+ * Whether the selection holds the whole of the outermost table it is in:
+ * what Plate's select-all from a cell selects.
+ */
+function wholeTableSelected(editor: SlateEditor): boolean {
+  const { selection } = editor;
+  const table = selection
+    ? editor.api.above({
+        at: selection,
+        match: { type: KEYS.table },
+        mode: "highest",
+      })
+    : undefined;
+  if (!(selection && table)) {
+    return false;
+  }
+  const [start, end] = RangeApi.edges(selection);
+  const [tableStart, tableEnd] = edgesOf(editor, table[1]);
+  return PointApi.equals(start, tableStart) && PointApi.equals(end, tableEnd);
+}
+
 /** A delete's place as a caret, a range, or neither (a path: a node goes). */
 function placeOf(
   editor: SlateEditor,
@@ -339,13 +369,17 @@ function placeOf(
  * Plate's own handling, which clears the cells of its grid. Plate also holds
  * a selection that starts in a table to that table, and takes one that runs
  * into a table from outside to the table's end.
+ *
+ * Select-all from a cell is Plate's: it selects the table. Pressed again,
+ * with the table selected, it selects the whole text, as in Word, so the
+ * whole-text rules above apply. Elsewhere it stays the browser's.
  */
 export const RichTableEdgesPlugin = createSlatePlugin({
   key: "richTableEdges",
 }).overrideEditor(
   ({
     editor,
-    tf: { delete: remove, deleteFragment, insertBreak, insertText },
+    tf: { delete: remove, deleteFragment, insertBreak, insertText, selectAll },
   }) => ({
     transforms: {
       delete(options = {}) {
@@ -402,6 +436,14 @@ export const RichTableEdgesPlugin = createSlatePlugin({
           editor.tf.delete();
         }
         insertText(text, options);
+      },
+      selectAll() {
+        if (!wholeTableSelected(editor)) {
+          return selectAll();
+        }
+        const [start, end] = edgesOf(editor, []);
+        editor.tf.select({ anchor: start, focus: end });
+        return true;
       },
     },
   })

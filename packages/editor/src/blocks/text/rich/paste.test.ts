@@ -329,6 +329,21 @@ test("a fragment inserted over a select-all replaces the whole text, even one th
   }
 });
 
+test("a paste over a second select-all from a cell replaces the whole text, not each cell", () => {
+  // With node ids, as the field has.
+  const editor = createConversionEditor([RichPastePlugin], { nodeId: true });
+  editor.tf.setValue(
+    htmlToValue(
+      "<table><tbody><tr><td>a1</td><td>a2</td></tr><tr><td>b1</td><td>b2</td></tr></tbody></table><p>after</p>"
+    )
+  );
+  editor.tf.select({ offset: 1, path: [0, 0, 0, 0, 0] });
+  editor.tf.selectAll();
+  editor.tf.selectAll();
+  editor.tf.insertData(clipboard({ "text/html": "<p>New</p>" }));
+  expect(valueToHtml(editor.children)).toBe("<p>New</p>");
+});
+
 /** What a screenshot puts on the clipboard: an image file and no text. */
 const screenshot = (): DataTransfer =>
   ({

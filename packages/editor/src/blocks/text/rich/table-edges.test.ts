@@ -9,6 +9,7 @@ import {
   type Value,
 } from "platejs";
 import { createConversionEditor, htmlToValue, valueToHtml } from "./html";
+import { coversWholeValue, wholeValueSelected } from "./table-edges";
 
 const previous = { Node: globalThis.Node, document: globalThis.document };
 
@@ -245,6 +246,38 @@ test("Enter at the start of a table right after another table adds a line betwee
   editor.tf.select(at(editor, "c1", 0));
   editor.tf.insertBreak();
   expect(types(editor)).toEqual(["table", "p", "table", "p"]);
+});
+
+// A divider has no place to write either, so beside a table it counts as one.
+const RULE_THEN_TABLE = `<p>x</p><hr><p></p>${TABLE}<p>z</p>`;
+
+test("Delete on the only line between a divider and a table keeps the line", () => {
+  const editor = editorOn(RULE_THEN_TABLE);
+  expect(types(editor)).toEqual(["p", "hr", "p", "table", "p"]);
+  editor.tf.select({ offset: 0, path: [2, 0] });
+  editor.tf.deleteForward("character");
+  expect(types(editor)).toEqual(["p", "hr", "p", "table", "p"]);
+  expect(caret(editor)).toEqual(at(editor, "a1", 0));
+  expect(html(editor)).toBe(`<p>x</p><hr>${TABLE}<p>z</p>`);
+});
+
+test("Backspace on the only line between a table and a divider keeps the line", () => {
+  const editor = editorOn(`${TABLE}<p></p><hr><p>z</p>`);
+  expect(types(editor)).toEqual(["table", "p", "hr", "p"]);
+  editor.tf.select({ offset: 0, path: [1, 0] });
+  editor.tf.deleteBackward("character");
+  expect(types(editor)).toEqual(["table", "p", "hr", "p"]);
+  expect(caret(editor)).toEqual(at(editor, "b2", 2));
+});
+
+test("Enter at the start of a table right after a divider adds a line between them", () => {
+  const editor = editorOn(`<p>x</p><hr>${TABLE}<p>z</p>`);
+  editor.tf.select(at(editor, "a1", 0));
+  editor.tf.insertBreak();
+  expect(types(editor)).toEqual(["p", "hr", "p", "table", "p"]);
+  expect(caret(editor)).toEqual({ offset: 0, path: [2, 0] });
+  editor.tf.insertText("y");
+  expect(html(editor)).toBe(`<p>x</p><hr><p>y</p>${TABLE}<p>z</p>`);
 });
 
 test("Enter at the start of a table after a paragraph stays the table's own", () => {
@@ -497,4 +530,51 @@ test("a selection short of the whole text still keeps the table", () => {
     "<p>bZ</p><table><tbody><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody></table>"
   );
   expect(editor.children.map((node) => node.type)).toContain("table");
+});
+
+// ── Select-all from a table ──
+// From a cell, Plate's select-all selects the table. A second one selects
+// the whole text, as in Word, and then replaces everything as above.
+
+/** The text `start`, with the caret in a1 and select-all pressed `times`. */
+function selectAllFromCell(start: string, times: number): SlateEditor {
+  const editor = editorOn(start);
+  editor.tf.select(at(editor, "a1", 1));
+  for (let i = 0; i < times; i += 1) {
+    editor.tf.selectAll();
+  }
+  return editor;
+}
+
+test("a single select-all from a cell still selects just the table", () => {
+  for (const start of [PAGE, OPENS_WITH_TABLE]) {
+    const editor = selectAllFromCell(start, 1);
+    const table = editor.api.range(start === PAGE ? [1] : [0]);
+    expect(table).toBeDefined();
+    expect(editor.selection).toEqual(table ?? null);
+    expect(wholeValueSelected(editor)).toBe(false);
+  }
+});
+
+test("a second select-all from a cell selects the whole text", () => {
+  for (const start of [PAGE, OPENS_WITH_TABLE]) {
+    const editor = selectAllFromCell(start, 2);
+    const { selection } = editor;
+    expect(selection && coversWholeValue(editor, selection)).toBe(true);
+  }
+});
+
+test("typing over a second select-all from a cell leaves only what was typed", () => {
+  for (const start of [PAGE, OPENS_WITH_TABLE]) {
+    const editor = selectAllFromCell(start, 2);
+    editor.tf.insertText("Z");
+    expect(html(editor)).toBe("<p>Z</p>");
+  }
+});
+
+test("select-all outside a table stays the browser's", () => {
+  const editor = editorOn(PAGE);
+  editor.tf.select(at(editor, "before", 1));
+  expect(editor.tf.selectAll()).toBe(false);
+  expect(caret(editor)).toEqual(at(editor, "before", 1));
 });

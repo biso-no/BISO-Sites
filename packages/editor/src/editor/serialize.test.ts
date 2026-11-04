@@ -8,6 +8,7 @@ import {
   fromJSON,
   LAYOUT_VALUES,
   normalizePageDoc,
+  pageStateForAI,
   serializePageForAI,
 } from "./serialize";
 import { block, doc, section } from "./test-fixtures";
@@ -408,6 +409,28 @@ describe("serializePageForAI", () => {
     expect(lineOf("b-13")).toContain(' body=""');
     // The selected block's full props still hold its whole body.
     expect(out).toContain(`"body": ${JSON.stringify(long)}`);
+  });
+
+  test("the page state names the unselected text blocks whose body it cuts or withholds", () => {
+    const full = `<p>${"x".repeat(1993)}</p>`;
+    const long = "<p>abcdefgh</p>".repeat(300);
+    const bodies = [
+      long,
+      ...new Array<string>(AI_BODY_TOTAL_CHARS / AI_BODY_CHARS - 1).fill(full),
+      "<p>a</p>",
+      long,
+      "",
+    ];
+    const ids = bodies.map((_, i) => `b-${i + 1}`);
+    const d = doc(section("s-1", "1", [ids]));
+    for (const [i, b] of d.sections[0].columns[0].blocks.entries()) {
+      Object.assign(b, { body: bodies[i] });
+    }
+    // b-1 is cut; b-11 and b-12 are withheld once the budget runs out; b-12
+    // is selected, so its full props show it whole.
+    const state = pageStateForAI(d, "b-12");
+    expect([...state.partBodies]).toEqual(["b-1", "b-11"]);
+    expect(state.text).toBe(serializePageForAI(d, "b-12"));
   });
 
   test("a page under the body budget shows every body as on its own", () => {

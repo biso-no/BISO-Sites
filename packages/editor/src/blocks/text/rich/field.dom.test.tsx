@@ -553,6 +553,8 @@ const pressKey = (
 
 const UNDO = { code: "KeyZ", key: "z", which: 90 };
 const REDO = { code: "KeyZ", key: "Z", shiftKey: true, which: 90 };
+/** Redo on Windows and Linux, as well as Ctrl+Shift+Z. */
+const REDO_Y = { code: "KeyY", key: "y", which: 89 };
 
 /** The keydown events the editable saw, to read `defaultPrevented` from. */
 const keydowns = (editable: HTMLElement | undefined): KeyboardEvent[] => {
@@ -590,6 +592,21 @@ test("mod+shift+z with an empty redo history steps the page forward", async () =
   const seen = keydowns(editables()[0]);
 
   await pressKey(editables()[0], REDO);
+  expect(pageHistory.mock.calls).toEqual([["redo"]]);
+  expect(seen[0]?.defaultPrevented).toBe(true);
+  await render("<p>after</p>");
+  expect(editables()[0]?.textContent).toBe("after");
+});
+
+test("Ctrl+Y with an empty redo history steps the page forward, as Ctrl+Shift+Z does", async () => {
+  const pageHistory = mock<PageStep>(() => undefined);
+  const a = field("canvas", "Rich text", pageHistory);
+  const { editables, render } = mount(a);
+  await render("<p>a</p>");
+  markFocused(a.editor());
+  const seen = keydowns(editables()[0]);
+
+  await pressKey(editables()[0], REDO_Y);
   expect(pageHistory.mock.calls).toEqual([["redo"]]);
   expect(seen[0]?.defaultPrevented).toBe(true);
   await render("<p>after</p>");

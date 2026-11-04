@@ -22,6 +22,7 @@ import {
 } from "@platejs/table/react";
 import {
   type AnySlatePlugin,
+  Hotkeys,
   isHotkey,
   KEYS,
   type PluginConfig,
@@ -261,9 +262,15 @@ export type RichKeysConfig = PluginConfig<
 >;
 
 /**
- * The step mod+z or mod+shift+z asks of the page: only when the field's own
- * history has nothing in that direction. By key, as Plate reads its own
- * hotkeys.
+ * Redo, as Plate reads it: Cmd+Shift+Z on a Mac, and Ctrl+Y or Ctrl+Shift+Z
+ * on Windows and Linux.
+ */
+const isRedoKey = (event: KeyboardEvent): boolean => Hotkeys.isRedo(event);
+
+/**
+ * The step mod+z or redo (`isRedoKey`) asks of the page: only when the
+ * field's own history has nothing in that direction. By key, as Plate reads
+ * its own hotkeys.
  */
 function emptyHistoryStep(
   editor: PlateEditor,
@@ -275,26 +282,22 @@ function emptyHistoryStep(
   ) {
     return "undo";
   }
-  if (
-    isHotkey("mod+shift+z", { byKey: true }, event) &&
-    editor.history.redos.length === 0
-  ) {
+  if (isRedoKey(event) && editor.history.redos.length === 0) {
     return "redo";
   }
   return null;
 }
 
-/** mod+z or mod+shift+z, by key, as Plate reads its own hotkeys. */
+/** mod+z or redo (`isRedoKey`), by key, as Plate reads its own hotkeys. */
 const isHistoryKey = (event: KeyboardEvent): boolean =>
-  isHotkey("mod+z", { byKey: true }, event) ||
-  isHotkey("mod+shift+z", { byKey: true }, event);
+  isHotkey("mod+z", { byKey: true }, event) || isRedoKey(event);
 
 /**
  * The field's own keys. mod+k opens the toolbar's link input (`linkOpen`,
  * which the toolbar reads and closes); with `linkNeedsSelection` only over
  * an expanded selection. On a canvas caret it opens nothing, but it still
  * never reaches the browser, whose Ctrl+K is its search bar on Windows and
- * Linux. mod+z and mod+shift+z first take a pending outside change
+ * Linux. mod+z and redo (`isRedoKey`) first take a pending outside change
  * (`pendingTake`), which clears the field's history; with nothing left in
  * it they go to `emptyHistory`, when it is set, to step the page, so the
  * page's undo reverts that change first. Otherwise Slate's history handles

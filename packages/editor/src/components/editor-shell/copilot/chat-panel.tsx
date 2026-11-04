@@ -14,11 +14,12 @@ import { useEditorCallbacks } from "@/editor/callbacks";
 import { useSelection } from "@/editor/hooks";
 import { isInsideTextBody } from "@/editor/operations";
 import { COLUMN_COUNT } from "@/editor/sections";
-import { LAYOUT_VALUES, serializePageForAI } from "@/editor/serialize";
+import { LAYOUT_VALUES, pageStateForAI } from "@/editor/serialize";
 import { useEditorStore } from "@/editor/store";
 import { findBlock, findSection, targetAfterBlock } from "@/editor/tree";
 import type {
   BlockType,
+  EditorDepartment,
   InsertTarget,
   PageDoc,
   SectionBackground,
@@ -30,6 +31,23 @@ type ToolArgs = Record<string, unknown>;
 /** The section the most recent insert_section made, for `sectionId: "new"`. */
 const NEW_SECTION = "new";
 let lastInsertedSectionId: string | null = null;
+
+/**
+ * The text blocks whose body this turn's page state showed the copilot cut
+ * or not at all (`pageStateForAI`).
+ */
+let partBodies: ReadonlySet<string> = new Set();
+
+/** The page state a new turn sends, kept for the turn's tool calls. */
+export function pageStateForTurn(
+  doc: PageDoc,
+  selection: string | null,
+  departments: EditorDepartment[] = []
+): string {
+  const state = pageStateForAI(doc, selection, departments);
+  partBodies = state.partBodies;
+  return state.text;
+}
 
 function toolError(message: string): ToolResult {
   return { message, status: "error" };
@@ -173,6 +191,12 @@ function applySetProp(args: ToolArgs): ToolResult {
       `Set the whole body as one HTML string: block ${id}'s body is HTML, so set_prop it with path "body", not ${path}.`
     );
   }
+  // A rewrite of a body the copilot saw only in part would lose the rest.
+  if (found?.block.type === "text" && path === "body" && partBodies.has(id)) {
+    return toolError(
+      `Block ${id}'s body is longer than the page state showed you, so set_prop body would lose the rest of it. Ask the volunteer to select the block, then rewrite it.`
+    );
+  }
   if (
     found?.block.type !== "text" ||
     path !== "body" ||
@@ -239,7 +263,7 @@ export function CopilotPanel() {
   const { departments } = useEditorCallbacks();
 
   const getPageContext = useCallback(
-    () => serializePageForAI(doc, selection, departments),
+    () => pageStateForTurn(doc, selection, departments),
     [doc, selection, departments]
   );
 

@@ -404,6 +404,14 @@ export function bodyForAI(
   body: unknown,
   budget: BodyBudget = { left: Number.POSITIVE_INFINITY }
 ): string {
+  return bodySeenByAI(body, budget).shown;
+}
+
+/** `bodyForAI`, and whether it shows the whole body. */
+function bodySeenByAI(
+  body: unknown,
+  budget: BodyBudget
+): { shown: string; whole: boolean } {
   const html = bodyToHtml(body);
   const isCut = html.length > AI_BODY_CHARS;
   const preview = isCut
@@ -411,16 +419,30 @@ export function bodyForAI(
     : html;
   if (preview.length > budget.left) {
     budget.left = 0;
-    return `(${html.length} characters, select the block to read it)`;
+    return {
+      shown: `(${html.length} characters, select the block to read it)`,
+      whole: false,
+    };
   }
   budget.left -= preview.length;
   if (!isCut) {
-    return JSON.stringify(html);
+    return { shown: JSON.stringify(html), whole: true };
   }
-  return `${JSON.stringify(preview)} (cut: the first ${preview.length} of ${html.length} characters; set_prop body replaces all of it, so ask the volunteer to select this block before you rewrite part of it)`;
+  return {
+    shown: `${JSON.stringify(preview)} (cut: the first ${preview.length} of ${html.length} characters; set_prop body replaces all of it, so ask the volunteer to select this block before you rewrite part of it)`,
+    whole: false,
+  };
 }
 
-function blockSummary(b: Block, budget: BodyBudget): string {
+/**
+ * One block's line. A text block whose body it shows cut or not at all goes
+ * into `partBodies`.
+ */
+function blockSummary(
+  b: Block,
+  budget: BodyBudget,
+  partBodies: Set<string>
+): string {
   const base = `[${b.id}] type=${b.type}`;
   const r = b as unknown as Record<string, unknown>;
 
@@ -450,7 +472,11 @@ function blockSummary(b: Block, budget: BodyBudget): string {
     parts.push(`members.count=${(r.members as unknown[]).length}`);
   }
   if (b.type === "text") {
-    parts.push(`body=${bodyForAI(b.body, budget)}`);
+    const { shown, whole } = bodySeenByAI(b.body, budget);
+    if (!whole) {
+      partBodies.add(b.id);
+    }
+    parts.push(`body=${shown}`);
   }
 
   return parts.join(" ");
@@ -462,6 +488,25 @@ export function serializePageForAI(
   selection: string | null,
   departments: EditorDepartment[] = []
 ): string {
+  return pageStateForAI(doc, selection, departments).text;
+}
+
+/** A page state, and what it leaves out of the text blocks' bodies. */
+export interface PageStateForAI {
+  /**
+   * The text blocks whose body `text` shows cut or not at all. The selected
+   * block is never one: its full props show its whole body.
+   */
+  partBodies: ReadonlySet<string>;
+  text: string;
+}
+
+/** `serializePageForAI`, with the text blocks whose body it shows in part. */
+export function pageStateForAI(
+  doc: PageDoc,
+  selection: string | null,
+  departments: EditorDepartment[] = []
+): PageStateForAI {
   const { meta } = doc;
   const blocks = walkBlocks(doc);
   const lines: string[] = [
@@ -479,6 +524,7 @@ export function serializePageForAI(
   ];
   let n = 0;
   const budget: BodyBudget = { left: AI_BODY_TOTAL_CHARS };
+  const partBodies = new Set<string>();
   for (const [i, s] of doc.sections.entries()) {
     lines.push(
       `Section ${i + 1} [${s.id}] columns=${s.layout.columns} background=${s.layout.background}`
@@ -488,7 +534,7 @@ export function serializePageForAI(
       for (const b of c.blocks) {
         n += 1;
         const sel = b.id === selection ? " ← SELECTED" : "";
-        lines.push(`    ${n}. ${blockSummary(b, budget)}${sel}`);
+        lines.push(`    ${n}. ${blockSummary(b, budget, partBodies)}${sel}`);
       }
     }
   }
@@ -501,10 +547,11 @@ export function serializePageForAI(
         "== SELECTED BLOCK (full props) ==",
         JSON.stringify(b, null, 2)
       );
+      partBodies.delete(b.id);
     }
   }
 
-  return lines.join("\n");
+  return { partBodies, text: lines.join("\n") };
 }
 
 /** Deserialize a PageDoc from a JSON string. */
