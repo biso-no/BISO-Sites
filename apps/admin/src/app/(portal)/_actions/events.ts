@@ -31,6 +31,7 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { loadTranslationsByLocale } from "@/lib/content-translation-reads";
 import { withNationalEventScope } from "@/lib/event-scope";
 import { resolveNotifyPush } from "@/lib/notify-push-guard";
 import {
@@ -41,7 +42,6 @@ import {
 import { logAuditEvent } from "./audit-log";
 import { EVENTS_PAGE_SIZE, type EventFormValues, eventSchema } from "./schemas";
 
-type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type EventAuthContext = Awaited<ReturnType<typeof requireAuth>>;
 
 type EventWithTranslations = Events & {
@@ -140,29 +140,6 @@ function buildNestedEventTranslation(
     short_description: snapshot.short_description || null,
     title: snapshot.title,
   };
-}
-
-/**
- * Existing locales are looked up by content metadata, not the relation: rows
- * that predate the relationship backfill are unlinked, and matching them here
- * both prevents duplicate locale rows and re-links them on the next save.
- */
-async function loadEventTranslationsByLocale(
-  db: AdminDb,
-  eventId: string
-): Promise<Map<string, ContentTranslations>> {
-  const current = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "event"),
-      Query.equal("content_id", eventId),
-      Query.limit(10),
-    ]
-  );
-  return new Map(
-    current.rows.map((translation) => [translation.locale, translation])
-  );
 }
 
 function getEventTranslationSnapshot(
@@ -674,7 +651,12 @@ export async function updateEvent(
       validated.data.status
     );
 
-    const existingByLocale = await loadEventTranslationsByLocale(db, id);
+    const existingByLocale = await loadTranslationsByLocale(
+      db,
+      "event",
+      id,
+      10
+    );
     await db.upsertRow(
       "app",
       "events",
