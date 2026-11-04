@@ -1,15 +1,4 @@
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@repo/ui/components/ui/alert-dialog";
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -32,6 +21,7 @@ import type { SiteLogo } from "../../../_actions/site-logos";
 import { ImageUploadField } from "../../../_components/image-upload-field";
 import { SERIF_STACK, STUDIO, StudioButton } from "../../../_components/studio";
 import { BenefitDiscardDialog } from "../../_components/benefit-discard-dialog";
+import { BoardConfirmDialog } from "../../_components/board-confirm-dialog";
 import {
   errorProps,
   FieldError,
@@ -630,47 +620,16 @@ function LogoRemoveDialog({
 }: LogoRemoveDialogProps) {
   const t = useTranslations("adminPortal.benefits.partnersPage");
   return (
-    <AlertDialog onOpenChange={onOpenChange} open={open}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent
-        className="border-[#e5dcca] bg-[#fffdf8] sm:rounded-2xl"
-        style={{ color: STUDIO.ink }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle
-            className="break-words font-normal text-[26px] leading-tight"
-            style={{ fontFamily: SERIF_STACK }}
-          >
-            {t("logoRemoveTitle", { name })}
-          </AlertDialogTitle>
-          <AlertDialogDescription
-            className="text-sm leading-6"
-            style={{ color: STUDIO.ink2 }}
-          >
-            {t("deleteBodyNoDeals")}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="gap-2">
-          <AlertDialogCancel className={BOARD_FOCUS_RING} disabled={pending}>
-            {t("cancel")}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            className={`gap-2 hover:opacity-90 ${BOARD_FOCUS_RING}`}
-            disabled={pending}
-            onClick={(event) => {
-              // Stay open until the logo is gone.
-              event.preventDefault();
-              onConfirm();
-            }}
-            style={{ background: PANEL_ERROR_COLOR, color: "#fff" }}
-          >
-            {pending ? (
-              <Loader2 aria-hidden className="animate-spin" size={14} />
-            ) : null}
-            {t("logoRemove")}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <BoardConfirmDialog
+      body={t("deleteBodyNoDeals")}
+      cancelLabel={t("cancel")}
+      confirmLabel={t("logoRemove")}
+      onConfirm={onConfirm}
+      onOpenChange={onOpenChange}
+      open={open}
+      pending={pending}
+      title={t("logoRemoveTitle", { name })}
+      trigger={children}
+    />
   );
 }
