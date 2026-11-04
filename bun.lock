@@ -295,7 +295,6 @@
         "@repo/ui": "workspace:*",
         "ai": "catalog:",
         "immer": "catalog:",
-        "motion": "catalog:",
         "platejs": "catalog:",
         "sanitize-html": "catalog:",
         "server-only": "catalog:",
