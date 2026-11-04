@@ -18,6 +18,12 @@ covers:
   - packages/editor/src/editor/types.ts
   - packages/editor/src/editor/operations.ts
   - packages/editor/src/editor/sanitize-doc.ts
+  - packages/editor/src/editor/body-scan.ts
+  - packages/editor/src/editor/templates.ts
+  - packages/editor/src/lib/rich-allowlist.ts
+  - packages/editor/src/lib/sanitize.ts
+  - packages/editor/src/blocks/text/body.ts
+  - packages/editor/src/blocks/text/rich/html.ts
   - packages/editor/src/editor/page-feeds.ts
   - packages/editor/src/editor/use-auto-feed.ts
   - packages/editor/src/ai/prompt.ts
@@ -115,7 +121,7 @@ The palette, the AI's list of block types and the website's renderer all read th
 
 Two kinds of block need more:
 
-- **A block that renders HTML.** Only `text` blocks are cleaned of unsafe HTML, in `sanitizeBlock()` in `packages/editor/src/editor/sanitize-doc.ts`. Every other prop is shown as plain text. If your block renders HTML, add it there.
+- **A block that renders HTML.** Only `text` blocks hold HTML. `sanitizeBlock()` in `packages/editor/src/editor/sanitize-doc.ts` cleans a string body with `sanitizeRichBodyHtml`, and each item of a legacy array body with `sanitizeRichHtml`, when a draft is saved and before the website renders a page. Every other prop is shown as plain text. If your block renders HTML, add a branch for it there. Clean it in the browser too before the editor shows it, as `blocks/text/render.tsx` does with `lib/sanitize.ts`, and take the allowed tags from `lib/rich-allowlist.ts`, so the two sanitisers can't drift apart. [Change what the Rich text block can hold](#change-what-the-rich-text-block-can-hold) explains how the text body is cleaned.
 - **A block that shows Appwrite data**, like `events`, `news` or `partners`. It needs a feed. Follow the `partners` block, in this order:
   1. In the block's `render.tsx`, read the rows with `useAutoFeed()` from `packages/editor/src/editor/use-auto-feed.ts`. Give it the key from `pageFeedKey()` and the address `/api/pages/<kind>`.
   2. Add a branch for the new block type to `requestForBlock()` in `packages/editor/src/editor/page-feeds.ts`, returning the same key. It returns nothing for a type it doesn't know, so without the branch the website never asks for the block's rows.
@@ -142,6 +148,50 @@ What the tests enforce:
 - On the website, `fixture.test.tsx` fails if the fixture has no example of a block.
 
 Then add the block to a page in your local admin and check how it looks there and on your local website.
+
+## Change what the Rich text block can hold
+
+A text block's body is HTML, and one allowlist decides which tags and attributes it keeps. To add a tag, an attribute or a text colour, change these files in order. Paths are under `packages/editor/src` unless they start with `packages/`.
+
+1. `lib/rich-allowlist.ts`. Add a tag to `BODY_TAGS`, or an attribute with a rule for its value to `BODY_ATTRIBUTE_RULES`. The browser sanitiser (`lib/sanitize.ts`), the server sanitiser (`editor/sanitize-doc.ts`) and `scanBody` (`editor/body-scan.ts`) all read this file, so they keep the same things. `lib/rich-allowlist.test.ts` runs every case through both sanitisers and expects the same answer from each.
+2. The Plate plugin, in `blocks/text/rich/plugins.ts` (the plugins without React, which turn HTML into a Plate value and back) and `blocks/text/rich/react-plugins.tsx` (the same plugins with their components, for the field).
+3. The serializer, `valueToHtml` in `blocks/text/rich/html.ts`. It writes one canonical form for each body. That form must be a fixed point, so `valueToHtml(htmlToValue(html))` gives back `html`, and `scanBody` must read it as `canonical`. `blocks/text/rich/fixed-point.test.ts` checks both on 2,000 random values, and that the server sanitiser leaves them unchanged. Teach its random values the new feature, and add the feature to the list in "the random values hold every feature the serializer writes".
+4. The paste cleaner, `blocks/text/rich/paste.ts`, if the feature can come from the clipboard. `rich/paste.test.ts` runs it on copies from Word, Google Docs and web pages in `rich/fixtures/`.
+5. How it looks. On the website: `blocks/text/render-classes.ts` and `packages/ui/styles/globals.css`. In the panel and on the canvas: the `.pe-rt-field` rules in `theme/editor.css`. For a colour, also add the token to `packages/shared/utils/text-colour-tokens.ts`, its label and swatch to `packages/shared/utils/text-colours.ts`, and its `--ink-*` variables to `packages/ui/styles/biso-surface.css`, for light sections and for dark ones. A new hue also needs an entry in `TEXT_HUES` and a dark-section shade worked out in `themeTokens`, both in `packages/shared/utils/page-theme.ts`.
+6. The copilot's instructions, `ai/prompt.ts`. `ai/prompt.test.ts` fails if the prompt leaves out a tag in `BODY_TAGS` or a colour token. It doesn't check attributes, so check the prompt describes a new one.
+
+Check:
+
+```bash
+bun run test --filter=@repo/editor
+bun run check-types --filter=@repo/editor
+```
+
+Then build the website and check that Plate stayed out of the public renderer's code. `richPaste` is the paste cleaner's plugin key, and `type-display-sm break-words hyphens-auto` is the class of a heading in an old array body (`ITEM_CLASS` in `blocks/text/render.tsx`), which the public renderer holds and the Plate code doesn't:
+
+```bash
+bun run build --filter=web
+comm -12 <(grep -rl "richPaste" apps/web/.next/static/chunks | sort) <(grep -rl "type-display-sm break-words hyphens-auto" apps/web/.next/static/chunks | sort)
+grep -rl "richPaste" apps/web/.next/static/chunks | wc -l
+```
+
+The `comm` line must print nothing, and the count must be at least 1. For a colour, also check that its rule reached the website's CSS: `grep -rlE 'data-color=("|)accent' apps/web/.next/static/css | wc -l`, with your token in place of `accent`, must print at least 1.
+
+### The body's two shapes
+
+- `TextBlock.body` in `editor/types.ts` is a sanitised HTML string, or a legacy `TextBodyItem[]` array from before the Rich text field. A legacy array still renders with its old markup and is never migrated in bulk. `bodyToHtml` in `blocks/text/body.ts` reads either shape as HTML.
+- The editor writes HTML the first time someone edits a block, in the panel or on the canvas. A new block (`emptyBlock("text")` in `editor/operations.ts`), the starting layouts for unit and project pages (`text()` in `editor/templates.ts`) and the copilot (`set_prop` with the path `body`) write HTML too.
+- `packages/wp-import` writes no page text blocks. It imports vacancies, products and orders, not pages.
+
+### How the server cleans a body
+
+`sanitizeRichBodyHtml` in `editor/sanitize-doc.ts` cleans each string body. sanitize-html's parser takes time that grows with the square of the nesting depth, so the function first asks `scanBody` (`editor/body-scan.ts`) whether the body is in the grammar the editor writes. The scan is one pass with no parser, so it takes time in step with the body's length. It answers one of three things:
+
+- `canonical`: in the grammar and at most 100 levels deep. sanitize-html parses it whatever its length, since its depth is known. Every body the editor writes is canonical.
+- `too-deep`: in the grammar but deeper than 100 levels. Its markup is never parsed: its text is kept as plain paragraphs, one per line, and its formatting goes.
+- `other`: anything else, such as hand-written HTML. Up to 10,000 tags, sanitize-html parses it with a `nestingLimit` of 100, which drops the tags deeper than that and keeps their text. With more than 10,000 tags it becomes text paragraphs too.
+
+The browser sanitiser has none of these limits, because a browser parses deep markup in linear time. What's stored is the server's output, so the server's rules are the ones that count. That's why the serializer must stay canonical: otherwise a long body the editor wrote, over 10,000 tags, would lose its formatting on save.
 
 ## Add a table or column
 

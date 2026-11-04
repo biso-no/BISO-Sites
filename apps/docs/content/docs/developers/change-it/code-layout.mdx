@@ -12,6 +12,9 @@ covers:
   - packages/*/package.json
   - functions/*/package.json
   - packages/api/server.ts
+  - packages/editor/src/blocks/text/lazy-field.ts
+  - packages/editor/src/blocks/text/canonical-body.ts
+  - packages/editor/src/blocks/text/rich-confinement.test.ts
 ---
 
 Read this to find your way around the repo before you change anything, and come back to it when a Turbo task behaves oddly. BISO-Sites is one Bun workspace with four Next.js apps, eleven shared packages and three Appwrite functions. Turbo runs their scripts. The BISO app lives in a separate repo, BISO-Flutter.
@@ -36,7 +39,7 @@ All four build with `output: "standalone"`, traced from the repo root. [Deployin
 | Package | Folder | What it holds |
 |---|---|---|
 | `@repo/api` | `packages/api` | All Appwrite access: the server and browser clients, the page editor's draft and publish flow, the schema (`appwrite.config.json`) and the generated row types. See [Data model](/developers/change-it/data-model). |
-| `@repo/editor` | `packages/editor` | The in-house block page editor and the renderer the website uses. |
+| `@repo/editor` | `packages/editor` | The in-house block page editor and the renderer the website uses. The Rich text block's field is built on Plate.js. |
 | `@repo/shared` | `packages/shared` | Logic more than one app needs: membership, ledger postings to 24SevenOffice, team roles, unit visibility, the member pass and recruitment. |
 | `@repo/ui` | `packages/ui` | Shared React components (Radix, Tailwind, Plate.js editor kits) and the shared CSS. |
 | `@repo/connectors` | `packages/connectors` | Outside services: Microsoft Graph and BI's directory, 24SevenOffice, SharePoint, the Teams bot, Tickster and email. |
@@ -86,6 +89,7 @@ The table in the root `CLAUDE.md` leaves out `@repo/tours`, `@repo/wp-import` an
 | Admin roles and menu access (`NAV_ACCESS`) | `apps/admin/src/lib/roles.ts`, `apps/admin/src/lib/authorization.ts`. The team-id rules the admin and the API share are in `packages/shared/utils/team-roles.ts`. |
 | The Microsoft group sync | `apps/admin/src/lib/m365-sync.ts` |
 | The page editor | `apps/admin/src/app/(editor)` for the screen, `packages/editor/src` for the editor, `packages/editor/src/blocks` for the blocks |
+| The Rich text block | `packages/editor/src/blocks/text/`: the render, the inspector, the body shapes in `body.ts` and **Expand**'s wide view in `expand.tsx`. The Plate field is in `blocks/text/rich/`: HTML in and out in `html.ts`, paste in `paste.ts`, the tables, the toolbar and the selection bubble. |
 | Website pages | `apps/web/src/app/(public)`, `(protected)` and `(auth)` |
 | Website server actions | `apps/web/src/app/actions/` and `apps/web/src/lib/actions/` |
 | Website cached data readers | `apps/web/src/lib/data/` |
@@ -107,4 +111,5 @@ The table in the root `CLAUDE.md` leaves out `@repo/tours`, `@repo/wp-import` an
 - **A `"use server"` file may export only async functions.** Exporting a constant or a plain function breaks the build, and `check-types` doesn't notice. Put shared constants and helpers in a plain module.
 - **The website's cached readers throw.** A function marked `"use cache"` in `apps/web/src/lib/data/` must throw on failure, never return an empty list. A caught failure inside it would be cached for the whole cache window. Handle the error where you call it.
 - **Biome is the formatter and linter.** `biome.jsonc` extends Ultracite's presets and relaxes a few rules: barrel files are allowed, and namespace imports, `any` and unused variables are warnings, not errors. [Local setup](/developers/change-it/local-setup#lint-and-format) says how to run it.
+- **Plate stays in `blocks/text/rich/`.** No file in `packages/editor/src` outside that folder imports `platejs`, `@platejs/*` or anything in `rich/` with a static import. Type-only imports are fine. `blocks/text/lazy-field.ts` and `blocks/text/canonical-body.ts` reach in with a dynamic `import()`, so only edit mode loads Plate, and the website never does. `blocks/text/rich-confinement.test.ts` fails when any other file imports them statically.
 - **Update the docs with the code.** When you change code, update the docs page whose `covers` matches it, or add one. `apps/docs/CLAUDE.md` has the rules.
