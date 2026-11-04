@@ -443,6 +443,8 @@ but those exact numbers are not.
 - Undo ruling: if another block changes (the copilot or the other surface) between typing in a field and an undo in that field, the later step into page undo can bring the typing back. A fix needs one shared undo history for fields and the page, which would lose the caret-preserving field undo. Cost: confusing undo in that rare sequence.
 - A whole-value delete over select-all only happens when the paste brings something to insert; a fragment with no text, table or divider is not inserted, so an image-only paste keeps the text. An image-only paste over a partial selection still deletes the selected words, as before. Cost: none known.
 - Typing over select-all keeps the first block's type, and a direct code-level insert over a forward select-all that opens with a table still lands after the table (real pastes are fixed). A divider counts as a neighbouring line. Cost: small oddities in rarely used paths.
+- A nested link inside a linked table loses the first cell's text. This is a parser limitation that this work did not change. Cost: a rare table loses a cell's text.
+- When a whole-value replace happens over a void first block (a divider), the holder line is a plain paragraph. Cost: none known.
 - A single numbered chunk that does not continue a list must start at 1 to become a list. Cost: a line like "17. mai" no longer turns into a list, but a pasted list starting at another number stays plain text.
 - Enter also opens a line between two touching tables. Cost: an extra empty line between tables.
 - Templates escape text inside `text()`; callers no longer escape. Cost: a caller that still escapes would show double escaping.
@@ -465,10 +467,10 @@ but those exact numbers are not.
 
 ### Verification (2026-11-04)
 
-- Lint: `bun x ultracite fix` then `check` on the 24 branch files since Stage 3 began, clean, no fixes.
+- Lint: `bun x ultracite fix` then `check` on the whole branch (95 changed files of type ts, tsx, js, jsx, json or css; Biome checked 93 and ignored 2), clean, no fixes applied.
 - Forced `bun run check-types`: 18 of 18 successful, 0 cached.
 - Editor tests: 1800 pass, 0 fail, 131 files (Stage 3 baseline 1746 at the start of the plan).
-- Shared: 1205 pass. Web `styles.test.ts`: 38 pass. Docs: 347 pass, docs check-types clean.
+- Shared: 1205 pass. Web, full suite: 1336 pass in 137 files (includes `styles.test.ts`, 38). Docs: 347 pass, docs check-types clean.
 - Admin: `departments.test.ts` 33 pass, `content-translation-actions.test.ts` 13 pass, `src/lib` 848 pass and 1 fail (the known model-id mismatch).
 - Forced builds of admin, web and docs all exit 0.
 - Web chunk check: the paste code is in one chunk, the public renderer's class string is in a different one, and no file holds both. The built CSS has the colour rules in two files.

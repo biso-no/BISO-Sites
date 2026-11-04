@@ -14,7 +14,7 @@ browser. Use a test page.
    on Mac, Word on Windows (if you have it), Word on the web and Google Docs.
    You should see the headings, nested bullets, the numbering restart after the
    paragraph, the red word in the nearest swatch, the link, the table with its
-   header row and merged cell, and a short notice that the picture was left out.
+   header row and merged cell, and the notice "Images aren't pasted into text — use an Image block." for the picture.
 2. **Google Docs list-formatted heading.** It pastes as a list item, not a
    heading.
 3. **Bubble and link input.** Select a word, check the bubble appears, press
