@@ -588,27 +588,44 @@ export function UserDetailClient({
     });
   }
 
-  function handleRemoveAlias(address: string) {
-    const displayAddress = address.replace(SMTP_PREFIX_REGEX, "");
+  /**
+   * Asks first, then runs a Microsoft 365 action: a refusal is toasted, and
+   * anything else goes to `onDone` with the action's data.
+   */
+  function confirmThenRun<T>(
+    dialog: { danger?: boolean; description: string; title: string },
+    action: () => Promise<{ data?: T; error?: string }>,
+    onDone: (data: T | undefined) => void
+  ) {
     setConfirmDialog({
-      title: labels.confirmRemoveAliasTitle,
-      description: `${labels.confirmRemoveAliasDesc} "${displayAddress}"`,
-      danger: true,
+      ...dialog,
       onConfirm: () => {
         startTransition(async () => {
-          const result = await removeM365UserAlias({
-            userId: user.id,
-            alias: address,
-          });
+          const result = await action();
           if (result.error) {
             toast.error(result.error);
             return;
           }
-          toast.success(labels.aliasRemoved);
-          router.refresh();
+          onDone(result.data);
         });
       },
     });
+  }
+
+  function handleRemoveAlias(address: string) {
+    const displayAddress = address.replace(SMTP_PREFIX_REGEX, "");
+    confirmThenRun(
+      {
+        danger: true,
+        description: `${labels.confirmRemoveAliasDesc} "${displayAddress}"`,
+        title: labels.confirmRemoveAliasTitle,
+      },
+      () => removeM365UserAlias({ userId: user.id, alias: address }),
+      () => {
+        toast.success(labels.aliasRemoved);
+        router.refresh();
+      }
+    );
   }
 
   function handleReplacementAliasChange(value: string) {
@@ -680,46 +697,35 @@ export function UserDetailClient({
   }
 
   function handleSelectManager(candidate: M365UserListItem) {
-    setConfirmDialog({
-      title: labels.confirmChangeManagerTitle,
-      description: `${labels.confirmChangeManagerDesc} → ${candidate.displayName} (${candidate.userPrincipalName})`,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await updateM365UserManager({
-            userId: user.id,
-            managerId: candidate.id,
-          });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.managerAssigned);
-          setShowManagerSearch(false);
-          setManagerSearch("");
-          setManagerResults([]);
-          router.refresh();
-        });
+    confirmThenRun(
+      {
+        description: `${labels.confirmChangeManagerDesc} → ${candidate.displayName} (${candidate.userPrincipalName})`,
+        title: labels.confirmChangeManagerTitle,
       },
-    });
+      () => updateM365UserManager({ userId: user.id, managerId: candidate.id }),
+      () => {
+        toast.success(labels.managerAssigned);
+        setShowManagerSearch(false);
+        setManagerSearch("");
+        setManagerResults([]);
+        router.refresh();
+      }
+    );
   }
 
   function handleRemoveManager() {
-    setConfirmDialog({
-      title: labels.confirmRemoveManagerTitle,
-      description: labels.confirmRemoveManagerDesc,
-      danger: true,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await removeM365UserManager({ userId: user.id });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.managerRemoved);
-          router.refresh();
-        });
+    confirmThenRun(
+      {
+        danger: true,
+        description: labels.confirmRemoveManagerDesc,
+        title: labels.confirmRemoveManagerTitle,
       },
-    });
+      () => removeM365UserManager({ userId: user.id }),
+      () => {
+        toast.success(labels.managerRemoved);
+        router.refresh();
+      }
+    );
   }
 
   function handleGroupSearch(query: string) {
@@ -738,176 +744,126 @@ export function UserDetailClient({
   }
 
   function handleAddToGroup(group: M365UserGroup) {
-    setConfirmDialog({
-      title: labels.confirmAddToGroupTitle,
-      description: `${labels.confirmAddToGroupDesc} — ${group.displayName}`,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await addM365UserToGroup({
-            userId: user.id,
-            groupId: group.id,
-          });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.groupAdded);
-          setShowGroupSearch(false);
-          setGroupSearch("");
-          setGroupResults([]);
-          router.refresh();
-        });
+    confirmThenRun(
+      {
+        description: `${labels.confirmAddToGroupDesc} — ${group.displayName}`,
+        title: labels.confirmAddToGroupTitle,
       },
-    });
+      () => addM365UserToGroup({ userId: user.id, groupId: group.id }),
+      () => {
+        toast.success(labels.groupAdded);
+        setShowGroupSearch(false);
+        setGroupSearch("");
+        setGroupResults([]);
+        router.refresh();
+      }
+    );
   }
 
   function handleRemoveFromGroup(group: M365UserGroup) {
-    setConfirmDialog({
-      title: labels.confirmRemoveFromGroupTitle,
-      description: `${labels.confirmRemoveFromGroupDesc} — ${group.displayName}`,
-      danger: true,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await removeM365UserFromGroup({
-            userId: user.id,
-            groupId: group.id,
-          });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.groupRemoved);
-          router.refresh();
-        });
+    confirmThenRun(
+      {
+        danger: true,
+        description: `${labels.confirmRemoveFromGroupDesc} — ${group.displayName}`,
+        title: labels.confirmRemoveFromGroupTitle,
       },
-    });
+      () => removeM365UserFromGroup({ userId: user.id, groupId: group.id }),
+      () => {
+        toast.success(labels.groupRemoved);
+        router.refresh();
+      }
+    );
   }
 
   function handleAssignLicense(sku: M365SubscribedSku) {
-    setConfirmDialog({
-      title: labels.confirmAssignLicenseTitle,
-      description: `${labels.confirmAssignLicenseDesc} — ${sku.skuPartNumber}`,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await assignM365License({
-            userId: user.id,
-            skuId: sku.skuId,
-          });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.licenseAssigned);
-          setShowLicenseAssign(false);
-          router.refresh();
-        });
+    confirmThenRun(
+      {
+        description: `${labels.confirmAssignLicenseDesc} — ${sku.skuPartNumber}`,
+        title: labels.confirmAssignLicenseTitle,
       },
-    });
+      () => assignM365License({ userId: user.id, skuId: sku.skuId }),
+      () => {
+        toast.success(labels.licenseAssigned);
+        setShowLicenseAssign(false);
+        router.refresh();
+      }
+    );
   }
 
   function handleRemoveLicense(license: M365UserLicenseDetail) {
-    setConfirmDialog({
-      title: labels.confirmRemoveLicenseTitle,
-      description: `${labels.confirmRemoveLicenseDesc} — ${license.skuPartNumber ?? license.skuId}`,
-      danger: true,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await removeM365License({
-            userId: user.id,
-            skuId: license.skuId,
-          });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.licenseRemoved);
-          router.refresh();
-        });
+    confirmThenRun(
+      {
+        danger: true,
+        description: `${labels.confirmRemoveLicenseDesc} — ${license.skuPartNumber ?? license.skuId}`,
+        title: labels.confirmRemoveLicenseTitle,
       },
-    });
+      () => removeM365License({ userId: user.id, skuId: license.skuId }),
+      () => {
+        toast.success(labels.licenseRemoved);
+        router.refresh();
+      }
+    );
   }
 
   function handleResetMfa() {
-    setConfirmDialog({
-      title: labels.confirmResetMfaTitle,
-      description: labels.confirmResetMfaDesc,
-      danger: true,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await resetM365Mfa({ userId: user.id });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          // A reset is per-method: report what is still registered rather than
-          // claiming a clean wipe.
-          const failures = result.data?.failures ?? [];
-          if (failures.length > 0) {
-            toast.error(`${labels.mfaResetPartial}: ${failures.join(" · ")}`);
-          } else {
-            toast.success(labels.mfaReset);
-          }
-          router.refresh();
-        });
+    confirmThenRun(
+      {
+        danger: true,
+        description: labels.confirmResetMfaDesc,
+        title: labels.confirmResetMfaTitle,
       },
-    });
+      () => resetM365Mfa({ userId: user.id }),
+      (data) => {
+        // A reset is per-method: report what is still registered rather than
+        // claiming a clean wipe.
+        const failures = data?.failures ?? [];
+        if (failures.length > 0) {
+          toast.error(`${labels.mfaResetPartial}: ${failures.join(" · ")}`);
+        } else {
+          toast.success(labels.mfaReset);
+        }
+        router.refresh();
+      }
+    );
   }
 
   function handleForcePasswordReset() {
-    setConfirmDialog({
-      title: labels.confirmForcePasswordResetTitle,
-      description: labels.confirmForcePasswordResetDesc,
-      danger: true,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await forcePasswordResetNextSignIn({
-            userId: user.id,
-          });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.passwordForcedReset);
-        });
+    confirmThenRun(
+      {
+        danger: true,
+        description: labels.confirmForcePasswordResetDesc,
+        title: labels.confirmForcePasswordResetTitle,
       },
-    });
+      () => forcePasswordResetNextSignIn({ userId: user.id }),
+      () => toast.success(labels.passwordForcedReset)
+    );
   }
 
   function handleResetPassword() {
-    setConfirmDialog({
-      title: labels.confirmResetPasswordTitle,
-      description: labels.confirmResetPasswordDesc,
-      danger: true,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await resetM365Password({ userId: user.id });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          setTempPassword(result.data?.temporaryPassword ?? "");
-          toast.success(labels.passwordReset);
-        });
+    confirmThenRun(
+      {
+        danger: true,
+        description: labels.confirmResetPasswordDesc,
+        title: labels.confirmResetPasswordTitle,
       },
-    });
+      () => resetM365Password({ userId: user.id }),
+      (data) => {
+        setTempPassword(data?.temporaryPassword ?? "");
+        toast.success(labels.passwordReset);
+      }
+    );
   }
 
   function handleRevokeSessions() {
-    setConfirmDialog({
-      title: labels.confirmRevokeSessionsTitle,
-      description: labels.confirmRevokeSessionsDesc,
-      danger: true,
-      onConfirm: () => {
-        startTransition(async () => {
-          const result = await revokeM365SignInSessions({ userId: user.id });
-          if (result.error) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success(labels.sessionsRevoked);
-        });
+    confirmThenRun(
+      {
+        danger: true,
+        description: labels.confirmRevokeSessionsDesc,
+        title: labels.confirmRevokeSessionsTitle,
       },
-    });
+      () => revokeM365SignInSessions({ userId: user.id }),
+      () => toast.success(labels.sessionsRevoked)
+    );
   }
 
   return (
