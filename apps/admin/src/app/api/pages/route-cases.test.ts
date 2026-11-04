@@ -7,7 +7,11 @@ import { spawn } from "bun";
  * without `createPublicClient`, so each route's cases run in their own
  * `bun test` process.
  */
-const CASE_FILES = ["board/route.cases.ts", "products/route.cases.ts"] as const;
+const CASE_FILES = [
+  "board/route.cases.ts",
+  "feed-routes.cases.ts",
+  "products/route.cases.ts",
+] as const;
 
 for (const caseFile of CASE_FILES) {
   test(`isolated feed route cases: ${caseFile}`, async () => {
