@@ -1,6 +1,1 @@
-export {
-  DEFAULT_LOCALE,
-  isLocale,
-  type Locale,
-  SUPPORTED_LOCALES,
-} from "@repo/i18n/config";
+export { DEFAULT_LOCALE, isLocale, type Locale } from "@repo/i18n/config";
