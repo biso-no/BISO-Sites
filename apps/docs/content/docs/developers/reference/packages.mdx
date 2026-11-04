@@ -29,7 +29,7 @@ Read this before you change a shared package, or before you import something new
 | [`@repo/editor`](#repoeditor) | The block page editor and the renderer for built pages | admin, web |
 | [`@repo/ui`](#repoui) | Shared React components and CSS | web, admin, docs, `@repo/tours` |
 | [`@repo/connectors`](#repoconnectors) | Clients for Microsoft, 24SevenOffice, SharePoint, the Teams bot, Tickster and SMTP | admin, api, web, member-roster-sync, `@repo/shared` |
-| [`@repo/payment`](#repopayment) | Vipps MobilePay and Stripe | api, admin, and one deprecated web route |
+| [`@repo/payment`](#repopayment) | Vipps MobilePay and Stripe | api, admin |
 | [`@repo/ai`](#repoai) | The Anthropic models, the admin assistant and the AI helpers | admin, api, web, docs, `@repo/i18n`'s translation script |
 | [`@repo/i18n`](#repoi18n) | Locales and the Norwegian and English message files | web, admin, api |
 | [`@repo/tours`](#repotours) | The engine for the admin's guided tours | admin |
@@ -189,7 +189,7 @@ Vipps MobilePay and Stripe: checkout, payment updates, refunds, reconciliation o
 | `@repo/payment/refunds` | `refundPayment()` and `cancelPayment()`, which call the right provider |
 | `@repo/payment/reconcile` | Re-checks pending orders with the provider |
 
-The api uses it for every checkout, callback, return and reconciliation. The admin uses it for refunds and the payment settings page. The website imports it only in its deprecated `/api/cron/reconcile-orders` route.
+The api uses it for every checkout, callback, return and reconciliation. The admin uses it for refunds and the payment settings page. The website doesn't use it.
 
 **Sharp edges**
 
