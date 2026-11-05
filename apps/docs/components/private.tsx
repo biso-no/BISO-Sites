@@ -5,7 +5,7 @@ import { signInHref } from "@/lib/auth/sign-in-link";
 import { type PrivateResult, requestPrivate } from "@/lib/private/batcher";
 import type { PrivateName } from "@/lib/private/registry";
 
-export const PRIVATE_MESSAGES = {
+const PRIVATE_MESSAGES = {
   "signed-out": "Sign in with your BISO admin account to see this.",
   forbidden: "Your account doesn't have access to this.",
   unavailable: "This couldn't be loaded right now. Try again later.",
