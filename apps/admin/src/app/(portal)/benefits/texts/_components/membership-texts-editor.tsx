@@ -21,17 +21,6 @@ import {
   MEMBERSHIP_TEXT_MAX_ITEMS,
   MEMBERSHIP_TEXT_SPOT_META,
 } from "@repo/shared/utils/membership-texts";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@repo/ui/components/ui/alert-dialog";
 import { Input } from "@repo/ui/components/ui/input";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { ExternalLink, Loader2 } from "lucide-react";
@@ -46,6 +35,7 @@ import {
   StudioButton,
   studioSurface,
 } from "../../../_components/studio";
+import { BoardConfirmDialog } from "../../_components/board-confirm-dialog";
 import { DragHandle, useBoardSortable } from "../../_components/board-sortable";
 import { PANEL_ERROR_COLOR } from "../../_components/panel-fields";
 import { BOARD_FOCUS_RING } from "../../_lib/board-styles";
@@ -353,52 +343,21 @@ function ResetDialog({
 }) {
   const t = useTranslations("adminPortal.benefits.texts");
   return (
-    <AlertDialog onOpenChange={onOpenChange} open={open}>
-      <AlertDialogTrigger asChild>
+    <BoardConfirmDialog
+      body={t("resetBody")}
+      cancelLabel={t("cancel")}
+      confirmLabel={t("reset")}
+      onConfirm={onConfirm}
+      onOpenChange={onOpenChange}
+      open={open}
+      pending={pending}
+      title={t("resetTitle", { label })}
+      trigger={
         <StudioButton className={BOARD_FOCUS_RING} variant="ghost">
           {t("reset")}
         </StudioButton>
-      </AlertDialogTrigger>
-      <AlertDialogContent
-        className="border-[#e5dcca] bg-[#fffdf8] sm:rounded-2xl"
-        style={{ color: STUDIO.ink }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle
-            className="break-words font-normal text-[26px] leading-tight"
-            style={{ fontFamily: SERIF_STACK }}
-          >
-            {t("resetTitle", { label })}
-          </AlertDialogTitle>
-          <AlertDialogDescription
-            className="text-sm leading-6"
-            style={{ color: STUDIO.ink2 }}
-          >
-            {t("resetBody")}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="gap-2">
-          <AlertDialogCancel className={BOARD_FOCUS_RING} disabled={pending}>
-            {t("cancel")}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            className={`gap-2 hover:opacity-90 ${BOARD_FOCUS_RING}`}
-            disabled={pending}
-            onClick={(event) => {
-              // Stay open until the reset has finished.
-              event.preventDefault();
-              onConfirm();
-            }}
-            style={{ background: PANEL_ERROR_COLOR, color: "#fff" }}
-          >
-            {pending ? (
-              <Loader2 aria-hidden className="animate-spin" size={14} />
-            ) : null}
-            {t("reset")}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      }
+    />
   );
 }
 
