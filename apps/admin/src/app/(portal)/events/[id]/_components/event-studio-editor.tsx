@@ -81,7 +81,12 @@ import {
   studioCoverBackground,
   studioCoverPatternIndex,
 } from "../../../_components/studio";
-import { StepIntro } from "../../../communications/_components/composer/ui";
+import {
+  FieldLabel,
+  LocaleTabs,
+  StepIntro,
+  StepRail,
+} from "../../../communications/_components/composer/ui";
 import { describePushAudience } from "./event-studio-push";
 import {
   memberPriceProblem,
@@ -179,6 +184,9 @@ const MEMBER_POPULATION = 4217;
 const STUDENT_POPULATION = 6840;
 
 type LocaleCode = "en" | "no";
+
+/** The event studio leads with English; the composer's tabs default to Norwegian. */
+const LOCALE_TAB_ORDER: readonly LocaleCode[] = ["en", "no"];
 
 interface EventStudioEditorProps {
   allowedDepartmentIds?: string[];
@@ -378,223 +386,9 @@ function buildDefaultValues(
 /*                                   StepRail                                 */
 /* -------------------------------------------------------------------------- */
 
-function pickStepColor(
-  active: boolean,
-  done: boolean,
-  variants: { active: string; done: string; idle: string }
-) {
-  if (active) {
-    return variants.active;
-  }
-  if (done) {
-    return variants.done;
-  }
-  return variants.idle;
-}
-
-function StepRail({
-  dirty,
-  setStep,
-  step,
-}: {
-  dirty: boolean;
-  setStep: (step: StepIndex) => void;
-  step: StepIndex;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        backdropFilter: "blur(14px)",
-        background: "rgba(250,247,242,.92)",
-        borderBottom: `0.5px solid ${BRAND.rule}`,
-        display: "flex",
-        gap: 6,
-        padding: "14px 36px",
-        position: "sticky",
-        top: 0,
-        WebkitBackdropFilter: "blur(14px)",
-        zIndex: 10,
-      }}
-    >
-      {STEPS.map((name, index) => {
-        const active = index === step;
-        const done = index < step;
-        const pillColor = pickStepColor(active, done, {
-          active: BRAND.paper,
-          done: BRAND.leaf,
-          idle: BRAND.ink3,
-        });
-        const numBg = pickStepColor(active, done, {
-          active: BRAND.paper,
-          done: BRAND.leaf,
-          idle: "white",
-        });
-        const numBorder = pickStepColor(active, done, {
-          active: "0.5px solid transparent",
-          done: `0.5px solid ${BRAND.leaf}`,
-          idle: `0.5px solid ${BRAND.rule2}`,
-        });
-        const numColor = pickStepColor(active, done, {
-          active: BRAND.ink,
-          done: "white",
-          idle: BRAND.ink3,
-        });
-        return (
-          <div key={name} style={{ alignItems: "center", display: "flex" }}>
-            {index > 0 && (
-              <div
-                style={{
-                  background: BRAND.rule2,
-                  height: "0.5px",
-                  margin: "0 -2px",
-                  maxWidth: 36,
-                  width: 36,
-                }}
-              />
-            )}
-            <button
-              onClick={() => setStep(index as StepIndex)}
-              style={{
-                alignItems: "center",
-                background: active ? BRAND.ink : "transparent",
-                border: 0,
-                borderRadius: 999,
-                color: pillColor,
-                cursor: "pointer",
-                display: "flex",
-                fontSize: 12.5,
-                gap: 9,
-                padding: "6px 14px 6px 6px",
-                transition: "color .15s, background .15s",
-              }}
-              type="button"
-            >
-              <span
-                style={{
-                  alignItems: "center",
-                  background: numBg,
-                  borderRadius: "50%",
-                  border: numBorder,
-                  color: numColor,
-                  display: "grid",
-                  fontFamily: "ui-monospace, Menlo, Monaco, monospace",
-                  fontSize: 10.5,
-                  height: 22,
-                  justifyItems: "center",
-                  placeItems: "center",
-                  width: 22,
-                }}
-              >
-                {done ? (
-                  <Check size={11} />
-                ) : (
-                  String(index + 1).padStart(2, "0")
-                )}
-              </span>
-              <span>{name}</span>
-            </button>
-          </div>
-        );
-      })}
-      <div
-        style={{
-          alignItems: "center",
-          display: "flex",
-          gap: 10,
-          marginLeft: "auto",
-        }}
-      >
-        {dirty && (
-          <span
-            style={{
-              alignItems: "center",
-              color: BRAND.ink3,
-              display: "flex",
-              fontSize: 11.5,
-              gap: 5,
-            }}
-          >
-            <span
-              style={{
-                background: BRAND.gold,
-                borderRadius: "50%",
-                height: 5,
-                width: 5,
-              }}
-            />
-            Unsaved
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*                                LocaleTabs                                  */
 /* -------------------------------------------------------------------------- */
-
-function LocaleTabs({
-  locale,
-  setLocale,
-  pendingNo,
-}: {
-  locale: LocaleCode;
-  setLocale: (locale: LocaleCode) => void;
-  pendingNo: boolean;
-}) {
-  return (
-    <div
-      style={{
-        background: BRAND.paper2,
-        border: `0.5px solid ${BRAND.rule2}`,
-        borderRadius: 8,
-        display: "inline-flex",
-        gap: 2,
-        marginBottom: 8,
-        padding: 3,
-      }}
-    >
-      {(["en", "no"] as const).map((item) => {
-        const on = locale === item;
-        return (
-          <button
-            key={item}
-            onClick={() => setLocale(item)}
-            style={{
-              alignItems: "center",
-              background: on ? "white" : "transparent",
-              border: 0,
-              borderRadius: 5,
-              boxShadow: on ? "0 1px 2px rgba(0,0,0,.05)" : "none",
-              color: on ? BRAND.ink : BRAND.ink3,
-              cursor: "pointer",
-              display: "flex",
-              fontSize: 11,
-              gap: 6,
-              padding: "4px 12px",
-            }}
-            type="button"
-          >
-            {item === "en" ? "English" : "Norsk"}
-            {item === "no" && pendingNo && (
-              <span
-                style={{
-                  background: BRAND.gold,
-                  borderRadius: "50%",
-                  height: 5,
-                  width: 5,
-                }}
-                title="Not yet filled"
-              />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function addBtnStyle(): React.CSSProperties {
   return {
@@ -630,50 +424,6 @@ function fieldInputStyle(extra?: React.CSSProperties): React.CSSProperties {
     width: "100%",
     ...extra,
   };
-}
-
-function FieldLabel({
-  children,
-  help,
-  required,
-}: {
-  children: React.ReactNode;
-  help?: string;
-  required?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        color: BRAND.ink3,
-        display: "flex",
-        fontSize: 11.5,
-        fontWeight: 500,
-        gap: 8,
-        letterSpacing: ".04em",
-        textTransform: "uppercase",
-      }}
-    >
-      {children}
-      {required && (
-        <span style={{ color: BRAND.claret, fontSize: 10 }}>required</span>
-      )}
-      {help && (
-        <span
-          style={{
-            color: BRAND.ink4,
-            fontSize: 10.5,
-            fontWeight: 400,
-            letterSpacing: 0,
-            marginLeft: "auto",
-            textTransform: "none",
-          }}
-        >
-          {help}
-        </span>
-      )}
-    </div>
-  );
 }
 
 function ToggleCard({
@@ -918,6 +668,7 @@ function EssentialsStep({
       <div style={{ padding: "8px 0 24px", position: "relative" }}>
         <LocaleTabs
           locale={locale}
+          order={LOCALE_TAB_ORDER}
           pendingNo={!values.title_no?.trim()}
           setLocale={setLocale}
         />
@@ -1201,6 +952,7 @@ export function EventDescriptionStep({
       <div style={{ padding: "8px 0 8px" }}>
         <LocaleTabs
           locale={locale}
+          order={LOCALE_TAB_ORDER}
           pendingNo={!values.title_no?.trim()}
           setLocale={setLocale}
         />
@@ -3897,7 +3649,7 @@ export function EventStudioEditor({
             position: "relative",
           }}
         >
-          <StepRail dirty={dirty} setStep={setStep} step={step} />
+          <StepRail dirty={dirty} setStep={setStep} step={step} steps={STEPS} />
           <div
             style={{
               margin: "0 auto",
