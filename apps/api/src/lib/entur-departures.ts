@@ -43,13 +43,13 @@ const STOP_DEPARTURES_QUERY = `
   }
 `;
 
-export interface EnturLine {
+interface EnturLine {
   id: string | null;
   name: string | null;
   transportMode: string | null;
 }
 
-export interface EstimatedCall {
+interface EstimatedCall {
   actualArrivalTime: string | null;
   actualDepartureTime: string | null;
   aimedArrivalTime: string | null;
@@ -74,7 +74,7 @@ export interface EstimatedCall {
   } | null;
 }
 
-export interface StopPlaceDepartures {
+interface StopPlaceDepartures {
   estimatedCalls: EstimatedCall[];
   id: string;
   name: string | null;

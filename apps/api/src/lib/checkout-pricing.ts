@@ -69,7 +69,7 @@ interface ProductVariation {
   price_modifier?: number;
 }
 
-export interface NormalizedProduct
+interface NormalizedProduct
   extends Omit<WebshopProducts, "custom_fields" | "variations"> {
   custom_fields: ProductCustomField[];
   metadata_parsed: Record<string, unknown>;
@@ -102,7 +102,7 @@ const ORDER_STATUS_FILTER = Query.or([
   Query.equal("status", "paid"),
 ]);
 
-export function getRequiredEnv(name: string): string {
+function getRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`${name} is not configured`);
@@ -139,7 +139,7 @@ async function ensureMemberOnlyAllowed(
 // Validate a single product line against current stock and purchase limits
 // BEFORE any order/payment session is created, so a direct POST with an
 // oversized quantity cannot oversell or bypass per-user limits. Fails closed.
-export async function ensureLineAvailability({
+async function ensureLineAvailability({
   product,
   requestedQuantity,
   userId,
@@ -254,10 +254,7 @@ const MAX_ITEM_TITLE_LENGTH = 300;
  * the length to keep it a safe display string, falling back to the canonical
  * product title when the client sends nothing usable.
  */
-export function sanitizeItemTitle(
-  raw: string | undefined,
-  fallback: string
-): string {
+function sanitizeItemTitle(raw: string | undefined, fallback: string): string {
   if (typeof raw !== "string") {
     return fallback;
   }
@@ -273,7 +270,7 @@ export function sanitizeItemTitle(
     : cleaned;
 }
 
-export function sanitizeCartItems(items: CheckoutLineItemInput[]) {
+function sanitizeCartItems(items: CheckoutLineItemInput[]) {
   return items
     .map((item) => ({
       ...item,
@@ -306,7 +303,7 @@ function productTitle(product: WebshopProducts) {
   return translation?.title ?? product.slug;
 }
 
-export async function loadProduct(
+async function loadProduct(
   productId: string,
   db: CheckoutDb,
   cache: Map<string, NormalizedProduct>
@@ -409,7 +406,7 @@ function isRowNotFound(error: unknown): boolean {
  *   propagates. The two callers then diverge as they should: the gate fails
  *   closed on it, while the member discount catches it and charges full price.
  */
-export function createMembershipResolver(
+function createMembershipResolver(
   authClient: AuthenticatedClient,
   userId: string
 ): () => Promise<boolean> {
