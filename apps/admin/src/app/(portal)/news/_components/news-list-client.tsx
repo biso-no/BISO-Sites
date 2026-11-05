@@ -1,39 +1,25 @@
 "use client";
 
 import type { ContentTranslations, News } from "@repo/api/types/appwrite";
-import { Newspaper, Pencil, Trash2 } from "lucide-react";
+import { Newspaper } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteNews } from "../../_actions/news";
 import { NEWS_PAGE_SIZE } from "../../_actions/schemas";
-import { EmptyState } from "../../_components/empty-state";
-import { PaginationBar } from "../../_components/pagination-bar";
-import { SearchToolbar } from "../../_components/search-toolbar";
-import { StatusBadge } from "../../_components/status-badge";
 import {
-  SERIF_STACK,
-  STUDIO,
-  StudioLinkButton,
-} from "../../_components/studio";
+  ContentList,
+  type ContentListLabels,
+} from "../../_components/content-list";
+import { StatusBadge } from "../../_components/status-badge";
+import { SERIF_STACK, STUDIO } from "../../_components/studio";
 
 type NewsWithTranslations = News & { translation_refs: ContentTranslations[] };
 
 interface NewsListClientProps {
   initialArticles: NewsWithTranslations[];
-  labels: {
-    empty: string;
-    emptyDescription: string;
-    searchPlaceholder: string;
-    all: string;
-    published: string;
-    draft: string;
-    edit: string;
-    delete: string;
-    deleteConfirm: string;
-  };
+  labels: ContentListLabels;
   page: number;
   total: number;
 }
@@ -44,20 +30,8 @@ export function NewsListClient({
   page,
   labels,
 }: NewsListClientProps) {
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
-    null
-  );
-  const [, startTransition] = useTransition();
   const locale = useLocale() === "no" ? "no" : "en";
   const t = useTranslations("adminPortal.news");
-
-  const filters = [
-    { label: labels.all, value: "all" },
-    { label: labels.published, value: "published" },
-    { label: labels.draft, value: "draft" },
-  ];
 
   function getTitle(a: NewsWithTranslations) {
     return (
@@ -82,151 +56,73 @@ export function NewsListClient({
     return null;
   }
 
-  const filtered = initialArticles.filter((a) => {
-    const title = getTitle(a);
-    return (
-      (!search || title.toLowerCase().includes(search.toLowerCase())) &&
-      (activeFilter === "all" || a.status === activeFilter)
-    );
-  });
-
-  function handleDelete(id: string) {
-    if (confirmingDeleteId !== id) {
-      setConfirmingDeleteId(id);
-      toast.message(labels.deleteConfirm);
-      return;
+  async function removeArticle(id: string): Promise<boolean> {
+    const result = await deleteNews(id);
+    if (result.error) {
+      toast.error(t("deleteError"));
+      return false;
     }
-    startTransition(async () => {
-      const result = await deleteNews(id);
-      if (result.error) {
-        toast.error(t("deleteError"));
-      } else {
-        toast.success(t("deleteSuccess"));
-        setConfirmingDeleteId(null);
-      }
-    });
-  }
-
-  if (initialArticles.length === 0 && page === 1) {
-    return (
-      <EmptyState
-        description={labels.emptyDescription}
-        icon={<Newspaper size={28} />}
-        title={labels.empty}
-      >
-        <StudioLinkButton href="/news/new" variant="primary">
-          {t("create")}
-        </StudioLinkButton>
-      </EmptyState>
-    );
+    toast.success(t("deleteSuccess"));
+    return true;
   }
 
   return (
-    <>
-      <SearchToolbar
-        activeFilter={activeFilter}
-        filters={filters}
-        onFilterChange={setActiveFilter}
-        onSearch={setSearch}
-        placeholder={labels.searchPlaceholder}
-      />
-      {filtered.length === 0 ? (
-        <EmptyState icon={<Newspaper size={28} />} title={t("noMatching")} />
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((article) => (
-            <div
-              className="group flex items-center gap-4 rounded-2xl border px-5 py-4 transition hover:bg-white/70"
-              key={article.$id}
-              style={{
-                background: "rgba(255,255,255,0.46)",
-                borderColor: STUDIO.rule,
-              }}
+    <ContentList
+      basePath="/news"
+      createLabel={t("create")}
+      deleteItem={removeArticle}
+      icon={Newspaper}
+      items={initialArticles}
+      labels={labels}
+      matches={(article, search) =>
+        getTitle(article).toLowerCase().includes(search.toLowerCase())
+      }
+      noMatchingTitle={t("noMatching")}
+      page={page}
+      pageSize={NEWS_PAGE_SIZE}
+      renderBody={(article) => (
+        <>
+          <div className="flex items-center gap-2">
+            <Link
+              className="truncate font-medium text-sm transition-colors hover:text-[#3DA9E0]"
+              href={`/news/${article.$id}`}
+              style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
             >
-              <div
-                className="relative h-12 w-16 shrink-0 overflow-hidden rounded-xl"
-                style={{ background: STUDIO.paper2 }}
-              >
-                {article.image ? (
-                  <Image
-                    alt=""
-                    className="object-cover"
-                    fill
-                    src={article.image}
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <Newspaper size={14} style={{ color: STUDIO.ink4 }} />
-                  </div>
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <Link
-                    className="truncate font-medium text-sm transition-colors hover:text-[#3DA9E0]"
-                    href={`/news/${article.$id}`}
-                    style={{ color: STUDIO.ink, fontFamily: SERIF_STACK }}
-                  >
-                    {getTitle(article)}
-                  </Link>
-                  <StatusBadge status={article.status} />
-                </div>
-                <div
-                  className="mt-1 flex items-center gap-3 text-xs"
-                  style={{ color: STUDIO.ink4 }}
-                >
-                  {article.author && <span>{article.author}</span>}
-                  {getCategory(article) && (
-                    <>
-                      <span>·</span>
-                      <span>{getCategory(article)}</span>
-                    </>
-                  )}
-                  <span>·</span>
-                  <span>
-                    {new Date(article.$updatedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                <Link
-                  className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  href={`/news/${article.$id}`}
-                  style={{
-                    background: STUDIO.paper2,
-                    color: STUDIO.ink3,
-                  }}
-                  title={labels.edit}
-                >
-                  <Pencil size={13} />
-                </Link>
-                <button
-                  className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  onClick={() => handleDelete(article.$id)}
-                  style={{
-                    background:
-                      confirmingDeleteId === article.$id
-                        ? STUDIO.claret
-                        : "rgba(107,30,30,0.08)",
-                    color:
-                      confirmingDeleteId === article.$id
-                        ? STUDIO.paper
-                        : STUDIO.claret,
-                  }}
-                  title={labels.delete}
-                  type="button"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
+              {getTitle(article)}
+            </Link>
+            <StatusBadge status={article.status} />
+          </div>
+          <div
+            className="mt-1 flex items-center gap-3 text-xs"
+            style={{ color: STUDIO.ink4 }}
+          >
+            {article.author && <span>{article.author}</span>}
+            {getCategory(article) && (
+              <>
+                <span>·</span>
+                <span>{getCategory(article)}</span>
+              </>
+            )}
+            <span>·</span>
+            <span>{new Date(article.$updatedAt).toLocaleDateString()}</span>
+          </div>
+        </>
+      )}
+      renderLead={(article) => (
+        <div
+          className="relative h-12 w-16 shrink-0 overflow-hidden rounded-xl"
+          style={{ background: STUDIO.paper2 }}
+        >
+          {article.image ? (
+            <Image alt="" className="object-cover" fill src={article.image} />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <Newspaper size={14} style={{ color: STUDIO.ink4 }} />
             </div>
-          ))}
+          )}
         </div>
       )}
-
-      <PaginationBar page={page} size={NEWS_PAGE_SIZE} total={total} />
-    </>
+      total={total}
+    />
   );
 }
