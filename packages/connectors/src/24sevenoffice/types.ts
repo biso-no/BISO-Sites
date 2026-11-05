@@ -148,16 +148,6 @@ export interface APIException {
   Type?: string;
 }
 
-// ============= Sync Results =============
-
-export interface MembershipSyncResult {
-  categoryAssigned?: string;
-  companyId?: number;
-  companyName?: string;
-  error?: string;
-  success: boolean;
-}
-
 export interface CustomerData {
   email?: string;
   firstName: string;

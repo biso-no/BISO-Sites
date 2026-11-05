@@ -41,14 +41,6 @@ export interface TicksterCrmPage {
   purchases: TicksterPurchase[];
 }
 
-/** Minimal Tickster event shape (from `GET /events/{id}`). */
-export interface TicksterEvent {
-  id: string;
-  name: string | null;
-  start: string | null;
-  venue: string | null;
-}
-
 /**
  * Maps a Tickster event id to the internal Appwrite event it should feed.
  * Supplied by configuration (env `TICKSTER_EVENT_MAP`) so a sync run knows which

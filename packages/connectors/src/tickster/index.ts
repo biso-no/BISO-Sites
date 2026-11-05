@@ -24,7 +24,6 @@ export type {
 } from "./events-types";
 export type {
   TicksterCrmPage,
-  TicksterEvent,
   TicksterEventMapping,
   TicksterPurchase,
 } from "./types";
