@@ -140,7 +140,7 @@ export function buildJobUpsert(
  * duplicating, and carries the parent's permissions explicitly rather than
  * relying on inheritance.
  */
-export function buildVariationRows(
+function buildVariationRows(
   variations: Array<{ row: Record<string, unknown>; rowId: string }>,
   permissions: string[]
 ): Record<string, unknown>[] {
@@ -254,7 +254,7 @@ export function resolveOrderCampusId(
  * The `field` relationship is attached only when that definition was actually
  * imported — Appwrite rejects a write naming a row that does not exist.
  */
-export function buildFieldAnswerRows(
+function buildFieldAnswerRows(
   item: TransformedOrderItem,
   importedFieldRowIds: Set<string>,
   permissions: string[]
