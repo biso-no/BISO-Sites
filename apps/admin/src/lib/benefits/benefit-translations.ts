@@ -14,6 +14,7 @@ import {
   scheduleContentTranslation,
   translateContentFields,
 } from "@/lib/content-translation.server";
+import { loadTranslationsByLocale } from "@/lib/content-translation-reads";
 import { buildContentTranslationPermissions } from "@/lib/utils";
 import { isFormattedDescription } from "./benefit-description";
 
@@ -122,28 +123,12 @@ export const buildBenefitTranslationChildren = (
   return children;
 };
 
-/**
- * Existing locales are looked up by content metadata, not the relation: rows
- * that predate the relationship backfill are unlinked, and matching them here
- * both prevents duplicate locale rows and re-links them on the next save.
- */
-export const loadBenefitTranslationsByLocale = async (
+/** The benefit's translation rows by locale (see `loadTranslationsByLocale`). */
+export const loadBenefitTranslationsByLocale = (
   db: AdminDb,
   benefitId: string
-): Promise<Map<string, ContentTranslations>> => {
-  const current = await db.listRows<ContentTranslations>(
-    "app",
-    "content_translations",
-    [
-      Query.equal("content_type", "memberBenefit"),
-      Query.equal("content_id", benefitId),
-      Query.limit(5),
-    ]
-  );
-  return new Map(
-    current.rows.map((translation) => [translation.locale, translation])
-  );
-};
+): Promise<Map<string, ContentTranslations>> =>
+  loadTranslationsByLocale(db, "memberBenefit", benefitId, 5);
 
 /**
  * Queues the other locale's translation after a save. `values` decides whether
