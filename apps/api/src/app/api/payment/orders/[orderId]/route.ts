@@ -4,7 +4,7 @@ import { reconcileOrderPayment } from "@repo/payment/reconcile";
 import { getOrderItems } from "@repo/shared/utils/order-parsing";
 import { ORDER_ITEMS_SELECT } from "@repo/shared/utils/order-queries";
 import { type NextRequest, NextResponse } from "next/server";
-import { createAuthenticatedClient } from "@/lib/auth";
+import { authenticateBuyer } from "@/lib/checkout-session";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import { settleOrder } from "@/lib/settle-order";
 
@@ -57,10 +57,6 @@ interface OrderView {
   total: number;
 }
 
-function hasBearerToken(req: NextRequest): boolean {
-  return req.headers.get("authorization")?.startsWith("Bearer ") ?? false;
-}
-
 /**
  * Whether a failed read means "not this buyer's order", as opposed to Appwrite
  * being slow, rate-limiting, or down.
@@ -85,19 +81,6 @@ function isNotThisBuyersOrder(error: unknown): boolean {
     type === "row_not_found" ||
     type === "document_not_found"
   );
-}
-
-async function authenticate(req: NextRequest) {
-  if (!hasBearerToken(req)) {
-    return null;
-  }
-  try {
-    const client = await createAuthenticatedClient(req);
-    const user = await client.account.get();
-    return user?.$id ? { client, userId: user.$id } : null;
-  } catch {
-    return null;
-  }
 }
 
 function toOrderView(
@@ -152,7 +135,7 @@ export async function GET(
   const { orderId } = await ctx.params;
 
   try {
-    const auth = await authenticate(req);
+    const auth = await authenticateBuyer(req);
     if (!auth) {
       return json({ message: "Authentication required" }, 401);
     }
