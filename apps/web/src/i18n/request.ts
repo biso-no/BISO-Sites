@@ -8,5 +8,9 @@ export default getRequestConfig(async () => {
   return {
     locale,
     messages: await loadMessages(locale),
+    // BISO is Oslo-based. Without this, dates format in the runtime's zone:
+    // UTC on the server (2 hours early in summer) and the browser's zone on
+    // the client.
+    timeZone: "Europe/Oslo",
   };
 });
