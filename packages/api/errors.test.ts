@@ -2,6 +2,7 @@ import { AppwriteException } from "node-appwrite";
 import { describe, expect, it } from "vitest";
 import {
   appwriteErrorStatus,
+  errorSummary,
   isNotFound,
   orNullIfNotFound,
   orNullIfRowNotFound,
@@ -73,5 +74,23 @@ describe("orNullIfNotFound", () => {
   it("rethrows other failures", async () => {
     const outage = new AppwriteException("down", 503);
     await expect(orNullIfNotFound(Promise.reject(outage))).rejects.toBe(outage);
+  });
+});
+
+describe("errorSummary", () => {
+  it("keeps only the status code and type, never the message", () => {
+    const error = new AppwriteException(
+      "Invalid token eyJhbGciOi.secret",
+      401,
+      "user_jwt_invalid"
+    );
+    expect(errorSummary(error)).toBe("code=401 type=user_jwt_invalid");
+    expect(errorSummary(error)).not.toContain("eyJ");
+  });
+
+  it("copes with anything thrown", () => {
+    expect(errorSummary(null)).toBe("code= type=");
+    expect(errorSummary(new Error("boom"))).toBe("code= type=");
+    expect(errorSummary("text")).toBe("code= type=");
   });
 });

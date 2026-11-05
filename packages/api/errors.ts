@@ -91,3 +91,12 @@ export async function orNullIfRowNotFound<T>(
     throw error;
   }
 }
+
+/**
+ * An error, for a log line: only its status code and type. Never the message,
+ * which can carry a JWT, an id, a benefit code or a row.
+ */
+export function errorSummary(error: unknown): string {
+  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
+  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
+}

@@ -1,3 +1,4 @@
+import { errorSummary } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import { createRateLimiter } from "@repo/shared/member-pass/rate-limit";
 import { isAuthenticatedAppwriteUser } from "@repo/shared/recruitment";
@@ -7,9 +8,9 @@ import {
   readEventRsvp,
   setEventRsvp,
 } from "@repo/shared/utils/event-rsvp";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
-import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { corsPreflightResponse, noStoreJson } from "@/lib/cors";
 import { isMemberByProfile } from "@/lib/member-by-profile";
 
 export const dynamic = "force-dynamic";
@@ -30,12 +31,6 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-function json(body: unknown, origin: string | null, status = 200) {
-  const response = NextResponse.json(body, { status });
-  response.headers.set("Cache-Control", "private, no-store");
-  return applyCorsHeaders(response, origin);
-}
-
 /** The RSVP helper's database, bound to the "app" database with admin rights. */
 async function createRsvpDb(): Promise<EventRsvpDb> {
   const { db } = await createAdminClient();
@@ -49,12 +44,6 @@ async function createRsvpDb(): Promise<EventRsvpDb> {
       }>,
     updateRow: (table, id, data) => db.updateRow(DATABASE_ID, table, id, data),
   };
-}
-
-/** Only the error's status code and type: never the ids it was about. */
-function errorSummary(error: unknown): string {
-  const { code, type } = (error ?? {}) as { code?: unknown; type?: unknown };
-  return `code=${String(code ?? "")} type=${String(type ?? "")}`;
 }
 
 type Caller =
@@ -88,11 +77,11 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const origin = req.headers.get("origin");
   const { id } = await params;
   if (!EVENT_ID_RE.test(id)) {
-    return json({ error: "not_found" }, origin, 404);
+    return noStoreJson({ error: "not_found" }, origin, 404);
   }
   const caller = await readCaller(req);
   if (!caller.ok) {
-    return json({ error: "not_authenticated" }, origin, 401);
+    return noStoreJson({ error: "not_authenticated" }, origin, 401);
   }
 
   try {
@@ -102,12 +91,12 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       userId: caller.userId,
     });
     if (!summary) {
-      return json({ error: "not_found" }, origin, 404);
+      return noStoreJson({ error: "not_found" }, origin, 404);
     }
-    return json(summary, origin);
+    return noStoreJson(summary, origin);
   } catch (error) {
     console.error("[Events] Reading RSVP failed:", errorSummary(error));
-    return json({ error: "unavailable" }, origin, 503);
+    return noStoreJson({ error: "unavailable" }, origin, 503);
   }
 }
 
@@ -121,11 +110,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const origin = req.headers.get("origin");
   const { id } = await params;
   if (!EVENT_ID_RE.test(id)) {
-    return json({ error: "not_found" }, origin, 404);
+    return noStoreJson({ error: "not_found" }, origin, 404);
   }
   const caller = await readCaller(req);
   if (!(caller.ok && caller.userId)) {
-    return json({ error: "not_authenticated" }, origin, 401);
+    return noStoreJson({ error: "not_authenticated" }, origin, 401);
   }
   const { userId } = caller;
 
@@ -137,10 +126,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? parseEventRsvpStatus(body.status)
       : undefined;
   if (status === undefined) {
-    return json({ error: "invalid_request" }, origin, 400);
+    return noStoreJson({ error: "invalid_request" }, origin, 400);
   }
   if (!rsvpRateLimiter(userId)) {
-    return json({ error: "rate_limited" }, origin, 429);
+    return noStoreJson({ error: "rate_limited" }, origin, 429);
   }
 
   try {
@@ -152,19 +141,19 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       userId,
     });
     if (result.ok) {
-      return json(result.summary, origin);
+      return noStoreJson(result.summary, origin);
     }
     switch (result.reason) {
       case "not_found":
-        return json({ error: "not_found" }, origin, 404);
+        return noStoreJson({ error: "not_found" }, origin, 404);
       case "closed":
-        return json({ error: "closed" }, origin, 409);
+        return noStoreJson({ error: "closed" }, origin, 409);
       default:
-        return json({ error: "members_only" }, origin, 403);
+        return noStoreJson({ error: "members_only" }, origin, 403);
     }
   } catch (error) {
     console.error("[Events] Saving RSVP failed:", errorSummary(error));
-    return json({ error: "unavailable" }, origin, 503);
+    return noStoreJson({ error: "unavailable" }, origin, 503);
   }
 }
 
