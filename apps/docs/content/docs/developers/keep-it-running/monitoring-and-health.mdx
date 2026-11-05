@@ -53,6 +53,8 @@ Umami counts visitors. It sends no alerts, so don't count on it to notice an out
 | `GET /api/health/ready` | web, admin, api | That the app's `APPWRITE_API_KEY` can list one Appwrite user within 3 seconds | `200` with `{"status":"ready","latencyMs":…}`, or `503` with `{"status":"error",…}` |
 | `GET /api/health/teams` | admin | That the Appwrite teams the admin needs exist | `200`, or `503` with a list of the missing teams. Needs a signed-in global admin. Anyone else gets `401` or `403`. |
 
+All three `/api/health/ready` routes answer with `readinessResponse()` in `packages/api/server.ts`, so a change to the check goes there.
+
 [Deploying](/developers/keep-it-running/deploying#health-endpoints) has the commands to call them.
 
 Read the answers with care:
