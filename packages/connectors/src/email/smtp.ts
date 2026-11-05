@@ -163,6 +163,63 @@ export interface SendEmailResult {
 }
 
 /**
+ * Marks a failure where the relay answered and took nobody, so nothing was
+ * delivered and the caller may say so.
+ *
+ * It exists because most transport failures do NOT support that claim. SMTP
+ * has an in-doubt window: the client ends DATA with ".", the relay answers
+ * "250 queued", and if that answer is lost to a reset or a timeout the send
+ * rejects even though the message may already be accepted. Telling a reporter
+ * their case definitely did not arrive would then be false, and could have
+ * them re-file a sensitive disclosure that is already sitting in the inbox.
+ *
+ * A flag rather than `instanceof`: this crosses a bundler boundary into the
+ * Next server chunk, where a duplicated class identity would silently make
+ * every check fail.
+ */
+export interface SmtpFailure extends Error {
+  smtpRecipientsRefused?: true;
+}
+
+/**
+ * nodemailer codes where the relay gave an explicit refusal, or the session
+ * never got as far as transmitting the message. In every one of these the
+ * message provably did not arrive.
+ *
+ * Note what is absent. ETIMEDOUT and ESOCKET can strike after DATA, inside the
+ * in-doubt window described on `SmtpFailure`. So can ECONNECTION, which reads
+ * like a failure to connect but is also what nodemailer reports for a socket
+ * that drops mid-session — "Connection closed unexpectedly" arrives under that
+ * same code when the relay vanishes after the terminating dot, by which point
+ * it may already have queued the message. None of them support a claim of
+ * non-delivery.
+ */
+const CERTAIN_NON_DELIVERY_CODES = new Set([
+  "EDNS", // host never resolved
+  "EAUTH", // authentication refused
+  "EENVELOPE", // MAIL FROM / RCPT TO refused — how a real relay says "no such user"
+  "EMESSAGE", // relay answered DATA with a rejection
+  "ETLS", // could not negotiate the required TLS
+]);
+
+/**
+ * True when the failure proves nothing was delivered, so a caller may say so.
+ *
+ * False is the safe answer, and the default: it only means delivery is
+ * unconfirmed, never that the message arrived.
+ */
+export function isCertainNonDelivery(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if ((error as SmtpFailure).smtpRecipientsRefused === true) {
+    return true;
+  }
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && CERTAIN_NON_DELIVERY_CODES.has(code);
+}
+
+/**
  * Sends one email over SMTP. Throws when SMTP is unconfigured, when the relay
  * refuses the message, or when every recipient was rejected — callers must
  * treat a rejection as a failed delivery rather than reporting success.
@@ -187,9 +244,13 @@ export async function sendEmail(
   const rejected = (info.rejected ?? []).map(String);
 
   if (accepted.length === 0) {
-    throw new Error(
+    // The relay answered, and took nobody. Unlike a dropped connection, this
+    // is a definite non-delivery.
+    const refused = new Error(
       `SMTP relay accepted no recipients${rejected.length > 0 ? ` (rejected: ${rejected.join(", ")})` : ""}.`
-    );
+    ) as SmtpFailure;
+    refused.smtpRecipientsRefused = true;
+    throw refused;
   }
 
   return { accepted, messageId: info.messageId, rejected };
