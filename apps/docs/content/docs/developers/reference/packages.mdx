@@ -196,7 +196,6 @@ The api uses it for every checkout, callback, return and reconciliation. The adm
 
 - **`README.md` is out of date.** It describes a Vipps-only package with an `@repo/payment/actions` entry point and files that no longer exist, and links to old docs pages. Trust `package.json` and [Payments](/developers/reference/payments).
 - **The table beats the variables.** Credentials in `payment_settings` are used before the `VIPPS_*` and `STRIPE_*` variables, so changing a variable may change nothing. See [Credentials](/developers/reference/payments#credentials-the-payment_settings-table).
-- **`bun run lint` fails here** on one complexity error in `src/reconcile.ts`.
 
 ## `@repo/ai`
 

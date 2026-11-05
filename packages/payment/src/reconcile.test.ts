@@ -101,7 +101,13 @@ describe("sweepPendingRefunds", () => {
 
     const tally = await sweepPendingRefunds(db, new Date().toISOString());
 
-    expect(tally).toEqual({ errors: 1, failed: 0, settled: 0, stillPending: 0, unresolved: 0 });
+    expect(tally).toEqual({
+      errors: 1,
+      failed: 0,
+      settled: 0,
+      stillPending: 0,
+      unresolved: 0,
+    });
     expect(mocks.settlePendingRefund).not.toHaveBeenCalled();
   });
 
@@ -110,7 +116,13 @@ describe("sweepPendingRefunds", () => {
 
     const tally = await sweepPendingRefunds(db, new Date().toISOString());
 
-    expect(tally).toEqual({ errors: 0, failed: 0, settled: 0, stillPending: 0, unresolved: 1 });
+    expect(tally).toEqual({
+      errors: 0,
+      failed: 0,
+      settled: 0,
+      stillPending: 0,
+      unresolved: 1,
+    });
   });
 
   it("counts a refund-history read failure as an error", async () => {
@@ -140,7 +152,13 @@ describe("sweepPendingRefunds", () => {
 
     const tally = await sweepPendingRefunds(db, new Date().toISOString());
 
-    expect(tally).toEqual({ errors: 0, failed: 0, settled: 1, stillPending: 0, unresolved: 0 });
+    expect(tally).toEqual({
+      errors: 0,
+      failed: 0,
+      settled: 1,
+      stillPending: 0,
+      unresolved: 0,
+    });
   });
 
   it("counts a refund still processing as pending, not an error", async () => {
@@ -149,6 +167,148 @@ describe("sweepPendingRefunds", () => {
 
     const tally = await sweepPendingRefunds(db, new Date().toISOString());
 
-    expect(tally).toEqual({ errors: 0, failed: 0, settled: 0, stillPending: 1, unresolved: 0 });
+    expect(tally).toEqual({
+      errors: 0,
+      failed: 0,
+      settled: 0,
+      stillPending: 1,
+      unresolved: 0,
+    });
+  });
+});
+
+const stripe = await import("./stripe");
+const { finagoRefundReverser } = await import(
+  "@repo/shared/utils/finago-refund-reverser"
+);
+
+describe("sweepPendingRefunds, pinned before its complexity is split up", () => {
+  const creds = { secretKey: "sk_test_x" };
+
+  beforeEach(() => {
+    mocks.loadOrderRefunds.mockResolvedValue([{ $id: "earlier" }]);
+    vi.mocked(stripe.getStripeRefundState).mockReset();
+    vi.mocked(stripe.getStripeRefundedTotal).mockReset();
+  });
+
+  it("tallies each outcome across refunds", async () => {
+    mocks.listPendingRefunds.mockResolvedValue(
+      ["a", "b", "c", "d"].map((id) => ({ $id: id, order: "order-1" }))
+    );
+    mocks.resolveStripeCredentials.mockResolvedValue(null);
+    getRow.mockResolvedValue({ $id: "order-1" });
+    for (const outcome of [
+      "failed",
+      "settled",
+      "still_pending",
+      "unresolved",
+    ]) {
+      mocks.settlePendingRefund.mockResolvedValueOnce(outcome);
+    }
+
+    const tally = await sweepPendingRefunds(db, "2026-01-01T00:00:00.000Z");
+
+    expect(tally).toEqual({
+      errors: 0,
+      failed: 1,
+      settled: 1,
+      stillPending: 1,
+      unresolved: 1,
+    });
+  });
+
+  it("counts a refund with no order as unresolved without reading", async () => {
+    mocks.listPendingRefunds.mockResolvedValue([{ $id: "a", order: null }]);
+    mocks.resolveStripeCredentials.mockResolvedValue(null);
+
+    const tally = await sweepPendingRefunds(db, "2026-01-01T00:00:00.000Z");
+
+    expect(tally.unresolved).toBe(1);
+    expect(getRow).not.toHaveBeenCalled();
+    expect(mocks.settlePendingRefund).not.toHaveBeenCalled();
+  });
+
+  it("reads an expanded order relation and settles with its history", async () => {
+    const refund = { $id: "a", order: { $id: "order-9" } };
+    mocks.listPendingRefunds.mockResolvedValue([refund]);
+    mocks.resolveStripeCredentials.mockResolvedValue(null);
+    getRow.mockResolvedValue({ $id: "order-9" });
+    mocks.settlePendingRefund.mockResolvedValue("settled");
+
+    await sweepPendingRefunds(db, "2026-01-01T00:00:00.000Z");
+
+    expect(getRow.mock.calls[0]?.[2]).toBe("order-9");
+    expect(getRow.mock.calls[0]?.[3]).toEqual(["select"]);
+    expect(mocks.loadOrderRefunds).toHaveBeenCalledWith("order-9", db);
+    const args = mocks.settlePendingRefund.mock.calls[0]?.[0];
+    expect(args.db).toBe(db);
+    expect(args.ledger).toBe(finagoRefundReverser);
+    expect(args.refund).toBe(refund);
+    expect(args.order).toEqual({
+      $id: "order-9",
+      refunds: [{ $id: "earlier" }],
+    });
+  });
+
+  async function resolverFor(credentials: unknown) {
+    mocks.listPendingRefunds.mockResolvedValue([
+      { $id: "a", order: "order-1" },
+    ]);
+    mocks.resolveStripeCredentials.mockResolvedValue(credentials);
+    getRow.mockResolvedValue({ $id: "order-1" });
+    mocks.settlePendingRefund.mockResolvedValue("settled");
+    await sweepPendingRefunds(db, "2026-01-01T00:00:00.000Z");
+    return mocks.settlePendingRefund.mock.calls[0]?.[0].resolver as {
+      state: (input: {
+        paymentIntentId?: string | null;
+        providerRefundId?: string | null;
+      }) => Promise<unknown>;
+    };
+  }
+
+  it("refuses to guess without Stripe credentials or a refund id", async () => {
+    const noCreds = await resolverFor(null);
+    await expect(
+      noCreds.state({ paymentIntentId: "pi_1", providerRefundId: "re_1" })
+    ).rejects.toThrow("No resolvable provider refund id");
+
+    mocks.settlePendingRefund.mockClear();
+    const noId = await resolverFor(creds);
+    await expect(
+      noId.state({ paymentIntentId: "pi_1", providerRefundId: null })
+    ).rejects.toThrow("No resolvable provider refund id");
+    expect(stripe.getStripeRefundState).not.toHaveBeenCalled();
+  });
+
+  it("asks Stripe for the refund and the payment's refunded total", async () => {
+    vi.mocked(stripe.getStripeRefundState).mockResolvedValue({
+      status: "succeeded",
+    } as never);
+    vi.mocked(stripe.getStripeRefundedTotal).mockResolvedValue(500);
+    const resolver = await resolverFor(creds);
+
+    await expect(
+      resolver.state({ paymentIntentId: "pi_1", providerRefundId: "re_1" })
+    ).resolves.toEqual({ refundedTotalMinor: 500, status: "succeeded" });
+    expect(stripe.getStripeRefundState).toHaveBeenCalledWith("re_1", creds);
+    expect(stripe.getStripeRefundedTotal).toHaveBeenCalledWith("pi_1", creds);
+  });
+
+  it("reports a zero total when Stripe's total fails or there is no payment", async () => {
+    vi.mocked(stripe.getStripeRefundState).mockResolvedValue({
+      status: "pending",
+    } as never);
+    vi.mocked(stripe.getStripeRefundedTotal).mockRejectedValue(new Error("x"));
+    const resolver = await resolverFor(creds);
+
+    await expect(
+      resolver.state({ paymentIntentId: "pi_1", providerRefundId: "re_1" })
+    ).resolves.toEqual({ refundedTotalMinor: 0, status: "pending" });
+
+    vi.mocked(stripe.getStripeRefundedTotal).mockClear();
+    await expect(
+      resolver.state({ paymentIntentId: null, providerRefundId: "re_1" })
+    ).resolves.toEqual({ refundedTotalMinor: 0, status: "pending" });
+    expect(stripe.getStripeRefundedTotal).not.toHaveBeenCalled();
   });
 });
