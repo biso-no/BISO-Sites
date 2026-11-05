@@ -145,6 +145,11 @@ const TAG_OPTIONS = [
 
 type LocaleCode = "en" | "no";
 
+type SetJobValue = <K extends keyof JobFormValues>(
+  key: K,
+  value: JobFormValues[K]
+) => void;
+
 function getTranslation(job: RecruitmentVacancy | null, locale: "en" | "no") {
   return job?.translations.find((translation) => translation.locale === locale);
 }
@@ -689,6 +694,1012 @@ function ProgressBar({ step }: { step: number }) {
         />
       </div>
       <span className="font-mono">{progress}%</span>
+    </div>
+  );
+}
+
+/** Step 1: title, address, campus and department, teaser and tags. */
+function EssentialsStep({
+  allowedDepartmentIds,
+  campuses,
+  canChangeCampus,
+  departments,
+  form,
+  handleCampusChange,
+  locale,
+  setLocalizedTitle,
+  setValue,
+  toggleTag,
+}: {
+  allowedDepartmentIds?: string[];
+  campuses: Campus[];
+  canChangeCampus: boolean;
+  departments: Departments[];
+  form: JobFormValues;
+  handleCampusChange: (campusId: string) => Promise<void>;
+  locale: LocaleCode;
+  setLocalizedTitle: (value: string) => void;
+  setValue: SetJobValue;
+  toggleTag: (tag: string) => void;
+}) {
+  return (
+    <div className="space-y-7">
+      <div>
+        <p className="mb-3 font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
+          {locale === "en" ? "English source" : "Norwegian"}
+        </p>
+        <input
+          className="w-full bg-transparent font-light text-5xl leading-none tracking-tight outline-none placeholder:text-slate-300 md:text-6xl"
+          onBlur={() => {
+            if (!form.slug) {
+              setValue("slug", generateSlug(form.title_en || form.title_no));
+            }
+          }}
+          onChange={(event) => setLocalizedTitle(event.target.value)}
+          placeholder="A job title that excites..."
+          value={locale === "en" ? form.title_en : form.title_no}
+        />
+        <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 font-mono text-slate-500 text-xs">
+          <span>biso.no/jobs/</span>
+          <input
+            className="min-w-0 bg-transparent text-[#001731] outline-none"
+            onChange={(event) => setValue("slug", event.target.value)}
+            value={form.slug}
+          />
+          <Pencil size={12} />
+        </div>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        <Field label="Campus" required>
+          <select
+            className={inputClass()}
+            disabled={!canChangeCampus}
+            onChange={(event) => handleCampusChange(event.target.value)}
+            value={form.campus_id}
+          >
+            <option value="">Select campus</option>
+            {campuses.map((campus) => (
+              <option key={campus.$id} value={campus.$id}>
+                {campus.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Department">
+          <select
+            className={inputClass()}
+            disabled={
+              allowedDepartmentIds !== undefined &&
+              allowedDepartmentIds.length <= 1
+            }
+            onChange={(event) =>
+              setValue("department_id", event.target.value || null)
+            }
+            value={form.department_id ?? ""}
+          >
+            <option value="">Any department</option>
+            {departments.map((department) => (
+              <option key={department.$id} value={department.$id}>
+                {department.Name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <Field
+        help={`${formatTeaserRemaining(TEASER_MAX_LENGTH - ((locale === "no" ? form.short_description_no : form.short_description_en)?.length ?? 0))} · ${locale.toUpperCase()}`}
+        label="One-line teaser"
+        required
+      >
+        <textarea
+          className={inputClass("min-h-24 resize-none text-base")}
+          maxLength={TEASER_MAX_LENGTH}
+          onChange={(event) =>
+            setValue(
+              locale === "no" ? "short_description_no" : "short_description_en",
+              event.target.value || null
+            )
+          }
+          placeholder="Why should someone apply for this role?"
+          value={
+            (locale === "no"
+              ? form.short_description_no
+              : form.short_description_en) ?? ""
+          }
+        />
+      </Field>
+
+      <Field label="Tags">
+        <div className="flex flex-wrap gap-2">
+          {TAG_OPTIONS.map((tag) => {
+            const active = form.tags.includes(tag);
+            return (
+              <button
+                className="rounded-full border px-3 py-2 font-medium text-xs transition"
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                style={
+                  active
+                    ? {
+                        background: BRAND.blue,
+                        borderColor: BRAND.blue,
+                        color: "#fff",
+                      }
+                    : {
+                        background: "rgba(255,255,255,0.72)",
+                        borderColor: "rgba(148,163,184,0.35)",
+                        color: "#475569",
+                      }
+                }
+                type="button"
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+    </div>
+  );
+}
+
+/** Step 2: the description blocks and the suggested section. */
+function DescriptionStep({
+  form,
+  handleSuggestDescriptionSection,
+  isSuggesting,
+  locale,
+  setLocalizedDescription,
+}: {
+  form: JobFormValues;
+  handleSuggestDescriptionSection: () => Promise<void>;
+  isSuggesting: boolean;
+  locale: LocaleCode;
+  setLocalizedDescription: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-light text-4xl tracking-tight">The whole story.</h2>
+        <p className="mt-2 max-w-xl text-slate-500 text-sm">
+          Write it like you would in a lightweight document editor. Switch
+          language in the rail above; the block surface stays in the same place.
+        </p>
+      </div>
+      <DescriptionBlockEditor
+        onChange={setLocalizedDescription}
+        value={locale === "en" ? form.description_en : form.description_no}
+      />
+      <div className="flex gap-3 rounded-xl border border-[#F7D64A]/45 bg-[#F7D64A]/10 p-4">
+        <Sparkles className="mt-0.5 shrink-0 text-[#a16207]" size={20} />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm">Need another section?</p>
+          <p className="mt-1 text-slate-600 text-sm">
+            Ask the assistant for one focused section based on the current
+            title, tags, campus, and department.
+          </p>
+          <button
+            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white transition disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={
+              isSuggesting || !(locale === "no" ? form.title_no : form.title_en)
+            }
+            onClick={handleSuggestDescriptionSection}
+            type="button"
+          >
+            <Sparkles size={15} />
+            {isSuggesting ? "Suggesting..." : "Suggest section"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Step 3: time, place and paperwork. */
+function LogisticsStep({
+  form,
+  setValue,
+}: {
+  form: JobFormValues;
+  setValue: SetJobValue;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-light text-4xl tracking-tight">
+          Time, place, paperwork.
+        </h2>
+        <p className="mt-2 max-w-xl text-slate-500 text-sm">
+          Practical details are optional unless your publishing policy requires
+          them.
+        </p>
+      </div>
+      <div className="grid gap-5 md:grid-cols-2">
+        <Field label="Company">
+          <input
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("company", event.target.value || null)
+            }
+            placeholder="BISO"
+            value={form.company ?? ""}
+          />
+        </Field>
+        <Field label="Employment type">
+          <select
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("employment_type", event.target.value || null)
+            }
+            value={form.employment_type ?? ""}
+          >
+            {EMPLOYMENT_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Weekly commitment">
+          <input
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("commitment", event.target.value || null)
+            }
+            placeholder="6 h/week"
+            value={form.commitment ?? ""}
+          />
+        </Field>
+        <Field label="Term length">
+          <input
+            className={inputClass()}
+            onChange={(event) => setValue("term", event.target.value || null)}
+            placeholder="1 semester"
+            value={form.term ?? ""}
+          />
+        </Field>
+        <Field label="Start date">
+          <input
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("start_date", event.target.value || null)
+            }
+            type="date"
+            value={toDateInput(form.start_date)}
+          />
+        </Field>
+        <Field label="Application deadline">
+          <input
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("application_deadline", event.target.value || null)
+            }
+            type="date"
+            value={toDateInput(form.application_deadline)}
+          />
+        </Field>
+      </div>
+      <Field label="Location">
+        <input
+          className={inputClass()}
+          onChange={(event) => setValue("location", event.target.value || null)}
+          placeholder="BI Oslo, Nydalen"
+          value={form.location ?? ""}
+        />
+      </Field>
+      <div className="grid gap-5 md:grid-cols-3">
+        <Field label="Contact name">
+          <input
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("contact_name", event.target.value || null)
+            }
+            value={form.contact_name ?? ""}
+          />
+        </Field>
+        <Field label="Contact role">
+          <input
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("contact_role", event.target.value || null)
+            }
+            value={form.contact_role ?? ""}
+          />
+        </Field>
+        <Field label="Contact email">
+          <input
+            className={inputClass()}
+            onChange={(event) =>
+              setValue("contact_email", event.target.value || null)
+            }
+            type="email"
+            value={form.contact_email ?? ""}
+          />
+        </Field>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 text-sm">
+          <input
+            checked={form.paid}
+            onChange={(event) => setValue("paid", event.target.checked)}
+            type="checkbox"
+          />
+          Paid vacancy
+        </label>
+        <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 text-sm">
+          <input
+            checked={form.cv_required}
+            onChange={(event) => setValue("cv_required", event.target.checked)}
+            type="checkbox"
+          />
+          Require CV upload
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/** Step 4: what applicants must send, and auto-screening. */
+function ScreeningStep({
+  form,
+  setValue,
+}: {
+  form: JobFormValues;
+  setValue: SetJobValue;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-light text-4xl tracking-tight">AI screening.</h2>
+        <p className="mt-2 max-w-xl text-slate-500 text-sm">
+          Enable automatic screening to let Claude evaluate each application
+          against your rubric and assign a score.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {[
+          {
+            description:
+              "Claude evaluates each application and assigns a score when it arrives.",
+            icon: Sparkles,
+            label: "Auto-screen enabled",
+            value: true,
+          },
+          {
+            description:
+              "Applications are not automatically screened. HR reviews each one manually.",
+            icon: Users,
+            label: "Manual review only",
+            value: false,
+          },
+        ].map((option) => {
+          const active = form.auto_screen === option.value;
+          return (
+            <button
+              className="relative rounded-xl border p-5 text-left transition"
+              key={String(option.value)}
+              onClick={() => setValue("auto_screen", option.value)}
+              style={
+                active
+                  ? {
+                      background: BRAND.blue,
+                      borderColor: BRAND.blue,
+                      color: "#fff",
+                    }
+                  : {
+                      background: "rgba(255,255,255,0.72)",
+                      borderColor: "rgba(148,163,184,0.35)",
+                      color: "#07111f",
+                    }
+              }
+              type="button"
+            >
+              <option.icon size={20} />
+              <p className="mt-3 font-medium">{option.label}</p>
+              <p
+                className={
+                  active
+                    ? "mt-2 text-sm text-white/65"
+                    : "mt-2 text-slate-500 text-sm"
+                }
+              >
+                {option.description}
+              </p>
+              {active && (
+                <span className="absolute top-4 right-4 grid h-5 w-5 place-items-center rounded-full bg-[#4ade80] text-white">
+                  <Check size={12} />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {form.auto_screen && (
+        <div className="space-y-4">
+          <p className="font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
+            Screening rubric
+          </p>
+
+          <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
+            <p className="mb-1 font-medium text-sm">Must-have qualifications</p>
+            <p className="mb-4 text-slate-500 text-xs">
+              Requirements that every candidate must meet. Heavily weighted in
+              AI scoring.
+            </p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {(form.screening_rubric?.must_have ?? []).map((item) => (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
+                  key={item}
+                >
+                  {item}
+                  <button
+                    onClick={() =>
+                      setValue("screening_rubric", {
+                        ...(form.screening_rubric ?? {
+                          must_have: [],
+                          nice_to_have: [],
+                          criteria: [],
+                        }),
+                        must_have: (
+                          form.screening_rubric?.must_have ?? []
+                        ).filter((h) => h !== item),
+                      })
+                    }
+                    type="button"
+                  >
+                    <Trash2
+                      className="text-slate-400 hover:text-[#6b1e1e]"
+                      size={11}
+                    />
+                  </button>
+                </span>
+              ))}
+              {(form.screening_rubric?.must_have ?? []).length === 0 && (
+                <p className="text-slate-400 text-xs">
+                  No requirements added yet.
+                </p>
+              )}
+            </div>
+            <form
+              className="flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const fd = new FormData(event.currentTarget);
+                const val = String(fd.get("mh") ?? "").trim();
+                if (
+                  !val ||
+                  (form.screening_rubric?.must_have ?? []).includes(val)
+                ) {
+                  return;
+                }
+                setValue("screening_rubric", {
+                  ...(form.screening_rubric ?? {
+                    must_have: [],
+                    nice_to_have: [],
+                    criteria: [],
+                  }),
+                  must_have: [
+                    ...(form.screening_rubric?.must_have ?? []),
+                    val,
+                  ].slice(0, 20),
+                });
+                event.currentTarget.reset();
+              }}
+            >
+              <input
+                className={inputClass("flex-1")}
+                name="mh"
+                placeholder="e.g. Currently studying HR"
+              />
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
+                type="submit"
+              >
+                <Plus size={14} />
+                Add
+              </button>
+            </form>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
+            <p className="mb-1 font-medium text-sm">
+              Nice-to-have qualifications
+            </p>
+            <p className="mb-4 text-slate-500 text-xs">
+              Preferred but not essential. Boost scores when present.
+            </p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {(form.screening_rubric?.nice_to_have ?? []).map((item) => (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
+                  key={item}
+                >
+                  {item}
+                  <button
+                    onClick={() =>
+                      setValue("screening_rubric", {
+                        ...(form.screening_rubric ?? {
+                          must_have: [],
+                          nice_to_have: [],
+                          criteria: [],
+                        }),
+                        nice_to_have: (
+                          form.screening_rubric?.nice_to_have ?? []
+                        ).filter((h) => h !== item),
+                      })
+                    }
+                    type="button"
+                  >
+                    <Trash2
+                      className="text-slate-400 hover:text-[#6b1e1e]"
+                      size={11}
+                    />
+                  </button>
+                </span>
+              ))}
+              {(form.screening_rubric?.nice_to_have ?? []).length === 0 && (
+                <p className="text-slate-400 text-xs">
+                  No preferences added yet.
+                </p>
+              )}
+            </div>
+            <form
+              className="flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const fd = new FormData(event.currentTarget);
+                const val = String(fd.get("nth") ?? "").trim();
+                if (
+                  !val ||
+                  (form.screening_rubric?.nice_to_have ?? []).includes(val)
+                ) {
+                  return;
+                }
+                setValue("screening_rubric", {
+                  ...(form.screening_rubric ?? {
+                    must_have: [],
+                    nice_to_have: [],
+                    criteria: [],
+                  }),
+                  nice_to_have: [
+                    ...(form.screening_rubric?.nice_to_have ?? []),
+                    val,
+                  ].slice(0, 20),
+                });
+                event.currentTarget.reset();
+              }}
+            >
+              <input
+                className={inputClass("flex-1")}
+                name="nth"
+                placeholder="e.g. Familiarity with recruitment"
+              />
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
+                type="submit"
+              >
+                <Plus size={14} />
+                Add
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Step 5: cover, audience, publishing and the notification. */
+function VisibilityStep({
+  fileInputRef,
+  form,
+  handleCoverFile,
+  isLive,
+  isUploading,
+  notify,
+  setValue,
+}: {
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  form: JobFormValues;
+  handleCoverFile: (file: File | null | undefined) => Promise<void>;
+  isLive: boolean;
+  isUploading: boolean;
+  notify: ReturnType<typeof notifyToggleCopy>;
+  setValue: SetJobValue;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-light text-4xl tracking-tight">
+          Who gets to see this?
+        </h2>
+        <p className="mt-2 max-w-xl text-slate-500 text-sm">
+          Audience, artwork, distribution, and scheduling are stored with the
+          posting so launch prep can happen in one pass.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {[
+          {
+            description:
+              "Visible to verified BI students with active member access.",
+            icon: Lock,
+            label: "Members only",
+            value: "members",
+          },
+          {
+            description:
+              "Visible on the public job board for broader recruitment.",
+            icon: Globe,
+            label: "Public",
+            value: "public",
+          },
+        ].map((option) => {
+          const active = form.audience === option.value;
+          return (
+            <button
+              className="relative rounded-xl border p-5 text-left transition"
+              key={option.value}
+              onClick={() =>
+                setValue("audience", option.value as JobFormValues["audience"])
+              }
+              style={
+                active
+                  ? {
+                      background: BRAND.blue,
+                      borderColor: BRAND.blue,
+                      color: "#fff",
+                    }
+                  : {
+                      background: "rgba(255,255,255,0.72)",
+                      borderColor: "rgba(148,163,184,0.35)",
+                      color: "#07111f",
+                    }
+              }
+              type="button"
+            >
+              <option.icon size={20} />
+              <p className="mt-3 font-medium">{option.label}</p>
+              <p
+                className={
+                  active
+                    ? "mt-2 text-sm text-white/65"
+                    : "mt-2 text-slate-500 text-sm"
+                }
+              >
+                {option.description}
+              </p>
+              {active && (
+                <span className="absolute top-4 right-4 grid h-5 w-5 place-items-center rounded-full bg-[#4ade80] text-white">
+                  <Check size={12} />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <Field label="Cover artwork">
+        <div className="flex flex-wrap gap-3">
+          {[1, 2, 3, 4, 5].map((pattern) => (
+            <button
+              className="relative h-16 w-24 overflow-hidden rounded-lg border-2"
+              key={pattern}
+              onClick={() => setValue("cover_pattern", pattern)}
+              style={{
+                background: coverBackground(pattern),
+                borderColor:
+                  form.cover_pattern === pattern ? BRAND.blue : "transparent",
+              }}
+              type="button"
+            >
+              <CoverPattern value={pattern} />
+            </button>
+          ))}
+          <input
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => handleCoverFile(event.target.files?.[0])}
+            ref={fileInputRef}
+            type="file"
+          />
+          <button
+            className="grid h-16 w-24 place-items-center rounded-lg border border-slate-300 border-dashed bg-white/60 text-slate-400 transition hover:text-[#001731]"
+            onClick={() => fileInputRef.current?.click()}
+            type="button"
+          >
+            {isUploading ? (
+              <span className="text-[10px]">Uploading</span>
+            ) : (
+              <Upload size={18} />
+            )}
+          </button>
+        </div>
+        {form.cover_image_url && (
+          <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 p-3">
+            <div
+              className="h-14 w-20 rounded-lg bg-center bg-cover"
+              style={{
+                backgroundImage: `url(${form.cover_image_url})`,
+              }}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm">Uploaded cover image</p>
+              <p className="truncate text-slate-500 text-xs">
+                {form.cover_image_url}
+              </p>
+            </div>
+            <button
+              className="rounded-lg border border-slate-200 px-3 py-2 font-medium text-slate-500 text-xs transition hover:text-[#001731]"
+              onClick={() => {
+                setValue("cover_image_url", null);
+                setValue("cover_image_file_id", null);
+              }}
+              type="button"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+      </Field>
+      <div className="grid gap-4 md:grid-cols-2">
+        {[
+          ...(notify.showToggle
+            ? [
+                {
+                  active: notify.effectiveOn,
+                  description: notify.description,
+                  disabled: notify.disabled,
+                  icon: Smartphone,
+                  label: notify.title,
+                  onClick: () => setValue("notify_push", !form.notify_push),
+                },
+              ]
+            : []),
+          {
+            active: form.push_to_inboxes,
+            description: "Queue this vacancy for member inbox placement.",
+            icon: Bell,
+            label: "Push to inboxes",
+            onClick: () => setValue("push_to_inboxes", !form.push_to_inboxes),
+          },
+          {
+            active: form.newsletter,
+            description: "Flag this vacancy for the Friday jobs newsletter.",
+            icon: Newspaper,
+            label: "Friday newsletter",
+            onClick: () => setValue("newsletter", !form.newsletter),
+          },
+        ].map(
+          ({ active, description, disabled, icon: Icon, label, onClick }) => (
+            <button
+              className="relative rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={disabled}
+              key={label}
+              onClick={onClick}
+              style={
+                active
+                  ? {
+                      background: BRAND.blue,
+                      borderColor: BRAND.blue,
+                      color: "#fff",
+                    }
+                  : {
+                      background: "rgba(255,255,255,0.72)",
+                      borderColor: "rgba(148,163,184,0.35)",
+                      color: "#07111f",
+                    }
+              }
+              type="button"
+            >
+              <div className="flex items-center gap-3">
+                <Icon size={18} />
+                <span className="font-medium text-sm">{label}</span>
+              </div>
+              <p
+                className={
+                  active
+                    ? "mt-2 text-sm text-white/65"
+                    : "mt-2 text-slate-500 text-sm"
+                }
+              >
+                {description}
+              </p>
+              {active && (
+                <span className="absolute top-4 right-4 grid h-5 w-5 place-items-center rounded-full bg-[#4ade80] text-white">
+                  <Check size={12} />
+                </span>
+              )}
+            </button>
+          )
+        )}
+      </div>
+      {!notify.showToggle && (
+        <div className="rounded-xl border border-slate-200 bg-white/65 p-4">
+          <p className="font-medium text-sm">{notify.title}</p>
+          <p className="mt-1 text-slate-500 text-sm">{notify.description}</p>
+        </div>
+      )}
+      <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
+        <div className="flex items-start gap-3">
+          <CalendarDays className="mt-0.5 text-[#3DA9E0]" size={20} />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-sm">Publication timing</p>
+            <p className="mt-1 text-slate-500 text-sm">
+              {isLive
+                ? "This vacancy is already live. Scheduling only applies to vacancies that are not yet published."
+                : "Publish now makes the vacancy visible immediately. Schedule keeps it hidden and publishes it automatically at the chosen time (checked every 5 minutes). Saving as a draft cancels a schedule."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {[
+            { label: "Publish now", value: "now" },
+            { label: "Schedule", value: "scheduled" },
+          ].map((option) => {
+            const active = form.publication_mode === option.value;
+            return (
+              <button
+                className="rounded-lg border px-3 py-2 font-medium text-sm transition"
+                key={option.value}
+                onClick={() =>
+                  setValue(
+                    "publication_mode",
+                    option.value as JobFormValues["publication_mode"]
+                  )
+                }
+                style={
+                  active
+                    ? {
+                        background: BRAND.blue,
+                        borderColor: BRAND.blue,
+                        color: "#fff",
+                      }
+                    : {
+                        background: "rgba(255,255,255,0.65)",
+                        borderColor: "rgba(148,163,184,0.35)",
+                        color: "#475569",
+                      }
+                }
+                type="button"
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        {form.publication_mode === "scheduled" && (
+          <div className="mt-4">
+            <Field label="Scheduled publish time">
+              <input
+                className={inputClass()}
+                onChange={(event) =>
+                  setValue(
+                    "scheduled_publish_at",
+                    localDateTimeToIso(event.target.value)
+                  )
+                }
+                type="datetime-local"
+                value={toLocalDateTimeInput(form.scheduled_publish_at)}
+              />
+            </Field>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Step 6: the read-through, with links back to each step and translation. */
+function ReviewStep({
+  campusName,
+  departmentName,
+  form,
+  handleTranslate,
+  isTranslating,
+  locale,
+  setStep,
+}: {
+  campusName: string;
+  departmentName: string;
+  form: JobFormValues;
+  handleTranslate: () => Promise<void>;
+  isTranslating: boolean;
+  locale: LocaleCode;
+  setStep: (step: number) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-light text-4xl tracking-tight">One last look.</h2>
+        <p className="mt-2 max-w-xl text-slate-500 text-sm">
+          Jump back to any section before saving or publishing.
+        </p>
+      </div>
+      <TranslationReviewCard
+        disabled={
+          !(
+            (locale === "en"
+              ? form.title_en ||
+                stripHtml(form.description_en) ||
+                form.short_description_en
+              : form.title_no ||
+                stripHtml(form.description_no) ||
+                form.short_description_no) ?? false
+          )
+        }
+        isTranslating={isTranslating}
+        onTranslate={handleTranslate}
+        sourceLocale={locale}
+      />
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/65">
+        {[
+          ["Title (EN)", form.title_en, 0],
+          ["Title (NO)", form.title_no, 0],
+          ["Department", `${departmentName} · ${campusName}`, 0],
+          ["Teaser (EN)", form.short_description_en, 0],
+          ["Teaser (NO)", form.short_description_no, 0],
+          [
+            "Description",
+            `${stripHtml(form.description_en).length} EN characters`,
+            1,
+          ],
+          [
+            "Commitment",
+            `${form.commitment ?? "TBC"} · ${form.term ?? "TBC"}`,
+            2,
+          ],
+          [
+            "Start / deadline",
+            `${formatDate(form.start_date)} -> ${formatDate(form.application_deadline)}`,
+            2,
+          ],
+          [
+            "Contact",
+            `${form.contact_name ?? "No name"} (${form.contact_email ?? "no email"})`,
+            2,
+          ],
+          [
+            "Screening",
+            form.auto_screen ? "AI screening enabled" : "Manual review",
+            3,
+          ],
+          [
+            "Audience",
+            form.audience === "public" ? "Public" : "Members only",
+            4,
+          ],
+        ].map(([label, value, targetStep]) => (
+          <button
+            className="grid w-full grid-cols-[150px_minmax(0,1fr)_auto] items-center gap-4 border-slate-200 border-t px-4 py-4 text-left first:border-t-0"
+            key={String(label)}
+            onClick={() => setStep(Number(targetStep))}
+            type="button"
+          >
+            <span className="font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
+              {label}
+            </span>
+            <span className="truncate text-sm">{value || "Not set"}</span>
+            <Pencil className="text-slate-400" size={14} />
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-3 rounded-xl border border-[#3DA9E0]/25 bg-[#3DA9E0]/10 p-4">
+        <Sparkles className="mt-0.5 shrink-0 text-[#0369a1]" size={20} />
+        <div>
+          <p className="font-medium text-sm">
+            Publishing checks are based on existing validation.
+          </p>
+          <p className="mt-1 text-slate-600 text-sm">
+            Required title, description, campus, slug, and status are validated
+            by the shared recruitment schema.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1353,1005 +2364,58 @@ export function JobStudioEditor({
               )}
 
               {step === 0 && (
-                <div className="space-y-7">
-                  <div>
-                    <p className="mb-3 font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
-                      {locale === "en" ? "English source" : "Norwegian"}
-                    </p>
-                    <input
-                      className="w-full bg-transparent font-light text-5xl leading-none tracking-tight outline-none placeholder:text-slate-300 md:text-6xl"
-                      onBlur={() => {
-                        if (!form.slug) {
-                          setValue(
-                            "slug",
-                            generateSlug(form.title_en || form.title_no)
-                          );
-                        }
-                      }}
-                      onChange={(event) =>
-                        setLocalizedTitle(event.target.value)
-                      }
-                      placeholder="A job title that excites..."
-                      value={locale === "en" ? form.title_en : form.title_no}
-                    />
-                    <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-200 bg-white/70 px-3 py-2 font-mono text-slate-500 text-xs">
-                      <span>biso.no/jobs/</span>
-                      <input
-                        className="min-w-0 bg-transparent text-[#001731] outline-none"
-                        onChange={(event) =>
-                          setValue("slug", event.target.value)
-                        }
-                        value={form.slug}
-                      />
-                      <Pencil size={12} />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-5 md:grid-cols-2">
-                    <Field label="Campus" required>
-                      <select
-                        className={inputClass()}
-                        disabled={!canChangeCampus}
-                        onChange={(event) =>
-                          handleCampusChange(event.target.value)
-                        }
-                        value={form.campus_id}
-                      >
-                        <option value="">Select campus</option>
-                        {campuses.map((campus) => (
-                          <option key={campus.$id} value={campus.$id}>
-                            {campus.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Department">
-                      <select
-                        className={inputClass()}
-                        disabled={
-                          allowedDepartmentIds !== undefined &&
-                          allowedDepartmentIds.length <= 1
-                        }
-                        onChange={(event) =>
-                          setValue("department_id", event.target.value || null)
-                        }
-                        value={form.department_id ?? ""}
-                      >
-                        <option value="">Any department</option>
-                        {departments.map((department) => (
-                          <option key={department.$id} value={department.$id}>
-                            {department.Name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
-
-                  <Field
-                    help={`${formatTeaserRemaining(TEASER_MAX_LENGTH - ((locale === "no" ? form.short_description_no : form.short_description_en)?.length ?? 0))} · ${locale.toUpperCase()}`}
-                    label="One-line teaser"
-                    required
-                  >
-                    <textarea
-                      className={inputClass("min-h-24 resize-none text-base")}
-                      maxLength={TEASER_MAX_LENGTH}
-                      onChange={(event) =>
-                        setValue(
-                          locale === "no"
-                            ? "short_description_no"
-                            : "short_description_en",
-                          event.target.value || null
-                        )
-                      }
-                      placeholder="Why should someone apply for this role?"
-                      value={
-                        (locale === "no"
-                          ? form.short_description_no
-                          : form.short_description_en) ?? ""
-                      }
-                    />
-                  </Field>
-
-                  <Field label="Tags">
-                    <div className="flex flex-wrap gap-2">
-                      {TAG_OPTIONS.map((tag) => {
-                        const active = form.tags.includes(tag);
-                        return (
-                          <button
-                            className="rounded-full border px-3 py-2 font-medium text-xs transition"
-                            key={tag}
-                            onClick={() => toggleTag(tag)}
-                            style={
-                              active
-                                ? {
-                                    background: BRAND.blue,
-                                    borderColor: BRAND.blue,
-                                    color: "#fff",
-                                  }
-                                : {
-                                    background: "rgba(255,255,255,0.72)",
-                                    borderColor: "rgba(148,163,184,0.35)",
-                                    color: "#475569",
-                                  }
-                            }
-                            type="button"
-                          >
-                            {tag}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </Field>
-                </div>
+                <EssentialsStep
+                  allowedDepartmentIds={allowedDepartmentIds}
+                  campuses={campuses}
+                  canChangeCampus={canChangeCampus}
+                  departments={departments}
+                  form={form}
+                  handleCampusChange={handleCampusChange}
+                  locale={locale}
+                  setLocalizedTitle={setLocalizedTitle}
+                  setValue={setValue}
+                  toggleTag={toggleTag}
+                />
               )}
 
               {step === 1 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-light text-4xl tracking-tight">
-                      The whole story.
-                    </h2>
-                    <p className="mt-2 max-w-xl text-slate-500 text-sm">
-                      Write it like you would in a lightweight document editor.
-                      Switch language in the rail above; the block surface stays
-                      in the same place.
-                    </p>
-                  </div>
-                  <DescriptionBlockEditor
-                    onChange={setLocalizedDescription}
-                    value={
-                      locale === "en"
-                        ? form.description_en
-                        : form.description_no
-                    }
-                  />
-                  <div className="flex gap-3 rounded-xl border border-[#F7D64A]/45 bg-[#F7D64A]/10 p-4">
-                    <Sparkles
-                      className="mt-0.5 shrink-0 text-[#a16207]"
-                      size={20}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm">
-                        Need another section?
-                      </p>
-                      <p className="mt-1 text-slate-600 text-sm">
-                        Ask the assistant for one focused section based on the
-                        current title, tags, campus, and department.
-                      </p>
-                      <button
-                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white transition disabled:cursor-not-allowed disabled:opacity-55"
-                        disabled={
-                          isSuggesting ||
-                          !(locale === "no" ? form.title_no : form.title_en)
-                        }
-                        onClick={handleSuggestDescriptionSection}
-                        type="button"
-                      >
-                        <Sparkles size={15} />
-                        {isSuggesting ? "Suggesting..." : "Suggest section"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <DescriptionStep
+                  form={form}
+                  handleSuggestDescriptionSection={
+                    handleSuggestDescriptionSection
+                  }
+                  isSuggesting={isSuggesting}
+                  locale={locale}
+                  setLocalizedDescription={setLocalizedDescription}
+                />
               )}
 
-              {step === 2 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-light text-4xl tracking-tight">
-                      Time, place, paperwork.
-                    </h2>
-                    <p className="mt-2 max-w-xl text-slate-500 text-sm">
-                      Practical details are optional unless your publishing
-                      policy requires them.
-                    </p>
-                  </div>
-                  <div className="grid gap-5 md:grid-cols-2">
-                    <Field label="Company">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue("company", event.target.value || null)
-                        }
-                        placeholder="BISO"
-                        value={form.company ?? ""}
-                      />
-                    </Field>
-                    <Field label="Employment type">
-                      <select
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue(
-                            "employment_type",
-                            event.target.value || null
-                          )
-                        }
-                        value={form.employment_type ?? ""}
-                      >
-                        {EMPLOYMENT_TYPES.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Weekly commitment">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue("commitment", event.target.value || null)
-                        }
-                        placeholder="6 h/week"
-                        value={form.commitment ?? ""}
-                      />
-                    </Field>
-                    <Field label="Term length">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue("term", event.target.value || null)
-                        }
-                        placeholder="1 semester"
-                        value={form.term ?? ""}
-                      />
-                    </Field>
-                    <Field label="Start date">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue("start_date", event.target.value || null)
-                        }
-                        type="date"
-                        value={toDateInput(form.start_date)}
-                      />
-                    </Field>
-                    <Field label="Application deadline">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue(
-                            "application_deadline",
-                            event.target.value || null
-                          )
-                        }
-                        type="date"
-                        value={toDateInput(form.application_deadline)}
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Location">
-                    <input
-                      className={inputClass()}
-                      onChange={(event) =>
-                        setValue("location", event.target.value || null)
-                      }
-                      placeholder="BI Oslo, Nydalen"
-                      value={form.location ?? ""}
-                    />
-                  </Field>
-                  <div className="grid gap-5 md:grid-cols-3">
-                    <Field label="Contact name">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue("contact_name", event.target.value || null)
-                        }
-                        value={form.contact_name ?? ""}
-                      />
-                    </Field>
-                    <Field label="Contact role">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue("contact_role", event.target.value || null)
-                        }
-                        value={form.contact_role ?? ""}
-                      />
-                    </Field>
-                    <Field label="Contact email">
-                      <input
-                        className={inputClass()}
-                        onChange={(event) =>
-                          setValue("contact_email", event.target.value || null)
-                        }
-                        type="email"
-                        value={form.contact_email ?? ""}
-                      />
-                    </Field>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 text-sm">
-                      <input
-                        checked={form.paid}
-                        onChange={(event) =>
-                          setValue("paid", event.target.checked)
-                        }
-                        type="checkbox"
-                      />
-                      Paid vacancy
-                    </label>
-                    <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 text-sm">
-                      <input
-                        checked={form.cv_required}
-                        onChange={(event) =>
-                          setValue("cv_required", event.target.checked)
-                        }
-                        type="checkbox"
-                      />
-                      Require CV upload
-                    </label>
-                  </div>
-                </div>
-              )}
+              {step === 2 && <LogisticsStep form={form} setValue={setValue} />}
 
-              {step === 3 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-light text-4xl tracking-tight">
-                      AI screening.
-                    </h2>
-                    <p className="mt-2 max-w-xl text-slate-500 text-sm">
-                      Enable automatic screening to let Claude evaluate each
-                      application against your rubric and assign a score.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {[
-                      {
-                        description:
-                          "Claude evaluates each application and assigns a score when it arrives.",
-                        icon: Sparkles,
-                        label: "Auto-screen enabled",
-                        value: true,
-                      },
-                      {
-                        description:
-                          "Applications are not automatically screened. HR reviews each one manually.",
-                        icon: Users,
-                        label: "Manual review only",
-                        value: false,
-                      },
-                    ].map((option) => {
-                      const active = form.auto_screen === option.value;
-                      return (
-                        <button
-                          className="relative rounded-xl border p-5 text-left transition"
-                          key={String(option.value)}
-                          onClick={() => setValue("auto_screen", option.value)}
-                          style={
-                            active
-                              ? {
-                                  background: BRAND.blue,
-                                  borderColor: BRAND.blue,
-                                  color: "#fff",
-                                }
-                              : {
-                                  background: "rgba(255,255,255,0.72)",
-                                  borderColor: "rgba(148,163,184,0.35)",
-                                  color: "#07111f",
-                                }
-                          }
-                          type="button"
-                        >
-                          <option.icon size={20} />
-                          <p className="mt-3 font-medium">{option.label}</p>
-                          <p
-                            className={
-                              active
-                                ? "mt-2 text-sm text-white/65"
-                                : "mt-2 text-slate-500 text-sm"
-                            }
-                          >
-                            {option.description}
-                          </p>
-                          {active && (
-                            <span className="absolute top-4 right-4 grid h-5 w-5 place-items-center rounded-full bg-[#4ade80] text-white">
-                              <Check size={12} />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {form.auto_screen && (
-                    <div className="space-y-4">
-                      <p className="font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
-                        Screening rubric
-                      </p>
-
-                      <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
-                        <p className="mb-1 font-medium text-sm">
-                          Must-have qualifications
-                        </p>
-                        <p className="mb-4 text-slate-500 text-xs">
-                          Requirements that every candidate must meet. Heavily
-                          weighted in AI scoring.
-                        </p>
-                        <div className="mb-3 flex flex-wrap gap-2">
-                          {(form.screening_rubric?.must_have ?? []).map(
-                            (item) => (
-                              <span
-                                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
-                                key={item}
-                              >
-                                {item}
-                                <button
-                                  onClick={() =>
-                                    setValue("screening_rubric", {
-                                      ...(form.screening_rubric ?? {
-                                        must_have: [],
-                                        nice_to_have: [],
-                                        criteria: [],
-                                      }),
-                                      must_have: (
-                                        form.screening_rubric?.must_have ?? []
-                                      ).filter((h) => h !== item),
-                                    })
-                                  }
-                                  type="button"
-                                >
-                                  <Trash2
-                                    className="text-slate-400 hover:text-[#6b1e1e]"
-                                    size={11}
-                                  />
-                                </button>
-                              </span>
-                            )
-                          )}
-                          {(form.screening_rubric?.must_have ?? []).length ===
-                            0 && (
-                            <p className="text-slate-400 text-xs">
-                              No requirements added yet.
-                            </p>
-                          )}
-                        </div>
-                        <form
-                          className="flex gap-2"
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            const fd = new FormData(event.currentTarget);
-                            const val = String(fd.get("mh") ?? "").trim();
-                            if (
-                              !val ||
-                              (form.screening_rubric?.must_have ?? []).includes(
-                                val
-                              )
-                            ) {
-                              return;
-                            }
-                            setValue("screening_rubric", {
-                              ...(form.screening_rubric ?? {
-                                must_have: [],
-                                nice_to_have: [],
-                                criteria: [],
-                              }),
-                              must_have: [
-                                ...(form.screening_rubric?.must_have ?? []),
-                                val,
-                              ].slice(0, 20),
-                            });
-                            event.currentTarget.reset();
-                          }}
-                        >
-                          <input
-                            className={inputClass("flex-1")}
-                            name="mh"
-                            placeholder="e.g. Currently studying HR"
-                          />
-                          <button
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
-                            type="submit"
-                          >
-                            <Plus size={14} />
-                            Add
-                          </button>
-                        </form>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
-                        <p className="mb-1 font-medium text-sm">
-                          Nice-to-have qualifications
-                        </p>
-                        <p className="mb-4 text-slate-500 text-xs">
-                          Preferred but not essential. Boost scores when
-                          present.
-                        </p>
-                        <div className="mb-3 flex flex-wrap gap-2">
-                          {(form.screening_rubric?.nice_to_have ?? []).map(
-                            (item) => (
-                              <span
-                                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs"
-                                key={item}
-                              >
-                                {item}
-                                <button
-                                  onClick={() =>
-                                    setValue("screening_rubric", {
-                                      ...(form.screening_rubric ?? {
-                                        must_have: [],
-                                        nice_to_have: [],
-                                        criteria: [],
-                                      }),
-                                      nice_to_have: (
-                                        form.screening_rubric?.nice_to_have ??
-                                        []
-                                      ).filter((h) => h !== item),
-                                    })
-                                  }
-                                  type="button"
-                                >
-                                  <Trash2
-                                    className="text-slate-400 hover:text-[#6b1e1e]"
-                                    size={11}
-                                  />
-                                </button>
-                              </span>
-                            )
-                          )}
-                          {(form.screening_rubric?.nice_to_have ?? [])
-                            .length === 0 && (
-                            <p className="text-slate-400 text-xs">
-                              No preferences added yet.
-                            </p>
-                          )}
-                        </div>
-                        <form
-                          className="flex gap-2"
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            const fd = new FormData(event.currentTarget);
-                            const val = String(fd.get("nth") ?? "").trim();
-                            if (
-                              !val ||
-                              (
-                                form.screening_rubric?.nice_to_have ?? []
-                              ).includes(val)
-                            ) {
-                              return;
-                            }
-                            setValue("screening_rubric", {
-                              ...(form.screening_rubric ?? {
-                                must_have: [],
-                                nice_to_have: [],
-                                criteria: [],
-                              }),
-                              nice_to_have: [
-                                ...(form.screening_rubric?.nice_to_have ?? []),
-                                val,
-                              ].slice(0, 20),
-                            });
-                            event.currentTarget.reset();
-                          }}
-                        >
-                          <input
-                            className={inputClass("flex-1")}
-                            name="nth"
-                            placeholder="e.g. Familiarity with recruitment"
-                          />
-                          <button
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#001731] px-3 py-2 font-medium text-sm text-white"
-                            type="submit"
-                          >
-                            <Plus size={14} />
-                            Add
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {step === 3 && <ScreeningStep form={form} setValue={setValue} />}
 
               {step === 4 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-light text-4xl tracking-tight">
-                      Who gets to see this?
-                    </h2>
-                    <p className="mt-2 max-w-xl text-slate-500 text-sm">
-                      Audience, artwork, distribution, and scheduling are stored
-                      with the posting so launch prep can happen in one pass.
-                    </p>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {[
-                      {
-                        description:
-                          "Visible to verified BI students with active member access.",
-                        icon: Lock,
-                        label: "Members only",
-                        value: "members",
-                      },
-                      {
-                        description:
-                          "Visible on the public job board for broader recruitment.",
-                        icon: Globe,
-                        label: "Public",
-                        value: "public",
-                      },
-                    ].map((option) => {
-                      const active = form.audience === option.value;
-                      return (
-                        <button
-                          className="relative rounded-xl border p-5 text-left transition"
-                          key={option.value}
-                          onClick={() =>
-                            setValue(
-                              "audience",
-                              option.value as JobFormValues["audience"]
-                            )
-                          }
-                          style={
-                            active
-                              ? {
-                                  background: BRAND.blue,
-                                  borderColor: BRAND.blue,
-                                  color: "#fff",
-                                }
-                              : {
-                                  background: "rgba(255,255,255,0.72)",
-                                  borderColor: "rgba(148,163,184,0.35)",
-                                  color: "#07111f",
-                                }
-                          }
-                          type="button"
-                        >
-                          <option.icon size={20} />
-                          <p className="mt-3 font-medium">{option.label}</p>
-                          <p
-                            className={
-                              active
-                                ? "mt-2 text-sm text-white/65"
-                                : "mt-2 text-slate-500 text-sm"
-                            }
-                          >
-                            {option.description}
-                          </p>
-                          {active && (
-                            <span className="absolute top-4 right-4 grid h-5 w-5 place-items-center rounded-full bg-[#4ade80] text-white">
-                              <Check size={12} />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <Field label="Cover artwork">
-                    <div className="flex flex-wrap gap-3">
-                      {[1, 2, 3, 4, 5].map((pattern) => (
-                        <button
-                          className="relative h-16 w-24 overflow-hidden rounded-lg border-2"
-                          key={pattern}
-                          onClick={() => setValue("cover_pattern", pattern)}
-                          style={{
-                            background: coverBackground(pattern),
-                            borderColor:
-                              form.cover_pattern === pattern
-                                ? BRAND.blue
-                                : "transparent",
-                          }}
-                          type="button"
-                        >
-                          <CoverPattern value={pattern} />
-                        </button>
-                      ))}
-                      <input
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(event) =>
-                          handleCoverFile(event.target.files?.[0])
-                        }
-                        ref={fileInputRef}
-                        type="file"
-                      />
-                      <button
-                        className="grid h-16 w-24 place-items-center rounded-lg border border-slate-300 border-dashed bg-white/60 text-slate-400 transition hover:text-[#001731]"
-                        onClick={() => fileInputRef.current?.click()}
-                        type="button"
-                      >
-                        {isUploading ? (
-                          <span className="text-[10px]">Uploading</span>
-                        ) : (
-                          <Upload size={18} />
-                        )}
-                      </button>
-                    </div>
-                    {form.cover_image_url && (
-                      <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 p-3">
-                        <div
-                          className="h-14 w-20 rounded-lg bg-center bg-cover"
-                          style={{
-                            backgroundImage: `url(${form.cover_image_url})`,
-                          }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm">
-                            Uploaded cover image
-                          </p>
-                          <p className="truncate text-slate-500 text-xs">
-                            {form.cover_image_url}
-                          </p>
-                        </div>
-                        <button
-                          className="rounded-lg border border-slate-200 px-3 py-2 font-medium text-slate-500 text-xs transition hover:text-[#001731]"
-                          onClick={() => {
-                            setValue("cover_image_url", null);
-                            setValue("cover_image_file_id", null);
-                          }}
-                          type="button"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </Field>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {[
-                      ...(notify.showToggle
-                        ? [
-                            {
-                              active: notify.effectiveOn,
-                              description: notify.description,
-                              disabled: notify.disabled,
-                              icon: Smartphone,
-                              label: notify.title,
-                              onClick: () =>
-                                setValue("notify_push", !form.notify_push),
-                            },
-                          ]
-                        : []),
-                      {
-                        active: form.push_to_inboxes,
-                        description:
-                          "Queue this vacancy for member inbox placement.",
-                        icon: Bell,
-                        label: "Push to inboxes",
-                        onClick: () =>
-                          setValue("push_to_inboxes", !form.push_to_inboxes),
-                      },
-                      {
-                        active: form.newsletter,
-                        description:
-                          "Flag this vacancy for the Friday jobs newsletter.",
-                        icon: Newspaper,
-                        label: "Friday newsletter",
-                        onClick: () => setValue("newsletter", !form.newsletter),
-                      },
-                    ].map(
-                      ({
-                        active,
-                        description,
-                        disabled,
-                        icon: Icon,
-                        label,
-                        onClick,
-                      }) => (
-                        <button
-                          className="relative rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={disabled}
-                          key={label}
-                          onClick={onClick}
-                          style={
-                            active
-                              ? {
-                                  background: BRAND.blue,
-                                  borderColor: BRAND.blue,
-                                  color: "#fff",
-                                }
-                              : {
-                                  background: "rgba(255,255,255,0.72)",
-                                  borderColor: "rgba(148,163,184,0.35)",
-                                  color: "#07111f",
-                                }
-                          }
-                          type="button"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Icon size={18} />
-                            <span className="font-medium text-sm">{label}</span>
-                          </div>
-                          <p
-                            className={
-                              active
-                                ? "mt-2 text-sm text-white/65"
-                                : "mt-2 text-slate-500 text-sm"
-                            }
-                          >
-                            {description}
-                          </p>
-                          {active && (
-                            <span className="absolute top-4 right-4 grid h-5 w-5 place-items-center rounded-full bg-[#4ade80] text-white">
-                              <Check size={12} />
-                            </span>
-                          )}
-                        </button>
-                      )
-                    )}
-                  </div>
-                  {!notify.showToggle && (
-                    <div className="rounded-xl border border-slate-200 bg-white/65 p-4">
-                      <p className="font-medium text-sm">{notify.title}</p>
-                      <p className="mt-1 text-slate-500 text-sm">
-                        {notify.description}
-                      </p>
-                    </div>
-                  )}
-                  <div className="rounded-xl border border-slate-200 bg-white/65 p-5">
-                    <div className="flex items-start gap-3">
-                      <CalendarDays
-                        className="mt-0.5 text-[#3DA9E0]"
-                        size={20}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm">
-                          Publication timing
-                        </p>
-                        <p className="mt-1 text-slate-500 text-sm">
-                          {isLive
-                            ? "This vacancy is already live. Scheduling only applies to vacancies that are not yet published."
-                            : "Publish now makes the vacancy visible immediately. Schedule keeps it hidden and publishes it automatically at the chosen time (checked every 5 minutes). Saving as a draft cancels a schedule."}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {[
-                        { label: "Publish now", value: "now" },
-                        { label: "Schedule", value: "scheduled" },
-                      ].map((option) => {
-                        const active = form.publication_mode === option.value;
-                        return (
-                          <button
-                            className="rounded-lg border px-3 py-2 font-medium text-sm transition"
-                            key={option.value}
-                            onClick={() =>
-                              setValue(
-                                "publication_mode",
-                                option.value as JobFormValues["publication_mode"]
-                              )
-                            }
-                            style={
-                              active
-                                ? {
-                                    background: BRAND.blue,
-                                    borderColor: BRAND.blue,
-                                    color: "#fff",
-                                  }
-                                : {
-                                    background: "rgba(255,255,255,0.65)",
-                                    borderColor: "rgba(148,163,184,0.35)",
-                                    color: "#475569",
-                                  }
-                            }
-                            type="button"
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {form.publication_mode === "scheduled" && (
-                      <div className="mt-4">
-                        <Field label="Scheduled publish time">
-                          <input
-                            className={inputClass()}
-                            onChange={(event) =>
-                              setValue(
-                                "scheduled_publish_at",
-                                localDateTimeToIso(event.target.value)
-                              )
-                            }
-                            type="datetime-local"
-                            value={toLocalDateTimeInput(
-                              form.scheduled_publish_at
-                            )}
-                          />
-                        </Field>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <VisibilityStep
+                  fileInputRef={fileInputRef}
+                  form={form}
+                  handleCoverFile={handleCoverFile}
+                  isLive={isLive}
+                  isUploading={isUploading}
+                  notify={notify}
+                  setValue={setValue}
+                />
               )}
 
               {step === 5 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-light text-4xl tracking-tight">
-                      One last look.
-                    </h2>
-                    <p className="mt-2 max-w-xl text-slate-500 text-sm">
-                      Jump back to any section before saving or publishing.
-                    </p>
-                  </div>
-                  <TranslationReviewCard
-                    disabled={
-                      !(
-                        (locale === "en"
-                          ? form.title_en ||
-                            stripHtml(form.description_en) ||
-                            form.short_description_en
-                          : form.title_no ||
-                            stripHtml(form.description_no) ||
-                            form.short_description_no) ?? false
-                      )
-                    }
-                    isTranslating={isTranslating}
-                    onTranslate={handleTranslate}
-                    sourceLocale={locale}
-                  />
-                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/65">
-                    {[
-                      ["Title (EN)", form.title_en, 0],
-                      ["Title (NO)", form.title_no, 0],
-                      ["Department", `${departmentName} · ${campusName}`, 0],
-                      ["Teaser (EN)", form.short_description_en, 0],
-                      ["Teaser (NO)", form.short_description_no, 0],
-                      [
-                        "Description",
-                        `${stripHtml(form.description_en).length} EN characters`,
-                        1,
-                      ],
-                      [
-                        "Commitment",
-                        `${form.commitment ?? "TBC"} · ${form.term ?? "TBC"}`,
-                        2,
-                      ],
-                      [
-                        "Start / deadline",
-                        `${formatDate(form.start_date)} -> ${formatDate(form.application_deadline)}`,
-                        2,
-                      ],
-                      [
-                        "Contact",
-                        `${form.contact_name ?? "No name"} (${form.contact_email ?? "no email"})`,
-                        2,
-                      ],
-                      [
-                        "Screening",
-                        form.auto_screen
-                          ? "AI screening enabled"
-                          : "Manual review",
-                        3,
-                      ],
-                      [
-                        "Audience",
-                        form.audience === "public" ? "Public" : "Members only",
-                        4,
-                      ],
-                    ].map(([label, value, targetStep]) => (
-                      <button
-                        className="grid w-full grid-cols-[150px_minmax(0,1fr)_auto] items-center gap-4 border-slate-200 border-t px-4 py-4 text-left first:border-t-0"
-                        key={String(label)}
-                        onClick={() => setStep(Number(targetStep))}
-                        type="button"
-                      >
-                        <span className="font-medium text-[11px] text-slate-500 uppercase tracking-[0.12em]">
-                          {label}
-                        </span>
-                        <span className="truncate text-sm">
-                          {value || "Not set"}
-                        </span>
-                        <Pencil className="text-slate-400" size={14} />
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-3 rounded-xl border border-[#3DA9E0]/25 bg-[#3DA9E0]/10 p-4">
-                    <Sparkles
-                      className="mt-0.5 shrink-0 text-[#0369a1]"
-                      size={20}
-                    />
-                    <div>
-                      <p className="font-medium text-sm">
-                        Publishing checks are based on existing validation.
-                      </p>
-                      <p className="mt-1 text-slate-600 text-sm">
-                        Required title, description, campus, slug, and status
-                        are validated by the shared recruitment schema.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <ReviewStep
+                  campusName={campusName}
+                  departmentName={departmentName}
+                  form={form}
+                  handleTranslate={handleTranslate}
+                  isTranslating={isTranslating}
+                  locale={locale}
+                  setStep={setStep}
+                />
               )}
             </div>
           </section>
