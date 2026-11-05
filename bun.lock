@@ -25,7 +25,6 @@
         "@dnd-kit/sortable": "catalog:",
         "@dnd-kit/utilities": "catalog:",
         "@hookform/resolvers": "catalog:",
-        "@json-render/core": "catalog:",
         "@repo/ai": "workspace:*",
         "@repo/api": "workspace:*",
         "@repo/connectors": "workspace:*",
@@ -38,7 +37,6 @@
         "@tailwindcss/postcss": "catalog:",
         "@tanstack/react-form": "catalog:",
         "ai": "catalog:",
-        "classnames": "catalog:",
         "date-fns": "catalog:",
         "framer-motion": "catalog:",
         "geist": "^1.7.0",
@@ -514,7 +512,6 @@
     "@emoji-mart/data": "1.2.1",
     "@faker-js/faker": "^10.4.0",
     "@hookform/resolvers": "^5.2.2",
-    "@json-render/core": "^0.16.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@parvineyvazov/json-translator": "^4.1.0",
     "@platejs/ai": "^52.3.22",
@@ -583,7 +580,6 @@
     "axios": "^1.14.0",
     "botbuilder": "^4.23.3",
     "class-variance-authority": "^0.7.1",
-    "classnames": "^2.5.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
@@ -922,8 +918,6 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
-
-    "@json-render/core": ["@json-render/core@0.16.0", "", { "dependencies": { "zod": "^4.3.6" } }, "sha512-qQp8BB/3pWYapTGXBDSBMXRCdrC05VJPLL3drXMPX/QbUB3nuvtyXUGmAZFUz8eLUy7JImODvb3GNIq38dGzhQ=="],
 
     "@juggle/resize-observer": ["@juggle/resize-observer@3.4.0", "", {}, "sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA=="],
 
@@ -1820,8 +1814,6 @@
     "citty": ["citty@0.2.2", "", {}, "sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w=="],
 
     "class-variance-authority": ["class-variance-authority@0.7.1", "", { "dependencies": { "clsx": "^2.1.1" } }, "sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg=="],
-
-    "classnames": ["classnames@2.5.1", "", {}, "sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow=="],
 
     "cli-cursor": ["cli-cursor@3.1.0", "", { "dependencies": { "restore-cursor": "^3.1.0" } }, "sha512-I/zHAwsKf9FqGoXM4WWRACob9+SNukZTd94DWF57E4toouRulbCxcUh6RKUEOQlYTHJnzkPMySvPNaaSLNfLZw=="],
 

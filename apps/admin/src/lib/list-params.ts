@@ -9,7 +9,6 @@
 export {
   firstParam,
   type ListSearchParams,
-  lastPageByOffset,
   lastReachablePage,
   MAX_OFFSET,
 } from "@repo/shared/utils/list-params";

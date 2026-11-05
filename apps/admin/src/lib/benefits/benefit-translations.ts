@@ -32,7 +32,7 @@ type BenefitTextSource = Partial<
 const text = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
-export const benefitTextSnapshot = (
+const benefitTextSnapshot = (
   source: BenefitTextSource,
   locale: ContentLocale
 ): BenefitTranslationSnapshot =>

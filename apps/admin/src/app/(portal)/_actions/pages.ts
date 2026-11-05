@@ -153,7 +153,7 @@ export async function getDashboardStats() {
   };
 }
 
-export interface PageViewDay {
+interface PageViewDay {
   date: string;
   views: number;
 }

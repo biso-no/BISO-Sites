@@ -24,7 +24,7 @@ export function coercePreferenceRecord(
   return isRecord(prefs) ? prefs : {};
 }
 
-export function getDefaultAdminPortalSettings(): AdminPortalSettings {
+function getDefaultAdminPortalSettings(): AdminPortalSettings {
   return {
     locale: DEFAULT_LOCALE,
     notifications: {

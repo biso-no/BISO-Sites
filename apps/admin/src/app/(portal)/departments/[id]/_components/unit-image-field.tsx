@@ -19,7 +19,7 @@ import { uploadMediaFile } from "@/lib/upload-client";
  * - `url` — the full storage view URL. Used for `departments.hero`, which has
  *   no size limit, so the directly-renderable form is the safer one there.
  */
-export type UnitImageStorage = "fileId" | "url";
+type UnitImageStorage = "fileId" | "url";
 
 const ACCEPTED_TYPES =
   "image/jpeg,image/png,image/gif,image/webp,image/svg+xml";

@@ -142,7 +142,7 @@ function escapeHtml(text: string): string {
 }
 
 /** The short description, else the plain-text description cut to 300 chars. */
-export function prefillBody(translation: TranslationLike | undefined): string {
+function prefillBody(translation: TranslationLike | undefined): string {
   const short = translation?.short_description?.trim();
   const text =
     short || htmlToPlainText(translation?.description).slice(0, PREFILL_MAX);
@@ -179,7 +179,7 @@ export interface ReachSentenceInput {
   groupName?: string | null;
 }
 
-export const REACH_UNAVAILABLE = "Reach unavailable right now";
+const REACH_UNAVAILABLE = "Reach unavailable right now";
 
 /** The descriptive part of the reach line; the UI prefixes "About {n} phones". */
 export function reachSentence(input: ReachSentenceInput): string {

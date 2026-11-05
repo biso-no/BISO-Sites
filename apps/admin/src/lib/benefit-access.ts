@@ -6,7 +6,7 @@ import { BENEFIT_ERRORS } from "./benefits/benefit-errors";
 import { ROLES } from "./roles";
 
 /** Every campus id a benefit can belong to: the four campuses plus national. */
-export const BENEFIT_EDITABLE_ALL: readonly string[] = [
+const BENEFIT_EDITABLE_ALL: readonly string[] = [
   ...CAMPUS_IDS,
   NATIONAL_CAMPUS_ID,
 ];

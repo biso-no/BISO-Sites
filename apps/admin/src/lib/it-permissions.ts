@@ -12,10 +12,7 @@ import {
 // them to the request's auth context.
 export {
   getItCampusScope,
-  getItPermissions,
-  IT_PERMISSIONS,
   type ItCampusScope,
-  type ItPermissionMap,
 } from "@/lib/it-permission-rules";
 
 export async function getCurrentItPermissions() {

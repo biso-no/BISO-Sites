@@ -350,7 +350,7 @@ export const announcementSchema = z
 export const ANNOUNCEMENTS_PAGE_SIZE = 20;
 export type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 
-export const segmentMetadataSchema = z.object({
+const segmentMetadataSchema = z.object({
   departure_time: z.string().optional().nullable(),
   pickup_location: z.string().optional().nullable(),
   hotel: z.string().optional().nullable(),

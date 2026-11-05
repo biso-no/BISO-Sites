@@ -6,7 +6,7 @@ const NON_KEY_CHARACTERS_RE = /[^a-z0-9]/g;
  * department "OSL SIVØK - BI Siviløkonomer" is named "OSLSIVKBISivilkonomer";
  * both reduce to "oslsivkbisivilkonomer".
  */
-export function departmentNameKey(name: string): string {
+function departmentNameKey(name: string): string {
   return name.toLowerCase().replace(NON_KEY_CHARACTERS_RE, "");
 }
 

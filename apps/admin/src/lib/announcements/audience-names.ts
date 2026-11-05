@@ -15,7 +15,7 @@ import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "@/lib/campus-constants";
  * neither the Appwrite SDK nor `node:crypto`.
  */
 
-export const NATIONAL_CAMPUS_ID = CAMPUS_NAME_TO_ID.National as string;
+const NATIONAL_CAMPUS_ID = CAMPUS_NAME_TO_ID.National as string;
 
 const ALL_CAMPUS_IDS = Object.values(CAMPUS_NAME_TO_ID);
 

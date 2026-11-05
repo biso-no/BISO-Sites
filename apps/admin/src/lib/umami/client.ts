@@ -17,10 +17,10 @@
 import "server-only";
 
 /** Website id for biso.no in the self-hosted Umami instance. */
-export const WEB_WEBSITE_ID = "ada2c233-ee4f-4064-87c0-feaeb52c56ce";
+const WEB_WEBSITE_ID = "ada2c233-ee4f-4064-87c0-feaeb52c56ce";
 
 /** Default reporting timezone for time-bucketed queries. */
-export const UMAMI_TIMEZONE = "Europe/Oslo";
+const UMAMI_TIMEZONE = "Europe/Oslo";
 
 // Refresh the bearer token this long before the soft TTL elapses.
 const EXPIRY_BUFFER_MS = 60 * 1000;

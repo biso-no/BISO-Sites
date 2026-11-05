@@ -26,7 +26,7 @@ export interface PartnerCardViewProps {
 }
 
 /** The board's link to a new member offer with this partner already chosen. */
-export function newDealHref(partner: PartnerCard["partner"]): string {
+function newDealHref(partner: PartnerCard["partner"]): string {
   const params = new URLSearchParams([
     ["campus", partner.campus_id ?? ""],
     ["section", "member"],

@@ -49,7 +49,7 @@ export function expandDeptName(raw: string): string {
  * Pure synchronous function — lives here rather than team-provisioning.ts
  * because that file has "use server" and can only export async functions.
  */
-export function getCampusManagementTeamId(campusId: string): string | null {
+function getCampusManagementTeamId(campusId: string): string | null {
   const campusName = CAMPUS_ID_TO_NAME[campusId];
   if (!campusName || campusName === "National") {
     return null;

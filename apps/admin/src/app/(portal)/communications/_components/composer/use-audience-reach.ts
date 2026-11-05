@@ -24,7 +24,7 @@ export interface ReachResult {
 export type GetReach = (request: ReachRequest) => Promise<ReachResult>;
 
 /** What the audience still needs before there is anyone to count. */
-export function incompleteHint(request: ReachRequest): string | null {
+function incompleteHint(request: ReachRequest): string | null {
   if (request.audienceType === "users" && !request.userIds?.length) {
     return "Add people to see who it reaches.";
   }

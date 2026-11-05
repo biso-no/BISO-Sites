@@ -10,7 +10,7 @@ import {
 } from "@repo/shared/utils/benefit-visibility";
 import type { BoardBenefit, BoardPartner } from "../../_actions/benefits";
 
-export const ENDING_SOON_DAYS = 30;
+const ENDING_SOON_DAYS = 30;
 const MS_PER_DAY = 86_400_000;
 const FALLBACK_SECTION: BenefitSection = "member";
 /** States students no longer see; these items sort after the live ones. */
