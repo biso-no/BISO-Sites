@@ -51,3 +51,25 @@ export function requireDepartment(params: URLSearchParams): string | null {
 export function feedLocale(params: URLSearchParams): PublicLocale {
   return params.get("locale") === "en" ? "en" : "no";
 }
+
+/**
+ * The GET handler the department feeds share: the department's rows from
+ * `read`, a cacheable `[]` when the department is missing or malformed, and
+ * an uncacheable `[]` when the read fails.
+ */
+export function departmentFeedRoute(
+  read: (department: string, params: URLSearchParams) => Promise<unknown>
+) {
+  return async (request: Request): Promise<NextResponse> => {
+    const { searchParams } = new URL(request.url);
+    const department = requireDepartment(searchParams);
+    if (!department) {
+      return feedResponse([]);
+    }
+    try {
+      return feedResponse(await read(department, searchParams));
+    } catch {
+      return feedFailure();
+    }
+  };
+}
