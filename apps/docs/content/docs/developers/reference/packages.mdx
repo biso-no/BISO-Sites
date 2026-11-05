@@ -216,7 +216,6 @@ AI on the Vercel AI SDK: the two Anthropic models, the admin assistant and its t
 
 - **The package never reads `ANTHROPIC_API_KEY`.** The AI library reads it by itself. Only docs names it, to switch its assistant on, and only `apps/docs/.env.example` lists it. See [AI](/developers/reference/ai).
 - **Don't trust `README.md`.** No app imports `@repo/ai/config`, `@repo/ai/prompts` or `@repo/ai/utils`, though the README shows them. It also shows entry points that don't exist, such as `@repo/ai/provider`, `@repo/ai/hooks/use-assistant` and `@repo/ai/tools/navigation`. The `exports` in `package.json` are the real list.
-- **`@ai-sdk/openai` is still a dependency.** The models moved from OpenAI to Anthropic on 22 October 2026. In the apps, only test mocks in the admin still refer to OpenAI's package. See [Leftovers](/developers/reference/ai#leftovers).
 
 ## `@repo/i18n`
 

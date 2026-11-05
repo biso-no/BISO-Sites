@@ -127,6 +127,6 @@ Assistant: [Fills in title, date, and description fields]
 ## Dependencies
 
 - `ai` - Vercel AI SDK
-- `@ai-sdk/openai` - OpenAI provider
+- `@ai-sdk/anthropic` - Anthropic provider
 - `@ai-sdk/react` - React hooks
 - `zod` - Schema validation

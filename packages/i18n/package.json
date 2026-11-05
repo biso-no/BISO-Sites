@@ -20,7 +20,6 @@
     "lint": "biome lint ."
   },
   "dependencies": {
-    "@parvineyvazov/json-translator": "catalog:",
     "next-intl": "catalog:"
   },
   "devDependencies": {
