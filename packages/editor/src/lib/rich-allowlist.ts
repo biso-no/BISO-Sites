@@ -23,7 +23,7 @@ export const INLINE_TAGS: readonly string[] = [
  * A caption, `tfoot` and `colgroup` are rewritten before a body is stored
  * (`rich/structure.ts`), so neither sanitiser keeps them.
  */
-export const TABLE_TAGS: readonly string[] = [
+const TABLE_TAGS: readonly string[] = [
   "table",
   "thead",
   "tbody",
@@ -76,16 +76,16 @@ export const DROPPED_WITH_CONTENT: readonly string[] = [
 export const SAFE_HREF = /^(?:https?:|mailto:|tel:|[/#?.])/i;
 
 /** `ol[start]`: one to four digits, no leading zero. A start of 1 is dropped as redundant. */
-export const OL_START = /^[1-9]\d{0,3}$/;
+const OL_START = /^[1-9]\d{0,3}$/;
 
 /** `th`/`td` `colspan` and `rowspan`: 2 to 20, no leading zero. */
-export const CELL_SPAN = /^(?:[2-9]|1\d|20)$/;
+const CELL_SPAN = /^(?:[2-9]|1\d|20)$/;
 
 /** An attribute's value as a body tag keeps it, or `null` to drop it. */
 export type AttributeRule = (value: string) => string | null;
 
 /** `a[href]`: kept as written when `SAFE_HREF` accepts it trimmed. */
-export function keptHref(value: string): string | null {
+function keptHref(value: string): string | null {
   return SAFE_HREF.test(value.trim()) ? value : null;
 }
 

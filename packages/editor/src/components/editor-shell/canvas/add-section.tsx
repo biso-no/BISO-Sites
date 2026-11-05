@@ -21,7 +21,7 @@ export const SECTION_LAYOUTS: readonly LayoutOption[] = [
 ];
 
 /** The six column layouts as variant tiles, the inspector's picker style. */
-export function SectionLayoutPicker({
+function SectionLayoutPicker({
   onPick,
 }: {
   onPick: (columns: SectionColumns) => void;

@@ -13,7 +13,7 @@ export const isTableCell = (node: unknown): node is TElement =>
   ElementApi.isElement(node) && TABLE_CELL_TYPES.includes(node.type);
 
 /** A span as the page writes it: 2 to 20, or 1 where the sanitisers drop it. */
-export const writtenSpan = (span: number): number =>
+const writtenSpan = (span: number): number =>
   Number(keptCellSpan(String(span)) ?? 1);
 
 /** A place in the grid: a cell of the table, or (`cell` null) one it lacks. */

@@ -15,7 +15,7 @@ export type AnyElement = ReactElement<{
  * Every element in a hook-free component's output, expanding nested function
  * components. The media picker uses hooks, so it is listed, not expanded.
  */
-export function walk(node: ReactNode, out: AnyElement[] = []): AnyElement[] {
+function walk(node: ReactNode, out: AnyElement[] = []): AnyElement[] {
   if (Array.isArray(node)) {
     for (const child of node) {
       walk(child, out);
