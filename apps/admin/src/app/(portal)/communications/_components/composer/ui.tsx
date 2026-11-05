@@ -6,6 +6,7 @@ import {
   Megaphone,
   Newspaper,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import type { ContentLocale } from "@/lib/content-translation";
 import type { ComposerTypeId } from "./composer-state";
 
@@ -155,25 +156,30 @@ export function fieldInputStyle(
   };
 }
 
+/** A studio step's heading: an optional eyebrow, the title and an optional lead. */
 export function StepIntro({
   eyebrow,
+  lead,
   title,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
+  lead?: ReactNode;
   title: string;
 }) {
   return (
     <div style={{ padding: "8px 0 18px" }}>
-      <span
-        style={{
-          color: BRAND.ink4,
-          fontSize: 11,
-          letterSpacing: ".08em",
-          textTransform: "uppercase",
-        }}
-      >
-        {eyebrow}
-      </span>
+      {eyebrow && (
+        <span
+          style={{
+            color: BRAND.ink4,
+            fontSize: 11,
+            letterSpacing: ".08em",
+            textTransform: "uppercase",
+          }}
+        >
+          {eyebrow}
+        </span>
+      )}
       <div
         style={{
           color: BRAND.ink,
@@ -181,11 +187,23 @@ export function StepIntro({
           fontSize: 40,
           letterSpacing: "-0.015em",
           lineHeight: 1.05,
-          marginTop: 4,
+          marginTop: eyebrow ? 4 : undefined,
         }}
       >
         {title}
       </div>
+      {lead && (
+        <p
+          style={{
+            color: BRAND.ink3,
+            fontSize: 13.5,
+            margin: "8px 0 0",
+            maxWidth: "50ch",
+          }}
+        >
+          {lead}
+        </p>
+      )}
     </div>
   );
 }
