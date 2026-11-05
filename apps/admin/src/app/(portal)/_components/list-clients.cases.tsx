@@ -392,22 +392,50 @@ describe("news list", () => {
     expect(create?.textContent).toBe("adminPortal.news.create");
   });
 
-  test("delete removes the article on the first click", async () => {
+  test("edit and delete carry their names", async () => {
+    await mount(news([articleRow("n1")]));
+    const edit = links("/news/n1").find(
+      (link) => link.getAttribute("title") === labels.edit
+    );
+    expect(edit).toBeDefined();
+    expect(deleteButtons().map((b) => b.getAttribute("title"))).toEqual([
+      labels.delete,
+    ]);
+  });
+
+  test("delete asks first, then deletes on the second click", async () => {
     await mount(news([articleRow("n1"), articleRow("n2")]));
+    await click(deleteButtons()[1] as TestElement);
+    expect(toast.message.mock.calls).toEqual([[labels.deleteConfirm]]);
+    expect(deleteNews).not.toHaveBeenCalled();
+    expect((deleteButtons()[1] as TestElement).style.background).toBe(
+      "#6b1e1e"
+    );
+    expect((deleteButtons()[0] as TestElement).style.background).toBe(
+      "rgba(107,30,30,0.08)"
+    );
+
     await click(deleteButtons()[1] as TestElement);
     expect(deleteNews.mock.calls).toEqual([["n2"]]);
     expect(toast.success.mock.calls).toEqual([
       ["adminPortal.news.deleteSuccess"],
     ]);
-    expect(toast.message).not.toHaveBeenCalled();
+    expect((deleteButtons()[1] as TestElement).style.background).toBe(
+      "rgba(107,30,30,0.08)"
+    );
   });
 
-  test("a refused delete says so in the editor's language", async () => {
+  test("a refused delete says so in the editor's language and stays armed", async () => {
     deleteNews.mockImplementationOnce(() =>
       Promise.resolve({ error: "Not allowed" })
     );
     await mount(news([articleRow("n1")]));
     await click(deleteButtons()[0] as TestElement);
+    await click(deleteButtons()[0] as TestElement);
     expect(toast.error.mock.calls).toEqual([["adminPortal.news.deleteError"]]);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect((deleteButtons()[0] as TestElement).style.background).toBe(
+      "#6b1e1e"
+    );
   });
 });

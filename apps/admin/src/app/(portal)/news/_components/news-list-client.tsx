@@ -46,6 +46,9 @@ export function NewsListClient({
 }: NewsListClientProps) {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+    null
+  );
   const [, startTransition] = useTransition();
   const locale = useLocale() === "no" ? "no" : "en";
   const t = useTranslations("adminPortal.news");
@@ -88,12 +91,18 @@ export function NewsListClient({
   });
 
   function handleDelete(id: string) {
+    if (confirmingDeleteId !== id) {
+      setConfirmingDeleteId(id);
+      toast.message(labels.deleteConfirm);
+      return;
+    }
     startTransition(async () => {
       const result = await deleteNews(id);
       if (result.error) {
         toast.error(t("deleteError"));
       } else {
         toast.success(t("deleteSuccess"));
+        setConfirmingDeleteId(null);
       }
     });
   }
@@ -189,6 +198,7 @@ export function NewsListClient({
                     background: STUDIO.paper2,
                     color: STUDIO.ink3,
                   }}
+                  title={labels.edit}
                 >
                   <Pencil size={13} />
                 </Link>
@@ -196,9 +206,16 @@ export function NewsListClient({
                   className="flex h-8 w-8 items-center justify-center rounded-lg"
                   onClick={() => handleDelete(article.$id)}
                   style={{
-                    background: "rgba(107,30,30,0.08)",
-                    color: STUDIO.claret,
+                    background:
+                      confirmingDeleteId === article.$id
+                        ? STUDIO.claret
+                        : "rgba(107,30,30,0.08)",
+                    color:
+                      confirmingDeleteId === article.$id
+                        ? STUDIO.paper
+                        : STUDIO.claret,
                   }}
+                  title={labels.delete}
                   type="button"
                 >
                   <Trash2 size={13} />
