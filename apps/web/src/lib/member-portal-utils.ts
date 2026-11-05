@@ -1,6 +1,6 @@
 export type MembershipDuration = "semester" | "year" | "three-year";
 
-export const SHOP_CATEGORIES = [
+const SHOP_CATEGORIES = [
   "All",
   "Merch",
   "Trips",

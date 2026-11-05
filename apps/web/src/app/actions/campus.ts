@@ -2,11 +2,7 @@
 
 import { Query } from "@repo/api";
 import { createSessionClient } from "@repo/api/server";
-import type {
-  Campus,
-  CampusData,
-  CampusMetadata,
-} from "@repo/api/types/appwrite";
+import type { Campus, CampusMetadata } from "@repo/api/types/appwrite";
 import { cookies } from "next/headers";
 import {
   CAMPUS_COOKIE,
@@ -120,15 +116,6 @@ export async function getCampuses({
     console.error("Failed to fetch campuses:", error);
     return [];
   }
-}
-
-export async function getCampusData(_campusId?: string) {
-  const { db } = await createSessionClient();
-  const campuses = await db.listRows<CampusData>("app", "campus_data", [
-    Query.limit(500),
-  ]);
-
-  return campuses.rows;
 }
 
 /**

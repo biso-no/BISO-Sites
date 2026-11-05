@@ -21,7 +21,7 @@ import { switchToBiSignIn } from "@/lib/server";
 
 // The page's <h1> lives in the `PageHeader` band above (join/page.tsx); this
 // is the state's own secondary heading. Same shape as `<StatusPanel>`'s body.
-export function StateCard({
+function StateCard({
   icon: Icon,
   title,
   body,

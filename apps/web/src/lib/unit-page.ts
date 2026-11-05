@@ -28,7 +28,7 @@ import {
  * this department's page if its `department_id` says so. A null
  * `department_id` must never match: it means "no department", not "any".
  */
-export function pageBelongsToDepartment(
+function pageBelongsToDepartment(
   pageDepartmentId: string | null | undefined,
   departmentId: string
 ): boolean {
@@ -49,7 +49,7 @@ export interface PublishedUnitPage {
  * treated as no page, and the route shows its coded default instead (D2). A
  * header alone is content.
  */
-export function hasPageContent(doc: PageDoc): boolean {
+function hasPageContent(doc: PageDoc): boolean {
   return doc.sections.length > 0 || doc.header !== undefined;
 }
 

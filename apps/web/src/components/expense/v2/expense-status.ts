@@ -28,7 +28,7 @@ export interface ExpenseStatusVisual {
   tone: PillTone;
 }
 
-export const EXPENSE_STATUS: Record<ExpensesStatus, ExpenseStatusVisual> = {
+const EXPENSE_STATUS: Record<ExpensesStatus, ExpenseStatusVisual> = {
   [ExpensesStatus.DRAFT]: { key: "draft", tone: "neutral", Icon: Clock },
   [ExpensesStatus.PENDING]: { key: "pending", tone: "warning", Icon: Clock },
   [ExpensesStatus.SUBMITTED]: {

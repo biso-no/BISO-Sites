@@ -52,7 +52,7 @@ export async function cachedBenefitRows(): Promise<BenefitRowInput[]> {
   return rows;
 }
 
-export async function cachedBenefitPartners(): Promise<BenefitPartnerInput[]> {
+async function cachedBenefitPartners(): Promise<BenefitPartnerInput[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag("benefits");
