@@ -1,5 +1,6 @@
 import "server-only";
 
+import { asString, fetchTicksterJson } from "./common";
 import type { TicksterCrmPage, TicksterPurchase } from "./types";
 
 const DEFAULT_BASE_URL = "https://api.tickster.com";
@@ -15,17 +16,6 @@ export interface TicksterClientConfig {
   fetchTimeoutMs?: number;
 }
 
-function toStringOrNull(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  if (typeof value === "number") {
-    return String(value);
-  }
-  return null;
-}
-
 /**
  * Defensive mapping of an unknown CRM record into our `TicksterPurchase`. The
  * Tickster field names are not yet verified against a live key, so we probe a
@@ -34,10 +24,10 @@ function toStringOrNull(value: unknown): string | null {
  */
 function mapPurchase(raw: Record<string, unknown>): TicksterPurchase | null {
   const reference =
-    toStringOrNull(raw.reference) ??
-    toStringOrNull(raw.purchaseReference) ??
-    toStringOrNull(raw.orderRef) ??
-    toStringOrNull(raw.id);
+    asString(raw.reference) ??
+    asString(raw.purchaseReference) ??
+    asString(raw.orderRef) ??
+    asString(raw.id);
 
   if (!reference) {
     return null;
@@ -46,18 +36,15 @@ function mapPurchase(raw: Record<string, unknown>): TicksterPurchase | null {
   return {
     reference,
     eventId:
-      toStringOrNull(raw.eventId) ??
-      toStringOrNull(raw.event_id) ??
-      toStringOrNull(raw.event),
-    email: toStringOrNull(raw.email) ?? toStringOrNull(raw.buyerEmail),
+      asString(raw.eventId) ?? asString(raw.event_id) ?? asString(raw.event),
+    email: asString(raw.email) ?? asString(raw.buyerEmail),
     name:
-      toStringOrNull(raw.name) ??
-      toStringOrNull(raw.buyerName) ??
-      toStringOrNull(raw.customerName),
-    phone: toStringOrNull(raw.phone) ?? toStringOrNull(raw.buyerPhone),
-    ticketType:
-      toStringOrNull(raw.ticketType) ?? toStringOrNull(raw.ticket_type),
-    purchasedAt: toStringOrNull(raw.purchasedAt) ?? toStringOrNull(raw.created),
+      asString(raw.name) ??
+      asString(raw.buyerName) ??
+      asString(raw.customerName),
+    phone: asString(raw.phone) ?? asString(raw.buyerPhone),
+    ticketType: asString(raw.ticketType) ?? asString(raw.ticket_type),
+    purchasedAt: asString(raw.purchasedAt) ?? asString(raw.created),
   };
 }
 
@@ -84,9 +71,9 @@ function extractNextCursor(
   if (payload && typeof payload === "object") {
     const container = payload as Record<string, unknown>;
     const explicit =
-      toStringOrNull(container.nextCursor) ??
-      toStringOrNull(container.next) ??
-      toStringOrNull(container.fromPurchase);
+      asString(container.nextCursor) ??
+      asString(container.next) ??
+      asString(container.fromPurchase);
     if (explicit) {
       return explicit;
     }
@@ -118,26 +105,15 @@ export class TicksterClient {
     this.fetcher = config.fetcher ?? fetch;
   }
 
-  private async request(path: string): Promise<unknown> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.fetchTimeoutMs);
-    try {
-      const response = await this.fetcher(`${this.baseUrl}${path}`, {
-        headers: {
-          "X-API-KEY": this.apiKey,
-          Accept: "application/json",
-        },
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new Error(
-          `Tickster API ${path} responded ${response.status} ${response.statusText}`
-        );
-      }
-      return await response.json();
-    } finally {
-      clearTimeout(timeout);
-    }
+  private request(path: string): Promise<unknown> {
+    return fetchTicksterJson({
+      apiKey: this.apiKey,
+      authHeader: "X-API-KEY",
+      fetcher: this.fetcher,
+      label: `Tickster API ${path}`,
+      timeoutMs: this.fetchTimeoutMs,
+      url: `${this.baseUrl}${path}`,
+    });
   }
 
   /**
