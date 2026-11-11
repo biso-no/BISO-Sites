@@ -6,7 +6,6 @@ import { Query } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
 import type {
   ExpenseAttachments,
-  ExpenseCostTypes,
   Expenses,
   Users,
 } from "@repo/api/types/appwrite";
@@ -31,6 +30,7 @@ import {
 import { PDFDocument } from "pdf-lib";
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
 import { type ExpenseEventInput, recordExpenseEvents } from "./expense-events";
+import { loadAllCostTypes } from "./expense-types";
 import { generateExpensePdf } from "./pdf/expense-pdf";
 import { receiptDateInOslo, todayInOslo } from "./receipt-date";
 
@@ -70,23 +70,6 @@ function sortedAttachments(
   return [...attachments].sort(
     (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
   );
-}
-
-async function loadCostTypeOptions(
-  db: Awaited<ReturnType<typeof createAdminClient>>["db"]
-): Promise<CostTypeOption[]> {
-  const rows = await db.listRows<ExpenseCostTypes>(
-    "app",
-    "expense_cost_types",
-    [Query.limit(100)]
-  );
-  return rows.rows.map((row) => ({
-    slug: row.slug,
-    label: row.label,
-    accountNumber: row.account_number,
-    taxCode: row.tax_code,
-    ocrCategory: row.ocr_category,
-  }));
 }
 
 interface BookingContext {
@@ -480,7 +463,7 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
   let builtShifts: DateShift[];
   try {
     const profile = await db.getRow<Users>("app", "user", expense.userId);
-    const options = await loadCostTypeOptions(db);
+    const options = await loadAllCostTypes(db);
     const ordered = sortedAttachments(expense.expenseAttachments ?? []);
     const { locks, periods } = await loadFiscalContext();
     const built = buildReceiptLines(ordered, options, {
