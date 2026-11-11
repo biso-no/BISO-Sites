@@ -92,7 +92,7 @@ The app registers its Firebase token with Appwrite as a push target, on the push
 
 ## Run it locally
 
-Use Flutter 3.47.2, the version the Android build uses. From the BISO-Flutter folder:
+Use Flutter 3.47.9, the version the Android build uses. From the BISO-Flutter folder:
 
 ```bash
 flutter pub get
@@ -109,7 +109,7 @@ The app has no settings for another environment, so a local run signs in to prod
 [Deploying](/developers/keep-it-running/deploying#the-biso-app) has the step-by-step release. In short:
 
 - **Version.** The `version:` line in `pubspec.yaml`, in the form `1.2.3+45`, is the release version. Raise the build number after the `+` before every push to `main` and before every iOS build.
-- **Android.** `.github/workflows/build.yml` runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.2 and Java 17, generates code, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then makes a GitHub release with the APK. Pull requests get the tests and a debug build only. Moving a release from the internal track to production is done by hand in the Google Play Console.
+- **Android.** `.github/workflows/build.yml` runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.9 and Java 21, generates code, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then makes a GitHub release with the APK. Pull requests get the tests and a debug build only. Moving a release from the internal track to production is done by hand in the Google Play Console.
 - **iOS.** Nothing in GitHub builds iOS. The owner builds it by hand on a Mac with `flutter build ipa --release`, and uploads the result to App Store Connect. A GitHub Action for iOS is planned.
 
 ## Signing and secrets
@@ -130,7 +130,7 @@ The app has no settings for another environment, so a local run signs in to prod
 ## Known issues
 
 - **The AI chat has no server.** The chat screen calls `/api/public-assistant` on the API (`lib/data/services/ai_chat_service.dart`). `apps/api` has no such route, so every message fails. The screen's route, `/ai-chat`, is registered in `lib/main.dart`, but nothing in the app links to it.
-- **The Xcode Cloud set-up isn't used.** A workflow manifest (`ios/Runner.xcodeproj/xcshareddata/xcodecloud/manifest.json`) and `ios/ci_scripts/ci_post_clone.sh` are in the repo, but iOS isn't built there. The script's default Flutter version, 3.32.8, is older than the 3.47.2 that the Android build pins, which the Android workflow's comment says the dependencies need. The fastlane lanes in `ios/fastlane/` aren't the release path either. Delete them, or fix them when the planned GitHub Action is built.
+- **The Xcode Cloud set-up isn't used.** A workflow manifest (`ios/Runner.xcodeproj/xcshareddata/xcodecloud/manifest.json`) and `ios/ci_scripts/ci_post_clone.sh` are in the repo, but iOS isn't built there. The script's default Flutter version, 3.32.8, is older than the 3.47.9 that the Android build pins, which the Android workflow's comment says the dependencies need. The fastlane lanes in `ios/fastlane/` aren't the release path either. Delete them, or fix them when the planned GitHub Action is built.
 - **Every build talks to production.** There's no build setting for another Appwrite project or API. See [Run it locally](#run-it-locally).
 - **Staff should sign in to the admin first.** Ask each staff member to make their own first sign-in in the admin, with Microsoft, before they use the app with a `@biso.no` address. The reason is on the owner's list of security issues: [Known limitations](/developers/reference/known-limitations) says where that list is kept.
 - **The GitHub release notes overstate.** Each release made on `main` says it was "deployed to both app stores". Only Android is uploaded, and only to the internal track.

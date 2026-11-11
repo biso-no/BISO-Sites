@@ -21,7 +21,7 @@ Read this before you ship a change to production, and again when a deploy goes w
 
 - The four web apps (web, admin, api and docs) run as Sites in Appwrite. The owner deploys each one by hand in the Appwrite console.
 - Pushing to `main` doesn't deploy them. Nobody knows why yet. A GitHub deploy workflow is planned.
-- Nothing in GitHub builds, tests, lints or type-checks the apps. The two workflows in `.github/workflows/` are a Claude PR review and a docs coverage check that only warns.
+- Nothing in GitHub builds, tests, lints or type-checks the apps. The two workflows in `.github/workflows/` are a Claude PR review and a docs coverage check that only warns. Dependabot (`.github/dependabot.yml`) opens pull requests that update dependencies each week, and the Claude review skips those.
 - There is no staging environment. A deploy goes straight to `biso.no`, `admin.biso.no` or `api.biso.no`.
 - The three functions are deployed from the console too, each with its own settings.
 - The BISO app ships differently: Android from CI, iOS by hand.
@@ -222,7 +222,7 @@ The app is in the BISO-Flutter repository. Its version is the `version:` line in
 
 ### Android
 
-`.github/workflows/build.yml` in BISO-Flutter runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.2 and Java 17, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then creates a GitHub release with the APK. Its release notes say the app was "deployed to both app stores", but only Android is uploaded. Pull requests get tests and a debug build only.
+`.github/workflows/build.yml` in BISO-Flutter runs on every push to `main` and on `v*` tags. It sets up Flutter 3.47.9 and Java 21, runs `flutter test`, builds a signed app bundle and APK, and uploads the bundle to Google Play's **internal** track. On `main` it then creates a GitHub release with the APK. Its release notes say the app was "deployed to both app stores", but only Android is uploaded. Pull requests get tests and a debug build only.
 
 Moving a release from the internal track to production is done by hand in the Google Play Console (<Private name="google-play-account" label="Google Play account" />).
 
