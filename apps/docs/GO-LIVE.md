@@ -174,7 +174,7 @@ since, merge it into the branch again first.
   | Variable | Value |
   | --- | --- |
   | `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT` | The same as on the admin Site |
-  | `APPWRITE_SESSION_COOKIE` | `a_session_biso_admin` |
+  | `APPWRITE_SESSION_COOKIE` | `biso_admin_session` |
   | `DOCS_PRIVATE_SOURCE` | `infisical` |
   | `INFISICAL_SITE_URL` | The Infisical server's base address, with no path |
   | `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_SECRET_PATH` | BISO's project id, the environment slug and the docs folder's path, from section 3 |
@@ -205,7 +205,7 @@ since, merge it into the branch again first.
 - [ ] **Make sure the admin session cookie is set on `.biso.no`.** Sign in at
   `https://admin.biso.no` and open the cookies in the browser's developer
   tools.
-  Done when: `a_session_biso_admin` has the domain `.biso.no`.
+  Done when: `biso_admin_session` has the domain `.biso.no`.
 
 ## 8. Deploy and check
 

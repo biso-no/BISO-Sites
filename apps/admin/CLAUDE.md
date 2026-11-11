@@ -29,7 +29,7 @@ handler. Any new top-level route segment must add its own auth check.
 
 ## Auth
 
-- Session cookie: `a_session_biso_admin` (set via `APPWRITE_SESSION_COOKIE`).
+- Session cookie: `biso_admin_session` (set via `APPWRITE_SESSION_COOKIE`).
   Cookie attributes branch on `isProd` (`lib/utils.ts`): `sameSite: "none"` and
   `domain: ".biso.no"` in prod, `lax` + `localhost` otherwise.
 - `NEXT_PUBLIC_DOCS_URL` lets `sanitizeRedirectTarget` accept post-login redirects to the docs origin only (exact origin match).

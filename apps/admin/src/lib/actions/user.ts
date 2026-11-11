@@ -1,4 +1,6 @@
 "use server";
+import { isGlobalAdmin } from "@/lib/authorization";
+import { isAuthenticatedAppwriteUser, isProd } from "@/lib/utils";
 import type { Models } from "@repo/api";
 import { createAdminClient, createSessionClient } from "@repo/api/server";
 import type { Users } from "@repo/api/types/appwrite";
@@ -8,8 +10,6 @@ import {
 } from "@repo/shared/utils/profile-fields";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/authorization";
-import { isAuthenticatedAppwriteUser, isProd } from "@/lib/utils";
 
 function isRowNotFound(error: unknown): boolean {
   return (error as { code?: number } | null)?.code === 404;
@@ -66,7 +66,7 @@ export async function getLoggedInUser(): Promise<{
 } | null> {
   try {
     const cookiesStore = await cookies();
-    const session = cookiesStore.get("a_session_biso_admin");
+    const session = cookiesStore.get("biso_admin_session");
     if (!session) {
       return null;
     }
@@ -246,7 +246,7 @@ export async function signOut(): Promise<void> {
   // deletion does not clear the domain-scoped (.biso.no) production cookie,
   // which would leave the user appearing signed-in after logout.
   (await cookies()).delete({
-    name: "a_session_biso_admin",
+    name: "biso_admin_session",
     path: "/",
     domain: isProd ? ".biso.no" : "localhost",
   });
