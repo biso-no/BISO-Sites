@@ -313,7 +313,7 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     const mergedBytes = await mergePdf(new Uint8Array(coverBytes), files);
     const { documentId } = await uploadDocument(mergedBytes, "application/pdf");
 
-    const transactionId = await postExpenseTransaction({
+    const { transactionId } = await postExpenseTransaction({
       date: new Date().toISOString().split("T")[0],
       comment: `Refusjon ${refNumber}`,
       documentId,

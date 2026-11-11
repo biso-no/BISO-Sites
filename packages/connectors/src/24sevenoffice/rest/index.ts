@@ -5,6 +5,15 @@ export {
   type TaxCode,
 } from "./accounts";
 export {
+  type BookingDateReason,
+  type DateShift,
+  isClosedPeriodError,
+  nextPeriodStart,
+  periodContaining,
+  type ResolvedBookingDate,
+  resolveBookingDate,
+} from "./booking-dates";
+export {
   CAMPUS_DIMENSION_TYPE,
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
@@ -27,8 +36,10 @@ export {
   buildShopTransactionInput,
   type ExpenseReceiptLine,
   type PostExpenseTransactionParams,
+  type PostedExpenseTransaction,
   postExpenseTransaction,
   postLedgerTransaction,
+  postWithClosedPeriodFallback,
   type ShopLedgerLine,
   type ShopTransactionInput,
 } from "./transactions";

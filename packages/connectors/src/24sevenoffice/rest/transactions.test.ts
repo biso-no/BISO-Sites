@@ -3,6 +3,7 @@ import {
   buildExpenseTransactionInput,
   buildShopReversalTransactionInput,
   buildShopTransactionInput,
+  postWithClosedPeriodFallback,
 } from "./transactions";
 
 const NO_RECEIPTS_ERROR = /at least one receipt/i;
@@ -238,5 +239,93 @@ describe("buildShopReversalTransactionInput", () => {
     expect(() =>
       buildShopReversalTransactionInput({ ...base, total: 300 })
     ).toThrow(UNBALANCED_VOUCHER_ERROR);
+  });
+});
+
+describe("postWithClosedPeriodFallback", () => {
+  const closed = new Error(
+    '[Finago] post expense transaction failed: {"message":"Period is locked"}'
+  );
+  const periods = [
+    { startingDate: "2026-09-01", endingDate: "2026-09-30" },
+    { startingDate: "2026-10-01", endingDate: "2026-10-31" },
+  ];
+
+  test("merges shifted lines into the next group's date", async () => {
+    const seen: string[][] = [];
+    let calls = 0;
+    const receipts = [
+      { accountNumber: 7140, amount: 10, date: "2026-09-12", ref: "a" },
+      { accountNumber: 7140, amount: 15, date: "2026-09-20", ref: "c" },
+      { accountNumber: 7140, amount: 20, date: "2026-10-01", ref: "b" },
+    ];
+    const result = await postWithClosedPeriodFallback({
+      receipts,
+      periods,
+      post: (posted) => {
+        seen.push(posted.map((r) => r.date ?? ""));
+        calls += 1;
+        return calls === 1 ? Promise.reject(closed) : Promise.resolve("tx-1");
+      },
+    });
+    expect(seen).toEqual([
+      ["2026-09-12", "2026-09-20", "2026-10-01"],
+      ["2026-10-01", "2026-10-01", "2026-10-01"],
+    ]);
+    expect(result).toEqual({
+      transactionId: "tx-1",
+      shifts: [
+        {
+          ref: "a",
+          from: "2026-09-12",
+          to: "2026-10-01",
+          reason: "closed_period",
+          finagoMessage: closed.message,
+        },
+        {
+          ref: "c",
+          from: "2026-09-20",
+          to: "2026-10-01",
+          reason: "closed_period",
+          finagoMessage: closed.message,
+        },
+      ],
+    });
+    // Caller's objects are untouched.
+    expect(receipts[0].date).toBe("2026-09-12");
+  });
+
+  test("does not retry an unrelated error", async () => {
+    let calls = 0;
+    const failure = new Error(
+      '[Finago] post expense transaction failed: {"message":"Account 9999 does not exist"}'
+    );
+    await expect(
+      postWithClosedPeriodFallback({
+        receipts: [{ accountNumber: 9999, amount: 10, date: "2026-10-03" }],
+        periods,
+        post: () => {
+          calls += 1;
+          return Promise.reject(failure);
+        },
+      })
+    ).rejects.toBe(failure);
+    expect(calls).toBe(1);
+  });
+
+  test("gives up after maxShifts", async () => {
+    let calls = 0;
+    await expect(
+      postWithClosedPeriodFallback({
+        receipts: [{ accountNumber: 7140, amount: 10, date: "2026-01-05" }],
+        periods: [],
+        maxShifts: 3,
+        post: () => {
+          calls += 1;
+          return Promise.reject(closed);
+        },
+      })
+    ).rejects.toBe(closed);
+    expect(calls).toBe(4);
   });
 });

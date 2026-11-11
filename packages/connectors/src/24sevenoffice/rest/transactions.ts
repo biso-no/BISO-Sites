@@ -5,11 +5,18 @@
  * plus `POST /transactions` transport through the typed client.
  */
 
+import {
+  type DateShift,
+  isClosedPeriodError,
+  nextPeriodStart,
+  periodContaining,
+} from "./booking-dates";
 import { finago } from "./client";
 import {
   CAMPUS_DIMENSION_TYPE,
   DEPARTMENT_DIMENSION_TYPE,
 } from "./departments";
+import type { FiscalPeriod } from "./fiscal-periods";
 import type { components } from "./schema";
 
 const COMMENT_MAX_LENGTH = 75;
@@ -163,13 +170,75 @@ function buildExpenseDimensions(
   return dimensions;
 }
 
+export interface PostedExpenseTransaction {
+  shifts: DateShift[];
+  transactionId: string;
+}
+
+const DEFAULT_MAX_SHIFTS = 12;
+
 /**
- * Posts a reimbursement to the general ledger and returns the transaction id.
+ * Posts receipts; when Finago rejects the transaction because a period is
+ * closed, moves every line in the earliest line's period to the next period
+ * start and posts again. Never mutates the caller's receipts.
+ */
+export async function postWithClosedPeriodFallback(input: {
+  maxShifts?: number;
+  periods: FiscalPeriod[];
+  post: (receipts: ExpenseReceiptLine[]) => Promise<string>;
+  receipts: ExpenseReceiptLine[];
+}): Promise<PostedExpenseTransaction> {
+  const maxShifts = input.maxShifts ?? DEFAULT_MAX_SHIFTS;
+  const shifts: DateShift[] = [];
+  let receipts = input.receipts;
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const transactionId = await input.post(receipts);
+      return { transactionId, shifts };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isClosedPeriodError(message) || attempt >= maxShifts) {
+        throw error;
+      }
+      const dates = receipts.flatMap((receipt) =>
+        receipt.date ? [receipt.date] : []
+      );
+      if (dates.length === 0) {
+        throw error;
+      }
+      const earliest = dates.reduce((a, b) => (b < a ? b : a));
+      const period = periodContaining(earliest, input.periods);
+      const target = nextPeriodStart(earliest, input.periods);
+      console.warn(
+        `[Finago] closed period, moving lines from ${period.startingDate}..${period.endingDate} to ${target}: ${message}`
+      );
+      receipts = receipts.map((receipt) => {
+        const from = receipt.date;
+        if (!from || from < period.startingDate || from > period.endingDate) {
+          return receipt;
+        }
+        shifts.push({
+          ref: receipt.ref ?? null,
+          from,
+          to: target,
+          reason: "closed_period",
+          finagoMessage: message,
+        });
+        return { ...receipt, date: target };
+      });
+    }
+  }
+}
+
+/**
+ * Posts a reimbursement to the general ledger and returns the transaction id
+ * plus any date shifts made to get past closed periods.
  * Reads `TFSO_EXPENSE_TRANSACTION_TYPE_NUMBER` and `TFSO_SUPPLIER_DEBT_ACCOUNT`.
  */
 export async function postExpenseTransaction(
-  params: PostExpenseTransactionParams
-): Promise<string> {
+  params: PostExpenseTransactionParams & { periods?: FiscalPeriod[] }
+): Promise<PostedExpenseTransaction> {
   const transactionTypeNumber = Number(
     process.env.TFSO_EXPENSE_TRANSACTION_TYPE_NUMBER
   );
@@ -181,34 +250,42 @@ export async function postExpenseTransaction(
     );
   }
 
-  const input = buildExpenseTransactionInput({
-    transactionTypeNumber,
-    supplierAccountNumber,
-    date: params.date,
-    comment: params.comment,
-    documentId: params.documentId,
-    bankAccount: params.bankAccount,
-    dueDate: params.dueDate,
-    invoiceNumber: params.invoiceNumber,
+  const dimensions = buildExpenseDimensions(
+    params.campusId,
+    params.departmentDimensionValue
+  );
+
+  return await postWithClosedPeriodFallback({
     receipts: params.receipts,
-    dimensions: buildExpenseDimensions(
-      params.campusId,
-      params.departmentDimensionValue
-    ),
+    periods: params.periods ?? [],
+    post: async (receipts) => {
+      const input = buildExpenseTransactionInput({
+        transactionTypeNumber,
+        supplierAccountNumber,
+        date: params.date,
+        comment: params.comment,
+        documentId: params.documentId,
+        bankAccount: params.bankAccount,
+        dueDate: params.dueDate,
+        invoiceNumber: params.invoiceNumber,
+        receipts,
+        dimensions,
+      });
+
+      const { data, error } = await finago.POST("/transactions", {
+        body: input,
+        params: { header: { Authorization: "" } },
+      });
+
+      if (error || !data) {
+        throw new Error(
+          `[Finago] post expense transaction failed: ${JSON.stringify(error)}`
+        );
+      }
+
+      return data.transactionId;
+    },
   });
-
-  const { data, error } = await finago.POST("/transactions", {
-    body: input,
-    params: { header: { Authorization: "" } },
-  });
-
-  if (error || !data) {
-    throw new Error(
-      `[Finago] post expense transaction failed: ${JSON.stringify(error)}`
-    );
-  }
-
-  return data.transactionId;
 }
 
 // ---------------------------------------------------------------------------
