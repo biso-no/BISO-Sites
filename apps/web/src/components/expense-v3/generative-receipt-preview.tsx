@@ -22,7 +22,7 @@ import {
   secondaryActionClass,
 } from "./form-styles";
 import { ReceiptNotices } from "./receipt-notices";
-import { typeChoice, visibleTypeState } from "./receipt-types";
+import { needsType, typeChoice, visibleTypeState } from "./receipt-types";
 import type { Receipt } from "./store";
 import type { ExpenseTypeOption } from "./types";
 
@@ -476,8 +476,10 @@ function CostTypeField({
   const locale = useLocale();
   const label = t("composer.preview.costType");
 
-  // A bank statement backs up its receipt's amount; it takes no type.
-  if (receipt.parentId || receipt.documentType === "bank-statement") {
+  // The same rule as the receipt list: a statement attached to a receipt, or
+  // a row with no amount, takes no type. While the scan runs the amount isn't
+  // known yet, so the placeholder stays.
+  if (!(isProcessing || needsType(receipt))) {
     return null;
   }
 

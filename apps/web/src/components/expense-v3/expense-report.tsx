@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useId, useRef, useState } from "react";
+import { type ReactNode, type Ref, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { v4 as uuid } from "uuid";
@@ -54,6 +55,7 @@ import {
   visibleTypeState,
 } from "./receipt-types";
 import type { Receipt } from "./store";
+import { OCCASION_MAX_LENGTH } from "./summary-rules";
 import type { ExpenseTypeOption } from "./types";
 
 type UploadState = { id: string; phase: "uploading" | "analyzing" } | null;
@@ -64,8 +66,6 @@ const OSLO_CAMPUS_ID = "1";
 // Ledelsen Oslo: the leadership unit has no separate financial manager — the
 // campus controller approves directly — so the toggle is irrelevant there.
 const LEDELSEN_OSLO_DEPARTMENT_ID = "2";
-/** The `occasion` column's size on the expense. */
-const OCCASION_MAX_LENGTH = 1000;
 
 type TypeSlot = "column" | "inline";
 const TYPE_SLOTS: TypeSlot[] = ["inline", "column"];
@@ -430,18 +430,27 @@ function useOccasionVisible(wanted: boolean): boolean {
 
 function OccasionField({
   error,
+  fieldRef,
+  fromAi,
   onChange,
   required,
   value,
 }: {
   error: boolean;
+  fieldRef: Ref<HTMLTextAreaElement>;
+  /** The text is the AI's suggestion, not yet changed by the student. */
+  fromAi: boolean;
   onChange: (value: string) => void;
   required: boolean;
   value: string;
 }) {
   const t = useTranslations("expenses");
   const fieldId = useId();
+  const suggestedId = useId();
   const errorId = useId();
+  const describedBy = [fromAi && suggestedId, error && errorId]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className="mt-6">
@@ -449,7 +458,7 @@ function OccasionField({
         {t("composer.report.occasionLabel")}
       </label>
       <Textarea
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy || undefined}
         aria-invalid={error || undefined}
         className={cn(
           fieldClass,
@@ -460,9 +469,15 @@ function OccasionField({
         maxLength={OCCASION_MAX_LENGTH}
         onChange={(e) => onChange(e.target.value)}
         placeholder={t("composer.report.occasionPlaceholder")}
+        ref={fieldRef}
         required={required}
         value={value}
       />
+      {fromAi && (
+        <p className="type-body-sm mt-2 text-ink-muted" id={suggestedId}>
+          {t("composer.report.occasionSuggested")}
+        </p>
+      )}
       {error && (
         <p
           className="type-body-sm mt-2 flex items-center gap-1.5 text-danger"
@@ -508,6 +523,8 @@ interface ExpenseReportProps {
   occasion: string;
   /** Set when the API turned a submit away for a missing occasion. */
   occasionError: boolean;
+  /** The occasion is the AI's suggestion, not yet changed by the student. */
+  occasionFromAi?: boolean;
   onAssign: (campusId: string, departmentId: string) => void;
   onDescriptionChange: (description: string) => void;
   onInsert: (afterId: string, receipt: Receipt) => void;
@@ -543,6 +560,41 @@ function revealFirstMissingType(receipts: Receipt[]) {
   trigger?.focus({ preventScroll: true });
 }
 
+/**
+ * What pressing submit does. Nothing missing disables the button: it takes
+ * the student to the first receipt that still needs a type, then to the
+ * occasion, whose error shows from then on until it has an answer.
+ */
+function useSubmitGate(
+  receipts: Receipt[],
+  gaps: { occasionMissing: boolean; typesMissing: boolean },
+  onSubmit: () => void
+) {
+  const occasionRef = useRef<HTMLTextAreaElement>(null);
+  const [occasionAsked, setOccasionAsked] = useState(false);
+
+  const handleSubmit = () => {
+    if (gaps.typesMissing) {
+      revealFirstMissingType(receipts);
+      return;
+    }
+    if (gaps.occasionMissing) {
+      // The error is in place before focus lands, so it is read out with
+      // the field.
+      flushSync(() => setOccasionAsked(true));
+      occasionRef.current?.focus();
+      return;
+    }
+    onSubmit();
+  };
+
+  return {
+    handleSubmit,
+    occasionAsked: occasionAsked && gaps.occasionMissing,
+    occasionRef,
+  };
+}
+
 export function ExpenseReport({
   receipts,
   selectedId,
@@ -568,6 +620,7 @@ export function ExpenseReport({
   typeOptions,
   occasion,
   occasionError,
+  occasionFromAi = false,
   onOccasionChange,
   eventMatch,
 }: ExpenseReportProps) {
@@ -605,15 +658,7 @@ export function ExpenseReport({
     gaps.occasionMissing && t("composer.report.submitHintOccasion"),
   ].filter((hint): hint is string => Boolean(hint));
 
-  // A missing type doesn't disable the button: pressing it takes the student
-  // to the first receipt that still needs one.
-  const handleSubmit = () => {
-    if (gaps.typesMissing) {
-      revealFirstMissingType(receipts);
-      return;
-    }
-    onSubmit();
-  };
+  const submitGate = useSubmitGate(receipts, gaps, onSubmit);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadState, setUploadState] = useState<UploadState>(null);
@@ -870,7 +915,9 @@ export function ExpenseReport({
 
             {showOccasion && (
               <OccasionField
-                error={occasionError}
+                error={occasionError || submitGate.occasionAsked}
+                fieldRef={submitGate.occasionRef}
+                fromAi={occasionFromAi}
                 onChange={onOccasionChange}
                 required={askOccasion}
                 value={occasion}
@@ -1029,15 +1076,8 @@ export function ExpenseReport({
                   primaryActionClass,
                   "w-full md:w-auto md:min-w-50"
                 )}
-                disabled={
-                  isSavingDraft ||
-                  isSubmitting ||
-                  !canSubmit ||
-                  // A missing type comes first: pressing submit then takes the
-                  // student to that receipt instead of sitting disabled.
-                  (gaps.occasionMissing && !gaps.typesMissing)
-                }
-                onClick={handleSubmit}
+                disabled={isSavingDraft || isSubmitting || !canSubmit}
+                onClick={submitGate.handleSubmit}
                 type="button"
               >
                 {isSubmitting ? (

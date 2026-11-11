@@ -164,6 +164,21 @@ describe("ReceiptRow type cell", () => {
 
     expect(triggers).toHaveLength(0);
   });
+
+  it("asks for a type on a standalone bank statement with an amount", async () => {
+    const { container, triggers } = await renderRow(
+      receipt({
+        documentType: "bank-statement",
+        possibleDuplicate: true,
+        typeState: undefined,
+      })
+    );
+
+    expect(triggers).toHaveLength(2);
+    expect(triggers[0]?.getAttribute("aria-invalid")).toBe("true");
+    // Receipt notices stay off a statement.
+    expect(container.textContent).not.toContain("possible_duplicate");
+  });
 });
 
 async function renderReport(
@@ -251,10 +266,11 @@ describe("ExpenseReport submit gating", () => {
     scrollIntoView.mockRestore();
   });
 
-  it("asks the occasion question for a type that needs it and holds submit while blank", async () => {
-    const { container, onOccasionChange, submit } = await renderReport([
-      receipt({ costType: "social", typeState: "chosen" }),
-    ]);
+  it("asks the occasion question for a type that needs it and takes submit to it while blank", async () => {
+    const { container, onOccasionChange, onSubmit, submit } =
+      await renderReport([
+        receipt({ costType: "social", typeState: "chosen" }),
+      ]);
 
     const field = [...container.querySelectorAll("label")].find((label) =>
       label.textContent?.includes("composer.report.occasionLabel")
@@ -263,9 +279,23 @@ describe("ExpenseReport submit gating", () => {
       ? (document.getElementById(field.htmlFor) as HTMLTextAreaElement)
       : null;
     expect(textarea?.required).toBe(true);
-    expect(submit.disabled).toBe(true);
     expect(container.textContent).toContain(
       "composer.report.submitHintOccasion"
+    );
+    // Not disabled: pressing it takes the student to the question.
+    expect(submit.disabled).toBe(false);
+    expect(textarea?.getAttribute("aria-invalid")).toBeNull();
+
+    await act(() => {
+      submit.click();
+    });
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(textarea);
+    expect(textarea?.getAttribute("aria-invalid")).toBe("true");
+    const errorId = textarea?.getAttribute("aria-describedby");
+    expect(errorId && document.getElementById(errorId)?.textContent).toContain(
+      "composer.report.occasionError"
     );
 
     const setter = Object.getOwnPropertyDescriptor(
@@ -317,6 +347,35 @@ describe("ExpenseReport submit gating", () => {
       "expense-receipt-r1",
     ]);
     scrollIntoView.mockRestore();
+  });
+
+  it("marks an occasion the AI filled in as a suggestion", async () => {
+    const { container } = await renderReport(
+      [receipt({ costType: "social", typeState: "chosen" })],
+      { occasion: "Board dinner", occasionFromAi: true }
+    );
+
+    const textarea = container.querySelector("textarea[required]");
+    const hintId = textarea?.getAttribute("aria-describedby");
+    expect(hintId && document.getElementById(hintId)?.textContent).toBe(
+      "composer.report.occasionSuggested"
+    );
+  });
+
+  it("drops the suggestion line once the student has changed the text", async () => {
+    const { container } = await renderReport(
+      [receipt({ costType: "social", typeState: "chosen" })],
+      { occasion: "Board dinner, mine", occasionFromAi: false }
+    );
+
+    expect(container.textContent).not.toContain(
+      "composer.report.occasionSuggested"
+    );
+    expect(
+      container
+        .querySelector("textarea[required]")
+        ?.getAttribute("aria-describedby")
+    ).toBeNull();
   });
 
   it("keeps the occasion field once it has been shown", async () => {

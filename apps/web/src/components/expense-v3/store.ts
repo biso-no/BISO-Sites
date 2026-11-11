@@ -78,6 +78,8 @@ interface ExpenseStore {
   occasion: string;
   // Set when the API rejects a submit for a missing occasion.
   occasionError: boolean;
+  // Set while the occasion is the AI's suggestion the student hasn't changed.
+  occasionFromAi: boolean;
   occasionTouched: boolean;
   // Phase management
   phase: ExpensePhase;
@@ -99,6 +101,7 @@ interface ExpenseStore {
   // Selection
   selectedReceiptId: string | null;
   setAiDescription: (description: string) => void;
+  setAiOccasion: (occasion: string) => void;
   setAiSummary: (summary: string) => void;
   setAssignment: (data: {
     campusId: string;
@@ -148,6 +151,7 @@ const initialState = {
   occasion: "",
   occasionTouched: false,
   occasionError: false,
+  occasionFromAi: false,
   eventId: null as string | null,
   eventName: "",
   selectedCampusId: "",
@@ -218,7 +222,11 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
       lastAiDescription: description,
     }),
 
-  setOccasion: (occasion) => set({ occasion, occasionError: false }),
+  // The student's own text (typed, or a reopened draft's): no longer the AI's.
+  setOccasion: (occasion) =>
+    set({ occasion, occasionError: false, occasionFromAi: false }),
+  setAiOccasion: (occasion) =>
+    set({ occasion, occasionError: false, occasionFromAi: true }),
   setOccasionTouched: (occasionTouched) => set({ occasionTouched }),
   setOccasionError: (occasionError) => set({ occasionError }),
   setEvent: (eventId, eventName) => set({ eventId, eventName }),

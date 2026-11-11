@@ -50,31 +50,35 @@ export function typeFromOcr(
   };
 }
 
-/** Restores the type of a saved draft attachment: anything stored was chosen. */
+/**
+ * Restores the type of a saved draft attachment: own text and an active type
+ * were chosen. A type finance has since deactivated asks again, since the
+ * server honours only active types and would book it as "other".
+ */
 export function typeFromAttachment(
   att: { cost_type?: string | null; cost_type_text?: string | null },
-  // Kept for symmetry: a deactivated slug is kept as chosen, the server
-  // resolves inactive slugs.
-  _options: ExpenseTypeOption[]
+  options: ExpenseTypeOption[]
 ): Pick<Receipt, "costType" | "costTypeText" | "typeState"> {
   const text = att.cost_type_text?.trim();
   if (text) {
     return { costType: undefined, costTypeText: text, typeState: "chosen" };
   }
 
-  if (att.cost_type) {
-    return { costType: att.cost_type, typeState: "chosen" };
+  const slug = att.cost_type;
+  if (slug && options.some((option) => option.slug === slug)) {
+    return { costType: slug, typeState: "chosen" };
   }
 
   return { costType: undefined, typeState: "needs_choice" };
 }
 
+/**
+ * A row with an amount of its own takes a type, a standalone bank statement
+ * included. A statement attached to a receipt backs up that receipt's amount
+ * and takes none.
+ */
 export function needsType(receipt: Receipt): boolean {
-  return (
-    receipt.amount > 0 &&
-    !receipt.parentId &&
-    receipt.documentType !== "bank-statement"
-  );
+  return receipt.amount > 0 && !receipt.parentId;
 }
 
 /** A receipt that needs a type and has neither a listed type nor own text. */
@@ -172,4 +176,17 @@ export function submitErrorKind(error: unknown): "occasion" | "other" {
   return error instanceof ApiError && error.body?.field === "occasion"
     ? "occasion"
     : "other";
+}
+
+/**
+ * The draft a submit saved before the api turned it away for a missing
+ * occasion. A report never saved before gets one then, and the next submit or
+ * save must update it rather than make a second draft.
+ */
+export function rejectedDraftId(error: unknown): string | null {
+  if (submitErrorKind(error) !== "occasion") {
+    return null;
+  }
+  const id = (error as ApiError).body?.expenseId;
+  return typeof id === "string" && id.length > 0 ? id : null;
 }

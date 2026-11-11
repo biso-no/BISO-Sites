@@ -40,6 +40,7 @@ import {
   attachmentTypeFields,
   missingTypes,
   occasionRequired,
+  rejectedDraftId,
   submitErrorKind,
   typeFromAttachment,
   typeFromOcr,
@@ -47,15 +48,101 @@ import {
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
 import {
+  prefilledOccasion,
   receiptCostTypeText,
   shouldPrefillOccasion,
   shouldRegenerate,
   summaryKey,
+  summaryLocale,
 } from "./summary-rules";
 import type { ExpenseTypeOption } from "./types";
 
-/** How long the occasion rests before the description is rewritten with it. */
-const OCCASION_SETTLE_MS = 800;
+/**
+ * How long the inputs rest before the description is written again: the
+ * occasion, the event and a receipt's text are typed a key at a time.
+ */
+const SUMMARY_SETTLE_MS = 800;
+
+type ExpenseState = ReturnType<typeof useExpenseStore.getState>;
+
+interface SummaryAnswer {
+  occasionSuggestion?: string | null;
+  success: boolean;
+  summary: string;
+}
+
+function summaryAssignment(state: ExpenseState) {
+  return {
+    campusId: state.selectedCampusId,
+    campusName: state.selectedCampusName,
+    departmentId: state.selectedDepartmentId,
+    departmentName: state.selectedDepartmentName,
+  };
+}
+
+/** Identifies everything the description is written from, as the store holds it. */
+function currentSummaryKey(state: ExpenseState, locale: string): string {
+  return summaryKey({
+    assignment: summaryAssignment(state),
+    eventName: state.eventName,
+    locale,
+    occasion: state.occasion,
+    options: state.typeOptions,
+    receipts: state.receipts,
+  });
+}
+
+function requestSummary(
+  state: ExpenseState,
+  locale: string
+): Promise<SummaryAnswer> {
+  return apiClient.fetch<SummaryAnswer>("/api/expenses/summary", {
+    method: "POST",
+    body: {
+      assignment: summaryAssignment(state),
+      eventName: state.eventName.trim() || undefined,
+      locale: summaryLocale(locale),
+      occasion: state.occasion.trim() || undefined,
+      receipts: state.receipts.map((receipt) => ({
+        amount: receipt.amount,
+        category: receipt.category,
+        city: receipt.city,
+        costType: receiptCostTypeText(receipt, state.typeOptions, locale),
+        country: receipt.country,
+        currency: receipt.currency,
+        date: receipt.date,
+        description: receipt.description,
+        documentType: receipt.documentType,
+        purchaseContext: receipt.purchaseContext,
+        vendor: receipt.vendor,
+      })),
+    },
+  });
+}
+
+/**
+ * Applies the AI's answer to the store as it is now: the student may have
+ * typed while the AI was writing.
+ */
+function applySummary(data: SummaryAnswer) {
+  const latest = useExpenseStore.getState();
+  if (!latest.descriptionEditedByStudent) {
+    latest.setAiDescription(data.summary);
+  }
+  const suggestion = prefilledOccasion(data.occasionSuggestion);
+  if (
+    shouldPrefillOccasion({
+      occasion: latest.occasion,
+      shown:
+        latest.occasionError ||
+        occasionRequired(latest.receipts, latest.typeOptions),
+      suggestion,
+      touched: latest.occasionTouched,
+    })
+  ) {
+    latest.setAiOccasion(suggestion);
+  }
+}
 
 interface OcrData {
   address?: null | string;
@@ -388,8 +475,10 @@ export function ExpenseSplitView({
   const locale = useLocale();
   const store = useExpenseStore();
   const [mobileView, setMobileView] = useState<"wallet" | "report">("wallet");
-  const [lastSummarizedReceipts, setLastSummarizedReceipts] =
-    useState<string>("");
+  // The inputs the description was last asked for, recorded as each request
+  // starts, and a count of requests so only the latest answer is applied.
+  const lastSummaryKeyRef = useRef("");
+  const summaryRequestRef = useRef(0);
   const skipNextSummaryRef = useRef(Boolean(initialDraft));
   const nearbyEvent = useNearbyEvent(
     store.selectedDepartmentId,
@@ -413,133 +502,86 @@ export function ExpenseSplitView({
     [store]
   );
 
-  // The occasion is typed a key at a time: the description follows it once the
-  // student pauses.
-  const [settledOccasion, setSettledOccasion] = useState(store.occasion);
-  useEffect(() => {
-    const timer = setTimeout(
-      () => setSettledOccasion(store.occasion),
-      OCCASION_SETTLE_MS
-    );
-    return () => clearTimeout(timer);
-  }, [store.occasion]);
-
   // Write the description when receipts are ready and typed, and again when
   // a type, the occasion or the event changes, unless the student edited it.
+  // The inputs must rest for a moment first, so typing sends one request.
+  const summaryInputsKey = currentSummaryKey(store, locale);
+  const summaryAllowed = Boolean(
+    store.receipts.length > 0 &&
+      store.selectedCampusId &&
+      store.selectedDepartmentId
+  );
+  const allReceiptsReady = store.allReceiptsReady();
+  const missingTypeCount = missingTypes(store.receipts).length;
+  const { descriptionEditedByStudent } = store;
   useEffect(() => {
-    const key = summaryKey({
-      assignment: {
-        campusId: store.selectedCampusId,
-        campusName: store.selectedCampusName,
-        departmentId: store.selectedDepartmentId,
-        departmentName: store.selectedDepartmentName,
-      },
-      eventName: store.eventName,
-      locale,
-      occasion: settledOccasion,
-      options: store.typeOptions,
-      receipts: store.receipts,
-    });
-
     if (
       !(
-        store.receipts.length > 0 &&
-        store.selectedCampusId &&
-        store.selectedDepartmentId &&
+        summaryAllowed &&
         shouldRegenerate({
-          allReady: store.allReceiptsReady(),
-          descriptionEditedByStudent: store.descriptionEditedByStudent,
-          key,
-          lastKey: lastSummarizedReceipts,
-          missingTypes: missingTypes(store.receipts).length,
+          allReady: allReceiptsReady,
+          descriptionEditedByStudent,
+          key: summaryInputsKey,
+          lastKey: lastSummaryKeyRef.current,
+          missingTypes: missingTypeCount,
         })
       )
     ) {
       return;
     }
 
+    // A reopened draft keeps its saved description.
     if (skipNextSummaryRef.current) {
       skipNextSummaryRef.current = false;
-      setLastSummarizedReceipts(key);
+      lastSummaryKeyRef.current = summaryInputsKey;
       return;
     }
 
-    const generate = async () => {
-      store.setIsGeneratingSummary(true);
-      try {
-        const data = await apiClient.fetch<{
-          occasionSuggestion?: string | null;
-          success: boolean;
-          summary: string;
-        }>("/api/expenses/summary", {
-          method: "POST",
-          body: {
-            assignment: {
-              campusId: store.selectedCampusId,
-              campusName: store.selectedCampusName,
-              departmentId: store.selectedDepartmentId,
-              departmentName: store.selectedDepartmentName,
-            },
-            eventName: store.eventName.trim() || undefined,
-            occasion: settledOccasion.trim() || undefined,
-            receipts: store.receipts.map((receipt) => ({
-              amount: receipt.amount,
-              category: receipt.category,
-              city: receipt.city,
-              costType: receiptCostTypeText(receipt, store.typeOptions, locale),
-              country: receipt.country,
-              currency: receipt.currency,
-              date: receipt.date,
-              description: receipt.description,
-              documentType: receipt.documentType,
-              purchaseContext: receipt.purchaseContext,
-              vendor: receipt.vendor,
-            })),
-          },
-        });
-        if (data.success) {
-          // The student may have typed while the AI was writing.
-          const latest = useExpenseStore.getState();
-          if (!latest.descriptionEditedByStudent) {
-            latest.setAiDescription(data.summary);
-          }
-          if (
-            shouldPrefillOccasion({
-              occasion: latest.occasion,
-              shown:
-                latest.occasionError ||
-                occasionRequired(latest.receipts, latest.typeOptions),
-              suggestion: data.occasionSuggestion,
-              touched: latest.occasionTouched,
-            }) &&
-            data.occasionSuggestion
-          ) {
-            latest.setOccasion(data.occasionSuggestion.trim());
-          }
-        }
-      } catch (e) {
-        console.error("Failed to generate summary", e);
-      } finally {
-        store.setIsGeneratingSummary(false);
-        setLastSummarizedReceipts(key);
+    const timer = setTimeout(() => {
+      const state = useExpenseStore.getState();
+      // Changed since this render: the next render waits again.
+      if (currentSummaryKey(state, locale) !== summaryInputsKey) {
+        return;
       }
-    };
-    generate();
+      // Recorded as the request starts, so it is sent once.
+      lastSummaryKeyRef.current = summaryInputsKey;
+      summaryRequestRef.current += 1;
+      const request = summaryRequestRef.current;
+      const isLatest = () => request === summaryRequestRef.current;
+
+      state.setIsGeneratingSummary(true);
+      requestSummary(state, locale)
+        .then((data) => {
+          if (isLatest() && data.success) {
+            applySummary(data);
+          }
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to generate summary", error);
+        })
+        .finally(() => {
+          if (isLatest()) {
+            useExpenseStore.getState().setIsGeneratingSummary(false);
+          }
+        });
+    }, SUMMARY_SETTLE_MS);
+    return () => clearTimeout(timer);
   }, [
-    store.receipts,
-    store.selectedCampusId,
-    store.selectedCampusName,
-    store.selectedDepartmentId,
-    store.selectedDepartmentName,
-    store.eventName,
-    store.typeOptions,
-    store.descriptionEditedByStudent,
-    settledOccasion,
+    allReceiptsReady,
+    descriptionEditedByStudent,
     locale,
-    lastSummarizedReceipts,
-    store.allReceiptsReady,
-    store.setIsGeneratingSummary,
+    missingTypeCount,
+    summaryAllowed,
+    summaryInputsKey,
   ]);
+
+  // An answer that arrives after the form is gone is not applied.
+  useEffect(
+    () => () => {
+      summaryRequestRef.current += 1;
+    },
+    []
+  );
 
   // Initialize store and hydrate draft data when the user continues a saved draft.
   useEffect(() => {
@@ -898,6 +940,12 @@ export function ExpenseSplitView({
     } catch (error) {
       console.error(error);
       if (submitErrorKind(error) === "occasion") {
+        // The api saved the report as a draft before asking: the next submit
+        // or save updates that draft instead of making another.
+        const savedDraftId = rejectedDraftId(error);
+        if (savedDraftId) {
+          store.setExpenseId(savedDraftId);
+        }
         store.setOccasionError(true);
         toast.error(t("composer.toast.occasionRequired"));
       } else {
@@ -1022,6 +1070,7 @@ export function ExpenseSplitView({
             isSubmitting={store.phase === "submitting"}
             occasion={store.occasion}
             occasionError={store.occasionError}
+            occasionFromAi={store.occasionFromAi}
             onAssign={handleAssign}
             onDescriptionChange={store.setDescription}
             onInsert={(afterId, receipt) =>

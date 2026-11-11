@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Receipt } from "./store";
 import {
+  OCCASION_MAX_LENGTH,
+  prefilledOccasion,
   receiptCostTypeText,
   shouldPrefillOccasion,
   shouldRegenerate,
   summaryKey,
+  summaryLocale,
 } from "./summary-rules";
 import type { ExpenseTypeOption } from "./types";
 
@@ -132,5 +135,23 @@ describe("shouldPrefillOccasion", () => {
     expect(shouldPrefillOccasion({ ...base, shown: false })).toBe(false);
     expect(shouldPrefillOccasion({ ...base, suggestion: null })).toBe(false);
     expect(shouldPrefillOccasion({ ...base, suggestion: "  " })).toBe(false);
+  });
+});
+
+describe("prefilledOccasion", () => {
+  it("trims the suggestion and keeps it within the field's size", () => {
+    expect(prefilledOccasion("  Board dinner  ")).toBe("Board dinner");
+    expect(prefilledOccasion("x".repeat(1200))).toHaveLength(
+      OCCASION_MAX_LENGTH
+    );
+    expect(prefilledOccasion(null)).toBe("");
+  });
+});
+
+describe("summaryLocale", () => {
+  it("sends Norwegian or English", () => {
+    expect(summaryLocale("no")).toBe("no");
+    expect(summaryLocale("en")).toBe("en");
+    expect(summaryLocale("sv")).toBe("en");
   });
 });

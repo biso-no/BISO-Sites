@@ -115,6 +115,7 @@
       "occasionLabel": "Hva var anledningen, og hvem var det for?",
       "occasionPlaceholder": "F.eks. styremøte, seks styremedlemmer",
       "occasionError": "Svar på dette før du sender inn",
+      "occasionSuggested": "Foreslått ut fra kvitteringene. Sjekk og endre om nødvendig.",
       "submitHintTypes": "Velg type for alle kvitteringene",
       "submitHintOccasion": "Fyll inn anledningen og hvem det var for",
       "eventLabel": "Arrangement",

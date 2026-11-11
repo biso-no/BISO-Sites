@@ -2,6 +2,9 @@ import { costTypeLabel } from "@repo/shared/utils/expense-cost-types";
 import type { Receipt } from "./store";
 import type { ExpenseTypeOption } from "./types";
 
+/** The `occasion` column's size on the expense. */
+export const OCCASION_MAX_LENGTH = 1000;
+
 /** What the AI is told a receipt's type is: the student's own text, else the label. */
 export function receiptCostTypeText(
   receipt: Receipt,
@@ -50,6 +53,8 @@ export function summaryKey(input: {
   return JSON.stringify({
     assignment: input.assignment,
     eventName: input.eventName.trim(),
+    // The occasion suggestion is written in the student's language.
+    locale: input.locale,
     occasion: input.occasion.trim(),
     receipts,
   });
@@ -85,4 +90,16 @@ export function shouldPrefillOccasion(input: {
     input.occasion.trim().length === 0 &&
     Boolean(input.suggestion?.trim())
   );
+}
+
+/** The AI's occasion suggestion as the field takes it: trimmed, within its size. */
+export function prefilledOccasion(
+  suggestion: string | null | undefined
+): string {
+  return (suggestion ?? "").trim().slice(0, OCCASION_MAX_LENGTH);
+}
+
+/** The summary request's language: the api knows English and Norwegian. */
+export function summaryLocale(locale: string): "en" | "no" {
+  return locale === "no" ? "no" : "en";
 }

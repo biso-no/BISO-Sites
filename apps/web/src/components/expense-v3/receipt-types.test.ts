@@ -3,8 +3,10 @@ import { ApiError } from "@/lib/api-error";
 import {
   attachmentTypeFields,
   missingTypes,
+  needsType,
   occasionRequired,
   receiptNotices,
+  rejectedDraftId,
   submitErrorKind,
   submitGaps,
   typeChoice,
@@ -61,17 +63,29 @@ describe("receipt type state", () => {
     expect(typeFromOcr({}, options, false).typeState).toBe("needs_choice");
   });
 
-  it("hydrates an old draft's slugs as chosen", () => {
+  it("hydrates an old draft's active slugs as chosen", () => {
     expect(typeFromAttachment({ cost_type: "travel" }, options)).toMatchObject({
       costType: "travel",
       typeState: "chosen",
     });
-    expect(typeFromAttachment({ cost_type: "retired" }, options)).toMatchObject(
-      { costType: "retired", typeState: "chosen" }
-    );
     expect(typeFromAttachment({ cost_type: "" }, options).typeState).toBe(
       "needs_choice"
     );
+  });
+
+  it("asks again for a type finance has since deactivated", () => {
+    // The server honours only active slugs and would book it as "other".
+    expect(typeFromAttachment({ cost_type: "retired" }, options)).toEqual({
+      costType: undefined,
+      typeState: "needs_choice",
+    });
+    expect(typeFromAttachment({ cost_type: "travel" }, []).typeState).toBe(
+      "needs_choice"
+    );
+    // Own text is the student's whatever the list holds.
+    expect(
+      typeFromAttachment({ cost_type: "retired", cost_type_text: "Gifts" }, [])
+    ).toMatchObject({ costTypeText: "Gifts", typeState: "chosen" });
   });
 
   it("hydrates own text as chosen", () => {
@@ -86,12 +100,26 @@ describe("receipt type state", () => {
     ).toBeUndefined();
     expect(
       missingTypes([
-        receipt({ documentType: "bank-statement" }),
-        receipt({ id: "r2", parentId: "r1" }),
+        receipt({ documentType: "bank-statement", id: "r2", parentId: "r1" }),
         receipt({ id: "r3", amount: 0 }),
+        receipt({ documentType: "bank-statement", id: "r4", amount: 0 }),
       ])
     ).toEqual([]);
     expect(missingTypes([receipt()])).toHaveLength(1);
+  });
+
+  it("requires a type for a standalone bank statement with an amount", () => {
+    // The server books every row with an amount, so it needs a type too.
+    const statement = receipt({ documentType: "bank-statement" });
+    expect(needsType(statement)).toBe(true);
+    expect(missingTypes([statement])).toEqual([statement]);
+    expect(visibleTypeState(statement)).toBe("needs_choice");
+    expect(
+      needsType(receipt({ documentType: "bank-statement", parentId: "r0" }))
+    ).toBe(false);
+    expect(
+      needsType(receipt({ amount: 0, documentType: "bank-statement" }))
+    ).toBe(false);
   });
 
   it("requires an occasion only for a type that asks", () => {
@@ -150,19 +178,32 @@ describe("receipt type state", () => {
     });
   });
 
-  it("ignores a statement row when deciding on an occasion", () => {
-    expect(
-      occasionRequired(
-        [receipt({ costType: "social", documentType: "bank-statement" })],
-        options
-      )
-    ).toBe(false);
+  it("ignores an attached statement row when deciding on an occasion", () => {
     expect(
       occasionRequired(
         [receipt({ costType: "social", parentId: "r0" })],
         options
       )
     ).toBe(false);
+    expect(
+      occasionRequired(
+        [
+          receipt({
+            amount: 0,
+            costType: "social",
+            documentType: "bank-statement",
+          }),
+        ],
+        options
+      )
+    ).toBe(false);
+    // A standalone statement is booked on its type, so its type may ask.
+    expect(
+      occasionRequired(
+        [receipt({ costType: "social", documentType: "bank-statement" })],
+        options
+      )
+    ).toBe(true);
   });
 
   it("recognises the occasion rejection", () => {
@@ -178,6 +219,29 @@ describe("receipt type state", () => {
       "other"
     );
     expect(submitErrorKind(new Error("Occasion is required"))).toBe("other");
+  });
+
+  it("reads the saved draft's id from an occasion rejection", () => {
+    expect(
+      rejectedDraftId(
+        new ApiError("Occasion is required", 400, {
+          error: "Occasion is required",
+          expenseId: "expense-1",
+          field: "occasion",
+        })
+      )
+    ).toBe("expense-1");
+    expect(
+      rejectedDraftId(
+        new ApiError("Occasion is required", 400, { field: "occasion" })
+      )
+    ).toBeNull();
+    expect(
+      rejectedDraftId(
+        new ApiError("Nope", 400, { error: "Nope", expenseId: "expense-1" })
+      )
+    ).toBeNull();
+    expect(rejectedDraftId(new Error("Occasion is required"))).toBeNull();
   });
 });
 

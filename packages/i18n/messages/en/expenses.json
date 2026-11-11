@@ -115,6 +115,7 @@
       "occasionLabel": "What was the occasion, and who was it for?",
       "occasionPlaceholder": "E.g. board meeting, six board members",
       "occasionError": "Answer this before you submit",
+      "occasionSuggested": "Suggested from your receipts. Check it and change it if needed.",
       "submitHintTypes": "Choose a type for every receipt",
       "submitHintOccasion": "Fill in the occasion and who it was for",
       "eventLabel": "Event",

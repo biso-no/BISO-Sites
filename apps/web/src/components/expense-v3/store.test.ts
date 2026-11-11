@@ -22,3 +22,21 @@ describe("description ownership", () => {
     expect(useExpenseStore.getState().descriptionEditedByStudent).toBe(true);
   });
 });
+
+describe("occasion ownership", () => {
+  beforeEach(() => useExpenseStore.getState().reset());
+
+  it("marks the AI's occasion until the student changes it", () => {
+    useExpenseStore.getState().setAiOccasion("Board dinner");
+    expect(useExpenseStore.getState()).toMatchObject({
+      occasion: "Board dinner",
+      occasionFromAi: true,
+    });
+
+    useExpenseStore.getState().setOccasion("Board dinner, six members");
+    expect(useExpenseStore.getState()).toMatchObject({
+      occasion: "Board dinner, six members",
+      occasionFromAi: false,
+    });
+  });
+});
