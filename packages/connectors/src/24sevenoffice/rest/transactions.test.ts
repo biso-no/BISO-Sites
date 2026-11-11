@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import {
   buildExpenseTransactionInput,
   buildShopReversalTransactionInput,
@@ -251,6 +251,40 @@ describe("postWithClosedPeriodFallback", () => {
     { startingDate: "2026-10-01", endingDate: "2026-10-31" },
   ];
 
+  let warn: ReturnType<typeof spyOn>;
+  beforeEach(() => {
+    warn = spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  test("skips a two-month closed period in one retry", async () => {
+    const twoMonth = [
+      { startingDate: "2024-01-01", endingDate: "2024-02-29" },
+      { startingDate: "2024-03-01", endingDate: "2024-04-30" },
+    ];
+    const seen: string[][] = [];
+    let calls = 0;
+    const result = await postWithClosedPeriodFallback({
+      receipts: [
+        { accountNumber: 7140, amount: 10, date: "2024-03-10", ref: "x" },
+      ],
+      periods: twoMonth,
+      post: (posted) => {
+        seen.push(posted.map((r) => r.date ?? ""));
+        calls += 1;
+        return calls === 1 ? Promise.reject(closed) : Promise.resolve("tx-2");
+      },
+    });
+    expect(seen).toEqual([["2024-03-10"], ["2024-05-01"]]);
+    expect(result.shifts).toHaveLength(1);
+    expect(result.shifts[0]).toMatchObject({
+      from: "2024-03-10",
+      to: "2024-05-01",
+    });
+  });
+
   test("merges shifted lines into the next group's date", async () => {
     const seen: string[][] = [];
     let calls = 0;
@@ -291,6 +325,8 @@ describe("postWithClosedPeriodFallback", () => {
         },
       ],
     });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain(closed.message);
     // Caller's objects are untouched.
     expect(receipts[0].date).toBe("2026-09-12");
   });
@@ -327,5 +363,6 @@ describe("postWithClosedPeriodFallback", () => {
       })
     ).rejects.toBe(closed);
     expect(calls).toBe(4);
+    expect(warn).toHaveBeenCalledTimes(3);
   });
 });

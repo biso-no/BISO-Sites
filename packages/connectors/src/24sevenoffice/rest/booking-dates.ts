@@ -17,7 +17,10 @@ export interface ResolvedBookingDate {
   reason: BookingDateReason | null;
 }
 
-/** One entry per receipt line that was moved off its own date. */
+/**
+ * One entry per move of a receipt line. A line moved more than once has one
+ * entry per move, so the list doubles as history.
+ */
 export interface DateShift {
   finagoMessage?: string;
   from: string;
@@ -30,10 +33,12 @@ const MONTHS_PER_YEAR = 12;
 const YEAR_LENGTH = 4;
 const MONTH_START = 5;
 const MONTH_END = 7;
+const DATE_LENGTH = 10;
 
-const PERIOD_WORD = /period|periode/i;
+// Word-start boundaries keep "blocked", "disclosed" and "periodic" out.
+const PERIOD_WORD = /\bperiod/i;
 const CLOSED_WORD =
-  /lock|låst|closed|stengt|sperret|no open|not open|ikke åpen/i;
+  /\b(lock|låst|closed|stengt|sperret|no open|not open|ikke åpen)/i;
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
@@ -65,6 +70,13 @@ function calendarMonthOf(date: string): FiscalPeriod {
     startingDate: firstOfMonth(year, month),
     endingDate: `${year}-${pad2(month)}-${pad2(lastDay)}`,
   };
+}
+
+/** The calendar day after `date` (YYYY-MM-DD). */
+export function dayAfter(date: string): string {
+  const next = new Date(`${date}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, DATE_LENGTH);
 }
 
 /**

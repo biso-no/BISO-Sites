@@ -7,6 +7,7 @@
 
 import {
   type DateShift,
+  dayAfter,
   isClosedPeriodError,
   nextPeriodStart,
   periodContaining,
@@ -209,7 +210,11 @@ export async function postWithClosedPeriodFallback(input: {
       }
       const earliest = dates.reduce((a, b) => (b < a ? b : a));
       const period = periodContaining(earliest, input.periods);
-      const target = nextPeriodStart(earliest, input.periods);
+      // Later of the next listed start and the day after the closed period, so
+      // a multi-month period is skipped in one retry.
+      const afterPeriod = dayAfter(period.endingDate);
+      const listed = nextPeriodStart(earliest, input.periods);
+      const target = listed > afterPeriod ? listed : afterPeriod;
       console.warn(
         `[Finago] closed period, moving lines from ${period.startingDate}..${period.endingDate} to ${target}: ${message}`
       );

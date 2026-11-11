@@ -98,6 +98,35 @@ describe("period helpers", () => {
   });
 });
 
+describe("two-month periods", () => {
+  const twoMonth = [
+    { startingDate: "2024-01-01", endingDate: "2024-02-29" },
+    { startingDate: "2024-03-01", endingDate: "2024-04-30" },
+  ];
+
+  test("periodContaining returns the listed period", () => {
+    expect(periodContaining("2024-02-10", twoMonth)).toEqual(twoMonth[0]);
+  });
+
+  test("nextPeriodStart returns the next listed start", () => {
+    expect(nextPeriodStart("2024-01-15", twoMonth)).toBe("2024-03-01");
+  });
+
+  test("locked-year move lands on the first listed period start", () => {
+    expect(
+      resolveBookingDate({
+        receiptDate: "2025-12-18",
+        today,
+        locks,
+        periods: [
+          { startingDate: "2026-02-01", endingDate: "2026-03-31" },
+          { startingDate: "2026-04-01", endingDate: "2026-05-31" },
+        ],
+      })
+    ).toEqual({ date: "2026-02-01", reason: "locked_year" });
+  });
+});
+
 describe("isClosedPeriodError", () => {
   test("recognises closed-period errors conservatively", () => {
     expect(
@@ -110,5 +139,10 @@ describe("isClosedPeriodError", () => {
       isClosedPeriodError('{"message":"Account 9999 does not exist"}')
     ).toBe(false);
     expect(isClosedPeriodError("Request closed by peer")).toBe(false);
+    expect(isClosedPeriodError("Period is locked")).toBe(true);
+    expect(isClosedPeriodError("requests blocked for this period")).toBe(false);
+    expect(isClosedPeriodError("information disclosed for the period")).toBe(
+      false
+    );
   });
 });
