@@ -23,6 +23,7 @@ import {
   uploadDocument,
 } from "@repo/connectors/24sevenoffice";
 import {
+  AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
   DEFAULT_COST_TYPE_SLUG,
   resolveReceiptAccount,
@@ -121,6 +122,14 @@ function buildReceiptLines(
         date: bookingDateFor(att),
       });
       continue;
+    }
+    // The student's own type has no type account, and nobody has set one.
+    // Booking it on "Other" would hide that, so the posting fails visibly.
+    const ownText = att.cost_type_text?.trim();
+    if (!att.cost_type && ownText) {
+      throw new Error(
+        `Receipt ${att.$id} has no account for the student's own type "${ownText}"`
+      );
     }
     // Normalize empty cost types (e.g. drafts saved before the default existed)
     // to the "Other" slug so a missing choice posts to a valid account rather
@@ -370,8 +379,25 @@ function exampleSource(
   return "student";
 }
 
+/**
+ * Whether a booked receipt may teach later classifications. An old app sends
+ * its default type unasked, so its type counts only when the AI was sure of
+ * the same one.
+ */
+function teachesType(att: ExpenseAttachments): boolean {
+  if (att.type_source !== "legacy_app") {
+    return true;
+  }
+  return (
+    !!att.cost_type &&
+    att.ai_cost_type === att.cost_type &&
+    (att.ai_confidence ?? 0) >= AI_TYPE_CONFIDENCE_THRESHOLD
+  );
+}
+
 // One anonymous example per posted receipt, so later classifications learn from
-// what actually got booked. Never stores a submitter, name or expense id.
+// what actually got booked. Never stores a submitter, name or expense id, and
+// never the student's own description: examples go into other students' prompts.
 async function writeBookedExamples(
   db: AdminDb,
   attachments: ExpenseAttachments[],
@@ -380,7 +406,7 @@ async function writeBookedExamples(
   const rows: BookedExampleInput[] = [];
   for (const line of lines) {
     const att = attachments.find((a) => a.$id === line.ref);
-    if (!att?.file_hash) {
+    if (!(att?.file_hash && teachesType(att))) {
       continue;
     }
     const scan = await findScan(db, att.file_hash);
@@ -389,7 +415,7 @@ async function writeBookedExamples(
       aiConfidence: att.ai_confidence ?? null,
       aiCostType: att.ai_cost_type ?? null,
       amount: line.amount,
-      description: scan?.receipt.description ?? att.description ?? "",
+      description: scan?.receipt.description ?? "",
       finalCostType: att.cost_type || null,
       finalText: att.cost_type_text ?? null,
       source: exampleSource(att.account_source),

@@ -56,7 +56,6 @@ describe("expense payload helpers", () => {
       {
         amount: 199.5,
         cost_type: "other",
-        cost_type_text: null,
         date: "2026-04-28",
         description: "Lunch receipt",
         sort_order: 0,
@@ -64,8 +63,38 @@ describe("expense payload helpers", () => {
         url: "file-id",
       },
     ]);
-    expect(row.occasion).toBeNull();
-    expect(row.event_id).toBeNull();
+    // Not sent, so not written: an old client works against a schema
+    // without these columns.
+    expect(row).not.toHaveProperty("occasion");
+    expect(row).not.toHaveProperty("event_id");
+  });
+
+  it("writes an occasion and event sent as null, which clears them", () => {
+    const payload = parseExpensePayload({
+      ...BASE,
+      event_id: null,
+      expenseAttachments: [
+        {
+          amount: 50,
+          cost_type: "social",
+          cost_type_chosen: true,
+          cost_type_text: null,
+          url: "f1",
+        },
+      ],
+      occasion: null,
+    });
+    const row = buildExpenseRowInput(payload!, "user-id");
+    expect(row).toHaveProperty("occasion", null);
+    expect(row).toHaveProperty("event_id", null);
+    // Attachment rows are new on each save, so there is nothing to clear.
+    expect(row.expenseAttachments[0]).not.toHaveProperty("cost_type_text");
+
+    const blank = parseExpensePayload({ ...BASE, event_id: "", occasion: " " });
+    expect(buildExpenseRowInput(blank!, "user-id")).toMatchObject({
+      event_id: null,
+      occasion: null,
+    });
   });
 
   it("keeps an empty cost_type when cost_type_chosen is sent", () => {
@@ -95,7 +124,7 @@ describe("expense payload helpers", () => {
       cost_type: "",
       cost_type_text: "Flowers for the speaker",
     });
-    expect(row.expenseAttachments[1]?.cost_type_text).toBeNull();
+    expect(row.expenseAttachments[1]).not.toHaveProperty("cost_type_text");
     // Whether the type was chosen steers the submission; it is never stored.
     expect(row.expenseAttachments[0]).not.toHaveProperty("cost_type_chosen");
   });
@@ -163,7 +192,6 @@ describe("expense payload helpers", () => {
     expect(Object.keys(row.expenseAttachments[0] ?? {}).sort()).toEqual([
       "amount",
       "cost_type",
-      "cost_type_text",
       "date",
       "description",
       "sort_order",
@@ -208,7 +236,8 @@ describe("expense payload helpers", () => {
       occasion: "Team lunch",
     });
 
-    // A client that knows the fields clears them by leaving them out.
+    // A client that knows the fields is taken as sent: leaving them out
+    // writes nothing, so a draft update keeps the stored values.
     const current = parseExpensePayload({
       ...BASE,
       expenseAttachments: [
@@ -224,6 +253,33 @@ describe("expense payload helpers", () => {
     expect(kept.occasion).toBeUndefined();
     expect(kept.event_id).toBeUndefined();
     expect(kept.expenseAttachments?.[0]?.cost_type).toBe("social");
+    const keptRow = buildExpenseRowInput(kept, "user-id");
+    expect(keptRow).not.toHaveProperty("occasion");
+    expect(keptRow).not.toHaveProperty("event_id");
+
+    // Sending null clears them.
+    const cleared = parseExpensePayload({
+      ...BASE,
+      event_id: null,
+      expenseAttachments: [
+        { amount: 50, cost_type_chosen: true, url: "file-1" },
+      ],
+      occasion: null,
+    });
+    expect(
+      buildExpenseRowInput(mergeLegacyDraft(cleared!, stored), "user-id")
+    ).toMatchObject({ event_id: null, occasion: null });
+
+    // A legacy re-save over a draft without them writes them as stored.
+    const empty = mergeLegacyDraft(legacy!, {
+      event_id: null,
+      expenseAttachments: [],
+      occasion: null,
+    });
+    expect(buildExpenseRowInput(empty, "user-id")).toMatchObject({
+      event_id: null,
+      occasion: null,
+    });
   });
 
   it("keeps a legacy app's changed slug", () => {

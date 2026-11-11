@@ -1,6 +1,7 @@
 import { MODEL_IDS } from "@repo/ai/models";
 import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
+import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
@@ -9,12 +10,16 @@ import { findPossibleDuplicate } from "@/lib/expense-duplicates";
 import { selectExamples } from "@/lib/expense-examples";
 import { loadActiveCostTypes } from "@/lib/expense-types";
 import {
+  amountReadInNok,
+  CLASSIFY_TIMEOUT_MS,
   type Classification,
   classifyReceipt,
   convertAmountToNok,
   type ExtractedReceipt,
   extractReceipt,
+  findScan,
   type ScanPurpose,
+  type StoredScan,
   saveScan,
   sha256Hex,
 } from "@/lib/receipt-scan";
@@ -81,16 +86,7 @@ async function validateAndPrepareFile(
   };
 }
 
-function parseExpenseData(
-  preparedFile: Extract<FileValidationResult, { ok: true }>,
-  purpose: ScanPurpose
-): Promise<ExtractedReceipt> {
-  return extractReceipt({
-    buffer: preparedFile.buffer,
-    mimeType: preparedFile.mimeType,
-    purpose,
-  });
-}
+type PreparedFile = Extract<FileValidationResult, { ok: true }>;
 
 function purposeFromSearchParam(value: string | null): ScanPurpose {
   if (value === "bank-statement") {
@@ -104,75 +100,166 @@ function purposeFromSearchParam(value: string | null): ScanPurpose {
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
+const SCAN_MODEL = `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`;
+
+interface UploadScan {
+  possibleDuplicate: boolean;
+  scan: StoredScan;
+}
+
+/** The admin database, or null: the scan then goes on without storing. */
+async function adminDb(): Promise<AdminDb | null> {
+  try {
+    return (await createAdminClient()).db;
+  } catch (error) {
+    console.error("[expenses/ocr] Scan bookkeeping failed:", error);
+    return null;
+  }
+}
+
+/** The active types, or none when they can't be read. */
+async function activeTypes(db: AdminDb | null): Promise<CostTypeOption[]> {
+  if (!db) {
+    return [];
+  }
+  try {
+    return await loadActiveCostTypes(db);
+  } catch (error) {
+    console.error("[expenses/ocr] Could not load expense types:", error);
+    return [];
+  }
+}
+
+/**
+ * The AI's type for a receipt, within `CLASSIFY_TIMEOUT_MS`. A classification
+ * the limit stopped is null, so the stored scan counts as not classified and
+ * the submission can still classify it.
+ */
 async function classifyIfReceipt(
   db: AdminDb,
-  receipt: ExtractedReceipt
+  receipt: ExtractedReceipt,
+  types: CostTypeOption[]
 ): Promise<Classification | null> {
-  if (receipt.documentType !== "receipt") {
+  if (receipt.documentType !== "receipt" || types.length === 0) {
     return null;
   }
   try {
-    const types = await loadActiveCostTypes(db);
-    if (types.length === 0) {
-      return null;
-    }
     const examples = await selectExamples(db, {
       types,
       vendor: receipt.vendor,
     });
-    return await classifyReceipt({ examples, receipt, types });
+    const abortSignal = AbortSignal.timeout(CLASSIFY_TIMEOUT_MS);
+    const classification = await classifyReceipt({
+      abortSignal,
+      examples,
+      receipt,
+      types,
+    });
+    return abortSignal.aborted ? null : classification;
   } catch (error) {
     console.error("[expenses/ocr] Classification failed:", error);
     return null;
   }
 }
 
-async function scanExtras(
-  buffer: Buffer,
-  receipt: ExtractedReceipt,
-  converted: { amountInNok: number | null; exchangeRate: number | null }
-) {
-  const ocrAmount = converted.amountInNok ?? receipt.amount;
+async function lookupDuplicate(
+  db: AdminDb,
+  fileHash: string,
+  scan: StoredScan
+): Promise<boolean> {
+  if (scan.receipt.documentType !== "receipt") {
+    return false;
+  }
+  const duplicate = await findPossibleDuplicate(db, {
+    amount: amountReadInNok(scan),
+    date: scan.receipt.date,
+    fileHash,
+  });
+  return duplicate !== null;
+}
+
+/** A receipt the AI already gave a type (or found none for), as stored. */
+function isTypedReceipt(scan: StoredScan): boolean {
+  return (
+    scan.receipt.documentType === "receipt" && scan.classification !== null
+  );
+}
+
+async function reuseScan(
+  db: AdminDb,
+  fileHash: string,
+  scan: StoredScan
+): Promise<UploadScan> {
   try {
-    const { db } = await createAdminClient();
-    const fileHash = sha256Hex(buffer);
-    const classifyAndStore = async () => {
-      const classification = await classifyIfReceipt(db, receipt);
-      await saveScan(
-        db,
-        fileHash,
-        { ...converted, classification, receipt },
-        `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`
-      );
-      return classification;
-    };
-    const lookupDuplicate = async () => {
-      if (receipt.documentType !== "receipt") {
-        return false;
-      }
-      const duplicate = await findPossibleDuplicate(db, {
-        amount: ocrAmount,
-        date: receipt.date,
-        fileHash,
-      });
-      return duplicate !== null;
-    };
-    // Independent steps: a throw in one must not discard the other's result.
-    const [stored, duplicate] = await Promise.allSettled([
-      classifyAndStore(),
-      lookupDuplicate(),
-    ]);
-    if (stored.status === "rejected") {
-      console.error("[expenses/ocr] Scan bookkeeping failed:", stored.reason);
-    }
     return {
-      classification: stored.status === "fulfilled" ? stored.value : null,
-      possibleDuplicate: duplicate.status === "fulfilled" && duplicate.value,
+      possibleDuplicate: await lookupDuplicate(db, fileHash, scan),
+      scan,
     };
   } catch (error) {
-    console.error("[expenses/ocr] Scan bookkeeping failed:", error);
-    return { classification: null, possibleDuplicate: false };
+    console.error("[expenses/ocr] Duplicate lookup failed:", error);
+    return { possibleDuplicate: false, scan };
   }
+}
+
+/** Classifies and stores a new scan, and looks for a duplicate meanwhile. */
+async function scanExtras(
+  db: AdminDb,
+  fileHash: string,
+  scan: StoredScan,
+  types: CostTypeOption[]
+): Promise<UploadScan> {
+  const classifyAndStore = async () => {
+    const classification = await classifyIfReceipt(db, scan.receipt, types);
+    await saveScan(db, fileHash, { ...scan, classification }, SCAN_MODEL);
+    return classification;
+  };
+  // Independent steps: a throw in one must not discard the other's result.
+  const [stored, duplicate] = await Promise.allSettled([
+    classifyAndStore(),
+    lookupDuplicate(db, fileHash, scan),
+  ]);
+  if (stored.status === "rejected") {
+    console.error("[expenses/ocr] Scan bookkeeping failed:", stored.reason);
+  }
+  return {
+    possibleDuplicate: duplicate.status === "fulfilled" && duplicate.value,
+    scan: {
+      ...scan,
+      classification: stored.status === "fulfilled" ? stored.value : null,
+    },
+  };
+}
+
+/**
+ * Reads an upload. Unless it is sent as a bank statement, a file whose stored
+ * scan is a receipt the AI already classified is answered from that scan,
+ * without the model; the duplicate lookup still runs. Anything else is read
+ * again while the active types load, and the first scan stored for the file
+ * stays.
+ */
+async function scanUpload(
+  file: PreparedFile,
+  purpose: ScanPurpose
+): Promise<UploadScan> {
+  const db = await adminDb();
+  const fileHash = sha256Hex(file.buffer);
+  if (db && purpose !== "bank-statement") {
+    const stored = await findScan(db, fileHash);
+    if (stored && isTypedReceipt(stored)) {
+      return reuseScan(db, fileHash, stored);
+    }
+  }
+
+  const [receipt, types] = await Promise.all([
+    extractReceipt({ buffer: file.buffer, mimeType: file.mimeType, purpose }),
+    purpose === "bank-statement" ? [] : activeTypes(db),
+  ]);
+  const converted = await convertAmountToNok(receipt);
+  const scan: StoredScan = { ...converted, classification: null, receipt };
+  if (!db) {
+    return { possibleDuplicate: false, scan };
+  }
+  return scanExtras(db, fileHash, scan, types);
 }
 
 export async function POST(req: NextRequest) {
@@ -220,24 +307,19 @@ export async function POST(req: NextRequest) {
       return applyCorsHeaders(preparedFile.response, origin);
     }
 
-    const expenseData = await parseExpenseData(preparedFile, purpose);
-    const { amountInNok, exchangeRate } = await convertAmountToNok(expenseData);
-    const { classification, possibleDuplicate } = await scanExtras(
-      preparedFile.buffer,
-      expenseData,
-      { amountInNok, exchangeRate }
-    );
+    const { possibleDuplicate, scan } = await scanUpload(preparedFile, purpose);
+    const { amountInNok, classification, exchangeRate, receipt } = scan;
 
     return applyCorsHeaders(
       NextResponse.json({
         success: true,
         data: {
-          ...expenseData,
+          ...receipt,
           amountInNok,
           exchangeRate,
           costType: classification?.costType ?? null,
           costTypeConfidence: classification?.confidence ?? 0,
-          ocrAmount: amountInNok ?? expenseData.amount,
+          ocrAmount: amountReadInNok(scan),
           possibleDuplicate,
         },
         method: preparedFile.isPdf ? "pdf" : "vision",

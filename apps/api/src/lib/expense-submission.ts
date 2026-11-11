@@ -32,6 +32,8 @@ import {
 } from "./expense-types";
 import { receiptDateInOslo, todayInOslo } from "./receipt-date";
 import {
+  amountReadInNok,
+  CLASSIFY_TIMEOUT_MS,
   type Classification,
   classifyReceipt,
   clean,
@@ -47,6 +49,9 @@ import {
 const OLD_RECEIPT_DAYS = 90;
 const AMOUNT_TOLERANCE_NOK = 1;
 const MS_PER_DAY = 86_400_000;
+const CENTS_PER_NOK = 100;
+/** Amounts at most this many øre apart are the same, as in the duplicate lookup. */
+const SAME_AMOUNT_CENTS = 1;
 
 export interface AttachmentDecisionInput {
   amount: number;
@@ -135,8 +140,10 @@ function decideChosen(ctx: DecisionContext): AttachmentDecision {
   const { aiConfident, aiEnabled, aiSlug, clientSlug, decision, input, types } =
     ctx;
   if (clientSlug) {
+    // The AI's only when it was sure of the same type the student kept.
+    const fromAi = aiConfident && clientSlug === aiSlug;
     return withType(
-      { ...decision, typeSource: clientSlug === aiSlug ? "ai" : "student" },
+      { ...decision, typeSource: fromAi ? "ai" : "student" },
       clientSlug,
       types
     );
@@ -244,35 +251,81 @@ interface HintAttachment {
   amount: number;
   attachmentId: string;
   date: string | null;
-  duplicate: { reimbursementNumber: string } | null;
+  /** The same receipt in an earlier reimbursement, from `findPossibleDuplicate`. */
+  duplicate: Pick<PossibleDuplicate, "match" | "reimbursementNumber"> | null;
+  fileHash: string | null;
   scan: StoredScan | null;
+}
+
+function sameAmount(a: number, b: number): boolean {
+  return (
+    Math.abs(Math.round(a * CENTS_PER_NOK) - Math.round(b * CENTS_PER_NOK)) <=
+    SAME_AMOUNT_CENTS
+  );
+}
+
+/** How a receipt repeats one listed before it in the same submission. */
+function earlierMatch(
+  attachment: HintAttachment,
+  earlier: HintAttachment[]
+): PossibleDuplicate["match"] | null {
+  const receipts = earlier.filter((other) => other.amount > 0);
+  const { fileHash } = attachment;
+  if (fileHash && receipts.some((other) => other.fileHash === fileHash)) {
+    return "file";
+  }
+  const day = attachment.date ? receiptDateInOslo(attachment.date) : null;
+  const sameDayAndAmount = (other: HintAttachment) =>
+    other.date !== null &&
+    receiptDateInOslo(other.date) === day &&
+    sameAmount(other.amount, attachment.amount);
+  return day && receipts.some(sameDayAndAmount) ? "date_amount" : null;
+}
+
+function duplicateHints(
+  attachment: HintAttachment,
+  earlier: HintAttachment[]
+): ApproverHint[] {
+  const { attachmentId, duplicate } = attachment;
+  const hints: ApproverHint[] = [];
+  if (duplicate) {
+    hints.push({
+      attachmentId,
+      code: "possible_duplicate",
+      data: {
+        match: duplicate.match,
+        reimbursementNumber: duplicate.reimbursementNumber,
+      },
+    });
+  }
+  const match = earlierMatch(attachment, earlier);
+  if (match) {
+    hints.push({
+      attachmentId,
+      code: "possible_duplicate",
+      data: { match, sameExpense: 1 },
+    });
+  }
+  return hints;
 }
 
 function attachmentHints(
   attachment: HintAttachment,
-  today: number | null
+  today: number | null,
+  earlier: HintAttachment[]
 ): ApproverHint[] {
-  const { attachmentId, amount, date, duplicate, scan } = attachment;
+  const { attachmentId, amount, date, scan } = attachment;
   if (amount <= 0) {
     return [];
   }
   const hints: ApproverHint[] = [];
-  if (scan) {
-    const { currency } = scan.receipt;
-    const foreignUnconverted =
-      scan.amountInNok === null && !!currency && currency !== "NOK";
-    const read = scan.amountInNok ?? scan.receipt.amount;
-    if (
-      !foreignUnconverted &&
-      read !== null &&
-      Math.abs(amount - read) > AMOUNT_TOLERANCE_NOK
-    ) {
-      hints.push({
-        attachmentId,
-        code: "amount_differs",
-        data: { entered: amount, read },
-      });
-    }
+  const read = scan ? amountReadInNok(scan) : null;
+  if (read !== null && Math.abs(amount - read) > AMOUNT_TOLERANCE_NOK) {
+    hints.push({
+      attachmentId,
+      code: "amount_differs",
+      data: { entered: amount, read },
+    });
   }
   const receiptDay = date ? dayNumber(date) : null;
   if (today !== null && receiptDay !== null) {
@@ -281,19 +334,18 @@ function attachmentHints(
       hints.push({ attachmentId, code: "old_receipt", data: { days } });
     }
   }
-  if (duplicate) {
-    hints.push({
-      attachmentId,
-      code: "possible_duplicate",
-      data: { reimbursementNumber: duplicate.reimbursementNumber },
-    });
-  }
+  hints.push(...duplicateHints(attachment, earlier));
   for (const issue of scan?.receipt.receiptIssues ?? []) {
     hints.push({ attachmentId, code: "receipt_issue", data: { issue } });
   }
   return hints;
 }
 
+/**
+ * The approver hints of one submission. `attachments` are in the order the
+ * student listed them: a receipt that repeats an earlier one in the list gets
+ * `possible_duplicate` with `sameExpense`, the first one does not.
+ */
 export function computeApproverHints(input: {
   attachments: HintAttachment[];
   decisions: AttachmentDecision[];
@@ -301,8 +353,8 @@ export function computeApproverHints(input: {
 }): ApproverHint[] {
   const today = dayNumber(input.today);
   return [
-    ...input.attachments.flatMap((attachment) =>
-      attachmentHints(attachment, today)
+    ...input.attachments.flatMap((attachment, index) =>
+      attachmentHints(attachment, today, input.attachments.slice(0, index))
     ),
     ...input.decisions.flatMap((decision) => decision.hints),
   ];
@@ -375,6 +427,12 @@ type Db = AdminClient["db"];
 
 const EXPENSES_BUCKET = "expenses";
 const SCAN_MODEL = `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`;
+/**
+ * How long a submission waits for the model to read a receipt the upload never
+ * scanned. The app waits 20 s for a submission, and the type's own limit
+ * (`CLASSIFY_TIMEOUT_MS`) comes after this one.
+ */
+const EXTRACT_TIMEOUT_MS = 12_000;
 /** What the model can read; the OCR route accepts the same types. */
 const SCANNABLE_TYPES = new Set([
   "image/jpeg",
@@ -435,6 +493,10 @@ async function downloadReceipt(
   }
 }
 
+/**
+ * The AI's type for a receipt, within `CLASSIFY_TIMEOUT_MS`. A classification
+ * the limit stopped is null, so the receipt counts as not classified yet.
+ */
 async function classify(
   db: Db,
   receipt: ExtractedReceipt,
@@ -444,10 +506,21 @@ async function classify(
     return null;
   }
   const examples = await selectExamples(db, { types, vendor: receipt.vendor });
-  return classifyReceipt({ examples, receipt, types });
+  const abortSignal = AbortSignal.timeout(CLASSIFY_TIMEOUT_MS);
+  const classification = await classifyReceipt({
+    abortSignal,
+    examples,
+    receipt,
+    types,
+  });
+  return abortSignal.aborted ? null : classification;
 }
 
-/** Scans a file the OCR route never saw, and stores the scan by its hash. */
+/**
+ * Scans a file the OCR route never saw, and stores the scan by its hash. A
+ * read that takes over `EXTRACT_TIMEOUT_MS` is stopped, and the receipt goes
+ * on without a scan.
+ */
 async function scanReceipt(
   db: Db,
   input: {
@@ -459,6 +532,7 @@ async function scanReceipt(
 ): Promise<StoredScan | null> {
   try {
     const receipt = await extractReceipt({
+      abortSignal: AbortSignal.timeout(EXTRACT_TIMEOUT_MS),
       buffer: input.buffer,
       mimeType: input.mimeType,
       purpose: "auto",
@@ -518,22 +592,50 @@ function canScan(attachment: SubmittedAttachment, aiEnabled: boolean) {
   );
 }
 
-/** The stored scan, or a new one when the file may be scanned. */
+/**
+ * Gives a stored receipt scan without a type one now. The stored row is left
+ * as it is: the first save of a hash wins, so saving again would be ignored.
+ */
+async function classifyStored(
+  db: Db,
+  scan: StoredScan,
+  types: CostTypeOption[]
+): Promise<StoredScan> {
+  try {
+    const classification = await classify(db, scan.receipt, types);
+    return classification ? { ...scan, classification } : scan;
+  } catch (error) {
+    console.error("[expense-submission] Receipt classification failed:", error);
+    return scan;
+  }
+}
+
+/**
+ * The stored scan, or a new one when the file may be scanned. A stored
+ * receipt the upload couldn't classify (the time limit stopped it, the call
+ * failed or no type was active) is classified now, when the file may be
+ * scanned.
+ */
 async function findOrScan(
   db: Db,
   job: HashJob,
   types: CostTypeOption[]
 ): Promise<StoredScan | null> {
   const stored = await findScan(db, job.fileHash);
-  if (stored || !job.mimeType) {
+  if (!job.mimeType) {
     return stored;
   }
-  return scanReceipt(db, {
-    buffer: job.buffer,
-    fileHash: job.fileHash,
-    mimeType: job.mimeType,
-    types,
-  });
+  if (!stored) {
+    return scanReceipt(db, {
+      buffer: job.buffer,
+      fileHash: job.fileHash,
+      mimeType: job.mimeType,
+      types,
+    });
+  }
+  const unclassified =
+    stored.classification === null && stored.receipt.documentType === "receipt";
+  return unclassified ? classifyStored(db, stored, types) : stored;
 }
 
 /**
@@ -685,18 +787,6 @@ async function chooseFreeformAccounts(
   );
 }
 
-/** The amount read in NOK; a foreign amount that wasn't converted is none. */
-function ocrAmount(scan: StoredScan | null): number | null {
-  if (!scan) {
-    return null;
-  }
-  if (scan.amountInNok !== null) {
-    return scan.amountInNok;
-  }
-  const { amount, currency } = scan.receipt;
-  return currency && currency !== "NOK" ? null : amount;
-}
-
 function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
   const { decision, fileHash, scan } = receipt;
   return {
@@ -708,7 +798,7 @@ function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
     cost_type_text: decision.costTypeText,
     expense_id: expenseId,
     file_hash: fileHash,
-    ocr_amount: ocrAmount(scan),
+    ocr_amount: scan ? amountReadInNok(scan) : null,
     receipt_issues: scan
       ? JSON.stringify([...new Set(scan.receipt.receiptIssues)])
       : null,
@@ -887,11 +977,12 @@ export async function enrichSubmission(
   );
 
   const hints = computeApproverHints({
-    attachments: receipts.map(({ attachment, scan }, index) => ({
+    attachments: receipts.map(({ attachment, fileHash, scan }, index) => ({
       amount: attachment.amount ?? 0,
       attachmentId: attachment.$id,
       date: attachment.date,
       duplicate: duplicates[index] ?? null,
+      fileHash,
       scan,
     })),
     decisions: receipts.map(({ decision }) => decision),

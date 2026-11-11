@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({ get: vi.fn() }));
 const flags = vi.hoisted(() => ({
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createRow: vi.fn(),
   extractReceipt: vi.fn(),
   findPossibleDuplicate: vi.fn(),
+  findScan: vi.fn(),
   loadActiveCostTypes: vi.fn(),
   selectExamples: vi.fn(),
 }));
@@ -42,6 +43,7 @@ vi.mock("@/lib/receipt-scan", async (importActual) => ({
   classifyReceipt: mocks.classifyReceipt,
   convertAmountToNok: mocks.convertAmountToNok,
   extractReceipt: mocks.extractReceipt,
+  findScan: mocks.findScan,
 }));
 
 vi.mock("@repo/ai/models", () => ({
@@ -110,20 +112,27 @@ const receipt = {
   vendor: "Dominos",
 };
 
-function uploadRequest() {
+function uploadRequest(purpose?: string) {
   const form = new FormData();
   form.append("file", new File(["bytes"], "r.png", { type: "image/png" }));
-  return new Request("https://api.example/api/expenses/ocr", {
+  const query = purpose ? `?purpose=${purpose}` : "";
+  return new Request(`https://api.example/api/expenses/ocr${query}`, {
     body: form,
     headers: { origin: ORIGIN },
     method: "POST",
   }) as never;
 }
 
-async function scanData() {
-  const response = await POST(uploadRequest());
+async function scanData(purpose?: string) {
+  const response = await POST(uploadRequest(purpose));
   expect(response.status).toBe(200);
   return ((await response.json()) as { data: Record<string, unknown> }).data;
+}
+
+/** The scan the route stored, as `saveScan` wrote it. */
+function storedScan() {
+  const row = mocks.createRow.mock.calls[0]?.[3] as { result: string };
+  return JSON.parse(row.result) as { classification: unknown };
 }
 
 describe("expenses/ocr scan", () => {
@@ -150,7 +159,12 @@ describe("expenses/ocr scan", () => {
     });
     mocks.createRow.mockResolvedValue({});
     mocks.findPossibleDuplicate.mockResolvedValue(null);
+    mocks.findScan.mockResolvedValue(null);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("answers costType, confidence, receiptIssues, ocrAmount and possibleDuplicate", async () => {
@@ -239,6 +253,125 @@ describe("expenses/ocr scan", () => {
 
     expect(data.costType).toBeNull();
     expect(mocks.classifyReceipt).not.toHaveBeenCalled();
+  });
+
+  it("loads the types while the file is read and caps the classification", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    let finishRead: (value: unknown) => void = () => undefined;
+    mocks.extractReceipt.mockReturnValue(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      })
+    );
+
+    const response = POST(uploadRequest());
+    await vi.waitFor(() => {
+      expect(mocks.extractReceipt).toHaveBeenCalled();
+      expect(mocks.loadActiveCostTypes).toHaveBeenCalled();
+    });
+    finishRead(receipt);
+    expect((await response).status).toBe(200);
+
+    expect(mocks.classifyReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: expect.any(AbortSignal) })
+    );
+    expect(timeout).toHaveBeenCalledWith(8000);
+  });
+
+  it("answers no type, and stores none, when the time limit stops the classification", async () => {
+    vi.spyOn(AbortSignal, "timeout").mockImplementation(() =>
+      AbortSignal.abort()
+    );
+    mocks.classifyReceipt.mockResolvedValue({
+      confidence: 0,
+      costType: null,
+      reason: null,
+    });
+
+    const data = await scanData();
+
+    expect(data).toMatchObject({ costType: null, costTypeConfidence: 0 });
+    // Stored untyped, so the submission can still classify the receipt.
+    expect(storedScan().classification).toBeNull();
+  });
+
+  it("answers from a stored receipt scan with a type, without the model", async () => {
+    mocks.findScan.mockResolvedValue({
+      amountInNok: null,
+      classification: { confidence: 0.85, costType: "social", reason: "x" },
+      exchangeRate: null,
+      receipt: { ...receipt, amount: 99, vendor: "Peppes" },
+    });
+    mocks.findPossibleDuplicate.mockResolvedValue({
+      expenseId: "e1",
+      match: "file",
+      reimbursementNumber: "10042",
+    });
+
+    for (const purpose of [undefined, "receipt"]) {
+      const data = await scanData(purpose);
+
+      expect(data).toMatchObject({
+        amount: 99,
+        costType: "social",
+        costTypeConfidence: 0.85,
+        ocrAmount: 99,
+        possibleDuplicate: true,
+        receiptIssues: ["missing_date"],
+        vendor: "Peppes",
+      });
+    }
+    expect(mocks.extractReceipt).not.toHaveBeenCalled();
+    expect(mocks.convertAmountToNok).not.toHaveBeenCalled();
+    expect(mocks.loadActiveCostTypes).not.toHaveBeenCalled();
+    expect(mocks.classifyReceipt).not.toHaveBeenCalled();
+    expect(mocks.createRow).not.toHaveBeenCalled();
+    expect(mocks.findPossibleDuplicate).toHaveBeenCalledWith(
+      expect.anything(),
+      { amount: 99, date: "2026-11-01", fileHash: expect.any(String) }
+    );
+  });
+
+  it("reads the file again when the stored scan has no type or is no receipt", async () => {
+    const stored = {
+      amountInNok: null,
+      classification: null,
+      exchangeRate: null,
+      receipt,
+    };
+    mocks.findScan.mockResolvedValueOnce(stored).mockResolvedValueOnce({
+      ...stored,
+      classification: { confidence: 0.9, costType: "social", reason: "x" },
+      receipt: { ...receipt, documentType: "bank-statement" },
+    });
+
+    await scanData();
+    await scanData();
+    // A bank statement upload never looks for a stored scan.
+    await scanData("bank-statement");
+
+    expect(mocks.findScan).toHaveBeenCalledTimes(2);
+    expect(mocks.extractReceipt).toHaveBeenCalledTimes(3);
+  });
+
+  it("answers no NOK amount for a foreign receipt it could not convert", async () => {
+    mocks.extractReceipt.mockResolvedValue({
+      ...receipt,
+      amount: 40,
+      currency: "EUR",
+    });
+
+    const data = await scanData();
+
+    expect(data).toMatchObject({
+      amount: 40,
+      amountInNok: null,
+      ocrAmount: null,
+    });
+    expect(mocks.findPossibleDuplicate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ amount: null })
+    );
   });
 
   it("skips classification and the duplicate check for a bank statement", async () => {

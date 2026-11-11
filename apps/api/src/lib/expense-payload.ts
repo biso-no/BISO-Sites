@@ -62,11 +62,14 @@ export type ExpenseAttachmentInput = z.infer<
 
 export type ExpensePayload = z.infer<typeof ExpensePayloadSchema>;
 
-/** An attachment as the draft writes it: `cost_type_chosen` is never stored. */
+/**
+ * An attachment as the draft writes it: `cost_type_chosen` is never stored,
+ * and `cost_type_text` only when there is some.
+ */
 export interface ExpenseAttachmentRowInput {
   amount: number;
   cost_type: string;
-  cost_type_text: string | null;
+  cost_type_text?: string;
   date: string;
   description: string;
   sort_order: number;
@@ -81,10 +84,10 @@ export interface ExpenseRowInput {
   department: string;
   departmentRel: string;
   description: string | null;
-  event_id: string | null;
+  event_id?: string | null;
   eventName: string | null;
   expenseAttachments: ExpenseAttachmentRowInput[];
-  occasion: string | null;
+  occasion?: string | null;
   prepayment_amount: number | null;
   status: ExpensesStatus;
   submitter_is_financial_manager: boolean;
@@ -115,13 +118,19 @@ export function parseExpensePayload(body: unknown): ExpensePayload | null {
   return parsed.success ? parsed.data : null;
 }
 
+/**
+ * Attachment rows are written new on every save, so an empty own text is
+ * simply left out.
+ */
 function toAttachmentRow(
   attachment: ExpenseAttachmentInput
 ): ExpenseAttachmentRowInput {
   return {
     amount: attachment.amount,
     cost_type: attachment.cost_type,
-    cost_type_text: attachment.cost_type_text || null,
+    ...(attachment.cost_type_text
+      ? { cost_type_text: attachment.cost_type_text }
+      : {}),
     date: attachment.date,
     description: attachment.description,
     sort_order: attachment.sort_order,
@@ -130,6 +139,29 @@ function toAttachmentRow(
   };
 }
 
+/**
+ * The occasion and event the payload has. One it leaves out is not written,
+ * so an update keeps the stored value; a null (or empty) one is written as
+ * null, which clears it.
+ */
+function sentOccasionAndEvent(
+  data: ExpensePayload
+): Pick<ExpenseRowInput, "event_id" | "occasion"> {
+  const sent: Pick<ExpenseRowInput, "event_id" | "occasion"> = {};
+  if (data.event_id !== undefined) {
+    sent.event_id = data.event_id || null;
+  }
+  if (data.occasion !== undefined) {
+    sent.occasion = data.occasion || null;
+  }
+  return sent;
+}
+
+/**
+ * The expense row to write. The AI-era columns (`occasion`, `event_id`,
+ * `cost_type_text`) are written only when the payload has them, so clients
+ * that never send them keep working against a schema without them.
+ */
 export function buildExpenseRowInput(
   data: ExpensePayload,
   userId: string,
@@ -142,10 +174,9 @@ export function buildExpenseRowInput(
     department: data.department,
     departmentRel: data.department,
     description: data.description || null,
-    event_id: data.event_id || null,
     eventName: data.eventName || null,
     expenseAttachments: (data.expenseAttachments ?? []).map(toAttachmentRow),
-    occasion: data.occasion || null,
+    ...sentOccasionAndEvent(data),
     prepayment_amount: data.prepayment_amount ?? 0,
     status,
     submitter_is_financial_manager:
@@ -217,7 +248,8 @@ export interface StoredDraft {
  * old app re-saves or submits a draft made on the web, its own text is put
  * back (see `mergeLegacyAttachmentTypes`) and, unless the payload sends them,
  * its `occasion` and `event_id` are kept. A client that sends `cost_type_chosen`
- * clears those two by leaving them out.
+ * is taken as sent: it clears those two by sending null, and a draft update
+ * that leaves them out keeps them (see `buildExpenseRowInput`).
  */
 export function mergeLegacyDraft(
   payload: ExpensePayload,

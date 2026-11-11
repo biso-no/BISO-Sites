@@ -148,6 +148,25 @@ describe("decideAttachment", () => {
     expect(other.aiConfidence).toBe(0.9);
   });
 
+  it("marks the student's slug as theirs when the AI was unsure of it", () => {
+    const unsure = decideAttachment(
+      input({ clientCostType: "social", scan: scan("social", 0.6) }),
+      types,
+      true
+    );
+    expect(unsure.costType).toBe("social");
+    expect(unsure.typeSource).toBe("student");
+    expect(unsure.aiCostType).toBe("social");
+    expect(unsure.aiConfidence).toBe(0.6);
+    const retired = decideAttachment(
+      input({ clientCostType: "social", scan: scan("social", 0.95) }),
+      [type("meeting-food", 7350), type("other", 7790)],
+      true
+    );
+    // "social" is no longer active, so the AI's pick doesn't count either.
+    expect(retired.typeSource).toBe("student");
+  });
+
   it("keeps the student's own text and asks for an AI account", () => {
     const d = decideAttachment(
       input({ clientText: "  Flowers  " }),
@@ -357,7 +376,8 @@ describe("computeApproverHints", () => {
           amount: 120,
           attachmentId: "a1",
           date: "2026-07-01",
-          duplicate: { reimbursementNumber: "R-12" },
+          duplicate: { match: "file", reimbursementNumber: "R-12" },
+          fileHash: "hash-1",
           scan: scan("social", 0.9, {
             receipt: receipt({ receiptIssues: ["no_items", "unreadable"] }),
           }),
@@ -367,6 +387,7 @@ describe("computeApproverHints", () => {
           attachmentId: "a2",
           date: "2020-01-01",
           duplicate: null,
+          fileHash: "hash-1",
           scan: null,
         },
       ],
@@ -397,7 +418,7 @@ describe("computeApproverHints", () => {
       {
         attachmentId: "a1",
         code: "possible_duplicate",
-        data: { reimbursementNumber: "R-12" },
+        data: { match: "file", reimbursementNumber: "R-12" },
       },
       {
         attachmentId: "a1",
@@ -419,6 +440,7 @@ describe("computeApproverHints", () => {
       attachmentId: id,
       date,
       duplicate: null,
+      fileHash: `hash-${id}`,
       scan: scan("social", 0.9),
     });
     const hints = computeApproverHints({
@@ -440,6 +462,12 @@ describe("computeApproverHints", () => {
     expect(hints).toEqual([
       { attachmentId: "a1", code: "old_receipt", data: { days: 133 } },
       { attachmentId: "a2", code: "old_receipt", data: { days: 133 } },
+      // Both datetimes are 1 July in Oslo, so a2 repeats a1.
+      {
+        attachmentId: "a2",
+        code: "possible_duplicate",
+        data: { match: "date_amount", sameExpense: 1 },
+      },
     ]);
   });
 
@@ -451,6 +479,7 @@ describe("computeApproverHints", () => {
           attachmentId: "a1",
           date: "2026-08-13",
           duplicate: null,
+          fileHash: null,
           scan: scan("social", 0.9),
         },
       ],
@@ -458,6 +487,86 @@ describe("computeApproverHints", () => {
       today: "2026-11-11",
     });
     expect(hints).toEqual([]);
+  });
+
+  it("flags a receipt that repeats an earlier one in the same submission", () => {
+    const attachment = (id: string, over: Record<string, unknown> = {}) => ({
+      amount: 100,
+      attachmentId: id,
+      date: "2026-11-01T00:00:00.000+00:00",
+      duplicate: null,
+      fileHash: `hash-${id}`,
+      scan: null,
+      ...over,
+    });
+    const hints = computeApproverHints({
+      attachments: [
+        // A bank statement: never a receipt that pays out twice.
+        attachment("a0", { amount: 0, fileHash: "same" }),
+        attachment("a1", { fileHash: "same" }),
+        // The same file again, another day and amount.
+        attachment("a2", {
+          amount: 250,
+          date: "2026-10-30T00:00:00.000+00:00",
+          fileHash: "same",
+        }),
+        // Another file, the same Oslo day and amount (within 0.01).
+        attachment("a3", { amount: 100.01, date: "2026-10-31T23:30:00.000Z" }),
+        // The same day, a different amount.
+        attachment("a4", { amount: 100.5 }),
+      ],
+      decisions: [],
+      today: "2026-11-11",
+    });
+    expect(hints).toEqual([
+      {
+        attachmentId: "a2",
+        code: "possible_duplicate",
+        data: { match: "file", sameExpense: 1 },
+      },
+      {
+        attachmentId: "a3",
+        code: "possible_duplicate",
+        data: { match: "date_amount", sameExpense: 1 },
+      },
+    ]);
+  });
+
+  it("keeps both duplicate hints for a receipt in another and this reimbursement", () => {
+    const hints = computeApproverHints({
+      attachments: [
+        {
+          amount: 100,
+          attachmentId: "a1",
+          date: null,
+          duplicate: null,
+          fileHash: "same",
+          scan: null,
+        },
+        {
+          amount: 100,
+          attachmentId: "a2",
+          date: null,
+          duplicate: { match: "date_amount", reimbursementNumber: "10042" },
+          fileHash: "same",
+          scan: null,
+        },
+      ],
+      decisions: [],
+      today: "2026-11-11",
+    });
+    expect(hints).toEqual([
+      {
+        attachmentId: "a2",
+        code: "possible_duplicate",
+        data: { match: "date_amount", reimbursementNumber: "10042" },
+      },
+      {
+        attachmentId: "a2",
+        code: "possible_duplicate",
+        data: { match: "file", sameExpense: 1 },
+      },
+    ]);
   });
 });
 
@@ -600,7 +709,9 @@ interface RowOver {
 
 /**
  * A submission as the route hands it over: the parsed payload and the saved
- * draft read back, whose attachment rows were built from that payload.
+ * draft read back, whose attachment rows were built from that payload. Each
+ * row is dated a day after the one before, so rows of the same amount are not
+ * the same receipt.
  */
 function submission(
   attachments: RowOver[],
@@ -633,7 +744,7 @@ function submission(
         amount: attachment.amount,
         cost_type: attachment.cost_type,
         cost_type_text: attachment.cost_type_text ?? null,
-        date: "2026-11-01T00:00:00.000+00:00",
+        date: `2026-11-${String(index + 1).padStart(2, "0")}T00:00:00.000+00:00`,
         type: attachment.type,
         url: attachment.url,
       })
@@ -742,6 +853,7 @@ describe("enrichSubmission", () => {
       exchangeRate: 11.75,
     });
     scanning.classifyReceipt.mockResolvedValue(classification);
+    const timeout = vi.spyOn(AbortSignal, "timeout");
     const { expense, payload } = submission([
       { amount: 470, cost_type: "", cost_type_chosen: true, url: "file-1" },
     ]);
@@ -749,6 +861,7 @@ describe("enrichSubmission", () => {
     await enrichSubmission(admin, expense, payload, "Ada Lovelace");
 
     expect(scanning.extractReceipt).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
       buffer: Buffer.from(fileBytes("file-1")),
       mimeType: "image/jpeg",
       purpose: "auto",
@@ -758,10 +871,13 @@ describe("enrichSubmission", () => {
       vendor: "Peppes",
     });
     expect(scanning.classifyReceipt).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
       examples: [],
       receipt: extracted,
       types: liveTypes,
     });
+    // 12 s to read the file, then 8 s to pick its type.
+    expect(timeout.mock.calls).toEqual([[12_000], [8000]]);
     // The types are loaded once; the AI is offered only the active ones.
     expect(typeStore.loadAllCostTypes).toHaveBeenCalledTimes(1);
     expect(typeStore.loadActiveCostTypes).not.toHaveBeenCalled();
@@ -1033,7 +1149,7 @@ describe("enrichSubmission", () => {
         {
           attachmentId: "att-1",
           code: "possible_duplicate",
-          data: { reimbursementNumber: "10042" },
+          data: { match: "file", reimbursementNumber: "10042" },
         },
         { attachmentId: "att-2", code: "ai_account_unsure" },
       ]),
@@ -1119,6 +1235,148 @@ describe("enrichSubmission", () => {
         file_hash: hashOf("same receipt"),
       });
     }
+    // The first copy is the receipt; each later one is flagged for the approver.
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      {
+        attachmentId: "att-2",
+        code: "possible_duplicate",
+        data: { match: "file", sameExpense: 1 },
+      },
+      {
+        attachmentId: "att-3",
+        code: "possible_duplicate",
+        data: { match: "file", sameExpense: 1 },
+      },
+    ]);
+  });
+
+  it("classifies a stored receipt scan that has no type", async () => {
+    const stored = scan("social", 0.9, { classification: null });
+    scanning.findScan.mockResolvedValue(stored);
+    scanning.classifyReceipt.mockResolvedValue({
+      confidence: 0.92,
+      costType: "social",
+      reason: "Party snacks",
+    });
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    // Text only: the file is not read again, and the stored row stays.
+    expect(scanning.extractReceipt).not.toHaveBeenCalled();
+    expect(scanning.classifyReceipt).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      examples: [],
+      receipt: stored.receipt,
+      types: liveTypes,
+    });
+    expect(scanning.saveScan).not.toHaveBeenCalled();
+    expect(attachmentWrite("att-1")).toMatchObject({
+      ai_confidence: 0.92,
+      ai_cost_type: "social",
+      cost_type: "social",
+      type_source: "ai",
+    });
+  });
+
+  it("classifies no stored bank statement, and nothing with the AI off", async () => {
+    scanning.findScan.mockImplementation(async (_db: unknown, hash: string) =>
+      scan("social", 0.9, {
+        classification: null,
+        receipt: receipt({
+          documentType:
+            hash === hashOf("file-1") ? "bank-statement" : "receipt",
+        }),
+      })
+    );
+    const { expense, payload } = submission([
+      { cost_type: "social", cost_type_chosen: true, url: "file-1" },
+      { cost_type: "social", cost_type_chosen: true, url: "file-2" },
+    ]);
+
+    flags.expenses_ocr = false;
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    expect(scanning.classifyReceipt).not.toHaveBeenCalled();
+
+    flags.expenses_ocr = true;
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+    expect(scanning.classifyReceipt).toHaveBeenCalledTimes(1);
+    expect(
+      scanning.classifyReceipt.mock.calls[0]?.[0].receipt.documentType
+    ).toBe("receipt");
+  });
+
+  it("keeps the scan untyped when the time limit stops the classification", async () => {
+    // Every limit has already run out; the mocked read itself ignores it.
+    vi.spyOn(AbortSignal, "timeout").mockImplementation(() =>
+      AbortSignal.abort()
+    );
+    scanning.classifyReceipt.mockResolvedValue({
+      confidence: 0,
+      costType: null,
+      reason: null,
+    });
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    // Stored without a type, so a later pass can still classify the receipt.
+    expect(scanning.saveScan).toHaveBeenCalledWith(
+      db,
+      hashOf("file-1"),
+      expect.objectContaining({ classification: null }),
+      "balanced-id+fast-id"
+    );
+    expect(attachmentWrite("att-1")).toMatchObject({
+      ai_cost_type: null,
+      cost_type: "other",
+    });
+  });
+
+  it("goes on without a scan when reading the file is stopped", async () => {
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    scanning.extractReceipt.mockRejectedValue(
+      new DOMException("The operation timed out.", "TimeoutError")
+    );
+    const { expense, payload } = submission([
+      { cost_type: "social", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(scanning.classifyReceipt).not.toHaveBeenCalled();
+    expect(scanning.saveScan).not.toHaveBeenCalled();
+    expect(attachmentWrite("att-1")).toMatchObject({
+      cost_type: "social",
+      file_hash: hashOf("file-1"),
+      ocr_amount: null,
+    });
+    expect(error).toHaveBeenCalled();
+  });
+
+  it("records no AI decision when the student kept a type the AI was unsure of", async () => {
+    scanning.findScan.mockResolvedValue(scan("social", 0.6));
+    const { expense, payload } = submission([
+      { cost_type: "social", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(attachmentWrite("att-1")).toMatchObject({
+      ai_confidence: 0.6,
+      ai_cost_type: "social",
+      type_source: "student",
+    });
+    const events = recordExpenseEvents.mock.calls[0]?.[1];
+    expect(events.map((event: { action: string }) => event.action)).toEqual([
+      "submitted",
+    ]);
   });
 
   it("runs at most four downloads and scans at a time", async () => {

@@ -479,6 +479,65 @@ describe("postApprovedExpense booking dates", () => {
     });
   });
 
+  describe("receipts without an account", () => {
+    function arrangeAttachment(attachment: Record<string, unknown>) {
+      finago.getFiscalYearLocks.mockResolvedValue([]);
+      finago.listFiscalPeriods.mockResolvedValue([]);
+      finago.postExpenseTransaction.mockResolvedValue({
+        transactionId: "tx-9",
+        shifts: [],
+      });
+      db.getRow.mockImplementation(async (_d: string, table: string) =>
+        table === "user"
+          ? { name: "Test Student", email: "t@example.test" }
+          : {
+              ...expense,
+              expenseAttachments: [
+                {
+                  ...expense.expenseAttachments[0],
+                  account_number: null,
+                  tax_code: null,
+                  ...attachment,
+                },
+              ],
+            }
+      );
+    }
+
+    it("fails visibly for the student's own type with no account", async () => {
+      arrangeAttachment({ cost_type: "", cost_type_text: "Flowers" });
+
+      await expect(postApprovedExpense("exp-1")).rejects.toThrow(
+        'Receipt att-1 has no account for the student\'s own type "Flowers"'
+      );
+      expect(finago.uploadDocument).not.toHaveBeenCalled();
+      expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
+      expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+        status: "failed",
+      });
+      const failed = eventCalls().find((c) => c[3].action === "booking_failed");
+      expect(failed?.[3].note).toContain("Flowers");
+    });
+
+    it("still books a type's slug on the type's account", async () => {
+      arrangeAttachment({ cost_type: "travel", cost_type_text: "Flowers" });
+
+      await postApprovedExpense("exp-1");
+
+      const [line] = finago.postExpenseTransaction.mock.calls[0][0].receipts;
+      expect(line).toMatchObject({ accountNumber: 7140, ref: "att-1" });
+    });
+
+    it("still books an empty type on Other", async () => {
+      arrangeAttachment({ cost_type: "", cost_type_text: null });
+
+      await postApprovedExpense("exp-1");
+
+      const [line] = finago.postExpenseTransaction.mock.calls[0][0].receipts;
+      expect(line).toMatchObject({ accountNumber: 6555, ref: "att-1" });
+    });
+  });
+
   describe("booked examples", () => {
     const withExampleFields = {
       ...expense,
@@ -540,15 +599,62 @@ describe("postApprovedExpense booking dates", () => {
       ]);
     });
 
-    it("falls back to the attachment description without a stored scan", async () => {
+    it("never takes the student's description without a stored scan", async () => {
       arrangeBooked();
       scans.findScan.mockResolvedValue(null);
 
       await postApprovedExpense("exp-1");
 
       const rows = examples.writeExamples.mock.calls[0][1];
-      expect(rows[0].description).toBe("Pizza night");
+      expect(rows[0].description).toBe("");
       expect(rows[0].vendor).toBeNull();
+    });
+
+    it("learns from an old app's type only when the AI was sure of it", async () => {
+      arrangeBooked();
+      const legacy = (id: string, over: Record<string, unknown>) => ({
+        ...expense.expenseAttachments[0],
+        $id: id,
+        account_source: "type",
+        cost_type: "social",
+        file_hash: `hash-${id}`,
+        type_source: "legacy_app",
+        ...over,
+      });
+      db.getRow.mockImplementation(async (_d: string, table: string) =>
+        table === "user"
+          ? { name: "Test Student", email: "t@example.test" }
+          : {
+              ...expense,
+              expenseAttachments: [
+                legacy("agreed", {
+                  ai_confidence: 0.8,
+                  ai_cost_type: "social",
+                }),
+                legacy("unsure", {
+                  ai_confidence: 0.7,
+                  ai_cost_type: "social",
+                }),
+                legacy("other-type", {
+                  ai_confidence: 0.95,
+                  ai_cost_type: "travel",
+                }),
+                legacy("no-ai", { ai_confidence: null, ai_cost_type: null }),
+              ],
+            }
+      );
+
+      await postApprovedExpense("exp-1");
+
+      expect(scans.findScan).toHaveBeenCalledTimes(1);
+      expect(scans.findScan).toHaveBeenCalledWith(db, "hash-agreed");
+      const rows = examples.writeExamples.mock.calls[0][1];
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        aiConfidence: 0.8,
+        aiCostType: "social",
+        finalCostType: "social",
+      });
     });
 
     it("keeps success when example writes fail", async () => {

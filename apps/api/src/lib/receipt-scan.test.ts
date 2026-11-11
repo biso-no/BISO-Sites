@@ -1,6 +1,6 @@
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
 import { RECEIPT_ISSUE_CODES } from "@repo/shared/utils/expense-hints";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const generateObject = vi.hoisted(() => vi.fn());
 
@@ -8,6 +8,7 @@ vi.mock("ai", () => ({ generateObject }));
 vi.mock("@repo/ai/models", () => ({ balancedModel: "b", fastModel: "f" }));
 
 import {
+  amountReadInNok,
   buildClassificationPrompt,
   classifyReceipt,
   type ExtractedReceipt,
@@ -143,6 +144,68 @@ describe("classifyReceipt", () => {
   });
 });
 
+describe("classifyReceipt time limit", () => {
+  // A block body: a function returned from beforeEach runs as its teardown.
+  beforeEach(() => {
+    generateObject.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("passes the signal to the model call", async () => {
+    generateObject.mockResolvedValue({
+      object: { confidence: 0.9, costType: "supplies", reason: "x" },
+    });
+    const abortSignal = new AbortController().signal;
+    await classifyReceipt({ abortSignal, examples, receipt, types });
+    expect(generateObject.mock.calls[0]?.[0].abortSignal).toBe(abortSignal);
+  });
+
+  it("gives no type, and logs, when the signal stops the call", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const controller = new AbortController();
+    generateObject.mockImplementation(() => {
+      controller.abort(new DOMException("timed out", "TimeoutError"));
+      return Promise.reject(controller.signal.reason);
+    });
+    await expect(
+      classifyReceipt({
+        abortSignal: controller.signal,
+        examples,
+        receipt,
+        types,
+      })
+    ).resolves.toEqual({ confidence: 0, costType: null, reason: null });
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("still throws a failure that is not the time limit", async () => {
+    generateObject.mockRejectedValue(new Error("model down"));
+    await expect(
+      classifyReceipt({
+        abortSignal: new AbortController().signal,
+        examples,
+        receipt,
+        types,
+      })
+    ).rejects.toThrow("model down");
+  });
+});
+
+describe("amountReadInNok", () => {
+  it("prefers the converted amount and drops an unconverted foreign one", () => {
+    expect(amountReadInNok({ ...scan, amountInNok: 470 })).toBe(470);
+    expect(amountReadInNok(scan)).toBe(120);
+    expect(
+      amountReadInNok({ ...scan, receipt: { ...receipt, currency: null } })
+    ).toBe(120);
+    expect(
+      amountReadInNok({ ...scan, receipt: { ...receipt, currency: "EUR" } })
+    ).toBeNull();
+  });
+});
+
 describe("sha256Hex", () => {
   it("is stable", () => {
     expect(sha256Hex(Buffer.from("abc"))).toBe(
@@ -241,6 +304,18 @@ describe("saveScan", () => {
 });
 
 describe("extractReceipt prompt", () => {
+  it("passes the signal to the model call", async () => {
+    generateObject.mockResolvedValue({ object: receipt });
+    const abortSignal = new AbortController().signal;
+    await extractReceipt({
+      abortSignal,
+      buffer: Buffer.from("x"),
+      mimeType: "image/png",
+      purpose: "auto",
+    });
+    expect(generateObject.mock.calls.at(-1)?.[0].abortSignal).toBe(abortSignal);
+  });
+
   it("lists the receipt issue codes from the shared vocabulary", async () => {
     generateObject.mockResolvedValue({ object: receipt });
     await extractReceipt({

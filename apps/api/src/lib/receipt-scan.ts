@@ -227,11 +227,14 @@ function purposeToPrompt(purpose: ScanPurpose): string {
 }
 
 export async function extractReceipt(input: {
+  /** Stops the model call; the call then throws. */
+  abortSignal?: AbortSignal;
   buffer: Buffer;
   mimeType: string;
   purpose: ScanPurpose;
 }): Promise<ExtractedReceipt> {
   const { object } = await generateObject({
+    abortSignal: input.abortSignal,
     model: balancedModel,
     schema: ExpenseDataSchema,
     messages: [
@@ -271,11 +274,21 @@ export function clean(value: string | number): string {
 }
 const CONFIDENCE_CAP_NOTE = 0.8;
 
+/**
+ * How long a type classification may take. The app gives up on an upload after
+ * 30 s and on a submission after 20 s, and the type is only a suggestion.
+ */
+export const CLASSIFY_TIMEOUT_MS = 8000;
+
 interface ClassifyInput {
+  /** Stops the model call; the receipt then gets no type. */
+  abortSignal?: AbortSignal;
   examples: TypeExample[];
   receipt: ExtractedReceipt;
   types: CostTypeOption[];
 }
+
+const NO_TYPE: Classification = { confidence: 0, costType: null, reason: null };
 
 export function buildClassificationPrompt({
   receipt,
@@ -323,18 +336,32 @@ const ClassificationSchema = z.object({
   reason: z.string(),
 });
 
+/**
+ * Picks one of `types` for the receipt. When `abortSignal` stops the call, the
+ * receipt gets no type and the stop is logged; any other failure throws.
+ */
 export async function classifyReceipt(
   input: ClassifyInput
 ): Promise<Classification> {
   if (input.types.length === 0) {
-    return { confidence: 0, costType: null, reason: null };
+    return { ...NO_TYPE };
   }
-  const { object } = await generateObject({
-    model: fastModel,
-    prompt: buildClassificationPrompt(input),
-    reasoning: "low",
-    schema: ClassificationSchema,
-  });
+  let object: z.infer<typeof ClassificationSchema>;
+  try {
+    ({ object } = await generateObject({
+      abortSignal: input.abortSignal,
+      model: fastModel,
+      prompt: buildClassificationPrompt(input),
+      reasoning: "low",
+      schema: ClassificationSchema,
+    }));
+  } catch (error) {
+    if (!input.abortSignal?.aborted) {
+      throw error;
+    }
+    console.warn("[receipt-scan] Classification stopped:", error);
+    return { ...NO_TYPE };
+  }
   if (!input.types.some((type) => type.slug === object.costType)) {
     return { confidence: 0, costType: null, reason: object.reason };
   }
@@ -353,6 +380,17 @@ export interface StoredScan {
   classification: Classification | null;
   exchangeRate: number | null;
   receipt: ExtractedReceipt;
+}
+
+/** The amount read, in NOK. A foreign amount that wasn't converted is none. */
+export function amountReadInNok(
+  scan: Pick<StoredScan, "amountInNok" | "receipt">
+): number | null {
+  if (scan.amountInNok !== null) {
+    return scan.amountInNok;
+  }
+  const { amount, currency } = scan.receipt;
+  return currency && currency !== "NOK" ? null : amount;
 }
 
 export async function findScan(

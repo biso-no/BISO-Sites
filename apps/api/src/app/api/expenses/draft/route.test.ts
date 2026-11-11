@@ -142,12 +142,10 @@ describe("expense draft route", () => {
         cost_type_text: "Flowers",
         url: "file-1",
       }),
-      expect.objectContaining({
-        cost_type: "travel",
-        cost_type_text: null,
-        url: "file-2",
-      }),
+      expect.objectContaining({ cost_type: "travel", url: "file-2" }),
     ]);
+    // A receipt without own text writes no `cost_type_text` at all.
+    expect(written.expenseAttachments[1]).not.toHaveProperty("cost_type_text");
   });
 
   it("refuses to update an expense that belongs to someone else", async () => {
