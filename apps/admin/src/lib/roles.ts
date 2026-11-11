@@ -78,6 +78,8 @@ export const NAV_ACCESS = {
   // Webshop accounting (sales types, clearing accounts, posting switch) is an
   // organisation-wide finance surface: global and campus admins only.
   "portal.shopAccounting": [ROLES.GLOBAL_ADMIN, ROLES.CAMPUS_ADMIN],
+  // Expense types and their ledger accounts: global admins (finance) only.
+  "portal.expensesSettings": [ROLES.GLOBAL_ADMIN],
   "portal.benefits": [
     ROLES.GLOBAL_ADMIN,
     ROLES.CAMPUS_ADMIN,

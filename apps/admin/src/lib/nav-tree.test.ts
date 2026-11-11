@@ -21,7 +21,7 @@ function labels(nodes: ReturnType<typeof filterNavTree>) {
 }
 
 describe("filterNavTree", () => {
-  test("global admin sees all 9 top-level entries", () => {
+  test("global admin sees all 10 top-level entries", () => {
     expect(labels(filterNavTree(globalAdmin))).toEqual([
       "overview",
       "inbox",
@@ -29,6 +29,8 @@ describe("filterNavTree", () => {
       "content",
       "shop",
       "shopAccounting",
+      // One visible child flattens the expenses group to its leaf.
+      "expensesSettings",
       "organization",
       "analytics",
       "system",
@@ -166,5 +168,16 @@ describe("shop accounting navigation", () => {
 
     expect(campusPaths).toContain("/shop/accounting");
     expect(departmentPaths).not.toContain("/shop/accounting");
+  });
+});
+
+describe("expenses navigation", () => {
+  const paths = (input: typeof globalAdmin) =>
+    flattenNavTree(filterNavTree(input)).map((n) => n.path);
+
+  test("the expenses settings page shows for a global admin only", () => {
+    expect(paths(globalAdmin)).toContain("/expenses/settings");
+    expect(paths(campusAdmin)).not.toContain("/expenses/settings");
+    expect(paths(departmentUser)).not.toContain("/expenses/settings");
   });
 });
