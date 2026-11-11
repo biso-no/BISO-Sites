@@ -18,13 +18,16 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { selectContentClass, selectTriggerClass } from "./form-styles";
 import type { TypeState } from "./receipt-types";
 import { filterTypeOptions } from "./type-search";
 import type { ExpenseTypeOption } from "./types";
 
 const OWN_TEXT_VALUE = "__own-text__";
+const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
+/** The API caps a type text at this length. */
+const MAX_TEXT_LENGTH = 120;
 
 interface ExpenseTypeComboboxProps {
   ariaLabel?: string;
@@ -37,6 +40,13 @@ interface ExpenseTypeComboboxProps {
   options: ExpenseTypeOption[];
   state: TypeState | undefined;
   value: { costType?: string; costTypeText?: string };
+}
+
+function ownTextLabel(
+  text: string | undefined,
+  t: (key: "ownQuoted" | "choose", values?: { text: string }) => string
+): string {
+  return text ? t("ownQuoted", { text }) : t("choose");
 }
 
 /**
@@ -58,6 +68,8 @@ export function ExpenseTypeCombobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState("");
+  // Once the student moves through the list, cmdk's own highlight rules apply.
+  const navigated = useRef(false);
 
   const { matches, offerOwnText } = useMemo(
     () => filterTypeOptions(query, options, locale),
@@ -68,30 +80,42 @@ export function ExpenseTypeCombobox({
   const chosen = value.costType
     ? options.find((option) => option.slug === value.costType)
     : undefined;
-  const label = chosen
-    ? costTypeLabel({ ...chosen, accountNumber: 0 }, locale)
-    : undefined;
+  const label = chosen ? costTypeLabel(chosen, locale) : undefined;
   const needsChoice =
     state === "needs_choice" && !(label || value.costTypeText);
 
+  // Enter picks the exact-name type, else the student's own text, until they
+  // navigate. Held in a ref: cmdk reports its first-item highlight before this
+  // component re-renders with the new query.
+  const autoTarget = useRef<string | undefined>(undefined);
+
   const handleQuery = (next: string) => {
-    setQuery(next);
+    navigated.current = false;
     const result = filterTypeOptions(next, options, locale);
     if (result.exact) {
-      setHighlight(result.exact.slug);
-    } else if (result.offerOwnText && result.matches.length === 0) {
-      setHighlight(OWN_TEXT_VALUE);
+      autoTarget.current = result.exact.slug;
     } else {
-      setHighlight(result.matches[0]?.slug ?? "");
+      autoTarget.current = result.offerOwnText ? OWN_TEXT_VALUE : undefined;
     }
+    setQuery(next);
   };
+
+  // cmdk re-highlights the first row on every search change; steer it back to
+  // the row Enter should pick until the student navigates. `highlight` mirrors
+  // cmdk's own value, so this change always reaches it.
+  useEffect(() => {
+    const target = autoTarget.current;
+    if (!navigated.current && target && highlight !== target) {
+      setHighlight(target);
+    }
+  });
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
-    if (!next) {
-      setQuery("");
-      setHighlight("");
-    }
+    navigated.current = false;
+    autoTarget.current = undefined;
+    setQuery("");
+    setHighlight(next ? (value.costType ?? "") : "");
   };
 
   const pick = (next: { costType: string } | { costTypeText: string }) => {
@@ -99,14 +123,8 @@ export function ExpenseTypeCombobox({
     handleOpenChange(false);
   };
 
-  let triggerText: string;
-  if (label) {
-    triggerText = label;
-  } else if (value.costTypeText) {
-    triggerText = `“${value.costTypeText}”`;
-  } else {
-    triggerText = t("choose");
-  }
+  const hasValue = Boolean(label || value.costTypeText);
+  const triggerText = label ?? ownTextLabel(value.costTypeText, t);
 
   return (
     <Popover onOpenChange={handleOpenChange} open={open}>
@@ -114,27 +132,27 @@ export function ExpenseTypeCombobox({
         <button
           aria-expanded={open}
           aria-haspopup="listbox"
-          aria-label={ariaLabel}
+          aria-invalid={needsChoice || undefined}
           className={cn(
             selectTriggerClass,
             "type-body-sm flex items-center justify-between gap-2 border px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
             compact ? "h-8 px-2" : "h-10",
             needsChoice &&
               "border-warning bg-warning/10 font-semibold text-ink",
-            !(needsChoice || label || value.costTypeText) && "text-ink-muted"
+            !(needsChoice || hasValue) && "text-ink-muted"
           )}
           id={id}
           type="button"
         >
           <span className="flex min-w-0 items-center gap-2">
+            {ariaLabel ? (
+              <span className="sr-only">{`${ariaLabel}: `}</span>
+            ) : null}
             <span className="min-w-0 truncate">{triggerText}</span>
             {state === "ai" && label ? (
-              <span
-                aria-label={t("aiPicked")}
-                className="shrink-0 rounded-biso-sm border border-edge bg-surface-sunken px-1 font-bold text-[10px] text-ink-accent"
-                role="img"
-              >
-                AI
+              <span className="shrink-0 rounded-biso-sm border border-edge bg-surface-sunken px-1 font-bold text-[10px] text-ink-accent">
+                <span aria-hidden="true">AI</span>
+                <span className="sr-only">{t("aiPicked")}</span>
               </span>
             ) : null}
           </span>
@@ -146,6 +164,7 @@ export function ExpenseTypeCombobox({
       </PopoverTrigger>
       <PopoverContent
         align="start"
+        aria-label={t("searchLabel")}
         className={cn(
           selectContentClass,
           "w-(--radix-popover-trigger-width) min-w-64 p-0"
@@ -153,6 +172,13 @@ export function ExpenseTypeCombobox({
       >
         <Command
           className="bg-surface-raised text-ink"
+          label={t("searchLabel")}
+          loop
+          onKeyDown={(event) => {
+            if (NAV_KEYS.has(event.key)) {
+              navigated.current = true;
+            }
+          }}
           onValueChange={setHighlight}
           shouldFilter={false}
           value={highlight}
@@ -160,11 +186,17 @@ export function ExpenseTypeCombobox({
           <CommandInput
             aria-label={t("searchLabel")}
             className="placeholder:text-ink-muted"
+            maxLength={MAX_TEXT_LENGTH}
             onValueChange={handleQuery}
             placeholder={t("search")}
             value={query}
           />
-          <CommandList>
+          <CommandList
+            aria-label={t("searchLabel")}
+            onPointerMoveCapture={() => {
+              navigated.current = true;
+            }}
+          >
             {matches.length === 0 && !offerOwnText ? (
               <CommandEmpty className="type-body-sm py-6 text-center text-ink-muted">
                 {t("empty")}
@@ -188,21 +220,26 @@ export function ExpenseTypeCombobox({
                           : "opacity-0"
                       )}
                     />
-                    {costTypeLabel({ ...option, accountNumber: 0 }, locale)}
+                    {costTypeLabel(option, locale)}
                   </CommandItem>
                 ))}
               </CommandGroup>
             ) : null}
             {offerOwnText ? (
               <>
-                {matches.length > 0 ? <CommandSeparator /> : null}
+                {matches.length > 0 ? (
+                  <CommandSeparator className="bg-edge" />
+                ) : null}
                 <CommandGroup className="text-ink">
                   <CommandItem
                     className="type-body-sm text-ink-accent italic data-[selected=true]:bg-surface-sunken data-[selected=true]:text-ink-accent"
                     onSelect={() => pick({ costTypeText: ownText })}
                     value={OWN_TEXT_VALUE}
                   >
-                    <Plus aria-hidden="true" className="mr-2 size-4" />
+                    <Plus
+                      aria-hidden="true"
+                      className="mr-2 size-4 text-ink-accent"
+                    />
                     {t("useOwn", { text: ownText })}
                   </CommandItem>
                 </CommandGroup>

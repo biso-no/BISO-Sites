@@ -184,7 +184,8 @@
       "searchLabel": "Søk i utgiftstyper",
       "empty": "Ingen type funnet",
       "useOwn": "Bruk «{text}»",
-      "aiPicked": "Valgt av AI"
+      "aiPicked": "Valgt av AI",
+      "ownQuoted": "«{text}»"
     }
   }
 }

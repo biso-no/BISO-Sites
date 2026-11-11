@@ -291,7 +291,10 @@ export const DEFAULT_EXPENSE_COST_TYPES = [
 ] as const satisfies readonly CostTypeOption[];
 
 /** Norwegian label for the "no" locale when set, otherwise the English label. */
-export function costTypeLabel(option: CostTypeOption, locale: string): string {
+export function costTypeLabel(
+  option: Pick<CostTypeOption, "label" | "labelNo">,
+  locale: string
+): string {
   return locale === "no" && option.labelNo ? option.labelNo : option.label;
 }
 

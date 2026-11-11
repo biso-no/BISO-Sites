@@ -11,6 +11,12 @@ const options: ExpenseTypeOption[] = [
     askOccasion: false,
   },
   { slug: "social", label: "Social event", labelNo: null, askOccasion: true },
+  {
+    slug: "meals",
+    label: "Meeting food",
+    labelNo: "Møtemat",
+    askOccasion: false,
+  },
   { slug: "cafe", label: "Café", labelNo: "Kafé", askOccasion: false },
 ];
 
@@ -25,6 +31,9 @@ describe("filterTypeOptions", () => {
     expect(
       filterTypeOptions("cafe", options, "en").matches.map((o) => o.slug)
     ).toEqual(["cafe"]);
+    expect(
+      filterTypeOptions("motemat", options, "no").matches.map((o) => o.slug)
+    ).toEqual(["meals"]);
     expect(
       filterTypeOptions("kafe", options, "no").matches.map((o) => o.slug)
     ).toEqual(["cafe"]);

@@ -184,7 +184,8 @@
       "searchLabel": "Search expense types",
       "empty": "No matching type",
       "useOwn": "Use “{text}”",
-      "aiPicked": "Picked by AI"
+      "aiPicked": "Picked by AI",
+      "ownQuoted": "“{text}”"
     }
   }
 }

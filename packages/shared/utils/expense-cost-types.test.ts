@@ -110,8 +110,6 @@ describe("costTypeLabel", () => {
   });
 
   it("falls back to the English label without a Norwegian one", () => {
-    expect(
-      costTypeLabel({ slug: "x", label: "X", accountNumber: 1 }, "no")
-    ).toBe("X");
+    expect(costTypeLabel({ label: "X" }, "no")).toBe("X");
   });
 });

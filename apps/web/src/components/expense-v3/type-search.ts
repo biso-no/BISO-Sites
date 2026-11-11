@@ -1,6 +1,8 @@
 import type { ExpenseTypeOption } from "./types";
 
 const COMBINING_MARKS = /\p{M}/gu;
+const O_STROKE = /ø/g;
+const AE_LIGATURE = /æ/g;
 
 /** Lower-cases, strips diacritics and trims, so "Café" matches "cafe". */
 function normalize(text: string): string {
@@ -8,6 +10,8 @@ function normalize(text: string): string {
     .normalize("NFD")
     .replace(COMBINING_MARKS, "")
     .toLowerCase()
+    .replace(O_STROKE, "o")
+    .replace(AE_LIGATURE, "ae")
     .trim();
 }
 
