@@ -1,3 +1,4 @@
+import { Query } from "@repo/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { findPossibleDuplicate } from "./expense-duplicates";
 
@@ -5,11 +6,12 @@ const listRows = vi.fn();
 const getRow = vi.fn();
 const db = { getRow, listRows } as never;
 
-const expenses: Record<string, { $sequence: number; status: string }> = {
-  draft1: { $sequence: 5, status: "draft" },
-  rejected1: { $sequence: 6, status: "rejected" },
-  sent1: { $sequence: 42, status: "pending" },
-};
+const expenses: Record<string, { $sequence: number | string; status: string }> =
+  {
+    draft1: { $sequence: 5, status: "draft" },
+    rejected1: { $sequence: 6, status: "rejected" },
+    sent1: { $sequence: "42", status: "pending" },
+  };
 
 beforeEach(() => {
   listRows.mockReset();
@@ -73,8 +75,61 @@ describe("findPossibleDuplicate", () => {
     const queries = listRows.mock.calls[1][2].map(String).join(" ");
     expect(queries).toContain("2026-10-31T23:00:00.000Z");
     expect(queries).toContain("2026-11-01T23:00:00.000Z");
+    expect(queries).toContain("greaterThanEqual");
+    expect(queries).toContain("lessThan");
+    expect(queries).not.toContain('between("date"');
     expect(queries).toContain("99.49");
     expect(queries).toContain("99.51");
+  });
+
+  it("queries the Oslo day as start-inclusive, end-exclusive", async () => {
+    listRows.mockResolvedValue({ rows: [] });
+
+    await findPossibleDuplicate(db, {
+      amount: 10,
+      date: "2026-11-01",
+      fileHash: null,
+    });
+
+    const queries = listRows.mock.calls[0][2].map(String);
+    expect(queries).toContain(
+      Query.greaterThanEqual("date", "2026-10-31T23:00:00.000Z")
+    );
+    expect(queries).toContain(
+      Query.lessThan("date", "2026-11-01T23:00:00.000Z")
+    );
+  });
+
+  it("does not date-match a zero or missing amount", async () => {
+    for (const amount of [0, null, -5]) {
+      await expect(
+        findPossibleDuplicate(db, {
+          amount,
+          date: "2026-11-01",
+          fileHash: null,
+        })
+      ).resolves.toBeNull();
+    }
+    expect(listRows).not.toHaveBeenCalled();
+  });
+
+  it("keeps going when a candidate expense is gone", async () => {
+    listRows.mockResolvedValueOnce({
+      rows: [{ expense_id: "gone" }, { expense_id: "sent1" }],
+    });
+    getRow.mockImplementation((_d: string, _t: string, id: string) =>
+      id === "gone"
+        ? Promise.reject(new Error("404"))
+        : Promise.resolve({ $id: id, ...expenses[id] })
+    );
+
+    const result = await findPossibleDuplicate(db, {
+      amount: null,
+      date: null,
+      fileHash: "abc",
+    });
+
+    expect(result?.expenseId).toBe("sent1");
   });
 
   it("skips matching when there is nothing to match on", async () => {

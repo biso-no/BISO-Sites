@@ -2,13 +2,12 @@ import { Query } from "@repo/api";
 import type { createAdminClient } from "@repo/api/server";
 import type { ExpenseAttachments, Expenses } from "@repo/api/types/appwrite";
 import { osloDayBoundsUtc, receiptDateInOslo } from "./receipt-date";
+import { reimbursementNumber } from "./reimbursement-number";
 
 type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 const AMOUNT_TOLERANCE = 0.01;
 const CANDIDATE_LIMIT = 10;
-const NUMBER_BASE = 10_000;
-const NUMBER_WIDTH = 5;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const IGNORED_STATUSES = new Set(["draft", "rejected"]);
 
@@ -41,18 +40,19 @@ async function firstSubmitted(
       continue;
     }
     seen.add(expenseId);
-    const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
-      Query.select(["$id", "status", "$sequence"]),
-    ]);
-    if (!IGNORED_STATUSES.has(expense.status)) {
-      return {
-        expenseId,
-        match,
-        reimbursementNumber: String(NUMBER_BASE + expense.$sequence).padStart(
-          NUMBER_WIDTH,
-          "0"
-        ),
-      };
+    try {
+      const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+        Query.select(["$id", "status", "$sequence"]),
+      ]);
+      if (!IGNORED_STATUSES.has(expense.status)) {
+        return {
+          expenseId,
+          match,
+          reimbursementNumber: reimbursementNumber(expense.$sequence),
+        };
+      }
+    } catch {
+      // A deleted expense must not hide the other candidates.
     }
   }
   return null;
@@ -82,14 +82,15 @@ export async function findPossibleDuplicate(
 
     const day = input.date ? toOsloDay(input.date) : null;
     const bounds = day ? osloDayBoundsUtc(day) : null;
-    if (!bounds || input.amount === null) {
+    if (!bounds || input.amount === null || input.amount <= 0) {
       return null;
     }
     const { rows } = await db.listRows<ExpenseAttachments>(
       "app",
       "expense_attachments",
       [
-        Query.between("date", bounds.start, bounds.end),
+        Query.greaterThanEqual("date", bounds.start),
+        Query.lessThan("date", bounds.end),
         Query.between(
           "amount",
           Number((input.amount - AMOUNT_TOLERANCE).toFixed(2)),

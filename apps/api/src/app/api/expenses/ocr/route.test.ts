@@ -208,6 +208,30 @@ describe("expenses/ocr scan", () => {
     expect(data).toMatchObject({ costType: null, costTypeConfidence: 0 });
   });
 
+  it("keeps the duplicate flag when classification throws unexpectedly", async () => {
+    mocks.loadActiveCostTypes.mockRejectedValue(new Error("x"));
+    mocks.findPossibleDuplicate.mockResolvedValue({
+      expenseId: "e1",
+      match: "file",
+      reimbursementNumber: "10042",
+    });
+
+    const data = await scanData();
+
+    expect(data).toMatchObject({ costType: null, possibleDuplicate: true });
+  });
+
+  it("keeps the classification when the duplicate lookup throws", async () => {
+    mocks.findPossibleDuplicate.mockRejectedValue(new Error("x"));
+
+    const data = await scanData();
+
+    expect(data).toMatchObject({
+      costType: "meeting-food",
+      possibleDuplicate: false,
+    });
+  });
+
   it("skips classification when no type is active", async () => {
     mocks.loadActiveCostTypes.mockResolvedValue([]);
 

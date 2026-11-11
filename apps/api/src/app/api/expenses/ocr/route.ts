@@ -133,32 +133,45 @@ async function scanExtras(
   converted: { amountInNok: number | null; exchangeRate: number | null }
 ) {
   const ocrAmount = converted.amountInNok ?? receipt.amount;
-  const fallback = {
-    classification: null,
-    possibleDuplicate: false,
-  };
   try {
     const { db } = await createAdminClient();
     const fileHash = sha256Hex(buffer);
-    const classification = await classifyIfReceipt(db, receipt);
-    await saveScan(
-      db,
-      fileHash,
-      { ...converted, classification, receipt },
-      `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`
-    );
-    const duplicate =
-      receipt.documentType === "receipt"
-        ? await findPossibleDuplicate(db, {
-            amount: ocrAmount,
-            date: receipt.date,
-            fileHash,
-          })
-        : null;
-    return { classification, possibleDuplicate: duplicate !== null };
+    const classifyAndStore = async () => {
+      const classification = await classifyIfReceipt(db, receipt);
+      await saveScan(
+        db,
+        fileHash,
+        { ...converted, classification, receipt },
+        `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`
+      );
+      return classification;
+    };
+    const lookupDuplicate = async () => {
+      if (receipt.documentType !== "receipt") {
+        return false;
+      }
+      const duplicate = await findPossibleDuplicate(db, {
+        amount: ocrAmount,
+        date: receipt.date,
+        fileHash,
+      });
+      return duplicate !== null;
+    };
+    // Independent steps: a throw in one must not discard the other's result.
+    const [stored, duplicate] = await Promise.allSettled([
+      classifyAndStore(),
+      lookupDuplicate(),
+    ]);
+    if (stored.status === "rejected") {
+      console.error("[expenses/ocr] Scan bookkeeping failed:", stored.reason);
+    }
+    return {
+      classification: stored.status === "fulfilled" ? stored.value : null,
+      possibleDuplicate: duplicate.status === "fulfilled" && duplicate.value,
+    };
   } catch (error) {
     console.error("[expenses/ocr] Scan bookkeeping failed:", error);
-    return fallback;
+    return { classification: null, possibleDuplicate: false };
   }
 }
 
