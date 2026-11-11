@@ -25,6 +25,12 @@ import { filterTypeOptions } from "./type-search";
 import type { ExpenseTypeOption } from "./types";
 
 const OWN_TEXT_VALUE = "__own-text__";
+const VIM_KEYS = "njpk";
+
+/** cmdk also moves the highlight on Ctrl+N/J/P/K. */
+function isVimNavigation(event: { ctrlKey: boolean; key: string }): boolean {
+  return event.ctrlKey && VIM_KEYS.includes(event.key.toLowerCase());
+}
 const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
 /** The API caps a type text at this length. */
 const MAX_TEXT_LENGTH = 120;
@@ -175,7 +181,7 @@ export function ExpenseTypeCombobox({
           label={t("searchLabel")}
           loop
           onKeyDown={(event) => {
-            if (NAV_KEYS.has(event.key)) {
+            if (NAV_KEYS.has(event.key) || isVimNavigation(event)) {
               navigated.current = true;
             }
           }}
@@ -192,7 +198,7 @@ export function ExpenseTypeCombobox({
             value={query}
           />
           <CommandList
-            aria-label={t("searchLabel")}
+            label={t("searchLabel")}
             onPointerMoveCapture={() => {
               navigated.current = true;
             }}

@@ -79,11 +79,16 @@ async function type(text: string) {
   await flush();
 }
 
-async function press(key: string) {
+async function press(key: string, ctrlKey = false) {
   const target = (document.activeElement as HTMLElement) ?? document.body;
   await act(() => {
     target.dispatchEvent(
-      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })
+      new KeyboardEvent("keydown", {
+        key,
+        ctrlKey,
+        bubbles: true,
+        cancelable: true,
+      })
     );
   });
   await flush();
@@ -117,6 +122,22 @@ describe("ExpenseTypeCombobox", () => {
     await press("ArrowDown");
     await press("Enter");
     expect(calls).toEqual([{ costType: "venue-rental" }]);
+  });
+
+  it("counts Ctrl+N as navigation", async () => {
+    const { calls } = await setup();
+    await type("trav");
+    await press("n", true);
+    await press("Enter");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toHaveProperty("costType");
+  });
+
+  it("labels the list in the user's language", async () => {
+    await setup();
+    expect(
+      document.querySelector("[cmdk-list]")?.getAttribute("aria-label")
+    ).toBe("searchLabel");
   });
 
   it("closes on Escape and returns focus to the trigger", async () => {
