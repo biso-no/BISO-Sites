@@ -37,6 +37,7 @@ import {
 import { GenerativeReceiptPreview } from "./generative-receipt-preview";
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
+import type { ExpenseTypeOption } from "./types";
 
 interface OcrData {
   address?: null | string;
@@ -286,6 +287,7 @@ interface ExpenseSplitViewProps {
   initialProfile: Partial<Users>;
   /** When false the AI/OCR receipt scan is skipped; manual entry still works. */
   ocrEnabled?: boolean;
+  typeOptions: ExpenseTypeOption[];
 }
 
 type InitialExpenseDraft = Pick<
@@ -349,6 +351,7 @@ export function ExpenseSplitView({
   initialDraft,
   initialProfile,
   ocrEnabled = true,
+  typeOptions,
 }: ExpenseSplitViewProps) {
   const router = useRouter();
   const t = useTranslations("expenses");
@@ -474,6 +477,7 @@ export function ExpenseSplitView({
     store.reset();
     store.setCampuses(campuses);
     store.setProfile(initialProfile);
+    store.setTypeOptions(typeOptions);
 
     if (!initialDraft) {
       skipNextSummaryRef.current = false;
@@ -516,6 +520,8 @@ export function ExpenseSplitView({
     store.setExpenseId,
     store.setProfile,
     store.setSubmitterIsFinancialManager,
+    store.setTypeOptions,
+    typeOptions,
   ]);
 
   // Process File Logic

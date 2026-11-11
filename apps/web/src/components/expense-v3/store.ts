@@ -1,5 +1,6 @@
 import type { Campus, Users } from "@repo/api/types/appwrite";
 import { create } from "zustand";
+import type { ExpenseTypeOption } from "./types";
 
 type ReceiptStatus =
   | "uploading"
@@ -95,6 +96,7 @@ interface ExpenseStore {
   setSelectedReceiptId: (id: string | null) => void;
   setSubmissionError: (error: string | null) => void;
   setSubmitterIsFinancialManager: (value: boolean) => void;
+  setTypeOptions: (options: ExpenseTypeOption[]) => void;
 
   // Submission
   submissionError: string | null;
@@ -105,6 +107,9 @@ interface ExpenseStore {
 
   // Computed values
   totalAmount: () => number;
+
+  // Active cost types (names only) for the type picker
+  typeOptions: ExpenseTypeOption[];
   updateReceipt: (id: string, updates: Partial<Receipt>) => void;
 }
 
@@ -121,6 +126,7 @@ const initialState = {
   selectedDepartmentName: "",
   profile: {} as Partial<Users>,
   campuses: [] as Campus[],
+  typeOptions: [] as ExpenseTypeOption[],
   submissionError: null,
   expenseId: null,
   submitterIsFinancialManager: false,
@@ -179,6 +185,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
 
   setProfile: (profile) => set({ profile }),
   setCampuses: (campuses) => set({ campuses }),
+  setTypeOptions: (typeOptions) => set({ typeOptions }),
 
   totalAmount: () => get().receipts.reduce((sum, r) => sum + r.amount, 0),
 

@@ -8,6 +8,10 @@ import { ExpensesUnavailable } from "@/components/expense/v2/expenses-unavailabl
 import { ExpenseSplitView } from "@/components/expense-v3/expense-split-view";
 import { getExpenseById } from "@/lib/actions/expense";
 import { getLoggedInUser } from "@/lib/actions/user";
+import {
+  getExpenseTypeOptions,
+  startingExpenseTypeOptions,
+} from "@/lib/data/expense-types";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("expenses");
@@ -40,6 +44,13 @@ export default async function NewExpensePage({
     includeNational: true,
     includeDepartments: true, // We need departments for the new selector logic
   });
+  const typeOptions = await getExpenseTypeOptions().catch((error: unknown) => {
+    console.error(
+      "Failed to load expense types, using the starting list",
+      error
+    );
+    return startingExpenseTypeOptions();
+  });
   const draftResult = draftId ? await getExpenseById(draftId) : null;
   const initialDraft =
     draftResult?.success && draftResult.expense?.status === ExpensesStatus.DRAFT
@@ -56,6 +67,7 @@ export default async function NewExpensePage({
         initialDraft={initialDraft}
         initialProfile={userData.profile || {}}
         ocrEnabled={ocrEnabled}
+        typeOptions={typeOptions}
       />
     </div>
   );
