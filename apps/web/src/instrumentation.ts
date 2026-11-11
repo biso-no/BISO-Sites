@@ -1,7 +1,7 @@
 import { logServerRequestError } from "@repo/shared/utils/server-error-logging";
 import type { Instrumentation } from "next";
 
-const EXPECTED_SESSION_COOKIE = "biso_web_session";
+const EXPECTED_SESSION_COOKIE = "biso_session_web";
 const EXPECTED_SESSION_COOKIE_FALLBACK = "a_session_biso";
 
 /**

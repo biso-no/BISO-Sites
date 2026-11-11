@@ -1,7 +1,7 @@
-import { codeOnly } from "@/test/source";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { codeOnly } from "@/test/source";
 
 const root = process.cwd();
 const AUTH = join(root, "src/app/(auth)");
