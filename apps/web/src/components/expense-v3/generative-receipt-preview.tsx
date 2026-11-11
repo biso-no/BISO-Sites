@@ -482,9 +482,9 @@ function CostTypeField({
     academic: t("composer.costTypes.academic"),
     other: t("composer.costTypes.other"),
   };
-  // Default from the AI category, but the user can override per receipt — this
-  // decides which GL account the line is booked to when posted to the ledger.
-  const value = receipt.costType;
+  // Radix Select must stay controlled (the preview isn't keyed per receipt),
+  // so an unset type is the empty string, which shows the placeholder.
+  const value = receipt.costType ?? "";
 
   return (
     <div className="space-y-2">

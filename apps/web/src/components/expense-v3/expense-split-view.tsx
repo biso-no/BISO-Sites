@@ -37,6 +37,7 @@ import {
 import { GenerativeReceiptPreview } from "./generative-receipt-preview";
 import {
   attachmentTypeFields,
+  submitErrorKind,
   typeFromAttachment,
   typeFromOcr,
 } from "./receipt-types";
@@ -169,15 +170,6 @@ function buildReceiptFromOcr(
     possibleDuplicate: data.possibleDuplicate ?? false,
     ...typeFromOcr(data, typeOptions, true),
   };
-}
-
-class SubmitRejectedError extends Error {
-  readonly field?: string;
-
-  constructor(message: string, field?: string) {
-    super(message);
-    this.field = field;
-  }
 }
 
 interface AssignmentGateProps {
@@ -526,6 +518,8 @@ export function ExpenseSplitView({
     });
     store.setDescription(initialDraft.description ?? "");
     store.setOccasion(initialDraft.occasion ?? "");
+    // A saved occasion is the student's: a later AI suggestion must not replace it.
+    store.setOccasionTouched(Boolean(initialDraft.occasion?.trim()));
     store.setEvent(initialDraft.event_id ?? null, initialDraft.eventName ?? "");
     store.setSubmitterIsFinancialManager(
       Boolean(initialDraft.submitter_is_financial_manager)
@@ -547,6 +541,7 @@ export function ExpenseSplitView({
     store.setDescription,
     store.setEvent,
     store.setOccasion,
+    store.setOccasionTouched,
     store.setExpenseId,
     store.setProfile,
     store.setSubmitterIsFinancialManager,
@@ -834,7 +829,6 @@ export function ExpenseSplitView({
         success: boolean;
         fetchedExpense?: { $id: string };
         error?: string;
-        field?: string;
       }>("/api/expenses/submit", {
         method: "POST",
         body: buildExpensePayload(),
@@ -848,14 +842,11 @@ export function ExpenseSplitView({
         toast.success(t("composer.toast.submitted"));
         router.push(`/fs/${result.fetchedExpense.$id}`);
       } else {
-        throw new SubmitRejectedError(
-          result.error || "Submission failed",
-          result.field
-        );
+        throw new Error(result.error || "Submission failed");
       }
     } catch (error) {
       console.error(error);
-      if (error instanceof SubmitRejectedError && error.field === "occasion") {
+      if (submitErrorKind(error) === "occasion") {
         store.setOccasionError(true);
         toast.error(t("composer.toast.occasionRequired"));
       } else {

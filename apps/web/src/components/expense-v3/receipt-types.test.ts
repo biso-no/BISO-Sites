@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { ApiError } from "@/lib/api-error";
 import {
   attachmentTypeFields,
   missingTypes,
   occasionRequired,
+  submitErrorKind,
   typeFromAttachment,
   typeFromOcr,
 } from "./receipt-types";
@@ -108,5 +110,69 @@ describe("receipt type state", () => {
       cost_type_text: "Gifts",
       cost_type_chosen: true,
     });
+  });
+
+  it("treats exactly 0.8 as confident and 0.79 as not", () => {
+    expect(
+      typeFromOcr(
+        { costType: "travel", costTypeConfidence: 0.8 },
+        options,
+        true
+      ).typeState
+    ).toBe("ai");
+    expect(
+      typeFromOcr(
+        { costType: "travel", costTypeConfidence: 0.79 },
+        options,
+        true
+      ).typeState
+    ).toBe("needs_choice");
+  });
+
+  it("accepts own text as a type but not whitespace-only text", () => {
+    expect(missingTypes([receipt({ costTypeText: "Gifts" })])).toEqual([]);
+    expect(missingTypes([receipt({ costTypeText: "   " })])).toHaveLength(1);
+  });
+
+  it("lets own text win over a slug in the payload", () => {
+    expect(
+      attachmentTypeFields(
+        receipt({ costType: "travel", costTypeText: "Gifts" })
+      )
+    ).toEqual({
+      cost_type: "",
+      cost_type_text: "Gifts",
+      cost_type_chosen: true,
+    });
+  });
+
+  it("ignores a statement row when deciding on an occasion", () => {
+    expect(
+      occasionRequired(
+        [receipt({ costType: "social", documentType: "bank-statement" })],
+        options
+      )
+    ).toBe(false);
+    expect(
+      occasionRequired(
+        [receipt({ costType: "social", parentId: "r0" })],
+        options
+      )
+    ).toBe(false);
+  });
+
+  it("recognises the occasion rejection", () => {
+    expect(
+      submitErrorKind(
+        new ApiError("Occasion is required", 400, {
+          error: "Occasion is required",
+          field: "occasion",
+        })
+      )
+    ).toBe("occasion");
+    expect(submitErrorKind(new ApiError("Nope", 400, { error: "Nope" }))).toBe(
+      "other"
+    );
+    expect(submitErrorKind(new Error("Occasion is required"))).toBe("other");
   });
 });

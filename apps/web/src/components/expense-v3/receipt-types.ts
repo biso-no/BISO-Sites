@@ -1,4 +1,5 @@
 import { AI_TYPE_CONFIDENCE_THRESHOLD } from "@repo/shared/utils/expense-cost-types";
+import { ApiError } from "@/lib/api-error";
 import type { Receipt } from "./store";
 import type { ExpenseTypeOption } from "./types";
 
@@ -88,6 +89,7 @@ export function occasionRequired(
 ): boolean {
   return receipts.some(
     (receipt) =>
+      needsType(receipt) &&
       receipt.costType !== undefined &&
       options.some(
         (option) => option.slug === receipt.costType && option.askOccasion
@@ -106,4 +108,11 @@ export function attachmentTypeFields(receipt: Receipt): {
     cost_type_text: text || null,
     cost_type_chosen: true,
   };
+}
+
+/** Tells a submit rejected for a missing occasion from every other failure. */
+export function submitErrorKind(error: unknown): "occasion" | "other" {
+  return error instanceof ApiError && error.body?.field === "occasion"
+    ? "occasion"
+    : "other";
 }

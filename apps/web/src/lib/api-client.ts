@@ -1,4 +1,5 @@
 import { createJWT } from "@/lib/actions/user";
+import { ApiError } from "./api-error";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3003";
@@ -84,8 +85,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      const errorData = await response.json().catch(() => null);
+      throw new ApiError(
+        errorData?.error || `API error: ${response.status}`,
+        response.status,
+        errorData
+      );
     }
 
     return response.json();
@@ -116,8 +121,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      const errorData = await response.json().catch(() => null);
+      throw new ApiError(
+        errorData?.error || `API error: ${response.status}`,
+        response.status,
+        errorData
+      );
     }
 
     return response.json();

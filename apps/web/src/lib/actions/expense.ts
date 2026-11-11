@@ -98,6 +98,8 @@ export async function getExpenseById(expenseId: string) {
         "submitter_is_financial_manager",
         "userId",
         "eventName",
+        "occasion",
+        "event_id",
         "expenseAttachments.*",
         "user.name",
         "user.email",
