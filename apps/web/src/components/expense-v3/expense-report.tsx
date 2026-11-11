@@ -416,6 +416,18 @@ function StatementUploadIcon({ phase }: { phase: UploadPhase | null }) {
   return <Upload aria-hidden="true" className="size-3" />;
 }
 
+/**
+ * Once wanted, the occasion field stays for the session, so it can't vanish
+ * under the student's cursor when a type changes or the text is cleared.
+ */
+function useOccasionVisible(wanted: boolean): boolean {
+  const [shown, setShown] = useState(false);
+  if (wanted && !shown) {
+    setShown(true);
+  }
+  return wanted || shown;
+}
+
 function OccasionField({
   error,
   onChange,
@@ -584,8 +596,9 @@ export function ExpenseReport({
   const askOccasion = occasionRequired(receipts, typeOptions);
   // An occasion is sent whenever it has text, and the API may ask for one the
   // types here don't: the field stays in view in both cases.
-  const showOccasion =
-    askOccasion || occasionError || occasion.trim().length > 0;
+  const showOccasion = useOccasionVisible(
+    askOccasion || occasionError || occasion.trim().length > 0
+  );
   const gaps = submitGaps(receipts, typeOptions, occasion);
   const submitHints = [
     gaps.typesMissing && t("composer.report.submitHintTypes"),
@@ -1020,7 +1033,9 @@ export function ExpenseReport({
                   isSavingDraft ||
                   isSubmitting ||
                   !canSubmit ||
-                  gaps.occasionMissing
+                  // A missing type comes first: pressing submit then takes the
+                  // student to that receipt instead of sitting disabled.
+                  (gaps.occasionMissing && !gaps.typesMissing)
                 }
                 onClick={handleSubmit}
                 type="button"

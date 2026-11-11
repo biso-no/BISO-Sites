@@ -65,12 +65,16 @@ interface ExpenseStore {
 
   // Assignment
   description: string;
+  // Set once the student changes the description away from the AI's text.
+  descriptionEditedByStudent: boolean;
   eventId: string | null;
   eventName: string;
   expenseId: string | null;
   insertReceiptAfter: (afterId: string, receipt: Receipt) => void;
   isGeneratingSummary: boolean;
   isReadyToSubmit: () => boolean;
+  // The last description the AI wrote; the student's edits are told apart by it.
+  lastAiDescription: string;
   occasion: string;
   // Set when the API rejects a submit for a missing occasion.
   occasionError: boolean;
@@ -94,6 +98,7 @@ interface ExpenseStore {
 
   // Selection
   selectedReceiptId: string | null;
+  setAiDescription: (description: string) => void;
   setAiSummary: (summary: string) => void;
   setAssignment: (data: {
     campusId: string;
@@ -138,6 +143,8 @@ const initialState = {
   aiSummary: "",
   isGeneratingSummary: false,
   description: "",
+  descriptionEditedByStudent: false,
+  lastAiDescription: "",
   occasion: "",
   occasionTouched: false,
   occasionError: false,
@@ -196,7 +203,20 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
   setAiSummary: (aiSummary) => set({ aiSummary }),
   setIsGeneratingSummary: (isGeneratingSummary) => set({ isGeneratingSummary }),
 
-  setDescription: (description) => set({ description }),
+  // Typing in the textarea, and a reopened draft's text: the student's own
+  // unless it is exactly what the AI wrote.
+  setDescription: (description) =>
+    set((state) => ({
+      description,
+      descriptionEditedByStudent: description !== state.lastAiDescription,
+    })),
+
+  setAiDescription: (description) =>
+    set({
+      description,
+      descriptionEditedByStudent: false,
+      lastAiDescription: description,
+    }),
 
   setOccasion: (occasion) => set({ occasion, occasionError: false }),
   setOccasionTouched: (occasionTouched) => set({ occasionTouched }),

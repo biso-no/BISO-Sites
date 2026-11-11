@@ -173,44 +173,51 @@ async function renderReport(
   document.body.innerHTML = "";
   const container = document.createElement("div");
   document.body.append(container);
+  const root = createRoot(container);
   const onSubmit = vi.fn();
   const onOccasionChange = vi.fn();
-  await act(() => {
-    createRoot(container).render(
-      createElement(ExpenseReport, {
-        campuses: [],
-        description: "Food for the board",
-        isGeneratingSummary: false,
-        isSavingDraft: false,
-        isSubmitting: false,
-        occasion: "",
-        occasionError: false,
-        onAssign: vi.fn(),
-        onDescriptionChange: vi.fn(),
-        onInsert: vi.fn(),
-        onOccasionChange,
-        onProfileUpdate: vi.fn(),
-        onSaveDraft: vi.fn(),
-        onSelect: vi.fn(),
-        onSubmit,
-        onSubmitterIsFinancialManagerChange: vi.fn(),
-        onUpdate: vi.fn(),
-        receipts,
-        selectedCampusId: "5",
-        selectedDepartmentId: "dept-1",
-        selectedId: null,
-        submitterIsFinancialManager: false,
-        totalAmount: 249,
-        typeOptions: OPTIONS,
-        userProfile: { bank_account: "12345678903", name: "Kari" },
-        ...extra,
-      } as never)
-    );
-  });
+  const baseProps = {
+    campuses: [],
+    description: "Food for the board",
+    isGeneratingSummary: false,
+    isSavingDraft: false,
+    isSubmitting: false,
+    occasion: "",
+    occasionError: false,
+    onAssign: vi.fn(),
+    onDescriptionChange: vi.fn(),
+    onInsert: vi.fn(),
+    onOccasionChange,
+    onProfileUpdate: vi.fn(),
+    onSaveDraft: vi.fn(),
+    onSelect: vi.fn(),
+    onSubmit,
+    onSubmitterIsFinancialManagerChange: vi.fn(),
+    onUpdate: vi.fn(),
+    receipts,
+    selectedCampusId: "5",
+    selectedDepartmentId: "dept-1",
+    selectedId: null,
+    submitterIsFinancialManager: false,
+    totalAmount: 249,
+    typeOptions: OPTIONS,
+    userProfile: { bank_account: "12345678903", name: "Kari" },
+  };
+  const rerender = (overrides: Record<string, unknown>) =>
+    act(() => {
+      root.render(
+        createElement(ExpenseReport, {
+          ...baseProps,
+          ...extra,
+          ...overrides,
+        } as never)
+      );
+    });
+  await rerender({});
   const submit = [...container.querySelectorAll("button")].find((button) =>
     button.textContent?.includes("composer.report.submit")
   ) as HTMLButtonElement;
-  return { container, onOccasionChange, onSubmit, submit };
+  return { container, onOccasionChange, onSubmit, rerender, submit };
 }
 
 describe("ExpenseReport submit gating", () => {
@@ -286,6 +293,46 @@ describe("ExpenseReport submit gating", () => {
     expect(errorId && document.getElementById(errorId)?.textContent).toContain(
       "composer.report.occasionError"
     );
+  });
+
+  it("lets a missing type take the student to the receipt even when an occasion is missing too", async () => {
+    const scrolled: Element[] = [];
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, "scrollIntoView")
+      .mockImplementation(function (this: HTMLElement) {
+        scrolled.push(this);
+      });
+    const { onSubmit, submit } = await renderReport([
+      receipt({ costType: "social", id: "r0", typeState: "chosen" }),
+      receipt(),
+    ]);
+
+    expect(submit.disabled).toBe(false);
+    await act(() => {
+      submit.click();
+    });
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(scrolled.map((element) => element.id)).toEqual([
+      "expense-receipt-r1",
+    ]);
+    scrollIntoView.mockRestore();
+  });
+
+  it("keeps the occasion field once it has been shown", async () => {
+    const { container, rerender } = await renderReport(
+      [receipt({ costType: "social", typeState: "chosen" })],
+      { occasion: "Board dinner" }
+    );
+    expect(container.textContent).toContain("composer.report.occasionLabel");
+
+    // The text is cleared mid-edit and the type that asked for it changes.
+    await rerender({
+      occasion: "",
+      receipts: [receipt({ costType: "travel", typeState: "chosen" })],
+    });
+
+    expect(container.textContent).toContain("composer.report.occasionLabel");
   });
 
   it("submits once every receipt has a type", async () => {

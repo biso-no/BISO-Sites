@@ -18,7 +18,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, ArrowRight, Check, FileText, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuid } from "uuid";
@@ -38,13 +38,24 @@ import {
 import { GenerativeReceiptPreview } from "./generative-receipt-preview";
 import {
   attachmentTypeFields,
+  missingTypes,
+  occasionRequired,
   submitErrorKind,
   typeFromAttachment,
   typeFromOcr,
 } from "./receipt-types";
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
+import {
+  receiptCostTypeText,
+  shouldPrefillOccasion,
+  shouldRegenerate,
+  summaryKey,
+} from "./summary-rules";
 import type { ExpenseTypeOption } from "./types";
+
+/** How long the occasion rests before the description is rewritten with it. */
+const OCCASION_SETTLE_MS = 800;
 
 interface OcrData {
   address?: null | string;
@@ -374,6 +385,7 @@ export function ExpenseSplitView({
 }: ExpenseSplitViewProps) {
   const router = useRouter();
   const t = useTranslations("expenses");
+  const locale = useLocale();
   const store = useExpenseStore();
   const [mobileView, setMobileView] = useState<"wallet" | "report">("wallet");
   const [lastSummarizedReceipts, setLastSummarizedReceipts] =
@@ -401,97 +413,131 @@ export function ExpenseSplitView({
     [store]
   );
 
-  // Auto-generate summary when receipts are ready
+  // The occasion is typed a key at a time: the description follows it once the
+  // student pauses.
+  const [settledOccasion, setSettledOccasion] = useState(store.occasion);
   useEffect(() => {
-    const allReady = store.allReceiptsReady();
-    const currentIds = store.receipts
-      .map((receipt) => ({
-        amount: receipt.amount,
-        category: receipt.category,
-        city: receipt.city,
-        country: receipt.country,
-        currency: receipt.currency,
-        date: receipt.date,
-        description: receipt.description,
-        documentType: receipt.documentType,
-        id: receipt.id,
-        purchaseContext: receipt.purchaseContext,
-        vendor: receipt.vendor,
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id));
-    const summaryKey = JSON.stringify({
+    const timer = setTimeout(
+      () => setSettledOccasion(store.occasion),
+      OCCASION_SETTLE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [store.occasion]);
+
+  // Write the description when receipts are ready and typed, and again when
+  // a type, the occasion or the event changes, unless the student edited it.
+  useEffect(() => {
+    const key = summaryKey({
       assignment: {
         campusId: store.selectedCampusId,
         campusName: store.selectedCampusName,
         departmentId: store.selectedDepartmentId,
         departmentName: store.selectedDepartmentName,
       },
-      receipts: currentIds,
+      eventName: store.eventName,
+      locale,
+      occasion: settledOccasion,
+      options: store.typeOptions,
+      receipts: store.receipts,
     });
 
     if (
-      allReady &&
-      store.receipts.length > 0 &&
-      store.selectedCampusId &&
-      store.selectedDepartmentId &&
-      summaryKey !== lastSummarizedReceipts
+      !(
+        store.receipts.length > 0 &&
+        store.selectedCampusId &&
+        store.selectedDepartmentId &&
+        shouldRegenerate({
+          allReady: store.allReceiptsReady(),
+          descriptionEditedByStudent: store.descriptionEditedByStudent,
+          key,
+          lastKey: lastSummarizedReceipts,
+          missingTypes: missingTypes(store.receipts).length,
+        })
+      )
     ) {
-      if (skipNextSummaryRef.current) {
-        skipNextSummaryRef.current = false;
-        setLastSummarizedReceipts(summaryKey);
-        return;
-      }
-
-      const generate = async () => {
-        store.setIsGeneratingSummary(true);
-        try {
-          const data = await apiClient.fetch<{
-            success: boolean;
-            summary: string;
-          }>("/api/expenses/summary", {
-            method: "POST",
-            body: {
-              assignment: {
-                campusId: store.selectedCampusId,
-                campusName: store.selectedCampusName,
-                departmentId: store.selectedDepartmentId,
-                departmentName: store.selectedDepartmentName,
-              },
-              receipts: store.receipts.map((receipt) => ({
-                amount: receipt.amount,
-                category: receipt.category,
-                city: receipt.city,
-                country: receipt.country,
-                currency: receipt.currency,
-                date: receipt.date,
-                description: receipt.description,
-                documentType: receipt.documentType,
-                purchaseContext: receipt.purchaseContext,
-                vendor: receipt.vendor,
-              })),
-            },
-          });
-          if (data.success) {
-            store.setDescription(data.summary);
-          }
-        } catch (e) {
-          console.error("Failed to generate summary", e);
-        } finally {
-          store.setIsGeneratingSummary(false);
-          setLastSummarizedReceipts(summaryKey);
-        }
-      };
-      generate();
+      return;
     }
+
+    if (skipNextSummaryRef.current) {
+      skipNextSummaryRef.current = false;
+      setLastSummarizedReceipts(key);
+      return;
+    }
+
+    const generate = async () => {
+      store.setIsGeneratingSummary(true);
+      try {
+        const data = await apiClient.fetch<{
+          occasionSuggestion?: string | null;
+          success: boolean;
+          summary: string;
+        }>("/api/expenses/summary", {
+          method: "POST",
+          body: {
+            assignment: {
+              campusId: store.selectedCampusId,
+              campusName: store.selectedCampusName,
+              departmentId: store.selectedDepartmentId,
+              departmentName: store.selectedDepartmentName,
+            },
+            eventName: store.eventName.trim() || undefined,
+            occasion: settledOccasion.trim() || undefined,
+            receipts: store.receipts.map((receipt) => ({
+              amount: receipt.amount,
+              category: receipt.category,
+              city: receipt.city,
+              costType: receiptCostTypeText(receipt, store.typeOptions, locale),
+              country: receipt.country,
+              currency: receipt.currency,
+              date: receipt.date,
+              description: receipt.description,
+              documentType: receipt.documentType,
+              purchaseContext: receipt.purchaseContext,
+              vendor: receipt.vendor,
+            })),
+          },
+        });
+        if (data.success) {
+          // The student may have typed while the AI was writing.
+          const latest = useExpenseStore.getState();
+          if (!latest.descriptionEditedByStudent) {
+            latest.setAiDescription(data.summary);
+          }
+          if (
+            shouldPrefillOccasion({
+              occasion: latest.occasion,
+              shown:
+                latest.occasionError ||
+                occasionRequired(latest.receipts, latest.typeOptions),
+              suggestion: data.occasionSuggestion,
+              touched: latest.occasionTouched,
+            }) &&
+            data.occasionSuggestion
+          ) {
+            latest.setOccasion(data.occasionSuggestion.trim());
+          }
+        }
+      } catch (e) {
+        console.error("Failed to generate summary", e);
+      } finally {
+        store.setIsGeneratingSummary(false);
+        setLastSummarizedReceipts(key);
+      }
+    };
+    generate();
   }, [
     store.receipts,
     store.selectedCampusId,
     store.selectedCampusName,
     store.selectedDepartmentId,
     store.selectedDepartmentName,
+    store.eventName,
+    store.typeOptions,
+    store.descriptionEditedByStudent,
+    settledOccasion,
+    locale,
     lastSummarizedReceipts,
     store.allReceiptsReady,
-    store.setDescription,
     store.setIsGeneratingSummary,
   ]);
 
