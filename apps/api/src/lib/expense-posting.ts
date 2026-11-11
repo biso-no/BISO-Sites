@@ -30,9 +30,11 @@ import {
 import { PDFDocument } from "pdf-lib";
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
 import { type ExpenseEventInput, recordExpenseEvents } from "./expense-events";
+import { type BookedExampleInput, writeExamples } from "./expense-examples";
 import { loadAllCostTypes } from "./expense-types";
 import { generateExpensePdf } from "./pdf/expense-pdf";
 import { receiptDateInOslo, todayInOslo } from "./receipt-date";
+import { findScan } from "./receipt-scan";
 
 const EXPENSES_BUCKET = "expenses";
 
@@ -359,6 +361,60 @@ async function recordBooking(
   ]);
 }
 
+function exampleSource(
+  accountSource: ExpenseAttachments["account_source"]
+): BookedExampleInput["source"] {
+  if (accountSource === "approver" || accountSource === "admin") {
+    return accountSource;
+  }
+  return "student";
+}
+
+// One anonymous example per posted receipt, so later classifications learn from
+// what actually got booked. Never stores a submitter, name or expense id.
+async function writeBookedExamples(
+  db: AdminDb,
+  attachments: ExpenseAttachments[],
+  lines: ExpenseReceiptLine[]
+): Promise<void> {
+  const rows: BookedExampleInput[] = [];
+  for (const line of lines) {
+    const att = attachments.find((a) => a.$id === line.ref);
+    if (!att?.file_hash) {
+      continue;
+    }
+    const scan = await findScan(db, att.file_hash);
+    rows.push({
+      accountNumber: Number(line.accountNumber),
+      aiConfidence: att.ai_confidence ?? null,
+      aiCostType: att.ai_cost_type ?? null,
+      amount: line.amount,
+      description: scan?.receipt.description ?? att.description ?? "",
+      finalCostType: att.cost_type || null,
+      finalText: att.cost_type_text ?? null,
+      source: exampleSource(att.account_source),
+      vendor: scan?.receipt.vendor ?? null,
+    });
+  }
+  await writeExamples(db, rows);
+}
+
+async function writeBookedExamplesSafely(
+  db: AdminDb,
+  expenseId: string,
+  attachments: ExpenseAttachments[],
+  lines: ExpenseReceiptLine[]
+): Promise<void> {
+  try {
+    await writeBookedExamples(db, attachments, lines);
+  } catch (error) {
+    console.error(
+      `[expense-posting] could not write examples for ${expenseId}:`,
+      error
+    );
+  }
+}
+
 /**
  * Posts a single approved expense to the ledger. Sets status to `success` on
  * success (storing the 24SO transaction id) or `failed` on error. Idempotent
@@ -544,4 +600,11 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     shifts: [...builtShifts, ...posted.shifts],
     transactionId: posted.transactionId,
   });
+
+  await writeBookedExamplesSafely(
+    db,
+    expenseId,
+    expense.expenseAttachments ?? [],
+    receipts
+  );
 }

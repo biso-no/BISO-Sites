@@ -43,6 +43,14 @@ vi.mock("./pdf/expense-pdf", () => ({
   }),
 }));
 
+const scans = vi.hoisted(() => ({ findScan: vi.fn() }));
+const examples = vi.hoisted(() => ({ writeExamples: vi.fn() }));
+
+vi.mock("./receipt-scan", () => ({ findScan: scans.findScan }));
+vi.mock("./expense-examples", () => ({
+  writeExamples: examples.writeExamples,
+}));
+
 vi.mock("./expense-approval-chain", () => ({
   assertApprovedExpenseChain: vi.fn(async () => undefined),
 }));
@@ -99,6 +107,8 @@ describe("postApprovedExpense booking dates", () => {
       ...Object.values(db),
       ...Object.values(storage),
       ...Object.values(finago),
+      ...Object.values(scans),
+      ...Object.values(examples),
     ]) {
       fn.mockReset();
     }
@@ -466,6 +476,99 @@ describe("postApprovedExpense booking dates", () => {
     expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
     expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
       status: "failed",
+    });
+  });
+
+  describe("booked examples", () => {
+    const withExampleFields = {
+      ...expense,
+      expenseAttachments: [
+        {
+          ...expense.expenseAttachments[0],
+          file_hash: "hash-1",
+          description: "Pizza night",
+          cost_type: "food",
+          cost_type_text: null,
+          ai_cost_type: "food",
+          ai_confidence: 0.9,
+          account_source: "approver",
+        },
+        {
+          ...expense.expenseAttachments[1],
+          file_hash: null,
+        },
+      ],
+    };
+
+    function arrangeBooked() {
+      finago.getFiscalYearLocks.mockResolvedValue([]);
+      finago.listFiscalPeriods.mockResolvedValue([]);
+      finago.postExpenseTransaction.mockResolvedValue({
+        transactionId: "tx-9",
+        shifts: [],
+      });
+      db.getRow.mockImplementation(async (_d: string, table: string) =>
+        table === "user"
+          ? { name: "Test Student", email: "t@example.test" }
+          : withExampleFields
+      );
+      scans.findScan.mockResolvedValue({
+        receipt: { vendor: "Pizzabakeren", description: "Two pizzas" },
+      });
+      examples.writeExamples.mockResolvedValue(undefined);
+    }
+
+    it("writes one example per posted receipt", async () => {
+      arrangeBooked();
+
+      await postApprovedExpense("exp-1");
+
+      expect(scans.findScan).toHaveBeenCalledTimes(1);
+      expect(scans.findScan).toHaveBeenCalledWith(db, "hash-1");
+      expect(examples.writeExamples).toHaveBeenCalledWith(db, [
+        {
+          accountNumber: 7140,
+          aiConfidence: 0.9,
+          aiCostType: "food",
+          amount: 100,
+          description: "Two pizzas",
+          finalCostType: "food",
+          finalText: null,
+          source: "approver",
+          vendor: "Pizzabakeren",
+        },
+      ]);
+    });
+
+    it("falls back to the attachment description without a stored scan", async () => {
+      arrangeBooked();
+      scans.findScan.mockResolvedValue(null);
+
+      await postApprovedExpense("exp-1");
+
+      const rows = examples.writeExamples.mock.calls[0][1];
+      expect(rows[0].description).toBe("Pizza night");
+      expect(rows[0].vendor).toBeNull();
+    });
+
+    it("keeps success when example writes fail", async () => {
+      arrangeBooked();
+      scans.findScan.mockRejectedValue(new Error("scan lookup down"));
+      examples.writeExamples.mockRejectedValue(new Error("appwrite down"));
+
+      await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+      expect(db.updateRow).toHaveBeenCalledWith(
+        "app",
+        "expense",
+        "exp-1",
+        expect.objectContaining({ status: "success" })
+      );
+      expect(db.updateRow).not.toHaveBeenCalledWith(
+        "app",
+        "expense",
+        "exp-1",
+        expect.objectContaining({ status: "failed" })
+      );
     });
   });
 });

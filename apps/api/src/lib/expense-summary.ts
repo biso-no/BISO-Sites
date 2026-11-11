@@ -11,6 +11,7 @@ const SummaryReceiptSchema = z.object({
   amount: z.number().nullable().optional(),
   category: z.string().nullable().optional(),
   city: z.string().nullable().optional(),
+  costType: z.string().nullable().optional(),
   country: z.string().nullable().optional(),
   currency: z.string().nullable().optional(),
   date: z.string().nullable().optional(),
@@ -22,6 +23,8 @@ const SummaryReceiptSchema = z.object({
 
 const StructuredSummaryRequestSchema = z.object({
   assignment: SummaryAssignmentSchema.optional(),
+  eventName: z.string().nullable().optional(),
+  occasion: z.string().nullable().optional(),
   receipts: z.array(SummaryReceiptSchema).min(1),
 });
 
@@ -34,6 +37,8 @@ export type ExpenseSummaryReceipt = z.infer<typeof SummaryReceiptSchema>;
 
 export interface NormalizedExpenseSummaryRequest {
   assignment: ExpenseSummaryAssignment;
+  eventName?: string | null;
+  occasion?: string | null;
   receipts: ExpenseSummaryReceipt[];
 }
 
@@ -50,6 +55,8 @@ export function normalizeExpenseSummaryRequest(
         departmentId: "",
         departmentName: "",
       },
+      eventName: structured.data.eventName,
+      occasion: structured.data.occasion,
       receipts: structured.data.receipts,
     };
   }
@@ -76,6 +83,7 @@ export function normalizeExpenseSummaryRequest(
 function formatReceipt(receipt: ExpenseSummaryReceipt, index: number): string {
   const parts = [
     `description=${receipt.description || "unknown"}`,
+    receipt.costType ? `type=${receipt.costType}` : null,
     receipt.purchaseContext ? `context=${receipt.purchaseContext}` : null,
     receipt.category ? `category=${receipt.category}` : null,
     receipt.vendor ? `vendor=${receipt.vendor}` : null,
@@ -93,7 +101,7 @@ function formatReceipt(receipt: ExpenseSummaryReceipt, index: number): string {
 export function buildExpenseSummaryPrompt(
   request: NormalizedExpenseSummaryRequest
 ): string {
-  const { assignment, receipts } = request;
+  const { assignment, eventName, occasion, receipts } = request;
   const campus = assignment.campusName || assignment.campusId || "Unknown";
   const department =
     assignment.departmentName || assignment.departmentId || "Unknown";
@@ -105,9 +113,10 @@ Create a concise accounting-friendly purpose for the whole reimbursement.
 
 Assignment:
 - Campus: ${campus}
-- Department: ${department}
+- Department: ${department}${occasion ? `\n- Occasion: ${occasion}` : ""}${eventName ? `\n- Event: ${eventName}` : ""}
 
 Rules:
+- Use each receipt's type as the main hint about its purpose.
 - Explain the likely purpose, not just merchant names.
 - Use visible evidence such as category, location, dates, and purchase context.
 - If a receipt is from another city or country, you may infer broad travel context only when the location is explicit, e.g. "Lunch during Stockholm trip".

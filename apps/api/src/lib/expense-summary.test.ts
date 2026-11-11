@@ -150,4 +150,44 @@ describe("expense summary helpers", () => {
     expect(prompt).toContain("category=supplies");
     expect(prompt).toContain("category=travel");
   });
+
+  it("includes each receipt's type and the occasion in the prompt", () => {
+    const normalized = normalizeExpenseSummaryRequest({
+      occasion: "Welcome week",
+      eventName: "Fadderuke kickoff",
+      receipts: [{ description: "Pizza", costType: "Food and drink" }],
+    });
+    expect(normalized).not.toBeNull();
+    if (!normalized) {
+      return;
+    }
+    const prompt = buildExpenseSummaryPrompt(normalized);
+
+    expect(prompt).toContain("type=Food and drink");
+    expect(prompt).toContain("- Occasion: Welcome week");
+    expect(prompt).toContain("- Event: Fadderuke kickoff");
+    expect(prompt).toContain("Use each receipt's type as the main hint");
+  });
+
+  it("leaves the occasion and event lines out when absent", () => {
+    const normalized = normalizeExpenseSummaryRequest({
+      occasion: null,
+      receipts: [{ description: "Pizza", costType: null }],
+    });
+    expect(normalized).not.toBeNull();
+    if (!normalized) {
+      return;
+    }
+    const prompt = buildExpenseSummaryPrompt(normalized);
+
+    expect(prompt).not.toContain("- Occasion:");
+    expect(prompt).not.toContain("- Event:");
+    expect(prompt).not.toContain("type=");
+  });
+
+  it("still parses the legacy descriptions body", () => {
+    expect(
+      normalizeExpenseSummaryRequest({ descriptions: ["Pizza"] })?.receipts
+    ).toEqual([{ description: "Pizza" }]);
+  });
 });
