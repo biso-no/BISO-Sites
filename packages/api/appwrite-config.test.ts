@@ -250,3 +250,72 @@ describe("expense booking history", () => {
     expect(column?.type).toBe("datetime");
   });
 });
+
+describe("expense AI schema", () => {
+  const OPS_READ = ['read("team:sg-app-dept-operationsunit")'];
+  const findTable = (id: string) =>
+    loadConfig().tables.find((t) => t.$id === id);
+  const columnKeys = (id: string) => findTable(id)?.columns?.map((c) => c.key);
+
+  test("expense_receipt_scans is server-only with a unique file_hash index", () => {
+    const table = findTable("expense_receipt_scans");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("expense_receipt_scans")).toEqual(
+      expect.arrayContaining(["file_hash", "result", "model"])
+    );
+    expect(
+      table?.indexes?.some(
+        (i) => i.type === "unique" && i.columns?.[0] === "file_hash"
+      )
+    ).toBe(true);
+  });
+
+  test("expense_type_examples is server-only and indexed by vendor_key", () => {
+    const table = findTable("expense_type_examples");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual(OPS_READ);
+    expect(columnKeys("expense_type_examples")).toEqual(
+      expect.arrayContaining([
+        "vendor_key",
+        "ai_cost_type",
+        "final_cost_type",
+        "account_number",
+        "source",
+      ])
+    );
+    expect(table?.indexes?.some((i) => i.columns?.[0] === "vendor_key")).toBe(
+      true
+    );
+  });
+
+  test("expense_attachments carries the AI classification fields", () => {
+    expect(columnKeys("expense_attachments")).toEqual(
+      expect.arrayContaining([
+        "file_hash",
+        "expense_id",
+        "ai_cost_type",
+        "type_source",
+        "account_source",
+        "receipt_issues",
+      ])
+    );
+    expect(
+      findTable("expense_attachments")?.indexes?.some(
+        (i) => i.columns?.[0] === "file_hash"
+      )
+    ).toBe(true);
+  });
+
+  test("expense carries occasion, event and approver hints", () => {
+    expect(columnKeys("expense")).toEqual(
+      expect.arrayContaining(["occasion", "event_id", "approver_hints"])
+    );
+  });
+
+  test("expense_cost_types has a Norwegian label and an occasion flag", () => {
+    expect(columnKeys("expense_cost_types")).toEqual(
+      expect.arrayContaining(["label_no", "ask_occasion"])
+    );
+  });
+});

@@ -1252,6 +1252,33 @@
                     "twoWayKey": "expenses",
                     "onDelete": "setNull",
                     "side": "child"
+                },
+                {
+                    "key": "occasion",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "event_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "approver_hints",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 4000,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
             "indexes": [
@@ -7272,6 +7299,22 @@
                     "required": false,
                     "array": false,
                     "default": true
+                },
+                {
+                    "key": "label_no",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ask_occasion",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
             "indexes": [
@@ -9291,9 +9334,135 @@
                     "default": 0,
                     "min": 0,
                     "max": 9999
+                },
+                {
+                    "key": "expense_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "cost_type_text",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "type_source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "ai",
+                        "student",
+                        "legacy_app"
+                    ]
+                },
+                {
+                    "key": "ai_cost_type",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ai_confidence",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "account_source",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "type",
+                        "ai_freeform",
+                        "approver",
+                        "admin"
+                    ]
+                },
+                {
+                    "key": "ocr_amount",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "file_hash",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "receipt_issues",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
                 }
             ],
-            "indexes": []
+            "indexes": [
+                {
+                    "key": "idx_file_hash",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "file_hash"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_expense_id",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "expense_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_date_amount",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "date",
+                        "amount"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                }
+            ]
         },
         {
             "$id": "job_interviews",
@@ -12798,6 +12967,168 @@
                 }
             ],
             "indexes": []
+        },
+        {
+            "$id": "expense_receipt_scans",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Expense Receipt Scans",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "file_hash",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "result",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 8000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "model",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_file_hash",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "file_hash"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "expense_type_examples",
+            "$permissions": [
+                "read(\"team:sg-app-dept-operationsunit\")"
+            ],
+            "databaseId": "app",
+            "name": "Expense Type Examples",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "vendor_key",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "description",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "amount",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "ai_cost_type",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ai_confidence",
+                    "type": "double",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9.223372036854776e+18,
+                    "max": 9.223372036854776e+18
+                },
+                {
+                    "key": "final_cost_type",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 40,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "final_text",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 120,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "account_number",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": 0,
+                    "max": 99999999
+                },
+                {
+                    "key": "source",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "student",
+                        "approver",
+                        "admin"
+                    ]
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_vendor_key",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "vendor_key"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
         }
     ],
     "buckets": [

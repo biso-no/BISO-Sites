@@ -417,6 +417,19 @@ export enum ApprovalRequestsStatus {
   CANCELLED = "cancelled",
 }
 
+export enum ExpenseAttachmentsTypeSource {
+  AI = "ai",
+  STUDENT = "student",
+  LEGACY_APP = "legacy_app",
+}
+
+export enum ExpenseAttachmentsAccountSource {
+  TYPE = "type",
+  AI_FREEFORM = "ai_freeform",
+  APPROVER = "approver",
+  ADMIN = "admin",
+}
+
 export enum JobInterviewsStatus {
   PROPOSED = "proposed",
   SCHEDULED = "scheduled",
@@ -536,6 +549,12 @@ export enum MembershipTextsSpot {
 export enum AppVersionsPlatform {
   IOS = "ios",
   ANDROID = "android",
+}
+
+export enum ExpenseTypeExamplesSource {
+  STUDENT = "student",
+  APPROVER = "approver",
+  ADMIN = "admin",
 }
 
 export type News = Models.Row & {
@@ -664,6 +683,9 @@ export type Expenses = Models.Row & {
   submitter_is_financial_manager: boolean;
   posting_lock: number;
   user: Users;
+  occasion: string | null;
+  event_id: string | null;
+  approver_hints: string | null;
 };
 
 export type ContentTemplates = Models.Row & {
@@ -1284,6 +1306,8 @@ export type ExpenseCostTypes = Models.Row & {
   campus_id: string | null;
   sort_order: number;
   active: boolean;
+  label_no: string | null;
+  ask_occasion: boolean;
 };
 
 export type ProductFavorites = Models.Row & {
@@ -1488,6 +1512,15 @@ export type ExpenseAttachments = Models.Row & {
   account_number: number | null;
   tax_code: number | null;
   sort_order: number;
+  expense_id: string | null;
+  cost_type_text: string | null;
+  type_source: ExpenseAttachmentsTypeSource | null;
+  ai_cost_type: string | null;
+  ai_confidence: number | null;
+  account_source: ExpenseAttachmentsAccountSource | null;
+  ocr_amount: number | null;
+  file_hash: string | null;
+  receipt_issues: string | null;
 };
 
 export type JobInterviews = Models.Row & {
@@ -1821,4 +1854,22 @@ export type AppVersions = Models.Row & {
 
 export type AuthTokens = Models.Row & {
   token: string;
+};
+
+export type ExpenseReceiptScans = Models.Row & {
+  file_hash: string;
+  result: string;
+  model: string | null;
+};
+
+export type ExpenseTypeExamples = Models.Row & {
+  vendor_key: string | null;
+  description: string | null;
+  amount: number | null;
+  ai_cost_type: string | null;
+  ai_confidence: number | null;
+  final_cost_type: string | null;
+  final_text: string | null;
+  account_number: number | null;
+  source: ExpenseTypeExamplesSource;
 };
