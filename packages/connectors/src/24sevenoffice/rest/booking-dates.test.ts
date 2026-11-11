@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  closedPeriodDate,
   isClosedPeriodError,
   nextPeriodStart,
   periodContaining,
@@ -82,6 +83,14 @@ describe("resolveBookingDate", () => {
   });
 });
 
+describe("locked years before the first lock", () => {
+  test("a date before the first lock is treated as locked", () => {
+    expect(
+      resolveBookingDate({ receiptDate: "2023-06-01", today, locks, periods })
+    ).toEqual({ date: "2026-01-01", reason: "locked_year" });
+  });
+});
+
 describe("period helpers", () => {
   test("nextPeriodStart uses the period list, then the next calendar month", () => {
     expect(nextPeriodStart("2026-10-10", periods)).toBe("2026-11-01");
@@ -135,6 +144,9 @@ describe("isClosedPeriodError", () => {
       )
     ).toBe(true);
     expect(isClosedPeriodError("Perioden er låst")).toBe(true);
+    expect(isClosedPeriodError("Perioden er låst for dato 10.10.2025")).toBe(
+      true
+    );
     expect(
       isClosedPeriodError('{"message":"Account 9999 does not exist"}')
     ).toBe(false);
@@ -144,5 +156,34 @@ describe("isClosedPeriodError", () => {
     expect(isClosedPeriodError("information disclosed for the period")).toBe(
       false
     );
+  });
+});
+
+describe("closedPeriodDate", () => {
+  test("reads ISO and Norwegian dates from a closed-period message", () => {
+    expect(
+      closedPeriodDate(
+        '{"message":"No open financial period for date 2025-10-10"}'
+      )
+    ).toBe("2025-10-10");
+    expect(closedPeriodDate("Perioden er låst for dato 10.10.2025")).toBe(
+      "2025-10-10"
+    );
+    expect(closedPeriodDate("Period is locked (2026-09-12)")).toBe(
+      "2026-09-12"
+    );
+  });
+
+  test("returns the first date named", () => {
+    expect(
+      closedPeriodDate("Period is locked: 2026-09-12 and 2026-10-01")
+    ).toBe("2026-09-12");
+  });
+
+  test("returns null without a date, with an invalid date, or off topic", () => {
+    expect(closedPeriodDate("Period is locked")).toBeNull();
+    expect(closedPeriodDate("Period is locked (2026-02-30)")).toBeNull();
+    expect(closedPeriodDate("Period is locked (31.04.2026)")).toBeNull();
+    expect(closedPeriodDate("Account 9999 missing on 2026-09-12")).toBeNull();
   });
 });

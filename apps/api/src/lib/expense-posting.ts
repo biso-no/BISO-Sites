@@ -18,6 +18,7 @@ import {
   type FiscalYearLock,
   getFiscalYearLocks,
   listFiscalPeriods,
+  type PostedExpenseTransaction,
   postExpenseTransaction,
   resolveBookingDate,
   uploadDocument,
@@ -272,14 +273,11 @@ async function mergePdf(
 
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
-async function recordFailure(
+async function recordFailureEvent(
   db: AdminDb,
   expenseId: string,
   error: unknown
 ): Promise<void> {
-  await db.updateRow("app", "expense", expenseId, {
-    status: ExpensesStatus.FAILED,
-  });
   await recordExpenseEvents(db, [
     {
       expenseId,
@@ -288,6 +286,57 @@ async function recordFailure(
       note: error instanceof Error ? error.message : String(error),
     },
   ]);
+}
+
+async function recordFailure(
+  db: AdminDb,
+  expenseId: string,
+  error: unknown
+): Promise<void> {
+  await db.updateRow("app", "expense", expenseId, {
+    status: ExpensesStatus.FAILED,
+  });
+  await recordFailureEvent(db, expenseId, error);
+}
+
+const SUCCESS_WRITE_EXTRA_ATTEMPTS = 2;
+
+// Finago has accepted the transaction, so the only job left is to record that.
+// A failed write is retried; if it keeps failing the row stays `posting` (never
+// `failed`, never reposted) and the stale-lease reaper surfaces it later.
+async function writeSuccess(
+  db: AdminDb,
+  expenseId: string,
+  transactionId: string
+): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= SUCCESS_WRITE_EXTRA_ATTEMPTS; attempt++) {
+    try {
+      await db.updateRow("app", "expense", expenseId, {
+        ledger_transaction_id: transactionId,
+        status: ExpensesStatus.SUCCESS,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      await Promise.resolve();
+    }
+  }
+  const message =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  console.error(
+    `[expense-posting] expense ${expenseId} was booked as transaction ${transactionId} but the status write failed:`,
+    lastError
+  );
+  await recordExpenseEvents(db, [
+    {
+      expenseId,
+      actorKind: "system",
+      action: "booked",
+      note: `${transactionId} (status write failed: ${message})`,
+    },
+  ]);
+  throw lastError instanceof Error ? lastError : new Error(message);
 }
 
 // Bookkeeping after a successful post. Failures here only log: the money is
@@ -301,20 +350,20 @@ async function recordBooking(
     transactionId: string;
   }
 ): Promise<void> {
-  try {
-    for (const [ref, bookedDate] of finalBookedDates(
-      booking.lines,
-      booking.shifts
-    )) {
+  for (const [ref, bookedDate] of finalBookedDates(
+    booking.lines,
+    booking.shifts
+  )) {
+    try {
       await db.updateRow("app", "expense_attachments", ref, {
         booked_date: bookedDate,
       });
+    } catch (error) {
+      console.error(
+        `[expense-posting] could not save booked date for ${ref} on ${expenseId}:`,
+        error
+      );
     }
-  } catch (error) {
-    console.error(
-      `[expense-posting] could not save booked dates for ${expenseId}:`,
-      error
-    );
   }
   await recordExpenseEvents(db, [
     ...shiftEvents(expenseId, booking.shifts),
@@ -378,11 +427,13 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     await db.updateRow("app", "expense", expenseId, {
       status: ExpensesStatus.FAILED,
     });
-    throw new Error(
+    const staleError = new Error(
       `Stale posting claim on expense ${expenseId} (${Math.round(
         claimAgeMs / 1000
       )}s old) — marked failed for manual review.`
     );
+    await recordFailureEvent(db, expenseId, staleError);
+    throw staleError;
   }
 
   try {
@@ -391,6 +442,7 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     await db.updateRow("app", "expense", expenseId, {
       status: ExpensesStatus.FAILED,
     });
+    await recordFailureEvent(db, expenseId, error);
     throw error;
   }
 
@@ -420,9 +472,12 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     ledger_transaction_id: POSTING_CLAIM_MARKER,
   });
 
-  let transactionId: string;
+  // One Oslo "today" per posting: used for date resolution, the closed-period
+  // retry limit and the voucher header date.
+  const today = todayInOslo();
+  let posted: PostedExpenseTransaction;
   let receipts: ExpenseReceiptLine[];
-  let allShifts: DateShift[];
+  let builtShifts: DateShift[];
   try {
     const profile = await db.getRow<Users>("app", "user", expense.userId);
     const options = await loadCostTypeOptions(db);
@@ -431,9 +486,10 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     const built = buildReceiptLines(ordered, options, {
       locks,
       periods,
-      today: todayInOslo(),
+      today,
     });
     receipts = built.lines;
+    builtShifts = built.shifts;
 
     if (receipts.length === 0) {
       throw new Error("No receipt lines with a positive amount to post");
@@ -475,8 +531,8 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     const mergedBytes = await mergePdf(new Uint8Array(coverBytes), files);
     const { documentId } = await uploadDocument(mergedBytes, "application/pdf");
 
-    const posted = await postExpenseTransaction({
-      date: todayInOslo(),
+    posted = await postExpenseTransaction({
+      date: today,
       comment: `Refusjon ${refNumber}`,
       documentId,
       bankAccount: expense.bank_account,
@@ -485,15 +541,8 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
       campusId: expense.campus,
       departmentDimensionValue: expense.departmentRel?.Id ?? null,
       periods,
+      today,
     });
-    allShifts = [...built.shifts, ...posted.shifts];
-
-    // The success write comes first; nothing after it may flip the status.
-    await db.updateRow("app", "expense", expenseId, {
-      ledger_transaction_id: posted.transactionId,
-      status: ExpensesStatus.SUCCESS,
-    });
-    transactionId = posted.transactionId;
   } catch (error) {
     console.error(`[expense-posting] failed for ${expenseId}:`, error);
     // Keep the claim in place (both `posting_lock` and the marker on
@@ -504,9 +553,12 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     throw error;
   }
 
+  // Finago has the transaction. From here on nothing may mark the row failed.
+  await writeSuccess(db, expenseId, posted.transactionId);
+
   await recordBooking(db, expenseId, {
     lines: receipts,
-    shifts: allShifts,
-    transactionId,
+    shifts: [...builtShifts, ...posted.shifts],
+    transactionId: posted.transactionId,
   });
 }

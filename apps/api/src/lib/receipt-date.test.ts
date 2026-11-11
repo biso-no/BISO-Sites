@@ -17,4 +17,23 @@ describe("receipt dates", () => {
       "2026-11-12"
     );
   });
+
+  it("throws when the formatter returns an unexpected pattern", () => {
+    const proto = Intl.DateTimeFormat.prototype;
+    const original = Object.getOwnPropertyDescriptor(proto, "format");
+    Object.defineProperty(proto, "format", {
+      configurable: true,
+      get: () => () => "11/11/2026",
+    });
+    try {
+      expect(() => todayInOslo(new Date())).toThrow("Unexpected Oslo date");
+      expect(() => receiptDateInOslo("2026-10-10T00:00:00Z")).toThrow(
+        "Unexpected Oslo date"
+      );
+    } finally {
+      if (original) {
+        Object.defineProperty(proto, "format", original);
+      }
+    }
+  });
 });

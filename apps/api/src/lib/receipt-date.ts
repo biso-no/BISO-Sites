@@ -11,6 +11,17 @@ const osloDay = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+// Fails loudly if the runtime's ICU data ever formats the day differently.
+function formatOsloDay(date: Date): string {
+  const formatted = osloDay.format(date);
+  if (!ISO_DAY.test(formatted)) {
+    throw new Error(`Unexpected Oslo date format: "${formatted}"`);
+  }
+  return formatted;
+}
+
 /** The Oslo calendar day (`YYYY-MM-DD`) of an Appwrite datetime string. */
 export function receiptDateInOslo(
   value: string | null | undefined
@@ -22,10 +33,10 @@ export function receiptDateInOslo(
   if (Number.isNaN(parsed.getTime())) {
     return null;
   }
-  return osloDay.format(parsed);
+  return formatOsloDay(parsed);
 }
 
 /** Today's Oslo calendar day (`YYYY-MM-DD`). */
 export function todayInOslo(now: Date = new Date()): string {
-  return osloDay.format(now);
+  return formatOsloDay(now);
 }

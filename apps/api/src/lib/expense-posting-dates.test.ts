@@ -47,6 +47,7 @@ vi.mock("./expense-approval-chain", () => ({
   assertApprovedExpenseChain: vi.fn(async () => undefined),
 }));
 
+import { assertApprovedExpenseChain } from "./expense-approval-chain";
 import { postApprovedExpense } from "./expense-posting";
 
 const expense = {
@@ -85,6 +86,8 @@ const expense = {
     },
   ],
 };
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function eventCalls() {
   return db.createRow.mock.calls.filter((c) => c[1] === "expense_events");
@@ -160,6 +163,45 @@ describe("postApprovedExpense booking dates", () => {
       "date_shifted",
       "booked",
     ]);
+
+    // The success write comes before every other write.
+    const successOrder = db.updateRow.mock.calls.flatMap((c, i) =>
+      c[1] === "expense" && c[3].status === "success"
+        ? [db.updateRow.mock.invocationCallOrder[i]]
+        : []
+    );
+    expect(successOrder).toHaveLength(1);
+    const laterOrders = [
+      ...db.updateRow.mock.calls.flatMap((c, i) =>
+        c[1] === "expense_attachments"
+          ? [db.updateRow.mock.invocationCallOrder[i]]
+          : []
+      ),
+      ...db.createRow.mock.calls.flatMap((c, i) =>
+        c[1] === "expense_events"
+          ? [db.createRow.mock.invocationCallOrder[i]]
+          : []
+      ),
+    ];
+    expect(laterOrders.length).toBeGreaterThan(0);
+    for (const order of laterOrders) {
+      expect(order).toBeGreaterThan(successOrder[0]);
+    }
+  });
+
+  it("passes the same Oslo today to the posting and its closed-period limit", async () => {
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    finago.postExpenseTransaction.mockResolvedValue({
+      transactionId: "tx-9",
+      shifts: [],
+    });
+
+    await postApprovedExpense("exp-1");
+
+    const params = finago.postExpenseTransaction.mock.calls[0][0];
+    expect(params.today).toMatch(ISO_DAY);
+    expect(params.date).toBe(params.today);
   });
 
   it("uses the retry shifts for the final booked date", async () => {
@@ -207,6 +249,12 @@ describe("postApprovedExpense booking dates", () => {
     db.createRow.mockRejectedValue(new Error("appwrite down"));
 
     await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "exp-1",
+      expect.objectContaining({ status: "success" })
+    );
     expect(db.updateRow).not.toHaveBeenCalledWith(
       "app",
       "expense",
@@ -236,6 +284,133 @@ describe("postApprovedExpense booking dates", () => {
       expect.objectContaining({ status: "failed" })
     );
     expect(console.error).toHaveBeenCalled();
+  });
+
+  it("still updates the other receipts when one booked_date update fails", async () => {
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    finago.postExpenseTransaction.mockResolvedValue({
+      transactionId: "tx-9",
+      shifts: [],
+    });
+    db.updateRow.mockImplementation((_d: string, _t: string, id: string) =>
+      id === "att-1"
+        ? Promise.reject(new Error("appwrite down"))
+        : Promise.resolve({})
+    );
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense_attachments",
+      "att-2",
+      { booked_date: "2026-10-10" }
+    );
+  });
+
+  it("never marks failed when the success write keeps failing", async () => {
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    finago.postExpenseTransaction.mockResolvedValue({
+      transactionId: "tx-9",
+      shifts: [],
+    });
+    db.updateRow.mockImplementation(
+      (_d: string, table: string, _id: string, data: { status?: string }) =>
+        table === "expense" && data.status === "success"
+          ? Promise.reject(new Error("appwrite down"))
+          : Promise.resolve({})
+    );
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow("appwrite down");
+
+    const successWrites = db.updateRow.mock.calls.filter(
+      (c) => c[1] === "expense" && c[3].status === "success"
+    );
+    expect(successWrites).toHaveLength(3);
+    expect(db.updateRow).not.toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "exp-1",
+      expect.objectContaining({ status: "failed" })
+    );
+    expect(finago.postExpenseTransaction).toHaveBeenCalledTimes(1);
+    const booked = eventCalls().filter((c) => c[3].action === "booked");
+    expect(booked).toHaveLength(1);
+    expect(booked[0][3].note).toContain("tx-9");
+    expect(booked[0][3].note).toContain("status write failed");
+    expect(
+      vi
+        .mocked(console.error)
+        .mock.calls.some((c) => String(c[0]).includes("tx-9"))
+    ).toBe(true);
+  });
+
+  it("succeeds when the success write fails once and then works", async () => {
+    finago.getFiscalYearLocks.mockResolvedValue([]);
+    finago.listFiscalPeriods.mockResolvedValue([]);
+    finago.postExpenseTransaction.mockResolvedValue({
+      transactionId: "tx-9",
+      shifts: [],
+    });
+    let failedOnce = false;
+    db.updateRow.mockImplementation(
+      (_d: string, table: string, _id: string, data: { status?: string }) => {
+        if (table === "expense" && data.status === "success" && !failedOnce) {
+          failedOnce = true;
+          return Promise.reject(new Error("blip"));
+        }
+        return Promise.resolve({});
+      }
+    );
+
+    await expect(postApprovedExpense("exp-1")).resolves.toBeUndefined();
+    expect(db.updateRow).toHaveBeenCalledWith(
+      "app",
+      "expense",
+      "exp-1",
+      expect.objectContaining({
+        status: "success",
+        ledger_transaction_id: "tx-9",
+      })
+    );
+    expect(eventCalls().map((c) => c[3].action)).toEqual(["booked"]);
+    expect(eventCalls()[0][3].note).toBe("tx-9");
+  });
+
+  it("records booking_failed when the stale-lease reaper marks a row failed", async () => {
+    db.getRow.mockImplementation(async () => ({
+      ...expense,
+      ledger_transaction_id: "posting",
+      $updatedAt: "2020-01-01T00:00:00.000Z",
+    }));
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow(
+      "Stale posting claim"
+    );
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      status: "failed",
+    });
+    const failed = eventCalls().find((c) => c[3].action === "booking_failed");
+    expect(failed?.[3].actor_kind).toBe("system");
+    expect(failed?.[3].note).toContain("Stale posting claim");
+  });
+
+  it("records booking_failed when the approval chain assert fails", async () => {
+    vi.mocked(assertApprovedExpenseChain).mockRejectedValueOnce(
+      new Error("Chain not approved")
+    );
+
+    await expect(postApprovedExpense("exp-1")).rejects.toThrow(
+      "Chain not approved"
+    );
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "exp-1", {
+      status: "failed",
+    });
+    const failed = eventCalls().find((c) => c[3].action === "booking_failed");
+    expect(failed?.[3].actor_kind).toBe("system");
+    expect(failed?.[3].note).toBe("Chain not approved");
+    expect(finago.postExpenseTransaction).not.toHaveBeenCalled();
   });
 
   it("still posts when the year-lock lookup fails", async () => {

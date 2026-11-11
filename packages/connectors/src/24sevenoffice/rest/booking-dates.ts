@@ -112,6 +112,44 @@ export function isClosedPeriodError(message: string): boolean {
   return PERIOD_WORD.test(message) && CLOSED_WORD.test(message);
 }
 
+const ISO_DATE = /(\d{4})-(\d{2})-(\d{2})/g;
+const NORWEGIAN_DATE = /(\d{2})\.(\d{2})\.(\d{4})/g;
+
+function validIsoDate(year: string, month: string, day: string): string | null {
+  const iso = `${year}-${month}-${day}`;
+  const parsed = new Date(`${iso}T00:00:00Z`);
+  const valid =
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, DATE_LENGTH) === iso;
+  return valid ? iso : null;
+}
+
+/**
+ * The first date a closed-period message names, as `YYYY-MM-DD`. Reads
+ * `YYYY-MM-DD` and `DD.MM.YYYY`. Null unless the message also looks like a
+ * closed-period error, or when it names no valid calendar date.
+ */
+export function closedPeriodDate(message: string): string | null {
+  if (!isClosedPeriodError(message)) {
+    return null;
+  }
+  const found: { at: number; iso: string }[] = [];
+  for (const match of message.matchAll(ISO_DATE)) {
+    const iso = validIsoDate(match[1], match[2], match[3]);
+    if (iso) {
+      found.push({ at: match.index ?? 0, iso });
+    }
+  }
+  for (const match of message.matchAll(NORWEGIAN_DATE)) {
+    const iso = validIsoDate(match[3], match[2], match[1]);
+    if (iso) {
+      found.push({ at: match.index ?? 0, iso });
+    }
+  }
+  found.sort((a, b) => a.at - b.at);
+  return found[0]?.iso ?? null;
+}
+
 function currentLock(
   date: string,
   locks: FiscalYearLock[]
@@ -145,10 +183,13 @@ export function resolveBookingDate(input: {
   }
 
   const lock = currentLock(date, locks);
-  if (lock?.isLocked) {
+  const beforeFirstLock = locks.length > 0 && date < locks[0].startingDate;
+  if (lock?.isLocked || beforeFirstLock) {
+    const lockedStart = lock?.startingDate ?? locks[0].startingDate;
     const open = locks.find(
       (candidate) =>
-        candidate.startingDate > lock.startingDate && !candidate.isLocked
+        (beforeFirstLock || candidate.startingDate > lockedStart) &&
+        !candidate.isLocked
     );
     if (!open) {
       throw new Error(`No open fiscal year after ${date}`);
