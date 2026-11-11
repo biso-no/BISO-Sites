@@ -417,7 +417,9 @@ async function submitByEmail(
 /**
  * Settles types, accounts and approver hints on the saved draft. A missing
  * occasion is the student's to fix, so it is answered as a 400 the client can
- * point at the field.
+ * point at the field. The draft is saved by then, so the answer names it: a
+ * client that had never saved the report updates that draft next time instead
+ * of making a second one.
  */
 async function enrichOrReject(
   admin: AdminClient,
@@ -430,6 +432,7 @@ async function enrichOrReject(
   } catch (error) {
     if (error instanceof OccasionRequiredError) {
       throw new SubmitRejection(HTTP_BAD_REQUEST, "Occasion is required", {
+        expenseId: expense.$id,
         field: "occasion",
       });
     }

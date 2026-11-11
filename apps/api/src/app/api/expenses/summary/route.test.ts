@@ -110,4 +110,20 @@ describe("expenses/summary result", () => {
       schema.safeParse({ occasionSuggestion: null, summary: "x" }).success
     ).toBe(true);
   });
+
+  it("asks for the occasion suggestion in the student's language", async () => {
+    generateObject.mockResolvedValue({
+      object: { occasionSuggestion: "Fadderuke", summary: "Food." },
+    });
+
+    const response = await POST(
+      summaryRequest({ locale: "no", receipts: [{ description: "Pizza" }] })
+    );
+
+    expect(response.status).toBe(200);
+    const { messages } = generateObject.mock.calls[0]?.[0] as {
+      messages: { content: string }[];
+    };
+    expect(messages[0]?.content).toContain("Norwegian (bokmål)");
+  });
 });

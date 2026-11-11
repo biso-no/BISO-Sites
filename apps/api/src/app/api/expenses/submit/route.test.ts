@@ -505,9 +505,12 @@ describe("expense submit route", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "Occasion is required",
+      // The draft saved before the check, so the client can update it.
+      expenseId: "expense-1",
       field: "occasion",
       success: false,
     });
+    expect(adminDb.createRow).toHaveBeenCalledTimes(1);
     expect(createApprovalChain).not.toHaveBeenCalled();
     expect(messaging.createEmail).not.toHaveBeenCalled();
   });

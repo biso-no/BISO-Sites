@@ -69,6 +69,20 @@ describe("expense payload helpers", () => {
     expect(row).not.toHaveProperty("event_id");
   });
 
+  it("cuts an event name to the column's 100 characters instead of refusing it", () => {
+    const long = parseExpensePayload({ ...BASE, eventName: "e".repeat(150) });
+    expect(long?.eventName).toBe("e".repeat(100));
+    expect(buildExpenseRowInput(long!, "user-id").eventName).toHaveLength(100);
+
+    expect(
+      parseExpensePayload({ ...BASE, eventName: "Fadderuka" })?.eventName
+    ).toBe("Fadderuka");
+    expect(
+      parseExpensePayload({ ...BASE, eventName: null })?.eventName
+    ).toBeNull();
+    expect(parseExpensePayload(BASE)?.eventName).toBeUndefined();
+  });
+
   it("writes an occasion and event sent as null, which clears them", () => {
     const payload = parseExpensePayload({
       ...BASE,

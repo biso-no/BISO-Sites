@@ -6,6 +6,8 @@ import { z } from "zod";
 const COST_TYPE_TEXT_MAX = 120;
 const OCCASION_MAX = 1000;
 const EVENT_ID_MAX = 64;
+/** The `eventName` column's size on the expense. */
+const EVENT_NAME_MAX = 100;
 
 /**
  * One receipt as a client sends it. Server-owned columns (`ai_*`,
@@ -47,7 +49,15 @@ const ExpensePayloadSchema = z.object({
   department: z.string().min(1),
   description: z.string().nullable().optional(),
   event_id: z.string().max(EVENT_ID_MAX).nullish(),
-  eventName: z.string().nullable().optional(),
+  // Cut, not refused: an event title may be longer than the column, and an
+  // older client that sends one must still be able to save.
+  eventName: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((name) =>
+      typeof name === "string" ? name.slice(0, EVENT_NAME_MAX) : name
+    ),
   expenseAttachments: z.array(ExpenseAttachmentInputSchema).optional(),
   expenseId: z.string().min(1).optional(),
   occasion: z.string().trim().max(OCCASION_MAX).nullish(),

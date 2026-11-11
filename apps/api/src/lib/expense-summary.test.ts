@@ -35,6 +35,7 @@ describe("expense summary helpers", () => {
         departmentId: "dept-marketing",
         departmentName: "Marketing",
       },
+      locale: "en",
       receipts: [
         {
           amount: 248,
@@ -63,6 +64,7 @@ describe("expense summary helpers", () => {
         departmentId: "",
         departmentName: "",
       },
+      locale: "en",
       receipts: [
         { description: "Office supplies" },
         { description: "Lunch receipt" },
@@ -207,6 +209,42 @@ describe("expense summary helpers", () => {
     expect(prompt).not.toContain("t".repeat(121));
     expect(prompt).not.toContain("\n- injected");
     expect(prompt).toContain("occasion and who it was for");
+  });
+
+  it("asks for the occasion suggestion in Norwegian for a Norwegian student", () => {
+    const normalized = normalizeExpenseSummaryRequest({
+      locale: "no",
+      receipts: [{ description: "Pizza", costType: "Mat og drikke" }],
+    });
+    expect(normalized?.locale).toBe("no");
+    if (!normalized) {
+      return;
+    }
+    const prompt = buildExpenseSummaryPrompt(normalized);
+
+    expect(prompt).toContain(
+      "Write the occasion suggestion in Norwegian (bokmål)"
+    );
+    // The description is for finance and stays English.
+    expect(prompt).toContain("Write in clear English for finance");
+  });
+
+  it("defaults the occasion suggestion to English", () => {
+    for (const body of [
+      { receipts: [{ description: "Pizza" }] },
+      { locale: "sv", receipts: [{ description: "Pizza" }] },
+      { locale: null, receipts: [{ description: "Pizza" }] },
+      { descriptions: ["Pizza"] },
+    ]) {
+      const normalized = normalizeExpenseSummaryRequest(body);
+      expect(normalized?.locale).toBe("en");
+      if (!normalized) {
+        return;
+      }
+      const prompt = buildExpenseSummaryPrompt(normalized);
+      expect(prompt).toContain("Write the occasion suggestion in English.");
+      expect(prompt).not.toContain("Norwegian (bokmål)");
+    }
   });
 
   it("still parses the legacy descriptions body", () => {
