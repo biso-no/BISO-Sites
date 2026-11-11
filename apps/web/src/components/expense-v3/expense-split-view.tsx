@@ -7,7 +7,7 @@ import type {
   Users,
 } from "@repo/api/types/appwrite";
 import { trackEvent } from "@repo/shared/utils/analytics";
-import { defaultCostTypeSlugForCategory } from "@repo/shared/utils/expense-cost-types";
+import type { ReceiptIssueCode } from "@repo/shared/utils/expense-hints";
 import {
   Select,
   SelectContent,
@@ -35,6 +35,11 @@ import {
   selectTriggerClass,
 } from "./form-styles";
 import { GenerativeReceiptPreview } from "./generative-receipt-preview";
+import {
+  attachmentTypeFields,
+  typeFromAttachment,
+  typeFromOcr,
+} from "./receipt-types";
 import { ReceiptWallet } from "./receipt-wallet";
 import { type Receipt, useExpenseStore } from "./store";
 import type { ExpenseTypeOption } from "./types";
@@ -53,13 +58,18 @@ interface OcrData {
     | "other"
     | null;
   city?: null | string;
+  costType?: null | string;
+  costTypeConfidence?: number;
   country?: null | string;
   currency?: null | string;
   date?: null | string;
   description?: null | string;
   documentType?: "receipt" | "bank-statement" | null;
   exchangeRate?: null | number;
+  ocrAmount?: null | number;
+  possibleDuplicate?: boolean;
   purchaseContext?: null | string;
+  receiptIssues?: ReceiptIssueCode[];
   vendor?: null | string;
 }
 
@@ -131,7 +141,8 @@ function buildAccountingDescription(data: OcrData, fileName: string): string {
 
 function buildReceiptFromOcr(
   data: OcrData,
-  fileName: string
+  fileName: string,
+  typeOptions: ExpenseTypeOption[]
 ): Partial<Receipt> {
   const isNok = data.currency === "NOK" || !data.currency;
   const amount = isNok
@@ -154,7 +165,19 @@ function buildReceiptFromOcr(
     country: data.country ?? undefined,
     category: data.category ?? undefined,
     purchaseContext: data.purchaseContext ?? undefined,
+    receiptIssues: data.receiptIssues ?? [],
+    possibleDuplicate: data.possibleDuplicate ?? false,
+    ...typeFromOcr(data, typeOptions, true),
   };
+}
+
+class SubmitRejectedError extends Error {
+  readonly field?: string;
+
+  constructor(message: string, field?: string) {
+    super(message);
+    this.field = field;
+  }
 }
 
 interface AssignmentGateProps {
@@ -297,7 +320,10 @@ type InitialExpenseDraft = Pick<
   | "campus"
   | "department"
   | "description"
+  | "eventName"
+  | "event_id"
   | "expenseAttachments"
+  | "occasion"
   | "submitter_is_financial_manager"
   | "total"
 >;
@@ -319,7 +345,8 @@ function buildStorageViewUrl(fileId: string): string {
 }
 
 function buildReceiptFromAttachment(
-  attachment: ExpenseAttachments
+  attachment: ExpenseAttachments,
+  typeOptions: ExpenseTypeOption[]
 ): Receipt | null {
   if (!attachment.url) {
     return null;
@@ -340,9 +367,8 @@ function buildReceiptFromAttachment(
       : "",
     confidence: 1,
     currency: "NOK",
-    // Restore the saved cost type so resuming a draft keeps the chosen GL
-    // mapping instead of falling back to the default on the next save/submit.
-    costType: attachment.cost_type ?? undefined,
+    // Restore the saved type: anything stored on a draft counts as chosen.
+    ...typeFromAttachment(attachment, typeOptions),
   };
 }
 
@@ -499,12 +525,14 @@ export function ExpenseSplitView({
       departmentName: department?.Name ?? "",
     });
     store.setDescription(initialDraft.description ?? "");
+    store.setOccasion(initialDraft.occasion ?? "");
+    store.setEvent(initialDraft.event_id ?? null, initialDraft.eventName ?? "");
     store.setSubmitterIsFinancialManager(
       Boolean(initialDraft.submitter_is_financial_manager)
     );
 
     for (const receipt of initialDraft.expenseAttachments
-      .map(buildReceiptFromAttachment)
+      .map((attachment) => buildReceiptFromAttachment(attachment, typeOptions))
       .filter((receipt): receipt is Receipt => receipt !== null)) {
       store.addReceipt(receipt);
     }
@@ -517,6 +545,8 @@ export function ExpenseSplitView({
     store.setAssignment,
     store.setCampuses,
     store.setDescription,
+    store.setEvent,
+    store.setOccasion,
     store.setExpenseId,
     store.setProfile,
     store.setSubmitterIsFinancialManager,
@@ -577,7 +607,11 @@ export function ExpenseSplitView({
         // Kill switch: when receipt scanning is disabled, the file is still
         // attached but skips OCR — the user fills in the details manually.
         if (!ocrEnabled) {
-          store.updateReceipt(tempId, { progress: 100, status: "ready" });
+          store.updateReceipt(tempId, {
+            progress: 100,
+            status: "ready",
+            ...typeFromOcr({}, typeOptions, false),
+          });
           return null;
         }
 
@@ -608,7 +642,11 @@ export function ExpenseSplitView({
         // Simulate "thinking" time for the user to appreciate the UI
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        const receiptUpdates = buildReceiptFromOcr(ocrResult.data, file.name);
+        const receiptUpdates = buildReceiptFromOcr(
+          ocrResult.data,
+          file.name,
+          typeOptions
+        );
         store.updateReceipt(tempId, receiptUpdates);
         return { id: tempId, ocrData: ocrResult.data };
       } catch (error) {
@@ -621,7 +659,7 @@ export function ExpenseSplitView({
         return null;
       }
     },
-    [store, ocrEnabled, t]
+    [store, ocrEnabled, t, typeOptions]
   );
 
   const reconcileBatch = useCallback(
@@ -721,7 +759,9 @@ export function ExpenseSplitView({
     description: store.description,
     total: store.totalAmount(),
     prepayment_amount: 0,
-    eventName: "",
+    occasion: store.occasion.trim() || null,
+    event_id: store.eventId,
+    eventName: store.eventName,
     submitter_is_financial_manager: store.submitterIsFinancialManager,
     expenseAttachments: store.receipts.map((receipt, index) => ({
       date: receipt.date,
@@ -729,8 +769,7 @@ export function ExpenseSplitView({
       amount: receipt.amount,
       description: receipt.description,
       type: receipt.fileType,
-      cost_type:
-        receipt.costType ?? defaultCostTypeSlugForCategory(receipt.category),
+      ...attachmentTypeFields(receipt),
       sort_order: index,
     })),
   });
@@ -795,6 +834,7 @@ export function ExpenseSplitView({
         success: boolean;
         fetchedExpense?: { $id: string };
         error?: string;
+        field?: string;
       }>("/api/expenses/submit", {
         method: "POST",
         body: buildExpensePayload(),
@@ -808,11 +848,19 @@ export function ExpenseSplitView({
         toast.success(t("composer.toast.submitted"));
         router.push(`/fs/${result.fetchedExpense.$id}`);
       } else {
-        throw new Error(result.error || "Submission failed");
+        throw new SubmitRejectedError(
+          result.error || "Submission failed",
+          result.field
+        );
       }
     } catch (error) {
       console.error(error);
-      toast.error(t("composer.toast.submitFailed"));
+      if (error instanceof SubmitRejectedError && error.field === "occasion") {
+        store.setOccasionError(true);
+        toast.error(t("composer.toast.occasionRequired"));
+      } else {
+        toast.error(t("composer.toast.submitFailed"));
+      }
       store.setPhase("draft");
     }
   };

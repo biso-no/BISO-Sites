@@ -75,6 +75,7 @@
       "requiredFields": "Please fill in all required fields",
       "waitBeforeSubmitting": "Wait for receipt processing to finish before submitting",
       "submitted": "Expense submitted!",
+      "occasionRequired": "Add what the expense was for before submitting",
       "submitFailed": "Submission failed",
       "statementAdded": "Bank statement uploaded and added to the list",
       "statementUploaded": "Bank statement uploaded",

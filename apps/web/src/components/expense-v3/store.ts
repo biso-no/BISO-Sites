@@ -1,5 +1,11 @@
 import type { Campus, Users } from "@repo/api/types/appwrite";
+import type { ReceiptIssueCode } from "@repo/shared/utils/expense-hints";
 import { create } from "zustand";
+import {
+  missingTypes,
+  occasionRequired,
+  type TypeState,
+} from "./receipt-types";
 import type { ExpenseTypeOption } from "./types";
 
 type ReceiptStatus =
@@ -11,6 +17,8 @@ type ReceiptStatus =
   | "editing";
 
 export interface Receipt {
+  aiConfidence?: number;
+  aiCostType?: string | null;
   amount: number;
   bankStatementId?: string;
   bankStatementName?: string;
@@ -18,7 +26,8 @@ export interface Receipt {
   category?: string; // Potential AI category
   city?: string;
   confidence: number;
-  costType?: string; // User-selected cost type (maps to a GL account)
+  costType?: string; // Chosen or AI-suggested cost type slug
+  costTypeText?: string; // The student's own type wording ("Other")
   country?: string;
   currency: string;
   date: string;
@@ -36,9 +45,12 @@ export interface Receipt {
   // Multi-currency support
   originalAmount?: number;
   parentId?: string; // For grouping (e.g. bank statement attached to receipt)
+  possibleDuplicate?: boolean;
   progress: number;
   purchaseContext?: string;
+  receiptIssues?: ReceiptIssueCode[];
   status: ReceiptStatus;
+  typeState?: TypeState;
   vendor?: string; // Explicitly track vendor
 }
 
@@ -57,10 +69,16 @@ interface ExpenseStore {
 
   // Assignment
   description: string;
+  eventId: string | null;
+  eventName: string;
   expenseId: string | null;
   insertReceiptAfter: (afterId: string, receipt: Receipt) => void;
   isGeneratingSummary: boolean;
   isReadyToSubmit: () => boolean;
+  occasion: string;
+  // Set when the API rejects a submit for a missing occasion.
+  occasionError: boolean;
+  occasionTouched: boolean;
   // Phase management
   phase: ExpensePhase;
 
@@ -89,8 +107,12 @@ interface ExpenseStore {
   }) => void;
   setCampuses: (campuses: Campus[]) => void;
   setDescription: (description: string) => void;
+  setEvent: (eventId: string | null, eventName: string) => void;
   setExpenseId: (id: string | null) => void;
   setIsGeneratingSummary: (generating: boolean) => void;
+  setOccasion: (occasion: string) => void;
+  setOccasionError: (value: boolean) => void;
+  setOccasionTouched: (value: boolean) => void;
   setPhase: (phase: ExpensePhase) => void;
   setProfile: (profile: Partial<Users>) => void;
   setSelectedReceiptId: (id: string | null) => void;
@@ -120,6 +142,11 @@ const initialState = {
   aiSummary: "",
   isGeneratingSummary: false,
   description: "",
+  occasion: "",
+  occasionTouched: false,
+  occasionError: false,
+  eventId: null as string | null,
+  eventName: "",
   selectedCampusId: "",
   selectedCampusName: "",
   selectedDepartmentId: "",
@@ -175,6 +202,11 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
 
   setDescription: (description) => set({ description }),
 
+  setOccasion: (occasion) => set({ occasion, occasionError: false }),
+  setOccasionTouched: (occasionTouched) => set({ occasionTouched }),
+  setOccasionError: (occasionError) => set({ occasionError }),
+  setEvent: (eventId, eventName) => set({ eventId, eventName }),
+
   setAssignment: (data) =>
     set({
       selectedCampusId: data.campusId,
@@ -197,7 +229,10 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
       state.description.trim().length > 0 &&
       state.selectedCampusId !== "" &&
       state.selectedDepartmentId !== "" &&
-      state.profile.bank_account !== undefined
+      state.profile.bank_account !== undefined &&
+      missingTypes(state.receipts).length === 0 &&
+      (!occasionRequired(state.receipts, state.typeOptions) ||
+        state.occasion.trim().length > 0)
     );
   },
 

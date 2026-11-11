@@ -1,10 +1,7 @@
 "use client";
 
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
-import {
-  DEFAULT_EXPENSE_COST_TYPES,
-  defaultCostTypeSlugForCategory,
-} from "@repo/shared/utils/expense-cost-types";
+import { DEFAULT_EXPENSE_COST_TYPES } from "@repo/shared/utils/expense-cost-types";
 import { Input } from "@repo/ui/components/ui/input";
 import {
   Select,
@@ -487,8 +484,7 @@ function CostTypeField({
   };
   // Default from the AI category, but the user can override per receipt — this
   // decides which GL account the line is booked to when posted to the ledger.
-  const value =
-    receipt.costType ?? defaultCostTypeSlugForCategory(receipt.category);
+  const value = receipt.costType;
 
   return (
     <div className="space-y-2">
@@ -499,7 +495,9 @@ function CostTypeField({
         <div className="h-10 w-full animate-pulse rounded-biso-sm bg-surface-sunken" />
       ) : (
         <Select
-          onValueChange={(costType) => onUpdate({ costType })}
+          onValueChange={(costType) =>
+            onUpdate({ costType, costTypeText: undefined, typeState: "chosen" })
+          }
           value={value}
         >
           <SelectTrigger className={selectTriggerClass} id={fieldId}>

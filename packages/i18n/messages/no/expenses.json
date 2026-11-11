@@ -75,6 +75,7 @@
       "requiredFields": "Fyll inn alle obligatoriske felt",
       "waitBeforeSubmitting": "Vent til kvitteringene er ferdig behandlet før du sender inn",
       "submitted": "Utlegget er sendt inn!",
+      "occasionRequired": "Legg til hva utgiften gjaldt før du sender inn",
       "submitFailed": "Innsendingen mislyktes",
       "statementAdded": "Kontoutskriften er lastet opp og lagt til i listen",
       "statementUploaded": "Kontoutskriften er lastet opp",
