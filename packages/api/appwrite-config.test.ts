@@ -226,3 +226,27 @@ describe("appwrite bucket permissions", () => {
     expect(mediaBucket?.maximumFileSize).toBe(MEDIA_MAX_FILE_SIZE_BYTES);
   });
 });
+
+describe("expense booking history", () => {
+  test("expense_events is server-written and readable only by the Operations Unit", () => {
+    const table = loadConfig().tables.find((t) => t.$id === "expense_events");
+    expect(table).toBeDefined();
+    expect(table?.$permissions).toEqual([
+      'read("team:sg-app-dept-operationsunit")',
+    ]);
+    expect(table?.columns?.map((c) => c.key)).toEqual(
+      expect.arrayContaining(["expense_id", "actor_kind", "action", "note"])
+    );
+    expect(table?.indexes?.some((i) => i.columns?.[0] === "expense_id")).toBe(
+      true
+    );
+  });
+
+  test("expense_attachments records the date each line was booked on", () => {
+    const table = loadConfig().tables.find(
+      (t) => t.$id === "expense_attachments"
+    );
+    const column = table?.columns?.find((c) => c.key === "booked_date");
+    expect(column?.type).toBe("datetime");
+  });
+});

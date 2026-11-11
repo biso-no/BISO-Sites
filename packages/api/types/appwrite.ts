@@ -229,6 +229,28 @@ export enum ExpenseApprovalIssuesStatus {
   RESOLVED = "resolved",
 }
 
+export enum ExpenseEventsActorKind {
+  STUDENT = "student",
+  APPROVER = "approver",
+  ADMIN = "admin",
+  AI = "ai",
+  SYSTEM = "system",
+}
+
+export enum ExpenseEventsAction {
+  SUBMITTED = "submitted",
+  AI_CLASSIFIED = "ai_classified",
+  AI_ACCOUNT_CHOSEN = "ai_account_chosen",
+  EDITED = "edited",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  APPROVER_RESOLVED = "approver_resolved",
+  NOTIFIED = "notified",
+  BOOKED = "booked",
+  BOOKING_FAILED = "booking_failed",
+  DATE_SHIFTED = "date_shifted",
+}
+
 export enum TourProgressStatus {
   NOT_STARTED = "not_started",
   IN_PROGRESS = "in_progress",
@@ -1076,6 +1098,19 @@ export type ExpenseApprovalIssues = Models.Row & {
   department: string | null;
 };
 
+export type ExpenseEvents = Models.Row & {
+  expense_id: string;
+  actor_kind: ExpenseEventsActorKind;
+  action: ExpenseEventsAction;
+  actor_email: string | null;
+  actor_name: string | null;
+  attachment_id: string | null;
+  field: string | null;
+  before: string | null;
+  after: string | null;
+  note: string | null;
+};
+
 export type LargeEvent = Models.Row & {
   slug: string;
   name: string;
@@ -1444,6 +1479,7 @@ export type BenefitPartners = Models.Row & {
 
 export type ExpenseAttachments = Models.Row & {
   date: string | null;
+  booked_date: string | null;
   url: string | null;
   amount: number | null;
   description: string | null;
