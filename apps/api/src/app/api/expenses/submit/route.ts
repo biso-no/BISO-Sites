@@ -14,6 +14,7 @@ import {
   buildExpenseRowPermissions,
   type ExpensePayload,
   type ExpenseRowInput,
+  mergeLegacyDraft,
   parseExpensePayload,
 } from "@/lib/expense-payload";
 import {
@@ -199,14 +200,22 @@ async function readExpensePayload(req: NextRequest): Promise<ExpensePayload> {
   return payload;
 }
 
-async function assertOwnedDraft(
+/** The caller's own draft, with what `mergeLegacyDraft` keeps from it. */
+async function loadOwnedDraft(
   db: AdminClient["db"],
   expenseId: string,
   userId: string
-): Promise<void> {
+): Promise<Expenses> {
   const existingExpense = await orNullIfNotFound(
     db.getRow<Expenses>("app", "expense", expenseId, [
-      Query.select(["$id", "status", "userId"]),
+      Query.select([
+        "$id",
+        "status",
+        "userId",
+        "occasion",
+        "event_id",
+        "expenseAttachments.*",
+      ]),
     ])
   );
 
@@ -222,39 +231,43 @@ async function assertOwnedDraft(
       "Only draft expenses can be submitted"
     );
   }
+  return existingExpense;
 }
 
+/**
+ * Saves the payload over the draft and returns the payload as saved: when an
+ * old app submits a draft made on the web, the draft's own type text,
+ * occasion and event are kept (see `mergeLegacyDraft`).
+ */
 async function saveDraftBeforeSubmission(
   adminDb: AdminClient["db"],
   payload: ExpensePayload,
   userId: string
-): Promise<CreateExpenseData> {
+): Promise<{ draft: CreateExpenseData; saved: ExpensePayload }> {
   const { expenseId } = payload;
-  const expenseBody = buildExpenseRowInput(
-    payload,
-    userId,
-    ExpensesStatus.DRAFT
-  );
 
   if (!expenseId) {
-    return adminDb.createRow<CreateExpenseData>(
+    const draft = await adminDb.createRow<CreateExpenseData>(
       "app",
       "expense",
       ID.unique(),
-      expenseBody,
+      buildExpenseRowInput(payload, userId, ExpensesStatus.DRAFT),
       buildExpenseRowPermissions(userId)
     );
+    return { draft, saved: payload };
   }
 
   // Expense rows are read-only to their submitter: ownership is checked here
   // and the write goes through the admin client.
-  await assertOwnedDraft(adminDb, expenseId, userId);
-  return adminDb.updateRow<CreateExpenseData>(
+  const existing = await loadOwnedDraft(adminDb, expenseId, userId);
+  const saved = mergeLegacyDraft(payload, existing);
+  const draft = await adminDb.updateRow<CreateExpenseData>(
     "app",
     "expense",
     expenseId,
-    expenseBody
+    buildExpenseRowInput(saved, userId, ExpensesStatus.DRAFT)
   );
+  return { draft, saved };
 }
 
 /**
@@ -450,13 +463,17 @@ async function submitExpense(req: NextRequest) {
   const payload = await readExpensePayload(req);
   const admin = await createAdminClient();
 
-  const draft = await saveDraftBeforeSubmission(admin.db, payload, userId);
+  const { draft, saved } = await saveDraftBeforeSubmission(
+    admin.db,
+    payload,
+    userId
+  );
   const readExpense = () =>
     db.getRow<Expenses>("app", "expense", draft.$id, [
       Query.select(SUBMITTED_EXPENSE_COLUMNS),
     ]);
 
-  await enrichOrReject(admin, await readExpense(), payload, profile.name);
+  await enrichOrReject(admin, await readExpense(), saved, profile.name);
   // Read again so both flows see the types and accounts enrichment stored.
   const expense = await readExpense();
 

@@ -14,7 +14,7 @@ import {
   buildExpenseRowPermissions,
   type ExpensePayload,
   type ExpenseRowInput,
-  mergeLegacyAttachmentTypes,
+  mergeLegacyDraft,
   parseExpensePayload,
   receiptFileId,
   receiptFileIds,
@@ -48,7 +48,16 @@ async function loadOwnedDraft(
     "app",
     "expense",
     expenseId,
-    [Query.select(["$id", "status", "userId", "expenseAttachments.*"])]
+    [
+      Query.select([
+        "$id",
+        "status",
+        "userId",
+        "occasion",
+        "event_id",
+        "expenseAttachments.*",
+      ]),
+    ]
   );
 
   if (existingExpense.userId !== userId) {
@@ -142,8 +151,8 @@ async function createDraftExpense(
  * the only thing between the caller and the row: the read and the write both
  * use the admin client.
  *
- * An old app re-saving a draft keeps the types the draft already stores for
- * the same files (see `mergeLegacyAttachmentTypes`).
+ * An old app re-saving a draft keeps the draft's own types, occasion and
+ * event (see `mergeLegacyDraft`).
  */
 async function updateDraftExpense(
   expenseId: string,
@@ -158,13 +167,7 @@ async function updateDraftExpense(
   }
 
   const expenseBody = buildExpenseRowInput(
-    {
-      ...payload,
-      expenseAttachments: mergeLegacyAttachmentTypes(
-        payload.expenseAttachments ?? [],
-        existing.expenseAttachments ?? []
-      ),
-    },
+    mergeLegacyDraft(payload, existing),
     userId,
     ExpensesStatus.DRAFT
   );

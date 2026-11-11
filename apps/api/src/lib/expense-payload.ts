@@ -100,6 +100,16 @@ export function isLegacyAttachment(attachment: {
   return attachment.cost_type_chosen == null;
 }
 
+/**
+ * True for a payload from an app version that predates AI types: no
+ * attachment carries `cost_type_chosen`.
+ */
+export function isLegacyPayload(
+  payload: Pick<ExpensePayload, "expenseAttachments">
+): boolean {
+  return (payload.expenseAttachments ?? []).every(isLegacyAttachment);
+}
+
 export function parseExpensePayload(body: unknown): ExpensePayload | null {
   const parsed = ExpensePayloadSchema.safeParse(body);
   return parsed.success ? parsed.data : null;
@@ -195,6 +205,44 @@ export function mergeLegacyAttachmentTypes(
       cost_type_text: row.cost_type_text ?? undefined,
     };
   });
+}
+
+/** What the draft merge reads from the stored draft. */
+export interface StoredDraft {
+  event_id?: string | null;
+  expenseAttachments?: readonly StoredAttachmentType[] | null;
+  occasion?: string | null;
+}
+
+/**
+ * The payload to save over a stored draft. Old app versions know nothing of
+ * the student's own type text, the occasion or the matched event, so when an
+ * old app re-saves or submits a draft made on the web, the draft's types (see
+ * `mergeLegacyAttachmentTypes`) and, unless the payload sends them, its
+ * `occasion` and `event_id` are kept. A client that sends `cost_type_chosen`
+ * clears those two by leaving them out.
+ */
+export function mergeLegacyDraft(
+  payload: ExpensePayload,
+  existing: StoredDraft
+): ExpensePayload {
+  const merged: ExpensePayload = {
+    ...payload,
+    expenseAttachments: mergeLegacyAttachmentTypes(
+      payload.expenseAttachments ?? [],
+      existing.expenseAttachments ?? []
+    ),
+  };
+  if (!isLegacyPayload(payload)) {
+    return merged;
+  }
+  return {
+    ...merged,
+    event_id:
+      payload.event_id === undefined ? existing.event_id : payload.event_id,
+    occasion:
+      payload.occasion === undefined ? existing.occasion : payload.occasion,
+  };
 }
 
 /**

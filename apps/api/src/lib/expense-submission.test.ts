@@ -47,7 +47,11 @@ vi.mock("./receipt-date", async (importOriginal) => ({
   todayInOslo: () => "2026-11-11",
 }));
 
-import { parseExpensePayload } from "./expense-payload";
+import {
+  mergeLegacyDraft,
+  parseExpensePayload,
+  type StoredDraft,
+} from "./expense-payload";
 import {
   type AttachmentDecisionInput,
   chooseAccountForText,
@@ -179,6 +183,34 @@ describe("decideAttachment", () => {
         code: "app_type_replaced",
         data: { aiType: "meeting-food", appType: "social" },
       },
+    ]);
+  });
+
+  it("keeps a student's own text that a draft merge put on a legacy receipt", () => {
+    // Old apps never send own text, so it can only be the student's web choice.
+    const d = decideAttachment(
+      input({
+        chosen: false,
+        clientCostType: "",
+        clientText: " Flowers ",
+        scan: scan("meeting-food", 0.95),
+      }),
+      types,
+      true
+    );
+    expect(d.costType).toBeNull();
+    expect(d.costTypeText).toBe("Flowers");
+    expect(d.needsAiAccount).toBe(true);
+    expect(d.typeSource).toBe("student");
+    expect(d.hints).toEqual([]);
+    const off = decideAttachment(
+      input({ chosen: false, clientCostType: "", clientText: "Flowers" }),
+      types,
+      false
+    );
+    expect(off.costTypeText).toBe("Flowers");
+    expect(off.hints).toEqual([
+      { attachmentId: "a1", code: "account_missing" },
     ]);
   });
 
@@ -542,9 +574,10 @@ interface RowOver {
  */
 function submission(
   attachments: RowOver[],
-  over: Record<string, unknown> = {}
+  over: Record<string, unknown> = {},
+  storedDraft?: StoredDraft
 ) {
-  const payload = parseExpensePayload({
+  const parsed = parseExpensePayload({
     bank_account: "1234 56 78901",
     campus: "oslo",
     department: "marketing",
@@ -557,9 +590,11 @@ function submission(
     total: 100,
     ...over,
   });
-  if (!payload) {
+  if (!parsed) {
     throw new Error("invalid test payload");
   }
+  // The submit route merges an old app's payload over the stored draft.
+  const payload = storedDraft ? mergeLegacyDraft(parsed, storedDraft) : parsed;
   const expense = {
     $id: "expense-1",
     expenseAttachments: (payload.expenseAttachments ?? []).map(
@@ -757,9 +792,16 @@ describe("enrichSubmission", () => {
     expect(error).toHaveBeenCalled();
   });
 
-  it("writes no AI fields when AI is off", async () => {
+  it("uses stored scans but no AI type when AI is off", async () => {
     flags.expenses_ocr = false;
-    scanning.findScan.mockResolvedValue(scan("meeting-food", 0.95));
+    scanning.findScan.mockImplementation(async (_db: unknown, hash: string) =>
+      hash === hashOf("file-1")
+        ? scan("meeting-food", 0.95, {
+            amountInNok: 80,
+            receipt: receipt({ amount: 80, receiptIssues: ["no_items"] }),
+          })
+        : null
+    );
     const { expense, payload } = submission([
       { cost_type: "social", cost_type_chosen: true, url: "file-1" },
       { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-2" },
@@ -767,9 +809,12 @@ describe("enrichSubmission", () => {
 
     await enrichSubmission(admin, expense, payload, "Ada Lovelace");
 
-    expect(scanning.findScan).not.toHaveBeenCalled();
+    // Stored scans are read by hash; no model is called for the missing one.
+    expect(scanning.findScan).toHaveBeenCalledWith(db, hashOf("file-1"));
+    expect(scanning.findScan).toHaveBeenCalledWith(db, hashOf("file-2"));
     expect(scanning.extractReceipt).not.toHaveBeenCalled();
     expect(scanning.classifyReceipt).not.toHaveBeenCalled();
+    expect(scanning.saveScan).not.toHaveBeenCalled();
     expect(typeStore.loadCostAccounts).not.toHaveBeenCalled();
     expect(generateObject).not.toHaveBeenCalled();
     expect(attachmentWrite("att-1")).toMatchObject({
@@ -779,23 +824,69 @@ describe("enrichSubmission", () => {
       ai_cost_type: null,
       cost_type: "social",
       file_hash: hashOf("file-1"),
-      ocr_amount: null,
-      receipt_issues: null,
+      ocr_amount: 80,
+      receipt_issues: JSON.stringify(["no_items"]),
       type_source: "student",
     });
     expect(attachmentWrite("att-2")).toMatchObject({
       account_number: null,
       account_source: null,
+      ai_cost_type: null,
       cost_type: null,
       cost_type_text: "Flowers",
+      ocr_amount: null,
+      receipt_issues: null,
     });
     expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      {
+        attachmentId: "att-1",
+        code: "amount_differs",
+        data: { entered: 100, read: 80 },
+      },
+      {
+        attachmentId: "att-1",
+        code: "receipt_issue",
+        data: { issue: "no_items" },
+      },
       { attachmentId: "att-2", code: "account_missing" },
     ]);
     const events = recordExpenseEvents.mock.calls[0]?.[1];
     expect(events.map((event: { action: string }) => event.action)).toEqual([
       "submitted",
     ]);
+  });
+
+  it("keeps own text and occasion when an old app submits a web draft", async () => {
+    scanning.findScan.mockResolvedValue(scan("meeting-food", 0.95));
+    generateObject.mockResolvedValue({
+      object: { accountNumber: 7420, confidence: 0.9, reason: "Gift" },
+    });
+    const { expense, payload } = submission(
+      // An old app sends its default slug and no occasion.
+      [{ cost_type: "social", url: "file-1" }],
+      {},
+      {
+        event_id: "event-1",
+        expenseAttachments: [
+          { cost_type: "", cost_type_text: "Flowers", url: "file-1" },
+        ],
+        occasion: "Board meeting",
+      }
+    );
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(attachmentWrite("att-1")).toMatchObject({
+      account_number: 7420,
+      account_source: "ai_freeform",
+      cost_type: null,
+      cost_type_text: "Flowers",
+      type_source: "student",
+    });
+    expect(expenseWrite()).toEqual({
+      approver_hints: "[]",
+      occasion: "Board meeting",
+    });
   });
 
   it("rejects a missing occasion for a type that asks for one", async () => {

@@ -190,6 +190,59 @@ describe("expense submit route", () => {
     expect(sessionDb.updateRow).not.toHaveBeenCalled();
   });
 
+  it("keeps a web draft's own type text and occasion when an old app submits it", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      event_id: "event-1",
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          cost_type: "",
+          cost_type_text: "Flowers",
+          url: "file-1",
+        },
+      ],
+      occasion: "Board meeting",
+      status: ExpensesStatus.DRAFT,
+      userId: "submitter-1",
+    });
+
+    const response = await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        expenseAttachments: [
+          { amount: 100, cost_type: "social", url: "file-1" },
+        ],
+        expenseId: "expense-1",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const [, , , select] = adminDb.getRow.mock.calls[0] ?? [];
+    for (const column of ["expenseAttachments.*", "occasion", "event_id"]) {
+      expect(select?.[0]).toContain(column);
+    }
+    const saved = adminDb.updateRow.mock.calls.find(
+      ([, table]) => table === "expense"
+    )?.[3];
+    expect(saved).toMatchObject({
+      event_id: "event-1",
+      expenseAttachments: [
+        expect.objectContaining({ cost_type: "", cost_type_text: "Flowers" }),
+      ],
+      occasion: "Board meeting",
+    });
+    // Enrichment decides from the merged payload, not the app's default slug.
+    const [, , enrichedPayload] =
+      enrichment.enrichSubmission.mock.calls[0] ?? [];
+    expect(enrichedPayload).toMatchObject({
+      expenseAttachments: [
+        expect.objectContaining({ cost_type: "", cost_type_text: "Flowers" }),
+      ],
+      occasion: "Board meeting",
+    });
+  });
+
   it("refuses to submit an expense that belongs to someone else", async () => {
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",

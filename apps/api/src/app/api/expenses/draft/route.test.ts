@@ -102,6 +102,7 @@ describe("expense draft route", () => {
   it("keeps the stored type when an old app re-saves a web draft", async () => {
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",
+      event_id: "event-1",
       expenseAttachments: [
         {
           $id: "att-1",
@@ -110,6 +111,7 @@ describe("expense draft route", () => {
           url: "file-1",
         },
       ],
+      occasion: "Board meeting",
       status: "draft",
       userId: "submitter-1",
     });
@@ -122,16 +124,18 @@ describe("expense draft route", () => {
           { amount: 50, cost_type: "travel", url: "file-2" },
         ],
         expenseId: "expense-1",
-        occasion: "Board meeting",
       })
     );
 
     expect(response.status).toBe(200);
-    expect(adminDb.getRow).toHaveBeenCalledWith("app", "expense", "expense-1", [
-      expect.stringContaining("expenseAttachments.*"),
-    ]);
+    const [, , , select] = adminDb.getRow.mock.calls[0] ?? [];
+    for (const column of ["expenseAttachments.*", "occasion", "event_id"]) {
+      expect(select?.[0]).toContain(column);
+    }
     const written = adminDb.updateRow.mock.calls[0]?.[3];
+    // The old app knows neither field, so the draft's own values stay.
     expect(written.occasion).toBe("Board meeting");
+    expect(written.event_id).toBe("event-1");
     expect(written.expenseAttachments).toEqual([
       expect.objectContaining({
         cost_type: "",

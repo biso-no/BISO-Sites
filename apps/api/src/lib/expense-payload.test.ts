@@ -4,6 +4,7 @@ import {
   buildExpenseRowInput,
   buildExpenseRowPermissions,
   mergeLegacyAttachmentTypes,
+  mergeLegacyDraft,
   parseExpensePayload,
   receiptFileId,
   receiptFileIds,
@@ -169,6 +170,60 @@ describe("expense payload helpers", () => {
       "type",
       "url",
     ]);
+  });
+
+  it("mergeLegacyDraft keeps the stored occasion, event and types for a legacy re-save", () => {
+    const stored = {
+      event_id: "event-1",
+      expenseAttachments: [
+        { cost_type: "", cost_type_text: "Flowers", url: "file-1" },
+      ],
+      occasion: "Board meeting",
+    };
+    const legacy = parseExpensePayload({
+      ...BASE,
+      expenseAttachments: [{ amount: 50, cost_type: "social", url: "file-1" }],
+    });
+    const merged = mergeLegacyDraft(legacy!, stored);
+    expect(merged.occasion).toBe("Board meeting");
+    expect(merged.event_id).toBe("event-1");
+    expect(merged.expenseAttachments?.[0]).toMatchObject({
+      cost_type: "",
+      cost_type_text: "Flowers",
+    });
+    expect(buildExpenseRowInput(merged, "user-id")).toMatchObject({
+      event_id: "event-1",
+      occasion: "Board meeting",
+    });
+
+    // A value the payload does send is taken as sent.
+    const sent = parseExpensePayload({
+      ...BASE,
+      event_id: null,
+      expenseAttachments: [{ amount: 50, url: "file-1" }],
+      occasion: "Team lunch",
+    });
+    expect(mergeLegacyDraft(sent!, stored)).toMatchObject({
+      event_id: null,
+      occasion: "Team lunch",
+    });
+
+    // A client that knows the fields clears them by leaving them out.
+    const current = parseExpensePayload({
+      ...BASE,
+      expenseAttachments: [
+        {
+          amount: 50,
+          cost_type: "social",
+          cost_type_chosen: true,
+          url: "file-1",
+        },
+      ],
+    });
+    const kept = mergeLegacyDraft(current!, stored);
+    expect(kept.occasion).toBeUndefined();
+    expect(kept.event_id).toBeUndefined();
+    expect(kept.expenseAttachments?.[0]?.cost_type).toBe("social");
   });
 
   it("mergeLegacyAttachmentTypes keeps the stored choice for a legacy re-save", () => {

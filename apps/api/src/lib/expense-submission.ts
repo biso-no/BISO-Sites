@@ -21,6 +21,7 @@ import {
   attachmentFileKey,
   type ExpensePayload,
   isLegacyAttachment,
+  isLegacyPayload,
   receiptFileId,
 } from "./expense-payload";
 import {
@@ -114,6 +115,22 @@ function defaulted(
   );
 }
 
+/** The student's own words as the type; the AI picks the account later. */
+function ownText(
+  decision: AttachmentDecision,
+  text: string,
+  aiEnabled: boolean
+): AttachmentDecision {
+  return {
+    ...decision,
+    costTypeText: text,
+    hints: aiEnabled
+      ? []
+      : [{ attachmentId: decision.attachmentId, code: "account_missing" }],
+    needsAiAccount: aiEnabled,
+  };
+}
+
 function decideChosen(ctx: DecisionContext): AttachmentDecision {
   const { aiConfident, aiEnabled, aiSlug, clientSlug, decision, input, types } =
     ctx;
@@ -126,14 +143,7 @@ function decideChosen(ctx: DecisionContext): AttachmentDecision {
   }
   const text = input.clientText?.trim();
   if (text) {
-    return {
-      ...decision,
-      costTypeText: text,
-      hints: aiEnabled
-        ? []
-        : [{ attachmentId: decision.attachmentId, code: "account_missing" }],
-      needsAiAccount: aiEnabled,
-    };
+    return ownText(decision, text, aiEnabled);
   }
   if (aiConfident && aiSlug) {
     return withType({ ...decision, typeSource: "ai" }, aiSlug, types);
@@ -142,7 +152,14 @@ function decideChosen(ctx: DecisionContext): AttachmentDecision {
 }
 
 function decideLegacy(ctx: DecisionContext): AttachmentDecision {
-  const { aiConfident, aiSlug, clientSlug, decision, input, types } = ctx;
+  const { aiConfident, aiEnabled, aiSlug, clientSlug, decision, input, types } =
+    ctx;
+  // Old apps never send own text: it is the student's web choice, kept on the
+  // draft by `mergeLegacyDraft`, so it stands as the student's.
+  const text = input.clientText?.trim();
+  if (text && !clientSlug) {
+    return ownText(decision, text, aiEnabled);
+  }
   const legacy = { ...decision, typeSource: "legacy_app" as const };
   if (aiConfident && aiSlug && aiSlug !== input.clientCostType) {
     return withType(
@@ -462,9 +479,10 @@ async function scanReceipt(
 }
 
 /**
- * The file's hash, and its scan when the AI is on: the stored one, or a new
- * one for a receipt with an amount. With the AI off no scan is used at all,
- * so nothing an AI read reaches the expense.
+ * The file's hash and its scan: the stored one (reading it calls no model),
+ * or, when the AI is on, a new one for a receipt with an amount. With the AI
+ * off a stored scan still gives the amount read and the receipt issues;
+ * `decideAttachment` ignores its classification.
  */
 async function readReceipt(
   admin: Pick<AdminClient, "db" | "storage">,
@@ -476,12 +494,11 @@ async function readReceipt(
     return { fileHash: null, scan: null };
   }
   const fileHash = sha256Hex(buffer);
-  if (!context.aiEnabled) {
-    return { fileHash, scan: null };
-  }
   const stored = await findScan(admin.db, fileHash);
   const scannable =
-    (attachment.amount ?? 0) > 0 && SCANNABLE_TYPES.has(attachment.type);
+    context.aiEnabled &&
+    (attachment.amount ?? 0) > 0 &&
+    SCANNABLE_TYPES.has(attachment.type);
   if (stored || !scannable) {
     return { fileHash, scan: stored };
   }
@@ -698,7 +715,7 @@ export async function enrichSubmission(
     loadActiveCostTypes(db),
     loadAllCostTypes(db),
   ]);
-  const legacy = (payload.expenseAttachments ?? []).every(isLegacyAttachment);
+  const legacy = isLegacyPayload(payload);
   const chosen = chosenByFile(payload);
 
   const decided = await Promise.all(
