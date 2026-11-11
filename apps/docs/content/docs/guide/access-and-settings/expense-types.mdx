@@ -41,7 +41,7 @@ The last row of the table is empty. Fill it in and choose **Legg til type** (Add
 - **Konto** (Account): see the next step.
 - **Skattekode** (Tax code): filled in from the account when you pick one. See the next step.
 - **Notat til AI** (Note for the AI): one sentence on what belongs in this type, for example what kind of receipts it is for and what it is not for. The receipt scan reads it when it picks a type.
-- **Spør om anledning og deltakere** (Ask for occasion and attendees): tick it when a receipt of this type needs an occasion with it, such as a social event or a meeting. Today every client, the website and the app alike, is treated as an older client, and neither asks the student for the occasion. The reimbursement goes through with a note for the approver that the occasion is missing.
+- **Spør om anledning og deltakere** (Ask for occasion and attendees): tick it when a receipt of this type needs an occasion with it, such as a social event or a meeting. On the website the student is then asked **Hva var anledningen, og hvem var det for?** (What was the occasion, and who was it for?) and can't submit without an answer. The app doesn't ask yet. A reimbursement from the app goes through with a note for the approver that the occasion is missing.
 - **Aktiv** (Active): ticked means students and the AI can use the type.
 - **Rekkefølge** (Order): a number. Types are listed from the lowest.
 
@@ -80,11 +80,17 @@ Untick **Aktiv** (Active) on the type and choose **Lagre** (Save). The type is n
 
 ## What the student sees
 
-- A student never sees an account number, only the names of the types.
-- The student form still has one list per receipt, **Kostnadstype** (Cost type), with four choices: **Reise** (Travel), **Sosialt arrangement** (Social event), **Faglig arrangement** (Academic event) and **Annet** (Other). It starts on the choice that fits the scanned receipt's category. The list doesn't yet show the types you manage here.
-- Until it does, the web form counts as an older client, like the app. Neither asks for the occasion, so the reimbursement gets a note for the approver that it is missing.
-- When the AI is on and it picks a different type at a confidence of 0.8 or more, it replaces the student's choice on the reimbursement, and a note that the type was replaced is stored with it.
-- No screen shows these notes yet.
+- A student never sees an account number, only the names of the types. In Norwegian they see **Norsk navn** (Norwegian name) when the type has one.
+- On the website, each receipt has a type picker, in the receipt list and in the detail pane (**Kostnadstype**, Cost type). It lists the active types in your order and has a search field, **Søk i typer…** (Search types…). When the AI is on and sure enough, it has picked a type already and the receipt is marked **Valgt av AI** (Picked by AI). Otherwise the receipt says **Velg type** (Choose a type).
+- If nothing in the list fits, the student can write their own text and choose **Bruk «{text}»** (Use "{text}"). Enter keeps what they typed unless it is exactly the name of a type. Arrow keys or hovering pick a suggestion instead. The AI then picks the account for the text.
+- The student can't submit until every receipt that needs a type has one. The button explains why: **Velg type for alle kvitteringene** (Choose a type for every receipt).
+- If a type has **Spør om anledning og deltakere** (Ask for occasion and attendees) ticked, the student is asked **Hva var anledningen, og hvem var det for?** (What was the occasion, and who was it for?), and the AI fills in a suggestion when the receipts make the occasion evident. The student can change it. The submit button says **Fyll inn anledningen og hvem det var for** (Fill in the occasion and who it was for) until it is answered.
+- If the department has a published event within seven days of a receipt date, the student is asked **Var dette til {event}?** (Was this for {event}?) and answers **Ja** (Yes) or **Nei** (No).
+- Under a receipt the student may see a notice, for example **Kvitteringen mangler dato** (No date on the receipt), or **Ser ut som en kvittering som allerede er sendt inn** (Looks like a receipt already submitted). They only warn, and don't stop the submission.
+- When every receipt has a type, the website writes the general description for the reimbursement. It never rewrites text the student has edited.
+- A type the student chose or accepted on the website stands. The AI doesn't replace it.
+- The app is an older client. Its choice is only a default. When the AI is on and it picks a different type at a confidence of 0.8 or more, it replaces the app's choice, and a note that the type was replaced is stored with it.
+- No screen shows the approver notes yet.
 
 ## Common mistakes
 
