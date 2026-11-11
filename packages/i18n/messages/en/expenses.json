@@ -109,7 +109,19 @@
       "saveDraft": "Save draft",
       "saving": "Saving…",
       "submit": "Submit expense",
-      "submitting": "Submitting…"
+      "submitting": "Submitting…",
+      "typeColumn": "Type",
+      "typeFor": "Type for {name}",
+      "occasionLabel": "What was the occasion, and who was it for?",
+      "occasionPlaceholder": "E.g. board meeting, six board members",
+      "occasionError": "Answer this before you submit",
+      "submitHintTypes": "Choose a type for every receipt",
+      "submitHintOccasion": "Fill in the occasion and who it was for",
+      "eventLabel": "Event",
+      "eventQuestion": "Was this for {event}?",
+      "eventYes": "Yes",
+      "eventNo": "No",
+      "removeEvent": "Remove the event {event}"
     },
     "preview": {
       "title": "Receipt details",
@@ -129,14 +141,7 @@
       "amount": "Amount (NOK)",
       "amountEstimated": "Amount (NOK, estimated)",
       "originalAmount": "Original ({currency})",
-      "costType": "Cost type",
-      "costTypePlaceholder": "Select cost type"
-    },
-    "costTypes": {
-      "travel": "Travel",
-      "social": "Social event",
-      "academic": "Academic event",
-      "other": "Other"
+      "costType": "Cost type"
     },
     "wallet": {
       "title": "Receipts",
@@ -186,6 +191,15 @@
       "useOwn": "Use “{text}”",
       "aiPicked": "Picked by AI",
       "ownQuoted": "“{text}”"
+    },
+    "receiptNotices": {
+      "not_a_receipt": "Looks like an order confirmation, not a receipt",
+      "no_items": "No items on the receipt",
+      "unreadable": "Hard to read. A clearer photo helps",
+      "missing_seller": "No seller on the receipt",
+      "missing_date": "No date on the receipt",
+      "missing_total": "No total on the receipt",
+      "possible_duplicate": "Looks like a receipt already submitted"
     }
   }
 }

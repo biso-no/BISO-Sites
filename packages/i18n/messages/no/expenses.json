@@ -109,7 +109,19 @@
       "saveDraft": "Lagre utkast",
       "saving": "Lagrer …",
       "submit": "Send inn utlegget",
-      "submitting": "Sender inn …"
+      "submitting": "Sender inn …",
+      "typeColumn": "Type",
+      "typeFor": "Type for {name}",
+      "occasionLabel": "Hva var anledningen, og hvem var det for?",
+      "occasionPlaceholder": "F.eks. styremøte, seks styremedlemmer",
+      "occasionError": "Svar på dette før du sender inn",
+      "submitHintTypes": "Velg type for alle kvitteringene",
+      "submitHintOccasion": "Fyll inn anledningen og hvem det var for",
+      "eventLabel": "Arrangement",
+      "eventQuestion": "Var dette til {event}?",
+      "eventYes": "Ja",
+      "eventNo": "Nei",
+      "removeEvent": "Fjern arrangementet {event}"
     },
     "preview": {
       "title": "Kvitteringsdetaljer",
@@ -129,14 +141,7 @@
       "amount": "Beløp (NOK)",
       "amountEstimated": "Beløp (NOK, anslått)",
       "originalAmount": "Opprinnelig beløp ({currency})",
-      "costType": "Kostnadstype",
-      "costTypePlaceholder": "Velg kostnadstype"
-    },
-    "costTypes": {
-      "travel": "Reise",
-      "social": "Sosialt arrangement",
-      "academic": "Faglig arrangement",
-      "other": "Annet"
+      "costType": "Kostnadstype"
     },
     "wallet": {
       "title": "Kvitteringer",
@@ -186,6 +191,15 @@
       "useOwn": "Bruk «{text}»",
       "aiPicked": "Valgt av AI",
       "ownQuoted": "«{text}»"
+    },
+    "receiptNotices": {
+      "not_a_receipt": "Ser ut som en ordrebekreftelse, ikke en kvittering",
+      "no_items": "Kvitteringen viser ingen varer",
+      "unreadable": "Vanskelig å lese. Et tydeligere bilde hjelper",
+      "missing_seller": "Kvitteringen mangler selger",
+      "missing_date": "Kvitteringen mangler dato",
+      "missing_total": "Kvitteringen mangler totalbeløp",
+      "possible_duplicate": "Ser ut som en kvittering som allerede er sendt inn"
     }
   }
 }

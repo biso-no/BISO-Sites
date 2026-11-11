@@ -25,6 +25,7 @@ import { v4 as uuid } from "uuid";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
 import { DepartmentCombobox } from "./department-combobox";
+import { EVENT_NAME_MAX, EventMatch, useNearbyEvent } from "./event-match";
 import { ExpenseReport } from "./expense-report";
 import {
   fieldLabelClass,
@@ -378,6 +379,10 @@ export function ExpenseSplitView({
   const [lastSummarizedReceipts, setLastSummarizedReceipts] =
     useState<string>("");
   const skipNextSummaryRef = useRef(Boolean(initialDraft));
+  const nearbyEvent = useNearbyEvent(
+    store.selectedDepartmentId,
+    store.receipts
+  );
 
   const handleAssign = useCallback(
     (campusId: string, departmentId: string) => {
@@ -947,6 +952,7 @@ export function ExpenseSplitView({
                 receipt={
                   store.receipts.find((r) => r.id === store.selectedReceiptId)!
                 }
+                typeOptions={store.typeOptions}
               />
             )}
           </div>
@@ -954,14 +960,31 @@ export function ExpenseSplitView({
           <ExpenseReport
             campuses={store.campuses}
             description={store.description}
+            eventMatch={
+              <EventMatch
+                eventName={store.eventName}
+                onAccept={(event) =>
+                  store.setEvent(event.id, event.title.slice(0, EVENT_NAME_MAX))
+                }
+                onDismiss={nearbyEvent.dismiss}
+                onRemove={() => store.setEvent(null, "")}
+                suggestion={nearbyEvent.suggestion}
+              />
+            }
             isGeneratingSummary={store.isGeneratingSummary}
             isSavingDraft={store.phase === "saving"}
             isSubmitting={store.phase === "submitting"}
+            occasion={store.occasion}
+            occasionError={store.occasionError}
             onAssign={handleAssign}
             onDescriptionChange={store.setDescription}
             onInsert={(afterId, receipt) =>
               store.insertReceiptAfter(afterId, receipt)
             }
+            onOccasionChange={(occasion) => {
+              store.setOccasion(occasion);
+              store.setOccasionTouched(true);
+            }}
             onProfileUpdate={store.setProfile}
             onSaveDraft={handleSaveDraft}
             onSelect={store.setSelectedReceiptId}
@@ -976,6 +999,7 @@ export function ExpenseSplitView({
             selectedId={store.selectedReceiptId}
             submitterIsFinancialManager={store.submitterIsFinancialManager}
             totalAmount={store.totalAmount()}
+            typeOptions={store.typeOptions}
             userProfile={store.profile}
           />
         )}

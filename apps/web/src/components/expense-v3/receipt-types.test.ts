@@ -4,9 +4,13 @@ import {
   attachmentTypeFields,
   missingTypes,
   occasionRequired,
+  receiptNotices,
   submitErrorKind,
+  submitGaps,
+  typeChoice,
   typeFromAttachment,
   typeFromOcr,
+  visibleTypeState,
 } from "./receipt-types";
 import type { Receipt } from "./store";
 import type { ExpenseTypeOption } from "./types";
@@ -174,5 +178,85 @@ describe("receipt type state", () => {
       "other"
     );
     expect(submitErrorKind(new Error("Occasion is required"))).toBe("other");
+  });
+});
+
+describe("receipt type display", () => {
+  it("warns about a missing type only on a receipt that needs one", () => {
+    expect(visibleTypeState(receipt({ typeState: "needs_choice" }))).toBe(
+      "needs_choice"
+    );
+    expect(visibleTypeState(receipt({ typeState: undefined }))).toBe(
+      "needs_choice"
+    );
+    // A reopened draft's bank statement: amount 0, no link, no document type.
+    expect(
+      visibleTypeState(receipt({ amount: 0, typeState: "needs_choice" }))
+    ).toBeUndefined();
+    expect(
+      visibleTypeState(receipt({ costType: "travel", typeState: "ai" }))
+    ).toBe("ai");
+    expect(
+      visibleTypeState(receipt({ costTypeText: "Taxi", typeState: "chosen" }))
+    ).toBe("chosen");
+  });
+
+  it("turns a picker choice into receipt fields", () => {
+    expect(typeChoice({ costType: "travel" })).toEqual({
+      costType: "travel",
+      costTypeText: undefined,
+      typeState: "chosen",
+    });
+    expect(typeChoice({ costTypeText: "Taxi to venue" })).toEqual({
+      costType: undefined,
+      costTypeText: "Taxi to venue",
+      typeState: "chosen",
+    });
+  });
+
+  it("lists receipt-check and duplicate notices for a receipt", () => {
+    expect(
+      receiptNotices(
+        receipt({
+          possibleDuplicate: true,
+          receiptIssues: ["not_a_receipt", "missing_date"],
+        })
+      )
+    ).toEqual(["not_a_receipt", "missing_date", "possible_duplicate"]);
+    expect(receiptNotices(receipt())).toEqual([]);
+  });
+
+  it("shows no receipt notices on a bank statement", () => {
+    expect(
+      receiptNotices(
+        receipt({
+          documentType: "bank-statement",
+          possibleDuplicate: true,
+          receiptIssues: ["not_a_receipt"],
+        })
+      )
+    ).toEqual([]);
+    expect(
+      receiptNotices(receipt({ parentId: "r0", receiptIssues: ["no_items"] }))
+    ).toEqual([]);
+  });
+});
+
+describe("submitGaps", () => {
+  it("names a missing type and a blank occasion", () => {
+    expect(
+      submitGaps(
+        [receipt(), receipt({ id: "r2", costType: "social" })],
+        options,
+        " "
+      )
+    ).toEqual({ occasionMissing: true, typesMissing: true });
+    expect(
+      submitGaps([receipt({ costType: "social" })], options, "Board meeting")
+    ).toEqual({ occasionMissing: false, typesMissing: false });
+    expect(submitGaps([receipt({ costType: "travel" })], options, "")).toEqual({
+      occasionMissing: false,
+      typesMissing: false,
+    });
   });
 });

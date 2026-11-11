@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { v4 as uuid } from "uuid";
@@ -32,6 +32,7 @@ import { Pill } from "@/components/ui/pill";
 import { uploadExpenseAttachment } from "@/lib/actions/expense";
 import { apiClient } from "@/lib/api-client";
 import { DepartmentCombobox } from "./department-combobox";
+import { ExpenseTypeCombobox } from "./expense-type-combobox";
 import {
   fieldClass,
   fieldLabelClass,
@@ -43,7 +44,17 @@ import {
   selectTriggerClass,
 } from "./form-styles";
 import { ProfileCompletionBanner } from "./profile-completion-banner";
+import { ReceiptNotices } from "./receipt-notices";
+import {
+  isTypeMissing,
+  needsType,
+  occasionRequired,
+  submitGaps,
+  typeChoice,
+  visibleTypeState,
+} from "./receipt-types";
 import type { Receipt } from "./store";
+import type { ExpenseTypeOption } from "./types";
 
 type UploadState = { id: string; phase: "uploading" | "analyzing" } | null;
 type UploadPhase = NonNullable<UploadState>["phase"];
@@ -53,6 +64,80 @@ const OSLO_CAMPUS_ID = "1";
 // Ledelsen Oslo: the leadership unit has no separate financial manager — the
 // campus controller approves directly — so the toggle is irrelevant there.
 const LEDELSEN_OSLO_DEPARTMENT_ID = "2";
+/** The `occasion` column's size on the expense. */
+const OCCASION_MAX_LENGTH = 1000;
+
+type TypeSlot = "column" | "inline";
+const TYPE_SLOTS: TypeSlot[] = ["inline", "column"];
+
+/** A receipt's row, so a blocked submit can bring it into view. */
+function receiptRowId(receiptId: string): string {
+  return `expense-receipt-${receiptId}`;
+}
+
+/** The row has two pickers (column on wide screens, under the vendor else). */
+function typeTriggerId(receiptId: string, slot: TypeSlot): string {
+  return `expense-receipt-${receiptId}-type-${slot}`;
+}
+
+/**
+ * The row opens its receipt on click, but not for a click in its type picker:
+ * neither on the trigger nor in the list, which opens in a portal that React
+ * still bubbles through the row.
+ */
+function opensReceipt(event: React.MouseEvent<HTMLElement>): boolean {
+  const { currentTarget, target } = event;
+  if (!(target instanceof Element && currentTarget.contains(target))) {
+    return false;
+  }
+  // `data-row-control` marks a control whose clicks are its own.
+  return target.closest("[data-row-control]") === null;
+}
+
+interface RowTypeControlProps {
+  name: string;
+  onUpdate: (id: string, updates: Partial<Receipt>) => void;
+  receipt: Receipt;
+  slot: TypeSlot;
+  typeOptions: ExpenseTypeOption[];
+}
+
+function RowTypeControl({
+  name,
+  onUpdate,
+  receipt,
+  slot,
+  typeOptions,
+}: RowTypeControlProps) {
+  const t = useTranslations("expenses");
+  const locale = useLocale();
+
+  if (!needsType(receipt)) {
+    return null;
+  }
+
+  return (
+    <div
+      className={slot === "inline" ? "mt-1.5 xl:hidden" : undefined}
+      data-row-control=""
+    >
+      <ExpenseTypeCombobox
+        ariaLabel={t("composer.report.typeFor", { name })}
+        compact
+        disabled={receipt.status !== "ready"}
+        id={typeTriggerId(receipt.id, slot)}
+        locale={locale}
+        onChange={(next) => onUpdate(receipt.id, typeChoice(next))}
+        options={typeOptions}
+        state={visibleTypeState(receipt)}
+        value={{
+          costType: receipt.costType,
+          costTypeText: receipt.costTypeText,
+        }}
+      />
+    </div>
+  );
+}
 
 interface ReceiptRowProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -61,10 +146,11 @@ interface ReceiptRowProps {
   receipt: Receipt;
   selectedId: string | null;
   setUploadState: (state: UploadState) => void;
+  typeOptions: ExpenseTypeOption[];
   uploadState: UploadState;
 }
 
-function ReceiptRow({
+export function ReceiptRow({
   receipt,
   selectedId,
   onSelect,
@@ -72,12 +158,15 @@ function ReceiptRow({
   uploadState,
   setUploadState,
   fileInputRef,
+  typeOptions,
 }: ReceiptRowProps) {
   const t = useTranslations("expenses");
   const isForeign = receipt.currency && receipt.currency !== "NOK";
   const isAnalyzing =
     uploadState?.id === receipt.id && uploadState.phase === "analyzing";
   const isReady = receipt.status === "ready";
+  const name =
+    receipt.vendor || receipt.description || t("composer.report.processing");
 
   return (
     <motion.tr
@@ -86,23 +175,28 @@ function ReceiptRow({
         "group cursor-pointer transition-colors hover:bg-ink-muted/8",
         selectedId === receipt.id && "bg-action/10"
       )}
+      id={receiptRowId(receipt.id)}
       initial={{ opacity: 0 }}
       key={receipt.id}
       layout
-      onClick={() => onSelect(receipt.id)}
+      onClick={(event) => {
+        if (opensReceipt(event)) {
+          onSelect(receipt.id);
+        }
+      }}
     >
-      <td className="p-0" colSpan={3}>
+      <td className="p-0" colSpan={4}>
         <div className="flex w-full items-center px-0 py-4">
           <div className="w-full max-w-50 px-4 md:max-w-75 md:px-8">
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <span
                 aria-hidden="true"
                 className={cn(
-                  "size-2 shrink-0 rounded-biso-pill",
+                  "mt-1.5 size-2 shrink-0 rounded-biso-pill",
                   isReady ? "bg-success" : "animate-pulse bg-warning"
                 )}
               />
-              <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 {/* The row is the mouse target; this is its keyboard stop. */}
                 <button
                   className={cn(
@@ -115,9 +209,7 @@ function ReceiptRow({
                   }}
                   type="button"
                 >
-                  {receipt.vendor ||
-                    receipt.description ||
-                    t("composer.report.processing")}
+                  {name}
                   <span className="sr-only">
                     {" "}
                     (
@@ -131,6 +223,14 @@ function ReceiptRow({
                 <div className="type-data block text-ink-muted text-xs md:hidden">
                   {receipt.date || "-"}
                 </div>
+                <RowTypeControl
+                  name={name}
+                  onUpdate={onUpdate}
+                  receipt={receipt}
+                  slot="inline"
+                  typeOptions={typeOptions}
+                />
+                <ReceiptNotices className="mt-1" compact receipt={receipt} />
               </div>
             </div>
             {receipt.status === "analyzing" && (
@@ -141,6 +241,15 @@ function ReceiptRow({
                 <div className="h-full w-full animate-pulse bg-action" />
               </div>
             )}
+          </div>
+          <div className="hidden w-44 shrink-0 px-4 xl:block">
+            <RowTypeControl
+              name={name}
+              onUpdate={onUpdate}
+              receipt={receipt}
+              slot="column"
+              typeOptions={typeOptions}
+            />
           </div>
           <div className="type-data hidden flex-1 px-4 text-ink-muted md:block">
             {receipt.date || "-"}
@@ -307,15 +416,90 @@ function StatementUploadIcon({ phase }: { phase: UploadPhase | null }) {
   return <Upload aria-hidden="true" className="size-3" />;
 }
 
+function OccasionField({
+  error,
+  onChange,
+  required,
+  value,
+}: {
+  error: boolean;
+  onChange: (value: string) => void;
+  required: boolean;
+  value: string;
+}) {
+  const t = useTranslations("expenses");
+  const fieldId = useId();
+  const errorId = useId();
+
+  return (
+    <div className="mt-6">
+      <label className={fieldLabelClass} htmlFor={fieldId}>
+        {t("composer.report.occasionLabel")}
+      </label>
+      <Textarea
+        aria-describedby={error ? errorId : undefined}
+        aria-invalid={error || undefined}
+        className={cn(
+          fieldClass,
+          "mt-2 min-h-[64px] resize-none",
+          error && "border-danger"
+        )}
+        id={fieldId}
+        maxLength={OCCASION_MAX_LENGTH}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={t("composer.report.occasionPlaceholder")}
+        required={required}
+        value={value}
+      />
+      {error && (
+        <p
+          className="type-body-sm mt-2 flex items-center gap-1.5 text-danger"
+          id={errorId}
+        >
+          <AlertTriangle aria-hidden="true" className="size-3.5 shrink-0" />
+          {t("composer.report.occasionError")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Why the submit button won't send yet, in words, next to it. */
+function SubmitHints({ hints, id }: { hints: string[]; id: string }) {
+  if (hints.length === 0) {
+    return null;
+  }
+
+  return (
+    <ul className="type-body-sm mt-3 space-y-1 text-ink md:text-right" id={id}>
+      {hints.map((hint) => (
+        <li className="flex items-start gap-1.5 md:justify-end" key={hint}>
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 size-3.5 shrink-0 text-warning"
+          />
+          <span>{hint}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 interface ExpenseReportProps {
   campuses: Campus[];
   description: string;
+  /** The event suggestion or the chosen event, shown under the questions. */
+  eventMatch?: ReactNode;
   isGeneratingSummary: boolean;
   isSavingDraft: boolean;
   isSubmitting: boolean;
+  occasion: string;
+  /** Set when the API turned a submit away for a missing occasion. */
+  occasionError: boolean;
   onAssign: (campusId: string, departmentId: string) => void;
   onDescriptionChange: (description: string) => void;
   onInsert: (afterId: string, receipt: Receipt) => void;
+  onOccasionChange: (occasion: string) => void;
   onProfileUpdate: (profile: Partial<Users>) => void;
   onSaveDraft: () => void;
   onSelect: (id: string) => void;
@@ -328,7 +512,23 @@ interface ExpenseReportProps {
   selectedId: string | null;
   submitterIsFinancialManager: boolean;
   totalAmount: number;
+  typeOptions: ExpenseTypeOption[];
   userProfile: Partial<Users>;
+}
+
+/** Brings the first receipt without a type into view and onto its picker. */
+function revealFirstMissingType(receipts: Receipt[]) {
+  const first = receipts.find(isTypeMissing);
+  if (!first) {
+    return;
+  }
+  document
+    .getElementById(receiptRowId(first.id))
+    ?.scrollIntoView({ block: "center" });
+  const trigger = TYPE_SLOTS.map((slot) =>
+    document.getElementById(typeTriggerId(first.id, slot))
+  ).find((element) => element && element.getClientRects().length > 0);
+  trigger?.focus({ preventScroll: true });
 }
 
 export function ExpenseReport({
@@ -353,11 +553,17 @@ export function ExpenseReport({
   isGeneratingSummary,
   submitterIsFinancialManager,
   onSubmitterIsFinancialManagerChange,
+  typeOptions,
+  occasion,
+  occasionError,
+  onOccasionChange,
+  eventMatch,
 }: ExpenseReportProps) {
   const t = useTranslations("expenses");
   const locale = useLocale();
   const campusFieldId = useId();
   const departmentFieldId = useId();
+  const submitHintId = useId();
   const today = new Date().toLocaleDateString(locale, {
     year: "numeric",
     month: "long",
@@ -375,6 +581,26 @@ export function ExpenseReport({
       selectedCampusId && selectedDepartmentId && userProfile.bank_account
     ) && !hasReceiptsInProgress;
   const canSubmit = canSaveDraft && receipts.length > 0;
+  const askOccasion = occasionRequired(receipts, typeOptions);
+  // An occasion is sent whenever it has text, and the API may ask for one the
+  // types here don't: the field stays in view in both cases.
+  const showOccasion =
+    askOccasion || occasionError || occasion.trim().length > 0;
+  const gaps = submitGaps(receipts, typeOptions, occasion);
+  const submitHints = [
+    gaps.typesMissing && t("composer.report.submitHintTypes"),
+    gaps.occasionMissing && t("composer.report.submitHintOccasion"),
+  ].filter((hint): hint is string => Boolean(hint));
+
+  // A missing type doesn't disable the button: pressing it takes the student
+  // to the first receipt that still needs one.
+  const handleSubmit = () => {
+    if (gaps.typesMissing) {
+      revealFirstMissingType(receipts);
+      return;
+    }
+    onSubmit();
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadState, setUploadState] = useState<UploadState>(null);
@@ -629,6 +855,17 @@ export function ExpenseReport({
               />
             </div>
 
+            {showOccasion && (
+              <OccasionField
+                error={occasionError}
+                onChange={onOccasionChange}
+                required={askOccasion}
+                value={occasion}
+              />
+            )}
+
+            {eventMatch}
+
             {selectedCampusId === OSLO_CAMPUS_ID &&
               selectedDepartmentId !== LEDELSEN_OSLO_DEPARTMENT_ID && (
                 <div className="mt-4 flex items-start justify-between gap-4 rounded-biso-md border border-edge p-4">
@@ -670,8 +907,17 @@ export function ExpenseReport({
             <table className="type-body-sm w-full text-left">
               <thead className="sticky top-0 z-10 bg-surface-sunken text-ink-muted">
                 <tr>
-                  <th className="type-label px-4 py-3 md:px-8" scope="col">
+                  <th
+                    className="type-label px-4 py-3 md:px-8 xl:w-75"
+                    scope="col"
+                  >
                     {t("composer.report.itemColumn")}
+                  </th>
+                  <th
+                    className="type-label hidden px-4 py-3 xl:table-cell xl:w-44"
+                    scope="col"
+                  >
+                    {t("composer.report.typeColumn")}
                   </th>
                   <th
                     className="type-label hidden px-4 py-3 md:table-cell"
@@ -680,7 +926,7 @@ export function ExpenseReport({
                     {t("detail.date")}
                   </th>
                   <th
-                    className="type-label px-4 py-3 text-right md:px-8"
+                    className="type-label px-4 py-3 text-right md:px-8 xl:w-[150px]"
                     scope="col"
                   >
                     {t("detail.amount")}
@@ -692,7 +938,7 @@ export function ExpenseReport({
                   <tr>
                     <td
                       className="py-12 text-center text-ink-muted"
-                      colSpan={3}
+                      colSpan={4}
                     >
                       {t("composer.report.empty")}
                     </td>
@@ -707,6 +953,7 @@ export function ExpenseReport({
                       receipt={receipt}
                       selectedId={selectedId}
                       setUploadState={setUploadState}
+                      typeOptions={typeOptions}
                       uploadState={uploadState}
                     />
                   ))
@@ -762,12 +1009,20 @@ export function ExpenseReport({
               </button>
               <button
                 aria-busy={isSubmitting}
+                aria-describedby={
+                  submitHints.length > 0 ? submitHintId : undefined
+                }
                 className={cn(
                   primaryActionClass,
                   "w-full md:w-auto md:min-w-50"
                 )}
-                disabled={isSavingDraft || isSubmitting || !canSubmit}
-                onClick={onSubmit}
+                disabled={
+                  isSavingDraft ||
+                  isSubmitting ||
+                  !canSubmit ||
+                  gaps.occasionMissing
+                }
+                onClick={handleSubmit}
                 type="button"
               >
                 {isSubmitting ? (
@@ -789,6 +1044,7 @@ export function ExpenseReport({
                 )}
               </button>
             </div>
+            <SubmitHints hints={submitHints} id={submitHintId} />
           </div>
         </div>
       </div>

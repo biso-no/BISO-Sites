@@ -1,11 +1,7 @@
 import type { Campus, Users } from "@repo/api/types/appwrite";
 import type { ReceiptIssueCode } from "@repo/shared/utils/expense-hints";
 import { create } from "zustand";
-import {
-  missingTypes,
-  occasionRequired,
-  type TypeState,
-} from "./receipt-types";
+import { submitGaps, type TypeState } from "./receipt-types";
 import type { ExpenseTypeOption } from "./types";
 
 type ReceiptStatus =
@@ -223,6 +219,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
 
   isReadyToSubmit: () => {
     const state = get();
+    const gaps = submitGaps(state.receipts, state.typeOptions, state.occasion);
     return (
       state.allReceiptsReady() &&
       state.receipts.length > 0 &&
@@ -230,9 +227,8 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
       state.selectedCampusId !== "" &&
       state.selectedDepartmentId !== "" &&
       state.profile.bank_account !== undefined &&
-      missingTypes(state.receipts).length === 0 &&
-      (!occasionRequired(state.receipts, state.typeOptions) ||
-        state.occasion.trim().length > 0)
+      !gaps.typesMissing &&
+      !gaps.occasionMissing
     );
   },
 
