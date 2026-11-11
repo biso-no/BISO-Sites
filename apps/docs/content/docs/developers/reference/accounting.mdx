@@ -13,6 +13,8 @@ covers:
   - apps/api/src/lib/membership-status-cache.ts
   - apps/api/src/app/api/membership/route.ts
   - apps/api/src/lib/expense-posting.ts
+  - apps/api/src/lib/expense-events.ts
+  - apps/api/src/lib/receipt-date.ts
   - apps/api/src/app/api/expenses/post-pending/route.ts
   - apps/api/src/app/api/expenses/submit/route.ts
   - apps/admin/src/app/(portal)/shop/accounting/**
@@ -108,6 +110,8 @@ It reads its settings from `apps/admin/.env.local`, so it works on whichever App
 
 - **Off:** the api emails the cover sheet and receipts to the student and to accounting, through Appwrite Messaging. Accounting's inbox is the Appwrite user named in `INVOICE_USER_ID`. See [Messaging and wallets](/developers/reference/messaging-and-wallet#appwrite-messaging-email).
 - **On:** the reimbursement goes through an approval chain in Teams and email ([Teams approval bot](/developers/reference/microsoft#teams-approval-bot)). Once approved, scheduled-dispatch's `EXPENSES_POST_PENDING_URL` target posts it to the ledger, with one PDF of the cover sheet and the receipts attached.
+
+**Dates.** Each receipt is booked on its own date, read as a calendar day in Oslo. The transaction has one supplier-debt line per date, all with the same reference and bank account. A receipt with no date, or a date in the future, is booked on the posting day. A receipt in a year that 24SevenOffice has locked moves to the first period of the next open year. The lock flag comes from SOAP `GetFiscalYears`, because the REST `/fiscalperiods` call doesn't have one. If 24SevenOffice still rejects a closed month, the posting moves the earliest date to the next period and tries again, up to 12 times. If either lookup fails, the posting goes ahead without it and relies on that retry. Every move, the booking and any failure are written to `expense_events`, and each receipt's final date is saved in `expense_attachments.booked_date`. A failed history write is only logged and never changes the result of a posting.
 
 **When it fails.** With the flag off and `INVOICE_USER_ID` unset, every submission fails. With it on, a posting that fails, or one that was interrupted, gets the status `failed` and is never posted again by itself, because 24SevenOffice may already have it. Check in 24SevenOffice before you post it by hand.
 

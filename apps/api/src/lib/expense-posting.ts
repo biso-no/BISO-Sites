@@ -12,8 +12,14 @@ import type {
 } from "@repo/api/types/appwrite";
 import { ExpensesStatus } from "@repo/api/types/appwrite";
 import {
+  type DateShift,
   type ExpenseReceiptLine,
+  type FiscalPeriod,
+  type FiscalYearLock,
+  getFiscalYearLocks,
+  listFiscalPeriods,
   postExpenseTransaction,
+  resolveBookingDate,
   uploadDocument,
 } from "@repo/connectors/24sevenoffice";
 import {
@@ -23,7 +29,9 @@ import {
 } from "@repo/shared/utils/expense-cost-types";
 import { PDFDocument } from "pdf-lib";
 import { assertApprovedExpenseChain } from "./expense-approval-chain";
+import { type ExpenseEventInput, recordExpenseEvents } from "./expense-events";
 import { generateExpensePdf } from "./pdf/expense-pdf";
+import { receiptDateInOslo, todayInOslo } from "./receipt-date";
 
 const EXPENSES_BUCKET = "expenses";
 
@@ -80,11 +88,37 @@ async function loadCostTypeOptions(
   }));
 }
 
+interface BookingContext {
+  locks: FiscalYearLock[];
+  periods: FiscalPeriod[];
+  today: string;
+}
+
 function buildReceiptLines(
   attachments: ExpenseAttachments[],
-  options: CostTypeOption[]
-): ExpenseReceiptLine[] {
+  options: CostTypeOption[],
+  booking: BookingContext
+): { lines: ExpenseReceiptLine[]; shifts: DateShift[] } {
   const lines: ExpenseReceiptLine[] = [];
+  const shifts: DateShift[] = [];
+  const bookingDateFor = (att: ExpenseAttachments): string => {
+    const receiptDate = receiptDateInOslo(att.date);
+    const resolved = resolveBookingDate({
+      receiptDate,
+      today: booking.today,
+      locks: booking.locks,
+      periods: booking.periods,
+    });
+    if (resolved.reason !== null) {
+      shifts.push({
+        ref: att.$id,
+        from: receiptDate ?? "",
+        to: resolved.date,
+        reason: resolved.reason,
+      });
+    }
+    return resolved.date;
+  };
   for (const att of attachments) {
     const amount = att.amount ?? 0;
     if (amount <= 0) {
@@ -97,6 +131,8 @@ function buildReceiptLines(
         amount,
         taxCode: att.tax_code ?? 0,
         comment: att.description ?? undefined,
+        ref: att.$id,
+        date: bookingDateFor(att),
       });
       continue;
     }
@@ -112,9 +148,69 @@ function buildReceiptLines(
       amount,
       taxCode: resolved.taxCode,
       comment: att.description ?? undefined,
+      ref: att.$id,
+      date: bookingDateFor(att),
     });
   }
-  return lines;
+  return { lines, shifts };
+}
+
+async function loadFiscalContext(): Promise<{
+  locks: FiscalYearLock[];
+  periods: FiscalPeriod[];
+}> {
+  const [locks, periods] = await Promise.all([
+    getFiscalYearLocks().catch((error: unknown) => {
+      console.warn(
+        "[expense-posting] could not load fiscal year locks; continuing without them",
+        error
+      );
+      return [] as FiscalYearLock[];
+    }),
+    listFiscalPeriods().catch((error: unknown) => {
+      console.warn(
+        "[expense-posting] could not load fiscal periods; continuing without them",
+        error
+      );
+      return [] as FiscalPeriod[];
+    }),
+  ]);
+  return { locks, periods };
+}
+
+function finalBookedDates(
+  lines: ExpenseReceiptLine[],
+  shifts: DateShift[]
+): Map<string, string> {
+  const dates = new Map<string, string>();
+  for (const line of lines) {
+    if (line.ref && line.date) {
+      dates.set(line.ref, line.date);
+    }
+  }
+  // Shifts are in order, so the last one for a ref is where the line landed.
+  for (const shift of shifts) {
+    if (shift.ref) {
+      dates.set(shift.ref, shift.to);
+    }
+  }
+  return dates;
+}
+
+function shiftEvents(expenseId: string, shifts: DateShift[]) {
+  return shifts.map(
+    (shift): ExpenseEventInput => ({
+      expenseId,
+      actorKind: "system",
+      action: "date_shifted",
+      attachmentId: shift.ref,
+      before: shift.from,
+      after: shift.to,
+      note: shift.finagoMessage
+        ? `${shift.reason}: ${shift.finagoMessage}`
+        : shift.reason,
+    })
+  );
 }
 
 async function fetchFileBytes(
@@ -172,6 +268,63 @@ async function mergePdf(
   }
 
   return await merged.save();
+}
+
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+async function recordFailure(
+  db: AdminDb,
+  expenseId: string,
+  error: unknown
+): Promise<void> {
+  await db.updateRow("app", "expense", expenseId, {
+    status: ExpensesStatus.FAILED,
+  });
+  await recordExpenseEvents(db, [
+    {
+      expenseId,
+      actorKind: "system",
+      action: "booking_failed",
+      note: error instanceof Error ? error.message : String(error),
+    },
+  ]);
+}
+
+// Bookkeeping after a successful post. Failures here only log: the money is
+// already posted and the expense is already marked `success`.
+async function recordBooking(
+  db: AdminDb,
+  expenseId: string,
+  booking: {
+    lines: ExpenseReceiptLine[];
+    shifts: DateShift[];
+    transactionId: string;
+  }
+): Promise<void> {
+  try {
+    for (const [ref, bookedDate] of finalBookedDates(
+      booking.lines,
+      booking.shifts
+    )) {
+      await db.updateRow("app", "expense_attachments", ref, {
+        booked_date: bookedDate,
+      });
+    }
+  } catch (error) {
+    console.error(
+      `[expense-posting] could not save booked dates for ${expenseId}:`,
+      error
+    );
+  }
+  await recordExpenseEvents(db, [
+    ...shiftEvents(expenseId, booking.shifts),
+    {
+      expenseId,
+      actorKind: "system",
+      action: "booked",
+      note: booking.transactionId,
+    },
+  ]);
 }
 
 /**
@@ -267,11 +420,20 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     ledger_transaction_id: POSTING_CLAIM_MARKER,
   });
 
+  let transactionId: string;
+  let receipts: ExpenseReceiptLine[];
+  let allShifts: DateShift[];
   try {
     const profile = await db.getRow<Users>("app", "user", expense.userId);
     const options = await loadCostTypeOptions(db);
     const ordered = sortedAttachments(expense.expenseAttachments ?? []);
-    const receipts = buildReceiptLines(ordered, options);
+    const { locks, periods } = await loadFiscalContext();
+    const built = buildReceiptLines(ordered, options, {
+      locks,
+      periods,
+      today: todayInOslo(),
+    });
+    receipts = built.lines;
 
     if (receipts.length === 0) {
       throw new Error("No receipt lines with a positive amount to post");
@@ -313,8 +475,8 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
     const mergedBytes = await mergePdf(new Uint8Array(coverBytes), files);
     const { documentId } = await uploadDocument(mergedBytes, "application/pdf");
 
-    const { transactionId } = await postExpenseTransaction({
-      date: new Date().toISOString().split("T")[0],
+    const posted = await postExpenseTransaction({
+      date: todayInOslo(),
       comment: `Refusjon ${refNumber}`,
       documentId,
       bankAccount: expense.bank_account,
@@ -322,21 +484,29 @@ export async function postApprovedExpense(expenseId: string): Promise<void> {
       receipts,
       campusId: expense.campus,
       departmentDimensionValue: expense.departmentRel?.Id ?? null,
+      periods,
     });
+    allShifts = [...built.shifts, ...posted.shifts];
 
+    // The success write comes first; nothing after it may flip the status.
     await db.updateRow("app", "expense", expenseId, {
-      ledger_transaction_id: transactionId,
+      ledger_transaction_id: posted.transactionId,
       status: ExpensesStatus.SUCCESS,
     });
+    transactionId = posted.transactionId;
   } catch (error) {
     console.error(`[expense-posting] failed for ${expenseId}:`, error);
     // Keep the claim in place (both `posting_lock` and the marker on
     // `ledger_transaction_id`): the transaction may have reached 24SO before the
     // failure, so the row must not be re-posted automatically. A failed row is
     // surfaced for manual review/retry instead.
-    await db.updateRow("app", "expense", expenseId, {
-      status: ExpensesStatus.FAILED,
-    });
+    await recordFailure(db, expenseId, error);
     throw error;
   }
+
+  await recordBooking(db, expenseId, {
+    lines: receipts,
+    shifts: allShifts,
+    transactionId,
+  });
 }
