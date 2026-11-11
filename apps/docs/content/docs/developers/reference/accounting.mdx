@@ -15,6 +15,13 @@ covers:
   - apps/api/src/lib/expense-posting.ts
   - apps/api/src/lib/expense-events.ts
   - apps/api/src/lib/receipt-date.ts
+  - apps/api/src/lib/receipt-scan.ts
+  - apps/api/src/lib/expense-submission.ts
+  - apps/api/src/lib/expense-examples.ts
+  - apps/api/src/lib/expense-types.ts
+  - apps/api/src/lib/expense-duplicates.ts
+  - packages/shared/utils/expense-cost-types.ts
+  - packages/shared/utils/expense-hints.ts
   - apps/api/src/app/api/expenses/post-pending/route.ts
   - apps/api/src/app/api/expenses/submit/route.ts
   - apps/admin/src/app/(portal)/shop/accounting/**
@@ -114,6 +121,35 @@ It reads its settings from `apps/admin/.env.local`, so it works on whichever App
 **Dates.** Each receipt is booked on its own date, read as a calendar day in Oslo. The transaction has one supplier-debt line per date, all with the same reference and bank account. A receipt with no date, or a date in the future, is booked on the posting day. A receipt in a year that 24SevenOffice has locked moves to the first period of the next open year. The lock flag comes from SOAP `GetFiscalYears`, because the REST `/fiscalperiods` call doesn't have one. If 24SevenOffice rejects a closed month and its message names a date, the posting moves every line in the period holding that date to the next period and tries again, up to 12 times. It never moves a line past the current period. A rejection that names no date fails like any other error. If either lookup fails, the posting goes ahead without it and relies on that retry. Every move, the booking and any failure are written to `expense_events`. Each receipt with an amount gets its final date in `expense_attachments.booked_date`. Receipts without an amount are not posted and get no date. A failed history write is only logged and never changes the result of a posting.
 
 **When it fails.** With the flag off and `INVOICE_USER_ID` unset, every submission fails. With it on, a posting that fails, or one that was interrupted, gets the status `failed` and is never posted again by itself, because 24SevenOffice may already have it. Check in 24SevenOffice before you post it by hand. If 24SevenOffice accepted the posting but saving the `success` status failed, the row is never set to `failed` at once. The api retries the save twice, then logs the transaction id and writes a `booked` event that says the status write failed. The row stays in `posting` until the 15-minute stale check marks it `failed`, so look at that event before you post it again.
+
+### Types and AI
+
+**Types.** Each receipt is booked on the account of its expense type. The types live in the `expense_cost_types` table, which a global admin edits in the admin ([Manage expense types](/guide/access-and-settings/expense-types)). While the table is empty, the api uses the starting list in `packages/shared/utils/expense-cost-types.ts` (`STARTING_EXPENSE_COST_TYPES`). The admin's **Last inn startlisten** button copies that list into the table once, and never overwrites a row that exists. `loadAllCostTypes` returns every type, inactive ones included, so an old slug still resolves. `activeCostTypes` is what the AI and a new submission pick from.
+
+**Scans.** A scan is stored in `expense_receipt_scans`, keyed by the SHA-256 of the file (`file_hash`), so the same file is read once whoever uploads it. A row holds the extracted fields, the amount in NOK, the AI's type and the model names. It is kept within 8000 characters by cutting the address and the long text fields. A second save of the same hash is ignored.
+
+**The two AI calls** (`receipt-scan.ts`):
+
+1. `extractReceipt` reads the file with the balanced model and returns the fields: vendor, date, amount, currency, a description, an OCR category and any `receiptIssues`.
+2. `classifyReceipt` is a second, text-only call on the fast model. It gets the active types (slug, English name and the admin's note for the AI), up to 10 examples (below) and the extracted fields, and answers with one slug, a confidence from 0 to 1 and a reason. An unknown slug counts as no answer. It runs only for documents read as receipts, not bank statements. A failed classification gives no type and never fails the scan.
+
+A type is applied without the student asking for it only at a confidence of 0.8 or more (`AI_TYPE_CONFIDENCE_THRESHOLD`). The same number decides whether an account the AI chose is marked unsure.
+
+`POST /api/expenses/ocr` runs both calls, stores the scan, looks for a duplicate and returns `costType`, `costTypeConfidence` and `possibleDuplicate` with the fields. It answers 403 unless both `expenses_module` and `expenses_ocr` are on. The same two flags decide whether submission may scan a file: with the AI off, `enrichSubmission` still reads a stored scan, for the amount and the issues, but ignores its type and makes no new scan.
+
+**What submission decides.** Before a reimbursement is submitted, `enrichSubmission` settles each receipt that has an amount. It reads or makes the scan, so a receipt the OCR route never saw is scanned here, then writes the result on the attachment row (`cost_type`, `account_number`, `tax_code`, `account_source`, `type_source`, the AI's type and confidence, `file_hash`, `ocr_amount`, `receipt_issues`):
+
+- **A client that sends `cost_type_chosen`.** A listed type the student chose stands. Otherwise the student's own words (`cost_type_text`) stand, and the AI picks the account. Otherwise the AI's type is used when it is at 0.8 or more. Otherwise the receipt gets the type `other` and the hint `type_defaulted`.
+- **A legacy client.** The web form today, and app versions 2.2.15 and 2.2.16, send no `cost_type_chosen`. Their choice is only a default, so the AI replaces it when it is at 0.8 or more and names another type, and the reimbursement gets the hint `app_type_replaced`. A web draft's own text is kept as the student's.
+- **The account is a snapshot.** The type's account and tax code are copied onto the attachment when the reimbursement is submitted, and posting uses `account_number` first. A change on the admin page doesn't move a reimbursement already submitted.
+- **The student's own words.** `chooseAccountForText` gives the fast model the cost accounts (4000 to 7999, from `ledger_accounts`), the existing types and the text, and takes one account number. Below 0.8 the reimbursement gets the hint `ai_account_unsure`. With no usable answer, or with the AI off, it gets `account_missing`.
+- **Occasion.** If a receipt's type has `ask_occasion` and the submission has no occasion, the submit route answers 400 with `field: "occasion"` before any account is chosen. A legacy client can't answer that, so it gets the hint `occasion_missing` instead.
+- **Approver hints.** They are stored as JSON in `expense.approver_hints`, within 4000 characters, with `account_missing`, `ai_account_unsure`, `occasion_missing` and `app_type_replaced` kept first when they don't fit. The codes and their parsers are in `packages/shared/utils/expense-hints.ts`. No screen reads them yet. The others are `amount_differs` (more than 1 NOK from the amount read), `old_receipt` (over 90 days old), `possible_duplicate`, `receipt_issue` and `type_defaulted`.
+- **History.** `expense_events` gets `submitted`, then `ai_classified` for each receipt the AI typed and `ai_account_chosen` for each account it chose, with the confidence and reason.
+
+**Duplicates** (`expense-duplicates.ts`). A receipt is a possible duplicate when another reimbursement that isn't a draft or rejected has an attachment with the same `file_hash`. Otherwise it is one with the same amount (within 0.01) on the same calendar day in Oslo. The OCR route and `enrichSubmission` both ask. It only warns, in the upload response and as a hint, and never blocks.
+
+**Examples** (`expense-examples.ts`). After a posting succeeds, `writeBookedExamples` in `expense-posting.ts` writes one row to `expense_type_examples` for each posted receipt that has a `file_hash`: the vendor in a normalised form, the description, the AI's type and confidence, the final type or text, the account and who decided it (`student`, or `approver` or `admin` when the account was changed). It never stores who submitted, a name or the expense id. A failure is logged and doesn't change the posting. `selectExamples` gives the next classification up to 6 examples for the same vendor, then the newest example of each other type, 10 in all, only for types that are still active. Examples from an approver or admin come before the student's own.
 
 ## Roster, plans and departments
 

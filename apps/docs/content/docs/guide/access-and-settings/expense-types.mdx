@@ -1,0 +1,84 @@
+---
+title: Manage expense types
+description: How global admins keep the list of expense types that reimbursements are booked on, load the starting list, add or edit a type, choose its account and Norwegian name, and deactivate a type.
+who: "Global admins (National + Operations Unit)"
+covers:
+  - apps/admin/src/app/**/expenses/settings/**
+---
+
+<BeforeYouStart>
+
+## Before you start
+
+- Only global admins see this page. In the sidebar, open **Utlegg** (Expenses) and choose **Innstillinger** (Settings). The page is headed **Innstillinger for utlegg** (Expense settings), with one tab, **Typer** (Types).
+- Each type books to one ledger account in 24SevenOffice, and the account list comes from the chart of accounts synced from there. Choose **Synkroniser kontoer fra Finago** (Sync accounts from Finago) first if you have added an account in 24SevenOffice that isn't in the list. You see **Synkroniserte {count} kontoer** (Synced {count} accounts), where {count} is the number of accounts, or **Kunne ikke synkronisere kontoer** (Could not sync accounts).
+- Only active accounts from 4000 to 7999 can be chosen.
+</BeforeYouStart>
+
+## Steps
+
+<Steps>
+<Step title="Load the starting list">
+
+When there are no types yet, the page says **Ingen utleggstyper ennå. Last inn startlisten for å komme i gang.** (No expense types yet. Load the starting list to begin.). Choose **Last inn startlisten** (Load the starting list).
+
+You see **Startlisten er lastet inn: {created} lagt til, {skipped} fantes fra før** (Starting list loaded: {created} added, {skipped} already there). Each type of the list comes with an account, a Norwegian name and a note for the AI. A type that already exists is left as it is. The button is shown only while the list is empty, and you only need it once.
+
+</Step>
+<Step title="Add a type">
+
+The last row of the table is empty. Fill it in and choose **Legg til type** (Add type):
+
+- **Navn** (Name): the English name. It is required.
+- **Norsk navn** (Norwegian name): the name to show when the language is Norwegian. Leave it empty and the English name is used.
+- **Konto** (Account): see the next step.
+- **Notat til AI** (Note for the AI): one sentence on what belongs in this type, for example what kind of receipts it is for and what it is not for. The receipt scan reads it when it picks a type.
+- **Spør om anledning og deltakere** (Ask for occasion and attendees): tick it when a receipt of this type needs an occasion with it, such as a social event or a meeting. A newer app version asks the student for the occasion. An older client can't, so the submission goes through and is marked as missing it.
+- **Aktiv** (Active): ticked means students and the AI can use the type.
+- **Rekkefølge** (Order): a number. Types are listed from the lowest.
+
+You see **Lagret** (Saved). If it fails you see **Kunne ikke lagre** (Could not save), and **Velg konto** (Choose account) if you haven't chosen an account. A new type gets a short identifier made from its English name, and it never changes.
+
+</Step>
+<Step title="Pick the account">
+
+Choose the button in **Konto** (Account). A list opens: search by number or name in **Søk på nummer eller navn** (Search by number or name), and choose the account. With no match you see **Fant ingen konto** (No matching account).
+
+The type takes the tax code of the account. When you edit a type and keep its account, its tax code stays as it was. When you change the account, the tax code of the new account is used.
+
+</Step>
+<Step title="Edit a type">
+
+Change the fields in the type's row and choose **Lagre** (Save). You can change the names, the account, the note, the occasion setting, **Aktiv** (Active) and the order. You can't change a type's identifier.
+
+</Step>
+<Step title="Deactivate a type">
+
+Untick **Aktiv** (Active) on the type and choose **Lagre** (Save). The type is no longer offered, and the AI no longer picks it. Receipts already submitted with it keep it. There is no button to delete a type.
+
+</Step>
+</Steps>
+
+<WhatHappensNext>
+
+## What happens next
+
+- When a student uploads a receipt, the AI picks one of the active types for it. It reads the **Notat til AI** (Note for the AI), the English name and what similar receipts were booked as before.
+- At the moment a reimbursement is submitted, the receipt's type and its account are fixed. A changed account applies to reimbursements submitted after you save, not to ones already submitted.
+- When a reimbursement is booked, what it was booked as is kept, without the student's name, and helps the AI with later receipts from the same shop.
+- Every create, change and starting-list load is written to the audit log with your account.
+</WhatHappensNext>
+
+## What the student sees
+
+- A student never sees an account number, only the names of the types.
+- The student form still has one list per receipt, **Kostnadstype** (Cost type), with four choices: **Reise** (Travel), **Sosialt arrangement** (Social event), **Faglig arrangement** (Academic event) and **Annet** (Other). It starts on the choice that fits the scanned receipt's category. The list doesn't yet show the types you manage here, so the occasion setting isn't asked on the web form yet.
+- Until it does, the web form counts as an older client. When the AI is on and it picks a different type at a confidence of 0.8 or more, it replaces the student's choice on the reimbursement. A note that the type was replaced is stored with the reimbursement. No screen shows it yet.
+
+## Common mistakes
+
+- Renaming a type to mean something else. Receipts booked earlier, and what the AI has learned from them, stay under that type. Add a new type and untick **Aktiv** (Active) on the old one.
+- Picking an account without checking its tax code in 24SevenOffice. Receipts of the type are booked with that tax code.
+- Leaving **Notat til AI** (Note for the AI) empty on types that sound alike. The AI then has only the names to go on and picks less sure.
+- Not syncing the accounts after adding one in 24SevenOffice. It won't be in the list.
+- Expecting a changed account to fix a reimbursement that is already submitted. It applies to new submissions only.
