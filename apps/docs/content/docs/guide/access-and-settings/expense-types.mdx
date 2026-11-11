@@ -4,6 +4,8 @@ description: How global admins keep the list of expense types that reimbursement
 who: "Global admins (National + Operations Unit)"
 covers:
   - apps/admin/src/app/**/expenses/settings/**
+  - apps/web/src/components/expense-v3/expense-type-combobox.tsx
+  - apps/web/src/components/expense-v3/receipt-types.ts
 ---
 
 <BeforeYouStart>
@@ -64,6 +66,8 @@ Change the fields in the type's row and choose **Lagre** (Save). You can change 
 
 Untick **Aktiv** (Active) on the type and choose **Lagre** (Save). The type is no longer offered, and the AI no longer picks it. Receipts already submitted with it keep it. There is no button to delete a type.
 
+If you deactivate every type, students have nothing to pick and can only write their own text. The starting list is used only while the table is empty, not when every type in it is inactive.
+
 </Step>
 </Steps>
 
@@ -81,14 +85,14 @@ Untick **Aktiv** (Active) on the type and choose **Lagre** (Save). The type is n
 ## What the student sees
 
 - A student never sees an account number, only the names of the types. In Norwegian they see **Norsk navn** (Norwegian name) when the type has one.
-- On the website, each receipt has a type picker, in the receipt list and in the detail pane (**Kostnadstype**, Cost type). It lists the active types in your order and has a search field, **Søk i typer…** (Search types…). When the AI is on and sure enough, it has picked a type already and the receipt is marked **Valgt av AI** (Picked by AI). Otherwise the receipt says **Velg type** (Choose a type).
-- If nothing in the list fits, the student can write their own text and choose **Bruk «{text}»** (Use "{text}"). Enter keeps what they typed unless it is exactly the name of a type. Arrow keys or hovering pick a suggestion instead. The AI then picks the account for the text.
-- The student can't submit until every receipt that needs a type has one. The button explains why: **Velg type for alle kvitteringene** (Choose a type for every receipt).
-- If a type has **Spør om anledning og deltakere** (Ask for occasion and attendees) ticked, the student is asked **Hva var anledningen, og hvem var det for?** (What was the occasion, and who was it for?), and the AI fills in a suggestion when the receipts make the occasion evident. The student can change it. The submit button says **Fyll inn anledningen og hvem det var for** (Fill in the occasion and who it was for) until it is answered.
+- On the website, each receipt with an amount has a type picker, in the receipt list and in the detail pane (**Kostnadstype**, Cost type). That includes a bank statement uploaded on its own. A bank statement attached to a receipt only backs up that receipt's amount and has no picker. The picker lists the active types in your order and has a search field, **Søk i typer…** (Search types…). When the AI is on and sure enough, it has picked a type already and the type is marked **AI**. A screen reader reads the mark as **Valgt av AI** (Picked by AI). Otherwise the receipt says **Velg type** (Choose a type).
+- If nothing in the list fits, the student can write their own text and choose **Bruk «{text}»** (Use "{text}"). Enter keeps what they typed unless it is exactly the name of a type. Arrow keys or hovering pick a suggestion instead. The AI then picks the account for the text. When the student opens the picker again, the search field starts with their text.
+- The student can't submit until every receipt that needs a type has one. Next to the button it says why: **Velg type for alle kvitteringene** (Choose a type for every receipt). Pressing the button takes them to the first receipt that still needs a type.
+- If a type has **Spør om anledning og deltakere** (Ask for occasion and attendees) ticked, the student is asked **Hva var anledningen, og hvem var det for?** (What was the occasion, and who was it for?), and the AI fills in a suggestion when the receipts make the occasion evident. Under a suggestion it says **Foreslått ut fra kvitteringene. Sjekk og endre om nødvendig.** (Suggested from your receipts. Check it and change it if needed.) until the student changes the text. Next to the submit button it says **Fyll inn anledningen og hvem det var for** (Fill in the occasion and who it was for) until the question is answered. Pressing the button without an answer takes the student to the question, which then says **Svar på dette før du sender inn** (Answer this before you submit).
 - If the department has a published event within seven days of a receipt date, the student is asked **Var dette til {event}?** (Was this for {event}?) and answers **Ja** (Yes) or **Nei** (No).
 - Under a receipt the student may see a notice, for example **Kvitteringen mangler dato** (No date on the receipt), or **Ser ut som en kvittering som allerede er sendt inn** (Looks like a receipt already submitted). They only warn, and don't stop the submission.
-- When every receipt has a type, the website writes the general description for the reimbursement. It never rewrites text the student has edited.
-- A type the student chose or accepted on the website stands. The AI doesn't replace it.
+- When every receipt has a type, the website writes the general description for the reimbursement, once the student has paused for a moment. It never rewrites text the student has edited.
+- A type the student chose or accepted on the website stands. The AI doesn't replace it. If the student reopens a draft after you deactivated a type it used, that receipt says **Velg type** (Choose a type) again: a reimbursement isn't booked on a deactivated type. A receipt with the student's own text keeps it.
 - The app is an older client. Its choice is only a default. When the AI is on and it picks a different type at a confidence of 0.8 or more, it replaces the app's choice, and a note that the type was replaced is stored with it.
 - No screen shows the approver notes yet.
 
