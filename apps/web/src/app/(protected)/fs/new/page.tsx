@@ -40,18 +40,21 @@ export default async function NewExpensePage({
   const ocrEnabled = flags.expenses_ocr;
 
   const { draftId } = (await searchParams) ?? {};
-  const campuses = await getCampuses({
-    includeNational: true,
-    includeDepartments: true, // We need departments for the new selector logic
-  });
-  const typeOptions = await getExpenseTypeOptions().catch((error: unknown) => {
-    console.error(
-      "Failed to load expense types, using the starting list",
-      error
-    );
-    return startingExpenseTypeOptions();
-  });
-  const draftResult = draftId ? await getExpenseById(draftId) : null;
+  // Three independent reads: load them side by side.
+  const [campuses, typeOptions, draftResult] = await Promise.all([
+    getCampuses({
+      includeNational: true,
+      includeDepartments: true, // We need departments for the new selector logic
+    }),
+    getExpenseTypeOptions().catch((error: unknown) => {
+      console.error(
+        "Failed to load expense types, using the starting list",
+        error
+      );
+      return startingExpenseTypeOptions();
+    }),
+    draftId ? getExpenseById(draftId) : null,
+  ]);
   const initialDraft =
     draftResult?.success && draftResult.expense?.status === ExpensesStatus.DRAFT
       ? draftResult.expense

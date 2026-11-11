@@ -159,6 +159,64 @@ describe("ExpenseTypeCombobox", () => {
     expect(trigger.textContent).toContain("aiPicked");
   });
 
+  it("brings the own-text row into view when it steers to it", async () => {
+    const revealed: (string | null)[] = [];
+    const scrollIntoView = vi
+      .spyOn(HTMLElement.prototype, "scrollIntoView")
+      .mockImplementation(function (this: HTMLElement) {
+        revealed.push(this.getAttribute("data-value"));
+      });
+    await setup();
+    await type("trav");
+
+    expect(revealed).toContain("__own-text__");
+    expect(
+      document
+        .querySelector('[cmdk-item][data-value="__own-text__"]')
+        ?.getAttribute("aria-selected")
+    ).toBe("true");
+    scrollIntoView.mockRestore();
+  });
+
+  it("still steers where scrollIntoView is missing", async () => {
+    const original = HTMLElement.prototype.scrollIntoView;
+    // biome-ignore lint/performance/noDelete: removing it is the point here.
+    delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    try {
+      const { calls } = await setup();
+      await type("taxi");
+      await press("Enter");
+      expect(calls).toEqual([{ costTypeText: "taxi" }]);
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("starts the search from the receipt's own text when reopened", async () => {
+    const { calls } = await setup(OPTIONS, {
+      value: { costTypeText: "Taxi to venue" },
+    });
+
+    const input = document.querySelector("[cmdk-input]") as HTMLInputElement;
+    expect(input.value).toBe("Taxi to venue");
+    await press("Enter");
+    expect(calls).toEqual([{ costTypeText: "Taxi to venue" }]);
+  });
+
+  it("opens with an empty search on a listed type", async () => {
+    await setup(OPTIONS, { value: { costType: "travel" } });
+
+    const input = document.querySelector("[cmdk-input]") as HTMLInputElement;
+    expect(input.value).toBe("");
+  });
+
+  it("uses a 16px search field on phones so iOS doesn't zoom", async () => {
+    await setup();
+    const input = document.querySelector("[cmdk-input]") as HTMLInputElement;
+    expect(input.className).toContain("text-base");
+    expect(input.className).toContain("md:text-sm");
+  });
+
   it("flags a missing choice", async () => {
     const { trigger } = await setup(OPTIONS, { state: "needs_choice" }, false);
     expect(trigger.getAttribute("aria-invalid")).toBe("true");

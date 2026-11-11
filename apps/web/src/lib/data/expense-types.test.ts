@@ -48,6 +48,18 @@ describe("getExpenseTypeOptions", () => {
     ]);
   });
 
+  it("counts a row without an active value as active, as the api does", async () => {
+    db.listRows.mockResolvedValue({
+      rows: [
+        row({ slug: "unset", label: "Unset", active: null }),
+        row({ slug: "off", label: "Off", active: false }),
+      ],
+    });
+    expect(
+      (await getExpenseTypeOptions()).map((option) => option.slug)
+    ).toEqual(["unset"]);
+  });
+
   it("never includes account numbers", async () => {
     db.listRows.mockResolvedValue({ rows: [row({})] });
     const [option] = await getExpenseTypeOptions();

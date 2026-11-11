@@ -29,10 +29,10 @@ export function ReceiptNotices({
   return (
     <ul
       className={cn(
-        "type-body-sm space-y-1 text-ink",
+        "space-y-1 text-ink",
         compact
           ? "text-xs"
-          : "rounded-biso-md border border-warning/30 bg-warning/10 p-4",
+          : "type-body-sm rounded-biso-md border border-warning/30 bg-warning/10 p-4",
         className
       )}
     >

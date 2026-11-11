@@ -35,6 +35,20 @@ const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
 /** The API caps a type text at this length. */
 const MAX_TEXT_LENGTH = 120;
 
+/**
+ * cmdk scrolls the list only for its own key moves, so a row the picker
+ * steers to, such as "Use “…”" under a long list of matches, is brought into
+ * view here. Not every environment has `scrollIntoView`.
+ */
+function revealItem(list: HTMLElement | null, value: string) {
+  const item = [
+    ...(list?.querySelectorAll<HTMLElement>("[cmdk-item]") ?? []),
+  ].find((element) => element.getAttribute("data-value") === value);
+  if (typeof item?.scrollIntoView === "function") {
+    item.scrollIntoView({ block: "nearest" });
+  }
+}
+
 interface ExpenseTypeComboboxProps {
   ariaLabel?: string;
   /** A smaller trigger for the overview row. */
@@ -76,6 +90,7 @@ export function ExpenseTypeCombobox({
   const [highlight, setHighlight] = useState("");
   // Once the student moves through the list, cmdk's own highlight rules apply.
   const navigated = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const { matches, offerOwnText } = useMemo(
     () => filterTypeOptions(query, options, locale),
@@ -111,17 +126,24 @@ export function ExpenseTypeCombobox({
   // cmdk's own value, so this change always reaches it.
   useEffect(() => {
     const target = autoTarget.current;
-    if (!navigated.current && target && highlight !== target) {
+    if (navigated.current || !target) {
+      return;
+    }
+    if (highlight === target) {
+      revealItem(listRef.current, target);
+    } else {
       setHighlight(target);
     }
   });
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
-    navigated.current = false;
-    autoTarget.current = undefined;
-    setQuery("");
-    setHighlight(next ? (value.costType ?? "") : "");
+    // Reopened on the student's own text, the search starts from it, so Enter
+    // keeps it and a small change is a few keys away.
+    const ownTextSeed =
+      next && !value.costType ? (value.costTypeText?.trim() ?? "") : "";
+    handleQuery(ownTextSeed);
+    setHighlight(next ? (autoTarget.current ?? value.costType ?? "") : "");
   };
 
   const pick = (next: { costType: string } | { costTypeText: string }) => {
@@ -189,9 +211,10 @@ export function ExpenseTypeCombobox({
           shouldFilter={false}
           value={highlight}
         >
+          {/* 16px on phones: iOS zooms into a smaller input on focus. */}
           <CommandInput
             aria-label={t("searchLabel")}
-            className="placeholder:text-ink-muted"
+            className="text-base placeholder:text-ink-muted md:text-sm"
             maxLength={MAX_TEXT_LENGTH}
             onValueChange={handleQuery}
             placeholder={t("search")}
@@ -202,6 +225,7 @@ export function ExpenseTypeCombobox({
             onPointerMoveCapture={() => {
               navigated.current = true;
             }}
+            ref={listRef}
           >
             {matches.length === 0 && !offerOwnText ? (
               <CommandEmpty className="type-body-sm py-6 text-center text-ink-muted">

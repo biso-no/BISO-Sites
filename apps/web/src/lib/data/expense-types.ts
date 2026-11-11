@@ -38,17 +38,20 @@ export async function getExpenseTypeOptions(): Promise<ExpenseTypeOption[]> {
     return startingExpenseTypeOptions();
   }
 
-  return rows
-    .filter((row) => row.active)
-    .sort(
-      (a, b) =>
-        (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
-        a.label.localeCompare(b.label)
-    )
-    .map((row) => ({
-      slug: row.slug,
-      label: row.label,
-      labelNo: row.label_no ?? null,
-      askOccasion: row.ask_occasion ?? false,
-    }));
+  return (
+    rows
+      // As the api reads it: only an explicit false takes a type off the list.
+      .filter((row) => row.active !== false)
+      .sort(
+        (a, b) =>
+          (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+          a.label.localeCompare(b.label)
+      )
+      .map((row) => ({
+        slug: row.slug,
+        label: row.label,
+        labelNo: row.label_no ?? null,
+        askOccasion: row.ask_occasion ?? false,
+      }))
+  );
 }
