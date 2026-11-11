@@ -433,6 +433,12 @@ const SCAN_MODEL = `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`;
  * (`CLASSIFY_TIMEOUT_MS`) comes after this one.
  */
 const EXTRACT_TIMEOUT_MS = 12_000;
+/**
+ * The whole enrichment's budget, from its start. The app gives up on a submit
+ * after 20 s and the calls in flight keep their own caps, so no model call
+ * starts after this much time has passed.
+ */
+export const ENRICHMENT_BUDGET_MS = 14_000;
 /** What the model can read; the OCR route accepts the same types. */
 const SCANNABLE_TYPES = new Set([
   "image/jpeg",
@@ -619,10 +625,12 @@ async function classifyStored(
 async function findOrScan(
   db: Db,
   job: HashJob,
-  types: CostTypeOption[]
+  types: CostTypeOption[],
+  budgetSpent: () => boolean
 ): Promise<StoredScan | null> {
   const stored = await findScan(db, job.fileHash);
-  if (!job.mimeType) {
+  // A model call that would start after the budget is left out.
+  if (!job.mimeType || budgetSpent()) {
     return stored;
   }
   if (!stored) {
@@ -651,7 +659,11 @@ async function findOrScan(
 async function readReceipts(
   admin: Pick<AdminClient, "db" | "storage">,
   attachments: SubmittedAttachment[],
-  context: { aiEnabled: boolean; types: CostTypeOption[] }
+  context: {
+    aiEnabled: boolean;
+    budgetSpent: () => boolean;
+    types: CostTypeOption[];
+  }
 ): Promise<Map<string, ReceiptRead>> {
   const fileIds = [
     ...new Set(
@@ -689,7 +701,10 @@ async function readReceipts(
   }
   const scans = new Map<string, StoredScan | null>();
   await mapLimit([...jobs.values()], MAX_PARALLEL_FILES, async (job) => {
-    scans.set(job.fileHash, await findOrScan(admin.db, job, context.types));
+    scans.set(
+      job.fileHash,
+      await findOrScan(admin.db, job, context.types, context.budgetSpent)
+    );
   });
 
   const reads = new Map<string, ReceiptRead>();
@@ -736,7 +751,8 @@ function withHint(
 async function chooseFreeformAccounts(
   db: Db,
   receipts: EnrichedReceipt[],
-  types: CostTypeOption[]
+  types: CostTypeOption[],
+  budgetSpent: () => boolean
 ): Promise<EnrichedReceipt[]> {
   if (!receipts.some((receipt) => receipt.decision.needsAiAccount)) {
     return receipts;
@@ -751,12 +767,14 @@ async function chooseFreeformAccounts(
       if (!(decision.needsAiAccount && decision.costTypeText)) {
         return receipt;
       }
-      const choice = await chooseAccountForText({
-        accounts,
-        receipt: scan?.receipt ?? null,
-        text: decision.costTypeText,
-        types,
-      });
+      const choice = budgetSpent()
+        ? null
+        : await chooseAccountForText({
+            accounts,
+            receipt: scan?.receipt ?? null,
+            text: decision.costTypeText,
+            types,
+          });
       if (!choice) {
         return {
           ...receipt,
@@ -898,10 +916,13 @@ function historyEvents(
  */
 export async function enrichSubmission(
   admin: Pick<AdminClient, "db" | "storage">,
-  expense: Pick<Expenses, "$id" | "expenseAttachments">,
+  expense: Pick<Expenses, "$id" | "expenseAttachments" | "occasion">,
   payload: ExpensePayload,
-  profileName: string
+  profileName: string,
+  now: () => number = Date.now
 ): Promise<void> {
+  const deadline = now() + ENRICHMENT_BUDGET_MS;
+  const budgetSpent = () => now() >= deadline;
   const { db } = admin;
   const flags = await getFeatureFlagStates();
   const aiEnabled = flags.expenses_module && flags.expenses_ocr;
@@ -911,7 +932,11 @@ export async function enrichSubmission(
   const chosen = chosenByFile(payload);
   const attachments = expense.expenseAttachments ?? [];
 
-  const reads = await readReceipts(admin, attachments, { aiEnabled, types });
+  const reads = await readReceipts(admin, attachments, {
+    aiEnabled,
+    budgetSpent,
+    types,
+  });
   const decided = attachments.map((attachment): EnrichedReceipt => {
     const { fileHash, scan } = reads.get(attachment.$id) ?? {
       fileHash: null,
@@ -938,7 +963,10 @@ export async function enrichSubmission(
 
   // Checked before any account is asked of the AI or duplicates are looked
   // up, so a rejected submission costs no more model calls.
-  const occasion = payload.occasion?.trim() || null;
+  // A key the client leaves out keeps the stored value; null clears it.
+  const sentOccasion =
+    payload.occasion === undefined ? expense.occasion : payload.occasion;
+  const occasion = sentOccasion?.trim() || null;
   const asksOccasion = decided.some(
     ({ decision }) => findCostType(decision.costType, allTypes)?.askOccasion
   );
@@ -950,7 +978,12 @@ export async function enrichSubmission(
     expenseHints.push({ code: "occasion_missing" });
   }
 
-  const receipts = await chooseFreeformAccounts(db, decided, types);
+  const receipts = await chooseFreeformAccounts(
+    db,
+    decided,
+    types,
+    budgetSpent
+  );
   const duplicates = await Promise.all(
     receipts.map(
       ({ attachment, fileHash }): Promise<PossibleDuplicate | null> =>

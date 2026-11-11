@@ -60,6 +60,7 @@ import {
   chooseAccountForText,
   computeApproverHints,
   decideAttachment,
+  ENRICHMENT_BUDGET_MS,
   enrichSubmission,
   hintsJson,
   OccasionRequiredError,
@@ -753,6 +754,11 @@ function submission(
   return { expense: expense as never, payload };
 }
 
+/** The saved draft with the occasion it stored. */
+function withOccasion(expense: unknown, occasion: string | null): never {
+  return { ...(expense as Record<string, unknown>), occasion } as never;
+}
+
 const db = { updateRow: vi.fn() };
 const storage = { getFileDownload: vi.fn() };
 const admin = { db, storage } as never;
@@ -1082,6 +1088,111 @@ describe("enrichSubmission", () => {
     await expect(
       enrichSubmission(admin, expense, payload, "Ada Lovelace")
     ).rejects.toBeInstanceOf(OccasionRequiredError);
+  });
+
+  it("keeps the stored occasion when a new client leaves it out", async () => {
+    scanning.findScan.mockResolvedValue(scan("social", 0.4));
+    const { expense, payload } = submission([
+      { cost_type: "meeting-food", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(
+      admin,
+      withOccasion(expense, "Board meeting"),
+      payload,
+      "Ada Lovelace"
+    );
+
+    expect(expenseWrite()).toMatchObject({ occasion: "Board meeting" });
+  });
+
+  it("clears the occasion when a new client sends null", async () => {
+    const { expense, payload } = submission(
+      [{ cost_type: "social", cost_type_chosen: true, url: "file-1" }],
+      { occasion: null }
+    );
+
+    await enrichSubmission(
+      admin,
+      withOccasion(expense, "Board meeting"),
+      payload,
+      "Ada Lovelace"
+    );
+
+    expect(expenseWrite()).toMatchObject({ occasion: null });
+  });
+
+  it("requires the stored occasion's presence for a type that asks", async () => {
+    const { expense, payload } = submission([
+      { cost_type: "meeting-food", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await expect(
+      enrichSubmission(
+        admin,
+        withOccasion(expense, null),
+        payload,
+        "Ada Lovelace"
+      )
+    ).rejects.toBeInstanceOf(OccasionRequiredError);
+    await expect(
+      enrichSubmission(
+        admin,
+        withOccasion(expense, "   "),
+        payload,
+        "Ada Lovelace"
+      )
+    ).rejects.toBeInstanceOf(OccasionRequiredError);
+    expect(db.updateRow).not.toHaveBeenCalled();
+  });
+
+  it("skips fresh scans that would start after the budget", async () => {
+    let clock = 1000;
+    storage.getFileDownload.mockImplementation(
+      (_bucket: string, fileId: string) => {
+        // The downloads count towards the budget.
+        clock += ENRICHMENT_BUDGET_MS;
+        return Promise.resolve(fileBytes(fileId));
+      }
+    );
+    const { expense, payload } = submission([
+      { cost_type: "social", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(
+      admin,
+      expense,
+      payload,
+      "Ada Lovelace",
+      () => clock
+    );
+
+    expect(scanning.findScan).toHaveBeenCalled();
+    expect(scanning.extractReceipt).not.toHaveBeenCalled();
+    expect(scanning.classifyReceipt).not.toHaveBeenCalled();
+    expect(attachmentWrite("att-1")).toMatchObject({ cost_type: "social" });
+  });
+
+  it("skips the account choice that would start after the budget", async () => {
+    let clock = 0;
+    scanning.findScan.mockImplementation(() => {
+      clock = ENRICHMENT_BUDGET_MS;
+      return Promise.resolve(null);
+    });
+    const { expense, payload } = submission([
+      { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-1" },
+    ]);
+
+    await enrichSubmission(
+      admin,
+      expense,
+      payload,
+      "Ada Lovelace",
+      () => clock
+    );
+
+    expect(generateObject).not.toHaveBeenCalled();
+    expect(expenseWrite()?.approver_hints).toContain("account_missing");
   });
 
   it("accepts a legacy app submission without occasion", async () => {

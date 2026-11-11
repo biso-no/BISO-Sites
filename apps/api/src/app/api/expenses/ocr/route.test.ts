@@ -150,6 +150,7 @@ describe("expenses/ocr scan", () => {
     });
     mocks.loadActiveCostTypes.mockResolvedValue([
       { label: "Food", slug: "meeting-food" },
+      { label: "Social", slug: "social" },
     ]);
     mocks.selectExamples.mockResolvedValue([]);
     mocks.classifyReceipt.mockResolvedValue({
@@ -323,13 +324,26 @@ describe("expenses/ocr scan", () => {
     }
     expect(mocks.extractReceipt).not.toHaveBeenCalled();
     expect(mocks.convertAmountToNok).not.toHaveBeenCalled();
-    expect(mocks.loadActiveCostTypes).not.toHaveBeenCalled();
     expect(mocks.classifyReceipt).not.toHaveBeenCalled();
     expect(mocks.createRow).not.toHaveBeenCalled();
     expect(mocks.findPossibleDuplicate).toHaveBeenCalledWith(
       expect.anything(),
       { amount: 99, date: "2026-11-01", fileHash: expect.any(String) }
     );
+  });
+
+  it("ocr reuse drops an inactive stored type", async () => {
+    mocks.findScan.mockResolvedValue({
+      amountInNok: null,
+      classification: { confidence: 0.85, costType: "retired", reason: "x" },
+      exchangeRate: null,
+      receipt,
+    });
+
+    const data = await scanData();
+
+    expect(data).toMatchObject({ costType: null, costTypeConfidence: 0 });
+    expect(mocks.extractReceipt).not.toHaveBeenCalled();
   });
 
   it("reads the file again when the stored scan has no type or is no receipt", async () => {

@@ -18,6 +18,12 @@ const SummarySchema = z.object({
   summary: z
     .string()
     .describe("A concise general description summarizing all the expenses."),
+  occasionSuggestion: z
+    .string()
+    .nullable()
+    .describe(
+      "the occasion and who it was for, only when the receipts make it evident; otherwise null"
+    ),
 });
 
 export async function POST(req: NextRequest) {
@@ -82,7 +88,11 @@ export async function POST(req: NextRequest) {
     });
 
     return applyCorsHeaders(
-      NextResponse.json({ success: true, summary: object.summary }),
+      NextResponse.json({
+        occasionSuggestion: object.occasionSuggestion,
+        success: true,
+        summary: object.summary,
+      }),
       origin
     );
   } catch (error) {

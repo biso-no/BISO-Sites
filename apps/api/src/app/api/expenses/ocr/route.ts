@@ -185,11 +185,29 @@ function isTypedReceipt(scan: StoredScan): boolean {
   );
 }
 
+/**
+ * A stored classification may predate a deactivated type: its slug is only
+ * answered while it is still active.
+ */
+function withActiveType(scan: StoredScan, types: CostTypeOption[]): StoredScan {
+  const slug = scan.classification?.costType;
+  if (!slug || types.some((type) => type.slug === slug)) {
+    return scan;
+  }
+  return {
+    ...scan,
+    classification: scan.classification
+      ? { ...scan.classification, confidence: 0, costType: null }
+      : null,
+  };
+}
+
 async function reuseScan(
   db: AdminDb,
   fileHash: string,
-  scan: StoredScan
+  stored: StoredScan
 ): Promise<UploadScan> {
+  const scan = withActiveType(stored, await activeTypes(db));
   try {
     return {
       possibleDuplicate: await lookupDuplicate(db, fileHash, scan),
