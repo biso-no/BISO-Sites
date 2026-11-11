@@ -50,9 +50,8 @@ export async function loadAllCostTypes(db: Db): Promise<CostTypeOption[]> {
   return rows.map(toOption);
 }
 
-/** Active cost types in display order; the starting list when the table is empty. */
-export async function loadActiveCostTypes(db: Db): Promise<CostTypeOption[]> {
-  const all = await loadAllCostTypes(db);
+/** The active types of an already loaded list, in display order. */
+export function activeCostTypes(all: CostTypeOption[]): CostTypeOption[] {
   return all
     .filter((type) => type.active !== false)
     .sort(
@@ -60,6 +59,11 @@ export async function loadActiveCostTypes(db: Db): Promise<CostTypeOption[]> {
         (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
         a.label.localeCompare(b.label)
     );
+}
+
+/** Active cost types in display order; the starting list when the table is empty. */
+export async function loadActiveCostTypes(db: Db): Promise<CostTypeOption[]> {
+  return activeCostTypes(await loadAllCostTypes(db));
 }
 
 /** Active ledger accounts in the cost range (4000-7999), by number. */

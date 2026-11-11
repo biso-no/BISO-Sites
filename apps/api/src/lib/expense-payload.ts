@@ -171,39 +171,36 @@ export function attachmentFileKey(
 }
 
 /**
- * Keeps the student's stored type when an old app re-saves a draft.
+ * Puts back own type text an old app could not show.
  *
- * Old app versions send a type for every receipt (a default when the student
- * didn't pick one) and know nothing of `cost_type_text`, so a web draft opened
- * in the app would otherwise lose the type chosen on the web. For each
- * incoming legacy attachment whose file the draft already has, the stored
- * `cost_type` and `cost_type_text` win; a client that sends
+ * Old app versions (2.2.15, 2.2.16) load each receipt's stored `cost_type`
+ * and send it back, so the slug they send stands: an unchanged one is the
+ * same choice, a different one is the student's edit. They know nothing of
+ * `cost_type_text`, though, and for a receipt the web stored as own text
+ * (text, no slug) they send their category default instead. For that
+ * receipt the stored text comes back with an empty slug. A client that sends
  * `cost_type_chosen` is taken as sent.
  */
 export function mergeLegacyAttachmentTypes(
   incoming: ExpenseAttachmentInput[],
   existing: readonly StoredAttachmentType[]
 ): ExpenseAttachmentInput[] {
-  const stored = new Map<string, StoredAttachmentType>();
+  const ownText = new Map<string, string>();
   for (const row of existing) {
     const key = attachmentFileKey(row.url);
-    const hasChoice = Boolean(row.cost_type || row.cost_type_text);
-    if (key && hasChoice && !stored.has(key)) {
-      stored.set(key, row);
+    const text = row.cost_type_text?.trim();
+    if (key && text && !row.cost_type && !ownText.has(key)) {
+      ownText.set(key, text);
     }
   }
 
   return incoming.map((attachment) => {
     const key = attachmentFileKey(attachment.url);
-    const row = key ? stored.get(key) : undefined;
-    if (!(row && isLegacyAttachment(attachment))) {
+    const text = key ? ownText.get(key) : undefined;
+    if (!(text && isLegacyAttachment(attachment))) {
       return attachment;
     }
-    return {
-      ...attachment,
-      cost_type: row.cost_type ?? "",
-      cost_type_text: row.cost_type_text ?? undefined,
-    };
+    return { ...attachment, cost_type: "", cost_type_text: text };
   });
 }
 
@@ -217,9 +214,9 @@ export interface StoredDraft {
 /**
  * The payload to save over a stored draft. Old app versions know nothing of
  * the student's own type text, the occasion or the matched event, so when an
- * old app re-saves or submits a draft made on the web, the draft's types (see
- * `mergeLegacyAttachmentTypes`) and, unless the payload sends them, its
- * `occasion` and `event_id` are kept. A client that sends `cost_type_chosen`
+ * old app re-saves or submits a draft made on the web, its own text is put
+ * back (see `mergeLegacyAttachmentTypes`) and, unless the payload sends them,
+ * its `occasion` and `event_id` are kept. A client that sends `cost_type_chosen`
  * clears those two by leaving them out.
  */
 export function mergeLegacyDraft(

@@ -226,35 +226,61 @@ describe("expense payload helpers", () => {
     expect(kept.expenseAttachments?.[0]?.cost_type).toBe("social");
   });
 
-  it("mergeLegacyAttachmentTypes keeps the stored choice for a legacy re-save", () => {
+  it("keeps a legacy app's changed slug", () => {
+    // Old apps load the draft's stored slug and send it back, so a different
+    // slug is the student's edit, and an unchanged one is the same choice.
     const payload = parseExpensePayload({
       ...BASE,
       expenseAttachments: [
-        // An old app re-saves a web draft: it sends its own default slug.
-        { amount: "50", cost_type: "social", url: "file-1" },
         { amount: "20", cost_type: "travel", url: "file-2" },
-        // A new client's choice is never overridden.
-        {
-          amount: "30",
-          cost_type: "travel",
-          cost_type_chosen: true,
-          url: "file-3",
-        },
-        // A receipt the draft did not have keeps what was sent.
+        { amount: "30", cost_type: "social", url: "file-3" },
         { amount: "40", cost_type: "academic", url: "file-4" },
-        // A stored row without any choice leaves the incoming slug alone.
         { amount: "60", cost_type: "travel", url: "file-5" },
       ],
     });
     const merged = mergeLegacyAttachmentTypes(payload!.expenseAttachments!, [
-      { cost_type: "", cost_type_text: "Flowers", url: "file-1" },
       {
         cost_type: "meeting-food",
         cost_type_text: null,
         url: "https://appwrite.biso.no/v1/storage/buckets/expenses/files/file-2/view",
       },
       { cost_type: "social", cost_type_text: null, url: "file-3" },
-      { cost_type: null, cost_type_text: null, url: "file-5" },
+      // Text next to a slug is not own text the app hid: the slug was shown.
+      { cost_type: "social", cost_type_text: "Snacks", url: "file-5" },
+    ]);
+    expect(
+      merged.map(({ cost_type, cost_type_text }) => ({
+        cost_type,
+        cost_type_text,
+      }))
+    ).toEqual([
+      { cost_type: "travel", cost_type_text: undefined },
+      { cost_type: "social", cost_type_text: undefined },
+      { cost_type: "academic", cost_type_text: undefined },
+      { cost_type: "travel", cost_type_text: undefined },
+    ]);
+  });
+
+  it("restores web own text the old app could not show", () => {
+    const payload = parseExpensePayload({
+      ...BASE,
+      expenseAttachments: [
+        // The old app can't show own text and sends its category default.
+        { amount: "50", cost_type: "social", url: "file-1" },
+        { amount: "10", url: "file-2" },
+        // A client that sends cost_type_chosen is taken as sent.
+        {
+          amount: "30",
+          cost_type: "travel",
+          cost_type_chosen: true,
+          url: "file-3",
+        },
+      ],
+    });
+    const merged = mergeLegacyAttachmentTypes(payload!.expenseAttachments!, [
+      { cost_type: "", cost_type_text: "Flowers", url: "file-1" },
+      { cost_type: null, cost_type_text: "Taxi to venue", url: "file-2" },
+      { cost_type: "", cost_type_text: "Gift card", url: "file-3" },
     ]);
     expect(
       merged.map(({ cost_type, cost_type_text }) => ({
@@ -263,9 +289,7 @@ describe("expense payload helpers", () => {
       }))
     ).toEqual([
       { cost_type: "", cost_type_text: "Flowers" },
-      { cost_type: "meeting-food", cost_type_text: undefined },
-      { cost_type: "travel", cost_type_text: undefined },
-      { cost_type: "academic", cost_type_text: undefined },
+      { cost_type: "", cost_type_text: "Taxi to venue" },
       { cost_type: "travel", cost_type_text: undefined },
     ]);
   });

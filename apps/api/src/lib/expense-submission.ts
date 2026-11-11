@@ -25,8 +25,8 @@ import {
   receiptFileId,
 } from "./expense-payload";
 import {
+  activeCostTypes,
   type CostAccountOption,
-  loadActiveCostTypes,
   loadAllCostTypes,
   loadCostAccounts,
 } from "./expense-types";
@@ -382,6 +382,8 @@ const SCANNABLE_TYPES = new Set([
   "image/webp",
   "application/pdf",
 ]);
+/** Files downloaded, and scans looked up or made, at the same time. */
+const MAX_PARALLEL_FILES = 4;
 /** The `expense.approver_hints` column's size. */
 const MAX_HINTS_CHARS = 4000;
 /** Kept first when the hints don't fit: these block or change the booking. */
@@ -419,12 +421,8 @@ interface EnrichedReceipt {
 
 async function downloadReceipt(
   storage: AdminClient["storage"],
-  url: string | null
+  fileId: string
 ): Promise<Buffer | null> {
-  const fileId = receiptFileId(url);
-  if (!fileId) {
-    return null;
-  }
   try {
     const bytes = await storage.getFileDownload(EXPENSES_BUCKET, fileId);
     return Buffer.from(bytes as ArrayBuffer);
@@ -478,37 +476,130 @@ async function scanReceipt(
   }
 }
 
-/**
- * The file's hash and its scan: the stored one (reading it calls no model),
- * or, when the AI is on, a new one for a receipt with an amount. With the AI
- * off a stored scan still gives the amount read and the receipt issues;
- * `decideAttachment` ignores its classification.
- */
-async function readReceipt(
-  admin: Pick<AdminClient, "db" | "storage">,
-  attachment: SubmittedAttachment,
-  context: { aiEnabled: boolean; types: CostTypeOption[] }
-): Promise<{ fileHash: string | null; scan: StoredScan | null }> {
-  const buffer = await downloadReceipt(admin.storage, attachment.url);
-  if (!buffer) {
-    return { fileHash: null, scan: null };
-  }
-  const fileHash = sha256Hex(buffer);
-  const stored = await findScan(admin.db, fileHash);
-  const scannable =
-    context.aiEnabled &&
+/** Runs `run` over `items`, at most `limit` at a time, keeping the order. */
+async function mapLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      // Each worker takes one item at a time; the workers run side by side.
+      results[index] = await run(items[index] as T);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
+  return results;
+}
+
+interface ReceiptRead {
+  fileHash: string | null;
+  scan: StoredScan | null;
+}
+
+interface HashJob {
+  buffer: Buffer;
+  fileHash: string;
+  /** The MIME type to scan the file as, or null when it may not be scanned. */
+  mimeType: string | null;
+}
+
+function canScan(attachment: SubmittedAttachment, aiEnabled: boolean) {
+  return (
+    aiEnabled &&
     (attachment.amount ?? 0) > 0 &&
-    SCANNABLE_TYPES.has(attachment.type);
-  if (stored || !scannable) {
-    return { fileHash, scan: stored };
+    SCANNABLE_TYPES.has(attachment.type)
+  );
+}
+
+/** The stored scan, or a new one when the file may be scanned. */
+async function findOrScan(
+  db: Db,
+  job: HashJob,
+  types: CostTypeOption[]
+): Promise<StoredScan | null> {
+  const stored = await findScan(db, job.fileHash);
+  if (stored || !job.mimeType) {
+    return stored;
   }
-  const scan = await scanReceipt(admin.db, {
-    buffer,
-    fileHash,
-    mimeType: attachment.type,
-    types: context.types,
+  return scanReceipt(db, {
+    buffer: job.buffer,
+    fileHash: job.fileHash,
+    mimeType: job.mimeType,
+    types,
   });
-  return { fileHash, scan };
+}
+
+/**
+ * Each attachment's file hash and scan, by attachment id.
+ *
+ * Each file is downloaded once, and each distinct file (by hash) is looked up
+ * or scanned once, at most `MAX_PARALLEL_FILES` at a time, so the same
+ * receipt uploaded twice costs one scan. Reading a stored scan calls no model,
+ * so it happens with the AI off too: the scan then still gives the amount read
+ * and the receipt issues, and `decideAttachment` ignores its classification.
+ * A new scan needs the AI on and a receipt with an amount.
+ */
+async function readReceipts(
+  admin: Pick<AdminClient, "db" | "storage">,
+  attachments: SubmittedAttachment[],
+  context: { aiEnabled: boolean; types: CostTypeOption[] }
+): Promise<Map<string, ReceiptRead>> {
+  const fileIds = [
+    ...new Set(
+      attachments
+        .map((attachment) => receiptFileId(attachment.url))
+        .filter((fileId): fileId is string => fileId !== null)
+    ),
+  ];
+  const buffers = await mapLimit(fileIds, MAX_PARALLEL_FILES, (fileId) =>
+    downloadReceipt(admin.storage, fileId)
+  );
+  const files = new Map<string, { buffer: Buffer; fileHash: string }>();
+  for (const [index, fileId] of fileIds.entries()) {
+    const buffer = buffers[index];
+    if (buffer) {
+      files.set(fileId, { buffer, fileHash: sha256Hex(buffer) });
+    }
+  }
+
+  const jobs = new Map<string, HashJob>();
+  for (const attachment of attachments) {
+    const file = files.get(receiptFileId(attachment.url) ?? "");
+    if (!file) {
+      continue;
+    }
+    const mimeType = canScan(attachment, context.aiEnabled)
+      ? attachment.type
+      : null;
+    const job = jobs.get(file.fileHash);
+    if (!job) {
+      jobs.set(file.fileHash, { ...file, mimeType });
+    } else if (!job.mimeType) {
+      job.mimeType = mimeType;
+    }
+  }
+  const scans = new Map<string, StoredScan | null>();
+  await mapLimit([...jobs.values()], MAX_PARALLEL_FILES, async (job) => {
+    scans.set(job.fileHash, await findOrScan(admin.db, job, context.types));
+  });
+
+  const reads = new Map<string, ReceiptRead>();
+  for (const attachment of attachments) {
+    const fileHash =
+      files.get(receiptFileId(attachment.url) ?? "")?.fileHash ?? null;
+    reads.set(attachment.$id, {
+      fileHash,
+      scan: fileHash ? (scans.get(fileHash) ?? null) : null,
+    });
+  }
+  return reads;
 }
 
 /**
@@ -594,8 +685,16 @@ async function chooseFreeformAccounts(
   );
 }
 
+/** The amount read in NOK; a foreign amount that wasn't converted is none. */
 function ocrAmount(scan: StoredScan | null): number | null {
-  return scan ? (scan.amountInNok ?? scan.receipt.amount) : null;
+  if (!scan) {
+    return null;
+  }
+  if (scan.amountInNok !== null) {
+    return scan.amountInNok;
+  }
+  const { amount, currency } = scan.receipt;
+  return currency && currency !== "NOK" ? null : amount;
 }
 
 function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
@@ -619,7 +718,7 @@ function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
 }
 
 /** The hints as JSON within the column's size, essential ones kept first. */
-function hintsJson(hints: ApproverHint[]): string {
+export function hintsJson(hints: ApproverHint[]): string {
   const json = JSON.stringify(hints);
   if (json.length <= MAX_HINTS_CHARS) {
     return json;
@@ -638,11 +737,12 @@ function hintsJson(hints: ApproverHint[]): string {
   return JSON.stringify(kept);
 }
 
+function replacedAppType(decision: AttachmentDecision): boolean {
+  return decision.hints.some((hint) => hint.code === "app_type_replaced");
+}
+
 function isAiTyped({ decision }: EnrichedReceipt): boolean {
-  return (
-    decision.typeSource === "ai" ||
-    decision.hints.some((hint) => hint.code === "app_type_replaced")
-  );
+  return decision.typeSource === "ai" || replacedAppType(decision);
 }
 
 function classifiedNote({ decision, scan }: EnrichedReceipt): string {
@@ -662,6 +762,10 @@ function historyEvents(
       actorKind: "ai",
       after: receipt.decision.costType,
       attachmentId: receipt.attachment.$id,
+      // The app's slug the AI replaced.
+      ...(replacedAppType(receipt.decision)
+        ? { before: receipt.attachment.cost_type }
+        : {}),
       expenseId,
       field: "cost_type",
       note: classifiedNote(receipt),
@@ -711,42 +815,52 @@ export async function enrichSubmission(
   const { db } = admin;
   const flags = await getFeatureFlagStates();
   const aiEnabled = flags.expenses_module && flags.expenses_ocr;
-  const [types, allTypes] = await Promise.all([
-    loadActiveCostTypes(db),
-    loadAllCostTypes(db),
-  ]);
+  const allTypes = await loadAllCostTypes(db);
+  const types = activeCostTypes(allTypes);
   const legacy = isLegacyPayload(payload);
   const chosen = chosenByFile(payload);
+  const attachments = expense.expenseAttachments ?? [];
 
-  const decided = await Promise.all(
-    (expense.expenseAttachments ?? []).map(
-      async (attachment): Promise<EnrichedReceipt> => {
-        const { fileHash, scan } = await readReceipt(admin, attachment, {
-          aiEnabled,
-          types,
-        });
-        const amount = attachment.amount ?? 0;
-        const fileKey = attachmentFileKey(attachment.url);
-        const decision = decideAttachment(
-          {
-            amount,
-            attachmentId: attachment.$id,
-            chosen: (fileKey ? chosen.get(fileKey) : undefined) ?? !legacy,
-            clientCostType: attachment.cost_type,
-            clientText: attachment.cost_type_text,
-            date: attachment.date,
-            isSupportingDoc: amount <= 0,
-            scan,
-          },
-          types,
-          aiEnabled
-        );
-        return { accountReason: null, attachment, decision, fileHash, scan };
-      }
-    )
+  const reads = await readReceipts(admin, attachments, { aiEnabled, types });
+  const decided = attachments.map((attachment): EnrichedReceipt => {
+    const { fileHash, scan } = reads.get(attachment.$id) ?? {
+      fileHash: null,
+      scan: null,
+    };
+    const amount = attachment.amount ?? 0;
+    const fileKey = attachmentFileKey(attachment.url);
+    const decision = decideAttachment(
+      {
+        amount,
+        attachmentId: attachment.$id,
+        chosen: (fileKey ? chosen.get(fileKey) : undefined) ?? !legacy,
+        clientCostType: attachment.cost_type,
+        clientText: attachment.cost_type_text,
+        date: attachment.date,
+        isSupportingDoc: amount <= 0,
+        scan,
+      },
+      types,
+      aiEnabled
+    );
+    return { accountReason: null, attachment, decision, fileHash, scan };
+  });
+
+  // Checked before any account is asked of the AI or duplicates are looked
+  // up, so a rejected submission costs no more model calls.
+  const occasion = payload.occasion?.trim() || null;
+  const asksOccasion = decided.some(
+    ({ decision }) => findCostType(decision.costType, allTypes)?.askOccasion
   );
-  const receipts = await chooseFreeformAccounts(db, decided, types);
+  const expenseHints: ApproverHint[] = [];
+  if (asksOccasion && !occasion) {
+    if (!legacy) {
+      throw new OccasionRequiredError();
+    }
+    expenseHints.push({ code: "occasion_missing" });
+  }
 
+  const receipts = await chooseFreeformAccounts(db, decided, types);
   const duplicates = await Promise.all(
     receipts.map(
       ({ attachment, fileHash }): Promise<PossibleDuplicate | null> =>
@@ -760,18 +874,6 @@ export async function enrichSubmission(
           : Promise.resolve(null)
     )
   );
-
-  const occasion = payload.occasion?.trim() || null;
-  const asksOccasion = receipts.some(
-    ({ decision }) => findCostType(decision.costType, allTypes)?.askOccasion
-  );
-  const expenseHints: ApproverHint[] = [];
-  if (asksOccasion && !occasion) {
-    if (!legacy) {
-      throw new OccasionRequiredError();
-    }
-    expenseHints.push({ code: "occasion_missing" });
-  }
 
   await Promise.all(
     receipts.map((receipt) =>

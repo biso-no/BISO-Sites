@@ -19,7 +19,10 @@ const typeStore = vi.hoisted(() => ({
   loadAllCostTypes: vi.fn(),
   loadCostAccounts: vi.fn(),
 }));
-vi.mock("./expense-types", () => typeStore);
+vi.mock("./expense-types", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./expense-types")>()),
+  ...typeStore,
+}));
 
 const scanning = vi.hoisted(() => ({
   classifyReceipt: vi.fn(),
@@ -58,6 +61,7 @@ import {
   computeApproverHints,
   decideAttachment,
   enrichSubmission,
+  hintsJson,
   OccasionRequiredError,
 } from "./expense-submission";
 import {
@@ -540,15 +544,41 @@ describe("chooseAccountForText", () => {
 });
 
 const liveTypes = [
-  { accountNumber: 7310, askOccasion: false, label: "Social", slug: "social" },
+  {
+    accountNumber: 7310,
+    askOccasion: false,
+    label: "Social",
+    slug: "social",
+    sortOrder: 0,
+  },
   {
     accountNumber: 7360,
     askOccasion: true,
     label: "Meeting food",
     slug: "meeting-food",
+    sortOrder: 1,
     taxCode: 0,
   },
-  { accountNumber: 6555, label: "Other", slug: "other", taxCode: 0 },
+  {
+    accountNumber: 6555,
+    label: "Other",
+    slug: "other",
+    sortOrder: 2,
+    taxCode: 0,
+  },
+] as CostTypeOption[];
+
+/** Every type as loaded: the active ones and a retired one. */
+const allTypes = [
+  {
+    accountNumber: 7999,
+    active: false,
+    askOccasion: true,
+    label: "Retired",
+    slug: "retired",
+    sortOrder: 3,
+  },
+  ...liveTypes,
 ] as CostTypeOption[];
 
 function fileBytes(fileId: string): ArrayBuffer {
@@ -643,8 +673,7 @@ describe("enrichSubmission", () => {
       costType: "social",
       reason: "unsure",
     });
-    typeStore.loadActiveCostTypes.mockResolvedValue(liveTypes);
-    typeStore.loadAllCostTypes.mockResolvedValue(liveTypes);
+    typeStore.loadAllCostTypes.mockResolvedValue(allTypes);
     typeStore.loadCostAccounts.mockResolvedValue([
       { accountNumber: 7420, name: "Gifts", taxCode: 5 },
     ]);
@@ -733,6 +762,9 @@ describe("enrichSubmission", () => {
       receipt: extracted,
       types: liveTypes,
     });
+    // The types are loaded once; the AI is offered only the active ones.
+    expect(typeStore.loadAllCostTypes).toHaveBeenCalledTimes(1);
+    expect(typeStore.loadActiveCostTypes).not.toHaveBeenCalled();
     expect(scanning.saveScan).toHaveBeenCalledWith(
       db,
       hashOf("file-1"),
@@ -890,9 +922,13 @@ describe("enrichSubmission", () => {
   });
 
   it("rejects a missing occasion for a type that asks for one", async () => {
+    scanning.findScan.mockResolvedValue(scan("social", 0.4));
     for (const occasion of [undefined, "   "]) {
       const { expense, payload } = submission(
-        [{ cost_type: "meeting-food", cost_type_chosen: true, url: "file-1" }],
+        [
+          { cost_type: "meeting-food", cost_type_chosen: true, url: "file-1" },
+          { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-2" },
+        ],
         { occasion }
       );
 
@@ -900,8 +936,25 @@ describe("enrichSubmission", () => {
         enrichSubmission(admin, expense, payload, "Ada Lovelace")
       ).rejects.toBeInstanceOf(OccasionRequiredError);
     }
+    // Rejected before the AI picks an account or duplicates are looked up.
+    expect(typeStore.loadCostAccounts).not.toHaveBeenCalled();
+    expect(generateObject).not.toHaveBeenCalled();
+    expect(findPossibleDuplicate).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
     expect(recordExpenseEvents).not.toHaveBeenCalled();
+  });
+
+  it("requires the occasion in a mixed payload", async () => {
+    // One receipt carries cost_type_chosen, so the client can ask.
+    const { expense, payload } = submission([
+      { cost_type: "meeting-food", url: "file-1" },
+      { cost_type: "social", cost_type_chosen: true, url: "file-2" },
+    ]);
+
+    await expect(
+      enrichSubmission(admin, expense, payload, "Ada Lovelace")
+    ).rejects.toBeInstanceOf(OccasionRequiredError);
+    expect(db.updateRow).not.toHaveBeenCalled();
   });
 
   it("asks for an occasion when the AI picks a type that needs one", async () => {
@@ -1035,5 +1088,162 @@ describe("enrichSubmission", () => {
     expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
       { attachmentId: "att-1", code: "account_missing" },
     ]);
+  });
+
+  it("scans the same file only once", async () => {
+    scanning.classifyReceipt.mockResolvedValue({
+      confidence: 0.9,
+      costType: "social",
+      reason: "Party",
+    });
+    // The same receipt uploaded twice: two file ids, the same bytes.
+    storage.getFileDownload.mockImplementation(async () =>
+      fileBytes("same receipt")
+    );
+    const { expense, payload } = submission([
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+      { cost_type: "", cost_type_chosen: true, url: "file-2" },
+      { cost_type: "", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(storage.getFileDownload).toHaveBeenCalledTimes(2);
+    expect(scanning.findScan).toHaveBeenCalledTimes(1);
+    expect(scanning.extractReceipt).toHaveBeenCalledTimes(1);
+    expect(scanning.saveScan).toHaveBeenCalledTimes(1);
+    for (const id of ["att-1", "att-2", "att-3"]) {
+      expect(attachmentWrite(id)).toMatchObject({
+        ai_cost_type: "social",
+        cost_type: "social",
+        file_hash: hashOf("same receipt"),
+      });
+    }
+  });
+
+  it("runs at most four downloads and scans at a time", async () => {
+    let running = 0;
+    let most = 0;
+    const track = async <T>(value: T): Promise<T> => {
+      running += 1;
+      most = Math.max(most, running);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      running -= 1;
+      return value;
+    };
+    storage.getFileDownload.mockImplementation(
+      (_bucket: string, fileId: string) => track(fileBytes(fileId))
+    );
+    scanning.extractReceipt.mockImplementation(() => track(receipt()));
+    const { expense, payload } = submission(
+      Array.from({ length: 9 }, (_, index) => ({
+        cost_type: "social",
+        cost_type_chosen: true,
+        url: `file-${index + 1}`,
+      }))
+    );
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(storage.getFileDownload).toHaveBeenCalledTimes(9);
+    expect(scanning.extractReceipt).toHaveBeenCalledTimes(9);
+    expect(most).toBeLessThanOrEqual(4);
+    expect(most).toBeGreaterThan(1);
+  });
+
+  it("stores no NOK amount for a foreign receipt it could not convert", async () => {
+    scanning.findScan.mockResolvedValue(
+      scan("social", 0.9, {
+        amountInNok: null,
+        receipt: receipt({ amount: 40, currency: "EUR" }),
+      })
+    );
+    const { expense, payload } = submission([
+      { cost_type: "social", cost_type_chosen: true, url: "file-1" },
+    ]);
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(attachmentWrite("att-1")?.ocr_amount).toBeNull();
+  });
+
+  it("records the app's slug when the AI replaced it", async () => {
+    scanning.findScan.mockResolvedValue(scan("meeting-food", 0.9));
+    const { expense, payload } = submission(
+      [{ cost_type: "social", url: "file-1" }],
+      { occasion: "Board meeting" }
+    );
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    const events = recordExpenseEvents.mock.calls[0]?.[1];
+    expect(events).toContainEqual({
+      action: "ai_classified",
+      actorKind: "ai",
+      after: "meeting-food",
+      attachmentId: "att-1",
+      before: "social",
+      expenseId: "expense-1",
+      field: "cost_type",
+      note: "Confidence 0.90: r",
+    });
+  });
+
+  it("flags a missing account and carries on when the accounts cannot load", async () => {
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    typeStore.loadCostAccounts.mockRejectedValue(new Error("db down"));
+    const { expense, payload } = submission([
+      { cost_type_chosen: true, cost_type_text: "Flowers", url: "file-1" },
+      { cost_type: "social", cost_type_chosen: true, url: "file-2" },
+    ]);
+
+    await enrichSubmission(admin, expense, payload, "Ada Lovelace");
+
+    expect(generateObject).not.toHaveBeenCalled();
+    expect(attachmentWrite("att-1")).toMatchObject({
+      account_number: null,
+      account_source: null,
+      cost_type_text: "Flowers",
+    });
+    expect(attachmentWrite("att-2")).toMatchObject({ account_number: 7310 });
+    expect(JSON.parse(String(expenseWrite()?.approver_hints))).toEqual([
+      { attachmentId: "att-1", code: "account_missing" },
+    ]);
+    expect(recordExpenseEvents).toHaveBeenCalled();
+    expect(error).toHaveBeenCalled();
+  });
+});
+
+describe("hintsJson", () => {
+  const issue = (index: number) => ({
+    attachmentId: `att-${index}`,
+    code: "receipt_issue" as const,
+    data: { issue: "missing_seller" },
+  });
+
+  it("keeps hints as they are when they fit", () => {
+    const hints = [
+      issue(1),
+      { attachmentId: "att-2", code: "account_missing" as const },
+    ];
+    expect(hintsJson(hints)).toBe(JSON.stringify(hints));
+  });
+
+  it("fits the column and keeps the essential hints first", () => {
+    const many = Array.from({ length: 80 }, (_, index) => issue(index));
+    const essential = [
+      { attachmentId: "att-90", code: "account_missing" as const },
+      { code: "occasion_missing" as const },
+    ];
+    const json = hintsJson([...many, ...essential]);
+    const kept = JSON.parse(json);
+
+    expect(json.length).toBeLessThanOrEqual(4000);
+    expect(kept.slice(0, 2)).toEqual(essential);
+    expect(kept.length).toBeLessThan(many.length + essential.length);
+    // What is kept after the essential ones is the start of the rest, in order.
+    expect(kept.slice(2)).toEqual(many.slice(0, kept.length - 2));
   });
 });

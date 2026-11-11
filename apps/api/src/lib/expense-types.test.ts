@@ -1,6 +1,7 @@
 import { STARTING_EXPENSE_COST_TYPES } from "@repo/shared/utils/expense-cost-types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  activeCostTypes,
   loadActiveCostTypes,
   loadAllCostTypes,
   loadCostAccounts,
@@ -47,6 +48,20 @@ describe("expense types loaders", () => {
     expect(result[0]?.askOccasion).toBe(true);
     expect(result[1]?.labelNo).toBe("Bb");
     expect(result[1]?.sortOrder).toBe(2);
+  });
+
+  it("activeCostTypes filters and sorts an already loaded list the same way", () => {
+    const all = [
+      { accountNumber: 1, label: "B", slug: "b", sortOrder: 1 },
+      { accountNumber: 2, active: false, label: "Z", slug: "z", sortOrder: 0 },
+      { accountNumber: 3, label: "C", slug: "c" },
+      { accountNumber: 4, active: true, label: "A", slug: "a", sortOrder: 1 },
+    ];
+    expect(activeCostTypes(all).map((type) => type.slug)).toEqual([
+      "c",
+      "a",
+      "b",
+    ]);
   });
 
   it("falls back to the starting list when the table is empty", async () => {
