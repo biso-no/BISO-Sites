@@ -65,6 +65,58 @@ describe("buildExpenseTransactionInput", () => {
       buildExpenseTransactionInput({ ...base, receipts: [] })
     ).toThrow(NO_RECEIPTS_ERROR);
   });
+
+  test("dates each debit line with its receipt date and credits 2400 once per date", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7140, amount: 100, date: "2026-08-14" },
+        { accountNumber: 7140, amount: 200, date: "2026-10-02" },
+        { accountNumber: 7140, amount: 50, date: "2026-08-14" },
+      ],
+    });
+    const credits = input.lines.filter((l) => l.amount < 0);
+    expect(credits.map((l) => [l.date, l.amount])).toEqual([
+      ["2026-08-14", -150],
+      ["2026-10-02", -200],
+    ]);
+    expect(
+      credits.every((l) => l.invoice?.bankAccount === "1234.56.78901")
+    ).toBe(true);
+    expect(input.lines.filter((l) => l.amount > 0).map((l) => l.date)).toEqual([
+      "2026-08-14",
+      "2026-10-02",
+      "2026-08-14",
+    ]);
+    expect(input.date).toBe("2026-10-02");
+  });
+
+  test("balances every date group to zero with øre amounts", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [
+        { accountNumber: 7360, amount: 33.33, date: "2026-09-01" },
+        { accountNumber: 7360, amount: 33.33, date: "2026-09-01" },
+        { accountNumber: 7360, amount: 33.34, date: "2026-09-15" },
+      ],
+    });
+    const byDate = new Map<string, number>();
+    for (const line of input.lines) {
+      const key = line.date ?? input.date;
+      byDate.set(key, (byDate.get(key) ?? 0) + Math.round(line.amount * 100));
+    }
+    for (const cents of byDate.values()) {
+      expect(cents).toBe(0);
+    }
+  });
+
+  test("never sends the internal ref to Finago", () => {
+    const input = buildExpenseTransactionInput({
+      ...base,
+      receipts: [{ accountNumber: 7140, amount: 10, ref: "att-1" }],
+    });
+    expect(JSON.stringify(input)).not.toContain("att-1");
+  });
 });
 
 describe("buildShopTransactionInput", () => {

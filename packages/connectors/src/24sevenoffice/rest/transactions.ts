@@ -33,6 +33,10 @@ export interface ExpenseReceiptLine {
   /** Positive gross amount in NOK. */
   amount: number;
   comment?: string;
+  /** Receipt date (YYYY-MM-DD); falls back to the params `date`. */
+  date?: string;
+  /** Our attachment id. Never sent to Finago. */
+  ref?: string;
   /** Tax code number (see GET /taxes); defaults to 0 (no tax). */
   taxCode?: number;
 }
@@ -55,8 +59,9 @@ export interface BuildExpenseTransactionParams {
 
 /**
  * Pure builder for a reimbursement transaction: each receipt is a debit on its
- * cost account, and a single credit to the supplier-debt account carries the
- * recipient bank account for payout. Lines always balance to zero.
+ * cost account, and one credit per distinct receipt date to the supplier-debt
+ * account carries the recipient bank account for payout. Lines balance to zero
+ * per date.
  */
 export function buildExpenseTransactionInput(
   params: BuildExpenseTransactionParams
@@ -75,16 +80,27 @@ export function buildExpenseTransactionInput(
   const debitLines: TransactionLineT[] = params.receipts.map((receipt) => ({
     accountNumber: receipt.accountNumber,
     amount: round2(receipt.amount),
+    date: receipt.date ?? params.date,
     tax: { number: receipt.taxCode ?? 0 },
     comment: receipt.comment?.slice(0, COMMENT_MAX_LENGTH),
     dimensions,
   }));
 
-  const total = round2(debitLines.reduce((sum, line) => sum + line.amount, 0));
+  // Finago balances per date, so sum each date in integer øre and credit it.
+  const centsByDate = new Map<string, number>();
+  for (const line of debitLines) {
+    const key = line.date as string;
+    centsByDate.set(
+      key,
+      (centsByDate.get(key) ?? 0) + Math.round(line.amount * CENTS)
+    );
+  }
+  const dates = [...centsByDate.keys()].sort();
 
-  const creditLine: TransactionLineT = {
+  const creditLines: TransactionLineT[] = dates.map((date) => ({
     accountNumber: params.supplierAccountNumber,
-    amount: -total,
+    amount: -((centsByDate.get(date) ?? 0) / CENTS),
+    date,
     tax: { number: 0 },
     dimensions,
     invoice: {
@@ -92,14 +108,14 @@ export function buildExpenseTransactionInput(
       dueDate: params.dueDate,
       number: params.invoiceNumber,
     },
-  };
+  }));
 
   return {
     transactionTypeNumber: params.transactionTypeNumber,
-    date: params.date,
+    date: dates.at(-1) ?? params.date,
     comment: params.comment?.slice(0, COMMENT_MAX_LENGTH),
     documentId: params.documentId,
-    lines: [...debitLines, creditLine],
+    lines: [...debitLines, ...creditLines],
   };
 }
 
