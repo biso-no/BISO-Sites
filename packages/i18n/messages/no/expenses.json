@@ -177,6 +177,14 @@
         "zip": "0123",
         "city": "Oslo"
       }
+    },
+    "typePicker": {
+      "choose": "Velg type",
+      "search": "Søk i typer…",
+      "searchLabel": "Søk i utgiftstyper",
+      "empty": "Ingen type funnet",
+      "useOwn": "Bruk «{text}»",
+      "aiPicked": "Valgt av AI"
     }
   }
 }
