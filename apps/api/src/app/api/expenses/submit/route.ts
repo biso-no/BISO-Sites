@@ -74,6 +74,8 @@ const SUBMITTED_EXPENSE_COLUMNS = [
   "user.*",
   "userId",
   "eventName",
+  "occasion",
+  "event_id",
   "departmentRel.*",
   "campusRel.*",
   "expenseAttachments.*",

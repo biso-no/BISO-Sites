@@ -435,6 +435,27 @@ describe("expense submit route", () => {
     });
     expect(adminDb.createRow).not.toHaveBeenCalled();
   });
+  it("reads the occasion and event with the expense it enriches", async () => {
+    vi.mocked(isFeatureEnabled)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValueOnce(SAVED_EXPENSE)
+      .mockResolvedValueOnce(SAVED_EXPENSE);
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    // The enrichment read is the second getRow; without these columns a new
+    // client that omits the occasion would lose the stored one.
+    const [, , , select] = sessionDb.getRow.mock.calls[1] ?? [];
+    for (const column of ["occasion", "event_id"]) {
+      expect(select?.[0]).toContain(column);
+    }
+  });
+
   it("calls enrichSubmission before the approval chain", async () => {
     vi.mocked(isFeatureEnabled)
       .mockResolvedValueOnce(true)
