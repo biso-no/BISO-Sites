@@ -22,7 +22,7 @@ export const CAMPUS_COOKIE = "campusId";
  * round-trips into Appwrite.
  */
 export const SESSION_COOKIE =
-  process.env.APPWRITE_SESSION_COOKIE || "a_session_biso_web";
+  process.env.APPWRITE_SESSION_COOKIE || "biso_web_session";
 
 /**
  * The name this app used for its session cookie before 2026-08-13.

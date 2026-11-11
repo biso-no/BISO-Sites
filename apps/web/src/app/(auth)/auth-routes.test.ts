@@ -1,7 +1,7 @@
+import { codeOnly } from "@/test/source";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { codeOnly } from "@/test/source";
 
 const root = process.cwd();
 const AUTH = join(root, "src/app/(auth)");
@@ -45,7 +45,7 @@ describe("the session machinery is untouched", () => {
     expect(source).toContain("SESSION_COOKIE");
     expect(source).toContain("LEGACY_SESSION_COOKIE");
     // The cookie name itself lives in one place and must stay
-    // `a_session_biso_web` — never `a_session_biso`, which is byte-for-byte
+    // `biso_web_session` — never `a_session_biso`, which is byte-for-byte
     // the cookie Appwrite issues for project `biso` and broke admin sign-in
     // with 409 user_already_exists.
     expect(source).not.toContain('"a_session_biso"');
@@ -53,7 +53,7 @@ describe("the session machinery is untouched", () => {
 
   it("keeps the cookie names where they are defined", () => {
     const prefs = read("lib/cookie-prefs.ts");
-    expect(prefs).toContain("a_session_biso_web");
+    expect(prefs).toContain("biso_web_session");
   });
 });
 

@@ -971,7 +971,7 @@ outside `SiteShell`. Keep it that way.
 **Verification**
 1. 3 widths, both locales
 2. All providers work: Microsoft, Google, Facebook, Apple, magic link
-3. **Session cookie is still `a_session_biso_web`** — never `a_session_biso` (`00`/app CLAUDE.md)
+3. **Session cookie is still `biso_web_session`** — never `a_session_biso` (`00`/app CLAUDE.md)
 4. OAuth callback and invite handlers unaffected
 5. Post-login redirect preserved
 
