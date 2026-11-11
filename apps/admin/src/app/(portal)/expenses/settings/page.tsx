@@ -38,7 +38,8 @@ export default async function ExpenseSettingsPage() {
           aiNote: t("aiNote"),
           askOccasion: t("askOccasion"),
           chooseAccount: t("chooseAccount"),
-          loadStarting: t("loadStarting"),
+          // Strings with {placeholders} are filled in by the client.
+          loadMissing: t.raw("loadMissing") as string,
           name: t("name"),
           nameNo: t("nameNo"),
           noAccountFound: t("noAccountFound"),
@@ -47,12 +48,13 @@ export default async function ExpenseSettingsPage() {
           saveError: t("saveError"),
           saved: t("saved"),
           searchAccount: t("searchAccount"),
-          seeded: t("seeded"),
+          seeded: t.raw("seeded") as string,
           sortOrder: t("sortOrder"),
           syncAccounts: t("syncAccounts"),
-          syncDone: t("syncDone"),
+          syncDone: t.raw("syncDone") as string,
           syncError: t("syncError"),
-          syncPartial: t("syncPartial"),
+          syncPartial: t.raw("syncPartial") as string,
+          taxCode: t("taxCode"),
           typesHint: t("typesHint"),
         }}
       />

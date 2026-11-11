@@ -29,6 +29,27 @@ describe("expenseTypeInputSchema", () => {
       expenseTypeInputSchema.safeParse({ ...valid, label: "  " }).success
     ).toBe(false);
   });
+
+  test("holds the names and the note to the column sizes", () => {
+    const accepts = (over: Record<string, unknown>) =>
+      expenseTypeInputSchema.safeParse({ ...valid, ...over }).success;
+    expect(accepts({ label: "x".repeat(80), labelNo: "x".repeat(80) })).toBe(
+      true
+    );
+    expect(accepts({ label: "x".repeat(81) })).toBe(false);
+    expect(accepts({ labelNo: "x".repeat(81) })).toBe(false);
+    expect(accepts({ description: "x".repeat(255) })).toBe(true);
+    expect(accepts({ description: "x".repeat(256) })).toBe(false);
+  });
+
+  test("keeps an explicit tax code, zero included", () => {
+    expect(expenseTypeInputSchema.parse({ ...valid, taxCode: 0 }).taxCode).toBe(
+      0
+    );
+    expect(expenseTypeInputSchema.parse({ ...valid, taxCode: 5 }).taxCode).toBe(
+      5
+    );
+  });
 });
 
 describe("slugFromLabel", () => {

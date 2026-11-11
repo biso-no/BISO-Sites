@@ -85,7 +85,8 @@ async function readAccounts(db: AdminDb): Promise<LedgerAccounts[]> {
 
 export async function getExpenseTypesView(): Promise<{
   accounts: ExpenseAccountOption[];
-  tableEmpty: boolean;
+  /** Starting types whose slug has no row yet; the page offers to add them. */
+  missingStartingCount: number;
   types: ExpenseTypeView[];
 }> {
   await requireExpensesAdmin();
@@ -100,13 +101,16 @@ export async function getExpenseTypesView(): Promise<{
   const names = new Map(
     accounts.map((account) => [account.account_number, account.name])
   );
+  const slugs = new Set(types.rows.map((row) => row.slug));
   return {
     accounts: accounts.map((account) => ({
       accountNumber: account.account_number,
       name: account.name ?? "",
       taxCode: account.tax_code ?? 0,
     })),
-    tableEmpty: types.rows.length === 0,
+    missingStartingCount: STARTING_EXPENSE_COST_TYPES.filter(
+      (seed) => !slugs.has(seed.slug)
+    ).length,
     types: types.rows.map((row) => toView(row, names)),
   };
 }
@@ -138,8 +142,9 @@ export async function saveExpenseType(
       };
     }
 
-    // Editing keeps the stored tax code unless the account changes; a changed
-    // tax code changes how receipts are booked.
+    // A tax code sent with the type is stored as sent. Without one, editing
+    // keeps the stored tax code unless the account changes; a changed tax code
+    // changes how receipts are booked.
     let taxCode = data.taxCode;
     if (taxCode === null && id) {
       const current = await db.getRow<ExpenseCostTypes>("app", TYPES_TABLE, id);

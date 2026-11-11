@@ -30,7 +30,8 @@ export interface ExpenseTypesLabels {
   aiNote: string;
   askOccasion: string;
   chooseAccount: string;
-  loadStarting: string;
+  /** Contains `{count}`. */
+  loadMissing: string;
   name: string;
   nameNo: string;
   noAccountFound: string;
@@ -48,6 +49,7 @@ export interface ExpenseTypesLabels {
   syncError: string;
   /** Contains `{count}` and `{failed}`. */
   syncPartial: string;
+  taxCode: string;
   typesHint: string;
 }
 
@@ -81,6 +83,8 @@ interface Draft {
   label: string;
   labelNo: string;
   sortOrder: string;
+  /** Empty means the server picks it: the stored one, or the account's. */
+  taxCode: string;
 }
 
 function toDraft(type: ExpenseTypeView | null, nextSort: number): Draft {
@@ -92,7 +96,13 @@ function toDraft(type: ExpenseTypeView | null, nextSort: number): Draft {
     label: type?.label ?? "",
     labelNo: type?.labelNo ?? "",
     sortOrder: String(type?.sortOrder ?? nextSort),
+    taxCode: type?.taxCode == null ? "" : String(type.taxCode),
   };
+}
+
+function taxCodeInput(draft: Draft): number | null {
+  const value = draft.taxCode.trim();
+  return value === "" ? null : Number(value);
 }
 
 function AccountPicker({
@@ -191,8 +201,31 @@ function TypeRow({
         <AccountPicker
           accounts={accounts}
           labels={labels}
-          onChange={(accountNumber) => setDraft({ ...draft, accountNumber })}
+          onChange={(accountNumber) => {
+            // Another account brings its tax code; it can be changed after.
+            const account = accounts.find(
+              (option) => option.accountNumber === accountNumber
+            );
+            const changed = accountNumber !== draft.accountNumber;
+            setDraft({
+              ...draft,
+              accountNumber,
+              taxCode:
+                changed && account ? String(account.taxCode) : draft.taxCode,
+            });
+          }}
           value={draft.accountNumber}
+        />
+      </td>
+      <td className="py-2 pr-2 align-top">
+        <input
+          aria-label={labels.taxCode}
+          inputMode="numeric"
+          onChange={(event) =>
+            setDraft({ ...draft, taxCode: event.target.value })
+          }
+          style={{ ...inputStyle, width: 64 }}
+          value={draft.taxCode}
         />
       </td>
       <td className="py-2 pr-2 align-top">
@@ -299,6 +332,7 @@ export function ExpenseTypesClient({
           label: draft.label,
           labelNo: draft.labelNo,
           sortOrder: Number(draft.sortOrder),
+          taxCode: taxCodeInput(draft),
         });
         if ("error" in result) {
           toast.error(labels.saveError);
@@ -353,20 +387,23 @@ export function ExpenseTypesClient({
         {labels.typesHint}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        {view.tableEmpty && (
-          <>
-            <span className="text-[13px]" style={{ color: STUDIO.ink4 }}>
-              {labels.noTypes}
-            </span>
-            <button
-              disabled={pending}
-              onClick={handleSeed}
-              style={buttonStyleFor(true)}
-              type="button"
-            >
-              {labels.loadStarting}
-            </button>
-          </>
+        {view.types.length === 0 && (
+          <span className="text-[13px]" style={{ color: STUDIO.ink4 }}>
+            {labels.noTypes}
+          </span>
+        )}
+        {view.missingStartingCount > 0 && (
+          <button
+            disabled={pending}
+            onClick={handleSeed}
+            style={buttonStyleFor(true)}
+            type="button"
+          >
+            {labels.loadMissing.replace(
+              "{count}",
+              String(view.missingStartingCount)
+            )}
+          </button>
         )}
         <button
           disabled={pending}
@@ -384,6 +421,7 @@ export function ExpenseTypesClient({
               <th className="pb-2 font-normal">{labels.name}</th>
               <th className="pb-2 font-normal">{labels.nameNo}</th>
               <th className="pb-2 font-normal">{labels.account}</th>
+              <th className="pb-2 font-normal">{labels.taxCode}</th>
               <th className="pb-2 font-normal">{labels.aiNote}</th>
               <th className="pb-2 text-center font-normal">
                 {labels.askOccasion}
@@ -397,7 +435,7 @@ export function ExpenseTypesClient({
             {view.types.map((type) => (
               <TypeRow
                 accounts={view.accounts}
-                key={`${type.$id}-${type.accountNumber}-${type.label}-${type.sortOrder}-${type.active}`}
+                key={`${type.$id}-${type.accountNumber}-${type.taxCode}-${type.label}-${type.sortOrder}-${type.active}`}
                 labels={labels}
                 nextSort={nextSort}
                 onSave={handleSave}

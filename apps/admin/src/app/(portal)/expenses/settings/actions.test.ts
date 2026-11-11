@@ -44,7 +44,8 @@ mock.module("../../_actions/audit-log", () => ({
   logAuditEvent: mock(async () => undefined),
 }));
 
-const { saveExpenseType, seedStartingExpenseTypes } = await import("./actions");
+const { getExpenseTypesView, saveExpenseType, seedStartingExpenseTypes } =
+  await import("./actions");
 const { STARTING_EXPENSE_COST_TYPES } = await import(
   "@repo/shared/utils/expense-cost-types"
 );
@@ -189,6 +190,24 @@ describe("saveExpenseType", () => {
     expect(data.tax_code).toBe(1);
   });
 
+  test("stores a tax code sent with the type", async () => {
+    mockLedger(
+      { account_number: 7140, active: true, name: "Reise", tax_code: 3 },
+      row({ account_number: 7140, tax_code: 3 })
+    );
+    await saveExpenseType(null, { ...input, taxCode: 5 });
+    const created = db.createRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(created.tax_code).toBe(5);
+
+    await saveExpenseType("motemat", { ...input, taxCode: 0 });
+    const updated = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(updated.tax_code).toBe(0);
+    // An explicit code needs no look at the stored row.
+    expect(
+      db.getRow.mock.calls.some(([, table]) => table === "expense_cost_types")
+    ).toBe(false);
+  });
+
   test("rejects a campus admin", async () => {
     ctx.roles = ["campusadmin"];
     const result = await saveExpenseType(null, input);
@@ -198,16 +217,63 @@ describe("saveExpenseType", () => {
 });
 
 describe("seedStartingExpenseTypes", () => {
-  test("skips existing slugs", async () => {
+  test("creates only the missing starting types", async () => {
+    // The four types an earlier version of the admin created.
+    const existing = ["travel", "social", "academic", "other"];
     db.listRows.mockResolvedValue({
-      rows: [{ $id: "travel", slug: "travel" }],
-      total: 1,
+      rows: existing.map((slug) => ({ $id: slug, slug })),
+      total: existing.length,
     });
     const result = await seedStartingExpenseTypes();
     const total = STARTING_EXPENSE_COST_TYPES.length;
-    expect(result).toEqual({ data: { created: total - 1, skipped: 1 } });
-    expect(db.createRow).toHaveBeenCalledTimes(total - 1);
+    expect(result).toEqual({
+      data: { created: total - existing.length, skipped: existing.length },
+    });
+    const createdIds = db.createRow.mock.calls.map((call) => call[2]);
+    expect(createdIds).toEqual(
+      STARTING_EXPENSE_COST_TYPES.map((seed) => seed.slug).filter(
+        (slug) => !existing.includes(slug)
+      )
+    );
     expect(db.upsertRow).not.toHaveBeenCalled();
     expect(db.updateRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("getExpenseTypesView", () => {
+  test("counts the starting types that have no row", async () => {
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      Promise.resolve(
+        table === "expense_cost_types"
+          ? {
+              rows: [
+                row({ $id: "travel", slug: "travel" }),
+                row({ $id: "motemat", slug: "motemat" }),
+              ],
+              total: 2,
+            }
+          : { rows: [], total: 0 }
+      )
+    );
+    const view = await getExpenseTypesView();
+    // "motemat" is not a starting slug, so only "travel" is in place.
+    expect(view.missingStartingCount).toBe(
+      STARTING_EXPENSE_COST_TYPES.length - 1
+    );
+    expect(view.types.map((type) => type.slug)).toEqual(["travel", "motemat"]);
+
+    db.listRows.mockImplementation((_d: string, table: string) =>
+      Promise.resolve(
+        table === "expense_cost_types"
+          ? {
+              rows: STARTING_EXPENSE_COST_TYPES.map((seed) =>
+                row({ $id: seed.slug, slug: seed.slug })
+              ),
+              total: STARTING_EXPENSE_COST_TYPES.length,
+            }
+          : { rows: [], total: 0 }
+      )
+    );
+    expect((await getExpenseTypesView()).missingStartingCount).toBe(0);
   });
 });

@@ -6,8 +6,10 @@ import { z } from "zod";
 
 export const EXPENSE_ACCOUNT_MIN = 4000;
 export const EXPENSE_ACCOUNT_MAX = 7999;
-const LABEL_MAX_LENGTH = 120;
-const DESCRIPTION_MAX_LENGTH = 500;
+/** `label` is 80 characters; `label_no` (120) is held to the same. */
+const LABEL_MAX_LENGTH = 80;
+/** The `description` column's size. */
+const DESCRIPTION_MAX_LENGTH = 255;
 /** Appwrite row ids are at most 36 characters; the slug doubles as the id. */
 export const SLUG_MAX_LENGTH = 36;
 const ACCOUNT_MESSAGE = "Choose an expense account (4000–7999)";
