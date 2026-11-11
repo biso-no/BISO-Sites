@@ -44,6 +44,13 @@ vi.mock("@/lib/expense-approval", () => ({
   createApprovalChain: vi.fn(async () => undefined),
 }));
 
+const enrichment = vi.hoisted(() => {
+  class OccasionRequiredError extends Error {}
+  return { enrichSubmission: vi.fn(), OccasionRequiredError };
+});
+
+vi.mock("@/lib/expense-submission", () => enrichment);
+
 vi.mock("@/lib/pdf/expense-pdf", () => ({
   generateExpensePdf: vi.fn(async () => new Uint8Array([1, 2, 3])),
 }));
@@ -56,6 +63,40 @@ vi.mock("@repo/api/file", () => ({
 
 import { createApprovalChain } from "@/lib/expense-approval";
 import { POST } from "./route";
+
+const PROFILE = {
+  $id: "submitter-1",
+  address: "Street 1",
+  bank_account: "1234.56.78901",
+  city: "Oslo",
+  email: "ada@example.com",
+  name: "Ada Lovelace",
+  phone: "12345678",
+  zip: "0001",
+};
+
+const SAVED_EXPENSE = {
+  $id: "expense-1",
+  $sequence: 42,
+  bank_account: "1234.56.78901",
+  campus: "1",
+  campusRel: { name: "Oslo" },
+  department: "dept-1",
+  departmentRel: { Name: "Operations Unit" },
+  description: "Travel",
+  expenseAttachments: [],
+  prepayment_amount: null,
+  status: ExpensesStatus.DRAFT,
+  total: 100,
+  userId: "submitter-1",
+};
+
+const SUBMIT_BODY = {
+  bank_account: "1234.56.78901",
+  campus: "1",
+  department: "dept-1",
+  total: 100,
+};
 
 function submitRequest(body: Record<string, unknown>) {
   return new Request("https://api.example/expenses/submit", {
@@ -78,32 +119,13 @@ describe("expense submit route", () => {
     storage.createFile.mockReset();
 
     account.get.mockResolvedValue({ $id: "submitter-1" });
+    vi.mocked(createApprovalChain).mockClear();
+    enrichment.enrichSubmission.mockReset();
+    enrichment.enrichSubmission.mockResolvedValue(undefined);
+    // The profile, then the saved draft (read before and after enrichment).
     sessionDb.getRow
-      .mockResolvedValueOnce({
-        $id: "submitter-1",
-        address: "Street 1",
-        bank_account: "1234.56.78901",
-        city: "Oslo",
-        email: "ada@example.com",
-        name: "Ada Lovelace",
-        phone: "12345678",
-        zip: "0001",
-      })
-      .mockResolvedValueOnce({
-        $id: "expense-1",
-        $sequence: 42,
-        bank_account: "1234.56.78901",
-        campus: "1",
-        campusRel: { name: "Oslo" },
-        department: "dept-1",
-        departmentRel: { Name: "Operations Unit" },
-        description: "Travel",
-        expenseAttachments: [],
-        prepayment_amount: null,
-        status: ExpensesStatus.DRAFT,
-        total: 100,
-        userId: "submitter-1",
-      });
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValue(SAVED_EXPENSE);
     adminDb.createRow.mockResolvedValue({ $id: "expense-1" });
     adminDb.updateRow.mockResolvedValue({});
     storage.createFile.mockResolvedValue({ $id: "pdf-1" });
@@ -359,5 +381,94 @@ describe("expense submit route", () => {
       missingFields: "phone",
     });
     expect(adminDb.createRow).not.toHaveBeenCalled();
+  });
+  it("calls enrichSubmission before the approval chain", async () => {
+    vi.mocked(isFeatureEnabled)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow
+      .mockResolvedValueOnce(PROFILE)
+      .mockResolvedValueOnce(SAVED_EXPENSE)
+      .mockResolvedValueOnce({ ...SAVED_EXPENSE, description: "Enriched" });
+
+    const response = await POST(
+      submitRequest({ ...SUBMIT_BODY, occasion: "Board meeting" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(enrichment.enrichSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({ db: adminDb, storage }),
+      expect.objectContaining({ $id: "expense-1", description: "Travel" }),
+      expect.objectContaining({ occasion: "Board meeting", total: 100 }),
+      "Ada Lovelace"
+    );
+    const enrichedAt =
+      enrichment.enrichSubmission.mock.invocationCallOrder[0] ?? 0;
+    expect(enrichedAt).toBeLessThan(
+      vi.mocked(createApprovalChain).mock.invocationCallOrder[0] ?? 0
+    );
+    // The approval chain sees the expense as stored after enrichment.
+    expect(sessionDb.getRow).toHaveBeenCalledTimes(3);
+    expect(sessionDb.getRow.mock.invocationCallOrder[2] ?? 0).toBeGreaterThan(
+      enrichedAt
+    );
+    expect(createApprovalChain).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Enriched",
+        expenseId: "expense-1",
+      })
+    );
+  });
+
+  it("answers 400 with the occasion field when a type asks for one", async () => {
+    enrichment.enrichSubmission.mockRejectedValueOnce(
+      new enrichment.OccasionRequiredError("Occasion is required")
+    );
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Occasion is required",
+      field: "occasion",
+      success: false,
+    });
+    expect(createApprovalChain).not.toHaveBeenCalled();
+    expect(messaging.createEmail).not.toHaveBeenCalled();
+  });
+
+  it("never returns account numbers to the student", async () => {
+    sessionDb.getRow.mockReset();
+    sessionDb.getRow.mockResolvedValueOnce(PROFILE).mockResolvedValue({
+      ...SAVED_EXPENSE,
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          account_number: 7310,
+          account_source: "ai_freeform",
+          amount: 100,
+          cost_type: "social",
+          tax_code: 1,
+          url: "file-1",
+        },
+      ],
+    });
+
+    const response = await POST(submitRequest(SUBMIT_BODY));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.fetchedExpense.expenseAttachments).toEqual([
+      {
+        $id: "att-1",
+        account_number: null,
+        account_source: null,
+        amount: 100,
+        cost_type: "social",
+        tax_code: null,
+        url: "file-1",
+      },
+    ]);
   });
 });

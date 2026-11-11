@@ -1,3 +1,11 @@
+import { ID, type Models, Query } from "@repo/api";
+import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
+import { InputFile } from "@repo/api/file";
+import { createAdminClient } from "@repo/api/server";
+import type { Users } from "@repo/api/types/appwrite";
+import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
+import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
+import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
 import { createApprovalChain } from "@/lib/expense-approval";
@@ -8,15 +16,14 @@ import {
   type ExpenseRowInput,
   parseExpensePayload,
 } from "@/lib/expense-payload";
+import {
+  enrichSubmission,
+  OccasionRequiredError,
+} from "@/lib/expense-submission";
 import { generateExpensePdf } from "@/lib/pdf/expense-pdf";
-import { ID, type Models, Query } from "@repo/api";
-import { appwriteErrorStatus, orNullIfNotFound } from "@repo/api/errors";
-import { InputFile } from "@repo/api/file";
-import { createAdminClient } from "@repo/api/server";
-import type { Users } from "@repo/api/types/appwrite";
-import { type Expenses, ExpensesStatus } from "@repo/api/types/appwrite";
-import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
-import { type NextRequest, NextResponse } from "next/server";
+
+// Receipts the OCR route never scanned are read by the AI at submission.
+export const maxDuration = 300;
 
 export type CreateExpenseData = Models.Row &
   ExpenseRowInput & {
@@ -392,6 +399,44 @@ async function submitByEmail(
   });
 }
 
+/**
+ * Settles types, accounts and approver hints on the saved draft. A missing
+ * occasion is the student's to fix, so it is answered as a 400 the client can
+ * point at the field.
+ */
+async function enrichOrReject(
+  admin: AdminClient,
+  expense: Expenses,
+  payload: ExpensePayload,
+  profileName: string
+): Promise<void> {
+  try {
+    await enrichSubmission(admin, expense, payload, profileName);
+  } catch (error) {
+    if (error instanceof OccasionRequiredError) {
+      throw new SubmitRejection(HTTP_BAD_REQUEST, "Occasion is required", {
+        field: "occasion",
+      });
+    }
+    throw error;
+  }
+}
+
+/** Server-owned booking details never go back to the student. */
+function studentView(expense: Expenses): Expenses {
+  return {
+    ...expense,
+    expenseAttachments: (expense.expenseAttachments ?? []).map(
+      (attachment) => ({
+        ...attachment,
+        account_number: null,
+        account_source: null,
+        tax_code: null,
+      })
+    ),
+  };
+}
+
 /** Saves the payload as a draft, then hands it to the active submission flow. */
 async function submitExpense(req: NextRequest) {
   if (!(await isFeatureEnabled("expenses_module"))) {
@@ -406,9 +451,14 @@ async function submitExpense(req: NextRequest) {
   const admin = await createAdminClient();
 
   const draft = await saveDraftBeforeSubmission(admin.db, payload, userId);
-  const expense = await db.getRow<Expenses>("app", "expense", draft.$id, [
-    Query.select(SUBMITTED_EXPENSE_COLUMNS),
-  ]);
+  const readExpense = () =>
+    db.getRow<Expenses>("app", "expense", draft.$id, [
+      Query.select(SUBMITTED_EXPENSE_COLUMNS),
+    ]);
+
+  await enrichOrReject(admin, await readExpense(), payload, profile.name);
+  // Read again so both flows see the types and accounts enrichment stored.
+  const expense = await readExpense();
 
   const submission: Submission = {
     expense,
@@ -428,7 +478,7 @@ async function submitExpense(req: NextRequest) {
 
   return {
     success: true,
-    fetchedExpense: expense,
+    fetchedExpense: studentView(expense),
     reimbursementNumber: submission.reimbursementNumber,
   };
 }

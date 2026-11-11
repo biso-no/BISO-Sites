@@ -99,6 +99,53 @@ describe("expense draft route", () => {
     );
   });
 
+  it("keeps the stored type when an old app re-saves a web draft", async () => {
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      expenseAttachments: [
+        {
+          $id: "att-1",
+          cost_type: "",
+          cost_type_text: "Flowers",
+          url: "file-1",
+        },
+      ],
+      status: "draft",
+      userId: "submitter-1",
+    });
+
+    const response = await POST(
+      draftRequest({
+        ...DRAFT_BODY,
+        expenseAttachments: [
+          { amount: 100, cost_type: "social", url: "file-1" },
+          { amount: 50, cost_type: "travel", url: "file-2" },
+        ],
+        expenseId: "expense-1",
+        occasion: "Board meeting",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(adminDb.getRow).toHaveBeenCalledWith("app", "expense", "expense-1", [
+      expect.stringContaining("expenseAttachments.*"),
+    ]);
+    const written = adminDb.updateRow.mock.calls[0]?.[3];
+    expect(written.occasion).toBe("Board meeting");
+    expect(written.expenseAttachments).toEqual([
+      expect.objectContaining({
+        cost_type: "",
+        cost_type_text: "Flowers",
+        url: "file-1",
+      }),
+      expect.objectContaining({
+        cost_type: "travel",
+        cost_type_text: null,
+        url: "file-2",
+      }),
+    ]);
+  });
+
   it("refuses to update an expense that belongs to someone else", async () => {
     adminDb.getRow.mockResolvedValue({
       $id: "expense-1",

@@ -1,4 +1,6 @@
-import { fastModel } from "@repo/ai/models";
+import { fastModel, MODEL_IDS } from "@repo/ai/models";
+import type { createAdminClient } from "@repo/api/server";
+import type { ExpenseAttachments, Expenses } from "@repo/api/types/appwrite";
 import {
   AI_TYPE_CONFIDENCE_THRESHOLD,
   type CostTypeOption,
@@ -6,11 +8,40 @@ import {
   findCostType,
 } from "@repo/shared/utils/expense-cost-types";
 import type { ApproverHint } from "@repo/shared/utils/expense-hints";
+import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { generateObject } from "ai";
 import { z } from "zod";
-import type { CostAccountOption } from "./expense-types";
-import { receiptDateInOslo } from "./receipt-date";
-import { clean, type ExtractedReceipt, type StoredScan } from "./receipt-scan";
+import {
+  findPossibleDuplicate,
+  type PossibleDuplicate,
+} from "./expense-duplicates";
+import { type ExpenseEventInput, recordExpenseEvents } from "./expense-events";
+import { selectExamples } from "./expense-examples";
+import {
+  attachmentFileKey,
+  type ExpensePayload,
+  isLegacyAttachment,
+  receiptFileId,
+} from "./expense-payload";
+import {
+  type CostAccountOption,
+  loadActiveCostTypes,
+  loadAllCostTypes,
+  loadCostAccounts,
+} from "./expense-types";
+import { receiptDateInOslo, todayInOslo } from "./receipt-date";
+import {
+  type Classification,
+  classifyReceipt,
+  clean,
+  convertAmountToNok,
+  type ExtractedReceipt,
+  extractReceipt,
+  findScan,
+  type StoredScan,
+  saveScan,
+  sha256Hex,
+} from "./receipt-scan";
 
 const OLD_RECEIPT_DAYS = 90;
 const AMOUNT_TOLERANCE_NOK = 1;
@@ -320,4 +351,440 @@ export async function chooseAccountForText(input: {
     console.warn("chooseAccountForText failed", error);
     return null;
   }
+}
+
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
+type Db = AdminClient["db"];
+
+const EXPENSES_BUCKET = "expenses";
+const SCAN_MODEL = `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`;
+/** What the model can read; the OCR route accepts the same types. */
+const SCANNABLE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
+/** The `expense.approver_hints` column's size. */
+const MAX_HINTS_CHARS = 4000;
+/** Kept first when the hints don't fit: these block or change the booking. */
+const ESSENTIAL_HINTS = new Set<ApproverHint["code"]>([
+  "account_missing",
+  "ai_account_unsure",
+  "occasion_missing",
+  "app_type_replaced",
+]);
+
+/**
+ * A receipt's type asks for the occasion and the submission has none. The
+ * submit route answers 400 with `field: "occasion"` so the client can ask.
+ */
+export class OccasionRequiredError extends Error {
+  constructor() {
+    super("Occasion is required");
+    this.name = "OccasionRequiredError";
+  }
+}
+
+type SubmittedAttachment = Pick<
+  ExpenseAttachments,
+  "$id" | "amount" | "cost_type" | "cost_type_text" | "date" | "type" | "url"
+>;
+
+interface EnrichedReceipt {
+  /** The AI's reason for the account it chose for the student's own text. */
+  accountReason: string | null;
+  attachment: SubmittedAttachment;
+  decision: AttachmentDecision;
+  fileHash: string | null;
+  scan: StoredScan | null;
+}
+
+async function downloadReceipt(
+  storage: AdminClient["storage"],
+  url: string | null
+): Promise<Buffer | null> {
+  const fileId = receiptFileId(url);
+  if (!fileId) {
+    return null;
+  }
+  try {
+    const bytes = await storage.getFileDownload(EXPENSES_BUCKET, fileId);
+    return Buffer.from(bytes as ArrayBuffer);
+  } catch (error) {
+    console.error(
+      `[expense-submission] Could not download receipt ${fileId}:`,
+      error
+    );
+    return null;
+  }
+}
+
+async function classify(
+  db: Db,
+  receipt: ExtractedReceipt,
+  types: CostTypeOption[]
+): Promise<Classification | null> {
+  if (types.length === 0) {
+    return null;
+  }
+  const examples = await selectExamples(db, { types, vendor: receipt.vendor });
+  return classifyReceipt({ examples, receipt, types });
+}
+
+/** Scans a file the OCR route never saw, and stores the scan by its hash. */
+async function scanReceipt(
+  db: Db,
+  input: {
+    buffer: Buffer;
+    fileHash: string;
+    mimeType: string;
+    types: CostTypeOption[];
+  }
+): Promise<StoredScan | null> {
+  try {
+    const receipt = await extractReceipt({
+      buffer: input.buffer,
+      mimeType: input.mimeType,
+      purpose: "auto",
+    });
+    const [converted, classification] = await Promise.all([
+      convertAmountToNok(receipt),
+      classify(db, receipt, input.types),
+    ]);
+    const scan: StoredScan = { ...converted, classification, receipt };
+    await saveScan(db, input.fileHash, scan, SCAN_MODEL);
+    return scan;
+  } catch (error) {
+    console.error("[expense-submission] Receipt scan failed:", error);
+    return null;
+  }
+}
+
+/**
+ * The file's hash, and its scan when the AI is on: the stored one, or a new
+ * one for a receipt with an amount. With the AI off no scan is used at all,
+ * so nothing an AI read reaches the expense.
+ */
+async function readReceipt(
+  admin: Pick<AdminClient, "db" | "storage">,
+  attachment: SubmittedAttachment,
+  context: { aiEnabled: boolean; types: CostTypeOption[] }
+): Promise<{ fileHash: string | null; scan: StoredScan | null }> {
+  const buffer = await downloadReceipt(admin.storage, attachment.url);
+  if (!buffer) {
+    return { fileHash: null, scan: null };
+  }
+  const fileHash = sha256Hex(buffer);
+  if (!context.aiEnabled) {
+    return { fileHash, scan: null };
+  }
+  const stored = await findScan(admin.db, fileHash);
+  const scannable =
+    (attachment.amount ?? 0) > 0 && SCANNABLE_TYPES.has(attachment.type);
+  if (stored || !scannable) {
+    return { fileHash, scan: stored };
+  }
+  const scan = await scanReceipt(admin.db, {
+    buffer,
+    fileHash,
+    mimeType: attachment.type,
+    types: context.types,
+  });
+  return { fileHash, scan };
+}
+
+/**
+ * Whether each file came with `cost_type_chosen`. The flag is not stored, so
+ * the saved rows are matched to the payload by file.
+ */
+function chosenByFile(payload: ExpensePayload): Map<string, boolean> {
+  const chosen = new Map<string, boolean>();
+  for (const attachment of payload.expenseAttachments ?? []) {
+    const key = attachmentFileKey(attachment.url);
+    if (key) {
+      chosen.set(
+        key,
+        (chosen.get(key) ?? false) || !isLegacyAttachment(attachment)
+      );
+    }
+  }
+  return chosen;
+}
+
+function withHint(
+  receipt: EnrichedReceipt,
+  code: ApproverHint["code"]
+): AttachmentDecision["hints"] {
+  return [
+    ...receipt.decision.hints,
+    { attachmentId: receipt.attachment.$id, code },
+  ];
+}
+
+/** Lets the AI book the student's own type text on a cost account. */
+async function chooseFreeformAccounts(
+  db: Db,
+  receipts: EnrichedReceipt[],
+  types: CostTypeOption[]
+): Promise<EnrichedReceipt[]> {
+  if (!receipts.some((receipt) => receipt.decision.needsAiAccount)) {
+    return receipts;
+  }
+  const accounts = await loadCostAccounts(db).catch((error: unknown) => {
+    console.error("[expense-submission] Could not load cost accounts:", error);
+    return [];
+  });
+  return Promise.all(
+    receipts.map(async (receipt) => {
+      const { decision, scan } = receipt;
+      if (!(decision.needsAiAccount && decision.costTypeText)) {
+        return receipt;
+      }
+      const choice = await chooseAccountForText({
+        accounts,
+        receipt: scan?.receipt ?? null,
+        text: decision.costTypeText,
+        types,
+      });
+      if (!choice) {
+        return {
+          ...receipt,
+          decision: {
+            ...decision,
+            hints: withHint(receipt, "account_missing"),
+          },
+        };
+      }
+      const unsure = choice.confidence < AI_TYPE_CONFIDENCE_THRESHOLD;
+      return {
+        ...receipt,
+        accountReason: choice.reason,
+        decision: {
+          ...decision,
+          accountNumber: choice.accountNumber,
+          accountSource: "ai_freeform" as const,
+          hints: unsure
+            ? withHint(receipt, "ai_account_unsure")
+            : decision.hints,
+          taxCode:
+            accounts.find(
+              (account) => account.accountNumber === choice.accountNumber
+            )?.taxCode ?? null,
+        },
+      };
+    })
+  );
+}
+
+function ocrAmount(scan: StoredScan | null): number | null {
+  return scan ? (scan.amountInNok ?? scan.receipt.amount) : null;
+}
+
+function attachmentColumns(expenseId: string, receipt: EnrichedReceipt) {
+  const { decision, fileHash, scan } = receipt;
+  return {
+    account_number: decision.accountNumber,
+    account_source: decision.accountSource,
+    ai_confidence: decision.aiConfidence,
+    ai_cost_type: decision.aiCostType,
+    cost_type: decision.costType,
+    cost_type_text: decision.costTypeText,
+    expense_id: expenseId,
+    file_hash: fileHash,
+    ocr_amount: ocrAmount(scan),
+    receipt_issues: scan
+      ? JSON.stringify([...new Set(scan.receipt.receiptIssues)])
+      : null,
+    tax_code: decision.taxCode,
+    type_source: decision.typeSource,
+  };
+}
+
+/** The hints as JSON within the column's size, essential ones kept first. */
+function hintsJson(hints: ApproverHint[]): string {
+  const json = JSON.stringify(hints);
+  if (json.length <= MAX_HINTS_CHARS) {
+    return json;
+  }
+  const ranked = [
+    ...hints.filter((hint) => ESSENTIAL_HINTS.has(hint.code)),
+    ...hints.filter((hint) => !ESSENTIAL_HINTS.has(hint.code)),
+  ];
+  const kept: ApproverHint[] = [];
+  for (const hint of ranked) {
+    if (JSON.stringify([...kept, hint]).length > MAX_HINTS_CHARS) {
+      break;
+    }
+    kept.push(hint);
+  }
+  return JSON.stringify(kept);
+}
+
+function isAiTyped({ decision }: EnrichedReceipt): boolean {
+  return (
+    decision.typeSource === "ai" ||
+    decision.hints.some((hint) => hint.code === "app_type_replaced")
+  );
+}
+
+function classifiedNote({ decision, scan }: EnrichedReceipt): string {
+  const confidence = `Confidence ${(decision.aiConfidence ?? 0).toFixed(2)}`;
+  const reason = scan?.classification?.reason;
+  return reason ? `${confidence}: ${reason}` : confidence;
+}
+
+function historyEvents(
+  expenseId: string,
+  receipts: EnrichedReceipt[],
+  profileName: string
+): ExpenseEventInput[] {
+  const classified = receipts.filter(isAiTyped).map(
+    (receipt): ExpenseEventInput => ({
+      action: "ai_classified",
+      actorKind: "ai",
+      after: receipt.decision.costType,
+      attachmentId: receipt.attachment.$id,
+      expenseId,
+      field: "cost_type",
+      note: classifiedNote(receipt),
+    })
+  );
+  const accounts = receipts
+    .filter((receipt) => receipt.accountReason !== null)
+    .map(
+      (receipt): ExpenseEventInput => ({
+        action: "ai_account_chosen",
+        actorKind: "ai",
+        after: String(receipt.decision.accountNumber),
+        attachmentId: receipt.attachment.$id,
+        before: receipt.decision.costTypeText,
+        expenseId,
+        field: "account_number",
+        note: receipt.accountReason,
+      })
+    );
+  return [
+    {
+      action: "submitted",
+      actorKind: "student",
+      actorName: profileName,
+      expenseId,
+    },
+    ...classified,
+    ...accounts,
+  ];
+}
+
+/**
+ * Settles every receipt of a saved draft before it is submitted: its file
+ * hash and scan (reused by hash, or made now when the AI is on), its type and
+ * ledger account, approver hints and history.
+ *
+ * Throws `OccasionRequiredError` before writing anything when a receipt's type
+ * asks for the occasion and there is none. An old app (no `cost_type_chosen`
+ * anywhere) can't ask, so its submission gets an approver hint instead.
+ */
+export async function enrichSubmission(
+  admin: Pick<AdminClient, "db" | "storage">,
+  expense: Pick<Expenses, "$id" | "expenseAttachments">,
+  payload: ExpensePayload,
+  profileName: string
+): Promise<void> {
+  const { db } = admin;
+  const flags = await getFeatureFlagStates();
+  const aiEnabled = flags.expenses_module && flags.expenses_ocr;
+  const [types, allTypes] = await Promise.all([
+    loadActiveCostTypes(db),
+    loadAllCostTypes(db),
+  ]);
+  const legacy = (payload.expenseAttachments ?? []).every(isLegacyAttachment);
+  const chosen = chosenByFile(payload);
+
+  const decided = await Promise.all(
+    (expense.expenseAttachments ?? []).map(
+      async (attachment): Promise<EnrichedReceipt> => {
+        const { fileHash, scan } = await readReceipt(admin, attachment, {
+          aiEnabled,
+          types,
+        });
+        const amount = attachment.amount ?? 0;
+        const fileKey = attachmentFileKey(attachment.url);
+        const decision = decideAttachment(
+          {
+            amount,
+            attachmentId: attachment.$id,
+            chosen: (fileKey ? chosen.get(fileKey) : undefined) ?? !legacy,
+            clientCostType: attachment.cost_type,
+            clientText: attachment.cost_type_text,
+            date: attachment.date,
+            isSupportingDoc: amount <= 0,
+            scan,
+          },
+          types,
+          aiEnabled
+        );
+        return { accountReason: null, attachment, decision, fileHash, scan };
+      }
+    )
+  );
+  const receipts = await chooseFreeformAccounts(db, decided, types);
+
+  const duplicates = await Promise.all(
+    receipts.map(
+      ({ attachment, fileHash }): Promise<PossibleDuplicate | null> =>
+        (attachment.amount ?? 0) > 0
+          ? findPossibleDuplicate(db, {
+              amount: attachment.amount,
+              date: attachment.date,
+              excludeExpenseId: expense.$id,
+              fileHash,
+            })
+          : Promise.resolve(null)
+    )
+  );
+
+  const occasion = payload.occasion?.trim() || null;
+  const asksOccasion = receipts.some(
+    ({ decision }) => findCostType(decision.costType, allTypes)?.askOccasion
+  );
+  const expenseHints: ApproverHint[] = [];
+  if (asksOccasion && !occasion) {
+    if (!legacy) {
+      throw new OccasionRequiredError();
+    }
+    expenseHints.push({ code: "occasion_missing" });
+  }
+
+  await Promise.all(
+    receipts.map((receipt) =>
+      db.updateRow(
+        "app",
+        "expense_attachments",
+        receipt.attachment.$id,
+        attachmentColumns(expense.$id, receipt)
+      )
+    )
+  );
+
+  const hints = computeApproverHints({
+    attachments: receipts.map(({ attachment, scan }, index) => ({
+      amount: attachment.amount ?? 0,
+      attachmentId: attachment.$id,
+      date: attachment.date,
+      duplicate: duplicates[index] ?? null,
+      scan,
+    })),
+    decisions: receipts.map(({ decision }) => decision),
+    today: todayInOslo(),
+  });
+  await db.updateRow("app", "expense", expense.$id, {
+    approver_hints: hintsJson([...hints, ...expenseHints]),
+    occasion,
+  });
+
+  await recordExpenseEvents(
+    db,
+    historyEvents(expense.$id, receipts, profileName)
+  );
 }
