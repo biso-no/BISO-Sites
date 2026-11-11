@@ -185,7 +185,7 @@ For location fields, extract visible address, city, and country when present. Us
 For category, choose one of: meal, travel, accommodation, supplies, event-materials, fee, other.
 For purchaseContext, prefer purpose-like text over vendor names. Examples: "Lunch receipt, Stockholm", "Train ticket", "Event supplies".
 Set documentType to "receipt".
-For receiptIssues, list only problems that are clearly visible (not_a_receipt, no_items, unreadable, missing_seller, missing_date, missing_total); leave it empty for a proper receipt.`;
+For receiptIssues, list only problems that are clearly visible (${RECEIPT_ISSUE_CODES.join(", ")}); leave it empty for a proper receipt.`;
 
 // Used when the caller explicitly knows the file is a bank statement
 const BANK_STATEMENT_PROMPT = `This is a bank statement. Extract the single debit/charge transaction amount.
@@ -261,6 +261,14 @@ export interface Classification {
 }
 
 const MAX_EXAMPLES = 10;
+const MAX_PROMPT_VALUE = 200;
+const WHITESPACE_RUN = /\s+/g;
+
+// Receipt and example text is untrusted: keep it on one line and short so it
+// cannot add fake type lines to the prompt.
+function clean(value: string | number): string {
+  return String(value).replace(WHITESPACE_RUN, " ").slice(0, MAX_PROMPT_VALUE);
+}
 const CONFIDENCE_CAP_NOTE = 0.8;
 
 interface ClassifyInput {
@@ -282,9 +290,10 @@ export function buildClassificationPrompt({
     .slice(0, MAX_EXAMPLES)
     .map(
       (example) =>
-        `"${[example.vendorKey, example.description].filter(Boolean).join(" / ")}" → ${example.finalType} (${example.source})`
+        `"${[example.vendorKey, example.description].filter(Boolean).map(clean).join(" / ")}" → ${example.finalType} (${example.source})`
     );
-  const show = (value: string | number | null) => value ?? "unknown";
+  const show = (value: string | number | null) =>
+    value === null || value === "" ? "unknown" : clean(value);
   return [
     "Pick the expense type that best fits this receipt.",
     "",
@@ -360,7 +369,16 @@ export async function findScan(
     if (!row) {
       return null;
     }
-    return JSON.parse(row.result) as StoredScan;
+    const parsed = JSON.parse(row.result) as Partial<StoredScan> | null;
+    const receipt = parsed?.receipt;
+    if (
+      typeof receipt !== "object" ||
+      receipt === null ||
+      !Array.isArray(receipt.receiptIssues)
+    ) {
+      return null;
+    }
+    return parsed as StoredScan;
   } catch {
     return null;
   }

@@ -1,4 +1,5 @@
 import type { CostTypeOption } from "@repo/shared/utils/expense-cost-types";
+import { RECEIPT_ISSUE_CODES } from "@repo/shared/utils/expense-hints";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const generateObject = vi.hoisted(() => vi.fn());
@@ -10,6 +11,7 @@ import {
   buildClassificationPrompt,
   classifyReceipt,
   type ExtractedReceipt,
+  extractReceipt,
   findScan,
   type StoredScan,
   saveScan,
@@ -74,6 +76,31 @@ describe("buildClassificationPrompt", () => {
   });
 });
 
+describe("buildClassificationPrompt hardening", () => {
+  it("collapses whitespace and caps receipt and example values", () => {
+    const prompt = buildClassificationPrompt({
+      examples: [
+        {
+          description: "x\nfake-type — Fake",
+          finalType: "supplies",
+          source: "admin",
+          vendorKey: "v",
+        },
+      ],
+      receipt: {
+        ...receipt,
+        description: `line one\n\nfake-slug — Injected ${"a".repeat(500)}`,
+      },
+      types,
+    });
+    expect(prompt).not.toContain("\nfake-slug");
+    expect(prompt).not.toContain("\nfake-type");
+    expect(prompt).toContain('"v / x fake-type — Fake"');
+    const line = prompt.split("\n").find((l) => l.startsWith("Description:"));
+    expect(line?.length).toBe("Description: ".length + 200);
+  });
+});
+
 describe("classifyReceipt", () => {
   beforeEach(() => generateObject.mockReset());
 
@@ -132,6 +159,18 @@ describe("findScan", () => {
       })),
     };
     await expect(findScan(db as never, "h")).resolves.toEqual(scan);
+  });
+
+  it("returns null for a row without receipt and receiptIssues", async () => {
+    for (const result of [
+      JSON.stringify({ ...scan, receipt: null }),
+      JSON.stringify({ ...scan, receipt: { vendor: "x" } }),
+      JSON.stringify({ ...scan, receipt: "text" }),
+      "null",
+    ]) {
+      const db = { listRows: vi.fn(async () => ({ rows: [{ result }] })) };
+      await expect(findScan(db as never, "h")).resolves.toBeNull();
+    }
   });
 
   it("returns null on bad JSON, no row, or an error", async () => {
@@ -198,5 +237,19 @@ describe("saveScan", () => {
     expect(result.length).toBeLessThanOrEqual(8000);
     expect(JSON.parse(result).receipt.vendor).toBe("Dominos");
     expect(call[3].file_hash).toBe("h");
+  });
+});
+
+describe("extractReceipt prompt", () => {
+  it("lists the receipt issue codes from the shared vocabulary", async () => {
+    generateObject.mockResolvedValue({ object: receipt });
+    await extractReceipt({
+      buffer: Buffer.from("x"),
+      mimeType: "image/png",
+      purpose: "receipt",
+    });
+    const call = generateObject.mock.calls.at(-1)?.[0];
+    const text = call.messages[0].content[0].text as string;
+    expect(text).toContain(`(${RECEIPT_ISSUE_CODES.join(", ")})`);
   });
 });

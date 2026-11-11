@@ -1,13 +1,22 @@
+import { MODEL_IDS } from "@repo/ai/models";
 import { appwriteErrorStatus } from "@repo/api/errors";
+import { createAdminClient } from "@repo/api/server";
 import { getFeatureFlagStates } from "@repo/shared/utils/feature-flags-server";
 import { type NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient } from "@/lib/auth";
 import { applyCorsHeaders, corsPreflightResponse } from "@/lib/cors";
+import { findPossibleDuplicate } from "@/lib/expense-duplicates";
+import { selectExamples } from "@/lib/expense-examples";
+import { loadActiveCostTypes } from "@/lib/expense-types";
 import {
+  type Classification,
+  classifyReceipt,
   convertAmountToNok,
   type ExtractedReceipt,
   extractReceipt,
   type ScanPurpose,
+  saveScan,
+  sha256Hex,
 } from "@/lib/receipt-scan";
 
 export const maxDuration = 300; // 5 minutes for AI processing
@@ -92,6 +101,67 @@ function purposeFromSearchParam(value: string | null): ScanPurpose {
   }
   return "auto";
 }
+
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+async function classifyIfReceipt(
+  db: AdminDb,
+  receipt: ExtractedReceipt
+): Promise<Classification | null> {
+  if (receipt.documentType !== "receipt") {
+    return null;
+  }
+  try {
+    const types = await loadActiveCostTypes(db);
+    if (types.length === 0) {
+      return null;
+    }
+    const examples = await selectExamples(db, {
+      types,
+      vendor: receipt.vendor,
+    });
+    return await classifyReceipt({ examples, receipt, types });
+  } catch (error) {
+    console.error("[expenses/ocr] Classification failed:", error);
+    return null;
+  }
+}
+
+async function scanExtras(
+  buffer: Buffer,
+  receipt: ExtractedReceipt,
+  converted: { amountInNok: number | null; exchangeRate: number | null }
+) {
+  const ocrAmount = converted.amountInNok ?? receipt.amount;
+  const fallback = {
+    classification: null,
+    possibleDuplicate: false,
+  };
+  try {
+    const { db } = await createAdminClient();
+    const fileHash = sha256Hex(buffer);
+    const classification = await classifyIfReceipt(db, receipt);
+    await saveScan(
+      db,
+      fileHash,
+      { ...converted, classification, receipt },
+      `${MODEL_IDS.balanced}+${MODEL_IDS.fast}`
+    );
+    const duplicate =
+      receipt.documentType === "receipt"
+        ? await findPossibleDuplicate(db, {
+            amount: ocrAmount,
+            date: receipt.date,
+            fileHash,
+          })
+        : null;
+    return { classification, possibleDuplicate: duplicate !== null };
+  } catch (error) {
+    console.error("[expenses/ocr] Scan bookkeeping failed:", error);
+    return fallback;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   // Auth check - supports both JWT (Authorization header) and session cookie
@@ -137,10 +207,13 @@ export async function POST(req: NextRequest) {
       return applyCorsHeaders(preparedFile.response, origin);
     }
 
-    // receiptIssues is not part of the response yet; the route keeps its shape.
-    const { receiptIssues: _receiptIssues, ...expenseData } =
-      await parseExpenseData(preparedFile, purpose);
+    const expenseData = await parseExpenseData(preparedFile, purpose);
     const { amountInNok, exchangeRate } = await convertAmountToNok(expenseData);
+    const { classification, possibleDuplicate } = await scanExtras(
+      preparedFile.buffer,
+      expenseData,
+      { amountInNok, exchangeRate }
+    );
 
     return applyCorsHeaders(
       NextResponse.json({
@@ -149,6 +222,10 @@ export async function POST(req: NextRequest) {
           ...expenseData,
           amountInNok,
           exchangeRate,
+          costType: classification?.costType ?? null,
+          costTypeConfidence: classification?.confidence ?? 0,
+          ocrAmount: amountInNok ?? expenseData.amount,
+          possibleDuplicate,
         },
         method: preparedFile.isPdf ? "pdf" : "vision",
       }),
