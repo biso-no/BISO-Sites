@@ -138,6 +138,17 @@ export async function saveExpenseType(
       };
     }
 
+    // Editing keeps the stored tax code unless the account changes; a changed
+    // tax code changes how receipts are booked.
+    let taxCode = data.taxCode;
+    if (taxCode === null && id) {
+      const current = await db.getRow<ExpenseCostTypes>("app", TYPES_TABLE, id);
+      taxCode =
+        current.account_number === data.accountNumber
+          ? (current.tax_code ?? account.tax_code ?? 0)
+          : null;
+    }
+
     const fields = {
       account_number: data.accountNumber,
       active: data.active,
@@ -146,7 +157,7 @@ export async function saveExpenseType(
       label: data.label,
       label_no: data.labelNo,
       sort_order: data.sortOrder,
-      tax_code: data.taxCode ?? account.tax_code ?? 0,
+      tax_code: taxCode ?? account.tax_code ?? 0,
     };
 
     let row: ExpenseCostTypes;

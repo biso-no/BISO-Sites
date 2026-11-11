@@ -76,17 +76,23 @@ const row = (data: Record<string, unknown>) => ({
   ...data,
 });
 
-function mockLedger(account: Record<string, unknown> | null) {
-  db.getRow.mockImplementation((_d: string, table: string) =>
-    table === "ledger_accounts" && account
+function mockLedger(
+  account: Record<string, unknown> | null,
+  stored: Record<string, unknown> | null = null
+) {
+  db.getRow.mockImplementation((_d: string, table: string) => {
+    if (table === "expense_cost_types" && stored) {
+      return Promise.resolve(stored);
+    }
+    return table === "ledger_accounts" && account
       ? Promise.resolve(account)
       : Promise.reject(
           Object.assign(new Error("not found"), {
             code: 404,
             type: "row_not_found",
           })
-        )
-  );
+        );
+  });
 }
 
 beforeEach(() => {
@@ -143,12 +149,10 @@ describe("saveExpenseType", () => {
   });
 
   test("never changes the slug on update", async () => {
-    mockLedger({
-      account_number: 7140,
-      active: true,
-      name: "Reise",
-      tax_code: 0,
-    });
+    mockLedger(
+      { account_number: 7140, active: true, name: "Reise", tax_code: 0 },
+      row({ $id: "old-slug", slug: "old-slug" })
+    );
     const result = await saveExpenseType("old-slug", {
       ...input,
       label: "Renamed",
@@ -163,6 +167,26 @@ describe("saveExpenseType", () => {
     expect(id).toBe("old-slug");
     expect("slug" in data).toBe(false);
     expect(db.createRow).not.toHaveBeenCalled();
+  });
+
+  test("keeps the tax code when editing other fields", async () => {
+    mockLedger(
+      { account_number: 7140, active: true, name: "Reise", tax_code: 0 },
+      row({ account_number: 7140, tax_code: 3 })
+    );
+    await saveExpenseType("motemat", { ...input, label: "Renamed" });
+    const data = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(data.tax_code).toBe(3);
+  });
+
+  test("takes the new account's tax code when the account changes", async () => {
+    mockLedger(
+      { account_number: 7160, active: true, name: "Mat", tax_code: 1 },
+      row({ account_number: 7140, tax_code: 3 })
+    );
+    await saveExpenseType("motemat", { ...input, accountNumber: 7160 });
+    const data = db.updateRow.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(data.tax_code).toBe(1);
   });
 
   test("rejects a campus admin", async () => {

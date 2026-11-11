@@ -44,6 +44,7 @@ export default async function ExpenseSettingsPage() {
           noAccountFound: t("noAccountFound"),
           noTypes: t("noTypes"),
           save: t("save"),
+          saveError: t("saveError"),
           saved: t("saved"),
           searchAccount: t("searchAccount"),
           seeded: t("seeded"),

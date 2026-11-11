@@ -37,6 +37,7 @@ export interface ExpenseTypesLabels {
   noTypes: string;
   save: string;
   saved: string;
+  saveError: string;
   searchAccount: string;
   /** Contains `{created}` and `{skipped}`. */
   seeded: string;
@@ -270,6 +271,14 @@ export function ExpenseTypesClient({
     setView(await getExpenseTypesView());
   };
 
+  const reloadSafely = async () => {
+    try {
+      await reload();
+    } catch {
+      toast.error(labels.saveError);
+    }
+  };
+
   const nextSort = (view.types.at(-1)?.sortOrder ?? -1) + 1;
 
   // Runs inside the transition so `pending` disables every button until the
@@ -292,12 +301,16 @@ export function ExpenseTypesClient({
           sortOrder: Number(draft.sortOrder),
         });
         if ("error" in result) {
-          toast.error(result.error);
+          toast.error(labels.saveError);
           resolve(false);
           return;
         }
         toast.success(labels.saved);
-        await reload();
+        try {
+          await reload();
+        } catch {
+          toast.error(labels.saveError);
+        }
         resolve(true);
       });
     });
@@ -306,7 +319,7 @@ export function ExpenseTypesClient({
     startTransition(async () => {
       const result = await seedStartingExpenseTypes();
       if ("error" in result) {
-        toast.error(result.error);
+        toast.error(labels.saveError);
         return;
       }
       toast.success(
@@ -314,14 +327,14 @@ export function ExpenseTypesClient({
           .replace("{created}", String(result.data.created))
           .replace("{skipped}", String(result.data.skipped))
       );
-      await reload();
+      await reloadSafely();
     });
 
   const handleSync = () =>
     startTransition(async () => {
       const result = await syncExpenseAccounts();
       if ("error" in result) {
-        toast.error(result.error || labels.syncError);
+        toast.error(labels.syncError);
         return;
       }
       const { failed, succeeded } = result.data;
@@ -331,7 +344,7 @@ export function ExpenseTypesClient({
           .replace("{count}", String(succeeded))
           .replace("{failed}", String(failed))
       );
-      await reload();
+      await reloadSafely();
     });
 
   return (
