@@ -266,7 +266,7 @@ const WHITESPACE_RUN = /\s+/g;
 
 // Receipt and example text is untrusted: keep it on one line and short so it
 // cannot add fake type lines to the prompt.
-function clean(value: string | number): string {
+export function clean(value: string | number): string {
   return String(value).replace(WHITESPACE_RUN, " ").slice(0, MAX_PROMPT_VALUE);
 }
 const CONFIDENCE_CAP_NOTE = 0.8;

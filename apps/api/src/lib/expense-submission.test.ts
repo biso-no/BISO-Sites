@@ -100,7 +100,7 @@ describe("decideAttachment", () => {
     expect(d.costType).toBeNull();
     expect(d.costTypeText).toBe("Flowers");
     expect(d.needsAiAccount).toBe(true);
-    expect(d.accountSource).toBe("ai_freeform");
+    expect(d.accountSource).toBeNull();
     expect(d.accountNumber).toBeNull();
     expect(d.hints).toEqual([]);
   });
@@ -155,8 +155,45 @@ describe("decideAttachment", () => {
       true
     );
     expect(d.costType).toBe("other");
+    expect(d.typeSource).toBe("student");
     expect(d.hints).toEqual([{ attachmentId: "a1", code: "type_defaulted" }]);
     expect(d.accountNumber).toBe(7790);
+  });
+
+  it("flags a missing account when other is not among the types", () => {
+    const d = decideAttachment(input(), [type("social", 7400)], true);
+    expect(d.costType).toBe("other");
+    expect(d.accountNumber).toBeNull();
+    expect(d.taxCode).toBeNull();
+    expect(d.accountSource).toBeNull();
+    expect(d.hints).toEqual([
+      { attachmentId: "a1", code: "type_defaulted" },
+      { attachmentId: "a1", code: "account_missing" },
+    ]);
+  });
+
+  it("ignores the stored classification when the AI is off", () => {
+    const legacy = decideAttachment(
+      input({
+        chosen: false,
+        clientCostType: "social",
+        scan: scan("meeting-food", 0.95),
+      }),
+      types,
+      false
+    );
+    expect(legacy.costType).toBe("social");
+    expect(legacy.hints).toEqual([]);
+    expect(legacy.aiCostType).toBeNull();
+    expect(legacy.aiConfidence).toBeNull();
+    const unchosen = decideAttachment(
+      input({ scan: scan("social", 0.95) }),
+      types,
+      false
+    );
+    expect(unchosen.costType).toBe("other");
+    expect(unchosen.typeSource).toBe("student");
+    expect(unchosen.aiCostType).toBeNull();
   });
 
   it("uses the AI's slug when nothing was chosen and it is confident", () => {
@@ -260,7 +297,7 @@ describe("computeApproverHints", () => {
           hints: [{ attachmentId: "a1", code: "type_defaulted" }],
           needsAiAccount: false,
           taxCode: null,
-          typeSource: "ai",
+          typeSource: "student",
         },
       ],
       today: "2026-11-11",
@@ -288,6 +325,36 @@ describe("computeApproverHints", () => {
         data: { issue: "unreadable" },
       },
       { attachmentId: "a1", code: "type_defaulted" },
+    ]);
+  });
+
+  it("accepts Appwrite datetimes and skips unconverted foreign amounts", () => {
+    const attachment = (id: string, date: string) => ({
+      amount: 100,
+      attachmentId: id,
+      date,
+      duplicate: null,
+      scan: scan("social", 0.9),
+    });
+    const hints = computeApproverHints({
+      attachments: [
+        attachment("a1", "2026-07-01T00:00:00.000+00:00"),
+        attachment("a2", "2026-06-30T22:00:00.000Z"),
+        {
+          ...attachment("a3", "2026-11-01"),
+          amount: 500,
+          scan: scan("social", 0.9, {
+            amountInNok: null,
+            receipt: receipt({ amount: 40, currency: "EUR" }),
+          }),
+        },
+      ],
+      decisions: [],
+      today: "2026-11-11",
+    });
+    expect(hints).toEqual([
+      { attachmentId: "a1", code: "old_receipt", data: { days: 133 } },
+      { attachmentId: "a2", code: "old_receipt", data: { days: 133 } },
     ]);
   });
 
@@ -350,7 +417,20 @@ describe("chooseAccountForText", () => {
     ).toBeNull();
   });
 
+  it("returns null without a model call when there are no accounts", async () => {
+    expect(
+      await chooseAccountForText({
+        accounts: [],
+        receipt: null,
+        text: "Flowers",
+        types,
+      })
+    ).toBeNull();
+    expect(generateObject).not.toHaveBeenCalled();
+  });
+
   it("returns null when the model fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     generateObject.mockRejectedValue(new Error("boom"));
     expect(
       await chooseAccountForText({
@@ -360,5 +440,20 @@ describe("chooseAccountForText", () => {
         types,
       })
     ).toBeNull();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("caps the reason length", async () => {
+    generateObject.mockResolvedValue({
+      object: { accountNumber: 7400, confidence: 0.5, reason: "x".repeat(500) },
+    });
+    const result = await chooseAccountForText({
+      accounts,
+      receipt: null,
+      text: "Flowers",
+      types,
+    });
+    expect(result?.reason).toHaveLength(300);
   });
 });
