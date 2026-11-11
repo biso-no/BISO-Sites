@@ -24,7 +24,7 @@ covers:
   - apps/docs/components/private.tsx
   - apps/docs/lib/private/infisical.ts
   - apps/docs/app/api/ask/route.ts
-  - WEB_APP_APPWRITE_INCIDENT_AUDIT.md
+  - apps/web/src/lib/data/public-content.ts
 ---
 
 Use this page when something in production is broken. Each runbook starts with what you see, then lists what to check in order, then the fix. If you don't know yet what's wrong, start with [First checks](#first-checks). Get the service back first and look for the cause after: if a deploy caused it, roll back before you investigate.
@@ -202,7 +202,7 @@ If every admin page fails with an error instead, and the admin logs `[getUserAut
    docker logs --tail 200 appwrite
    ```
 
-   In August 2026 the whole platform went down because the website's pages used up every Appwrite worker. The log showed `did not find a idle worker` and `Synchronous function execution timed out`, while the server itself was nearly idle. `WEB_APP_APPWRITE_INCIDENT_AUDIT.md` in the repo root explains what happened.
+   In August 2026 the whole platform went down because the website's pages used up every Appwrite worker. The log showed `did not find a idle worker` and `Synchronous function execution timed out`, while the server itself was nearly idle. Appwrite serves each website request as a synchronous execution, which holds one of its workers for the whole page render. The pages' own Appwrite calls needed more workers from the same pool, so under load the renders waited on each other until none were left. The fix was to read public content through cached readers (`apps/web/src/lib/data/public-content.ts`), so a page render doesn't call Appwrite on every request.
 
 **Fix**
 

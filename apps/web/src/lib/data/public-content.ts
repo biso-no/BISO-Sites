@@ -6,7 +6,7 @@
  * visitor until the cache revalidates. This is the fix for the Appwrite
  * worker-exhaustion incident: page renders inside a synchronous Site
  * execution must not fan out into the same Appwrite worker pool on every
- * request. See WEB_APP_APPWRITE_INCIDENT_AUDIT.md.
+ * request. "When things break" in the developer docs describes the incident.
  *
  * Rules of the module:
  * - Guest-visible content only. Anything per-user (session, membership,
