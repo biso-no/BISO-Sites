@@ -15,6 +15,11 @@ export {
   uploadDocument,
 } from "./files";
 export {
+  type FiscalPeriod,
+  listFiscalPeriods,
+  toFiscalPeriods,
+} from "./fiscal-periods";
+export {
   type BuildExpenseTransactionParams,
   type BuildShopTransactionParams,
   buildExpenseTransactionInput,

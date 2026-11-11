@@ -34,6 +34,13 @@ export {
 } from "./company";
 // Department list (SOAP — includes inactive departments)
 export { getAllDepartmentsSoap, type SoapDepartment } from "./departments";
+// Fiscal year locks (SOAP — IsLocked per year)
+export {
+  type FiscalYearLock,
+  type GetFiscalYearsResult,
+  getFiscalYearLocks,
+  parseFiscalYears,
+} from "./fiscal-years";
 // Invoice management
 export { postMembershipInvoice } from "./invoice";
 // Membership invoices (read side — campus per member)
@@ -69,9 +76,11 @@ export {
   DEPARTMENT_DIMENSION_TYPE,
   type DimensionElement,
   type ExpenseReceiptLine,
+  type FiscalPeriod,
   getDepartments,
   type LedgerAccount,
   listAccounts,
+  listFiscalPeriods,
   listTaxes,
   type PostExpenseTransactionParams,
   postExpenseTransaction,
@@ -79,6 +88,7 @@ export {
   type ShopLedgerLine,
   type ShopTransactionInput,
   type TaxCode,
+  toFiscalPeriods,
   type UploadDocumentResult,
   uploadDocument,
 } from "./rest";
