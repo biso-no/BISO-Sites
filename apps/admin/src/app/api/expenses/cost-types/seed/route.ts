@@ -1,6 +1,9 @@
 import type { Models } from "@repo/api";
 import { createAdminClient } from "@repo/api/server";
-import { DEFAULT_EXPENSE_COST_TYPES } from "@repo/shared/utils/expense-cost-types";
+import {
+  type CostTypeOption,
+  DEFAULT_EXPENSE_COST_TYPES,
+} from "@repo/shared/utils/expense-cost-types";
 import { type NextRequest, NextResponse } from "next/server";
 import { requireApiGlobalAdmin } from "@/lib/api-auth";
 
@@ -15,8 +18,9 @@ export async function POST(_request: NextRequest): Promise<NextResponse> {
   try {
     const { db } = await createAdminClient();
 
+    const costTypes: readonly CostTypeOption[] = DEFAULT_EXPENSE_COST_TYPES;
     const results = await Promise.allSettled(
-      DEFAULT_EXPENSE_COST_TYPES.map((costType, index) => {
+      costTypes.map((costType, index) => {
         const row = {
           $id: costType.slug,
           label: costType.label,
