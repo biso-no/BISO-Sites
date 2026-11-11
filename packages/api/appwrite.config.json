@@ -1114,7 +1114,7 @@
                     "type": "string",
                     "required": false,
                     "array": false,
-                    "size": 255,
+                    "size": 800,
                     "default": null,
                     "encrypt": false
                 },
@@ -6247,7 +6247,7 @@
                     "type": "string",
                     "required": false,
                     "array": false,
-                    "size": 255,
+                    "size": 500,
                     "default": null,
                     "encrypt": false
                 },
@@ -8437,86 +8437,6 @@
                         "slug"
                     ],
                     "orders": []
-                }
-            ]
-        },
-        {
-            "$id": "event_rsvps",
-            "$permissions": [],
-            "databaseId": "app",
-            "name": "Event RSVPs",
-            "enabled": true,
-            "rowSecurity": true,
-            "columns": [
-                {
-                    "key": "event_id",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 50,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "user_id",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 50,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "status",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "format": "enum",
-                    "elements": [
-                        "going",
-                        "maybe",
-                        "not_going"
-                    ]
-                }
-            ],
-            "indexes": [
-                {
-                    "key": "uniq_event_user",
-                    "type": "unique",
-                    "status": "available",
-                    "columns": [
-                        "event_id",
-                        "user_id"
-                    ],
-                    "orders": [
-                        "ASC",
-                        "ASC"
-                    ]
-                },
-                {
-                    "key": "idx_event_status",
-                    "type": "key",
-                    "status": "available",
-                    "columns": [
-                        "event_id",
-                        "status"
-                    ],
-                    "orders": [
-                        "ASC",
-                        "ASC"
-                    ]
-                },
-                {
-                    "key": "idx_user_id",
-                    "type": "key",
-                    "status": "available",
-                    "columns": [
-                        "user_id"
-                    ],
-                    "orders": [
-                        "ASC"
-                    ]
                 }
             ]
         },
@@ -12360,104 +12280,6 @@
             ]
         },
         {
-            "$id": "m365_team_sync",
-            "$permissions": [],
-            "databaseId": "app",
-            "name": "M365 Team Sync",
-            "enabled": true,
-            "rowSecurity": true,
-            "columns": [
-                {
-                    "key": "team_ids",
-                    "type": "string",
-                    "required": false,
-                    "array": true,
-                    "size": 128,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "synced_at",
-                    "type": "datetime",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "format": ""
-                }
-            ],
-            "indexes": []
-        },
-        {
-            "$id": "page_drafts",
-            "$permissions": [],
-            "databaseId": "app",
-            "name": "Page Drafts",
-            "enabled": true,
-            "rowSecurity": true,
-            "columns": [
-                {
-                    "key": "page_id",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 50,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "locale",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "format": "enum",
-                    "elements": [
-                        "no",
-                        "en"
-                    ]
-                },
-                {
-                    "key": "draft_doc",
-                    "type": "mediumtext",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "title",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 200,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "description",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 4000,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": [
-                {
-                    "key": "page_drafts_page",
-                    "type": "key",
-                    "status": "available",
-                    "columns": [
-                        "page_id"
-                    ],
-                    "orders": [
-                        "ASC"
-                    ]
-                }
-            ]
-        },
-        {
             "$id": "membership_texts",
             "$permissions": [
                 "read(\"any\")"
@@ -12597,6 +12419,184 @@
                     "status": "available",
                     "columns": [
                         "platform"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "event_rsvps",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Event RSVPs",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "event_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "user_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "going",
+                        "maybe",
+                        "not_going"
+                    ]
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "uniq_event_user",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "event_id",
+                        "user_id"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_event_status",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "event_id",
+                        "status"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "idx_user_id",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "user_id"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "m365_team_sync",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "M365 Team Sync",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "team_ids",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 128,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "synced_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "page_drafts",
+            "$permissions": [],
+            "databaseId": "app",
+            "name": "Page Drafts",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "page_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "locale",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "no",
+                        "en"
+                    ]
+                },
+                {
+                    "key": "draft_doc",
+                    "type": "mediumtext",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "title",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 200,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "description",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 4000,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "page_drafts_page",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "page_id"
                     ],
                     "orders": [
                         "ASC"
