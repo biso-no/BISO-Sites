@@ -5,7 +5,9 @@
 //   1. the approver directory (`expense_approvers`), which admins can edit;
 //   2. for department steps and the president, a Microsoft 365 lookup where the
 //      AI picks among mailbox candidates (only answers with confidence >= 0.8
-//      count, and a confident answer is saved to the directory);
+//      count, and a confident answer is saved to the directory). Graph and the
+//      model share one 8 s deadline per lookup, and a key the lookup found
+//      nobody for is not looked up again for an hour;
 //   3. for the controller and national steps, the seeded default mailbox.
 // Steps resolve concurrently; order and numbering follow the plan. A department
 // step nobody can fill is dropped with an issue, so the controller step that
@@ -37,9 +39,51 @@ type Db = Awaited<ReturnType<typeof createAdminClient>>["db"];
 type Graph = Pick<GraphUserService, "searchUsers" | "findUsersByDepartment">;
 
 const MIN_CONFIDENCE = 0.8;
-/** Resolution runs inside submit; the app gives up after 20 s. */
-const AI_TIMEOUT_MS = 6000;
+/**
+ * One deadline for each AI lookup, Graph and the model together. Resolution
+ * runs inside submit, and the old app gives up after 20 s.
+ */
+const LOOKUP_TIMEOUT_MS = 8000;
+/** How long a key the lookup found nobody for is left alone. */
+const MISS_TTL_MS = 60 * 60 * 1000;
 const NATIONAL_CAMPUS_ID = "5";
+
+/**
+ * Directory key → when the AI lookup last found nobody for it. Kept in this
+ * process only, so a restart forgets it.
+ */
+const lookupMisses = new Map<string, number>();
+
+/** Forgets every remembered miss. */
+export function forgetLookupMisses(): void {
+  lookupMisses.clear();
+}
+
+/** True while a miss for this key is less than an hour old. */
+function missedRecently(key: string, now: number): boolean {
+  const missedAt = lookupMisses.get(key);
+  if (missedAt === undefined) {
+    return false;
+  }
+  if (now - missedAt < MISS_TTL_MS) {
+    return true;
+  }
+  lookupMisses.delete(key);
+  return false;
+}
+
+/** Rejects with the signal's reason once it aborts. */
+function aborted(signal: AbortSignal): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    signal.addEventListener("abort", () => reject(signal.reason), {
+      once: true,
+    });
+  });
+}
 
 export interface ResolvedApproverStep {
   /** Azure AD object id, when known. */
@@ -47,6 +91,8 @@ export interface ResolvedApproverStep {
   /** Directory key this approver is stored under. */
   directoryKey: string;
   email: string;
+  /** The role this step approves in place of, when it is a fallback. */
+  fallbackFor?: ApproverRole;
   role: ApproverRole;
   source: "directory" | "ai" | "default";
   step: number;
@@ -81,6 +127,10 @@ export interface ResolveDeps {
   choose?: typeof chooseApprover;
   db?: Db;
   graph?: Graph;
+  /** Overrides the 8 s deadline of each AI lookup. */
+  lookupTimeoutMs?: number;
+  /** The clock the miss cache reads. */
+  now?: () => number;
 }
 
 type Found = Omit<ResolvedApproverStep, "step">;
@@ -122,6 +172,8 @@ export async function resolveExpenseApprovers(
   };
   const findCandidates = deps.candidates ?? findApproverCandidates;
   const choose = deps.choose ?? chooseApprover;
+  const timeoutMs = deps.lookupTimeoutMs ?? LOOKUP_TIMEOUT_MS;
+  const now = deps.now ?? Date.now;
   const department = input.departmentName ?? "(none)";
 
   const fromDirectory = async (
@@ -133,6 +185,7 @@ export async function resolveExpenseApprovers(
     if (!row) {
       return null;
     }
+    lookupMisses.delete(key);
     return {
       found: {
         aadId: row.aadId,
@@ -149,27 +202,34 @@ export async function resolveExpenseApprovers(
     };
   };
 
-  /** Asks the AI for one role. A failure or timeout counts as not found. */
-  const fromAi = async (
-    key: string,
-    role: LookupRole,
-    scope: "department" | "campus"
-  ): Promise<Lookup | null> => {
-    let candidates: Candidate[];
-    let choice: Awaited<ReturnType<typeof chooseApprover>>;
-    try {
-      candidates = await findCandidates(getGraph(), {
+  /**
+   * Graph candidates and the model's choice for one role, inside one
+   * deadline. A failure or the deadline counts as nobody found.
+   */
+  const askAi = async (
+    role: LookupRole
+  ): Promise<{
+    candidates: Candidate[];
+    choice: Awaited<ReturnType<typeof chooseApprover>>;
+  } | null> => {
+    const signal = AbortSignal.timeout(timeoutMs);
+    const lookup = async () => {
+      const candidates = await findCandidates(getGraph(), {
         role,
         campusId: input.campusId,
         departmentName: input.departmentName,
       });
-      choice = await choose({
+      const choice = await choose({
         role,
         campusName: input.campusName,
         departmentName: input.departmentName,
         candidates,
-        abortSignal: AbortSignal.timeout(AI_TIMEOUT_MS),
+        abortSignal: signal,
       });
+      return { candidates, choice };
+    };
+    try {
+      return await Promise.race([lookup(), aborted(signal)]);
     } catch (error) {
       console.error(
         `[expense-approver-resolution] ${role} lookup failed`,
@@ -177,9 +237,28 @@ export async function resolveExpenseApprovers(
       );
       return null;
     }
-    if (!choice || choice.confidence < MIN_CONFIDENCE) {
+  };
+
+  /**
+   * Asks the AI for one role, unless it found nobody for this key in the last
+   * hour. Nobody found is remembered; a find clears it.
+   */
+  const fromAi = async (
+    key: string,
+    role: LookupRole,
+    scope: "department" | "campus"
+  ): Promise<Lookup | null> => {
+    if (missedRecently(key, now())) {
       return null;
     }
+    const answer = await askAi(role);
+    const choice = answer?.choice;
+    if (!(answer && choice) || choice.confidence < MIN_CONFIDENCE) {
+      lookupMisses.set(key, now());
+      return null;
+    }
+    lookupMisses.delete(key);
+    const { candidates } = answer;
     const { confidence, email } = choice;
     const match = candidates.find(
       (c) => c.email.toLowerCase() === email.toLowerCase()
@@ -229,18 +308,24 @@ export async function resolveExpenseApprovers(
     );
   };
 
-  const managerOrDeputy = async (): Promise<[Lookup | null, Lookup | null]> => {
+  /**
+   * Manager first: the directory's manager, then a confident AI manager, then
+   * the directory's deputy, then a confident AI deputy. Without a manager in
+   * the directory, the AI manager and the deputy are looked up at once.
+   */
+  const managerOrDeputy = async (): Promise<Lookup | null> => {
     const managerKey = departmentKey("manager");
     const inDirectory = await fromDirectory(managerKey, "manager");
     if (inDirectory) {
-      return [inDirectory, null];
+      return inDirectory;
     }
-    return Promise.all([
+    const [aiManager, deputy] = await Promise.all([
       input.departmentName
         ? fromAi(managerKey, "manager", "department")
         : Promise.resolve(null),
       departmentLookup("deputy"),
     ]);
+    return aiManager ?? deputy;
   };
 
   const resolveDepartment = async (
@@ -259,13 +344,10 @@ export async function resolveExpenseApprovers(
         ],
       };
     }
-    // A manager in the directory ends the search. Otherwise the AI looks for the
-    // manager and the deputy at once, and a manager wins when both resolve.
-    const [first, second] =
+    const picked =
       role === "manager"
         ? await managerOrDeputy()
-        : [await departmentLookup("finance"), null];
-    const picked = first ?? second;
+        : await departmentLookup("finance");
     if (picked) {
       await picked.commit();
       return { found: picked.found, issues: [] };
@@ -322,7 +404,10 @@ export async function resolveExpenseApprovers(
     }
     const national = await seedDefault("national", NATIONAL_CAMPUS_ID);
     return {
-      found: national,
+      // Shown as a fallback, wherever the national mailbox came from.
+      found: national
+        ? { ...national, fallbackFor: "president", source: "default" }
+        : null,
       issues: [
         {
           campusId: input.campusId,

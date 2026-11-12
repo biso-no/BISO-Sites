@@ -200,6 +200,52 @@ describe("findApproverCandidates", () => {
     expect(result.map((c) => c.email)).toEqual(["financial.nu.oslo@biso.no"]);
   });
 
+  it("runs the department query and the prefix searches at once", async () => {
+    let answerDepartment: (users: ReturnType<typeof user>[]) => void = () =>
+      undefined;
+    const graph = {
+      findUsersByDepartment: vi.fn(
+        () =>
+          new Promise<ReturnType<typeof user>[]>((resolve) => {
+            answerDepartment = resolve;
+          })
+      ),
+      searchUsers: vi.fn(async (query: string) =>
+        query === "finance." ? [user("finance.nu.oslo@biso.no")] : []
+      ),
+    };
+    const pending = findApproverCandidates(graph as never, {
+      role: "finance",
+      campusId: "1",
+      departmentName: "OSL NU Club",
+    });
+    await Promise.resolve();
+    // Every prefix search started before the department query answered.
+    expect(graph.searchUsers).toHaveBeenCalledTimes(3);
+
+    answerDepartment([user("financial.club.oslo@biso.no", "OSL NU Club")]);
+    expect((await pending).map((c) => c.email)).toEqual([
+      "financial.club.oslo@biso.no",
+      "finance.nu.oslo@biso.no",
+    ]);
+  });
+
+  it("keeps the mailbox candidates when the department query fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const graph = {
+      findUsersByDepartment: vi.fn().mockRejectedValue(new Error("x")),
+      searchUsers: vi.fn(async (query: string) =>
+        query === "finance." ? [user("finance.nu.oslo@biso.no")] : []
+      ),
+    } as never;
+    const result = await findApproverCandidates(graph, {
+      role: "finance",
+      campusId: "1",
+      departmentName: "OSL NU Club",
+    });
+    expect(result.map((c) => c.email)).toEqual(["finance.nu.oslo@biso.no"]);
+  });
+
   it("searches with the page maximum", async () => {
     const graph = graphWith({});
     await findApproverCandidates(graph, {

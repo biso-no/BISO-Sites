@@ -63,12 +63,13 @@ const CAMPUS_LEADERSHIP_DEPARTMENTS: Record<string, readonly string[]> = {
 };
 
 /** Campus id → every mailbox slug a campus is known by. */
-export const CAMPUS_MAILBOX_SLUGS: Record<string, string[]> = {
-  "1": ["oslo"],
-  "2": ["bergen"],
-  "3": ["trondheim", "trd"],
-  "4": ["stavanger"],
-};
+export const CAMPUS_MAILBOX_SLUGS: Readonly<Record<string, readonly string[]>> =
+  Object.freeze({
+    "1": Object.freeze(["oslo"]),
+    "2": Object.freeze(["bergen"]),
+    "3": Object.freeze(["trondheim", "trd"]),
+    "4": Object.freeze(["stavanger"]),
+  });
 
 /** Fallback approvers used until the directory has an entry. */
 export const DEFAULT_DIRECTORY_EMAILS: Record<

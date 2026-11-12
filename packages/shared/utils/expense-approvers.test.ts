@@ -196,4 +196,9 @@ describe("directory defaults", () => {
     expect(NATIONAL_APPROVER_EMAIL).toBe("manager@biso.no");
     expect(CAMPUS_MAILBOX_SLUGS["3"]).toEqual(["trondheim", "trd"]);
   });
+
+  it("cannot be changed at run time", () => {
+    expect(Object.isFrozen(CAMPUS_MAILBOX_SLUGS)).toBe(true);
+    expect(Object.isFrozen(CAMPUS_MAILBOX_SLUGS["1"])).toBe(true);
+  });
 });

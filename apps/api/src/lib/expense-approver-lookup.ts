@@ -83,7 +83,7 @@ function toCandidate(user: {
 
 function matchesMailbox(
   email: string,
-  slugs: string[],
+  slugs: readonly string[],
   hints: string[] | null
 ): boolean {
   const segments = localPart(email).split(".");
@@ -107,7 +107,7 @@ function emailOf(user: GraphLookupUser): string {
   return user.mail || user.userPrincipalName || "";
 }
 
-function hasPrefix(email: string, prefixes: string[]): boolean {
+function hasPrefix(email: string, prefixes: readonly string[]): boolean {
   const local = localPart(email);
   return prefixes.some((prefix) => local.startsWith(prefix));
 }
@@ -151,42 +151,45 @@ export async function findApproverCandidates(
     return matchesMailbox(email, slugs, inDepartment(user) ? null : hints);
   };
 
-  if (departmentName) {
-    try {
-      for (const user of await graph.findUsersByDepartment(departmentName)) {
-        if (inDepartment(user) && hasPrefix(emailOf(user), prefixes)) {
-          add(user);
-        }
+  // A department role without a name would match every department's mailbox.
+  const searchPrefixes = !isDepartmentRole || hints !== null ? prefixes : [];
+  // The department query and the prefix searches run at once; one that fails
+  // leaves the others' candidates.
+  const [byDepartment, ...searches] = await Promise.allSettled([
+    departmentName
+      ? graph.findUsersByDepartment(departmentName)
+      : Promise.resolve([]),
+    ...searchPrefixes.map((prefix) => graph.searchUsers(prefix, SEARCH_LIMIT)),
+  ]);
+
+  if (byDepartment.status === "rejected") {
+    console.error(
+      "[expense-approver-lookup] department lookup failed",
+      byDepartment.reason
+    );
+  } else {
+    for (const user of byDepartment.value) {
+      if (inDepartment(user) && hasPrefix(emailOf(user), prefixes)) {
+        add(user);
       }
-    } catch (error) {
-      console.error(
-        "[expense-approver-lookup] department lookup failed",
-        error
-      );
     }
   }
 
-  // A department role without a name would match every department's mailbox.
-  if (!isDepartmentRole || hints !== null) {
-    const results = await Promise.allSettled(
-      prefixes.map((prefix) => graph.searchUsers(prefix, SEARCH_LIMIT))
-    );
-    results.forEach((result, index) => {
-      const prefix = prefixes[index] ?? "";
-      if (result.status === "rejected") {
-        console.error(
-          `[expense-approver-lookup] search "${prefix}" failed`,
-          result.reason
-        );
-        return;
+  searches.forEach((result, index) => {
+    const prefix = searchPrefixes[index] ?? "";
+    if (result.status === "rejected") {
+      console.error(
+        `[expense-approver-lookup] search "${prefix}" failed`,
+        result.reason
+      );
+      return;
+    }
+    for (const user of result.value) {
+      if (inMailboxSearch(user, prefix)) {
+        add(user);
       }
-      for (const user of result.value) {
-        if (inMailboxSearch(user, prefix)) {
-          add(user);
-        }
-      }
-    });
-  }
+    }
+  });
   return [...found.values()].slice(0, MAX_CANDIDATES);
 }
 

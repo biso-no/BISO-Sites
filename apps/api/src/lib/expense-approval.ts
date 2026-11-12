@@ -20,8 +20,13 @@ import {
   sendApprovalEmail,
   sendProactiveCard,
 } from "@repo/connectors/teams-bot";
+import { getCampusApprovalPlan } from "@repo/shared/utils/expense-approvers";
 import { confirmDirectoryApprover } from "./expense-approver-directory";
-import { resolveExpenseApprovers } from "./expense-approver-resolution";
+import {
+  type ApproverResolutionIssue,
+  type ResolvedApproverStep,
+  resolveExpenseApprovers,
+} from "./expense-approver-resolution";
 import { recordExpenseEvents } from "./expense-events";
 
 const TOKEN_TTL_DAYS = 14;
@@ -172,9 +177,36 @@ export interface CreateChainResult {
   stepsCreated: number;
 }
 
+type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
+
+/** The `approver_resolved` history note: role and source, or the fallback. */
+function approverResolvedNote(step: ResolvedApproverStep): string {
+  return step.fallbackFor
+    ? `${step.role} (${step.fallbackFor} fallback)`
+    : `${step.role} via ${step.source}`;
+}
+
+async function recordResolutionIssues(
+  db: AdminDb,
+  expenseId: string,
+  issues: readonly ApproverResolutionIssue[]
+): Promise<void> {
+  for (const issue of issues) {
+    await db.createRow("app", "expense_approval_issues", ID.unique(), {
+      expense_id: expenseId,
+      campus_id: issue.campusId,
+      department: issue.department,
+      role_sought: issue.roleSought,
+      reason: truncateReason(issue.reason),
+      status: "open",
+    });
+  }
+}
+
 /**
  * Resolves approvers, creates the chain rows, and notifies the first step.
- * Writes a remediation issue when a department approver can't be found.
+ * Writes a remediation issue when an approver can't be found, once the chain
+ * rows hold the claim, so a racing duplicate submit records none.
  */
 export async function createApprovalChain(
   context: ApprovalChainContext
@@ -193,18 +225,25 @@ export async function createApprovalChain(
     { db }
   );
 
-  for (const issue of issues) {
-    await db.createRow("app", "expense_approval_issues", ID.unique(), {
-      expense_id: context.expenseId,
-      campus_id: issue.campusId,
-      department: issue.department,
-      role_sought: issue.roleSought,
-      reason: truncateReason(issue.reason),
-      status: "open",
-    });
-  }
-
   if (steps.length === 0) {
+    // Nobody approves this one, so the queue has to see it. The sought role is
+    // the plan's last step, the one that would have approved it.
+    const lastPlanned = getCampusApprovalPlan({
+      campusId: context.campusId,
+      departmentId: context.departmentId,
+      submitterIsController: context.submitterIsController,
+      submitterIsFinancialManager: context.submitterIsFinancialManager,
+    }).at(-1);
+    await recordResolutionIssues(db, context.expenseId, [
+      ...issues,
+      {
+        campusId: context.campusId,
+        department: context.departmentName ?? "(none)",
+        reason:
+          "No approver could be resolved. The reimbursement is pending with no approval step.",
+        roleSought: lastPlanned?.role ?? "controller",
+      },
+    ]);
     await db.updateRow("app", "expense", context.expenseId, {
       status: ExpensesStatus.PENDING,
     });
@@ -248,6 +287,9 @@ export async function createApprovalChain(
     created.push(row);
   }
 
+  // The chain rows are the claim: a duplicate submit has failed by now.
+  await recordResolutionIssues(db, context.expenseId, issues);
+
   await recordExpenseEvents(
     db,
     steps.map((step) => ({
@@ -255,7 +297,7 @@ export async function createApprovalChain(
       actorKind: "system",
       after: step.email,
       expenseId: context.expenseId,
-      note: `${step.role} via ${step.source}`,
+      note: approverResolvedNote(step),
     }))
   );
 

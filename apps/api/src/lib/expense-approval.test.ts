@@ -114,6 +114,108 @@ describe("approval chain", () => {
     ]);
   });
 
+  const ISSUE = {
+    campusId: "1",
+    department: "Marketing",
+    reason: "No finance approver in the directory",
+    roleSought: "finance",
+  };
+  const CONTROLLER_STEP = {
+    aadId: null,
+    directoryKey: "campus:1:controller",
+    email: "ctrl@biso.no",
+    role: "controller",
+    source: "default",
+    step: 1,
+  };
+  const tablesWritten = () =>
+    db.createRow.mock.calls.map(([, table]) => table as string);
+
+  it("records resolution issues only after the chain rows hold the claim", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [CONTROLLER_STEP],
+    });
+
+    await createApprovalChain(CONTEXT);
+
+    expect(tablesWritten()).toEqual([
+      "expense_approvals",
+      "expense_approval_issues",
+    ]);
+  });
+
+  it("records no issue when a racing submit already holds the claim", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [CONTROLLER_STEP],
+    });
+    db.createRow.mockRejectedValueOnce(
+      Object.assign(new Error("Row already exists"), { code: 409 })
+    );
+
+    await expect(createApprovalChain(CONTEXT)).rejects.toMatchObject({
+      code: 409,
+    });
+    expect(tablesWritten()).toEqual(["expense_approvals"]);
+  });
+
+  it("records an issue before leaving an expense with no approver pending", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [ISSUE],
+      steps: [],
+    });
+
+    const result = await createApprovalChain(CONTEXT);
+
+    expect(result).toEqual({ notified: false, stepsCreated: 0 });
+    const issueRows = db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approval_issues")
+      .map(([, , , data]) => data);
+    expect(issueRows).toEqual([
+      expect.objectContaining({ role_sought: "finance" }),
+      expect.objectContaining({
+        campus_id: "1",
+        department: "Marketing",
+        expense_id: "expense-1",
+        reason: expect.stringContaining("No approver could be resolved"),
+        role_sought: "controller",
+        status: "open",
+      }),
+    ]);
+    const issuedAt = Math.max(...db.createRow.mock.invocationCallOrder);
+    expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "expense-1", {
+      status: "pending",
+    });
+    expect(db.updateRow.mock.invocationCallOrder[0]).toBeGreaterThan(issuedAt);
+  });
+
+  it("notes the national approver as the president fallback", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        {
+          aadId: null,
+          directoryKey: "campus:5:national",
+          email: "manager@biso.no",
+          fallbackFor: "president",
+          role: "national",
+          source: "default",
+          step: 1,
+        },
+      ],
+    });
+
+    await createApprovalChain({ ...CONTEXT, submitterIsController: true });
+
+    expect(events.recordExpenseEvents).toHaveBeenCalledWith(db, [
+      expect.objectContaining({
+        after: "manager@biso.no",
+        note: "national (president fallback)",
+      }),
+    ]);
+  });
+
   it("passes the controller declaration and campus name to resolution", async () => {
     resolution.resolveExpenseApprovers.mockResolvedValue({
       issues: [],
