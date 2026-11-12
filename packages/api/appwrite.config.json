@@ -3143,7 +3143,7 @@
                     "type": "string",
                     "required": true,
                     "array": false,
-                    "size": 100,
+                    "size": 320,
                     "default": null,
                     "encrypt": false
                 },

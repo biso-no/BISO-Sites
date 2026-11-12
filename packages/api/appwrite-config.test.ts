@@ -349,6 +349,10 @@ describe("approver directory schema", () => {
     expect(findColumn("expense_approvals", "directory_key")).toBeDefined();
   });
 
+  test("expense_approvals.approver_email holds any email address", () => {
+    expect(findColumn("expense_approvals", "approver_email")?.size).toBe(320);
+  });
+
   test("expense records controller submissions", () => {
     expect(findColumn("expense", "submitter_is_controller")?.type).toBe(
       "boolean"
