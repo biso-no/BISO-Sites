@@ -616,17 +616,36 @@ describe("expense approver role", () => {
   });
 
   test("no match leaves the role out", async () => {
-    expect((await getUserRolesForClient()).roles).not.toContain(
-      "expenseapprover"
-    );
+    const ctx = await getUserAuthContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx?.roles).not.toContain("expenseapprover");
+    expect(approverLookups()).toHaveLength(2);
+    expect(consoleError).not.toHaveBeenCalled();
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
   });
 
   test("a failed lookup leaves the role out and does not throw", async () => {
     db.listRows.mockRejectedValue(new Error("down"));
-    expect((await getUserRolesForClient()).roles).not.toContain(
-      "expenseapprover"
+    const ctx = await getUserAuthContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx?.roles).not.toContain("expenseapprover");
+    expect(approverLookups()).toHaveLength(2);
+    expect(String(consoleError.mock.calls[0]?.[0])).toContain(
+      "[expense-access]"
     );
-    expect(consoleError).toHaveBeenCalled();
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
+  });
+
+  test("a failed identity read is logged and fails closed", async () => {
+    account.listIdentities.mockRejectedValue(new Error("identities down"));
+    const ctx = await getUserAuthContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx?.roles).not.toContain("expenseapprover");
+    expect(approverLookups()).toHaveLength(0);
+    expect(String(consoleError.mock.calls[0]?.[0])).toContain(
+      "[expense-access]"
+    );
+    await expect(requireAdminAccess()).rejects.toThrow("NEXT_UNAUTHORIZED");
   });
 
   test("global admins skip the lookup", async () => {

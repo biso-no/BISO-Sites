@@ -127,6 +127,20 @@ describe("approval chain", () => {
     ]);
   });
 
+  it("stores approver_email trimmed and lowercased", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [{ ...CONTROLLER_STEP, email: " Ctrl@BISO.no " }],
+    });
+
+    await createApprovalChain(CONTEXT);
+
+    const row = db.createRow.mock.calls.find(
+      ([, table]) => table === "expense_approvals"
+    )?.[3];
+    expect(row?.approver_email).toBe("ctrl@biso.no");
+  });
+
   const ISSUE = {
     campusId: "1",
     department: "Marketing",

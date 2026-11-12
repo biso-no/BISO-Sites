@@ -79,7 +79,7 @@ export async function saveDirectoryApprover(
     campus_id: input.campusId,
     department_id: input.departmentId ?? null,
     role: input.role,
-    email: input.email,
+    email: input.email.trim().toLowerCase(),
     aad_id: input.aadId ?? null,
     display_name: input.displayName ?? null,
     source: input.source,

@@ -43,25 +43,22 @@ const step = (
   ...over,
 });
 
-const steps = [
-  step({ approver_email: "Boss@biso.no", step: 1 }),
-  step({
-    approver_email: "fin@biso.no",
-    approver_role: "finance",
-    step: 2,
-  }),
-];
+const bossStep = step({ approver_email: "Boss@biso.no", step: 1 });
+const financeStep = step({
+  approver_email: "fin@biso.no",
+  approver_role: "finance",
+  step: 2,
+});
+const steps: ExpenseAccessStep[] = [bossStep, financeStep];
 
 describe("currentPendingStep", () => {
   test("lowest pending step of a pending expense, else null", () => {
-    expect(
-      currentPendingStep("pending", [steps[1], steps[0]] as never)?.$id
-    ).toBe("s1");
+    expect(currentPendingStep("pending", [financeStep, bossStep])?.$id).toBe(
+      "s1"
+    );
     expect(currentPendingStep("approved", steps)).toBeNull();
     expect(
-      currentPendingStep("pending", [
-        { ...steps[0], status: "approved" },
-      ] as never)
+      currentPendingStep("pending", [{ ...bossStep, status: "approved" }])
     ).toBeNull();
   });
 });
@@ -196,6 +193,70 @@ describe("expensePermissions", () => {
       canRetryBooking: false,
       decideAs: null,
     });
+  });
+
+  test("a submitter named as the current approver cannot act", () => {
+    const p = expensePermissions(
+      viewer({ emails: ["boss@biso.no"], userId: "submitter" }),
+      expense(),
+      steps
+    );
+    expect(p.isSubmitter).toBe(true);
+    expect(p.canView).toBe(true);
+    expect(p.canDecide).toBe(false);
+    expect(p.canEdit).toBe(false);
+    expect(p.canEditBankAccount).toBe(false);
+    expect(p.canChangeApprover).toBe(false);
+    expect(p.canRetryBooking).toBe(false);
+    expect(p.decideAs).toBeNull();
+  });
+
+  test("a global admin who submitted a failed expense cannot edit or retry", () => {
+    const p = expensePermissions(
+      viewer({ isGlobalAdmin: true, userId: "submitter" }),
+      expense({ status: "failed" }),
+      steps
+    );
+    expect(p.canEdit).toBe(false);
+    expect(p.canRetryBooking).toBe(false);
+    expect(p.canEditBankAccount).toBe(false);
+  });
+
+  test("a controller step is closed to a controller-submitted expense", () => {
+    const controllerStep = step({
+      approver_email: "ctrl@biso.no",
+      approver_role: "controller",
+      step: 1,
+    });
+    const p = expensePermissions(
+      viewer({ emails: ["ctrl@biso.no"] }),
+      expense({ submitter_is_controller: true }),
+      [controllerStep]
+    );
+    expect(p.canView).toBe(true);
+    expect(p.canDecide).toBe(false);
+    expect(p.canEdit).toBe(false);
+    expect(p.decideAs).toBeNull();
+  });
+
+  test("a campus admin cannot view another campus's expense", () => {
+    const p = expensePermissions(
+      viewer({ isCampusAdmin: true, managedCampusIds: ["2"] }),
+      expense({ campus: "1" }),
+      steps
+    );
+    expect(p.canView).toBe(false);
+  });
+
+  test("matches step emails stored with stray whitespace", () => {
+    const padded = [step({ approver_email: " Boss@biso.no ", step: 1 })];
+    expect(
+      expensePermissions(
+        viewer({ emails: ["boss@biso.no"] }),
+        expense(),
+        padded
+      ).canDecide
+    ).toBe(true);
   });
 
   test("failed expense: edit and retry for actors only", () => {

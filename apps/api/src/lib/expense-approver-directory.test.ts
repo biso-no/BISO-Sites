@@ -69,6 +69,23 @@ describe("saveDirectoryApprover", () => {
     });
   });
 
+  it("stores a mixed-case email trimmed and lowercased", async () => {
+    createRow.mockResolvedValue({});
+    await saveDirectoryApprover(db, { ...row, email: "  Finance.NU@BISO.no " });
+    expect(createRow.mock.calls[0]?.[3]).toMatchObject({
+      email: "finance.nu@biso.no",
+    });
+  });
+
+  it("lowercases the email on the update path too", async () => {
+    createRow.mockRejectedValue({ code: 409 });
+    listRows.mockResolvedValue({ rows: [{ $id: "r1", source: "ai" }] });
+    await saveDirectoryApprover(db, { ...row, email: "Ctrl@BISO.no" });
+    expect(updateRow.mock.calls[0]?.[3]).toMatchObject({
+      email: "ctrl@biso.no",
+    });
+  });
+
   it("updates an ai row on a key conflict", async () => {
     createRow.mockRejectedValue({ code: 409 });
     listRows.mockResolvedValue({ rows: [{ $id: "r1", source: "ai" }] });

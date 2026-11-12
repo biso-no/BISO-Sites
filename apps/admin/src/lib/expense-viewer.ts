@@ -1,11 +1,14 @@
+import "server-only";
+
 import { Query } from "@repo/api";
-import { createAdminClient, createSessionClient } from "@repo/api/server";
+import { createAdminClient } from "@repo/api/server";
 import type { ExpenseApprovers } from "@repo/api/types/appwrite";
 import { cache } from "react";
 import { getUserAuthContext } from "./authorization";
 import type { ExpenseViewer } from "./expense-access";
 import { microsoftIdentityEmails } from "./microsoft-identity";
 import { ROLES } from "./roles";
+import { getSessionIdentities } from "./session-identities";
 
 /** The signed-in user as the expense permission function sees them. */
 export const getExpenseViewer = cache(
@@ -14,7 +17,9 @@ export const getExpenseViewer = cache(
     if (!ctx) {
       return null;
     }
-    const emails = await loadIdentityEmails();
+    const emails = microsoftIdentityEmails(
+      (await getSessionIdentities()) ?? []
+    );
     const controllerCampusIds = await loadControllerCampusIds(emails);
     return {
       accountEmail: ctx.email,
@@ -28,17 +33,6 @@ export const getExpenseViewer = cache(
     };
   }
 );
-
-async function loadIdentityEmails(): Promise<string[]> {
-  try {
-    const { account } = await createSessionClient();
-    const { identities } = await account.listIdentities();
-    return microsoftIdentityEmails(identities);
-  } catch (error) {
-    console.error("[expense-access] identity lookup failed", error);
-    return [];
-  }
-}
 
 async function loadControllerCampusIds(emails: string[]): Promise<string[]> {
   if (emails.length === 0) {

@@ -95,7 +95,7 @@ export function expensePermissions(
   const controllerActs = controllerHere && !expense.submitter_is_controller;
   const step = currentPendingStep(expense.status, steps);
   const isViewerEmail = (email: string) =>
-    viewer.emails.includes(email.toLowerCase());
+    viewer.emails.includes(email.trim().toLowerCase());
   const approverHere =
     step !== null &&
     isViewerEmail(step.approver_email) &&

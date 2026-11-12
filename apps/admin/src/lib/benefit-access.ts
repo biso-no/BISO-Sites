@@ -3,7 +3,7 @@ import {
   NATIONAL_CAMPUS_ID,
 } from "@repo/shared/utils/benefit-catalog";
 import { BENEFIT_ERRORS } from "./benefits/benefit-errors";
-import { MICROSOFT_PROVIDER } from "./microsoft-identity";
+import { type Identity, MICROSOFT_PROVIDER } from "./microsoft-identity";
 import { ROLES } from "./roles";
 
 /** Every campus id a benefit can belong to: the four campuses plus national. */
@@ -43,7 +43,7 @@ export function isBenefitEditorEmail(
  * can set any address, while a Microsoft identity is vouched for by Azure AD.
  */
 export function hasVerifiedBenefitEditorIdentity(
-  identities: { provider: string; providerEmail?: string | null }[],
+  identities: Identity[],
   configured: string | undefined = process.env.BENEFITS_EDITOR_EMAILS
 ): boolean {
   return identities.some(

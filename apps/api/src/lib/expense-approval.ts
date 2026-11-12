@@ -280,7 +280,7 @@ export async function createApprovalChain(
         expense_id: context.expenseId,
         step: step.step,
         approver_role: step.role as ExpenseApprovalsApproverRole,
-        approver_email: step.email,
+        approver_email: step.email.trim().toLowerCase(),
         approver_aad_id: step.aadId,
         directory_key: step.directoryKey,
         status: ExpenseApprovalsStatus.PENDING,

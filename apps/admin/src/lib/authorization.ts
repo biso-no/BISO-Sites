@@ -19,6 +19,7 @@ import {
 import { CAMPUS_ID_TO_NAME, CAMPUS_NAME_TO_ID } from "./campus-constants";
 import { matchDepartmentIdsByKey } from "./department-name-match";
 import { microsoftIdentityEmails } from "./microsoft-identity";
+import { getSessionIdentities } from "./session-identities";
 
 const CAMPUS_CTX_COOKIE = "admin_campus_ctx";
 
@@ -40,30 +41,6 @@ export interface UserAuthContext {
   resolvedDepartmentIds: string[]; // Appwrite Departments row $ids matching departmentNames
   roles: string[]; // Computed roles (e.g., "globaladmin", "campusadmin")
   userId: string;
-}
-
-/**
- * Fail-closed check that the session's account has a Microsoft identity with
- * a configured benefits-editor email.
- */
-interface IdentityAccount {
-  listIdentities: () => Promise<{
-    identities: { provider: string; providerEmail?: string | null }[];
-  }>;
-}
-
-/** The account's identities, or null when they cannot be read (fail closed). */
-async function loadIdentities(
-  account: IdentityAccount
-): Promise<
-  Awaited<ReturnType<IdentityAccount["listIdentities"]>>["identities"] | null
-> {
-  try {
-    const { identities } = await account.listIdentities();
-    return identities;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -223,7 +200,7 @@ export const getUserAuthContext = cache(
       );
       if (needsBenefitCheck || needsApproverCheck) {
         // One identities read serves both checks.
-        const identities = await loadIdentities(account);
+        const identities = await getSessionIdentities();
         if (
           needsBenefitCheck &&
           identities &&
