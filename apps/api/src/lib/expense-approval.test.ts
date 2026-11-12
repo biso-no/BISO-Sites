@@ -127,6 +127,7 @@ describe("approval chain", () => {
         expenseId: "expense-1",
         note: "controller via default",
       },
+      expect.objectContaining({ action: "notified", after: "fin@biso.no" }),
     ]);
   });
 
@@ -223,6 +224,10 @@ describe("approval chain", () => {
     );
 
     expect(db.deleteRow).toHaveBeenCalledTimes(2);
+    const claimId = db.createRow.mock.results[0]
+      ? (await db.createRow.mock.results[0].value).$id
+      : undefined;
+    expect(db.deleteRow.mock.calls.map(([, , id]) => id)).toContain(claimId);
     expect(db.updateRow).toHaveBeenLastCalledWith(
       "app",
       "expense",
@@ -252,6 +257,11 @@ describe("approval chain", () => {
 
     await expect(createApprovalChain(CONTEXT)).rejects.toThrow("boom");
     expect(db.deleteRow).toHaveBeenCalledTimes(1);
+    expect(db.deleteRow).toHaveBeenCalledWith(
+      "app",
+      "expense_approvals",
+      (await db.createRow.mock.results[0].value).$id
+    );
     expect(db.updateRow).toHaveBeenLastCalledWith(
       "app",
       "expense",
@@ -321,11 +331,66 @@ describe("approval chain", () => {
     ]);
   });
 
-  it("leaves the expense pending with an issue when only the submitter was resolved", async () => {
+  const approvalRows = () =>
+    db.createRow.mock.calls
+      .filter(([, table]) => table === "expense_approvals")
+      .map(([, , , data]) => data);
+
+  it("sends a controller who is the submitter to the campus default", async () => {
     submitterIs("ctrl@biso.no");
     resolution.resolveExpenseApprovers.mockResolvedValue({
       issues: [],
       steps: [stepFor("controller", "ctrl@biso.no", 1)],
+    });
+
+    const result = await createApprovalChain(CONTEXT);
+
+    expect(result).toEqual({ notified: true, stepsCreated: 1 });
+    expect(approvalRows()).toEqual([
+      expect.objectContaining({
+        approver_email: "controller.oslo@biso.no",
+        approver_role: "controller",
+        directory_key: null,
+        step: 1,
+      }),
+    ]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "controller.oslo@biso.no" })
+    );
+    expect(issueRows()).toEqual([
+      expect.objectContaining({
+        reason: expect.stringContaining("Approver is the submitter"),
+        role_sought: "controller",
+      }),
+    ]);
+  });
+
+  it("sends a president who is the submitter to national with the fallback marker", async () => {
+    submitterIs("pres@biso.no");
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [stepFor("president", "pres@biso.no", 1)],
+    });
+
+    await createApprovalChain(CONTEXT);
+
+    expect(approvalRows()).toEqual([
+      expect.objectContaining({
+        approver_role: "national",
+        directory_key: null,
+      }),
+    ]);
+    expect(events.recordExpenseEvents).toHaveBeenCalledWith(db, [
+      expect.objectContaining({ note: "national (president fallback)" }),
+      expect.objectContaining({ action: "notified" }),
+    ]);
+  });
+
+  it("goes to the zero-steps branch when every candidate is the submitter", async () => {
+    submitterIs("manager@biso.no");
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [stepFor("president", "manager@biso.no", 1)],
     });
 
     const result = await createApprovalChain(CONTEXT);
@@ -338,6 +403,42 @@ describe("approval chain", () => {
     expect(db.updateRow).toHaveBeenCalledWith("app", "expense", "expense-1", {
       status: "pending",
     });
+  });
+
+  it("reads the submitter from the context user id without re-reading the expense", async () => {
+    submitterIs("fin@biso.no");
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        stepFor("finance", "fin@biso.no", 1),
+        stepFor("controller", "ctrl@biso.no", 2),
+      ],
+    });
+
+    await createApprovalChain({ ...CONTEXT, submitterUserId: "user-9" });
+
+    expect(db.getRow).toHaveBeenCalledTimes(1);
+    expect(db.getRow).toHaveBeenCalledWith("app", "user", "user-9");
+  });
+
+  it("writes approver_resolved events before the notified event", async () => {
+    resolution.resolveExpenseApprovers.mockResolvedValue({
+      issues: [],
+      steps: [
+        stepFor("finance", "fin@biso.no", 1),
+        stepFor("controller", "ctrl@biso.no", 2),
+      ],
+    });
+
+    await createApprovalChain(CONTEXT);
+
+    expect(events.recordExpenseEvents).toHaveBeenCalledTimes(1);
+    const [, list] = events.recordExpenseEvents.mock.calls[0];
+    expect(list.map((event: { action: string }) => event.action)).toEqual([
+      "approver_resolved",
+      "approver_resolved",
+      "notified",
+    ]);
   });
 
   it("drops the earlier of two steps with the same approver", async () => {
@@ -360,6 +461,9 @@ describe("approval chain", () => {
       [1, "controller"],
       [2, "president"],
     ]);
+    expect(teams.sendApprovalEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "same@biso.no" })
+    );
     expect(issueRows()).toEqual([
       expect.objectContaining({
         reason: expect.stringContaining("earlier finance step was dropped"),
@@ -421,6 +525,7 @@ describe("approval chain", () => {
         after: "manager@biso.no",
         note: "national (president fallback)",
       }),
+      expect.objectContaining({ action: "notified" }),
     ]);
   });
 

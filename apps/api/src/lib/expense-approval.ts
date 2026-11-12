@@ -29,6 +29,7 @@ import {
 } from "@repo/shared/utils/expense-approvers";
 import { recordExpenseEvents } from "@repo/shared/utils/expense-events";
 import { reimbursementNumber } from "@repo/shared/utils/reimbursement-number";
+import { type GuardedApproverStep, guardChain } from "./expense-approval-guard";
 import {
   confirmDirectoryApprover,
   setAdminDirectoryApprover,
@@ -79,6 +80,8 @@ export interface ApprovalChainContext {
   submitterIsController: boolean;
   submitterIsFinancialManager: boolean;
   submitterName: string;
+  /** The submitter's user id, when the caller has it; saves a read. */
+  submitterUserId?: string;
   total: number;
 }
 
@@ -117,9 +120,30 @@ function cardDataFor(
   };
 }
 
+interface DeliveryResult {
+  emailDelivered: boolean;
+  teamsDelivered: boolean;
+}
+
+function notifiedEvent(row: ExpenseApprovals, delivery: DeliveryResult) {
+  return {
+    action: "notified" as const,
+    actorKind: "system" as const,
+    after: row.approver_email.toLowerCase(),
+    expenseId: row.expense_id,
+    note: [
+      delivery.teamsDelivered && "teams",
+      delivery.emailDelivered && "email",
+    ]
+      .filter(Boolean)
+      .join(","),
+  };
+}
+
 /**
  * Notifies the approver for a step via Teams (best-effort) and Outlook email
- * (always). Persists Teams ids when a card was sent. Throws when neither channel
+ * (always). Writes the `notified` event unless `recordEvent` is false, in which
+ * case the caller writes it from the returned delivery result. Persists Teams ids when a card was sent. Throws when neither channel
  * delivered: the raw token only lives in the notification, so a step with no
  * usable link must not be accepted silently (the caller fails the submission).
  */
@@ -128,8 +152,9 @@ async function notifyStep(
   row: ExpenseApprovals,
   rawToken: string,
   totalSteps: number,
-  aadId: string | null
-): Promise<void> {
+  aadId: string | null,
+  options: { recordEvent?: boolean } = {}
+): Promise<DeliveryResult> {
   const { db } = await createAdminClient();
   const data = cardDataFor(context, row, rawToken, totalSteps);
 
@@ -183,17 +208,11 @@ async function notifyStep(
     );
   }
 
-  await recordExpenseEvents(db, [
-    {
-      action: "notified",
-      actorKind: "system",
-      after: row.approver_email.toLowerCase(),
-      expenseId: row.expense_id,
-      note: [teamsDelivered && "teams", emailDelivered && "email"]
-        .filter(Boolean)
-        .join(","),
-    },
-  ]);
+  const delivery = { emailDelivered, teamsDelivered };
+  if (options.recordEvent !== false) {
+    await recordExpenseEvents(db, [notifiedEvent(row, delivery)]);
+  }
+  return delivery;
 }
 
 export interface CreateChainResult {
@@ -204,7 +223,9 @@ export interface CreateChainResult {
 type AdminDb = Awaited<ReturnType<typeof createAdminClient>>["db"];
 
 /** The `approver_resolved` history note: role and source, or the fallback. */
-function approverResolvedNote(step: ResolvedApproverStep): string {
+function approverResolvedNote(
+  step: Pick<ResolvedApproverStep, "fallbackFor" | "role" | "source">
+): string {
   return step.fallbackFor
     ? `${step.role} (${step.fallbackFor} fallback)`
     : `${step.role} via ${step.source}`;
@@ -247,69 +268,17 @@ async function loadUserEmail(
 /** The submitter's account email (trimmed, lowercased), or null when unknown. */
 async function loadSubmitterEmail(
   db: AdminDb,
-  expenseId: string
+  expenseId: string,
+  userId?: string
 ): Promise<string | null> {
-  const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
-    Query.select(["$id", "userId"]),
-  ]);
-  return expense?.userId ? loadUserEmail(db, expense.userId) : null;
-}
-
-interface RoutedChain {
-  issues: ApproverResolutionIssue[];
-  steps: ResolvedApproverStep[];
-}
-
-/**
- * Keeps the chain from routing to the submitter or to one person twice. A step
- * whose approver is the submitter is dropped as not found, with an issue. Of
- * two steps with the same approver the earlier is dropped (the later one is
- * the stronger role), with an issue. Surviving steps are renumbered from 1.
- */
-function guardChain(
-  context: ApprovalChainContext,
-  resolved: RoutedChain,
-  submitterEmail: string | null
-): RoutedChain {
-  const issues = [...resolved.issues];
-  const emailOf = (step: ResolvedApproverStep) =>
-    step.email.trim().toLowerCase();
-  const issueFor = (
-    step: ResolvedApproverStep,
-    reason: string
-  ): ApproverResolutionIssue => ({
-    campusId: context.campusId,
-    department: context.departmentName ?? "(none)",
-    reason,
-    roleSought: step.fallbackFor ?? step.role,
-  });
-
-  const notSubmitter = resolved.steps.filter((step) => {
-    if (submitterEmail && emailOf(step) === submitterEmail) {
-      issues.push(issueFor(step, "Approver is the submitter"));
-      return false;
-    }
-    return true;
-  });
-  const kept = notSubmitter.filter((step, index) => {
-    const later = notSubmitter
-      .slice(index + 1)
-      .find((other) => emailOf(other) === emailOf(step));
-    if (later) {
-      issues.push(
-        issueFor(
-          step,
-          `Same approver as the ${later.role} step; the earlier ${step.role} step was dropped`
-        )
-      );
-      return false;
-    }
-    return true;
-  });
-  return {
-    issues,
-    steps: kept.map((step, index) => ({ ...step, step: index + 1 })),
-  };
+  let id = userId;
+  if (!id) {
+    const expense = await db.getRow<Expenses>("app", "expense", expenseId, [
+      Query.select(["$id", "userId"]),
+    ]);
+    id = expense?.userId;
+  }
+  return id ? loadUserEmail(db, id) : null;
 }
 
 /** Issue writes are best-effort once the chain exists: never thrown. */
@@ -351,11 +320,14 @@ export async function createApprovalChain(
   const { steps, issues } = guardChain(
     context,
     resolved,
-    await loadSubmitterEmail(db, context.expenseId)
+    await loadSubmitterEmail(db, context.expenseId, context.submitterUserId)
   );
 
   if (steps.length === 0) {
-    // Nobody approves this one, so the queue has to see it. The sought role is
+    // No chain row exists, so nothing is claimed and the expense is still a
+    // draft: these issue writes may throw, and the submission then fails with
+    // the draft untouched and resubmittable. Nobody approves this one, so the
+    // queue has to see it. The sought role is
     // the plan's last step, the one that would have approved it.
     const lastPlanned = getCampusApprovalPlan({
       campusId: context.campusId,
@@ -385,7 +357,7 @@ export async function createApprovalChain(
   const rawTokens = new Map<number, string>();
 
   const created: ExpenseApprovals[] = [];
-  const createStepRow = async (step: ResolvedApproverStep) => {
+  const createStepRow = async (step: GuardedApproverStep) => {
     const rawToken = randomBytes(24).toString("hex");
     rawTokens.set(step.step, rawToken);
     const row = await db.createRow<ExpenseApprovals>(
@@ -422,6 +394,11 @@ export async function createApprovalChain(
   // 409, holds nothing of ours, and so must not roll anything back.
   await createStepRow(steps[0]);
 
+  let delivery: DeliveryResult = {
+    emailDelivered: false,
+    teamsDelivered: false,
+  };
+  let firstRow: ExpenseApprovals = created[0];
   try {
     for (const step of steps.slice(1)) {
       await createStepRow(step);
@@ -435,13 +412,15 @@ export async function createApprovalChain(
 
     const first = created.find((row) => row.step === 1) ?? created[0];
     const firstStep = steps.find((step) => step.step === first.step);
-    await notifyStep(
+    delivery = await notifyStep(
       context,
       first,
       rawTokens.get(first.step) ?? "",
       steps.length,
-      firstStep?.aadId ?? null
+      firstStep?.aadId ?? null,
+      { recordEvent: false }
     );
+    firstRow = first;
   } catch (error) {
     // Anything after the claim failed (a step row, the status write, or the
     // first approver being unreachable): delete the chain rows (which also
@@ -449,37 +428,41 @@ export async function createApprovalChain(
     // so it can be resubmitted cleanly, never stranded behind a 409.
     await Promise.all(
       created.map((row) =>
-        db.deleteRow("app", "expense_approvals", row.$id).catch(() => undefined)
+        db.deleteRow("app", "expense_approvals", row.$id).catch((cause) => {
+          console.error(
+            `[expense-approval] rollback: could not delete step row ${row.$id}:`,
+            cause
+          );
+        })
       )
     );
     await db
       .updateRow("app", "expense", context.expenseId, {
         status: ExpensesStatus.DRAFT,
       })
-      .catch(() => undefined);
+      .catch((cause) => {
+        console.error(
+          `[expense-approval] rollback: could not return expense ${context.expenseId} to draft:`,
+          cause
+        );
+      });
     throw error;
   }
 
   // Best-effort history and issues, written only once the chain stands so a
-  // rolled-back submission leaves no `approver_resolved` trail behind.
+  // rolled-back submission leaves no trail behind. Resolution comes before the
+  // `notified` event, as it happened.
   await recordResolutionIssuesSafely(db, context.expenseId, issues);
-  try {
-    await recordExpenseEvents(
-      db,
-      steps.map((step) => ({
-        action: "approver_resolved",
-        actorKind: "system",
-        after: step.email,
-        expenseId: context.expenseId,
-        note: approverResolvedNote(step),
-      }))
-    );
-  } catch (error) {
-    console.error(
-      "[expense-approval] approver_resolved history failed:",
-      error
-    );
-  }
+  await recordExpenseEvents(db, [
+    ...steps.map((step) => ({
+      action: "approver_resolved" as const,
+      actorKind: "system" as const,
+      after: step.email.trim().toLowerCase(),
+      expenseId: context.expenseId,
+      note: approverResolvedNote(step),
+    })),
+    notifiedEvent(firstRow, delivery),
+  ]);
 
   return { stepsCreated: created.length, notified: true };
 }

@@ -564,6 +564,35 @@ describe("expense submit route", () => {
     );
   });
 
+  it("drops a web draft's controller flag when the department changed", async () => {
+    vi.mocked(isFeatureEnabled).mockResolvedValue(true);
+    // Saved on the web with the switch on, on Ledelsen Oslo (department 2).
+    adminDb.getRow.mockResolvedValue({
+      $id: "expense-1",
+      campus: "1",
+      department: "2",
+      expenseAttachments: [],
+      status: ExpensesStatus.DRAFT,
+      submitter_is_controller: true,
+      userId: "submitter-1",
+    });
+
+    // An old app moves it to Drift Campus Oslo (department 1), which also
+    // offers the controller switch, and sends no flag.
+    const response = await POST(
+      submitRequest({
+        ...SUBMIT_BODY,
+        department: "1",
+        expenseId: "expense-1",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(createApprovalChain).toHaveBeenLastCalledWith(
+      expect.objectContaining({ submitterIsController: false })
+    );
+  });
+
   it("stores and routes the financial-manager flag on Ledelsen Oslo as false", async () => {
     vi.mocked(isFeatureEnabled).mockResolvedValue(true);
 

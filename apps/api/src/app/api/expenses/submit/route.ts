@@ -295,6 +295,7 @@ async function submitForApproval({
   expense,
   profile,
   reimbursementNumber,
+  submitterId,
   submitterIsController,
   submitterIsFinancialManager,
 }: Submission): Promise<void> {
@@ -314,6 +315,7 @@ async function submitForApproval({
       submitterIsFinancialManager,
       reimbursementNumber,
       submitterName: profile.name,
+      submitterUserId: submitterId,
       departmentLabel: expense.departmentRel?.Name ?? expense.department,
       campusLabel: expense.campusRel?.name ?? expense.campus,
       total: expense.total,
