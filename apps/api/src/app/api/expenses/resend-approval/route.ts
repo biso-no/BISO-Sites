@@ -4,25 +4,12 @@
 // CRON_SECRET as the other scheduled endpoints.
 
 import { isFeatureEnabled } from "@repo/shared/utils/feature-flags-server";
-import { safeSecretCompare } from "@repo/shared/utils/secrets";
 import { type NextRequest, NextResponse } from "next/server";
 import { resendApprovalNotification } from "@/lib/expense-approval";
+import { isInternalRequest } from "@/lib/internal-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function readBearerToken(request: NextRequest): string | null {
-  const authHeader = request.headers.get("authorization");
-  return authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-}
-
-function hasValidCronSecret(request: NextRequest, secret: string): boolean {
-  const candidates = [
-    readBearerToken(request),
-    request.headers.get("x-cron-secret"),
-  ];
-  return candidates.some((candidate) => safeSecretCompare(candidate, secret));
-}
 
 export async function POST(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -32,7 +19,7 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-  if (!hasValidCronSecret(req, secret)) {
+  if (!isInternalRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!(await isFeatureEnabled("expenses_ledger_posting"))) {

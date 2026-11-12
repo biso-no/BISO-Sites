@@ -5,6 +5,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { ID, type Models, Query } from "@repo/api";
+import { appwriteErrorStatus } from "@repo/api/errors";
 import { createAdminClient } from "@repo/api/server";
 import {
   type ExpenseApprovals,
@@ -30,6 +31,7 @@ import {
   resolveExpenseApprovers,
 } from "./expense-approver-resolution";
 
+const HTTP_NOT_FOUND = 404;
 const TOKEN_TTL_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // `expense_approval_issues.reason` is capped at 500 chars in the schema; cap here
@@ -171,6 +173,16 @@ async function notifyStep(
       `Could not deliver the approval notification to ${row.approver_email} via Teams or email.`
     );
   }
+
+  await recordExpenseEvents(db, [
+    {
+      action: "notified",
+      actorKind: "system",
+      after: row.approver_email,
+      expenseId: row.expense_id,
+      note: teamsDelivered ? "teams,email" : "email",
+    },
+  ]);
 }
 
 export interface CreateChainResult {
@@ -495,6 +507,7 @@ type ExpenseSummaryRow = Models.Row & {
   total: number;
   description: string | null;
   userId: string;
+  status?: string;
   departmentRel?: { Name?: string } | null;
   campusRel?: { name?: string } | null;
 };
@@ -580,51 +593,98 @@ async function reconcileExpenseStatus(expenseId: string): Promise<void> {
   }
 }
 
-/**
- * Records an approve/reject decision for the step identified by `rawToken`.
- * Idempotent: a step that is already decided returns its existing outcome.
- * On final approval the expense moves to `approved` (the poster picks it up);
- * on rejection it moves to `rejected`.
- */
-export async function decideApproval(params: {
-  rawToken: string;
-  decision: "approved" | "rejected";
-  decidedBy: string;
-  reason?: string;
-}): Promise<DecisionResult> {
-  const { db } = await createAdminClient();
-  const tokenHash = hashToken(params.rawToken);
+const EXPENSE_SUMMARY_SELECT = [
+  "$id",
+  "campus",
+  "department",
+  "total",
+  "description",
+  "userId",
+  "status",
+  "$sequence",
+  "departmentRel.Name",
+  "campusRel.name",
+];
 
-  const found = await db.listRows<ExpenseApprovals>(
+const ROLE_NOUN: Record<string, string> = {
+  finance: "the financial manager",
+  manager: "the department manager",
+  deputy: "the deputy manager",
+  controller: "the campus controller",
+  president: "the campus president",
+  national: "the national approver",
+};
+
+const NOTE_SEPARATOR = " · ";
+const NOT_CURRENT_STEP_ERROR = "This step is not waiting for a decision.";
+
+export interface ApprovalActor {
+  email: string | null;
+  kind: "approver" | "admin";
+  name: string;
+}
+
+interface StepDecisionInput {
+  actor: ApprovalActor;
+  decision: "approved" | "rejected";
+  onBehalf: boolean;
+  reason?: string;
+  /** The id path only decides the current step of a pending expense. */
+  requireCurrentStep: boolean;
+}
+
+function decisionNote(
+  row: ExpenseApprovals,
+  input: StepDecisionInput
+): string | null {
+  const parts: string[] = [];
+  if (input.onBehalf) {
+    parts.push(
+      `On behalf of ${ROLE_NOUN[row.approver_role] ?? row.approver_role}`
+    );
+  }
+  if (input.reason) {
+    parts.push(`Reason: ${input.reason}`);
+  }
+  return parts.length > 0 ? parts.join(NOTE_SEPARATOR) : null;
+}
+
+/** True when `row` is the lowest-numbered pending step of a pending expense. */
+async function isCurrentStep(
+  db: AdminDb,
+  row: ExpenseApprovals,
+  expense: ExpenseSummaryRow
+): Promise<boolean> {
+  if (expense.status !== ExpensesStatus.PENDING) {
+    return false;
+  }
+  const pending = await db.listRows<ExpenseApprovals>(
     "app",
     "expense_approvals",
-    [Query.equal("token_hash", tokenHash), Query.limit(1)]
+    [
+      Query.equal("expense_id", row.expense_id),
+      Query.equal("status", ExpenseApprovalsStatus.PENDING),
+      Query.orderAsc("step"),
+      Query.limit(1),
+    ]
   );
-  const row = found.rows[0];
-  if (!row) {
-    return { ok: false, error: "This approval link is invalid." };
-  }
-  if (Date.now() > new Date(row.expires_at).getTime()) {
-    return { ok: false, error: "This approval link has expired." };
-  }
+  return pending.rows[0]?.$id === row.$id;
+}
 
+/**
+ * Applies a decision to a loaded step row: claim, write, then reject / notify
+ * the next step / finalize. Shared by the token path and the by-id path.
+ */
+async function decideStep(
+  db: AdminDb,
+  row: ExpenseApprovals,
+  input: StepDecisionInput
+): Promise<DecisionResult> {
   const expense = await db.getRow<ExpenseSummaryRow>(
     "app",
     "expense",
     row.expense_id,
-    [
-      Query.select([
-        "$id",
-        "campus",
-        "department",
-        "total",
-        "description",
-        "userId",
-        "$sequence",
-        "departmentRel.Name",
-        "campusRel.name",
-      ]),
-    ]
+    [Query.select(EXPENSE_SUMMARY_SELECT)]
   );
   const refNumber = reimbursementNumber(expense.$sequence);
 
@@ -634,6 +694,10 @@ export async function decideApproval(params: {
     // expense status from the chain — this heals a stuck-pending expense on retry.
     await reconcileExpenseStatus(row.expense_id);
     return decidedResult(row, refNumber);
+  }
+
+  if (input.requireCurrentStep && !(await isCurrentStep(db, row, expense))) {
+    return { ok: false, error: NOT_CURRENT_STEP_ERROR };
   }
 
   // Atomically claim this step before applying the decision. Appwrite has no
@@ -656,15 +720,18 @@ export async function decideApproval(params: {
     return await concurrentDecisionResult(row.$id, refNumber);
   }
 
+  const actorEmail = input.actor.email;
   try {
     await db.updateRow<ExpenseApprovals>("app", "expense_approvals", row.$id, {
       status:
-        params.decision === "approved"
+        input.decision === "approved"
           ? ExpenseApprovalsStatus.APPROVED
           : ExpenseApprovalsStatus.REJECTED,
-      decided_by: params.decidedBy,
+      decided_by: input.actor.name,
+      decided_by_email: actorEmail,
+      on_behalf: input.onBehalf,
       decided_at: new Date().toISOString(),
-      reason: params.reason ?? null,
+      reason: input.reason ?? null,
       consumed_at: new Date().toISOString(),
     } as Partial<ExpenseApprovals>);
   } catch (error) {
@@ -683,11 +750,22 @@ export async function decideApproval(params: {
     throw error;
   }
 
-  if (params.decision === "rejected") {
+  await recordExpenseEvents(db, [
+    {
+      action: input.decision,
+      actorEmail,
+      actorKind: input.actor.kind,
+      actorName: input.actor.name,
+      expenseId: row.expense_id,
+      note: decisionNote(row, input),
+    },
+  ]);
+
+  if (input.decision === "rejected") {
     await db.updateRow("app", "expense", row.expense_id, {
       status: ExpensesStatus.REJECTED,
     });
-    await notifySubmitter(expense.userId, refNumber, "rejected", params.reason);
+    await notifySubmitter(expense.userId, refNumber, "rejected", input.reason);
     return {
       ok: true,
       decision: "rejected",
@@ -698,7 +776,8 @@ export async function decideApproval(params: {
   }
 
   // Approved: a directory approver who answered is now confirmed (best-effort).
-  if (row.directory_key) {
+  // Someone deciding on the approver's behalf confirms nothing about them.
+  if (row.directory_key && !input.onBehalf) {
     await confirmDirectoryApprover(db, row.directory_key, row.approver_email);
   }
 
@@ -741,6 +820,85 @@ export async function decideApproval(params: {
     expenseId: row.expense_id,
     reimbursementNumber: refNumber,
   };
+}
+
+/**
+ * Records an approve/reject decision for the step identified by `rawToken`.
+ * Idempotent: a step that is already decided returns its existing outcome.
+ * On final approval the expense moves to `approved` (the poster picks it up);
+ * on rejection it moves to `rejected`.
+ */
+export async function decideApproval(params: {
+  rawToken: string;
+  decision: "approved" | "rejected";
+  decidedBy: string;
+  reason?: string;
+}): Promise<DecisionResult> {
+  const { db } = await createAdminClient();
+  const tokenHash = hashToken(params.rawToken);
+
+  const found = await db.listRows<ExpenseApprovals>(
+    "app",
+    "expense_approvals",
+    [Query.equal("token_hash", tokenHash), Query.limit(1)]
+  );
+  const row = found.rows[0];
+  if (!row) {
+    return { ok: false, error: "This approval link is invalid." };
+  }
+  if (Date.now() > new Date(row.expires_at).getTime()) {
+    return { ok: false, error: "This approval link has expired." };
+  }
+
+  return await decideStep(db, row, {
+    actor: {
+      email: row.approver_email,
+      kind: "approver",
+      name: params.decidedBy,
+    },
+    decision: params.decision,
+    onBehalf: false,
+    reason: params.reason,
+    requireCurrentStep: false,
+  });
+}
+
+/**
+ * Records an approve/reject decision for the step with id `approvalId` (the
+ * admin path). Same chain logic as the token path, but there is no link to
+ * expire, so the step must instead be the current one of a pending expense.
+ */
+export async function decideApprovalStep(params: {
+  approvalId: string;
+  decision: "approved" | "rejected";
+  actor: ApprovalActor;
+  onBehalf: boolean;
+  reason?: string;
+}): Promise<DecisionResult> {
+  const { db } = await createAdminClient();
+  let row: ExpenseApprovals;
+  try {
+    row = await db.getRow<ExpenseApprovals>(
+      "app",
+      "expense_approvals",
+      params.approvalId
+    );
+  } catch (error) {
+    if (appwriteErrorStatus(error) === HTTP_NOT_FOUND) {
+      return { ok: false, error: "This approval step does not exist." };
+    }
+    throw error;
+  }
+  return await decideStep(db, row, {
+    actor: {
+      ...params.actor,
+      email: params.actor.email?.toLowerCase() ?? null,
+    },
+    decision: params.decision,
+    onBehalf: params.onBehalf,
+    reason: params.reason,
+    requireCurrentStep: true,
+  });
 }
 
 async function countSteps(expenseId: string): Promise<number> {
