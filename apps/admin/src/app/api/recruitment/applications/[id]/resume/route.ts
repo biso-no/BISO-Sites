@@ -6,6 +6,7 @@ import {
   isApplicationDocument,
 } from "@repo/shared/recruitment/application-documents";
 import { RECRUITMENT_RESUME_BUCKET_ID } from "@repo/shared/types/recruitment";
+import { contentDisposition } from "@repo/shared/utils/content-disposition";
 import { NextResponse } from "next/server";
 import { getUserAuthContext } from "@/lib/authorization";
 import {
@@ -74,7 +75,7 @@ export async function GET(
     return new NextResponse(buffer, {
       headers: {
         "Cache-Control": "no-store",
-        "Content-Disposition": `${disposition}; filename="${file.name}"`,
+        "Content-Disposition": contentDisposition(disposition, file.name),
         "Content-Type": file.mimeType || "application/pdf",
       },
       status: 200,
