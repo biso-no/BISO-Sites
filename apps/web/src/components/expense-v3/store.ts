@@ -121,11 +121,16 @@ interface ExpenseStore {
   setProfile: (profile: Partial<Users>) => void;
   setSelectedReceiptId: (id: string | null) => void;
   setSubmissionError: (error: string | null) => void;
+  setSubmitterIsController: (value: boolean) => void;
   setSubmitterIsFinancialManager: (value: boolean) => void;
   setTypeOptions: (options: ExpenseTypeOption[]) => void;
 
   // Submission
   submissionError: string | null;
+
+  // Drift/Ledelsen: submitter is the campus financial controller (routes
+  // approval to the campus president instead).
+  submitterIsController: boolean;
 
   // Oslo-only: submitter is the department financial manager (routes approval
   // to the department manager instead of the financial manager).
@@ -164,6 +169,7 @@ const initialState = {
   submissionError: null,
   expenseId: null,
   submitterIsFinancialManager: false,
+  submitterIsController: false,
 };
 
 export const useExpenseStore = create<ExpenseStore>((set, get) => ({
@@ -231,12 +237,21 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
   setOccasionError: (occasionError) => set({ occasionError }),
   setEvent: (eventId, eventName) => set({ eventId, eventName }),
 
+  // Another department offers another switch, so a change clears both.
   setAssignment: (data) =>
-    set({
-      selectedCampusId: data.campusId,
-      selectedCampusName: data.campusName,
-      selectedDepartmentId: data.departmentId,
-      selectedDepartmentName: data.departmentName,
+    set((state) => {
+      const changed =
+        state.selectedCampusId !== data.campusId ||
+        state.selectedDepartmentId !== data.departmentId;
+      return {
+        selectedCampusId: data.campusId,
+        selectedCampusName: data.campusName,
+        selectedDepartmentId: data.departmentId,
+        selectedDepartmentName: data.departmentName,
+        ...(changed
+          ? { submitterIsController: false, submitterIsFinancialManager: false }
+          : {}),
+      };
     }),
 
   setProfile: (profile) => set({ profile }),
@@ -266,6 +281,9 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => ({
 
   setSubmissionError: (submissionError) => set({ submissionError }),
   setExpenseId: (expenseId) => set({ expenseId }),
+
+  setSubmitterIsController: (submitterIsController) =>
+    set({ submitterIsController }),
 
   setSubmitterIsFinancialManager: (submitterIsFinancialManager) =>
     set({ submitterIsFinancialManager }),

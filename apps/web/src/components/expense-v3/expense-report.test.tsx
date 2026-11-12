@@ -207,12 +207,14 @@ async function renderReport(
     onSaveDraft: vi.fn(),
     onSelect: vi.fn(),
     onSubmit,
+    onSubmitterIsControllerChange: vi.fn(),
     onSubmitterIsFinancialManagerChange: vi.fn(),
     onUpdate: vi.fn(),
     receipts,
     selectedCampusId: "5",
     selectedDepartmentId: "dept-1",
     selectedId: null,
+    submitterIsController: false,
     submitterIsFinancialManager: false,
     totalAmount: 249,
     typeOptions: OPTIONS,
@@ -407,5 +409,36 @@ describe("ExpenseReport submit gating", () => {
     });
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ExpenseReport approval switch", () => {
+  const switchIds = (container: HTMLElement) =>
+    [...container.querySelectorAll('input[role="switch"]')].map(
+      (input) => input.id
+    );
+
+  it("shows the controller switch on Ledelsen Bergen", async () => {
+    const { container } = await renderReport([receipt()], {
+      selectedCampusId: "2",
+      selectedDepartmentId: "300",
+    });
+    expect(switchIds(container)).toEqual(["controller-toggle"]);
+    expect(container.textContent).toContain("composer.report.controller");
+    expect(container.textContent).toContain("composer.report.controllerHint");
+  });
+
+  it("shows the financial-manager switch on an OSL department and none on Bergen 302", async () => {
+    const osl = await renderReport([receipt()], {
+      selectedCampusId: "1",
+      selectedDepartmentId: "10",
+    });
+    expect(switchIds(osl.container)).toEqual(["financial-manager-toggle"]);
+
+    const bergen = await renderReport([receipt()], {
+      selectedCampusId: "2",
+      selectedDepartmentId: "302",
+    });
+    expect(switchIds(bergen.container)).toEqual([]);
   });
 });

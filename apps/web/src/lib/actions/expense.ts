@@ -96,6 +96,7 @@ export async function getExpenseById(expenseId: string) {
         "status",
         "invoice_id",
         "submitter_is_financial_manager",
+        "submitter_is_controller",
         "userId",
         "eventName",
         "occasion",

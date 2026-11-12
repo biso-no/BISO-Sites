@@ -1,6 +1,7 @@
 "use client";
 
 import type { Campus, Users } from "@repo/api/types/appwrite";
+import { approvalSwitchFor } from "@repo/shared/utils/expense-approvers";
 import { RECEIPT_FILE_ACCEPT } from "@repo/shared/utils/expense-attachments";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import {
@@ -60,12 +61,6 @@ import type { ExpenseTypeOption } from "./types";
 
 type UploadState = { id: string; phase: "uploading" | "analyzing" } | null;
 type UploadPhase = NonNullable<UploadState>["phase"];
-
-// Oslo: the only campus with the department financial-manager approval step.
-const OSLO_CAMPUS_ID = "1";
-// Ledelsen Oslo: the leadership unit has no separate financial manager — the
-// campus controller approves directly — so the toggle is irrelevant there.
-const LEDELSEN_OSLO_DEPARTMENT_ID = "2";
 
 type TypeSlot = "column" | "inline";
 const TYPE_SLOTS: TypeSlot[] = ["inline", "column"];
@@ -533,16 +528,56 @@ interface ExpenseReportProps {
   onSaveDraft: () => void;
   onSelect: (id: string) => void;
   onSubmit: () => void;
+  onSubmitterIsControllerChange: (value: boolean) => void;
   onSubmitterIsFinancialManagerChange: (value: boolean) => void;
   onUpdate: (id: string, updates: Partial<Receipt>) => void;
   receipts: Receipt[];
   selectedCampusId: string;
   selectedDepartmentId: string;
   selectedId: string | null;
+  submitterIsController: boolean;
   submitterIsFinancialManager: boolean;
   totalAmount: number;
   typeOptions: ExpenseTypeOption[];
   userProfile: Partial<Users>;
+}
+
+interface ApprovalSwitchConfig {
+  checked: boolean;
+  hintKey: string;
+  id: string;
+  labelKey: string;
+  onChange: (value: boolean) => void;
+}
+
+function approvalSwitchConfig(
+  kind: ReturnType<typeof approvalSwitchFor>,
+  state: {
+    controller: boolean;
+    financialManager: boolean;
+    onController: (value: boolean) => void;
+    onFinancialManager: (value: boolean) => void;
+  }
+): ApprovalSwitchConfig | null {
+  if (kind === "controller") {
+    return {
+      checked: state.controller,
+      hintKey: "composer.report.controllerHint",
+      id: "controller-toggle",
+      labelKey: "composer.report.controller",
+      onChange: state.onController,
+    };
+  }
+  if (kind === "financial_manager") {
+    return {
+      checked: state.financialManager,
+      hintKey: "composer.report.financialManagerHint",
+      id: "financial-manager-toggle",
+      labelKey: "composer.report.financialManager",
+      onChange: state.onFinancialManager,
+    };
+  }
+  return null;
 }
 
 /** Brings the first receipt without a type into view and onto its picker. */
@@ -615,6 +650,8 @@ export function ExpenseReport({
   description,
   onDescriptionChange,
   isGeneratingSummary,
+  submitterIsController,
+  onSubmitterIsControllerChange,
   submitterIsFinancialManager,
   onSubmitterIsFinancialManagerChange,
   typeOptions,
@@ -638,6 +675,17 @@ export function ExpenseReport({
   // Find departments for selected campus
   const selectedCampus = campuses.find((c) => c.$id === selectedCampusId);
   const departments = selectedCampus?.departments || [];
+
+  // Exactly one self-declaration switch, chosen by the department.
+  const approvalSwitch = approvalSwitchConfig(
+    approvalSwitchFor(selectedCampusId, selectedDepartmentId),
+    {
+      controller: submitterIsController,
+      financialManager: submitterIsFinancialManager,
+      onController: onSubmitterIsControllerChange,
+      onFinancialManager: onSubmitterIsFinancialManagerChange,
+    }
+  );
   const hasReceiptsInProgress = receipts.some(
     (receipt) => receipt.status !== "ready"
   );
@@ -926,40 +974,37 @@ export function ExpenseReport({
 
             {eventMatch}
 
-            {selectedCampusId === OSLO_CAMPUS_ID &&
-              selectedDepartmentId !== LEDELSEN_OSLO_DEPARTMENT_ID && (
-                <div className="mt-4 flex items-start justify-between gap-4 rounded-biso-md border border-edge p-4">
-                  <div className="space-y-1">
-                    <label
-                      className="type-body-sm font-semibold text-ink"
-                      htmlFor="financial-manager-toggle"
-                    >
-                      {t("composer.report.financialManager")}
-                    </label>
-                    <p
-                      className="type-body-sm text-ink-muted"
-                      id="financial-manager-toggle-hint"
-                    >
-                      {t("composer.report.financialManagerHint")}
-                    </p>
-                  </div>
-                  {/* A native switch, as on the member portal: the shared one
-                      paints its "on" state in the sky blue, under the 3:1 a
-                      control's state needs against white. */}
-                  <input
-                    aria-checked={submitterIsFinancialManager}
-                    aria-describedby="financial-manager-toggle-hint"
-                    checked={submitterIsFinancialManager}
-                    className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2"
-                    id="financial-manager-toggle"
-                    onChange={(e) =>
-                      onSubmitterIsFinancialManagerChange(e.target.checked)
-                    }
-                    role="switch"
-                    type="checkbox"
-                  />
+            {approvalSwitch && (
+              <div className="mt-4 flex items-start justify-between gap-4 rounded-biso-md border border-edge p-4">
+                <div className="space-y-1">
+                  <label
+                    className="type-body-sm font-semibold text-ink"
+                    htmlFor={approvalSwitch.id}
+                  >
+                    {t(approvalSwitch.labelKey)}
+                  </label>
+                  <p
+                    className="type-body-sm text-ink-muted"
+                    id={`${approvalSwitch.id}-hint`}
+                  >
+                    {t(approvalSwitch.hintKey)}
+                  </p>
                 </div>
-              )}
+                {/* A native switch, as on the member portal: the shared one
+                    paints its "on" state in the sky blue, under the 3:1 a
+                    control's state needs against white. */}
+                <input
+                  aria-checked={approvalSwitch.checked}
+                  aria-describedby={`${approvalSwitch.id}-hint`}
+                  checked={approvalSwitch.checked}
+                  className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-solid focus-visible:outline-offset-2"
+                  id={approvalSwitch.id}
+                  onChange={(e) => approvalSwitch.onChange(e.target.checked)}
+                  role="switch"
+                  type="checkbox"
+                />
+              </div>
+            )}
           </div>
 
           {/* Line Items */}

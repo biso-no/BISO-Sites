@@ -40,3 +40,32 @@ describe("occasion ownership", () => {
     });
   });
 });
+
+describe("approval switches", () => {
+  beforeEach(() => useExpenseStore.getState().reset());
+
+  it("clears both switches when the department changes", () => {
+    const assign = (campusId: string, departmentId: string) =>
+      useExpenseStore.getState().setAssignment({
+        campusId,
+        campusName: "",
+        departmentId,
+        departmentName: "",
+      });
+    assign("1", "10");
+    useExpenseStore.getState().setSubmitterIsFinancialManager(true);
+    useExpenseStore.getState().setSubmitterIsController(true);
+
+    assign("1", "10");
+    expect(useExpenseStore.getState()).toMatchObject({
+      submitterIsController: true,
+      submitterIsFinancialManager: true,
+    });
+
+    assign("1", "2");
+    expect(useExpenseStore.getState()).toMatchObject({
+      submitterIsController: false,
+      submitterIsFinancialManager: false,
+    });
+  });
+});

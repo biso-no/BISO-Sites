@@ -415,6 +415,7 @@ type InitialExpenseDraft = Pick<
   | "event_id"
   | "expenseAttachments"
   | "occasion"
+  | "submitter_is_controller"
   | "submitter_is_financial_manager"
   | "total"
 >;
@@ -617,6 +618,9 @@ export function ExpenseSplitView({
     store.setSubmitterIsFinancialManager(
       Boolean(initialDraft.submitter_is_financial_manager)
     );
+    store.setSubmitterIsController(
+      Boolean(initialDraft.submitter_is_controller)
+    );
 
     for (const receipt of initialDraft.expenseAttachments
       .map((attachment) => buildReceiptFromAttachment(attachment, typeOptions))
@@ -637,6 +641,7 @@ export function ExpenseSplitView({
     store.setOccasionTouched,
     store.setExpenseId,
     store.setProfile,
+    store.setSubmitterIsController,
     store.setSubmitterIsFinancialManager,
     store.setTypeOptions,
     typeOptions,
@@ -851,6 +856,7 @@ export function ExpenseSplitView({
     event_id: store.eventId,
     eventName: store.eventName,
     submitter_is_financial_manager: store.submitterIsFinancialManager,
+    submitter_is_controller: store.submitterIsController,
     expenseAttachments: store.receipts.map((receipt, index) => ({
       date: receipt.date,
       url: receipt.fileId,
@@ -1084,6 +1090,7 @@ export function ExpenseSplitView({
             onSaveDraft={handleSaveDraft}
             onSelect={store.setSelectedReceiptId}
             onSubmit={handleSubmit}
+            onSubmitterIsControllerChange={store.setSubmitterIsController}
             onSubmitterIsFinancialManagerChange={
               store.setSubmitterIsFinancialManager
             }
@@ -1092,6 +1099,7 @@ export function ExpenseSplitView({
             selectedCampusId={store.selectedCampusId}
             selectedDepartmentId={store.selectedDepartmentId}
             selectedId={store.selectedReceiptId}
+            submitterIsController={store.submitterIsController}
             submitterIsFinancialManager={store.submitterIsFinancialManager}
             totalAmount={store.totalAmount()}
             typeOptions={store.typeOptions}

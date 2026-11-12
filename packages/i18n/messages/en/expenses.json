@@ -92,6 +92,8 @@
       "generatingSummary": "AI is writing a summary…",
       "financialManager": "I am the financial manager of this department",
       "financialManagerHint": "Turn this on so the approval is routed to your department manager instead of you.",
+      "controller": "I'm the campus financial controller",
+      "controllerHint": "Your campus president approves instead.",
       "itemColumn": "Item description",
       "empty": "No receipts added yet",
       "processing": "Processing…",

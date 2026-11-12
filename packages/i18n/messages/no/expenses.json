@@ -92,6 +92,8 @@
       "generatingSummary": "AI skriver et sammendrag …",
       "financialManager": "Jeg er økonomiansvarlig for denne enheten",
       "financialManagerHint": "Slå på dette, så sendes godkjenningen til enhetslederen din i stedet for til deg.",
+      "controller": "Jeg er campusets controller",
+      "controllerHint": "Campuspresidenten godkjenner i stedet.",
       "itemColumn": "Beskrivelse",
       "empty": "Ingen kvitteringer er lagt til ennå",
       "processing": "Behandler …",

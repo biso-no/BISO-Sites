@@ -391,4 +391,38 @@ describe("ExpenseSplitView submit", () => {
       (submits[1]?.[1] as { body: { expenseId?: string } }).body.expenseId
     ).toBe("expense-9");
   });
+
+  it("sends submitter_is_controller", async () => {
+    fetchApi.mockResolvedValue({ success: true, summary: "Travel." });
+    const container = await renderView();
+    await update(() => {
+      state().setAssignment({
+        campusId: "2",
+        campusName: "Bergen",
+        departmentId: "300",
+        departmentName: "Ledelsen",
+      });
+      state().setSubmitterIsController(true);
+      state().addReceipt(receipt());
+    });
+    await wait(SETTLE_MS);
+    await settle();
+
+    const submit = [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("composer.report.submit")
+    ) as HTMLButtonElement;
+    await act(() => {
+      submit.click();
+    });
+    await settle();
+    const call = fetchApi.mock.calls.find(
+      ([endpoint]) => endpoint === "/api/expenses/submit"
+    );
+    expect((call?.[1] as { body: Record<string, unknown> }).body).toMatchObject(
+      {
+        submitter_is_controller: true,
+        submitter_is_financial_manager: false,
+      }
+    );
+  });
 });
